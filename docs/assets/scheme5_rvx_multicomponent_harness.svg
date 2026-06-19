@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#344054"/>
+    </marker>
+    <marker id="arrow_orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#b54708"/>
+    </marker>
+    <style>
+      .title { font: 700 34px Arial, sans-serif; fill: #101828; }
+      .section { font: 700 22px Arial, sans-serif; fill: #101828; }
+      .label { font: 600 17px Arial, sans-serif; fill: #101828; }
+      .small { font: 14px Arial, sans-serif; fill: #344054; }
+      .tiny { font: 12px Arial, sans-serif; fill: #475467; }
+      .harness { fill: #e8f1ff; stroke: #175cd3; stroke-width: 2; }
+      .dut { fill: #eaf7ee; stroke: #16803c; stroke-width: 2; }
+      .mem { fill: #f6f0ff; stroke: #6941c6; stroke-width: 2; }
+      .note { fill: #fff7e6; stroke: #dc6803; stroke-width: 2; }
+      .line { stroke: #344054; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .line2 { stroke: #344054; stroke-width: 2.2; fill: none; marker-start: url(#arrow); marker-end: url(#arrow); }
+      .event { stroke: #b54708; stroke-width: 2.4; fill: none; marker-end: url(#arrow_orange); stroke-dasharray: 7 5; }
+      .box { rx: 8; ry: 8; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="#ffffff"/>
+  <text x="800" y="52" text-anchor="middle" class="title">Scheme5 RVX Multi-Component Harness</text>
+
+  <rect x="40" y="90" width="600" height="670" rx="14" ry="14" fill="#f8fbff" stroke="#b2ccff" stroke-width="2"/>
+  <text x="70" y="130" class="section">Scheme5 Fuzz Harness</text>
+
+  <rect x="90" y="170" width="210" height="70" class="box harness"/>
+  <text x="195" y="200" text-anchor="middle" class="label">RFuzz raw</text>
+  <text x="195" y="222" text-anchor="middle" class="small">0/1 bit string</text>
+
+  <rect x="360" y="170" width="210" height="70" class="box harness"/>
+  <text x="465" y="200" text-anchor="middle" class="label">Scenario</text>
+  <text x="465" y="222" text-anchor="middle" class="small">decoder</text>
+
+  <rect x="225" y="290" width="260" height="78" class="box harness"/>
+  <text x="355" y="321" text-anchor="middle" class="label">Protocol/state</text>
+  <text x="355" y="344" text-anchor="middle" class="small">coordinator</text>
+
+  <path d="M300 205 L360 205" class="line"/>
+  <path d="M465 240 L390 290" class="line"/>
+
+  <rect x="80" y="425" width="220" height="64" class="box harness"/>
+  <text x="190" y="452" text-anchor="middle" class="label">UART RX frame</text>
+  <text x="190" y="473" text-anchor="middle" class="small">generator</text>
+
+  <rect x="340" y="425" width="240" height="64" class="box harness"/>
+  <text x="460" y="452" text-anchor="middle" class="label">SPI peripheral</text>
+  <text x="460" y="473" text-anchor="middle" class="small">response model</text>
+
+  <rect x="80" y="525" width="220" height="64" class="box harness"/>
+  <text x="190" y="552" text-anchor="middle" class="label">GPIO input</text>
+  <text x="190" y="573" text-anchor="middle" class="small">pattern</text>
+
+  <rect x="340" y="525" width="240" height="64" class="box harness"/>
+  <text x="460" y="552" text-anchor="middle" class="label">Timer / interrupt</text>
+  <text x="460" y="573" text-anchor="middle" class="small">scenario</text>
+
+  <rect x="180" y="625" width="300" height="64" class="box mem"/>
+  <text x="330" y="652" text-anchor="middle" class="label">Memory / program</text>
+  <text x="330" y="673" text-anchor="middle" class="small">data generator</text>
+
+  <path d="M310 368 L210 425" class="line"/>
+  <path d="M405 368 L450 425" class="line"/>
+  <path d="M305 368 L205 525" class="line"/>
+  <path d="M405 368 L455 525" class="line"/>
+  <path d="M355 368 L335 625" class="line"/>
+
+  <rect x="700" y="90" width="860" height="670" rx="14" ry="14" fill="#fbfefc" stroke="#a6f4c5" stroke-width="2"/>
+  <text x="730" y="130" class="section">RVX DUT Components</text>
+
+  <rect x="760" y="175" width="250" height="82" class="box dut"/>
+  <text x="885" y="207" text-anchor="middle" class="label">rvx_core</text>
+  <text x="885" y="231" text-anchor="middle" class="small">RV32I CPU</text>
+
+  <rect x="1085" y="175" width="270" height="82" class="box dut"/>
+  <text x="1220" y="207" text-anchor="middle" class="label">rvx_bus</text>
+  <text x="1220" y="231" text-anchor="middle" class="small">address decoder / manager-device bus</text>
+
+  <path d="M1010 216 L1085 216" class="line2"/>
+  <text x="1047" y="196" text-anchor="middle" class="tiny">rw_address</text>
+  <text x="1047" y="236" text-anchor="middle" class="tiny">read/write req/resp, data</text>
+
+  <rect x="1120" y="315" width="200" height="60" class="box dut"/>
+  <text x="1220" y="351" text-anchor="middle" class="label">rvx_ram</text>
+
+  <rect x="800" y="430" width="200" height="60" class="box dut"/>
+  <text x="900" y="466" text-anchor="middle" class="label">rvx_uart</text>
+
+  <rect x="1055" y="430" width="200" height="60" class="box dut"/>
+  <text x="1155" y="466" text-anchor="middle" class="label">rvx_mtimer</text>
+
+  <rect x="1310" y="430" width="200" height="60" class="box dut"/>
+  <text x="1410" y="466" text-anchor="middle" class="label">rvx_gpio</text>
+
+  <rect x="1055" y="555" width="200" height="60" class="box dut"/>
+  <text x="1155" y="591" text-anchor="middle" class="label">rvx_spi</text>
+
+  <path d="M1220 257 L1220 315" class="line2"/>
+  <path d="M1140 257 C1040 315, 970 375, 900 430" class="line2"/>
+  <path d="M1210 257 C1190 330, 1170 375, 1155 430" class="line2"/>
+  <path d="M1300 257 C1385 315, 1410 365, 1410 430" class="line2"/>
+  <path d="M1225 257 C1235 390, 1200 485, 1155 555" class="line2"/>
+  <text x="1390" y="305" class="tiny">device request/response</text>
+
+  <rect x="805" y="315" width="230" height="86" class="box note"/>
+  <text x="920" y="341" text-anchor="middle" class="label">Address map</text>
+  <text x="825" y="363" class="tiny">RAM:    0x0000_0000</text>
+  <text x="825" y="379" class="tiny">UART:   0x8000_0000</text>
+  <text x="825" y="395" class="tiny">MTIMER: 0x8001_0000</text>
+  <text x="955" y="379" class="tiny">GPIO: 0x8002_0000</text>
+  <text x="955" y="395" class="tiny">SPI:  0x8003_0000</text>
+
+  <path d="M300 457 C540 455, 650 455, 800 460" class="line"/>
+  <text x="640" y="440" class="tiny">uart_rx</text>
+
+  <path d="M580 457 C770 500, 900 570, 1055 585" class="line"/>
+  <text x="835" y="545" class="tiny">poci / SPI response</text>
+
+  <path d="M300 557 C610 555, 970 505, 1310 462" class="line"/>
+  <text x="640" y="535" class="tiny">gpio_input</text>
+
+  <path d="M480 557 C635 555, 700 520, 760 235" class="event"/>
+  <text x="650" y="507" class="tiny">irq_fast / external irq</text>
+
+  <path d="M480 557 C680 610, 950 610, 1055 585" class="event"/>
+  <text x="710" y="632" class="tiny">timer scenario</text>
+
+  <path d="M480 657 C780 690, 1100 460, 1220 375" class="line"/>
+  <text x="820" y="700" class="tiny">init image / data pattern</text>
+
+  <path d="M900 430 C870 355, 830 310, 805 257" class="event"/>
+  <text x="800" y="362" class="tiny">UART irq -> irq_fast[0]</text>
+
+  <path d="M1155 430 C1075 350, 985 280, 925 257" class="event"/>
+  <text x="970" y="350" class="tiny">MTIMER irq -> irq_timer</text>
+
+  <rect x="240" y="805" width="1120" height="52" rx="10" ry="10" class="note"/>
+  <text x="800" y="837" text-anchor="middle" class="label">Scheme5 does not replace RVX DUT modules; it replaces random-pin driving with coordinated protocol-aware scenarios.</text>
+</svg>

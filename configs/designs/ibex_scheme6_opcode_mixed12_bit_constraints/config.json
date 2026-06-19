@@ -1,0 +1,24 @@
+{
+  "top": "ibex_core",
+  "project_root": "third_party/rfuzz/upstream/ibex",
+  "flist": "third_party/rfuzz/upstream/ibex/sources.f",
+  "out_dir": "runs/designs/ibex_scheme6_opcode_mixed12_bit_constraints",
+  "harness": {
+    "manual_harness": "configs/designs/ibex_scheme6_ablation_bit_constraints/harness/ibex_core_scheme6_ablation_bit_constraints_harness.sv",
+    "manual_harness_module": "ibex_core_scheme6_ablation_bit_constraints_harness"
+  },
+  "server": {
+    "extra_verilator_sources": [
+      "configs/designs/ibex_scheme6_ablation_bit_constraints/harness/ibex_core_scheme6_ablation_bit_constraints_harness.sv"
+    ]
+  },
+  "verilator_args": [
+    "-DSYNTHESIS",
+    "-DMODE_OPCODE_MIXED12",
+    "-Wno-DEPRECATED",
+    "-Wno-MULTIDRIVEN",
+    "-Wno-LATCH",
+    "-Wno-PINMISSING"
+  ],
+  "description": "Ibex strict bit-only variant: 12.5 percent of samples project opcode bits into common legal RV32 opcode classes; all other bits pass through"
+}

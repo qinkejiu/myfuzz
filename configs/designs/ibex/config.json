@@ -1,0 +1,33 @@
+{
+  "name": "ibex",
+  "top": "ibex_core",
+  "project_root": "third_party/rfuzz/upstream/ibex",
+  "flist": "third_party/rfuzz/upstream/ibex/sources.f",
+  "out_dir": "runs/designs/ibex",
+  "coverage_port": "__vi_coverage",
+  "signal_prefix": "__vi_branch_cov",
+  "instrumentation": {
+    "coverage_port": "__vi_coverage",
+    "signal_prefix": "__vi_branch_cov",
+    "branch": {
+      "if": true,
+      "case": true
+    },
+    "statement": {
+      "block_enter": false
+    },
+    "loop": {
+      "body": false
+    },
+    "hierarchy": {
+      "propagate_to_top": true
+    }
+  },
+  "verilator_args": [
+    "-DSYNTHESIS",
+    "-Wno-DEPRECATED",
+    "-Wno-MULTIDRIVEN",
+    "-Wno-LATCH",
+    "-Wno-PINMISSING"
+  ]
+}

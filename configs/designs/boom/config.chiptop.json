@@ -1,0 +1,101 @@
+{
+  "name": "boom_small_v3_chiptop",
+  "top": "ChipTop",
+  "project_root": "../chipyard/sims/verilator/generated-src/chipyard.harness.TestHarness.SmallBoomV3Config/gen-collateral",
+  "flist": "../chipyard/sims/verilator/generated-src/chipyard.harness.TestHarness.SmallBoomV3Config/boom_small_v3.rfuzz.f",
+  "out_dir": "runs/designs/boom_chiptop",
+  "coverage_port": "__vi_coverage",
+  "signal_prefix": "__vi_branch_cov",
+  "instrumentation": {
+    "coverage_port": "__vi_coverage",
+    "signal_prefix": "__vi_branch_cov",
+    "branch": {
+      "if": true,
+      "case": true,
+      "case_default": true,
+      "else_if": false,
+      "else_missing": false
+    },
+    "statement": {
+      "block_enter": false,
+      "procedural_assign": false,
+      "call": false,
+      "control": false
+    },
+    "loop": {
+      "body": false,
+      "single_statement": false
+    },
+    "expression": {
+      "ternary": false,
+      "condition": false,
+      "toggle": false
+    },
+    "assertion": {
+      "hit": false,
+      "metadata": false
+    },
+    "static": {
+      "generate": false
+    },
+    "hierarchy": {
+      "propagate_to_top": true
+    }
+  },
+  "verilator_args": [
+    "-Wno-fatal",
+    "-Wno-WIDTH",
+    "-Wno-STMTDLY",
+    "-Wno-PINMISSING",
+    "-Wno-UNOPTFLAT",
+    "-Wno-BLKANDNBLK",
+    "-Wno-MULTIDRIVEN",
+    "-Wno-LATCH",
+    "-Wno-UNUSED",
+    "-Wno-UNDRIVEN",
+    "-Wno-IMPLICITSTATIC",
+    "-Wno-TIMESCALEMOD",
+    "--timing"
+  ],
+  "frontend": {
+    "mode": "verilator"
+  },
+  "harness": {
+    "validate": false,
+    "clock_ports": [
+      "clock_uncore",
+      "serial_tl_0_clock_in"
+    ],
+    "reset_ports": [
+      "reset_io",
+      "jtag_reset"
+    ],
+    "constant_inputs": {
+      "uart_0_rxd": "1'b1",
+      "jtag_TCK": "1'b0",
+      "jtag_TMS": "1'b1",
+      "jtag_TDI": "1'b0",
+      "custom_boot": "1'b0",
+      "axi4_mem_0_bits_aw_ready": "1'b1",
+      "axi4_mem_0_bits_w_ready": "1'b1",
+      "axi4_mem_0_bits_b_valid": "1'b0",
+      "axi4_mem_0_bits_b_bits_id": "'0",
+      "axi4_mem_0_bits_b_bits_resp": "'0",
+      "axi4_mem_0_bits_ar_ready": "1'b1",
+      "axi4_mem_0_bits_r_valid": "1'b0",
+      "axi4_mem_0_bits_r_bits_id": "'0",
+      "axi4_mem_0_bits_r_bits_data": "'0",
+      "axi4_mem_0_bits_r_bits_resp": "'0",
+      "axi4_mem_0_bits_r_bits_last": "1'b0"
+    }
+  },
+  "server": {
+    "cxx_opt": "-O0",
+    "verilator_opt": "-O0",
+    "parallel_verilator_build": true
+  },
+  "fuzz": {
+    "crash_restarts": 3,
+    "stop_on_crash": false
+  }
+}

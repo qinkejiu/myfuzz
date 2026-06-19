@@ -1,0 +1,48 @@
+{
+  "name": "smoke_enhanced",
+  "top": "top",
+  "project_root": "configs/designs/smoke",
+  "flist": "configs/designs/smoke/sources.f",
+  "out_dir": "runs/designs/smoke_enhanced",
+  "instrumentation": {
+    "coverage_port": "__vi_coverage",
+    "signal_prefix": "__vi_cov",
+    "branch": {
+      "if": true,
+      "case": true,
+      "case_default": true,
+      "else_if": true,
+      "else_missing": true
+    },
+    "statement": {
+      "block_enter": true,
+      "procedural_assign": true,
+      "call": true,
+      "control": true
+    },
+    "loop": {
+      "body": true,
+      "single_statement": true
+    },
+    "expression": {
+      "ternary": true,
+      "condition": true,
+      "toggle": true
+    },
+    "assertion": {
+      "hit": true,
+      "metadata": true
+    },
+    "static": {
+      "generate": true
+    },
+    "hierarchy": {
+      "propagate_to_top": true
+    }
+  },
+  "verilator_args": [
+    "-Wno-DECLFILENAME",
+    "-Wno-MULTIDRIVEN",
+    "-Wno-LATCH"
+  ]
+}

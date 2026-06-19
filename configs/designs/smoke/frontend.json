@@ -1,0 +1,40 @@
+{
+  "schema": "myfuzz.frontend.v1",
+  "source": "verilator-frontend-ast",
+  "topModule": "top",
+  "modules": [
+    {
+      "name": "child",
+      "origName": "child",
+      "top": false,
+      "level": 1,
+      "file": "smoke.sv",
+      "line": 1,
+      "ports": [
+        {"name": "a", "direction": "input", "width": 1, "pin": 1, "file": "smoke.sv", "line": 1, "column": 26},
+        {"name": "y", "direction": "output", "width": 1, "pin": 2, "file": "smoke.sv", "line": 1, "column": 42}
+      ],
+      "instances": [],
+      "branches": [
+        {"index": 0, "kind": "if", "subtype": "true", "file": "smoke.sv", "line": 3, "column": 5},
+        {"index": 1, "kind": "if", "subtype": "false", "file": "smoke.sv", "line": 3, "column": 5}
+      ]
+    },
+    {
+      "name": "top",
+      "origName": "top",
+      "top": true,
+      "level": 0,
+      "file": "smoke.sv",
+      "line": 10,
+      "ports": [
+        {"name": "a", "direction": "input", "width": 1, "pin": 1, "file": "smoke.sv", "line": 10, "column": 24},
+        {"name": "y", "direction": "output", "width": 1, "pin": 2, "file": "smoke.sv", "line": 10, "column": 40}
+      ],
+      "instances": [
+        {"name": "u_child", "origName": "u_child", "child": "child", "childOrig": "child", "file": "smoke.sv", "line": 11, "column": 9}
+      ],
+      "branches": []
+    }
+  ]
+}

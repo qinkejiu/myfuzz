@@ -1,0 +1,52 @@
+{
+  "name": "ibex_multicomponent_ip_baseline_direct_slice",
+  "description": "Ibex + common IP baseline: raw RFuzz input bits are fixed-sliced into the wrapper with no dependency projection.",
+  "status": "remote_smoke_and_10s_fuzz_passed",
+  "top": "ibex_multicomponent_ip_top",
+  "project_root": ".",
+  "flist": "configs/designs/ibex_multicomponent_ip/rtl/generated_remote_sources.f",
+  "out_dir": "runs/designs/ibex_multicomponent_ip_baseline_direct_slice",
+  "coverage_port": "__vi_coverage",
+  "signal_prefix": "__vi_branch_cov",
+  "instrumentation": {
+    "coverage_port": "__vi_coverage",
+    "signal_prefix": "__vi_branch_cov",
+    "branch": {
+      "if": true,
+      "case": true
+    },
+    "statement": {
+      "block_enter": false
+    },
+    "loop": {
+      "body": false
+    },
+    "hierarchy": {
+      "propagate_to_top": true
+    }
+  },
+  "harness": {
+    "manual_harness": "configs/designs/ibex_multicomponent_ip/harness/ibex_multicomponent_ip_baseline_direct_slice_harness.sv",
+    "manual_harness_module": "ibex_multicomponent_ip_baseline_direct_slice_harness"
+  },
+  "server": {
+    "extra_verilator_sources": [
+      "configs/designs/ibex_multicomponent_ip/harness/ibex_multicomponent_ip_baseline_direct_slice_harness.sv"
+    ]
+  },
+  "verilator_args": [
+    "-DSYNTHESIS",
+    "-Wno-DEPRECATED",
+    "-Wno-MULTIDRIVEN",
+    "-Wno-LATCH",
+    "-Wno-PINMISSING"
+  ],
+  "dependency_manifest": "configs/designs/ibex_multicomponent_ip/manifests/ibex_common_ip_dependency_manifest.json",
+  "baseline_policy": {
+    "input_mapping": "fixed_slice",
+    "dependency_projection": false,
+    "protocol_repair": false,
+    "irq_error_gating": false,
+    "dut_feedback": false
+  }
+}

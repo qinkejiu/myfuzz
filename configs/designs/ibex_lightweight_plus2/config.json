@@ -1,0 +1,17 @@
+{
+  "top": "ibex_core",
+  "project_root": "third_party/rfuzz/upstream/ibex",
+  "flist": "third_party/rfuzz/upstream/ibex/sources.f",
+  "out_dir": "runs/designs/ibex_lightweight_plus2",
+  "harness": {
+    "manual_harness": "configs/designs/ibex_lightweight_plus2/harness/ibex_core_lightweight_plus2_harness.sv",
+    "manual_harness_module": "ibex_core_lightweight_plus2_harness"
+  },
+  "server": {
+    "extra_verilator_sources": [
+      "configs/designs/ibex_lightweight_plus2/harness/ibex_core_lightweight_plus2_harness.sv"
+    ]
+  },
+  "verilator_args": ["-DSYNTHESIS"],
+  "description": "Ibex core with long-run oriented lightweight constraints: stable instruction stream, RF model, correlated memory, and low-frequency trap/debug/error exploration"
+}

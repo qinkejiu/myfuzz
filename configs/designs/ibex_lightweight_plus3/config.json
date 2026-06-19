@@ -1,0 +1,17 @@
+{
+  "top": "ibex_core",
+  "project_root": "third_party/rfuzz/upstream/ibex",
+  "flist": "third_party/rfuzz/upstream/ibex/sources.f",
+  "out_dir": "runs/designs/ibex_lightweight_plus3",
+  "harness": {
+    "manual_harness": "configs/designs/ibex_lightweight_plus3/harness/ibex_core_lightweight_plus3_harness.sv",
+    "manual_harness_module": "ibex_core_lightweight_plus3_harness"
+  },
+  "server": {
+    "extra_verilator_sources": [
+      "configs/designs/ibex_lightweight_plus3/harness/ibex_core_lightweight_plus3_harness.sv"
+    ]
+  },
+  "verilator_args": ["-DSYNTHESIS"],
+  "description": "Ibex core with input-bit constrained scheme4 plus3: bit-field-selected scenarios, stable short programs, correlated memory, variable bus latency, and low-frequency trap/debug/error exploration"
+}

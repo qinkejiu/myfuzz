@@ -1,0 +1,24 @@
+{
+  "top": "ibex_core",
+  "project_root": "third_party/rfuzz/upstream/ibex",
+  "flist": "third_party/rfuzz/upstream/ibex/sources.f",
+  "out_dir": "runs/designs/ibex_scheme6_ls_opcode_mixed75_bit_constraints",
+  "harness": {
+    "manual_harness": "configs/designs/ibex_scheme6_ablation_bit_constraints/harness/ibex_core_scheme6_ablation_bit_constraints_harness.sv",
+    "manual_harness_module": "ibex_core_scheme6_ablation_bit_constraints_harness"
+  },
+  "server": {
+    "extra_verilator_sources": [
+      "configs/designs/ibex_scheme6_ablation_bit_constraints/harness/ibex_core_scheme6_ablation_bit_constraints_harness.sv"
+    ]
+  },
+  "verilator_args": [
+    "-DSYNTHESIS",
+    "-DMODE_LS_OPCODE_MIXED75",
+    "-Wno-DEPRECATED",
+    "-Wno-MULTIDRIVEN",
+    "-Wno-LATCH",
+    "-Wno-PINMISSING"
+  ],
+  "description": "Ibex strict bit-only LSU-targeted variant: 75 percent samples project only opcode to LOAD/STORE classes"
+}

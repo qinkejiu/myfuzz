@@ -1,0 +1,190 @@
+{
+  "name": "rvx_initial_cpu_multi_ip_dependency_manifest",
+  "version": 1,
+  "target": {
+    "top": "multicomponent_cpu_ip_top",
+    "style": "rvx-inspired custom CPU + multi-IP target",
+    "source": "external_designs/rvx/hardware plus local wrapper"
+  },
+  "components": [
+    {
+      "instance": "u_core",
+      "module": "rvx_core_or_toy_cpu",
+      "kind": "cpu",
+      "role": "initiates instruction/data/MMIO transactions and consumes interrupts"
+    },
+    {
+      "instance": "u_bus",
+      "module": "rvx_bus_or_toy_interconnect",
+      "kind": "interconnect",
+      "role": "decodes CPU requests to RAM and peripheral IP regions"
+    },
+    {
+      "instance": "u_ram",
+      "module": "rvx_ram_or_toy_ram",
+      "kind": "memory",
+      "role": "serves aligned instruction/data memory accesses"
+    },
+    {
+      "instance": "u_mtimer",
+      "module": "rvx_mtimer_or_toy_timer",
+      "kind": "timer",
+      "role": "updates time/status and raises timer interrupt"
+    },
+    {
+      "instance": "u_gpio",
+      "module": "rvx_gpio_or_toy_gpio",
+      "kind": "gpio",
+      "role": "maps external GPIO pins to status and interrupt-like events"
+    },
+    {
+      "instance": "u_uart",
+      "module": "rvx_uart_or_toy_uart",
+      "kind": "uart",
+      "role": "models external serial receive/transmit status"
+    },
+    {
+      "instance": "u_spi",
+      "module": "rvx_spi_or_toy_spi",
+      "kind": "spi",
+      "role": "models external SPI peripheral exchange"
+    }
+  ],
+  "connections": [
+    {
+      "from": "u_core.mmio_req",
+      "to": "u_bus.cpu_req",
+      "role": "request"
+    },
+    {
+      "from": "u_bus.cpu_rsp",
+      "to": "u_core.mmio_rsp",
+      "role": "response"
+    },
+    {
+      "from": "u_bus.ram_port",
+      "to": "u_ram.bus_port",
+      "role": "memory_region"
+    },
+    {
+      "from": "u_bus.timer_port",
+      "to": "u_mtimer.bus_port",
+      "role": "mmio_region"
+    },
+    {
+      "from": "u_bus.gpio_port",
+      "to": "u_gpio.bus_port",
+      "role": "mmio_region"
+    },
+    {
+      "from": "u_bus.uart_port",
+      "to": "u_uart.bus_port",
+      "role": "mmio_region"
+    },
+    {
+      "from": "u_bus.spi_port",
+      "to": "u_spi.bus_port",
+      "role": "mmio_region"
+    },
+    {
+      "from": "u_mtimer.irq",
+      "to": "u_core.timer_irq",
+      "role": "interrupt"
+    },
+    {
+      "from": "u_gpio.irq",
+      "to": "u_core.external_irq",
+      "role": "interrupt"
+    },
+    {
+      "from": "u_uart.irq",
+      "to": "u_core.external_irq",
+      "role": "interrupt"
+    },
+    {
+      "from": "u_spi.irq",
+      "to": "u_core.external_irq",
+      "role": "interrupt"
+    }
+  ],
+  "address_map": [
+    {
+      "name": "ram",
+      "base": "0x00000000",
+      "size": "0x00010000",
+      "target": "u_ram",
+      "access": "read_write_execute"
+    },
+    {
+      "name": "uart",
+      "base": "0x80000000",
+      "size": "0x00001000",
+      "target": "u_uart",
+      "access": "read_write_mmio"
+    },
+    {
+      "name": "mtimer",
+      "base": "0x80010000",
+      "size": "0x00001000",
+      "target": "u_mtimer",
+      "access": "read_write_mmio"
+    },
+    {
+      "name": "gpio",
+      "base": "0x80020000",
+      "size": "0x00001000",
+      "target": "u_gpio",
+      "access": "read_write_mmio"
+    },
+    {
+      "name": "spi",
+      "base": "0x80030000",
+      "size": "0x00001000",
+      "target": "u_spi",
+      "access": "read_write_mmio"
+    }
+  ],
+  "dependency_rules": [
+    {
+      "name": "address_decode_selects_target_ip",
+      "kind": "address_decode",
+      "baseline": "Address bits are directly sliced and each IP input can still toggle independently.",
+      "depaware": "A raw region selector chooses RAM/UART/MTIMER/GPIO/SPI, then projected address bits are placed inside the selected region.",
+      "source": "RVX documented address map in candidate component notes."
+    },
+    {
+      "name": "request_response_progress",
+      "kind": "ready_valid",
+      "baseline": "Request, ready, valid, response and data are independent bit slices.",
+      "depaware": "Response valid is only asserted for a selected transaction; ready/valid are biased toward progress while still controlled by raw bits.",
+      "source": "Common bus request/response protocol role."
+    },
+    {
+      "name": "timer_status_drives_timer_irq",
+      "kind": "interrupt",
+      "baseline": "Timer IRQ is an independent bit slice.",
+      "depaware": "Timer IRQ is gated by timer event/status raw fields and can be cleared by a projected MMIO write.",
+      "source": "Timer peripheral semantics."
+    },
+    {
+      "name": "peripheral_status_drives_external_irq",
+      "kind": "interrupt",
+      "baseline": "GPIO/UART/SPI IRQs are independent bit slices.",
+      "depaware": "External IRQ is derived from selected peripheral event/status fields with low-frequency gate and priority.",
+      "source": "GPIO/UART/SPI status and interrupt style semantics."
+    },
+    {
+      "name": "error_debug_priority",
+      "kind": "event_priority",
+      "baseline": "Error, debug and IRQ bits can all toggle independently and densely.",
+      "depaware": "Error/debug/IRQ use raw-controlled low-frequency gates and a fixed priority to avoid every-cycle domination.",
+      "source": "Existing Ibex/CVA6 scheme5 bit-constraint lessons."
+    }
+  ],
+  "fairness": {
+    "same_target": true,
+    "same_instrumentation": true,
+    "same_coverage_denominator": true,
+    "notes": "Baseline and depaware differ only in how rfuzz_input_bits are interpreted by the harness. Both must drive the same composite target and use the same coverage port."
+  }
+}

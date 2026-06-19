@@ -1,0 +1,179 @@
+protocols:
+- name: instruction_bus_protocol
+  signals:
+  - instr_req_o
+  - instr_gnt_i
+  - instr_rvalid_i
+  - instr_rdata_i
+  - instr_err_i
+  fsm_states:
+  - IDLE
+  - REQUESTED
+  - GRANTED
+  - VALID
+  transitions:
+  - from: IDLE
+    to: REQUESTED
+    condition: instr_req_o == 1
+    action: 记录请求地址
+  - from: REQUESTED
+    to: GRANTED
+    condition: instr_gnt_i == 1
+    action: 记录grant周期
+  - from: GRANTED
+    to: VALID
+    condition: instr_rvalid_i == 1
+    action: 返回rdata
+  - from: VALID
+    to: IDLE
+    condition: 数据已返回
+    action: 完成一次传输
+  timing_rules:
+  - gnt可以在req的同周期或后续任意周期响应
+  - rvalid必须在gnt后至少1个周期
+  - 一次只能有一个outstanding request（简化版本）
+  - rvalid高时rdata必须有效
+  - err_i与rvalid同时有效表示总线错误
+  description: 指令总线的req-gnt-rvalid-rdata协议，基于OBI总线标准的简化版
+- name: data_bus_protocol
+  signals:
+  - data_req_o
+  - data_gnt_i
+  - data_rvalid_i
+  - data_rdata_i
+  - data_we_o
+  - data_be_o
+  - data_addr_o
+  - data_wdata_o
+  - data_err_i
+  fsm_states:
+  - IDLE
+  - REQUESTED
+  - GRANTED
+  - VALID
+  transitions:
+  - from: IDLE
+    to: REQUESTED
+    condition: data_req_o == 1
+    action: 记录请求类型(load/store)、地址、写数据
+  - from: REQUESTED
+    to: GRANTED
+    condition: data_gnt_i == 1
+    action: 锁定请求参数
+  - from: GRANTED
+    to: VALID
+    condition: data_rvalid_i == 1
+    action: 对于load返回rdata，对于store返回完成状态
+  - from: VALID
+    to: IDLE
+    condition: 数据已返回
+    action: 完成一次传输
+  timing_rules:
+  - 协议与指令总线相同：req → gnt → rvalid
+  - we_o在req时指示读(0)或写(1)
+  - be_o指示字节使能（4位对应4字节）
+  - addr_o必须对齐到访问大小
+  - wdata_o在写请求时有效
+  - load时rvalid高且rdata有效
+  - store时rvalid高表示写完成
+  description: 数据总线的load/store协议，支持字节/半字/字访问
+data_dependencies:
+- name: if_to_id_instruction_bundle
+  producer_module: IF
+  consumer_module: ID
+  signal_group:
+  - instr_valid_id
+  - instr_new_id
+  - instr_rdata_id
+  - instr_rdata_alu_id
+  - instr_rdata_c_id
+  - instr_is_compressed_id
+  - instr_fetch_err
+  - instr_fetch_err_plus2
+  - illegal_c_insn_id
+  - pc_id
+  consistency_rules:
+  - instr_valid_id为1时，其他信号必须一致
+  - instr_rdata_id、instr_is_compressed_id、pc_id必须对应同一条指令
+  - 如果instr_is_compressed_id=1，指令宽度为16位
+  - 如果instr_is_compressed_id=0，指令宽度为32位
+  - instr_fetch_err和illegal_c_insn_id不能同时为1（不同的错误类型）
+  - pc_id必须对齐到指令边界（压缩指令2字节，常规指令4字节）
+  description: IF阶段向ID阶段传递的指令包，包含指令数据、PC、压缩标志、错误状态
+control_flows:
+- name: pc_redirect_control
+  decision_signals:
+  - pc_set
+  - pc_mux_id
+  - exc_pc_mux_id
+  - exc_cause
+  - nt_branch_mispredict
+  - nt_branch_addr
+  priority_order:
+  - 异常/中断（最高优先级）
+  - 调试请求
+  - 分支跳转
+  - 顺序取指（默认）
+  mutual_exclusion:
+  - - 异常PC重定向
+    - 分支PC重定向
+  - - 分支预测错误
+    - 正常分支
+  description: ID阶段控制IF阶段的PC更新逻辑，处理异常、分支、跳转的优先级
+metadata:
+  version: '1.0'
+  target: ibex_core
+  extraction_method: manual + llm-assisted
+  sources:
+  - myfuzz/docs/IBEX_DEPENDENCY_GRAPH.md
+  - myfuzz/docs/ibex_dependency_extracted.json
+  - myfuzz/third_party/rfuzz/upstream/ibex/rtl/ibex_core.sv
+  - https://ibex-core.readthedocs.io/
+  special_constraints:
+    fetch_enable:
+      name: fetch_enable_control
+      signal: fetch_enable_i
+      width: 4
+      active_bits:
+      - 0
+      effect: fetch_enable_i[0]=0时，instr_req_gated=0且instr_exec=0，核心停止取指和执行
+      recommended_value: 4'b0001
+      description: 取指使能信号，默认配置下只有最低位有效，控制整个核心的运行
+    register_file:
+      name: register_file_state_model
+      signals:
+        write_port:
+        - rf_waddr_wb
+        - rf_wdata_wb
+        - rf_we_wb
+        read_port_a:
+        - rf_raddr_a
+        - rf_rdata_a
+        read_port_b:
+        - rf_raddr_b
+        - rf_rdata_b
+      state_model: 32个32位寄存器，x0固定为0
+      consistency_rules:
+      - rf_rdata应该反映最近一次对该地址的rf_wdata写入
+      - x0寄存器(addr=0)的读取总是返回0
+      - 写使能rf_we为0时不改变寄存器状态
+      - forwarding逻辑可能让读数据来自WB阶段而非RF
+      recommended_model: instantiate a simple register array or reuse ibex's register_file
+        module
+      description: 寄存器文件的读写一致性，需要维护状态而非随机返回数据
+    interrupts:
+      name: interrupt_event_model
+      signals:
+      - irq_software_i
+      - irq_timer_i
+      - irq_external_i
+      - irq_fast_i[14:0]
+      - irq_nm_i
+      recommended_strategy: burst模式
+      rules:
+      - 中断信号应该保持数个周期而非每周期随机翻转
+      - 多个中断同时触发是合法的
+      - irq_nm_i是不可屏蔽中断，优先级最高
+      - CSR寄存器mstatus.mie控制中断全局使能
+      suggested_pattern: 每N个周期随机选择一个中断拉高K个周期
+      description: 中断信号的时序模式，应该模拟真实的事件特征

@@ -1,0 +1,48 @@
+{
+  "name": "multicomponent_cpu_ip_depaware_projection",
+  "description": "Scaffold config for CPU + multi-IP scheme: raw RFuzz input bits are projected through explicit dependency rules before driving the same target.",
+  "status": "scaffold",
+  "top": "multicomponent_cpu_ip_top",
+  "project_root": "configs/designs/multicomponent_cpu_ip/rtl",
+  "flist": "configs/designs/multicomponent_cpu_ip/rtl/sources.f",
+  "out_dir": "runs/designs/multicomponent_cpu_ip_depaware_projection",
+  "frontend": {
+    "mode": "source_only"
+  },
+  "coverage_port": "__vi_coverage",
+  "signal_prefix": "__vi_branch_cov",
+  "instrumentation": {
+    "coverage_port": "__vi_coverage",
+    "signal_prefix": "__vi_branch_cov",
+    "branch": {
+      "if": true,
+      "case": true
+    },
+    "statement": {
+      "block_enter": false
+    },
+    "loop": {
+      "body": false
+    },
+    "hierarchy": {
+      "propagate_to_top": true
+    }
+  },
+  "harness": {
+    "manual_harness": "configs/designs/multicomponent_cpu_ip/harness/multicomponent_cpu_ip_depaware_projection_harness.sv",
+    "manual_harness_module": "multicomponent_cpu_ip_depaware_projection_harness"
+  },
+  "server": {
+    "extra_verilator_sources": [
+      "configs/designs/multicomponent_cpu_ip/harness/multicomponent_cpu_ip_depaware_projection_harness.sv"
+    ]
+  },
+  "dependency_manifest": "configs/designs/multicomponent_cpu_ip/manifests/rvx_initial_dependency_manifest.json",
+  "projection_policy": {
+    "input_mapping": "dependency_aware_projection",
+    "dependency_projection": true,
+    "protocol_repair": true,
+    "irq_error_gating": true,
+    "dut_feedback": false
+  }
+}

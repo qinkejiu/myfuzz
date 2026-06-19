@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "myfuzz CPU + multi-IP dependency manifest",
+  "type": "object",
+  "required": [
+    "name",
+    "version",
+    "target",
+    "components",
+    "connections",
+    "address_map",
+    "dependency_rules",
+    "fairness"
+  ],
+  "properties": {
+    "name": { "type": "string" },
+    "version": { "type": "integer", "minimum": 1 },
+    "target": {
+      "type": "object",
+      "required": ["top", "style"],
+      "properties": {
+        "top": { "type": "string" },
+        "style": { "type": "string" },
+        "source": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["instance", "module", "kind"],
+        "properties": {
+          "instance": { "type": "string" },
+          "module": { "type": "string" },
+          "kind": { "type": "string" },
+          "role": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "connections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "role"],
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "role": { "type": "string" },
+          "notes": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "address_map": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "base", "size", "target"],
+        "properties": {
+          "name": { "type": "string" },
+          "base": { "type": "string" },
+          "size": { "type": "string" },
+          "target": { "type": "string" },
+          "access": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "dependency_rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "kind", "baseline", "depaware"],
+        "properties": {
+          "name": { "type": "string" },
+          "kind": { "type": "string" },
+          "baseline": { "type": "string" },
+          "depaware": { "type": "string" },
+          "source": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "fairness": {
+      "type": "object",
+      "required": ["same_target", "same_instrumentation", "same_coverage_denominator"],
+      "properties": {
+        "same_target": { "type": "boolean" },
+        "same_instrumentation": { "type": "boolean" },
+        "same_coverage_denominator": { "type": "boolean" },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

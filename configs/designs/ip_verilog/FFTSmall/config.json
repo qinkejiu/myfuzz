@@ -1,0 +1,72 @@
+{
+  "name": "FFTSmall_verilog",
+  "top": "FFTSmall",
+  "project_root": "runs/ip_verilog_sources/FFTSmall",
+  "flist": "runs/ip_verilog_sources/FFTSmall/sources.f",
+  "out_dir": "runs/designs/ip_verilog_FFTSmall",
+  "coverage_port": "__vi_coverage",
+  "signal_prefix": "__vi_branch_cov",
+  "frontend": {
+    "mode": "verilator"
+  },
+  "instrumentation": {
+    "coverage_port": "__vi_coverage",
+    "signal_prefix": "__vi_branch_cov",
+    "branch": {
+      "if": true,
+      "case": true,
+      "case_default": true,
+      "else_if": false,
+      "else_missing": false
+    },
+    "statement": {
+      "block_enter": false,
+      "procedural_assign": false,
+      "call": false,
+      "control": false
+    },
+    "loop": {
+      "body": false,
+      "single_statement": false
+    },
+    "expression": {
+      "ternary": false,
+      "condition": false,
+      "toggle": false
+    },
+    "assertion": {
+      "hit": false,
+      "metadata": false,
+      "fail_on_side_effect": true,
+      "neutralize_side_effects": true
+    },
+    "static": {
+      "generate": false
+    },
+    "hierarchy": {
+      "propagate_to_top": true
+    }
+  },
+  "verilator_args": [
+    "-Wno-fatal",
+    "-Wno-DECLFILENAME",
+    "-Wno-MULTIDRIVEN",
+    "-Wno-LATCH",
+    "-Wno-WIDTH",
+    "-Wno-UNUSED",
+    "-Wno-UNDRIVEN"
+  ],
+  "harness": {
+    "validate": false
+  },
+  "server": {
+    "cxx_opt": "-O0",
+    "verilator_opt": "-O0",
+    "parallel_verilator_build": false
+  },
+  "fuzz": {
+    "max_cycles": 200,
+    "crash_restarts": 1,
+    "stop_on_crash": false
+  }
+}

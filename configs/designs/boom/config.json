@@ -1,0 +1,75 @@
+{
+  "name": "boom_small_v3",
+  "top": "TestHarness",
+  "project_root": "../chipyard/sims/verilator/generated-src/chipyard.harness.TestHarness.SmallBoomV3Config/gen-collateral",
+  "flist": "../chipyard/sims/verilator/generated-src/chipyard.harness.TestHarness.SmallBoomV3Config/boom_small_v3.rfuzz.f",
+  "out_dir": "runs/designs/boom",
+  "coverage_port": "__vi_coverage",
+  "signal_prefix": "__vi_branch_cov",
+  "instrumentation": {
+    "coverage_port": "__vi_coverage",
+    "signal_prefix": "__vi_branch_cov",
+    "branch": {
+      "if": true,
+      "case": true,
+      "case_default": true,
+      "else_if": false,
+      "else_missing": false
+    },
+    "statement": {
+      "block_enter": false,
+      "procedural_assign": false,
+      "call": false,
+      "control": false
+    },
+    "loop": {
+      "body": false,
+      "single_statement": false
+    },
+    "expression": {
+      "ternary": false,
+      "condition": false,
+      "toggle": false
+    },
+    "assertion": {
+      "hit": false,
+      "metadata": false
+    },
+    "static": {
+      "generate": false
+    },
+    "hierarchy": {
+      "propagate_to_top": true
+    }
+  },
+  "verilator_args": [
+    "-Wno-fatal",
+    "-Wno-WIDTH",
+    "-Wno-STMTDLY",
+    "-Wno-PINMISSING",
+    "-Wno-UNOPTFLAT",
+    "-Wno-BLKANDNBLK",
+    "-Wno-MULTIDRIVEN",
+    "-Wno-LATCH",
+    "-Wno-UNUSED",
+    "-Wno-UNDRIVEN",
+    "-Wno-IMPLICITSTATIC",
+    "-Wno-TIMESCALEMOD",
+    "--timing"
+  ],
+  "frontend": {
+    "mode": "verilator"
+  },
+  "harness": {
+    "validate": false
+  },
+  "server": {
+    "cxx_opt": "-O0",
+    "verilator_opt": "-O0",
+    "parallel_verilator_build": true
+  },
+  "fuzz": {
+    "crash_restarts": 3,
+    "stop_on_crash": false
+  }
+}

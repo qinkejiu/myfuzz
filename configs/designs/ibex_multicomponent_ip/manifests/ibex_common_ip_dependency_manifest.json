@@ -1,0 +1,151 @@
+{
+  "name": "ibex_common_ip_initial",
+  "target": "ibex_multicomponent_ip_top",
+  "cpu": {
+    "module": "ibex_core",
+    "instance": "u_ibex",
+    "role": "rv32_core"
+  },
+  "components": [
+    {
+      "instance": "u_ibex",
+      "module": "ibex_core",
+      "kind": "cpu",
+      "role": "rv32_controller"
+    },
+    {
+      "instance": "u_instr_ram",
+      "module": "ibex_mcip_ram",
+      "kind": "memory",
+      "role": "instruction_ram"
+    },
+    {
+      "instance": "u_data_ram",
+      "module": "ibex_mcip_ram",
+      "kind": "memory",
+      "role": "data_ram"
+    },
+    {
+      "instance": "u_timer",
+      "module": "ibex_mcip_timer",
+      "kind": "timer",
+      "role": "mtime_style_irq_source"
+    },
+    {
+      "instance": "u_gpio",
+      "module": "ibex_mcip_gpio",
+      "kind": "gpio",
+      "role": "external_pin_and_irq_source"
+    },
+    {
+      "instance": "u_uart",
+      "module": "ibex_mcip_uart",
+      "kind": "uart",
+      "role": "rx_tx_status_irq_source"
+    },
+    {
+      "instance": "u_spi",
+      "module": "ibex_mcip_spi",
+      "kind": "spi",
+      "role": "miso_shift_status_irq_source"
+    }
+  ],
+  "address_map": [
+    {
+      "name": "ram",
+      "base": "0x00000000",
+      "size": "0x00010000",
+      "target": "u_instr_ram/u_data_ram",
+      "access": "instruction_data"
+    },
+    {
+      "name": "timer",
+      "base": "0x80010000",
+      "size": "0x00010000",
+      "target": "u_timer",
+      "access": "mmio"
+    },
+    {
+      "name": "gpio",
+      "base": "0x80020000",
+      "size": "0x00010000",
+      "target": "u_gpio",
+      "access": "mmio"
+    },
+    {
+      "name": "uart",
+      "base": "0x80030000",
+      "size": "0x00010000",
+      "target": "u_uart",
+      "access": "mmio"
+    },
+    {
+      "name": "spi",
+      "base": "0x80040000",
+      "size": "0x00010000",
+      "target": "u_spi",
+      "access": "mmio"
+    }
+  ],
+  "connections": [
+    {
+      "from": "u_ibex.instr_addr_o",
+      "to": "u_instr_ram.addr_i",
+      "role": "instruction_fetch"
+    },
+    {
+      "from": "u_ibex.data_addr_o",
+      "to": "address_decoder",
+      "role": "mmio_region_select"
+    },
+    {
+      "from": "address_decoder",
+      "to": "u_data_ram/u_timer/u_gpio/u_uart/u_spi.valid_i",
+      "role": "selected_data_access"
+    },
+    {
+      "from": "u_timer.irq_o",
+      "to": "u_ibex.irq_timer_i",
+      "role": "timer_interrupt"
+    },
+    {
+      "from": "u_gpio/u_uart/u_spi.irq_o",
+      "to": "u_ibex.irq_external_i",
+      "role": "external_interrupt_or"
+    }
+  ],
+  "dependency_rules": [
+    {
+      "name": "address_decode_selects_one_target",
+      "baseline": "raw bit slices may drive unrelated wrapper inputs independently",
+      "depaware": "scenario/ip_focus selects RAM/timer/GPIO/UART/SPI regions and related IP events"
+    },
+    {
+      "name": "request_response_progress",
+      "baseline": "instruction/data latency bits are raw slices",
+      "depaware": "latency fields are projected to keep grants/responses reachable without using DUT output feedback"
+    },
+    {
+      "name": "ip_status_drives_irq",
+      "baseline": "IRQ/debug/error bits are direct slices",
+      "depaware": "timer/GPIO/UART/SPI event windows and low-frequency gates shape IRQ/debug/error inputs"
+    },
+    {
+      "name": "boot_fetch_sanity",
+      "baseline": "boot/fetch are raw slices",
+      "depaware": "boot address is aligned and fetch bit 0 is kept enabled"
+    }
+  ],
+  "fairness": {
+    "same_target": true,
+    "same_instrumented_rtl": true,
+    "same_coverage_denominator": true,
+    "same_rfuzz_input_width": 512,
+    "no_dut_feedback_in_harness": true
+  },
+  "notes": [
+    "Initial IPs are lightweight common-IP behavioral cores in configs/designs/ibex_multicomponent_ip/rtl.",
+    "The CPU is the real ibex_core from third_party/rfuzz/upstream/ibex on the remote machine.",
+    "Later iterations can replace the lightweight IP models with larger third-party IPs once the comparison framework is stable."
+  ]
+}

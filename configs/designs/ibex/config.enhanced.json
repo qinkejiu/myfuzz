@@ -1,0 +1,50 @@
+{
+  "name": "ibex_enhanced",
+  "top": "ibex_core",
+  "project_root": "third_party/rfuzz/upstream/ibex",
+  "flist": "third_party/rfuzz/upstream/ibex/sources.f",
+  "out_dir": "runs/designs/ibex_enhanced",
+  "instrumentation": {
+    "coverage_port": "__vi_coverage",
+    "signal_prefix": "__vi_cov",
+    "branch": {
+      "if": true,
+      "case": true,
+      "case_default": true,
+      "else_if": true,
+      "else_missing": true
+    },
+    "statement": {
+      "block_enter": true,
+      "procedural_assign": true,
+      "call": true,
+      "control": true
+    },
+    "loop": {
+      "body": true,
+      "single_statement": true
+    },
+    "expression": {
+      "ternary": true,
+      "condition": true,
+      "toggle": true
+    },
+    "assertion": {
+      "hit": true,
+      "metadata": true
+    },
+    "static": {
+      "generate": true
+    },
+    "hierarchy": {
+      "propagate_to_top": true
+    }
+  },
+  "verilator_args": [
+    "-DSYNTHESIS",
+    "-Wno-DEPRECATED",
+    "-Wno-MULTIDRIVEN",
+    "-Wno-LATCH",
+    "-Wno-PINMISSING"
+  ]
+}

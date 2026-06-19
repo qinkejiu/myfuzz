@@ -1,0 +1,38 @@
+{
+  "name": "cva6",
+  "top": "cva6",
+  "project_root": "third_party/rfuzz/upstream/cva6",
+  "flist": "third_party/rfuzz/upstream/cva6/sources.f",
+  "out_dir": "runs/designs/cva6",
+  "coverage_port": "__vi_coverage",
+  "signal_prefix": "__vi_branch_cov",
+  "instrumentation": {
+    "coverage_port": "__vi_coverage",
+    "signal_prefix": "__vi_branch_cov",
+    "branch": {
+      "if": true,
+      "case": true
+    },
+    "statement": {
+      "block_enter": false
+    },
+    "loop": {
+      "body": false
+    },
+    "hierarchy": {
+      "propagate_to_top": true
+    }
+  },
+  "verilator_args": [
+    "-DSYNTHESIS",
+    "--bbox-unsup",
+    "--timing",
+    "-Wno-ASCRANGE",
+    "-Wno-WIDTH",
+    "-Wno-MULTIDRIVEN",
+    "-Wno-LATCH",
+    "-Wno-PINMISSING",
+    "--unroll-count",
+    "10000"
+  ]
+}

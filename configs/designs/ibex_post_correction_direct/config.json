@@ -1,0 +1,14 @@
+{
+  "top": "ibex_core",
+  "project_root": "third_party/rfuzz/upstream/ibex",
+  "flist": "third_party/rfuzz/upstream/ibex/sources.f",
+  "out_dir": "runs/designs/ibex_post_correction_direct",
+  "verilator_args": [
+    "-DSYNTHESIS",
+    "-Wno-DEPRECATED",
+    "-Wno-MULTIDRIVEN",
+    "-Wno-LATCH",
+    "-Wno-PINMISSING"
+  ],
+  "description": "Ibex post-correction direct signal mutation control: RFuzz input bits are interpreted directly as DUT input ports, so no raw-to-corrected projection is applied after mutation"
+}

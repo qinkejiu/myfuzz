@@ -1,0 +1,56 @@
+{
+  "name": "crash_smoke",
+  "top": "top",
+  "project_root": "configs/designs/crash_smoke",
+  "flist": "configs/designs/crash_smoke/sources.f",
+  "out_dir": "runs/designs/crash_smoke",
+  "instrumentation": {
+    "coverage_port": "__vi_coverage",
+    "signal_prefix": "__vi_cov",
+    "branch": {
+      "if": true,
+      "case": true,
+      "case_default": true,
+      "else_if": true,
+      "else_missing": true
+    },
+    "statement": {
+      "block_enter": true,
+      "procedural_assign": true,
+      "call": true,
+      "control": true
+    },
+    "loop": {
+      "body": true,
+      "single_statement": true
+    },
+    "expression": {
+      "ternary": true,
+      "condition": true,
+      "toggle": true
+    },
+    "assertion": {
+      "hit": true,
+      "metadata": true
+    },
+    "static": {
+      "generate": true
+    },
+    "hierarchy": {
+      "propagate_to_top": true
+    }
+  },
+  "server": {
+    "cxx_opt": "-O0",
+    "verilator_opt": "-O0"
+  },
+  "fuzz": {
+    "crash_restarts": 2,
+    "stop_on_crash": false
+  },
+  "verilator_args": [
+    "-Wno-DECLFILENAME",
+    "-Wno-MULTIDRIVEN",
+    "-Wno-LATCH"
+  ]
+}

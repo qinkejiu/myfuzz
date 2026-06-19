@@ -1,0 +1,21 @@
+{
+  "top": "ibex_core",
+  "project_root": "third_party/rfuzz/upstream/ibex",
+  "flist": "third_party/rfuzz/upstream/ibex/sources.f",
+  "out_dir": "runs/designs/ibex_constrained",
+  "harness": {
+    "manual_harness": "runs/designs/ibex_constrained/harness/ibex_core_constrained_harness.sv",
+    "manual_harness_module": "ibex_core_constrained_harness",
+    "additional_files": [
+      "runs/designs/ibex_constrained/harness/constrained_memory_model.sv",
+      "runs/designs/ibex_constrained/harness/constraint_generators.sv"
+    ]
+  },
+  "server": {
+    "extra_verilator_sources": [
+      "runs/designs/ibex_naive/harness/ibex_naive_decomposed_harness.sv"
+    ]
+  },
+  "verilator_args": ["-DSYNTHESIS"],
+  "description": "Ibex true decomposed constrained harness using the same 15870-bit map as ibex_naive"
+}

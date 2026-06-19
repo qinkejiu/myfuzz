@@ -1,0 +1,6 @@
+ibex_mcip_ram.sv
+ibex_mcip_timer.sv
+ibex_mcip_gpio.sv
+ibex_mcip_uart.sv
+ibex_mcip_spi.sv
+ibex_multicomponent_ip_top.sv

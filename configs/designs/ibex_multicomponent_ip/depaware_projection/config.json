@@ -1,0 +1,52 @@
+{
+  "name": "ibex_multicomponent_ip_depaware_projection",
+  "description": "Ibex + common IP dependency-aware scheme: raw RFuzz bits are projected through explicit CPU/bus/IP dependency rules before driving the same wrapper.",
+  "status": "remote_smoke_and_10s_fuzz_passed",
+  "top": "ibex_multicomponent_ip_top",
+  "project_root": ".",
+  "flist": "configs/designs/ibex_multicomponent_ip/rtl/generated_remote_sources.f",
+  "out_dir": "runs/designs/ibex_multicomponent_ip_depaware_projection",
+  "coverage_port": "__vi_coverage",
+  "signal_prefix": "__vi_branch_cov",
+  "instrumentation": {
+    "coverage_port": "__vi_coverage",
+    "signal_prefix": "__vi_branch_cov",
+    "branch": {
+      "if": true,
+      "case": true
+    },
+    "statement": {
+      "block_enter": false
+    },
+    "loop": {
+      "body": false
+    },
+    "hierarchy": {
+      "propagate_to_top": true
+    }
+  },
+  "harness": {
+    "manual_harness": "configs/designs/ibex_multicomponent_ip/harness/ibex_multicomponent_ip_depaware_projection_harness.sv",
+    "manual_harness_module": "ibex_multicomponent_ip_depaware_projection_harness"
+  },
+  "server": {
+    "extra_verilator_sources": [
+      "configs/designs/ibex_multicomponent_ip/harness/ibex_multicomponent_ip_depaware_projection_harness.sv"
+    ]
+  },
+  "verilator_args": [
+    "-DSYNTHESIS",
+    "-Wno-DEPRECATED",
+    "-Wno-MULTIDRIVEN",
+    "-Wno-LATCH",
+    "-Wno-PINMISSING"
+  ],
+  "dependency_manifest": "configs/designs/ibex_multicomponent_ip/manifests/ibex_common_ip_dependency_manifest.json",
+  "projection_policy": {
+    "input_mapping": "dependency_aware_projection",
+    "dependency_projection": true,
+    "protocol_repair": true,
+    "irq_error_gating": true,
+    "dut_feedback": false
+  }
+}

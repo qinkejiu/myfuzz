@@ -1,0 +1,24 @@
+[submodule "external_designs/pulp"]
+	path = external_designs/pulp
+	url = git@github.com:pulp-platform/pulp.git
+[submodule "external_designs/rvx"]
+	path = external_designs/rvx
+	url = git@github.com:rafaelcalcada/rvx.git
+[submodule "external_designs/cv32e40p"]
+	path = external_designs/cv32e40p
+	url = git@github.com:openhwgroup/cv32e40p.git
+[submodule "external_designs/core-v-mcu"]
+	path = external_designs/core-v-mcu
+	url = git@github.com:openhwgroup/core-v-mcu.git
+[submodule "external_designs/rocket-chip"]
+	path = external_designs/rocket-chip
+	url = git@github.com:chipsalliance/rocket-chip.git
+[submodule "external_designs/pulpissimo"]
+	path = external_designs/pulpissimo
+	url = git@github.com:pulp-platform/pulpissimo.git
+[submodule "external_designs/opentitan"]
+	path = external_designs/opentitan
+	url = git@github.com:lowRISC/opentitan.git
+[submodule "external_designs/riscv-sodor"]
+	path = external_designs/riscv-sodor
+	url = git@github.com:ucb-bar/riscv-sodor.git

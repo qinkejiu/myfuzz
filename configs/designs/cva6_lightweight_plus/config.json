@@ -1,0 +1,48 @@
+{
+  "name": "cva6_lightweight_plus",
+  "top": "cva6",
+  "project_root": "third_party/rfuzz/upstream/cva6",
+  "flist": "third_party/rfuzz/upstream/cva6/sources.f",
+  "out_dir": "runs/designs/cva6_lightweight_plus",
+  "coverage_port": "__vi_coverage",
+  "signal_prefix": "__vi_branch_cov",
+  "instrumentation": {
+    "coverage_port": "__vi_coverage",
+    "signal_prefix": "__vi_branch_cov",
+    "branch": {
+      "if": true,
+      "case": true
+    },
+    "statement": {
+      "block_enter": false
+    },
+    "loop": {
+      "body": false
+    },
+    "hierarchy": {
+      "propagate_to_top": true
+    }
+  },
+  "harness": {
+    "manual_harness": "configs/designs/cva6_lightweight_plus/harness/cva6_lightweight_plus_harness.sv",
+    "manual_harness_module": "cva6_lightweight_plus_harness"
+  },
+  "server": {
+    "extra_verilator_sources": [
+      "configs/designs/cva6_lightweight_plus/harness/cva6_lightweight_plus_harness.sv"
+    ]
+  },
+  "verilator_args": [
+    "-DSYNTHESIS",
+    "--bbox-unsup",
+    "--timing",
+    "-Wno-ASCRANGE",
+    "-Wno-WIDTH",
+    "-Wno-MULTIDRIVEN",
+    "-Wno-LATCH",
+    "-Wno-PINMISSING",
+    "--unroll-count",
+    "10000"
+  ],
+  "description": "CVA6 top-level lightweight-plus harness with structured NoC/AXI, CV-X-IF, interrupt, and debug behavior."
+}
