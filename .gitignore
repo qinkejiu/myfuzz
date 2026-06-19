@@ -15,5 +15,5 @@ temp/
 *.fst
 *.wave
 
-runs/
-artifacts/
+/runs/
+/artifacts/
