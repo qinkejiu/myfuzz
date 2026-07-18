@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "myfuzz.constraint-ir/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "layout_digest", "cycle_width", "constraints"],
+  "properties": {
+    "schema": {"const": "myfuzz.constraint-ir/v1"},
+    "layout_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "cycle_width": {"type": "integer", "minimum": 1},
+    "constraints": {"type": "array", "items": {"type": "object"}}
+  }
+}

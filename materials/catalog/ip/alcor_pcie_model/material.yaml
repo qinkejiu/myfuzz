@@ -1,0 +1,10 @@
+id: alcor_pcie_model
+role: pcie
+upstream_family: alcor pcie
+description: pcie dependency-free bulk validation model
+mode: self_contained_model
+module: alcor_pcie_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: alcor_pcie_model
+status: case_available

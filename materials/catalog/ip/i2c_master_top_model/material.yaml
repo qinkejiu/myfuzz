@@ -1,0 +1,10 @@
+id: i2c_master_top_model
+role: i2c
+upstream_family: i2c master top
+description: i2c dependency-free bulk validation model
+mode: self_contained_model
+module: i2c_master_top_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: i2c_master_top_model
+status: case_available

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "myfuzz.compose-v5-fusesoc-recipe/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "name", "mappings", "components", "digest"],
+  "properties": {
+    "schema": {"const": "myfuzz.compose-v5-fusesoc-recipe/v1"},
+    "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "mappings": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "components": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id", "role", "core", "target", "tool", "top_module",
+          "metadata_wrapper", "fusesoc_parameters", "module_parameters"
+        ],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "role": {"enum": ["cpu", "ram", "ip"]},
+          "core": {"type": "string", "minLength": 1},
+          "target": {"type": "string", "minLength": 1},
+          "tool": {"type": "string", "minLength": 1},
+          "top_module": {"type": "string", "minLength": 1},
+          "metadata_wrapper": {"type": "boolean"},
+          "fusesoc_parameters": {"$ref": "#/$defs/parameters"},
+          "module_parameters": {"$ref": "#/$defs/parameters"}
+        }
+      }
+    },
+    "digest": {"type": "string", "pattern": "^(|[0-9a-f]{64})$"}
+  },
+  "$defs": {
+    "parameters": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {"type": "boolean"},
+          {"type": "number"},
+          {"type": "string"}
+        ]
+      }
+    }
+  }
+}

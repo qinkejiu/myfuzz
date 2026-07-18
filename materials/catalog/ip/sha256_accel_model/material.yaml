@@ -1,0 +1,10 @@
+id: sha256_accel_model
+role: crypto
+upstream_family: sha256 accel
+description: crypto dependency-free bulk validation model
+mode: self_contained_model
+module: sha256_accel_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: sha256_accel_model
+status: case_available

@@ -1,0 +1,10 @@
+id: servo_pwm_model
+role: pwm
+upstream_family: servo pwm
+description: pwm dependency-free bulk validation model
+mode: self_contained_model
+module: servo_pwm_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: servo_pwm_model
+status: case_available

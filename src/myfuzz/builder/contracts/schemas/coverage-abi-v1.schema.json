@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "myfuzz.coverage-abi/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "manifest_digest", "port_name", "width", "points"],
+  "properties": {
+    "schema": {"const": "myfuzz.coverage-abi/v1"},
+    "manifest_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "port_name": {"type": "string", "minLength": 1},
+    "width": {"type": "integer", "minimum": 0},
+    "points": {"type": "array", "items": {"type": "object"}}
+  }
+}

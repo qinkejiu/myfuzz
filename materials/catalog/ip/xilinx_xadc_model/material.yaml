@@ -1,0 +1,10 @@
+id: xilinx_xadc_model
+role: adc
+upstream_family: xilinx xadc
+description: adc dependency-free bulk validation model
+mode: self_contained_model
+module: xilinx_xadc_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: xilinx_xadc_model
+status: case_available

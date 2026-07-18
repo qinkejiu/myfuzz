@@ -17,3 +17,6 @@ temp/
 
 /runs/
 /artifacts/
+
+# Remote-prepared filelists contain machine-specific absolute paths.
+configs/designs/**/rtl/generated_remote_sources.f

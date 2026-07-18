@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "name": "minimal_cpu_system",
+  "clock_domains": [
+    {"name": "system", "source": "external.clk", "frequency_hz": 50000000}
+  ],
+  "reset_domains": [
+    {"name": "system", "source": "external.reset_n", "active_low": true, "synchronous": false}
+  ],
+  "sources": [
+    {
+      "name": "local_rtl",
+      "filelists": ["materials/cases/mock_cpu.f"],
+      "rtl_files": ["materials/rtl/simple_ips/simple_ram.sv"]
+    }
+  ],
+  "modules": [
+    {
+      "name": "cpu",
+      "kind": "cpu",
+      "source_set": "local_rtl",
+      "top_candidate": true,
+      "clock_domain": "system",
+      "reset_domain": "system",
+      "ports": {
+        "clk_i": {"direction": "input", "type": "clock", "width": 1},
+        "rst_ni": {"direction": "input", "type": "reset_active_low", "width": 1},
+        "data_req_o": {"direction": "output", "type": "simple_bus.request", "width": 1}
+      },
+      "interfaces": [{
+        "name": "data",
+        "protocol": "simple_bus",
+        "role": "initiator",
+        "ports": {"request": "data_req_o"}
+      }]
+    },
+    {
+      "name": "ram",
+      "kind": "memory",
+      "source_set": "local_rtl",
+      "clock_domain": "system",
+      "reset_domain": "system",
+      "parameters": {"ADDR_WIDTH": 12, "DATA_WIDTH": 32},
+      "ports": {},
+      "address": {"mode": "fixed", "base": 0, "size": 4096, "alignment": 4096}
+    },
+    {
+      "name": "timer",
+      "kind": "peripheral",
+      "source_set": "local_rtl",
+      "clock_domain": "system",
+      "reset_domain": "system",
+      "ports": {},
+      "address": {"mode": "auto", "size": 384, "alignment": 256}
+    }
+  ]
+}

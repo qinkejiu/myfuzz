@@ -1,0 +1,10 @@
+id: amd_iommu_model
+role: iommu
+upstream_family: amd iommu
+description: iommu dependency-free bulk validation model
+mode: self_contained_model
+module: amd_iommu_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: amd_iommu_model
+status: case_available

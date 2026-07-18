@@ -1,0 +1,10 @@
+id: nvme_pcie_ep_model
+role: pcie
+upstream_family: nvme pcie ep
+description: pcie dependency-free bulk validation model
+mode: self_contained_model
+module: nvme_pcie_ep_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: nvme_pcie_ep_model
+status: case_available

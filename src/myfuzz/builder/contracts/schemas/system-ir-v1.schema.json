@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "myfuzz.system-ir/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "name", "modules", "connections", "address_windows"],
+  "properties": {
+    "schema": {"const": "myfuzz.system-ir/v1"},
+    "name": {"type": "string", "minLength": 1},
+    "modules": {"type": "array", "items": {"type": "object"}},
+    "connections": {"type": "array", "items": {"type": "object"}},
+    "address_windows": {"type": "array", "items": {"type": "object"}}
+  }
+}

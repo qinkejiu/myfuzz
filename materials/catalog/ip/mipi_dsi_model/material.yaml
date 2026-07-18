@@ -1,0 +1,10 @@
+id: mipi_dsi_model
+role: display
+upstream_family: MIPI DSI
+description: MIPI DSI display controller self-contained validation model
+mode: self_contained_model
+module: mipi_dsi_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: mipi_dsi_model
+status: case_available

@@ -1,0 +1,20 @@
+id: sifive_clint_model
+role: clint
+upstream_family: SiFive
+description: CLINT self-contained validation model
+mode: self_contained_model
+module: sifive_clint_model
+source_root: materials/rtl/famous_ip_models
+filelist: sources.f
+profile: sifive_clint_model
+status: case_available
+native_protocol: simple_mmio
+native_protocol_source: profile_or_model_hint
+generation_protocol: simple_mmio
+generation_protocol_source: current_ip_profile_adapter
+dataset_split: train
+dataset_reason: stable_status_hash_bucket_0_7
+local_filelist: sources.f
+original_material_path: /home/qinkejiu/myfuzz/myfuzz/materials/catalog/ip/sifive_clint_model/material.yaml
+original_filelist: materials/cases/famous_ip_models.f
+missing_entries: []

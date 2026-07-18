@@ -1,0 +1,10 @@
+id: ariane_core_model
+role: cpu
+upstream_family: ariane core
+description: CPU dependency-free bulk validation model
+mode: self_contained_model
+module: ariane_core_model
+source_root: materials/rtl/famous_cpu_models
+filelist: materials/cases/famous_cpu_models.f
+profile: ariane_core_model
+status: case_available

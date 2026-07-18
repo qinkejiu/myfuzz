@@ -1,0 +1,10 @@
+id: rocket_rv32_core_model
+role: cpu
+upstream_family: Rocket Chip
+description: Rocket RV32 self-contained validation model
+mode: self_contained_model
+module: rocket_rv32_core_model
+source_root: materials/rtl/famous_cpu_models
+filelist: materials/cases/famous_cpu_models.f
+profile: rocket_rv32_core_model
+status: case_available

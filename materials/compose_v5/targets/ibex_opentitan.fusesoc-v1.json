@@ -1,0 +1,55 @@
+{
+  "schema": "myfuzz.compose-v5-fusesoc-recipe/v1",
+  "name": "ibex_opentitan_real",
+  "mappings": [
+    "lowrisc:prim_generic:all:0.1",
+    "lowrisc:systems:top_earlgrey:0.1"
+  ],
+  "components": [
+    {
+      "id": "cpu0",
+      "role": "cpu",
+      "core": "lowrisc:ibex:ibex_core:0.1",
+      "target": "lint",
+      "tool": "icarus",
+      "top_module": "ibex_core",
+      "metadata_wrapper": false,
+      "fusesoc_parameters": {"SYNTHESIS": true},
+      "module_parameters": {}
+    },
+    {
+      "id": "gpio0",
+      "role": "ip",
+      "core": "lowrisc:earlgrey_ip:gpio:0.1",
+      "target": "lint",
+      "tool": "icarus",
+      "top_module": "gpio",
+      "metadata_wrapper": false,
+      "fusesoc_parameters": {"SYNTHESIS": true},
+      "module_parameters": {}
+    },
+    {
+      "id": "ram0",
+      "role": "ram",
+      "core": "lowrisc:prim_generic:ram_1p",
+      "target": "default",
+      "tool": "icarus",
+      "top_module": "prim_ram_1p",
+      "metadata_wrapper": true,
+      "fusesoc_parameters": {},
+      "module_parameters": {}
+    },
+    {
+      "id": "timer0",
+      "role": "ip",
+      "core": "lowrisc:ip:rv_timer:0.1",
+      "target": "lint",
+      "tool": "icarus",
+      "top_module": "rv_timer",
+      "metadata_wrapper": false,
+      "fusesoc_parameters": {"SYNTHESIS": true},
+      "module_parameters": {}
+    }
+  ],
+  "digest": ""
+}

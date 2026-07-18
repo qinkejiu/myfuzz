@@ -1,0 +1,20 @@
+id: qspi_flash_model
+role: spi
+upstream_family: QSPI
+description: QSPI flash self-contained validation model
+mode: self_contained_model
+module: qspi_flash_model
+source_root: materials/rtl/famous_ip_models
+filelist: sources.f
+profile: qspi_flash_model
+status: case_available
+native_protocol: simple_mmio
+native_protocol_source: profile_or_model_hint
+generation_protocol: simple_mmio
+generation_protocol_source: current_ip_profile_adapter
+dataset_split: test
+dataset_reason: stable_status_hash_bucket_8_9_holdout
+local_filelist: sources.f
+original_material_path: /home/qinkejiu/myfuzz/myfuzz/materials/catalog/ip/qspi_flash_model/material.yaml
+original_filelist: materials/cases/famous_ip_models.f
+missing_entries: []

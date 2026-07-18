@@ -1,0 +1,45 @@
+{
+  "schema": "myfuzz.compose-v5-upstreams/v1",
+  "targets": [
+    {
+      "id": "cva6",
+      "url": "https://github.com/openhwgroup/cva6.git",
+      "revision": "3f39c6830d333ecc40b28790f8f9a1de6463124d",
+      "sparse_paths": ["common", "config", "core", "vendor"],
+      "license_path": "LICENSE",
+      "license_sha256": "b41106a9d0de1cf6ab4ea56bedf677503085c0570248f37fe2cdf657a5e72601",
+      "submodules": [
+        {
+          "path": "core/cache_subsystem/hpdcache",
+          "revision": "b25a1605f5bb1719046e372b0acad3ca9cb7ff42"
+        },
+        {
+          "path": "core/cvfpu",
+          "revision": "106251e502747f17d931a20db0bdbab9e1a6c2ff"
+        },
+        {
+          "path": "core/cvfpu/src/fpu_div_sqrt_mvp",
+          "revision": "86e1f558b3c95e91577c41b2fc452c86b04e85ac"
+        }
+      ]
+    },
+    {
+      "id": "ibex",
+      "url": "https://github.com/lowRISC/opentitan.git",
+      "revision": "13a8919bceac625dbd1b6ad804e62f9bdeadee86",
+      "sparse_paths": ["hw"],
+      "license_path": "LICENSE",
+      "license_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "submodules": []
+    },
+    {
+      "id": "rvx",
+      "url": "https://github.com/rafaelcalcada/rvx.git",
+      "revision": "38bdee0ef8da0b606b7024f85934898e99963756",
+      "sparse_paths": [],
+      "license_path": "LICENSE",
+      "license_sha256": "27b1478c980aecec9275a2a06b480ff981e94466ca984630136c4c9a478d3877",
+      "submodules": []
+    }
+  ]
+}

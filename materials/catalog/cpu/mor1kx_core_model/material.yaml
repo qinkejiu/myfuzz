@@ -1,0 +1,10 @@
+id: mor1kx_core_model
+role: cpu
+upstream_family: mor1kx
+description: OpenRISC mor1kx self-contained validation model
+mode: self_contained_model
+module: mor1kx_core_model
+source_root: materials/rtl/famous_cpu_models
+filelist: materials/cases/famous_cpu_models.f
+profile: mor1kx_core_model
+status: case_available

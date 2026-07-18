@@ -1,0 +1,10 @@
+id: litex_spi_model
+role: spi
+upstream_family: LiteX
+description: LiteX SPI self-contained validation model
+mode: self_contained_model
+module: litex_spi_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: litex_spi_model
+status: case_available

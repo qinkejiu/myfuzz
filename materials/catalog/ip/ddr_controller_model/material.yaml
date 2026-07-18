@@ -1,0 +1,10 @@
+id: ddr_controller_model
+role: ram
+upstream_family: DDR Controller
+description: DDR controller self-contained validation model
+mode: self_contained_model
+module: ddr_controller_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: ddr_controller_model
+status: case_available

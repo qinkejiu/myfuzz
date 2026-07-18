@@ -1,0 +1,71 @@
+project_name: wishbone_same_protocol_soc
+clock_freq: 50000000
+reset_active: low
+metadata:
+  protocol_suite: wishbone
+  cpu_master_protocol: wishbone
+  fabric_strategy: protocol_master_to_canonical_mmio_bridge
+components:
+  cpu0:
+    kind: cpu
+    filelist: materials/protocol_cpus/picorv32_wishbone.f
+    module: picorv32_wb
+    description: picorv32_wb same-protocol CPU master for wishbone
+  ram0:
+    kind: ram
+    filelist: materials/cases/famous_ip_models.f
+    module: wishbone_sram_model
+    description: 'wishbone case material: wishbone_sram_model'
+  uart0:
+    kind: uart
+    filelist: materials/cases/famous_ip_models.f
+    module: wishbone_uart_model
+    description: 'wishbone case material: wishbone_uart_model'
+  timer0:
+    kind: timer
+    filelist: materials/cases/famous_ip_models.f
+    module: wishbone_timer_model
+    description: 'wishbone case material: wishbone_timer_model'
+  gpio0:
+    kind: gpio
+    filelist: materials/simple_ips/gpio.f
+    module: simple_gpio
+    description: 'wishbone case material: fallback_simple_gpio'
+address_map:
+- component: ram0
+  base_addr: 0
+  size: 65536
+  bus_protocol: wishbone
+- component: uart0
+  base_addr: 1073807360
+  size: 4096
+  bus_protocol: wishbone
+- component: timer0
+  base_addr: 1073872896
+  size: 4096
+  bus_protocol: wishbone
+- component: gpio0
+  base_addr: 1073938432
+  size: 4096
+  bus_protocol: wishbone
+connections:
+- from: cpu0
+  from_interface: wishbone_bus
+  to: ram0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: wishbone_bus
+  to: uart0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: wishbone_bus
+  to: timer0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: wishbone_bus
+  to: gpio0
+  to_interface: slave_port
+  protocol: simple_bus

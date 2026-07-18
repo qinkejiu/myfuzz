@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "name": "materials_simple_system",
+  "sources": [
+    {
+      "name": "simple_ips",
+      "rtl_files": [
+        "materials/rtl/simple_ips/mock_cpu.sv",
+        "materials/rtl/simple_ips/simple_ram.sv",
+        "materials/rtl/simple_ips/simple_uart.sv",
+        "materials/rtl/simple_ips/simple_gpio.sv",
+        "materials/rtl/simple_ips/simple_timer.sv"
+      ]
+    }
+  ],
+  "clock_domains": [
+    {"name": "system", "source": "external", "frequency_hz": 50000000}
+  ],
+  "reset_domains": [
+    {"name": "system", "source": "external", "active_low": true, "synchronous": false}
+  ],
+  "modules": [
+    {
+      "name": "mock_cpu",
+      "kind": "cpu",
+      "source_set": "simple_ips",
+      "top_candidate": true,
+      "clock_domain": "system",
+      "reset_domain": "system",
+      "ports": {
+        "clk_i": {"direction": "input", "type": "clock"},
+        "rst_ni": {"direction": "input", "type": "reset_active_low"}
+      },
+      "interfaces": [{
+        "name": "data",
+        "protocol": "simple_bus",
+        "role": "initiator",
+        "ports": {
+          "address": "data_addr_o",
+          "write_data": "data_wdata_o",
+          "read_data": "data_rdata_i",
+          "write_enable": "data_we_o",
+          "request": "data_req_o",
+          "grant": "data_gnt_i"
+        }
+      }]
+    },
+    {
+      "name": "simple_ram",
+      "kind": "ram",
+      "source_set": "simple_ips",
+      "clock_domain": "system",
+      "reset_domain": "system",
+      "ports": {
+        "clk_i": {"direction": "input", "type": "clock"},
+        "rst_ni": {"direction": "input", "type": "reset_active_low"}
+      },
+      "address": {"mode": "fixed", "base": 0, "size": 4096},
+      "interfaces": [{
+        "name": "bus", "protocol": "simple_bus", "role": "target",
+        "ports": {
+          "request": "req_i", "write_enable": "we_i", "address": "addr_i",
+          "write_data": "wdata_i", "read_data": "rdata_o"
+        }
+      }]
+    },
+    {
+      "name": "simple_uart",
+      "kind": "peripheral",
+      "source_set": "simple_ips",
+      "clock_domain": "system",
+      "reset_domain": "system",
+      "ports": {
+        "clk_i": {"direction": "input", "type": "clock"},
+        "rst_ni": {"direction": "input", "type": "reset_active_low"}
+      },
+      "interfaces": [{
+        "name": "bus", "protocol": "simple_bus", "role": "target",
+        "ports": {
+          "request": "req_i", "write_enable": "we_i", "address": "addr_i",
+          "write_data": "wdata_i", "read_data": "rdata_o"
+        }
+      }],
+      "unknown_ports": {
+        "rx_i": {
+          "action": "rfuzz_drive",
+          "reason": "exercise the UART receive pin",
+          "reset_behavior": "drive zero while reset is asserted"
+        }
+      }
+    },
+    {
+      "name": "simple_gpio",
+      "kind": "peripheral",
+      "source_set": "simple_ips",
+      "clock_domain": "system",
+      "reset_domain": "system",
+      "ports": {
+        "clk_i": {"direction": "input", "type": "clock"},
+        "rst_ni": {"direction": "input", "type": "reset_active_low"}
+      },
+      "interfaces": [{
+        "name": "bus", "protocol": "simple_bus", "role": "target",
+        "ports": {
+          "request": "req_i", "write_enable": "we_i", "address": "addr_i",
+          "write_data": "wdata_i", "read_data": "rdata_o"
+        }
+      }],
+      "unknown_ports": {
+        "gpio_i": {
+          "action": "rfuzz_drive",
+          "reason": "exercise external GPIO inputs",
+          "reset_behavior": "drive zero while reset is asserted"
+        }
+      }
+    },
+    {
+      "name": "simple_timer",
+      "kind": "peripheral",
+      "source_set": "simple_ips",
+      "clock_domain": "system",
+      "reset_domain": "system",
+      "ports": {
+        "clk_i": {"direction": "input", "type": "clock"},
+        "rst_ni": {"direction": "input", "type": "reset_active_low"}
+      },
+      "interfaces": [{
+        "name": "bus", "protocol": "simple_bus", "role": "target",
+        "ports": {
+          "request": "req_i", "write_enable": "we_i", "address": "addr_i",
+          "write_data": "wdata_i", "read_data": "rdata_o"
+        }
+      }]
+    }
+  ]
+}

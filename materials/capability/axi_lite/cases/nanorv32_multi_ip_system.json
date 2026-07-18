@@ -1,0 +1,20 @@
+{
+  "address_map": [
+    {"base": 0, "candidate": "verilog_axi_ram", "size": 65536},
+    {"base": 65536, "candidate": "verilog_axi_dp_ram", "size": 4096},
+    {"base": 69632, "candidate": "zipcpu_axilgpio", "size": 32},
+    {"base": 73728, "candidate": "pulp_axi_lite_regs", "size": 4096},
+    {"base": 77824, "candidate": "pulp_axi_lite_lfsr", "size": 4096}
+  ],
+  "cpu": "nanorv32_cpu",
+  "id": "nanorv32_multi_ip_system",
+  "ips": [
+    "verilog_axi_ram",
+    "verilog_axi_dp_ram",
+    "zipcpu_axilgpio",
+    "pulp_axi_lite_regs",
+    "pulp_axi_lite_lfsr"
+  ],
+  "schema": "myfuzz.qualification-case/v1",
+  "split": "capability"
+}

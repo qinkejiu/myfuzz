@@ -1,0 +1,20 @@
+id: servo_pwm_model
+role: pwm
+upstream_family: servo pwm
+description: pwm dependency-free bulk validation model
+mode: self_contained_model
+module: servo_pwm_model
+source_root: materials/rtl/famous_ip_models
+filelist: sources.f
+profile: servo_pwm_model
+status: case_available
+native_protocol: simple_mmio
+native_protocol_source: profile_or_model_hint
+generation_protocol: simple_mmio
+generation_protocol_source: current_ip_profile_adapter
+dataset_split: train
+dataset_reason: stable_status_hash_bucket_0_7
+local_filelist: sources.f
+original_material_path: /home/qinkejiu/myfuzz/myfuzz/materials/catalog/ip/servo_pwm_model/material.yaml
+original_filelist: materials/cases/famous_ip_models.f
+missing_entries: []

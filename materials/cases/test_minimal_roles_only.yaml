@@ -1,0 +1,27 @@
+project_name: test_minimal_soc
+
+components:
+  simple_cpu:
+    kind: cpu
+    module: mock_cpu
+    filelist: materials/simple_ips/mock_cpu.f
+
+  ram:
+    kind: ram
+    module: simple_ram
+    filelist: materials/simple_ips/ram.f
+
+  uart:
+    kind: uart
+    module: simple_uart
+    filelist: materials/simple_ips/uart.f
+
+  timer:
+    kind: timer
+    module: simple_timer
+    filelist: materials/simple_ips/timer.f
+
+  gpio:
+    kind: gpio
+    module: simple_gpio
+    filelist: materials/simple_ips/gpio.f

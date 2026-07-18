@@ -1,0 +1,10 @@
+id: arm_mhu_model
+role: mailbox
+upstream_family: arm mhu
+description: mailbox dependency-free bulk validation model
+mode: self_contained_model
+module: arm_mhu_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: arm_mhu_model
+status: case_available

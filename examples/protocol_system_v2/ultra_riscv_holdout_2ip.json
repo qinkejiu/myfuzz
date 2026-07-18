@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "name": "ultra_riscv_holdout_2ip",
+  "sources": [
+    {
+      "name": "cpu_rtl",
+      "rtl_files": [
+        "src/myfuzz/builder/rtl/ultra_riscv_level1_adapter.sv",
+        "src/myfuzz/builder/rtl/level1_tcm_loader.sv"
+      ],
+      "filelists": ["materials/qualification/axi_lite/cases/ultra_riscv_cpu.f"]
+    },
+    {
+      "name": "holdout_rtl",
+      "rtl_files": ["src/myfuzz/builder/rtl/pulp_axi_lite_lfsr_level1_adapter.sv"],
+      "filelists": [
+        "materials/qualification/axi_lite/cases/pulp_axi_lite_regs.f",
+        "materials/qualification/axi_lite/cases/pulp_axi_lite_lfsr.f"
+      ]
+    }
+  ],
+  "clock_domains": [
+    {"name": "soc_clock", "source": "external", "frequency_hz": 50000000}
+  ],
+  "reset_domains": [
+    {"name": "cpu_reset", "source": "external", "active_low": false, "synchronous": false},
+    {"name": "ip_reset", "source": "generated_controller", "active_low": true, "synchronous": false}
+  ],
+  "modules": [
+    {
+      "name": "main",
+      "rtl_module": "ultra_riscv_level1_adapter",
+      "component_id": "cpu.main",
+      "kind": "cpu",
+      "source_set": "cpu_rtl",
+      "top_candidate": true,
+      "clock_domain": "soc_clock",
+      "reset_domain": "cpu_reset",
+      "parameters": {"RESET_VECTOR": 8192},
+      "ports": {
+        "clk": {"direction": "input", "type": "clock", "width": 1},
+        "reset": {"direction": "input", "type": "reset_active_high", "width": 1},
+        "cpu_reset": {"direction": "input", "type": "cpu_execution_reset_active_high", "width": 1},
+        "fuzz_irq": {"direction": "input", "type": "interrupt_sink", "width": 32},
+        "loader_awvalid": {"direction": "input", "type": "rom_loader.awvalid", "width": 1},
+        "loader_awready": {"direction": "output", "type": "rom_loader.awready", "width": 1},
+        "loader_awaddr": {"direction": "input", "type": "rom_loader.awaddr", "width": 32},
+        "loader_awid": {"direction": "input", "type": "rom_loader.awid", "width": 4},
+        "loader_awlen": {"direction": "input", "type": "rom_loader.awlen", "width": 8},
+        "loader_awburst": {"direction": "input", "type": "rom_loader.awburst", "width": 2},
+        "loader_wvalid": {"direction": "input", "type": "rom_loader.wvalid", "width": 1},
+        "loader_wready": {"direction": "output", "type": "rom_loader.wready", "width": 1},
+        "loader_wdata": {"direction": "input", "type": "rom_loader.wdata", "width": 32},
+        "loader_wstrb": {"direction": "input", "type": "rom_loader.wstrb", "width": 4},
+        "loader_wlast": {"direction": "input", "type": "rom_loader.wlast", "width": 1},
+        "loader_bvalid": {"direction": "output", "type": "rom_loader.bvalid", "width": 1},
+        "loader_bready": {"direction": "input", "type": "rom_loader.bready", "width": 1},
+        "loader_bresp": {"direction": "output", "type": "rom_loader.bresp", "width": 2},
+        "loader_bid": {"direction": "output", "type": "rom_loader.bid", "width": 4},
+        "loader_arvalid": {"direction": "input", "type": "rom_loader.arvalid", "width": 1},
+        "loader_arready": {"direction": "output", "type": "rom_loader.arready", "width": 1},
+        "loader_araddr": {"direction": "input", "type": "rom_loader.araddr", "width": 32},
+        "loader_arid": {"direction": "input", "type": "rom_loader.arid", "width": 4},
+        "loader_arlen": {"direction": "input", "type": "rom_loader.arlen", "width": 8},
+        "loader_arburst": {"direction": "input", "type": "rom_loader.arburst", "width": 2},
+        "loader_rvalid": {"direction": "output", "type": "rom_loader.rvalid", "width": 1},
+        "loader_rready": {"direction": "input", "type": "rom_loader.rready", "width": 1},
+        "loader_rdata": {"direction": "output", "type": "rom_loader.rdata", "width": 32},
+        "loader_rresp": {"direction": "output", "type": "rom_loader.rresp", "width": 2},
+        "loader_rid": {"direction": "output", "type": "rom_loader.rid", "width": 4},
+        "loader_rlast": {"direction": "output", "type": "rom_loader.rlast", "width": 1}
+      },
+      "interfaces": [{
+        "name": "memory", "protocol": "axi_lite", "role": "initiator",
+        "ports": {
+          "awvalid": "m_awvalid", "awready": "m_awready", "awaddr": "m_awaddr",
+          "wvalid": "m_wvalid", "wready": "m_wready", "wdata": "m_wdata", "wstrb": "m_wstrb",
+          "bvalid": "m_bvalid", "bready": "m_bready", "bresp": "m_bresp",
+          "arvalid": "m_arvalid", "arready": "m_arready", "araddr": "m_araddr",
+          "rvalid": "m_rvalid", "rready": "m_rready", "rdata": "m_rdata", "rresp": "m_rresp"
+        }
+      }]
+    },
+    {
+      "name": "regs0",
+      "rtl_module": "pulp_axi_lite_regs_wrapper",
+      "component_id": "ip.regs0",
+      "kind": "peripheral",
+      "source_set": "holdout_rtl",
+      "clock_domain": "soc_clock",
+      "reset_domain": "ip_reset",
+      "ports": {
+        "clk": {"direction": "input", "type": "clock", "width": 1},
+        "resetn": {"direction": "input", "type": "reset_active_low", "width": 1}
+      },
+      "address": {"mode": "fixed", "base": 536870912, "size": 4096, "alignment": 4096},
+      "interfaces": [{
+        "name": "registers", "protocol": "axi_lite", "role": "target",
+        "ports": {
+          "awvalid": "s_awvalid", "awready": "s_awready", "awaddr": "s_awaddr",
+          "wvalid": "s_wvalid", "wready": "s_wready", "wdata": "s_wdata", "wstrb": "s_wstrb",
+          "bvalid": "s_bvalid", "bready": "s_bready", "bresp": "s_bresp",
+          "arvalid": "s_arvalid", "arready": "s_arready", "araddr": "s_araddr",
+          "rvalid": "s_rvalid", "rready": "s_rready", "rdata": "s_rdata", "rresp": "s_rresp"
+        }
+      }]
+    },
+    {
+      "name": "lfsr0",
+      "rtl_module": "pulp_axi_lite_lfsr_level1_adapter",
+      "component_id": "ip.lfsr0",
+      "kind": "peripheral",
+      "source_set": "holdout_rtl",
+      "clock_domain": "soc_clock",
+      "reset_domain": "ip_reset",
+      "ports": {
+        "clk": {"direction": "input", "type": "clock", "width": 1},
+        "resetn": {"direction": "input", "type": "reset_active_low", "width": 1}
+      },
+      "address": {"mode": "fixed", "base": 536875008, "size": 4096, "alignment": 4096},
+      "interfaces": [{
+        "name": "registers", "protocol": "axi_lite", "role": "target",
+        "ports": {
+          "awvalid": "s_awvalid", "awready": "s_awready", "awaddr": "s_awaddr",
+          "wvalid": "s_wvalid", "wready": "s_wready", "wdata": "s_wdata", "wstrb": "s_wstrb",
+          "bvalid": "s_bvalid", "bready": "s_bready", "bresp": "s_bresp",
+          "arvalid": "s_arvalid", "arready": "s_arready", "araddr": "s_araddr",
+          "rvalid": "s_rvalid", "rready": "s_rready", "rdata": "s_rdata", "rresp": "s_rresp"
+        }
+      }]
+    }
+  ]
+}

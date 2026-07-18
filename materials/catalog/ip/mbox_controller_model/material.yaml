@@ -1,0 +1,10 @@
+id: mbox_controller_model
+role: mailbox
+upstream_family: mbox controller
+description: mailbox dependency-free bulk validation model
+mode: self_contained_model
+module: mbox_controller_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: mbox_controller_model
+status: case_available

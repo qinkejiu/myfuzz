@@ -1,0 +1,10 @@
+id: sodor5_core_model
+role: cpu
+upstream_family: sodor5 core
+description: CPU dependency-free bulk validation model
+mode: self_contained_model
+module: sodor5_core_model
+source_root: materials/rtl/famous_cpu_models
+filelist: materials/cases/famous_cpu_models.f
+profile: sodor5_core_model
+status: case_available

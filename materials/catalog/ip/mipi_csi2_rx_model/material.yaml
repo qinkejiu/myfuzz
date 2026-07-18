@@ -1,0 +1,10 @@
+id: mipi_csi2_rx_model
+role: camera
+upstream_family: mipi csi2 rx
+description: camera dependency-free bulk validation model
+mode: self_contained_model
+module: mipi_csi2_rx_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: mipi_csi2_rx_model
+status: case_available

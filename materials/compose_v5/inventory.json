@@ -1,0 +1,34 @@
+{
+  "digest": "2cf0fafbc7e89a3b42ed9d2b8aa8c33ada27dc7e646ce0cd7722cfefc3b1be95",
+  "entries": [
+    {
+      "path": "PLAN-REVIEW-LOG.md",
+      "sha256": "dd522334e984d43f265a8e79f00baa02381258037b24f803278d9da6f2f9d9a7",
+      "size": 6174
+    },
+    {
+      "path": "PLAN.md",
+      "sha256": "f9316e75b7d4d9c1e908089111b644851883bd9f61571acc74cfacb094a9afed",
+      "size": 31845
+    },
+    {
+      "path": "materials/compose_v5/targets/ibex_opentitan.fusesoc-v1.json",
+      "sha256": "0dbc99355917021b5307aff2ca9b96f04beb4dfaedf9f0c9b093cfd5cf712957",
+      "size": 1367
+    },
+    {
+      "path": "materials/compose_v5/targets/rvx.compose-v5.json",
+      "sha256": "1069b23b2370a3d0da341a16f573edc81354b2292a6a5cb3c5a076a6c3ce805e",
+      "size": 903
+    },
+    {
+      "path": "materials/compose_v5/upstreams.json",
+      "sha256": "71f151adf09ebfc05a71f3c0eba5095f95a70fb0176d4a26bf996186a9590bb4",
+      "size": 1345
+    }
+  ],
+  "label": "compose-v5-slice0",
+  "root": "/home/qinkejiu/myfuzz/myfuzz",
+  "schema": "myfuzz.artifact-inventory/v1",
+  "total_bytes": 41634
+}

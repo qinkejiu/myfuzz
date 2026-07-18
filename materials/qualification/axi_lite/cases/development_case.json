@@ -1,0 +1,11 @@
+{
+  "address_map": [
+    {"base": 0, "candidate": "verilog_axi_ram", "size": 65536},
+    {"base": 65536, "candidate": "verilog_axi_dp_ram", "size": 4096}
+  ],
+  "cpu": "picorv32_cpu",
+  "id": "development_case",
+  "ips": ["verilog_axi_ram", "verilog_axi_dp_ram"],
+  "schema": "myfuzz.qualification-case/v1",
+  "split": "development"
+}

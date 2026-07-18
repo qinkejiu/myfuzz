@@ -1,0 +1,17 @@
+id: mock_cpu
+role: cpu
+module: mock_cpu
+source_root: materials/rtl/simple_ips
+filelist: sources.f
+profile: mock_cpu
+status: verified_top_and_harness_lint
+native_protocol: simple_mmio
+native_protocol_source: self_contained_cpu_model
+generation_protocol: canonical_cpu_master
+generation_protocol_source: current_cpu_profile_adapter
+dataset_split: train
+dataset_reason: stable_status_hash_bucket_0_7
+local_filelist: sources.f
+original_material_path: /home/qinkejiu/myfuzz/myfuzz/materials/catalog/cpu/mock_cpu/material.yaml
+original_filelist: materials/cases/mock_cpu.f
+missing_entries: []

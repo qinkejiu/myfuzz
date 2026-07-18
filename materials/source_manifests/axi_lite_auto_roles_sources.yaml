@@ -1,0 +1,7 @@
+protocol: axi_lite
+candidate_filelists:
+  - materials/cases/mock_cpu.f
+  - materials/protocol_cpus/axi_lite_probe_cpu.f
+  - materials/simple_ips/ram.f
+  - materials/simple_ips/uart.f
+  - materials/simple_ips/gpio.f

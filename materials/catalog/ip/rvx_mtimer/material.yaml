@@ -1,0 +1,8 @@
+id: rvx_mtimer
+role: timer
+module: rvx_mtimer
+source_root: materials/rvx
+filelist: materials/cases/rvx_mtimer.f
+profile: rvx_mtimer
+status: case_available
+

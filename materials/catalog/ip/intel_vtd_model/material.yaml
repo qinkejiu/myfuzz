@@ -1,0 +1,10 @@
+id: intel_vtd_model
+role: iommu
+upstream_family: intel vtd
+description: iommu dependency-free bulk validation model
+mode: self_contained_model
+module: intel_vtd_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: intel_vtd_model
+status: case_available

@@ -1,0 +1,85 @@
+project_name: axi_lite_pulp_comm_irq_soc
+clock_freq: 50000000
+reset_active: low
+metadata:
+  protocol_suite: axi_lite
+  cpu_master_protocol: axi_lite
+  fabric_strategy: protocol_master_to_canonical_mmio_bridge
+components:
+  cpu0:
+    kind: cpu
+    filelist: materials/protocol_cpus/picorv32_axi_lite.f
+    module: picorv32_axi
+    description: picorv32_axi same-protocol CPU master for axi_lite
+  ram0:
+    kind: ram
+    filelist: materials/cases/famous_ip_models.f
+    module: pulp_axi_sim_mem_model
+    description: PULP AXI-Lite simulation memory model
+  regs0:
+    kind: regs
+    filelist: materials/cases/famous_ip_models.f
+    module: pulp_axi_lite_regs_model
+    description: PULP AXI-Lite register bank model
+  mailbox0:
+    kind: mailbox
+    filelist: materials/cases/famous_ip_models.f
+    module: opencores_mailbox_model
+    description: OpenCores-style mailbox MMIO model with irq pin
+  dma0:
+    kind: dma
+    filelist: materials/cases/famous_ip_models.f
+    module: axi_dma_model
+    description: AXI DMA MMIO model with irq pin
+  irq0:
+    kind: irq
+    filelist: materials/cases/famous_ip_models.f
+    module: pulp_irq_ctrl_model
+    description: PULP IRQ controller MMIO model with irq pin
+address_map:
+- component: ram0
+  base_addr: 0
+  size: 65536
+  bus_protocol: axi_lite
+- component: regs0
+  base_addr: 1073741824
+  size: 4096
+  bus_protocol: axi_lite
+- component: mailbox0
+  base_addr: 1073807360
+  size: 4096
+  bus_protocol: axi_lite
+- component: dma0
+  base_addr: 1073872896
+  size: 4096
+  bus_protocol: axi_lite
+- component: irq0
+  base_addr: 1073938432
+  size: 4096
+  bus_protocol: axi_lite
+connections:
+- from: cpu0
+  from_interface: axi_lite_bus
+  to: ram0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: axi_lite_bus
+  to: regs0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: axi_lite_bus
+  to: mailbox0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: axi_lite_bus
+  to: dma0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: axi_lite_bus
+  to: irq0
+  to_interface: slave_port
+  protocol: simple_bus

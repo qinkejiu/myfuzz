@@ -1,0 +1,10 @@
+id: swerv_el2_core_model
+role: cpu
+upstream_family: swerv el2 core
+description: CPU dependency-free bulk validation model
+mode: self_contained_model
+module: swerv_el2_core_model
+source_root: materials/rtl/famous_cpu_models
+filelist: materials/cases/famous_cpu_models.f
+profile: swerv_el2_core_model
+status: case_available

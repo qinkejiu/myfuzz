@@ -1,0 +1,10 @@
+id: spi_nor_flash_ctrl_model
+role: flash
+upstream_family: spi nor flash ctrl
+description: flash dependency-free bulk validation model
+mode: self_contained_model
+module: spi_nor_flash_ctrl_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: spi_nor_flash_ctrl_model
+status: case_available

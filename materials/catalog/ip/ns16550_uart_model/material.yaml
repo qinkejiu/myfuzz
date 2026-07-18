@@ -1,0 +1,10 @@
+id: ns16550_uart_model
+role: uart
+upstream_family: NS16550
+description: NS16550 UART self-contained validation model
+mode: self_contained_model
+module: ns16550_uart_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: ns16550_uart_model
+status: case_available

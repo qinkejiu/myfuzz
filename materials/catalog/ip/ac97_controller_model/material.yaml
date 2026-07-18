@@ -1,0 +1,10 @@
+id: ac97_controller_model
+role: audio
+upstream_family: ac97 controller
+description: audio dependency-free bulk validation model
+mode: self_contained_model
+module: ac97_controller_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: ac97_controller_model
+status: case_available

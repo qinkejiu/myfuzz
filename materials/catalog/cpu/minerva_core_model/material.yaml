@@ -1,0 +1,10 @@
+id: minerva_core_model
+role: cpu
+upstream_family: minerva core
+description: CPU dependency-free bulk validation model
+mode: self_contained_model
+module: minerva_core_model
+source_root: materials/rtl/famous_cpu_models
+filelist: materials/cases/famous_cpu_models.f
+profile: minerva_core_model
+status: case_available

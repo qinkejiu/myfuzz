@@ -1,0 +1,20 @@
+id: boom_core_model
+role: cpu
+upstream_family: BOOM
+description: Berkeley Out-of-Order Machine self-contained validation model
+mode: self_contained_model
+module: boom_core_model
+source_root: materials/rtl/famous_cpu_models
+filelist: sources.f
+profile: boom_core_model
+status: case_available
+native_protocol: tilelink
+native_protocol_source: cpu_family_hint
+generation_protocol: canonical_cpu_master
+generation_protocol_source: current_cpu_profile_adapter
+dataset_split: train
+dataset_reason: stable_status_hash_bucket_0_7
+local_filelist: sources.f
+original_material_path: /home/qinkejiu/myfuzz/myfuzz/materials/catalog/cpu/boom_core_model/material.yaml
+original_filelist: materials/cases/famous_cpu_models.f
+missing_entries: []

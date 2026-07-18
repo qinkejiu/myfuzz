@@ -1,0 +1,10 @@
+id: arm_coresight_apb_model
+role: debug
+upstream_family: arm coresight apb
+description: debug dependency-free bulk validation model
+mode: self_contained_model
+module: arm_coresight_apb_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: arm_coresight_apb_model
+status: case_available

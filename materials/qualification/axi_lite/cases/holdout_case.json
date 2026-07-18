@@ -1,0 +1,11 @@
+{
+  "address_map": [
+    {"base": 0, "candidate": "pulp_axi_lite_regs", "size": 4096},
+    {"base": 4096, "candidate": "pulp_axi_lite_lfsr", "size": 4096}
+  ],
+  "cpu": "ultra_riscv_cpu",
+  "id": "holdout_case",
+  "ips": ["pulp_axi_lite_regs", "pulp_axi_lite_lfsr"],
+  "schema": "myfuzz.qualification-case/v1",
+  "split": "holdout"
+}

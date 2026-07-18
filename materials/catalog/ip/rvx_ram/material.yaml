@@ -1,0 +1,8 @@
+id: rvx_ram
+role: ram
+module: rvx_ram
+source_root: materials/rvx
+filelist: materials/cases/rvx_ram.f
+profile: rvx_ram
+status: case_available
+

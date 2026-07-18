@@ -1,0 +1,8 @@
+id: rvx_uart
+role: uart
+module: rvx_uart
+source_root: materials/rvx
+filelist: materials/cases/rvx_uart.f
+profile: rvx_uart
+status: case_available
+

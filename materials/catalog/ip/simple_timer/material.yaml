@@ -1,0 +1,8 @@
+id: simple_timer
+role: timer
+module: simple_timer
+source_root: materials/rtl/simple_ips
+filelist: materials/cases/timer.f
+profile: simple_timer
+status: verified_top_and_harness_lint
+

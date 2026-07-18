@@ -1,0 +1,10 @@
+id: rng_model
+role: rng
+upstream_family: RNG/TRNG
+description: Random number generator self-contained validation model
+mode: self_contained_model
+module: rng_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: rng_model
+status: case_available

@@ -1,0 +1,20 @@
+id: ariane_core_model
+role: cpu
+upstream_family: ariane core
+description: CPU dependency-free bulk validation model
+mode: self_contained_model
+module: ariane_core_model
+source_root: materials/rtl/famous_cpu_models
+filelist: sources.f
+profile: ariane_core_model
+status: case_available
+native_protocol: axi
+native_protocol_source: cpu_family_hint
+generation_protocol: canonical_cpu_master
+generation_protocol_source: current_cpu_profile_adapter
+dataset_split: train
+dataset_reason: stable_status_hash_bucket_0_7
+local_filelist: sources.f
+original_material_path: /home/qinkejiu/myfuzz/myfuzz/materials/catalog/cpu/ariane_core_model/material.yaml
+original_filelist: materials/cases/famous_cpu_models.f
+missing_entries: []

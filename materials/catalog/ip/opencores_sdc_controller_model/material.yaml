@@ -1,0 +1,10 @@
+id: opencores_sdc_controller_model
+role: sdio
+upstream_family: opencores sdc controller
+description: sdio dependency-free bulk validation model
+mode: self_contained_model
+module: opencores_sdc_controller_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: opencores_sdc_controller_model
+status: case_available

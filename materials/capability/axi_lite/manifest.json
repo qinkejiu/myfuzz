@@ -1,0 +1,1267 @@
+{
+  "candidates": [
+    {
+      "address_width": 32,
+      "data_width": 32,
+      "dependencies": [],
+      "family": "picorv32",
+      "filelist": "qualification/axi_lite/cases/picorv32_cpu.f",
+      "filelist_sha256": "c8e49af4a48ba9be412012466e620fd58df726819587a5d57de6e74b5a3beabd",
+      "id": "picorv32_cpu",
+      "interface": {
+        "araddr": "m_araddr",
+        "arready": "m_arready",
+        "arvalid": "m_arvalid",
+        "awaddr": "m_awaddr",
+        "awready": "m_awready",
+        "awvalid": "m_awvalid",
+        "bready": "m_bready",
+        "bresp": "m_bresp",
+        "bvalid": "m_bvalid",
+        "clock": "clk",
+        "rdata": "m_rdata",
+        "reset": "resetn",
+        "rready": "m_rready",
+        "rresp": "m_rresp",
+        "rvalid": "m_rvalid",
+        "wdata": "m_wdata",
+        "wready": "m_wready",
+        "wstrb": "m_wstrb",
+        "wvalid": "m_wvalid"
+      },
+      "kind": "cpu",
+      "licenses": [
+        {
+          "applies_to": [
+            "qualification/axi_lite/upstream/picorv32/picorv32.v",
+            "qualification/axi_lite/wrappers/picorv32_axil_cpu_wrapper.sv"
+          ],
+          "path": "qualification/axi_lite/upstream/picorv32/COPYING",
+          "redistribution": true,
+          "sha256": "041ebc727233e5bf096dd41260cbb81014d3d29ca007a15f3b1807d4e9ff288e",
+          "spdx": "ISC"
+        }
+      ],
+      "module": "picorv32_axil_cpu_wrapper",
+      "parameters": {},
+      "protocol": "axi_lite",
+      "provenance": {
+        "patches": [
+          {
+            "path": "qualification/axi_lite/wrappers/picorv32_axil_cpu_wrapper.sv",
+            "sha256": "95f8d73128ce70f51a0d274165d1970e04fc9ec1f9aa4c07dfd77a6f1d5f9d6f"
+          }
+        ],
+        "upstreams": [
+          {
+            "archive_sha256": "5795a2144f19a58507d2252e8377714ee9ce7c611341e6c29c448651f203e824",
+            "revision": "87c89acc18994c8cf9a2311e871818e87d304568",
+            "source": "https://github.com/YosysHQ/picorv32.git",
+            "submodules": []
+          }
+        ]
+      },
+      "reason": "independently elaborates and exposes a complete supported AXI-Lite interface",
+      "sources": [
+        {
+          "path": "qualification/axi_lite/upstream/picorv32/picorv32.v",
+          "sha256": "0836050971b3c6cdd28ac3b1e5719a67fb645161912bef1e472e63995ceb0622",
+          "size": 94657
+        },
+        {
+          "path": "qualification/axi_lite/wrappers/picorv32_axil_cpu_wrapper.sv",
+          "sha256": "95f8d73128ce70f51a0d274165d1970e04fc9ec1f9aa4c07dfd77a6f1d5f9d6f",
+          "size": 1882
+        }
+      ],
+      "split": "development",
+      "status": "qualified"
+    },
+    {
+      "address_width": 32,
+      "data_width": 32,
+      "dependencies": [],
+      "family": "ultraembedded_riscv",
+      "filelist": "qualification/axi_lite/cases/ultra_riscv_cpu.f",
+      "filelist_sha256": "918a42e6d8985626a3237115a3cd72139472ef998f006c9c2bf865dc85895c94",
+      "id": "ultra_riscv_cpu",
+      "interface": {
+        "araddr": "m_araddr",
+        "arready": "m_arready",
+        "arvalid": "m_arvalid",
+        "awaddr": "m_awaddr",
+        "awready": "m_awready",
+        "awvalid": "m_awvalid",
+        "bready": "m_bready",
+        "bresp": "m_bresp",
+        "bvalid": "m_bvalid",
+        "clock": "clk",
+        "rdata": "m_rdata",
+        "reset": "reset",
+        "rready": "m_rready",
+        "rresp": "m_rresp",
+        "rvalid": "m_rvalid",
+        "wdata": "m_wdata",
+        "wready": "m_wready",
+        "wstrb": "m_wstrb",
+        "wvalid": "m_wvalid"
+      },
+      "kind": "cpu",
+      "licenses": [
+        {
+          "applies_to": [
+            "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_defs.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_alu.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_csr_regfile.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_csr.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_decode.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_decoder.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_divider.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_exec.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_fetch.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_trace_sim.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_issue.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_lsu.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_mmu.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_multiplier.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_pipe_ctrl.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_regfile.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_core.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/tcm/dport_axi.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/tcm/dport_mux.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/tcm/tcm_mem_pmem.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/tcm/tcm_mem_ram.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/tcm/tcm_mem.v",
+            "qualification/axi_lite/upstream/ultraembedded_riscv/tcm/riscv_tcm_top.v",
+            "qualification/axi_lite/wrappers/ultra_riscv_axil_cpu_wrapper.sv"
+          ],
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/LICENSE",
+          "redistribution": true,
+          "sha256": "cfe3e4243d5479542e6ab09128f119585c60aea378f030681ce50f8546c01aa4",
+          "spdx": "BSD-3-Clause"
+        }
+      ],
+      "module": "ultra_riscv_axil_cpu_wrapper",
+      "parameters": {},
+      "protocol": "axi_lite",
+      "provenance": {
+        "patches": [
+          {
+            "path": "qualification/axi_lite/wrappers/ultra_riscv_axil_cpu_wrapper.sv",
+            "sha256": "3d72a7cb1409c454540cd4ffeb1eabf898e0eef17c8fbb55db99891566e228f6"
+          }
+        ],
+        "upstreams": [
+          {
+            "archive_sha256": "52a7637048d3f6ed6d26b4733994429cacabc4ae62384ec614c17b5c6c4485df",
+            "revision": "7ae6f803e30f78c6ea3121e73c3adf50ff912730",
+            "source": "https://github.com/ultraembedded/riscv.git",
+            "submodules": []
+          }
+        ]
+      },
+      "reason": "independently elaborates and exposes a complete supported AXI-Lite interface",
+      "sources": [
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_defs.v",
+          "sha256": "a37be4e15e54af88a57123ecd53947275b462ed4fec1aa96b9060f677e267df2",
+          "size": 16710
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_alu.v",
+          "sha256": "0cbd0e6e8171f83fb289801664b25f751e4ca54c474048ea5b7ad141748924ab",
+          "size": 7144
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_csr_regfile.v",
+          "sha256": "fb13802b8b12faae27a29aae7f1faeffafd9d31d9d503de73117a48597bb2632",
+          "size": 22743
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_csr.v",
+          "sha256": "02edd945d40439ba5804c2f4cc2289647db7795c532860b49ea81acd187718b4",
+          "size": 12723
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_decode.v",
+          "sha256": "2bf682b0a24f0694156d26ea5bad6ff0dcd531663494daaaff34ca64e6e12f87",
+          "size": 6185
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_decoder.v",
+          "sha256": "aadb8a158a4b5cb52c86a84571542e5ea087450ebbc88e274f29095eadbdb443",
+          "size": 14964
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_divider.v",
+          "sha256": "41e1a02fdfe635a8dd9c17c4c7dbf303e4c9c0d2f624e74aa8df06789b97d402",
+          "size": 6141
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_exec.v",
+          "sha256": "bf8ef962bcfbdc250b53562e842d0c42aad53a14b4ea33830fbf5490b0a85536",
+          "size": 14527
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_fetch.v",
+          "sha256": "4402ffda772b8925ee5d30f64efbd441713976132d50471cf1b0800a1d309464",
+          "size": 8412
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_trace_sim.v",
+          "sha256": "1e691cd965180f3202c42439487a37054c1763756140b926e5ca92d6575dc88b",
+          "size": 13026
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_issue.v",
+          "sha256": "988bcc6753feba4ce9545bda245e5fd983836d3301bd873e5bd1ffda25b0c618",
+          "size": 20569
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_lsu.v",
+          "sha256": "905051d342e21d645d263bf054888cce2cd43f4621ecb48f5b76f86010e22f54",
+          "size": 18785
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_mmu.v",
+          "sha256": "866f04ab36f4fef00c2f347d0eb4d64e109385d5f684858a0bd125938e3943a0",
+          "size": 20844
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_multiplier.v",
+          "sha256": "7e90aa5e125cf5bfe83bdbe1c6c69f58487dfb253552254c73ef9ce4f737c030",
+          "size": 5438
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_pipe_ctrl.v",
+          "sha256": "873e519ec1129db6b1256b59cc72af96c3d0092802a2c1383fec939af86d420a",
+          "size": 15768
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_regfile.v",
+          "sha256": "e0fd24c716257ba0379357456ecc45a8dade53af61c870590b5bb26b7dab6758",
+          "size": 15006
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/core/riscv_core.v",
+          "sha256": "013804fe7a7a37af921a83cbf64b0d22b1862deae0b685e616742acc918c1c8b",
+          "size": 22201
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/tcm/dport_axi.v",
+          "sha256": "491b38cf4f7ed58b0f7ae8ec3a483b64dba9aebab1b35566073fdaae0f2c6961",
+          "size": 9905
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/tcm/dport_mux.v",
+          "sha256": "50cc336c2aebb092dc9cd5f4296019950891d2655d89bf0e6d95e27e82f21dc5",
+          "size": 6844
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/tcm/tcm_mem_pmem.v",
+          "sha256": "171b6a903df5b76b98893acdbfd6c75e029a21ffce6f916789129bac08de51aa",
+          "size": 13516
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/tcm/tcm_mem_ram.v",
+          "sha256": "17df5fcb4b68d20cad6987779a72b884161235e66791d1e46d0fee893e021a62",
+          "size": 3703
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/tcm/tcm_mem.v",
+          "sha256": "960e745a4c9ff4c48b7114070d90c54cd415e6a4cc8ab12dffb6100ae4b15504",
+          "size": 9237
+        },
+        {
+          "path": "qualification/axi_lite/upstream/ultraembedded_riscv/tcm/riscv_tcm_top.v",
+          "sha256": "47c61abf2adc4cbf0b48e2d48abcc65eec9f05ddd159e4d2b6b78cca3fa4cb00",
+          "size": 12211
+        },
+        {
+          "path": "qualification/axi_lite/wrappers/ultra_riscv_axil_cpu_wrapper.sv",
+          "sha256": "3d72a7cb1409c454540cd4ffeb1eabf898e0eef17c8fbb55db99891566e228f6",
+          "size": 2154
+        }
+      ],
+      "split": "holdout",
+      "status": "qualified"
+    },
+    {
+      "address_width": 16,
+      "data_width": 32,
+      "dependencies": [],
+      "family": "verilog_axi",
+      "filelist": "qualification/axi_lite/cases/verilog_axi_ram.f",
+      "filelist_sha256": "cc83ef88a1d5d273dd3f2b9766375b2857eb74ed4575386d234deba0e0a645b6",
+      "id": "verilog_axi_ram_0",
+      "interface": {
+        "araddr": "s_araddr",
+        "arready": "s_arready",
+        "arvalid": "s_arvalid",
+        "awaddr": "s_awaddr",
+        "awready": "s_awready",
+        "awvalid": "s_awvalid",
+        "bready": "s_bready",
+        "bresp": "s_bresp",
+        "bvalid": "s_bvalid",
+        "clock": "clk",
+        "rdata": "s_rdata",
+        "reset": "reset",
+        "rready": "s_rready",
+        "rresp": "s_rresp",
+        "rvalid": "s_rvalid",
+        "wdata": "s_wdata",
+        "wready": "s_wready",
+        "wstrb": "s_wstrb",
+        "wvalid": "s_wvalid"
+      },
+      "kind": "ip",
+      "licenses": [
+        {
+          "applies_to": [
+            "qualification/axi_lite/upstream/verilog_axi/axil_ram.v",
+            "qualification/axi_lite/wrappers/verilog_axi_ram_wrapper.sv"
+          ],
+          "path": "qualification/axi_lite/upstream/verilog_axi/COPYING",
+          "redistribution": true,
+          "sha256": "ba81481b2d63a33e0dce336d9e736130709549feeaf6cd424b34beba712baa50",
+          "spdx": "MIT"
+        }
+      ],
+      "module": "verilog_axi_ram_wrapper",
+      "parameters": {
+        "ADDR_WIDTH": 16,
+        "DATA_WIDTH": 32
+      },
+      "protocol": "axi_lite",
+      "provenance": {
+        "patches": [
+          {
+            "path": "qualification/axi_lite/wrappers/verilog_axi_ram_wrapper.sv",
+            "sha256": "e65ab82a5722a26a6a5b3f7fce0d76a1d1ddb7782c8d1067d9897fe2b483d5f0"
+          }
+        ],
+        "upstreams": [
+          {
+            "archive_sha256": "1ab8b3f0320c3757d968f86cc79ad42968e378bab22d045a6cd8ca6c6a3b6676",
+            "revision": "516bd5dadc3365b7f9e225d2af8fe0b8d804fe53",
+            "source": "https://github.com/alexforencich/verilog-axi.git",
+            "submodules": []
+          }
+        ]
+      },
+      "reason": "independently elaborates and exposes a complete supported AXI-Lite interface",
+      "sources": [
+        {
+          "path": "qualification/axi_lite/upstream/verilog_axi/axil_ram.v",
+          "sha256": "5a5ae8c10ab01d8ab3ed18418f4dadfa9c7cadb584ab14838a8d18ac4c3b5644",
+          "size": 6093
+        },
+        {
+          "path": "qualification/axi_lite/wrappers/verilog_axi_ram_wrapper.sv",
+          "sha256": "e65ab82a5722a26a6a5b3f7fce0d76a1d1ddb7782c8d1067d9897fe2b483d5f0",
+          "size": 1405
+        }
+      ],
+      "split": "capability",
+      "status": "qualified"
+    },
+    {
+      "address_width": 16,
+      "data_width": 32,
+      "dependencies": [],
+      "family": "verilog_axi",
+      "filelist": "qualification/axi_lite/cases/verilog_axi_ram.f",
+      "filelist_sha256": "cc83ef88a1d5d273dd3f2b9766375b2857eb74ed4575386d234deba0e0a645b6",
+      "id": "verilog_axi_ram_1",
+      "interface": {
+        "araddr": "s_araddr",
+        "arready": "s_arready",
+        "arvalid": "s_arvalid",
+        "awaddr": "s_awaddr",
+        "awready": "s_awready",
+        "awvalid": "s_awvalid",
+        "bready": "s_bready",
+        "bresp": "s_bresp",
+        "bvalid": "s_bvalid",
+        "clock": "clk",
+        "rdata": "s_rdata",
+        "reset": "reset",
+        "rready": "s_rready",
+        "rresp": "s_rresp",
+        "rvalid": "s_rvalid",
+        "wdata": "s_wdata",
+        "wready": "s_wready",
+        "wstrb": "s_wstrb",
+        "wvalid": "s_wvalid"
+      },
+      "kind": "ip",
+      "licenses": [
+        {
+          "applies_to": [
+            "qualification/axi_lite/upstream/verilog_axi/axil_ram.v",
+            "qualification/axi_lite/wrappers/verilog_axi_ram_wrapper.sv"
+          ],
+          "path": "qualification/axi_lite/upstream/verilog_axi/COPYING",
+          "redistribution": true,
+          "sha256": "ba81481b2d63a33e0dce336d9e736130709549feeaf6cd424b34beba712baa50",
+          "spdx": "MIT"
+        }
+      ],
+      "module": "verilog_axi_ram_wrapper",
+      "parameters": {
+        "ADDR_WIDTH": 16,
+        "DATA_WIDTH": 32
+      },
+      "protocol": "axi_lite",
+      "provenance": {
+        "patches": [
+          {
+            "path": "qualification/axi_lite/wrappers/verilog_axi_ram_wrapper.sv",
+            "sha256": "e65ab82a5722a26a6a5b3f7fce0d76a1d1ddb7782c8d1067d9897fe2b483d5f0"
+          }
+        ],
+        "upstreams": [
+          {
+            "archive_sha256": "1ab8b3f0320c3757d968f86cc79ad42968e378bab22d045a6cd8ca6c6a3b6676",
+            "revision": "516bd5dadc3365b7f9e225d2af8fe0b8d804fe53",
+            "source": "https://github.com/alexforencich/verilog-axi.git",
+            "submodules": []
+          }
+        ]
+      },
+      "reason": "independently elaborates and exposes a complete supported AXI-Lite interface",
+      "sources": [
+        {
+          "path": "qualification/axi_lite/upstream/verilog_axi/axil_ram.v",
+          "sha256": "5a5ae8c10ab01d8ab3ed18418f4dadfa9c7cadb584ab14838a8d18ac4c3b5644",
+          "size": 6093
+        },
+        {
+          "path": "qualification/axi_lite/wrappers/verilog_axi_ram_wrapper.sv",
+          "sha256": "e65ab82a5722a26a6a5b3f7fce0d76a1d1ddb7782c8d1067d9897fe2b483d5f0",
+          "size": 1405
+        }
+      ],
+      "split": "capability",
+      "status": "qualified"
+    },
+    {
+      "address_width": 12,
+      "data_width": 32,
+      "dependencies": [],
+      "family": "verilog_axi",
+      "filelist": "qualification/axi_lite/cases/verilog_axi_dp_ram.f",
+      "filelist_sha256": "a9ef50edf1d31b41c5ea5dda1c16e5d292cbd6f48248235bb8c1f4222baf36ec",
+      "id": "verilog_axi_dp_ram_0",
+      "interface": {
+        "araddr": "s_araddr",
+        "arready": "s_arready",
+        "arvalid": "s_arvalid",
+        "awaddr": "s_awaddr",
+        "awready": "s_awready",
+        "awvalid": "s_awvalid",
+        "bready": "s_bready",
+        "bresp": "s_bresp",
+        "bvalid": "s_bvalid",
+        "clock": "clk",
+        "rdata": "s_rdata",
+        "reset": "reset",
+        "rready": "s_rready",
+        "rresp": "s_rresp",
+        "rvalid": "s_rvalid",
+        "wdata": "s_wdata",
+        "wready": "s_wready",
+        "wstrb": "s_wstrb",
+        "wvalid": "s_wvalid"
+      },
+      "kind": "ip",
+      "licenses": [
+        {
+          "applies_to": [
+            "qualification/axi_lite/upstream/verilog_axi/axil_dp_ram.v",
+            "qualification/axi_lite/wrappers/verilog_axi_dp_ram_wrapper.sv"
+          ],
+          "path": "qualification/axi_lite/upstream/verilog_axi/COPYING",
+          "redistribution": true,
+          "sha256": "ba81481b2d63a33e0dce336d9e736130709549feeaf6cd424b34beba712baa50",
+          "spdx": "MIT"
+        }
+      ],
+      "module": "verilog_axi_dp_ram_wrapper",
+      "parameters": {},
+      "protocol": "axi_lite",
+      "provenance": {
+        "patches": [
+          {
+            "path": "qualification/axi_lite/wrappers/verilog_axi_dp_ram_wrapper.sv",
+            "sha256": "303c0f5df74f589b859bc979fb61ed1f84f71198df64a6939d9164a522febc1b"
+          }
+        ],
+        "upstreams": [
+          {
+            "archive_sha256": "1ab8b3f0320c3757d968f86cc79ad42968e378bab22d045a6cd8ca6c6a3b6676",
+            "revision": "516bd5dadc3365b7f9e225d2af8fe0b8d804fe53",
+            "source": "https://github.com/alexforencich/verilog-axi.git",
+            "submodules": []
+          }
+        ]
+      },
+      "reason": "independently elaborates and exposes a complete supported AXI-Lite interface",
+      "sources": [
+        {
+          "path": "qualification/axi_lite/upstream/verilog_axi/axil_dp_ram.v",
+          "sha256": "5751657db197c9505aa2d57d64d32417e3a142c9fa725a013655f163d43fa33c",
+          "size": 11281
+        },
+        {
+          "path": "qualification/axi_lite/wrappers/verilog_axi_dp_ram_wrapper.sv",
+          "sha256": "303c0f5df74f589b859bc979fb61ed1f84f71198df64a6939d9164a522febc1b",
+          "size": 1987
+        }
+      ],
+      "split": "capability",
+      "status": "qualified"
+    },
+    {
+      "address_width": 12,
+      "data_width": 32,
+      "dependencies": [],
+      "family": "verilog_axi",
+      "filelist": "qualification/axi_lite/cases/verilog_axi_dp_ram.f",
+      "filelist_sha256": "a9ef50edf1d31b41c5ea5dda1c16e5d292cbd6f48248235bb8c1f4222baf36ec",
+      "id": "verilog_axi_dp_ram_1",
+      "interface": {
+        "araddr": "s_araddr",
+        "arready": "s_arready",
+        "arvalid": "s_arvalid",
+        "awaddr": "s_awaddr",
+        "awready": "s_awready",
+        "awvalid": "s_awvalid",
+        "bready": "s_bready",
+        "bresp": "s_bresp",
+        "bvalid": "s_bvalid",
+        "clock": "clk",
+        "rdata": "s_rdata",
+        "reset": "reset",
+        "rready": "s_rready",
+        "rresp": "s_rresp",
+        "rvalid": "s_rvalid",
+        "wdata": "s_wdata",
+        "wready": "s_wready",
+        "wstrb": "s_wstrb",
+        "wvalid": "s_wvalid"
+      },
+      "kind": "ip",
+      "licenses": [
+        {
+          "applies_to": [
+            "qualification/axi_lite/upstream/verilog_axi/axil_dp_ram.v",
+            "qualification/axi_lite/wrappers/verilog_axi_dp_ram_wrapper.sv"
+          ],
+          "path": "qualification/axi_lite/upstream/verilog_axi/COPYING",
+          "redistribution": true,
+          "sha256": "ba81481b2d63a33e0dce336d9e736130709549feeaf6cd424b34beba712baa50",
+          "spdx": "MIT"
+        }
+      ],
+      "module": "verilog_axi_dp_ram_wrapper",
+      "parameters": {},
+      "protocol": "axi_lite",
+      "provenance": {
+        "patches": [
+          {
+            "path": "qualification/axi_lite/wrappers/verilog_axi_dp_ram_wrapper.sv",
+            "sha256": "303c0f5df74f589b859bc979fb61ed1f84f71198df64a6939d9164a522febc1b"
+          }
+        ],
+        "upstreams": [
+          {
+            "archive_sha256": "1ab8b3f0320c3757d968f86cc79ad42968e378bab22d045a6cd8ca6c6a3b6676",
+            "revision": "516bd5dadc3365b7f9e225d2af8fe0b8d804fe53",
+            "source": "https://github.com/alexforencich/verilog-axi.git",
+            "submodules": []
+          }
+        ]
+      },
+      "reason": "independently elaborates and exposes a complete supported AXI-Lite interface",
+      "sources": [
+        {
+          "path": "qualification/axi_lite/upstream/verilog_axi/axil_dp_ram.v",
+          "sha256": "5751657db197c9505aa2d57d64d32417e3a142c9fa725a013655f163d43fa33c",
+          "size": 11281
+        },
+        {
+          "path": "qualification/axi_lite/wrappers/verilog_axi_dp_ram_wrapper.sv",
+          "sha256": "303c0f5df74f589b859bc979fb61ed1f84f71198df64a6939d9164a522febc1b",
+          "size": 1987
+        }
+      ],
+      "split": "capability",
+      "status": "qualified"
+    },
+    {
+      "address_width": 32,
+      "data_width": 32,
+      "dependencies": [
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/include/axi/assign.svh",
+          "sha256": "8d6aa6ecc736515db75bb691e377b64753310c442e107757b99caabdf043b6cd",
+          "size": 45647
+        },
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/include/axi/port.svh",
+          "sha256": "3fa0ccc81d775c439e47d2c01dd62be79a9cfd8f2f84a05a1ef90b9cf3fb43d1",
+          "size": 6805
+        },
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/include/axi/typedef.svh",
+          "sha256": "63f095042c9183f977e95307df14ce0baa06b71121491a380af289f8b309482c",
+          "size": 14574
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/include/common_cells/assertions.svh",
+          "sha256": "d39c7afa893656e235b0019233c1bcf12491cd421639791c827cc53236bd4841",
+          "size": 10990
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/include/common_cells/registers.svh",
+          "sha256": "532dfd1723d2936421b921235abdafcc8ca407990224992ca13575fdb620053a",
+          "size": 12202
+        }
+      ],
+      "family": "pulp_axi",
+      "filelist": "qualification/axi_lite/cases/pulp_axi_lite_regs.f",
+      "filelist_sha256": "be00a33ea1889002fdf3511e2a5852cbbf0d8238b09351e721d454f5c4c42c0a",
+      "id": "pulp_axi_lite_regs_0",
+      "interface": {
+        "araddr": "s_araddr",
+        "arready": "s_arready",
+        "arvalid": "s_arvalid",
+        "awaddr": "s_awaddr",
+        "awready": "s_awready",
+        "awvalid": "s_awvalid",
+        "bready": "s_bready",
+        "bresp": "s_bresp",
+        "bvalid": "s_bvalid",
+        "clock": "clk",
+        "rdata": "s_rdata",
+        "reset": "resetn",
+        "rready": "s_rready",
+        "rresp": "s_rresp",
+        "rvalid": "s_rvalid",
+        "wdata": "s_wdata",
+        "wready": "s_wready",
+        "wstrb": "s_wstrb",
+        "wvalid": "s_wvalid"
+      },
+      "kind": "ip",
+      "licenses": [
+        {
+          "applies_to": [
+            "qualification/axi_lite/upstream/pulp_axi/src/axi_pkg.sv",
+            "qualification/axi_lite/upstream/pulp_axi/src/axi_lite_regs.sv",
+            "qualification/axi_lite/wrappers/pulp_axi_lite_regs_wrapper.sv",
+            "qualification/axi_lite/upstream/pulp_axi/include/axi/assign.svh",
+            "qualification/axi_lite/upstream/pulp_axi/include/axi/port.svh",
+            "qualification/axi_lite/upstream/pulp_axi/include/axi/typedef.svh"
+          ],
+          "path": "qualification/axi_lite/upstream/pulp_axi/LICENSE",
+          "redistribution": true,
+          "sha256": "6527a46225891b976fa94f634f6ee0cd22e1c7129d6f11c5c98c997627625fc7",
+          "spdx": "SHL-0.51"
+        },
+        {
+          "applies_to": [
+            "qualification/axi_lite/upstream/common_cells/src/cf_math_pkg.sv",
+            "qualification/axi_lite/upstream/common_cells/src/addr_decode_dync.sv",
+            "qualification/axi_lite/upstream/common_cells/src/addr_decode.sv",
+            "qualification/axi_lite/upstream/common_cells/src/spill_register_flushable.sv",
+            "qualification/axi_lite/upstream/common_cells/src/spill_register.sv",
+            "qualification/axi_lite/upstream/common_cells/include/common_cells/assertions.svh",
+            "qualification/axi_lite/upstream/common_cells/include/common_cells/registers.svh"
+          ],
+          "path": "qualification/axi_lite/upstream/common_cells/LICENSE",
+          "redistribution": true,
+          "sha256": "6527a46225891b976fa94f634f6ee0cd22e1c7129d6f11c5c98c997627625fc7",
+          "spdx": "SHL-0.51"
+        }
+      ],
+      "module": "pulp_axi_lite_regs_wrapper",
+      "parameters": {},
+      "protocol": "axi_lite",
+      "provenance": {
+        "patches": [
+          {
+            "path": "qualification/axi_lite/wrappers/pulp_axi_lite_regs_wrapper.sv",
+            "sha256": "a3ffa5078d15eac0f8a28adbc26c04fb5ae63a77e885f8d737d718c4a73a9b9e"
+          }
+        ],
+        "upstreams": [
+          {
+            "archive_sha256": "6a304548026e5c4b4cc864ca89deace6d43a15dcecd795fb12df42138b55caac",
+            "revision": "e55ae2a7ee606ee3cfd4257f63982a971b704407",
+            "source": "https://github.com/pulp-platform/axi.git",
+            "submodules": []
+          },
+          {
+            "archive_sha256": "5bdd5aba92c237097b681a1e82224830189d6941db6b594d2b03aab7803b0f5c",
+            "revision": "9ca8a7655f741e7dd5736669a20a301325194c28",
+            "source": "https://github.com/pulp-platform/common_cells.git",
+            "submodules": []
+          }
+        ]
+      },
+      "reason": "independently elaborates and exposes a complete supported AXI-Lite interface",
+      "sources": [
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/src/cf_math_pkg.sv",
+          "sha256": "bbf0614771ceb9526356bb8e5234787324ef215884bc11b4aa27e91fc3cc8910",
+          "size": 2993
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/src/addr_decode_dync.sv",
+          "sha256": "8360f958a1a81c54e96dfbb9e5d3392c9c475b1b7a9ebb1e0c2dbbbbf8ec0b29",
+          "size": 8562
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/src/addr_decode.sv",
+          "sha256": "4d124ff240e5dd38cd3d4f73fc26754041e7105d4599eb581e6bed4bdc1cc34a",
+          "size": 4907
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/src/spill_register_flushable.sv",
+          "sha256": "3285eb2e557f6377de88df91751b0bccdad07b16be9d926314a52a23e964f02c",
+          "size": 3605
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/src/spill_register.sv",
+          "sha256": "97bf85128f538c54c749896b8eee5fcfe4b27c16845d2a17990979a63b09f2ec",
+          "size": 1381
+        },
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/src/axi_pkg.sv",
+          "sha256": "244bd5cb3c5bc58d786f2ed2f5eeefd910c4fe03a175f4a2888c6a2ea1c430dc",
+          "size": 26577
+        },
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/src/axi_lite_regs.sv",
+          "sha256": "e55cc8e7c3aa2377c2f11330f9ca13c1b2bce45f84017eed9d286452ce163823",
+          "size": 20639
+        },
+        {
+          "path": "qualification/axi_lite/wrappers/pulp_axi_lite_regs_wrapper.sv",
+          "sha256": "a3ffa5078d15eac0f8a28adbc26c04fb5ae63a77e885f8d737d718c4a73a9b9e",
+          "size": 1881
+        }
+      ],
+      "split": "capability",
+      "status": "qualified"
+    },
+    {
+      "address_width": 32,
+      "data_width": 32,
+      "dependencies": [
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/include/axi/assign.svh",
+          "sha256": "8d6aa6ecc736515db75bb691e377b64753310c442e107757b99caabdf043b6cd",
+          "size": 45647
+        },
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/include/axi/port.svh",
+          "sha256": "3fa0ccc81d775c439e47d2c01dd62be79a9cfd8f2f84a05a1ef90b9cf3fb43d1",
+          "size": 6805
+        },
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/include/axi/typedef.svh",
+          "sha256": "63f095042c9183f977e95307df14ce0baa06b71121491a380af289f8b309482c",
+          "size": 14574
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/include/common_cells/assertions.svh",
+          "sha256": "d39c7afa893656e235b0019233c1bcf12491cd421639791c827cc53236bd4841",
+          "size": 10990
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/include/common_cells/registers.svh",
+          "sha256": "532dfd1723d2936421b921235abdafcc8ca407990224992ca13575fdb620053a",
+          "size": 12202
+        }
+      ],
+      "family": "pulp_axi",
+      "filelist": "qualification/axi_lite/cases/pulp_axi_lite_regs.f",
+      "filelist_sha256": "be00a33ea1889002fdf3511e2a5852cbbf0d8238b09351e721d454f5c4c42c0a",
+      "id": "pulp_axi_lite_regs_1",
+      "interface": {
+        "araddr": "s_araddr",
+        "arready": "s_arready",
+        "arvalid": "s_arvalid",
+        "awaddr": "s_awaddr",
+        "awready": "s_awready",
+        "awvalid": "s_awvalid",
+        "bready": "s_bready",
+        "bresp": "s_bresp",
+        "bvalid": "s_bvalid",
+        "clock": "clk",
+        "rdata": "s_rdata",
+        "reset": "resetn",
+        "rready": "s_rready",
+        "rresp": "s_rresp",
+        "rvalid": "s_rvalid",
+        "wdata": "s_wdata",
+        "wready": "s_wready",
+        "wstrb": "s_wstrb",
+        "wvalid": "s_wvalid"
+      },
+      "kind": "ip",
+      "licenses": [
+        {
+          "applies_to": [
+            "qualification/axi_lite/upstream/pulp_axi/src/axi_pkg.sv",
+            "qualification/axi_lite/upstream/pulp_axi/src/axi_lite_regs.sv",
+            "qualification/axi_lite/wrappers/pulp_axi_lite_regs_wrapper.sv",
+            "qualification/axi_lite/upstream/pulp_axi/include/axi/assign.svh",
+            "qualification/axi_lite/upstream/pulp_axi/include/axi/port.svh",
+            "qualification/axi_lite/upstream/pulp_axi/include/axi/typedef.svh"
+          ],
+          "path": "qualification/axi_lite/upstream/pulp_axi/LICENSE",
+          "redistribution": true,
+          "sha256": "6527a46225891b976fa94f634f6ee0cd22e1c7129d6f11c5c98c997627625fc7",
+          "spdx": "SHL-0.51"
+        },
+        {
+          "applies_to": [
+            "qualification/axi_lite/upstream/common_cells/src/cf_math_pkg.sv",
+            "qualification/axi_lite/upstream/common_cells/src/addr_decode_dync.sv",
+            "qualification/axi_lite/upstream/common_cells/src/addr_decode.sv",
+            "qualification/axi_lite/upstream/common_cells/src/spill_register_flushable.sv",
+            "qualification/axi_lite/upstream/common_cells/src/spill_register.sv",
+            "qualification/axi_lite/upstream/common_cells/include/common_cells/assertions.svh",
+            "qualification/axi_lite/upstream/common_cells/include/common_cells/registers.svh"
+          ],
+          "path": "qualification/axi_lite/upstream/common_cells/LICENSE",
+          "redistribution": true,
+          "sha256": "6527a46225891b976fa94f634f6ee0cd22e1c7129d6f11c5c98c997627625fc7",
+          "spdx": "SHL-0.51"
+        }
+      ],
+      "module": "pulp_axi_lite_regs_wrapper",
+      "parameters": {},
+      "protocol": "axi_lite",
+      "provenance": {
+        "patches": [
+          {
+            "path": "qualification/axi_lite/wrappers/pulp_axi_lite_regs_wrapper.sv",
+            "sha256": "a3ffa5078d15eac0f8a28adbc26c04fb5ae63a77e885f8d737d718c4a73a9b9e"
+          }
+        ],
+        "upstreams": [
+          {
+            "archive_sha256": "6a304548026e5c4b4cc864ca89deace6d43a15dcecd795fb12df42138b55caac",
+            "revision": "e55ae2a7ee606ee3cfd4257f63982a971b704407",
+            "source": "https://github.com/pulp-platform/axi.git",
+            "submodules": []
+          },
+          {
+            "archive_sha256": "5bdd5aba92c237097b681a1e82224830189d6941db6b594d2b03aab7803b0f5c",
+            "revision": "9ca8a7655f741e7dd5736669a20a301325194c28",
+            "source": "https://github.com/pulp-platform/common_cells.git",
+            "submodules": []
+          }
+        ]
+      },
+      "reason": "independently elaborates and exposes a complete supported AXI-Lite interface",
+      "sources": [
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/src/cf_math_pkg.sv",
+          "sha256": "bbf0614771ceb9526356bb8e5234787324ef215884bc11b4aa27e91fc3cc8910",
+          "size": 2993
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/src/addr_decode_dync.sv",
+          "sha256": "8360f958a1a81c54e96dfbb9e5d3392c9c475b1b7a9ebb1e0c2dbbbbf8ec0b29",
+          "size": 8562
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/src/addr_decode.sv",
+          "sha256": "4d124ff240e5dd38cd3d4f73fc26754041e7105d4599eb581e6bed4bdc1cc34a",
+          "size": 4907
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/src/spill_register_flushable.sv",
+          "sha256": "3285eb2e557f6377de88df91751b0bccdad07b16be9d926314a52a23e964f02c",
+          "size": 3605
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/src/spill_register.sv",
+          "sha256": "97bf85128f538c54c749896b8eee5fcfe4b27c16845d2a17990979a63b09f2ec",
+          "size": 1381
+        },
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/src/axi_pkg.sv",
+          "sha256": "244bd5cb3c5bc58d786f2ed2f5eeefd910c4fe03a175f4a2888c6a2ea1c430dc",
+          "size": 26577
+        },
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/src/axi_lite_regs.sv",
+          "sha256": "e55cc8e7c3aa2377c2f11330f9ca13c1b2bce45f84017eed9d286452ce163823",
+          "size": 20639
+        },
+        {
+          "path": "qualification/axi_lite/wrappers/pulp_axi_lite_regs_wrapper.sv",
+          "sha256": "a3ffa5078d15eac0f8a28adbc26c04fb5ae63a77e885f8d737d718c4a73a9b9e",
+          "size": 1881
+        }
+      ],
+      "split": "capability",
+      "status": "qualified"
+    },
+    {
+      "address_width": 32,
+      "data_width": 32,
+      "dependencies": [
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/include/axi/assign.svh",
+          "sha256": "8d6aa6ecc736515db75bb691e377b64753310c442e107757b99caabdf043b6cd",
+          "size": 45647
+        },
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/include/axi/port.svh",
+          "sha256": "3fa0ccc81d775c439e47d2c01dd62be79a9cfd8f2f84a05a1ef90b9cf3fb43d1",
+          "size": 6805
+        },
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/include/axi/typedef.svh",
+          "sha256": "63f095042c9183f977e95307df14ce0baa06b71121491a380af289f8b309482c",
+          "size": 14574
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/include/common_cells/assertions.svh",
+          "sha256": "d39c7afa893656e235b0019233c1bcf12491cd421639791c827cc53236bd4841",
+          "size": 10990
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/include/common_cells/registers.svh",
+          "sha256": "532dfd1723d2936421b921235abdafcc8ca407990224992ca13575fdb620053a",
+          "size": 12202
+        }
+      ],
+      "family": "pulp_axi",
+      "filelist": "qualification/axi_lite/cases/pulp_axi_lite_lfsr.f",
+      "filelist_sha256": "c47e426f682b02d775120080403dcfb8619de78584fd612ea4ab17014f357d69",
+      "id": "pulp_axi_lite_lfsr_0",
+      "interface": {
+        "araddr": "s_araddr",
+        "arready": "s_arready",
+        "arvalid": "s_arvalid",
+        "awaddr": "s_awaddr",
+        "awready": "s_awready",
+        "awvalid": "s_awvalid",
+        "bready": "s_bready",
+        "bresp": "s_bresp",
+        "bvalid": "s_bvalid",
+        "clock": "clk",
+        "rdata": "s_rdata",
+        "reset": "resetn",
+        "rready": "s_rready",
+        "rresp": "s_rresp",
+        "rvalid": "s_rvalid",
+        "wdata": "s_wdata",
+        "wready": "s_wready",
+        "wstrb": "s_wstrb",
+        "wvalid": "s_wvalid"
+      },
+      "kind": "ip",
+      "licenses": [
+        {
+          "applies_to": [
+            "qualification/axi_lite/upstream/pulp_axi/src/axi_pkg.sv",
+            "qualification/axi_lite/upstream/pulp_axi/src/axi_lite_lfsr.sv",
+            "qualification/axi_lite/wrappers/pulp_axi_lite_lfsr_wrapper.sv",
+            "qualification/axi_lite/upstream/pulp_axi/include/axi/assign.svh",
+            "qualification/axi_lite/upstream/pulp_axi/include/axi/port.svh",
+            "qualification/axi_lite/upstream/pulp_axi/include/axi/typedef.svh"
+          ],
+          "path": "qualification/axi_lite/upstream/pulp_axi/LICENSE",
+          "redistribution": true,
+          "sha256": "6527a46225891b976fa94f634f6ee0cd22e1c7129d6f11c5c98c997627625fc7",
+          "spdx": "SHL-0.51"
+        },
+        {
+          "applies_to": [
+            "qualification/axi_lite/upstream/common_cells/src/cf_math_pkg.sv",
+            "qualification/axi_lite/upstream/common_cells/src/fifo_v3.sv",
+            "qualification/axi_lite/upstream/common_cells/src/stream_fifo.sv",
+            "qualification/axi_lite/upstream/common_cells/include/common_cells/assertions.svh",
+            "qualification/axi_lite/upstream/common_cells/include/common_cells/registers.svh"
+          ],
+          "path": "qualification/axi_lite/upstream/common_cells/LICENSE",
+          "redistribution": true,
+          "sha256": "6527a46225891b976fa94f634f6ee0cd22e1c7129d6f11c5c98c997627625fc7",
+          "spdx": "SHL-0.51"
+        }
+      ],
+      "module": "pulp_axi_lite_lfsr_wrapper",
+      "parameters": {},
+      "protocol": "axi_lite",
+      "provenance": {
+        "patches": [
+          {
+            "path": "qualification/axi_lite/wrappers/pulp_axi_lite_lfsr_wrapper.sv",
+            "sha256": "81b0418ea796abb5a73e52980ab9030a50235350b5297e536fb31e88c7c5f70d"
+          }
+        ],
+        "upstreams": [
+          {
+            "archive_sha256": "6a304548026e5c4b4cc864ca89deace6d43a15dcecd795fb12df42138b55caac",
+            "revision": "e55ae2a7ee606ee3cfd4257f63982a971b704407",
+            "source": "https://github.com/pulp-platform/axi.git",
+            "submodules": []
+          },
+          {
+            "archive_sha256": "5bdd5aba92c237097b681a1e82224830189d6941db6b594d2b03aab7803b0f5c",
+            "revision": "9ca8a7655f741e7dd5736669a20a301325194c28",
+            "source": "https://github.com/pulp-platform/common_cells.git",
+            "submodules": []
+          }
+        ]
+      },
+      "reason": "independently elaborates and exposes a complete supported AXI-Lite interface",
+      "sources": [
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/src/cf_math_pkg.sv",
+          "sha256": "bbf0614771ceb9526356bb8e5234787324ef215884bc11b4aa27e91fc3cc8910",
+          "size": 2993
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/src/fifo_v3.sv",
+          "sha256": "861ea44cbd3129731b77977da36fb0dac1a1350d7df664a1b4310423e7d272bc",
+          "size": 6308
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/src/stream_fifo.sv",
+          "sha256": "b24dbfeff17323b339fcf38854e5dfadd8b8e15489936d4a029988ece240eac3",
+          "size": 2593
+        },
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/src/axi_pkg.sv",
+          "sha256": "244bd5cb3c5bc58d786f2ed2f5eeefd910c4fe03a175f4a2888c6a2ea1c430dc",
+          "size": 26577
+        },
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/src/axi_lite_lfsr.sv",
+          "sha256": "0d2def3af9154aa5e6e6990d51b9abd8e3e33d5dc57f61540ad9ee3924296bdc",
+          "size": 7622
+        },
+        {
+          "path": "qualification/axi_lite/wrappers/pulp_axi_lite_lfsr_wrapper.sv",
+          "sha256": "81b0418ea796abb5a73e52980ab9030a50235350b5297e536fb31e88c7c5f70d",
+          "size": 1847
+        }
+      ],
+      "split": "capability",
+      "status": "qualified"
+    },
+    {
+      "address_width": 32,
+      "data_width": 32,
+      "dependencies": [
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/include/axi/assign.svh",
+          "sha256": "8d6aa6ecc736515db75bb691e377b64753310c442e107757b99caabdf043b6cd",
+          "size": 45647
+        },
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/include/axi/port.svh",
+          "sha256": "3fa0ccc81d775c439e47d2c01dd62be79a9cfd8f2f84a05a1ef90b9cf3fb43d1",
+          "size": 6805
+        },
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/include/axi/typedef.svh",
+          "sha256": "63f095042c9183f977e95307df14ce0baa06b71121491a380af289f8b309482c",
+          "size": 14574
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/include/common_cells/assertions.svh",
+          "sha256": "d39c7afa893656e235b0019233c1bcf12491cd421639791c827cc53236bd4841",
+          "size": 10990
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/include/common_cells/registers.svh",
+          "sha256": "532dfd1723d2936421b921235abdafcc8ca407990224992ca13575fdb620053a",
+          "size": 12202
+        }
+      ],
+      "family": "pulp_axi",
+      "filelist": "qualification/axi_lite/cases/pulp_axi_lite_lfsr.f",
+      "filelist_sha256": "c47e426f682b02d775120080403dcfb8619de78584fd612ea4ab17014f357d69",
+      "id": "pulp_axi_lite_lfsr_1",
+      "interface": {
+        "araddr": "s_araddr",
+        "arready": "s_arready",
+        "arvalid": "s_arvalid",
+        "awaddr": "s_awaddr",
+        "awready": "s_awready",
+        "awvalid": "s_awvalid",
+        "bready": "s_bready",
+        "bresp": "s_bresp",
+        "bvalid": "s_bvalid",
+        "clock": "clk",
+        "rdata": "s_rdata",
+        "reset": "resetn",
+        "rready": "s_rready",
+        "rresp": "s_rresp",
+        "rvalid": "s_rvalid",
+        "wdata": "s_wdata",
+        "wready": "s_wready",
+        "wstrb": "s_wstrb",
+        "wvalid": "s_wvalid"
+      },
+      "kind": "ip",
+      "licenses": [
+        {
+          "applies_to": [
+            "qualification/axi_lite/upstream/pulp_axi/src/axi_pkg.sv",
+            "qualification/axi_lite/upstream/pulp_axi/src/axi_lite_lfsr.sv",
+            "qualification/axi_lite/wrappers/pulp_axi_lite_lfsr_wrapper.sv",
+            "qualification/axi_lite/upstream/pulp_axi/include/axi/assign.svh",
+            "qualification/axi_lite/upstream/pulp_axi/include/axi/port.svh",
+            "qualification/axi_lite/upstream/pulp_axi/include/axi/typedef.svh"
+          ],
+          "path": "qualification/axi_lite/upstream/pulp_axi/LICENSE",
+          "redistribution": true,
+          "sha256": "6527a46225891b976fa94f634f6ee0cd22e1c7129d6f11c5c98c997627625fc7",
+          "spdx": "SHL-0.51"
+        },
+        {
+          "applies_to": [
+            "qualification/axi_lite/upstream/common_cells/src/cf_math_pkg.sv",
+            "qualification/axi_lite/upstream/common_cells/src/fifo_v3.sv",
+            "qualification/axi_lite/upstream/common_cells/src/stream_fifo.sv",
+            "qualification/axi_lite/upstream/common_cells/include/common_cells/assertions.svh",
+            "qualification/axi_lite/upstream/common_cells/include/common_cells/registers.svh"
+          ],
+          "path": "qualification/axi_lite/upstream/common_cells/LICENSE",
+          "redistribution": true,
+          "sha256": "6527a46225891b976fa94f634f6ee0cd22e1c7129d6f11c5c98c997627625fc7",
+          "spdx": "SHL-0.51"
+        }
+      ],
+      "module": "pulp_axi_lite_lfsr_wrapper",
+      "parameters": {},
+      "protocol": "axi_lite",
+      "provenance": {
+        "patches": [
+          {
+            "path": "qualification/axi_lite/wrappers/pulp_axi_lite_lfsr_wrapper.sv",
+            "sha256": "81b0418ea796abb5a73e52980ab9030a50235350b5297e536fb31e88c7c5f70d"
+          }
+        ],
+        "upstreams": [
+          {
+            "archive_sha256": "6a304548026e5c4b4cc864ca89deace6d43a15dcecd795fb12df42138b55caac",
+            "revision": "e55ae2a7ee606ee3cfd4257f63982a971b704407",
+            "source": "https://github.com/pulp-platform/axi.git",
+            "submodules": []
+          },
+          {
+            "archive_sha256": "5bdd5aba92c237097b681a1e82224830189d6941db6b594d2b03aab7803b0f5c",
+            "revision": "9ca8a7655f741e7dd5736669a20a301325194c28",
+            "source": "https://github.com/pulp-platform/common_cells.git",
+            "submodules": []
+          }
+        ]
+      },
+      "reason": "independently elaborates and exposes a complete supported AXI-Lite interface",
+      "sources": [
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/src/cf_math_pkg.sv",
+          "sha256": "bbf0614771ceb9526356bb8e5234787324ef215884bc11b4aa27e91fc3cc8910",
+          "size": 2993
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/src/fifo_v3.sv",
+          "sha256": "861ea44cbd3129731b77977da36fb0dac1a1350d7df664a1b4310423e7d272bc",
+          "size": 6308
+        },
+        {
+          "path": "qualification/axi_lite/upstream/common_cells/src/stream_fifo.sv",
+          "sha256": "b24dbfeff17323b339fcf38854e5dfadd8b8e15489936d4a029988ece240eac3",
+          "size": 2593
+        },
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/src/axi_pkg.sv",
+          "sha256": "244bd5cb3c5bc58d786f2ed2f5eeefd910c4fe03a175f4a2888c6a2ea1c430dc",
+          "size": 26577
+        },
+        {
+          "path": "qualification/axi_lite/upstream/pulp_axi/src/axi_lite_lfsr.sv",
+          "sha256": "0d2def3af9154aa5e6e6990d51b9abd8e3e33d5dc57f61540ad9ee3924296bdc",
+          "size": 7622
+        },
+        {
+          "path": "qualification/axi_lite/wrappers/pulp_axi_lite_lfsr_wrapper.sv",
+          "sha256": "81b0418ea796abb5a73e52980ab9030a50235350b5297e536fb31e88c7c5f70d",
+          "size": 1847
+        }
+      ],
+      "split": "capability",
+      "status": "qualified"
+    }
+  ],
+  "cases": [
+    {
+      "cpu": "picorv32_cpu",
+      "expected_artifact_bytes": 80000000,
+      "id": "picorv32_scale_system",
+      "ips": [
+        "verilog_axi_ram_0",
+        "verilog_axi_ram_1",
+        "verilog_axi_dp_ram_0",
+        "verilog_axi_dp_ram_1",
+        "pulp_axi_lite_regs_0",
+        "pulp_axi_lite_regs_1",
+        "pulp_axi_lite_lfsr_0",
+        "pulp_axi_lite_lfsr_1"
+      ],
+      "manifest_hash": "ab179d834e8bcbaaea7cc5e8dc9bf4e9dca50a17ed0cfec8bbc9ed2da3fd9171",
+      "resource_budget": {
+        "compile_seconds": 1200,
+        "max_bytes": 900000000,
+        "run_seconds": 120
+      },
+      "split": "capability"
+    },
+    {
+      "cpu": "ultra_riscv_cpu",
+      "expected_artifact_bytes": 80000000,
+      "id": "ultra_riscv_scale_system",
+      "ips": [
+        "verilog_axi_ram_0",
+        "verilog_axi_ram_1",
+        "verilog_axi_dp_ram_0",
+        "verilog_axi_dp_ram_1",
+        "pulp_axi_lite_regs_0",
+        "pulp_axi_lite_regs_1",
+        "pulp_axi_lite_lfsr_0",
+        "pulp_axi_lite_lfsr_1"
+      ],
+      "manifest_hash": "4e6025540354524e5b4bd24e8ce5b1b56e6bd5f0327489e8d574da9695eead7d",
+      "resource_budget": {
+        "compile_seconds": 1200,
+        "max_bytes": 900000000,
+        "run_seconds": 120
+      },
+      "split": "capability"
+    }
+  ],
+  "experiment": {
+    "cycles": 64,
+    "seed": 1,
+    "timeout_seconds": 120
+  },
+  "formal_oracle_digest": "de78d1f07cd35092e1cc2b411ba0b34c1081befa1f1d6352be3074fae567f442",
+  "frozen_revision": "scaled-two-cpu-eight-ip-v1",
+  "manifest_digest": "adde3c0f6ce303680e9cd14fafe160cc91ef6c438d53c5f5f6a89ecc1c8f1560",
+  "schema": "myfuzz.capability-manifest/v1"
+}

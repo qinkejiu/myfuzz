@@ -1,0 +1,17 @@
+{
+  "schema": "myfuzz.compose-v5-manifest/v1",
+  "name": "rvx-real-components",
+  "sources": [
+    {"id": "cpu_src", "rtl_files": ["hardware/rvx_core.v"], "filelists": []},
+    {"id": "gpio_src", "rtl_files": ["hardware/rvx_gpio.v"], "filelists": []},
+    {"id": "ram_src", "rtl_files": ["hardware/rvx_ram.v"], "filelists": []},
+    {"id": "uart_src", "rtl_files": ["hardware/rvx_uart.v"], "filelists": []}
+  ],
+  "components": [
+    {"id": "cpu0", "role": "cpu", "module": "rvx_core", "source_set": "cpu_src", "parameters": {"BOOT_ADDRESS": 0}},
+    {"id": "gpio0", "role": "ip", "module": "rvx_gpio", "source_set": "gpio_src", "parameters": {"GPIO_WIDTH": 4}},
+    {"id": "ram0", "role": "ram", "module": "rvx_ram", "source_set": "ram_src", "parameters": {"MEMORY_SIZE": 8192}},
+    {"id": "uart0", "role": "ip", "module": "rvx_uart", "source_set": "uart_src", "parameters": {}}
+  ],
+  "digest": ""
+}

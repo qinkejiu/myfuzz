@@ -1,0 +1,10 @@
+id: cadence_i3c_model
+role: i3c
+upstream_family: cadence i3c
+description: i3c dependency-free bulk validation model
+mode: self_contained_model
+module: cadence_i3c_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: cadence_i3c_model
+status: case_available

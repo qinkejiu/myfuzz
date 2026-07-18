@@ -1,0 +1,10 @@
+id: i2s_audio_model
+role: audio
+upstream_family: I2S
+description: I2S audio self-contained validation model
+mode: self_contained_model
+module: i2s_audio_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: i2s_audio_model
+status: case_available

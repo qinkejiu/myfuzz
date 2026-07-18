@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "myfuzz.protocol-backend/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "backend_id", "version", "protocol", "capabilities"],
+  "properties": {
+    "schema": {"const": "myfuzz.protocol-backend/v1"},
+    "backend_id": {"type": "string", "minLength": 1},
+    "version": {"type": "string", "const": "1"},
+    "protocol": {"type": "string", "minLength": 1},
+    "capabilities": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+  }
+}

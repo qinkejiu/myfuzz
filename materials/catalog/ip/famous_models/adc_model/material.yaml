@@ -1,0 +1,10 @@
+id: adc_model
+role: gpio
+upstream_family: ADC
+description: ADC peripheral self-contained validation model
+mode: self_contained_model
+module: adc_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: adc_model
+status: case_available

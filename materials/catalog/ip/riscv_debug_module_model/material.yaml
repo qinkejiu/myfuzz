@@ -1,0 +1,10 @@
+id: riscv_debug_module_model
+role: debug
+upstream_family: RISC-V Debug
+description: RISC-V debug module self-contained validation model
+mode: self_contained_model
+module: riscv_debug_module_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: riscv_debug_module_model
+status: case_available

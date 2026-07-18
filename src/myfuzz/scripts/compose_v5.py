@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""Qualify strict compose-v5 manifests and audit real target availability."""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / "src"))
+
+from myfuzz.builder.compose_v5 import (  # noqa: E402
+    audit_compose_v5_targets,
+    load_compose_v5_manifest,
+    qualify_compose_v5_manifest,
+    write_compose_v5_json,
+)
+from myfuzz.builder.input_model import InputValidationError  # noqa: E402
+
+
+def _common(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--project-root", type=Path, default=ROOT)
+    parser.add_argument("--allow-root", type=Path, action="append", default=[])
+    parser.add_argument("--verify-elaboration", action="store_true")
+    parser.add_argument("--frontend-library", type=Path)
+    parser.add_argument("--output", type=Path, required=True)
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+    qualify = commands.add_parser("qualify", help="qualify one compose-v5 manifest")
+    _common(qualify)
+    qualify.add_argument("--manifest", type=Path, required=True)
+    audit = commands.add_parser("audit", help="audit named target manifests")
+    _common(audit)
+    audit.add_argument(
+        "--target", action="append", required=True, metavar="ID=MANIFEST",
+        help="target identifier and manifest path; may be repeated",
+    )
+    return parser.parse_args(argv)
+
+
+def _targets(values: list[str]) -> dict[str, Path]:
+    result: dict[str, Path] = {}
+    for value in values:
+        target_id, separator, manifest = value.partition("=")
+        if not separator or not target_id.strip() or not manifest.strip():
+            raise InputValidationError(f"invalid --target {value!r}; expected ID=MANIFEST")
+        if target_id in result:
+            raise InputValidationError(f"duplicate --target id {target_id!r}")
+        result[target_id] = Path(manifest)
+    return result
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    roots = args.allow_root or [args.project_root]
+    if args.command == "qualify":
+        manifest = load_compose_v5_manifest(args.manifest)
+        report = qualify_compose_v5_manifest(
+            manifest,
+            project_root=args.project_root,
+            allow_roots=roots,
+            verify_elaboration=args.verify_elaboration,
+            frontend_library=args.frontend_library,
+        )
+        write_compose_v5_json(report, args.output)
+        print(f"{report.digest} {'qualified' if report.eligible else 'rejected'} {args.output}")
+        return 0 if report.eligible else 2
+    report = audit_compose_v5_targets(
+        _targets(args.target),
+        project_root=args.project_root,
+        allow_roots=roots,
+        verify_elaboration=args.verify_elaboration,
+        frontend_library=args.frontend_library,
+    )
+    write_compose_v5_json(report, args.output)
+    print(f"{report.digest} {'qualified' if report.all_eligible else 'ineligible'} {args.output}")
+    return 0 if report.all_eligible else 2
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except InputValidationError as exc:
+        raise SystemExit(f"compose-v5: {exc}") from exc

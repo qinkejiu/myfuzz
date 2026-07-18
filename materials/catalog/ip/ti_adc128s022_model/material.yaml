@@ -1,0 +1,10 @@
+id: ti_adc128s022_model
+role: adc
+upstream_family: ti adc128s022
+description: adc dependency-free bulk validation model
+mode: self_contained_model
+module: ti_adc128s022_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: ti_adc128s022_model
+status: case_available

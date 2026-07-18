@@ -1,0 +1,10 @@
+id: dmi_debug_rom_model
+role: debug
+upstream_family: dmi debug rom
+description: debug dependency-free bulk validation model
+mode: self_contained_model
+module: dmi_debug_rom_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: dmi_debug_rom_model
+status: case_available

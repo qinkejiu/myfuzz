@@ -1,0 +1,10 @@
+../upstream/nanorv32/rtl/picorv32_pcpi_mul.v
+../upstream/nanorv32/rtl/picorv32_pcpi_fast_mul.v
+../upstream/nanorv32/rtl/picorv32_pcpi_div.v
+../upstream/nanorv32/rtl/picorv32_regs.v
+../upstream/nanorv32/rtl/nanorv32_timer.v
+../upstream/nanorv32/rtl/nanorv32_core.v
+../upstream/nanorv32/rtl/nanorv32.v
+../upstream/nanorv32/rtl/picorv32_axi_adapter.v
+../upstream/nanorv32/rtl/nanorv32_axi.v
+../wrappers/nanorv32_axil_cpu_wrapper.sv

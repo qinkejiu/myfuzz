@@ -1,0 +1,17 @@
+project_name: ram_uart_only_soc
+
+components:
+  cpu0:
+    kind: cpu
+    module: mock_cpu
+    filelist: materials/simple_ips/mock_cpu.f
+
+  ram0:
+    kind: ram
+    module: rvx_ram
+    filelist: materials/rvx/rvx_ram.f
+
+  uart0:
+    kind: uart
+    module: simple_uart
+    filelist: materials/simple_ips/uart.f

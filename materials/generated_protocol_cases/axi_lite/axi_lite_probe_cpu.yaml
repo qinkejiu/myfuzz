@@ -1,0 +1,71 @@
+project_name: axi_lite_probe_cpu_soc
+clock_freq: 50000000
+reset_active: low
+metadata:
+  protocol_suite: axi_lite
+  cpu_master_protocol: axi_lite
+  fabric_strategy: protocol_master_to_canonical_mmio_bridge
+components:
+  cpu0:
+    kind: cpu
+    filelist: materials/protocol_cpus/axi_lite_probe_cpu.f
+    module: axi_lite_probe_cpu
+    description: dependency-free AXI-Lite probe CPU master
+  ram0:
+    kind: ram
+    filelist: materials/simple_ips/ram.f
+    module: simple_ram
+    description: 'axi_lite case material: fallback_simple_ram'
+  gpio0:
+    kind: gpio
+    filelist: materials/cases/famous_ip_models.f
+    module: pulp_axi_lite_regs_model
+    description: 'axi_lite case material: pulp_axi_lite_regs_model'
+  mailbox0:
+    kind: mailbox
+    filelist: materials/cases/famous_ip_models.f
+    module: pulp_axi_lite_mailbox_model
+    description: 'axi_lite case material: pulp_axi_lite_mailbox_model'
+  uart0:
+    kind: uart
+    filelist: materials/simple_ips/uart.f
+    module: simple_uart
+    description: 'axi_lite case material: fallback_simple_uart'
+address_map:
+- component: ram0
+  base_addr: 0
+  size: 65536
+  bus_protocol: axi_lite
+- component: gpio0
+  base_addr: 1073807360
+  size: 4096
+  bus_protocol: axi_lite
+- component: mailbox0
+  base_addr: 1073872896
+  size: 4096
+  bus_protocol: axi_lite
+- component: uart0
+  base_addr: 1073938432
+  size: 4096
+  bus_protocol: axi_lite
+connections:
+- from: cpu0
+  from_interface: axi_lite_bus
+  to: ram0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: axi_lite_bus
+  to: gpio0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: axi_lite_bus
+  to: mailbox0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: axi_lite_bus
+  to: uart0
+  to_interface: slave_port
+  protocol: simple_bus

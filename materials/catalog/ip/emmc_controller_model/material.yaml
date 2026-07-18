@@ -1,0 +1,10 @@
+id: emmc_controller_model
+role: storage
+upstream_family: eMMC
+description: eMMC storage controller self-contained validation model
+mode: self_contained_model
+module: emmc_controller_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: emmc_controller_model
+status: case_available

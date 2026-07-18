@@ -1,0 +1,10 @@
+id: rocket_clint_model
+role: clint
+upstream_family: rocket clint
+description: clint dependency-free bulk validation model
+mode: self_contained_model
+module: rocket_clint_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: rocket_clint_model
+status: case_available

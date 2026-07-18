@@ -1,0 +1,10 @@
+id: spdif_tx_model
+role: audio
+upstream_family: spdif tx
+description: audio dependency-free bulk validation model
+mode: self_contained_model
+module: spdif_tx_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: spdif_tx_model
+status: case_available

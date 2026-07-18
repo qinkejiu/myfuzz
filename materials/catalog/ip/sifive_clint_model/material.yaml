@@ -1,0 +1,10 @@
+id: sifive_clint_model
+role: clint
+upstream_family: SiFive
+description: CLINT self-contained validation model
+mode: self_contained_model
+module: sifive_clint_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: sifive_clint_model
+status: case_available

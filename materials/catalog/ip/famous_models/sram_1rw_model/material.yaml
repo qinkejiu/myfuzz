@@ -1,0 +1,10 @@
+id: sram_1rw_model
+role: ram
+upstream_family: Generic SRAM
+description: 1RW SRAM self-contained validation model
+mode: self_contained_model
+module: sram_1rw_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: sram_1rw_model
+status: case_available

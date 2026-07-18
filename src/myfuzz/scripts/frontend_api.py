@@ -6,7 +6,15 @@ from __future__ import annotations
 import ctypes
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
+
+
+_FRONTEND_ENVIRONMENT_KEYS = frozenset({
+    "MYFUZZ_FRONTEND_VERILATOR_ROOT",
+    "VERILATOR_ROOT",
+})
 
 
 def default_frontend_library(root: Path) -> Path:
@@ -66,6 +74,56 @@ class FrontendLibrary:
             else:
                 os.environ["VERILATOR_ROOT"] = old_verilator_root
             os.chdir(old_cwd)
+
+
+def isolated_frontend_manifest(
+    library: Path, args: list[str], cwd: Path, *, environment: dict[str, str] | None = None,
+    timeout: int = 300,
+) -> dict:
+    worker = Path(__file__).with_name("frontend_worker.py")
+    request = json.dumps({
+        "library": library.resolve().as_posix(),
+        "args": args,
+        "cwd": cwd.resolve().as_posix(),
+    }, sort_keys=True, separators=(",", ":"))
+    requested = environment or {}
+    unknown = set(requested) - _FRONTEND_ENVIRONMENT_KEYS
+    if unknown:
+        raise ValueError(f"unsupported frontend environment key(s): {', '.join(sorted(unknown))}")
+    if isinstance(timeout, bool) or not isinstance(timeout, int) or timeout <= 0:
+        raise ValueError("frontend timeout must be a positive integer")
+    package_root = Path(__file__).resolve().parents[2]
+    env = {
+        "HOME": "/nonexistent",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "PATH": "/usr/bin:/bin",
+        "PYTHONNOUSERSITE": "1",
+        "PYTHONPATH": package_root.as_posix(),
+    }
+    env.update(requested)
+    try:
+        completed = subprocess.run(
+            [sys.executable, worker.as_posix()],
+            input=request,
+            text=True,
+            capture_output=True,
+            env=env,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"frontend worker exceeded {timeout} seconds") from exc
+    if completed.returncode:
+        message = completed.stderr.strip() or completed.stdout.strip() or "unknown frontend worker error"
+        raise RuntimeError(message)
+    try:
+        result = json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"frontend worker returned invalid JSON: {exc}") from exc
+    if not isinstance(result, dict):
+        raise RuntimeError("frontend worker returned a non-object manifest")
+    return result
 
 
 def run_frontend_manifest(

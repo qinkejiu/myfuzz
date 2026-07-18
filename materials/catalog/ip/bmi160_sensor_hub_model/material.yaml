@@ -1,0 +1,10 @@
+id: bmi160_sensor_hub_model
+role: sensor
+upstream_family: bmi160 sensor hub
+description: sensor dependency-free bulk validation model
+mode: self_contained_model
+module: bmi160_sensor_hub_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: bmi160_sensor_hub_model
+status: case_available

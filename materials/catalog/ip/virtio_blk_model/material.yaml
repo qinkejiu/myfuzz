@@ -1,0 +1,10 @@
+id: virtio_blk_model
+role: storage
+upstream_family: virtio blk
+description: storage dependency-free bulk validation model
+mode: self_contained_model
+module: virtio_blk_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: virtio_blk_model
+status: case_available

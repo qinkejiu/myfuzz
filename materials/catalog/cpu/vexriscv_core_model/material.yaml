@@ -1,0 +1,10 @@
+id: vexriscv_core_model
+role: cpu
+upstream_family: VexRiscv
+description: VexRiscv RISC-V self-contained validation model
+mode: self_contained_model
+module: vexriscv_core_model
+source_root: materials/rtl/famous_cpu_models
+filelist: materials/cases/famous_cpu_models.f
+profile: vexriscv_core_model
+status: case_available

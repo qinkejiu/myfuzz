@@ -1,0 +1,10 @@
+id: openmtd_nand_model
+role: flash
+upstream_family: openmtd nand
+description: flash dependency-free bulk validation model
+mode: self_contained_model
+module: openmtd_nand_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: openmtd_nand_model
+status: case_available

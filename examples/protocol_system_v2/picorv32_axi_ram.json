@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "name": "picorv32_axi_ram",
+  "sources": [
+    {
+      "name": "cpu_rtl",
+      "rtl_files": [
+        "materials/qualification/axi_lite/upstream/picorv32/picorv32.v",
+        "src/myfuzz/builder/rtl/picorv32_level1_adapter.sv"
+      ]
+    },
+    {
+      "name": "ram_rtl",
+      "rtl_files": [
+        "materials/qualification/axi_lite/upstream/verilog_axi/axil_ram.v",
+        "materials/qualification/axi_lite/wrappers/verilog_axi_ram_wrapper.sv"
+      ]
+    }
+  ],
+  "clock_domains": [
+    {
+      "name": "soc_clock",
+      "source": "external",
+      "frequency_hz": 50000000
+    }
+  ],
+  "reset_domains": [
+    {
+      "name": "cpu_reset",
+      "source": "external",
+      "active_low": true,
+      "synchronous": false
+    },
+    {
+      "name": "ram_reset",
+      "source": "external",
+      "active_low": false,
+      "synchronous": false
+    }
+  ],
+  "modules": [
+    {
+      "name": "picorv32_level1_adapter",
+      "kind": "cpu",
+      "source_set": "cpu_rtl",
+      "top_candidate": true,
+      "clock_domain": "soc_clock",
+      "reset_domain": "cpu_reset",
+      "parameters": {
+        "RESET_VECTOR": 8192
+      },
+      "ports": {
+        "clk": {
+          "direction": "input",
+          "type": "clock",
+          "width": 1
+        },
+        "resetn": {
+          "direction": "input",
+          "type": "reset_active_low",
+          "width": 1
+        },
+        "fuzz_irq": {
+          "direction": "input",
+          "type": "interrupt_sink",
+          "width": 32
+        }
+      },
+      "interfaces": [
+        {
+          "name": "memory",
+          "protocol": "axi_lite",
+          "role": "initiator",
+          "ports": {
+            "awvalid": "m_awvalid",
+            "awready": "m_awready",
+            "awaddr": "m_awaddr",
+            "wvalid": "m_wvalid",
+            "wready": "m_wready",
+            "wdata": "m_wdata",
+            "wstrb": "m_wstrb",
+            "bvalid": "m_bvalid",
+            "bready": "m_bready",
+            "bresp": "m_bresp",
+            "arvalid": "m_arvalid",
+            "arready": "m_arready",
+            "araddr": "m_araddr",
+            "rvalid": "m_rvalid",
+            "rready": "m_rready",
+            "rdata": "m_rdata",
+            "rresp": "m_rresp"
+          }
+        }
+      ]
+    },
+    {
+      "name": "verilog_axi_ram_wrapper",
+      "kind": "ram",
+      "source_set": "ram_rtl",
+      "clock_domain": "soc_clock",
+      "reset_domain": "ram_reset",
+      "ports": {
+        "clk": {
+          "direction": "input",
+          "type": "clock",
+          "width": 1
+        },
+        "reset": {
+          "direction": "input",
+          "type": "reset_active_high",
+          "width": 1
+        }
+      },
+      "address": {
+        "mode": "fixed",
+        "base": 536870912,
+        "size": 65536,
+        "alignment": 65536
+      },
+      "interfaces": [
+        {
+          "name": "registers",
+          "protocol": "axi_lite",
+          "role": "target",
+          "ports": {
+            "awvalid": "s_awvalid",
+            "awready": "s_awready",
+            "awaddr": "s_awaddr",
+            "wvalid": "s_wvalid",
+            "wready": "s_wready",
+            "wdata": "s_wdata",
+            "wstrb": "s_wstrb",
+            "bvalid": "s_bvalid",
+            "bready": "s_bready",
+            "bresp": "s_bresp",
+            "arvalid": "s_arvalid",
+            "arready": "s_arready",
+            "araddr": "s_araddr",
+            "rvalid": "s_rvalid",
+            "rready": "s_rready",
+            "rdata": "s_rdata",
+            "rresp": "s_rresp"
+          }
+        }
+      ]
+    }
+  ]
+}

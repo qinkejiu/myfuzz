@@ -1,0 +1,10 @@
+id: serv_core_model
+role: cpu
+upstream_family: SERV
+description: SERV bit-serial RISC-V self-contained validation model
+mode: self_contained_model
+module: serv_core_model
+source_root: materials/rtl/famous_cpu_models
+filelist: materials/cases/famous_cpu_models.f
+profile: serv_core_model
+status: case_available

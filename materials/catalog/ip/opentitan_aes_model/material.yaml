@@ -1,0 +1,9 @@
+id: opentitan_aes_model
+role: crypto
+upstream_family: OpenTitan
+mode: self_contained_model
+module: opentitan_aes_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: opentitan_aes_model
+status: case_available

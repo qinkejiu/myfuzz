@@ -1,0 +1,23 @@
+{
+  "name": "axi_lite_target_core",
+  "protocol": "axi_lite",
+  "interface_role": "target",
+  "priority": 100,
+  "ports": [
+    {
+      "semantic": "axi_lite.awvalid",
+      "direction": "input",
+      "aliases": ["s_axi_awvalid", "awvalid"]
+    },
+    {
+      "semantic": "axi_lite.awready",
+      "direction": "output",
+      "aliases": ["s_axi_awready", "awready"]
+    },
+    {
+      "semantic": "axi_lite.wdata",
+      "direction": "input",
+      "aliases": ["s_axi_wdata", "wdata"]
+    }
+  ]
+}

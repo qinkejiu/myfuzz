@@ -1,0 +1,10 @@
+id: qspi_flash_model
+role: spi
+upstream_family: QSPI
+description: QSPI flash self-contained validation model
+mode: self_contained_model
+module: qspi_flash_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: qspi_flash_model
+status: case_available

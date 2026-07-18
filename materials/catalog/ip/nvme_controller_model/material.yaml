@@ -1,0 +1,10 @@
+id: nvme_controller_model
+role: storage
+upstream_family: nvme controller
+description: storage dependency-free bulk validation model
+mode: self_contained_model
+module: nvme_controller_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: nvme_controller_model
+status: case_available

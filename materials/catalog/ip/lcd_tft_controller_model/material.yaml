@@ -1,0 +1,10 @@
+id: lcd_tft_controller_model
+role: display
+upstream_family: lcd tft controller
+description: display dependency-free bulk validation model
+mode: self_contained_model
+module: lcd_tft_controller_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: lcd_tft_controller_model
+status: case_available

@@ -1,0 +1,8 @@
+id: simple_uart
+role: uart
+module: simple_uart
+source_root: materials/rtl/simple_ips
+filelist: materials/cases/uart.f
+profile: simple_uart
+status: verified_top_and_harness_lint
+

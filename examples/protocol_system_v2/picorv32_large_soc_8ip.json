@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "name": "picorv32_large_soc_8ip",
+  "sources": [
+    {
+      "name": "qualified_rtl",
+      "rtl_files": [
+        "materials/qualification/axi_lite/upstream/picorv32/picorv32.v",
+        "src/myfuzz/builder/rtl/picorv32_level1_adapter.sv",
+        "src/myfuzz/builder/rtl/pulp_axi_lite_lfsr_level1_adapter.sv",
+        "src/myfuzz/builder/rtl/zipcpu_axilgpio_level1_adapter.sv",
+        "src/myfuzz/builder/rtl/zipcpu_axil2apb_level1_adapter.sv"
+      ],
+      "filelists": [
+        "materials/qualification/axi_lite/cases/verilog_axi_ram.f",
+        "materials/qualification/axi_lite/cases/verilog_axi_dp_ram.f",
+        "materials/qualification/axi_lite/cases/pulp_axi_lite_regs.f",
+        "materials/qualification/axi_lite/cases/pulp_axi_lite_lfsr.f",
+        "materials/capability/axi_lite/cases/zipcpu_axilgpio.f",
+        "materials/capability/axi_lite/cases/zipcpu_axil2apb.f"
+      ]
+    }
+  ],
+  "clock_domains": [
+    {"name": "soc_clock", "source": "harness", "frequency_hz": 50000000}
+  ],
+  "reset_domains": [
+    {"name": "cpu_reset", "source": "harness", "active_low": true, "synchronous": false},
+    {"name": "ip_reset", "source": "generated_controller", "active_low": true, "synchronous": false}
+  ],
+  "modules": [
+    {
+      "name": "main",
+      "rtl_module": "picorv32_level1_adapter",
+      "component_id": "cpu.main",
+      "kind": "cpu",
+      "source_set": "qualified_rtl",
+      "top_candidate": true,
+      "clock_domain": "soc_clock",
+      "reset_domain": "cpu_reset",
+      "parameters": {"RESET_VECTOR": 8192},
+      "ports": {
+        "clk": {"direction": "input", "type": "clock", "width": 1},
+        "resetn": {"direction": "input", "type": "reset_active_low", "width": 1},
+        "fuzz_irq": {"direction": "input", "type": "interrupt_sink", "width": 32}
+      },
+      "interfaces": [
+        {
+          "name": "memory", "protocol": "axi_lite", "role": "initiator",
+          "ports": {
+            "awvalid": "m_awvalid", "awready": "m_awready", "awaddr": "m_awaddr",
+            "wvalid": "m_wvalid", "wready": "m_wready", "wdata": "m_wdata", "wstrb": "m_wstrb",
+            "bvalid": "m_bvalid", "bready": "m_bready", "bresp": "m_bresp",
+            "arvalid": "m_arvalid", "arready": "m_arready", "araddr": "m_araddr",
+            "rvalid": "m_rvalid", "rready": "m_rready", "rdata": "m_rdata", "rresp": "m_rresp"
+          }
+        }
+      ]
+    },
+    {
+      "name": "ram0", "rtl_module": "verilog_axi_ram_wrapper", "component_id": "ip.ram0",
+      "kind": "ram", "source_set": "qualified_rtl", "clock_domain": "soc_clock", "reset_domain": "ip_reset",
+      "ports": {
+        "clk": {"direction": "input", "type": "clock", "width": 1},
+        "reset": {"direction": "input", "type": "reset_active_high", "width": 1}
+      },
+      "address": {"mode": "fixed", "base": 536870912, "size": 65536, "alignment": 65536},
+      "interfaces": [{"name": "registers", "protocol": "axi_lite", "role": "target", "ports": {
+        "awvalid": "s_awvalid", "awready": "s_awready", "awaddr": "s_awaddr",
+        "wvalid": "s_wvalid", "wready": "s_wready", "wdata": "s_wdata", "wstrb": "s_wstrb",
+        "bvalid": "s_bvalid", "bready": "s_bready", "bresp": "s_bresp",
+        "arvalid": "s_arvalid", "arready": "s_arready", "araddr": "s_araddr",
+        "rvalid": "s_rvalid", "rready": "s_rready", "rdata": "s_rdata", "rresp": "s_rresp"
+      }}]
+    },
+    {
+      "name": "ram1", "rtl_module": "verilog_axi_ram_wrapper", "component_id": "ip.ram1",
+      "kind": "ram", "source_set": "qualified_rtl", "clock_domain": "soc_clock", "reset_domain": "ip_reset",
+      "ports": {
+        "clk": {"direction": "input", "type": "clock", "width": 1},
+        "reset": {"direction": "input", "type": "reset_active_high", "width": 1}
+      },
+      "address": {"mode": "fixed", "base": 536936448, "size": 65536, "alignment": 65536},
+      "interfaces": [{"name": "registers", "protocol": "axi_lite", "role": "target", "ports": {
+        "awvalid": "s_awvalid", "awready": "s_awready", "awaddr": "s_awaddr",
+        "wvalid": "s_wvalid", "wready": "s_wready", "wdata": "s_wdata", "wstrb": "s_wstrb",
+        "bvalid": "s_bvalid", "bready": "s_bready", "bresp": "s_bresp",
+        "arvalid": "s_arvalid", "arready": "s_arready", "araddr": "s_araddr",
+        "rvalid": "s_rvalid", "rready": "s_rready", "rdata": "s_rdata", "rresp": "s_rresp"
+      }}]
+    },
+    {
+      "name": "dp_ram0", "rtl_module": "verilog_axi_dp_ram_wrapper", "component_id": "ip.dp_ram0",
+      "kind": "ram", "source_set": "qualified_rtl", "clock_domain": "soc_clock", "reset_domain": "ip_reset",
+      "ports": {
+        "clk": {"direction": "input", "type": "clock", "width": 1},
+        "reset": {"direction": "input", "type": "reset_active_high", "width": 1}
+      },
+      "address": {"mode": "fixed", "base": 537001984, "size": 4096, "alignment": 4096},
+      "interfaces": [{"name": "registers", "protocol": "axi_lite", "role": "target", "ports": {
+        "awvalid": "s_awvalid", "awready": "s_awready", "awaddr": "s_awaddr",
+        "wvalid": "s_wvalid", "wready": "s_wready", "wdata": "s_wdata", "wstrb": "s_wstrb",
+        "bvalid": "s_bvalid", "bready": "s_bready", "bresp": "s_bresp",
+        "arvalid": "s_arvalid", "arready": "s_arready", "araddr": "s_araddr",
+        "rvalid": "s_rvalid", "rready": "s_rready", "rdata": "s_rdata", "rresp": "s_rresp"
+      }}]
+    },
+    {
+      "name": "regs0", "rtl_module": "pulp_axi_lite_regs_wrapper", "component_id": "ip.regs0",
+      "kind": "peripheral", "source_set": "qualified_rtl", "clock_domain": "soc_clock", "reset_domain": "ip_reset",
+      "ports": {
+        "clk": {"direction": "input", "type": "clock", "width": 1},
+        "resetn": {"direction": "input", "type": "reset_active_low", "width": 1}
+      },
+      "address": {"mode": "fixed", "base": 537067520, "size": 4096, "alignment": 4096},
+      "interfaces": [{"name": "registers", "protocol": "axi_lite", "role": "target", "ports": {
+        "awvalid": "s_awvalid", "awready": "s_awready", "awaddr": "s_awaddr",
+        "wvalid": "s_wvalid", "wready": "s_wready", "wdata": "s_wdata", "wstrb": "s_wstrb",
+        "bvalid": "s_bvalid", "bready": "s_bready", "bresp": "s_bresp",
+        "arvalid": "s_arvalid", "arready": "s_arready", "araddr": "s_araddr",
+        "rvalid": "s_rvalid", "rready": "s_rready", "rdata": "s_rdata", "rresp": "s_rresp"
+      }}]
+    },
+    {
+      "name": "regs1", "rtl_module": "pulp_axi_lite_regs_wrapper", "component_id": "ip.regs1",
+      "kind": "peripheral", "source_set": "qualified_rtl", "clock_domain": "soc_clock", "reset_domain": "ip_reset",
+      "ports": {
+        "clk": {"direction": "input", "type": "clock", "width": 1},
+        "resetn": {"direction": "input", "type": "reset_active_low", "width": 1}
+      },
+      "address": {"mode": "fixed", "base": 537071616, "size": 4096, "alignment": 4096},
+      "interfaces": [{"name": "registers", "protocol": "axi_lite", "role": "target", "ports": {
+        "awvalid": "s_awvalid", "awready": "s_awready", "awaddr": "s_awaddr",
+        "wvalid": "s_wvalid", "wready": "s_wready", "wdata": "s_wdata", "wstrb": "s_wstrb",
+        "bvalid": "s_bvalid", "bready": "s_bready", "bresp": "s_bresp",
+        "arvalid": "s_arvalid", "arready": "s_arready", "araddr": "s_araddr",
+        "rvalid": "s_rvalid", "rready": "s_rready", "rdata": "s_rdata", "rresp": "s_rresp"
+      }}]
+    },
+    {
+      "name": "lfsr0", "rtl_module": "pulp_axi_lite_lfsr_level1_adapter", "component_id": "ip.lfsr0",
+      "kind": "peripheral", "source_set": "qualified_rtl", "clock_domain": "soc_clock", "reset_domain": "ip_reset",
+      "ports": {
+        "clk": {"direction": "input", "type": "clock", "width": 1},
+        "resetn": {"direction": "input", "type": "reset_active_low", "width": 1}
+      },
+      "address": {"mode": "fixed", "base": 537075712, "size": 4096, "alignment": 4096},
+      "interfaces": [{"name": "registers", "protocol": "axi_lite", "role": "target", "ports": {
+        "awvalid": "s_awvalid", "awready": "s_awready", "awaddr": "s_awaddr",
+        "wvalid": "s_wvalid", "wready": "s_wready", "wdata": "s_wdata", "wstrb": "s_wstrb",
+        "bvalid": "s_bvalid", "bready": "s_bready", "bresp": "s_bresp",
+        "arvalid": "s_arvalid", "arready": "s_arready", "araddr": "s_araddr",
+        "rvalid": "s_rvalid", "rready": "s_rready", "rdata": "s_rdata", "rresp": "s_rresp"
+      }}]
+    },
+    {
+      "name": "gpio0", "rtl_module": "zipcpu_axilgpio_level1_adapter", "component_id": "ip.gpio0",
+      "kind": "peripheral", "source_set": "qualified_rtl", "clock_domain": "soc_clock", "reset_domain": "ip_reset",
+      "ports": {
+        "clk": {"direction": "input", "type": "clock", "width": 1},
+        "resetn": {"direction": "input", "type": "reset_active_low", "width": 1}
+      },
+      "unknown_ports": {
+        "gpio_input": {"action": "rfuzz_drive", "reason": "bit-level external GPIO stimulus", "reset_behavior": "zero"}
+      },
+      "address": {"mode": "fixed", "base": 537079808, "size": 4096, "alignment": 4096, "alias_policy": "allow_mirror"},
+      "interfaces": [{"name": "registers", "protocol": "axi_lite", "role": "target", "ports": {
+        "awvalid": "s_awvalid", "awready": "s_awready", "awaddr": "s_awaddr",
+        "wvalid": "s_wvalid", "wready": "s_wready", "wdata": "s_wdata", "wstrb": "s_wstrb",
+        "bvalid": "s_bvalid", "bready": "s_bready", "bresp": "s_bresp",
+        "arvalid": "s_arvalid", "arready": "s_arready", "araddr": "s_araddr",
+        "rvalid": "s_rvalid", "rready": "s_rready", "rdata": "s_rdata", "rresp": "s_rresp"
+      }}]
+    },
+    {
+      "name": "apb0", "rtl_module": "zipcpu_axil2apb_level1_adapter", "component_id": "ip.apb0",
+      "kind": "bridge", "source_set": "qualified_rtl", "clock_domain": "soc_clock", "reset_domain": "ip_reset",
+      "ports": {
+        "clk": {"direction": "input", "type": "clock", "width": 1},
+        "resetn": {"direction": "input", "type": "reset_active_low", "width": 1}
+      },
+      "unknown_ports": {
+        "apb_ready": {"action": "rfuzz_drive", "reason": "bit-level APB completion stimulus", "reset_behavior": "zero"},
+        "apb_read_data": {"action": "rfuzz_drive", "reason": "bit-level APB read data stimulus", "reset_behavior": "zero"},
+        "apb_error": {"action": "rfuzz_drive", "reason": "bit-level APB error stimulus", "reset_behavior": "zero"}
+      },
+      "address": {"mode": "fixed", "base": 537083904, "size": 4096, "alignment": 4096, "alias_policy": "allow_mirror"},
+      "interfaces": [{"name": "registers", "protocol": "axi_lite", "role": "target", "ports": {
+        "awvalid": "s_awvalid", "awready": "s_awready", "awaddr": "s_awaddr",
+        "wvalid": "s_wvalid", "wready": "s_wready", "wdata": "s_wdata", "wstrb": "s_wstrb",
+        "bvalid": "s_bvalid", "bready": "s_bready", "bresp": "s_bresp",
+        "arvalid": "s_arvalid", "arready": "s_arready", "araddr": "s_araddr",
+        "rvalid": "s_rvalid", "rready": "s_rready", "rdata": "s_rdata", "rresp": "s_rresp"
+      }}]
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+project_name: apb_same_protocol_soc
+clock_freq: 50000000
+reset_active: low
+metadata:
+  protocol_suite: apb
+  cpu_master_protocol: apb
+  fabric_strategy: protocol_master_to_canonical_mmio_bridge
+components:
+  cpu0:
+    kind: cpu
+    filelist: materials/protocol_cpus/picorv32_apb_master.f
+    module: picorv32_apb_master
+    description: picorv32_apb_master same-protocol CPU master for apb
+  ram0:
+    kind: ram
+    filelist: materials/simple_ips/ram.f
+    module: simple_ram
+    description: 'apb case material: fallback_simple_ram'
+  uart0:
+    kind: uart
+    filelist: materials/cases/famous_ip_models.f
+    module: apb_uart_model
+    description: 'apb case material: apb_uart_model'
+  timer0:
+    kind: timer
+    filelist: materials/cases/famous_ip_models.f
+    module: core_v_mcu_apb_adv_timer_model
+    description: 'apb case material: core_v_mcu_apb_adv_timer_model'
+  gpio0:
+    kind: gpio
+    filelist: materials/cases/famous_ip_models.f
+    module: core_v_mcu_apb_gpio_model
+    description: 'apb case material: core_v_mcu_apb_gpio_model'
+address_map:
+- component: ram0
+  base_addr: 0
+  size: 65536
+  bus_protocol: apb
+- component: uart0
+  base_addr: 1073807360
+  size: 4096
+  bus_protocol: apb
+- component: timer0
+  base_addr: 1073872896
+  size: 4096
+  bus_protocol: apb
+- component: gpio0
+  base_addr: 1073938432
+  size: 4096
+  bus_protocol: apb
+connections:
+- from: cpu0
+  from_interface: apb_bus
+  to: ram0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: apb_bus
+  to: uart0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: apb_bus
+  to: timer0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: apb_bus
+  to: gpio0
+  to_interface: slave_port
+  protocol: simple_bus

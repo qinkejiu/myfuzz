@@ -1,0 +1,10 @@
+id: can_controller_model
+role: can
+upstream_family: CAN
+description: CAN controller self-contained validation model
+mode: self_contained_model
+module: can_controller_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: can_controller_model
+status: case_available

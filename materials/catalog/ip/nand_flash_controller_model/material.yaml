@@ -1,0 +1,10 @@
+id: nand_flash_controller_model
+role: flash
+upstream_family: NAND Flash
+description: NAND flash controller self-contained validation model
+mode: self_contained_model
+module: nand_flash_controller_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: nand_flash_controller_model
+status: case_available

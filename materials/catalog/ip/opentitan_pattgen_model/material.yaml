@@ -1,0 +1,9 @@
+id: opentitan_pattgen_model
+role: pwm
+upstream_family: OpenTitan
+mode: self_contained_model
+module: opentitan_pattgen_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: opentitan_pattgen_model
+status: case_available

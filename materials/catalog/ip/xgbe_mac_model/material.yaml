@@ -1,0 +1,10 @@
+id: xgbe_mac_model
+role: ethernet
+upstream_family: xgbe mac
+description: ethernet dependency-free bulk validation model
+mode: self_contained_model
+module: xgbe_mac_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: xgbe_mac_model
+status: case_available

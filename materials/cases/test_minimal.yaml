@@ -1,0 +1,82 @@
+# 简单测试配置 - 只用简单IP测试框架
+
+project_name: test_minimal_soc
+clock_freq: 50000000
+reset_active: low
+
+# 组件定义
+components:
+  # 使用一个简单的mock CPU（先测试框架）
+  simple_cpu:
+    kind: cpu
+    filelist: materials/simple_ips/mock_cpu.f
+    module: mock_cpu
+    description: Mock CPU for testing
+
+  ram:
+    kind: ram
+    filelist: materials/simple_ips/ram.f
+    module: simple_ram
+    description: Simple RAM module
+
+  uart:
+    kind: uart
+    filelist: materials/simple_ips/uart.f
+    module: simple_uart
+    description: Simple UART module
+
+  timer:
+    kind: timer
+    filelist: materials/simple_ips/timer.f
+    module: simple_timer
+    description: Simple timer module
+
+  gpio:
+    kind: gpio
+    filelist: materials/simple_ips/gpio.f
+    module: simple_gpio
+    description: Simple GPIO module
+
+# 地址映射
+address_map:
+  - component: ram
+    base_addr: 0x00000000
+    size: 0x00010000
+
+  - component: uart
+    base_addr: 0x40000000
+    size: 0x00001000
+
+  - component: timer
+    base_addr: 0x40001000
+    size: 0x00001000
+
+  - component: gpio
+    base_addr: 0x40002000
+    size: 0x00001000
+
+# 连接关系
+connections:
+  - from: simple_cpu
+    from_interface: data_bus
+    to: ram
+    to_interface: slave_port
+    protocol: simple_bus
+
+  - from: simple_cpu
+    from_interface: data_bus
+    to: uart
+    to_interface: slave_port
+    protocol: simple_bus
+
+  - from: simple_cpu
+    from_interface: data_bus
+    to: timer
+    to_interface: slave_port
+    protocol: simple_bus
+
+  - from: simple_cpu
+    from_interface: data_bus
+    to: gpio
+    to_interface: slave_port
+    protocol: simple_bus

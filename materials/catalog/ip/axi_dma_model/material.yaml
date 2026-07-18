@@ -1,0 +1,10 @@
+id: axi_dma_model
+role: dma
+upstream_family: axi dma
+description: dma dependency-free bulk validation model
+mode: self_contained_model
+module: axi_dma_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: axi_dma_model
+status: case_available

@@ -1,0 +1,10 @@
+id: orca_core_model
+role: cpu
+upstream_family: orca core
+description: CPU dependency-free bulk validation model
+mode: self_contained_model
+module: orca_core_model
+source_root: materials/rtl/famous_cpu_models
+filelist: materials/cases/famous_cpu_models.f
+profile: orca_core_model
+status: case_available

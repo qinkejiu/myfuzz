@@ -1,0 +1,8 @@
+id: simple_gpio
+role: gpio
+module: simple_gpio
+source_root: materials/rtl/simple_ips
+filelist: materials/cases/gpio.f
+profile: simple_gpio
+status: verified_top_and_harness_lint
+

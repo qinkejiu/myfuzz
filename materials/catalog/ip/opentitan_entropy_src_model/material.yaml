@@ -1,0 +1,10 @@
+id: opentitan_entropy_src_model
+role: rng
+upstream_family: opentitan entropy src
+description: rng dependency-free bulk validation model
+mode: self_contained_model
+module: opentitan_entropy_src_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: opentitan_entropy_src_model
+status: case_available

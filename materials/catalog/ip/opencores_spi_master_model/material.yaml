@@ -1,0 +1,10 @@
+id: opencores_spi_master_model
+role: spi
+upstream_family: opencores spi master
+description: spi dependency-free bulk validation model
+mode: self_contained_model
+module: opencores_spi_master_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: opencores_spi_master_model
+status: case_available

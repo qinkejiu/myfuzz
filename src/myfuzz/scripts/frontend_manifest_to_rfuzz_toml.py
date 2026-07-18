@@ -145,23 +145,21 @@ def write_toml(
 ) -> None:
     module = find_top_module(frontend, top)
     coverage_port = instrumentation["coverage_port"]
-    top_cov_width = coverage_width(instrumentation, top)
-    points = list(instrumentation.get("coverage", []))
-    if top_cov_width > len(points):
-        for index in range(len(points), top_cov_width):
-            points.append(
-                {
-                    "file": "",
-                    "module": top,
-                    "signal": f"{coverage_port}[{index}]",
-                    "kind": "unknown",
-                    "subtype": "padding",
-                    "line": 0,
-                    "column": 0,
-                }
-            )
-    elif top_cov_width < len(points):
-        points = points[:top_cov_width]
+    abi = instrumentation.get("coverage_abi")
+    if isinstance(abi, dict):
+        if abi.get("port_name") != coverage_port:
+            raise RuntimeError("CoverageABI port does not match instrumentation coverage_port")
+        top_cov_width = int(abi.get("width", 0))
+        points = [point for point in abi.get("points", []) if point.get("included")]
+        offsets = sorted(int(point["offset"]) for point in points)
+        if offsets != list(range(top_cov_width)):
+            raise RuntimeError("CoverageABI offsets do not exactly cover the top vector")
+        points.sort(key=lambda point: int(point["offset"]))
+    else:
+        top_cov_width = coverage_width(instrumentation, top)
+        points = list(instrumentation.get("coverage", []))
+        if top_cov_width != len(points):
+            raise RuntimeError("legacy coverage metadata width mismatch; padding is forbidden")
 
     timestamp = dt.datetime.now().astimezone().isoformat(timespec="seconds")
     with out_path.open("w") as out:
@@ -197,18 +195,19 @@ def write_toml(
         out.write(f"width = {top_cov_width}\n\n")
 
         for index, point in enumerate(points):
+            index = int(point.get("offset", index))
             kind = str(point.get("kind", "branch"))
             subtype = str(point.get("subtype", "hit"))
             module_name = str(point.get("module", ""))
-            signal = str(point.get("signal", ""))
-            line = int(point.get("line") or 0)
-            column = int(point.get("column") or 0)
+            signal = str(point.get("signal", point.get("point_id", "")))
+            line = int(point.get("source_line", point.get("line", 0)) or 0)
+            column = int(point.get("source_column", point.get("column", 0)) or 0)
             human = f"{module_name} {kind} {subtype} line {line}".strip()
             out.write("[[coverage]]\n")
             out.write(f"port = {quote(coverage_port)}\n")
             out.write(f"name = {quote(signal or f'{coverage_port}[{index}]')}\n")
             out.write(f"index = {index}\n")
-            out.write(f"filename = {quote(str(point.get('file', '')))}\n")
+            out.write(f"filename = {quote(str(point.get('source_file', point.get('file', ''))))}\n")
             out.write(f"line = {line}\n")
             out.write(f"column = {column}\n")
             out.write(f"human = {quote(human)}\n")

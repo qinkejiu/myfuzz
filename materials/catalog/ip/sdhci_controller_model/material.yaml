@@ -1,0 +1,10 @@
+id: sdhci_controller_model
+role: sdio
+upstream_family: sdhci controller
+description: sdio dependency-free bulk validation model
+mode: self_contained_model
+module: sdhci_controller_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: sdhci_controller_model
+status: case_available

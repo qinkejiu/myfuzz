@@ -1,0 +1,10 @@
+id: ov7670_camera_if_model
+role: camera
+upstream_family: ov7670 camera if
+description: camera dependency-free bulk validation model
+mode: self_contained_model
+module: ov7670_camera_if_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: ov7670_camera_if_model
+status: case_available

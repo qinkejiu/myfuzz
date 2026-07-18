@@ -1,0 +1,10 @@
+id: opencores_i2c_model
+role: i2c
+upstream_family: opencores i2c
+description: i2c dependency-free bulk validation model
+mode: self_contained_model
+module: opencores_i2c_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: opencores_i2c_model
+status: case_available

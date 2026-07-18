@@ -1,0 +1,10 @@
+id: soundwire_master_model
+role: audio
+upstream_family: soundwire master
+description: audio dependency-free bulk validation model
+mode: self_contained_model
+module: soundwire_master_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: soundwire_master_model
+status: case_available

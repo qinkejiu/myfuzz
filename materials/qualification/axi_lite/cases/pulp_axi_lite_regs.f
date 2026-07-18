@@ -1,0 +1,10 @@
++incdir+../upstream/pulp_axi/include
++incdir+../upstream/common_cells/include
+../upstream/common_cells/src/cf_math_pkg.sv
+../upstream/common_cells/src/addr_decode_dync.sv
+../upstream/common_cells/src/addr_decode.sv
+../upstream/common_cells/src/spill_register_flushable.sv
+../upstream/common_cells/src/spill_register.sv
+../upstream/pulp_axi/src/axi_pkg.sv
+../upstream/pulp_axi/src/axi_lite_regs.sv
+../wrappers/pulp_axi_lite_regs_wrapper.sv

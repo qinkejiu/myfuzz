@@ -1,0 +1,10 @@
+id: eth_mac_model
+role: ethernet
+upstream_family: Ethernet
+description: Ethernet MAC self-contained validation model
+mode: self_contained_model
+module: eth_mac_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: eth_mac_model
+status: case_available

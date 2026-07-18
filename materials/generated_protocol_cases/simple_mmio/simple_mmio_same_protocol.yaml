@@ -1,0 +1,71 @@
+project_name: simple_mmio_same_protocol_soc
+clock_freq: 50000000
+reset_active: low
+metadata:
+  protocol_suite: simple_mmio
+  cpu_master_protocol: simple_mmio
+  fabric_strategy: protocol_master_to_canonical_mmio_bridge
+components:
+  cpu0:
+    kind: cpu
+    filelist: materials/picorv32.f
+    module: picorv32
+    description: picorv32 same-protocol CPU master for simple_mmio
+  ram0:
+    kind: ram
+    filelist: materials/cases/famous_ip_models.f
+    module: bram_controller_model
+    description: 'simple_mmio case material: bram_controller_model'
+  uart0:
+    kind: uart
+    filelist: materials/cases/famous_ip_models.f
+    module: arm_pl011_uart_model
+    description: 'simple_mmio case material: arm_pl011_uart_model'
+  timer0:
+    kind: timer
+    filelist: materials/cases/famous_ip_models.f
+    module: arm_systick_model
+    description: 'simple_mmio case material: arm_systick_model'
+  gpio0:
+    kind: gpio
+    filelist: materials/cases/famous_ip_models.f
+    module: adc_model
+    description: 'simple_mmio case material: adc_model'
+address_map:
+- component: ram0
+  base_addr: 0
+  size: 65536
+  bus_protocol: simple_mmio
+- component: uart0
+  base_addr: 1073807360
+  size: 4096
+  bus_protocol: simple_mmio
+- component: timer0
+  base_addr: 1073872896
+  size: 4096
+  bus_protocol: simple_mmio
+- component: gpio0
+  base_addr: 1073938432
+  size: 4096
+  bus_protocol: simple_mmio
+connections:
+- from: cpu0
+  from_interface: data_bus
+  to: ram0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: data_bus
+  to: uart0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: data_bus
+  to: timer0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: data_bus
+  to: gpio0
+  to_interface: slave_port
+  protocol: simple_bus

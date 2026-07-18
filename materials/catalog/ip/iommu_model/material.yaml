@@ -1,0 +1,10 @@
+id: iommu_model
+role: iommu
+upstream_family: IOMMU
+description: IOMMU self-contained validation model
+mode: self_contained_model
+module: iommu_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: iommu_model
+status: case_available

@@ -1,0 +1,20 @@
+{
+  "address_map": [
+    {"base": 0, "candidate": "verilog_axi_ram_0", "size": 65536},
+    {"base": 65536, "candidate": "verilog_axi_ram_1", "size": 65536},
+    {"base": 131072, "candidate": "verilog_axi_dp_ram_0", "size": 4096},
+    {"base": 135168, "candidate": "verilog_axi_dp_ram_1", "size": 4096},
+    {"base": 139264, "candidate": "pulp_axi_lite_regs_0", "size": 4096},
+    {"base": 143360, "candidate": "pulp_axi_lite_regs_1", "size": 4096},
+    {"base": 147456, "candidate": "pulp_axi_lite_lfsr_0", "size": 4096},
+    {"base": 151552, "candidate": "pulp_axi_lite_lfsr_1", "size": 4096}
+  ],
+  "cpu": "ultra_riscv_cpu",
+  "id": "ultra_riscv_scale_system",
+  "ips": ["verilog_axi_ram_0", "verilog_axi_ram_1",
+    "verilog_axi_dp_ram_0", "verilog_axi_dp_ram_1",
+    "pulp_axi_lite_regs_0", "pulp_axi_lite_regs_1",
+    "pulp_axi_lite_lfsr_0", "pulp_axi_lite_lfsr_1"],
+  "schema": "myfuzz.qualification-case/v1",
+  "split": "capability"
+}

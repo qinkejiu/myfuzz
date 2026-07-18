@@ -1,0 +1,8 @@
+id: rvx_gpio
+role: gpio
+module: rvx_gpio
+source_root: materials/rvx
+filelist: materials/cases/rvx_gpio.f
+profile: rvx_gpio
+status: case_available
+

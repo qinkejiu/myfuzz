@@ -1,0 +1,9 @@
+id: core_v_mcu_apb_i2cs_model
+role: i2c
+upstream_family: CORE-V MCU
+mode: self_contained_model
+module: core_v_mcu_apb_i2cs_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: core_v_mcu_apb_i2cs_model
+status: case_available

@@ -1,0 +1,10 @@
+id: litex_timer_model
+role: timer
+upstream_family: LiteX
+description: LiteX Timer self-contained validation model
+mode: self_contained_model
+module: litex_timer_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: litex_timer_model
+status: case_available

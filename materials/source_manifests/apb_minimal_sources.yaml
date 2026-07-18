@@ -1,0 +1,26 @@
+protocol: apb
+sources:
+  - id: cpu0
+    role: cpu
+    module: picorv32_apb_master
+    filelist: materials/protocol_cpus/picorv32_apb_master.f
+    interface: apb_initiator
+  - id: ram0
+    role: ram
+    filelist: materials/simple_ips/ram.f
+    interface: simple_bus_target
+  - id: uart0
+    role: uart
+    module: apb_uart_model
+    filelist: materials/cases/famous_ip_models.f
+    interface: simple_bus_target
+  - id: timer0
+    role: timer
+    module: core_v_mcu_apb_adv_timer_model
+    filelist: materials/cases/famous_ip_models.f
+    interface: simple_bus_target
+  - id: gpio0
+    role: gpio
+    module: core_v_mcu_apb_gpio_model
+    filelist: materials/cases/famous_ip_models.f
+    interface: simple_bus_target

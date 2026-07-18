@@ -1,0 +1,10 @@
+id: mipi_i3c_hci_model
+role: i3c
+upstream_family: mipi i3c hci
+description: i3c dependency-free bulk validation model
+mode: self_contained_model
+module: mipi_i3c_hci_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: mipi_i3c_hci_model
+status: case_available

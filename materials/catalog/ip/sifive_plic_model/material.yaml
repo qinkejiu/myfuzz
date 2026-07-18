@@ -1,0 +1,10 @@
+id: sifive_plic_model
+role: plic
+upstream_family: sifive plic
+description: plic dependency-free bulk validation model
+mode: self_contained_model
+module: sifive_plic_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: sifive_plic_model
+status: case_available

@@ -1,0 +1,19 @@
+id: core_v_mcu_apb_timer_unit_model
+role: timer
+upstream_family: CORE-V MCU
+mode: self_contained_model
+module: core_v_mcu_apb_timer_unit_model
+source_root: materials/rtl/famous_ip_models
+filelist: sources.f
+profile: core_v_mcu_apb_timer_unit_model
+status: case_available
+native_protocol: apb
+native_protocol_source: name_or_family_hint
+generation_protocol: simple_mmio
+generation_protocol_source: current_ip_profile_adapter
+dataset_split: train
+dataset_reason: stable_status_hash_bucket_0_7
+local_filelist: sources.f
+original_material_path: /home/qinkejiu/myfuzz/myfuzz/materials/catalog/ip/core_v_mcu_apb_timer_unit_model/material.yaml
+original_filelist: materials/cases/famous_ip_models.f
+missing_entries: []

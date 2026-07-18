@@ -1,0 +1,10 @@
+id: scratchpad_ram_model
+role: ram
+upstream_family: Scratchpad RAM
+description: Scratchpad RAM self-contained validation model
+mode: self_contained_model
+module: scratchpad_ram_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: scratchpad_ram_model
+status: case_available

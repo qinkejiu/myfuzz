@@ -1,0 +1,10 @@
+id: apb_gpio_model
+role: gpio
+upstream_family: AMBA APB
+description: APB GPIO self-contained validation model
+mode: self_contained_model
+module: apb_gpio_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: apb_gpio_model
+status: case_available

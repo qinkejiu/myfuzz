@@ -1,0 +1,20 @@
+id: soundwire_master_model
+role: audio
+upstream_family: soundwire master
+description: audio dependency-free bulk validation model
+mode: self_contained_model
+module: soundwire_master_model
+source_root: materials/rtl/famous_ip_models
+filelist: sources.f
+profile: soundwire_master_model
+status: case_available
+native_protocol: simple_mmio
+native_protocol_source: profile_or_model_hint
+generation_protocol: simple_mmio
+generation_protocol_source: current_ip_profile_adapter
+dataset_split: test
+dataset_reason: stable_status_hash_bucket_8_9_holdout
+local_filelist: sources.f
+original_material_path: /home/qinkejiu/myfuzz/myfuzz/materials/catalog/ip/soundwire_master_model/material.yaml
+original_filelist: materials/cases/famous_ip_models.f
+missing_entries: []

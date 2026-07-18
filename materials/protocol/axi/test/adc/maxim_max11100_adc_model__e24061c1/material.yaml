@@ -1,0 +1,20 @@
+id: maxim_max11100_adc_model
+role: adc
+upstream_family: maxim max11100 adc
+description: adc dependency-free bulk validation model
+mode: self_contained_model
+module: maxim_max11100_adc_model
+source_root: materials/rtl/famous_ip_models
+filelist: sources.f
+profile: maxim_max11100_adc_model
+status: case_available
+native_protocol: axi
+native_protocol_source: name_or_family_hint
+generation_protocol: simple_mmio
+generation_protocol_source: current_ip_profile_adapter
+dataset_split: test
+dataset_reason: stable_status_hash_bucket_8_9_holdout
+local_filelist: sources.f
+original_material_path: /home/qinkejiu/myfuzz/myfuzz/materials/catalog/ip/maxim_max11100_adc_model/material.yaml
+original_filelist: materials/cases/famous_ip_models.f
+missing_entries: []

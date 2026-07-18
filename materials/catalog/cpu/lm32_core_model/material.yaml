@@ -1,0 +1,10 @@
+id: lm32_core_model
+role: cpu
+upstream_family: LatticeMico32
+description: LatticeMico32 self-contained validation model
+mode: self_contained_model
+module: lm32_core_model
+source_root: materials/rtl/famous_cpu_models
+filelist: materials/cases/famous_cpu_models.f
+profile: lm32_core_model
+status: case_available

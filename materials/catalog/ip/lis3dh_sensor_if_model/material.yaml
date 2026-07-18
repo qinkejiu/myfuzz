@@ -1,0 +1,10 @@
+id: lis3dh_sensor_if_model
+role: sensor
+upstream_family: lis3dh sensor if
+description: sensor dependency-free bulk validation model
+mode: self_contained_model
+module: lis3dh_sensor_if_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: lis3dh_sensor_if_model
+status: case_available

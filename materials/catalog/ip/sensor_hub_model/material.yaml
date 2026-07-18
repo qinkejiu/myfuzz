@@ -1,0 +1,10 @@
+id: sensor_hub_model
+role: sensor
+upstream_family: Sensor Hub
+description: Sensor hub self-contained validation model
+mode: self_contained_model
+module: sensor_hub_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: sensor_hub_model
+status: case_available

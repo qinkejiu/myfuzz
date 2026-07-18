@@ -1,0 +1,10 @@
+id: maxim_max11100_adc_model
+role: adc
+upstream_family: maxim max11100 adc
+description: adc dependency-free bulk validation model
+mode: self_contained_model
+module: maxim_max11100_adc_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: maxim_max11100_adc_model
+status: case_available

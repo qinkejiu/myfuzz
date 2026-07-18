@@ -1,0 +1,10 @@
+id: pwm_controller_model
+role: pwm
+upstream_family: Generic PWM
+description: PWM controller self-contained validation model
+mode: self_contained_model
+module: pwm_controller_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: pwm_controller_model
+status: case_available

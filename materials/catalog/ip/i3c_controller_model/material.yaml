@@ -1,0 +1,10 @@
+id: i3c_controller_model
+role: i3c
+upstream_family: MIPI I3C
+description: I3C controller self-contained validation model
+mode: self_contained_model
+module: i3c_controller_model
+source_root: materials/rtl/famous_ip_models
+filelist: materials/cases/famous_ip_models.f
+profile: i3c_controller_model
+status: case_available

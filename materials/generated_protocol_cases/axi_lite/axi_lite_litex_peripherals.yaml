@@ -1,0 +1,71 @@
+project_name: axi_lite_litex_peripherals_soc
+clock_freq: 50000000
+reset_active: low
+metadata:
+  protocol_suite: axi_lite
+  cpu_master_protocol: axi_lite
+  fabric_strategy: protocol_master_to_canonical_mmio_bridge
+components:
+  cpu0:
+    kind: cpu
+    filelist: materials/protocol_cpus/picorv32_axi_lite.f
+    module: picorv32_axi
+    description: picorv32_axi same-protocol CPU master for axi_lite
+  ram0:
+    kind: ram
+    filelist: materials/cases/famous_ip_models.f
+    module: pulp_axi_sim_mem_model
+    description: AXI-Lite simple-bus memory model with full-width local address
+  uart0:
+    kind: uart
+    filelist: materials/cases/famous_ip_models.f
+    module: litex_uart_model
+    description: LiteX-style UART MMIO model with tx/rx/irq pins
+  timer0:
+    kind: timer
+    filelist: materials/cases/famous_ip_models.f
+    module: litex_timer_model
+    description: LiteX-style timer MMIO model with irq pin
+  gpio0:
+    kind: gpio
+    filelist: materials/cases/famous_ip_models.f
+    module: litex_gpio_model
+    description: LiteX-style GPIO MMIO model with 32-bit gpio pins
+address_map:
+- component: ram0
+  base_addr: 0
+  size: 65536
+  bus_protocol: axi_lite
+- component: uart0
+  base_addr: 1073741824
+  size: 4096
+  bus_protocol: axi_lite
+- component: timer0
+  base_addr: 1073807360
+  size: 4096
+  bus_protocol: axi_lite
+- component: gpio0
+  base_addr: 1073872896
+  size: 4096
+  bus_protocol: axi_lite
+connections:
+- from: cpu0
+  from_interface: axi_lite_bus
+  to: ram0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: axi_lite_bus
+  to: uart0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: axi_lite_bus
+  to: timer0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: axi_lite_bus
+  to: gpio0
+  to_interface: slave_port
+  protocol: simple_bus

@@ -1,0 +1,71 @@
+project_name: axi_same_protocol_soc
+clock_freq: 50000000
+reset_active: low
+metadata:
+  protocol_suite: axi
+  cpu_master_protocol: axi
+  fabric_strategy: protocol_master_to_canonical_mmio_bridge
+components:
+  cpu0:
+    kind: cpu
+    filelist: materials/protocol_cpus/picorv32_axi4_master.f
+    module: picorv32_axi4_master
+    description: picorv32_axi4_master same-protocol CPU master for axi
+  ram0:
+    kind: ram
+    filelist: materials/cases/famous_ip_models.f
+    module: pulp_axi_sim_mem_model
+    description: 'axi case material: pulp_axi_sim_mem_model'
+  dma0:
+    kind: dma
+    filelist: materials/cases/famous_ip_models.f
+    module: axi_dma_model
+    description: 'axi case material: axi_dma_model'
+  uart0:
+    kind: uart
+    filelist: materials/simple_ips/uart.f
+    module: simple_uart
+    description: 'axi case material: fallback_simple_uart'
+  timer0:
+    kind: timer
+    filelist: materials/simple_ips/timer.f
+    module: simple_timer
+    description: 'axi case material: fallback_simple_timer'
+address_map:
+- component: ram0
+  base_addr: 0
+  size: 65536
+  bus_protocol: axi
+- component: dma0
+  base_addr: 1073807360
+  size: 4096
+  bus_protocol: axi
+- component: uart0
+  base_addr: 1073872896
+  size: 4096
+  bus_protocol: axi
+- component: timer0
+  base_addr: 1073938432
+  size: 4096
+  bus_protocol: axi
+connections:
+- from: cpu0
+  from_interface: axi_bus
+  to: ram0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: axi_bus
+  to: dma0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: axi_bus
+  to: uart0
+  to_interface: slave_port
+  protocol: simple_bus
+- from: cpu0
+  from_interface: axi_bus
+  to: timer0
+  to_interface: slave_port
+  protocol: simple_bus
