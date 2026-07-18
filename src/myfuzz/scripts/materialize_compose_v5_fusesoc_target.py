@@ -12,7 +12,11 @@ import re
 import shutil
 import subprocess
 import tempfile
+import sys
 from typing import Mapping
+
+ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / "src"))
 
 from myfuzz.builder.compose_v5 import compose_v5_manifest_from_dict
 from myfuzz.builder.contracts import build_elaboration_manifest, canonical_json, content_digest
@@ -88,6 +92,10 @@ def _load_recipe(path: Path) -> Mapping[str, object]:
                     raise MaterializationError(f"recipe.components[{index}].{field} key is invalid")
                 if isinstance(parameter, (dict, list)) or parameter is None:
                     raise MaterializationError(f"recipe.components[{index}].{field}.{name} is invalid")
+                if field == "module_parameters" and (isinstance(parameter, bool) or not isinstance(parameter, (int, str))):
+                    raise MaterializationError(
+                        f"recipe.components[{index}].{field}.{name} must be an integer or string"
+                    )
         identifiers.append(identifier)
         roles.append(str(role))
     if identifiers != sorted(set(identifiers)):

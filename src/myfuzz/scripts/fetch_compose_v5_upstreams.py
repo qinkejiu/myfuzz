@@ -14,26 +14,39 @@ from typing import Mapping
 
 ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_LOCK = ROOT / "materials" / "compose_v5" / "upstreams.json"
+DEFAULT_COMMAND_TIMEOUT_SECONDS = 300
 
 
 class SourceLockError(ValueError):
     pass
 
 
-def _run(argv: list[str], *, cwd: Path | None = None) -> str:
+def _run(
+    argv: list[str], *,
+    cwd: Path | None = None,
+    timeout_seconds: int = DEFAULT_COMMAND_TIMEOUT_SECONDS,
+) -> str:
     environment = {
         "HOME": os.environ.get("HOME", ""),
         "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
         "LANG": "C",
         "LC_ALL": "C",
+        "GIT_CONFIG_GLOBAL": "/dev/null",
         "GIT_CONFIG_NOSYSTEM": "1",
         "GIT_TERMINAL_PROMPT": "0",
+        "GIT_ASKPASS": "/bin/false",
+        "SSH_ASKPASS": "/bin/false",
     }
-    result = subprocess.run(
-        argv, cwd=cwd, env=environment, check=False,
-        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        text=True, encoding="utf-8", errors="replace",
-    )
+    try:
+        result = subprocess.run(
+            argv, cwd=cwd, env=environment, check=False, timeout=timeout_seconds,
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, encoding="utf-8", errors="replace",
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise SourceLockError(
+            f"command timed out after {timeout_seconds}s: {argv!r}"
+        ) from exc
     if result.returncode:
         detail = result.stderr.strip() or result.stdout.strip()
         raise SourceLockError(f"command failed ({result.returncode}): {argv!r}: {detail}")
@@ -72,9 +85,14 @@ def _load(path: Path) -> tuple[Mapping[str, object], ...]:
     return tuple(targets)
 
 
-def _verify(target: Mapping[str, object], destination: Path) -> None:
+def _verify(
+    target: Mapping[str, object],
+    destination: Path,
+    *,
+    timeout_seconds: int = DEFAULT_COMMAND_TIMEOUT_SECONDS,
+) -> None:
     revision = str(target["revision"])
-    actual = _run(["git", "-C", str(destination), "rev-parse", "HEAD"])
+    actual = _run(["git", "-C", str(destination), "rev-parse", "HEAD"], timeout_seconds=timeout_seconds)
     if actual != revision:
         raise SourceLockError(f"{target['id']}: expected revision {revision}, got {actual}")
     license_path = destination / str(target["license_path"])
@@ -87,38 +105,81 @@ def _verify(target: Mapping[str, object], destination: Path) -> None:
     for raw in target["submodules"]:
         if not isinstance(raw, Mapping) or set(raw) != {"path", "revision"}:
             raise SourceLockError(f"{target['id']}: invalid submodule lock")
-        actual = _run(["git", "-C", str(destination / str(raw["path"])), "rev-parse", "HEAD"])
+        actual = _run(
+            ["git", "-C", str(destination / str(raw["path"])), "rev-parse", "HEAD"],
+            timeout_seconds=timeout_seconds,
+        )
         if actual != raw["revision"]:
             raise SourceLockError(
                 f"{target['id']}:{raw['path']}: expected {raw['revision']}, got {actual}"
             )
 
 
-def _fetch(target: Mapping[str, object], cache: Path) -> Path:
+def _is_strict_subpath(path: str, parent: str) -> bool:
+    return path != parent and path.startswith(parent.rstrip("/") + "/")
+
+
+def _submodule_update_command(destination: Path, path: str, initialized_paths: tuple[str, ...]) -> list[str]:
+    parent = ""
+    for candidate in initialized_paths:
+        if _is_strict_subpath(path, candidate) and len(candidate) > len(parent):
+            parent = candidate
+    if not parent:
+        return ["git", "-C", str(destination), "submodule", "update", "--init", "--depth", "1", path]
+    relative_path = path[len(parent.rstrip("/") + "/"):]
+    return [
+        "git", "-C", str(destination / parent),
+        "submodule", "update", "--init", "--depth", "1", relative_path,
+    ]
+
+
+def _fetch(
+    target: Mapping[str, object],
+    cache: Path,
+    *,
+    timeout_seconds: int = DEFAULT_COMMAND_TIMEOUT_SECONDS,
+) -> Path:
     destination = cache / str(target["id"])
     if not (destination / ".git").is_dir():
         destination.mkdir(parents=True, exist_ok=True)
-        _run(["git", "init", str(destination)])
-        _run(["git", "-C", str(destination), "remote", "add", "origin", str(target["url"])])
+        _run(["git", "init", str(destination)], timeout_seconds=timeout_seconds)
+        _run(
+            ["git", "-C", str(destination), "remote", "add", "origin", str(target["url"])],
+            timeout_seconds=timeout_seconds,
+        )
     # Read the stored value directly. `remote get-url` applies the caller's
     # url.*.insteadOf rules and can turn an identical locked HTTPS URL into its
     # SSH display form.
     origin = _run([
         "git", "-C", str(destination), "config", "--local", "--get", "remote.origin.url",
-    ])
+    ], timeout_seconds=timeout_seconds)
     if origin != target["url"]:
         raise SourceLockError(f"{target['id']}: origin URL mismatch: {origin}")
     revision = str(target["revision"])
-    _run(["git", "-C", str(destination), "fetch", "--depth", "1", "origin", revision])
+    _run(
+        ["git", "-C", str(destination), "fetch", "--depth", "1", "origin", revision],
+        timeout_seconds=timeout_seconds,
+    )
     sparse_paths = [str(item) for item in target["sparse_paths"]]
     if sparse_paths:
-        _run(["git", "-C", str(destination), "sparse-checkout", "init", "--cone"])
-        _run(["git", "-C", str(destination), "sparse-checkout", "set", *sparse_paths])
-    _run(["git", "-C", str(destination), "checkout", "--detach", revision])
-    for raw in target["submodules"]:
+        _run(
+            ["git", "-C", str(destination), "sparse-checkout", "init", "--cone"],
+            timeout_seconds=timeout_seconds,
+        )
+        _run(
+            ["git", "-C", str(destination), "sparse-checkout", "set", *sparse_paths],
+            timeout_seconds=timeout_seconds,
+        )
+    _run(["git", "-C", str(destination), "checkout", "--detach", revision], timeout_seconds=timeout_seconds)
+    initialized_submodules: list[str] = []
+    for raw in sorted(target["submodules"], key=lambda item: str(item["path"]).count("/")):
         path = str(raw["path"])
-        _run(["git", "-C", str(destination), "submodule", "update", "--init", "--depth", "1", path])
-    _verify(target, destination)
+        _run(
+            _submodule_update_command(destination, path, tuple(initialized_submodules)),
+            timeout_seconds=timeout_seconds,
+        )
+        initialized_submodules.append(path)
+    _verify(target, destination, timeout_seconds=timeout_seconds)
     return destination
 
 
@@ -129,11 +190,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--target", action="append", default=[])
     parser.add_argument("--verify-only", action="store_true")
     parser.add_argument("--list", action="store_true")
+    parser.add_argument("--command-timeout-seconds", type=int, default=DEFAULT_COMMAND_TIMEOUT_SECONDS)
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    if args.command_timeout_seconds <= 0:
+        raise SourceLockError("--command-timeout-seconds must be positive")
     targets = _load(args.lock)
     selected = set(args.target)
     known = {str(item["id"]) for item in targets}
@@ -148,9 +212,9 @@ def main(argv: list[str] | None = None) -> int:
     for item in targets:
         destination = args.cache / str(item["id"])
         if args.verify_only:
-            _verify(item, destination)
+            _verify(item, destination, timeout_seconds=args.command_timeout_seconds)
         else:
-            destination = _fetch(item, args.cache)
+            destination = _fetch(item, args.cache, timeout_seconds=args.command_timeout_seconds)
         print(f"verified {item['id']} {item['revision']} {destination}")
     return 0
 

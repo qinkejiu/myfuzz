@@ -106,6 +106,18 @@ class FuseSocMaterializerRecipeTest(unittest.TestCase):
             with self.assertRaisesRegex(MaterializationError, "exactly one CPU"):
                 _load_recipe(self._write(recipe, Path(directory)))
 
+    def test_module_parameters_reject_non_integer_and_non_string_values(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            recipe = _recipe()
+            recipe["components"][3]["module_parameters"] = {"Depth": True}  # type: ignore[index]
+            with self.assertRaisesRegex(MaterializationError, "integer or string"):
+                _load_recipe(self._write(recipe, Path(directory)))
+        with tempfile.TemporaryDirectory() as directory:
+            recipe = _recipe()
+            recipe["components"][3]["module_parameters"] = {"Depth": 1.5}  # type: ignore[index]
+            with self.assertRaisesRegex(MaterializationError, "integer or string"):
+                _load_recipe(self._write(recipe, Path(directory)))
+
 
 if __name__ == "__main__":
     unittest.main()

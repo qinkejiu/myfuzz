@@ -1,8 +1,10 @@
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,7 +22,10 @@ from myfuzz.builder.contracts import validate_contract  # noqa: E402
 from myfuzz.builder.input_model import InputValidationError  # noqa: E402
 from myfuzz.scripts.compose_v5 import main as compose_v5_main  # noqa: E402
 from myfuzz.scripts.fetch_compose_v5_upstreams import (  # noqa: E402
-    SourceLockError, _load as load_upstream_lock,
+    SourceLockError,
+    _fetch as fetch_locked_source,
+    _load as load_upstream_lock,
+    _run as run_locked_source_command,
 )
 
 
@@ -86,6 +91,76 @@ class ComposeV5Slice0Test(unittest.TestCase):
             path.write_text(json.dumps(value), encoding="ascii")
             with self.assertRaisesRegex(SourceLockError, "field mismatch"):
                 load_upstream_lock(path)
+
+    def test_source_acquisition_commands_disable_host_git_rewrites_and_time_out(self):
+        with mock.patch(
+            "myfuzz.scripts.fetch_compose_v5_upstreams.subprocess.run"
+        ) as run:
+            run.return_value = mock.Mock(returncode=0, stdout="ok\n", stderr="")
+            self.assertEqual(
+                run_locked_source_command(["git", "status"], timeout_seconds=7),
+                "ok",
+            )
+            kwargs = run.call_args.kwargs
+            self.assertEqual(kwargs["timeout"], 7)
+            self.assertEqual(kwargs["env"]["GIT_CONFIG_GLOBAL"], "/dev/null")
+            self.assertEqual(kwargs["env"]["GIT_CONFIG_NOSYSTEM"], "1")
+            self.assertEqual(kwargs["env"]["GIT_TERMINAL_PROMPT"], "0")
+            self.assertEqual(kwargs["env"]["GIT_ASKPASS"], "/bin/false")
+            self.assertEqual(kwargs["env"]["SSH_ASKPASS"], "/bin/false")
+
+        with mock.patch(
+            "myfuzz.scripts.fetch_compose_v5_upstreams.subprocess.run",
+            side_effect=subprocess.TimeoutExpired(cmd=["git", "fetch"], timeout=1),
+        ):
+            with self.assertRaisesRegex(SourceLockError, "timed out after 1s"):
+                run_locked_source_command(["git", "fetch"], timeout_seconds=1)
+
+    def test_source_acquisition_updates_nested_submodules_from_parent_worktree(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            destination = root / "cva6"
+            (destination / ".git").mkdir(parents=True)
+            target = {
+                "id": "cva6",
+                "url": "https://example.invalid/cva6.git",
+                "revision": "0" * 40,
+                "sparse_paths": [],
+                "license_path": "LICENSE",
+                "license_sha256": "0" * 64,
+                "submodules": [
+                    {"path": "core/cvfpu/src/fpu_div_sqrt_mvp", "revision": "2" * 40},
+                    {"path": "core/cvfpu", "revision": "1" * 40},
+                ],
+            }
+            calls: list[list[str]] = []
+
+            def fake_run(argv: list[str], **_: object) -> str:
+                calls.append(argv)
+                if argv[-3:] == ["remote.origin.url"] or argv[-1] == "remote.origin.url":
+                    return "https://example.invalid/cva6.git"
+                return ""
+
+            with mock.patch(
+                "myfuzz.scripts.fetch_compose_v5_upstreams._run",
+                side_effect=fake_run,
+            ), mock.patch("myfuzz.scripts.fetch_compose_v5_upstreams._verify"):
+                fetch_locked_source(target, root, timeout_seconds=11)
+
+            self.assertIn(
+                [
+                    "git", "-C", str(destination),
+                    "submodule", "update", "--init", "--depth", "1", "core/cvfpu",
+                ],
+                calls,
+            )
+            self.assertIn(
+                [
+                    "git", "-C", str(destination / "core/cvfpu"),
+                    "submodule", "update", "--init", "--depth", "1", "src/fpu_div_sqrt_mvp",
+                ],
+                calls,
+            )
 
     def test_strict_manifest_seals_and_qualifies_deterministically(self):
         with tempfile.TemporaryDirectory() as directory:
