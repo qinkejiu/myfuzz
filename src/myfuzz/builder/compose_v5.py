@@ -11,6 +11,10 @@ from typing import Iterable, Mapping
 
 from .contracts import ManifestError, build_elaboration_manifest, canonical_json, content_digest
 from .input_model import InputValidationError
+from .system_contract_discovery_v5 import (
+    ContractV5SystemDiscoveryReport,
+    discover_contract_v5_system,
+)
 
 
 COMPOSE_V5_MANIFEST_SCHEMA = "myfuzz.compose-v5-manifest/v1"
@@ -365,6 +369,108 @@ def audit_compose_v5_targets(
     return replace(audit, digest=content_digest(audit.payload()))
 
 
+def discover_compose_v5_contracts(
+    manifest: ComposeV5Manifest,
+    *,
+    project_root: str | Path,
+    allow_roots: Iterable[str | Path] | None = None,
+    frontend_library: str | Path | None = None,
+) -> ContractV5SystemDiscoveryReport:
+    """Analyze declared components and emit a conservative system contract report.
+
+    This is still compose-mode, not a protocol-name table.  The user-declared
+    component module is used only to choose the exact elaborated top from the
+    frontend result; local signal contracts are then discovered from port facts
+    and behavior processes.
+    """
+
+    root = Path(project_root).resolve(strict=True)
+    roots = tuple(allow_roots) if allow_roots is not None else (root,)
+    by_source = {item.id: item for item in manifest.sources}
+    analysis_modules = []
+    behavior_modules = []
+    limitations = []
+    frontend_schema: str | None = None
+
+    from .frontend_v5 import FRONTEND_BEHAVIOR_SCHEMA, FrontendV5Behavior, extract_frontend_v5_behavior
+    from .rtl_analysis import RTLAnalysis, analyze_elaboration_with_frontend
+
+    for component in sorted(manifest.components, key=lambda item: item.id):
+        source = by_source[component.source_set]
+        try:
+            elaboration = build_elaboration_manifest(
+                top_module=component.module,
+                rtl_files=(root / item for item in source.rtl_files),
+                filelists=(root / item for item in source.filelists),
+                allow_roots=roots,
+                parameters=dict(component.parameters),
+                tools={"frontend": "myfuzz-verilator-ast"},
+            )
+            _reject_unsafe_rtl(Path(item.path) for item in elaboration.sources)
+        except _QualificationFailure as exc:
+            raise InputValidationError(f"component {component.id}: source rejected: {exc}") from exc
+        except InputValidationError as exc:
+            raise InputValidationError(f"component {component.id}: source invalid: {exc}") from exc
+        except (ManifestError, OSError) as exc:
+            raise InputValidationError(f"component {component.id}: source unavailable: {exc}") from exc
+
+        try:
+            analysis, raw = analyze_elaboration_with_frontend(
+                elaboration, project_root=root, frontend_library=frontend_library,
+            )
+            behavior = extract_frontend_v5_behavior(raw)
+        except InputValidationError as exc:
+            raise InputValidationError(f"component {component.id}: frontend discovery failed: {exc}") from exc
+
+        if behavior.schema != FRONTEND_BEHAVIOR_SCHEMA:
+            raise InputValidationError(
+                f"component {component.id}: unsupported behavior schema {behavior.schema!r}"
+            )
+        if frontend_schema is None:
+            frontend_schema = analysis.frontend_schema
+        elif analysis.frontend_schema != frontend_schema:
+            raise InputValidationError("component frontend schemas are inconsistent")
+
+        analysis_module = _select_declared_component_module(
+            analysis.modules, component_id=component.id, declared_module=component.module,
+            source="RTL analysis",
+        )
+        behavior_module = _select_declared_component_module(
+            behavior.modules, component_id=component.id, declared_module=component.module,
+            source="frontend behavior",
+        )
+        analysis_modules.append(analysis_module)
+        behavior_modules.append(behavior_module)
+        selected_names = {analysis_module.name, analysis_module.original_name}
+        limitations.extend(item for item in analysis.limitations if item.module in selected_names)
+
+    ordered_modules = tuple(sorted(analysis_modules, key=lambda item: (item.name, item.original_name)))
+    ordered_behaviors = tuple(sorted(behavior_modules, key=lambda item: (item.name, item.original_name)))
+    ordered_limitations = tuple(sorted(
+        limitations,
+        key=lambda item: (item.module, item.construct, item.evidence.reason),
+    ))
+    aggregate_behavior_payload = {
+        "schema": FRONTEND_BEHAVIOR_SCHEMA,
+        "top_module": manifest.name,
+        "modules": [asdict(item) for item in ordered_behaviors],
+    }
+    aggregate_analysis = RTLAnalysis(
+        schema="myfuzz.rtl-analysis/v1",
+        manifest_digest=manifest.digest,
+        frontend_schema=frontend_schema or "myfuzz.frontend.v1",
+        top_module=manifest.name,
+        modules=ordered_modules,
+        limitations=ordered_limitations,
+    )
+    aggregate_behavior = FrontendV5Behavior(
+        top_module=manifest.name,
+        modules=ordered_behaviors,
+        digest=content_digest(aggregate_behavior_payload),
+    )
+    return discover_contract_v5_system(aggregate_analysis, aggregate_behavior)
+
+
 def write_compose_v5_json(value: object, path: str | Path) -> Path:
     if not hasattr(value, "to_dict"):
         raise InputValidationError("compose-v5 artifact must provide to_dict()")
@@ -405,6 +511,29 @@ def _reject_unsafe_rtl(paths: Iterable[Path]) -> None:
                 ComposeV5Failure.SOURCE_UNTRUSTED,
                 f"{path}: forbidden host-effect RTL construct {match.group(0)!r}",
             )
+
+
+def _select_declared_component_module(
+    modules: Iterable[object],
+    *,
+    component_id: str,
+    declared_module: str,
+    source: str,
+):
+    matches = [
+        item for item in modules
+        if getattr(item, "name", None) == declared_module
+        or getattr(item, "original_name", None) == declared_module
+    ]
+    if not matches:
+        raise InputValidationError(
+            f"component {component_id}: {source} is missing declared module {declared_module!r}"
+        )
+    if len(matches) > 1:
+        raise InputValidationError(
+            f"component {component_id}: {source} has multiple matches for declared module {declared_module!r}"
+        )
+    return matches[0]
 
 
 def _without_comments(text: str) -> str:

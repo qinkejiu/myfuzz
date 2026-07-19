@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from myfuzz.builder.compose_v5 import (  # noqa: E402
     audit_compose_v5_targets,
+    discover_compose_v5_contracts,
     load_compose_v5_manifest,
     qualify_compose_v5_manifest,
     write_compose_v5_json,
@@ -33,6 +34,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     qualify = commands.add_parser("qualify", help="qualify one compose-v5 manifest")
     _common(qualify)
     qualify.add_argument("--manifest", type=Path, required=True)
+    discover = commands.add_parser(
+        "discover-contracts",
+        help="run frontend-backed contract discovery for one compose-v5 manifest",
+    )
+    _common(discover)
+    discover.add_argument("--manifest", type=Path, required=True)
     audit = commands.add_parser("audit", help="audit named target manifests")
     _common(audit)
     audit.add_argument(
@@ -69,6 +76,17 @@ def main(argv: list[str] | None = None) -> int:
         write_compose_v5_json(report, args.output)
         print(f"{report.digest} {'qualified' if report.eligible else 'rejected'} {args.output}")
         return 0 if report.eligible else 2
+    if args.command == "discover-contracts":
+        manifest = load_compose_v5_manifest(args.manifest)
+        report = discover_compose_v5_contracts(
+            manifest,
+            project_root=args.project_root,
+            allow_roots=roots,
+            frontend_library=args.frontend_library,
+        )
+        write_compose_v5_json(report, args.output)
+        print(f"{report.digest} {report.status} {args.output}")
+        return 0 if report.status == "unique" else 2
     report = audit_compose_v5_targets(
         _targets(args.target),
         project_root=args.project_root,
