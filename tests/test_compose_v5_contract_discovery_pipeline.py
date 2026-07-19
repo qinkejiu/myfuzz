@@ -199,6 +199,46 @@ class ComposeV5ContractDiscoveryPipelineTest(unittest.TestCase):
             self.assertEqual(report["binding_conflict_modules"], [])
             validate_contract(report, "compose_v5_contract_discovery_v1")
 
+    def test_cli_builds_scheme_a_rawbits_layout_from_declared_ports(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = _write_fixture(root)
+            output = root / "rawbits_layout.json"
+
+            def fake_analyze(elaboration, **_: object):
+                return _analysis_for(elaboration.top_module), {"top": elaboration.top_module}
+
+            def fake_extract(raw: object):
+                self.assertIsInstance(raw, dict)
+                return _behavior_for(raw["top"])  # type: ignore[index]
+
+            with mock.patch(
+                "myfuzz.builder.rtl_analysis.analyze_elaboration_with_frontend",
+                side_effect=fake_analyze,
+            ) as analyze, mock.patch(
+                "myfuzz.builder.frontend_v5.extract_frontend_v5_behavior",
+                side_effect=fake_extract,
+            ) as extract:
+                code = compose_v5_main([
+                    "layout",
+                    "--project-root", str(root),
+                    "--manifest", str(manifest),
+                    "--output", str(output),
+                ])
+
+            self.assertEqual(code, 0)
+            self.assertEqual(analyze.call_count, 4)
+            self.assertEqual(extract.call_count, 4)
+            layout = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(layout["schema"], "myfuzz.rawbits-layout/v5")
+            validate_contract(layout, "rawbits_layout_v5")
+            fields = {field["owner"]: field for field in layout["fields"]}
+            self.assertEqual(layout["record_width_bits"], 12)
+            self.assertEqual(fields["cpu0.cpu_clk"]["kind"], "clock")
+            self.assertEqual(fields["cpu0.cpu_rst"]["kind"], "reset")
+            self.assertEqual(fields["cpu0.cpu_ready"]["kind"], "external_input")
+            self.assertNotIn("cpu0.cpu_valid", fields)
+
 
 if __name__ == "__main__":
     unittest.main()

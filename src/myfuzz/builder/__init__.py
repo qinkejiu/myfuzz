@@ -316,11 +316,13 @@ from .compose_v5 import (
     ComposeV5TargetResult,
     audit_compose_v5_targets,
     compose_v5_manifest_from_dict,
+    build_compose_v5_scheme_a_layout_from_manifest,
     discover_compose_v5_contracts,
     load_compose_v5_manifest,
     qualify_compose_v5_manifest,
     write_compose_v5_json,
 )
+from .compose_v5_layout import build_compose_v5_scheme_a_rawbits_layout
 from .contract_v5 import (
     CONTRACT_V5_AMBIGUITY_SCHEMA,
     CONTRACT_V5_CANONICAL_SCHEMA,
@@ -712,6 +714,8 @@ __all__ = [
     "ComposeV5TargetAudit",
     "ComposeV5TargetResult",
     "audit_compose_v5_targets",
+    "build_compose_v5_scheme_a_layout_from_manifest",
+    "build_compose_v5_scheme_a_rawbits_layout",
     "compose_v5_manifest_from_dict",
     "discover_compose_v5_contracts",
     "load_compose_v5_manifest",

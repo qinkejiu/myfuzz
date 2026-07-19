@@ -10,10 +10,22 @@ import re
 from typing import Iterable, Mapping
 
 from .contracts import ManifestError, build_elaboration_manifest, canonical_json, content_digest
+from .frontend_v5 import (
+    FRONTEND_BEHAVIOR_SCHEMA,
+    FrontendV5Behavior,
+    FrontendV5ModuleBehavior,
+)
 from .input_model import InputValidationError
+from .compose_v5_layout import build_compose_v5_scheme_a_rawbits_layout
 from .system_contract_discovery_v5 import (
     ContractV5SystemDiscoveryReport,
     discover_contract_v5_system,
+)
+from .rawbits_v5 import RawBitsV5Layout
+from .rtl_analysis import (
+    AnalysisLimitation,
+    RTLAnalysis,
+    RTLModule,
 )
 
 
@@ -207,6 +219,14 @@ class ComposeV5TargetAudit:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class _ComposeV5ComponentFacts:
+    component_id: str
+    analysis_module: RTLModule
+    behavior_module: FrontendV5ModuleBehavior
+    limitations: tuple[AnalysisLimitation, ...]
+
+
 def compose_v5_manifest_from_dict(value: Mapping[str, object]) -> ComposeV5Manifest:
     _fields(value, {"schema", "name", "sources", "components", "digest"}, "manifest")
     if value.get("schema") != COMPOSE_V5_MANIFEST_SCHEMA:
@@ -384,16 +404,51 @@ def discover_compose_v5_contracts(
     and behavior processes.
     """
 
+    facts, frontend_schema = _collect_compose_v5_component_facts(
+        manifest,
+        project_root=project_root,
+        allow_roots=allow_roots,
+        frontend_library=frontend_library,
+    )
+    return _compose_v5_system_report(manifest, facts, frontend_schema)
+
+
+def build_compose_v5_scheme_a_layout_from_manifest(
+    manifest: ComposeV5Manifest,
+    *,
+    project_root: str | Path,
+    allow_roots: Iterable[str | Path] | None = None,
+    frontend_library: str | Path | None = None,
+) -> RawBitsV5Layout:
+    facts, frontend_schema = _collect_compose_v5_component_facts(
+        manifest,
+        project_root=project_root,
+        allow_roots=allow_roots,
+        frontend_library=frontend_library,
+    )
+    report = _compose_v5_system_report(manifest, facts, frontend_schema)
+    component_modules = {
+        fact.component_id: fact.analysis_module
+        for fact in facts
+    }
+    return build_compose_v5_scheme_a_rawbits_layout(component_modules, discovery=report)
+
+
+def _collect_compose_v5_component_facts(
+    manifest: ComposeV5Manifest,
+    *,
+    project_root: str | Path,
+    allow_roots: Iterable[str | Path] | None = None,
+    frontend_library: str | Path | None = None,
+) -> tuple[tuple[_ComposeV5ComponentFacts, ...], str]:
     root = Path(project_root).resolve(strict=True)
     roots = tuple(allow_roots) if allow_roots is not None else (root,)
     by_source = {item.id: item for item in manifest.sources}
-    analysis_modules = []
-    behavior_modules = []
-    limitations = []
+    facts: list[_ComposeV5ComponentFacts] = []
     frontend_schema: str | None = None
 
-    from .frontend_v5 import FRONTEND_BEHAVIOR_SCHEMA, FrontendV5Behavior, extract_frontend_v5_behavior
-    from .rtl_analysis import RTLAnalysis, analyze_elaboration_with_frontend
+    from .frontend_v5 import extract_frontend_v5_behavior
+    from .rtl_analysis import analyze_elaboration_with_frontend
 
     for component in sorted(manifest.components, key=lambda item: item.id):
         source = by_source[component.source_set]
@@ -439,33 +494,52 @@ def discover_compose_v5_contracts(
             behavior.modules, component_id=component.id, declared_module=component.module,
             source="frontend behavior",
         )
-        analysis_modules.append(analysis_module)
-        behavior_modules.append(behavior_module)
         selected_names = {analysis_module.name, analysis_module.original_name}
-        limitations.extend(item for item in analysis.limitations if item.module in selected_names)
+        facts.append(_ComposeV5ComponentFacts(
+            component.id,
+            analysis_module,
+            behavior_module,
+            tuple(item for item in analysis.limitations if item.module in selected_names),
+        ))
 
-    ordered_modules = tuple(sorted(analysis_modules, key=lambda item: (item.name, item.original_name)))
-    ordered_behaviors = tuple(sorted(behavior_modules, key=lambda item: (item.name, item.original_name)))
-    ordered_limitations = tuple(sorted(
-        limitations,
+    if frontend_schema is None:
+        frontend_schema = "myfuzz.frontend.v1"
+    return tuple(facts), frontend_schema
+
+
+def _compose_v5_system_report(
+    manifest: ComposeV5Manifest,
+    facts: tuple[_ComposeV5ComponentFacts, ...],
+    frontend_schema: str,
+) -> ContractV5SystemDiscoveryReport:
+    analysis_modules = tuple(sorted(
+        (fact.analysis_module for fact in facts),
+        key=lambda item: (item.name, item.original_name),
+    ))
+    behavior_modules = tuple(sorted(
+        (fact.behavior_module for fact in facts),
+        key=lambda item: (item.name, item.original_name),
+    ))
+    limitations = tuple(sorted(
+        (limitation for fact in facts for limitation in fact.limitations),
         key=lambda item: (item.module, item.construct, item.evidence.reason),
     ))
     aggregate_behavior_payload = {
         "schema": FRONTEND_BEHAVIOR_SCHEMA,
         "top_module": manifest.name,
-        "modules": [asdict(item) for item in ordered_behaviors],
+        "modules": [asdict(item) for item in behavior_modules],
     }
     aggregate_analysis = RTLAnalysis(
         schema="myfuzz.rtl-analysis/v1",
         manifest_digest=manifest.digest,
-        frontend_schema=frontend_schema or "myfuzz.frontend.v1",
+        frontend_schema=frontend_schema,
         top_module=manifest.name,
-        modules=ordered_modules,
-        limitations=ordered_limitations,
+        modules=analysis_modules,
+        limitations=limitations,
     )
     aggregate_behavior = FrontendV5Behavior(
         top_module=manifest.name,
-        modules=ordered_behaviors,
+        modules=behavior_modules,
         digest=content_digest(aggregate_behavior_payload),
     )
     return discover_contract_v5_system(aggregate_analysis, aggregate_behavior)

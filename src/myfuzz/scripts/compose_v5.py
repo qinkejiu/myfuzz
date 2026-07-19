@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from myfuzz.builder.compose_v5 import (  # noqa: E402
     audit_compose_v5_targets,
+    build_compose_v5_scheme_a_layout_from_manifest,
     discover_compose_v5_contracts,
     load_compose_v5_manifest,
     qualify_compose_v5_manifest,
@@ -40,6 +41,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     _common(discover)
     discover.add_argument("--manifest", type=Path, required=True)
+    layout = commands.add_parser(
+        "layout",
+        help="build a scheme-A rawbits layout for one compose-v5 manifest",
+    )
+    _common(layout)
+    layout.add_argument("--manifest", type=Path, required=True)
     audit = commands.add_parser("audit", help="audit named target manifests")
     _common(audit)
     audit.add_argument(
@@ -87,6 +94,17 @@ def main(argv: list[str] | None = None) -> int:
         write_compose_v5_json(report, args.output)
         print(f"{report.digest} {report.status} {args.output}")
         return 0 if report.status == "unique" else 2
+    if args.command == "layout":
+        manifest = load_compose_v5_manifest(args.manifest)
+        layout = build_compose_v5_scheme_a_layout_from_manifest(
+            manifest,
+            project_root=args.project_root,
+            allow_roots=roots,
+            frontend_library=args.frontend_library,
+        )
+        write_compose_v5_json(layout, args.output)
+        print(f"{layout.digest} layout {args.output}")
+        return 0
     report = audit_compose_v5_targets(
         _targets(args.target),
         project_root=args.project_root,
