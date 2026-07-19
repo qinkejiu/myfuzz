@@ -460,6 +460,47 @@ class ComposeV5ContractDiscoveryPipelineTest(unittest.TestCase):
                 },
             )
 
+    def test_cli_emits_scheme_b_generated_soc_harness_bundle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = _write_fixture(root)
+            output = root / "scheme_b_bundle.sv"
+
+            def fake_analyze(elaboration, **_: object):
+                return _connection_analysis_for(elaboration.top_module), {"top": elaboration.top_module}
+
+            def fake_extract(raw: object):
+                self.assertIsInstance(raw, dict)
+                return _behavior_for(raw["top"])  # type: ignore[index]
+
+            with mock.patch(
+                "myfuzz.builder.rtl_analysis.analyze_elaboration_with_frontend",
+                side_effect=fake_analyze,
+            ) as analyze, mock.patch(
+                "myfuzz.builder.frontend_v5.extract_frontend_v5_behavior",
+                side_effect=fake_extract,
+            ) as extract:
+                code = compose_v5_main([
+                    "scheme-b-harness",
+                    "--project-root", str(root),
+                    "--manifest", str(manifest),
+                    "--output", str(output),
+                    "--soc-module-name", "scheme_b_soc",
+                    "--module-name", "scheme_b_harness",
+                ])
+
+            self.assertEqual(code, 0)
+            self.assertEqual(analyze.call_count, 4)
+            self.assertEqual(extract.call_count, 4)
+            rtl = output.read_text(encoding="utf-8")
+            self.assertIn("module scheme_b_soc (", rtl)
+            self.assertIn("module scheme_b_harness (", rtl)
+            self.assertIn("CONNECTION_PLAN_DIGEST", rtl)
+            self.assertIn("assign ip0__ip0_valid = cpu0__cpu_valid;", rtl)
+            self.assertIn("assign ip0__ip0_payload = cpu0__cpu_payload;", rtl)
+            self.assertNotIn("assign ip0__ip0_valid = rawbits_i", rtl)
+            self.assertNotIn("input logic ip0__ip0_valid", rtl)
+
 
 if __name__ == "__main__":
     unittest.main()

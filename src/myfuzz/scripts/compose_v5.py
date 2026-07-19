@@ -18,6 +18,7 @@ from myfuzz.builder.compose_v5 import (  # noqa: E402
     discover_compose_v5_contracts,
     emit_compose_v5_scheme_a_flat_shell_from_manifest,
     emit_compose_v5_scheme_a_harness_bundle_from_manifest,
+    emit_compose_v5_scheme_b_harness_bundle_from_manifest,
     load_compose_v5_manifest,
     qualify_compose_v5_manifest,
     write_compose_v5_json,
@@ -66,6 +67,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     harness.add_argument("--manifest", type=Path, required=True)
     harness.add_argument("--flat-module-name", default="compose_v5_scheme_a_flat_top")
     harness.add_argument("--module-name", default="compose_v5_scheme_a_harness")
+    generated_harness = commands.add_parser(
+        "scheme-b-harness",
+        help="emit generated SoC top plus rawbits harness for compose-v5 scheme B",
+    )
+    _common(generated_harness)
+    generated_harness.add_argument("--manifest", type=Path, required=True)
+    generated_harness.add_argument("--soc-module-name", default="compose_v5_generated_soc_top")
+    generated_harness.add_argument("--module-name", default="compose_v5_generated_soc_harness")
     scheme_plan = commands.add_parser(
         "scheme-plan",
         help="write the compose-v5 A/B/C/D bit-level scheme plan for one manifest",
@@ -164,6 +173,23 @@ def main(argv: list[str] | None = None) -> int:
         args.output.write_text(bundle.rtl, encoding="utf-8")
         print(
             f"{bundle.harness.module_name} scheme-a-harness "
+            f"{bundle.layout.record_width_bits}b {args.output}"
+        )
+        return 0
+    if args.command == "scheme-b-harness":
+        manifest = load_compose_v5_manifest(args.manifest)
+        bundle = emit_compose_v5_scheme_b_harness_bundle_from_manifest(
+            manifest,
+            project_root=args.project_root,
+            allow_roots=roots,
+            frontend_library=args.frontend_library,
+            soc_module_name=args.soc_module_name,
+            harness_module_name=args.module_name,
+        )
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(bundle.rtl, encoding="utf-8")
+        print(
+            f"{bundle.harness.module_name} scheme-b-harness "
             f"{bundle.layout.record_width_bits}b {args.output}"
         )
         return 0

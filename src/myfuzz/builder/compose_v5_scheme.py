@@ -123,7 +123,10 @@ def build_compose_v5_abcd_scheme_plan(
             (),
             (),
             "generated SoC structure with raw bit-level boundary drive and no protocol projection",
-            requires_artifacts=("connection_graph", "address_map", "generated_bridge_rtl", "generated_soc_top"),
+            requires_artifacts=(
+                "connection_graph", "address_map", "generated_bridge_rtl",
+                "generated_soc_top", "generated_soc_rawbits_harness",
+            ),
         ),
         _scheme(
             "C", "generated_soc_protocol_waveform_safe",
@@ -133,7 +136,10 @@ def build_compose_v5_abcd_scheme_plan(
             safe_rules,
             (),
             "same generated SoC as B, with bit-level clock/reset/handshake waveform projection",
-            requires_artifacts=("connection_graph", "address_map", "generated_bridge_rtl", "generated_soc_top"),
+            requires_artifacts=(
+                "connection_graph", "address_map", "generated_bridge_rtl",
+                "generated_soc_top", "generated_soc_rawbits_harness",
+            ),
         ),
         _scheme(
             "D", "generated_soc_adaptive_perturbed",
@@ -143,7 +149,10 @@ def build_compose_v5_abcd_scheme_plan(
             safe_rules,
             _perturbation_fields(layout.record_width_bits),
             "same generated SoC as C, with bounded bit-level perturbation after coverage stalls",
-            requires_artifacts=("connection_graph", "address_map", "generated_bridge_rtl", "generated_soc_top"),
+            requires_artifacts=(
+                "connection_graph", "address_map", "generated_bridge_rtl",
+                "generated_soc_top", "generated_soc_rawbits_harness",
+            ),
             perturbation={
                 "enabled": True,
                 "trigger": "coverage_stall",
