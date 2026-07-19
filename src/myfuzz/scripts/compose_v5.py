@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from myfuzz.builder.compose_v5 import (  # noqa: E402
     audit_compose_v5_targets,
+    build_compose_v5_abcd_scheme_plan_from_manifest,
     build_compose_v5_scheme_a_layout_from_manifest,
     discover_compose_v5_contracts,
     emit_compose_v5_scheme_a_flat_shell_from_manifest,
@@ -64,6 +65,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     harness.add_argument("--manifest", type=Path, required=True)
     harness.add_argument("--flat-module-name", default="compose_v5_scheme_a_flat_top")
     harness.add_argument("--module-name", default="compose_v5_scheme_a_harness")
+    scheme_plan = commands.add_parser(
+        "scheme-plan",
+        help="write the compose-v5 A/B/C/D bit-level scheme plan for one manifest",
+    )
+    _common(scheme_plan)
+    scheme_plan.add_argument("--manifest", type=Path, required=True)
+    scheme_plan.add_argument("--stall-inputs-before-escalation", type=int, default=256)
     audit = commands.add_parser("audit", help="audit named target manifests")
     _common(audit)
     audit.add_argument(
@@ -151,6 +159,18 @@ def main(argv: list[str] | None = None) -> int:
             f"{bundle.harness.module_name} scheme-a-harness "
             f"{bundle.layout.record_width_bits}b {args.output}"
         )
+        return 0
+    if args.command == "scheme-plan":
+        manifest = load_compose_v5_manifest(args.manifest)
+        plan = build_compose_v5_abcd_scheme_plan_from_manifest(
+            manifest,
+            project_root=args.project_root,
+            allow_roots=roots,
+            frontend_library=args.frontend_library,
+            stall_inputs_before_escalation=args.stall_inputs_before_escalation,
+        )
+        write_compose_v5_json(plan, args.output)
+        print(f"{plan.digest} scheme-plan {args.output}")
         return 0
     report = audit_compose_v5_targets(
         _targets(args.target),

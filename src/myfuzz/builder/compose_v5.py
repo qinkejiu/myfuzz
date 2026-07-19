@@ -23,6 +23,10 @@ from .compose_v5_harness import (
     emit_compose_v5_scheme_a_rawbits_harness,
 )
 from .compose_v5_layout import build_compose_v5_scheme_a_rawbits_layout
+from .compose_v5_scheme import (
+    ComposeV5SchemePlan,
+    build_compose_v5_abcd_scheme_plan,
+)
 from .system_contract_discovery_v5 import (
     ContractV5SystemDiscoveryReport,
     discover_contract_v5_system,
@@ -493,6 +497,35 @@ def emit_compose_v5_scheme_a_harness_bundle_from_manifest(
         module_name=harness_module_name,
     )
     return EmittedComposeV5SchemeABundle(flat, layout, harness, flat.rtl + "\n" + harness.rtl)
+
+
+def build_compose_v5_abcd_scheme_plan_from_manifest(
+    manifest: ComposeV5Manifest,
+    *,
+    project_root: str | Path,
+    allow_roots: Iterable[str | Path] | None = None,
+    frontend_library: str | Path | None = None,
+    stall_inputs_before_escalation: int = 256,
+) -> ComposeV5SchemePlan:
+    facts, frontend_schema = _collect_compose_v5_component_facts(
+        manifest,
+        project_root=project_root,
+        allow_roots=allow_roots,
+        frontend_library=frontend_library,
+    )
+    report = _compose_v5_system_report(manifest, facts, frontend_schema)
+    component_modules = {
+        fact.component_id: fact.analysis_module
+        for fact in facts
+    }
+    layout = build_compose_v5_scheme_a_rawbits_layout(component_modules, discovery=report)
+    return build_compose_v5_abcd_scheme_plan(
+        component_modules,
+        layout,
+        report,
+        manifest_digest=manifest.digest,
+        stall_inputs_before_escalation=stall_inputs_before_escalation,
+    )
 
 
 def _collect_compose_v5_component_facts(

@@ -324,6 +324,55 @@ class ComposeV5ContractDiscoveryPipelineTest(unittest.TestCase):
             self.assertNotIn("assign cpu0__cpu_valid = rawbits_i", rtl)
             self.assertIn("scheme_a_flat i_flat (", rtl)
 
+    def test_cli_writes_abcd_bit_level_scheme_plan(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = _write_fixture(root)
+            output = root / "scheme_plan.json"
+
+            def fake_analyze(elaboration, **_: object):
+                return _analysis_for(elaboration.top_module), {"top": elaboration.top_module}
+
+            def fake_extract(raw: object):
+                self.assertIsInstance(raw, dict)
+                return _behavior_for(raw["top"])  # type: ignore[index]
+
+            with mock.patch(
+                "myfuzz.builder.rtl_analysis.analyze_elaboration_with_frontend",
+                side_effect=fake_analyze,
+            ) as analyze, mock.patch(
+                "myfuzz.builder.frontend_v5.extract_frontend_v5_behavior",
+                side_effect=fake_extract,
+            ) as extract:
+                code = compose_v5_main([
+                    "scheme-plan",
+                    "--project-root", str(root),
+                    "--manifest", str(manifest),
+                    "--output", str(output),
+                    "--stall-inputs-before-escalation", "9",
+                ])
+
+            self.assertEqual(code, 0)
+            self.assertEqual(analyze.call_count, 4)
+            self.assertEqual(extract.call_count, 4)
+            plan = json.loads(output.read_text(encoding="utf-8"))
+            validate_contract(plan, "compose_v5_scheme_plan_v1")
+            self.assertEqual([scheme["id"] for scheme in plan["schemes"]], ["A", "B", "C", "D"])
+            self.assertEqual([scheme["record_width_bits"] for scheme in plan["schemes"]], [12, 12, 12, 20])
+            self.assertEqual(plan["schemes"][0]["name"], "flat_rawbits")
+            self.assertEqual(plan["schemes"][1]["name"], "generated_soc_rawbits")
+            c_rules = {
+                rule["primitive"]
+                for rule in plan["schemes"][2]["constraint_rules"]
+            }
+            self.assertIn("clock_projector", c_rules)
+            self.assertIn("reset_window_projector", c_rules)
+            self.assertIn("ready_sampled_backpressure", c_rules)
+            self.assertEqual(
+                plan["schemes"][3]["perturbation"]["stall_inputs_before_escalation"],
+                9,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
