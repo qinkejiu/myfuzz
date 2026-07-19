@@ -132,6 +132,15 @@ CONTRACT_SCHEMAS: dict[str, Mapping[str, Any]] = {
         "required": ("schema", "targets", "all_eligible", "digest"),
         "schema": "myfuzz.compose-v5-target-audit/v1",
     },
+    "compose_v5_contract_discovery_v1": {
+        "required": (
+            "schema", "grammar_version", "top_module", "manifest_digest", "frontend_schema",
+            "module_reports", "missing_behavior_modules", "extra_behavior_modules",
+            "binding_conflict_modules", "module_count", "matched_count", "unique_count",
+            "ambiguous_count", "empty_count", "status", "digest",
+        ),
+        "schema": "myfuzz.contract-system-discovery/v5",
+    },
     "compose_v5_fusesoc_recipe_v1": {
         "required": ("schema", "name", "mappings", "components", "digest"),
         "schema": "myfuzz.compose-v5-fusesoc-recipe/v1",
@@ -150,6 +159,15 @@ def _tuple_of_mappings(value: object, path: str) -> tuple[Mapping[str, Any], ...
     result = tuple(value)
     if any(not isinstance(item, Mapping) for item in result):
         raise InputValidationError(f"{path}: every item must be an object")
+    return result
+
+
+def _tuple_of_strings(value: object, path: str) -> tuple[str, ...]:
+    if not isinstance(value, (tuple, list)):
+        raise InputValidationError(f"{path}: expected an array")
+    result = tuple(value)
+    if any(not isinstance(item, str) or not item for item in result):
+        raise InputValidationError(f"{path}: every item must be a non-empty string")
     return result
 
 
@@ -240,10 +258,19 @@ def validate_contract(value: Mapping[str, Any], contract: str) -> None:
         "compose_v5_fusesoc_recipe_v1": ("components",),
         "compose_v5_fusesoc_materialization_v1": ("components",),
         "compose_v5_target_audit_v1": ("targets",),
+        "compose_v5_contract_discovery_v1": ("module_reports",),
     }
     for key in array_fields.get(contract, ()):
         if key in value:
             _tuple_of_mappings(value[key], f"{contract}.{key}")
+    string_array_fields = {
+        "compose_v5_contract_discovery_v1": (
+            "missing_behavior_modules", "extra_behavior_modules", "binding_conflict_modules",
+        ),
+    }
+    for key in string_array_fields.get(contract, ()):
+        if key in value:
+            _tuple_of_strings(value[key], f"{contract}.{key}")
     if "cycle_width" in value and (
         isinstance(value["cycle_width"], bool)
         or not isinstance(value["cycle_width"], int)

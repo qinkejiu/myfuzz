@@ -94,7 +94,9 @@ def discover_contract_v5_module(
         raise InputValidationError("Contract v5 discovery requires an RTLModule")
     if not isinstance(behavior, FrontendV5ModuleBehavior):
         raise InputValidationError("Contract v5 discovery requires frontend module behavior")
-    if behavior.name != module.name and behavior.original_name != module.original_name:
+    module_ids = {module.name, module.original_name}
+    behavior_ids = {behavior.name, behavior.original_name}
+    if module_ids.isdisjoint(behavior_ids):
         raise InputValidationError("Contract v5 discovery module and behavior facts do not match")
 
     ports = {port.name: port for port in module.ports}
