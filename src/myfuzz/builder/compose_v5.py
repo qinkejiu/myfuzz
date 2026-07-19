@@ -18,6 +18,10 @@ from .frontend_v5 import (
 from .input_model import InputValidationError
 from .flat_shell import EmittedFlatShell
 from .compose_v5_flat import emit_compose_v5_scheme_a_flat_shell
+from .compose_v5_harness import (
+    EmittedComposeV5SchemeABundle,
+    emit_compose_v5_scheme_a_rawbits_harness,
+)
 from .compose_v5_layout import build_compose_v5_scheme_a_rawbits_layout
 from .system_contract_discovery_v5 import (
     ContractV5SystemDiscoveryReport,
@@ -456,6 +460,39 @@ def emit_compose_v5_scheme_a_flat_shell_from_manifest(
         for fact in facts
     }
     return emit_compose_v5_scheme_a_flat_shell(component_modules, module_name=module_name)
+
+
+def emit_compose_v5_scheme_a_harness_bundle_from_manifest(
+    manifest: ComposeV5Manifest,
+    *,
+    project_root: str | Path,
+    allow_roots: Iterable[str | Path] | None = None,
+    frontend_library: str | Path | None = None,
+    flat_module_name: str = "compose_v5_scheme_a_flat_top",
+    harness_module_name: str = "compose_v5_scheme_a_harness",
+) -> EmittedComposeV5SchemeABundle:
+    facts, frontend_schema = _collect_compose_v5_component_facts(
+        manifest,
+        project_root=project_root,
+        allow_roots=allow_roots,
+        frontend_library=frontend_library,
+    )
+    report = _compose_v5_system_report(manifest, facts, frontend_schema)
+    component_modules = {
+        fact.component_id: fact.analysis_module
+        for fact in facts
+    }
+    layout = build_compose_v5_scheme_a_rawbits_layout(component_modules, discovery=report)
+    flat = emit_compose_v5_scheme_a_flat_shell(
+        component_modules,
+        module_name=flat_module_name,
+    )
+    harness = emit_compose_v5_scheme_a_rawbits_harness(
+        flat,
+        layout,
+        module_name=harness_module_name,
+    )
+    return EmittedComposeV5SchemeABundle(flat, layout, harness, flat.rtl + "\n" + harness.rtl)
 
 
 def _collect_compose_v5_component_facts(

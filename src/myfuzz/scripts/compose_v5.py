@@ -15,6 +15,7 @@ from myfuzz.builder.compose_v5 import (  # noqa: E402
     build_compose_v5_scheme_a_layout_from_manifest,
     discover_compose_v5_contracts,
     emit_compose_v5_scheme_a_flat_shell_from_manifest,
+    emit_compose_v5_scheme_a_harness_bundle_from_manifest,
     load_compose_v5_manifest,
     qualify_compose_v5_manifest,
     write_compose_v5_json,
@@ -55,6 +56,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     _common(flat_top)
     flat_top.add_argument("--manifest", type=Path, required=True)
     flat_top.add_argument("--module-name", default="compose_v5_scheme_a_flat_top")
+    harness = commands.add_parser(
+        "scheme-a-harness",
+        help="emit scheme-A flat top plus rawbits harness for one compose-v5 manifest",
+    )
+    _common(harness)
+    harness.add_argument("--manifest", type=Path, required=True)
+    harness.add_argument("--flat-module-name", default="compose_v5_scheme_a_flat_top")
+    harness.add_argument("--module-name", default="compose_v5_scheme_a_harness")
     audit = commands.add_parser("audit", help="audit named target manifests")
     _common(audit)
     audit.add_argument(
@@ -125,6 +134,23 @@ def main(argv: list[str] | None = None) -> int:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(emitted.rtl, encoding="utf-8")
         print(f"{emitted.module_name} flat-top {args.output}")
+        return 0
+    if args.command == "scheme-a-harness":
+        manifest = load_compose_v5_manifest(args.manifest)
+        bundle = emit_compose_v5_scheme_a_harness_bundle_from_manifest(
+            manifest,
+            project_root=args.project_root,
+            allow_roots=roots,
+            frontend_library=args.frontend_library,
+            flat_module_name=args.flat_module_name,
+            harness_module_name=args.module_name,
+        )
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(bundle.rtl, encoding="utf-8")
+        print(
+            f"{bundle.harness.module_name} scheme-a-harness "
+            f"{bundle.layout.record_width_bits}b {args.output}"
+        )
         return 0
     report = audit_compose_v5_targets(
         _targets(args.target),

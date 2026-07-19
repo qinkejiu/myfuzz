@@ -281,6 +281,49 @@ class ComposeV5ContractDiscoveryPipelineTest(unittest.TestCase):
             self.assertIn("ip1 ip1 (", rtl)
             self.assertIn(".ip1_payload(ip1__ip1_payload)", rtl)
 
+    def test_cli_emits_scheme_a_flat_top_and_rawbits_harness_bundle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = _write_fixture(root)
+            output = root / "scheme_a_bundle.sv"
+
+            def fake_analyze(elaboration, **_: object):
+                return _analysis_for(elaboration.top_module), {"top": elaboration.top_module}
+
+            def fake_extract(raw: object):
+                self.assertIsInstance(raw, dict)
+                return _behavior_for(raw["top"])  # type: ignore[index]
+
+            with mock.patch(
+                "myfuzz.builder.rtl_analysis.analyze_elaboration_with_frontend",
+                side_effect=fake_analyze,
+            ) as analyze, mock.patch(
+                "myfuzz.builder.frontend_v5.extract_frontend_v5_behavior",
+                side_effect=fake_extract,
+            ) as extract:
+                code = compose_v5_main([
+                    "scheme-a-harness",
+                    "--project-root", str(root),
+                    "--manifest", str(manifest),
+                    "--output", str(output),
+                    "--flat-module-name", "scheme_a_flat",
+                    "--module-name", "scheme_a_harness",
+                ])
+
+            self.assertEqual(code, 0)
+            self.assertEqual(analyze.call_count, 4)
+            self.assertEqual(extract.call_count, 4)
+            rtl = output.read_text(encoding="utf-8")
+            self.assertIn("module scheme_a_flat (", rtl)
+            self.assertIn("module scheme_a_harness (", rtl)
+            self.assertIn("input logic [11:0] rawbits_i", rtl)
+            self.assertIn("output logic [35:0] observe_o", rtl)
+            self.assertIn("localparam logic [255:0] EXPECTED_LAYOUT_DIGEST", rtl)
+            self.assertIn("assign cpu0__cpu_clk = rawbits_i[0 +: 1];", rtl)
+            self.assertIn("assign observe_o[0 +: 8] = cpu0__cpu_payload;", rtl)
+            self.assertNotIn("assign cpu0__cpu_valid = rawbits_i", rtl)
+            self.assertIn("scheme_a_flat i_flat (", rtl)
+
 
 if __name__ == "__main__":
     unittest.main()

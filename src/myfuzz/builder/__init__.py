@@ -318,12 +318,18 @@ from .compose_v5 import (
     compose_v5_manifest_from_dict,
     build_compose_v5_scheme_a_layout_from_manifest,
     discover_compose_v5_contracts,
+    emit_compose_v5_scheme_a_harness_bundle_from_manifest,
     emit_compose_v5_scheme_a_flat_shell_from_manifest,
     load_compose_v5_manifest,
     qualify_compose_v5_manifest,
     write_compose_v5_json,
 )
 from .compose_v5_flat import emit_compose_v5_scheme_a_flat_shell
+from .compose_v5_harness import (
+    EmittedComposeV5SchemeABundle,
+    EmittedComposeV5SchemeAHarness,
+    emit_compose_v5_scheme_a_rawbits_harness,
+)
 from .compose_v5_layout import build_compose_v5_scheme_a_rawbits_layout
 from .contract_v5 import (
     CONTRACT_V5_AMBIGUITY_SCHEMA,
@@ -720,8 +726,12 @@ __all__ = [
     "build_compose_v5_scheme_a_rawbits_layout",
     "compose_v5_manifest_from_dict",
     "discover_compose_v5_contracts",
+    "EmittedComposeV5SchemeABundle",
+    "EmittedComposeV5SchemeAHarness",
+    "emit_compose_v5_scheme_a_harness_bundle_from_manifest",
     "emit_compose_v5_scheme_a_flat_shell",
     "emit_compose_v5_scheme_a_flat_shell_from_manifest",
+    "emit_compose_v5_scheme_a_rawbits_harness",
     "load_compose_v5_manifest",
     "qualify_compose_v5_manifest",
     "write_compose_v5_json",
