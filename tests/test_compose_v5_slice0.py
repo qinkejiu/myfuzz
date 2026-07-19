@@ -181,6 +181,34 @@ class ComposeV5Slice0Test(unittest.TestCase):
                 json.loads(json.dumps(report.to_dict())),
             )
 
+    def test_manifest_accepts_user_declared_bridge_components(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = _write_fixture(root)
+            value = json.loads(path.read_text(encoding="ascii"))
+            value["sources"].append({"id": "bridge", "rtl_files": ["rtl/bridge.sv"], "filelists": []})
+            value["components"].append({
+                "id": "br0",
+                "role": "bridge",
+                "module": "bridge",
+                "source_set": "bridge",
+                "parameters": {},
+            })
+            (root / "rtl" / "bridge.sv").write_text(
+                "module bridge(input logic clk_i); endmodule\n",
+                encoding="ascii",
+            )
+            path.write_text(json.dumps(value), encoding="ascii")
+
+            manifest = load_compose_v5_manifest(path)
+            self.assertEqual(
+                next(item.role.value for item in manifest.components if item.id == "br0"),
+                "bridge",
+            )
+            report = qualify_compose_v5_manifest(manifest, project_root=root)
+            self.assertTrue(report.eligible)
+            self.assertIn("br0", {item.component_id for item in report.components})
+
     def test_manifest_rejects_port_protocol_and_address_annotations(self):
         for field in ("ports", "protocol", "address"):
             value = _manifest()

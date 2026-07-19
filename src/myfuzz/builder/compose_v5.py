@@ -40,6 +40,7 @@ class ComposeV5Role(str, Enum):
     CPU = "cpu"
     RAM = "ram"
     IP = "ip"
+    BRIDGE = "bridge"
 
 
 class ComposeV5Failure(str, Enum):
@@ -249,7 +250,7 @@ def compose_v5_manifest_from_dict(value: Mapping[str, object]) -> ComposeV5Manif
         try:
             role = ComposeV5Role(raw.get("role"))
         except ValueError as exc:
-            raise InputValidationError(f"{path}.role: expected cpu, ram, or ip") from exc
+            raise InputValidationError(f"{path}.role: expected cpu, ram, ip, or bridge") from exc
         parameters = raw.get("parameters")
         if not isinstance(parameters, Mapping):
             raise InputValidationError(f"{path}.parameters: expected an object")
