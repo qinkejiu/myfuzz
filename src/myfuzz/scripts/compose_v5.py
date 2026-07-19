@@ -23,6 +23,9 @@ from myfuzz.builder.compose_v5 import (  # noqa: E402
     qualify_compose_v5_manifest,
     write_compose_v5_json,
 )
+from myfuzz.builder.compose_v5_target import (  # noqa: E402
+    build_compose_v5_target_artifact_from_manifest,
+)
 from myfuzz.builder.input_model import InputValidationError  # noqa: E402
 
 
@@ -88,6 +91,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     _common(connection_plan)
     connection_plan.add_argument("--manifest", type=Path, required=True)
+    target = commands.add_parser(
+        "target-artifact",
+        help="build a Verilated compose-v5 rawbits target artifact for scheme A/B/C/D",
+    )
+    _common(target)
+    target.add_argument("--manifest", type=Path, required=True)
+    target.add_argument("--scheme", choices=("A", "B", "C", "D"), required=True)
+    target.add_argument("--verilator-bin", default="verilator")
+    target.add_argument("--jobs", type=int, default=1)
+    target.add_argument("--target-name", default="myfuzz_target")
+    target.add_argument("--force", action="store_true")
+    target.add_argument("--stall-inputs-before-escalation", type=int, default=256)
     audit = commands.add_parser("audit", help="audit named target manifests")
     _common(audit)
     audit.add_argument(
@@ -215,6 +230,27 @@ def main(argv: list[str] | None = None) -> int:
         )
         write_compose_v5_json(plan, args.output)
         print(f"{plan.digest} connection-plan {args.output}")
+        return 0
+    if args.command == "target-artifact":
+        manifest = load_compose_v5_manifest(args.manifest)
+        built = build_compose_v5_target_artifact_from_manifest(
+            manifest,
+            project_root=args.project_root,
+            allow_roots=roots,
+            scheme=args.scheme,
+            output_dir=args.output,
+            frontend_library=args.frontend_library,
+            verilator_bin=args.verilator_bin,
+            jobs=args.jobs,
+            target_name=args.target_name,
+            force=args.force,
+            stall_inputs_before_escalation=args.stall_inputs_before_escalation,
+        )
+        write_compose_v5_json(built, args.output / "target_artifact.json")
+        print(
+            f"{built.target_digest} scheme-{args.scheme} target "
+            f"{built.coverage_width} branches {args.output}"
+        )
         return 0
     report = audit_compose_v5_targets(
         _targets(args.target),

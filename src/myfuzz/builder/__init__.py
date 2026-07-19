@@ -352,6 +352,13 @@ from .compose_v5_soc import (
     emit_compose_v5_generated_soc_rawbits_harness,
     emit_compose_v5_generated_soc_top,
 )
+from .compose_v5_target import (
+    BuiltComposeV5Target,
+    COMPOSE_V5_TARGET_ARTIFACT_SCHEMA,
+    COMPOSE_V5_TARGET_EXECUTION_SCHEMA,
+    build_compose_v5_target_artifact,
+    build_compose_v5_target_artifact_from_manifest,
+)
 from .contract_v5 import (
     CONTRACT_V5_AMBIGUITY_SCHEMA,
     CONTRACT_V5_CANONICAL_SCHEMA,
