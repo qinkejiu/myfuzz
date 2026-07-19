@@ -316,6 +316,7 @@ from .compose_v5 import (
     ComposeV5TargetResult,
     audit_compose_v5_targets,
     build_compose_v5_abcd_scheme_plan_from_manifest,
+    build_compose_v5_connection_plan_from_manifest,
     compose_v5_manifest_from_dict,
     build_compose_v5_scheme_a_layout_from_manifest,
     discover_compose_v5_contracts,
@@ -336,6 +337,11 @@ from .compose_v5_scheme import (
     COMPOSE_V5_SCHEME_PLAN_SCHEMA,
     ComposeV5SchemePlan,
     build_compose_v5_abcd_scheme_plan,
+)
+from .compose_v5_connection import (
+    COMPOSE_V5_CONNECTION_PLAN_SCHEMA,
+    ComposeV5ConnectionPlan,
+    build_compose_v5_connection_plan,
 )
 from .contract_v5 import (
     CONTRACT_V5_AMBIGUITY_SCHEMA,
@@ -730,11 +736,15 @@ __all__ = [
     "audit_compose_v5_targets",
     "build_compose_v5_abcd_scheme_plan",
     "build_compose_v5_abcd_scheme_plan_from_manifest",
+    "build_compose_v5_connection_plan",
+    "build_compose_v5_connection_plan_from_manifest",
     "build_compose_v5_scheme_a_layout_from_manifest",
     "build_compose_v5_scheme_a_rawbits_layout",
     "compose_v5_manifest_from_dict",
     "discover_compose_v5_contracts",
     "COMPOSE_V5_SCHEME_PLAN_SCHEMA",
+    "COMPOSE_V5_CONNECTION_PLAN_SCHEMA",
+    "ComposeV5ConnectionPlan",
     "ComposeV5SchemePlan",
     "EmittedComposeV5SchemeABundle",
     "EmittedComposeV5SchemeAHarness",

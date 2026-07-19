@@ -146,6 +146,14 @@ CONTRACT_SCHEMAS: dict[str, Mapping[str, Any]] = {
                      "schemes", "digest"),
         "schema": "myfuzz.compose-v5-scheme-plan/v1",
     },
+    "compose_v5_connection_plan_v1": {
+        "required": (
+            "schema", "manifest_digest", "discovery_digest", "master_component",
+            "components", "interfaces", "edges", "address_map", "bridge_requirements",
+            "incomplete_reasons", "digest",
+        ),
+        "schema": "myfuzz.compose-v5-connection-plan/v1",
+    },
     "compose_v5_fusesoc_recipe_v1": {
         "required": ("schema", "name", "mappings", "components", "digest"),
         "schema": "myfuzz.compose-v5-fusesoc-recipe/v1",

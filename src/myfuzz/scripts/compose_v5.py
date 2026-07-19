@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from myfuzz.builder.compose_v5 import (  # noqa: E402
     audit_compose_v5_targets,
     build_compose_v5_abcd_scheme_plan_from_manifest,
+    build_compose_v5_connection_plan_from_manifest,
     build_compose_v5_scheme_a_layout_from_manifest,
     discover_compose_v5_contracts,
     emit_compose_v5_scheme_a_flat_shell_from_manifest,
@@ -72,6 +73,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     _common(scheme_plan)
     scheme_plan.add_argument("--manifest", type=Path, required=True)
     scheme_plan.add_argument("--stall-inputs-before-escalation", type=int, default=256)
+    connection_plan = commands.add_parser(
+        "connection-plan",
+        help="write the compose-v5 CPU-master connection/address/bridge plan for one manifest",
+    )
+    _common(connection_plan)
+    connection_plan.add_argument("--manifest", type=Path, required=True)
     audit = commands.add_parser("audit", help="audit named target manifests")
     _common(audit)
     audit.add_argument(
@@ -171,6 +178,17 @@ def main(argv: list[str] | None = None) -> int:
         )
         write_compose_v5_json(plan, args.output)
         print(f"{plan.digest} scheme-plan {args.output}")
+        return 0
+    if args.command == "connection-plan":
+        manifest = load_compose_v5_manifest(args.manifest)
+        plan = build_compose_v5_connection_plan_from_manifest(
+            manifest,
+            project_root=args.project_root,
+            allow_roots=roots,
+            frontend_library=args.frontend_library,
+        )
+        write_compose_v5_json(plan, args.output)
+        print(f"{plan.digest} connection-plan {args.output}")
         return 0
     report = audit_compose_v5_targets(
         _targets(args.target),

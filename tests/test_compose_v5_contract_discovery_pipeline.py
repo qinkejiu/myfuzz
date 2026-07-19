@@ -87,6 +87,28 @@ def _rtl_module(name: str) -> RTLModule:
     )
 
 
+def _rtl_module_for_interface_role(name: str, *, initiator: bool) -> RTLModule:
+    return RTLModule(
+        name=name,
+        original_name=name,
+        source_file=f"{name}.sv",
+        top=True,
+        level=0,
+        parameters=(),
+        ports=(
+            _port(f"{name}_clk", "input", 1),
+            _port(f"{name}_rst", "input", 1),
+            _port(f"{name}_valid", "output" if initiator else "input", 1),
+            _port(f"{name}_ready", "input" if initiator else "output", 1),
+            _port(f"{name}_payload", "output" if initiator else "input", 8),
+        ),
+        instances=(),
+        memories=(),
+        dependencies=(),
+        evidence=KNOWN,
+    )
+
+
 def _sig(name: str, width: int = 1) -> FrontendV5Expression:
     return FrontendV5Expression("VARREF", width, name, None, ())
 
@@ -149,6 +171,17 @@ def _analysis_for(name: str) -> RTLAnalysis:
         frontend_schema="myfuzz.frontend.v1",
         top_module=name,
         modules=(_rtl_module(name),),
+        limitations=(),
+    )
+
+
+def _connection_analysis_for(name: str) -> RTLAnalysis:
+    return RTLAnalysis(
+        schema="myfuzz.rtl-analysis/v1",
+        manifest_digest=content_digest({"component": name, "connection_fixture": True}),
+        frontend_schema="myfuzz.frontend.v1",
+        top_module=name,
+        modules=(_rtl_module_for_interface_role(name, initiator=(name == "cpu")),),
         limitations=(),
     )
 
@@ -371,6 +404,60 @@ class ComposeV5ContractDiscoveryPipelineTest(unittest.TestCase):
             self.assertEqual(
                 plan["schemes"][3]["perturbation"]["stall_inputs_before_escalation"],
                 9,
+            )
+
+    def test_cli_writes_cpu_master_connection_plan_from_declared_roles_and_discovery(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = _write_fixture(root)
+            output = root / "connection_plan.json"
+
+            def fake_analyze(elaboration, **_: object):
+                return _connection_analysis_for(elaboration.top_module), {"top": elaboration.top_module}
+
+            def fake_extract(raw: object):
+                self.assertIsInstance(raw, dict)
+                return _behavior_for(raw["top"])  # type: ignore[index]
+
+            with mock.patch(
+                "myfuzz.builder.rtl_analysis.analyze_elaboration_with_frontend",
+                side_effect=fake_analyze,
+            ) as analyze, mock.patch(
+                "myfuzz.builder.frontend_v5.extract_frontend_v5_behavior",
+                side_effect=fake_extract,
+            ) as extract:
+                code = compose_v5_main([
+                    "connection-plan",
+                    "--project-root", str(root),
+                    "--manifest", str(manifest),
+                    "--output", str(output),
+                ])
+
+            self.assertEqual(code, 0)
+            self.assertEqual(analyze.call_count, 4)
+            self.assertEqual(extract.call_count, 4)
+            plan = json.loads(output.read_text(encoding="utf-8"))
+            validate_contract(plan, "compose_v5_connection_plan_v1")
+            self.assertEqual(plan["master_component"], "cpu0")
+            self.assertEqual(plan["incomplete_reasons"], [])
+            self.assertEqual(
+                {(edge["source_component"], edge["target_component"], edge["status"]) for edge in plan["edges"]},
+                {("cpu0", "ram0", "planned"), ("cpu0", "ip0", "planned"), ("cpu0", "ip1", "planned")},
+            )
+            self.assertEqual(
+                {window["component"]: window["base"] for window in plan["address_map"]},
+                {"ram0": 0x0000_0000, "ip0": 0x4000_0000, "ip1": 0x4000_1000},
+            )
+            self.assertEqual(
+                {
+                    item["target_component"]: (item["status"], item["rtl_generation"])
+                    for item in plan["bridge_requirements"]
+                },
+                {
+                    "ram0": ("direct", "not_required"),
+                    "ip0": ("direct", "not_required"),
+                    "ip1": ("direct", "not_required"),
+                },
             )
 
 

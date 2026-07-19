@@ -27,6 +27,10 @@ from .compose_v5_scheme import (
     ComposeV5SchemePlan,
     build_compose_v5_abcd_scheme_plan,
 )
+from .compose_v5_connection import (
+    ComposeV5ConnectionPlan,
+    build_compose_v5_connection_plan,
+)
 from .system_contract_discovery_v5 import (
     ContractV5SystemDiscoveryReport,
     discover_contract_v5_system,
@@ -526,6 +530,27 @@ def build_compose_v5_abcd_scheme_plan_from_manifest(
         manifest_digest=manifest.digest,
         stall_inputs_before_escalation=stall_inputs_before_escalation,
     )
+
+
+def build_compose_v5_connection_plan_from_manifest(
+    manifest: ComposeV5Manifest,
+    *,
+    project_root: str | Path,
+    allow_roots: Iterable[str | Path] | None = None,
+    frontend_library: str | Path | None = None,
+) -> ComposeV5ConnectionPlan:
+    facts, frontend_schema = _collect_compose_v5_component_facts(
+        manifest,
+        project_root=project_root,
+        allow_roots=allow_roots,
+        frontend_library=frontend_library,
+    )
+    report = _compose_v5_system_report(manifest, facts, frontend_schema)
+    component_modules = {
+        fact.component_id: fact.analysis_module
+        for fact in facts
+    }
+    return build_compose_v5_connection_plan(manifest, component_modules, report)
 
 
 def _collect_compose_v5_component_facts(
