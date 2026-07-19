@@ -340,6 +340,11 @@ from .contract_v5 import (
     canonicalize_contract_v5_hypothesis,
     contract_v5_hypothesis_digest,
 )
+from .contract_discovery_v5 import (
+    CONTRACT_V5_DISCOVERY_SCHEMA,
+    ContractV5DiscoveryResult,
+    discover_contract_v5_module,
+)
 from .frontend_v5 import (
     FRONTEND_BEHAVIOR_SCHEMA,
     FrontendV5Behavior,
@@ -723,6 +728,9 @@ __all__ = [
     "canonicalize_contract_v5_hypothesis",
     "contract_v5_hypothesis_digest",
     "classify_contract_v5_ambiguity",
+    "CONTRACT_V5_DISCOVERY_SCHEMA",
+    "ContractV5DiscoveryResult",
+    "discover_contract_v5_module",
     "RAWBITS_V5_LAYOUT_SCHEMA",
     "RAWBITS_V5_MAX_STEPS",
     "RAWBITS_V5_MAX_TESTCASE_BYTES",
