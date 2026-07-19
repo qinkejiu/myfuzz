@@ -16,6 +16,8 @@ from .frontend_v5 import (
     FrontendV5ModuleBehavior,
 )
 from .input_model import InputValidationError
+from .flat_shell import EmittedFlatShell
+from .compose_v5_flat import emit_compose_v5_scheme_a_flat_shell
 from .compose_v5_layout import build_compose_v5_scheme_a_rawbits_layout
 from .system_contract_discovery_v5 import (
     ContractV5SystemDiscoveryReport,
@@ -432,6 +434,27 @@ def build_compose_v5_scheme_a_layout_from_manifest(
         for fact in facts
     }
     return build_compose_v5_scheme_a_rawbits_layout(component_modules, discovery=report)
+
+
+def emit_compose_v5_scheme_a_flat_shell_from_manifest(
+    manifest: ComposeV5Manifest,
+    *,
+    project_root: str | Path,
+    allow_roots: Iterable[str | Path] | None = None,
+    frontend_library: str | Path | None = None,
+    module_name: str = "compose_v5_scheme_a_flat_top",
+) -> EmittedFlatShell:
+    facts, _frontend_schema = _collect_compose_v5_component_facts(
+        manifest,
+        project_root=project_root,
+        allow_roots=allow_roots,
+        frontend_library=frontend_library,
+    )
+    component_modules = {
+        fact.component_id: fact.analysis_module
+        for fact in facts
+    }
+    return emit_compose_v5_scheme_a_flat_shell(component_modules, module_name=module_name)
 
 
 def _collect_compose_v5_component_facts(

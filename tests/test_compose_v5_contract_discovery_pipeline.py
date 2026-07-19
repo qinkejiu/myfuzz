@@ -239,6 +239,48 @@ class ComposeV5ContractDiscoveryPipelineTest(unittest.TestCase):
             self.assertEqual(fields["cpu0.cpu_ready"]["kind"], "external_input")
             self.assertNotIn("cpu0.cpu_valid", fields)
 
+    def test_cli_emits_scheme_a_flat_top_from_declared_ports(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = _write_fixture(root)
+            output = root / "scheme_a_flat_top.sv"
+
+            def fake_analyze(elaboration, **_: object):
+                return _analysis_for(elaboration.top_module), {"top": elaboration.top_module}
+
+            def fake_extract(raw: object):
+                self.assertIsInstance(raw, dict)
+                return _behavior_for(raw["top"])  # type: ignore[index]
+
+            with mock.patch(
+                "myfuzz.builder.rtl_analysis.analyze_elaboration_with_frontend",
+                side_effect=fake_analyze,
+            ) as analyze, mock.patch(
+                "myfuzz.builder.frontend_v5.extract_frontend_v5_behavior",
+                side_effect=fake_extract,
+            ) as extract:
+                code = compose_v5_main([
+                    "flat-top",
+                    "--project-root", str(root),
+                    "--manifest", str(manifest),
+                    "--output", str(output),
+                    "--module-name", "scheme_a_pipeline_fixture",
+                ])
+
+            self.assertEqual(code, 0)
+            self.assertEqual(analyze.call_count, 4)
+            self.assertEqual(extract.call_count, 4)
+            rtl = output.read_text(encoding="utf-8")
+            self.assertIn("module scheme_a_pipeline_fixture (", rtl)
+            self.assertIn("input logic cpu0__cpu_clk", rtl)
+            self.assertIn("input logic cpu0__cpu_ready", rtl)
+            self.assertIn("output logic cpu0__cpu_valid", rtl)
+            self.assertIn("output logic [7:0] cpu0__cpu_payload", rtl)
+            self.assertIn("cpu cpu0 (", rtl)
+            self.assertIn(".cpu_ready(cpu0__cpu_ready)", rtl)
+            self.assertIn("ip1 ip1 (", rtl)
+            self.assertIn(".ip1_payload(ip1__ip1_payload)", rtl)
+
 
 if __name__ == "__main__":
     unittest.main()
