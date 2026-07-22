@@ -83,11 +83,15 @@ def _group(value: object) -> DependencyNode:
 
 
 def _ports(manifest: Mapping[str, object]) -> tuple[dict[str, Any], ...]:
+    top = manifest.get("top")
+    if not isinstance(top, Mapping) or not isinstance(top.get("module"), str) or not top["module"]:
+        raise ValueError("manifest.top.module is required for generated port mapping")
     raw = manifest.get("top_port_abi")
     if not isinstance(raw, Sequence) or isinstance(raw, (str, bytes)):
         raise ValueError("manifest.top_port_abi must be an array")
     ports: list[dict[str, Any]] = []
     seen: set[int] = set()
+    emitted_seen: set[str] = set()
     for index, item in enumerate(raw):
         if not isinstance(item, Mapping):
             raise ValueError(f"top_port_abi[{index}] must be an object")
@@ -96,6 +100,12 @@ def _ports(manifest: Mapping[str, object]) -> tuple[dict[str, Any], ...]:
         direction = item.get("direction")
         if direction not in {"input", "output", "inout"}:
             raise ValueError(f"top_port_abi[{index}].direction is invalid")
+        emitted_name = item.get("emitted_name")
+        if not isinstance(emitted_name, str) or not emitted_name:
+            raise ValueError(f"top_port_abi[{index}].emitted_name is required")
+        if emitted_name in emitted_seen:
+            raise ValueError(f"duplicate emitted port name: {emitted_name}")
+        emitted_seen.add(emitted_name)
         if port_id in seen:
             raise ValueError("duplicate top port ID")
         seen.add(port_id)
@@ -115,10 +125,49 @@ def _ports(manifest: Mapping[str, object]) -> tuple[dict[str, Any], ...]:
             raise ValueError(f"invalid constant value for port ID: {port_id}")
         if item.get("semantic_role") in {"clock", "reset"} and width != 1:
             raise ValueError(f"clock/reset port must be one bit: {port_id}")
+        role = item.get("semantic_role")
+        if not isinstance(role, str) or not role:
+            raise ValueError(f"top_port_abi[{index}].semantic_role is required")
         record = dict(item)
         record.update(port_id=port_id, width=width, direction=direction)
         ports.append(record)
     return tuple(ports)
+
+
+def _control_declarations(manifest: Mapping[str, object], ports: tuple[dict[str, Any], ...]) -> dict[str, dict[str, Any]]:
+    """Validate explicit control semantics and return role-to-port declarations."""
+    combinational = manifest.get("combinational_design", False)
+    if not isinstance(combinational, bool):
+        raise ValueError("manifest.combinational_design must be an explicit boolean")
+    by_role = {
+        role: tuple(port for port in ports if port.get("semantic_role") == role)
+        for role in ("clock", "reset")
+    }
+    if combinational:
+        if by_role["clock"] or by_role["reset"]:
+            raise ValueError("combinational designs cannot declare clock/reset ports")
+        return {}
+    declarations: dict[str, dict[str, Any]] = {}
+    for role in ("clock", "reset"):
+        matches = by_role[role]
+        if len(matches) != 1:
+            raise ValueError(f"exactly one explicit {role} semantic declaration is required")
+        declaration = matches[0]
+        active_level = declaration.get("active_level")
+        if isinstance(active_level, bool) or active_level not in (0, 1):
+            raise ValueError(f"{role} declaration requires active_level 0 or 1")
+        if role == "reset":
+            synchronous = declaration.get("synchronous")
+            if not isinstance(synchronous, bool):
+                raise ValueError("reset declaration requires explicit synchronous boolean")
+            reset_value = declaration.get("reset_value")
+            if reset_value != active_level:
+                raise ValueError("reset_value must match the declared reset active_level")
+            io_meta_reset = declaration.get("io_meta_reset")
+            if io_meta_reset is not None and not isinstance(io_meta_reset, bool):
+                raise ValueError("reset io_meta_reset declaration must be boolean")
+        declarations[role] = declaration
+    return declarations
 
 
 def _validate_fields(manifest: Mapping[str, object], ports: tuple[dict[str, Any], ...]) -> None:
@@ -200,6 +249,7 @@ def _group_records(manifest: Mapping[str, object], ports: tuple[dict[str, Any], 
 
 def _select_ports(manifest: Mapping[str, object]) -> tuple[dict[str, Any], ...]:
     ports = _ports(manifest)
+    _control_declarations(manifest, ports)
     _validate_fields(manifest, ports)
     _validate_protocol_bindings(manifest)
     _validate_external(manifest, ports)
@@ -281,11 +331,19 @@ def manifest_ports(manifest: object) -> tuple[dict[str, Any], ...]:
     if not isinstance(manifest, Mapping):
         raise ValueError("manifest must be an object")
     ports = _ports(manifest)
+    _control_declarations(manifest, ports)
     _validate_fields(manifest, ports)
     _validate_protocol_bindings(manifest)
     _validate_external(manifest, ports)
     _group_records(manifest, ports)
     return tuple(sorted(ports, key=lambda item: item["port_id"]))
+
+
+def control_declarations(manifest: object) -> dict[str, dict[str, Any]]:
+    if not isinstance(manifest, Mapping):
+        raise ValueError("manifest must be an object")
+    ports = _ports(manifest)
+    return _control_declarations(manifest, ports)
 
 
 def dependency_groups(manifest: object) -> tuple[DependencyNode, ...]:

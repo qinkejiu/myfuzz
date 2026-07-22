@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from .abi import RawBitAbi, _canonical, build_raw_abi, content_hash, manifest_ports
+from .abi import RawBitAbi, _canonical, build_raw_abi, content_hash, control_declarations, manifest_ports
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,14 +115,25 @@ def emit_direct(
     if not isinstance(manifest, Mapping):
         raise ValueError("manifest must be an object")
     top = manifest.get("top", {})
-    module = _identifier(top.get("module") if isinstance(top, Mapping) else None, "generated_top")
+    if not isinstance(top, Mapping) or not isinstance(top.get("module"), str) or not top["module"]:
+        raise ValueError("manifest.top.module is required for generated port mapping")
+    module = top["module"]
+    controls = control_declarations(manifest)
+    clock = controls.get("clock")
+    reset = controls.get("reset")
+    has_io_meta_reset = bool(reset and reset.get("io_meta_reset") is True)
+    header_ports = []
+    if clock is not None:
+        header_ports.append("    input logic clock")
+    if reset is not None:
+        header_ports.append("    input logic reset")
+        if has_io_meta_reset:
+            header_ports.append("    input logic io_meta_reset")
+    header_ports.append(f"    input logic [{abi.raw_width - 1}:0] rfuzz_input_bits")
     module_name = f"myfuzz_{mode}_{abi.abi_hash[:12]}"
     lines = [
         f"module {module_name} (",
-        "    input logic clock,",
-        "    input logic reset,",
-        "    input logic io_meta_reset,",
-        f"    input logic [{abi.raw_width - 1}:0] rfuzz_input_bits",
+        *[f"{port}," if index + 1 < len(header_ports) else port for index, port in enumerate(header_ports)],
         ");",
         (
             f"    // protocol_projection of {module}; groups marked gate retain their raw slices"
@@ -139,10 +150,13 @@ def emit_direct(
         lines.append(_logic(width, signal))
         role = port.get("semantic_role")
         if role == "clock":
-            lines.append(f"    assign {signal} = {{{width}{{clock}}}};")
+            active_level = controls["clock"]["active_level"]
+            clock_expression = "clock" if active_level == 1 else "~clock"
+            lines.append(f"    assign {signal} = {{{width}{{{clock_expression}}}}};")
         elif role == "reset":
-            reset = "reset | io_meta_reset"
-            expression = f"~({reset})" if port.get("reset_value") == 0 else reset
+            active_level = controls["reset"]["active_level"]
+            reset_expression = "reset | io_meta_reset" if has_io_meta_reset else "reset"
+            expression = reset_expression if active_level == 1 else f"~({reset_expression})"
             lines.append(f"    assign {signal} = {expression};")
         elif port_id in destinations:
             use = uses[port_id]

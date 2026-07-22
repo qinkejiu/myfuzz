@@ -9,11 +9,12 @@ from myfuzz.harness import HarnessArtifact, build_harness, coverage_universe, ra
 def manifest() -> dict[str, object]:
     return {
         "schema_version": "candidate_manifest.v1",
+        "combinational_design": False,
         "candidate_id": "candidate-7",
         "top": {"module": "generated_top", "content_hash": "top-hash"},
         "top_port_abi": [
-            {"port_id": 3, "emitted_name": "clock_signal", "direction": "input", "width": 1, "semantic_role": "clock", "fuzzable": False},
-            {"port_id": 4, "emitted_name": "reset_signal", "direction": "input", "width": 1, "semantic_role": "reset", "fuzzable": False, "reset_value": 0},
+            {"port_id": 3, "emitted_name": "clock_signal", "direction": "input", "width": 1, "semantic_role": "clock", "active_level": 1, "fuzzable": False},
+            {"port_id": 4, "emitted_name": "reset_signal", "direction": "input", "width": 1, "semantic_role": "reset", "active_level": 0, "synchronous": False, "io_meta_reset": True, "fuzzable": False, "reset_value": 0},
             {"port_id": 10, "emitted_name": "data_a", "direction": "input", "width": 8, "semantic_role": "data", "fuzzable": True, "dependency_group": {"kind": "field_group", "components": ["binding", "a"]}},
             {"port_id": 20, "emitted_name": "data_b", "direction": "inout", "width": 4, "semantic_role": "data", "fuzzable": True, "dependency_group": {"kind": "field_group", "components": ["binding", "b"]}},
             {"port_id": 30, "emitted_name": "result", "direction": "output", "width": 16, "semantic_role": "response", "fuzzable": False},
@@ -76,6 +77,40 @@ class HarnessTest(unittest.TestCase):
         for document in cases:
             with self.assertRaises(ValueError):
                 build_harness(document, "candidate_direct")
+
+    def test_requires_explicit_control_declarations(self) -> None:
+        missing_role = manifest()
+        missing_role["top_port_abi"][0].pop("semantic_role")
+        with self.assertRaises(ValueError):
+            build_harness(missing_role, "candidate_direct")
+
+        missing_active_level = manifest()
+        missing_active_level["top_port_abi"][1].pop("active_level")
+        with self.assertRaises(ValueError):
+            build_harness(missing_active_level, "candidate_direct")
+
+        contradictory_reset = manifest()
+        contradictory_reset["top_port_abi"][1]["active_level"] = 1
+        with self.assertRaises(ValueError):
+            build_harness(contradictory_reset, "candidate_direct")
+
+        missing_mapping = manifest()
+        missing_mapping["top_port_abi"][2].pop("emitted_name")
+        with self.assertRaises(ValueError):
+            build_harness(missing_mapping, "candidate_direct")
+
+        duplicate_mapping = manifest()
+        duplicate_mapping["top_port_abi"][2]["emitted_name"] = duplicate_mapping["top_port_abi"][3]["emitted_name"]
+        with self.assertRaises(ValueError):
+            build_harness(duplicate_mapping, "candidate_direct")
+
+        combinational = manifest()
+        combinational["combinational_design"] = True
+        combinational["top_port_abi"] = [port for port in combinational["top_port_abi"] if port["port_id"] not in {3, 4}]
+        artifact = build_harness(combinational, "candidate_direct")
+        self.assertNotIn("input logic clock", artifact.source_text)
+        self.assertNotIn("input logic reset", artifact.source_text)
+        self.assertNotIn("io_meta_reset", artifact.source_text)
 
     def test_reordering_manifest_records_does_not_change_abi(self) -> None:
         document = manifest()
