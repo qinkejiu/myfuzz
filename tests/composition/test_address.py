@@ -14,9 +14,9 @@ from myfuzz.composition.declarations import ComponentDecl, DeclarationSet, PortD
 from myfuzz.composition.facts import HdlFacts, HdlModule, HdlPort
 
 
-def facts_for(records: tuple[object, ...], *, components: tuple[tuple[int, int], ...] = ((101, 1), (202, 2))) -> HdlFacts:
+def facts_for(records: tuple[object, ...], *, components: tuple[tuple[int, int], ...] = ((101, 1), (202, 2)), role: str = "request.address") -> HdlFacts:
     modules = tuple(HdlModule(module_id, (port_id,), ()) for _, module_id in components for port_id in (module_id * 10 + 1,))
-    ports = tuple(HdlPort(module_id * 10 + 1, module_id, "input", 32, False, "request.address") for _, module_id in components)
+    ports = tuple(HdlPort(module_id * 10 + 1, module_id, "input", 32, False, role) for _, module_id in components)
     return HdlFacts(modules, ports, (("local_address_facts", records),))
 
 
@@ -49,6 +49,37 @@ class AddressAllocatorTests(unittest.TestCase):
         self.assertEqual(len(regions), 1)
         self.assertEqual((regions[0].component_id, regions[0].port_id, regions[0].offset, regions[0].size), (101, 11, 0x20, 4))
         self.assertEqual(regions[0].alignment, 4)
+
+    def test_custom_address_role_is_accepted_only_with_explicit_field_id(self) -> None:
+        facts = facts_for(
+            (
+                {"address_field_port_id": 11, "offset": 0x10, "size": 4},
+                {"port_id": 11, "offset": 0x20, "size": 4},
+            ),
+            role="bus.addr",
+        )
+        custom_declarations = DeclarationSet(
+            tuple(
+                ComponentDecl(
+                    component.id,
+                    component.module_id,
+                    component.role,
+                    (PortDecl(11 if component.module_id == 1 else 21, "bus.addr", True),),
+                    (ProtocolBinding(component.id * 10, "bus", "target", (ProtocolFieldBinding("bus.addr", 11 if component.module_id == 1 else 21),)),),
+                    (),
+                )
+                for component in declarations_for().components
+            )
+        )
+
+        regions = extract_local_regions(facts, custom_declarations)
+
+        self.assertEqual([(region.port_id, region.offset) for region in regions], [(11, 0x10)])
+
+    def test_address_like_role_without_explicit_field_id_is_not_inferred(self) -> None:
+        facts = facts_for(({"port_id": 11, "offset": 0, "size": 4},))
+
+        self.assertEqual(extract_local_regions(facts, declarations_for()), ())
 
     def test_preserves_fixed_bases_and_allocates_non_overlapping_aligned_regions(self) -> None:
         regions = (
