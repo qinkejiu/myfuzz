@@ -23,7 +23,7 @@
 5. 使用相同资源预算执行 RFuzz，并分别报告每个候选的覆盖率；
 6. 在 RVX 和 Ibex + OpenTitan IP 两类目标上验证系统的通用性。
 
-系统禁止依赖模块名、设计名或目标目录名的硬编码规则。RVX 的原始 SoC 顶层只能由评测流程使用，生成流程不得读取、解析、评分或间接恢复其中的连接及地址信息。
+系统禁止把模块名、实例名、端口名、net 名、文件名、目录名或设计名作为任何语义推断证据。RVX 的原始 SoC 顶层只能由评测流程使用，生成流程不得读取、解析、评分或间接恢复其中的连接及地址信息。
 
 ## 2. 非目标
 
@@ -51,6 +51,16 @@
 - 与目标无关的宽度、方向、时钟域、地址冲突等约束。
 
 目标相关信息只能存在于输入配置中。核心源码中不得出现类似 `if design == "rvx"`、模块名白名单、固定 RVX 地址或固定 OpenTitan 实例组合。
+
+所有 RTL 标识符在语义层都视为 opaque symbol。前端可以使用名称完成 Verilog 符号解析、保留源码映射和生成诊断，但推断器不得根据名称的文本内容分类或评分。明确禁止：
+
+- 端口名、module 名或 instance 名的关键词表；
+- `clk`、`rst`、`req`、`uart` 等前缀、后缀、正则表达式或常见缩写匹配；
+- 大小写、编辑距离、命名风格或目录布局启发式；
+- 根据模块角色隐式选择协议插件；
+- 根据目标、组件类型或名称选择固定连接、地址、adapter、评分权重或 harness 规则。
+
+模块角色、每个端口的语义角色以及协议 field binding 必须由用户显式声明。用户还必须为每个 component 提供只用于身份和稳定排序的 `component_id`；其文本内容没有语义。暂不建模的端口也必须显式声明为 `uninterpreted_external`，不能留空后由系统猜测。协议插件只能由输入中声明的 protocol ID 显式选择，其内容是协议规范的声明式约束，不是设计名称查找表。
 
 ### 3.2 事实、推断和假设分离
 
@@ -80,6 +90,8 @@
 
 读取 filelist、include 路径、宏、top 候选模块、模块角色、端口角色、协议声明和用户约束。它只负责语法与引用检查，不执行目标专用推断。
 
+规范化器要求每个 component、每个端口和每个 protocol field binding 都有显式声明。缺少角色或 binding 是输入错误；系统不会回退到标识符文本猜测。RTL 名称只用于把声明精确绑定到 AST symbol，绑定完成后推断层使用稳定 ID。
+
 输出规范化输入摘要和内容哈希，供缓存和复现使用。
 
 ### 4.2 Verilator RTL 事实提取器
@@ -90,9 +102,9 @@
 - instance 到 module 的解析关系；
 - pin 与 net/expression 的实际绑定；
 - continuous assignment、过程赋值和条件控制的数据依赖；
-- clock/reset 候选及其极性证据；
+- 已声明 clock/reset 端口在 event control、时序块和复位条件中的结构证据及极性验证结果；
 - 参数化后可确定的宽度和常量；
-- 可识别的寄存器局部 offset、range 和 decode 条件；
+- 围绕已绑定 address protocol field 的寄存器局部 offset、range 和 decode 条件；
 - 无法解析或因条件生成而不确定的诊断。
 
 输出 `hdl_facts.v2`，不在该阶段决定最终连接图。
@@ -117,7 +129,7 @@
 - OBI；
 - TL-UL host/device 子集。
 
-首期 TL-UL 只覆盖 Ibex 与所选 OpenTitan 外设实验需要的单 outstanding、无 source-ID 重排路径。完整 TileLink、一致性协议和 AXI4 burst 不属于首期范围。插件能力不足时必须显式拒绝或将未连接端口暴露为外部端口，不能静默生成看似成功的连接。
+首期 TL-UL capability profile 是单 outstanding、无 source-ID 重排。完整 TileLink、一致性协议和 AXI4 burst 不属于首期范围。插件能力不足时必须显式拒绝或将已声明为 optional 的端口暴露为外部端口，不能静默生成看似成功的连接。
 
 ### 4.4 连接与地址推断核心
 
@@ -128,14 +140,14 @@
 1. 类型和协议约束：方向、位宽、channel、initiator/target、时钟复位域及协议规则；
 2. RTL 数据流证据：地址参与 decode、valid/ready 控制关系、response 对 request 的依赖、interrupt/status 来源等。
 
-硬约束先删除不可能连接，再对剩余候选执行确定性评分和约束搜索。搜索允许产生多个合法连接图，但不允许通过模块名查表决定连接。
+RTL 数据流只在用户已声明的端口角色和 protocol field binding 上增加结构证据，不负责根据标识符猜测角色。硬约束先删除不可能连接，再对剩余候选执行确定性评分和约束搜索。搜索允许产生多个合法连接图，但不得读取任何标识符的文本内容来决定连接。
 
 地址推断分两步：
 
 1. 从 RTL 中提取外设内部寄存器 offset、decode mask、窗口大小和对齐要求；
 2. 使用通用约束分配器为候选实例分配互不重叠的绝对 base address。
 
-分配器优先满足已声明的固定地址、可表示范围、自然对齐、CPU 地址宽度和协议窗口约束。没有固定地址时，按规范化 component ID 和候选图顺序进行确定性分配。不同合理布局可以形成不同候选；绝对 base 必须标记为 `inferred` 或 `assumed`，不得标记为 RTL 提取事实。
+分配器优先满足已声明的固定地址、可表示范围、自然对齐、CPU 地址宽度和协议窗口约束。没有固定地址时，按用户提供的 opaque `component_id` 和候选图规范顺序进行确定性分配。ID 只用于消除等价解的排序歧义，分配器不得解析其文本。不同合理布局可以形成不同候选；绝对 base 必须标记为 `inferred` 或 `assumed`，不得标记为 RTL 提取事实。
 
 ### 4.5 Top-K 候选管理器
 
@@ -144,7 +156,7 @@
 1. 硬约束是否全部满足；
 2. 未连接的 required endpoint 数量；
 3. 非安全宽度适配数量；
-4. 未经证明的 clock/reset 假设数量；
+4. 未被 RTL 结构验证的已声明 clock/reset domain 关联数量；
 5. 地址空间浪费和冲突修复数量；
 6. 协议证据完整度；
 7. RTL 数据流支持度；
@@ -278,14 +290,14 @@ RTL + roles + port roles + protocol declarations + constraints
 - frontend、Verilator 和输入内容版本；
 - modules、parameters、ports、instances；
 - pin bindings 及规范化 expression；
-- clock/reset candidates；
+- declared clock/reset bindings 的 event-control、极性和 domain 验证结果；
 - dataflow/control edges；
 - local address decode facts；
 - source locations；
 - 每项事实的 provenance 和 confidence；
 - errors、warnings 和 unsupported constructs。
 
-所有实体使用稳定整数 ID，同时保留可读名称。消费者不得依赖数组原始顺序。
+所有实体使用稳定整数 ID，同时保留只供诊断和源码定位的原始名称。消费者不得依赖数组原始顺序，也不得读取名称文本进行语义判断。
 
 ### 6.2 `protocol.v1`
 
@@ -303,7 +315,7 @@ RTL + roles + port roles + protocol declarations + constraints
 - harness projection actions；
 - capability limits。
 
-协议实例只引用 field role，不依赖具体 RTL 信号名。信号名到 field role 的绑定来自用户输入和结构推断证据。
+协议实例只引用 field role，不依赖具体 RTL 信号名。RTL symbol 到 field role 的绑定只能来自用户显式输入；RTL 结构分析只能验证绑定是否与方向、位宽和数据流兼容，不能创建或替换 binding。
 
 ### 6.3 `composition_ir.v1`
 
@@ -344,14 +356,15 @@ IR 不能包含 Verilator AST 指针、进程内地址或不可复现的临时�
 
 ### 7.1 端口角色解析
 
-角色来源优先级为：
+系统不解析端口、net、instance 或 module 名称中的任何语义。角色和协议绑定不存在优先级或回退链，只接受用户输入中的显式声明：
 
-1. 用户声明；
-2. 协议实例显式绑定；
-3. RTL 结构和数据流推断；
-4. 通用命名提示。
+1. 每个 component 有显式 `component_id` 和 role；
+2. 每个 RTL port 有且只有一个语义 role，或显式标记为 `uninterpreted_external`；
+3. 每个 protocol endpoint 显式引用 protocol ID、endpoint side 和 field-to-port binding；
+4. 每个 clock/reset port 显式声明 domain、极性及同步/异步属性；
+5. 可选端口、required 端口和允许 externalize 的端口均显式声明。
 
-命名只能作为低置信度提示，不能覆盖方向、位宽或用户声明。任何由名称推断的 clock、reset 或 protocol field 都必须出现在候选假设中。
+前端使用 RTL symbol 名称查找对应 AST 节点，这是语法绑定，不是语义推断。绑定后，推断核心只接收稳定 ID、声明角色、RTL 类型和结构事实。若声明与 RTL 的方向、位宽、event control 或数据流冲突，则产生结构化输入错误；系统不得通过改猜另一个角色来继续。
 
 ### 7.2 连接硬约束
 
@@ -421,7 +434,7 @@ RVX 原始 SoC 由隔离的评测适配器执行，作为额外的 `reference-or
 
 ### 9.2 Ibex + OpenTitan IP
 
-该目标没有参考 top。首期固定组件集合为：
+该目标没有参考 top。首期评测输入配置声明以下组件集合：
 
 - Ibex core；
 - OpenTitan UART；
@@ -429,7 +442,7 @@ RVX 原始 SoC 由隔离的评测适配器执行，作为额外的 `reference-or
 - OpenTitan RV timer；
 - 支撑这些模块所需的通用 OBI/TL-UL adapter、interconnect 和 memory endpoint。
 
-adapter 和 interconnect 必须由协议及 Composition IR 生成，不允许针对上述实例名写专用 wiring。SPI device 及更重的 OpenTitan IP 属于后续扩展，不进入首期验收，避免扩大内存和依赖范围。
+adapter 和 interconnect 必须由显式协议声明及 Composition IR 生成，不允许针对上述实例名写专用 wiring。SPI device 及更重的 OpenTitan IP 属于后续扩展，不进入首期验收，避免扩大内存和依赖范围。
 
 每个有效候选执行 flat-direct、candidate-direct 和 candidate-depaware。候选之间分别报告，不存在 reference-original 组。
 
@@ -441,7 +454,7 @@ adapter 和 interconnect 必须由协议及 Composition IR 生成，不允许针
 - coverage-over-time 曲线及面积；
 - 首次发现时间和 discovery 数；
 - direct-only、depaware-only 和 overlap 集合；
-- 按 CPU、bus、UART、GPIO、timer 等源码模块分组的覆盖；
+- 按输入中显式声明的 component role 分组的覆盖；
 - 每秒测试数、每秒周期数和峰值 RSS；
 - projection rate、协议事件数和无进展周期数；
 - 候选生成数、验证通过率和失败原因。
@@ -516,7 +529,7 @@ harness 内部维护协议违规、投影次数、超时和无进展计数器。
 - module/instance/pin binding；
 - generate 和参数宽度；
 - continuous/procedural dependency；
-- clock/reset 候选；
+- 已声明 clock/reset 的结构验证；
 - local address decode；
 - 不支持结构的诊断。
 
@@ -524,11 +537,15 @@ harness 内部维护协议违规、投影次数、超时和无进展计数器。
 
 构造不含目标名称的合成 CPU、bus 和 IP fixture，验证：
 
+- role 或 protocol field binding 缺失时输入校验失败；
+- 声明角色与 RTL 结构冲突时失败且不执行名称回退；
 - 方向和协议不兼容连接被拒绝；
 - 多个合法拓扑产生稳定 Top-K；
 - 地址分配不重叠且可复现；
 - hard constraint 无解时给出最小冲突；
-- 修改实例名不改变规范化结构结果。
+- 在同步更新输入 symbol binding 后，任意修改 module、instance、port、net、文件和目录名称不改变规范化结构结果；
+- 使用含误导性名称的 fixture，确认名称不能改变 role、协议、连接、地址、评分或 harness；
+- 对推断核心执行源码检查，禁止读取原始 identifier string，只有 frontend binding、diagnostics、emitter 和 source-map 层可以访问它。
 
 ### 13.4 AST 与 emitter 测试
 
@@ -568,7 +585,7 @@ harness 内部维护协议违规、投影次数、超时和无进展计数器。
 5. flat-direct、candidate-direct 和 candidate-depaware 都可由统一 runner 执行；
 6. candidate-direct 与 candidate-depaware 使用相同 DUT、coverage universe、raw width、seed 和预算；
 7. dependency graph 实现静态过近似和可回退的动态收缩；
-8. 核心源码不存在 RVX、Ibex、OpenTitan module-name 或地址专用分支；
+8. 推断核心完全不读取 module、instance、port、net、文件、目录或设计名称的文本内容，且不存在目标、组件类型或地址专用分支；
 9. 默认配置在当前低内存机器上不会并发启动两个完整 Verilator build；
 10. 结果按候选分别报告，并正确区分结构差异与 harness 差异。
 
