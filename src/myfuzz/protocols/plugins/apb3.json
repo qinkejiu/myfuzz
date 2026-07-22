@@ -1,0 +1,13 @@
+{
+  "protocol_id": "apb", "version": "3", "legal_adapters": ["width-adapter"],
+  "fields": [
+    {"field_id": "paddr", "direction": "host_to_device", "width": "address_width", "required": true, "reset_value": 0},
+    {"field_id": "psel", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "penable", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "pwrite", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "pwdata", "direction": "host_to_device", "width": "data_width", "required": true, "reset_value": 0},
+    {"field_id": "pready", "direction": "device_to_host", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "prdata", "direction": "device_to_host", "width": "data_width", "required": true, "reset_value": 0},
+    {"field_id": "pslverr", "direction": "device_to_host", "width": "1", "required": false, "reset_value": 0}
+  ]
+}

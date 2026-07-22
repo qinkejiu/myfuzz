@@ -1,0 +1,11 @@
+{
+  "protocol_id": "ready-valid-mmio", "version": "1", "legal_adapters": ["width-adapter"],
+  "fields": [
+    {"field_id": "addr", "direction": "host_to_device", "width": "address_width", "required": true, "reset_value": 0},
+    {"field_id": "write", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "wdata", "direction": "host_to_device", "width": "data_width", "required": true, "reset_value": 0},
+    {"field_id": "valid", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "ready", "direction": "device_to_host", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "rdata", "direction": "device_to_host", "width": "data_width", "required": true, "reset_value": 0}
+  ]
+}
