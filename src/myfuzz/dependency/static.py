@@ -6,7 +6,14 @@ from collections.abc import Iterable, Mapping
 
 from myfuzz.protocols.model import CompiledProtocol
 
-from .graph import DependencyEdge, DependencyGraph
+from .graph import (
+    DependencyEdge,
+    DependencyGraph,
+    DependencyNode,
+    coalesced_group_node,
+    field_group_node,
+    port_node,
+)
 
 
 MAX_FIELD_GROUPS = 64
@@ -42,21 +49,21 @@ def _edge_records(facts: Mapping[str, object], key: str, kind: str) -> Iterable[
         yield source, target, edge_kind, evidence_id
 
 
-def _field_groups(compiled_protocols: Iterable[CompiledProtocol]) -> list[tuple[str, str, str]]:
-    fields: list[tuple[str, str, str]] = []
+def _field_groups(compiled_protocols: Iterable[CompiledProtocol]) -> list[tuple[DependencyNode, str, str]]:
+    fields: list[tuple[DependencyNode, str, str]] = []
     for protocol in compiled_protocols:
         for field in protocol.fields:
             if field.direction == "host_to_device":
-                fields.append((f"group:{protocol.binding_id}:{field.field_id}", field.port_id, field.field_id))
+                fields.append((field_group_node(protocol.binding_id, field.field_id), field.port_id, field.field_id))
     return sorted(fields)
 
 
-def _coalesce(groups: list[tuple[str, str, str]]) -> tuple[list[tuple[str, tuple[str, ...]]], tuple[str, ...]]:
+def _coalesce(groups: list[tuple[DependencyNode, str, str]]) -> tuple[list[tuple[DependencyNode, tuple[str, ...]]], tuple[str, ...]]:
     if len(groups) <= MAX_FIELD_GROUPS:
         return [(group_id, (port_id,)) for group_id, port_id, _ in groups], ()
     kept = [(group_id, (port_id,)) for group_id, port_id, _ in groups[: MAX_FIELD_GROUPS - 1]]
     coalesced_ports = tuple(port_id for _, port_id, _ in groups[MAX_FIELD_GROUPS - 1 :])
-    kept.append(("group:coalesced:000", coalesced_ports))
+    kept.append((coalesced_group_node(0), coalesced_ports))
     return kept, (f"coalesced dependency groups from {len(groups)} to {MAX_FIELD_GROUPS}",)
 
 
@@ -76,15 +83,15 @@ def build_static_graph(facts: object, compiled_protocols: Iterable[CompiledProto
         for port_id in ports:
             if port_id in excluded:
                 continue
-            nodes.add(f"port:{port_id}")
-            edges.append(DependencyEdge(group_id, f"port:{port_id}", "declared_field", group_id))
+            nodes.add(port_node(port_id))
+            edges.append(DependencyEdge(group_id, port_node(port_id), "declared_field", repr(group_id)))
     for key, kind in (("dataflow_edges", "rtl_dataflow"), ("control_edges", "rtl_control"), ("adapter_edges", "adapter")):
         for source, target, edge_kind, evidence_id in _edge_records(facts, key, kind):
             if source in excluded or target in excluded:
                 continue
-            nodes.add(f"port:{source}")
-            nodes.add(f"port:{target}")
-            edges.append(DependencyEdge(f"port:{source}", f"port:{target}", edge_kind, evidence_id))
+            nodes.add(port_node(source))
+            nodes.add(port_node(target))
+            edges.append(DependencyEdge(port_node(source), port_node(target), edge_kind, evidence_id))
     return DependencyGraph(
         node_ids=tuple(sorted(nodes)),
         group_ids=tuple(group_id for group_id, _ in groups),

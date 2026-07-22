@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .graph import DependencyGraph
+from .graph import DependencyGraph, DependencyNode
 
 
 @dataclass(frozen=True, slots=True)
 class CsrGraph:
-    node_ids: tuple[str, ...]
-    group_ids: tuple[str, ...]
+    node_ids: tuple[DependencyNode, ...]
+    group_ids: tuple[DependencyNode, ...]
     indptr: tuple[int, ...]
     indices: tuple[int, ...]
     edge_kinds: tuple[str, ...]
