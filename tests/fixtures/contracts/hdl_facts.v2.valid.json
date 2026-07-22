@@ -1,0 +1,13 @@
+{
+  "schema_version": "hdl_facts.v2",
+  "tool": {"frontend": "myfuzz", "verilator_revision": "test", "input_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000"},
+  "modules": [{"id": 1, "ports": [10, 11], "instances": []}],
+  "parameters": [],
+  "ports": [
+    {"id": 10, "module_id": 1, "direction": "input", "width": 1, "signed": false, "declared_role": "clock"},
+    {"id": 11, "module_id": 1, "direction": "output", "width": 32, "signed": false, "declared_role": "response.data"}
+  ],
+  "instances": [], "pin_bindings": [], "expressions": [], "dataflow_edges": [], "control_edges": [],
+  "clock_reset_checks": [], "local_address_facts": [], "source_locations": [], "source_symbols": [],
+  "diagnostics": {"errors": [], "warnings": [], "unsupported": []}
+}

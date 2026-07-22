@@ -1,0 +1,1 @@
+{"schema_version":"hdl_facts.v2","tool":{},"modules":[],"parameters":[],"ports":[{"id":10,"module_id":1,"direction":"sideways","width":1,"signed":false,"declared_role":"clock"}],"instances":[],"pin_bindings":[],"expressions":[],"dataflow_edges":[],"control_edges":[],"clock_reset_checks":[],"local_address_facts":[],"source_locations":[],"source_symbols":[],"diagnostics":{}}

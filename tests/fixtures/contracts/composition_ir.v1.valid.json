@@ -1,0 +1,11 @@
+{
+  "schema_version": "composition_ir.v1", "candidate_id": "candidate-000",
+  "parent_input_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "graph_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "components": [{"id": 100, "module_id": 1, "role": "initiator"}], "instances": [], "nets": [],
+  "endpoint_bindings": [{"endpoint_id": 1000, "component_id": 100, "protocol_id": "ready-valid-mmio", "side": "initiator", "fields": [{"field_role": "request.valid", "port_id": 10}]}],
+  "adapters": [], "address_regions": [], "clock_domains": [], "reset_domains": [],
+  "external_ports": [{"port_id": 10, "direction": "input", "width": 1, "semantic_role": "clock"}],
+  "unresolved_optional_endpoints": [], "evidence": [], "assumptions": [], "rejected_alternatives": [],
+  "score_vector": [0, 0, 0, 0, 0, 0, 0, 0], "diagnostics": {"errors": [], "warnings": []}
+}
