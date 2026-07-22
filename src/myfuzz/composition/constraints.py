@@ -354,7 +354,7 @@ def _make_endpoint(
 
 def _cross_adapter(protocols: Mapping[str, ProtocolDefinition], source: str, target: str) -> AdapterRule | None:
     rules = protocols[source].legal_adapters + protocols[target].legal_adapters
-    matches = [rule for rule in rules if (rule.source_protocol_id, rule.target_protocol_id) in ((source, target), (target, source))]
+    matches = [rule for rule in rules if (rule.source_protocol_id, rule.target_protocol_id) == (source, target)]
     return min(matches, key=lambda item: item.kind) if matches else None
 
 
@@ -374,9 +374,9 @@ def _pair_constraints(source: EndpointNode, target: EndpointNode, protocols: Map
         adapter = _cross_adapter(protocols, source.protocol_id, target.protocol_id)
         if adapter is None:
             reasons.append("protocol")
-    if source.clock_domain_ids and target.clock_domain_ids and source.clock_domain_ids != target.clock_domain_ids:
+    if bool(source.clock_domain_ids) != bool(target.clock_domain_ids) or (source.clock_domain_ids and target.clock_domain_ids and source.clock_domain_ids != target.clock_domain_ids):
         reasons.append("domain")
-    if source.reset_domain_ids and target.reset_domain_ids and source.reset_domain_ids != target.reset_domain_ids:
+    if bool(source.reset_domain_ids) != bool(target.reset_domain_ids) or (source.reset_domain_ids and target.reset_domain_ids and source.reset_domain_ids != target.reset_domain_ids):
         reasons.append("domain")
     source_fields = {field.role: field for field in source.fields}
     target_fields = {field.role: field for field in target.fields}
@@ -525,6 +525,8 @@ def candidate_edges(graph: ConstraintGraph) -> Iterator[EdgeCandidate]:
             if _endpoint_has_input_conflict(graph, source.id) or _endpoint_has_input_conflict(graph, target.id):
                 continue
             if _forbidden(graph, source.id, target.id) is not None:
+                continue
+            if source.id in connected or target.id in connected:
                 continue
             connected.update((source.id, target.id))
             yield _candidate(source, target, graph)

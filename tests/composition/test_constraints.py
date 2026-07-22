@@ -145,6 +145,46 @@ class ConstraintGraphTests(unittest.TestCase):
         protocol_graph = build_constraint_graph(_facts(), _declarations(protocol_b="other"), {"bus": _protocol(), "other": _protocol("other")})
         self.assertTrue(any(conflict.kind == "protocol" for conflict in reject_hard_conflicts(protocol_graph)))
 
+    def test_unknown_clock_domain_is_not_connected_without_explicit_cdc(self) -> None:
+        facts = HdlFacts(
+            (HdlModule(1, (11, 12), ()), HdlModule(2, (21,), ())),
+            (HdlPort(11, 1, "output", 32, False, "request.data"), HdlPort(12, 1, "input", 1, False, "clock"), HdlPort(21, 2, "input", 32, False, "request.data")),
+            (),
+        )
+        declarations = DeclarationSet(
+            (
+                ComponentDecl(101, 1, "initiator", (PortDecl(11, "request.data", True), PortDecl(12, "clock", True)), (ProtocolBinding(1001, "bus", "initiator", (ProtocolFieldBinding("request.data", 11),)),), (ClockResetDecl(12, "clock", 7, "high", True),)),
+                ComponentDecl(202, 2, "target", (PortDecl(21, "request.data", True),), (ProtocolBinding(2002, "bus", "target", (ProtocolFieldBinding("request.data", 21),)),), ()),
+            )
+        )
+        graph = build_constraint_graph(facts, declarations, {"bus": _protocol()})
+        self.assertTrue(any(conflict.kind == "domain" for conflict in reject_hard_conflicts(graph)))
+        self.assertEqual(list(candidate_edges(graph)), [])
+
+    def test_candidate_edges_use_one_to_one_endpoint_cardinality(self) -> None:
+        facts = HdlFacts(
+            (HdlModule(1, (11,), ()), HdlModule(2, (21,), ()), HdlModule(3, (31,), ())),
+            (HdlPort(11, 1, "output", 32, False, "request.data"), HdlPort(21, 2, "output", 32, False, "request.data"), HdlPort(31, 3, "input", 32, False, "request.data")),
+            (),
+        )
+        binding = lambda endpoint_id, port_id, side: ProtocolBinding(endpoint_id, "bus", side, (ProtocolFieldBinding("request.data", port_id),))
+        declarations = DeclarationSet(
+            (
+                ComponentDecl(101, 1, "initiator", (PortDecl(11, "request.data", True),), (binding(1001, 11, "initiator"),), ()),
+                ComponentDecl(202, 2, "initiator", (PortDecl(21, "request.data", True),), (binding(2002, 21, "initiator"),), ()),
+                ComponentDecl(303, 3, "target", (PortDecl(31, "request.data", True),), (binding(3003, 31, "target"),), ()),
+            )
+        )
+        graph = build_constraint_graph(facts, declarations, {"bus": _protocol()})
+        edges = list(candidate_edges(graph))
+        self.assertEqual(len(edges), 1)
+        self.assertEqual((edges[0].source_endpoint_id, edges[0].target_endpoint_id), (1001, 3003))
+
+    def test_reverse_cross_protocol_adapter_is_not_legal(self) -> None:
+        reverse_adapter = {"kind": "other-to-bus", "source_protocol_id": "other", "target_protocol_id": "bus", "allows_width_mismatch": True}
+        graph = build_constraint_graph(_facts(), _declarations(protocol_b="other"), {"bus": _protocol(adapter=[reverse_adapter]), "other": _protocol("other")})
+        self.assertTrue(any(conflict.kind == "protocol" for conflict in reject_hard_conflicts(graph)))
+
     def test_missing_protocol_binding_is_an_input_error(self) -> None:
         declarations = _declarations()
         component = declarations.components[0]
