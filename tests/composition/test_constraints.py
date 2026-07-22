@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import copy
 import unittest
+from dataclasses import replace
 
 from myfuzz.composition.constraints import (
     ConstraintGraphError,
+    ForbiddenEdge,
     build_constraint_graph,
     candidate_edges,
     reject_hard_conflicts,
@@ -161,7 +163,7 @@ class ConstraintGraphTests(unittest.TestCase):
         self.assertTrue(any(conflict.kind == "domain" for conflict in reject_hard_conflicts(graph)))
         self.assertEqual(list(candidate_edges(graph)), [])
 
-    def test_candidate_edges_use_one_to_one_endpoint_cardinality(self) -> None:
+    def test_candidate_edges_preserve_all_legal_endpoint_pairs(self) -> None:
         facts = HdlFacts(
             (HdlModule(1, (11,), ()), HdlModule(2, (21,), ()), HdlModule(3, (31,), ())),
             (HdlPort(11, 1, "output", 32, False, "request.data"), HdlPort(21, 2, "output", 32, False, "request.data"), HdlPort(31, 3, "input", 32, False, "request.data")),
@@ -177,8 +179,48 @@ class ConstraintGraphTests(unittest.TestCase):
         )
         graph = build_constraint_graph(facts, declarations, {"bus": _protocol()})
         edges = list(candidate_edges(graph))
-        self.assertEqual(len(edges), 1)
-        self.assertEqual((edges[0].source_endpoint_id, edges[0].target_endpoint_id), (1001, 3003))
+        self.assertEqual(
+            [(edge.source_endpoint_id, edge.target_endpoint_id) for edge in edges],
+            [(1001, 3003), (2002, 3003)],
+        )
+        self.assertTrue(any(conflict.kind == "required_cardinality" for conflict in reject_hard_conflicts(graph)))
+
+    def test_required_matching_handles_s1_to_t1_t2_and_s2_to_t1(self) -> None:
+        facts = HdlFacts(
+            (HdlModule(1, (11,), ()), HdlModule(2, (21,), ()), HdlModule(3, (31,), ()), HdlModule(4, (41,), ())),
+            (
+                HdlPort(11, 1, "output", 32, False, "request.data"),
+                HdlPort(21, 2, "output", 32, False, "request.data"),
+                HdlPort(31, 3, "input", 32, False, "request.data"),
+                HdlPort(41, 4, "input", 32, False, "request.data"),
+            ),
+            (),
+        )
+        binding = lambda endpoint_id, port_id, side: ProtocolBinding(endpoint_id, "bus", side, (ProtocolFieldBinding("request.data", port_id),))
+        declarations = DeclarationSet(
+            (
+                ComponentDecl(101, 1, "initiator", (PortDecl(11, "request.data", True),), (binding(1001, 11, "initiator"),), ()),
+                ComponentDecl(202, 2, "initiator", (PortDecl(21, "request.data", True),), (binding(2002, 21, "initiator"),), ()),
+                ComponentDecl(303, 3, "target", (PortDecl(31, "request.data", True),), (binding(3003, 31, "target"),), ()),
+                ComponentDecl(404, 4, "target", (PortDecl(41, "request.data", True),), (binding(4004, 41, "target"),), ()),
+            )
+        )
+        graph = build_constraint_graph(facts, declarations, {"bus": _protocol()})
+        graph = replace(
+            graph,
+            forbidden_edges=tuple(
+                sorted(
+                    (*graph.forbidden_edges, ForbiddenEdge(2002, 4004, ("test_forbidden",))),
+                    key=lambda edge: (edge.source_endpoint_id, edge.target_endpoint_id),
+                )
+            ),
+        )
+        edges = list(candidate_edges(graph))
+        self.assertEqual(
+            [(edge.source_endpoint_id, edge.target_endpoint_id) for edge in edges],
+            [(1001, 3003), (1001, 4004), (2002, 3003)],
+        )
+        self.assertEqual(reject_hard_conflicts(graph), [])
 
     def test_reverse_cross_protocol_adapter_is_not_legal(self) -> None:
         reverse_adapter = {"kind": "other-to-bus", "source_protocol_id": "other", "target_protocol_id": "bus", "allows_width_mismatch": True}

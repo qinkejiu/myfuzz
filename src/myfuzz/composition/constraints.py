@@ -526,8 +526,6 @@ def candidate_edges(graph: ConstraintGraph) -> Iterator[EdgeCandidate]:
                 continue
             if _forbidden(graph, source.id, target.id) is not None:
                 continue
-            if source.id in connected or target.id in connected:
-                continue
             connected.update((source.id, target.id))
             yield _candidate(source, target, graph)
     for endpoint in graph.endpoints:
@@ -535,13 +533,79 @@ def candidate_edges(graph: ConstraintGraph) -> Iterator[EdgeCandidate]:
             yield EdgeCandidate(_edge_id("external", endpoint.id, None), "external", endpoint.id, None, (), None, ())
 
 
+def _matched_endpoint_ids(graph: ConstraintGraph, edges: Sequence[EdgeCandidate]) -> set[int]:
+    """Return endpoints covered by a deterministic maximum bipartite matching."""
+    endpoint_by_id = {endpoint.id: endpoint for endpoint in graph.endpoints}
+    adjacency: dict[int, tuple[int, ...]] = {}
+    for edge in edges:
+        if edge.kind != "connection" or edge.target_endpoint_id is None:
+            continue
+        adjacency.setdefault(edge.source_endpoint_id, tuple())
+        adjacency[edge.source_endpoint_id] = tuple(sorted((*adjacency[edge.source_endpoint_id], edge.target_endpoint_id)))
+
+    source_ids = tuple(endpoint.id for endpoint in graph.endpoints if endpoint.side == "initiator")
+    target_ids = tuple(endpoint.id for endpoint in graph.endpoints if endpoint.side == "target")
+    dummy_target_nodes = tuple(("dummy_target", source_id) for source_id in source_ids)
+    augmented_adjacency: dict[tuple[str, int], tuple[tuple[str, int], ...]] = {}
+    for source_id in source_ids:
+        targets = tuple(("target", target_id) for target_id in adjacency.get(source_id, ()))
+        if not endpoint_by_id[source_id].required:
+            targets += dummy_target_nodes
+        augmented_adjacency[("source", source_id)] = targets
+    optional_targets = tuple(("target", target_id) for target_id in target_ids if not endpoint_by_id[target_id].required)
+    for target_id in target_ids:
+        augmented_adjacency[("dummy_source", target_id)] = optional_targets + dummy_target_nodes
+
+    augmented_match: dict[tuple[str, int], tuple[str, int]] = {}
+
+    def augment_required(left: tuple[str, int], visited: set[tuple[str, int]]) -> bool:
+        for right in augmented_adjacency[left]:
+            if right in visited:
+                continue
+            visited.add(right)
+            previous_left = augmented_match.get(right)
+            if previous_left is None or augment_required(previous_left, visited):
+                augmented_match[right] = left
+                return True
+        return False
+
+    augmented_left = tuple(("source", source_id) for source_id in source_ids) + tuple(("dummy_source", target_id) for target_id in target_ids)
+    if all(augment_required(left, set()) for left in augmented_left):
+        return {endpoint.id for endpoint in graph.endpoints if endpoint.required}
+
+    matched_target_to_source: dict[int, int] = {}
+
+    def augment(source_id: int, visited_targets: set[int]) -> bool:
+        for target_id in adjacency.get(source_id, ()):
+            if target_id in visited_targets:
+                continue
+            visited_targets.add(target_id)
+            previous_source = matched_target_to_source.get(target_id)
+            if previous_source is None or augment(previous_source, visited_targets):
+                matched_target_to_source[target_id] = source_id
+                return True
+        return False
+
+    sources = sorted(
+        (endpoint for endpoint in graph.endpoints if endpoint.side == "initiator"),
+        key=lambda endpoint: (not endpoint.required, endpoint.id),
+    )
+    adjacency = {
+        source_id: tuple(sorted(target_ids, key=lambda target_id: (not endpoint_by_id[target_id].required, target_id)))
+        for source_id, target_ids in adjacency.items()
+    }
+    for source in sources:
+        augment(source.id, set())
+
+    matched_source_ids = set(matched_target_to_source.values())
+    return matched_source_ids | set(matched_target_to_source)
+
+
 def reject_hard_conflicts(graph: ConstraintGraph) -> list[Conflict]:
     """Return deterministic conflicts that prevent required endpoint coverage."""
     conflicts = list(graph.input_conflicts)
-    connected: set[int] = set()
-    for edge in candidate_edges(graph):
-        if edge.kind == "connection" and edge.target_endpoint_id is not None:
-            connected.update((edge.source_endpoint_id, edge.target_endpoint_id))
+    edges = list(candidate_edges(graph))
+    connected = _matched_endpoint_ids(graph, edges)
     endpoint_by_id = {endpoint.id: endpoint for endpoint in graph.endpoints}
     seen = {(item.kind, item.endpoint_ids, item.port_ids) for item in conflicts}
     for endpoint in graph.endpoints:
