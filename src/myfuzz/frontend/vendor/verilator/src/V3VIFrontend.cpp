@@ -322,6 +322,40 @@ public:
         return os.str();
     }
 
+    string facts() const {
+        std::ostringstream os;
+        os << "{\n  \"schema_version\": \"hdl_facts.v2\",\n"
+           << "  \"tool\": {\"name\": \"verilator\", \"source\": \"elaborated-ast\"},\n  \"modules\": [";
+        for (size_t i = 0; i < m_modules.size(); ++i) {
+            const Module& mod = m_modules[i];
+            if (i) os << ",";
+            os << "{\"id\": " << quote("module:" + mod.name) << ", \"name\": " << quote(mod.name)
+               << ", \"top\": " << (mod.top ? "true" : "false") << "}";
+        }
+        os << "],\n  \"parameters\": [],\n  \"ports\": [";
+        bool first = true;
+        for (const Module& mod : m_modules) for (const Port& port : mod.ports) {
+            if (!first) os << ",";
+            first = false;
+            os << "{\"id\": " << quote("module:" + mod.name + "/port:" + port.name)
+               << ", \"module_id\": " << quote("module:" + mod.name)
+               << ", \"name\": " << quote(port.name) << ", \"direction\": " << quote(port.direction)
+               << ", \"width\": " << port.width << "}";
+        }
+        os << "],\n  \"instances\": [";
+        first = true;
+        for (const Module& mod : m_modules) for (const Instance& inst : mod.instances) {
+            if (!first) os << ",";
+            first = false;
+            os << "{\"id\": " << quote("module:" + mod.name + "/instance:" + inst.name)
+               << ", \"module_id\": " << quote("module:" + mod.name) << ", \"child\": " << quote(inst.child) << "}";
+        }
+        os << "],\n  \"pin_bindings\": [],\n  \"expressions\": [],\n  \"dataflow_edges\": [],\n"
+           << "  \"control_edges\": [],\n  \"clock_reset_checks\": [],\n  \"local_address_facts\": [],\n"
+           << "  \"source_locations\": [],\n  \"source_symbols\": [],\n  \"diagnostics\": []\n}\n";
+        return os.str();
+    }
+
     void writeJsonFile(const string& filename) const {
         std::ofstream os{filename};
         UASSERT(os, "Unable to open myfuzz frontend manifest");
@@ -343,6 +377,11 @@ void V3VIFrontend::emitManifest(AstNetlist* rootp) {
 string V3VIFrontend::manifestJson(AstNetlist* rootp) {
     FrontendCollector collector{rootp};
     return collector.json();
+}
+
+string V3VIFrontend::factsJson(AstNetlist* rootp) {
+    FrontendCollector collector{rootp};
+    return collector.facts();
 }
 
 void V3VIFrontend::clearLastManifest() {

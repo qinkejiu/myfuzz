@@ -17,7 +17,7 @@ from frontend_api import FrontendLibrary, default_frontend_library  # noqa: E402
 
 class FactsApiTest(unittest.TestCase):
     def test_facts_selects_the_facts_abi_symbol(self) -> None:
-        payload = b'{"schema":"myfuzz.frontend.v1","modules":[]}'
+        payload = b'{"schema_version":"hdl_facts.v2","tool":{},"modules":[],"parameters":[],"ports":[],"instances":[],"pin_bindings":[],"expressions":[],"dataflow_edges":[],"control_edges":[],"clock_reset_checks":[],"local_address_facts":[],"source_locations":[],"source_symbols":[],"diagnostics":[]}'
         buffer = ctypes.create_string_buffer(payload)
 
         class Function:
@@ -45,7 +45,7 @@ class FactsApiTest(unittest.TestCase):
         frontend.lib = Library()
         result = frontend.facts(["--top-module", "opaque_top"], ROOT)
 
-        self.assertEqual(result["schema"], "myfuzz.frontend.v1")
+        self.assertEqual(result["schema_version"], "hdl_facts.v2")
         self.assertEqual(
             frontend.lib.myfuzz_frontend_facts_json.calls,
             [[b"--top-module", b"opaque_top"]],
@@ -73,7 +73,10 @@ class FactsApiTest(unittest.TestCase):
             args = ["--lint-only", "-Wno-fatal", "-f", flist.name, "--top-module", "root"]
             facts = FrontendLibrary(library).facts(args, workdir)
 
-        self.assertEqual(facts["schema"], "myfuzz.frontend.v1")
+        self.assertEqual(facts["schema_version"], "hdl_facts.v2")
+        for key in ("tool", "pin_bindings", "expressions", "dataflow_edges", "control_edges",
+                    "clock_reset_checks", "local_address_facts", "diagnostics"):
+            self.assertIn(key, facts)
         modules = {module["name"]: module for module in facts["modules"]}
         self.assertIn("root", modules)
         self.assertIn("leaf", modules)

@@ -120,10 +120,35 @@ std::string frontendManifestJson(const std::vector<std::string>& args) {
 }
 
 std::string frontendFactsJson(const std::vector<std::string>& args) {
-    // V3VIFrontend emits facts from the elaborated tree.  Keeping this as a
-    // separate public entry point lets composition consume that stable source
-    // without changing the legacy instrumentation manifest ABI.
-    return frontendManifestJson(args);
+    V3VIFrontend::clearLastManifest();
+    std::vector<std::string> owned;
+    owned.emplace_back("myfuzz_frontend");
+    owned.insert(owned.end(), args.begin(), args.end());
+    std::vector<char*> argv = makeArgv(owned);
+    v3Global.boot();
+    try {
+        const char* rootp = std::getenv("VERILATOR_ROOT");
+        if ((!rootp || !*rootp) && std::getenv("MYFUZZ_FRONTEND_VERILATOR_ROOT"))
+            V3Os::setenvStr("VERILATOR_ROOT", std::getenv("MYFUZZ_FRONTEND_VERILATOR_ROOT"), "myfuzz frontend root");
+        V3PreShell::boot();
+        v3Global.opt.buildDepBin("myfuzz_frontend");
+        v3Global.opt.parseOpts(new FileLine{FileLine::commandLineFilename()}, static_cast<int>(argv.size()) - 1,
+                               argv.data() + 1);
+        v3Global.opt.notify();
+        v3Global.rootp()->timeInit();
+        V3Error::abortIfErrors();
+        v3Global.readFiles();
+        v3Global.removeStd();
+        if (!v3Global.opt.preprocOnly()) runFrontendPasses();
+        V3Error::abortIfErrors();
+        std::string facts = V3VIFrontend::factsJson(v3Global.rootp());
+        v3Global.rootp()->deleteContents();
+        v3Global.shutdown();
+        return facts;
+    } catch (...) {
+        v3Global.shutdown();
+        throw;
+    }
 }
 
 }  // namespace myfuzz

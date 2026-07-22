@@ -20,6 +20,7 @@ class V3VIFrontend final {
 public:
     static void emitManifest(AstNetlist* rootp) VL_MT_DISABLED;
     static string manifestJson(AstNetlist* rootp) VL_MT_DISABLED;
+    static string factsJson(AstNetlist* rootp) VL_MT_DISABLED;
     static void clearLastManifest() VL_MT_DISABLED;
     static const string& lastManifestJson() VL_MT_DISABLED;
 };
