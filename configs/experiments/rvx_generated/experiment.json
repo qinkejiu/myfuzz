@@ -1,0 +1,47 @@
+{
+  "schema_version": "experiment.v1",
+  "target": {"target_id": 101},
+  "source_lists": [
+    {"source_list_id": 11, "files": ["external_designs/rvx/hardware/rvx_core.v", "external_designs/rvx/hardware/rvx_bus.v", "external_designs/rvx/hardware/rvx_ram.v"]},
+    {"source_list_id": 12, "files": ["external_designs/rvx/hardware/rvx_uart.v", "external_designs/rvx/hardware/rvx_mtimer.v", "external_designs/rvx/hardware/rvx_gpio.v"]}
+  ],
+  "components": [
+    {"component_id": 1101, "role": "processor", "source_list_ids": [11]},
+    {"component_id": 1102, "role": "interconnect", "source_list_ids": [11]},
+    {"component_id": 1103, "role": "memory_endpoint", "source_list_ids": [11]},
+    {"component_id": 1104, "role": "serial_endpoint", "source_list_ids": [12]},
+    {"component_id": 1105, "role": "timer_endpoint", "source_list_ids": [12]},
+    {"component_id": 1106, "role": "gpio_endpoint", "source_list_ids": [12]}
+  ],
+  "ports": [
+    {"port_id": 2101, "component_id": 1101, "role": "request", "direction": "output", "width": 1},
+    {"port_id": 2102, "component_id": 1101, "role": "response", "direction": "input", "width": 1},
+    {"port_id": 2201, "component_id": 1102, "role": "request", "direction": "input", "width": 1},
+    {"port_id": 2202, "component_id": 1102, "role": "response", "direction": "output", "width": 1},
+    {"port_id": 2301, "component_id": 1103, "role": "request", "direction": "input", "width": 1},
+    {"port_id": 2302, "component_id": 1103, "role": "response", "direction": "output", "width": 1},
+    {"port_id": 2401, "component_id": 1104, "role": "receive", "direction": "input", "width": 1},
+    {"port_id": 2402, "component_id": 1104, "role": "status", "direction": "output", "width": 1},
+    {"port_id": 2501, "component_id": 1105, "role": "control", "direction": "input", "width": 1},
+    {"port_id": 2502, "component_id": 1105, "role": "interrupt", "direction": "output", "width": 1},
+    {"port_id": 2601, "component_id": 1106, "role": "input", "direction": "input", "width": 1},
+    {"port_id": 2602, "component_id": 1106, "role": "interrupt", "direction": "output", "width": 1}
+  ],
+  "protocol_endpoints": [
+    {"endpoint_id": 3101, "component_id": 1101, "protocol_id": "ready-valid-mmio", "version": "1", "side": "initiator", "field_bindings": [{"field_role": "valid", "port_id": 2101}, {"field_role": "ready", "port_id": 2102}]},
+    {"endpoint_id": 3102, "component_id": 1102, "protocol_id": "ready-valid-mmio", "version": "1", "side": "target", "field_bindings": [{"field_role": "valid", "port_id": 2201}, {"field_role": "ready", "port_id": 2202}]},
+    {"endpoint_id": 3103, "component_id": 1103, "protocol_id": "ready-valid-mmio", "version": "1", "side": "target", "field_bindings": [{"field_role": "valid", "port_id": 2301}, {"field_role": "ready", "port_id": 2302}]},
+    {"endpoint_id": 3104, "component_id": 1104, "protocol_id": "ready-valid-mmio", "version": "1", "side": "target", "field_bindings": [{"field_role": "valid", "port_id": 2401}, {"field_role": "ready", "port_id": 2402}]},
+    {"endpoint_id": 3105, "component_id": 1105, "protocol_id": "ready-valid-mmio", "version": "1", "side": "target", "field_bindings": [{"field_role": "valid", "port_id": 2501}, {"field_role": "ready", "port_id": 2502}]},
+    {"endpoint_id": 3106, "component_id": 1106, "protocol_id": "ready-valid-mmio", "version": "1", "side": "target", "field_bindings": [{"field_role": "valid", "port_id": 2601}, {"field_role": "ready", "port_id": 2602}]}
+  ],
+  "generated_candidates": {"count": 3},
+  "seeds": [1, 7, 19],
+  "budget": {"cycles": 1000, "seconds": 300},
+  "raw_width": 512,
+  "coverage": {"metric": "branch"},
+  "harness_groups": ["flat-direct", "candidate-direct", "candidate-depaware"],
+  "mutation": {"max_len": 4096, "timeout_ms": 1000},
+  "build_concurrency": 1,
+  "reference": {"mode": "evaluation-only", "allowed_stage": "report", "comparison": "shared-stable-source-id", "command": ["scripts/evaluate_reference.py", "--run", "{run_dir}"]}
+}

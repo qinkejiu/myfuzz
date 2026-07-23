@@ -1,0 +1,51 @@
+{
+  "schema_version": "experiment.v1",
+  "target": {"target_id": 202},
+  "source_lists": [
+    {"source_list_id": 21, "files": ["third_party/rfuzz/upstream/ibex/rtl/ibex_core.sv"]},
+    {"source_list_id": 22, "files": ["external_designs/opentitan/hw/ip/uart/rtl/uart.sv", "external_designs/opentitan/hw/ip/gpio/rtl/gpio.sv", "external_designs/opentitan/hw/ip/rv_timer/rtl/rv_timer.sv"]},
+    {"source_list_id": 23, "files": ["generated/adapters/obi_tlul_adapter.sv", "generated/interconnect/declared_bus.sv", "generated/memory/declared_memory.sv"]}
+  ],
+  "components": [
+    {"component_id": 1201, "role": "processor", "source_list_ids": [21]},
+    {"component_id": 1202, "role": "serial_endpoint", "source_list_ids": [22]},
+    {"component_id": 1203, "role": "gpio_endpoint", "source_list_ids": [22]},
+    {"component_id": 1204, "role": "timer_endpoint", "source_list_ids": [22]},
+    {"component_id": 1205, "role": "protocol_adapter", "source_list_ids": [23]},
+    {"component_id": 1206, "role": "interconnect", "source_list_ids": [23]},
+    {"component_id": 1207, "role": "memory_endpoint", "source_list_ids": [23]}
+  ],
+  "ports": [
+    {"port_id": 2701, "component_id": 1201, "role": "request", "direction": "output", "width": 1},
+    {"port_id": 2702, "component_id": 1201, "role": "response", "direction": "input", "width": 1},
+    {"port_id": 2801, "component_id": 1202, "role": "request", "direction": "input", "width": 1},
+    {"port_id": 2802, "component_id": 1202, "role": "response", "direction": "output", "width": 1},
+    {"port_id": 2901, "component_id": 1203, "role": "request", "direction": "input", "width": 1},
+    {"port_id": 2902, "component_id": 1203, "role": "response", "direction": "output", "width": 1},
+    {"port_id": 3001, "component_id": 1204, "role": "request", "direction": "input", "width": 1},
+    {"port_id": 3002, "component_id": 1204, "role": "response", "direction": "output", "width": 1},
+    {"port_id": 3101, "component_id": 1205, "role": "request", "direction": "input", "width": 1},
+    {"port_id": 3102, "component_id": 1205, "role": "response", "direction": "output", "width": 1},
+    {"port_id": 3201, "component_id": 1206, "role": "request", "direction": "input", "width": 1},
+    {"port_id": 3202, "component_id": 1206, "role": "response", "direction": "output", "width": 1},
+    {"port_id": 3301, "component_id": 1207, "role": "request", "direction": "input", "width": 1},
+    {"port_id": 3302, "component_id": 1207, "role": "response", "direction": "output", "width": 1}
+  ],
+  "protocol_endpoints": [
+    {"endpoint_id": 4101, "component_id": 1201, "protocol_id": "obi", "version": "1", "side": "initiator", "field_bindings": [{"field_role": "req", "port_id": 2701}, {"field_role": "gnt", "port_id": 2702}]},
+    {"endpoint_id": 4102, "component_id": 1205, "protocol_id": "obi", "version": "1", "side": "target", "field_bindings": [{"field_role": "req", "port_id": 3101}, {"field_role": "gnt", "port_id": 3102}]},
+    {"endpoint_id": 4103, "component_id": 1206, "protocol_id": "tl-ul", "version": "1", "side": "initiator", "field_bindings": [{"field_role": "a_valid", "port_id": 3201}, {"field_role": "a_ready", "port_id": 3202}]},
+    {"endpoint_id": 4104, "component_id": 1202, "protocol_id": "tl-ul", "version": "1", "side": "target", "field_bindings": [{"field_role": "a_valid", "port_id": 2801}, {"field_role": "a_ready", "port_id": 2802}]},
+    {"endpoint_id": 4105, "component_id": 1203, "protocol_id": "tl-ul", "version": "1", "side": "target", "field_bindings": [{"field_role": "a_valid", "port_id": 2901}, {"field_role": "a_ready", "port_id": 2902}]},
+    {"endpoint_id": 4106, "component_id": 1204, "protocol_id": "tl-ul", "version": "1", "side": "target", "field_bindings": [{"field_role": "a_valid", "port_id": 3001}, {"field_role": "a_ready", "port_id": 3002}]},
+    {"endpoint_id": 4107, "component_id": 1207, "protocol_id": "tl-ul", "version": "1", "side": "target", "field_bindings": [{"field_role": "a_valid", "port_id": 3301}, {"field_role": "a_ready", "port_id": 3302}]}
+  ],
+  "generated_candidates": {"count": 3},
+  "seeds": [1, 7, 19],
+  "budget": {"cycles": 1000, "seconds": 300},
+  "raw_width": 512,
+  "coverage": {"metric": "branch"},
+  "harness_groups": ["flat-direct", "candidate-direct", "candidate-depaware"],
+  "mutation": {"max_len": 4096, "timeout_ms": 1000},
+  "build_concurrency": 1
+}
