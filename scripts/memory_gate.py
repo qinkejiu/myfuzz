@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
 import re
@@ -12,13 +13,15 @@ import tempfile
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Mapping
 
 
 DEFAULT_TIMEOUT_SECONDS = 60.0
 DEFAULT_POLL_SECONDS = 0.25
 LOCK_DIRECTORY_ENV = "MYFUZZ_MEMORY_GATE_DIR"
 _LOCK_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*\Z")
+_RECLAIM_GUARD_SUFFIX = ".reclaim"
+_RESERVED_RECORD_FIELDS = frozenset({"owner", "memory_mib", "pid", "timestamp"})
 
 
 class GateError(RuntimeError):
@@ -78,6 +81,25 @@ def _lock_path(lock_directory: Path, claim_name: str) -> Path:
     return lock_directory / f"{claim_name}.lock"
 
 
+def _try_acquire_reclaim_guard(lock_path: Path) -> int | None:
+    """Atomically serialize lock creation, reclamation, and release for one gate."""
+    guard_path = lock_path.with_name(f"{lock_path.name}{_RECLAIM_GUARD_SUFFIX}")
+    descriptor = os.open(guard_path, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        os.close(descriptor)
+        return None
+    return descriptor
+
+
+def _release_reclaim_guard(descriptor: int) -> None:
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+    finally:
+        os.close(descriptor)
+
+
 def _read_record(lock_path: Path) -> dict[str, object] | None:
     try:
         value = json.loads(lock_path.read_text(encoding="utf-8"))
@@ -99,13 +121,29 @@ def _record_has_dead_pid(record: dict[str, object] | None, alive: Callable[[int]
     return isinstance(pid, int) and not isinstance(pid, bool) and not alive(pid)
 
 
-def _write_lock(lock_path: Path, owner: str, memory_mib: int) -> None:
+def _record_fields(record_fields: Mapping[str, object] | None) -> dict[str, object]:
+    if record_fields is None:
+        return {}
+    if not isinstance(record_fields, Mapping):
+        raise GateError("record_fields must be a mapping")
+    fields = dict(record_fields)
+    if any(not isinstance(name, str) or not name or name in _RESERVED_RECORD_FIELDS for name in fields):
+        raise GateError("record_fields cannot replace required lock record fields")
+    try:
+        json.dumps(fields, sort_keys=True)
+    except (TypeError, ValueError) as error:
+        raise GateError("record_fields must be JSON serializable") from error
+    return fields
+
+
+def _write_lock(lock_path: Path, owner: str, memory_mib: int, record_fields: Mapping[str, object]) -> None:
     record = {
         "owner": owner,
         "memory_mib": memory_mib,
         "pid": os.getpid(),
         "timestamp": datetime.now(UTC).isoformat(),
     }
+    record.update(record_fields)
     payload = (json.dumps(record, sort_keys=True) + "\n").encode("utf-8")
     descriptor = os.open(lock_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     try:
@@ -125,6 +163,7 @@ def claim(
     poll_seconds: float = DEFAULT_POLL_SECONDS,
     available_memory_mib: Callable[[], int] = available_memory_mib,
     pid_is_alive: Callable[[int], bool] = pid_is_alive,
+    record_fields: Mapping[str, object] | None = None,
 ) -> Path:
     """Claim a named memory gate or raise after bounded polling."""
     _validate_name(owner, "owner")
@@ -136,6 +175,7 @@ def claim(
     directory = default_lock_directory() if lock_directory is None else lock_directory
     directory.mkdir(parents=True, exist_ok=True)
     lock_path = _lock_path(directory, claim_name)
+    persisted_fields = _record_fields(record_fields)
     deadline = time.monotonic() + timeout_seconds
     last_available = available_memory_mib()
     last_owner = "unknown owner"
@@ -143,18 +183,32 @@ def claim(
     while True:
         last_available = available_memory_mib()
         if last_available >= memory_mib:
+            guard_descriptor = _try_acquire_reclaim_guard(lock_path)
+            if guard_descriptor is None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise LockBusyError(f"memory gate '{claim_name}' is held by {last_owner}")
+                time.sleep(min(poll_seconds, remaining))
+                continue
             try:
-                _write_lock(lock_path, owner, memory_mib)
-                return lock_path
-            except FileExistsError:
-                record = _read_record(lock_path)
-                last_owner = _record_owner(record)
-                if _record_has_dead_pid(record, pid_is_alive):
+                try:
+                    _write_lock(lock_path, owner, memory_mib, persisted_fields)
+                    return lock_path
+                except FileExistsError:
+                    record = _read_record(lock_path)
+                    last_owner = _record_owner(record)
+                    if _record_has_dead_pid(record, pid_is_alive):
+                        try:
+                            lock_path.unlink()
+                        except FileNotFoundError:
+                            continue
                     try:
-                        lock_path.unlink()
-                    except FileNotFoundError:
+                        _write_lock(lock_path, owner, memory_mib, persisted_fields)
+                        return lock_path
+                    except FileExistsError:
                         pass
-                    continue
+            finally:
+                _release_reclaim_guard(guard_descriptor)
 
         remaining = deadline - time.monotonic()
         if remaining <= 0:
@@ -166,19 +220,35 @@ def claim(
         time.sleep(min(poll_seconds, remaining))
 
 
-def release(claim_name: str, owner: str, *, lock_directory: Path | None = None) -> bool:
+def release(
+    claim_name: str,
+    owner: str,
+    *,
+    lock_directory: Path | None = None,
+    cleanup_unreadable: bool = False,
+) -> bool:
     """Release a claim only when its lock record still identifies ``owner``."""
     _validate_name(owner, "owner")
     directory = default_lock_directory() if lock_directory is None else lock_directory
     lock_path = _lock_path(directory, claim_name)
-    record = _read_record(lock_path)
-    if record is None or record.get("owner") != owner:
+    if not directory.is_dir():
+        return False
+    guard_descriptor = _try_acquire_reclaim_guard(lock_path)
+    if guard_descriptor is None:
         return False
     try:
-        lock_path.unlink()
-    except FileNotFoundError:
-        return False
-    return True
+        record = _read_record(lock_path)
+        if record is None and not cleanup_unreadable:
+            return False
+        if record is not None and record.get("owner") != owner:
+            return False
+        try:
+            lock_path.unlink()
+        except FileNotFoundError:
+            return False
+        return True
+    finally:
+        _release_reclaim_guard(guard_descriptor)
 
 
 def _parse_arguments(arguments: list[str]) -> argparse.Namespace:

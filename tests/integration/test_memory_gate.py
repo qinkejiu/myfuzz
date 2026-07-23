@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -51,6 +52,62 @@ class MemoryGateTests(unittest.TestCase):
         record = json.loads(lock_path.read_text(encoding="utf-8"))
         self.assertEqual("current-owner", record["owner"])
         self.assertEqual(os.getpid(), record["pid"])
+
+    def test_reclaim_guard_blocks_a_second_reclaimer_from_stealing_a_stale_lock(self) -> None:
+        self.lock_directory.mkdir()
+        lock_path = self.lock_directory / "build.lock"
+        lock_path.write_text(
+            json.dumps(
+                {
+                    "owner": "stale-owner",
+                    "memory_mib": 128,
+                    "pid": 999_999_999,
+                    "timestamp": "2026-07-22T00:00:00+00:00",
+                }
+            ),
+            encoding="utf-8",
+        )
+        stale_record_observed = threading.Event()
+        finish_first_reclaim = threading.Event()
+        first_error: list[BaseException] = []
+
+        def wait_after_observing_stale_pid(_pid: int) -> bool:
+            stale_record_observed.set()
+            self.assertTrue(finish_first_reclaim.wait(timeout=1))
+            return False
+
+        def first_reclaimer() -> None:
+            try:
+                memory_gate.claim(
+                    "build",
+                    128,
+                    "first-owner",
+                    lock_directory=self.lock_directory,
+                    available_memory_mib=lambda: 1024,
+                    pid_is_alive=wait_after_observing_stale_pid,
+                )
+            except BaseException as error:
+                first_error.append(error)
+
+        thread = threading.Thread(target=first_reclaimer)
+        thread.start()
+        self.assertTrue(stale_record_observed.wait(timeout=1))
+        with self.assertRaises(memory_gate.LockBusyError):
+            memory_gate.claim(
+                "build",
+                128,
+                "second-owner",
+                lock_directory=self.lock_directory,
+                timeout_seconds=0,
+                available_memory_mib=lambda: 1024,
+                pid_is_alive=lambda _pid: False,
+            )
+        finish_first_reclaim.set()
+        thread.join(timeout=1)
+
+        self.assertFalse(thread.is_alive())
+        self.assertEqual([], first_error)
+        self.assertEqual("first-owner", json.loads(lock_path.read_text(encoding="utf-8"))["owner"])
 
     def test_claim_rejects_second_live_owner_after_timeout(self) -> None:
         memory_gate.claim(

@@ -77,6 +77,7 @@ def claim_job(job: Job, *, timeout_seconds: float = 60.0) -> JobClaim:
             job.requested_mib,
             job.owner,
             timeout_seconds=timeout_seconds,
+            record_fields={"seed": job.seed, "candidate_hash": job.candidate_hash},
         )
     except gate.GateError as error:
         raise RuntimeError(str(error)) from error
@@ -84,12 +85,18 @@ def claim_job(job: Job, *, timeout_seconds: float = 60.0) -> JobClaim:
     try:
         record = json.loads(lock_path.read_text(encoding="utf-8"))
         pid = record["pid"]
-    except (KeyError, OSError, json.JSONDecodeError) as error:
+        if isinstance(pid, bool) or not isinstance(pid, int):
+            raise ValueError("invalid PID")
+        if (
+            record.get("owner") != job.owner
+            or record.get("memory_mib") != job.requested_mib
+            or record.get("seed") != job.seed
+            or record.get("candidate_hash") != job.candidate_hash
+        ):
+            raise ValueError("record does not match job")
+    except (AttributeError, KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        gate.release(job.gate_name, job.owner, cleanup_unreadable=True)
         raise RuntimeError("memory gate did not persist a readable claim record") from error
-    if isinstance(pid, bool) or not isinstance(pid, int):
-        raise RuntimeError("memory gate claim record has an invalid PID")
-    if record.get("owner") != job.owner or record.get("memory_mib") != job.requested_mib:
-        raise RuntimeError("memory gate claim record does not match the requested job")
     return JobClaim(
         job_id=job.job_id,
         gate_name=job.gate_name,
