@@ -261,6 +261,32 @@ class FlowIntegrationTest(unittest.TestCase):
                     candidate_manifest=manifest,
                 )
 
+    def test_toml_rejects_output_without_explicit_fuzz_disposition(self) -> None:
+        manifest = candidate_manifest()
+        manifest["top_port_abi"][3].pop("fuzzable")
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "fuzz disposition must be explicit"):
+                write_toml(
+                    frontend_manifest(),
+                    instrumentation_manifest(),
+                    "generated_top",
+                    Path(directory) / "flow.toml",
+                    candidate_manifest=manifest,
+                )
+
+    def test_toml_rejects_unbound_non_fuzzable_data_input(self) -> None:
+        manifest = candidate_manifest()
+        manifest["top_port_abi"][2]["fuzzable"] = False
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "unbound non-fuzzable input"):
+                write_toml(
+                    frontend_manifest(),
+                    instrumentation_manifest(),
+                    "generated_top",
+                    Path(directory) / "flow.toml",
+                    candidate_manifest=manifest,
+                )
+
     def test_toml_emitter_rejects_candidate_mode_option(self) -> None:
         with patch.object(
             sys,

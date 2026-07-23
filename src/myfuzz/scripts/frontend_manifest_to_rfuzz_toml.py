@@ -11,12 +11,12 @@ from pathlib import Path
 
 
 try:
-    from myfuzz.harness.abi import manifest_ports
+    from myfuzz.harness.abi import manifest_ports, selected_ports
 except ModuleNotFoundError:  # direct script execution without PYTHONPATH=src
     import sys
 
     sys.path.insert(0, Path(__file__).resolve().parents[2].as_posix())
-    from myfuzz.harness.abi import manifest_ports
+    from myfuzz.harness.abi import manifest_ports, selected_ports
 
 
 def quote(value: str) -> str:
@@ -108,6 +108,7 @@ def manual_harness_input(harness_config: dict | None, root: Path | None = None) 
 
 
 def candidate_ports(candidate_manifest: dict) -> dict[str, dict]:
+    selected_ports(candidate_manifest)
     ports = manifest_ports(candidate_manifest)
     return {str(port["emitted_name"]): port for port in ports}
 
