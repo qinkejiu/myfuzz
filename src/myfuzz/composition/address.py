@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from myfuzz.contracts import canonical_bytes
 
 from .declarations import DeclarationSet
-from .facts import HdlFacts
+from .facts import HdlFacts, canonical_structural_value
 
 
 class AddressError(ValueError):
@@ -106,11 +106,7 @@ def _record_mapping(value: object) -> dict[str, object] | None:
 
 
 def _freeze(value: object) -> object:
-    if isinstance(value, Mapping):
-        return tuple((str(key), _freeze(item)) for key, item in sorted(value.items(), key=lambda pair: str(pair[0])))
-    if isinstance(value, (list, tuple)):
-        return tuple(_freeze(item) for item in value)
-    return value
+    return canonical_structural_value(value)
 
 
 def _fact_port_id(record: Mapping[str, object]) -> int | None:

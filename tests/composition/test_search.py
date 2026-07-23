@@ -147,6 +147,89 @@ class CompositionSearchTests(unittest.TestCase):
         self.assertEqual(first.parent_input_hash, second.parent_input_hash)
         self.assertEqual(composition_ir(first)["evidence"], composition_ir(second)["evidence"])
 
+    def test_tuple_pair_structural_records_are_canonical_mappings(self) -> None:
+        facts, declarations, protocols = design(1)
+        dataflow_first = (("from_port_id", 101), ("to_port_id", 102), ("kind", "data"))
+        dataflow_second = (("kind", "data"), ("to_port_id", 102), ("from_port_id", 101))
+        clock_first = (("component_id", 10001), ("port_id", 501), ("kind", "clock"), ("domain_id", 77))
+        clock_second = (("domain_id", 77), ("kind", "clock"), ("port_id", 501), ("component_id", 10001))
+        local_first = (("address_field_port_id", 101), ("offset", 0), ("size", 4))
+        local_second = (("size", 4), ("offset", 0), ("address_field_port_id", 101))
+        first_facts = HdlFacts(
+            facts.modules,
+            facts.ports,
+            (
+                ("dataflow_edges", (dataflow_first,)),
+                ("clock_reset_checks", (clock_first,)),
+                ("local_address_facts", (local_first,)),
+            ),
+        )
+        second_facts = HdlFacts(
+            facts.modules,
+            facts.ports,
+            (
+                ("dataflow_edges", (dataflow_second,)),
+                ("clock_reset_checks", (clock_second,)),
+                ("local_address_facts", (local_second,)),
+            ),
+        )
+
+        first = next(compose_topk(first_facts, declarations, protocols, 1))
+        second = next(compose_topk(second_facts, declarations, protocols, 1))
+
+        from myfuzz.composition.ir import composition_ir
+
+        self.assertEqual(first.parent_input_hash, second.parent_input_hash)
+        self.assertEqual(composition_ir(first), composition_ir(second))
+        self.assertEqual(first.address_regions, second.address_regions)
+
+    def test_unknown_structural_section_rejected_before_hard_conflict(self) -> None:
+        facts, declarations, protocols = design(1, bad_target_direction=True)
+        for label, error in (
+            ("host_specific_debug", "unknown-section"),
+            ("debug_path=/tmp/top.sv", "host-specific"),
+        ):
+            with self.subTest(label=label):
+                unknown = HdlFacts(
+                    facts.modules,
+                    facts.ports,
+                    facts.structural_sections + ((label, ()),),
+                )
+                with self.assertRaisesRegex(ValueError, rf"^composition\.structural_facts:{error}"):
+                    list(compose_topk(unknown, declarations, protocols, 1))
+
+    def test_limit_one_retains_lower_numeric_id_score_vector_on_tie(self) -> None:
+        facts, declarations, protocols = design(2)
+        from myfuzz.composition import search
+
+        real_candidate_edges = search.candidate_edges
+        controlled_ids = {
+            (1001, 1003): 30,
+            (1002, 1004): 31,
+            (1001, 1004): 1,
+            (1002, 1003): 2,
+        }
+
+        def controlled_edges(graph: object):
+            for edge in real_candidate_edges(graph):
+                edge_id = controlled_ids[(edge.source_endpoint_id, edge.target_endpoint_id)]
+                yield EdgeCandidate(
+                    edge_id,
+                    edge.kind,
+                    edge.source_endpoint_id,
+                    edge.target_endpoint_id,
+                    edge.fields,
+                    edge.adapter,
+                    edge.evidence,
+                )
+
+        with patch("myfuzz.composition.search.candidate_edges", controlled_edges):
+            candidates = list(compose_topk(facts, declarations, protocols, 1))
+
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0].score_vector[:7], (0, 0, 0, 0, 0, -2, -2))
+        self.assertEqual(candidates[0].score_vector[7:], (1, 2))
+
     def test_normalized_graph_hash_deduplicates_semantic_edges(self) -> None:
         facts, declarations, protocols = design(1)
 

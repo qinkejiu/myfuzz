@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from myfuzz.composition.metadata import sanitize_metadata
+from myfuzz.composition.metadata import sanitize_metadata, semantic_source_hash
 
 
 class MetadataSanitizerTests(unittest.TestCase):
@@ -39,6 +39,18 @@ class MetadataSanitizerTests(unittest.TestCase):
         for unsafe_value in unsafe_values:
             with self.subTest(unsafe_value=unsafe_value), self.assertRaisesRegex(ValueError, r"^test.metadata:host-specific"):
                 sanitize_metadata({"debug": unsafe_value}, context="test.metadata")
+
+    def test_source_hash_accepts_division_but_rejects_paths_in_comments_and_strings(self) -> None:
+        for source in ("assign y = a/b;", "assign y = a /b;"):
+            with self.subTest(source=source):
+                semantic_source_hash(source, context="test.source")
+
+        for source in (
+            "// generated from /tmp/top.sv\nmodule top; endmodule",
+            'string metadata = "generated from /tmp/top.sv";',
+        ):
+            with self.subTest(source=source), self.assertRaisesRegex(ValueError, r"^test.source:host-specific"):
+                semantic_source_hash(source, context="test.source")
 
 
 if __name__ == "__main__":

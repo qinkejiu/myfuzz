@@ -63,6 +63,7 @@ _STRUCTURAL_SECTIONS = (
     "clock_reset_checks",
     "local_address_facts",
 )
+VALID_STRUCTURAL_SECTIONS = frozenset(_STRUCTURAL_SECTIONS)
 _ANNOTATION_KEYS = frozenset(
     (
         "name",
@@ -89,6 +90,24 @@ def _without_annotations(value: object) -> object:
         )
     if isinstance(value, list):
         return tuple(_without_annotations(item) for item in value)
+    return value
+
+
+def canonical_structural_value(value: object) -> object:
+    """Canonicalize structural records, including tuple-pair mappings."""
+    if isinstance(value, Mapping):
+        return tuple(
+            (str(key), canonical_structural_value(item))
+            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+        )
+    if isinstance(value, (list, tuple)):
+        items = tuple(value)
+        if all(isinstance(item, (list, tuple)) and len(item) == 2 and isinstance(item[0], str) for item in items):
+            return tuple(
+                (key, canonical_structural_value(item))
+                for key, item in sorted(items, key=lambda pair: pair[0])
+            )
+        return tuple(canonical_structural_value(item) for item in items)
     return value
 
 

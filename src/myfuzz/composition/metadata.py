@@ -47,24 +47,75 @@ def semantic_content_hash(value: object, *, context: str) -> str:
 
 def semantic_source_hash(source_text: str, *, context: str) -> str:
     """Hash Verilog source after source-aware host-specific validation."""
+    states, previous_tokens = _scan_source_context(source_text)
     for match in _SOURCE_HOST_SPECIFIC_STRING.finditer(source_text):
-        if match.group().startswith("/") and _is_systemverilog_division(source_text, match.start()):
+        if (
+            match.group().startswith("/")
+            and states[match.start()] == "code"
+            and previous_tokens[match.start()] == "operand"
+        ):
             continue
         raise ValueError(f"{context}:host-specific")
     return content_hash({"source_text": source_text})
 
 
-def _is_systemverilog_division(source_text: str, slash_index: int) -> bool:
-    """Recognize a slash following an expression operand, not a path prefix."""
-    if slash_index == 0:
-        return False
-    previous = source_text[slash_index - 1]
-    if previous.isalnum() or previous in ")]}":
-        return True
-    if not previous.isspace():
-        return False
-    before_slash = source_text[:slash_index].rstrip()
-    return bool(before_slash) and (before_slash[-1].isalnum() or before_slash[-1] in ")]}")
+def _scan_source_context(source_text: str) -> tuple[list[str], list[str | None]]:
+    """Track lexical context and the preceding significant token kind."""
+    states = ["code"] * len(source_text)
+    previous_tokens: list[str | None] = [None] * len(source_text)
+    state = "code"
+    last_token: str | None = None
+    index = 0
+    while index < len(source_text):
+        states[index] = state
+        previous_tokens[index] = last_token
+        if state == "line_comment":
+            if source_text[index] in "\r\n":
+                state = "code"
+            index += 1
+            continue
+        if state == "block_comment":
+            if source_text.startswith("*/", index):
+                state = "code"
+                index += 2
+            else:
+                index += 1
+            continue
+        if state == "string":
+            if source_text[index] == "\\":
+                if index + 1 < len(source_text):
+                    states[index + 1] = state
+                    previous_tokens[index + 1] = last_token
+                    index += 2
+                else:
+                    index += 1
+            elif source_text[index] == '"':
+                state = "code"
+                index += 1
+            else:
+                index += 1
+            continue
+        if source_text.startswith("//", index):
+            state = "line_comment"
+            index += 1
+            continue
+        if source_text.startswith("/*", index):
+            state = "block_comment"
+            index += 1
+            continue
+        if source_text[index] == '"':
+            state = "string"
+            index += 1
+            continue
+        character = source_text[index]
+        if character.isalnum() or character in "_$":
+            last_token = "operand"
+        elif character in ")]}":
+            last_token = "operand"
+        elif not character.isspace():
+            last_token = "operator"
+        index += 1
+    return states, previous_tokens
 
 
 __all__ = ["sanitize_metadata", "semantic_content_hash", "semantic_source_hash"]

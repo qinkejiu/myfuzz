@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from myfuzz.contracts import canonical_bytes
 
 from .declarations import DeclarationSet, ProtocolBinding
-from .facts import HdlFacts
+from .facts import HdlFacts, canonical_structural_value
 
 
 class ConstraintGraphError(ValueError):
@@ -168,11 +168,7 @@ def _fail(path: str, reason: str) -> None:
 
 
 def _freeze(value: object) -> object:
-    if isinstance(value, Mapping):
-        return tuple((str(key), _freeze(item)) for key, item in sorted(value.items(), key=lambda pair: str(pair[0])))
-    if isinstance(value, (list, tuple)):
-        return tuple(_freeze(item) for item in value)
-    return value
+    return canonical_structural_value(value)
 
 
 def _string(value: object, path: str) -> str:

@@ -11,7 +11,7 @@ from myfuzz.contracts import canonical_bytes
 from .address import AddressAllocationError, AddressRegion, allocate_regions, extract_local_regions_with_evidence
 from .constraints import ConstraintGraph, EdgeCandidate, Evidence, build_constraint_graph, candidate_edges, reject_hard_conflicts
 from .declarations import DeclarationSet
-from .facts import HdlFacts
+from .facts import HdlFacts, VALID_STRUCTURAL_SECTIONS, canonical_structural_value
 from .metadata import sanitize_metadata, semantic_content_hash
 
 
@@ -43,11 +43,7 @@ def _json_value(value: object) -> object:
 
 def _freeze_metadata(value: object, *, context: str) -> object:
     value = sanitize_metadata(value, context=context)
-    if isinstance(value, Mapping):
-        return tuple((key, _freeze_metadata(item, context=context)) for key, item in value.items())
-    if isinstance(value, (list, tuple)):
-        return tuple(_freeze_metadata(item, context=context) for item in value)
-    return value
+    return canonical_structural_value(value)
 
 
 def _canonical_structural_sections(facts: HdlFacts) -> tuple[tuple[str, tuple[object, ...]], ...]:
@@ -59,6 +55,9 @@ def _canonical_structural_sections(facts: HdlFacts) -> tuple[tuple[str, tuple[ob
         section, records = item
         if not isinstance(section, str) or not isinstance(records, (list, tuple)):
             raise ValueError("composition.structural_facts:type")
+        sanitize_metadata(section, context="composition.structural_facts")
+        if section not in VALID_STRUCTURAL_SECTIONS:
+            raise ValueError("composition.structural_facts:unknown-section")
         grouped.setdefault(section, []).extend(
             _freeze_metadata(record, context="composition.structural_facts") for record in records
         )
