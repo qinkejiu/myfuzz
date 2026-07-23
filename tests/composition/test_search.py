@@ -79,7 +79,7 @@ class CompositionSearchTests(unittest.TestCase):
             facts.structural_sections + (("dataflow_edges", (path_evidence,)),),
         )
 
-        with self.assertRaisesRegex(ValueError, r"^composition.parent_input:host-specific"):
+        with self.assertRaisesRegex(ValueError, r"^composition.structural_facts:host-specific"):
             list(compose_topk(contaminated, declarations, protocols, 1))
 
     def test_graph_hash_rejects_host_specific_graph_document_before_hashing(self) -> None:
@@ -233,6 +233,19 @@ class CompositionSearchTests(unittest.TestCase):
         self.assertEqual(unvalidated.score_vector[3], 2)
         self.assertEqual(generic_validated.score_vector[3], 2)
         self.assertEqual(validated.score_vector[3], 0)
+        self.assertNotEqual(unvalidated.parent_input_hash, validated.parent_input_hash)
+
+    def test_host_specific_clock_reset_fact_rejects_before_hard_conflict_return(self) -> None:
+        facts, declarations, protocols = design(1, bad_target_direction=True)
+        host_specific_facts = HdlFacts(
+            facts.modules,
+            facts.ports,
+            facts.structural_sections
+            + (("clock_reset_checks", (("debug_path", "/tmp/clock-reset-proof.json"),)),),
+        )
+
+        with self.assertRaisesRegex(ValueError, r"^composition.structural_facts:host-specific"):
+            list(compose_topk(host_specific_facts, declarations, protocols, 1))
 
     def test_invalid_limit_and_hard_conflict_rejection(self) -> None:
         facts, declarations, protocols = design(1)

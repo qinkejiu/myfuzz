@@ -12,7 +12,7 @@ from .address import AddressAllocationError, AddressRegion, allocate_regions, ex
 from .constraints import ConstraintGraph, EdgeCandidate, Evidence, build_constraint_graph, candidate_edges, reject_hard_conflicts
 from .declarations import DeclarationSet
 from .facts import HdlFacts
-from .metadata import semantic_content_hash
+from .metadata import sanitize_metadata, semantic_content_hash
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +39,33 @@ def _json_value(value: object) -> object:
     if isinstance(value, list):
         return [_json_value(item) for item in value]
     return value
+
+
+def _freeze_metadata(value: object, *, context: str) -> object:
+    value = sanitize_metadata(value, context=context)
+    if isinstance(value, Mapping):
+        return tuple((key, _freeze_metadata(item, context=context)) for key, item in value.items())
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_metadata(item, context=context) for item in value)
+    return value
+
+
+def _canonical_structural_sections(facts: HdlFacts) -> tuple[tuple[str, tuple[object, ...]], ...]:
+    """Validate and canonically order the complete structural fact stream."""
+    grouped: dict[str, list[object]] = {}
+    for item in facts.structural_sections:
+        if not isinstance(item, tuple) or len(item) != 2:
+            raise ValueError("composition.structural_facts:type")
+        section, records = item
+        if not isinstance(section, str) or not isinstance(records, (list, tuple)):
+            raise ValueError("composition.structural_facts:type")
+        grouped.setdefault(section, []).extend(
+            _freeze_metadata(record, context="composition.structural_facts") for record in records
+        )
+    return tuple(
+        (section, tuple(sorted(records, key=canonical_bytes)))
+        for section, records in sorted(grouped.items())
+    )
 
 
 def _edge_signature(edge: EdgeCandidate) -> tuple[object, ...]:
@@ -92,6 +119,7 @@ def _graph_document(
 
 
 def _parent_hash(
+    facts: HdlFacts,
     graph: ConstraintGraph,
     declarations: DeclarationSet,
     regions: tuple[AddressRegion, ...],
@@ -131,6 +159,7 @@ def _parent_hash(
             for protocol in graph.protocols
         ],
         "address_regions": [(region.component_id, region.port_id, region.base, region.size, region.local_offset, region.provenance) for region in regions],
+        "structural_facts": _json_value(facts.structural_sections),
         "evidence": [(item.kind, item.ordinal, _json_value(item.record)) for item in graph.evidence],
         "address_evidence": [(item.kind, item.ordinal, _json_value(item.record)) for item in address_evidence],
     }
@@ -286,6 +315,7 @@ def compose_topk(facts: HdlFacts, declarations: DeclarationSet, protocols: objec
     """Yield at most ``limit`` legal candidates in deterministic score order."""
     if not isinstance(limit, int) or isinstance(limit, bool) or limit <= 0:
         raise ValueError("limit:positive-integer-required")
+    facts = replace(facts, structural_sections=_canonical_structural_sections(facts))
     graph = build_constraint_graph(facts, declarations, protocols)
     if reject_hard_conflicts(graph):
         return
@@ -323,7 +353,7 @@ def compose_topk(facts: HdlFacts, declarations: DeclarationSet, protocols: objec
 
     sources = tuple(endpoint for endpoint in graph.endpoints if endpoint.side == "initiator")
     required_targets = {endpoint.id for endpoint in graph.endpoints if endpoint.side == "target" and endpoint.required}
-    parent_input_hash = _parent_hash(graph, declarations, regions, address_evidence)
+    parent_input_hash = _parent_hash(facts, graph, declarations, regions, address_evidence)
     heap: list[tuple[tuple[int, ...], str, CompositionCandidate]] = []
     chosen: list[EdgeCandidate] = []
     used_targets: set[int] = set()

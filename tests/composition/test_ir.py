@@ -131,8 +131,13 @@ class CompositionIrTests(unittest.TestCase):
         facts, declarations, protocols = design(1)
         candidate = next(compose_topk(facts, declarations, protocols, 1))
 
-        manifest = candidate_manifest(candidate, {"source_text": "module generated_top; wire q = a/b; endmodule\n"})
-        self.assertEqual(manifest["top"]["content_hash"], content_hash({"source_text": "module generated_top; wire q = a/b; endmodule\n"}))
+        for source_text in (
+            "module generated_top; wire q = a/b; endmodule\n",
+            "module generated_top; wire q = a /b; endmodule\n",
+        ):
+            with self.subTest(source_text=source_text):
+                manifest = candidate_manifest(candidate, {"source_text": source_text})
+                self.assertEqual(manifest["top"]["content_hash"], content_hash({"source_text": source_text}))
         with self.assertRaisesRegex(ValueError, r"^emitted.source_text:host-specific"):
             candidate_manifest(candidate, {"source_text": 'module generated_top; string source = "/tmp/build/generated_top.sv"; endmodule\n'})
 
