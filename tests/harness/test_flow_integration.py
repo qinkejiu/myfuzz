@@ -217,6 +217,21 @@ class FlowIntegrationTest(unittest.TestCase):
                     candidate_manifest=manifest,
                 )
 
+    def test_toml_accepts_abi_fuzz_disposition_aliases(self) -> None:
+        manifest = candidate_manifest()
+        manifest["top_port_abi"][2].pop("fuzzable")
+        manifest["top_port_abi"][2]["fuzz_disposition"] = "fuzz"
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "flow.toml"
+            write_toml(
+                frontend_manifest(),
+                instrumentation_manifest(),
+                "generated_top",
+                output,
+                candidate_manifest=manifest,
+            )
+            self.assertIn('name = "payload_opaque"', output.read_text())
+
     def test_toml_rejects_candidate_top_that_only_matches_missing_requested_top(self) -> None:
         frontend = frontend_manifest()
         frontend["modules"][0]["name"] = "fallback_generated_top"
