@@ -1,0 +1,56 @@
+{
+  "schema_version": "experiment.v1",
+  "config_path": "configs/experiments/rvx.json",
+  "target": {
+    "target_id": "target-101",
+    "display": "RVX generated systems"
+  },
+  "candidate_selection": {
+    "k": 3
+  },
+  "harness_groups": [
+    "flat-direct",
+    "candidate-direct",
+    "candidate-depaware"
+  ],
+  "candidate_pair": {
+    "seeds": [1, 7, 19]
+  },
+  "budgets": [
+    {"name": "smoke", "kind": "cycles", "value": 1000},
+    {"name": "short", "kind": "seconds", "value": 300},
+    {"name": "long", "kind": "seconds", "value": 3600}
+  ],
+  "coverage": {
+    "metric": "branch",
+    "comparisons": [
+      {
+        "left_harness": "candidate-direct",
+        "right_harness": "candidate-depaware",
+        "measure": "percentage"
+      },
+      {
+        "left_harness": "flat-direct",
+        "right_harness": "candidate-direct",
+        "measure": "shared-stable-source-id"
+      }
+    ]
+  },
+  "mutation": {
+    "max_len": 4096,
+    "timeout_ms": 1000
+  },
+  "build_concurrency": 1,
+  "waveforms": false,
+  "replay_queue_capacity": 128,
+  "event_ring_capacity": 4096,
+  "field_groups_per_batch": 64,
+  "soft_memory_bytes": 6000000000,
+  "hard_memory_bytes": 7000000000,
+  "token_bytes": 64000000,
+  "reference": {
+    "mode": "evaluation-only",
+    "allowed_stage": "report",
+    "comparison": "shared-stable-source-id"
+  }
+}
