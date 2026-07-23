@@ -81,6 +81,24 @@ class AddressAllocatorTests(unittest.TestCase):
 
         self.assertEqual(extract_local_regions(facts, declarations_for()), ())
 
+    def test_explicit_address_field_must_be_protocol_bound(self) -> None:
+        facts = facts_for(({"address_field_port_id": 11, "offset": 0, "size": 4},))
+        unbound_declarations = DeclarationSet(
+            tuple(
+                ComponentDecl(component.id, component.module_id, component.role, component.ports, (), component.clock_reset)
+                for component in declarations_for().components
+            )
+        )
+        with self.assertRaises(AddressError) as error:
+            extract_local_regions(facts, unbound_declarations)
+        self.assertIn("not-bound-protocol-field", str(error.exception))
+
+    def test_conflicting_address_fact_references_are_rejected(self) -> None:
+        facts = facts_for(({"address_field_port_id": 11, "address_port_id": 21, "offset": 0, "size": 4},))
+        with self.assertRaises(AddressError) as error:
+            extract_local_regions(facts, declarations_for())
+        self.assertIn("conflicting-address-field-ids", str(error.exception))
+
     def test_preserves_fixed_bases_and_allocates_non_overlapping_aligned_regions(self) -> None:
         regions = (
             LocalRegion(101, 11, 0, 0x100, 0x100, fixed_base=0x400),

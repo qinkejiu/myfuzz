@@ -104,9 +104,11 @@ def _record_mapping(value: object) -> dict[str, object] | None:
 
 
 def _fact_port_id(record: Mapping[str, object]) -> int | None:
-    for key in _ADDRESS_FIELD_KEYS:
-        if key in record:
-            return _positive_id(record[key], key)
+    present = [_positive_id(record[key], key) for key in _ADDRESS_FIELD_KEYS if key in record]
+    if len(present) > 1 and present[0] != present[1]:
+        raise AddressError("local_address_facts:conflicting-address-field-ids")
+    if present:
+        return present[0]
     return None
 
 
@@ -114,9 +116,12 @@ def extract_local_regions(facts: HdlFacts, declarations: DeclarationSet) -> tupl
     """Extract local windows only when a fact references an explicit address field."""
     declarations.validate_against(facts)
     port_to_component: dict[int, int] = {}
+    bound_field_ports: set[int] = set()
     for component in declarations.components:
         for port in component.ports:
             port_to_component[port.port_id] = component.id
+        for binding in component.protocol_bindings:
+            bound_field_ports.update(field.port_id for field in binding.fields)
 
     records: tuple[object, ...] = ()
     for section, section_records in facts.structural_sections:
@@ -134,6 +139,8 @@ def extract_local_regions(facts: HdlFacts, declarations: DeclarationSet) -> tupl
             continue
         if port_id not in port_to_component:
             raise AddressError(f"local_address_facts[{ordinal}].port_id:unresolved-reference")
+        if port_id not in bound_field_ports:
+            raise AddressError(f"local_address_facts[{ordinal}].port_id:not-bound-protocol-field")
         offset = _nonnegative(record.get("offset", record.get("local_offset", 0)), f"local_address_facts[{ordinal}].offset")
         size_value = record.get("size", record.get("window_size"))
         if size_value is None:
