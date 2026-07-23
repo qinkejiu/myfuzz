@@ -193,6 +193,8 @@ def stage_toml(
     candidate_mode: str,
 ) -> None:
     manifest = validate_candidate_manifest(candidate_manifest)
+    frontend_module = find_top_module(frontend_manifest, cfg["top"])
+    validate_frontend_candidate_join(frontend_module, cfg["top"], manifest)
     artifact = build_harness(manifest, candidate_mode)
     source_path, fragment_path = write_candidate_harness_artifact(paths, artifact)
     harness_cfg = harness_config_for_artifact(cfg, artifact, source_path, fragment_path)

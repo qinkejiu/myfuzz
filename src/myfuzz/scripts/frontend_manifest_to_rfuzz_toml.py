@@ -159,8 +159,6 @@ def should_fuzz_input(name: str, candidate_manifest: dict) -> bool:
     fuzzable = port.get("fuzzable", port.get("fuzz_disposition", port.get("disposition", missing)))
     if fuzzable is missing:
         raise ValueError(f"fuzz disposition must be explicit for manifest port {name!r}")
-    if isinstance(fuzzable, str):
-        fuzzable = fuzzable in {"fuzz", "fuzzable", "enabled", "input"}
     if not isinstance(fuzzable, bool):
         raise ValueError(f"invalid fuzz disposition for manifest port {name!r}")
     return bool(fuzzable and role not in {"clock", "reset"})

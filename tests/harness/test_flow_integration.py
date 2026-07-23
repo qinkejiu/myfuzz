@@ -202,6 +202,20 @@ class FlowIntegrationTest(unittest.TestCase):
                     manifest,
                     "candidate_depaware",
                 )
+            self.assertFalse(paths["harness"].exists())
+
+    def test_toml_rejects_invalid_fuzz_disposition(self) -> None:
+        manifest = candidate_manifest()
+        manifest["top_port_abi"][2]["fuzzable"] = "typo"
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "invalid fuzz disposition"):
+                write_toml(
+                    frontend_manifest(),
+                    instrumentation_manifest(),
+                    "generated_top",
+                    Path(directory) / "flow.toml",
+                    candidate_manifest=manifest,
+                )
 
     def test_toml_rejects_candidate_top_that_only_matches_missing_requested_top(self) -> None:
         frontend = frontend_manifest()
