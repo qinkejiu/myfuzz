@@ -27,12 +27,6 @@ if SCRIPT_DIR.as_posix() not in sys.path:
 
 from frontend_api import default_frontend_library, run_frontend_manifest
 from source_only_frontend import run_source_only_frontend
-from rfuzz_flow.tools.verilog_instrumentation.generate_rfuzz_harness import (
-    generate_harness_files,
-    load_toml,
-    top_ports_from_frontend_manifest,
-    validate_harness,
-)
 from scripts.source_branch_instrumenter import instrument_project
 from frontend_manifest_to_rfuzz_toml import generate_toml
 
@@ -120,17 +114,44 @@ def stage_instrument(root: Path, cfg: dict, paths: dict, frontend_manifest: dict
     return manifest
 
 
-def stage_toml(root: Path, cfg: dict, paths: dict, frontend_manifest: dict, instrumentation: dict) -> None:
+def stage_toml(
+    root: Path,
+    cfg: dict,
+    paths: dict,
+    frontend_manifest: dict,
+    instrumentation: dict,
+    candidate_manifest: dict,
+    candidate_mode: str,
+) -> None:
     harness_cfg = cfg.get("harness", {}) if isinstance(cfg.get("harness", {}), dict) else {}
-    generate_toml(frontend_manifest, instrumentation, cfg["top"], paths["toml"], harness_cfg, root=root)
+    harness_cfg = dict(harness_cfg)
+    harness_cfg["candidate_mode"] = candidate_mode
+    generate_toml(
+        frontend_manifest,
+        instrumentation,
+        cfg["top"],
+        paths["toml"],
+        harness_cfg,
+        root=root,
+        candidate_manifest=candidate_manifest,
+    )
     print(f"Generated rfuzz TOML: {paths['toml']}")
 
 
-def stage_harness(root: Path, cfg: dict, paths: dict, server_bin: str, frontend_manifest: dict) -> None:
+def stage_harness(root: Path, cfg: dict, paths: dict, server_bin: str, frontend_manifest: dict, candidate_mode: str) -> None:
+    from rfuzz_flow.tools.verilog_instrumentation.generate_rfuzz_harness import (
+        generate_harness_files,
+        load_toml,
+        top_ports_from_frontend_manifest,
+        validate_harness,
+    )
+
     del root
     conf = load_toml(paths["toml"])
     ports = top_ports_from_frontend_manifest(frontend_manifest, cfg["top"])
     harness_cfg = cfg.get("harness", {}) if isinstance(cfg.get("harness", {}), dict) else {}
+    harness_cfg = dict(harness_cfg)
+    harness_cfg["candidate_mode"] = candidate_mode
     harness_path, augmented_toml = generate_harness_files(
         conf,
         ports,
@@ -629,6 +650,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", required=True)
     parser.add_argument("--stage", choices=["all", *STAGES], default="all")
     parser.add_argument("--frontend-library")
+    parser.add_argument("--manifest", "--candidate-manifest", dest="manifest")
+    parser.add_argument("--candidate-mode", choices=["flat_direct", "candidate_direct", "candidate_depaware"], default="candidate_direct")
     parser.add_argument("--server-verilator-bin")
     parser.add_argument("--jobs", default=os.environ.get("MYFUZZ_JOBS", "1"))
     parser.add_argument("--fuzz-seconds", type=int, default=5)
@@ -641,6 +664,15 @@ def main() -> int:
     args = parse_args()
     cfg_path = resolve(root, args.config)
     cfg = load_config(cfg_path)
+    manifest_arg = args.manifest or cfg.get("candidate_manifest")
+    candidate_manifest = None
+    if manifest_arg:
+        candidate_manifest = load_config(resolve(root, str(manifest_arg)))
+    candidate_mode = args.candidate_mode
+    if "candidate_mode" in cfg and args.candidate_mode == "candidate_direct":
+        candidate_mode = str(cfg["candidate_mode"])
+    if candidate_mode not in {"flat_direct", "candidate_direct", "candidate_depaware"}:
+        raise ValueError(f"unknown candidate mode: {candidate_mode}")
     out_dir = resolve(root, cfg["out_dir"])
     stages = selected_stages(args.stage)
     if args.force and "frontend" in stages and out_dir.exists():
@@ -675,11 +707,13 @@ def main() -> int:
             frontend_manifest = json.loads(paths["frontend_json"].read_text())
         if instrumentation is None:
             instrumentation = json.loads((paths["instrumented"] / "instrumentation.json").read_text())
-        stage_toml(root, cfg, paths, frontend_manifest, instrumentation)
+        if candidate_manifest is None:
+            raise ValueError("validated candidate manifest path is required for TOML generation")
+        stage_toml(root, cfg, paths, frontend_manifest, instrumentation, candidate_manifest, candidate_mode)
     if "harness" in stages:
         if frontend_manifest is None:
             frontend_manifest = json.loads(paths["frontend_json"].read_text())
-        stage_harness(root, cfg, paths, server_bin, frontend_manifest)
+        stage_harness(root, cfg, paths, server_bin, frontend_manifest, candidate_mode)
     if "server" in stages:
         stage_server(root, cfg, paths, server_bin, args.jobs)
     if "fuzz" in stages:
