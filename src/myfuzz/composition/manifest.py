@@ -30,6 +30,7 @@ def candidate_manifest(candidate: CompositionCandidate, emitted: object) -> dict
     source_text = _field(emitted, "source_text", "")
     if not isinstance(source_text, str):
         raise ValueError("emitted.source_text:type")
+    sanitize_metadata(source_text, context="emitted.source_text")
     module = _field(emitted, "module", _field(emitted, "module_name", "candidate_top_" + candidate.graph_hash[7:15]))
     source = _basename(_field(emitted, "source", _field(emitted, "source_path", "generated_top.sv")))
     source_hash = content_hash({"source_text": source_text})

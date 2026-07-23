@@ -86,6 +86,16 @@ class CompositionIrTests(unittest.TestCase):
             with self.subTest(emitted_fields=emitted_fields), self.assertRaisesRegex(ValueError, r"^emitted.metadata:host-specific"):
                 candidate_manifest(candidate, {"source_text": "module generated_top; endmodule\n", **emitted_fields})
 
+    def test_manifest_rejects_absolute_paths_embedded_in_source_text_before_hashing(self) -> None:
+        facts, declarations, protocols = design(1)
+        candidate = next(compose_topk(facts, declarations, protocols, 1))
+
+        with self.assertRaisesRegex(ValueError, r"^emitted.source_text:host-specific"):
+            candidate_manifest(
+                candidate,
+                {"source_text": 'module generated_top; string source = "/tmp/build/generated_top.sv"; endmodule\n'},
+            )
+
     def test_manifest_uses_semantic_ir_hash_and_sanitizes_source_path(self) -> None:
         facts, declarations, protocols = design(1)
         candidate = next(compose_topk(facts, declarations, protocols, 1))

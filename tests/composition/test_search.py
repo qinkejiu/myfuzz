@@ -64,6 +64,12 @@ class CompositionSearchTests(unittest.TestCase):
         second = [(item.graph_hash, item.score_vector) for item in compose_topk(facts, declarations, protocols, 2)]
         self.assertEqual(first, second)
 
+    def test_final_score_tie_break_uses_only_selected_edge_ids(self) -> None:
+        facts, declarations, protocols = design(2)
+
+        for candidate in compose_topk(facts, declarations, protocols, 2):
+            self.assertEqual(candidate.score_vector[7:], tuple(sorted(edge.id for edge in candidate.edges)))
+
     def test_normalized_graph_hash_deduplicates_semantic_edges(self) -> None:
         facts, declarations, protocols = design(1)
 

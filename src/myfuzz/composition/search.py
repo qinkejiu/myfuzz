@@ -194,7 +194,6 @@ def _score(
     declarations: DeclarationSet,
     edges: tuple[EdgeCandidate, ...],
     regions: tuple[AddressRegion, ...],
-    graph_hash: str,
 ) -> tuple[int, ...]:
     # Unsafe adapters never survive graph hard-constraint rejection. Declared
     # legal adapters therefore do not contribute to this score tier.
@@ -208,7 +207,16 @@ def _score(
         address_waste = 0
     protocol_evidence = sum(len(edge.fields) for edge in edges)
     rtl_evidence = sum(len(edge.evidence) for edge in edges)
-    return (0, 0, unsafe_width_adapters, unvalidated_clock_reset_associations, address_waste, -protocol_evidence, -rtl_evidence, int(graph_hash[7:], 16))
+    return (
+        0,
+        0,
+        unsafe_width_adapters,
+        unvalidated_clock_reset_associations,
+        address_waste,
+        -protocol_evidence,
+        -rtl_evidence,
+        *(edge.id for edge in sorted(edges, key=lambda item: item.id)),
+    )
 
 
 def _make_candidate(
@@ -247,7 +255,7 @@ def _make_candidate(
             evidence_by_key[key] = item
     evidence = tuple(evidence_by_key[key] for key in sorted(evidence_by_key))
     assumptions = _candidate_assumptions(graph, selected, regions, unresolved)
-    score = _score(graph, facts, declarations, selected, regions, graph_hash)
+    score = _score(graph, facts, declarations, selected, regions)
     return CompositionCandidate(
         "candidate-" + graph_hash[7:23],
         parent_input_hash,
