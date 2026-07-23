@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import copy
+import contextlib
+import io
 import json
 import sys
 import tempfile
@@ -13,6 +15,7 @@ SCRIPT_DIR = Path(__file__).resolve().parents[2] / "src" / "myfuzz" / "scripts"
 if SCRIPT_DIR.as_posix() not in sys.path:
     sys.path.insert(0, SCRIPT_DIR.as_posix())
 
+import frontend_manifest_to_rfuzz_toml  # noqa: E402
 from frontend_manifest_to_rfuzz_toml import write_toml  # noqa: E402
 import run_design_flow  # noqa: E402
 
@@ -182,6 +185,47 @@ class FlowIntegrationTest(unittest.TestCase):
         self.assertIn("width = 8", text)
         self.assertNotIn('name = "payload_opaque"', text)
         self.assertEqual("candidate_depaware", fragment["mode"])
+
+    def test_toml_stage_rejects_stale_candidate_manifest_before_manual_input(self) -> None:
+        manifest = candidate_manifest()
+        manifest["top_port_abi"][2]["width"] = 7
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = {"harness": root / "harness", "toml": root / "flow.toml"}
+            with self.assertRaisesRegex(ValueError, "mapping mismatch"):
+                run_design_flow.stage_toml(
+                    root,
+                    {"top": "generated_top"},
+                    paths,
+                    frontend_manifest(),
+                    instrumentation_manifest(),
+                    manifest,
+                    "candidate_depaware",
+                )
+
+    def test_toml_emitter_rejects_candidate_mode_option(self) -> None:
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "frontend_manifest_to_rfuzz_toml.py",
+                "--frontend",
+                "frontend.json",
+                "--instrumentation",
+                "instrumentation.json",
+                "--top",
+                "generated_top",
+                "--out",
+                "flow.toml",
+                "--manifest",
+                "candidate.json",
+                "--candidate-mode",
+                "candidate_direct",
+            ],
+        ):
+            with contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit):
+                    frontend_manifest_to_rfuzz_toml.parse_args()
 
     def test_stage_harness_rejects_wrong_candidate_schema_before_rfuzz(self) -> None:
         manifest = candidate_manifest()

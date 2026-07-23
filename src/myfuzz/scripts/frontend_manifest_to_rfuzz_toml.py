@@ -112,6 +112,38 @@ def candidate_ports(candidate_manifest: dict) -> dict[str, dict]:
     return {str(port["emitted_name"]): port for port in ports}
 
 
+def validate_frontend_candidate_join(module: dict, top: str, candidate_manifest: dict | None) -> dict[str, dict]:
+    if candidate_manifest is None:
+        raise ValueError("validated candidate manifest is required for input selection")
+    manifest_by_name = candidate_ports(candidate_manifest)
+    candidate_top = candidate_manifest.get("top", {}).get("module") if isinstance(candidate_manifest.get("top"), dict) else None
+    if candidate_top != top:
+        raise ValueError(f"candidate manifest top module mismatch: {candidate_top!r} != {top!r}")
+
+    frontend_by_name: dict[str, dict] = {}
+    for port in module.get("ports", []):
+        name = port.get("name")
+        if not isinstance(name, str) or not name:
+            raise ValueError("frontend port name is required for candidate manifest mapping")
+        if name in frontend_by_name:
+            raise ValueError(f"duplicate frontend port name: {name}")
+        frontend_by_name[name] = port
+
+    for name, declared in manifest_by_name.items():
+        frontend_port = frontend_by_name.get(name)
+        if frontend_port is None:
+            raise ValueError(f"candidate manifest port {name!r} is not present in frontend port mapping")
+        if (
+            declared["direction"] != str(frontend_port.get("direction", ""))
+            or int(declared["width"]) != int(frontend_port.get("width", 1))
+        ):
+            raise ValueError(f"candidate manifest mapping mismatch for frontend port {name!r}")
+    for name in frontend_by_name:
+        if name not in manifest_by_name:
+            raise ValueError(f"frontend port {name!r} is not bound in candidate manifest")
+    return manifest_by_name
+
+
 def should_fuzz_input(name: str, candidate_manifest: dict) -> bool:
     """Return the validated manifest disposition for one frontend port name."""
     port = candidate_ports(candidate_manifest).get(name)
@@ -138,6 +170,7 @@ def write_toml(
     candidate_manifest: dict | None = None,
 ) -> None:
     module = find_top_module(frontend, top)
+    manifest_by_name = validate_frontend_candidate_join(module, top, candidate_manifest)
     coverage_port = instrumentation["coverage_port"]
     top_cov_width = coverage_width(instrumentation, top)
     points = list(instrumentation.get("coverage", []))
@@ -173,16 +206,6 @@ def write_toml(
             out.write(f"name = {quote(name)}\n")
             out.write(f"width = {width}\n\n")
         else:
-            if candidate_manifest is None:
-                raise ValueError("validated candidate manifest is required for input selection")
-            candidate_top = candidate_manifest.get("top", {}).get("module") if isinstance(candidate_manifest.get("top"), dict) else None
-            if candidate_top != top:
-                raise ValueError(f"candidate manifest top module mismatch: {candidate_top!r} != {top!r}")
-            manifest_by_name = candidate_ports(candidate_manifest)
-            frontend_names = {str(item.get("name")) for item in module.get("ports", [])}
-            for name, declared in manifest_by_name.items():
-                if declared["direction"] in {"input", "inout"} and name not in frontend_names:
-                    raise ValueError(f"candidate manifest input {name!r} is not present in frontend port mapping")
             for port in module.get("ports", []):
                 name = str(port["name"])
                 direction = str(port.get("direction", ""))
@@ -193,8 +216,6 @@ def write_toml(
                 declared = manifest_by_name.get(name)
                 if declared is None:
                     raise ValueError(f"frontend input {name!r} is not bound in candidate manifest")
-                if declared["direction"] != direction or int(declared["width"]) != int(port.get("width", 1)):
-                    raise ValueError(f"candidate manifest mapping mismatch for frontend input {name!r}")
                 if not should_fuzz_input(name, candidate_manifest):
                     continue
                 out.write("[[input]]\n")
@@ -250,7 +271,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--manifest", required=True)
-    parser.add_argument("--candidate-mode", choices=("flat_direct", "candidate_direct", "candidate_depaware"), default=None)
     return parser.parse_args()
 
 
