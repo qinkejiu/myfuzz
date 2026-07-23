@@ -76,6 +76,29 @@ exit 0
 
 Coverage includes limit and fewer-than-K behavior, invalid limits, hard-conflict rejection, graph-hash deduplication, repeated-run ordering, RTL and address evidence, inferred/assumed provenance, rejected alternatives, manifest contract validation, semantic IR hashing, and source-path sanitization.
 
+## A5 Final Review Fixes
+
+- Semantic metadata now validates mapping keys before canonical stringification and rejects host-specific PID, timestamp, object-address, and absolute-path keys.
+- The shared metadata gate rejects embedded Windows drive and UNC absolute paths, including `debug=C:\\build\\top.sv` and `\\\\server\\share\\x`.
+
+## A5 Final Review TDD Evidence
+
+RED command and observed results:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest tests.composition.test_metadata -v
+Ran 2 tests in 0.001s
+FAILED (6 failures): unsafe mapping keys and embedded Windows drive/UNC paths were accepted.
+```
+
+GREEN command and observed results:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest tests.composition.test_metadata -v
+Ran 2 tests in 0.000s
+OK
+```
+
 ## A5 Review Fixes
 
 - Absolute allocated address bases now emit `inferred` provenance and a matching `address_base` inference, while the local RTL address fact remains evidence. No absolute allocated base is emitted as `rtl`.
