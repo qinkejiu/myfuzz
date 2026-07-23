@@ -119,4 +119,11 @@ std::string frontendManifestJson(const std::vector<std::string>& args) {
     }
 }
 
+std::string frontendFactsJson(const std::vector<std::string>& args) {
+    // V3VIFrontend emits facts from the elaborated tree.  Keeping this as a
+    // separate public entry point lets composition consume that stable source
+    // without changing the legacy instrumentation manifest ABI.
+    return frontendManifestJson(args);
+}
+
 }  // namespace myfuzz

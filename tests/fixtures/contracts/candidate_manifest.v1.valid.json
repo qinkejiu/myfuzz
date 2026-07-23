@@ -1,0 +1,12 @@
+{
+  "schema_version": "candidate_manifest.v1", "lifecycle": "top_validated", "candidate_id": "candidate-000",
+  "composition_ir_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "top": {"module": "opaque_top", "source": "generated_top.sv", "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000"},
+  "harnesses": {"flat-direct": [], "candidate-direct": [], "candidate-depaware": []},
+  "top_port_abi": [{"port_id": 10, "emitted_name": "p0", "direction": "input", "width": 1}],
+  "address_map": [], "raw_bit_mappings": {"flat-direct": [], "candidate-direct": [], "candidate-depaware": []},
+  "validation": {"parse": "passed", "link": "passed", "width": "passed", "compile": "pending", "smoke": "pending"},
+  "coverage_universe": [], "source_map": [],
+  "build_cache_key": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "resources": {"peak_rss_bytes": null}, "diagnostics": {"errors": [], "warnings": []}, "evidence": [], "assumptions": []
+}

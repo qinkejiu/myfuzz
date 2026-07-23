@@ -1,0 +1,10 @@
+{
+  "schema_version": "protocol.v1",
+  "protocol_id": "ready-valid-mmio", "plugin_version": "1.0.0",
+  "capability_profile": {"max_outstanding": 1, "reorders_ids": false},
+  "endpoint_roles": ["initiator", "target"],
+  "channels": [{"id": 1, "role": "request", "fields": [{"id": 10, "role": "valid", "direction": "initiator_to_target", "width": {"min": 1, "max": 1}, "required": true}]}],
+  "temporal_rules": [], "dependency_edges": [], "legal_adapters": [],
+  "projection_actions": [{"id": 30, "kind": "hold_until_ready", "field_ids": [10], "category": "protocol_legality", "max_state_bits": 1}],
+  "capability_limits": {"supports_bursts": false, "supports_source_id_reorder": false}
+}

@@ -37,12 +37,17 @@ class FrontendLibrary:
             ctypes.POINTER(ctypes.c_char_p),
         ]
         self.lib.myfuzz_frontend_manifest_json.restype = ctypes.c_void_p
+        self.lib.myfuzz_frontend_facts_json.argtypes = [
+            ctypes.c_int,
+            ctypes.POINTER(ctypes.c_char_p),
+        ]
+        self.lib.myfuzz_frontend_facts_json.restype = ctypes.c_void_p
         self.lib.myfuzz_frontend_free.argtypes = [ctypes.c_void_p]
         self.lib.myfuzz_frontend_free.restype = None
         self.lib.myfuzz_frontend_last_error.argtypes = []
         self.lib.myfuzz_frontend_last_error.restype = ctypes.c_char_p
 
-    def manifest(self, args: list[str], cwd: Path) -> dict:
+    def _json_call(self, symbol: str, args: list[str], cwd: Path) -> dict:
         old_cwd = Path.cwd()
         old_verilator_root = os.environ.get("VERILATOR_ROOT")
         encoded = [item.encode() for item in args]
@@ -50,7 +55,7 @@ class FrontendLibrary:
         os.chdir(cwd)
         ptr = None
         try:
-            ptr = self.lib.myfuzz_frontend_manifest_json(len(encoded), argv)
+            ptr = getattr(self.lib, symbol)(len(encoded), argv)
             if not ptr:
                 raw = self.lib.myfuzz_frontend_last_error()
                 message = raw.decode(errors="replace") if raw else "unknown frontend error"
@@ -66,6 +71,12 @@ class FrontendLibrary:
             else:
                 os.environ["VERILATOR_ROOT"] = old_verilator_root
             os.chdir(old_cwd)
+
+    def manifest(self, args: list[str], cwd: Path) -> dict:
+        return self._json_call("myfuzz_frontend_manifest_json", args, cwd)
+
+    def facts(self, args: list[str], cwd: Path) -> dict:
+        return self._json_call("myfuzz_frontend_facts_json", args, cwd)
 
 
 def run_frontend_manifest(
