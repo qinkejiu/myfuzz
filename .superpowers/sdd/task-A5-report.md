@@ -13,7 +13,7 @@ The implementation never reads RTL identifier text. Search ordering is based on 
 
 ## TDD Evidence
 
-The initial A5 tests failed with `ModuleNotFoundError` for the missing `myfuzz.composition.search` and `myfuzz.composition.ir` modules. After the initial implementation, an address provenance test failed because the internal A4 marker `fixed` leaked into IR. The implementation now maps fixed RTL address facts to `rtl`, inferred placements to `inferred`, and preserves contributing `local_address_facts` evidence.
+The initial A5 tests failed with `ModuleNotFoundError` for the missing `myfuzz.composition.search` and `myfuzz.composition.ir` modules. After the initial implementation, an address provenance test failed because the internal A4 marker `fixed` leaked into IR. The implementation preserves contributing `local_address_facts` RTL evidence while emitting each allocated absolute base as `inferred`.
 
 ## Verification
 
