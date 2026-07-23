@@ -31,6 +31,7 @@ class ExperimentJob(Job):
     raw_width: int = 0
     instrumented_rtl_hash: str = ""
     coverage_universe: str = ""
+    coverage_metadata_hash: str = ""
     mutation: tuple[tuple[str, int | bool | str], ...] = ()
 
 
@@ -103,6 +104,7 @@ class _Candidate:
     candidate_instrumented_rtl_hash: str
     flat_coverage_universe: str
     candidate_coverage_universe: str
+    coverage_metadata_hash: str
 
 
 _HARNESS_GROUPS = ("flat-direct", "candidate-direct", "candidate-depaware")
@@ -353,9 +355,9 @@ def _parse_candidate(manifest: Mapping[str, object], config: _PlannerConfig) -> 
     if direct_rtl != depaware_rtl:
         raise ExperimentPlanError("candidate pair instrumented RTL must be shared")
 
-    default_universe = _candidate_universe(manifest)
-    direct_universe = _universe_from_record(direct_record) or default_universe
-    depaware_universe = _universe_from_record(depaware_record) or default_universe
+    coverage_metadata_hash = _candidate_universe(manifest)
+    direct_universe = _universe_from_record(direct_record) or coverage_metadata_hash
+    depaware_universe = _universe_from_record(depaware_record) or coverage_metadata_hash
     if direct_universe != depaware_universe:
         raise ExperimentPlanError("candidate pair coverage universe must be shared")
 
@@ -383,6 +385,7 @@ def _parse_candidate(manifest: Mapping[str, object], config: _PlannerConfig) -> 
         candidate_instrumented_rtl_hash=direct_rtl,
         flat_coverage_universe=flat_universe,
         candidate_coverage_universe=direct_universe,
+        coverage_metadata_hash=coverage_metadata_hash,
     )
 
 
@@ -415,6 +418,7 @@ def _job_document(job: ExperimentJob) -> dict[str, object]:
         "raw_width": job.raw_width,
         "instrumented_rtl_hash": job.instrumented_rtl_hash,
         "coverage_universe": job.coverage_universe,
+        "coverage_metadata_hash": job.coverage_metadata_hash,
         "mutation": dict(job.mutation),
     })
     return document
@@ -476,6 +480,7 @@ def _make_job(
         "raw_width": raw_width,
         "instrumented_rtl_hash": rtl_hash,
         "coverage_universe": universe,
+        "coverage_metadata_hash": candidate.coverage_metadata_hash,
         "mutation": dict(config.mutation),
     }
     token = content_hash(identity).removeprefix("sha256:")
@@ -501,6 +506,7 @@ def _make_job(
         raw_width=raw_width,
         instrumented_rtl_hash=rtl_hash,
         coverage_universe=universe,
+        coverage_metadata_hash=candidate.coverage_metadata_hash,
         mutation=config.mutation,
     )
 

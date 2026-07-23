@@ -21,6 +21,7 @@ from .planner import (
     RuntimePolicy,
     plan_experiment,
 )
+from .report import ReportError, build_report
 from .scheduler import plan_jobs
 
 __all__ = [
@@ -38,9 +39,11 @@ __all__ = [
     "Port",
     "ProtocolEndpoint",
     "ReferenceEvaluation",
+    "ReportError",
     "RuntimePolicy",
     "SourceList",
     "claim_job",
+    "build_report",
     "load_experiment_config",
     "load_experiment_configs",
     "plan_jobs",
