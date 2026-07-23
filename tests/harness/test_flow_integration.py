@@ -203,6 +203,35 @@ class FlowIntegrationTest(unittest.TestCase):
                     "candidate_depaware",
                 )
 
+    def test_toml_rejects_candidate_top_that_only_matches_missing_requested_top(self) -> None:
+        frontend = frontend_manifest()
+        frontend["modules"][0]["name"] = "fallback_generated_top"
+        frontend["modules"][0]["origName"] = "fallback_original_top"
+        manifest = candidate_manifest()
+        manifest["top"]["module"] = "requested_but_missing_top"
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "selected frontend module"):
+                write_toml(
+                    frontend,
+                    instrumentation_manifest(),
+                    "requested_but_missing_top",
+                    Path(directory) / "flow.toml",
+                    candidate_manifest=manifest,
+                )
+
+    def test_toml_rejects_input_without_explicit_fuzz_disposition(self) -> None:
+        manifest = candidate_manifest()
+        manifest["top_port_abi"][2].pop("fuzzable")
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "fuzz disposition must be explicit"):
+                write_toml(
+                    frontend_manifest(),
+                    instrumentation_manifest(),
+                    "generated_top",
+                    Path(directory) / "flow.toml",
+                    candidate_manifest=manifest,
+                )
+
     def test_toml_emitter_rejects_candidate_mode_option(self) -> None:
         with patch.object(
             sys,

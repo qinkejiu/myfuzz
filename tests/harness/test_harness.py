@@ -112,6 +112,12 @@ class HarnessTest(unittest.TestCase):
         self.assertNotIn("input logic reset", artifact.source_text)
         self.assertNotIn("io_meta_reset", artifact.source_text)
 
+    def test_rejects_input_without_explicit_fuzz_disposition(self) -> None:
+        missing_fuzz_disposition = manifest()
+        missing_fuzz_disposition["top_port_abi"][2].pop("fuzzable")
+        with self.assertRaisesRegex(ValueError, "fuzz disposition must be explicit"):
+            build_harness(missing_fuzz_disposition, "candidate_direct")
+
     def test_reordering_manifest_records_does_not_change_abi(self) -> None:
         document = manifest()
         reordered = copy.deepcopy(document)

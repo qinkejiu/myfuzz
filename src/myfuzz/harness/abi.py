@@ -257,7 +257,10 @@ def _select_ports(manifest: Mapping[str, object]) -> tuple[dict[str, Any], ...]:
     selected: list[dict[str, Any]] = []
     for port in ports:
         role = port.get("semantic_role")
-        fuzzable = port.get("fuzzable", port.get("fuzz_disposition", port.get("disposition", True)))
+        missing = object()
+        fuzzable = port.get("fuzzable", port.get("fuzz_disposition", port.get("disposition", missing)))
+        if fuzzable is missing and port["direction"] in {"input", "inout"}:
+            raise ValueError(f"fuzz disposition must be explicit for port ID: {port['port_id']}")
         if isinstance(fuzzable, str):
             if fuzzable not in {"fuzz", "fuzzable", "enabled", "input", "constant", "disabled", "output"}:
                 raise ValueError(f"invalid fuzz disposition for port ID: {port['port_id']}")

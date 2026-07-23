@@ -117,8 +117,11 @@ def validate_frontend_candidate_join(module: dict, top: str, candidate_manifest:
         raise ValueError("validated candidate manifest is required for input selection")
     manifest_by_name = candidate_ports(candidate_manifest)
     candidate_top = candidate_manifest.get("top", {}).get("module") if isinstance(candidate_manifest.get("top"), dict) else None
-    if candidate_top != top:
-        raise ValueError(f"candidate manifest top module mismatch: {candidate_top!r} != {top!r}")
+    selected_names = {name for name in (module.get("name"), module.get("origName")) if isinstance(name, str) and name}
+    if candidate_top not in selected_names:
+        raise ValueError(
+            f"candidate manifest top module {candidate_top!r} does not match selected frontend module {sorted(selected_names)!r}"
+        )
 
     frontend_by_name: dict[str, dict] = {}
     for port in module.get("ports", []):
@@ -152,7 +155,10 @@ def should_fuzz_input(name: str, candidate_manifest: dict) -> bool:
     if port["direction"] not in {"input", "inout"}:
         return False
     role = port.get("semantic_role")
-    fuzzable = port.get("fuzzable", port.get("fuzz_disposition", port.get("disposition", True)))
+    missing = object()
+    fuzzable = port.get("fuzzable", port.get("fuzz_disposition", port.get("disposition", missing)))
+    if fuzzable is missing:
+        raise ValueError(f"fuzz disposition must be explicit for manifest port {name!r}")
     if isinstance(fuzzable, str):
         fuzzable = fuzzable in {"fuzz", "fuzzable", "enabled", "input"}
     if not isinstance(fuzzable, bool):
