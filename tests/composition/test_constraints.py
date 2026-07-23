@@ -5,8 +5,11 @@ import unittest
 from dataclasses import replace
 
 from myfuzz.composition.constraints import (
+    AdapterRule,
     ConstraintGraphError,
     ForbiddenEdge,
+    ProtocolDefinition,
+    ProtocolField,
     build_constraint_graph,
     candidate_edges,
     reject_hard_conflicts,
@@ -86,6 +89,62 @@ def _declarations(*, required_a: bool = True, required_b: bool = True, protocol_
 
 
 class ConstraintGraphTests(unittest.TestCase):
+    def test_typed_protocol_values_receive_full_semantic_validation(self) -> None:
+        field = ProtocolField("request.data", "initiator_to_target", 1, 64, True)
+        adapter = AdapterRule("width", "bus", "bus", True)
+        invalid_definitions = {
+            "empty endpoint roles": ProtocolDefinition("bus", (), (field,), ()),
+            "empty endpoint role value": ProtocolDefinition("bus", ("", "target"), (field,), ()),
+            "duplicate endpoint role": ProtocolDefinition("bus", ("initiator", "initiator"), (field,), ()),
+            "empty fields": ProtocolDefinition("bus", ("initiator", "target"), (), ()),
+            "duplicate field": ProtocolDefinition("bus", ("initiator", "target"), (field, field), ()),
+            "invalid direction": ProtocolDefinition(
+                "bus", ("initiator", "target"), (replace(field, direction="sideways"),), ()
+            ),
+            "invalid minimum width": ProtocolDefinition(
+                "bus", ("initiator", "target"), (replace(field, minimum_width=0),), ()
+            ),
+            "invalid width range": ProtocolDefinition(
+                "bus", ("initiator", "target"), (replace(field, minimum_width=8, maximum_width=4),), ()
+            ),
+            "non-boolean required": ProtocolDefinition(
+                "bus", ("initiator", "target"), (replace(field, required=1),), ()
+            ),
+            "empty adapter kind": ProtocolDefinition(
+                "bus", ("initiator", "target"), (field,), (replace(adapter, kind=""),)
+            ),
+            "empty adapter source": ProtocolDefinition(
+                "bus", ("initiator", "target"), (field,), (replace(adapter, source_protocol_id=""),)
+            ),
+            "empty adapter target": ProtocolDefinition(
+                "bus", ("initiator", "target"), (field,), (replace(adapter, target_protocol_id=""),)
+            ),
+            "non-boolean width mismatch": ProtocolDefinition(
+                "bus", ("initiator", "target"), (field,), (replace(adapter, allows_width_mismatch=1),)
+            ),
+            "duplicate adapter identity": ProtocolDefinition(
+                "bus", ("initiator", "target"), (field,), (adapter, adapter)
+            ),
+            "conflicting adapter identity": ProtocolDefinition(
+                "bus",
+                ("initiator", "target"),
+                (field,),
+                (adapter, replace(adapter, allows_width_mismatch=False)),
+            ),
+        }
+
+        for label, definition in invalid_definitions.items():
+            with self.subTest(label=label), self.assertRaises(ConstraintGraphError):
+                build_constraint_graph(_facts(), _declarations(), (definition,))
+
+    def test_protocol_mapping_rejects_canonical_outer_key_collisions(self) -> None:
+        with self.assertRaisesRegex(ConstraintGraphError, r"^protocols:duplicate-key"):
+            build_constraint_graph(
+                _facts(),
+                _declarations(),
+                {1: _protocol("other"), "1": _protocol()},
+            )
+
     def test_compatible_edge_preserves_rtl_evidence_and_is_deterministic(self) -> None:
         graph = build_constraint_graph(_facts(), _declarations(), {"bus": _protocol()})
         edges = list(candidate_edges(graph))

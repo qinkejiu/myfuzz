@@ -159,6 +159,21 @@ class CompositionIrTests(unittest.TestCase):
         self.assertNotIn("/tmp", manifest["build_cache_key"])
         self.assertEqual(manifest, candidate_manifest(candidate, emitted))
 
+    def test_manifest_preserves_rejected_alternatives_and_validates_contract(self) -> None:
+        facts, declarations, protocols = design(2)
+        candidate = next(compose_topk(facts, declarations, protocols, 1))
+
+        manifest = candidate_manifest(
+            candidate,
+            {"source_text": "module generated_top; endmodule\n"},
+        )
+
+        validate_contract(manifest, "candidate_manifest.v1")
+        self.assertEqual(
+            manifest["rejected_alternatives"],
+            composition_ir(candidate)["rejected_alternatives"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

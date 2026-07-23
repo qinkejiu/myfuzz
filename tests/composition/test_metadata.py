@@ -48,6 +48,9 @@ class MetadataSanitizerTests(unittest.TestCase):
         for source in (
             "assign y = a/b;",
             "assign y = a /b;",
+            "assign y = a/b+c/d;",
+            "assign y = a/b/c;",
+            "assign y = a/u.foo/v;",
             "/* portable comment */\nmodule top; endmodule",
         ):
             with self.subTest(source=source):
@@ -58,6 +61,14 @@ class MetadataSanitizerTests(unittest.TestCase):
             'string metadata = "generated from /tmp/top.sv";',
             "// generated under /@cache\nmodule top; endmodule",
             'string metadata = "generated under /~";',
+        ):
+            with self.subTest(source=source), self.assertRaisesRegex(ValueError, r"^test.source:host-specific"):
+                semantic_source_hash(source, context="test.source")
+
+    def test_source_hash_rejects_absolute_path_after_code_operand(self) -> None:
+        for source in (
+            "assign y = a /tmp/build/top.sv;",
+            "assign y = a /tmp/build/top;",
         ):
             with self.subTest(source=source), self.assertRaisesRegex(ValueError, r"^test.source:host-specific"):
                 semantic_source_hash(source, context="test.source")

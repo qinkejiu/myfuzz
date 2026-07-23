@@ -5,6 +5,7 @@ from dataclasses import replace
 from unittest.mock import patch
 
 from myfuzz.composition.constraints import AdapterRule, EdgeCandidate, FieldConnection, ProtocolDefinition, ProtocolField
+from myfuzz.composition.address import AddressError
 from myfuzz.contracts import content_hash
 from myfuzz.composition.declarations import ClockResetDecl, ComponentDecl, DeclarationSet, PortDecl, ProtocolBinding, ProtocolFieldBinding
 from myfuzz.composition.facts import HdlFacts, HdlModule, HdlPort
@@ -54,6 +55,28 @@ def design(count: int = 2, *, bad_target_direction: bool = False) -> tuple[HdlFa
 
 
 class CompositionSearchTests(unittest.TestCase):
+    def test_tied_address_facts_are_validated_before_graph_hard_conflict_return(self) -> None:
+        facts, declarations, protocols = design(1, bad_target_direction=True)
+        invalid_records = (
+            (("address_field_port_id", 101),),
+            (("address_field_port_id", 999), ("size", 4)),
+        )
+
+        for record in invalid_records:
+            with self.subTest(record=record), self.assertRaises(AddressError):
+                list(
+                    compose_topk(
+                        replace(
+                            facts,
+                            structural_sections=facts.structural_sections
+                            + (("local_address_facts", (record,)),),
+                        ),
+                        declarations,
+                        protocols,
+                        1,
+                    )
+                )
+
     def test_limit_and_fewer_than_k(self) -> None:
         facts, declarations, protocols = design(2)
         self.assertEqual(len(list(compose_topk(facts, declarations, protocols, 1))), 1)

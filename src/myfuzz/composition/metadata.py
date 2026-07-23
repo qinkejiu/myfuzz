@@ -14,7 +14,7 @@ _HOST_SPECIFIC_STRING = re.compile(
 )
 
 _SOURCE_HOST_SPECIFIC_STRING = re.compile(
-    r"(?:/(?![/*])[^\x00\s/\"']+(?:/[^\x00\s/\"']+)*|[A-Za-z]:[\\/](?=\S)|\\\\[^\\/\s]+[\\/](?=\S)|\b\d{4}-\d{2}-\d{2}[T ][0-2]\d:[0-5]\d:[0-5]\d(?:Z|[+-]\d{2}:?\d{2})?|\b(?:object|process|pointer)\s+(?:at\s+)?0x[0-9a-fA-F]+\b|\b(?:pid|process\s+id)\s*(?:[=:]\s*|\s+)\d+\b)",
+    r"(?:/(?![/*])[A-Za-z0-9_.$@~]+(?:/[A-Za-z0-9_.$@~]+)*/*|[A-Za-z]:[\\/](?=\S)|\\\\[^\\/\s]+[\\/](?=\S)|\b\d{4}-\d{2}-\d{2}[T ][0-2]\d:[0-5]\d:[0-5]\d(?:Z|[+-]\d{2}:?\d{2})?|\b(?:object|process|pointer)\s+(?:at\s+)?0x[0-9a-fA-F]+\b|\b(?:pid|process\s+id)\s*(?:[=:]\s*|\s+)\d+\b)",
     re.IGNORECASE,
 )
 
@@ -57,10 +57,18 @@ def semantic_source_hash(source_text: str, *, context: str) -> str:
             match.group().startswith("/")
             and states[match.start()] == "code"
             and previous_tokens[match.start()] == "operand"
+            and _is_source_division(source_text, match.start(), match.group())
         ):
             continue
         raise ValueError(f"{context}:host-specific")
     return content_hash({"source_text": source_text})
+
+
+def _is_source_division(source_text: str, start: int, token: str) -> bool:
+    """Distinguish division from an absolute path at a source token boundary."""
+    if "/" not in token[1:]:
+        return True
+    return start > 0 and not source_text[start - 1].isspace()
 
 
 def _scan_source_context(source_text: str) -> tuple[list[str], list[str | None]]:

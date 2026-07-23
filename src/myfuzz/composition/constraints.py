@@ -204,30 +204,24 @@ def _adapter_rule(value: object, protocol_id: str, index: int) -> AdapterRule:
     path = f"protocols.{protocol_id}.legal_adapters[{index}]"
     if isinstance(value, str) and value:
         return AdapterRule(value, protocol_id, protocol_id, True)
-    if not isinstance(value, Mapping):
+    if isinstance(value, Mapping):
+        kind = _string(value.get("kind", value.get("id")), f"{path}.kind")
+        source = _string(value.get("source_protocol_id", value.get("from_protocol_id", protocol_id)), f"{path}.source_protocol_id")
+        target = _string(value.get("target_protocol_id", value.get("to_protocol_id", protocol_id)), f"{path}.target_protocol_id")
+        allows_width = value.get("allows_width_mismatch", value.get("safe", False))
+    elif isinstance(value, AdapterRule):
+        kind = _string(value.kind, f"{path}.kind")
+        source = _string(value.source_protocol_id, f"{path}.source_protocol_id")
+        target = _string(value.target_protocol_id, f"{path}.target_protocol_id")
+        allows_width = value.allows_width_mismatch
+    else:
         _fail(path, "type")
-    kind = _string(value.get("kind", value.get("id")), f"{path}.kind")
-    source = _string(value.get("source_protocol_id", value.get("from_protocol_id", protocol_id)), f"{path}.source_protocol_id")
-    target = _string(value.get("target_protocol_id", value.get("to_protocol_id", protocol_id)), f"{path}.target_protocol_id")
-    allows_width = value.get("allows_width_mismatch", value.get("safe", False))
     if not isinstance(allows_width, bool):
         _fail(f"{path}.allows_width_mismatch", "type")
     return AdapterRule(kind, source, target, allows_width)
 
 
 def _protocol_definition(value: object, path: str) -> ProtocolDefinition:
-    if isinstance(value, ProtocolDefinition):
-        return ProtocolDefinition(
-            value.protocol_id,
-            tuple(sorted(value.endpoint_roles)),
-            tuple(sorted(value.fields, key=lambda item: item.role)),
-            tuple(
-                sorted(
-                    value.legal_adapters,
-                    key=lambda item: (item.source_protocol_id, item.target_protocol_id, item.kind),
-                )
-            ),
-        )
     if isinstance(value, Mapping):
         protocol_id = _string(value.get("protocol_id"), f"{path}.protocol_id")
         endpoint_roles_raw = value.get("endpoint_roles", ("initiator", "target"))
@@ -243,12 +237,24 @@ def _protocol_definition(value: object, path: str) -> ProtocolDefinition:
                 _fail(f"{path}.channels[{channel_index}].fields", "missing")
             raw_fields.extend(channel["fields"])
         adapters_raw = value.get("legal_adapters", ())
+    elif isinstance(value, ProtocolDefinition):
+        protocol_id = _string(value.protocol_id, f"{path}.protocol_id")
+        endpoint_roles_raw = value.endpoint_roles
+        raw_fields = list(value.fields)
+        adapters_raw = value.legal_adapters
     else:
         protocol_id = _string(getattr(value, "protocol_id", None), f"{path}.protocol_id")
-        endpoint_roles = tuple(getattr(value, "endpoint_roles", ("initiator", "target")))
+        endpoint_roles_raw = getattr(value, "endpoint_roles", ("initiator", "target"))
         raw_fields = list(getattr(value, "fields", ()))
         adapters_raw = getattr(value, "legal_adapters", ())
 
+    if not isinstance(endpoint_roles_raw, Sequence) or isinstance(endpoint_roles_raw, (str, bytes)):
+        _fail(f"{path}.endpoint_roles", "type")
+    endpoint_roles = tuple(_string(role, f"{path}.endpoint_roles") for role in endpoint_roles_raw)
+    if not endpoint_roles:
+        _fail(f"{path}.endpoint_roles", "missing")
+    if len(endpoint_roles) != len(set(endpoint_roles)):
+        _fail(f"{path}.endpoint_roles", "duplicate")
     if not isinstance(adapters_raw, Sequence) or isinstance(adapters_raw, (str, bytes)):
         _fail(f"{path}.legal_adapters", "type")
     fields: list[ProtocolField] = []
@@ -260,6 +266,16 @@ def _protocol_definition(value: object, path: str) -> ProtocolDefinition:
             direction = _string(raw_field.get("direction"), f"{field_path}.direction")
             minimum, maximum = _field_width(raw_field.get("width", raw_field.get("width_expression")), f"{field_path}.width")
             required = raw_field.get("required")
+        elif isinstance(raw_field, ProtocolField):
+            role = _string(raw_field.role, f"{field_path}.role")
+            direction = _string(raw_field.direction, f"{field_path}.direction")
+            minimum = _positive_width(raw_field.minimum_width, f"{field_path}.width.min")
+            maximum = raw_field.maximum_width
+            if maximum is not None:
+                maximum = _positive_width(maximum, f"{field_path}.width.max")
+                if minimum > maximum:
+                    _fail(f"{field_path}.width", "invalid-range")
+            required = raw_field.required
         else:
             role = _string(getattr(raw_field, "role", getattr(raw_field, "field_id", None)), f"{field_path}.role")
             direction = _string(getattr(raw_field, "direction", None), f"{field_path}.direction")
@@ -275,7 +291,18 @@ def _protocol_definition(value: object, path: str) -> ProtocolDefinition:
         fields.append(ProtocolField(role, direction, minimum, maximum, required))
     if not fields:
         _fail(f"{path}.fields", "missing")
-    adapters = tuple(sorted((_adapter_rule(item, protocol_id, index) for index, item in enumerate(adapters_raw)), key=lambda item: (item.source_protocol_id, item.target_protocol_id, item.kind)))
+    adapters_list: list[AdapterRule] = []
+    seen_adapters: dict[tuple[str, str, str], AdapterRule] = {}
+    for index, item in enumerate(adapters_raw):
+        adapter = _adapter_rule(item, protocol_id, index)
+        identity = (adapter.source_protocol_id, adapter.target_protocol_id, adapter.kind)
+        previous = seen_adapters.get(identity)
+        if previous is not None:
+            reason = "duplicate-identity" if previous == adapter else "conflicting-identity"
+            _fail(f"{path}.legal_adapters[{index}]", reason)
+        seen_adapters[identity] = adapter
+        adapters_list.append(adapter)
+    adapters = tuple(sorted(adapters_list, key=lambda item: (item.source_protocol_id, item.target_protocol_id, item.kind, item.allows_width_mismatch)))
     return ProtocolDefinition(protocol_id, tuple(sorted(endpoint_roles)), tuple(sorted(fields, key=lambda item: item.role)), adapters)
 
 
@@ -284,6 +311,9 @@ def _normalize_protocols(protocols: object) -> tuple[ProtocolDefinition, ...]:
         if "protocol_id" in protocols:
             values = (protocols,)
         else:
+            canonical_keys = [str(key) for key in protocols]
+            if len(canonical_keys) != len(set(canonical_keys)):
+                _fail("protocols", "duplicate-key")
             values = tuple(protocols[key] for key in sorted(protocols, key=str))
     elif hasattr(protocols, "plugins"):
         values = tuple(getattr(protocols, "plugins"))
@@ -295,6 +325,15 @@ def _normalize_protocols(protocols: object) -> tuple[ProtocolDefinition, ...]:
     ids = [item.protocol_id for item in definitions]
     if len(ids) != len(set(ids)):
         _fail("protocols", "duplicate-protocol-id")
+    adapter_identities: dict[tuple[str, str, str], AdapterRule] = {}
+    for definition in definitions:
+        for adapter in definition.legal_adapters:
+            identity = (adapter.source_protocol_id, adapter.target_protocol_id, adapter.kind)
+            previous = adapter_identities.get(identity)
+            if previous is not None:
+                reason = "duplicate-adapter-identity" if previous == adapter else "conflicting-adapter-identity"
+                _fail("protocols", reason)
+            adapter_identities[identity] = adapter
     return definitions
 
 

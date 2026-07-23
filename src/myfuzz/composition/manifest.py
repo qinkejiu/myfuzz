@@ -63,6 +63,7 @@ def candidate_manifest(candidate: CompositionCandidate, emitted: object) -> dict
         "diagnostics": diagnostics,
         "evidence": ir_document["evidence"],
         "assumptions": ir_document["assumptions"],
+        "rejected_alternatives": ir_document["rejected_alternatives"],
     }
     return sanitize_metadata(document, context="emitted.metadata")  # type: ignore[return-value]
 

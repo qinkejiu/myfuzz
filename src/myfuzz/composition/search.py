@@ -443,11 +443,12 @@ def compose_topk(facts: HdlFacts, declarations: DeclarationSet, protocols: objec
     facts = _canonical_facts(facts)
     declarations = _canonical_declarations(declarations)
     graph = build_constraint_graph(facts, declarations, protocols)
+    local_regions, local_address_records = extract_local_regions_with_evidence(facts, declarations)
+
     if reject_hard_conflicts(graph):
         return
 
     try:
-        local_regions, local_address_records = extract_local_regions_with_evidence(facts, declarations)
         allocation_regions = tuple(dict.fromkeys(local_regions))
         allocated_regions = allocate_regions(allocation_regions, {})
     except AddressAllocationError:
