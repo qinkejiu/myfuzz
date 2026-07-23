@@ -8,6 +8,7 @@ from pathlib import PurePosixPath
 from myfuzz.contracts import content_hash
 
 from .ir import composition_ir
+from .metadata import sanitize_metadata
 from .search import CompositionCandidate
 
 
@@ -44,14 +45,14 @@ def candidate_manifest(candidate: CompositionCandidate, emitted: object) -> dict
             "top_content_hash": source_hash,
         }
     )
-    return {
+    document = {
         "schema_version": "candidate_manifest.v1",
         "lifecycle": "top_validated",
         "candidate_id": candidate.candidate_id,
         "composition_ir_hash": content_hash(ir_document),
         "top": {"module": module, "source": source, "content_hash": source_hash},
         "harnesses": {"flat-direct": [], "candidate-direct": [], "candidate-depaware": []},
-        "top_port_abi": top_port_abi,
+        "top_port_abi": sorted(top_port_abi, key=lambda item: int(_field(item, "port_id", 0))),
         "address_map": ir_document["address_regions"],
         "raw_bit_mappings": {"flat-direct": [], "candidate-direct": [], "candidate-depaware": []},
         "validation": validation,
@@ -63,6 +64,7 @@ def candidate_manifest(candidate: CompositionCandidate, emitted: object) -> dict
         "evidence": ir_document["evidence"],
         "assumptions": ir_document["assumptions"],
     }
+    return sanitize_metadata(document, context="emitted.metadata")  # type: ignore[return-value]
 
 
 __all__ = ["candidate_manifest"]

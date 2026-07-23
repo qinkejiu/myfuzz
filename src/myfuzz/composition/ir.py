@@ -6,6 +6,7 @@ import hashlib
 from collections.abc import Mapping
 
 from .search import CompositionCandidate
+from .metadata import sanitize_metadata
 
 
 def _json_value(value: object) -> object:
@@ -45,10 +46,13 @@ def composition_ir(candidate: CompositionCandidate) -> dict[str, object]:
         "graph_hash": candidate.graph_hash,
         "components": [
             {"id": component.id, "module_id": component.module_id, "role": component.role}
-            for component in declarations.components
+            for component in sorted(declarations.components, key=lambda item: item.id)
         ],
-        "instances": [],
-        "nets": [
+        "instances": [
+            {"id": component.id, "component_id": component.id, "module_id": component.module_id, "role": component.role}
+            for component in sorted(declarations.components, key=lambda item: item.id)
+        ],
+        "nets": sorted((
             {
                 "id": _net_id(field.source_port_id, field.target_port_id),
                 "source_port_id": field.source_port_id,
@@ -57,18 +61,21 @@ def composition_ir(candidate: CompositionCandidate) -> dict[str, object]:
             }
             for edge in candidate.edges
             for field in edge.fields
-        ],
-        "endpoint_bindings": [
+        ), key=lambda item: (item["id"], item["source_port_id"], item["sink_port_ids"], item["semantic_role"])),
+        "endpoint_bindings": sorted([
             {
                 "endpoint_id": endpoint.id,
                 "component_id": endpoint.component_id,
                 "protocol_id": endpoint.protocol_id,
                 "side": endpoint.side,
-                "fields": [{"field_role": field.role, "port_id": field.port_id} for field in endpoint.fields],
+                "fields": [
+                    {"field_role": field.role, "port_id": field.port_id}
+                    for field in sorted(endpoint.fields, key=lambda item: (item.role, item.port_id))
+                ],
             }
             for endpoint in graph.endpoints
-        ],
-        "adapters": [
+        ], key=lambda item: item["endpoint_id"]),
+        "adapters": sorted([
             {
                 "edge_id": edge.id,
                 "kind": edge.adapter,
@@ -77,8 +84,8 @@ def composition_ir(candidate: CompositionCandidate) -> dict[str, object]:
             }
             for edge in candidate.edges
             if edge.adapter is not None
-        ],
-        "address_regions": [
+        ], key=lambda item: (item["source_endpoint_id"], item["target_endpoint_id"], item["edge_id"])),
+        "address_regions": sorted([
             {
                 "component_id": region.component_id,
                 "port_id": region.port_id,
@@ -88,8 +95,8 @@ def composition_ir(candidate: CompositionCandidate) -> dict[str, object]:
                 "provenance": region.provenance,
             }
             for region in candidate.address_regions
-        ],
-        "clock_domains": [
+        ], key=lambda item: (item["component_id"], item["port_id"], item["base"], item["local_offset"])),
+        "clock_domains": sorted([
             {
                 "component_id": component.id,
                 "port_id": item.port_id,
@@ -100,8 +107,8 @@ def composition_ir(candidate: CompositionCandidate) -> dict[str, object]:
             for component in declarations.components
             for item in component.clock_reset
             if item.kind == "clock"
-        ],
-        "reset_domains": [
+        ], key=lambda item: (item["component_id"], item["port_id"], item["domain_id"])),
+        "reset_domains": sorted([
             {
                 "component_id": component.id,
                 "port_id": item.port_id,
@@ -112,8 +119,8 @@ def composition_ir(candidate: CompositionCandidate) -> dict[str, object]:
             for component in declarations.components
             for item in component.clock_reset
             if item.kind == "reset"
-        ],
-        "external_ports": [
+        ], key=lambda item: (item["component_id"], item["port_id"], item["domain_id"])),
+        "external_ports": sorted([
             {
                 "port_id": port.id,
                 "component_id": port.component_id,
@@ -123,9 +130,9 @@ def composition_ir(candidate: CompositionCandidate) -> dict[str, object]:
             }
             for port in graph.ports
             if port.id in external_port_ids
-        ],
-        "unresolved_optional_endpoints": list(candidate.unresolved_optional_endpoint_ids),
-        "evidence": [
+        ], key=lambda item: item["port_id"]),
+        "unresolved_optional_endpoints": sorted(candidate.unresolved_optional_endpoint_ids),
+        "evidence": sorted([
             {
                 "kind": item.kind,
                 "ordinal": item.ordinal,
@@ -133,9 +140,9 @@ def composition_ir(candidate: CompositionCandidate) -> dict[str, object]:
                 "provenance": "rtl",
             }
             for item in candidate.evidence
-        ],
-        "assumptions": [_json_value(item) for item in candidate.assumptions],
-        "rejected_alternatives": [_json_value(item) for item in candidate.rejected_alternatives],
+        ], key=lambda item: (item["kind"], item["ordinal"])),
+        "assumptions": sorted((_json_value(item) for item in candidate.assumptions), key=lambda item: repr(item)),
+        "rejected_alternatives": sorted((_json_value(item) for item in candidate.rejected_alternatives), key=lambda item: repr(item)),
         "score_vector": list(candidate.score_vector),
         "diagnostics": {"errors": [], "warnings": []},
     }
@@ -143,7 +150,7 @@ def composition_ir(candidate: CompositionCandidate) -> dict[str, object]:
     # without exposing any source identifier text.
     if any(endpoint.component_id not in component_by_id for endpoint in graph.endpoints):
         raise ValueError("candidate:endpoint-component-unresolved")
-    return document
+    return sanitize_metadata(document, context="composition_ir.metadata")  # type: ignore[return-value]
 
 
 __all__ = ["composition_ir"]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 
 from myfuzz.composition.ir import composition_ir
 from myfuzz.composition.manifest import candidate_manifest
@@ -33,15 +34,45 @@ class CompositionIrTests(unittest.TestCase):
         document = composition_ir(candidate)
         self.assertTrue(any(item["provenance"] == "assumed" for item in document["assumptions"]))
 
-    def test_address_fact_provenance_uses_contract_vocabulary(self) -> None:
+    def test_allocated_address_base_is_inferred_not_rtl(self) -> None:
         facts, declarations, protocols = design(1)
         address_fact = (("address_field_port_id", 101), ("size", 4), ("fixed_base", 16))
         facts = HdlFacts(facts.modules, facts.ports, facts.structural_sections + (("local_address_facts", (address_fact,)),))
 
         document = composition_ir(next(compose_topk(facts, declarations, protocols, 1)))
 
-        self.assertEqual(document["address_regions"][0]["provenance"], "rtl")
+        self.assertEqual(document["address_regions"][0]["provenance"], "inferred")
         self.assertTrue(any(item["kind"] == "local_address_facts" for item in document["evidence"]))
+        self.assertTrue(any(item["kind"] == "address_base" and item["provenance"] == "inferred" for item in document["assumptions"]))
+
+    def test_ir_has_concrete_instances_and_canonical_edge_order(self) -> None:
+        facts, declarations, protocols = design(2)
+        candidate = next(compose_topk(facts, declarations, protocols, 1))
+        reversed_candidate = replace(candidate, edges=tuple(reversed(candidate.edges)))
+
+        document = composition_ir(candidate)
+
+        self.assertEqual(
+            document["instances"],
+            [
+                {"id": component.id, "component_id": component.id, "module_id": component.module_id, "role": component.role}
+                for component in declarations.components
+            ],
+        )
+        self.assertEqual(document, composition_ir(reversed_candidate))
+
+    def test_manifest_rejects_host_specific_metadata_in_all_emitted_sections(self) -> None:
+        facts, declarations, protocols = design(1)
+        candidate = next(compose_topk(facts, declarations, protocols, 1))
+        emitted = {
+            "source_text": "module generated_top; endmodule\n",
+            "top_port_abi": [{"port_id": 1, "emitted_name": "input_1", "direction": "input", "width": 1, "debug_path": "/private/build/top.sv"}],
+            "diagnostics": {"warnings": ["built 2026-07-23T10:11:12Z"]},
+            "validation": {"parse": "object at 0x7ffd1234"},
+        }
+
+        with self.assertRaisesRegex(ValueError, r"^emitted.metadata:host-specific"):
+            candidate_manifest(candidate, emitted)
 
     def test_manifest_uses_semantic_ir_hash_and_sanitizes_source_path(self) -> None:
         facts, declarations, protocols = design(1)

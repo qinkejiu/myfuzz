@@ -46,7 +46,7 @@ def _edge_signature(edge: EdgeCandidate) -> tuple[object, ...]:
         edge.source_endpoint_id,
         edge.target_endpoint_id or 0,
         edge.adapter or "",
-        tuple((field.role, field.source_port_id, field.target_port_id, field.source_width, field.target_width) for field in edge.fields),
+        tuple(sorted((field.role, field.source_port_id, field.target_port_id, field.source_width, field.target_width) for field in edge.fields)),
     )
 
 
@@ -69,10 +69,10 @@ def _graph_document(
                         "target_width": field.target_width,
                         "role": field.role,
                     }
-                    for field in edge.fields
+                    for field in sorted(edge.fields, key=lambda item: (item.role, item.source_port_id, item.target_port_id, item.source_width, item.target_width))
                 ],
             }
-            for edge in edges
+            for edge in sorted(edges, key=_edge_signature)
             if edge.kind == "connection"
         ],
         "address_regions": [
@@ -84,9 +84,9 @@ def _graph_document(
                 "local_offset": region.local_offset,
                 "provenance": region.provenance,
             }
-            for region in regions
+            for region in sorted(regions, key=lambda item: (item.component_id, item.port_id, item.base, item.local_offset, item.size))
         ],
-        "external_endpoint_ids": list(unresolved),
+        "external_endpoint_ids": sorted(unresolved),
     }
 
 
@@ -151,11 +151,52 @@ def _candidate_assumptions(
     for region in regions:
         if region.provenance == "inferred":
             result.append({"kind": "address_base", "provenance": "inferred", "component_id": region.component_id, "port_id": region.port_id, "base": region.base})
-    return tuple(result)
+    return tuple(sorted(result, key=canonical_bytes))
+
+
+def _record_mapping(value: object) -> Mapping[str, object] | None:
+    if isinstance(value, Mapping):
+        return value
+    if isinstance(value, tuple) and all(isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], str) for item in value):
+        return dict(value)
+    return None
+
+
+def _unvalidated_clock_reset_associations(facts: HdlFacts, declarations: DeclarationSet) -> int:
+    declared = {
+        (component.id, item.port_id, item.kind, item.domain_id)
+        for component in declarations.components
+        for item in component.clock_reset
+    }
+    validated: set[tuple[int, int, str, int]] = set()
+    component_by_port = {
+        port.port_id: component.id
+        for component in declarations.components
+        for port in component.ports
+    }
+    for section, records in facts.structural_sections:
+        if section != "clock_reset_checks":
+            continue
+        for record in records:
+            item = _record_mapping(record)
+            if item is None or not item.get("structurally_validated", item.get("structural_validated", item.get("validated", False))):
+                continue
+            port_id = item.get("port_id")
+            kind = item.get("kind")
+            if not isinstance(port_id, int) or kind not in ("clock", "reset"):
+                continue
+            component_id = item.get("component_id", component_by_port.get(port_id))
+            domain_id = item.get("domain_id")
+            for association in declared:
+                if association[:3] == (component_id, port_id, kind) and (domain_id is None or association[3] == domain_id):
+                    validated.add(association)
+    return len(declared - validated)
 
 
 def _score(
     graph: ConstraintGraph,
+    facts: HdlFacts,
+    declarations: DeclarationSet,
     edges: tuple[EdgeCandidate, ...],
     regions: tuple[AddressRegion, ...],
     graph_hash: str,
@@ -163,7 +204,7 @@ def _score(
     # Unsafe adapters never survive graph hard-constraint rejection. Declared
     # legal adapters therefore do not contribute to this score tier.
     unsafe_width_adapters = 0
-    declared_domains = sum(len(endpoint.clock_domain_ids) + len(endpoint.reset_domain_ids) for endpoint in graph.endpoints)
+    unvalidated_clock_reset_associations = _unvalidated_clock_reset_associations(facts, declarations)
     if regions:
         lowest = min(region.base for region in regions)
         highest = max(region.base + region.size for region in regions)
@@ -172,11 +213,12 @@ def _score(
         address_waste = 0
     protocol_evidence = sum(len(edge.fields) for edge in edges)
     rtl_evidence = sum(len(edge.evidence) for edge in edges)
-    return (0, 0, unsafe_width_adapters, declared_domains, address_waste, -protocol_evidence, -rtl_evidence, int(graph_hash[7:], 16))
+    return (0, 0, unsafe_width_adapters, unvalidated_clock_reset_associations, address_waste, -protocol_evidence, -rtl_evidence, int(graph_hash[7:], 16))
 
 
 def _make_candidate(
     graph: ConstraintGraph,
+    facts: HdlFacts,
     declarations: DeclarationSet,
     all_edges: tuple[EdgeCandidate, ...],
     selected: tuple[EdgeCandidate, ...],
@@ -189,7 +231,7 @@ def _make_candidate(
     unresolved = tuple(endpoint.id for endpoint in graph.endpoints if not endpoint.required and endpoint.id not in connected)
     graph_hash = content_hash(_graph_document(selected, regions, unresolved))
     selected_signatures = {_edge_signature(edge) for edge in selected}
-    rejected = tuple(
+    rejected = tuple(sorted((
         {
             "edge_id": edge.id,
             "source_endpoint_id": edge.source_endpoint_id,
@@ -199,7 +241,7 @@ def _make_candidate(
         }
         for edge in all_edges
         if edge.kind == "connection" and _edge_signature(edge) not in selected_signatures
-    )
+    ), key=canonical_bytes))
     evidence_by_key: dict[tuple[str, int, bytes], Evidence] = {
         (item.kind, item.ordinal, canonical_bytes(_json_value(item.record))): item
         for item in address_evidence
@@ -210,7 +252,7 @@ def _make_candidate(
             evidence_by_key[key] = item
     evidence = tuple(evidence_by_key[key] for key in sorted(evidence_by_key))
     assumptions = _candidate_assumptions(graph, selected, regions, unresolved)
-    score = _score(graph, selected, regions, graph_hash)
+    score = _score(graph, facts, declarations, selected, regions, graph_hash)
     return CompositionCandidate(
         "candidate-" + graph_hash[7:23],
         parent_input_hash,
@@ -240,18 +282,10 @@ def compose_topk(facts: HdlFacts, declarations: DeclarationSet, protocols: objec
         allocated_regions = allocate_regions(local_regions, {})
     except AddressAllocationError:
         return
-    local_by_key = {
-        (region.component_id, region.port_id, region.offset, region.size): region
-        for region in local_regions
-    }
     regions = tuple(
         replace(
             region,
-            provenance=(
-                local_by_key[(region.component_id, region.port_id, region.local_offset, region.size)].provenance
-                if region.provenance == "fixed"
-                else "inferred"
-            ),
+            provenance="inferred",
         )
         for region in allocated_regions
     )
@@ -286,6 +320,8 @@ def compose_topk(facts: HdlFacts, declarations: DeclarationSet, protocols: objec
     used_targets: set[int] = set()
 
     def retain(candidate: CompositionCandidate) -> None:
+        if any(item[2].graph_hash == candidate.graph_hash for item in heap):
+            return
         reverse_score = tuple(-value for value in candidate.score_vector)
         item = (reverse_score, candidate.graph_hash, candidate)
         if len(heap) < limit:
@@ -298,7 +334,7 @@ def compose_topk(facts: HdlFacts, declarations: DeclarationSet, protocols: objec
             if not required_targets.issubset(used_targets):
                 return
             selected = tuple(chosen)
-            retain(_make_candidate(graph, declarations, all_edges, selected, regions, parent_input_hash, tuple(address_evidence)))
+            retain(_make_candidate(graph, facts, declarations, all_edges, tuple(sorted(selected, key=_edge_signature)), regions, parent_input_hash, tuple(address_evidence)))
             return
         source = sources[position]
         for edge in by_source.get(source.id, ()):

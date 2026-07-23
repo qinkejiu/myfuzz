@@ -3,7 +3,8 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from myfuzz.composition.constraints import EdgeCandidate
+from myfuzz.composition.constraints import EdgeCandidate, FieldConnection
+from myfuzz.contracts import content_hash
 from myfuzz.composition.declarations import ComponentDecl, DeclarationSet, PortDecl, ProtocolBinding, ProtocolFieldBinding
 from myfuzz.composition.facts import HdlFacts, HdlModule, HdlPort
 from myfuzz.composition.search import compose_topk
@@ -79,6 +80,69 @@ class CompositionSearchTests(unittest.TestCase):
         with patch("myfuzz.composition.search.candidate_edges", duplicate_edges):
             candidates = list(compose_topk(facts, declarations, protocols, 4))
         self.assertEqual(len(candidates), 1)
+
+    def test_graph_hash_and_rejected_edges_are_canonical_under_edge_permutation(self) -> None:
+        facts, declarations, protocols = design(2)
+        from myfuzz.composition import search
+
+        real_candidate_edges = search.candidate_edges
+
+        with patch("myfuzz.composition.search.candidate_edges", lambda graph: reversed(tuple(real_candidate_edges(graph)))):
+            reversed_order = list(compose_topk(facts, declarations, protocols, 2))
+        normal_order = list(compose_topk(facts, declarations, protocols, 2))
+
+        self.assertEqual(
+            [(item.graph_hash, item.rejected_alternatives) for item in normal_order],
+            [(item.graph_hash, item.rejected_alternatives) for item in reversed_order],
+        )
+
+    def test_normalized_graph_hash_ignores_field_permutation(self) -> None:
+        from myfuzz.composition.search import _graph_document
+
+        fields = (
+            FieldConnection("request.data", 101, 102, 8, 8),
+            FieldConnection("request.mask", 103, 104, 4, 4),
+        )
+        edge = EdgeCandidate(1, "connection", 1001, 1002, fields, None, ())
+        permuted = EdgeCandidate(2, "connection", 1001, 1002, tuple(reversed(fields)), None, ())
+
+        self.assertEqual(content_hash(_graph_document((edge,), (), ())), content_hash(_graph_document((permuted,), (), ())))
+
+    def test_score_tier_four_counts_only_unvalidated_declared_clock_reset_associations(self) -> None:
+        facts, declarations, protocols = design(1)
+        from myfuzz.composition.declarations import ClockResetDecl
+
+        clock_port_ids = {component.module_id: 501 + index for index, component in enumerate(declarations.components)}
+        clock_declarations = DeclarationSet(
+            tuple(
+                ComponentDecl(
+                    component.id,
+                    component.module_id,
+                    component.role,
+                    component.ports + (PortDecl(clock_port_ids[component.module_id], "clock", True),),
+                    component.protocol_bindings,
+                    (ClockResetDecl(clock_port_ids[component.module_id], "clock", 77, "high", False),),
+                )
+                for component in declarations.components
+            )
+        )
+        modules = tuple(type(module)(module.id, module.port_ids + (clock_port_ids[module.id],), module.instance_ids) for module in facts.modules)
+        clock_facts = HdlFacts(
+            modules,
+            facts.ports + tuple(type(facts.ports[0])(port_id, module_id, "input", 1, False, "clock") for module_id, port_id in clock_port_ids.items()),
+            facts.structural_sections,
+        )
+
+        unvalidated = next(compose_topk(clock_facts, clock_declarations, protocols, 1))
+        validated_facts = HdlFacts(
+            clock_facts.modules,
+            clock_facts.ports,
+            clock_facts.structural_sections + (("clock_reset_checks", tuple((("port_id", port_id), ("kind", "clock"), ("structurally_validated", True)) for port_id in clock_port_ids.values())),),
+        )
+        validated = next(compose_topk(validated_facts, clock_declarations, protocols, 1))
+
+        self.assertEqual(unvalidated.score_vector[3], 2)
+        self.assertEqual(validated.score_vector[3], 0)
 
     def test_invalid_limit_and_hard_conflict_rejection(self) -> None:
         facts, declarations, protocols = design(1)

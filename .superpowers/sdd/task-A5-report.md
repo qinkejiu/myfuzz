@@ -34,3 +34,51 @@ exit 0
 ```
 
 Coverage includes limit and fewer-than-K behavior, invalid limits, hard-conflict rejection, graph-hash deduplication, repeated-run ordering, RTL and address evidence, inferred/assumed provenance, rejected alternatives, manifest contract validation, semantic IR hashing, and source-path sanitization.
+
+## A5 Review Fixes
+
+- Absolute allocated address bases now emit `inferred` provenance and a matching `address_base` inference, while the local RTL address fact remains evidence. No absolute allocated base is emitted as `rtl`.
+- A shared recursive metadata gate rejects absolute paths, ISO timestamps, object/process pointer strings, and PID strings from composition IR and all manifest metadata, including top ABI, diagnostics, and validation. The generated source filename remains reduced to its basename.
+- Score tier four now counts only explicit clock/reset declarations without a matching structurally validated `clock_reset_checks` fact.
+- Field, edge, region, endpoint, emitted IR relation, assumption, and rejected-alternative ordering is canonical. The bounded retained candidate set ignores duplicate normalized graph hashes.
+- Composition IR now includes one concrete stable-ID instance record per declared component.
+
+## Review TDD Evidence
+
+RED commands and observed results:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest tests.composition.test_ir tests.composition.test_search -v
+Ran 12 tests in 0.005s
+FAILED (3 failures, 1 error): allocated base emitted `rtl`; instances were empty; host-specific ABI/diagnostic/validation metadata was accepted; the initial one-sided clock fixture had no legal candidate.
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest tests.composition.test_search.CompositionSearchTests.test_normalized_graph_hash_ignores_field_permutation -v
+Ran 1 test in 0.000s
+FAILED: equivalent field permutations produced distinct normalized graph hashes.
+```
+
+GREEN commands and observed results:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest tests.composition.test_ir tests.composition.test_search -v
+Ran 13 tests in 0.006s
+OK
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest tests.composition.test_search.CompositionSearchTests.test_normalized_graph_hash_ignores_field_permutation -v
+Ran 1 test in 0.000s
+OK
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests/composition -p 'test_*.py' -v
+Ran 45 tests in 0.010s
+OK
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests/contracts -p 'test_*.py' -v
+Ran 9 tests in 0.002s
+OK
+
+PYTHONDONTWRITEBYTECODE=1 python3 -m compileall -q src/myfuzz/composition tests/composition
+exit 0
+
+git diff --check
+exit 0
+```
