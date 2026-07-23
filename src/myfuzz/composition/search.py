@@ -8,7 +8,7 @@ from dataclasses import dataclass, replace
 
 from myfuzz.contracts import canonical_bytes
 
-from .address import AddressAllocationError, AddressRegion, allocate_regions, extract_local_regions
+from .address import AddressAllocationError, AddressRegion, allocate_regions, extract_local_regions_with_evidence
 from .constraints import ConstraintGraph, EdgeCandidate, Evidence, build_constraint_graph, candidate_edges, reject_hard_conflicts
 from .declarations import DeclarationSet
 from .facts import HdlFacts
@@ -91,7 +91,12 @@ def _graph_document(
     }
 
 
-def _parent_hash(graph: ConstraintGraph, declarations: DeclarationSet, regions: tuple[AddressRegion, ...]) -> str:
+def _parent_hash(
+    graph: ConstraintGraph,
+    declarations: DeclarationSet,
+    regions: tuple[AddressRegion, ...],
+    address_evidence: tuple[Evidence, ...],
+) -> str:
     document = {
         "ports": [(port.id, port.component_id, port.direction, port.width, port.signed, port.role, port.required) for port in graph.ports],
         "endpoints": [
@@ -127,6 +132,7 @@ def _parent_hash(graph: ConstraintGraph, declarations: DeclarationSet, regions: 
         ],
         "address_regions": [(region.component_id, region.port_id, region.base, region.size, region.local_offset, region.provenance) for region in regions],
         "evidence": [(item.kind, item.ordinal, _json_value(item.record)) for item in graph.evidence],
+        "address_evidence": [(item.kind, item.ordinal, _json_value(item.record)) for item in address_evidence],
     }
     return semantic_content_hash(document, context="composition.parent_input")
 
@@ -285,8 +291,9 @@ def compose_topk(facts: HdlFacts, declarations: DeclarationSet, protocols: objec
         return
 
     try:
-        local_regions = extract_local_regions(facts, declarations)
-        allocated_regions = allocate_regions(local_regions, {})
+        local_regions, local_address_records = extract_local_regions_with_evidence(facts, declarations)
+        allocation_regions = tuple(dict.fromkeys(local_regions))
+        allocated_regions = allocate_regions(allocation_regions, {})
     except AddressAllocationError:
         return
     regions = tuple(
@@ -296,15 +303,10 @@ def compose_topk(facts: HdlFacts, declarations: DeclarationSet, protocols: objec
         )
         for region in allocated_regions
     )
-    address_port_ids = {region.port_id for region in local_regions}
-    address_evidence: list[Evidence] = []
-    for section, records in facts.structural_sections:
-        if section != "local_address_facts":
-            continue
-        for ordinal, record in enumerate(records):
-            normalized = dict(record) if isinstance(record, tuple) else record
-            if isinstance(normalized, Mapping) and any(normalized.get(key) in address_port_ids for key in ("address_field_port_id", "address_port_id")):
-                address_evidence.append(Evidence(section, ordinal, record))
+    address_evidence = tuple(
+        Evidence("local_address_facts", ordinal, record)
+        for ordinal, record in enumerate(local_address_records)
+    )
 
     normalized_edges: dict[tuple[object, ...], EdgeCandidate] = {}
     for edge in candidate_edges(graph):
@@ -321,7 +323,7 @@ def compose_topk(facts: HdlFacts, declarations: DeclarationSet, protocols: objec
 
     sources = tuple(endpoint for endpoint in graph.endpoints if endpoint.side == "initiator")
     required_targets = {endpoint.id for endpoint in graph.endpoints if endpoint.side == "target" and endpoint.required}
-    parent_input_hash = _parent_hash(graph, declarations, regions)
+    parent_input_hash = _parent_hash(graph, declarations, regions, address_evidence)
     heap: list[tuple[tuple[int, ...], str, CompositionCandidate]] = []
     chosen: list[EdgeCandidate] = []
     used_targets: set[int] = set()
@@ -341,7 +343,7 @@ def compose_topk(facts: HdlFacts, declarations: DeclarationSet, protocols: objec
             if not required_targets.issubset(used_targets):
                 return
             selected = tuple(chosen)
-            retain(_make_candidate(graph, facts, declarations, all_edges, tuple(sorted(selected, key=_edge_signature)), regions, parent_input_hash, tuple(address_evidence)))
+            retain(_make_candidate(graph, facts, declarations, all_edges, tuple(sorted(selected, key=_edge_signature)), regions, parent_input_hash, address_evidence))
             return
         source = sources[position]
         for edge in by_source.get(source.id, ()):

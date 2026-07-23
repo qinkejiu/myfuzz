@@ -45,6 +45,27 @@ class CompositionIrTests(unittest.TestCase):
         self.assertTrue(any(item["kind"] == "local_address_facts" for item in document["evidence"]))
         self.assertTrue(any(item["kind"] == "address_base" and item["provenance"] == "inferred" for item in document["assumptions"]))
 
+    def test_reordered_local_address_evidence_has_canonical_ordinals_and_semantic_hash(self) -> None:
+        facts, declarations, protocols = design(1)
+        records = (
+            (("address_field_port_id", 101), ("size", 4), ("fixed_base", 32), ("region_id", 2)),
+            (("address_field_port_id", 101), ("size", 4), ("fixed_base", 16), ("region_id", 1)),
+            (("address_field_port_id", 101), ("size", 4), ("fixed_base", 16), ("region_id", 1)),
+        )
+        first_facts = HdlFacts(facts.modules, facts.ports, facts.structural_sections + (("local_address_facts", records),))
+        second_facts = HdlFacts(facts.modules, facts.ports, facts.structural_sections + (("local_address_facts", tuple(reversed(records))),))
+
+        first = next(compose_topk(first_facts, declarations, protocols, 1))
+        second = next(compose_topk(second_facts, declarations, protocols, 1))
+        first_ir = composition_ir(first)
+        second_ir = composition_ir(second)
+
+        self.assertEqual(first.parent_input_hash, second.parent_input_hash)
+        self.assertEqual(first_ir, second_ir)
+        local_evidence = [item for item in first_ir["evidence"] if item["kind"] == "local_address_facts"]
+        self.assertEqual([item["ordinal"] for item in local_evidence], [0, 1, 2])
+        self.assertEqual(content_hash(first_ir), content_hash(second_ir))
+
     def test_ir_has_concrete_instances_and_canonical_edge_order(self) -> None:
         facts, declarations, protocols = design(2)
         candidate = next(compose_topk(facts, declarations, protocols, 1))
@@ -105,6 +126,15 @@ class CompositionIrTests(unittest.TestCase):
                 candidate,
                 {"source_text": 'module generated_top; string source = "debug_path_/tmp/build/generated_top.sv"; endmodule\n'},
             )
+
+    def test_manifest_accepts_verilog_division_but_rejects_host_path_literals(self) -> None:
+        facts, declarations, protocols = design(1)
+        candidate = next(compose_topk(facts, declarations, protocols, 1))
+
+        manifest = candidate_manifest(candidate, {"source_text": "module generated_top; wire q = a/b; endmodule\n"})
+        self.assertEqual(manifest["top"]["content_hash"], content_hash({"source_text": "module generated_top; wire q = a/b; endmodule\n"}))
+        with self.assertRaisesRegex(ValueError, r"^emitted.source_text:host-specific"):
+            candidate_manifest(candidate, {"source_text": 'module generated_top; string source = "/tmp/build/generated_top.sv"; endmodule\n'})
 
     def test_manifest_uses_semantic_ir_hash_and_sanitizes_source_path(self) -> None:
         facts, declarations, protocols = design(1)

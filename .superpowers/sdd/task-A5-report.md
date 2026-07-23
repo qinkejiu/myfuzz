@@ -275,3 +275,34 @@ exit 0
 git diff --check
 exit 0
 ```
+
+## A5 Review7 Follow-up
+
+- Local address facts now have one validated and frozen canonical stream for allocation, candidate evidence, and parent semantic hashing. Equivalent duplicate windows are allocated once, while every contributing RTL fact is retained with deterministic canonical ordinals.
+- Emitted source text uses source-aware host-path validation before content hashing. It rejects genuine absolute paths such as `/tmp/build/top.sv` while allowing valid Verilog division expressions such as `a/b`.
+
+### TDD Evidence
+
+RED:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest tests.composition.test_ir.CompositionIrTests.test_reordered_local_address_evidence_has_canonical_ordinals_and_semantic_hash tests.composition.test_ir.CompositionIrTests.test_manifest_accepts_verilog_division_but_rejects_host_path_literals -v
+Ran 2 tests in 0.001s
+FAILED (2 errors): duplicate local facts produced overlapping allocations and no candidate; generic source metadata validation rejected `a/b` as a path.
+```
+
+GREEN:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest tests.composition.test_ir.CompositionIrTests.test_reordered_local_address_evidence_has_canonical_ordinals_and_semantic_hash tests.composition.test_ir.CompositionIrTests.test_manifest_accepts_verilog_division_but_rejects_host_path_literals -v
+Ran 2 tests in 0.002s
+OK
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests/composition -p 'test_*.py' -v
+Ran 58 tests in 0.020s
+OK
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests/contracts -p 'test_*.py' -v
+Ran 9 tests in 0.002s
+OK
+```

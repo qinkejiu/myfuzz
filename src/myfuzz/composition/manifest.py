@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from pathlib import PurePosixPath
 
 from .ir import composition_ir
-from .metadata import sanitize_metadata, semantic_content_hash
+from .metadata import sanitize_metadata, semantic_content_hash, semantic_source_hash
 from .search import CompositionCandidate
 
 
@@ -28,10 +28,9 @@ def candidate_manifest(candidate: CompositionCandidate, emitted: object) -> dict
     source_text = _field(emitted, "source_text", "")
     if not isinstance(source_text, str):
         raise ValueError("emitted.source_text:type")
-    sanitize_metadata(source_text, context="emitted.source_text")
     module = _field(emitted, "module", _field(emitted, "module_name", "candidate_top_" + candidate.graph_hash[7:15]))
     source = _basename(_field(emitted, "source", _field(emitted, "source_path", "generated_top.sv")))
-    source_hash = semantic_content_hash({"source_text": source_text}, context="emitted.source_text")
+    source_hash = semantic_source_hash(source_text, context="emitted.source_text")
     top_port_abi = _field(emitted, "top_port_abi", [])
     if not isinstance(top_port_abi, list):
         top_port_abi = list(top_port_abi) if isinstance(top_port_abi, tuple) else []

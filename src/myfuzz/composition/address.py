@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+from myfuzz.contracts import canonical_bytes
+
 from .declarations import DeclarationSet
 from .facts import HdlFacts
 
@@ -103,6 +105,14 @@ def _record_mapping(value: object) -> dict[str, object] | None:
     return None
 
 
+def _freeze(value: object) -> object:
+    if isinstance(value, Mapping):
+        return tuple((str(key), _freeze(item)) for key, item in sorted(value.items(), key=lambda pair: str(pair[0])))
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze(item) for item in value)
+    return value
+
+
 def _fact_port_id(record: Mapping[str, object]) -> int | None:
     present = [_positive_id(record[key], key) for key in _ADDRESS_FIELD_KEYS if key in record]
     if len(present) > 1 and present[0] != present[1]:
@@ -112,8 +122,7 @@ def _fact_port_id(record: Mapping[str, object]) -> int | None:
     return None
 
 
-def extract_local_regions(facts: HdlFacts, declarations: DeclarationSet) -> tuple[LocalRegion, ...]:
-    """Extract local windows only when a fact references an explicit address field."""
+def _validated_local_address_entries(facts: HdlFacts, declarations: DeclarationSet) -> tuple[tuple[LocalRegion, object], ...]:
     declarations.validate_against(facts)
     port_to_component: dict[int, int] = {}
     bound_field_ports: set[int] = set()
@@ -123,14 +132,11 @@ def extract_local_regions(facts: HdlFacts, declarations: DeclarationSet) -> tupl
         for binding in component.protocol_bindings:
             bound_field_ports.update(field.port_id for field in binding.fields)
 
-    records: tuple[object, ...] = ()
-    for section, section_records in facts.structural_sections:
-        if section == "local_address_facts":
-            records = tuple(section_records)
-            break
-    regions: list[LocalRegion] = []
+    records = tuple(record for section, section_records in facts.structural_sections if section == "local_address_facts" for record in section_records)
+    entries: list[tuple[LocalRegion, object]] = []
     for ordinal, raw_record in enumerate(records):
-        record = _record_mapping(raw_record)
+        frozen_record = _freeze(raw_record)
+        record = _record_mapping(frozen_record)
         if record is None:
             raise AddressError(f"local_address_facts[{ordinal}]:type")
         port_id = _fact_port_id(record)
@@ -153,7 +159,19 @@ def extract_local_regions(facts: HdlFacts, declarations: DeclarationSet) -> tupl
         region_id = record.get("region_id", record.get("state_id"))
         if region_id is not None:
             region_id = _positive_id(region_id, f"local_address_facts[{ordinal}].region_id")
-        regions.append(LocalRegion(port_to_component[port_id], port_id, offset, size, alignment, fixed_base, region_id, "rtl"))
+        entries.append((LocalRegion(port_to_component[port_id], port_id, offset, size, alignment, fixed_base, region_id, "rtl"), frozen_record))
+    return tuple(sorted(entries, key=lambda item: canonical_bytes(item[1])))
+
+
+def extract_local_regions_with_evidence(facts: HdlFacts, declarations: DeclarationSet) -> tuple[tuple[LocalRegion, ...], tuple[object, ...]]:
+    """Return validated local windows and canonical source-fact evidence."""
+    entries = _validated_local_address_entries(facts, declarations)
+    return tuple(item[0] for item in entries), tuple(item[1] for item in entries)
+
+
+def extract_local_regions(facts: HdlFacts, declarations: DeclarationSet) -> tuple[LocalRegion, ...]:
+    """Extract local windows only when a fact references an explicit address field."""
+    regions, _ = extract_local_regions_with_evidence(facts, declarations)
     return tuple(sorted(regions, key=lambda item: (item.component_id, item.port_id, item.offset, item.size, item.region_id or 0)))
 
 
@@ -307,5 +325,6 @@ __all__ = [
     "AddressRegion",
     "LocalRegion",
     "allocate_regions",
+    "extract_local_regions_with_evidence",
     "extract_local_regions",
 ]
