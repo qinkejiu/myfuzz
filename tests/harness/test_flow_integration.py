@@ -273,6 +273,42 @@ class FlowIntegrationTest(unittest.TestCase):
                         "candidate_direct",
                     )
 
+    def test_stage_harness_rejects_candidate_mapping_mismatch_before_materialization(self) -> None:
+        manifest = candidate_manifest()
+        manifest["top_port_abi"][2]["width"] = 7
+        with tempfile.TemporaryDirectory() as directory:
+            paths = {"harness": Path(directory) / "harness", "toml": Path(directory) / "x.toml"}
+            with patch.object(run_design_flow, "rfuzz_harness_api", side_effect=AssertionError("rfuzz should not load")):
+                with self.assertRaisesRegex(ValueError, "mapping mismatch"):
+                    run_design_flow.stage_harness(
+                        Path(directory),
+                        {"top": "generated_top"},
+                        paths,
+                        "verilator",
+                        frontend_manifest(),
+                        manifest,
+                        "candidate_direct",
+                    )
+            self.assertFalse(paths["harness"].exists())
+
+    def test_stage_harness_rejects_candidate_top_mismatch_before_materialization(self) -> None:
+        manifest = candidate_manifest()
+        manifest["top"]["module"] = "other_top"
+        with tempfile.TemporaryDirectory() as directory:
+            paths = {"harness": Path(directory) / "harness", "toml": Path(directory) / "x.toml"}
+            with patch.object(run_design_flow, "rfuzz_harness_api", side_effect=AssertionError("rfuzz should not load")):
+                with self.assertRaisesRegex(ValueError, "selected frontend module"):
+                    run_design_flow.stage_harness(
+                        Path(directory),
+                        {"top": "generated_top"},
+                        paths,
+                        "verilator",
+                        frontend_manifest(),
+                        manifest,
+                        "candidate_direct",
+                    )
+            self.assertFalse(paths["harness"].exists())
+
     def test_flow_has_no_identifier_role_tables(self) -> None:
         source = (SCRIPT_DIR / "frontend_manifest_to_rfuzz_toml.py").read_text()
         self.assertNotIn("CLOCK_NAMES", source)

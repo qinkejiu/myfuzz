@@ -31,7 +31,11 @@ if SCRIPT_DIR.as_posix() not in sys.path:
 from frontend_api import default_frontend_library, run_frontend_manifest
 from source_only_frontend import run_source_only_frontend
 from scripts.source_branch_instrumenter import instrument_project
-from frontend_manifest_to_rfuzz_toml import generate_toml
+from frontend_manifest_to_rfuzz_toml import (
+    find_top_module,
+    generate_toml,
+    validate_frontend_candidate_join,
+)
 from myfuzz.harness import HarnessArtifact, build_harness
 
 
@@ -214,6 +218,8 @@ def stage_harness(
     candidate_mode: str,
 ) -> HarnessArtifact:
     manifest = validate_candidate_manifest(candidate_manifest)
+    frontend_module = find_top_module(frontend_manifest, cfg["top"])
+    validate_frontend_candidate_join(frontend_module, cfg["top"], manifest)
     artifact = build_harness(manifest, candidate_mode)
     source_path, fragment_path = write_candidate_harness_artifact(paths, artifact)
     generate_harness_files, load_toml, top_ports_from_frontend_manifest, validate_harness = rfuzz_harness_api()

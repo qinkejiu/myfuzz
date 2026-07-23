@@ -90,3 +90,50 @@ exit 0
 $ git diff --check
 exit 0
 ```
+
+## Review Fix 3: Direct Harness-Stage Join Validation
+
+Addressed the final B5 review finding in `feature/harness-runtime`.
+
+- `stage_harness()` now selects the frontend top module and validates its full
+  candidate-manifest join immediately after candidate schema validation.
+- The validation executes before `build_harness()`, harness artifact writes,
+  RFuzz imports, and `generate_harness_files()`.
+- Added direct `--stage harness` regression coverage for a stale candidate port
+  width and a candidate top mismatch. Both require a structured join error,
+  assert that RFuzz is not loaded, and verify no harness directory is created.
+
+### TDD Evidence
+
+RED, before production edits:
+
+```text
+$ PYTHONPATH=src python3 -m unittest tests.harness.test_flow_integration
+Ran 14 tests ... FAILED (failures=2)
+- Direct stage_harness stale candidate width reached rfuzz_harness_api instead
+  of raising the expected candidate manifest mapping mismatch.
+- Direct stage_harness candidate top mismatch reached rfuzz_harness_api instead
+  of raising the expected selected frontend module error.
+```
+
+GREEN, after production edits:
+
+```text
+$ PYTHONPATH=src python3 -m unittest tests.harness.test_flow_integration
+Ran 14 tests ... OK
+
+$ PYTHONPATH=src python3 -m unittest discover -s tests/harness
+Ran 20 tests ... OK
+
+$ PYTHONPATH=src python3 -m unittest discover -s tests/dependency
+Ran 14 tests ... OK
+
+$ PYTHONPATH=src python3 -m unittest discover -s tests/protocols
+Ran 4 tests ... OK
+
+$ PYTHONPATH=src python3 -m compileall -q src tests
+exit 0
+
+$ git diff --check
+exit 0
+```
