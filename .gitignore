@@ -17,3 +17,5 @@ temp/
 
 /runs/
 /artifacts/
+
+.worktrees/
