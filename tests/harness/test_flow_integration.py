@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import sys
 import tempfile
 import unittest
@@ -105,6 +106,99 @@ class FlowIntegrationTest(unittest.TestCase):
             args = run_design_flow.parse_args()
         self.assertEqual("candidate.json", args.manifest)
         self.assertEqual("candidate_depaware", args.candidate_mode)
+
+        with patch.object(sys, "argv", ["run_design_flow.py", "--config", "config.json"]):
+            defaults = run_design_flow.parse_args()
+        self.assertIsNone(defaults.candidate_mode)
+        self.assertEqual("candidate_direct", run_design_flow.select_candidate_mode(None, {}))
+        self.assertEqual("flat_direct", run_design_flow.select_candidate_mode(None, {"candidate_mode": "flat_direct"}))
+        self.assertEqual("candidate_depaware", run_design_flow.select_candidate_mode("candidate_depaware", {"candidate_mode": "flat_direct"}))
+
+    def test_stage_harness_materializes_all_modes_and_propagates_abi(self) -> None:
+        captured: dict[str, dict] = {}
+
+        def generate_harness_files(conf, ports, top, out_dir, harness_cfg):
+            del conf, ports, top
+            captured[harness_cfg["candidate_mode"]] = dict(harness_cfg)
+            augmented = Path(out_dir) / f"{harness_cfg['candidate_mode']}.rfuzz.toml"
+            augmented.write_text("[general]\n")
+            return Path(harness_cfg["manual_harness"]), augmented
+
+        api = (
+            generate_harness_files,
+            lambda path: {"source": str(path)},
+            lambda frontend, top: frontend["modules"][0]["ports"],
+            lambda *args: None,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = {
+                "harness": root / "harness",
+                "toml": root / "input.toml",
+                "instrumented": root / "instrumented",
+            }
+            paths["toml"].write_text("[general]\n")
+            artifacts = {}
+            with patch.object(run_design_flow, "rfuzz_harness_api", return_value=api):
+                for mode in ("flat_direct", "candidate_direct", "candidate_depaware"):
+                    artifacts[mode] = run_design_flow.stage_harness(
+                        root,
+                        {"top": "generated_top", "harness": {"validate": False}},
+                        paths,
+                        "verilator",
+                        frontend_manifest(),
+                        candidate_manifest(),
+                        mode,
+                    )
+
+            for mode, artifact in artifacts.items():
+                source = paths["harness"] / f"{mode}.sv"
+                abi = paths["harness"] / f"{mode}.abi.json"
+                fragment = json.loads(abi.read_text())
+                self.assertEqual(artifact.source_text, source.read_text())
+                self.assertEqual(mode, fragment["mode"])
+                self.assertEqual(artifact.abi.abi_hash, fragment["abi_hash"])
+                self.assertEqual(artifact.raw_width, fragment["raw_width"])
+                self.assertEqual(source.resolve().as_posix(), captured[mode]["manual_harness"])
+                self.assertEqual(abi.resolve().as_posix(), captured[mode]["raw_abi_manifest"])
+            self.assertEqual({8}, {artifact.raw_width for artifact in artifacts.values()})
+
+    def test_toml_stage_uses_materialized_raw_abi_input(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = {"harness": root / "harness", "toml": root / "flow.toml"}
+            run_design_flow.stage_toml(
+                root,
+                {"top": "generated_top"},
+                paths,
+                frontend_manifest(),
+                instrumentation_manifest(),
+                candidate_manifest(),
+                "candidate_depaware",
+            )
+            text = paths["toml"].read_text()
+            fragment = json.loads((paths["harness"] / "candidate_depaware.abi.json").read_text())
+        self.assertIn('name = "rfuzz_input_bits"', text)
+        self.assertIn("width = 8", text)
+        self.assertNotIn('name = "payload_opaque"', text)
+        self.assertEqual("candidate_depaware", fragment["mode"])
+
+    def test_stage_harness_rejects_wrong_candidate_schema_before_rfuzz(self) -> None:
+        manifest = candidate_manifest()
+        manifest["schema_version"] = "candidate_manifest.v2"
+        with tempfile.TemporaryDirectory() as directory:
+            paths = {"harness": Path(directory) / "harness", "toml": Path(directory) / "x.toml"}
+            with patch.object(run_design_flow, "rfuzz_harness_api", side_effect=AssertionError("rfuzz should not load")):
+                with self.assertRaisesRegex(ValueError, "schema_version"):
+                    run_design_flow.stage_harness(
+                        Path(directory),
+                        {"top": "generated_top"},
+                        paths,
+                        "verilator",
+                        frontend_manifest(),
+                        manifest,
+                        "candidate_direct",
+                    )
 
     def test_flow_has_no_identifier_role_tables(self) -> None:
         source = (SCRIPT_DIR / "frontend_manifest_to_rfuzz_toml.py").read_text()

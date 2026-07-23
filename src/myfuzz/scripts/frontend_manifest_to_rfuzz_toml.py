@@ -250,7 +250,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--manifest", required=True)
-    parser.add_argument("--candidate-mode", choices=("flat_direct", "candidate_direct", "candidate_depaware"), default="candidate_direct")
+    parser.add_argument("--candidate-mode", choices=("flat_direct", "candidate_direct", "candidate_depaware"), default=None)
     return parser.parse_args()
 
 
