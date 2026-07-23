@@ -82,6 +82,71 @@ class CompositionSearchTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, r"^composition.parent_input:host-specific"):
             list(compose_topk(contaminated, declarations, protocols, 1))
 
+    def test_graph_hash_rejects_host_specific_graph_document_before_hashing(self) -> None:
+        facts, declarations, protocols = design(1)
+        from myfuzz.composition import search
+
+        real_candidate_edges = search.candidate_edges
+
+        def contaminated_edges(graph: object):
+            for edge in real_candidate_edges(graph):
+                yield EdgeCandidate(
+                    edge.id,
+                    edge.kind,
+                    edge.source_endpoint_id,
+                    edge.target_endpoint_id,
+                    edge.fields,
+                    "/tmp",
+                    edge.evidence,
+                )
+
+        with patch("myfuzz.composition.search.candidate_edges", contaminated_edges), self.assertRaisesRegex(
+            ValueError, r"^composition.graph:host-specific"
+        ):
+            list(compose_topk(facts, declarations, protocols, 1))
+
+    def test_reordered_equivalent_structural_evidence_has_identical_parent_hash_and_ir(self) -> None:
+        facts, declarations, protocols = design(1)
+        records = (
+            (("from_port_id", 101), ("to_port_id", 102), ("kind", "first")),
+            (("from_port_id", 101), ("to_port_id", 102), ("kind", "first")),
+            (("from_port_id", 101), ("to_port_id", 102), ("kind", "second")),
+        )
+        first_facts = HdlFacts(facts.modules, facts.ports, (("dataflow_edges", records),))
+        second_facts = HdlFacts(facts.modules, facts.ports, (("dataflow_edges", tuple(reversed(records))),))
+
+        first = next(compose_topk(first_facts, declarations, protocols, 1))
+        second = next(compose_topk(second_facts, declarations, protocols, 1))
+
+        from myfuzz.composition.ir import composition_ir
+
+        self.assertEqual(first.parent_input_hash, second.parent_input_hash)
+        self.assertEqual(composition_ir(first)["evidence"], composition_ir(second)["evidence"])
+        self.assertEqual([item["ordinal"] for item in composition_ir(first)["evidence"]], [0, 1, 2])
+
+    def test_reordered_structural_evidence_sections_have_identical_parent_hash_and_ir(self) -> None:
+        facts, declarations, protocols = design(1)
+        dataflow_record = (("from_port_id", 101), ("to_port_id", 102), ("kind", "data"))
+        control_record = (("from_port_id", 101), ("to_port_id", 102), ("kind", "control"))
+        first_facts = HdlFacts(
+            facts.modules,
+            facts.ports,
+            (("dataflow_edges", (dataflow_record,)), ("control_edges", (control_record,))),
+        )
+        second_facts = HdlFacts(
+            facts.modules,
+            facts.ports,
+            (("control_edges", (control_record,)), ("dataflow_edges", (dataflow_record,))),
+        )
+
+        first = next(compose_topk(first_facts, declarations, protocols, 1))
+        second = next(compose_topk(second_facts, declarations, protocols, 1))
+
+        from myfuzz.composition.ir import composition_ir
+
+        self.assertEqual(first.parent_input_hash, second.parent_input_hash)
+        self.assertEqual(composition_ir(first)["evidence"], composition_ir(second)["evidence"])
+
     def test_normalized_graph_hash_deduplicates_semantic_edges(self) -> None:
         facts, declarations, protocols = design(1)
 

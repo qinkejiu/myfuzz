@@ -6,6 +6,8 @@ import hashlib
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 
+from myfuzz.contracts import canonical_bytes
+
 from .declarations import DeclarationSet, ProtocolBinding
 from .facts import HdlFacts
 
@@ -158,6 +160,7 @@ class ConstraintGraph:
 _INITIATOR_TO_TARGET = frozenset(("initiator_to_target", "host_to_device"))
 _TARGET_TO_INITIATOR = frozenset(("target_to_initiator", "device_to_host"))
 _EXTERNAL_ROLES = frozenset(("clock", "reset", "uninterpreted_external"))
+_EVIDENCE_SECTION_ORDER = {"dataflow_edges": 0, "control_edges": 1}
 
 
 def _fail(path: str, reason: str) -> None:
@@ -300,9 +303,15 @@ def _collect_evidence(facts: HdlFacts) -> tuple[Evidence, ...]:
     for section, records in facts.structural_sections:
         if section not in ("dataflow_edges", "control_edges"):
             continue
-        for ordinal, record in enumerate(records):
-            result.append(Evidence(section, ordinal, _freeze(record)))
-    return tuple(result)
+        frozen_records = sorted((_freeze(record) for record in records), key=canonical_bytes)
+        for ordinal, record in enumerate(frozen_records):
+            result.append(Evidence(section, ordinal, record))
+    return tuple(
+        sorted(
+            result,
+            key=lambda item: (_EVIDENCE_SECTION_ORDER[item.kind], item.ordinal, canonical_bytes(item.record)),
+        )
+    )
 
 
 def _make_endpoint(

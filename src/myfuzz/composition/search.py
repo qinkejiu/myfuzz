@@ -6,13 +6,13 @@ import heapq
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, replace
 
-from myfuzz.contracts import canonical_bytes, content_hash
+from myfuzz.contracts import canonical_bytes
 
 from .address import AddressAllocationError, AddressRegion, allocate_regions, extract_local_regions
 from .constraints import ConstraintGraph, EdgeCandidate, Evidence, build_constraint_graph, candidate_edges, reject_hard_conflicts
 from .declarations import DeclarationSet
 from .facts import HdlFacts
-from .metadata import sanitize_metadata
+from .metadata import semantic_content_hash
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,7 +128,7 @@ def _parent_hash(graph: ConstraintGraph, declarations: DeclarationSet, regions: 
         "address_regions": [(region.component_id, region.port_id, region.base, region.size, region.local_offset, region.provenance) for region in regions],
         "evidence": [(item.kind, item.ordinal, _json_value(item.record)) for item in graph.evidence],
     }
-    return content_hash(sanitize_metadata(document, context="composition.parent_input"))
+    return semantic_content_hash(document, context="composition.parent_input")
 
 
 def _candidate_assumptions(
@@ -233,7 +233,10 @@ def _make_candidate(
     endpoint_by_id = {endpoint.id: endpoint for endpoint in graph.endpoints}
     connected = {endpoint_id for edge in selected for endpoint_id in (edge.source_endpoint_id, edge.target_endpoint_id) if endpoint_id is not None}
     unresolved = tuple(endpoint.id for endpoint in graph.endpoints if not endpoint.required and endpoint.id not in connected)
-    graph_hash = content_hash(_graph_document(selected, regions, unresolved))
+    graph_hash = semantic_content_hash(
+        _graph_document(selected, regions, unresolved),
+        context="composition.graph",
+    )
     selected_signatures = {_edge_signature(edge) for edge in selected}
     rejected = tuple(sorted((
         {

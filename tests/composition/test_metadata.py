@@ -28,6 +28,18 @@ class MetadataSanitizerTests(unittest.TestCase):
             with self.subTest(unsafe_value=unsafe_value), self.assertRaisesRegex(ValueError, r"^test.metadata:host-specific"):
                 sanitize_metadata({"debug": unsafe_value}, context="test.metadata")
 
+    def test_rejects_root_posix_paths_and_common_pid_forms(self) -> None:
+        unsafe_values = (
+            "/tmp",
+            "/tmp/",
+            "PID 123",
+            "process id=456",
+        )
+
+        for unsafe_value in unsafe_values:
+            with self.subTest(unsafe_value=unsafe_value), self.assertRaisesRegex(ValueError, r"^test.metadata:host-specific"):
+                sanitize_metadata({"debug": unsafe_value}, context="test.metadata")
+
 
 if __name__ == "__main__":
     unittest.main()

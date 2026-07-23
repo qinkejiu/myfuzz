@@ -33,6 +33,135 @@ git diff --check
 exit 0
 ```
 
+## A5 Review6 Semantic Hash Boundary
+
+- Added `semantic_content_hash()` as the composition-local semantic hashing
+  boundary. It recursively validates and canonicalizes metadata before calling
+  the contracts-level generic `content_hash()`; contracts hashing was not
+  changed.
+- Routed parent-input, graph, emitted-source, composition-IR, and manifest
+  cache-key hashes through that boundary. The graph hash now validates its own
+  document before hashing.
+- Host-specific detection now rejects root-level POSIX paths (`/tmp`, `/tmp/`)
+  and case-insensitive PID prose (`PID 123`, `process id=456`) in addition to
+  existing path, timestamp, and object/process-address checks.
+- `_collect_evidence()` freezes and canonically sorts records before assigning
+  ordinals, preserves duplicate records with deterministic ordinals, and uses
+  the fixed dataflow/control section order independent of structural input
+  order. Equivalent reordered evidence therefore has identical parent hashes
+  and IR evidence ordering.
+
+## A5 Review6 TDD Evidence
+
+RED:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest tests.composition.test_metadata.MetadataSanitizerTests.test_rejects_root_posix_paths_and_common_pid_forms tests.composition.test_search.CompositionSearchTests.test_graph_hash_rejects_host_specific_graph_document_before_hashing tests.composition.test_search.CompositionSearchTests.test_reordered_equivalent_structural_evidence_has_identical_parent_hash_and_ir -v
+Ran 3 tests in 0.002s
+FAILED (6 failures): `/tmp`, `/tmp/`, `PID 123`, and `process id=456` were accepted; graph hashing accepted host-specific data; reordered equivalent evidence changed the parent hash.
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest tests.composition.test_search.CompositionSearchTests.test_reordered_structural_evidence_sections_have_identical_parent_hash_and_ir -v
+Ran 1 test in 0.001s
+FAILED: reordering dataflow/control structural sections changed the parent hash.
+```
+
+GREEN:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest tests.composition.test_metadata.MetadataSanitizerTests.test_rejects_root_posix_paths_and_common_pid_forms tests.composition.test_search.CompositionSearchTests.test_graph_hash_rejects_host_specific_graph_document_before_hashing tests.composition.test_search.CompositionSearchTests.test_reordered_equivalent_structural_evidence_has_identical_parent_hash_and_ir -v
+Ran 3 tests in 0.002s
+OK
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest tests.composition.test_constraints.ConstraintGraphTests.test_compatible_edge_preserves_rtl_evidence_and_is_deterministic tests.composition.test_search.CompositionSearchTests.test_reordered_structural_evidence_sections_have_identical_parent_hash_and_ir -v
+Ran 2 tests in 0.001s
+OK
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests/composition -p 'test_*.py' -v
+Ran 56 tests in 0.024s
+OK
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests/contracts -p 'test_*.py' -v
+Ran 9 tests in 0.007s
+OK
+
+PYTHONDONTWRITEBYTECODE=1 python3 -m compileall -q src/myfuzz/composition tests/composition
+exit 0
+
+git diff --check
+exit 0
+```
+
+## Semantic Hash Boundary Follow-up
+
+- The shared host-specific metadata detector now catches delimiter-embedded
+  multi-segment POSIX paths such as `debug_path_/tmp/build/input.json`.
+- `_parent_hash()` validates its complete hash document before hashing, so
+  host-specific structural evidence is rejected at the semantic-hash boundary.
+
+### TDD Evidence
+
+RED:
+
+```text
+PYTHONPATH=src python3 -m unittest tests.composition.test_ir.CompositionIrTests.test_manifest_rejects_delimiter_embedded_absolute_source_path_before_hashing tests.composition.test_search.CompositionSearchTests.test_parent_hash_rejects_host_specific_evidence_before_hashing
+Ran 2 tests ... FAILED (2 failures)
+```
+
+GREEN:
+
+```text
+PYTHONPATH=src python3 -m unittest tests.composition.test_ir.CompositionIrTests.test_manifest_rejects_delimiter_embedded_absolute_source_path_before_hashing tests.composition.test_search.CompositionSearchTests.test_parent_hash_rejects_host_specific_evidence_before_hashing
+Ran 2 tests ... OK
+
+PYTHONPATH=src python3 -m unittest discover -s tests/composition -p 'test_*.py' -q
+Ran 52 tests ... OK
+
+PYTHONPATH=src python3 -m unittest discover -s tests/contracts -p 'test_*.py' -q
+Ran 9 tests ... OK
+
+PYTHONPATH=src python3 -m compileall -q src tests
+exit 0
+
+git diff --check
+exit 0
+```
+
+## Final Review Follow-up
+
+- `candidate_manifest()` now validates `source_text` before hashing, so an
+  embedded absolute host path cannot affect a semantic content hash or cache
+  key.
+- The final score tier uses only the sorted numeric IDs of the selected edges;
+  it no longer converts a graph-content hash into an ordering number.
+
+### TDD Evidence
+
+RED:
+
+```text
+PYTHONPATH=src python3 -m unittest tests.composition.test_ir.CompositionIrTests.test_manifest_rejects_absolute_paths_embedded_in_source_text_before_hashing tests.composition.test_search.CompositionSearchTests.test_final_score_tie_break_uses_only_selected_edge_ids
+Ran 2 tests ... FAILED (2 failures)
+```
+
+GREEN:
+
+```text
+PYTHONPATH=src python3 -m unittest tests.composition.test_ir.CompositionIrTests.test_manifest_rejects_absolute_paths_embedded_in_source_text_before_hashing tests.composition.test_search.CompositionSearchTests.test_final_score_tie_break_uses_only_selected_edge_ids
+Ran 2 tests ... OK
+
+PYTHONPATH=src python3 -m unittest discover -s tests/composition -p 'test_*.py' -q
+Ran 50 tests ... OK
+
+PYTHONPATH=src python3 -m unittest discover -s tests/contracts -p 'test_*.py' -q
+Ran 9 tests ... OK
+
+PYTHONPATH=src python3 -m compileall -q src tests
+exit 0
+
+git diff --check
+exit 0
+```
+
 ## A5 Re-review Fixes
 
 - The metadata gate now rejects POSIX absolute paths wherever they occur in a semantic metadata string, including delimiter-embedded values such as `debug_path=/private/build/top.sv` and `cache:/tmp/output`.
