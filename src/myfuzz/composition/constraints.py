@@ -217,7 +217,17 @@ def _adapter_rule(value: object, protocol_id: str, index: int) -> AdapterRule:
 
 def _protocol_definition(value: object, path: str) -> ProtocolDefinition:
     if isinstance(value, ProtocolDefinition):
-        return value
+        return ProtocolDefinition(
+            value.protocol_id,
+            tuple(sorted(value.endpoint_roles)),
+            tuple(sorted(value.fields, key=lambda item: item.role)),
+            tuple(
+                sorted(
+                    value.legal_adapters,
+                    key=lambda item: (item.source_protocol_id, item.target_protocol_id, item.kind),
+                )
+            ),
+        )
     if isinstance(value, Mapping):
         protocol_id = _string(value.get("protocol_id"), f"{path}.protocol_id")
         endpoint_roles_raw = value.get("endpoint_roles", ("initiator", "target"))

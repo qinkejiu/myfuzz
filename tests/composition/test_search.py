@@ -4,7 +4,7 @@ import unittest
 from dataclasses import replace
 from unittest.mock import patch
 
-from myfuzz.composition.constraints import EdgeCandidate, FieldConnection
+from myfuzz.composition.constraints import AdapterRule, EdgeCandidate, FieldConnection, ProtocolDefinition, ProtocolField
 from myfuzz.contracts import content_hash
 from myfuzz.composition.declarations import ClockResetDecl, ComponentDecl, DeclarationSet, PortDecl, ProtocolBinding, ProtocolFieldBinding
 from myfuzz.composition.facts import HdlFacts, HdlModule, HdlPort
@@ -257,6 +257,63 @@ class CompositionSearchTests(unittest.TestCase):
 
         first = next(compose_topk(facts, declarations, protocols, 1))
         reordered = next(compose_topk(facts, declarations, {"bus": reordered_protocol}, 1))
+
+        from myfuzz.composition.ir import composition_ir
+
+        self.assertEqual(first.parent_input_hash, reordered.parent_input_hash)
+        self.assertEqual(composition_ir(first), composition_ir(reordered))
+
+    def test_reordered_typed_protocol_definition_has_identical_parent_hash_and_ir(self) -> None:
+        facts, declarations, _ = design(1)
+        facts = replace(
+            facts,
+            modules=tuple(
+                replace(module, port_ids=module.port_ids + (200 + module.id,))
+                for module in facts.modules
+            ),
+            ports=facts.ports
+            + (
+                HdlPort(201, 1, "output", 1, False, "request.valid"),
+                HdlPort(202, 2, "input", 1, False, "request.valid"),
+            ),
+        )
+        declarations = DeclarationSet(
+            tuple(
+                replace(
+                    component,
+                    ports=component.ports + (PortDecl(200 + component.module_id, "request.valid", True),),
+                    protocol_bindings=(
+                        replace(
+                            component.protocol_bindings[0],
+                            fields=component.protocol_bindings[0].fields
+                            + (ProtocolFieldBinding("request.valid", 200 + component.module_id),),
+                        ),
+                    ),
+                )
+                for component in declarations.components
+            )
+        )
+        first_protocol = ProtocolDefinition(
+            "bus",
+            ("initiator", "target"),
+            (
+                ProtocolField("request.data", "initiator_to_target", 8, 8, True),
+                ProtocolField("request.valid", "initiator_to_target", 1, 1, True),
+            ),
+            (
+                AdapterRule("alpha", "bus", "bus", True),
+                AdapterRule("beta", "bus", "bus", False),
+            ),
+        )
+        reordered_protocol = ProtocolDefinition(
+            "bus",
+            ("target", "initiator"),
+            tuple(reversed(first_protocol.fields)),
+            tuple(reversed(first_protocol.legal_adapters)),
+        )
+
+        first = next(compose_topk(facts, declarations, (first_protocol,), 1))
+        reordered = next(compose_topk(facts, declarations, (reordered_protocol,), 1))
 
         from myfuzz.composition.ir import composition_ir
 
