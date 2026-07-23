@@ -5,7 +5,11 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
+
+from myfuzz.protocols import ProtocolCatalog, load_protocol_catalog
+from myfuzz.protocols.model import ProtocolDefinitionError
 
 
 class ExperimentConfigurationError(ValueError):
@@ -79,6 +83,30 @@ class ExperimentConfig:
 
 _DIRECTIONS = frozenset(("input", "output", "inout"))
 _SIDES = frozenset(("initiator", "target"))
+_SUPPORTED_TOP_LEVEL_FIELDS = frozenset(
+    (
+        "schema_version",
+        "target",
+        "source_lists",
+        "components",
+        "ports",
+        "protocol_endpoints",
+        "generated_candidates",
+        "seeds",
+        "budget",
+        "raw_width",
+        "coverage",
+        "harness_groups",
+        "mutation",
+        "build_concurrency",
+        "reference",
+    )
+)
+
+
+@lru_cache(maxsize=1)
+def _builtin_protocol_catalog() -> ProtocolCatalog:
+    return load_protocol_catalog(Path(__file__).parents[1] / "protocols" / "plugins")
 
 
 def _object(value: object, label: str) -> Mapping[str, object]:
@@ -173,7 +201,11 @@ def _parse_ports(document: Mapping[str, object], component_ids: set[int]) -> tup
     return tuple(result)
 
 
-def _parse_protocol_endpoints(document: Mapping[str, object], component_ids: set[int], port_ids: set[int]) -> tuple[ProtocolEndpoint, ...]:
+def _parse_protocol_endpoints(
+    document: Mapping[str, object],
+    component_ids: set[int],
+    ports_by_id: Mapping[int, Port],
+) -> tuple[ProtocolEndpoint, ...]:
     records = _array(document.get("protocol_endpoints"), "protocol_endpoints")
     _unique_positive_ids(records, "protocol_endpoints", "endpoint_id")
     result: list[ProtocolEndpoint] = []
@@ -186,24 +218,43 @@ def _parse_protocol_endpoints(document: Mapping[str, object], component_ids: set
         side = record.get("side")
         if side not in _SIDES:
             raise ExperimentConfigurationError("protocol_endpoints.side is invalid")
+        protocol_id = _string(record.get("protocol_id"), f"protocol_endpoints[{index}].protocol_id")
+        version = _string(record.get("version"), f"protocol_endpoints[{index}].version")
+        try:
+            plugin = _builtin_protocol_catalog().require(protocol_id, version)
+        except ProtocolDefinitionError as error:
+            raise ExperimentConfigurationError(str(error)) from error
         bindings: list[FieldBinding] = []
         field_roles: set[str] = set()
         for field_index, field_value in enumerate(_array(record.get("field_bindings"), f"protocol_endpoints[{index}].field_bindings")):
             field = _object(field_value, f"protocol_endpoints[{index}].field_bindings[{field_index}]")
             field_role = _string(field.get("field_role"), f"protocol_endpoints[{index}].field_bindings[{field_index}].field_role")
             port_id = _positive_int(field.get("port_id"), f"protocol_endpoints[{index}].field_bindings[{field_index}].port_id")
-            if port_id not in port_ids or field_role in field_roles:
+            if port_id not in ports_by_id or field_role in field_roles:
                 raise ExperimentConfigurationError("protocol endpoint field bindings must resolve uniquely")
+            if ports_by_id[port_id].component_id != component_id:
+                raise ExperimentConfigurationError("field binding port must belong to endpoint component")
             field_roles.add(field_role)
             bindings.append(FieldBinding(field_role, port_id))
         if not bindings:
             raise ExperimentConfigurationError("protocol endpoint field bindings must not be empty")
+        supported_field_roles = {field.field_id for field in plugin.fields}
+        unsupported_field_roles = field_roles - supported_field_roles
+        if unsupported_field_roles:
+            raise ExperimentConfigurationError(
+                "unsupported field role: " + ", ".join(sorted(unsupported_field_roles))
+            )
+        missing_field_roles = {field.field_id for field in plugin.fields if field.required} - field_roles
+        if missing_field_roles:
+            raise ExperimentConfigurationError(
+                "missing required field roles: " + ", ".join(sorted(missing_field_roles))
+            )
         result.append(
             ProtocolEndpoint(
                 endpoint_id,
                 component_id,
-                _string(record.get("protocol_id"), f"protocol_endpoints[{index}].protocol_id"),
-                _string(record.get("version"), f"protocol_endpoints[{index}].version"),
+                protocol_id,
+                version,
                 side,
                 tuple(bindings),
             )
@@ -244,6 +295,11 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
         document = _object(json.loads(source.read_text(encoding="utf-8")), str(source))
     except (OSError, json.JSONDecodeError) as error:
         raise ExperimentConfigurationError(f"cannot load experiment configuration: {source}") from error
+    unsupported_fields = set(document) - _SUPPORTED_TOP_LEVEL_FIELDS
+    if unsupported_fields:
+        raise ExperimentConfigurationError(
+            "unsupported top-level fields: " + ", ".join(sorted(unsupported_fields))
+        )
     if document.get("schema_version") != "experiment.v1":
         raise ExperimentConfigurationError("schema_version must be experiment.v1")
     target = _object(document.get("target"), "target")
@@ -265,7 +321,7 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
     protocol_endpoints = _parse_protocol_endpoints(
         document,
         {item.component_id for item in components},
-        {item.port_id for item in ports},
+        {item.port_id: item for item in ports},
     )
     candidates = _object(document.get("generated_candidates"), "generated_candidates")
     generated_candidate_count = _positive_int(candidates.get("count"), "generated_candidates.count")
