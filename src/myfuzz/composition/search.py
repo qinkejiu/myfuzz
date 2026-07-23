@@ -43,7 +43,7 @@ def _json_value(value: object) -> object:
 
 def _freeze_metadata(value: object, *, context: str) -> object:
     value = sanitize_metadata(value, context=context)
-    return canonical_structural_value(value)
+    return canonical_structural_value(value, context=context)
 
 
 def _canonical_structural_sections(facts: HdlFacts) -> tuple[tuple[str, tuple[object, ...]], ...]:
@@ -65,6 +65,132 @@ def _canonical_structural_sections(facts: HdlFacts) -> tuple[tuple[str, tuple[ob
         (section, tuple(sorted(records, key=canonical_bytes)))
         for section, records in sorted(grouped.items())
     )
+
+
+def _canonical_facts(facts: HdlFacts) -> HdlFacts:
+    sanitize_metadata(
+        {
+            "modules": [
+                {
+                    "id": module.id,
+                    "port_ids": list(module.port_ids),
+                    "instance_ids": list(module.instance_ids),
+                }
+                for module in facts.modules
+            ],
+            "ports": [
+                {
+                    "id": port.id,
+                    "module_id": port.module_id,
+                    "direction": port.direction,
+                    "width": port.width,
+                    "signed": port.signed,
+                    "declared_role": port.declared_role,
+                }
+                for port in facts.ports
+            ],
+        },
+        context="composition.hdl_facts",
+    )
+    return HdlFacts(
+        tuple(
+            sorted(
+                (
+                    replace(
+                        module,
+                        port_ids=tuple(sorted(module.port_ids)),
+                        instance_ids=tuple(sorted(module.instance_ids)),
+                    )
+                    for module in facts.modules
+                ),
+                key=lambda module: module.id,
+            )
+        ),
+        tuple(sorted(facts.ports, key=lambda port: port.id)),
+        _canonical_structural_sections(facts),
+    )
+
+
+def _canonical_declarations(declarations: DeclarationSet) -> DeclarationSet:
+    components = tuple(
+        sorted(
+            (
+                replace(
+                    component,
+                    ports=tuple(sorted(component.ports, key=lambda port: port.port_id)),
+                    protocol_bindings=tuple(
+                        sorted(
+                            (
+                                replace(
+                                    binding,
+                                    fields=tuple(
+                                        sorted(
+                                            binding.fields,
+                                            key=lambda field: (field.field_role, field.port_id),
+                                        )
+                                    ),
+                                )
+                                for binding in component.protocol_bindings
+                            ),
+                            key=lambda binding: binding.id,
+                        )
+                    ),
+                    clock_reset=tuple(
+                        sorted(
+                            component.clock_reset,
+                            key=lambda item: (
+                                item.port_id,
+                                item.kind,
+                                item.domain_id,
+                                item.active_level,
+                                item.synchronous,
+                            ),
+                        )
+                    ),
+                )
+                for component in declarations.components
+            ),
+            key=lambda component: component.id,
+        )
+    )
+    sanitize_metadata(
+        [
+            {
+                "id": component.id,
+                "module_id": component.module_id,
+                "role": component.role,
+                "ports": [
+                    {"port_id": port.port_id, "role": port.role, "required": port.required}
+                    for port in component.ports
+                ],
+                "protocol_bindings": [
+                    {
+                        "id": binding.id,
+                        "protocol_id": binding.protocol_id,
+                        "side": binding.side,
+                        "fields": [
+                            {"field_role": field.field_role, "port_id": field.port_id}
+                            for field in binding.fields
+                        ],
+                    }
+                    for binding in component.protocol_bindings
+                ],
+                "clock_reset": [
+                    {
+                        "port_id": item.port_id,
+                        "kind": item.kind,
+                        "domain_id": item.domain_id,
+                        "active_level": item.active_level,
+                        "synchronous": item.synchronous,
+                    }
+                    for item in component.clock_reset
+                ],
+            }
+            for component in components
+        ],
+        context="composition.declarations",
+    )
+    return DeclarationSet(components)
 
 
 def _edge_signature(edge: EdgeCandidate) -> tuple[object, ...]:
@@ -314,7 +440,8 @@ def compose_topk(facts: HdlFacts, declarations: DeclarationSet, protocols: objec
     """Yield at most ``limit`` legal candidates in deterministic score order."""
     if not isinstance(limit, int) or isinstance(limit, bool) or limit <= 0:
         raise ValueError("limit:positive-integer-required")
-    facts = replace(facts, structural_sections=_canonical_structural_sections(facts))
+    facts = _canonical_facts(facts)
+    declarations = _canonical_declarations(declarations)
     graph = build_constraint_graph(facts, declarations, protocols)
     if reject_hard_conflicts(graph):
         return

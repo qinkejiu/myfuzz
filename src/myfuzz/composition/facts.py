@@ -93,21 +93,29 @@ def _without_annotations(value: object) -> object:
     return value
 
 
-def canonical_structural_value(value: object) -> object:
+def canonical_structural_value(value: object, *, context: str = "structural-value") -> object:
     """Canonicalize structural records, including tuple-pair mappings."""
     if isinstance(value, Mapping):
-        return tuple(
-            (str(key), canonical_structural_value(item))
-            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
-        )
+        items: list[tuple[str, object]] = []
+        seen_keys: set[str] = set()
+        for key, item in value.items():
+            canonical_key = str(key)
+            if canonical_key in seen_keys:
+                raise ValueError(f"{context}:duplicate-key")
+            seen_keys.add(canonical_key)
+            items.append((canonical_key, canonical_structural_value(item, context=context)))
+        return tuple(sorted(items))
     if isinstance(value, (list, tuple)):
         items = tuple(value)
         if all(isinstance(item, (list, tuple)) and len(item) == 2 and isinstance(item[0], str) for item in items):
+            keys = [item[0] for item in items]
+            if len(keys) != len(set(keys)):
+                raise ValueError(f"{context}:duplicate-key")
             return tuple(
-                (key, canonical_structural_value(item))
+                (key, canonical_structural_value(item, context=context))
                 for key, item in sorted(items, key=lambda pair: pair[0])
             )
-        return tuple(canonical_structural_value(item) for item in items)
+        return tuple(canonical_structural_value(item, context=context) for item in items)
     return value
 
 

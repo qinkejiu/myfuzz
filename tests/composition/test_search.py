@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from unittest.mock import patch
 
 from myfuzz.composition.constraints import EdgeCandidate, FieldConnection
 from myfuzz.contracts import content_hash
-from myfuzz.composition.declarations import ComponentDecl, DeclarationSet, PortDecl, ProtocolBinding, ProtocolFieldBinding
+from myfuzz.composition.declarations import ClockResetDecl, ComponentDecl, DeclarationSet, PortDecl, ProtocolBinding, ProtocolFieldBinding
 from myfuzz.composition.facts import HdlFacts, HdlModule, HdlPort
 from myfuzz.composition.search import compose_topk
 
@@ -147,6 +148,179 @@ class CompositionSearchTests(unittest.TestCase):
         self.assertEqual(first.parent_input_hash, second.parent_input_hash)
         self.assertEqual(composition_ir(first)["evidence"], composition_ir(second)["evidence"])
 
+    def test_reordered_declaration_components_and_ports_have_identical_parent_hash_and_ir(self) -> None:
+        facts, declarations, protocols = design(1)
+        extra_port_ids = {
+            component.module_id: (
+                700 + component.module_id,
+                710 + component.module_id,
+                800 + component.module_id,
+                810 + component.module_id,
+            )
+            for component in declarations.components
+        }
+        expanded_facts = HdlFacts(
+            tuple(
+                replace(module, port_ids=module.port_ids + extra_port_ids[module.id])
+                for module in facts.modules
+            ),
+            facts.ports
+            + tuple(
+                HdlPort(
+                    port_id,
+                    module_id,
+                    "output" if module_id == 1 and role.startswith("aux.") else "input",
+                    8 if role == "aux.data" else 1,
+                    False,
+                    role,
+                )
+                for module_id, port_ids in extra_port_ids.items()
+                for port_id, role in zip(port_ids, ("aux.data", "aux.valid", "clock", "reset"))
+            ),
+            facts.structural_sections,
+        )
+        expanded_components = tuple(
+            replace(
+                component,
+                ports=component.ports
+                + tuple(
+                    PortDecl(port_id, role, True)
+                    for port_id, role in zip(
+                        extra_port_ids[component.module_id],
+                        ("aux.data", "aux.valid", "clock", "reset"),
+                    )
+                ),
+                protocol_bindings=component.protocol_bindings
+                + (
+                    ProtocolBinding(
+                        5000 + component.module_id,
+                        "aux",
+                        component.role,
+                        (
+                            ProtocolFieldBinding("aux.data", extra_port_ids[component.module_id][0]),
+                            ProtocolFieldBinding("aux.valid", extra_port_ids[component.module_id][1]),
+                        ),
+                    ),
+                ),
+                clock_reset=(
+                    ClockResetDecl(extra_port_ids[component.module_id][2], "clock", 77, "high", False),
+                    ClockResetDecl(extra_port_ids[component.module_id][3], "reset", 88, "low", True),
+                ),
+            )
+            for component in declarations.components
+        )
+        first_declarations = DeclarationSet(expanded_components)
+        reordered_declarations = DeclarationSet(
+            tuple(
+                replace(
+                    component,
+                    ports=tuple(reversed(component.ports)),
+                    protocol_bindings=tuple(
+                        replace(binding, fields=tuple(reversed(binding.fields)))
+                        for binding in reversed(component.protocol_bindings)
+                    ),
+                    clock_reset=tuple(reversed(component.clock_reset)),
+                )
+                for component in reversed(expanded_components)
+            )
+        )
+        aux_protocol = {
+            **protocol(),
+            "protocol_id": "aux",
+            "channels": [
+                {
+                    "id": 2,
+                    "role": "aux",
+                    "fields": [
+                        {"id": 20, "role": "aux.data", "direction": "initiator_to_target", "width": 8, "required": True},
+                        {"id": 21, "role": "aux.valid", "direction": "initiator_to_target", "width": 1, "required": True},
+                    ],
+                }
+            ],
+        }
+        expanded_protocols = {**protocols, "aux": aux_protocol}
+
+        first = next(compose_topk(expanded_facts, first_declarations, expanded_protocols, 1))
+        reordered = next(compose_topk(expanded_facts, reordered_declarations, expanded_protocols, 1))
+
+        from myfuzz.composition.ir import composition_ir
+
+        self.assertEqual(first.parent_input_hash, reordered.parent_input_hash)
+        self.assertEqual(composition_ir(first), composition_ir(reordered))
+
+    def test_reordered_protocol_endpoint_roles_have_identical_parent_hash_and_ir(self) -> None:
+        facts, declarations, protocols = design(1)
+        reordered_protocol = {
+            **protocols["bus"],
+            "endpoint_roles": list(reversed(protocols["bus"]["endpoint_roles"])),
+        }
+
+        first = next(compose_topk(facts, declarations, protocols, 1))
+        reordered = next(compose_topk(facts, declarations, {"bus": reordered_protocol}, 1))
+
+        from myfuzz.composition.ir import composition_ir
+
+        self.assertEqual(first.parent_input_hash, reordered.parent_input_hash)
+        self.assertEqual(composition_ir(first), composition_ir(reordered))
+
+    def test_complete_hdl_facts_are_gated_and_canonicalized_before_graph_rejection(self) -> None:
+        facts, declarations, protocols = design(2)
+        reordered_facts = HdlFacts(
+            tuple(
+                replace(
+                    module,
+                    port_ids=tuple(reversed(module.port_ids)),
+                    instance_ids=(module.id * 10 + 2, module.id * 10 + 1),
+                )
+                for module in reversed(facts.modules)
+            ),
+            tuple(reversed(facts.ports)),
+            facts.structural_sections,
+        )
+        reference_facts = replace(
+            facts,
+            modules=tuple(
+                replace(module, instance_ids=(module.id * 10 + 1, module.id * 10 + 2))
+                for module in facts.modules
+            ),
+        )
+        from myfuzz.composition import search
+
+        canonical_graph_inputs: list[HdlFacts] = []
+        real_build_constraint_graph = search.build_constraint_graph
+
+        def recording_build_constraint_graph(
+            graph_facts: HdlFacts,
+            graph_declarations: DeclarationSet,
+            graph_protocols: object,
+        ):
+            canonical_graph_inputs.append(graph_facts)
+            return real_build_constraint_graph(graph_facts, graph_declarations, graph_protocols)
+
+        with patch("myfuzz.composition.search.build_constraint_graph", recording_build_constraint_graph):
+            reordered_candidate = next(compose_topk(reordered_facts, declarations, protocols, 1))
+
+        graph_facts = canonical_graph_inputs[0]
+        self.assertEqual(tuple(module.id for module in graph_facts.modules), tuple(sorted(module.id for module in facts.modules)))
+        self.assertEqual(tuple(port.id for port in graph_facts.ports), tuple(sorted(port.id for port in facts.ports)))
+        self.assertTrue(all(module.instance_ids == tuple(sorted(module.instance_ids)) for module in graph_facts.modules))
+        original_candidate = next(compose_topk(reference_facts, declarations, protocols, 1))
+        self.assertEqual(original_candidate.parent_input_hash, reordered_candidate.parent_input_hash)
+
+        hard_conflict_facts, hard_conflict_declarations, hard_conflict_protocols = design(1, bad_target_direction=True)
+        contaminated_ports = list(hard_conflict_facts.ports)
+        contaminated_ports[0] = replace(contaminated_ports[0], declared_role="/tmp/typed-role")
+        components = list(hard_conflict_declarations.components)
+        components[0] = replace(
+            components[0],
+            ports=(replace(components[0].ports[0], role="/tmp/typed-role"),),
+        )
+        contaminated_facts = replace(hard_conflict_facts, ports=tuple(contaminated_ports))
+        contaminated_declarations = DeclarationSet(tuple(components))
+
+        with self.assertRaisesRegex(ValueError, r"^composition\.hdl_facts:host-specific"):
+            list(compose_topk(contaminated_facts, contaminated_declarations, hard_conflict_protocols, 1))
+
     def test_tuple_pair_structural_records_are_canonical_mappings(self) -> None:
         facts, declarations, protocols = design(1)
         dataflow_first = (("from_port_id", 101), ("to_port_id", 102), ("kind", "data"))
@@ -197,6 +371,18 @@ class CompositionSearchTests(unittest.TestCase):
                 )
                 with self.assertRaisesRegex(ValueError, rf"^composition\.structural_facts:{error}"):
                     list(compose_topk(unknown, declarations, protocols, 1))
+
+    def test_duplicate_tuple_pair_keys_are_rejected_before_graph_rejection(self) -> None:
+        facts, declarations, protocols = design(1, bad_target_direction=True)
+        duplicate_key_record = (("kind", "first"), ("kind", "second"))
+        contaminated = replace(
+            facts,
+            structural_sections=facts.structural_sections
+            + (("clock_reset_checks", (duplicate_key_record,)),),
+        )
+
+        with self.assertRaisesRegex(ValueError, r"^composition\.structural_facts:duplicate-key"):
+            list(compose_topk(contaminated, declarations, protocols, 1))
 
     def test_limit_one_retains_lower_numeric_id_score_vector_on_tie(self) -> None:
         facts, declarations, protocols = design(2)

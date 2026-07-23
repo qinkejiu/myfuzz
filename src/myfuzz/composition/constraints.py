@@ -266,7 +266,7 @@ def _protocol_definition(value: object, path: str) -> ProtocolDefinition:
     if not fields:
         _fail(f"{path}.fields", "missing")
     adapters = tuple(sorted((_adapter_rule(item, protocol_id, index) for index, item in enumerate(adapters_raw)), key=lambda item: (item.source_protocol_id, item.target_protocol_id, item.kind)))
-    return ProtocolDefinition(protocol_id, tuple(endpoint_roles), tuple(sorted(fields, key=lambda item: item.role)), adapters)
+    return ProtocolDefinition(protocol_id, tuple(sorted(endpoint_roles)), tuple(sorted(fields, key=lambda item: item.role)), adapters)
 
 
 def _normalize_protocols(protocols: object) -> tuple[ProtocolDefinition, ...]:
