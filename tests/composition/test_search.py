@@ -70,6 +70,18 @@ class CompositionSearchTests(unittest.TestCase):
         for candidate in compose_topk(facts, declarations, protocols, 2):
             self.assertEqual(candidate.score_vector[7:], tuple(sorted(edge.id for edge in candidate.edges)))
 
+    def test_parent_hash_rejects_host_specific_evidence_before_hashing(self) -> None:
+        facts, declarations, protocols = design(1)
+        path_evidence = (("debug_path", "debug_path_/tmp/build/input.json"),)
+        contaminated = HdlFacts(
+            facts.modules,
+            facts.ports,
+            facts.structural_sections + (("dataflow_edges", (path_evidence,)),),
+        )
+
+        with self.assertRaisesRegex(ValueError, r"^composition.parent_input:host-specific"):
+            list(compose_topk(contaminated, declarations, protocols, 1))
+
     def test_normalized_graph_hash_deduplicates_semantic_edges(self) -> None:
         facts, declarations, protocols = design(1)
 

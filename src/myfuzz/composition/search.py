@@ -12,6 +12,7 @@ from .address import AddressAllocationError, AddressRegion, allocate_regions, ex
 from .constraints import ConstraintGraph, EdgeCandidate, Evidence, build_constraint_graph, candidate_edges, reject_hard_conflicts
 from .declarations import DeclarationSet
 from .facts import HdlFacts
+from .metadata import sanitize_metadata
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,7 +128,7 @@ def _parent_hash(graph: ConstraintGraph, declarations: DeclarationSet, regions: 
         "address_regions": [(region.component_id, region.port_id, region.base, region.size, region.local_offset, region.provenance) for region in regions],
         "evidence": [(item.kind, item.ordinal, _json_value(item.record)) for item in graph.evidence],
     }
-    return content_hash(document)
+    return content_hash(sanitize_metadata(document, context="composition.parent_input"))
 
 
 def _candidate_assumptions(
