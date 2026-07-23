@@ -134,14 +134,21 @@ class CompositionSearchTests(unittest.TestCase):
         )
 
         unvalidated = next(compose_topk(clock_facts, clock_declarations, protocols, 1))
+        generic_validated_facts = HdlFacts(
+            clock_facts.modules,
+            clock_facts.ports,
+            clock_facts.structural_sections + (("clock_reset_checks", tuple((("port_id", port_id), ("kind", "clock"), ("validated", True)) for port_id in clock_port_ids.values())),),
+        )
+        generic_validated = next(compose_topk(generic_validated_facts, clock_declarations, protocols, 1))
         validated_facts = HdlFacts(
             clock_facts.modules,
             clock_facts.ports,
-            clock_facts.structural_sections + (("clock_reset_checks", tuple((("port_id", port_id), ("kind", "clock"), ("structurally_validated", True)) for port_id in clock_port_ids.values())),),
+            clock_facts.structural_sections + (("clock_reset_checks", tuple((("component_id", component.id), ("port_id", clock_port_ids[component.module_id]), ("kind", "clock"), ("domain_id", 77), ("structurally_validated", True)) for component in clock_declarations.components)),),
         )
         validated = next(compose_topk(validated_facts, clock_declarations, protocols, 1))
 
         self.assertEqual(unvalidated.score_vector[3], 2)
+        self.assertEqual(generic_validated.score_vector[3], 2)
         self.assertEqual(validated.score_vector[3], 0)
 
     def test_invalid_limit_and_hard_conflict_rejection(self) -> None:

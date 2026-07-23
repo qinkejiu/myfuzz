@@ -169,27 +169,22 @@ def _unvalidated_clock_reset_associations(facts: HdlFacts, declarations: Declara
         for item in component.clock_reset
     }
     validated: set[tuple[int, int, str, int]] = set()
-    component_by_port = {
-        port.port_id: component.id
-        for component in declarations.components
-        for port in component.ports
-    }
     for section, records in facts.structural_sections:
         if section != "clock_reset_checks":
             continue
         for record in records:
             item = _record_mapping(record)
-            if item is None or not item.get("structurally_validated", item.get("structural_validated", item.get("validated", False))):
+            if item is None or item.get("structurally_validated") is not True:
                 continue
+            component_id = item.get("component_id")
             port_id = item.get("port_id")
             kind = item.get("kind")
-            if not isinstance(port_id, int) or kind not in ("clock", "reset"):
-                continue
-            component_id = item.get("component_id", component_by_port.get(port_id))
             domain_id = item.get("domain_id")
-            for association in declared:
-                if association[:3] == (component_id, port_id, kind) and (domain_id is None or association[3] == domain_id):
-                    validated.add(association)
+            if not isinstance(component_id, int) or not isinstance(port_id, int) or kind not in ("clock", "reset") or not isinstance(domain_id, int):
+                continue
+            association = (component_id, port_id, kind, domain_id)
+            if association in declared:
+                validated.add(association)
     return len(declared - validated)
 
 

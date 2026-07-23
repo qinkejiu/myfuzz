@@ -7,7 +7,7 @@ from collections.abc import Mapping
 
 
 _HOST_SPECIFIC_STRING = re.compile(
-    r"(?:(?:^|\s)/\S+|(?:^|\s)[A-Za-z]:[\\/]\S*|\b\d{4}-\d{2}-\d{2}[T ][0-2]\d:[0-5]\d:[0-5]\d(?:Z|[+-]\d{2}:?\d{2})?|\b(?:object|process|pointer)\s+(?:at\s+)?0x[0-9a-fA-F]+\b|\bpid\s*[=:]\s*\d+\b)"
+    r"(?:(?<![A-Za-z0-9_.-])/(?=\S)|(?:^|\s)[A-Za-z]:[\\/]\S*|\b\d{4}-\d{2}-\d{2}[T ][0-2]\d:[0-5]\d:[0-5]\d(?:Z|[+-]\d{2}:?\d{2})?|\b(?:object|process|pointer)\s+(?:at\s+)?0x[0-9a-fA-F]+\b|\bpid\s*[=:]\s*\d+\b)"
 )
 
 

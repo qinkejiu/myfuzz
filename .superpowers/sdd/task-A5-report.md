@@ -33,6 +33,47 @@ git diff --check
 exit 0
 ```
 
+## A5 Re-review Fixes
+
+- The metadata gate now rejects POSIX absolute paths wherever they occur in a semantic metadata string, including delimiter-embedded values such as `debug_path=/private/build/top.sv` and `cache:/tmp/output`.
+- Score tier four accepts a verified clock/reset association only from a `clock_reset_checks` record with exact `structurally_validated: true` and explicit matching `component_id`, `port_id`, `kind`, and `domain_id`. Generic `validated: true` claims do not affect the score.
+
+## Re-review TDD Evidence
+
+RED command and observed results:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest tests.composition.test_ir.CompositionIrTests.test_manifest_rejects_embedded_absolute_host_paths tests.composition.test_search.CompositionSearchTests.test_score_tier_four_counts_only_unvalidated_declared_clock_reset_associations -v
+Ran 2 tests in 0.001s
+FAILED (2 failures): embedded absolute host paths were accepted; generic `validated: true` reduced score tier four from 2 to 0.
+```
+
+GREEN commands and observed results:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest tests.composition.test_ir.CompositionIrTests.test_manifest_rejects_embedded_absolute_host_paths tests.composition.test_search.CompositionSearchTests.test_score_tier_four_counts_only_unvalidated_declared_clock_reset_associations -v
+Ran 2 tests in 0.001s
+OK
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest tests.composition.test_ir tests.composition.test_search -v
+Ran 14 tests in 0.006s
+OK
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests/composition -p 'test_*.py' -v
+Ran 46 tests in 0.011s
+OK
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests/contracts -p 'test_*.py' -v
+Ran 9 tests in 0.002s
+OK
+
+PYTHONDONTWRITEBYTECODE=1 python3 -m compileall -q src/myfuzz/composition tests/composition
+exit 0
+
+git diff --check
+exit 0
+```
+
 Coverage includes limit and fewer-than-K behavior, invalid limits, hard-conflict rejection, graph-hash deduplication, repeated-run ordering, RTL and address evidence, inferred/assumed provenance, rejected alternatives, manifest contract validation, semantic IR hashing, and source-path sanitization.
 
 ## A5 Review Fixes
