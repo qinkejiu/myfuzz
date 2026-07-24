@@ -54,7 +54,7 @@ requests or candidate cache keys.
 ## I6 Gate
 
 ```bash
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest \
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -W error::ResourceWarning -m unittest \
   tests.integration.test_reference_isolation \
   tests.experiments.test_configs tests.experiments.test_report -v
 python3 scripts/check_identifier_policy.py --paths \

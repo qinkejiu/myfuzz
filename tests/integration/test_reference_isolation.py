@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import threading
 import time
 import unittest
 from unittest import mock
@@ -656,6 +657,79 @@ class ReferenceIsolationTests(unittest.TestCase):
 
             self.assertIn(
                 "reference evaluator supervisor cleanup failed: RuntimeError: unreaped",
+                "\n".join(getattr(raised.exception, "__notes__", ())),
+            )
+
+    def test_missing_status_with_held_stderr_writer_cannot_block_cleanup(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            allowed = root / "reference"
+            allowed.mkdir()
+            evaluator = self._evaluator(allowed)
+            reader, writer = os.pipe()
+            stream = os.fdopen(reader, "rb", buffering=0)
+            process = mock.Mock()
+            process.stderr = stream
+            process.wait.return_value = 0
+            completed = threading.Event()
+            outcome: list[BaseException] = []
+
+            def run_adapter() -> None:
+                try:
+                    ReferenceAdapter((str(evaluator),), allowed).run(root / "output")
+                except BaseException as error:
+                    outcome.append(error)
+                finally:
+                    completed.set()
+
+            try:
+                with mock.patch(
+                    "myfuzz.integration.reference_adapter.subprocess.Popen",
+                    return_value=process,
+                ):
+                    worker = threading.Thread(target=run_adapter)
+                    started = time.monotonic()
+                    worker.start()
+                    self.assertTrue(completed.wait(0.5))
+                    self.assertLess(time.monotonic() - started, 0.5)
+            finally:
+                os.close(writer)
+                worker.join(timeout=0.5)
+
+            self.assertFalse(worker.is_alive())
+            self.assertEqual(1, len(outcome))
+            self.assertIsInstance(outcome[0], RuntimeError)
+            self.assertIn("process tree", str(outcome[0]))
+
+    def test_wait_exception_remains_primary_when_reader_fails(self) -> None:
+        class BrokenReader:
+            def read(self, _size: int) -> bytes:
+                raise OSError("reader failed")
+
+            def close(self) -> None:
+                return None
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            allowed = root / "reference"
+            allowed.mkdir()
+            evaluator = self._evaluator(allowed)
+            process = mock.Mock()
+            process.stderr = BrokenReader()
+            process.wait.side_effect = RuntimeError("wait failed")
+
+            with mock.patch(
+                "myfuzz.integration.reference_adapter.subprocess.Popen",
+                return_value=process,
+            ), mock.patch(
+                "myfuzz.integration.reference_adapter._terminate_supervisor",
+                return_value=0,
+            ):
+                with self.assertRaisesRegex(RuntimeError, "wait failed") as raised:
+                    ReferenceAdapter((str(evaluator),), allowed).run(root / "output")
+
+            self.assertIn(
+                "reference evaluator stderr drain failed",
                 "\n".join(getattr(raised.exception, "__notes__", ())),
             )
 
