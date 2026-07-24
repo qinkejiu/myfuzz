@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping
 import json
 import os
 import shutil
@@ -17,7 +18,7 @@ sys.dont_write_bytecode = True
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[2]
-SRC_ROOT = SCRIPT_DIR.parents[1]
+SRC_ROOT = REPO_ROOT / "src"
 RFUZZ_ROOT = REPO_ROOT / "third_party" / "rfuzz"
 if REPO_ROOT.as_posix() not in sys.path:
     sys.path.insert(0, REPO_ROOT.as_posix())
@@ -28,8 +29,9 @@ if SRC_ROOT.as_posix() not in sys.path:
 if SCRIPT_DIR.as_posix() not in sys.path:
     sys.path.insert(0, SCRIPT_DIR.as_posix())
 
-from frontend_api import default_frontend_library, run_frontend_manifest
-from source_only_frontend import run_source_only_frontend
+from myfuzz.scripts.composition_api import generate_compositions, write_composition_facts
+from myfuzz.scripts.frontend_api import default_frontend_library, run_frontend_manifest
+from myfuzz.scripts.source_only_frontend import run_source_only_frontend
 from scripts.source_branch_instrumenter import instrument_project
 from frontend_manifest_to_rfuzz_toml import (
     find_top_module,
@@ -39,7 +41,7 @@ from frontend_manifest_to_rfuzz_toml import (
 from myfuzz.harness import HarnessArtifact, build_harness
 
 
-STAGES = ["frontend", "instrument", "toml", "harness", "server", "fuzz"]
+STAGES = ["frontend", "composition", "instrument", "toml", "harness", "server", "fuzz"]
 HARNESS_MODES = {"flat_direct", "candidate_direct", "candidate_depaware"}
 
 
@@ -100,6 +102,57 @@ def stage_frontend(root: Path, cfg: dict, paths: dict, frontend_library: Path | 
         frontend_library=frontend_library,
         write_debug_json=True,
     )
+
+
+def stage_composition(
+    root: Path,
+    cfg: dict,
+    paths: dict,
+    frontend_library: Path | None,
+) -> dict[str, object]:
+    """Materialize frontend facts and generate deterministic A candidates."""
+    raw = cfg.get("composition")
+    if not isinstance(raw, Mapping):
+        raise ValueError("composition:configuration-required")
+
+    config_value = raw.get("config", raw.get("declarations"))
+    if not isinstance(config_value, str) or not config_value or "\0" in config_value:
+        raise ValueError("composition.config:required")
+    config_path = resolve(root, config_value)
+
+    top_k = raw.get("top_k", 3)
+    if isinstance(top_k, bool) or not isinstance(top_k, int) or top_k <= 0:
+        raise ValueError("composition.top_k:positive-integer-required")
+
+    output_value = raw.get("out_dir")
+    if output_value is None:
+        output_path = paths["composition"]
+    elif isinstance(output_value, str) and output_value and "\0" not in output_value:
+        output_path = resolve(root, output_value)
+    else:
+        raise ValueError("composition.out_dir:path-required")
+
+    frontend_value = raw.get("frontend_facts", raw.get("frontend"))
+    if frontend_value is None:
+        frontend_path = paths["composition_frontend"]
+        write_composition_facts(config_path, frontend_path, frontend_library=frontend_library)
+    elif isinstance(frontend_value, str) and frontend_value and "\0" not in frontend_value:
+        frontend_path = resolve(root, frontend_value)
+    else:
+        raise ValueError("composition.frontend_facts:path-required")
+
+    summary = generate_compositions(
+        config_path,
+        frontend_path,
+        top_k,
+        output_path,
+        frontend_library=frontend_library,
+    )
+    candidates = summary.get("candidates", [])
+    count = len(candidates) if isinstance(candidates, list) else 0
+    print(f"Generated composition candidates: {count}")
+    print(f"Composition output: {output_path}")
+    return summary
 
 
 def stage_instrument(root: Path, cfg: dict, paths: dict, frontend_manifest: dict) -> dict:
@@ -767,25 +820,28 @@ def main() -> int:
     args = parse_args()
     cfg_path = resolve(root, args.config)
     cfg = load_config(cfg_path)
-    if args.fuzz_seconds is not None and args.fuzz_seconds <= 0:
+    fuzz_seconds_arg = getattr(args, "fuzz_seconds", None)
+    seed_arg = getattr(args, "seed", None)
+    max_cycles_arg = getattr(args, "max_cycles", None)
+    if fuzz_seconds_arg is not None and fuzz_seconds_arg <= 0:
         raise ValueError("--fuzz-seconds must be positive")
-    if args.seed is not None or args.max_cycles is not None:
-        if args.seed is not None and args.seed < 0:
+    if seed_arg is not None or max_cycles_arg is not None:
+        if seed_arg is not None and seed_arg < 0:
             raise ValueError("--seed must be non-negative")
-        if args.max_cycles is not None and args.max_cycles <= 0:
+        if max_cycles_arg is not None and max_cycles_arg <= 0:
             raise ValueError("--max-cycles must be positive")
         cfg = dict(cfg)
         fuzz_cfg = cfg.get("fuzz", {})
         cfg["fuzz"] = dict(fuzz_cfg) if isinstance(fuzz_cfg, dict) else {}
-        if args.seed is not None:
-            cfg["fuzz"]["seed"] = args.seed
-        if args.max_cycles is not None:
-            cfg["fuzz"]["max_cycles"] = args.max_cycles
-    manifest_arg = args.manifest or cfg.get("candidate_manifest")
+        if seed_arg is not None:
+            cfg["fuzz"]["seed"] = seed_arg
+        if max_cycles_arg is not None:
+            cfg["fuzz"]["max_cycles"] = max_cycles_arg
+    manifest_arg = getattr(args, "manifest", None) or cfg.get("candidate_manifest")
     candidate_manifest = None
     if manifest_arg:
         candidate_manifest = load_config(resolve(root, str(manifest_arg)))
-    candidate_mode = select_candidate_mode(args.candidate_mode, cfg)
+    candidate_mode = select_candidate_mode(getattr(args, "candidate_mode", None), cfg)
     out_dir = resolve(root, cfg["out_dir"])
     stages = selected_stages(args.stage)
     if args.force and "frontend" in stages and out_dir.exists():
@@ -798,6 +854,8 @@ def main() -> int:
         "project_root": resolve(root, cfg["project_root"]),
         "flist": resolve(root, cfg["flist"]),
         "frontend_json": out_dir / "frontend.json",
+        "composition": out_dir / "composition",
+        "composition_frontend": out_dir / "composition_hdl_facts.json",
         "instrumented": out_dir / "instrumented",
         "toml": out_dir / "instrumented" / f"{cfg['top']}.toml",
         "harness": out_dir / "harness",
@@ -811,6 +869,8 @@ def main() -> int:
     instrumentation = None
     if "frontend" in stages:
         frontend_manifest = stage_frontend(root, cfg, paths, frontend_library)
+    if "composition" in stages:
+        stage_composition(root, cfg, paths, frontend_library)
     if "instrument" in stages:
         if frontend_manifest is None:
             frontend_manifest = json.loads(paths["frontend_json"].read_text())
@@ -832,8 +892,8 @@ def main() -> int:
     if "server" in stages:
         stage_server(root, cfg, paths, server_bin, args.jobs)
     if "fuzz" in stages:
-        fuzz_seconds = args.fuzz_seconds
-        if fuzz_seconds is None and args.max_cycles is None:
+        fuzz_seconds = fuzz_seconds_arg
+        if fuzz_seconds is None and max_cycles_arg is None:
             fuzz_seconds = 5
         stage_fuzz(root, cfg, cfg_path, paths, fuzz_seconds)
 

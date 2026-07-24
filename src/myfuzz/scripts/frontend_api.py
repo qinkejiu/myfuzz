@@ -7,6 +7,10 @@ import ctypes
 import json
 import os
 from pathlib import Path
+import threading
+
+
+_FRONTEND_INVOCATION_LOCK = threading.RLock()
 
 
 def default_frontend_library(root: Path) -> Path:
@@ -42,41 +46,71 @@ class FrontendLibrary:
             ctypes.POINTER(ctypes.c_char_p),
         ]
         self.lib.myfuzz_frontend_facts_json.restype = ctypes.c_void_p
+        self.lib.myfuzz_frontend_composition_with_symbols_json.argtypes = [
+            ctypes.c_char_p,
+            ctypes.c_char_p,
+        ]
+        self.lib.myfuzz_frontend_composition_with_symbols_json.restype = ctypes.c_void_p
         self.lib.myfuzz_frontend_free.argtypes = [ctypes.c_void_p]
         self.lib.myfuzz_frontend_free.restype = None
         self.lib.myfuzz_frontend_last_error.argtypes = []
         self.lib.myfuzz_frontend_last_error.restype = ctypes.c_char_p
 
     def _json_call(self, symbol: str, args: list[str], cwd: Path) -> dict:
-        old_cwd = Path.cwd()
-        old_verilator_root = os.environ.get("VERILATOR_ROOT")
-        encoded = [item.encode() for item in args]
-        argv = (ctypes.c_char_p * len(encoded))(*encoded)
-        os.chdir(cwd)
-        ptr = None
-        try:
-            ptr = getattr(self.lib, symbol)(len(encoded), argv)
-            if not ptr:
-                raw = self.lib.myfuzz_frontend_last_error()
-                message = raw.decode(errors="replace") if raw else "unknown frontend error"
-                raise RuntimeError(message)
-            data = ctypes.string_at(ptr).decode()
-            return json.loads(data)
-        finally:
-            if ptr:
-                self.lib.myfuzz_frontend_free(ptr)
-            if old_verilator_root is None:
-                os.environ.pop("VERILATOR_ROOT", None)
-                os.unsetenv("VERILATOR_ROOT")
-            else:
-                os.environ["VERILATOR_ROOT"] = old_verilator_root
-            os.chdir(old_cwd)
+        with _FRONTEND_INVOCATION_LOCK:
+            old_cwd = Path.cwd()
+            old_verilator_root = os.environ.get("VERILATOR_ROOT")
+            encoded = [item.encode() for item in args]
+            argv = (ctypes.c_char_p * len(encoded))(*encoded)
+            os.chdir(cwd)
+            ptr = None
+            try:
+                ptr = getattr(self.lib, symbol)(len(encoded), argv)
+                if not ptr:
+                    raw = self.lib.myfuzz_frontend_last_error()
+                    message = raw.decode(errors="replace") if raw else "unknown frontend error"
+                    raise RuntimeError(message)
+                data = ctypes.string_at(ptr).decode()
+                return json.loads(data)
+            finally:
+                if ptr:
+                    self.lib.myfuzz_frontend_free(ptr)
+                if old_verilator_root is None:
+                    os.environ.pop("VERILATOR_ROOT", None)
+                    os.unsetenv("VERILATOR_ROOT")
+                else:
+                    os.environ["VERILATOR_ROOT"] = old_verilator_root
+                os.chdir(old_cwd)
 
     def manifest(self, args: list[str], cwd: Path) -> dict:
         return self._json_call("myfuzz_frontend_manifest_json", args, cwd)
 
     def facts(self, args: list[str], cwd: Path) -> dict:
         return self._json_call("myfuzz_frontend_facts_json", args, cwd)
+
+    def composition(self, document: object, source_symbols: object) -> dict:
+        payload = json.dumps(
+            document,
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        symbols = json.dumps(
+            source_symbols,
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        with _FRONTEND_INVOCATION_LOCK:
+            ptr = self.lib.myfuzz_frontend_composition_with_symbols_json(payload, symbols)
+            if not ptr:
+                raw = self.lib.myfuzz_frontend_last_error()
+                message = raw.decode(errors="replace") if raw else "unknown composition error"
+                raise RuntimeError(message)
+            try:
+                return json.loads(ctypes.string_at(ptr).decode("utf-8"))
+            finally:
+                self.lib.myfuzz_frontend_free(ptr)
 
 
 def run_frontend_manifest(

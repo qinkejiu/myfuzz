@@ -63,8 +63,10 @@ public:
     // Dependencies
     static void addSrcDepend(const string& filename) VL_MT_SAFE;
     static void addTgtDepend(const string& filename) VL_MT_SAFE;
+    static void clearDependencies() VL_MT_SAFE;
     static void writeDepend(const string& filename);
     static std::vector<string> getAllDeps();
+    static std::vector<string> getAllDepsInReadOrder();
     static void writeTimes(const string& filename, const string& cmdlineIn);
     static bool checkTimes(const string& filename, const string& cmdlineIn);
 

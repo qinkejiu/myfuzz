@@ -1,0 +1,542 @@
+"""Deterministic, memory-bounded composition candidate search."""
+
+from __future__ import annotations
+
+import heapq
+from collections.abc import Iterator, Mapping
+from dataclasses import dataclass, replace
+
+from myfuzz.contracts import canonical_bytes
+
+from .address import AddressAllocationError, AddressRegion, allocate_regions, extract_local_regions_with_evidence
+from .constraints import ConstraintGraph, EdgeCandidate, Evidence, build_constraint_graph, candidate_edges, reject_hard_conflicts
+from .declarations import DeclarationSet
+from .facts import HdlFacts, VALID_STRUCTURAL_SECTIONS, canonical_structural_value
+from .metadata import sanitize_metadata, semantic_content_hash
+
+
+@dataclass(frozen=True, slots=True)
+class CompositionCandidate:
+    candidate_id: str
+    parent_input_hash: str
+    graph_hash: str
+    score_vector: tuple[int, ...]
+    graph: ConstraintGraph
+    declarations: DeclarationSet
+    edges: tuple[EdgeCandidate, ...]
+    address_regions: tuple[AddressRegion, ...]
+    unresolved_optional_endpoint_ids: tuple[int, ...]
+    evidence: tuple[Evidence, ...]
+    assumptions: tuple[dict[str, object], ...]
+    rejected_alternatives: tuple[dict[str, object], ...]
+
+
+def _json_value(value: object) -> object:
+    if isinstance(value, Mapping):
+        return {str(key): _json_value(item) for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))}
+    if isinstance(value, tuple):
+        return [_json_value(item) for item in value]
+    if isinstance(value, list):
+        return [_json_value(item) for item in value]
+    return value
+
+
+def _freeze_metadata(value: object, *, context: str) -> object:
+    value = sanitize_metadata(value, context=context)
+    return canonical_structural_value(value, context=context)
+
+
+def _canonical_structural_sections(facts: HdlFacts) -> tuple[tuple[str, tuple[object, ...]], ...]:
+    """Validate and canonically order the complete structural fact stream."""
+    grouped: dict[str, list[object]] = {}
+    for item in facts.structural_sections:
+        if not isinstance(item, tuple) or len(item) != 2:
+            raise ValueError("composition.structural_facts:type")
+        section, records = item
+        if not isinstance(section, str) or not isinstance(records, (list, tuple)):
+            raise ValueError("composition.structural_facts:type")
+        sanitize_metadata(section, context="composition.structural_facts")
+        if section not in VALID_STRUCTURAL_SECTIONS:
+            raise ValueError("composition.structural_facts:unknown-section")
+        grouped.setdefault(section, []).extend(
+            _freeze_metadata(record, context="composition.structural_facts") for record in records
+        )
+    return tuple(
+        (section, tuple(sorted(records, key=canonical_bytes)))
+        for section, records in sorted(grouped.items())
+    )
+
+
+def _canonical_facts(facts: HdlFacts) -> HdlFacts:
+    sanitize_metadata(
+        {
+            "modules": [
+                {
+                    "id": module.id,
+                    "port_ids": list(module.port_ids),
+                    "instance_ids": list(module.instance_ids),
+                }
+                for module in facts.modules
+            ],
+            "ports": [
+                {
+                    "id": port.id,
+                    "module_id": port.module_id,
+                    "direction": port.direction,
+                    "width": port.width,
+                    "signed": port.signed,
+                    "declared_role": port.declared_role,
+                }
+                for port in facts.ports
+            ],
+        },
+        context="composition.hdl_facts",
+    )
+    return HdlFacts(
+        tuple(
+            sorted(
+                (
+                    replace(
+                        module,
+                        port_ids=tuple(sorted(module.port_ids)),
+                        instance_ids=tuple(sorted(module.instance_ids)),
+                    )
+                    for module in facts.modules
+                ),
+                key=lambda module: module.id,
+            )
+        ),
+        tuple(sorted(facts.ports, key=lambda port: port.id)),
+        _canonical_structural_sections(facts),
+    )
+
+
+def _canonical_declarations(declarations: DeclarationSet) -> DeclarationSet:
+    components = tuple(
+        sorted(
+            (
+                replace(
+                    component,
+                    ports=tuple(sorted(component.ports, key=lambda port: port.port_id)),
+                    protocol_bindings=tuple(
+                        sorted(
+                            (
+                                replace(
+                                    binding,
+                                    fields=tuple(
+                                        sorted(
+                                            binding.fields,
+                                            key=lambda field: (field.field_role, field.port_id),
+                                        )
+                                    ),
+                                )
+                                for binding in component.protocol_bindings
+                            ),
+                            key=lambda binding: binding.id,
+                        )
+                    ),
+                    clock_reset=tuple(
+                        sorted(
+                            component.clock_reset,
+                            key=lambda item: (
+                                item.port_id,
+                                item.kind,
+                                item.domain_id,
+                                item.active_level,
+                                item.synchronous,
+                            ),
+                        )
+                    ),
+                )
+                for component in declarations.components
+            ),
+            key=lambda component: component.id,
+        )
+    )
+    sanitize_metadata(
+        [
+            {
+                "id": component.id,
+                "module_id": component.module_id,
+                "role": component.role,
+                "ports": [
+                    {"port_id": port.port_id, "role": port.role, "required": port.required}
+                    for port in component.ports
+                ],
+                "protocol_bindings": [
+                    {
+                        "id": binding.id,
+                        "protocol_id": binding.protocol_id,
+                        "side": binding.side,
+                        "version": binding.version,
+                        "parameters": _json_value(dict(binding.parameters)),
+                        "fields": [
+                            {"field_role": field.field_role, "port_id": field.port_id}
+                            for field in binding.fields
+                        ],
+                    }
+                    for binding in component.protocol_bindings
+                ],
+                "clock_reset": [
+                    {
+                        "port_id": item.port_id,
+                        "kind": item.kind,
+                        "domain_id": item.domain_id,
+                        "active_level": item.active_level,
+                        "synchronous": item.synchronous,
+                    }
+                    for item in component.clock_reset
+                ],
+            }
+            for component in components
+        ],
+        context="composition.declarations",
+    )
+    return DeclarationSet(components)
+
+
+def _edge_signature(edge: EdgeCandidate) -> tuple[object, ...]:
+    return (
+        edge.kind,
+        edge.source_endpoint_id,
+        edge.target_endpoint_id or 0,
+        edge.adapter or "",
+        tuple(sorted((field.role, field.source_port_id, field.target_port_id, field.source_width, field.target_width) for field in edge.fields)),
+    )
+
+
+def _graph_document(
+    edges: tuple[EdgeCandidate, ...],
+    regions: tuple[AddressRegion, ...],
+    unresolved: tuple[int, ...],
+) -> dict[str, object]:
+    return {
+        "connections": [
+            {
+                "source_endpoint_id": edge.source_endpoint_id,
+                "target_endpoint_id": edge.target_endpoint_id,
+                "adapter": edge.adapter,
+                "fields": [
+                    {
+                        "source_port_id": field.source_port_id,
+                        "target_port_id": field.target_port_id,
+                        "source_width": field.source_width,
+                        "target_width": field.target_width,
+                        "role": field.role,
+                    }
+                    for field in sorted(edge.fields, key=lambda item: (item.role, item.source_port_id, item.target_port_id, item.source_width, item.target_width))
+                ],
+            }
+            for edge in sorted(edges, key=_edge_signature)
+            if edge.kind == "connection"
+        ],
+        "address_regions": [
+            {
+                "component_id": region.component_id,
+                "port_id": region.port_id,
+                "base": region.base,
+                "size": region.size,
+                "local_offset": region.local_offset,
+                "provenance": region.provenance,
+            }
+            for region in sorted(regions, key=lambda item: (item.component_id, item.port_id, item.base, item.local_offset, item.size))
+        ],
+        "external_endpoint_ids": sorted(unresolved),
+    }
+
+
+def _parent_hash(
+    facts: HdlFacts,
+    graph: ConstraintGraph,
+    declarations: DeclarationSet,
+    regions: tuple[AddressRegion, ...],
+    address_evidence: tuple[Evidence, ...],
+) -> str:
+    document = {
+        "ports": [(port.id, port.component_id, port.direction, port.width, port.signed, port.role, port.required) for port in graph.ports],
+        "endpoints": [
+            (
+                endpoint.id,
+                endpoint.component_id,
+                endpoint.protocol_id,
+                endpoint.side,
+                [(field.role, field.port_id, field.protocol_direction, field.width) for field in endpoint.fields],
+                endpoint.required,
+                list(endpoint.clock_domain_ids),
+                list(endpoint.reset_domain_ids),
+                endpoint.version,
+                _json_value(dict(endpoint.parameters)),
+            )
+            for endpoint in graph.endpoints
+        ],
+        "components": [
+            (
+                component.id,
+                component.module_id,
+                component.role,
+                [(port.port_id, port.role, port.required) for port in component.ports],
+            )
+            for component in declarations.components
+        ],
+        "protocols": [
+            (
+                protocol.protocol_id,
+                protocol.version,
+                list(protocol.endpoint_roles),
+                [(field.role, field.direction, field.minimum_width, field.maximum_width, field.required) for field in protocol.fields],
+                [(rule.kind, rule.source_protocol_id, rule.target_protocol_id, rule.allows_width_mismatch) for rule in protocol.legal_adapters],
+            )
+            for protocol in graph.protocols
+        ],
+        "address_regions": [(region.component_id, region.port_id, region.base, region.size, region.local_offset, region.provenance) for region in regions],
+        "structural_facts": _json_value(facts.structural_sections),
+        "evidence": [(item.kind, item.ordinal, _json_value(item.record)) for item in graph.evidence],
+        "address_evidence": [(item.kind, item.ordinal, _json_value(item.record)) for item in address_evidence],
+    }
+    return semantic_content_hash(document, context="composition.parent_input")
+
+
+def _candidate_assumptions(
+    graph: ConstraintGraph,
+    edges: tuple[EdgeCandidate, ...],
+    regions: tuple[AddressRegion, ...],
+    unresolved: tuple[int, ...],
+) -> tuple[dict[str, object], ...]:
+    endpoint_by_id = {endpoint.id: endpoint for endpoint in graph.endpoints}
+    result: list[dict[str, object]] = []
+    for edge in edges:
+        target_id = edge.target_endpoint_id
+        if target_id is None:
+            continue
+        if not endpoint_by_id[edge.source_endpoint_id].required or not endpoint_by_id[target_id].required:
+            result.append({"kind": "optional_endpoint_connection", "provenance": "assumed", "source_endpoint_id": edge.source_endpoint_id, "target_endpoint_id": target_id})
+        else:
+            result.append({"kind": "endpoint_connection", "provenance": "inferred", "source_endpoint_id": edge.source_endpoint_id, "target_endpoint_id": target_id})
+    for endpoint_id in unresolved:
+        result.append({"kind": "optional_endpoint_externalized", "provenance": "assumed", "endpoint_id": endpoint_id})
+    for region in regions:
+        if region.provenance == "inferred":
+            result.append({"kind": "address_base", "provenance": "inferred", "component_id": region.component_id, "port_id": region.port_id, "base": region.base})
+    return tuple(sorted(result, key=canonical_bytes))
+
+
+def _record_mapping(value: object) -> Mapping[str, object] | None:
+    if isinstance(value, Mapping):
+        return value
+    if isinstance(value, tuple) and all(isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], str) for item in value):
+        return dict(value)
+    return None
+
+
+def _unvalidated_clock_reset_associations(facts: HdlFacts, declarations: DeclarationSet) -> int:
+    declared = {
+        (component.id, item.port_id, item.kind, item.domain_id)
+        for component in declarations.components
+        for item in component.clock_reset
+    }
+    validated: set[tuple[int, int, str, int]] = set()
+    for section, records in facts.structural_sections:
+        if section != "clock_reset_checks":
+            continue
+        for record in records:
+            item = _record_mapping(record)
+            if item is None or item.get("structurally_validated") is not True:
+                continue
+            component_id = item.get("component_id")
+            port_id = item.get("port_id")
+            kind = item.get("kind")
+            domain_id = item.get("domain_id")
+            if not isinstance(component_id, int) or not isinstance(port_id, int) or kind not in ("clock", "reset") or not isinstance(domain_id, int):
+                continue
+            association = (component_id, port_id, kind, domain_id)
+            if association in declared:
+                validated.add(association)
+    return len(declared - validated)
+
+
+def _score(
+    graph: ConstraintGraph,
+    facts: HdlFacts,
+    declarations: DeclarationSet,
+    edges: tuple[EdgeCandidate, ...],
+    regions: tuple[AddressRegion, ...],
+) -> tuple[int, ...]:
+    # Unsafe adapters never survive graph hard-constraint rejection. Declared
+    # legal adapters therefore do not contribute to this score tier.
+    unsafe_width_adapters = 0
+    unvalidated_clock_reset_associations = _unvalidated_clock_reset_associations(facts, declarations)
+    if regions:
+        lowest = min(region.base for region in regions)
+        highest = max(region.base + region.size for region in regions)
+        address_waste = highest - lowest - sum(region.size for region in regions)
+    else:
+        address_waste = 0
+    protocol_evidence = sum(len(edge.fields) for edge in edges)
+    rtl_evidence = sum(len(edge.evidence) for edge in edges)
+    return (
+        0,
+        0,
+        unsafe_width_adapters,
+        unvalidated_clock_reset_associations,
+        address_waste,
+        -protocol_evidence,
+        -rtl_evidence,
+        *(edge.id for edge in sorted(edges, key=lambda item: item.id)),
+    )
+
+
+def _make_candidate(
+    graph: ConstraintGraph,
+    facts: HdlFacts,
+    declarations: DeclarationSet,
+    all_edges: tuple[EdgeCandidate, ...],
+    selected: tuple[EdgeCandidate, ...],
+    regions: tuple[AddressRegion, ...],
+    parent_input_hash: str,
+    address_evidence: tuple[Evidence, ...],
+) -> CompositionCandidate:
+    endpoint_by_id = {endpoint.id: endpoint for endpoint in graph.endpoints}
+    connected = {endpoint_id for edge in selected for endpoint_id in (edge.source_endpoint_id, edge.target_endpoint_id) if endpoint_id is not None}
+    unresolved = tuple(endpoint.id for endpoint in graph.endpoints if not endpoint.required and endpoint.id not in connected)
+    graph_hash = semantic_content_hash(
+        _graph_document(selected, regions, unresolved),
+        context="composition.graph",
+    )
+    selected_signatures = {_edge_signature(edge) for edge in selected}
+    rejected = tuple(sorted((
+        {
+            "edge_id": edge.id,
+            "source_endpoint_id": edge.source_endpoint_id,
+            "target_endpoint_id": edge.target_endpoint_id,
+            "reason": "not-selected",
+            "provenance": "inferred",
+        }
+        for edge in all_edges
+        if edge.kind == "connection" and _edge_signature(edge) not in selected_signatures
+    ), key=canonical_bytes))
+    evidence_by_key: dict[tuple[str, int, bytes], Evidence] = {
+        (item.kind, item.ordinal, canonical_bytes(_json_value(item.record))): item
+        for item in address_evidence
+    }
+    for edge in selected:
+        for item in edge.evidence:
+            key = (item.kind, item.ordinal, canonical_bytes(_json_value(item.record)))
+            evidence_by_key[key] = item
+    evidence = tuple(evidence_by_key[key] for key in sorted(evidence_by_key))
+    assumptions = _candidate_assumptions(graph, selected, regions, unresolved)
+    score = _score(graph, facts, declarations, selected, regions)
+    return CompositionCandidate(
+        "candidate-" + graph_hash[7:23],
+        parent_input_hash,
+        graph_hash,
+        score,
+        graph,
+        declarations,
+        selected,
+        regions,
+        unresolved,
+        evidence,
+        assumptions,
+        rejected,
+    )
+
+
+def compose_topk(
+    facts: HdlFacts,
+    declarations: DeclarationSet,
+    protocols: object,
+    limit: int,
+    *,
+    excluded_graph_hashes: object = (),
+) -> Iterator[CompositionCandidate]:
+    """Yield at most ``limit`` legal candidates in deterministic score order."""
+    if not isinstance(limit, int) or isinstance(limit, bool) or limit <= 0:
+        raise ValueError("limit:positive-integer-required")
+    if not isinstance(excluded_graph_hashes, (set, frozenset, list, tuple)):
+        raise ValueError("excluded_graph_hashes:type")
+    excluded = frozenset(excluded_graph_hashes)
+    if any(not isinstance(value, str) for value in excluded):
+        raise ValueError("excluded_graph_hashes:type")
+    facts = _canonical_facts(facts)
+    declarations = _canonical_declarations(declarations)
+    graph = build_constraint_graph(facts, declarations, protocols)
+    local_regions, local_address_records = extract_local_regions_with_evidence(facts, declarations)
+
+    if reject_hard_conflicts(graph):
+        return
+
+    try:
+        allocation_regions = tuple(dict.fromkeys(local_regions))
+        allocated_regions = allocate_regions(allocation_regions, {})
+    except AddressAllocationError:
+        return
+    regions = tuple(
+        replace(
+            region,
+            provenance="inferred",
+        )
+        for region in allocated_regions
+    )
+    address_evidence = tuple(
+        Evidence("local_address_facts", ordinal, record)
+        for ordinal, record in enumerate(local_address_records)
+    )
+
+    normalized_edges: dict[tuple[object, ...], EdgeCandidate] = {}
+    for edge in candidate_edges(graph):
+        signature = _edge_signature(edge)
+        previous = normalized_edges.get(signature)
+        if previous is None or edge.id < previous.id:
+            normalized_edges[signature] = edge
+    all_edges = tuple(sorted(normalized_edges.values(), key=lambda edge: (edge.source_endpoint_id, edge.target_endpoint_id or 0, edge.id)))
+    connection_edges = tuple(edge for edge in all_edges if edge.kind == "connection")
+    by_source: dict[int, tuple[EdgeCandidate, ...]] = {}
+    for endpoint in graph.endpoints:
+        if endpoint.side == "initiator":
+            by_source[endpoint.id] = tuple(edge for edge in connection_edges if edge.source_endpoint_id == endpoint.id)
+
+    sources = tuple(endpoint for endpoint in graph.endpoints if endpoint.side == "initiator")
+    required_targets = {endpoint.id for endpoint in graph.endpoints if endpoint.side == "target" and endpoint.required}
+    parent_input_hash = _parent_hash(facts, graph, declarations, regions, address_evidence)
+    heap: list[tuple[tuple[int, ...], str, CompositionCandidate]] = []
+    chosen: list[EdgeCandidate] = []
+    used_targets: set[int] = set()
+
+    def retain(candidate: CompositionCandidate) -> None:
+        if candidate.graph_hash in excluded:
+            return
+        if any(item[2].graph_hash == candidate.graph_hash for item in heap):
+            return
+        reverse_score = tuple(-value for value in candidate.score_vector)
+        item = (reverse_score, candidate.graph_hash, candidate)
+        if len(heap) < limit:
+            heapq.heappush(heap, item)
+        elif candidate.score_vector < heap[0][2].score_vector:
+            heapq.heapreplace(heap, item)
+
+    def visit(position: int) -> None:
+        if position == len(sources):
+            if not required_targets.issubset(used_targets):
+                return
+            selected = tuple(chosen)
+            retain(_make_candidate(graph, facts, declarations, all_edges, tuple(sorted(selected, key=_edge_signature)), regions, parent_input_hash, address_evidence))
+            return
+        source = sources[position]
+        for edge in by_source.get(source.id, ()):
+            target_id = edge.target_endpoint_id
+            if target_id is None or target_id in used_targets:
+                continue
+            chosen.append(edge)
+            used_targets.add(target_id)
+            visit(position + 1)
+            used_targets.remove(target_id)
+            chosen.pop()
+        if not source.required:
+            visit(position + 1)
+
+    visit(0)
+    for candidate in sorted((item[2] for item in heap), key=lambda item: item.score_vector):
+        yield candidate
+
+
+__all__ = ["CompositionCandidate", "compose_topk"]

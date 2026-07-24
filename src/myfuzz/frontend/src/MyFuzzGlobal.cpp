@@ -13,6 +13,8 @@
 #include "V3PreShell.h"
 
 #include <iomanip>
+#include <stdexcept>
+#include <string>
 
 VL_DEFINE_DEBUG_FUNCTIONS;
 
@@ -34,8 +36,7 @@ void V3Global::shutdown() {
 }
 
 void V3Global::vlExit(int status) {
-    shutdown();
-    std::exit(status);
+    throw std::runtime_error{"Verilator frontend failed with status " + std::to_string(status)};
 }
 
 void V3Global::checkTree() const { rootp()->checkTree(); }

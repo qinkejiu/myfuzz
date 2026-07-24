@@ -609,6 +609,29 @@ public:
         s().incWarnings();
     }
     static void init();
+    static void resetSession() VL_MT_SAFE_EXCLUDES(s().m_mutex) {
+        {
+            const V3RecursiveLockGuard guard{s().m_mutex};
+            s().m_tellManual = false;
+            s().m_tellInternal = false;
+            s().m_message.clear();
+            s().m_errorSuppressed = false;
+            s().m_messages.clear();
+            s().m_errorExitCb = nullptr;
+            s().m_errorContexted = false;
+            s().m_warnCount = 0;
+            s().m_errCount = 0;
+            s().m_pretendError = VErrorBitSet{};
+            s().m_describedEachWarn = VErrorBitSet{};
+            s().m_showedSuppressed = VErrorBitSet{};
+            s().m_debugDefault = 0;
+            s().m_errorLimit = V3ErrorGuarded::MAX_ERRORS;
+            s().m_warnFatal = true;
+            s().m_errorStr.str("");
+            s().m_errorStr.clear();
+        }
+        init();
+    }
     static bool isError(V3ErrorCode code, bool supp) VL_MT_SAFE_EXCLUDES(s().m_mutex) {
         const V3RecursiveLockGuard guard{s().m_mutex};
         return s().isError(code, supp);

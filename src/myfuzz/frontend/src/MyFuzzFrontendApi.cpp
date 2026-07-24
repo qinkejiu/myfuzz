@@ -3,12 +3,16 @@
 #include <cstdlib>
 #include <cstring>
 #include <exception>
+#include <mutex>
+#include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
 
-std::string s_lastError;
+thread_local std::string s_lastError;
+std::mutex s_frontendInvocationMutex;
 
 char* copyCString(const std::string& value) {
     char* const out = static_cast<char*>(std::malloc(value.size() + 1));
@@ -19,6 +23,14 @@ char* copyCString(const std::string& value) {
 
 }  // namespace
 
+namespace myfuzz {
+
+std::mutex& frontendInvocationMutex() { return s_frontendInvocationMutex; }
+
+void frontendSetLastError(std::string value) { s_lastError = std::move(value); }
+
+}  // namespace myfuzz
+
 extern "C" const char* myfuzz_frontend_last_error() {
     return s_lastError.c_str();
 }
@@ -28,18 +40,28 @@ extern "C" void myfuzz_frontend_free(char* value) {
 }
 
 extern "C" char* myfuzz_frontend_manifest_json(int argc, const char* const* argv) {
+    const std::lock_guard<std::mutex> lock{myfuzz::frontendInvocationMutex()};
     s_lastError.clear();
+    if (argc < 0 || (argc > 0 && !argv)) {
+        s_lastError = "invalid frontend arguments";
+        return nullptr;
+    }
     std::vector<std::string> args;
     args.reserve(argc);
-    for (int i = 0; i < argc; ++i) args.emplace_back(argv[i]);
 
     try {
+        for (int i = 0; i < argc; ++i) {
+            if (!argv[i]) throw std::invalid_argument("frontend argument is null");
+            args.emplace_back(argv[i]);
+        }
         std::string manifest = myfuzz::frontendManifestJson(args);
         if (manifest.empty()) {
             s_lastError = "myfuzz frontend did not produce a manifest";
             return nullptr;
         }
-        return copyCString(manifest);
+        char* out = copyCString(manifest);
+        if (!out) s_lastError = "unable to allocate frontend manifest";
+        return out;
     } catch (const std::exception& ex) {
         s_lastError = ex.what();
         return nullptr;
@@ -50,18 +72,28 @@ extern "C" char* myfuzz_frontend_manifest_json(int argc, const char* const* argv
 }
 
 extern "C" char* myfuzz_frontend_facts_json(int argc, const char* const* argv) {
+    const std::lock_guard<std::mutex> lock{myfuzz::frontendInvocationMutex()};
     s_lastError.clear();
+    if (argc < 0 || (argc > 0 && !argv)) {
+        s_lastError = "invalid frontend arguments";
+        return nullptr;
+    }
     std::vector<std::string> args;
     args.reserve(argc);
-    for (int i = 0; i < argc; ++i) args.emplace_back(argv[i]);
 
     try {
+        for (int i = 0; i < argc; ++i) {
+            if (!argv[i]) throw std::invalid_argument("frontend argument is null");
+            args.emplace_back(argv[i]);
+        }
         std::string facts = myfuzz::frontendFactsJson(args);
         if (facts.empty()) {
             s_lastError = "myfuzz frontend did not produce facts";
             return nullptr;
         }
-        return copyCString(facts);
+        char* out = copyCString(facts);
+        if (!out) s_lastError = "unable to allocate frontend facts";
+        return out;
     } catch (const std::exception& ex) {
         s_lastError = ex.what();
         return nullptr;

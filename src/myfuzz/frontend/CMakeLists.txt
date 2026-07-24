@@ -11,6 +11,8 @@ set(VENDOR_INC ${MYFUZZ_FRONTEND_DIR}/vendor/verilator/include)
 set(VENDOR_GEN ${MYFUZZ_FRONTEND_DIR}/vendor/verilator/generated)
 
 set(MYFUZZ_FRONTEND_SOURCES
+    src/MyFuzzCompositionApi.cpp
+    src/MyFuzzCompositionAstBuilder.cpp
     src/MyFuzzFrontend.cpp
     src/MyFuzzFrontendApi.cpp
     src/MyFuzzFrontendStubs.cpp
@@ -24,6 +26,7 @@ set(MYFUZZ_FRONTEND_SOURCES
     ${VENDOR_GEN}/V3Const__gen.cpp
     ${VENDOR_SRC}/V3Control.cpp
     ${VENDOR_SRC}/V3Dead.cpp
+    ${VENDOR_SRC}/V3EmitV.cpp
     ${VENDOR_SRC}/V3Error.cpp
     ${VENDOR_SRC}/V3File.cpp
     ${VENDOR_SRC}/V3FileLine.cpp
