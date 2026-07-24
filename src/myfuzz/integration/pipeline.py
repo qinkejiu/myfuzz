@@ -32,7 +32,9 @@ from .memory_lock import MemoryTokenPool
 
 
 _FORBIDDEN_GENERATOR_FIELD_TOKENS = frozenset(("evaluator", "reference"))
-_FORBIDDEN_ORIGINAL_CONTEXT_TOKENS = frozenset(("soc", "top", "topology"))
+_FORBIDDEN_ORIGINAL_CANONICAL_FIELDS = frozenset(
+    ("originalsoc", "originaltop", "originaltoplevel", "originaltopology")
+)
 _GROUPS = ("flat-direct", "candidate-direct", "candidate-depaware")
 _SOFT_LIMIT_BYTES = 256 * 1024 * 1024
 _HARD_LIMIT_BYTES = 512 * 1024 * 1024
@@ -109,9 +111,10 @@ def _field_tokens(key: str) -> frozenset[str]:
 
 def _is_forbidden_generator_field(key: str) -> bool:
     tokens = _field_tokens(key)
+    canonical = "".join(character for character in key.casefold() if character.isalnum())
     return bool(
         tokens & _FORBIDDEN_GENERATOR_FIELD_TOKENS
-        or "original" in tokens and tokens & _FORBIDDEN_ORIGINAL_CONTEXT_TOKENS
+        or canonical in _FORBIDDEN_ORIGINAL_CANONICAL_FIELDS
     )
 
 

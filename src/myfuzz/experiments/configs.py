@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import secrets
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -70,18 +69,16 @@ class _SourceCapabilityRegistry:
     """Own source descriptors outside producer-visible capability objects."""
 
     def __init__(self) -> None:
-        self._descriptors: dict[str, int] = {}
+        self._descriptors: dict[object, int] = {}
         self._lock = threading.RLock()
 
-    def register(self, descriptor: int) -> str:
+    def register(self, descriptor: int) -> object:
         with self._lock:
-            token = secrets.token_urlsafe(32)
-            while token in self._descriptors:
-                token = secrets.token_urlsafe(32)
+            token = object()
             self._descriptors[token] = descriptor
             return token
 
-    def open(self, token: str) -> BinaryIO:
+    def open(self, token: object) -> BinaryIO:
         with self._lock:
             descriptor = self._descriptors.get(token)
             if descriptor is None:
@@ -99,7 +96,7 @@ class _SourceCapabilityRegistry:
             os.close(duplicate)
             raise
 
-    def close(self, token: str) -> None:
+    def close(self, token: object) -> None:
         with self._lock:
             descriptor = self._descriptors.pop(token, None)
         if descriptor is None:
@@ -119,7 +116,7 @@ class SourceCapability:
 
     declared_path: str
     source_list_ids: tuple[int, ...]
-    _capability_token: str = field(repr=False, compare=False)
+    _capability_token: object = field(repr=False, compare=False)
 
     def open(self) -> BinaryIO:
         return _SOURCE_CAPABILITIES.open(self._capability_token)
@@ -839,7 +836,14 @@ def preflight_experiment_sources(
                 os.close(descriptor)
                 raise ExperimentConfigurationError("source must be a regular file")
             sources.append(resolved_candidate)
-            token = _SOURCE_CAPABILITIES.register(descriptor)
+            try:
+                token = _SOURCE_CAPABILITIES.register(descriptor)
+            except BaseException:
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    pass
+                raise
             try:
                 capabilities.append(
                     SourceCapability(

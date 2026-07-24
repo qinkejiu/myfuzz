@@ -73,6 +73,9 @@ class RvxGenerationBoundaryTests(unittest.TestCase):
             "Original Topology",
             "originalTop",
             "original_soc",
+            "originalSoC",
+            "OriginalSoc",
+            "originalSOC",
         )
         for key in forbidden_keys:
             with self.subTest(key=key), tempfile.TemporaryDirectory() as temporary:

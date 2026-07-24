@@ -15,6 +15,7 @@ from myfuzz.experiments import (
 )
 from myfuzz.integration.pipeline import run_candidate_pipeline
 import myfuzz.integration.pipeline as pipeline_module
+import myfuzz.experiments.configs as configs_module
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -22,6 +23,68 @@ CONFIG = ROOT / "configs/experiments/ibex_opentitan/experiment.json"
 
 
 class IbexOpenTitanConfigTests(unittest.TestCase):
+    def test_source_capability_stale_close_cannot_affect_successor(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            first_path = directory / "first.sv"
+            successor_path = directory / "successor.sv"
+            first_path.write_bytes(b"first\n")
+            successor_path.write_bytes(b"successor\n")
+            first_descriptor = os.open(first_path, os.O_RDONLY)
+            stale = configs_module.SourceCapability(
+                "first.sv",
+                (),
+                configs_module._SOURCE_CAPABILITIES.register(first_descriptor),
+            )
+            stale.close()
+            successor_descriptor = os.open(successor_path, os.O_RDONLY)
+            successor = configs_module.SourceCapability(
+                "successor.sv",
+                (),
+                configs_module._SOURCE_CAPABILITIES.register(successor_descriptor),
+            )
+            try:
+                with self.assertRaisesRegex(ValueError, "closed"):
+                    stale.read_bytes()
+                stale.close()
+                self.assertEqual(successor.read_bytes(), b"successor\n")
+            finally:
+                successor.close()
+
+    def test_preflight_closes_source_descriptor_when_capability_registration_fails(self) -> None:
+        config = load_experiment_config(CONFIG)
+        with tempfile.TemporaryDirectory() as temporary:
+            repo_root = Path(temporary)
+            for source_list in config.source_lists:
+                for declared_file in source_list.files:
+                    source = repo_root / declared_file
+                    source.parent.mkdir(parents=True, exist_ok=True)
+                    source.write_bytes(b"module declared_source; endmodule\n")
+            registered_descriptors: list[int] = []
+            closed_descriptors: list[int] = []
+            real_close = os.close
+
+            def reject_registration(descriptor: int) -> object:
+                registered_descriptors.append(descriptor)
+                raise RuntimeError("registry unavailable")
+
+            def track_close(descriptor: int) -> None:
+                closed_descriptors.append(descriptor)
+                real_close(descriptor)
+
+            with mock.patch.object(
+                configs_module._SOURCE_CAPABILITIES,
+                "register",
+                side_effect=reject_registration,
+            ), mock.patch.object(configs_module.os, "close", side_effect=track_close):
+                with self.assertRaisesRegex(RuntimeError, "registry unavailable"):
+                    preflight_experiment_sources(config, repo_root)
+
+            self.assertEqual(len(registered_descriptors), 1)
+            self.assertIn(registered_descriptors[0], closed_descriptors)
+            with self.assertRaises(OSError):
+                os.fstat(registered_descriptors[0])
+
     def test_declaration_is_reference_free_and_has_generic_constraints(self) -> None:
         config = load_experiment_config(CONFIG)
 
@@ -241,6 +304,7 @@ class IbexOpenTitanConfigTests(unittest.TestCase):
                     self.assertFalse(hasattr(capability, "fd"))
                     self.assertFalse(hasattr(capability, "fileno"))
                     self.assertNotIn("_descriptor", capability.__slots__)
+                    self.assertIs(type(capability._capability_token), object)
                     self.assertFalse(
                         any("descriptor" in item.name for item in fields(capability))
                     )
