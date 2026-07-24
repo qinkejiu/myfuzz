@@ -1,7 +1,11 @@
 """Memory-bounded, target-independent experiment job scheduling."""
 
 from .configs import (
+    AddressConstraints,
+    ClockResetBinding,
+    ClockResetPolicy,
     Component,
+    DependencyPreflight,
     ExperimentConfig,
     ExperimentConfigurationError,
     FieldBinding,
@@ -9,8 +13,10 @@ from .configs import (
     ProtocolEndpoint,
     ReferenceEvaluation,
     SourceList,
+    SourceCapability,
     load_experiment_config,
     load_experiment_configs,
+    preflight_experiment_sources,
 )
 from .jobs import Job, JobClaim, JobKind, claim_job, release_job, run_job
 from .planner import (
@@ -31,8 +37,12 @@ from .rfuzz_adapter import RfuzzAdapter, RfuzzAvailability
 from .scheduler import plan_jobs
 
 __all__ = [
+    "AddressConstraints",
+    "ClockResetBinding",
+    "ClockResetPolicy",
     "Component",
     "CandidatePairIdentity",
+    "DependencyPreflight",
     "ExperimentConfig",
     "ExperimentConfigurationError",
     "ExperimentBuildJob",
@@ -55,10 +65,12 @@ __all__ = [
     "RfuzzExecution",
     "RuntimePolicy",
     "SourceList",
+    "SourceCapability",
     "claim_job",
     "build_report",
     "load_experiment_config",
     "load_experiment_configs",
+    "preflight_experiment_sources",
     "plan_jobs",
     "plan_experiment",
     "prepare_candidate_runtime",

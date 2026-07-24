@@ -26,6 +26,7 @@ def run_pipeline_cli(
     parser.add_argument("--top-k", required=True, type=int)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--memory-state-path", type=Path)
+    parser.add_argument("--repo-root", type=Path)
     arguments = parser.parse_args(tuple(argv))
     result = run_candidate_pipeline(
         arguments.input_config,
@@ -35,6 +36,7 @@ def run_pipeline_cli(
         composition_producer=composition_producer,
         runtime_preparer=runtime_preparer,
         memory_state_path=arguments.memory_state_path,
+        repo_root=arguments.repo_root,
     )
     destination = stdout if stdout is not None else sys.stdout
     destination.write(json.dumps(result, sort_keys=True, separators=(",", ":")) + "\n")

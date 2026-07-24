@@ -16,11 +16,14 @@ import fcntl
 
 from myfuzz.contracts import validate_contract
 from myfuzz.experiments import (
+    AddressConstraints,
+    ClockResetPolicy,
     Component,
     Port,
     ProtocolEndpoint,
-    SourceList,
+    SourceCapability,
     load_experiment_config,
+    preflight_experiment_sources,
 )
 
 from .manifest import merge_candidate_manifest
@@ -48,14 +51,26 @@ _MAX_MANIFEST_BYTES = 16 * 1024 * 1024
 
 
 @dataclass(frozen=True, slots=True)
+class GenerationSourceList:
+    """One declared source group backed only by preflight-opened capabilities."""
+
+    source_list_id: int
+    sources: tuple[SourceCapability, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class GenerationRequest:
     """Reference-free, immutable inputs visible to the composition adapter."""
 
     target_id: int
-    source_lists: tuple[SourceList, ...]
+    source_roots: tuple[Path, ...]
+    sources: tuple[SourceCapability, ...]
+    source_lists: tuple[GenerationSourceList, ...]
     components: tuple[Component, ...]
     ports: tuple[Port, ...]
     protocol_endpoints: tuple[ProtocolEndpoint, ...]
+    clock_reset: ClockResetPolicy | None
+    address_constraints: AddressConstraints | None
     top_k: int
     dry_run: bool
 
@@ -198,6 +213,16 @@ def _workspace_memory_state_path() -> Path:
     raise RuntimeError("memory_state_path is required outside a Git workspace")
 
 
+def _workspace_root() -> Path:
+    for root in Path(__file__).resolve().parents:
+        try:
+            root.joinpath(".git").lstat()
+        except OSError:
+            continue
+        return root
+    raise RuntimeError("repo_root is required outside a Git workspace")
+
+
 @contextmanager
 def _output_run_lock(output_dir: Path) -> Iterator[None]:
     lock_path = output_dir / ".pipeline.lock"
@@ -282,6 +307,7 @@ def run_candidate_pipeline(
     composition_producer: CompositionProducer,
     runtime_preparer: RuntimePreparer,
     memory_state_path: Path | None = None,
+    repo_root: Path | None = None,
 ) -> dict[str, object]:
     """Run explicit A/B adapters and persist one detached manifest per candidate."""
     if not isinstance(input_config, Path) or not isinstance(output_dir, Path):
@@ -294,6 +320,8 @@ def run_candidate_pipeline(
         raise TypeError("composition_producer and runtime_preparer must be callable")
     if memory_state_path is not None and not isinstance(memory_state_path, Path):
         raise TypeError("memory_state_path must be a pathlib.Path")
+    if repo_root is not None and not isinstance(repo_root, Path):
+        raise TypeError("repo_root must be a pathlib.Path")
 
     raw_document = _read_config_document(input_config)
     _assert_reference_free(raw_document)
@@ -302,78 +330,118 @@ def run_candidate_pipeline(
         raise RuntimeError("experiment config changed while it was being validated")
     if config.generated_candidate_count != top_k:
         raise ValueError("top_k must equal the configured generated candidate count")
-
-    generation_request = GenerationRequest(
-        config.target_id,
-        config.source_lists,
-        config.components,
-        config.ports,
-        config.protocol_endpoints,
-        top_k,
-        dry_run,
-    )
-    runtime_request = RuntimeRequest(
-        config.target_id,
-        config.raw_width,
-        config.coverage_metric,
-        _GROUPS,
-        dry_run,
-    )
-
-    _prepare_output_dir(output_dir)
-    with _output_run_lock(output_dir):
-        pool = MemoryTokenPool(
-            _SOFT_LIMIT_BYTES,
-            _HARD_LIMIT_BYTES,
-            memory_state_path if memory_state_path is not None else _workspace_memory_state_path(),
+    dependency = None
+    if config.source_roots:
+        dependency = preflight_experiment_sources(
+            config,
+            repo_root if repo_root is not None else _workspace_root(),
         )
-        wait_timeout = 30.0
-        with pool.lease(
-            "composition",
-            _TOKEN_BYTES,
-            exclusive_build=True,
-            wait_timeout=wait_timeout,
-        ):
-            candidates = _collect_candidates(composition_producer(generation_request), top_k)
 
-        merged: list[dict[str, object]] = []
-        for index, candidate in enumerate(candidates):
+    try:
+        if dependency is not None and dependency.status == "dependency_unavailable":
+            return {
+                "status": dependency.status,
+                "candidate_count": 0,
+                "groups": list(_GROUPS),
+                "missing_dependencies": list(dependency.missing_paths),
+                "reference_used": False,
+                "manifests": [],
+                "dry_run": dry_run,
+            }
+
+        capabilities = dependency.capabilities if dependency is not None else ()
+        generation_source_lists = tuple(
+            GenerationSourceList(
+                source_list.source_list_id,
+                tuple(
+                    capability
+                    for capability in capabilities
+                    if source_list.source_list_id in capability.source_list_ids
+                ),
+            )
+            for source_list in config.source_lists
+        )
+
+        generation_request = GenerationRequest(
+            target_id=config.target_id,
+            source_roots=dependency.resolved_roots if dependency is not None else (),
+            sources=capabilities,
+            source_lists=generation_source_lists,
+            components=config.components,
+            ports=config.ports,
+            protocol_endpoints=config.protocol_endpoints,
+            clock_reset=config.clock_reset,
+            address_constraints=config.address_constraints,
+            top_k=top_k,
+            dry_run=dry_run,
+        )
+        runtime_request = RuntimeRequest(
+            config.target_id,
+            config.raw_width,
+            config.coverage_metric,
+            _GROUPS,
+            dry_run,
+        )
+
+        _prepare_output_dir(output_dir)
+        with _output_run_lock(output_dir):
+            pool = MemoryTokenPool(
+                _SOFT_LIMIT_BYTES,
+                _HARD_LIMIT_BYTES,
+                memory_state_path if memory_state_path is not None else _workspace_memory_state_path(),
+            )
+            wait_timeout = 30.0
             with pool.lease(
-                f"runtime-{index}",
+                "composition",
                 _TOKEN_BYTES,
                 exclusive_build=True,
                 wait_timeout=wait_timeout,
             ):
-                runtime_candidate = copy.deepcopy(candidate)
-                fragment = _fragment(runtime_preparer(runtime_candidate, runtime_request))
-                merged_manifest = merge_candidate_manifest(candidate, fragment)
-            merged.append(merged_manifest)
+                candidates = _collect_candidates(composition_producer(generation_request), top_k)
 
-        encoded = [_encode_manifest(merged_manifest) for merged_manifest in merged]
-        published: list[Path] = []
-        try:
-            for index, payload in enumerate(encoded):
-                destination = output_dir / f"candidate-{index:03d}.json"
-                _atomic_write_payload(destination, payload)
-                published.append(destination)
-        except BaseException:
-            for destination in reversed(published):
-                destination.unlink(missing_ok=True)
-            raise
+            merged: list[dict[str, object]] = []
+            for index, candidate in enumerate(candidates):
+                with pool.lease(
+                    f"runtime-{index}",
+                    _TOKEN_BYTES,
+                    exclusive_build=True,
+                    wait_timeout=wait_timeout,
+                ):
+                    runtime_candidate = copy.deepcopy(candidate)
+                    fragment = _fragment(runtime_preparer(runtime_candidate, runtime_request))
+                    merged_manifest = merge_candidate_manifest(candidate, fragment)
+                merged.append(merged_manifest)
 
-        result = {
-            "candidate_count": len(merged),
-            "groups": list(_GROUPS),
-            "memory": pool.snapshot(),
-            "reference_used": False,
-            "manifests": copy.deepcopy(merged),
-            "dry_run": dry_run,
-        }
-    return result
+            encoded = [_encode_manifest(merged_manifest) for merged_manifest in merged]
+            published: list[Path] = []
+            try:
+                for index, payload in enumerate(encoded):
+                    destination = output_dir / f"candidate-{index:03d}.json"
+                    _atomic_write_payload(destination, payload)
+                    published.append(destination)
+            except BaseException:
+                for destination in reversed(published):
+                    destination.unlink(missing_ok=True)
+                raise
+
+            result = {
+                "status": "available",
+                "candidate_count": len(merged),
+                "groups": list(_GROUPS),
+                "memory": pool.snapshot(),
+                "reference_used": False,
+                "manifests": copy.deepcopy(merged),
+                "dry_run": dry_run,
+            }
+        return result
+    finally:
+        if dependency is not None:
+            dependency.close()
 
 
 __all__ = [
     "CompositionProducer",
+    "GenerationSourceList",
     "GenerationRequest",
     "RuntimePreparer",
     "RuntimeRequest",

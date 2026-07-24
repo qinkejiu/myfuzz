@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+import stat
+from typing import BinaryIO, Literal
 
 from myfuzz.protocols import ProtocolCatalog, load_protocol_catalog
 from myfuzz.protocols.model import ProtocolDefinitionError
@@ -23,11 +26,73 @@ class SourceList:
 
 
 @dataclass(frozen=True, slots=True)
+class ClockResetPolicy:
+    clock_role: str
+    reset_role: str
+    reset_active_level: int
+    reset_synchronous: bool
+    declarations: tuple["ClockResetBinding", ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class ClockResetBinding:
+    component_id: int
+    port_id: int
+    kind: str
+    domain_id: int
+    active_level: int
+    synchronous: bool
+
+
+@dataclass(frozen=True, slots=True)
+class AddressConstraints:
+    width: int
+    alignment_bytes: int
+
+
+@dataclass(frozen=True, slots=True)
 class Component:
     component_id: int
     role: str
     source_list_ids: tuple[int, ...]
     port_ids: tuple[int, ...]
+    generated: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class SourceCapability:
+    """A preflight-opened source inode exposed without a re-resolvable path."""
+
+    declared_path: str
+    resolved_path: Path
+    source_list_ids: tuple[int, ...]
+    descriptor: int = field(repr=False, compare=False)
+
+    def open(self) -> BinaryIO:
+        if self.descriptor < 0:
+            raise ValueError("source capability is closed")
+        try:
+            duplicate = os.open(
+                f"/proc/self/fd/{self.descriptor}",
+                os.O_RDONLY | getattr(os, "O_CLOEXEC", 0),
+            )
+        except OSError as error:
+            raise ValueError("source capability is closed") from error
+        return os.fdopen(duplicate, "rb", closefd=True)
+
+    def read_bytes(self) -> bytes:
+        with self.open() as stream:
+            return stream.read()
+
+    def close(self) -> None:
+        descriptor = self.descriptor
+        if descriptor < 0:
+            return
+        object.__setattr__(self, "descriptor", -1)
+        try:
+            os.close(descriptor)
+        except OSError:
+            pass
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +133,7 @@ class ReferenceEvaluation:
 class ExperimentConfig:
     path: Path
     target_id: int
+    source_roots: tuple[str, ...]
     source_lists: tuple[SourceList, ...]
     components: tuple[Component, ...]
     ports: tuple[Port, ...]
@@ -77,8 +143,23 @@ class ExperimentConfig:
     cycle_budget: int
     raw_width: int
     coverage_metric: str
+    clock_reset: ClockResetPolicy | None
+    address_constraints: AddressConstraints | None
     reference: ReferenceEvaluation | None
     document: Mapping[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class DependencyPreflight:
+    status: Literal["available", "dependency_unavailable"]
+    sources: tuple[Path, ...]
+    missing_paths: tuple[str, ...]
+    resolved_roots: tuple[Path, ...] = ()
+    capabilities: tuple[SourceCapability, ...] = ()
+
+    def close(self) -> None:
+        for capability in self.capabilities:
+            capability.close()
 
 
 _DIRECTIONS = frozenset(("input", "output", "inout"))
@@ -87,6 +168,7 @@ _SUPPORTED_TOP_LEVEL_FIELDS = frozenset(
     (
         "schema_version",
         "target",
+        "source_roots",
         "source_lists",
         "components",
         "ports",
@@ -99,6 +181,8 @@ _SUPPORTED_TOP_LEVEL_FIELDS = frozenset(
         "harness_groups",
         "mutation",
         "build_concurrency",
+        "clock_reset",
+        "address_constraints",
         "reference",
     )
 )
@@ -133,6 +217,30 @@ def _positive_int(value: object, label: str) -> int:
     return value
 
 
+def _relative_path(value: object, label: str) -> str:
+    text = _string(value, label)
+    if "\x00" in text or "\\" in text:
+        raise ExperimentConfigurationError(f"{label} must be a portable relative path")
+    raw_parts = text.split("/")
+    path = PurePosixPath(text)
+    if path.is_absolute() or any(part in {"", ".", ".."} for part in raw_parts):
+        raise ExperimentConfigurationError(f"{label} must be a portable relative path")
+    return path.as_posix()
+
+
+def _parse_source_roots(document: Mapping[str, object]) -> tuple[str, ...]:
+    value = document.get("source_roots")
+    if value is None:
+        return ()
+    roots = tuple(
+        _relative_path(item, f"source_roots[{index}]")
+        for index, item in enumerate(_array(value, "source_roots"))
+    )
+    if not roots or len(roots) != len(set(roots)):
+        raise ExperimentConfigurationError("source_roots must be a non-empty unique list")
+    return roots
+
+
 def _unique_positive_ids(records: Sequence[object], label: str, key: str) -> set[int]:
     identifiers: set[int] = set()
     for index, value in enumerate(records):
@@ -143,16 +251,32 @@ def _unique_positive_ids(records: Sequence[object], label: str, key: str) -> set
     return identifiers
 
 
-def _parse_source_lists(document: Mapping[str, object]) -> tuple[SourceList, ...]:
+def _parse_source_lists(
+    document: Mapping[str, object],
+    source_roots: tuple[str, ...],
+) -> tuple[SourceList, ...]:
     records = _array(document.get("source_lists"), "source_lists")
     _unique_positive_ids(records, "source_lists", "source_list_id")
     result: list[SourceList] = []
     for index, value in enumerate(records):
         record = _object(value, f"source_lists[{index}]")
         source_list_id = _positive_int(record.get("source_list_id"), f"source_lists[{index}].source_list_id")
-        files = tuple(_string(item, f"source_lists[{index}].files") for item in _array(record.get("files"), f"source_lists[{index}].files"))
+        files = tuple(
+            _relative_path(item, f"source_lists[{index}].files")
+            for item in _array(record.get("files"), f"source_lists[{index}].files")
+        )
         if not files or len(files) != len(set(files)):
             raise ExperimentConfigurationError("source_lists.files must be a non-empty unique list")
+        if source_roots and any(
+            not any(
+                PurePosixPath(file).is_relative_to(PurePosixPath(root))
+                for root in source_roots
+            )
+            for file in files
+        ):
+            raise ExperimentConfigurationError(
+                "source_lists.files must stay below declared source_roots"
+            )
         result.append(SourceList(source_list_id, files))
     if not result:
         raise ExperimentConfigurationError("source_lists must not be empty")
@@ -168,9 +292,16 @@ def _parse_components(document: Mapping[str, object], source_list_ids: set[int])
         component_id = _positive_int(record.get("component_id"), f"components[{index}].component_id")
         role = _string(record.get("role"), f"components[{index}].role")
         declared_sources = tuple(_positive_int(item, f"components[{index}].source_list_ids") for item in _array(record.get("source_list_ids"), f"components[{index}].source_list_ids"))
-        if not declared_sources or len(declared_sources) != len(set(declared_sources)) or not set(declared_sources) <= source_list_ids:
+        generated = record.get("generated", False)
+        if not isinstance(generated, bool):
+            raise ExperimentConfigurationError("components.generated must be bool")
+        if (
+            (not declared_sources and not generated)
+            or len(declared_sources) != len(set(declared_sources))
+            or not set(declared_sources) <= source_list_ids
+        ):
             raise ExperimentConfigurationError("components.source_list_ids must resolve uniquely")
-        result.append(Component(component_id, role, declared_sources, ()))
+        result.append(Component(component_id, role, declared_sources, (), generated))
     if not result:
         raise ExperimentConfigurationError("components must not be empty")
     return tuple(result)
@@ -288,6 +419,114 @@ def _parse_reference(document: Mapping[str, object]) -> ReferenceEvaluation | No
     return reference
 
 
+def _parse_clock_reset(
+    document: Mapping[str, object],
+    component_ids: set[int],
+    ports_by_id: Mapping[int, Port],
+) -> ClockResetPolicy | None:
+    value = document.get("clock_reset")
+    if value is None:
+        return None
+    record = _object(value, "clock_reset")
+    active_level = record.get("reset_active_level")
+    synchronous = record.get("reset_synchronous")
+    if (
+        isinstance(active_level, bool)
+        or not isinstance(active_level, int)
+        or active_level not in (0, 1)
+    ):
+        raise ExperimentConfigurationError("clock_reset.reset_active_level must be 0 or 1")
+    if not isinstance(synchronous, bool):
+        raise ExperimentConfigurationError("clock_reset.reset_synchronous must be bool")
+    declarations: list[ClockResetBinding] = []
+    seen_ports: set[int] = set()
+    for index, item in enumerate(_array(record.get("declarations", []), "clock_reset.declarations")):
+        declaration = _object(item, f"clock_reset.declarations[{index}]")
+        component_id = _positive_int(
+            declaration.get("component_id"),
+            f"clock_reset.declarations[{index}].component_id",
+        )
+        port_id = _positive_int(
+            declaration.get("port_id"),
+            f"clock_reset.declarations[{index}].port_id",
+        )
+        kind = _string(declaration.get("kind"), f"clock_reset.declarations[{index}].kind")
+        if kind not in {"clock", "reset"}:
+            raise ExperimentConfigurationError("clock_reset.declarations.kind must be clock or reset")
+        domain_id = _positive_int(
+            declaration.get("domain_id"),
+            f"clock_reset.declarations[{index}].domain_id",
+        )
+        active_value = declaration.get(
+            "active_level",
+            active_level if kind == "reset" else 1,
+        )
+        if isinstance(active_value, bool) or not isinstance(active_value, int) or active_value not in (0, 1):
+            raise ExperimentConfigurationError(
+                "clock_reset.declarations.active_level must be 0 or 1"
+            )
+        synchronous_value = declaration.get("synchronous", synchronous)
+        if not isinstance(synchronous_value, bool):
+            raise ExperimentConfigurationError(
+                "clock_reset.declarations.synchronous must be bool"
+            )
+        if component_id not in component_ids or port_id not in ports_by_id:
+            raise ExperimentConfigurationError(
+                "clock_reset.declarations must resolve component and port"
+            )
+        if ports_by_id[port_id].component_id != component_id or ports_by_id[port_id].role != kind:
+            raise ExperimentConfigurationError(
+                "clock_reset.declarations must match the declared port role"
+            )
+        if port_id in seen_ports:
+            raise ExperimentConfigurationError("clock_reset.declarations ports must be unique")
+        seen_ports.add(port_id)
+        declarations.append(
+            ClockResetBinding(
+                component_id,
+                port_id,
+                kind,
+                domain_id,
+                active_value,
+                synchronous_value,
+            )
+        )
+    for port in ports_by_id.values():
+        if port.role in {"clock", "reset"} and port.port_id not in seen_ports:
+            raise ExperimentConfigurationError(
+                "clock_reset.declarations must cover every clock/reset port"
+            )
+    policy = ClockResetPolicy(
+        _string(record.get("clock_role"), "clock_reset.clock_role"),
+        _string(record.get("reset_role"), "clock_reset.reset_role"),
+        active_level,
+        synchronous,
+        tuple(sorted(declarations, key=lambda item: (item.component_id, item.port_id))),
+    )
+    if policy.clock_role == policy.reset_role:
+        raise ExperimentConfigurationError("clock and reset roles must be distinct")
+    return policy
+
+
+def _parse_address_constraints(document: Mapping[str, object]) -> AddressConstraints | None:
+    value = document.get("address_constraints")
+    if value is None:
+        return None
+    record = _object(value, "address_constraints")
+    width = _positive_int(record.get("width"), "address_constraints.width")
+    alignment = _positive_int(
+        record.get("alignment_bytes"),
+        "address_constraints.alignment_bytes",
+    )
+    if width % 8 != 0:
+        raise ExperimentConfigurationError("address_constraints.width must be byte aligned")
+    if alignment & (alignment - 1):
+        raise ExperimentConfigurationError(
+            "address_constraints.alignment_bytes must be a power of two"
+        )
+    return AddressConstraints(width, alignment)
+
+
 def load_experiment_config(path: str | Path) -> ExperimentConfig:
     """Load one validated experiment declaration from a JSON file."""
     source = Path(path)
@@ -304,7 +543,8 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
         raise ExperimentConfigurationError("schema_version must be experiment.v1")
     target = _object(document.get("target"), "target")
     target_id = _positive_int(target.get("target_id"), "target.target_id")
-    source_lists = _parse_source_lists(document)
+    source_roots = _parse_source_roots(document)
+    source_lists = _parse_source_lists(document, source_roots)
     components = _parse_components(document, {item.source_list_id for item in source_lists})
     ports = _parse_ports(document, {item.component_id for item in components})
     components = tuple(
@@ -313,6 +553,7 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
             component.role,
             component.source_list_ids,
             tuple(port.port_id for port in ports if port.component_id == component.component_id),
+            component.generated,
         )
         for component in components
     )
@@ -339,6 +580,7 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
     return ExperimentConfig(
         source.resolve(),
         target_id,
+        source_roots,
         source_lists,
         components,
         ports,
@@ -348,6 +590,12 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
         cycle_budget,
         raw_width,
         coverage_metric,
+        _parse_clock_reset(
+            document,
+            {item.component_id for item in components},
+            {item.port_id: item for item in ports},
+        ),
+        _parse_address_constraints(document),
         _parse_reference(document),
         document,
     )
@@ -356,3 +604,117 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
 def load_experiment_configs(paths: Iterable[str | Path]) -> tuple[ExperimentConfig, ...]:
     """Load a caller-selected ordered set of independent experiment declarations."""
     return tuple(load_experiment_config(path) for path in paths)
+
+
+def preflight_experiment_sources(
+    config: ExperimentConfig,
+    repo_root: Path,
+) -> DependencyPreflight:
+    """Resolve only declared source files and distinguish missing dependencies."""
+    if not isinstance(config, ExperimentConfig):
+        raise TypeError("config must be an ExperimentConfig")
+    if not isinstance(repo_root, Path):
+        raise TypeError("repo_root must be a pathlib.Path")
+    try:
+        root_metadata = repo_root.lstat()
+    except OSError as error:
+        raise ExperimentConfigurationError("cannot inspect repository root") from error
+    if not stat.S_ISDIR(root_metadata.st_mode):
+        raise ExperimentConfigurationError("repo_root must be a real directory")
+
+    def resolve_path(path: Path, label: str) -> Path:
+        try:
+            return path.resolve(strict=False)
+        except (OSError, RuntimeError) as error:
+            raise ExperimentConfigurationError(f"cannot resolve {label}") from error
+
+    resolved_repo = resolve_path(repo_root, "repository root")
+
+    resolved_roots: dict[str, Path] = {}
+    for declared_root in config.source_roots:
+        resolved = resolve_path(resolved_repo / declared_root, "declared source_root")
+        if not resolved.is_relative_to(resolved_repo):
+            raise ExperimentConfigurationError("declared source_root escapes repo_root")
+        resolved_roots[declared_root] = resolved
+
+    sources: list[Path] = []
+    missing: list[str] = []
+    capabilities: list[SourceCapability] = []
+    declared_file_lists: dict[str, set[int]] = {}
+    for source_list in config.source_lists:
+        for declared_file in source_list.files:
+            declared_file_lists.setdefault(declared_file, set()).add(source_list.source_list_id)
+    declared_files = sorted(declared_file_lists)
+    try:
+        for declared_file in declared_files:
+            matching_roots = tuple(
+                root
+                for root in config.source_roots
+                if PurePosixPath(declared_file).is_relative_to(PurePosixPath(root))
+            )
+            if not matching_roots:
+                raise ExperimentConfigurationError(
+                    "source file is outside declared source_roots"
+                )
+            declared_root = max(matching_roots, key=len)
+            candidate = resolved_repo / declared_file
+            resolved_candidate = resolve_path(candidate, "source path")
+            if not resolved_candidate.is_relative_to(resolved_roots[declared_root]):
+                raise ExperimentConfigurationError("source path escapes declared source_root")
+            try:
+                metadata = resolved_candidate.stat()
+            except OSError:
+                missing.append(declared_file)
+                continue
+            if not stat.S_ISREG(metadata.st_mode) or not os.access(resolved_candidate, os.R_OK):
+                missing.append(declared_file)
+                continue
+            descriptor = -1
+            try:
+                descriptor = os.open(
+                    resolved_candidate,
+                    os.O_RDONLY
+                    | getattr(os, "O_CLOEXEC", 0)
+                    | getattr(os, "O_NOFOLLOW", 0),
+                )
+                opened_metadata = os.fstat(descriptor)
+            except OSError:
+                if descriptor >= 0:
+                    try:
+                        os.close(descriptor)
+                    except OSError:
+                        pass
+                missing.append(declared_file)
+                continue
+            if (
+                not stat.S_ISREG(opened_metadata.st_mode)
+                or opened_metadata.st_dev != metadata.st_dev
+                or opened_metadata.st_ino != metadata.st_ino
+            ):
+                os.close(descriptor)
+                raise ExperimentConfigurationError("source changed during preflight")
+            sources.append(resolved_candidate)
+            capabilities.append(
+                SourceCapability(
+                    declared_file,
+                    resolved_candidate,
+                    tuple(sorted(declared_file_lists[declared_file])),
+                    descriptor,
+                )
+            )
+        status = "available" if not missing else "dependency_unavailable"
+        if missing:
+            for capability in capabilities:
+                capability.close()
+            capabilities.clear()
+        return DependencyPreflight(
+            status,
+            tuple(sources) if not missing else (),
+            tuple(missing),
+            tuple(resolved_roots[root] for root in config.source_roots),
+            tuple(capabilities),
+        )
+    except BaseException:
+        for capability in capabilities:
+            capability.close()
+        raise

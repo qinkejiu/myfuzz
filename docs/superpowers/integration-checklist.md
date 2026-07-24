@@ -10,7 +10,7 @@ remote ancestry check succeed.
 | I1 | Detached manifest join | Published |
 | I2 | Identifier opacity and reference isolation | Published |
 | I3 | Process-shared memory tokens and synthetic pipeline | Verified |
-| I4 | Reference-free Ibex + OpenTitan declaration | Pending |
+| I4 | Reference-free Ibex + OpenTitan declaration | Published |
 | I5 | Generated-only RVX boundary | Pending |
 | I6 | Isolated reference evaluation | Pending |
 | I7 | Fair experiment matrix and report | Pending |
