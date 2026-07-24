@@ -1,0 +1,61 @@
+{
+  "schema_version": "composition_ir.v1",
+  "candidate_id": "candidate-runtime-001",
+  "parent_input_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "graph_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "components": [
+    {"id": 100, "module_id": 1, "role": "target"}
+  ],
+  "instances": [],
+  "nets": [],
+  "endpoint_bindings": [
+    {
+      "endpoint_id": 1000,
+      "component_id": 100,
+      "protocol_id": "ready-valid-mmio",
+      "version": "1",
+      "side": "target",
+      "parameters": {"address_width": 8, "data_width": 8},
+      "fields": [
+        {"field_role": "addr", "port_id": 10, "direction": "input", "width": 8, "signed": false},
+        {"field_role": "write", "port_id": 11, "direction": "input", "width": 1, "signed": false},
+        {"field_role": "wdata", "port_id": 12, "direction": "input", "width": 8, "signed": false},
+        {"field_role": "valid", "port_id": 13, "direction": "input", "width": 1, "signed": false},
+        {"field_role": "ready", "port_id": 14, "direction": "output", "width": 1, "signed": false},
+        {"field_role": "rdata", "port_id": 15, "direction": "output", "width": 8, "signed": false}
+      ]
+    }
+  ],
+  "adapters": [
+    {
+      "adapter_id": "adapter-composition",
+      "source_port_id": 12,
+      "target_port_id": 13,
+      "evidence_id": "composition-adapter-1"
+    }
+  ],
+  "address_regions": [],
+  "clock_domains": [
+    {"component_id": 100, "port_id": 1, "domain_id": 1, "active_level": "high", "synchronous": true}
+  ],
+  "reset_domains": [
+    {"component_id": 100, "port_id": 2, "domain_id": 1, "active_level": "low", "synchronous": false}
+  ],
+  "external_ports": [
+    {"port_id": 1, "component_id": 100, "direction": "input", "width": 1, "signed": false, "semantic_role": "clock"},
+    {"port_id": 2, "component_id": 100, "direction": "input", "width": 1, "signed": false, "semantic_role": "reset"},
+    {"port_id": 10, "component_id": 100, "direction": "input", "width": 8, "signed": false, "semantic_role": "protocol"},
+    {"port_id": 11, "component_id": 100, "direction": "input", "width": 1, "signed": false, "semantic_role": "protocol"},
+    {"port_id": 12, "component_id": 100, "direction": "input", "width": 8, "signed": false, "semantic_role": "protocol"},
+    {"port_id": 13, "component_id": 100, "direction": "input", "width": 1, "signed": false, "semantic_role": "protocol"},
+    {"port_id": 14, "component_id": 100, "direction": "output", "width": 1, "signed": false, "semantic_role": "protocol"},
+    {"port_id": 15, "component_id": 100, "direction": "output", "width": 8, "signed": false, "semantic_role": "protocol"}
+  ],
+  "external_endpoint_port_ids": [15],
+  "unresolved_optional_endpoints": [],
+  "evidence": [],
+  "assumptions": [],
+  "rejected_alternatives": [],
+  "score_vector": [0, 0, 0, 0, 0, 0, 0, 0],
+  "diagnostics": {"errors": [], "warnings": []}
+}

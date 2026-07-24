@@ -1,0 +1,22 @@
+{
+  "protocol_id": "apb", "version": "3", "legal_adapters": ["width-adapter"],
+  "fields": [
+    {"field_id": "paddr", "direction": "host_to_device", "width": "address_width", "required": true, "reset_value": 0},
+    {"field_id": "psel", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "penable", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "pwrite", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "pwdata", "direction": "host_to_device", "width": "data_width", "required": true, "reset_value": 0},
+    {"field_id": "pready", "direction": "device_to_host", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "prdata", "direction": "device_to_host", "width": "data_width", "required": true, "reset_value": 0},
+    {"field_id": "pslverr", "direction": "device_to_host", "width": "1", "required": false, "reset_value": 0}
+  ],
+  "projection_actions": [
+    {"action_id": 1, "field_ids": ["paddr"], "kind": "mask", "category": "address_validity"},
+    {"action_id": 2, "field_ids": ["psel", "penable"], "kind": "gate", "category": "protocol_legality", "max_cycles": 16},
+    {"action_id": 3, "field_ids": ["pwdata"], "kind": "fold_xor", "category": "dependency_consistency"}
+  ],
+  "temporal_rules": [
+    {"rule_id": 1, "kind": "phase_sequence", "antecedent_field_id": "psel", "consequent_field_id": "penable", "max_cycles": 16},
+    {"rule_id": 2, "kind": "response_after_request", "antecedent_field_id": "penable", "consequent_field_id": "pready", "max_cycles": 16}
+  ]
+}

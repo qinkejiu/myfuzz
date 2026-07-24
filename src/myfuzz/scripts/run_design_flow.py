@@ -17,27 +17,30 @@ sys.dont_write_bytecode = True
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[2]
+SRC_ROOT = SCRIPT_DIR.parents[1]
 RFUZZ_ROOT = REPO_ROOT / "third_party" / "rfuzz"
 if REPO_ROOT.as_posix() not in sys.path:
     sys.path.insert(0, REPO_ROOT.as_posix())
 if RFUZZ_ROOT.as_posix() not in sys.path:
     sys.path.insert(0, RFUZZ_ROOT.as_posix())
+if SRC_ROOT.as_posix() not in sys.path:
+    sys.path.insert(0, SRC_ROOT.as_posix())
 if SCRIPT_DIR.as_posix() not in sys.path:
     sys.path.insert(0, SCRIPT_DIR.as_posix())
 
 from frontend_api import default_frontend_library, run_frontend_manifest
 from source_only_frontend import run_source_only_frontend
-from rfuzz_flow.tools.verilog_instrumentation.generate_rfuzz_harness import (
-    generate_harness_files,
-    load_toml,
-    top_ports_from_frontend_manifest,
-    validate_harness,
-)
 from scripts.source_branch_instrumenter import instrument_project
-from frontend_manifest_to_rfuzz_toml import generate_toml
+from frontend_manifest_to_rfuzz_toml import (
+    find_top_module,
+    generate_toml,
+    validate_frontend_candidate_join,
+)
+from myfuzz.harness import HarnessArtifact, build_harness
 
 
 STAGES = ["frontend", "instrument", "toml", "harness", "server", "fuzz"]
+HARNESS_MODES = {"flat_direct", "candidate_direct", "candidate_depaware"}
 
 
 def repo_root() -> Path:
@@ -120,17 +123,111 @@ def stage_instrument(root: Path, cfg: dict, paths: dict, frontend_manifest: dict
     return manifest
 
 
-def stage_toml(root: Path, cfg: dict, paths: dict, frontend_manifest: dict, instrumentation: dict) -> None:
-    harness_cfg = cfg.get("harness", {}) if isinstance(cfg.get("harness", {}), dict) else {}
-    generate_toml(frontend_manifest, instrumentation, cfg["top"], paths["toml"], harness_cfg, root=root)
+def validate_candidate_manifest(candidate_manifest: object) -> dict:
+    if not isinstance(candidate_manifest, dict):
+        raise ValueError("candidate manifest must be an object")
+    if candidate_manifest.get("schema_version") != "candidate_manifest.v1":
+        raise ValueError("candidate manifest schema_version must be candidate_manifest.v1")
+    candidate_id = candidate_manifest.get("candidate_id")
+    if not isinstance(candidate_id, str) or not candidate_id:
+        raise ValueError("candidate_manifest.v1 candidate_id must be a non-empty string")
+    if not isinstance(candidate_manifest.get("top_port_abi"), list):
+        raise ValueError("candidate_manifest.v1 top_port_abi must be an array")
+    if not isinstance(candidate_manifest.get("coverage_universe"), list):
+        raise ValueError("candidate_manifest.v1 coverage_universe must be an array")
+    return candidate_manifest
+
+
+def _artifact_module_name(artifact: HarnessArtifact) -> str:
+    declaration = artifact.source_text.splitlines()[0].split()
+    if len(declaration) < 2 or declaration[0] != "module":
+        raise ValueError("generated harness source has no module declaration")
+    return declaration[1]
+
+
+def write_candidate_harness_artifact(paths: dict, artifact: HarnessArtifact) -> tuple[Path, Path]:
+    harness_dir = Path(paths["harness"])
+    harness_dir.mkdir(parents=True, exist_ok=True)
+    source_path = harness_dir / f"{artifact.mode}.sv"
+    fragment_path = harness_dir / f"{artifact.mode}.abi.json"
+    source_path.write_text(artifact.source_text)
+    fragment = artifact.manifest_fragment()
+    fragment.update(source=source_path.name, module=_artifact_module_name(artifact))
+    write_json(fragment_path, fragment)
+    return source_path, fragment_path
+
+
+def harness_config_for_artifact(cfg: dict, artifact: HarnessArtifact, source_path: Path, fragment_path: Path) -> dict:
+    value = cfg.get("harness", {})
+    harness_cfg = dict(value) if isinstance(value, dict) else {}
+    harness_cfg.update(
+        candidate_mode=artifact.mode,
+        manual_harness=source_path.resolve().as_posix(),
+        manual_harness_module=_artifact_module_name(artifact),
+        manual_harness_input="rfuzz_input_bits",
+        raw_width=artifact.raw_width,
+        raw_abi_hash=artifact.abi.abi_hash,
+        raw_abi_manifest=fragment_path.resolve().as_posix(),
+    )
+    return harness_cfg
+
+
+def rfuzz_harness_api():
+    from rfuzz_flow.tools.verilog_instrumentation.generate_rfuzz_harness import (
+        generate_harness_files,
+        load_toml,
+        top_ports_from_frontend_manifest,
+        validate_harness,
+    )
+
+    return generate_harness_files, load_toml, top_ports_from_frontend_manifest, validate_harness
+
+
+def stage_toml(
+    root: Path,
+    cfg: dict,
+    paths: dict,
+    frontend_manifest: dict,
+    instrumentation: dict,
+    candidate_manifest: dict,
+    candidate_mode: str,
+) -> None:
+    manifest = validate_candidate_manifest(candidate_manifest)
+    frontend_module = find_top_module(frontend_manifest, cfg["top"])
+    validate_frontend_candidate_join(frontend_module, cfg["top"], manifest)
+    artifact = build_harness(manifest, candidate_mode)
+    source_path, fragment_path = write_candidate_harness_artifact(paths, artifact)
+    harness_cfg = harness_config_for_artifact(cfg, artifact, source_path, fragment_path)
+    generate_toml(
+        frontend_manifest,
+        instrumentation,
+        cfg["top"],
+        paths["toml"],
+        harness_cfg,
+        root=root,
+        candidate_manifest=candidate_manifest,
+    )
     print(f"Generated rfuzz TOML: {paths['toml']}")
 
 
-def stage_harness(root: Path, cfg: dict, paths: dict, server_bin: str, frontend_manifest: dict) -> None:
-    del root
+def stage_harness(
+    root: Path,
+    cfg: dict,
+    paths: dict,
+    server_bin: str,
+    frontend_manifest: dict,
+    candidate_manifest: dict,
+    candidate_mode: str,
+) -> HarnessArtifact:
+    manifest = validate_candidate_manifest(candidate_manifest)
+    frontend_module = find_top_module(frontend_manifest, cfg["top"])
+    validate_frontend_candidate_join(frontend_module, cfg["top"], manifest)
+    artifact = build_harness(manifest, candidate_mode)
+    source_path, fragment_path = write_candidate_harness_artifact(paths, artifact)
+    generate_harness_files, load_toml, top_ports_from_frontend_manifest, validate_harness = rfuzz_harness_api()
     conf = load_toml(paths["toml"])
     ports = top_ports_from_frontend_manifest(frontend_manifest, cfg["top"])
-    harness_cfg = cfg.get("harness", {}) if isinstance(cfg.get("harness", {}), dict) else {}
+    harness_cfg = harness_config_for_artifact(cfg, artifact, source_path, fragment_path)
     harness_path, augmented_toml = generate_harness_files(
         conf,
         ports,
@@ -151,6 +248,8 @@ def stage_harness(root: Path, cfg: dict, paths: dict, server_bin: str, frontend_
         print("Skipped harness lint validation; set harness.validate=true to enable it.")
     print(f"Generated harness: {harness_path}")
     print(f"Generated augmented TOML: {augmented_toml}")
+    print(f"Generated raw ABI: {fragment_path}")
+    return artifact
 
 def stage_server(root: Path, cfg: dict, paths: dict, server_bin: str, jobs: str) -> None:
     server_cfg = cfg.get("server", {}) if isinstance(cfg.get("server", {}), dict) else {}
@@ -431,7 +530,7 @@ def run_fuzz_attempt(
     cfg_path: Path,
     paths: dict,
     fuzzer: Path,
-    seconds: int,
+    seconds: int | None,
     attempt: int,
     resume_queue: Path | None,
 ) -> tuple[str, int | None, int | None, Path | None]:
@@ -454,6 +553,7 @@ def run_fuzz_attempt(
     env["RFUZZ_LATEST_BATCH"] = latest_batch.as_posix()
     fuzz_cfg = cfg.get("fuzz", {}) if isinstance(cfg.get("fuzz", {}), dict) else {}
     for cfg_key, env_key in (
+        ("seed", "RFUZZ_SEED"),
         ("max_cycles", "RFUZZ_MAX_CYCLES"),
         ("max_runs", "RFUZZ_MAX_RUNS"),
         ("save_latest_every_runs", "RFUZZ_SAVE_LATEST_EVERY_RUNS"),
@@ -535,7 +635,12 @@ def run_fuzz_attempt(
             cmd.extend(["--seed-cycles", str(seed_cycles)])
         if resume_queue is not None and queue_has_entries(resume_queue):
             cmd.extend(["--input-directory", resume_queue.as_posix()])
-        print("+ " + " ".join(["myfuzz-timeout", str(seconds), *cmd]), flush=True)
+        budget_label = (
+            f"wall-seconds={seconds}"
+            if seconds is not None
+            else f"cycles={fuzz_cfg['max_cycles']}"
+        )
+        print("+ " + " ".join([f"myfuzz-budget({budget_label})", *cmd]), flush=True)
         with fuzzer_log.open("wb") as fuzzer_out:
             fuzzer_proc = subprocess.Popen(
                 cmd,
@@ -544,7 +649,7 @@ def run_fuzz_attempt(
                 stdout=fuzzer_out,
                 stderr=subprocess.STDOUT,
             )
-            attempt_deadline = time.time() + seconds
+            attempt_deadline = None if seconds is None else time.time() + seconds
             while True:
                 fuzzer_rc = fuzzer_proc.poll()
                 server_index, server_rc = first_returncode(server_procs)
@@ -557,7 +662,7 @@ def run_fuzz_attempt(
                         fuzzer_rc, server_rc, latest_input, latest_batch, server_log, fuzzer_log,
                     )
                     return "crash", fuzzer_rc, server_rc, archive
-                if time.time() >= attempt_deadline:
+                if attempt_deadline is not None and time.time() >= attempt_deadline:
                     fuzzer_rc = terminate_process(fuzzer_proc)
                     server_rc = terminate_processes(server_procs)
                     return "ok", 124, server_rc, None
@@ -577,20 +682,28 @@ def run_fuzz_attempt(
         terminate_processes(server_procs)
 
 
-def stage_fuzz(root: Path, cfg: dict, cfg_path: Path, paths: dict, seconds: int) -> None:
+def stage_fuzz(
+    root: Path,
+    cfg: dict,
+    cfg_path: Path,
+    paths: dict,
+    seconds: int | None,
+) -> None:
     fuzzer = build_fuzzer(root)
     fuzz_cfg = cfg.get("fuzz", {}) if isinstance(cfg.get("fuzz", {}), dict) else {}
+    if seconds is None and "max_cycles" not in fuzz_cfg:
+        raise ValueError("fuzz requires a wall-time or cycle budget")
     max_restarts = int(fuzz_cfg.get("crash_restarts", cfg.get("crash_restarts", 3)))
     stop_on_crash = bool(fuzz_cfg.get("stop_on_crash", cfg.get("stop_on_crash", False)))
     resume_queue: Path | None = None
     if fuzz_cfg.get("input_directory"):
         resume_queue = resolve(root, str(fuzz_cfg["input_directory"]))
     crashes: list[str] = []
-    deadline = time.time() + seconds
+    deadline = None if seconds is None else time.time() + seconds
 
     for attempt in range(1, max_restarts + 2):
-        remaining = max(1, int(deadline - time.time()))
-        if time.time() >= deadline:
+        remaining = None if deadline is None else max(1, int(deadline - time.time()))
+        if deadline is not None and time.time() >= deadline:
             print(f"Fuzz time budget exhausted after {len(crashes)} crash restart(s).", flush=True)
             return
         status, fuzzer_rc, server_rc, crash_dir = run_fuzz_attempt(
@@ -629,11 +742,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", required=True)
     parser.add_argument("--stage", choices=["all", *STAGES], default="all")
     parser.add_argument("--frontend-library")
+    parser.add_argument("--manifest", "--candidate-manifest", dest="manifest")
+    parser.add_argument("--candidate-mode", choices=sorted(HARNESS_MODES), default=None)
     parser.add_argument("--server-verilator-bin")
     parser.add_argument("--jobs", default=os.environ.get("MYFUZZ_JOBS", "1"))
-    parser.add_argument("--fuzz-seconds", type=int, default=5)
+    parser.add_argument("--fuzz-seconds", type=int)
+    parser.add_argument("--seed", type=int)
+    parser.add_argument("--max-cycles", type=int)
     parser.add_argument("--force", action=argparse.BooleanOptionalAction, default=False)
     return parser.parse_args()
+
+
+def select_candidate_mode(cli_mode: str | None, cfg: dict) -> str:
+    harness_cfg = cfg.get("harness", {}) if isinstance(cfg.get("harness"), dict) else {}
+    configured = cfg.get("candidate_mode", harness_cfg.get("candidate_mode"))
+    mode = cli_mode or configured or "candidate_direct"
+    if mode not in HARNESS_MODES:
+        raise ValueError(f"unknown candidate mode: {mode}")
+    return str(mode)
 
 
 def main() -> int:
@@ -641,6 +767,25 @@ def main() -> int:
     args = parse_args()
     cfg_path = resolve(root, args.config)
     cfg = load_config(cfg_path)
+    if args.fuzz_seconds is not None and args.fuzz_seconds <= 0:
+        raise ValueError("--fuzz-seconds must be positive")
+    if args.seed is not None or args.max_cycles is not None:
+        if args.seed is not None and args.seed < 0:
+            raise ValueError("--seed must be non-negative")
+        if args.max_cycles is not None and args.max_cycles <= 0:
+            raise ValueError("--max-cycles must be positive")
+        cfg = dict(cfg)
+        fuzz_cfg = cfg.get("fuzz", {})
+        cfg["fuzz"] = dict(fuzz_cfg) if isinstance(fuzz_cfg, dict) else {}
+        if args.seed is not None:
+            cfg["fuzz"]["seed"] = args.seed
+        if args.max_cycles is not None:
+            cfg["fuzz"]["max_cycles"] = args.max_cycles
+    manifest_arg = args.manifest or cfg.get("candidate_manifest")
+    candidate_manifest = None
+    if manifest_arg:
+        candidate_manifest = load_config(resolve(root, str(manifest_arg)))
+    candidate_mode = select_candidate_mode(args.candidate_mode, cfg)
     out_dir = resolve(root, cfg["out_dir"])
     stages = selected_stages(args.stage)
     if args.force and "frontend" in stages and out_dir.exists():
@@ -675,15 +820,22 @@ def main() -> int:
             frontend_manifest = json.loads(paths["frontend_json"].read_text())
         if instrumentation is None:
             instrumentation = json.loads((paths["instrumented"] / "instrumentation.json").read_text())
-        stage_toml(root, cfg, paths, frontend_manifest, instrumentation)
+        if candidate_manifest is None:
+            raise ValueError("validated candidate manifest path is required for TOML generation")
+        stage_toml(root, cfg, paths, frontend_manifest, instrumentation, candidate_manifest, candidate_mode)
     if "harness" in stages:
         if frontend_manifest is None:
             frontend_manifest = json.loads(paths["frontend_json"].read_text())
-        stage_harness(root, cfg, paths, server_bin, frontend_manifest)
+        if candidate_manifest is None:
+            raise ValueError("validated candidate manifest path is required for harness generation")
+        stage_harness(root, cfg, paths, server_bin, frontend_manifest, candidate_manifest, candidate_mode)
     if "server" in stages:
         stage_server(root, cfg, paths, server_bin, args.jobs)
     if "fuzz" in stages:
-        stage_fuzz(root, cfg, cfg_path, paths, args.fuzz_seconds)
+        fuzz_seconds = args.fuzz_seconds
+        if fuzz_seconds is None and args.max_cycles is None:
+            fuzz_seconds = 5
+        stage_fuzz(root, cfg, cfg_path, paths, fuzz_seconds)
 
     print(f"myfuzz output: {out_dir}")
     return 0

@@ -1,0 +1,24 @@
+{
+  "protocol_id": "tl-ul", "version": "1", "legal_adapters": ["width-adapter"],
+  "fields": [
+    {"field_id": "a_valid", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "a_ready", "direction": "device_to_host", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "a_opcode", "direction": "host_to_device", "width": "3", "required": true, "reset_value": 0},
+    {"field_id": "a_address", "direction": "host_to_device", "width": "address_width", "required": true, "reset_value": 0},
+    {"field_id": "a_data", "direction": "host_to_device", "width": "data_width", "required": true, "reset_value": 0},
+    {"field_id": "d_valid", "direction": "device_to_host", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "d_ready", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "d_opcode", "direction": "device_to_host", "width": "3", "required": true, "reset_value": 0},
+    {"field_id": "d_data", "direction": "device_to_host", "width": "data_width", "required": true, "reset_value": 0}
+  ],
+  "projection_actions": [
+    {"action_id": 1, "field_ids": ["a_address"], "kind": "mask", "category": "address_validity"},
+    {"action_id": 2, "field_ids": ["a_valid", "d_ready"], "kind": "gate", "category": "protocol_legality", "max_cycles": 16},
+    {"action_id": 3, "field_ids": ["a_data"], "kind": "fold_xor", "category": "dependency_consistency"}
+  ],
+  "temporal_rules": [
+    {"rule_id": 1, "kind": "a_handshake", "antecedent_field_id": "a_valid", "consequent_field_id": "a_ready", "max_cycles": 16},
+    {"rule_id": 2, "kind": "d_handshake", "antecedent_field_id": "d_ready", "consequent_field_id": "d_valid", "max_cycles": 16},
+    {"rule_id": 3, "kind": "response_after_request", "antecedent_field_id": "a_valid", "consequent_field_id": "d_valid", "max_cycles": 16}
+  ]
+}

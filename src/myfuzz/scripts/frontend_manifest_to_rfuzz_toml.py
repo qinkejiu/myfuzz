@@ -10,9 +10,13 @@ import re
 from pathlib import Path
 
 
-CLOCK_NAMES = {"clock", "clk", "clk_i"}
-RESET_NAMES = {"reset", "rst", "rst_i", "reset_i"}
-ACTIVE_LOW_RESET_NAMES = {"rst_n", "rst_ni", "reset_n", "reset_ni"}
+try:
+    from myfuzz.harness.abi import manifest_ports, selected_ports
+except ModuleNotFoundError:  # direct script execution without PYTHONPATH=src
+    import sys
+
+    sys.path.insert(0, Path(__file__).resolve().parents[2].as_posix())
+    from myfuzz.harness.abi import manifest_ports, selected_ports
 
 
 def quote(value: str) -> str:
@@ -35,26 +39,6 @@ def coverage_width(instrumentation: dict, top: str) -> int:
         if item.get("module") == top and item.get("active"):
             return int(item.get("coverage_width", 0))
     return int(instrumentation.get("coverage_point_count", 0))
-
-
-def harness_name_set(harness_config: dict | None, key: str) -> set[str]:
-    if not isinstance(harness_config, dict):
-        return set()
-    value = harness_config.get(key, [])
-    if isinstance(value, str):
-        return {value}
-    if isinstance(value, list):
-        return {str(item) for item in value}
-    return set()
-
-
-def harness_constant_inputs(harness_config: dict | None) -> dict[str, str]:
-    if not isinstance(harness_config, dict):
-        return {}
-    value = harness_config.get("constant_inputs", {})
-    if not isinstance(value, dict):
-        return {}
-    return {str(key): str(expr) for key, expr in value.items()}
 
 
 def strip_sv_comments(text: str) -> str:
@@ -123,16 +107,66 @@ def manual_harness_input(harness_config: dict | None, root: Path | None = None) 
     return input_name, sv_range_width(match.group("range"))
 
 
-def should_fuzz_input(name: str, harness_config: dict | None) -> bool:
-    clock_ports = CLOCK_NAMES | harness_name_set(harness_config, "clock_ports")
-    reset_ports = RESET_NAMES | harness_name_set(harness_config, "reset_ports")
-    active_low_reset_ports = ACTIVE_LOW_RESET_NAMES | harness_name_set(harness_config, "active_low_reset_ports")
-    excluded = harness_name_set(harness_config, "exclude_inputs")
-    constants = set(harness_constant_inputs(harness_config))
-    fuzz_inputs = harness_name_set(harness_config, "fuzz_inputs")
-    if fuzz_inputs:
-        return name in fuzz_inputs
-    return name not in clock_ports | reset_ports | active_low_reset_ports | excluded | constants
+def candidate_ports(candidate_manifest: dict) -> dict[str, dict]:
+    selected_ports(candidate_manifest)
+    ports = manifest_ports(candidate_manifest)
+    return {str(port["emitted_name"]): port for port in ports}
+
+
+def validate_frontend_candidate_join(module: dict, top: str, candidate_manifest: dict | None) -> dict[str, dict]:
+    if candidate_manifest is None:
+        raise ValueError("validated candidate manifest is required for input selection")
+    manifest_by_name = candidate_ports(candidate_manifest)
+    candidate_top = candidate_manifest.get("top", {}).get("module") if isinstance(candidate_manifest.get("top"), dict) else None
+    selected_names = {name for name in (module.get("name"), module.get("origName")) if isinstance(name, str) and name}
+    if candidate_top not in selected_names:
+        raise ValueError(
+            f"candidate manifest top module {candidate_top!r} does not match selected frontend module {sorted(selected_names)!r}"
+        )
+
+    frontend_by_name: dict[str, dict] = {}
+    for port in module.get("ports", []):
+        name = port.get("name")
+        if not isinstance(name, str) or not name:
+            raise ValueError("frontend port name is required for candidate manifest mapping")
+        if name in frontend_by_name:
+            raise ValueError(f"duplicate frontend port name: {name}")
+        frontend_by_name[name] = port
+
+    for name, declared in manifest_by_name.items():
+        frontend_port = frontend_by_name.get(name)
+        if frontend_port is None:
+            raise ValueError(f"candidate manifest port {name!r} is not present in frontend port mapping")
+        if (
+            declared["direction"] != str(frontend_port.get("direction", ""))
+            or int(declared["width"]) != int(frontend_port.get("width", 1))
+        ):
+            raise ValueError(f"candidate manifest mapping mismatch for frontend port {name!r}")
+    for name in frontend_by_name:
+        if name not in manifest_by_name:
+            raise ValueError(f"frontend port {name!r} is not bound in candidate manifest")
+    return manifest_by_name
+
+
+def should_fuzz_input(name: str, candidate_manifest: dict) -> bool:
+    """Return the validated manifest disposition for one frontend port name."""
+    port = candidate_ports(candidate_manifest).get(name)
+    if port is None:
+        raise ValueError(f"frontend input {name!r} is not bound in candidate manifest")
+    if port["direction"] not in {"input", "inout"}:
+        return False
+    role = port.get("semantic_role")
+    missing = object()
+    fuzzable = port.get("fuzzable", port.get("fuzz_disposition", port.get("disposition", missing)))
+    if fuzzable is missing:
+        raise ValueError(f"fuzz disposition must be explicit for manifest port {name!r}")
+    if isinstance(fuzzable, str):
+        if fuzzable not in {"fuzz", "fuzzable", "enabled", "input", "constant", "disabled", "output"}:
+            raise ValueError(f"invalid fuzz disposition for manifest port {name!r}")
+        fuzzable = fuzzable in {"fuzz", "fuzzable", "enabled", "input"}
+    if not isinstance(fuzzable, bool):
+        raise ValueError(f"invalid fuzz disposition for manifest port {name!r}")
+    return bool(fuzzable and role not in {"clock", "reset"})
 
 
 def write_toml(
@@ -142,8 +176,10 @@ def write_toml(
     out_path: Path,
     harness_config: dict | None = None,
     root: Path | None = None,
+    candidate_manifest: dict | None = None,
 ) -> None:
     module = find_top_module(frontend, top)
+    manifest_by_name = validate_frontend_candidate_join(module, top, candidate_manifest)
     coverage_port = instrumentation["coverage_port"]
     top_cov_width = coverage_width(instrumentation, top)
     points = list(instrumentation.get("coverage", []))
@@ -182,11 +218,14 @@ def write_toml(
             for port in module.get("ports", []):
                 name = str(port["name"])
                 direction = str(port.get("direction", ""))
-                if direction != "input":
+                if direction not in {"input", "inout"}:
                     continue
                 if name == coverage_port:
                     continue
-                if not should_fuzz_input(name, harness_config):
+                declared = manifest_by_name.get(name)
+                if declared is None:
+                    raise ValueError(f"frontend input {name!r} is not bound in candidate manifest")
+                if not should_fuzz_input(name, candidate_manifest):
                     continue
                 out.write("[[input]]\n")
                 out.write(f"name = {quote(name)}\n")
@@ -227,9 +266,10 @@ def generate_toml(
     out_path: Path,
     harness_config: dict | None = None,
     root: Path | None = None,
+    candidate_manifest: dict | None = None,
 ) -> Path:
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    write_toml(frontend, instrumentation, top, out_path, harness_config, root)
+    write_toml(frontend, instrumentation, top, out_path, harness_config, root, candidate_manifest)
     return out_path
 
 
@@ -239,6 +279,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--instrumentation", required=True)
     parser.add_argument("--top", required=True)
     parser.add_argument("--out", required=True)
+    parser.add_argument("--manifest", required=True)
     return parser.parse_args()
 
 
@@ -246,7 +287,8 @@ def main() -> int:
     args = parse_args()
     frontend = json.loads(Path(args.frontend).read_text())
     instrumentation = json.loads(Path(args.instrumentation).read_text())
-    generate_toml(frontend, instrumentation, args.top, Path(args.out))
+    candidate_manifest = json.loads(Path(args.manifest).read_text())
+    generate_toml(frontend, instrumentation, args.top, Path(args.out), candidate_manifest=candidate_manifest)
     print(f"Generated rfuzz TOML: {args.out}")
     return 0
 
