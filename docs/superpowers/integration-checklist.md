@@ -13,7 +13,7 @@ remote ancestry check succeed.
 | I4 | Reference-free Ibex + OpenTitan declaration | Published |
 | I5 | Generated-only RVX boundary | Published |
 | I6 | Isolated reference evaluation | Published |
-| I7 | Fair experiment matrix and report | Implemented; review pending |
+| I7 | Fair experiment matrix and report | Published |
 
 ## I3 Gate
 
@@ -69,14 +69,17 @@ alter what runs. Its stdout is discarded and stderr is continuously drained
 with bounded diagnostic retention. The report admits a reference summary only
 when its scope is `reference-descriptive`, and uses it only through the
 stable-source intersection; candidate hashes and coverage universes remain
-unchanged. Independent I6 review remains pending.
+unchanged. Independent I6 review approved the published boundary with no
+Critical or Important findings.
 
 ## I7 Gate
 
 ```bash
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest discover \
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -W error::ResourceWarning \
+  -m unittest discover \
   -s tests/integration -p 'test_*.py' -v
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest discover \
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -W error::ResourceWarning \
+  -m unittest discover \
   -s tests/experiments -p 'test_*.py' -v
 python3 scripts/check_identifier_policy.py --paths \
   src/myfuzz/composition src/myfuzz/harness src/myfuzz/integration --repo-root .
@@ -93,4 +96,7 @@ current attempt and exact peak-RSS evidence. The report parent and any existing
 destination inode are pinned before planning, while rollback keeps a durable
 recovery backup until restoration is confirmed. Checkpoint sinks receive
 detached events, and publication verifies the pinned destination inode across
-an atomic name exchange. Independent I7 review remains pending.
+an atomic name exchange. A recovery backup is discarded only after the pinned
+inode is restored to the public name and that directory state is durable.
+Independent I7 review approved all three commits with no Critical or Important
+findings.
