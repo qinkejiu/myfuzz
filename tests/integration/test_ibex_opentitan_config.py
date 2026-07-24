@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import fields
 import json
 import os
 from pathlib import Path
@@ -234,7 +235,31 @@ class IbexOpenTitanConfigTests(unittest.TestCase):
                     capability = next(
                         item for item in request.sources if item.declared_path == declared
                     )
-                    observed_capabilities.append(capability)
+                    observed_capabilities.extend(request.sources)
+                    self.assertFalse(hasattr(capability, "descriptor"))
+                    self.assertFalse(hasattr(capability, "_descriptor"))
+                    self.assertFalse(hasattr(capability, "fd"))
+                    self.assertFalse(hasattr(capability, "fileno"))
+                    self.assertNotIn("_descriptor", capability.__slots__)
+                    self.assertFalse(
+                        any("descriptor" in item.name for item in fields(capability))
+                    )
+                    self.assertFalse(
+                        any(
+                            isinstance(getattr(capability, item.name), int)
+                            for item in fields(capability)
+                            if item.name != "source_list_ids"
+                        )
+                    )
+                    with self.assertRaises(TypeError):
+                        vars(capability)
+                    self.assertFalse(
+                        any(
+                            isinstance(getattr(capability, name), int)
+                            for name in dir(capability)
+                            if not name.startswith("_") and not callable(getattr(capability, name))
+                        )
+                    )
                     before = capability.read_bytes()
                     with capability.open() as first, capability.open() as second:
                         self.assertEqual(first.read(), before)
@@ -257,8 +282,10 @@ class IbexOpenTitanConfigTests(unittest.TestCase):
                         memory_state_path=repo_root / "memory-tokens.json",
                         repo_root=repo_root,
                     )
-                with self.assertRaisesRegex(ValueError, "closed"):
-                    observed_capabilities[0].read_bytes()
+                self.assertTrue(observed_capabilities)
+                for capability in observed_capabilities:
+                    with self.assertRaisesRegex(ValueError, "closed"):
+                        capability.read_bytes()
             finally:
                 os.chdir(original_cwd)
 

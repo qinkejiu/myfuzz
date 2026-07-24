@@ -9,7 +9,7 @@ from myfuzz.composition.manifest import candidate_manifest
 from myfuzz.composition.search import compose_topk
 from myfuzz.contracts import content_hash
 from myfuzz.experiments import ExperimentConfigurationError, load_experiment_config
-from myfuzz.integration import semantic_projection
+from myfuzz.experiments.identity import candidate_semantic_hash
 from myfuzz.integration.pipeline import GenerationRequest, run_candidate_pipeline
 from tests.composition.test_search import design
 
@@ -68,9 +68,11 @@ class RvxGenerationBoundaryTests(unittest.TestCase):
             "EvaluatorArgs",
             "REFERENCE-ENVIRONMENT",
             "REFERENCEPath",
+            "original_top",
             "original_topology",
             "Original Topology",
             "originalTop",
+            "original_soc",
         )
         for key in forbidden_keys:
             with self.subTest(key=key), tempfile.TemporaryDirectory() as temporary:
@@ -99,11 +101,14 @@ class RvxGenerationBoundaryTests(unittest.TestCase):
                 self.assertFalse(producer_called)
                 self.assertFalse(output_dir.exists())
 
-    def test_non_reference_member_names_are_not_rejected(self) -> None:
+    def test_unrelated_original_and_non_reference_member_names_are_not_rejected(self) -> None:
         document = _document()
         document["target"]["nested"] = {
             "GeneratorFlag": "DEREFERENCE",
             "PREFERENCE": "evaluator value is irrelevant",
+            "original_frequency": 100,
+            "original_seed": 7,
+            "original_port_width": 32,
         }
         with tempfile.TemporaryDirectory() as temporary:
             config_path = Path(temporary) / "experiment.json"
@@ -220,8 +225,8 @@ class RvxGenerationBoundaryTests(unittest.TestCase):
                 [manifest["build_cache_key"] for manifest in second["manifests"]],
             )
             self.assertEqual(
-                [content_hash(semantic_projection(manifest)) for manifest in first["manifests"]],
-                [content_hash(semantic_projection(manifest)) for manifest in second["manifests"]],
+                [candidate_semantic_hash(manifest) for manifest in first["manifests"]],
+                [candidate_semantic_hash(manifest) for manifest in second["manifests"]],
             )
             self.assertEqual(len(observed_requests), 2)
             for request in observed_requests:

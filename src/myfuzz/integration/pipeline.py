@@ -31,7 +31,8 @@ from .manifest import merge_candidate_manifest
 from .memory_lock import MemoryTokenPool
 
 
-_FORBIDDEN_GENERATOR_FIELD_TOKENS = frozenset(("evaluator", "original", "reference"))
+_FORBIDDEN_GENERATOR_FIELD_TOKENS = frozenset(("evaluator", "reference"))
+_FORBIDDEN_ORIGINAL_CONTEXT_TOKENS = frozenset(("soc", "top", "topology"))
 _GROUPS = ("flat-direct", "candidate-direct", "candidate-depaware")
 _SOFT_LIMIT_BYTES = 256 * 1024 * 1024
 _HARD_LIMIT_BYTES = 512 * 1024 * 1024
@@ -106,12 +107,20 @@ def _field_tokens(key: str) -> frozenset[str]:
     )
 
 
+def _is_forbidden_generator_field(key: str) -> bool:
+    tokens = _field_tokens(key)
+    return bool(
+        tokens & _FORBIDDEN_GENERATOR_FIELD_TOKENS
+        or "original" in tokens and tokens & _FORBIDDEN_ORIGINAL_CONTEXT_TOKENS
+    )
+
+
 def _assert_reference_free(value: object, path: str = "config") -> None:
     if isinstance(value, Mapping):
         for key, item in value.items():
             if not isinstance(key, str):
                 raise ValueError(f"{path} contains a non-string key")
-            if _field_tokens(key) & _FORBIDDEN_GENERATOR_FIELD_TOKENS:
+            if _is_forbidden_generator_field(key):
                 raise ValueError(f"generator config field is forbidden: {path}.{key}")
             _assert_reference_free(item, f"{path}.{key}")
     elif isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):

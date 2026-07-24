@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path, PurePosixPath
 import stat
+import threading
 from typing import BinaryIO, Literal
 
 from myfuzz.protocols import ProtocolCatalog, load_protocol_catalog
@@ -64,39 +66,70 @@ class Component:
     generated: bool = False
 
 
+class _SourceCapabilityRegistry:
+    """Own source descriptors outside producer-visible capability objects."""
+
+    def __init__(self) -> None:
+        self._descriptors: dict[str, int] = {}
+        self._lock = threading.RLock()
+
+    def register(self, descriptor: int) -> str:
+        with self._lock:
+            token = secrets.token_urlsafe(32)
+            while token in self._descriptors:
+                token = secrets.token_urlsafe(32)
+            self._descriptors[token] = descriptor
+            return token
+
+    def open(self, token: str) -> BinaryIO:
+        with self._lock:
+            descriptor = self._descriptors.get(token)
+            if descriptor is None:
+                raise ValueError("source capability is closed")
+            try:
+                duplicate = os.open(
+                    f"/proc/self/fd/{descriptor}",
+                    os.O_RDONLY | getattr(os, "O_CLOEXEC", 0),
+                )
+            except OSError as error:
+                raise ValueError("source capability is closed") from error
+        try:
+            return os.fdopen(duplicate, "rb", closefd=True)
+        except BaseException:
+            os.close(duplicate)
+            raise
+
+    def close(self, token: str) -> None:
+        with self._lock:
+            descriptor = self._descriptors.pop(token, None)
+        if descriptor is None:
+            return
+        try:
+            os.close(descriptor)
+        except OSError:
+            pass
+
+
+_SOURCE_CAPABILITIES = _SourceCapabilityRegistry()
+
+
 @dataclass(frozen=True, slots=True)
 class SourceCapability:
     """A preflight-opened source inode exposed without a re-resolvable path."""
 
     declared_path: str
     source_list_ids: tuple[int, ...]
-    _descriptor: int = field(repr=False, compare=False)
+    _capability_token: str = field(repr=False, compare=False)
 
     def open(self) -> BinaryIO:
-        if self._descriptor < 0:
-            raise ValueError("source capability is closed")
-        try:
-            duplicate = os.open(
-                f"/proc/self/fd/{self._descriptor}",
-                os.O_RDONLY | getattr(os, "O_CLOEXEC", 0),
-            )
-        except OSError as error:
-            raise ValueError("source capability is closed") from error
-        return os.fdopen(duplicate, "rb", closefd=True)
+        return _SOURCE_CAPABILITIES.open(self._capability_token)
 
     def read_bytes(self) -> bytes:
         with self.open() as stream:
             return stream.read()
 
     def close(self) -> None:
-        descriptor = self._descriptor
-        if descriptor < 0:
-            return
-        object.__setattr__(self, "_descriptor", -1)
-        try:
-            os.close(descriptor)
-        except OSError:
-            pass
+        _SOURCE_CAPABILITIES.close(self._capability_token)
 
 
 @dataclass(frozen=True, slots=True)
@@ -806,13 +839,18 @@ def preflight_experiment_sources(
                 os.close(descriptor)
                 raise ExperimentConfigurationError("source must be a regular file")
             sources.append(resolved_candidate)
-            capabilities.append(
-                SourceCapability(
-                    declared_file,
-                    tuple(sorted(declared_file_lists[declared_file])),
-                    descriptor,
+            token = _SOURCE_CAPABILITIES.register(descriptor)
+            try:
+                capabilities.append(
+                    SourceCapability(
+                        declared_file,
+                        tuple(sorted(declared_file_lists[declared_file])),
+                        token,
+                    )
                 )
-            )
+            except BaseException:
+                _SOURCE_CAPABILITIES.close(token)
+                raise
         status = "available" if not missing else "dependency_unavailable"
         if missing:
             for capability in capabilities:
