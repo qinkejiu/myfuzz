@@ -7,5 +7,13 @@
     {"field_id": "valid", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
     {"field_id": "ready", "direction": "device_to_host", "width": "1", "required": true, "reset_value": 0},
     {"field_id": "rdata", "direction": "device_to_host", "width": "data_width", "required": true, "reset_value": 0}
+  ],
+  "projection_actions": [
+    {"action_id": 1, "field_ids": ["addr"], "kind": "mask", "category": "address_validity"},
+    {"action_id": 2, "field_ids": ["wdata"], "kind": "fold_xor", "category": "dependency_consistency"},
+    {"action_id": 3, "field_ids": ["valid"], "kind": "gate", "category": "protocol_legality", "max_cycles": 2}
+  ],
+  "temporal_rules": [
+    {"rule_id": 1, "kind": "response_after_request", "antecedent_field_id": "valid", "consequent_field_id": "ready", "max_cycles": 2}
   ]
 }

@@ -6,8 +6,7 @@ import hashlib
 import math
 from collections.abc import Mapping, Sequence
 
-from myfuzz.contracts import content_hash
-
+from .identity import candidate_semantic_hash
 from .jobs import Job, JobKind
 
 
@@ -45,9 +44,7 @@ def _manifest_seeds(manifest: Mapping[str, object]) -> tuple[int, ...]:
 
 
 def _candidate_hash(manifest: Mapping[str, object]) -> str:
-    # Scheduling seeds are run configuration, not candidate identity.
-    identity = {key: value for key, value in manifest.items() if key != "seeds"}
-    return content_hash(identity)
+    return candidate_semantic_hash(manifest)
 
 
 def _job_token(kind: JobKind, candidate_hash: str, cache_key: str, seed: int) -> str:

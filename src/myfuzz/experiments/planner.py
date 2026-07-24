@@ -8,11 +8,73 @@ from dataclasses import dataclass
 
 from myfuzz.contracts import canonical_bytes, content_hash, validate_contract
 
+from .identity import candidate_semantic_hash
 from .jobs import Job, JobKind
 
 
 class ExperimentPlanError(ValueError):
     """Raised when an experiment cannot satisfy its fairness contract."""
+
+
+@dataclass(frozen=True, slots=True)
+class RfuzzExecution:
+    """Stable inputs needed to turn one planned job into RFuzz driver argv."""
+
+    design_config_path: str
+    stage: str
+    worker_count: int
+    candidate_mode: str | None = None
+    seed: int | None = None
+    fuzz_seconds: int | None = None
+    max_cycles: int | None = None
+
+    def __post_init__(self) -> None:
+        path = self.design_config_path
+        parts = path.split("/")
+        if not path or path.startswith("/") or ".." in parts:
+            raise ValueError("design_config_path must be a repository-relative path")
+        if self.stage not in {"server", "fuzz"}:
+            raise ValueError(f"unsupported RFuzz execution stage: {self.stage}")
+        if self.worker_count != 1:
+            raise ValueError("RFuzz execution worker_count must be 1")
+        if self.stage == "server":
+            if any(
+                value is not None
+                for value in (
+                    self.candidate_mode,
+                    self.seed,
+                    self.fuzz_seconds,
+                    self.max_cycles,
+                )
+            ):
+                raise ValueError("server execution cannot declare fuzz parameters")
+            return
+        if self.candidate_mode not in {
+            "flat_direct",
+            "candidate_direct",
+            "candidate_depaware",
+        }:
+            raise ValueError("fuzz execution requires a supported candidate_mode")
+        if isinstance(self.seed, bool) or not isinstance(self.seed, int) or self.seed < 0:
+            raise ValueError("fuzz execution seed must be a non-negative integer")
+        limits = (self.fuzz_seconds is not None, self.max_cycles is not None)
+        if sum(limits) != 1:
+            raise ValueError("fuzz execution requires exactly one budget limit")
+        for label, value in (
+            ("fuzz_seconds", self.fuzz_seconds),
+            ("max_cycles", self.max_cycles),
+        ):
+            if value is not None and (
+                isinstance(value, bool) or not isinstance(value, int) or value <= 0
+            ):
+                raise ValueError(f"{label} must be a positive integer")
+
+
+@dataclass(frozen=True, slots=True)
+class ExperimentBuildJob(Job):
+    """One executable RFuzz server-build prerequisite."""
+
+    execution: RfuzzExecution
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,12 +89,35 @@ class ExperimentJob(Job):
     config_path: str
     estimated_rss_bytes: int
     priority: int
+    execution: RfuzzExecution
     budget_name: str = ""
     raw_width: int = 0
     instrumented_rtl_hash: str = ""
     coverage_universe: str = ""
     coverage_metadata_hash: str = ""
+    harness_content_hash: str | None = None
+    harness_abi_hash: str | None = None
+    projection_plan_hash: str | None = None
     mutation: tuple[tuple[str, int | bool | str], ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class HarnessIdentity:
+    """Concrete runtime identity shared by one candidate harness pair."""
+
+    raw_width: int
+    instrumented_rtl_hash: str
+    coverage_universe: str
+    coverage_metadata_hash: str
+
+
+@dataclass(frozen=True, slots=True)
+class CandidatePairIdentity:
+    """Auditable direct and dependency-aware identities for one candidate."""
+
+    candidate_id: str
+    direct: HarnessIdentity
+    depaware: HarnessIdentity
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +127,8 @@ class FairnessAudit:
     candidate_pair_has_equal_raw_width: bool
     shared_instrumented_rtl: bool
     shared_coverage_universe: bool
+    shared_coverage_metadata: bool = True
+    candidate_pair_identities: tuple[CandidatePairIdentity, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,7 +149,7 @@ class RuntimePolicy:
 @dataclass(frozen=True, slots=True)
 class ExperimentPlan:
     jobs: tuple[ExperimentJob, ...]
-    build_jobs: tuple[Job, ...]
+    build_jobs: tuple[ExperimentBuildJob, ...]
     run_blocks: tuple[tuple[str, ...], ...]
     fairness: FairnessAudit
     runtime_policy: RuntimePolicy
@@ -85,6 +172,7 @@ class _Budget:
 class _PlannerConfig:
     target_id: str
     config_path: str
+    design_config_path: str
     candidate_count: int
     seeds: tuple[int, ...]
     budgets: tuple[_Budget, ...]
@@ -105,6 +193,7 @@ class _Candidate:
     flat_coverage_universe: str
     candidate_coverage_universe: str
     coverage_metadata_hash: str
+    harness_semantics: tuple[tuple[str, str | None, str | None, str | None], ...]
 
 
 _HARNESS_GROUPS = ("flat-direct", "candidate-direct", "candidate-depaware")
@@ -130,6 +219,14 @@ def _string(value: object, label: str) -> str:
     if not isinstance(value, str) or not value:
         raise ExperimentPlanError(f"{label} must be a non-empty string")
     return value
+
+
+def _repository_relative_path(value: object, label: str) -> str:
+    path = _string(value, label)
+    parts = path.split("/")
+    if path.startswith("/") or ".." in parts:
+        raise ExperimentPlanError(f"{label} must be a repository-relative path")
+    return path
 
 
 def _positive_int(value: object, label: str) -> int:
@@ -217,6 +314,10 @@ def _parse_config(config: object) -> _PlannerConfig:
     target_id = _string(target.get("target_id"), "target.target_id")
     config_path_value = document.get("config_path", "")
     config_path = "" if config_path_value == "" else _string(config_path_value, "config_path")
+    design_config_path = _repository_relative_path(
+        document.get("design_config_path"),
+        "design_config_path",
+    )
     selection = _object(document.get("candidate_selection"), "candidate_selection")
     candidate_count = _positive_int(selection.get("k"), "candidate_selection.k")
 
@@ -276,6 +377,7 @@ def _parse_config(config: object) -> _PlannerConfig:
     return _PlannerConfig(
         target_id,
         config_path,
+        design_config_path,
         candidate_count,
         seeds,
         budgets,
@@ -320,12 +422,39 @@ def _candidate_universe(manifest: Mapping[str, object]) -> str:
     return content_hash({"coverage_universe": ordered})
 
 
+def _coverage_metadata_hash(manifest: Mapping[str, object]) -> str:
+    computed = _candidate_universe(manifest)
+    declared = manifest.get("coverage_metadata_hash")
+    if declared is None:
+        return computed
+    value = _string(declared, "manifest.coverage_metadata_hash")
+    if value != computed:
+        raise ExperimentPlanError(
+            "manifest coverage_metadata_hash does not match coverage_universe"
+        )
+    return value
+
+
+def _record_metadata_hash(record: Mapping[str, object], label: str) -> str | None:
+    value = record.get("coverage_metadata_hash")
+    return None if value is None else _string(value, f"{label}.coverage_metadata_hash")
+
+
 def _instrumented_rtl(record: Mapping[str, object], fallback: str) -> str:
     for key in ("instrumented_rtl_hash", "top_content_hash"):
         value = record.get(key)
         if value is not None:
             return _string(value, f"harness.{key}")
     return fallback
+
+
+def _optional_harness_hash(
+    record: Mapping[str, object],
+    key: str,
+    harness: str,
+) -> str | None:
+    value = record.get(key)
+    return None if value is None else _string(value, f"harnesses.{harness}.{key}")
 
 
 def _estimated_rss(manifest: Mapping[str, object], fallback: int) -> int:
@@ -336,7 +465,7 @@ def _estimated_rss(manifest: Mapping[str, object], fallback: int) -> int:
 
 def _parse_candidate(manifest: Mapping[str, object], config: _PlannerConfig) -> _Candidate:
     candidate_id = _string(manifest.get("candidate_id"), "manifest.candidate_id")
-    composition_ir_hash = _string(manifest.get("composition_ir_hash"), "manifest.composition_ir_hash")
+    _string(manifest.get("composition_ir_hash"), "manifest.composition_ir_hash")
     build_cache_key = _string(manifest.get("build_cache_key"), "manifest.build_cache_key")
     top = _object(manifest.get("top"), "manifest.top")
     top_hash = _string(top.get("content_hash"), "manifest.top.content_hash")
@@ -344,6 +473,11 @@ def _parse_candidate(manifest: Mapping[str, object], config: _PlannerConfig) -> 
     direct_record = _harness_record(manifest, "candidate-direct")
     depaware_record = _harness_record(manifest, "candidate-depaware")
     flat_record = _harness_record(manifest, "flat-direct")
+    harness_records = {
+        "flat-direct": flat_record,
+        "candidate-direct": direct_record,
+        "candidate-depaware": depaware_record,
+    }
     fallback_width = _fallback_raw_width(manifest)
     direct_width = _raw_width(direct_record, fallback_width, "candidate-direct")
     depaware_width = _raw_width(depaware_record, fallback_width, "candidate-depaware")
@@ -355,11 +489,18 @@ def _parse_candidate(manifest: Mapping[str, object], config: _PlannerConfig) -> 
     if direct_rtl != depaware_rtl:
         raise ExperimentPlanError("candidate pair instrumented RTL must be shared")
 
-    coverage_metadata_hash = _candidate_universe(manifest)
+    coverage_metadata_hash = _coverage_metadata_hash(manifest)
     direct_universe = _universe_from_record(direct_record) or coverage_metadata_hash
     depaware_universe = _universe_from_record(depaware_record) or coverage_metadata_hash
     if direct_universe != depaware_universe:
         raise ExperimentPlanError("candidate pair coverage universe must be shared")
+    direct_metadata = _record_metadata_hash(direct_record, "candidate-direct")
+    depaware_metadata = _record_metadata_hash(depaware_record, "candidate-depaware")
+    if any(
+        value is not None and value != coverage_metadata_hash
+        for value in (direct_metadata, depaware_metadata)
+    ):
+        raise ExperimentPlanError("candidate pair coverage metadata must be shared")
 
     flat_universe = _universe_from_record(flat_record) or content_hash(
         {"scope": "flat-direct", "target_id": config.target_id}
@@ -369,14 +510,7 @@ def _parse_candidate(manifest: Mapping[str, object], config: _PlannerConfig) -> 
 
     return _Candidate(
         candidate_id=candidate_id,
-        candidate_hash=content_hash(
-            {
-                "candidate_id": candidate_id,
-                "composition_ir_hash": composition_ir_hash,
-                "top_content_hash": top_hash,
-                "build_cache_key": build_cache_key,
-            }
-        ),
+        candidate_hash=candidate_semantic_hash(manifest),
         build_cache_key=build_cache_key,
         estimated_rss_bytes=_estimated_rss(manifest, config.runtime_policy.unknown_rss_bytes),
         flat_raw_width=_raw_width(flat_record, fallback_width, "flat-direct"),
@@ -386,11 +520,20 @@ def _parse_candidate(manifest: Mapping[str, object], config: _PlannerConfig) -> 
         flat_coverage_universe=flat_universe,
         candidate_coverage_universe=direct_universe,
         coverage_metadata_hash=coverage_metadata_hash,
+        harness_semantics=tuple(
+            (
+                harness,
+                _optional_harness_hash(record, "content_hash", harness),
+                _optional_harness_hash(record, "abi_hash", harness),
+                _optional_harness_hash(record, "projection_plan_hash", harness),
+            )
+            for harness, record in harness_records.items()
+        ),
     )
 
 
 def _base_job_document(job: Job) -> dict[str, object]:
-    return {
+    document = {
         "job_id": job.job_id,
         "kind": job.kind.value,
         "gate_name": job.gate_name,
@@ -400,6 +543,21 @@ def _base_job_document(job: Job) -> dict[str, object]:
         "candidate_hash": job.candidate_hash,
         "build_cache_key": job.build_cache_key,
         "worker_limit": job.worker_limit,
+    }
+    if isinstance(job, (ExperimentBuildJob, ExperimentJob)):
+        document["execution"] = _execution_document(job.execution)
+    return document
+
+
+def _execution_document(execution: RfuzzExecution) -> dict[str, object]:
+    return {
+        "design_config_path": execution.design_config_path,
+        "stage": execution.stage,
+        "worker_count": execution.worker_count,
+        "candidate_mode": execution.candidate_mode,
+        "seed": execution.seed,
+        "fuzz_seconds": execution.fuzz_seconds,
+        "max_cycles": execution.max_cycles,
     }
 
 
@@ -419,6 +577,9 @@ def _job_document(job: ExperimentJob) -> dict[str, object]:
         "instrumented_rtl_hash": job.instrumented_rtl_hash,
         "coverage_universe": job.coverage_universe,
         "coverage_metadata_hash": job.coverage_metadata_hash,
+        "harness_content_hash": job.harness_content_hash,
+        "harness_abi_hash": job.harness_abi_hash,
+        "projection_plan_hash": job.projection_plan_hash,
         "mutation": dict(job.mutation),
     })
     return document
@@ -458,8 +619,26 @@ def _make_job(
         candidate.flat_instrumented_rtl_hash if is_flat else candidate.candidate_instrumented_rtl_hash
     )
     universe = candidate.flat_coverage_universe if is_flat else candidate.candidate_coverage_universe
+    harness_content_hash, harness_abi_hash, projection_plan_hash = {
+        name: (content, abi, projection)
+        for name, content, abi, projection in candidate.harness_semantics
+    }[harness]
     requested_mib = _requested_mib(candidate.estimated_rss_bytes)
     gate_name = f"fuzz-slot-{slot_index % worker_limit}"
+    modes = {
+        "flat-direct": "flat_direct",
+        "candidate-direct": "candidate_direct",
+        "candidate-depaware": "candidate_depaware",
+    }
+    execution = RfuzzExecution(
+        design_config_path=config.design_config_path,
+        stage="fuzz",
+        worker_count=1,
+        candidate_mode=modes[harness],
+        seed=seed,
+        fuzz_seconds=budget.value if budget.kind == "seconds" else None,
+        max_cycles=budget.value if budget.kind == "cycles" else None,
+    )
     identity = {
         "target_id": config.target_id,
         "candidate_id": candidate.candidate_id,
@@ -481,7 +660,11 @@ def _make_job(
         "instrumented_rtl_hash": rtl_hash,
         "coverage_universe": universe,
         "coverage_metadata_hash": candidate.coverage_metadata_hash,
+        "harness_content_hash": harness_content_hash,
+        "harness_abi_hash": harness_abi_hash,
+        "projection_plan_hash": projection_plan_hash,
         "mutation": dict(config.mutation),
+        "execution": _execution_document(execution),
     }
     token = content_hash(identity).removeprefix("sha256:")
     return ExperimentJob(
@@ -502,16 +685,23 @@ def _make_job(
         config_path=config.config_path,
         estimated_rss_bytes=candidate.estimated_rss_bytes,
         priority=priority,
+        execution=execution,
         budget_name=budget.name,
         raw_width=raw_width,
         instrumented_rtl_hash=rtl_hash,
         coverage_universe=universe,
         coverage_metadata_hash=candidate.coverage_metadata_hash,
+        harness_content_hash=harness_content_hash,
+        harness_abi_hash=harness_abi_hash,
+        projection_plan_hash=projection_plan_hash,
         mutation=config.mutation,
     )
 
 
-def _make_build_jobs(candidates: tuple[_Candidate, ...]) -> tuple[Job, ...]:
+def _make_build_jobs(
+    candidates: tuple[_Candidate, ...],
+    config: _PlannerConfig,
+) -> tuple[ExperimentBuildJob, ...]:
     build_records: dict[str, tuple[str, int]] = {}
     for candidate in candidates:
         previous = build_records.get(candidate.build_cache_key)
@@ -526,9 +716,14 @@ def _make_build_jobs(candidates: tuple[_Candidate, ...]) -> tuple[Job, ...]:
                 max(previous[1], candidate.estimated_rss_bytes),
             )
 
-    jobs: list[Job] = []
+    jobs: list[ExperimentBuildJob] = []
     for cache_key, (candidate_hash, estimated_rss_bytes) in sorted(build_records.items()):
         requested_mib = _requested_mib(estimated_rss_bytes)
+        execution = RfuzzExecution(
+            design_config_path=config.design_config_path,
+            stage="server",
+            worker_count=1,
+        )
         identity = {
             "kind": JobKind.BUILD.value,
             "gate_name": "build",
@@ -537,10 +732,11 @@ def _make_build_jobs(candidates: tuple[_Candidate, ...]) -> tuple[Job, ...]:
             "candidate_hash": candidate_hash,
             "build_cache_key": cache_key,
             "worker_limit": 1,
+            "execution": _execution_document(execution),
         }
         token = content_hash(identity).removeprefix("sha256:")
         jobs.append(
-            Job(
+            ExperimentBuildJob(
                 job_id=f"build-{token}",
                 kind=JobKind.BUILD,
                 gate_name="build",
@@ -550,22 +746,40 @@ def _make_build_jobs(candidates: tuple[_Candidate, ...]) -> tuple[Job, ...]:
                 candidate_hash=candidate_hash,
                 build_cache_key=cache_key,
                 worker_limit=1,
+                execution=execution,
             )
         )
     return tuple(jobs)
 
 
+def _harness_identity(jobs: tuple[ExperimentJob, ...]) -> HarnessIdentity:
+    identities = {
+        HarnessIdentity(
+            raw_width=job.raw_width,
+            instrumented_rtl_hash=job.instrumented_rtl_hash,
+            coverage_universe=job.coverage_universe,
+            coverage_metadata_hash=job.coverage_metadata_hash,
+        )
+        for job in jobs
+    }
+    if len(identities) != 1:
+        raise ExperimentPlanError("each candidate harness must have one stable identity")
+    return next(iter(identities))
+
+
 def _audit_fairness(jobs: tuple[ExperimentJob, ...]) -> FairnessAudit:
-    candidate_ids = {job.candidate_id for job in jobs}
+    candidate_ids = sorted({job.candidate_id for job in jobs})
     equal_budget = True
     equal_seeds = True
     equal_width = True
     shared_rtl = True
     shared_universe = True
+    shared_metadata = True
+    identities: list[CandidatePairIdentity] = []
     for candidate_id in candidate_ids:
         direct = tuple(job for job in jobs if job.candidate_id == candidate_id and job.harness == _CANDIDATE_GROUPS[0])
         depaware = tuple(job for job in jobs if job.candidate_id == candidate_id and job.harness == _CANDIDATE_GROUPS[1])
-        equal_budget &= {
+        equal_budget &= bool(direct) and bool(depaware) and {
             (job.seed, job.budget_name, job.budget_kind, job.budget_value) for job in direct
         } == {(job.seed, job.budget_name, job.budget_kind, job.budget_value) for job in depaware}
         equal_seeds &= {job.seed for job in direct} == {job.seed for job in depaware}
@@ -576,7 +790,25 @@ def _audit_fairness(jobs: tuple[ExperimentJob, ...]) -> FairnessAudit:
         shared_universe &= {job.coverage_universe for job in direct} == {
             job.coverage_universe for job in depaware
         }
-    return FairnessAudit(equal_budget, equal_seeds, equal_width, shared_rtl, shared_universe)
+        shared_metadata &= {job.coverage_metadata_hash for job in direct} == {
+            job.coverage_metadata_hash for job in depaware
+        }
+        identities.append(
+            CandidatePairIdentity(
+                candidate_id=candidate_id,
+                direct=_harness_identity(direct),
+                depaware=_harness_identity(depaware),
+            )
+        )
+    return FairnessAudit(
+        candidate_pair_has_equal_budget=equal_budget,
+        candidate_pair_has_equal_seeds=equal_seeds,
+        candidate_pair_has_equal_raw_width=equal_width,
+        shared_instrumented_rtl=shared_rtl,
+        shared_coverage_universe=shared_universe,
+        shared_coverage_metadata=shared_metadata,
+        candidate_pair_identities=tuple(identities),
+    )
 
 
 def _require_fairness(audit: FairnessAudit) -> None:
@@ -586,6 +818,7 @@ def _require_fairness(audit: FairnessAudit) -> None:
         (audit.candidate_pair_has_equal_raw_width, "candidate pair raw width must be equal"),
         (audit.shared_instrumented_rtl, "candidate pair instrumented RTL must be shared"),
         (audit.shared_coverage_universe, "candidate pair coverage universe must be shared"),
+        (audit.shared_coverage_metadata, "candidate pair coverage metadata must be shared"),
     )
     for passed, message in checks:
         if not passed:
@@ -637,7 +870,7 @@ def plan_experiment(config: object, candidate_manifests: Sequence[object]) -> Ex
         for candidate in selected
     ):
         raise ExperimentPlanError("measured peak_rss_bytes cannot fit soft memory policy")
-    build_jobs = _make_build_jobs(selected)
+    build_jobs = _make_build_jobs(selected, parsed_config)
     largest_rss_bytes = max(candidate.estimated_rss_bytes for candidate in selected)
     worker_limit = max(1, parsed_config.runtime_policy.soft_memory_bytes // largest_rss_bytes)
 
@@ -673,6 +906,25 @@ def plan_experiment(config: object, candidate_manifests: Sequence[object]) -> Ex
             "candidate_pair_has_equal_raw_width": fairness.candidate_pair_has_equal_raw_width,
             "shared_instrumented_rtl": fairness.shared_instrumented_rtl,
             "shared_coverage_universe": fairness.shared_coverage_universe,
+            "shared_coverage_metadata": fairness.shared_coverage_metadata,
+            "candidate_pair_identities": [
+                {
+                    "candidate_id": identity.candidate_id,
+                    "direct": {
+                        "raw_width": identity.direct.raw_width,
+                        "instrumented_rtl_hash": identity.direct.instrumented_rtl_hash,
+                        "coverage_universe": identity.direct.coverage_universe,
+                        "coverage_metadata_hash": identity.direct.coverage_metadata_hash,
+                    },
+                    "depaware": {
+                        "raw_width": identity.depaware.raw_width,
+                        "instrumented_rtl_hash": identity.depaware.instrumented_rtl_hash,
+                        "coverage_universe": identity.depaware.coverage_universe,
+                        "coverage_metadata_hash": identity.depaware.coverage_metadata_hash,
+                    },
+                }
+                for identity in fairness.candidate_pair_identities
+            ],
         },
         "runtime_policy": _runtime_policy_document(parsed_config.runtime_policy),
     }

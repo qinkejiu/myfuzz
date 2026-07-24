@@ -3,9 +3,16 @@
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from pathlib import Path
 
-from .model import FieldSpec, ProtocolDefinitionError, ProtocolPlugin
+from .model import (
+    FieldSpec,
+    ProjectionActionSpec,
+    ProtocolDefinitionError,
+    ProtocolPlugin,
+    TemporalRuleSpec,
+)
 
 
 class ProtocolCatalog:
@@ -61,7 +68,77 @@ def _parse_plugin(document: object, source: Path) -> ProtocolPlugin:
     adapters_raw = document.get("legal_adapters", [])
     if not isinstance(adapters_raw, list) or not all(isinstance(adapter, str) and adapter for adapter in adapters_raw):
         raise ProtocolDefinitionError(f"{source}: legal_adapters must be a list of strings")
-    return ProtocolPlugin(protocol_id, version, tuple(fields), tuple(adapters_raw))
+
+    projection_actions: list[ProjectionActionSpec] = []
+    action_ids: set[int] = set()
+    actions_raw = document.get("projection_actions", [])
+    if not isinstance(actions_raw, list):
+        raise ProtocolDefinitionError(f"{source}: projection_actions must be a list")
+    for index, item in enumerate(actions_raw):
+        if not isinstance(item, dict):
+            raise ProtocolDefinitionError(f"{source}: projection action must be an object")
+        action_id = item.get("action_id")
+        if isinstance(action_id, bool) or not isinstance(action_id, int) or action_id < 0:
+            raise ProtocolDefinitionError(f"{source}: projection action ID is invalid")
+        if action_id in action_ids:
+            raise ProtocolDefinitionError(f"{source}: duplicate projection action ID")
+        action_ids.add(action_id)
+        field_ids_raw = item.get("field_ids")
+        if (
+            not isinstance(field_ids_raw, list)
+            or not field_ids_raw
+            or any(not isinstance(field_id, str) or field_id not in seen for field_id in field_ids_raw)
+        ):
+            raise ProtocolDefinitionError(f"{source}: projection action fields must reference declared fields")
+        kind = _require_string(item.get("kind"), f"projection action {index}.kind")
+        category = _require_string(item.get("category"), f"projection action {index}.category")
+        max_cycles = item.get("max_cycles")
+        if max_cycles is not None and (
+            isinstance(max_cycles, bool) or not isinstance(max_cycles, int) or not 1 <= max_cycles <= 65_535
+        ):
+            raise ProtocolDefinitionError(f"{source}: projection action max_cycles is invalid")
+        if kind in {"gate", "delay_select"} and max_cycles is None:
+            raise ProtocolDefinitionError(f"{source}: temporal projection action requires max_cycles")
+        projection_actions.append(
+            ProjectionActionSpec(action_id, tuple(field_ids_raw), kind, category, max_cycles)
+        )
+
+    temporal_rules: list[TemporalRuleSpec] = []
+    rule_ids: set[int] = set()
+    rules_raw = document.get("temporal_rules", [])
+    if not isinstance(rules_raw, list):
+        raise ProtocolDefinitionError(f"{source}: temporal_rules must be a list")
+    for index, item in enumerate(rules_raw):
+        if not isinstance(item, dict):
+            raise ProtocolDefinitionError(f"{source}: temporal rule must be an object")
+        rule_id = item.get("rule_id")
+        if isinstance(rule_id, bool) or not isinstance(rule_id, int) or rule_id < 0 or rule_id in rule_ids:
+            raise ProtocolDefinitionError(f"{source}: temporal rule ID is invalid")
+        rule_ids.add(rule_id)
+        antecedent = _require_string(item.get("antecedent_field_id"), f"temporal rule {index}.antecedent")
+        consequent = _require_string(item.get("consequent_field_id"), f"temporal rule {index}.consequent")
+        if antecedent not in seen or consequent not in seen:
+            raise ProtocolDefinitionError(f"{source}: temporal rule references undeclared field")
+        max_cycles = item.get("max_cycles")
+        if isinstance(max_cycles, bool) or not isinstance(max_cycles, int) or not 1 <= max_cycles <= 65_535:
+            raise ProtocolDefinitionError(f"{source}: temporal rule max_cycles is invalid")
+        temporal_rules.append(
+            TemporalRuleSpec(
+                rule_id,
+                _require_string(item.get("kind"), f"temporal rule {index}.kind"),
+                antecedent,
+                consequent,
+                max_cycles,
+            )
+        )
+    return ProtocolPlugin(
+        protocol_id,
+        version,
+        tuple(fields),
+        tuple(adapters_raw),
+        tuple(sorted(projection_actions, key=lambda action: action.action_id)),
+        tuple(sorted(temporal_rules, key=lambda rule: rule.rule_id)),
+    )
 
 
 def load_protocol_catalog(path: str | Path) -> ProtocolCatalog:
@@ -73,3 +150,28 @@ def load_protocol_catalog(path: str | Path) -> ProtocolCatalog:
     if len(keys) != len(set(keys)):
         raise ProtocolDefinitionError("duplicate declared protocol_id and version")
     return ProtocolCatalog(plugins)
+
+
+@lru_cache(maxsize=1)
+def _builtin_catalog() -> ProtocolCatalog:
+    return load_protocol_catalog(Path(__file__).with_name("plugins"))
+
+
+def load_builtin_protocol(protocol_id: str, version: str | None = None) -> ProtocolPlugin:
+    """Load one bundled plugin by exact declared identity."""
+    protocol_id = _require_string(protocol_id, "protocol_id")
+    if version is not None:
+        version = _require_string(version, "version")
+        return _builtin_catalog().require(protocol_id, version)
+
+    matches = tuple(
+        plugin for plugin in _builtin_catalog().plugins if plugin.protocol_id == protocol_id
+    )
+    if not matches:
+        raise ProtocolDefinitionError(f"unsupported protocol: {protocol_id}")
+    if len(matches) != 1:
+        versions = ", ".join(sorted(plugin.version for plugin in matches))
+        raise ProtocolDefinitionError(
+            f"protocol version is required for {protocol_id}; available versions: {versions}"
+        )
+    return matches[0]

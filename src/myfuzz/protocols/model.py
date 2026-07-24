@@ -19,11 +19,35 @@ class FieldSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class ProjectionActionSpec:
+    """A declared bounded projection action, keyed only by plugin field IDs."""
+
+    action_id: int
+    field_ids: tuple[str, ...]
+    kind: str
+    category: str
+    max_cycles: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class TemporalRuleSpec:
+    """Finite temporal relationship used to bound a projection action."""
+
+    rule_id: int
+    kind: str
+    antecedent_field_id: str
+    consequent_field_id: str
+    max_cycles: int
+
+
+@dataclass(frozen=True, slots=True)
 class ProtocolPlugin:
     protocol_id: str
     version: str
     fields: tuple[FieldSpec, ...]
     legal_adapters: tuple[str, ...]
+    projection_actions: tuple[ProjectionActionSpec, ...] = ()
+    temporal_rules: tuple[TemporalRuleSpec, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

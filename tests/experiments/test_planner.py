@@ -48,6 +48,12 @@ class ExperimentPlannerTest(unittest.TestCase):
         for config in (self.rvx, self.ibex):
             with self.subTest(target=config["target"]):
                 self.assertEqual("experiment.v1", config["schema_version"])
+                self.assertRegex(config["design_config_path"], r"^configs/designs/.+/config\.json$")
+                self.assertNotEqual(config["config_path"], config["design_config_path"])
+                design_config = load_json(ROOT / config["design_config_path"])
+                self.assertTrue(
+                    {"top", "project_root", "flist", "out_dir"}.issubset(design_config)
+                )
                 self.assertIsInstance(config["target"]["target_id"], str)
                 self.assertEqual(3, config["candidate_selection"]["k"])
                 self.assertEqual([1, 7, 19], config["candidate_pair"]["seeds"])
@@ -105,6 +111,24 @@ class ExperimentPlannerTest(unittest.TestCase):
         self.assertTrue(plan.fairness.candidate_pair_has_equal_raw_width)
         self.assertTrue(plan.fairness.shared_instrumented_rtl)
         self.assertTrue(plan.fairness.shared_coverage_universe)
+        self.assertTrue(plan.fairness.shared_coverage_metadata)
+        self.assertEqual(1, len(plan.fairness.candidate_pair_identities))
+        identity = plan.fairness.candidate_pair_identities[0]
+        self.assertEqual(self.manifest["candidate_id"], identity.candidate_id)
+        self.assertEqual(identity.direct, identity.depaware)
+        self.assertEqual(plan.jobs[1].raw_width, identity.direct.raw_width)
+        self.assertEqual(
+            plan.jobs[1].instrumented_rtl_hash,
+            identity.direct.instrumented_rtl_hash,
+        )
+        self.assertEqual(
+            plan.jobs[1].coverage_universe,
+            identity.direct.coverage_universe,
+        )
+        self.assertEqual(
+            plan.jobs[1].coverage_metadata_hash,
+            identity.direct.coverage_metadata_hash,
+        )
         self.assertRegex(plan.plan_hash, r"^sha256:[0-9a-f]{64}$")
         self.assertIsInstance(plan.jobs, tuple)
         self.assertIsInstance(plan.run_blocks, tuple)
@@ -122,6 +146,13 @@ class ExperimentPlannerTest(unittest.TestCase):
         self.assertEqual(1, len(plan.build_jobs))
         self.assertTrue(all(isinstance(job, Job) and job.kind is JobKind.BUILD for job in plan.build_jobs))
         self.assertTrue(all(job.gate_name == "build" and job.worker_limit == 1 for job in plan.build_jobs))
+        self.assertTrue(all(job.execution.stage == "server" for job in plan.build_jobs))
+        self.assertTrue(all(job.execution.worker_count == 1 for job in plan.build_jobs))
+        self.assertTrue(all(job.execution.stage == "fuzz" for job in plan.jobs))
+        self.assertEqual(
+            {self.rvx["design_config_path"]},
+            {job.execution.design_config_path for job in plan.execution_jobs},
+        )
         self.assertEqual(plan.build_jobs + plan.jobs, plan.execution_jobs)
 
         runnable = plan.jobs[0]
@@ -133,6 +164,25 @@ class ExperimentPlannerTest(unittest.TestCase):
             self.assertEqual(runnable.job_id, result)
             self.assertFalse((Path(directory) / f"{runnable.gate_name}.lock").exists())
 
+    def test_design_config_path_is_validated_and_part_of_execution_identity(self) -> None:
+        baseline = plan_experiment(self.rvx, [self.manifest])
+        changed_config = copy.deepcopy(self.rvx)
+        changed_config["design_config_path"] = "configs/designs/alternate/config.json"
+
+        changed = plan_experiment(changed_config, [self.manifest])
+
+        self.assertNotEqual(baseline.plan_hash, changed.plan_hash)
+        self.assertNotEqual(
+            {job.job_id for job in baseline.execution_jobs},
+            {job.job_id for job in changed.execution_jobs},
+        )
+        for invalid in ("", "/tmp/config.json", "configs/designs/../config.json"):
+            malformed = copy.deepcopy(self.rvx)
+            malformed["design_config_path"] = invalid
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(ExperimentPlanError, "design_config_path"):
+                    plan_experiment(malformed, [self.manifest])
+
     def test_budget_declaration_order_is_canonical(self) -> None:
         reversed_budgets = copy.deepcopy(self.rvx)
         reversed_budgets["budgets"] = list(reversed(reversed_budgets["budgets"]))
@@ -141,6 +191,72 @@ class ExperimentPlannerTest(unittest.TestCase):
             plan_experiment(self.rvx, [self.manifest]),
             plan_experiment(reversed_budgets, [self.manifest]),
         )
+
+    def test_transport_composition_hash_is_not_candidate_or_job_identity(self) -> None:
+        semantically_identical = copy.deepcopy(self.manifest)
+        semantically_identical["composition_ir_hash"] = "sha256:" + "f" * 64
+
+        original = plan_experiment(self.rvx, [self.manifest])
+        reordered = plan_experiment(self.rvx, [semantically_identical])
+
+        self.assertEqual(original, reordered)
+        self.assertEqual(
+            {job.candidate_hash for job in original.execution_jobs},
+            {job.candidate_hash for job in reordered.execution_jobs},
+        )
+        self.assertEqual(
+            {job.job_id for job in original.execution_jobs},
+            {job.job_id for job in reordered.execution_jobs},
+        )
+
+    def test_harness_semantic_hashes_change_plan_and_job_identities(self) -> None:
+        manifest = copy.deepcopy(self.manifest)
+        manifest["harnesses"] = {
+            "flat-direct": {
+                "raw_width": 1,
+                "content_hash": "sha256:" + "1" * 64,
+                "abi_hash": "sha256:" + "2" * 64,
+            },
+            "candidate-direct": {
+                "raw_width": 1,
+                "content_hash": "sha256:" + "3" * 64,
+                "abi_hash": "sha256:" + "4" * 64,
+            },
+            "candidate-depaware": {
+                "raw_width": 1,
+                "content_hash": "sha256:" + "5" * 64,
+                "abi_hash": "sha256:" + "4" * 64,
+                "projection_plan_hash": "sha256:" + "6" * 64,
+            },
+        }
+        baseline = plan_experiment(self.rvx, [manifest])
+        mutations = (
+            (("flat-direct", "content_hash"),),
+            (("flat-direct", "abi_hash"),),
+            (("candidate-direct", "content_hash"),),
+            (("candidate-depaware", "content_hash"),),
+            (
+                ("candidate-direct", "abi_hash"),
+                ("candidate-depaware", "abi_hash"),
+            ),
+            (("candidate-depaware", "projection_plan_hash"),),
+        )
+
+        for index, paths in enumerate(mutations, start=7):
+            changed = copy.deepcopy(manifest)
+            for harness, field in paths:
+                changed["harnesses"][harness][field] = "sha256:" + f"{index:x}" * 64
+            current = plan_experiment(self.rvx, [changed])
+            with self.subTest(paths=paths):
+                self.assertNotEqual(baseline.plan_hash, current.plan_hash)
+                self.assertNotEqual(
+                    {job.candidate_hash for job in baseline.execution_jobs},
+                    {job.candidate_hash for job in current.execution_jobs},
+                )
+                self.assertNotEqual(
+                    {job.job_id for job in baseline.execution_jobs},
+                    {job.job_id for job in current.execution_jobs},
+                )
 
     def test_runtime_policy_is_immutable_and_part_of_the_plan_hash(self) -> None:
         baseline = plan_experiment(self.rvx, [self.manifest])

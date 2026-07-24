@@ -279,7 +279,11 @@ def _select_ports(manifest: Mapping[str, object]) -> tuple[dict[str, Any], ...]:
     return tuple(sorted(selected, key=lambda item: item["port_id"]))
 
 
-def build_raw_abi(manifest: object) -> RawBitAbi:
+def build_raw_abi(
+    manifest: object,
+    *,
+    dense_destination_ids: bool = False,
+) -> RawBitAbi:
     if not isinstance(manifest, Mapping):
         raise ValueError("manifest must be an object")
     selected = _select_ports(manifest)
@@ -288,8 +292,9 @@ def build_raw_abi(manifest: object) -> RawBitAbi:
     destinations: list[RawDestination] = []
     uses: list[RawBitUse] = []
     cursor = 0
-    for destination_id, port in enumerate(selected):
+    for dense_id, port in enumerate(selected):
         width = port["width"]
+        destination_id = dense_id if dense_destination_ids else port["port_id"]
         destinations.append(RawDestination(destination_id, port.get("component_id"), port["port_id"], width))
         uses.append(RawBitUse(cursor, cursor + width - 1, destination_id, 0, "direct", "direct"))
         cursor += width

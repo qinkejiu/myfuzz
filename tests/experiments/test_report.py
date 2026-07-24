@@ -367,6 +367,15 @@ class ExperimentReportTest(unittest.TestCase):
 
         self.assertEqual(canonical_bytes(forward), canonical_bytes(reverse))
 
+    def test_transport_composition_hash_does_not_invalidate_candidate_identity(self) -> None:
+        rehashed = copy.deepcopy(self.manifests)
+        rehashed[0]["composition_ir_hash"] = sha256_id("same-semantics-new-order")
+
+        self.assertEqual(
+            build_report(self.plan, self.manifests, self.samples, self.reference),
+            build_report(self.plan, rehashed, self.samples, self.reference),
+        )
+
     def test_rejects_unknown_missing_and_mismatched_job_samples(self) -> None:
         unknown = copy.deepcopy(self.samples)
         unknown[0]["job_id"] = "fuzz-unknown"
@@ -410,7 +419,7 @@ class ExperimentReportTest(unittest.TestCase):
             if field == "coverage_universe":
                 invalid["coverage_universe"][0]["stable_source_id"] = "cpu.changed"
             elif field == "candidate_hash":
-                invalid["composition_ir_hash"] = sha256_id("stale-composition")
+                invalid["top"]["content_hash"] = sha256_id("stale-top")
             elif field == "build_cache_key":
                 invalid["build_cache_key"] = sha256_id("stale-build")
             elif field == "raw_width":

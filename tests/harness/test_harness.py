@@ -4,6 +4,9 @@ import copy
 import unittest
 
 from myfuzz.harness import HarnessArtifact, build_harness, coverage_universe, raw_width
+from myfuzz.harness.abi import build_raw_abi
+from myfuzz.harness.depaware import build_depaware
+from myfuzz.harness.projection import build_projection_plan
 
 
 def manifest() -> dict[str, object]:
@@ -52,6 +55,66 @@ class HarnessTest(unittest.TestCase):
         self.assertIn("protocol_projection", depaware.source_text)
         self.assertIn("gate", depaware.source_text)
         self.assertNotIn("$random", depaware.source_text)
+
+    def test_candidate_destination_ids_are_top_port_ids_while_flat_ids_are_dense(self) -> None:
+        document = manifest()
+        candidate_direct = build_harness(document, "candidate_direct")
+        candidate_depaware = build_harness(document, "candidate_depaware")
+        flat_direct = build_harness(document, "flat_direct")
+
+        self.assertEqual(
+            [(10, 10), (20, 20)],
+            [
+                (destination.destination_id, destination.port_id)
+                for destination in candidate_direct.abi.destinations
+            ],
+        )
+        self.assertEqual(
+            candidate_direct.abi.destinations,
+            candidate_depaware.abi.destinations,
+        )
+        self.assertEqual(
+            [(0, 10), (1, 20)],
+            [
+                (destination.destination_id, destination.port_id)
+                for destination in flat_direct.abi.destinations
+            ],
+        )
+        self.assertIn("assign port_10 = rfuzz_input_bits[7:0];", candidate_direct.source_text)
+        self.assertIn("assign port_20 = rfuzz_input_bits[11:8];", candidate_direct.source_text)
+
+    def test_depaware_sv_preserves_same_destination_actions_and_delay_release(self) -> None:
+        document = manifest()
+        plan = build_projection_plan(
+            build_raw_abi(document),
+            (
+                {
+                    "action_id": 1,
+                    "destination_id": 10,
+                    "kind": "fold_xor",
+                    "category": "dependency_consistency",
+                },
+                {
+                    "action_id": 2,
+                    "destination_id": 10,
+                    "kind": "delay_select",
+                    "category": "progress",
+                    "max_cycles": 2,
+                },
+            ),
+        )
+
+        artifact = build_depaware(document, plan)
+
+        self.assertEqual(
+            ("fold_xor", "delay_select"),
+            tuple(action.kind for action in plan.actions if action.destination_id == 10),
+        )
+        self.assertIn("// action 1 fold_xor", artifact.source_text)
+        self.assertIn("// action 2 delay_select", artifact.source_text)
+        self.assertIn(">> 4", artifact.source_text)
+        self.assertIn("<= 1", artifact.source_text)
+        self.assertNotIn("timeout_count <= timeout_count + 1'b1;", artifact.source_text)
 
     def test_rejects_unknown_mode_and_structural_manifest_errors(self) -> None:
         with self.assertRaises(ValueError):

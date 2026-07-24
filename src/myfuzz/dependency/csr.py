@@ -16,6 +16,8 @@ class CsrGraph:
     edge_kinds: tuple[str, ...]
     evidence_ids: tuple[str, ...]
     diagnostics: tuple[str, ...]
+    external_endpoint_port_ids: tuple[str, ...] = ()
+    adapter_edges: tuple[tuple[str, str, str, str], ...] = ()
 
 
 def to_csr(graph: DependencyGraph) -> CsrGraph:

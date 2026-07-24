@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from myfuzz.contracts import canonical_bytes, content_hash, validate_contract
 
+from .identity import candidate_semantic_hash
 from .planner import ExperimentJob, ExperimentPlan
 
 
@@ -264,7 +265,7 @@ def _parse_manifest(value: object, index: int) -> _CandidateManifest:
         _uint32(source.get("line"), f"{label}.source.line", positive=True)
         _uint32(source.get("column"), f"{label}.source.column")
         points.append(_CoveragePoint(point_id, stable_source_id, component_role))
-    composition_ir_hash = _string(
+    _string(
         manifest.get("composition_ir_hash"),
         f"candidate_manifests[{index}].composition_ir_hash",
     )
@@ -318,14 +319,7 @@ def _parse_manifest(value: object, index: int) -> _CandidateManifest:
         (harness, _manifest_coverage_universe_override(manifest, harness))
         for harness in sorted(_HARNESS_GROUPS)
     )
-    candidate_hash = content_hash(
-        {
-            "candidate_id": candidate_id,
-            "composition_ir_hash": composition_ir_hash,
-            "top_content_hash": top_content_hash,
-            "build_cache_key": build_cache_key,
-        }
-    )
+    candidate_hash = candidate_semantic_hash(manifest)
     return _CandidateManifest(
         candidate_id,
         tuple(sorted(points, key=lambda point: point.point_id)),

@@ -1,6 +1,7 @@
 {
   "schema_version": "experiment.v1",
   "config_path": "configs/experiments/rvx.json",
+  "design_config_path": "configs/designs/multicomponent_cpu_ip/depaware_projection/config.json",
   "target": {
     "target_id": "target-101",
     "display": "RVX generated systems"

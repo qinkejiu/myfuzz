@@ -1,0 +1,95 @@
+{
+  "schema_version": "candidate_manifest.v1",
+  "lifecycle": "top_validated",
+  "candidate_id": "candidate-runtime-001",
+  "composition_ir_hash": "sha256:9f10b0b5f76b319858cdfeacf23cf98c8eacac4842aefee2b9e5ae52fbb8a22f",
+  "combinational_design": false,
+  "top": {
+    "module": "candidate_runtime_top",
+    "source": "candidate_runtime_top.sv",
+    "content_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "hdl_facts": {
+    "source": "hdl_facts.json",
+    "content_hash": "sha256:3bf2a56f0c7032e73d6273c7e5ea9973a612dc69d23bdbde901f9bf21467e6ff",
+    "input_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "top_module_id": 900
+  },
+  "flat_baseline": {
+    "baseline_id": "baseline-runtime-001",
+    "combinational_design": false,
+    "top": {
+      "module": "flat_runtime_top",
+      "source": "flat_runtime_top.sv",
+      "content_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "source_composition": [
+      {
+        "source": "flat_runtime_top.sv",
+        "content_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    ],
+    "top_port_abi": [
+      {"port_id": 1, "emitted_name": "clock_input", "direction": "input", "width": 1, "semantic_role": "clock", "active_level": 1, "fuzzable": false, "fuzz_disposition": "control"},
+      {"port_id": 2, "emitted_name": "reset_input", "direction": "input", "width": 1, "semantic_role": "reset", "active_level": 0, "synchronous": false, "io_meta_reset": true, "reset_value": 0, "fuzzable": false, "fuzz_disposition": "control"},
+      {"port_id": 10, "emitted_name": "address_input", "direction": "input", "width": 8, "semantic_role": "protocol", "fuzzable": true, "fuzz_disposition": "fuzz"},
+      {"port_id": 11, "emitted_name": "write_input", "direction": "input", "width": 1, "semantic_role": "protocol", "fuzzable": true, "fuzz_disposition": "fuzz"},
+      {"port_id": 12, "emitted_name": "write_data_input", "direction": "input", "width": 8, "semantic_role": "protocol", "fuzzable": true, "fuzz_disposition": "fuzz"},
+      {"port_id": 13, "emitted_name": "valid_input", "direction": "input", "width": 1, "semantic_role": "protocol", "fuzzable": true, "fuzz_disposition": "fuzz"},
+      {"port_id": 14, "emitted_name": "ready_output", "direction": "output", "width": 1, "semantic_role": "protocol", "fuzzable": false, "fuzz_disposition": "observe"},
+      {"port_id": 15, "emitted_name": "read_data_output", "direction": "output", "width": 8, "semantic_role": "protocol", "fuzzable": false, "fuzz_disposition": "observe"}
+    ],
+    "coverage_universe": [
+      {"point_id": 9001, "source_id": "flat-source-1"},
+      {"point_id": 9002, "source_id": "flat-source-2"}
+    ]
+  },
+  "harnesses": {
+    "flat-direct": [],
+    "candidate-direct": [],
+    "candidate-depaware": []
+  },
+  "top_port_abi": [
+    {"port_id": 1, "actual_port_id": 101, "component_id": 100, "emitted_name": "clock_input", "direction": "input", "width": 1, "signed": false, "semantic_role": "clock", "active_level": 1, "synchronous": true, "fuzzable": false, "fuzz_disposition": "control", "validation_evidence_id": "sha256:3b85d6dd0227896f0289364170c4b55b60afe75ed5762f9720f01cb07b410e2f"},
+    {"port_id": 2, "actual_port_id": 102, "component_id": 100, "emitted_name": "reset_input", "direction": "input", "width": 1, "signed": false, "semantic_role": "reset", "active_level": 0, "synchronous": false, "io_meta_reset": true, "reset_value": 0, "fuzzable": false, "fuzz_disposition": "control", "validation_evidence_id": "sha256:912a5b7e3f944bc5eedc02fffced80e128a17f8450d9f421a2c3d6044426e681"},
+    {"port_id": 10, "actual_port_id": 110, "component_id": 100, "emitted_name": "address_input", "direction": "input", "width": 8, "signed": false, "semantic_role": "protocol", "fuzzable": true, "fuzz_disposition": "fuzz", "validation_evidence_id": "sha256:38c68e367e90f99e494f30d2605d022980b808e9a3668380031e314e7cfb84ce"},
+    {"port_id": 11, "actual_port_id": 111, "component_id": 100, "emitted_name": "write_input", "direction": "input", "width": 1, "signed": false, "semantic_role": "protocol", "fuzzable": true, "fuzz_disposition": "fuzz", "validation_evidence_id": "sha256:01157874ddbb6cc1914b6c5c5aea06bf935ef12fd626a1e7864f22b23f47edc4"},
+    {"port_id": 12, "actual_port_id": 112, "component_id": 100, "emitted_name": "write_data_input", "direction": "input", "width": 8, "signed": false, "semantic_role": "protocol", "fuzzable": true, "fuzz_disposition": "fuzz", "validation_evidence_id": "sha256:e56f5b49fc041ac146218a48bda670fb8ba95c73a0779a84e07211f3fc3458fa"},
+    {"port_id": 13, "actual_port_id": 113, "component_id": 100, "emitted_name": "valid_input", "direction": "input", "width": 1, "signed": false, "semantic_role": "protocol", "fuzzable": true, "fuzz_disposition": "fuzz", "validation_evidence_id": "sha256:c7f9c4751d8f669b4f8492d5a3cf279d528a2f547b2a047663df0434ec75ba11"},
+    {"port_id": 14, "actual_port_id": 114, "component_id": 100, "emitted_name": "ready_output", "direction": "output", "width": 1, "signed": false, "semantic_role": "protocol", "fuzzable": false, "fuzz_disposition": "observe", "validation_evidence_id": "sha256:1b7a62f2245b47cf777f03a9c9390c4998ef27e47bd96da398a1350eccd487c4"},
+    {"port_id": 15, "actual_port_id": 115, "component_id": 100, "emitted_name": "read_data_output", "direction": "output", "width": 8, "signed": false, "semantic_role": "protocol", "fuzzable": false, "fuzz_disposition": "observe", "validation_evidence_id": "sha256:7923ee556464025c4da8b9e732c890b1426c4ddf32c2b5e0939feb7db1517251"}
+  ],
+  "address_map": [],
+  "raw_bit_mappings": {
+    "flat-direct": [],
+    "candidate-direct": [],
+    "candidate-depaware": []
+  },
+  "validation": {
+    "status": "valid",
+    "parse": "passed",
+    "elaboration": "passed",
+    "link": "passed",
+    "width": "passed",
+    "compile": "pending",
+    "smoke": "pending",
+    "evidence": {
+      "reparse": {
+        "hdl_facts_input_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "hdl_facts_content_hash": "sha256:3bf2a56f0c7032e73d6273c7e5ea9973a612dc69d23bdbde901f9bf21467e6ff",
+        "top_module_id": 900,
+        "top_port_abi": []
+      }
+    }
+  },
+  "coverage_universe": [
+    {"point_id": 1001, "source_id": "candidate-source-1"},
+    {"point_id": 1002, "source_id": "candidate-source-2"}
+  ],
+  "source_map": [],
+  "build_cache_key": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "resources": {"peak_rss_bytes": 64000000},
+  "diagnostics": {"errors": [], "warnings": []},
+  "evidence": [],
+  "assumptions": []
+}

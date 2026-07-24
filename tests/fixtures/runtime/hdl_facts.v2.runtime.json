@@ -1,0 +1,59 @@
+{
+  "schema_version": "hdl_facts.v2",
+  "tool": {
+    "frontend": "myfuzz",
+    "verilator_revision": "runtime-fixture",
+    "input_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "modules": [
+    {
+      "id": 900,
+      "ports": [101, 102, 110, 111, 112, 113, 114, 115],
+      "instances": [],
+      "top": true
+    }
+  ],
+  "parameters": [],
+  "ports": [
+    {"id": 101, "module_id": 900, "direction": "input", "width": 1, "signed": false, "declared_role": "clock", "frontend_declared_role": "uninterpreted_external"},
+    {"id": 102, "module_id": 900, "direction": "input", "width": 1, "signed": false, "declared_role": "reset", "frontend_declared_role": "uninterpreted_external"},
+    {"id": 110, "module_id": 900, "direction": "input", "width": 8, "signed": false, "declared_role": "protocol", "frontend_declared_role": "uninterpreted_external"},
+    {"id": 111, "module_id": 900, "direction": "input", "width": 1, "signed": false, "declared_role": "protocol", "frontend_declared_role": "uninterpreted_external"},
+    {"id": 112, "module_id": 900, "direction": "input", "width": 8, "signed": false, "declared_role": "protocol", "frontend_declared_role": "uninterpreted_external"},
+    {"id": 113, "module_id": 900, "direction": "input", "width": 1, "signed": false, "declared_role": "protocol", "frontend_declared_role": "uninterpreted_external"},
+    {"id": 114, "module_id": 900, "direction": "output", "width": 1, "signed": false, "declared_role": "protocol", "frontend_declared_role": "uninterpreted_external"},
+    {"id": 115, "module_id": 900, "direction": "output", "width": 8, "signed": false, "declared_role": "protocol", "frontend_declared_role": "uninterpreted_external"}
+  ],
+  "instances": [],
+  "pin_bindings": [],
+  "expressions": [],
+  "dataflow_edges": [
+    {"source_port_id": 113, "target_port_id": 114, "evidence_id": "fact-data-1"},
+    {"source_port_id": 114, "target_port_id": 115, "evidence_id": "fact-data-external"}
+  ],
+  "control_edges": [
+    {"source_port_id": 111, "target_port_id": 113, "evidence_id": "fact-control-1"}
+  ],
+  "adapter_edges": [
+    {"adapter_id": "adapter-fact", "source_port_id": 110, "target_port_id": 112, "evidence_id": "fact-adapter-1"}
+  ],
+  "external_endpoint_port_ids": [115],
+  "clock_reset_checks": [
+    {"component_id": 100, "port_id": 101, "kind": "clock", "domain_id": 1, "structurally_validated": true},
+    {"component_id": 100, "port_id": 102, "kind": "reset", "domain_id": 1, "structurally_validated": true}
+  ],
+  "local_address_facts": [],
+  "source_locations": [],
+  "source_symbols": [
+    {"id": 1, "kind": "module", "entity_id": 900, "name": "candidate_runtime_top", "original_name": "candidate_runtime_top"},
+    {"id": 2, "kind": "port", "entity_id": 101, "name": "clock_input", "original_name": "clock_input"},
+    {"id": 3, "kind": "port", "entity_id": 102, "name": "reset_input", "original_name": "reset_input"},
+    {"id": 4, "kind": "port", "entity_id": 110, "name": "address_input", "original_name": "address_input"},
+    {"id": 5, "kind": "port", "entity_id": 111, "name": "write_input", "original_name": "write_input"},
+    {"id": 6, "kind": "port", "entity_id": 112, "name": "write_data_input", "original_name": "write_data_input"},
+    {"id": 7, "kind": "port", "entity_id": 113, "name": "valid_input", "original_name": "valid_input"},
+    {"id": 8, "kind": "port", "entity_id": 114, "name": "ready_output", "original_name": "ready_output"},
+    {"id": 9, "kind": "port", "entity_id": 115, "name": "read_data_output", "original_name": "read_data_output"}
+  ],
+  "diagnostics": {"errors": [], "warnings": [], "unsupported": []}
+}

@@ -1,6 +1,7 @@
 {
   "schema_version": "experiment.v1",
   "config_path": "configs/experiments/ibex_opentitan.json",
+  "design_config_path": "configs/designs/ibex_multicomponent_ip/depaware_projection/config.json",
   "target": {
     "target_id": "target-202",
     "display": "Ibex with OpenTitan peripherals"

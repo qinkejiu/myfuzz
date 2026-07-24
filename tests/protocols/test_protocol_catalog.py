@@ -32,6 +32,29 @@ class ProtocolCatalogTest(unittest.TestCase):
                 self.assertTrue(all(field.direction in {"host_to_device", "device_to_host"} for field in plugin.fields))
                 self.assertTrue(all(field.reset_value is not None for field in plugin.fields))
 
+    def test_every_builtin_has_nonempty_bounded_dependency_aware_policy(self) -> None:
+        catalog = load_protocol_catalog(PLUGIN_DIR)
+        for protocol_id, version in (
+            ("ready-valid-mmio", "1"),
+            ("apb", "3"),
+            ("apb", "4"),
+            ("axi4-lite", "1"),
+            ("obi", "1"),
+            ("tl-ul", "1"),
+        ):
+            with self.subTest(protocol_id=protocol_id, version=version):
+                plugin = catalog.require(protocol_id, version)
+                self.assertTrue(plugin.projection_actions)
+                self.assertTrue(plugin.temporal_rules)
+                self.assertTrue(
+                    all(
+                        action.max_cycles is not None
+                        for action in plugin.projection_actions
+                        if action.kind in {"gate", "delay_select"}
+                    )
+                )
+                self.assertTrue(all(1 <= rule.max_cycles <= 65_535 for rule in plugin.temporal_rules))
+
     def test_compile_uses_only_explicit_port_ids_and_width_facts(self) -> None:
         catalog = load_protocol_catalog(PLUGIN_DIR)
         binding = {

@@ -8,5 +8,14 @@
     {"field_id": "wdata", "direction": "host_to_device", "width": "data_width", "required": true, "reset_value": 0},
     {"field_id": "rvalid", "direction": "device_to_host", "width": "1", "required": true, "reset_value": 0},
     {"field_id": "rdata", "direction": "device_to_host", "width": "data_width", "required": true, "reset_value": 0}
+  ],
+  "projection_actions": [
+    {"action_id": 1, "field_ids": ["addr"], "kind": "mask", "category": "address_validity"},
+    {"action_id": 2, "field_ids": ["req"], "kind": "gate", "category": "protocol_legality", "max_cycles": 16},
+    {"action_id": 3, "field_ids": ["wdata"], "kind": "fold_xor", "category": "dependency_consistency"}
+  ],
+  "temporal_rules": [
+    {"rule_id": 1, "kind": "grant_after_request", "antecedent_field_id": "req", "consequent_field_id": "gnt", "max_cycles": 16},
+    {"rule_id": 2, "kind": "response_after_request", "antecedent_field_id": "req", "consequent_field_id": "rvalid", "max_cycles": 16}
   ]
 }

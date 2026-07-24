@@ -7,6 +7,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Hashable, Protocol
 
+from .csr import CsrGraph
 from .graph import DependencyNode
 from .replay import ReplayObservation, ReplayQueue
 
@@ -20,6 +21,53 @@ class StaticGroupGraph(Protocol):
 
 
 ReplayFunction = Callable[[int, tuple[DependencyNode, ...], int], ReplayObservation]
+
+
+@dataclass(frozen=True, slots=True)
+class ActiveDependencyView:
+    """A bounded epoch view over edges that remain active in one CSR graph."""
+
+    static_graph: CsrGraph
+    active_edges: frozenset[tuple[int, int]]
+    epoch: int = 0
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.static_graph, CsrGraph):
+            raise TypeError("static_graph must be a CsrGraph")
+        if isinstance(self.epoch, bool) or not isinstance(self.epoch, int) or self.epoch < 0:
+            raise ValueError("epoch must be a non-negative integer")
+        declared = frozenset(
+            (source, self.static_graph.indices[offset])
+            for source in range(len(self.static_graph.node_ids))
+            for offset in range(
+                self.static_graph.indptr[source],
+                self.static_graph.indptr[source + 1],
+            )
+        )
+        normalized = frozenset(self.active_edges)
+        if any(
+            isinstance(source, bool)
+            or isinstance(target, bool)
+            or not isinstance(source, int)
+            or not isinstance(target, int)
+            for source, target in normalized
+        ):
+            raise ValueError("active dependency edges must use integer CSR indices")
+        if not normalized <= declared:
+            raise ValueError("active dependency view references an unknown CSR edge")
+        object.__setattr__(self, "active_edges", normalized)
+
+    @classmethod
+    def all_active(cls, static_graph: CsrGraph, *, epoch: int = 0) -> "ActiveDependencyView":
+        edges = frozenset(
+            (source, static_graph.indices[offset])
+            for source in range(len(static_graph.node_ids))
+            for offset in range(static_graph.indptr[source], static_graph.indptr[source + 1])
+        )
+        return cls(static_graph, edges, epoch)
+
+    def is_active(self, source_index: int, target_index: int) -> bool:
+        return (source_index, target_index) in self.active_edges
 
 
 @dataclass(frozen=True, slots=True)

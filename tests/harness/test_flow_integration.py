@@ -10,8 +10,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from myfuzz.experiments import RfuzzAdapter, plan_experiment
+
 
 SCRIPT_DIR = Path(__file__).resolve().parents[2] / "src" / "myfuzz" / "scripts"
+ROOT = Path(__file__).resolve().parents[2]
 if SCRIPT_DIR.as_posix() not in sys.path:
     sys.path.insert(0, SCRIPT_DIR.as_posix())
 
@@ -116,6 +119,101 @@ class FlowIntegrationTest(unittest.TestCase):
         self.assertEqual("candidate_direct", run_design_flow.select_candidate_mode(None, {}))
         self.assertEqual("flat_direct", run_design_flow.select_candidate_mode(None, {"candidate_mode": "flat_direct"}))
         self.assertEqual("candidate_depaware", run_design_flow.select_candidate_mode("candidate_depaware", {"candidate_mode": "flat_direct"}))
+
+    def test_flow_cli_accepts_adapter_seed_and_cycle_bounds(self) -> None:
+        argv = [
+            "run_design_flow.py",
+            "--config",
+            "config.json",
+            "--stage",
+            "fuzz",
+            "--seed",
+            "19",
+            "--max-cycles",
+            "1000",
+        ]
+        with patch.object(sys, "argv", argv):
+            args = run_design_flow.parse_args()
+
+        self.assertEqual(19, args.seed)
+        self.assertEqual(1000, args.max_cycles)
+        self.assertIsNone(args.fuzz_seconds)
+
+    def test_planned_cycle_budget_round_trips_through_driver_argv(self) -> None:
+        config = json.loads(
+            (ROOT / "configs" / "experiments" / "rvx.json").read_text()
+        )
+        manifest = json.loads(
+            (
+                ROOT
+                / "tests"
+                / "fixtures"
+                / "contracts"
+                / "candidate_manifest.v1.valid.json"
+            ).read_text()
+        )
+        planned = plan_experiment(config, [manifest])
+        cycle_job = next(job for job in planned.jobs if job.budget_kind == "cycles")
+
+        command = RfuzzAdapter(ROOT).command(cycle_job)
+        with patch.object(sys, "argv", [command[1], *command[2:]]):
+            args = run_design_flow.parse_args()
+
+        self.assertEqual(config["design_config_path"], args.config)
+        self.assertEqual("fuzz", args.stage)
+        self.assertEqual("1", args.jobs)
+        self.assertEqual(cycle_job.seed, args.seed)
+        self.assertEqual(cycle_job.budget_value, args.max_cycles)
+        self.assertIsNone(args.fuzz_seconds)
+
+        with tempfile.TemporaryDirectory() as directory:
+            execution_root = Path(directory)
+            source_config = ROOT / config["design_config_path"]
+            runtime_config = execution_root / config["design_config_path"]
+            runtime_config.parent.mkdir(parents=True)
+            runtime_config.write_text(source_config.read_text())
+            with (
+                patch.object(run_design_flow, "repo_root", return_value=execution_root),
+                patch.object(
+                    run_design_flow,
+                    "default_frontend_library",
+                    return_value=execution_root / "frontend.so",
+                ),
+                patch.object(
+                    run_design_flow,
+                    "default_server_verilator",
+                    return_value="verilator",
+                ),
+                patch.object(run_design_flow, "stage_fuzz") as fuzz_stage,
+                patch.object(sys, "argv", [command[1], *command[2:]]),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(0, run_design_flow.main())
+
+        driver_config = fuzz_stage.call_args.args[1]
+        self.assertEqual(cycle_job.seed, driver_config["fuzz"]["seed"])
+        self.assertEqual(cycle_job.budget_value, driver_config["fuzz"]["max_cycles"])
+        self.assertIsNone(fuzz_stage.call_args.args[4])
+
+    def test_cycle_only_fuzz_has_no_wall_clock_deadline(self) -> None:
+        paths = {"out_dir": Path("run")}
+        with (
+            patch.object(run_design_flow, "build_fuzzer", return_value=Path("kfuzz")),
+            patch.object(
+                run_design_flow,
+                "run_fuzz_attempt",
+                return_value=("ok", 0, 0, None),
+            ) as attempt,
+        ):
+            run_design_flow.stage_fuzz(
+                Path("."),
+                {"fuzz": {"max_cycles": 1000}},
+                Path("config.json"),
+                paths,
+                None,
+            )
+
+        self.assertIsNone(attempt.call_args.args[5])
 
     def test_stage_harness_materializes_all_modes_and_propagates_abi(self) -> None:
         captured: dict[str, dict] = {}

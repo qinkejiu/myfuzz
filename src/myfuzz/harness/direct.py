@@ -4,8 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from .abi import RawBitAbi, _canonical, build_raw_abi, content_hash, control_declarations, manifest_ports
+
+if TYPE_CHECKING:
+    from .projection import ProjectionPlan
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,6 +21,9 @@ class HarnessArtifact:
     abi: RawBitAbi
     source_text: str
     content_hash: str
+    top_content_hash: str = ""
+    counters: tuple[str, ...] = ()
+    projection_plan: ProjectionPlan | None = None
 
     @property
     def kind(self) -> str:
@@ -35,13 +42,18 @@ class HarnessArtifact:
         return 1
 
     def manifest_fragment(self) -> dict[str, object]:
-        return {
+        fragment: dict[str, object] = {
             "mode": self.mode,
             "candidate_id": self.candidate_id,
             "coverage_universe_id": self.coverage_universe_id,
+            "coverage_universe": self.coverage_universe_id,
+            "coverage_metadata_hash": self.coverage_universe_id,
             "raw_width": self.raw_width,
             "abi_hash": self.abi.abi_hash,
             "content_hash": self.content_hash,
+            "instrumented_rtl_hash": self.top_content_hash,
+            "top_content_hash": self.top_content_hash,
+            "counters": list(self.counters),
             "destinations": [
                 {
                     "destination_id": item.destination_id,
@@ -63,6 +75,13 @@ class HarnessArtifact:
                 for item in self.abi.uses
             ],
         }
+        if self.projection_plan is not None:
+            fragment["projection_plan_hash"] = self.projection_plan.plan_hash
+            fragment["projection_state_bits"] = self.projection_plan.max_state_bits
+            fragment["projection_max_temporal_cycles"] = (
+                self.projection_plan.max_temporal_cycles
+            )
+        return fragment
 
 
 def coverage_id(manifest: object) -> str:
@@ -83,6 +102,16 @@ def candidate_id(manifest: Mapping[str, object]) -> str | None:
         candidate = manifest.get("candidate")
         value = candidate.get("candidate_id") if isinstance(candidate, Mapping) else None
     return value if isinstance(value, str) and value else None
+
+
+def top_content_hash(manifest: Mapping[str, object]) -> str:
+    top = manifest.get("top")
+    if isinstance(top, Mapping):
+        explicit = top.get("content_hash")
+        if isinstance(explicit, str) and explicit:
+            return explicit
+        return content_hash({"top": dict(top)})
+    return content_hash({"top": None})
 
 
 def _identifier(value: object, fallback: str) -> str:
@@ -142,7 +171,11 @@ def emit_direct(
         ),
     ]
     destinations = {item.port_id: item for item in abi.destinations}
-    uses = {abi.destinations[item.destination_id].port_id: item for item in abi.uses}
+    destination_by_id = {item.destination_id: item for item in abi.destinations}
+    uses = {
+        destination_by_id[item.destination_id].port_id: item
+        for item in abi.uses
+    }
     ports = manifest_ports(manifest)
     for port in ports:
         port_id, width = port["port_id"], port["width"]
@@ -181,7 +214,19 @@ def emit_direct(
 
 
 def build_direct(manifest: object, mode: str) -> HarnessArtifact:
-    abi = build_raw_abi(manifest)
+    abi = build_raw_abi(
+        manifest,
+        dense_destination_ids=mode.replace("_", "-") == "flat-direct",
+    )
     source = emit_direct(manifest, mode, abi)
     assert isinstance(manifest, Mapping)
-    return HarnessArtifact(mode, abi.raw_width, coverage_id(manifest), candidate_id(manifest), abi, source, content_hash({"source_text": source}))
+    return HarnessArtifact(
+        mode=mode,
+        raw_width=abi.raw_width,
+        coverage_universe_id=coverage_id(manifest),
+        candidate_id=candidate_id(manifest),
+        abi=abi,
+        source_text=source,
+        content_hash=content_hash({"source_text": source}),
+        top_content_hash=top_content_hash(manifest),
+    )
