@@ -32,6 +32,7 @@ from .memory_lock import MemoryTokenPool
 
 _FORBIDDEN_GENERATOR_FIELDS = frozenset(
     (
+        "evaluator",
         "evaluator_command",
         "evaluator_path",
         "original_soc",

@@ -1,6 +1,7 @@
 {
   "schema_version": "experiment.v1",
   "target": {"target_id": 101},
+  "source_roots": ["external_designs/rvx/hardware"],
   "source_lists": [
     {"source_list_id": 11, "files": ["external_designs/rvx/hardware/rvx_core.v", "external_designs/rvx/hardware/rvx_bus.v", "external_designs/rvx/hardware/rvx_ram.v"]},
     {"source_list_id": 12, "files": ["external_designs/rvx/hardware/rvx_uart.v", "external_designs/rvx/hardware/rvx_mtimer.v", "external_designs/rvx/hardware/rvx_gpio.v"]}
@@ -67,6 +68,5 @@
   "coverage": {"metric": "branch"},
   "harness_groups": ["flat-direct", "candidate-direct", "candidate-depaware"],
   "mutation": {"max_len": 4096, "timeout_ms": 1000},
-  "build_concurrency": 1,
-  "reference": {"mode": "evaluation-only", "allowed_stage": "report", "comparison": "shared-stable-source-id", "command": ["scripts/evaluate_reference.py", "--run", "{run_dir}"]}
+  "build_concurrency": 1
 }

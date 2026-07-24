@@ -55,14 +55,13 @@ class ExperimentConfigurationTest(unittest.TestCase):
             self.assertTrue(all(endpoint.field_bindings for endpoint in configuration.protocol_endpoints))
             self.assertTrue(all(endpoint.protocol_id and endpoint.version for endpoint in configuration.protocol_endpoints))
 
-    def test_reference_is_report_only_and_absent_from_reference_free_configuration(self) -> None:
+    def test_generated_configurations_are_reference_free(self) -> None:
         first, second = load_experiment_configs(CONFIGURATION_PATHS)
 
-        self.assertIsNotNone(first.reference)
-        self.assertEqual("evaluation-only", first.reference.mode)
-        self.assertEqual("report", first.reference.allowed_stage)
-        self.assertIsNotNone(first.reference.command)
+        self.assertIsNone(first.reference)
         self.assertIsNone(second.reference)
+        self.assertNotIn("reference", first.document)
+        self.assertNotIn("reference", second.document)
         self.assertNotIn("reference_top", first.document)
         self.assertNotIn("reference_top", second.document)
 
