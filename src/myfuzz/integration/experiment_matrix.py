@@ -467,7 +467,7 @@ def _atomic_write_report(
     descriptor: int | None = None
     backup_created = False
     backup_obsolete = False
-    published = False
+    backup_must_be_retained = False
     rollback_created = False
     temporary_obsolete = True
     try:
@@ -518,10 +518,9 @@ def _atomic_write_report(
                 raise ExperimentMatrixError(
                     "report_path changed during publication"
                 ) from error
-            published = True
         else:
+            backup_must_be_retained = True
             _exchange_names(directory, temporary_name, report_name)
-            published = True
             displaced = os.stat(
                 temporary_name,
                 dir_fd=directory,
@@ -532,7 +531,6 @@ def _atomic_write_report(
                 error = ExperimentMatrixError("report_path changed during publication")
                 try:
                     _exchange_names(directory, temporary_name, report_name)
-                    published = False
                 except BaseException as rollback_error:
                     temporary_obsolete = False
                     error.add_note(f"report exchange rollback failed: {rollback_error}")
@@ -564,7 +562,6 @@ def _atomic_write_report(
                 else:
                     os.unlink(report_name, dir_fd=directory)
                 _fsync_directory(directory)
-                published = False
                 backup_obsolete = True
             except BaseException as rollback_error:
                 error.add_note(f"report rollback failed: {rollback_error}")
@@ -574,10 +571,25 @@ def _atomic_write_report(
         if backup_created:
             os.unlink(backup_name, dir_fd=directory)
             backup_created = False
-        published = False
-    except BaseException:
-        if backup_created and not published:
-            backup_obsolete = True
+    except BaseException as error:
+        if backup_created and not backup_obsolete:
+            if not backup_must_be_retained:
+                try:
+                    current = os.stat(
+                        report_name,
+                        dir_fd=directory,
+                        follow_symlinks=False,
+                    )
+                    pinned = os.fstat(destination.existing)
+                    current_identity = (current.st_dev, current.st_ino)
+                    pinned_identity = (pinned.st_dev, pinned.st_ino)
+                    if current_identity == pinned_identity:
+                        _fsync_directory(directory)
+                        backup_obsolete = True
+                except BaseException:
+                    pass
+            if not backup_obsolete:
+                error.add_note(f"recoverable report backup: {backup_name}")
         raise
     finally:
         if descriptor is not None:

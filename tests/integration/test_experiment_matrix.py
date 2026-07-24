@@ -637,6 +637,74 @@ class ExperimentMatrixTest(unittest.TestCase):
         self.assertEqual("previous\n", original_path.read_text(encoding="utf-8"))
         self.assertEqual("attacker\n", report_path.read_text(encoding="utf-8"))
 
+    def test_exchange_back_retains_backup_when_pinned_name_was_unlinked(self) -> None:
+        report_path = self.root / "unlinked-swap.json"
+        report_path.write_text("previous\n", encoding="utf-8")
+        fsync_calls = 0
+
+        def replace_after_backup(descriptor: int) -> None:
+            nonlocal fsync_calls
+            fsync_calls += 1
+            os.fsync(descriptor)
+            if fsync_calls == 1:
+                report_path.unlink()
+                report_path.write_text("attacker\n", encoding="utf-8")
+
+        with patch.object(
+            matrix_module,
+            "_fsync_directory",
+            side_effect=replace_after_backup,
+        ):
+            with self.assertRaisesRegex(
+                ExperimentMatrixError,
+                "changed during publication",
+            ) as raised:
+                run_experiment_matrix(
+                    self.config(),
+                    runner=RecordingRunner(self.successful_result),
+                    report_path=report_path,
+                )
+
+        backups = list(self.root.glob(".unlinked-swap.json.*.backup"))
+        notes = " ".join(getattr(raised.exception, "__notes__", ()))
+        self.assertEqual(1, fsync_calls)
+        self.assertEqual("attacker\n", report_path.read_text(encoding="utf-8"))
+        self.assertEqual(1, len(backups))
+        self.assertEqual("previous\n", backups[0].read_text(encoding="utf-8"))
+        self.assertIn(backups[0].name, notes)
+
+    def test_first_exchange_failure_retains_backup_when_destination_was_unlinked(self) -> None:
+        report_path = self.root / "unlinked.json"
+        report_path.write_text("previous\n", encoding="utf-8")
+        fsync_calls = 0
+
+        def unlink_after_backup(descriptor: int) -> None:
+            nonlocal fsync_calls
+            fsync_calls += 1
+            os.fsync(descriptor)
+            if fsync_calls == 1:
+                report_path.unlink()
+
+        with patch.object(
+            matrix_module,
+            "_fsync_directory",
+            side_effect=unlink_after_backup,
+        ):
+            with self.assertRaises(OSError) as raised:
+                run_experiment_matrix(
+                    self.config(),
+                    runner=RecordingRunner(self.successful_result),
+                    report_path=report_path,
+                )
+
+        backups = list(self.root.glob(".unlinked.json.*.backup"))
+        notes = " ".join(getattr(raised.exception, "__notes__", ()))
+        self.assertEqual(1, fsync_calls)
+        self.assertFalse(report_path.exists())
+        self.assertEqual(1, len(backups))
+        self.assertEqual("previous\n", backups[0].read_text(encoding="utf-8"))
+        self.assertIn(backups[0].name, notes)
+
     def test_failed_exchange_rollback_preserves_displaced_destination(self) -> None:
         report_path = self.root / "compound.json"
         original_path = self.root / "compound-original.json"
@@ -762,14 +830,18 @@ class ExperimentMatrixTest(unittest.TestCase):
                     )
                 )
                 with patcher:
-                    with self.assertRaises(OSError):
+                    with self.assertRaises(OSError) as raised:
                         run_experiment_matrix(
                             self.config(),
                             runner=RecordingRunner(self.successful_result),
                             report_path=report_path,
                         )
+                backups = list(self.root.glob(f".{label}.json.*.backup"))
+                notes = " ".join(getattr(raised.exception, "__notes__", ()))
                 self.assertEqual("previous\n", report_path.read_text(encoding="utf-8"))
-                self.assertEqual([], list(self.root.glob(f".{label}.json.*.backup")))
+                self.assertEqual(1, len(backups))
+                self.assertEqual("previous\n", backups[0].read_text(encoding="utf-8"))
+                self.assertIn(backups[0].name, notes)
 
     def test_rollback_fsync_failure_retains_backup_after_restoring_old_report(self) -> None:
         report_path = self.root / "rollback-fsync.json"
