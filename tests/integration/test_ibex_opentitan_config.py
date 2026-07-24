@@ -228,7 +228,9 @@ class IbexOpenTitanConfigTests(unittest.TestCase):
                 os.chdir(other)
 
                 def observe(request: object) -> list[dict[str, object]]:
-                    self.assertEqual(request.source_roots[0], repo_root / "external_designs/opentitan")
+                    self.assertEqual(request.source_roots, config.source_roots)
+                    self.assertTrue(all(isinstance(root, str) for root in request.source_roots))
+                    self.assertTrue(all(not Path(root).is_absolute() for root in request.source_roots))
                     capability = next(
                         item for item in request.sources if item.declared_path == declared
                     )
@@ -240,7 +242,8 @@ class IbexOpenTitanConfigTests(unittest.TestCase):
                     source.unlink()
                     source.write_bytes(b"replacement source\n")
                     self.assertEqual(capability.read_bytes(), before)
-                    self.assertTrue(all(item.resolved_path.is_absolute() for item in request.sources))
+                    self.assertTrue(all(not hasattr(item, "resolved_path") for item in request.sources))
+                    self.assertTrue(all(not Path(item.declared_path).is_absolute() for item in request.sources))
                     raise RequestObserved
 
                 with self.assertRaises(RequestObserved):
@@ -298,12 +301,10 @@ class IbexOpenTitanConfigTests(unittest.TestCase):
 
             try:
                 self.assertTrue(observed)
-                self.assertTrue(
-                    all(
-                        capability.descriptor < 0
-                        for capability in observed[0].capabilities
-                    )
-                )
+                for capability in observed[0].capabilities:
+                    self.assertFalse(hasattr(capability, "descriptor"))
+                    with self.assertRaisesRegex(ValueError, "closed"):
+                        capability.read_bytes()
             finally:
                 for dependency in observed:
                     dependency.close()

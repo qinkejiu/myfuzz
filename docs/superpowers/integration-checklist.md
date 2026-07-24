@@ -11,7 +11,7 @@ remote ancestry check succeed.
 | I2 | Identifier opacity and reference isolation | Published |
 | I3 | Process-shared memory tokens and synthetic pipeline | Verified |
 | I4 | Reference-free Ibex + OpenTitan declaration | Published |
-| I5 | Generated-only RVX boundary | Published |
+| I5 | Generated-only RVX boundary | Implemented; review pending |
 | I6 | Isolated reference evaluation | Pending |
 | I7 | Fair experiment matrix and report | Pending |
 

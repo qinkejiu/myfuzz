@@ -69,16 +69,15 @@ class SourceCapability:
     """A preflight-opened source inode exposed without a re-resolvable path."""
 
     declared_path: str
-    resolved_path: Path
     source_list_ids: tuple[int, ...]
-    descriptor: int = field(repr=False, compare=False)
+    _descriptor: int = field(repr=False, compare=False)
 
     def open(self) -> BinaryIO:
-        if self.descriptor < 0:
+        if self._descriptor < 0:
             raise ValueError("source capability is closed")
         try:
             duplicate = os.open(
-                f"/proc/self/fd/{self.descriptor}",
+                f"/proc/self/fd/{self._descriptor}",
                 os.O_RDONLY | getattr(os, "O_CLOEXEC", 0),
             )
         except OSError as error:
@@ -90,10 +89,10 @@ class SourceCapability:
             return stream.read()
 
     def close(self) -> None:
-        descriptor = self.descriptor
+        descriptor = self._descriptor
         if descriptor < 0:
             return
-        object.__setattr__(self, "descriptor", -1)
+        object.__setattr__(self, "_descriptor", -1)
         try:
             os.close(descriptor)
         except OSError:
@@ -810,7 +809,6 @@ def preflight_experiment_sources(
             capabilities.append(
                 SourceCapability(
                     declared_file,
-                    resolved_candidate,
                     tuple(sorted(declared_file_lists[declared_file])),
                     descriptor,
                 )

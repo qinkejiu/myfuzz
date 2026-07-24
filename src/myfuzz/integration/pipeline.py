@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
+import re
 import secrets
 import stat
 
@@ -30,19 +31,7 @@ from .manifest import merge_candidate_manifest
 from .memory_lock import MemoryTokenPool
 
 
-_FORBIDDEN_GENERATOR_FIELDS = frozenset(
-    (
-        "evaluator",
-        "evaluator_command",
-        "evaluator_path",
-        "original_soc",
-        "original_top",
-        "reference",
-        "reference_command",
-        "reference_path",
-        "reference_top",
-    )
-)
+_FORBIDDEN_GENERATOR_FIELD_TOKENS = frozenset(("evaluator", "original", "reference"))
 _GROUPS = ("flat-direct", "candidate-direct", "candidate-depaware")
 _SOFT_LIMIT_BYTES = 256 * 1024 * 1024
 _HARD_LIMIT_BYTES = 512 * 1024 * 1024
@@ -64,7 +53,7 @@ class GenerationRequest:
     """Reference-free, immutable inputs visible to the composition adapter."""
 
     target_id: int
-    source_roots: tuple[Path, ...]
+    source_roots: tuple[str, ...]
     sources: tuple[SourceCapability, ...]
     source_lists: tuple[GenerationSourceList, ...]
     components: tuple[Component, ...]
@@ -108,12 +97,21 @@ def _read_config_document(path: Path) -> dict[str, object]:
     return document
 
 
+def _field_tokens(key: str) -> frozenset[str]:
+    """Normalize field names without treating substrings as semantic fields."""
+    separated = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", key)
+    separated = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", separated)
+    return frozenset(
+        token.casefold() for token in re.split(r"[^A-Za-z0-9]+", separated) if token
+    )
+
+
 def _assert_reference_free(value: object, path: str = "config") -> None:
     if isinstance(value, Mapping):
         for key, item in value.items():
             if not isinstance(key, str):
                 raise ValueError(f"{path} contains a non-string key")
-            if key in _FORBIDDEN_GENERATOR_FIELDS:
+            if _field_tokens(key) & _FORBIDDEN_GENERATOR_FIELD_TOKENS:
                 raise ValueError(f"generator config field is forbidden: {path}.{key}")
             _assert_reference_free(item, f"{path}.{key}")
     elif isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
@@ -365,7 +363,7 @@ def run_candidate_pipeline(
 
         generation_request = GenerationRequest(
             target_id=config.target_id,
-            source_roots=dependency.resolved_roots if dependency is not None else (),
+            source_roots=config.source_roots,
             sources=capabilities,
             source_lists=generation_source_lists,
             components=config.components,
