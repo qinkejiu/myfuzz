@@ -156,6 +156,19 @@ class ExperimentConfigurationTest(unittest.TestCase):
                 ).update(width=2),
             )
 
+    def test_rejects_parameterized_protocol_width_mismatches(self) -> None:
+        for port_id in (2705, 3115):
+            with self.subTest(port_id=port_id), self.assertRaisesRegex(
+                ExperimentConfigurationError,
+                "protocol endpoint field width",
+            ):
+                self.load_mutated_configuration(
+                    CONFIGURATION_PATHS[1],
+                    lambda document, port_id=port_id: next(
+                        port for port in document["ports"] if port["port_id"] == port_id
+                    ).update(width=31),
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -60,6 +60,7 @@
     {"endpoint_id": 3106, "component_id": 1106, "protocol_id": "ready-valid-mmio", "version": "1", "side": "target", "field_bindings": [{"field_role": "addr", "port_id": 2601}, {"field_role": "write", "port_id": 2602}, {"field_role": "wdata", "port_id": 2603}, {"field_role": "valid", "port_id": 2604}, {"field_role": "ready", "port_id": 2605}, {"field_role": "rdata", "port_id": 2606}]}
   ],
   "generated_candidates": {"count": 3},
+  "protocol_width_parameters": {"address_width": 32, "data_width": 32},
   "seeds": [1, 7, 19],
   "budget": {"cycles": 1000, "seconds": 300},
   "raw_width": 512,

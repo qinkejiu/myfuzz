@@ -13,7 +13,11 @@ from typing import BinaryIO, Literal
 
 from myfuzz.protocols import ProtocolCatalog, load_protocol_catalog
 from myfuzz.protocols.model import ProtocolDefinitionError
-from myfuzz.protocols.widths import ProtocolWidthError, compile_width_expression
+from myfuzz.protocols.widths import (
+    ProtocolWidthError,
+    compile_width_expression,
+    width_parameters,
+)
 
 
 class ExperimentConfigurationError(ValueError):
@@ -120,6 +124,7 @@ class ProtocolEndpoint:
     version: str
     side: str
     field_bindings: tuple[FieldBinding, ...]
+    parameters: tuple[tuple[str, int], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,6 +151,7 @@ class ExperimentConfig:
     coverage_metric: str
     clock_reset: ClockResetPolicy | None
     address_constraints: AddressConstraints | None
+    protocol_width_parameters: tuple[tuple[str, int], ...]
     reference: ReferenceEvaluation | None
     document: Mapping[str, object]
 
@@ -184,6 +190,7 @@ _SUPPORTED_TOP_LEVEL_FIELDS = frozenset(
         "build_concurrency",
         "clock_reset",
         "address_constraints",
+        "protocol_width_parameters",
         "reference",
     )
 )
@@ -342,6 +349,7 @@ def _parse_protocol_endpoints(
     component_ids: set[int],
     ports_by_id: Mapping[int, Port],
     address_constraints: AddressConstraints | None,
+    protocol_width_parameters: Mapping[str, int],
 ) -> tuple[ProtocolEndpoint, ...]:
     records = _array(document.get("protocol_endpoints"), "protocol_endpoints")
     _unique_positive_ids(records, "protocol_endpoints", "endpoint_id")
@@ -361,6 +369,10 @@ def _parse_protocol_endpoints(
             plugin = _builtin_protocol_catalog().require(protocol_id, version)
         except ProtocolDefinitionError as error:
             raise ExperimentConfigurationError(str(error)) from error
+        endpoint_parameters = _parse_width_parameters(
+            record.get("parameters"),
+            f"protocol_endpoints[{index}].parameters",
+        )
         bindings: list[FieldBinding] = []
         field_roles: set[str] = set()
         for field_index, field_value in enumerate(_array(record.get("field_bindings"), f"protocol_endpoints[{index}].field_bindings")):
@@ -387,11 +399,10 @@ def _parse_protocol_endpoints(
                 "missing required field roles: " + ", ".join(sorted(missing_field_roles))
             )
         fields_by_role = {field.field_id: field for field in plugin.fields}
-        width_parameters = (
-            {"address_width": address_constraints.width}
-            if address_constraints is not None
-            else {}
-        )
+        resolved_width_parameters = dict(protocol_width_parameters)
+        resolved_width_parameters.update(endpoint_parameters)
+        if address_constraints is not None:
+            resolved_width_parameters["address_width"] = address_constraints.width
         for binding in bindings:
             field = fields_by_role[binding.field_role]
             port = ports_by_id[binding.port_id]
@@ -405,10 +416,13 @@ def _parse_protocol_endpoints(
             try:
                 expected_width = compile_width_expression(
                     field.width_expression,
-                    width_parameters,
+                    resolved_width_parameters,
                 )
-            except ProtocolWidthError:
-                continue
+            except ProtocolWidthError as error:
+                raise ExperimentConfigurationError(
+                    "protocol endpoint field width cannot be resolved: "
+                    f"{field.width_expression}"
+                ) from error
             if port.width != expected_width:
                 raise ExperimentConfigurationError("protocol endpoint field width is invalid")
         result.append(
@@ -419,6 +433,7 @@ def _parse_protocol_endpoints(
                 version,
                 side,
                 tuple(bindings),
+                tuple(sorted(endpoint_parameters.items())),
             )
         )
     if not result:
@@ -558,6 +573,17 @@ def _parse_address_constraints(document: Mapping[str, object]) -> AddressConstra
     return AddressConstraints(width, alignment)
 
 
+def _parse_width_parameters(value: object, label: str) -> dict[str, int]:
+    if value is None:
+        return {}
+    try:
+        return width_parameters(_object(value, label))
+    except ProtocolWidthError as error:
+        raise ExperimentConfigurationError(
+            f"{label} must declare positive integer widths"
+        ) from error
+
+
 def load_experiment_config(path: str | Path) -> ExperimentConfig:
     """Load one validated experiment declaration from a JSON file."""
     source = Path(path)
@@ -579,6 +605,10 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
     components = _parse_components(document, {item.source_list_id for item in source_lists})
     ports = _parse_ports(document, {item.component_id for item in components})
     address_constraints = _parse_address_constraints(document)
+    protocol_width_parameters = _parse_width_parameters(
+        document.get("protocol_width_parameters"),
+        "protocol_width_parameters",
+    )
     components = tuple(
         Component(
             component.component_id,
@@ -596,6 +626,7 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
         {item.component_id for item in components},
         {item.port_id: item for item in ports},
         address_constraints,
+        protocol_width_parameters,
     )
     candidates = _object(document.get("generated_candidates"), "generated_candidates")
     generated_candidate_count = _positive_int(candidates.get("count"), "generated_candidates.count")
@@ -629,6 +660,7 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
             {item.port_id: item for item in ports},
         ),
         address_constraints,
+        tuple(sorted(protocol_width_parameters.items())),
         _parse_reference(document),
         document,
     )

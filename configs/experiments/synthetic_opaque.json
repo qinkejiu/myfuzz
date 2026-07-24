@@ -24,6 +24,7 @@
     {"endpoint_id": 1000, "component_id": 10, "protocol_id": "ready-valid-mmio", "version": "1", "side": "initiator", "field_bindings": [{"field_role": "addr", "port_id": 100}, {"field_role": "write", "port_id": 101}, {"field_role": "wdata", "port_id": 102}, {"field_role": "valid", "port_id": 103}, {"field_role": "ready", "port_id": 104}, {"field_role": "rdata", "port_id": 105}]},
     {"endpoint_id": 1001, "component_id": 20, "protocol_id": "ready-valid-mmio", "version": "1", "side": "target", "field_bindings": [{"field_role": "addr", "port_id": 200}, {"field_role": "write", "port_id": 201}, {"field_role": "wdata", "port_id": 202}, {"field_role": "valid", "port_id": 203}, {"field_role": "ready", "port_id": 204}, {"field_role": "rdata", "port_id": 205}]}
   ],
+  "protocol_width_parameters": {"address_width": 32, "data_width": 32},
   "generated_candidates": {"count": 1},
   "seeds": [1],
   "budget": {"cycles": 100, "seconds": 1},
