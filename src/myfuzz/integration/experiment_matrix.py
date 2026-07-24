@@ -11,6 +11,7 @@ the hook completes before the job becomes eligible for a bounded retry.
 from __future__ import annotations
 
 import copy
+import ctypes
 import json
 import math
 import os
@@ -46,6 +47,7 @@ class BuildJobResult:
     """Successful completion of one B build prerequisite."""
 
     job_id: str
+    attempt: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,8 +55,9 @@ class FuzzJobResult:
     """Authoritative samples returned by one completed B fuzz job."""
 
     job_id: str
+    attempt: int
     samples: tuple[Mapping[str, object], ...]
-    observed_peak_rss_bytes: int | None = None
+    observed_peak_rss_bytes: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +65,7 @@ class ResourceCheckpointEvent:
     """Actual runner termination with a checkpoint captured at the hard limit."""
 
     job_id: str
+    attempt: int
     observed_peak_rss_bytes: int
     termination_signal: str
     checkpoint: Mapping[str, object]
@@ -94,6 +98,19 @@ class _ExecutionConfig:
     interleaving_seed: int
     max_resource_retries: int
     job_timeout_seconds: float
+
+
+@dataclass(slots=True)
+class _ReportDestination:
+    directory: int
+    name: str
+    existing: int | None
+
+    def close(self) -> None:
+        if self.existing is not None:
+            os.close(self.existing)
+            self.existing = None
+        os.close(self.directory)
 
 
 def _object(value: object, label: str) -> Mapping[str, object]:
@@ -173,34 +190,52 @@ def _parse_config(
     return planner_config, manifests, _ExecutionConfig(seed, retries, float(timeout)), reference
 
 
-def _audit_report_path(report_path: Path) -> Path:
+def _open_report_destination(report_path: Path) -> _ReportDestination:
     if not isinstance(report_path, Path):
         raise TypeError("report_path must be a pathlib.Path")
     path = report_path.absolute()
     if not path.name or path.name in {".", ".."}:
         raise ExperimentMatrixError("report_path must name a report file")
-    parent = path.parent
+    parent_parts = path.parent.parts
+    if not parent_parts or parent_parts[0] != os.sep:
+        raise ExperimentMatrixError("report_path must resolve beneath the filesystem root")
+    if any(part in {"", ".", ".."} for part in parent_parts[1:]):
+        raise ExperimentMatrixError("report_path parent contains an unsafe component")
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    directory_flags |= getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
     try:
-        parent_metadata = parent.lstat()
-        resolved_parent = parent.resolve(strict=True)
+        directory = os.open(os.sep, directory_flags)
     except OSError as error:
-        raise ExperimentMatrixError("report_path parent must be an existing directory") from error
-    if not stat.S_ISDIR(parent_metadata.st_mode) or resolved_parent != parent:
-        raise ExperimentMatrixError("report_path parent must not traverse a symlink")
+        raise ExperimentMatrixError("cannot open trusted filesystem root") from error
     try:
-        metadata = path.lstat()
-    except FileNotFoundError:
-        return path
-    except OSError as error:
-        raise ExperimentMatrixError("cannot inspect report_path") from error
-    if stat.S_ISLNK(metadata.st_mode):
-        raise ExperimentMatrixError("report_path must not be a symlink")
-    if not stat.S_ISREG(metadata.st_mode):
-        raise ExperimentMatrixError("report_path must be a regular file")
-    return path
+        for component in parent_parts[1:]:
+            next_directory = os.open(component, directory_flags, dir_fd=directory)
+            os.close(directory)
+            directory = next_directory
+        file_flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+        file_flags |= getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+        try:
+            existing = os.open(path.name, file_flags, dir_fd=directory)
+        except FileNotFoundError:
+            existing = None
+        except OSError as error:
+            raise ExperimentMatrixError("report_path must be a regular non-symlink file") from error
+        if existing is not None and not stat.S_ISREG(os.fstat(existing).st_mode):
+            os.close(existing)
+            raise ExperimentMatrixError("report_path must be a regular file")
+        return _ReportDestination(directory, path.name, existing)
+    except BaseException:
+        os.close(directory)
+        raise
 
 
 def _positive_rss(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ExperimentMatrixError(f"{label} must be a positive integer")
+    return value
+
+
+def _positive_attempt(value: object, label: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ExperimentMatrixError(f"{label} must be a positive integer")
     return value
@@ -211,12 +246,13 @@ def _sample_identity(
     samples: object,
     *,
     resource_event: bool,
-) -> tuple[dict[str, object], ...]:
+) -> tuple[tuple[dict[str, object], ...], int]:
     values = _array(samples, "runner samples")
     if not values:
         raise ExperimentMatrixError("fuzz runner samples must not be empty")
     detached: list[dict[str, object]] = []
     keys: set[tuple[object, object, object]] = set()
+    peak_rss_values: list[int] = []
     for index, value in enumerate(values):
         sample = dict(_object(value, f"runner samples[{index}]"))
         for field in ("job_id", "candidate_id", "harness", "seed"):
@@ -228,11 +264,18 @@ def _sample_identity(
         if key in keys:
             raise ExperimentMatrixError("runner samples contain a duplicate job/time/sequence key")
         keys.add(key)
+        peak_rss_values.append(
+            _positive_rss(sample.get("peak_rss_bytes"), "runner sample peak_rss_bytes")
+        )
+        failures = _object(sample.get("failure_reasons"), "runner sample failure_reasons")
+        terminated = failures.get("resource_terminated")
+        if isinstance(terminated, bool) or not isinstance(terminated, int):
+            raise ExperimentMatrixError(
+                "runner sample resource_terminated must be a non-negative integer"
+            )
         if resource_event:
-            failures = _object(sample.get("failure_reasons"), "resource sample failure_reasons")
-            terminated = failures.get("resource_terminated")
             crash = failures.get("dut_crash", 0)
-            if isinstance(terminated, bool) or not isinstance(terminated, int) or terminated <= 0:
+            if terminated <= 0:
                 raise ExperimentMatrixError(
                     "resource checkpoint sample must mark resource_terminated"
                 )
@@ -240,41 +283,61 @@ def _sample_identity(
                 raise ExperimentMatrixError(
                     "resource checkpoint sample must not classify termination as dut_crash"
                 )
+        elif terminated != 0:
+            raise ExperimentMatrixError(
+                "FuzzJobResult sample resource_terminated must be zero"
+            )
         detached.append(copy.deepcopy(sample))
-    return tuple(detached)
+    return tuple(detached), max(peak_rss_values)
 
 
 def _validated_result(
     job: Job,
     result: object,
     hard_memory_bytes: int,
+    expected_attempt: int,
 ) -> BuildJobResult | FuzzJobResult | ResourceCheckpointEvent:
     if isinstance(result, BuildJobResult):
         if job.kind is not JobKind.BUILD:
             raise ExperimentMatrixError("fuzz jobs must return FuzzJobResult")
         if result.job_id != job.job_id:
             raise ExperimentMatrixError("BuildJobResult job_id does not match job")
+        if _positive_attempt(result.attempt, "BuildJobResult.attempt") != expected_attempt:
+            raise ExperimentMatrixError("BuildJobResult attempt does not match current attempt")
         return result
     if isinstance(result, FuzzJobResult):
         if not isinstance(job, ExperimentJob) or job.kind is not JobKind.FUZZ:
             raise ExperimentMatrixError("build jobs must return BuildJobResult")
         if result.job_id != job.job_id:
             raise ExperimentMatrixError("FuzzJobResult job_id does not match job")
-        observed = result.observed_peak_rss_bytes
-        if observed is not None:
-            observed = _positive_rss(observed, "observed_peak_rss_bytes")
-            if observed >= hard_memory_bytes:
-                raise ExperimentMatrixError(
-                    "RSS at hard_memory_bytes requires a ResourceCheckpointEvent"
-                )
+        if _positive_attempt(result.attempt, "FuzzJobResult.attempt") != expected_attempt:
+            raise ExperimentMatrixError("FuzzJobResult attempt does not match current attempt")
+        observed = _positive_rss(result.observed_peak_rss_bytes, "observed_peak_rss_bytes")
+        if observed >= hard_memory_bytes:
+            raise ExperimentMatrixError(
+                "RSS at hard_memory_bytes requires a ResourceCheckpointEvent"
+            )
+        samples, sample_peak = _sample_identity(job, result.samples, resource_event=False)
+        if sample_peak != observed:
+            raise ExperimentMatrixError(
+                "FuzzJobResult observed_peak_rss_bytes must equal sample peak_rss_bytes"
+            )
         return FuzzJobResult(
             result.job_id,
-            _sample_identity(job, result.samples, resource_event=False),
+            result.attempt,
+            samples,
             observed,
         )
     if isinstance(result, ResourceCheckpointEvent):
         if result.job_id != job.job_id:
             raise ExperimentMatrixError("ResourceCheckpointEvent job_id does not match job")
+        if (
+            _positive_attempt(result.attempt, "ResourceCheckpointEvent.attempt")
+            != expected_attempt
+        ):
+            raise ExperimentMatrixError(
+                "ResourceCheckpointEvent attempt does not match current attempt"
+            )
         observed = _positive_rss(
             result.observed_peak_rss_bytes,
             "ResourceCheckpointEvent.observed_peak_rss_bytes",
@@ -291,13 +354,18 @@ def _validated_result(
             dict(_object(result.checkpoint, "ResourceCheckpointEvent.checkpoint"))
         )
         if isinstance(job, ExperimentJob):
-            samples = _sample_identity(job, result.samples, resource_event=True)
+            samples, sample_peak = _sample_identity(job, result.samples, resource_event=True)
+            if sample_peak != observed:
+                raise ExperimentMatrixError(
+                    "ResourceCheckpointEvent observed_peak_rss_bytes must equal sample peak_rss_bytes"
+                )
         else:
             if result.samples:
                 raise ExperimentMatrixError("build resource events cannot contain fuzz samples")
             samples = ()
         return ResourceCheckpointEvent(
             result.job_id,
+            result.attempt,
             observed,
             result.termination_signal,
             checkpoint,
@@ -319,7 +387,16 @@ def _persist_checkpoint(
         raise ExperimentMatrixError(
             "runner must provide persist_checkpoint for resource events"
         )
-    sink(event)
+    sink(
+        ResourceCheckpointEvent(
+            event.job_id,
+            event.attempt,
+            event.observed_peak_rss_bytes,
+            event.termination_signal,
+            copy.deepcopy(dict(event.checkpoint)),
+            tuple(copy.deepcopy(dict(sample)) for sample in event.samples),
+        )
+    )
     checkpoints.append(
         {
             "job_id": job.job_id,
@@ -347,7 +424,28 @@ def _fsync_directory(descriptor: int) -> None:
     os.fsync(descriptor)
 
 
-def _atomic_write_report(report_path: Path, document: Mapping[str, object]) -> None:
+def _exchange_names(directory: int, first: str, second: str) -> None:
+    try:
+        renameat2 = ctypes.CDLL(None, use_errno=True).renameat2
+    except AttributeError as error:
+        raise ExperimentMatrixError("atomic report exchange is unavailable") from error
+    renameat2.argtypes = (
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_uint,
+    )
+    renameat2.restype = ctypes.c_int
+    if renameat2(directory, os.fsencode(first), directory, os.fsencode(second), 2) != 0:
+        error_number = ctypes.get_errno()
+        raise OSError(error_number, os.strerror(error_number))
+
+
+def _atomic_write_report(
+    destination: _ReportDestination,
+    document: Mapping[str, object],
+) -> None:
     payload = (
         json.dumps(
             document,
@@ -361,32 +459,45 @@ def _atomic_write_report(report_path: Path, document: Mapping[str, object]) -> N
     if len(payload) > _MAX_REPORT_BYTES:
         raise ExperimentMatrixError("experiment report exceeds size limit")
 
-    path = _audit_report_path(report_path)
-    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
-    directory_flags |= getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
-    directory = os.open(path.parent, directory_flags)
-    temporary_name = f".{path.name}.{secrets.token_hex(8)}.tmp"
-    backup_name = f".{path.name}.{secrets.token_hex(8)}.backup"
+    directory = destination.directory
+    report_name = destination.name
+    temporary_name = f".{report_name}.{secrets.token_hex(8)}.tmp"
+    backup_name = f".{report_name}.{secrets.token_hex(8)}.backup"
+    rollback_name = f".{report_name}.{secrets.token_hex(8)}.rollback"
     descriptor: int | None = None
     backup_created = False
+    backup_obsolete = False
+    published = False
+    rollback_created = False
+    temporary_obsolete = True
     try:
         try:
-            current = os.stat(path.name, dir_fd=directory, follow_symlinks=False)
+            current = os.stat(report_name, dir_fd=directory, follow_symlinks=False)
         except FileNotFoundError:
             current = None
-        if current is not None:
-            if stat.S_ISLNK(current.st_mode):
-                raise ExperimentMatrixError("report_path must not be a symlink")
-            if not stat.S_ISREG(current.st_mode):
-                raise ExperimentMatrixError("report_path must be a regular file")
+        if destination.existing is None:
+            if current is not None:
+                raise ExperimentMatrixError("report_path changed during execution")
+        else:
+            pinned = os.fstat(destination.existing)
+            if (
+                current is None
+                or not stat.S_ISREG(current.st_mode)
+                or (current.st_dev, current.st_ino) != (pinned.st_dev, pinned.st_ino)
+            ):
+                raise ExperimentMatrixError("report_path changed during execution")
             os.link(
-                path.name,
+                report_name,
                 backup_name,
                 src_dir_fd=directory,
                 dst_dir_fd=directory,
                 follow_symlinks=False,
             )
             backup_created = True
+            backup = os.stat(backup_name, dir_fd=directory, follow_symlinks=False)
+            if (backup.st_dev, backup.st_ino) != (pinned.st_dev, pinned.st_ino):
+                raise ExperimentMatrixError("report_path changed while creating backup")
+            _fsync_directory(directory)
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
         flags |= getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
         descriptor = os.open(temporary_name, flags, 0o600, dir_fd=directory)
@@ -394,47 +505,98 @@ def _atomic_write_report(report_path: Path, document: Mapping[str, object]) -> N
         os.fsync(descriptor)
         os.close(descriptor)
         descriptor = None
-        os.replace(
-            temporary_name,
-            path.name,
-            src_dir_fd=directory,
-            dst_dir_fd=directory,
-        )
+        if destination.existing is None:
+            try:
+                os.link(
+                    temporary_name,
+                    report_name,
+                    src_dir_fd=directory,
+                    dst_dir_fd=directory,
+                    follow_symlinks=False,
+                )
+            except FileExistsError as error:
+                raise ExperimentMatrixError(
+                    "report_path changed during publication"
+                ) from error
+            published = True
+        else:
+            _exchange_names(directory, temporary_name, report_name)
+            published = True
+            displaced = os.stat(
+                temporary_name,
+                dir_fd=directory,
+                follow_symlinks=False,
+            )
+            pinned = os.fstat(destination.existing)
+            if (displaced.st_dev, displaced.st_ino) != (pinned.st_dev, pinned.st_ino):
+                error = ExperimentMatrixError("report_path changed during publication")
+                try:
+                    _exchange_names(directory, temporary_name, report_name)
+                    published = False
+                except BaseException as rollback_error:
+                    temporary_obsolete = False
+                    error.add_note(f"report exchange rollback failed: {rollback_error}")
+                    error.add_note(f"recoverable report backup: {backup_name}")
+                    error.add_note(
+                        f"recoverable displaced report: {temporary_name}"
+                    )
+                raise error
         try:
             _fsync_directory(directory)
-            if backup_created:
-                os.unlink(backup_name, dir_fd=directory)
-                backup_created = False
         except BaseException as error:
             try:
                 if backup_created:
-                    os.replace(
+                    os.link(
                         backup_name,
-                        path.name,
+                        rollback_name,
+                        src_dir_fd=directory,
+                        dst_dir_fd=directory,
+                        follow_symlinks=False,
+                    )
+                    rollback_created = True
+                    os.replace(
+                        rollback_name,
+                        report_name,
                         src_dir_fd=directory,
                         dst_dir_fd=directory,
                     )
-                    backup_created = False
+                    rollback_created = False
                 else:
-                    os.unlink(path.name, dir_fd=directory)
-                os.fsync(directory)
+                    os.unlink(report_name, dir_fd=directory)
+                _fsync_directory(directory)
+                published = False
+                backup_obsolete = True
             except BaseException as rollback_error:
                 error.add_note(f"report rollback failed: {rollback_error}")
+                if backup_created:
+                    error.add_note(f"recoverable report backup: {backup_name}")
             raise
+        if backup_created:
+            os.unlink(backup_name, dir_fd=directory)
+            backup_created = False
+        published = False
+    except BaseException:
+        if backup_created and not published:
+            backup_obsolete = True
+        raise
     finally:
         if descriptor is not None:
             os.close(descriptor)
+        if temporary_obsolete:
+            try:
+                os.unlink(temporary_name, dir_fd=directory)
+            except FileNotFoundError:
+                pass
         try:
-            os.unlink(temporary_name, dir_fd=directory)
+            if rollback_created:
+                os.unlink(rollback_name, dir_fd=directory)
         except FileNotFoundError:
             pass
         try:
-            if backup_created:
+            if backup_created and backup_obsolete:
                 os.unlink(backup_name, dir_fd=directory)
         except FileNotFoundError:
             pass
-        finally:
-            os.close(directory)
 
 
 def run_experiment_matrix(
@@ -446,7 +608,18 @@ def run_experiment_matrix(
     """Run B's immutable plan through B leases and publish B's report unchanged."""
     if not callable(runner):
         raise TypeError("runner must be callable")
-    destination = _audit_report_path(report_path)
+    destination = _open_report_destination(report_path)
+    try:
+        return _run_experiment_matrix(config, runner, destination)
+    finally:
+        destination.close()
+
+
+def _run_experiment_matrix(
+    config: Mapping[str, object],
+    runner: Callable[[Job], object],
+    destination: _ReportDestination,
+) -> dict[str, object]:
     planner_config, manifests, execution, reference_summary = _parse_config(config)
     plan = plan_experiment(planner_config, manifests)
 
@@ -466,7 +639,12 @@ def run_experiment_matrix(
             runner,
             timeout_seconds=execution.job_timeout_seconds,
         )
-        return _validated_result(job, result, plan.runtime_policy.hard_memory_bytes)
+        return _validated_result(
+            job,
+            result,
+            plan.runtime_policy.hard_memory_bytes,
+            attempts[job.job_id],
+        )
 
     for build_job in plan.build_jobs:
         while True:

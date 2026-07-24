@@ -88,5 +88,9 @@ git diff --check
 before seeded fuzz interleaving; typed hard-memory events persist checkpoints
 before bounded, B-priority retries. Only B-selected manifests and validated
 per-job samples reach B's report builder, and the unchanged B report is wrapped
-with execution metadata before atomic publication. Independent I7 review
-remains pending.
+with execution metadata before atomic publication. Runner results bind the
+current attempt and exact peak-RSS evidence. The report parent and any existing
+destination inode are pinned before planning, while rollback keeps a durable
+recovery backup until restoration is confirmed. Checkpoint sinks receive
+detached events, and publication verifies the pinned destination inode across
+an atomic name exchange. Independent I7 review remains pending.

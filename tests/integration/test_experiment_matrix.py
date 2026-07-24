@@ -100,6 +100,7 @@ class ExperimentMatrixTest(unittest.TestCase):
         job: ExperimentJob,
         *,
         resource_terminated: int = 0,
+        peak_rss_bytes: int = MIB,
     ) -> dict[str, object]:
         return {
             "job_id": job.job_id,
@@ -112,7 +113,7 @@ class ExperimentMatrixTest(unittest.TestCase):
             "covered_point_ids": [],
             "tests_executed": 0,
             "cycles_executed": 0,
-            "peak_rss_bytes": MIB,
+            "peak_rss_bytes": peak_rss_bytes,
             "projection_count": 0,
             "correction_counts": {},
             "protocol_event_count": 0,
@@ -127,9 +128,9 @@ class ExperimentMatrixTest(unittest.TestCase):
 
     def successful_result(self, job: Job) -> object:
         if job.kind is JobKind.BUILD:
-            return BuildJobResult(job.job_id)
+            return BuildJobResult(job.job_id, 1)
         assert isinstance(job, ExperimentJob)
-        return FuzzJobResult(job.job_id, (self.sample(job),), MIB)
+        return FuzzJobResult(job.job_id, 1, (self.sample(job),), MIB)
 
     def run_success(
         self,
@@ -216,19 +217,20 @@ class ExperimentMatrixTest(unittest.TestCase):
 
         def execute(job: Job) -> object:
             if job.kind is JobKind.BUILD:
-                return BuildJobResult(job.job_id)
+                return BuildJobResult(job.job_id, 1)
             assert isinstance(job, ExperimentJob)
             attempts[job.job_id] += 1
             if attempts[job.job_id] == 1:
                 return ResourceCheckpointEvent(
                     job.job_id,
+                    attempts[job.job_id],
                     4 * MIB,
                     "hard_memory_limit",
                     {"checkpoint_id": job.job_id},
-                    (self.sample(job, resource_terminated=1),),
+                    (self.sample(job, resource_terminated=1, peak_rss_bytes=4 * MIB),),
                 )
             self.assertIn(job.job_id, runner.persisted)
-            return FuzzJobResult(job.job_id, (self.sample(job),), MIB)
+            return FuzzJobResult(job.job_id, attempts[job.job_id], (self.sample(job),), MIB)
 
         runner = RecordingRunner(execute)
         result = run_experiment_matrix(
@@ -241,6 +243,8 @@ class ExperimentMatrixTest(unittest.TestCase):
         retry_calls = [job for job in fuzz_calls if attempts[job.job_id] == 2][-9:]
         self.assertEqual(sorted(job.priority for job in retry_calls), [job.priority for job in retry_calls])
         self.assertEqual(9, len(result["execution"]["checkpoints"]))
+        self.assertEqual(1, result["execution"]["checkpoints"][0]["attempt"])
+        self.assertIn("job_id", result["execution"]["checkpoints"][0])
         self.assertEqual({2}, set(result["execution"]["attempts"].values()) - {1})
 
     def test_resource_retry_is_bounded_and_remains_distinct_from_dut_crash(self) -> None:
@@ -249,17 +253,18 @@ class ExperimentMatrixTest(unittest.TestCase):
 
         def execute(job: Job) -> object:
             if job.kind is JobKind.BUILD:
-                return BuildJobResult(job.job_id)
+                return BuildJobResult(job.job_id, 1)
             assert isinstance(job, ExperimentJob)
             attempts[job.job_id] += 1
             if attempts[job.job_id] > 1:
                 self.assertIn(job.job_id, runner.persisted)
             return ResourceCheckpointEvent(
                 job.job_id,
+                attempts[job.job_id],
                 5 * MIB,
                 "hard_memory_limit",
                 {"attempt": attempts[job.job_id]},
-                (self.sample(job, resource_terminated=1),),
+                (self.sample(job, resource_terminated=1, peak_rss_bytes=5 * MIB),),
             )
 
         runner = RecordingRunner(execute)
@@ -277,17 +282,51 @@ class ExperimentMatrixTest(unittest.TestCase):
         self.assertEqual(0, runtime["failure_reasons"]["dut_crash"])
         self.assertEqual(6, len(result["execution"]["checkpoints"]))
 
-    def test_hard_limit_event_requires_actual_signal_rss_and_checkpoint_sink(self) -> None:
-        def under_limit(job: Job) -> object:
+    def test_checkpoint_sink_cannot_mutate_validated_internal_event(self) -> None:
+        class MutatingSinkRunner(RecordingRunner):
+            def persist_checkpoint(inner_self, event: ResourceCheckpointEvent) -> None:
+                super().persist_checkpoint(event)
+                failures = event.samples[0]["failure_reasons"]
+                assert isinstance(failures, dict)
+                failures["resource_terminated"] = 0
+                failures["dut_crash"] = 1
+
+        def terminate(job: Job) -> object:
             if job.kind is JobKind.BUILD:
-                return BuildJobResult(job.job_id)
+                return BuildJobResult(job.job_id, 1)
             assert isinstance(job, ExperimentJob)
             return ResourceCheckpointEvent(
                 job.job_id,
+                1,
+                4 * MIB,
+                "hard_memory_limit",
+                {},
+                (self.sample(job, resource_terminated=1, peak_rss_bytes=4 * MIB),),
+            )
+
+        result = run_experiment_matrix(
+            self.config(retries=0),
+            runner=MutatingSinkRunner(terminate),
+            report_path=self.root / "mutating-sink.json",
+        )
+        runtime = result["report"]["candidates"]["candidate-000"]["budgets"]["smoke"][
+            "harnesses"
+        ]["candidate-depaware"]["runtime"]
+        self.assertEqual(1, runtime["failure_reasons"]["resource_terminated"])
+        self.assertEqual(0, runtime["failure_reasons"]["dut_crash"])
+
+    def test_hard_limit_event_requires_actual_signal_rss_and_checkpoint_sink(self) -> None:
+        def under_limit(job: Job) -> object:
+            if job.kind is JobKind.BUILD:
+                return BuildJobResult(job.job_id, 1)
+            assert isinstance(job, ExperimentJob)
+            return ResourceCheckpointEvent(
+                job.job_id,
+                1,
                 3 * MIB,
                 "hard_memory_limit",
                 {},
-                (self.sample(job, resource_terminated=1),),
+                (self.sample(job, resource_terminated=1, peak_rss_bytes=3 * MIB),),
             )
 
         with self.assertRaisesRegex(ExperimentMatrixError, "hard_memory_bytes"):
@@ -300,14 +339,15 @@ class ExperimentMatrixTest(unittest.TestCase):
         class NoCheckpointSink:
             def __call__(inner_self, job: Job) -> object:
                 if job.kind is JobKind.BUILD:
-                    return BuildJobResult(job.job_id)
+                    return BuildJobResult(job.job_id, 1)
                 assert isinstance(job, ExperimentJob)
                 return ResourceCheckpointEvent(
                     job.job_id,
+                    1,
                     4 * MIB,
                     "hard_memory_limit",
                     {},
-                    (self.sample(job, resource_terminated=1),),
+                    (self.sample(job, resource_terminated=1, peak_rss_bytes=4 * MIB),),
                 )
 
         with self.assertRaisesRegex(ExperimentMatrixError, "persist_checkpoint"):
@@ -320,10 +360,10 @@ class ExperimentMatrixTest(unittest.TestCase):
     def test_fuzz_samples_fail_closed_on_duplicate_or_wrong_identity(self) -> None:
         def duplicate(job: Job) -> object:
             if job.kind is JobKind.BUILD:
-                return BuildJobResult(job.job_id)
+                return BuildJobResult(job.job_id, 1)
             assert isinstance(job, ExperimentJob)
             sample = self.sample(job)
-            return FuzzJobResult(job.job_id, (sample, copy.deepcopy(sample)), MIB)
+            return FuzzJobResult(job.job_id, 1, (sample, copy.deepcopy(sample)), MIB)
 
         with self.assertRaisesRegex(ExperimentMatrixError, "duplicate"):
             run_experiment_matrix(
@@ -334,11 +374,11 @@ class ExperimentMatrixTest(unittest.TestCase):
 
         def wrong(job: Job) -> object:
             if job.kind is JobKind.BUILD:
-                return BuildJobResult(job.job_id)
+                return BuildJobResult(job.job_id, 1)
             assert isinstance(job, ExperimentJob)
             sample = self.sample(job)
             sample["job_id"] = "fuzz-wrong"
-            return FuzzJobResult(job.job_id, (sample,), MIB)
+            return FuzzJobResult(job.job_id, 1, (sample,), MIB)
 
         with self.assertRaisesRegex(ExperimentMatrixError, "job_id"):
             run_experiment_matrix(
@@ -396,6 +436,261 @@ class ExperimentMatrixTest(unittest.TestCase):
                 report_path=self.root / "mapping.json",
             )
 
+    def test_runner_results_bind_current_attempt_and_reject_stale_retries(self) -> None:
+        with self.assertRaisesRegex(ExperimentMatrixError, "attempt"):
+            run_experiment_matrix(
+                self.config(),
+                runner=RecordingRunner(
+                    lambda job: BuildJobResult(job.job_id, 2)
+                ),
+                report_path=self.root / "stale-build.json",
+            )
+
+        def stale_build_event(job: Job) -> object:
+            return ResourceCheckpointEvent(
+                job.job_id,
+                2,
+                4 * MIB,
+                "hard_memory_limit",
+                {},
+            )
+
+        with self.assertRaisesRegex(ExperimentMatrixError, "attempt"):
+            run_experiment_matrix(
+                self.config(),
+                runner=RecordingRunner(stale_build_event),
+                report_path=self.root / "stale-build-event.json",
+            )
+
+        attempts: defaultdict[str, int] = defaultdict(int)
+
+        def stale_retry(job: Job) -> object:
+            if job.kind is JobKind.BUILD:
+                return BuildJobResult(job.job_id, 1)
+            assert isinstance(job, ExperimentJob)
+            attempts[job.job_id] += 1
+            if attempts[job.job_id] == 1:
+                return ResourceCheckpointEvent(
+                    job.job_id,
+                    1,
+                    4 * MIB,
+                    "hard_memory_limit",
+                    {},
+                    (self.sample(job, resource_terminated=1, peak_rss_bytes=4 * MIB),),
+                )
+            return FuzzJobResult(job.job_id, 1, (self.sample(job),), MIB)
+
+        with self.assertRaisesRegex(ExperimentMatrixError, "attempt"):
+            run_experiment_matrix(
+                self.config(),
+                runner=RecordingRunner(stale_retry),
+                report_path=self.root / "stale-retry.json",
+            )
+
+    def test_runner_rss_evidence_cannot_bypass_typed_result_boundary(self) -> None:
+        def ordinary_resource_failure(job: Job) -> object:
+            if job.kind is JobKind.BUILD:
+                return BuildJobResult(job.job_id, 1)
+            assert isinstance(job, ExperimentJob)
+            return FuzzJobResult(
+                job.job_id,
+                1,
+                (self.sample(job, resource_terminated=1),),
+                MIB,
+            )
+
+        with self.assertRaisesRegex(ExperimentMatrixError, "resource_terminated"):
+            run_experiment_matrix(
+                self.config(),
+                runner=RecordingRunner(ordinary_resource_failure),
+                report_path=self.root / "ordinary-resource.json",
+            )
+
+        def mismatched_peak(job: Job) -> object:
+            if job.kind is JobKind.BUILD:
+                return BuildJobResult(job.job_id, 1)
+            assert isinstance(job, ExperimentJob)
+            return FuzzJobResult(job.job_id, 1, (self.sample(job),), 2 * MIB)
+
+        with self.assertRaisesRegex(ExperimentMatrixError, "peak_rss_bytes"):
+            run_experiment_matrix(
+                self.config(),
+                runner=RecordingRunner(mismatched_peak),
+                report_path=self.root / "mismatched-peak.json",
+            )
+
+        def mismatched_event_peak(job: Job) -> object:
+            if job.kind is JobKind.BUILD:
+                return BuildJobResult(job.job_id, 1)
+            assert isinstance(job, ExperimentJob)
+            return ResourceCheckpointEvent(
+                job.job_id,
+                1,
+                4 * MIB,
+                "hard_memory_limit",
+                {},
+                (self.sample(job, resource_terminated=1, peak_rss_bytes=3 * MIB),),
+            )
+
+        with self.assertRaisesRegex(ExperimentMatrixError, "peak_rss_bytes"):
+            run_experiment_matrix(
+                self.config(),
+                runner=RecordingRunner(mismatched_event_peak),
+                report_path=self.root / "mismatched-event-peak.json",
+            )
+
+        def zero_sample_peak(job: Job) -> object:
+            if job.kind is JobKind.BUILD:
+                return BuildJobResult(job.job_id, 1)
+            assert isinstance(job, ExperimentJob)
+            return FuzzJobResult(
+                job.job_id,
+                1,
+                (self.sample(job, peak_rss_bytes=0),),
+                MIB,
+            )
+
+        with self.assertRaisesRegex(ExperimentMatrixError, "positive integer"):
+            run_experiment_matrix(
+                self.config(),
+                runner=RecordingRunner(zero_sample_peak),
+                report_path=self.root / "zero-sample-peak.json",
+            )
+
+    def test_report_parent_is_pinned_before_planning_side_effects(self) -> None:
+        trusted = self.root / "trusted"
+        moved = self.root / "pinned-parent"
+        trusted.mkdir()
+        with self.assertRaisesRegex(ExperimentMatrixError, "unsafe component"):
+            run_experiment_matrix(
+                self.config(),
+                runner=RecordingRunner(self.successful_result),
+                report_path=trusted / ".." / "unsafe.json",
+            )
+        original_plan = matrix_module.plan_experiment
+
+        def swap_parent(*args: object, **kwargs: object) -> object:
+            plan = original_plan(*args, **kwargs)
+            trusted.rename(moved)
+            trusted.mkdir()
+            return plan
+
+        with patch.object(matrix_module, "plan_experiment", side_effect=swap_parent):
+            run_experiment_matrix(
+                self.config(),
+                runner=RecordingRunner(self.successful_result),
+                report_path=trusted / "report.json",
+            )
+
+        self.assertTrue((moved / "report.json").is_file())
+        self.assertFalse((trusted / "report.json").exists())
+
+    def test_existing_report_inode_swap_fails_closed(self) -> None:
+        report_path = self.root / "swapped.json"
+        original_path = self.root / "original-report.json"
+        report_path.write_text("previous\n", encoding="utf-8")
+        original_builder = matrix_module.build_report
+
+        def swap_destination(*args: object, **kwargs: object) -> object:
+            report = original_builder(*args, **kwargs)
+            report_path.rename(original_path)
+            report_path.write_text("attacker\n", encoding="utf-8")
+            return report
+
+        with patch.object(matrix_module, "build_report", side_effect=swap_destination):
+            with self.assertRaisesRegex(ExperimentMatrixError, "changed during execution"):
+                run_experiment_matrix(
+                    self.config(),
+                    runner=RecordingRunner(self.successful_result),
+                    report_path=report_path,
+                )
+
+        self.assertEqual("previous\n", original_path.read_text(encoding="utf-8"))
+        self.assertEqual("attacker\n", report_path.read_text(encoding="utf-8"))
+
+    def test_destination_swap_after_backup_fsync_fails_closed(self) -> None:
+        report_path = self.root / "late-swap.json"
+        original_path = self.root / "late-original.json"
+        report_path.write_text("previous\n", encoding="utf-8")
+        fsync_calls = 0
+
+        def swap_after_backup(descriptor: int) -> None:
+            nonlocal fsync_calls
+            fsync_calls += 1
+            os.fsync(descriptor)
+            if fsync_calls == 1:
+                report_path.rename(original_path)
+                report_path.write_text("attacker\n", encoding="utf-8")
+
+        with patch.object(
+            matrix_module,
+            "_fsync_directory",
+            side_effect=swap_after_backup,
+        ):
+            with self.assertRaisesRegex(ExperimentMatrixError, "changed during publication"):
+                run_experiment_matrix(
+                    self.config(),
+                    runner=RecordingRunner(self.successful_result),
+                    report_path=report_path,
+                )
+
+        self.assertEqual("previous\n", original_path.read_text(encoding="utf-8"))
+        self.assertEqual("attacker\n", report_path.read_text(encoding="utf-8"))
+
+    def test_failed_exchange_rollback_preserves_displaced_destination(self) -> None:
+        report_path = self.root / "compound.json"
+        original_path = self.root / "compound-original.json"
+        report_path.write_text("previous\n", encoding="utf-8")
+        original_exchange = matrix_module._exchange_names
+        exchange_calls = 0
+        fsync_calls = 0
+
+        def fail_exchange_rollback(directory: int, first: str, second: str) -> None:
+            nonlocal exchange_calls
+            exchange_calls += 1
+            if exchange_calls == 2:
+                raise OSError("exchange rollback failed")
+            original_exchange(directory, first, second)
+
+        def swap_after_backup(descriptor: int) -> None:
+            nonlocal fsync_calls
+            fsync_calls += 1
+            os.fsync(descriptor)
+            if fsync_calls == 1:
+                report_path.rename(original_path)
+                report_path.write_text("attacker\n", encoding="utf-8")
+
+        with patch.object(
+            matrix_module,
+            "_exchange_names",
+            side_effect=fail_exchange_rollback,
+        ), patch.object(
+            matrix_module,
+            "_fsync_directory",
+            side_effect=swap_after_backup,
+        ):
+            with self.assertRaisesRegex(
+                ExperimentMatrixError,
+                "changed during publication",
+            ) as raised:
+                run_experiment_matrix(
+                    self.config(),
+                    runner=RecordingRunner(self.successful_result),
+                    report_path=report_path,
+                )
+
+        backups = list(self.root.glob(".compound.json.*.backup"))
+        recoveries = list(self.root.glob(".compound.json.*.tmp"))
+        notes = " ".join(getattr(raised.exception, "__notes__", ()))
+        self.assertEqual("previous\n", original_path.read_text(encoding="utf-8"))
+        self.assertNotEqual("attacker\n", report_path.read_text(encoding="utf-8"))
+        self.assertEqual(1, len(backups))
+        self.assertEqual("previous\n", backups[0].read_text(encoding="utf-8"))
+        self.assertEqual(1, len(recoveries))
+        self.assertEqual("attacker\n", recoveries[0].read_text(encoding="utf-8"))
+        self.assertIn(backups[0].name, notes)
+        self.assertIn(recoveries[0].name, notes)
+
     def test_atomic_write_preserves_existing_report_and_rejects_symlinks(self) -> None:
         report_path = self.root / "atomic.json"
         report_path.write_text("previous\n", encoding="utf-8")
@@ -424,11 +719,19 @@ class ExperimentMatrixTest(unittest.TestCase):
     def test_parent_fsync_failure_rolls_back_an_existing_report(self) -> None:
         report_path = self.root / "durable.json"
         report_path.write_text("previous\n", encoding="utf-8")
+        fsync_calls = 0
+
+        def fail_publish_fsync(descriptor: int) -> None:
+            nonlocal fsync_calls
+            fsync_calls += 1
+            if fsync_calls == 2:
+                raise OSError("directory fsync failed")
+            os.fsync(descriptor)
 
         with patch.object(
             matrix_module,
             "_fsync_directory",
-            side_effect=OSError("directory fsync failed"),
+            side_effect=fail_publish_fsync,
         ):
             with self.assertRaisesRegex(OSError, "directory fsync failed"):
                 run_experiment_matrix(
@@ -438,6 +741,116 @@ class ExperimentMatrixTest(unittest.TestCase):
                 )
 
         self.assertEqual("previous\n", report_path.read_text(encoding="utf-8"))
+        self.assertEqual([], list(self.root.glob(".durable.json.*.backup")))
+
+    def test_backup_fsync_or_publish_replace_failure_keeps_original_report(self) -> None:
+        for label, target in (("backup-fsync", "fsync"), ("publish-replace", "replace")):
+            with self.subTest(label=label):
+                report_path = self.root / f"{label}.json"
+                report_path.write_text("previous\n", encoding="utf-8")
+                patcher = (
+                    patch.object(
+                        matrix_module,
+                        "_fsync_directory",
+                        side_effect=OSError("backup fsync failed"),
+                    )
+                    if target == "fsync"
+                    else patch.object(
+                        matrix_module,
+                        "_exchange_names",
+                        side_effect=OSError("publish replace failed"),
+                    )
+                )
+                with patcher:
+                    with self.assertRaises(OSError):
+                        run_experiment_matrix(
+                            self.config(),
+                            runner=RecordingRunner(self.successful_result),
+                            report_path=report_path,
+                        )
+                self.assertEqual("previous\n", report_path.read_text(encoding="utf-8"))
+                self.assertEqual([], list(self.root.glob(f".{label}.json.*.backup")))
+
+    def test_rollback_fsync_failure_retains_backup_after_restoring_old_report(self) -> None:
+        report_path = self.root / "rollback-fsync.json"
+        report_path.write_text("previous\n", encoding="utf-8")
+        fsync_calls = 0
+
+        def fail_publish_and_rollback_fsync(descriptor: int) -> None:
+            nonlocal fsync_calls
+            fsync_calls += 1
+            if fsync_calls >= 2:
+                raise OSError(f"directory fsync failed {fsync_calls}")
+            os.fsync(descriptor)
+
+        with patch.object(
+            matrix_module,
+            "_fsync_directory",
+            side_effect=fail_publish_and_rollback_fsync,
+        ):
+            with self.assertRaisesRegex(OSError, "directory fsync failed 2") as raised:
+                run_experiment_matrix(
+                    self.config(),
+                    runner=RecordingRunner(self.successful_result),
+                    report_path=report_path,
+                )
+
+        backups = list(self.root.glob(".rollback-fsync.json.*.backup"))
+        self.assertEqual("previous\n", report_path.read_text(encoding="utf-8"))
+        self.assertEqual(1, len(backups))
+        self.assertIn(backups[0].name, " ".join(getattr(raised.exception, "__notes__", ())))
+
+    def test_backup_cleanup_failure_keeps_committed_report_and_backup(self) -> None:
+        report_path = self.root / "cleanup.json"
+        report_path.write_text("previous\n", encoding="utf-8")
+        original_unlink = matrix_module.os.unlink
+
+        def fail_backup_cleanup(path: object, *args: object, **kwargs: object) -> None:
+            if str(path).endswith(".backup"):
+                raise OSError("backup cleanup failed")
+            original_unlink(path, *args, **kwargs)
+
+        with patch.object(matrix_module.os, "unlink", side_effect=fail_backup_cleanup):
+            with self.assertRaisesRegex(OSError, "backup cleanup failed"):
+                run_experiment_matrix(
+                    self.config(),
+                    runner=RecordingRunner(self.successful_result),
+                    report_path=report_path,
+                )
+
+        backups = list(self.root.glob(".cleanup.json.*.backup"))
+        self.assertEqual(1, len(backups))
+        self.assertNotEqual("previous\n", report_path.read_text(encoding="utf-8"))
+        self.assertEqual("previous\n", backups[0].read_text(encoding="utf-8"))
+
+    def test_failed_rollback_preserves_recoverable_backup(self) -> None:
+        report_path = self.root / "recoverable.json"
+        report_path.write_text("previous\n", encoding="utf-8")
+
+        def fail_rollback_replace(*args: object, **kwargs: object) -> None:
+            raise OSError("rollback replace failed")
+
+        def fail_published_fsync(descriptor: int) -> None:
+            if report_path.read_text(encoding="utf-8") != "previous\n":
+                raise OSError("publish fsync failed")
+            os.fsync(descriptor)
+
+        with patch.object(matrix_module.os, "replace", side_effect=fail_rollback_replace), patch.object(
+            matrix_module,
+            "_fsync_directory",
+            side_effect=fail_published_fsync,
+        ):
+            with self.assertRaisesRegex(OSError, "publish fsync failed") as raised:
+                run_experiment_matrix(
+                    self.config(),
+                    runner=RecordingRunner(self.successful_result),
+                    report_path=report_path,
+                )
+
+        backups = list(self.root.glob(".recoverable.json.*.backup"))
+        self.assertEqual(1, len(backups))
+        self.assertEqual("previous\n", backups[0].read_text(encoding="utf-8"))
+        self.assertIn(backups[0].name, " ".join(getattr(raised.exception, "__notes__", ())))
 
 
 if __name__ == "__main__":
