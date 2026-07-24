@@ -63,8 +63,10 @@ git diff --check
 ```
 
 `ReferenceAdapter` is the sole production receiver for an evaluator command.
-It pins the validated allowlisted executable inode across handoff to the
-supervisor, so a path replacement cannot alter what runs. The report admits a
-reference summary only when its scope is `reference-descriptive`, and uses it
-only through the stable-source intersection; candidate hashes and coverage
-universes remain unchanged.
+It pins the allowed root directory chain and validated executable inode across
+handoff to the supervisor, so a root or intermediate path replacement cannot
+alter what runs. Its stdout is discarded and stderr is continuously drained
+with bounded diagnostic retention. The report admits a reference summary only
+when its scope is `reference-descriptive`, and uses it only through the
+stable-source intersection; candidate hashes and coverage universes remain
+unchanged. Independent I6 review remains pending.

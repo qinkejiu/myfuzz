@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import os
 import stat
@@ -144,6 +145,113 @@ class ReferenceIsolationTests(unittest.TestCase):
                 summary = ReferenceAdapter((str(evaluator),), allowed).run(root / "output")
 
             self.assertEqual("passed", summary["status"])
+
+    def test_nested_directory_replacement_cannot_escape_allowlisted_root(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            allowed = root / "allowed"
+            nested = allowed / "nested"
+            outside = root / "outside"
+            allowed.mkdir()
+            nested.mkdir()
+            outside.mkdir()
+            evaluator = self._evaluator(nested)
+            escaped = outside / "evaluate.py"
+            escaped.write_text(
+                "#!/usr/bin/env python3\n"
+                "from pathlib import Path\n"
+                f"Path({str(root / 'escaped')!r}).write_text('ran')\n",
+                encoding="utf-8",
+            )
+            escaped.chmod(escaped.stat().st_mode | stat.S_IXUSR)
+            descriptor_count = len(tuple(Path("/proc/self/fd").iterdir()))
+            original_open = reference_adapter.os.open
+            replaced = False
+
+            def replace_nested(
+                path: str | bytes | os.PathLike[str],
+                flags: int,
+                mode: int = 0o777,
+                *,
+                dir_fd: int | None = None,
+            ) -> int:
+                nonlocal replaced
+                if Path(path).name == "evaluate.py" and not replaced:
+                    replaced = True
+                    os.rename(nested, allowed / "nested-original")
+                    nested.symlink_to(outside, target_is_directory=True)
+                return original_open(path, flags, mode, dir_fd=dir_fd)
+
+            with mock.patch(
+                "myfuzz.integration.reference_adapter.os.open",
+                side_effect=replace_nested,
+            ):
+                summary = ReferenceAdapter(("nested/evaluate.py",), allowed).run(root / "output")
+
+            self.assertTrue(replaced)
+            self.assertFalse((root / "escaped").exists())
+            self.assertEqual("passed", summary["status"])
+            self.assertEqual(descriptor_count, len(tuple(Path("/proc/self/fd").iterdir())))
+
+    def test_evaluator_path_with_parent_reference_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            allowed = root / "allowed"
+            allowed.mkdir()
+            evaluator = self._evaluator(allowed)
+
+            with self.assertRaises(PermissionError):
+                ReferenceAdapter(("../allowed/evaluate.py",), allowed).run(root / "output")
+
+            self.assertTrue(evaluator.exists())
+            self.assertFalse((root / "output").exists())
+
+    def test_allowed_root_replacement_cannot_change_relative_evaluator(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            allowed = root / "allowed"
+            outside = root / "outside"
+            allowed.mkdir()
+            outside.mkdir()
+            self._evaluator(allowed)
+            escaped = self._evaluator(outside)
+            escaped.write_text(
+                "#!/usr/bin/env python3\n"
+                "import json\n"
+                "import os\n"
+                "from pathlib import Path\n"
+                "Path(os.environ['MYFUZZ_REFERENCE_OUTPUT']).write_text(\n"
+                "    json.dumps({'status': 'outside'}), encoding='utf-8'\n"
+                ")\n",
+                encoding="utf-8",
+            )
+            descriptor_count = len(tuple(Path("/proc/self/fd").iterdir()))
+            original_open = reference_adapter.os.open
+            replaced = False
+
+            def replace_root(
+                path: str | bytes | os.PathLike[str],
+                flags: int,
+                mode: int = 0o777,
+                *,
+                dir_fd: int | None = None,
+            ) -> int:
+                nonlocal replaced
+                if Path(path).name == "evaluate.py" and not replaced:
+                    replaced = True
+                    os.rename(allowed, root / "allowed-original")
+                    allowed.symlink_to(outside, target_is_directory=True)
+                return original_open(path, flags, mode, dir_fd=dir_fd)
+
+            with mock.patch(
+                "myfuzz.integration.reference_adapter.os.open",
+                side_effect=replace_root,
+            ):
+                summary = ReferenceAdapter(("evaluate.py",), allowed).run(root / "output")
+
+            self.assertTrue(replaced)
+            self.assertEqual("passed", summary["status"])
+            self.assertEqual(descriptor_count, len(tuple(Path("/proc/self/fd").iterdir())))
 
     def test_evaluator_argument_cannot_escape_allowlist(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -375,6 +483,7 @@ class ReferenceIsolationTests(unittest.TestCase):
             allowed.mkdir()
             evaluator = self._evaluator(allowed)
             process = mock.Mock()
+            process.stderr = io.BytesIO()
             process.wait.side_effect = subprocess.TimeoutExpired((str(evaluator),), 0.01)
 
             with mock.patch(
@@ -430,6 +539,125 @@ class ReferenceIsolationTests(unittest.TestCase):
                 ReferenceAdapter((str(evaluator),), allowed).run(root / "output")
 
             self.assertNotIn("process tree", str(raised.exception))
+
+    def test_large_output_is_drained_with_bounded_error_retention(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            allowed = root / "reference"
+            allowed.mkdir()
+            evaluator = allowed / "noisy.py"
+            evaluator.write_text(
+                "#!/usr/bin/env python3\n"
+                "import sys\n"
+                "sys.stdout.write('o' * (3 * 1024 * 1024))\n"
+                "sys.stderr.write('e' * (3 * 1024 * 1024))\n"
+                "raise SystemExit(17)\n",
+                encoding="utf-8",
+            )
+            evaluator.chmod(evaluator.stat().st_mode | stat.S_IXUSR)
+
+            with mock.patch(
+                "myfuzz.integration.reference_adapter.tempfile.TemporaryFile",
+            ) as temporary_file:
+                with self.assertRaisesRegex(RuntimeError, "status 17") as raised:
+                    ReferenceAdapter((str(evaluator),), allowed, timeout_seconds=2).run(
+                        root / "output"
+                    )
+
+            temporary_file.assert_not_called()
+
+            self.assertLessEqual(
+                len(str(raised.exception).encode("utf-8")),
+                len("reference evaluator exited with status 17: ")
+                + reference_adapter._MAX_ERROR_BYTES
+                + len(" [stderr truncated]"),
+            )
+            self.assertEqual([], list((root / "output").iterdir()))
+
+    def test_large_output_does_not_prevent_successful_summary_publication(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            allowed = root / "reference"
+            allowed.mkdir()
+            evaluator = allowed / "noisy-success.py"
+            evaluator.write_text(
+                "#!/usr/bin/env python3\n"
+                "import json\n"
+                "import os\n"
+                "import sys\n"
+                "from pathlib import Path\n"
+                "sys.stdout.write('o' * (3 * 1024 * 1024))\n"
+                "sys.stderr.write('e' * (3 * 1024 * 1024))\n"
+                "Path(os.environ['MYFUZZ_REFERENCE_OUTPUT']).write_text(\n"
+                "    json.dumps({'status': 'passed'}), encoding='utf-8'\n"
+                ")\n",
+                encoding="utf-8",
+            )
+            evaluator.chmod(evaluator.stat().st_mode | stat.S_IXUSR)
+
+            with mock.patch(
+                "myfuzz.integration.reference_adapter.tempfile.TemporaryFile",
+            ) as temporary_file:
+                summary = ReferenceAdapter(
+                    (str(evaluator),), allowed, timeout_seconds=2
+                ).run(root / "output")
+
+            temporary_file.assert_not_called()
+            self.assertEqual("passed", summary["status"])
+            self.assertEqual(
+                summary,
+                json.loads((root / "output" / "reference_summary.json").read_text()),
+            )
+
+    def test_wait_base_exceptions_terminate_reap_and_close_status_reader(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            allowed = root / "reference"
+            allowed.mkdir()
+            evaluator = self._evaluator(allowed)
+            for exception in (RuntimeError("wait failed"), KeyboardInterrupt()):
+                with self.subTest(exception=type(exception).__name__):
+                    process = mock.Mock()
+                    process.stderr = io.BytesIO()
+                    process.poll.return_value = None
+                    process.wait.side_effect = (exception, 0)
+                    descriptor_count = len(tuple(Path("/proc/self/fd").iterdir()))
+
+                    with mock.patch(
+                        "myfuzz.integration.reference_adapter.subprocess.Popen",
+                        return_value=process,
+                    ):
+                        with self.assertRaises(type(exception)):
+                            ReferenceAdapter((str(evaluator),), allowed).run(root / "output")
+
+                    process.terminate.assert_called_once_with()
+                    self.assertGreaterEqual(process.wait.call_count, 2)
+                    self.assertEqual(descriptor_count, len(tuple(Path("/proc/self/fd").iterdir())))
+
+    def test_wait_exception_retains_cleanup_failure_context(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            allowed = root / "reference"
+            allowed.mkdir()
+            evaluator = self._evaluator(allowed)
+            process = mock.Mock()
+            process.stderr = io.BytesIO()
+            process.wait.side_effect = RuntimeError("wait failed")
+
+            with mock.patch(
+                "myfuzz.integration.reference_adapter.subprocess.Popen",
+                return_value=process,
+            ), mock.patch(
+                "myfuzz.integration.reference_adapter._terminate_supervisor",
+                side_effect=RuntimeError("unreaped"),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "wait failed") as raised:
+                    ReferenceAdapter((str(evaluator),), allowed).run(root / "output")
+
+            self.assertIn(
+                "reference evaluator supervisor cleanup failed: RuntimeError: unreaped",
+                "\n".join(getattr(raised.exception, "__notes__", ())),
+            )
 
     def test_generator_argv_rejects_reference_path_and_descendants(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
