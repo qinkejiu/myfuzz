@@ -111,6 +111,65 @@ class IbexOpenTitanConfigTests(unittest.TestCase):
             with self.assertRaisesRegex(ExperimentConfigurationError, "cannot resolve source path"):
                 preflight_experiment_sources(load_experiment_config(path), repo_root)
 
+    def test_source_root_replacement_cannot_open_an_external_source(self) -> None:
+        document = json.loads(CONFIG.read_text(encoding="utf-8"))
+        document["source_roots"] = ["allowed"]
+        document["source_lists"][0]["files"] = ["allowed/source.sv"]
+        document["source_lists"][1]["files"] = ["allowed/peripheral.sv"]
+        with tempfile.TemporaryDirectory() as temporary:
+            repo_root = Path(temporary)
+            allowed = repo_root / "allowed"
+            outside = repo_root / "outside"
+            displaced = repo_root / "displaced"
+            allowed.mkdir()
+            outside.mkdir()
+            (allowed / "source.sv").write_bytes(b"inside source\n")
+            (allowed / "peripheral.sv").write_bytes(b"inside peripheral\n")
+            outside_source = outside / "source.sv"
+            outside_source.write_bytes(b"outside source\n")
+            path = repo_root / "experiment.json"
+            path.write_text(json.dumps(document), encoding="utf-8")
+            outside_metadata = outside_source.stat()
+            original_open = os.open
+            swapped = False
+
+            def replace_root_before_source_open(
+                source: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+                flags: int,
+                mode: int = 0o777,
+                *,
+                dir_fd: int | None = None,
+            ) -> int:
+                nonlocal swapped
+                if not swapped and Path(os.fspath(source)).name == "source.sv":
+                    allowed.rename(displaced)
+                    allowed.symlink_to(outside, target_is_directory=True)
+                    swapped = True
+                descriptor = original_open(source, flags, mode, dir_fd=dir_fd)
+                metadata = os.fstat(descriptor)
+                if (
+                    metadata.st_dev == outside_metadata.st_dev
+                    and metadata.st_ino == outside_metadata.st_ino
+                ):
+                    os.close(descriptor)
+                    raise AssertionError("external source was opened")
+                return descriptor
+
+            with mock.patch(
+                "myfuzz.experiments.configs.os.open",
+                side_effect=replace_root_before_source_open,
+            ):
+                dependency = preflight_experiment_sources(load_experiment_config(path), repo_root)
+            try:
+                self.assertTrue(swapped)
+                self.assertEqual(dependency.status, "available")
+                capability = next(
+                    item for item in dependency.capabilities if item.declared_path == "allowed/source.sv"
+                )
+                self.assertEqual(capability.read_bytes(), b"inside source\n")
+            finally:
+                dependency.close()
+
     def test_available_sources_expose_typed_constraints_to_composition(self) -> None:
         class RequestObserved(Exception):
             pass

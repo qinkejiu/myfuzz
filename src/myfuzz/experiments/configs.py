@@ -13,6 +13,7 @@ from typing import BinaryIO, Literal
 
 from myfuzz.protocols import ProtocolCatalog, load_protocol_catalog
 from myfuzz.protocols.model import ProtocolDefinitionError
+from myfuzz.protocols.widths import ProtocolWidthError, compile_width_expression
 
 
 class ExperimentConfigurationError(ValueError):
@@ -295,6 +296,10 @@ def _parse_components(document: Mapping[str, object], source_list_ids: set[int])
         generated = record.get("generated", False)
         if not isinstance(generated, bool):
             raise ExperimentConfigurationError("components.generated must be bool")
+        if generated and declared_sources:
+            raise ExperimentConfigurationError(
+                "generated components cannot declare source lists"
+            )
         if (
             (not declared_sources and not generated)
             or len(declared_sources) != len(set(declared_sources))
@@ -336,6 +341,7 @@ def _parse_protocol_endpoints(
     document: Mapping[str, object],
     component_ids: set[int],
     ports_by_id: Mapping[int, Port],
+    address_constraints: AddressConstraints | None,
 ) -> tuple[ProtocolEndpoint, ...]:
     records = _array(document.get("protocol_endpoints"), "protocol_endpoints")
     _unique_positive_ids(records, "protocol_endpoints", "endpoint_id")
@@ -380,6 +386,31 @@ def _parse_protocol_endpoints(
             raise ExperimentConfigurationError(
                 "missing required field roles: " + ", ".join(sorted(missing_field_roles))
             )
+        fields_by_role = {field.field_id: field for field in plugin.fields}
+        width_parameters = (
+            {"address_width": address_constraints.width}
+            if address_constraints is not None
+            else {}
+        )
+        for binding in bindings:
+            field = fields_by_role[binding.field_role]
+            port = ports_by_id[binding.port_id]
+            expected_direction = (
+                "output"
+                if (field.direction == "host_to_device") == (side == "initiator")
+                else "input"
+            )
+            if port.direction != expected_direction:
+                raise ExperimentConfigurationError("protocol endpoint field direction is invalid")
+            try:
+                expected_width = compile_width_expression(
+                    field.width_expression,
+                    width_parameters,
+                )
+            except ProtocolWidthError:
+                continue
+            if port.width != expected_width:
+                raise ExperimentConfigurationError("protocol endpoint field width is invalid")
         result.append(
             ProtocolEndpoint(
                 endpoint_id,
@@ -547,6 +578,7 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
     source_lists = _parse_source_lists(document, source_roots)
     components = _parse_components(document, {item.source_list_id for item in source_lists})
     ports = _parse_ports(document, {item.component_id for item in components})
+    address_constraints = _parse_address_constraints(document)
     components = tuple(
         Component(
             component.component_id,
@@ -563,6 +595,7 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
         document,
         {item.component_id for item in components},
         {item.port_id: item for item in ports},
+        address_constraints,
     )
     candidates = _object(document.get("generated_candidates"), "generated_candidates")
     generated_candidate_count = _positive_int(candidates.get("count"), "generated_candidates.count")
@@ -595,7 +628,7 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
             {item.component_id for item in components},
             {item.port_id: item for item in ports},
         ),
-        _parse_address_constraints(document),
+        address_constraints,
         _parse_reference(document),
         document,
     )
@@ -637,6 +670,8 @@ def preflight_experiment_sources(
             raise ExperimentConfigurationError("declared source_root escapes repo_root")
         resolved_roots[declared_root] = resolved
 
+    root_descriptors: dict[str, int | None] = {}
+    repo_descriptor = -1
     sources: list[Path] = []
     missing: list[str] = []
     capabilities: list[SourceCapability] = []
@@ -646,6 +681,42 @@ def preflight_experiment_sources(
             declared_file_lists.setdefault(declared_file, set()).add(source_list.source_list_id)
     declared_files = sorted(declared_file_lists)
     try:
+        try:
+            repo_descriptor = os.open(
+                resolved_repo,
+                os.O_RDONLY
+                | getattr(os, "O_CLOEXEC", 0)
+                | getattr(os, "O_DIRECTORY", 0)
+                | getattr(os, "O_NOFOLLOW", 0),
+            )
+        except OSError as error:
+            raise ExperimentConfigurationError("cannot open repository root") from error
+        for declared_root in config.source_roots:
+            descriptor = repo_descriptor
+            try:
+                for part in PurePosixPath(declared_root).parts:
+                    next_descriptor = os.open(
+                        part,
+                        os.O_RDONLY
+                        | getattr(os, "O_CLOEXEC", 0)
+                        | getattr(os, "O_DIRECTORY", 0)
+                        | getattr(os, "O_NOFOLLOW", 0),
+                        dir_fd=descriptor,
+                    )
+                    if descriptor != repo_descriptor:
+                        os.close(descriptor)
+                    descriptor = next_descriptor
+            except FileNotFoundError:
+                if descriptor != repo_descriptor:
+                    os.close(descriptor)
+                root_descriptors[declared_root] = None
+            except OSError as error:
+                if descriptor != repo_descriptor:
+                    os.close(descriptor)
+                raise ExperimentConfigurationError("cannot open declared source_root") from error
+            else:
+                root_descriptors[declared_root] = descriptor
+
         for declared_file in declared_files:
             matching_roots = tuple(
                 root
@@ -661,21 +732,32 @@ def preflight_experiment_sources(
             resolved_candidate = resolve_path(candidate, "source path")
             if not resolved_candidate.is_relative_to(resolved_roots[declared_root]):
                 raise ExperimentConfigurationError("source path escapes declared source_root")
-            try:
-                metadata = resolved_candidate.stat()
-            except OSError:
-                missing.append(declared_file)
-                continue
-            if not stat.S_ISREG(metadata.st_mode) or not os.access(resolved_candidate, os.R_OK):
+            root_descriptor = root_descriptors[declared_root]
+            if root_descriptor is None:
                 missing.append(declared_file)
                 continue
             descriptor = -1
+            directory_descriptor = -1
             try:
+                directory_descriptor = os.dup(root_descriptor)
+                relative_parts = PurePosixPath(declared_file).relative_to(PurePosixPath(declared_root)).parts
+                for part in relative_parts[:-1]:
+                    next_descriptor = os.open(
+                        part,
+                        os.O_RDONLY
+                        | getattr(os, "O_CLOEXEC", 0)
+                        | getattr(os, "O_DIRECTORY", 0)
+                        | getattr(os, "O_NOFOLLOW", 0),
+                        dir_fd=directory_descriptor,
+                    )
+                    os.close(directory_descriptor)
+                    directory_descriptor = next_descriptor
                 descriptor = os.open(
-                    resolved_candidate,
+                    relative_parts[-1],
                     os.O_RDONLY
                     | getattr(os, "O_CLOEXEC", 0)
                     | getattr(os, "O_NOFOLLOW", 0),
+                    dir_fd=directory_descriptor,
                 )
                 opened_metadata = os.fstat(descriptor)
             except OSError:
@@ -686,13 +768,12 @@ def preflight_experiment_sources(
                         pass
                 missing.append(declared_file)
                 continue
-            if (
-                not stat.S_ISREG(opened_metadata.st_mode)
-                or opened_metadata.st_dev != metadata.st_dev
-                or opened_metadata.st_ino != metadata.st_ino
-            ):
+            finally:
+                if directory_descriptor >= 0:
+                    os.close(directory_descriptor)
+            if not stat.S_ISREG(opened_metadata.st_mode):
                 os.close(descriptor)
-                raise ExperimentConfigurationError("source changed during preflight")
+                raise ExperimentConfigurationError("source must be a regular file")
             sources.append(resolved_candidate)
             capabilities.append(
                 SourceCapability(
@@ -718,3 +799,9 @@ def preflight_experiment_sources(
         for capability in capabilities:
             capability.close()
         raise
+    finally:
+        for descriptor in root_descriptors.values():
+            if descriptor is not None:
+                os.close(descriptor)
+        if repo_descriptor >= 0:
+            os.close(repo_descriptor)

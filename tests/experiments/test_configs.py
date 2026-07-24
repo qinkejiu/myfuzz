@@ -129,6 +129,33 @@ class ExperimentConfigurationTest(unittest.TestCase):
                 ),
             )
 
+    def test_rejects_generated_components_with_input_source_lists(self) -> None:
+        with self.assertRaisesRegex(
+            ExperimentConfigurationError,
+            "generated components cannot declare source lists",
+        ):
+            self.load_mutated_configuration(
+                CONFIGURATION_PATHS[1],
+                lambda document: document["components"][4].update(source_list_ids=[21]),
+            )
+
+    def test_rejects_protocol_endpoint_direction_and_width_mismatches(self) -> None:
+        with self.assertRaisesRegex(ExperimentConfigurationError, "protocol endpoint field direction"):
+            self.load_mutated_configuration(
+                CONFIGURATION_PATHS[1],
+                lambda document: next(
+                    port for port in document["ports"] if port["port_id"] == 2701
+                ).update(direction="input"),
+            )
+
+        with self.assertRaisesRegex(ExperimentConfigurationError, "protocol endpoint field width"):
+            self.load_mutated_configuration(
+                CONFIGURATION_PATHS[1],
+                lambda document: next(
+                    port for port in document["ports"] if port["port_id"] == 2701
+                ).update(width=2),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
