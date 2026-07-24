@@ -89,10 +89,17 @@ git push origin feature/harness-runtime
 
 ## Task B6: Memory-Aware Experiment Scheduler
 
-**Interfaces:** `plan_jobs(manifests, host_memory_mib, max_workers) -> tuple[Job, ...]`, `claim_job(job)`, and `release_job(job)`.
+**Interfaces:** `plan_jobs(manifests, host_memory_mib, max_workers) -> tuple[Job, ...]`, `claim_job(job) -> JobClaim`, and `release_job(job, claim)`; `JobClaim.lease` is the exact gate `Lease` capability.
 
 - [ ] **Step 1:** Test one-build serialization, RSS-based worker limits, stale claim recovery, deterministic job order, and cleanup on failure.
-- [ ] **Step 2:** Implement scheduler integration with `scripts/memory_gate.py`; record owner, requested MiB, PID, seed, and candidate hash. Do not store corpora in Git.
+- [ ] **Step 2:** Implement scheduler integration with `scripts/memory_gate.py`;
+  record owner, requested MiB, PID, seed, and candidate hash. Store the exact
+  gate `Lease` in the returned `JobClaim` and pass that same claim to
+  `release_job(job, claim)` on success, failure, and cancellation;
+  `release_job` must pass `claim.lease.token`, never owner-only authority or a
+  legacy fallback. Before the scheduler branch is merged, add a combined test
+  that round-trips `seed` and `candidate_hash` and proves delayed cleanup
+  cannot remove a same-owner successor lease. Do not store corpora in Git.
 - [ ] **Step 3:** Run `python3 -m pytest tests/experiments/test_scheduler.py tests/experiments/test_jobs.py -q`; commit `[B6]` and push.
 
 ## Task B7: Declarative RVX and Ibex+OpenTitan Experiments

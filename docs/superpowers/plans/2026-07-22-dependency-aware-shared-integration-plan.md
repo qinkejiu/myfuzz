@@ -64,11 +64,22 @@ git push -u origin integration/dependency-aware-fuzz
 
 ## Task I1: Worktree and Memory Gate
 
-**Interfaces:** `python3 scripts/memory_gate.py --claim build --memory-mib N --owner ID` acquires an atomic host lock; `--release build --owner ID` releases only the owner lock. The lock lives outside tracked files and records owner, MiB, PID, and timestamp.
+**Interfaces:** `python3 scripts/memory_gate.py --claim build --memory-mib N --owner ID --exec COMMAND...` atomically claims the host gate for the blocked workload PID, launches that process, and token-releases after exit. A caller-managed workload may use `--pid PID`; the claim prints a JSON lease and `--release build --owner ID --token TOKEN` releases only that lease. The lock lives outside tracked files and records owner, MiB, workload PID, timestamp, token, and optional caller fields.
 
 - [ ] **Step 1: Write tests** for stale lock reclamation, double claim, non-owner release, and insufficient available memory in `tests/integration/test_memory_gate.py`.
 
-- [ ] **Step 2: Implement `scripts/memory_gate.py`.** Use `os.open(..., O_CREAT | O_EXCL)`, Linux PID liveness, bounded polling, and `/proc/meminfo`. Never spin without a timeout.
+- [ ] **Step 2: Implement `scripts/memory_gate.py`.** Use durable same-directory
+  publication, Linux PID liveness with platform-range normalization, bounded
+  record I/O and polling, parent-directory `fsync`, and `/proc/meminfo`. Never
+  spin without a timeout.
+
+- [ ] **Formal B6 merge prerequisite:** the scheduler branch's `JobClaim` must
+  retain the exact gate `Lease`, and `run_job` must pass the same claim to
+  `release_job(job, claim)` on every success, failure, and cancellation path.
+  Release must pass `claim.lease.token`; owner-only release and legacy fallback
+  are forbidden. Add a merged test that round-trips `seed` and
+  `candidate_hash` and proves delayed cleanup cannot delete a same-owner
+  successor.
 
 - [ ] **Step 3: Create the worktrees from the published baseline.**
 
@@ -117,7 +128,7 @@ git push origin integration/dependency-aware-fuzz
 
 - [ ] **Step 3: Run the smoke under the build gate.**
 
-Run: `python3 scripts/memory_gate.py --claim build --memory-mib 3072 --owner I3 && python3 scripts/run_composition_harness_smoke.py --fixture tests/fixtures/rtl/small_mmio --out-dir /tmp/myfuzz-joint-smoke && python3 scripts/memory_gate.py --release build --owner I3`
+Run: `python3 scripts/memory_gate.py --claim build --memory-mib 3072 --owner I3 --exec python3 scripts/run_composition_harness_smoke.py --fixture tests/fixtures/rtl/small_mmio --out-dir /tmp/myfuzz-joint-smoke`
 
 - [ ] **Step 4: Commit and push.**
 
