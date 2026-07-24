@@ -12,6 +12,7 @@ import unittest
 from unittest import mock
 from pathlib import Path
 
+import myfuzz.integration.reference_adapter as reference_adapter
 from myfuzz.integration.reference_adapter import (
     GeneratorCommand,
     GeneratorFlag,
@@ -102,6 +103,47 @@ class ReferenceIsolationTests(unittest.TestCase):
 
             with self.assertRaises(PermissionError):
                 ReferenceAdapter((str(link),), allowed).run(root / "output")
+
+    def test_evaluator_replacement_after_validation_cannot_change_executed_inode(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            allowed = root / "allowed"
+            allowed.mkdir()
+            evaluator = self._evaluator(allowed)
+            replacement = allowed / "replacement.py"
+            replacement.write_text(
+                textwrap.dedent(
+                    """\
+                    #!/usr/bin/env python3
+                    import json
+                    import os
+                    from pathlib import Path
+
+                    Path(os.environ["MYFUZZ_REFERENCE_OUTPUT"]).write_text(
+                        json.dumps({"status": "replacement"}), encoding="utf-8"
+                    )
+                    """
+                ),
+                encoding="utf-8",
+            )
+            replacement.chmod(replacement.stat().st_mode | stat.S_IXUSR)
+
+            original_supervisor_command = reference_adapter._supervisor_command
+
+            def replace_after_validation(
+                command: tuple[str, ...],
+                status_descriptor: int,
+            ) -> tuple[str, ...]:
+                os.replace(replacement, evaluator)
+                return original_supervisor_command(command, status_descriptor)
+
+            with mock.patch(
+                "myfuzz.integration.reference_adapter._supervisor_command",
+                side_effect=replace_after_validation,
+            ):
+                summary = ReferenceAdapter((str(evaluator),), allowed).run(root / "output")
+
+            self.assertEqual("passed", summary["status"])
 
     def test_evaluator_argument_cannot_escape_allowlist(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

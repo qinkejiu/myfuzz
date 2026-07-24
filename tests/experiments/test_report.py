@@ -148,6 +148,7 @@ class ExperimentReportTest(unittest.TestCase):
         self.plan = plan_experiment(config, self.manifests)
         self.samples = experiment_samples(self.plan, self.manifests, flat_total=6)
         self.reference = {
+            "comparison_scope": "reference-descriptive",
             "stable_source_ids": ["cpu.shared", "candidate-a.direct", "reference.extra"],
             "covered_stable_source_ids": ["cpu.shared", "reference.extra"],
         }
@@ -312,6 +313,13 @@ class ExperimentReportTest(unittest.TestCase):
         )
         self.assertNotIn("reference.extra", canonical_bytes(comparison).decode("ascii"))
 
+    def test_rejects_reference_summary_outside_descriptive_scope(self) -> None:
+        reference = copy.deepcopy(self.reference)
+        reference["comparison_scope"] = "candidate-coverage"
+
+        with self.assertRaisesRegex(ReportError, "comparison_scope"):
+            build_report(self.plan, self.manifests, self.samples, reference)
+
     def test_flat_universe_accepts_own_points_without_fabricated_metadata(self) -> None:
         samples = copy.deepcopy(self.samples)
         for sample in samples:
@@ -353,6 +361,7 @@ class ExperimentReportTest(unittest.TestCase):
     def test_reversed_inputs_produce_byte_identical_canonical_output(self) -> None:
         forward = build_report(self.plan, self.manifests, self.samples, self.reference)
         reversed_reference = {
+            "comparison_scope": self.reference["comparison_scope"],
             "stable_source_ids": list(reversed(self.reference["stable_source_ids"])),
             "covered_stable_source_ids": list(
                 reversed(self.reference["covered_stable_source_ids"])

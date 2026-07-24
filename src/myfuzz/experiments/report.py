@@ -757,6 +757,11 @@ def _reference_sets(value: object | None) -> tuple[frozenset[str], frozenset[str
     if value is None:
         return None
     document = _object(value, "reference_summary")
+    if _string(
+        document.get("comparison_scope"),
+        "reference_summary.comparison_scope",
+    ) != "reference-descriptive":
+        raise ReportError("reference_summary.comparison_scope must be reference-descriptive")
     stable_sources = frozenset(
         _string(item, f"reference_summary.stable_source_ids[{index}]")
         for index, item in enumerate(

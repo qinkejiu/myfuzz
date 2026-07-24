@@ -57,7 +57,7 @@ def _validate_generator_path(path: Path) -> None:
             raise ValueError("generator path contains ambiguous option syntax")
 
 
-def _validated_command(command: Sequence[str], root: Path) -> tuple[str, ...]:
+def _validated_command(command: Sequence[str], root: Path) -> tuple[tuple[str, ...], int]:
     if isinstance(command, (str, bytes, bytearray)) or not command:
         raise ValueError("reference_command must be a non-empty sequence")
     if any(not isinstance(argument, str) or not argument or "\0" in argument for argument in command):
@@ -86,7 +86,21 @@ def _validated_command(command: Sequence[str], root: Path) -> tuple[str, ...]:
                 "reference evaluator path-bearing arguments are not allowed; "
                 "use MYFUZZ_REFERENCE_ROOT"
             )
-    return (os.fspath(executable), *command[1:])
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        descriptor = os.open(executable, flags)
+    except OSError as error:
+        raise PermissionError("reference evaluator is unavailable") from error
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_mode & 0o111 == 0:
+            raise PermissionError("reference evaluator must be an executable regular file")
+    except BaseException:
+        os.close(descriptor)
+        raise
+    return ((f"/proc/self/fd/{descriptor}", *command[1:]), descriptor)
 
 
 def _safe_environment(output_path: Path, root: Path) -> dict[str, str]:
@@ -210,7 +224,6 @@ class ReferenceAdapter:
 
     def run(self, output_dir: Path) -> dict[str, object]:
         root = _allowed_root(self.allowed_root)
-        command = _validated_command(self.reference_command, root)
         if not isinstance(output_dir, Path):
             raise TypeError("output_dir must be a pathlib.Path")
         if not isinstance(self.timeout_seconds, (int, float)) or isinstance(self.timeout_seconds, bool):
@@ -218,22 +231,24 @@ class ReferenceAdapter:
         if not math.isfinite(float(self.timeout_seconds)) or self.timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
 
-        if output_dir.is_symlink():
-            raise PermissionError("reference output directory symlinks are not allowed")
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output = output_dir.resolve(strict=True)
-        if not output.is_dir():
-            raise NotADirectoryError(output_dir)
-        destination = output / "reference_summary.json"
-
-        descriptor, temporary_name = tempfile.mkstemp(
-            prefix=".reference-summary.",
-            suffix=".json",
-            dir=output,
-        )
-        os.close(descriptor)
-        temporary = Path(temporary_name)
+        command, evaluator_descriptor = _validated_command(self.reference_command, root)
+        temporary: Path | None = None
         try:
+            if output_dir.is_symlink():
+                raise PermissionError("reference output directory symlinks are not allowed")
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output = output_dir.resolve(strict=True)
+            if not output.is_dir():
+                raise NotADirectoryError(output_dir)
+            destination = output / "reference_summary.json"
+
+            descriptor, temporary_name = tempfile.mkstemp(
+                prefix=".reference-summary.",
+                suffix=".json",
+                dir=output,
+            )
+            os.close(descriptor)
+            temporary = Path(temporary_name)
             with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
                 status_reader, status_writer = os.pipe()
                 try:
@@ -245,7 +260,7 @@ class ReferenceAdapter:
                         stdout=stdout,
                         stderr=stderr,
                         start_new_session=True,
-                        pass_fds=(status_writer,),
+                        pass_fds=(status_writer, evaluator_descriptor),
                     )
                 except BaseException:
                     os.close(status_reader)
@@ -273,7 +288,9 @@ class ReferenceAdapter:
             _publish_summary(destination, summary)
             return summary
         finally:
-            temporary.unlink(missing_ok=True)
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+            os.close(evaluator_descriptor)
 
 
 class GeneratorFlag(str, Enum):

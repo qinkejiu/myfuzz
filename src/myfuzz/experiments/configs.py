@@ -157,14 +157,6 @@ class ProtocolEndpoint:
 
 
 @dataclass(frozen=True, slots=True)
-class ReferenceEvaluation:
-    mode: str
-    allowed_stage: str
-    comparison: str
-    command: tuple[str, ...] | None
-
-
-@dataclass(frozen=True, slots=True)
 class ExperimentConfig:
     path: Path
     target_id: int
@@ -181,7 +173,7 @@ class ExperimentConfig:
     clock_reset: ClockResetPolicy | None
     address_constraints: AddressConstraints | None
     protocol_width_parameters: tuple[tuple[str, int], ...]
-    reference: ReferenceEvaluation | None
+    reference: None
     document: Mapping[str, object]
 
 
@@ -220,7 +212,6 @@ _SUPPORTED_TOP_LEVEL_FIELDS = frozenset(
         "clock_reset",
         "address_constraints",
         "protocol_width_parameters",
-        "reference",
     )
 )
 
@@ -470,30 +461,6 @@ def _parse_protocol_endpoints(
     return tuple(result)
 
 
-def _parse_reference(document: Mapping[str, object]) -> ReferenceEvaluation | None:
-    value = document.get("reference")
-    if value is None:
-        return None
-    record = _object(value, "reference")
-    command_value = record.get("command")
-    command: tuple[str, ...] | None
-    if command_value is None:
-        command = None
-    else:
-        command = tuple(_string(item, "reference.command") for item in _array(command_value, "reference.command"))
-        if not command:
-            raise ExperimentConfigurationError("reference.command must not be empty")
-    reference = ReferenceEvaluation(
-        _string(record.get("mode"), "reference.mode"),
-        _string(record.get("allowed_stage"), "reference.allowed_stage"),
-        _string(record.get("comparison"), "reference.comparison"),
-        command,
-    )
-    if reference.mode != "evaluation-only" or reference.allowed_stage != "report":
-        raise ExperimentConfigurationError("reference must be evaluation-only report metadata")
-    return reference
-
-
 def _parse_clock_reset(
     document: Mapping[str, object],
     component_ids: set[int],
@@ -690,7 +657,7 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
         ),
         address_constraints,
         tuple(sorted(protocol_width_parameters.items())),
-        _parse_reference(document),
+        None,
         document,
     )
 

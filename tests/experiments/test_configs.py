@@ -106,6 +106,23 @@ class ExperimentConfigurationTest(unittest.TestCase):
                     lambda document: document.update(reference_top="reference/top.sv"),
                 )
 
+    def test_rejects_evaluator_commands_in_experiment_configuration(self) -> None:
+        with self.assertRaisesRegex(
+            ExperimentConfigurationError,
+            "unsupported top-level fields: reference",
+        ):
+            self.load_mutated_configuration(
+                CONFIGURATION_PATHS[0],
+                lambda document: document.update(
+                    reference={
+                        "mode": "evaluation-only",
+                        "allowed_stage": "report",
+                        "comparison": "shared-stable-source-id",
+                        "command": ["reference/evaluate-original-top"],
+                    }
+                ),
+            )
+
     def test_rejects_other_unsupported_top_level_fields(self) -> None:
         with self.assertRaisesRegex(
             ExperimentConfigurationError,

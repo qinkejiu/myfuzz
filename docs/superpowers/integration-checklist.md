@@ -12,7 +12,7 @@ remote ancestry check succeed.
 | I3 | Process-shared memory tokens and synthetic pipeline | Verified |
 | I4 | Reference-free Ibex + OpenTitan declaration | Published |
 | I5 | Generated-only RVX boundary | Published |
-| I6 | Isolated reference evaluation | Pending |
+| I6 | Isolated reference evaluation | Implemented; review pending |
 | I7 | Fair experiment matrix and report | Pending |
 
 ## I3 Gate
@@ -50,3 +50,21 @@ The candidate pipeline rejects reference/evaluator fields at any depth before
 producer or output side effects. Missing external RTL returns
 `dependency_unavailable`; reference evaluator files never enter generation
 requests or candidate cache keys.
+
+## I6 Gate
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest \
+  tests.integration.test_reference_isolation \
+  tests.experiments.test_configs tests.experiments.test_report -v
+python3 scripts/check_identifier_policy.py --paths \
+  src/myfuzz/composition src/myfuzz/harness src/myfuzz/integration --repo-root .
+git diff --check
+```
+
+`ReferenceAdapter` is the sole production receiver for an evaluator command.
+It pins the validated allowlisted executable inode across handoff to the
+supervisor, so a path replacement cannot alter what runs. The report admits a
+reference summary only when its scope is `reference-descriptive`, and uses it
+only through the stable-source intersection; candidate hashes and coverage
+universes remain unchanged.
