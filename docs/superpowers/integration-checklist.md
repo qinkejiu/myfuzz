@@ -13,7 +13,7 @@ remote ancestry check succeed.
 | I4 | Reference-free Ibex + OpenTitan declaration | Published |
 | I5 | Generated-only RVX boundary | Published |
 | I6 | Isolated reference evaluation | Published |
-| I7 | Fair experiment matrix and report | Pending |
+| I7 | Fair experiment matrix and report | Implemented; review pending |
 
 ## I3 Gate
 
@@ -70,3 +70,23 @@ with bounded diagnostic retention. The report admits a reference summary only
 when its scope is `reference-descriptive`, and uses it only through the
 stable-source intersection; candidate hashes and coverage universes remain
 unchanged. Independent I6 review remains pending.
+
+## I7 Gate
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest discover \
+  -s tests/integration -p 'test_*.py' -v
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest discover \
+  -s tests/experiments -p 'test_*.py' -v
+python3 scripts/check_identifier_policy.py --paths \
+  src/myfuzz/composition src/myfuzz/harness src/myfuzz/integration --repo-root .
+git diff --check
+```
+
+`run_experiment_matrix` composes B's immutable `plan_experiment`, exact-token
+`run_job`, and authoritative `build_report` boundaries. Build prerequisites run
+before seeded fuzz interleaving; typed hard-memory events persist checkpoints
+before bounded, B-priority retries. Only B-selected manifests and validated
+per-job samples reach B's report builder, and the unchanged B report is wrapped
+with execution metadata before atomic publication. Independent I7 review
+remains pending.
