@@ -8,6 +8,11 @@ from myfuzz.composition.manifest import candidate_manifest
 from myfuzz.composition.search import compose_topk
 from myfuzz.composition.facts import HdlFacts
 from myfuzz.contracts import content_hash, validate_contract
+from tests.composition.test_constraints import (
+    _declarations as constraint_declarations,
+    _facts as constraint_facts,
+    _protocol as constraint_protocol,
+)
 from tests.composition.test_search import design
 
 
@@ -81,6 +86,29 @@ class CompositionIrTests(unittest.TestCase):
             ],
         )
         self.assertEqual(document, composition_ir(reversed_candidate))
+
+    def test_ir_carries_explicit_protocol_version_parameters_and_adapter_ids(self) -> None:
+        candidate = next(
+            compose_topk(
+                constraint_facts(width_b=16),
+                constraint_declarations(),
+                {"bus": constraint_protocol(adapter=["width-adapter"])},
+                1,
+            )
+        )
+
+        document = composition_ir(candidate)
+
+        self.assertTrue(document["endpoint_bindings"])
+        for binding in document["endpoint_bindings"]:
+            self.assertEqual(binding["version"], "1")
+            self.assertEqual(binding["parameters"], {})
+        self.assertEqual(len(document["adapters"]), 1)
+        adapter = document["adapters"][0]
+        self.assertIsInstance(adapter["adapter_id"], str)
+        self.assertEqual(adapter["source_port_id"], 11)
+        self.assertEqual(adapter["target_port_id"], 21)
+        self.assertIsInstance(adapter["evidence_id"], str)
 
     def test_manifest_rejects_host_specific_metadata_in_all_emitted_sections(self) -> None:
         facts, declarations, protocols = design(1)
@@ -158,6 +186,71 @@ class CompositionIrTests(unittest.TestCase):
         self.assertEqual(manifest["top"]["source"], "generated_top.sv")
         self.assertNotIn("/tmp", manifest["build_cache_key"])
         self.assertEqual(manifest, candidate_manifest(candidate, emitted))
+
+    def test_manifest_cache_key_is_bound_to_the_current_dut_input_hash(self) -> None:
+        facts, declarations, protocols = design(1)
+        candidate = next(compose_topk(facts, declarations, protocols, 1))
+        first_hash = "sha256:" + "1" * 64
+        second_hash = "sha256:" + "2" * 64
+
+        first = candidate_manifest(
+            candidate,
+            {"source_text": "module generated_top; endmodule\n", "dut_input_hash": first_hash},
+        )
+        second = candidate_manifest(
+            candidate,
+            {"source_text": "module generated_top; endmodule\n", "dut_input_hash": second_hash},
+        )
+
+        self.assertEqual(first["dut_input_hash"], first_hash)
+        self.assertEqual(second["dut_input_hash"], second_hash)
+        self.assertNotEqual(first["build_cache_key"], second["build_cache_key"])
+
+    def test_manifest_cache_key_covers_build_environment_deterministically(self) -> None:
+        facts, declarations, protocols = design(1)
+        candidate = next(compose_topk(facts, declarations, protocols, 1))
+        base = {
+            "source_text": "module generated_top; endmodule\n",
+            "tool_versions": {"frontend": "myfuzz-1", "verilator": "v5"},
+            "schema_versions": {
+                "candidate_manifest": "candidate_manifest.v1",
+                "composition_ir": "composition_ir.v1",
+            },
+            "instrumentation": {"coverage": "branch", "counter_width": 8},
+            "compile_args": ["--cc", "-O2"],
+        }
+        first = candidate_manifest(candidate, base)
+        reordered = candidate_manifest(
+            candidate,
+            {
+                **base,
+                "tool_versions": {"verilator": "v5", "frontend": "myfuzz-1"},
+                "instrumentation": {"counter_width": 8, "coverage": "branch"},
+            },
+        )
+
+        self.assertEqual(first["build_cache_key"], reordered["build_cache_key"])
+        self.assertEqual(
+            first["build_cache_inputs"],
+            {
+                "compile_args": ["--cc", "-O2"],
+                "instrumentation": {"counter_width": 8, "coverage": "branch"},
+                "schema_versions": {
+                    "candidate_manifest": "candidate_manifest.v1",
+                    "composition_ir": "composition_ir.v1",
+                },
+                "tool_versions": {"frontend": "myfuzz-1", "verilator": "v5"},
+            },
+        )
+        for field, changed_value in (
+            ("tool_versions", {"frontend": "myfuzz-2", "verilator": "v5"}),
+            ("schema_versions", {"composition_ir": "composition_ir.v2"}),
+            ("instrumentation", {"coverage": "toggle", "counter_width": 8}),
+            ("compile_args", ["--cc", "-O3"]),
+        ):
+            with self.subTest(field=field):
+                changed = candidate_manifest(candidate, {**base, field: changed_value})
+                self.assertNotEqual(first["build_cache_key"], changed["build_cache_key"])
 
     def test_manifest_preserves_rejected_alternatives_and_validates_contract(self) -> None:
         facts, declarations, protocols = design(2)

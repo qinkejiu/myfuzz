@@ -3,13 +3,16 @@
 #include <cstdlib>
 #include <cstring>
 #include <exception>
+#include <mutex>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
 
-std::string s_lastError;
+thread_local std::string s_lastError;
+std::mutex s_frontendInvocationMutex;
 
 char* copyCString(const std::string& value) {
     char* const out = static_cast<char*>(std::malloc(value.size() + 1));
@@ -20,6 +23,14 @@ char* copyCString(const std::string& value) {
 
 }  // namespace
 
+namespace myfuzz {
+
+std::mutex& frontendInvocationMutex() { return s_frontendInvocationMutex; }
+
+void frontendSetLastError(std::string value) { s_lastError = std::move(value); }
+
+}  // namespace myfuzz
+
 extern "C" const char* myfuzz_frontend_last_error() {
     return s_lastError.c_str();
 }
@@ -29,6 +40,7 @@ extern "C" void myfuzz_frontend_free(char* value) {
 }
 
 extern "C" char* myfuzz_frontend_manifest_json(int argc, const char* const* argv) {
+    const std::lock_guard<std::mutex> lock{myfuzz::frontendInvocationMutex()};
     s_lastError.clear();
     if (argc < 0 || (argc > 0 && !argv)) {
         s_lastError = "invalid frontend arguments";
@@ -60,6 +72,7 @@ extern "C" char* myfuzz_frontend_manifest_json(int argc, const char* const* argv
 }
 
 extern "C" char* myfuzz_frontend_facts_json(int argc, const char* const* argv) {
+    const std::lock_guard<std::mutex> lock{myfuzz::frontendInvocationMutex()};
     s_lastError.clear();
     if (argc < 0 || (argc > 0 && !argv)) {
         s_lastError = "invalid frontend arguments";

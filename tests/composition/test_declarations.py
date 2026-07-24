@@ -125,6 +125,22 @@ class DeclarationTests(unittest.TestCase):
         with self.assertRaisesRegex(DeclarationError, r"^components\[0\]\.ports:missing-fact-port:11$"):
             declarations.validate_against(normalize_facts(facts_document()))
 
+    def test_explicit_declaration_binds_uninterpreted_external_role(self) -> None:
+        facts = facts_document()
+        for port in facts["ports"]:  # type: ignore[union-attr]
+            port["declared_role"] = "uninterpreted_external"
+        declarations = load_declarations(self.write_declarations(valid_declarations()))
+
+        declarations.validate_against(normalize_facts(facts))
+
+    def test_rejects_conflict_with_non_placeholder_fact_role(self) -> None:
+        document = valid_declarations()
+        document["components"][0]["ports"][1]["role"] = "request.data"  # type: ignore[index]
+        declarations = load_declarations(self.write_declarations(document))
+
+        with self.assertRaisesRegex(DeclarationError, r"^components\[0\]\.ports:11:role-conflict$"):
+            declarations.validate_against(normalize_facts(facts_document()))
+
 
 if __name__ == "__main__":
     unittest.main()

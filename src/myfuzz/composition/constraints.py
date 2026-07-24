@@ -7,6 +7,11 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 
 from myfuzz.contracts import canonical_bytes
+from myfuzz.protocols.widths import (
+    ProtocolWidthError,
+    compile_width_expression,
+    width_parameters,
+)
 
 from .declarations import DeclarationSet, ProtocolBinding
 from .facts import HdlFacts, canonical_structural_value
@@ -30,6 +35,7 @@ class ProtocolField:
     minimum_width: int
     maximum_width: int | None
     required: bool
+    width_expression: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +52,7 @@ class ProtocolDefinition:
     endpoint_roles: tuple[str, ...]
     fields: tuple[ProtocolField, ...]
     legal_adapters: tuple[AdapterRule, ...]
+    version: str = "1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +84,8 @@ class EndpointNode:
     required: bool
     clock_domain_ids: tuple[int, ...]
     reset_domain_ids: tuple[int, ...]
+    version: str = "1"
+    parameters: tuple[tuple[str, object], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,20 +192,18 @@ def _positive_width(value: object, path: str) -> int:
     return value
 
 
-def _field_width(value: object, path: str) -> tuple[int, int | None]:
+def _field_width(value: object, path: str) -> tuple[int, int | None, str | None]:
     if isinstance(value, int) and not isinstance(value, bool):
         width = _positive_width(value, path)
-        return width, width
+        return width, width, None
     if isinstance(value, Mapping):
         minimum = _positive_width(value.get("min"), f"{path}.min")
         maximum = _positive_width(value.get("max"), f"{path}.max")
         if minimum > maximum:
             _fail(path, "invalid-range")
-        return minimum, maximum
-    # Width expressions from the runtime protocol catalog are checked after
-    # compilation. Endpoint-to-endpoint equality remains a graph constraint.
+        return minimum, maximum, None
     if isinstance(value, str) and value:
-        return 1, None
+        return 1, None, value
     _fail(path, "missing-explicit-width")
 
 
@@ -224,6 +231,10 @@ def _adapter_rule(value: object, protocol_id: str, index: int) -> AdapterRule:
 def _protocol_definition(value: object, path: str) -> ProtocolDefinition:
     if isinstance(value, Mapping):
         protocol_id = _string(value.get("protocol_id"), f"{path}.protocol_id")
+        version = _string(
+            value.get("plugin_version", value.get("version", "1")),
+            f"{path}.plugin_version",
+        )
         endpoint_roles_raw = value.get("endpoint_roles", ("initiator", "target"))
         channels = value.get("channels")
         if not isinstance(endpoint_roles_raw, Sequence) or isinstance(endpoint_roles_raw, (str, bytes)):
@@ -239,11 +250,16 @@ def _protocol_definition(value: object, path: str) -> ProtocolDefinition:
         adapters_raw = value.get("legal_adapters", ())
     elif isinstance(value, ProtocolDefinition):
         protocol_id = _string(value.protocol_id, f"{path}.protocol_id")
+        version = _string(value.version, f"{path}.version")
         endpoint_roles_raw = value.endpoint_roles
         raw_fields = list(value.fields)
         adapters_raw = value.legal_adapters
     else:
         protocol_id = _string(getattr(value, "protocol_id", None), f"{path}.protocol_id")
+        version = _string(
+            getattr(value, "version", getattr(value, "plugin_version", "1")),
+            f"{path}.version",
+        )
         endpoint_roles_raw = getattr(value, "endpoint_roles", ("initiator", "target"))
         raw_fields = list(getattr(value, "fields", ()))
         adapters_raw = getattr(value, "legal_adapters", ())
@@ -264,7 +280,10 @@ def _protocol_definition(value: object, path: str) -> ProtocolDefinition:
         if isinstance(raw_field, Mapping):
             role = _string(raw_field.get("role", raw_field.get("field_id")), f"{field_path}.role")
             direction = _string(raw_field.get("direction"), f"{field_path}.direction")
-            minimum, maximum = _field_width(raw_field.get("width", raw_field.get("width_expression")), f"{field_path}.width")
+            minimum, maximum, width_expression = _field_width(
+                raw_field.get("width", raw_field.get("width_expression")),
+                f"{field_path}.width",
+            )
             required = raw_field.get("required")
         elif isinstance(raw_field, ProtocolField):
             role = _string(raw_field.role, f"{field_path}.role")
@@ -276,10 +295,14 @@ def _protocol_definition(value: object, path: str) -> ProtocolDefinition:
                 if minimum > maximum:
                     _fail(f"{field_path}.width", "invalid-range")
             required = raw_field.required
+            width_expression = raw_field.width_expression
         else:
             role = _string(getattr(raw_field, "role", getattr(raw_field, "field_id", None)), f"{field_path}.role")
             direction = _string(getattr(raw_field, "direction", None), f"{field_path}.direction")
-            minimum, maximum = _field_width(getattr(raw_field, "width", getattr(raw_field, "width_expression", None)), f"{field_path}.width")
+            minimum, maximum, width_expression = _field_width(
+                getattr(raw_field, "width", getattr(raw_field, "width_expression", None)),
+                f"{field_path}.width",
+            )
             required = getattr(raw_field, "required", True)
         if direction not in _INITIATOR_TO_TARGET and direction not in _TARGET_TO_INITIATOR:
             _fail(f"{field_path}.direction", "invalid")
@@ -288,7 +311,16 @@ def _protocol_definition(value: object, path: str) -> ProtocolDefinition:
         if role in seen_roles:
             _fail(f"{field_path}.role", "duplicate")
         seen_roles.add(role)
-        fields.append(ProtocolField(role, direction, minimum, maximum, required))
+        fields.append(
+            ProtocolField(
+                role,
+                direction,
+                minimum,
+                maximum,
+                required,
+                width_expression,
+            )
+        )
     if not fields:
         _fail(f"{path}.fields", "missing")
     adapters_list: list[AdapterRule] = []
@@ -303,7 +335,13 @@ def _protocol_definition(value: object, path: str) -> ProtocolDefinition:
         seen_adapters[identity] = adapter
         adapters_list.append(adapter)
     adapters = tuple(sorted(adapters_list, key=lambda item: (item.source_protocol_id, item.target_protocol_id, item.kind, item.allows_width_mismatch)))
-    return ProtocolDefinition(protocol_id, tuple(sorted(endpoint_roles)), tuple(sorted(fields, key=lambda item: item.role)), adapters)
+    return ProtocolDefinition(
+        protocol_id,
+        tuple(sorted(endpoint_roles)),
+        tuple(sorted(fields, key=lambda item: item.role)),
+        adapters,
+        version,
+    )
 
 
 def _normalize_protocols(protocols: object) -> tuple[ProtocolDefinition, ...]:
@@ -321,14 +359,27 @@ def _normalize_protocols(protocols: object) -> tuple[ProtocolDefinition, ...]:
         values = tuple(protocols)
     else:
         _fail("protocols", "type")
-    definitions = tuple(sorted((_protocol_definition(value, f"protocols[{index}]") for index, value in enumerate(values)), key=lambda item: item.protocol_id))
-    ids = [item.protocol_id for item in definitions]
-    if len(ids) != len(set(ids)):
-        _fail("protocols", "duplicate-protocol-id")
-    adapter_identities: dict[tuple[str, str, str], AdapterRule] = {}
+    definitions = tuple(
+        sorted(
+            (
+                _protocol_definition(value, f"protocols[{index}]")
+                for index, value in enumerate(values)
+            ),
+            key=lambda item: (item.protocol_id, item.version),
+        )
+    )
+    keys = [(item.protocol_id, item.version) for item in definitions]
+    if len(keys) != len(set(keys)):
+        _fail("protocols", "duplicate-protocol-version")
+    adapter_identities: dict[tuple[str, str, str, str], AdapterRule] = {}
     for definition in definitions:
         for adapter in definition.legal_adapters:
-            identity = (adapter.source_protocol_id, adapter.target_protocol_id, adapter.kind)
+            identity = (
+                definition.version,
+                adapter.source_protocol_id,
+                adapter.target_protocol_id,
+                adapter.kind,
+            )
             previous = adapter_identities.get(identity)
             if previous is not None:
                 reason = "duplicate-adapter-identity" if previous == adapter else "conflicting-adapter-identity"
@@ -367,9 +418,22 @@ def _make_endpoint(
     evidence: tuple[Evidence, ...],
 ) -> tuple[EndpointNode, tuple[Conflict, ...]]:
     component_id = int(getattr(component, "id"))
+    if binding.version is not None and binding.version != protocol.version:
+        _fail(
+            f"components.{component_id}.protocol_bindings.{binding.id}.version",
+            "protocol-version-mismatch",
+        )
     if binding.side not in protocol.endpoint_roles or binding.side not in ("initiator", "target"):
         _fail(f"components.{component_id}.protocol_bindings.{binding.id}.side", "invalid")
     field_specs = {field.role: field for field in protocol.fields}
+    parameters = dict(binding.parameters)
+    try:
+        width_parameters(parameters)
+    except ProtocolWidthError as error:
+        _fail(
+            f"components.{component_id}.protocol_bindings.{binding.id}.parameters",
+            str(error),
+        )
     bound_roles = {field.field_role for field in binding.fields}
     missing = tuple(field.role for field in protocol.fields if field.required and field.role not in bound_roles)
     if missing:
@@ -386,7 +450,29 @@ def _make_endpoint(
         expected = _expected_direction(spec.direction, binding.side)
         if port.direction not in (expected, "inout"):
             conflicts.append(Conflict("direction", (binding.id,), (port.id,), f"expected {expected}, found {port.direction}", evidence))
-        if port.width < spec.minimum_width or (spec.maximum_width is not None and port.width > spec.maximum_width):
+        expected_width: int | None = None
+        if spec.width_expression is not None:
+            try:
+                expected_width = compile_width_expression(
+                    spec.width_expression,
+                    parameters,
+                )
+            except ProtocolWidthError as error:
+                _fail(
+                    f"components.{component_id}.protocol_bindings.{binding.id}.parameters",
+                    str(error),
+                )
+        if expected_width is not None and port.width != expected_width:
+            conflicts.append(
+                Conflict(
+                    "width",
+                    (binding.id,),
+                    (port.id,),
+                    f"expected compiled width {expected_width}, found {port.width}",
+                    evidence,
+                )
+            )
+        elif port.width < spec.minimum_width or (spec.maximum_width is not None and port.width > spec.maximum_width):
             conflicts.append(Conflict("width", (binding.id,), (port.id,), "port width is outside the declared protocol range", evidence))
         endpoint_fields.append(EndpointField(field.field_role, port.id, spec.direction, port.width))
     clock_domains = tuple(sorted(item.domain_id for item in getattr(component, "clock_reset") if item.kind == "clock"))
@@ -401,14 +487,27 @@ def _make_endpoint(
             any(port_nodes[field.port_id].required for field in binding.fields),
             clock_domains,
             reset_domains,
+            binding.version or protocol.version,
+            binding.parameters,
         ),
         tuple(conflicts),
     )
 
 
-def _cross_adapter(protocols: Mapping[str, ProtocolDefinition], source: str, target: str) -> AdapterRule | None:
-    rules = protocols[source].legal_adapters + protocols[target].legal_adapters
-    matches = [rule for rule in rules if (rule.source_protocol_id, rule.target_protocol_id) == (source, target)]
+def _cross_adapter(
+    protocols: Mapping[tuple[str, str], ProtocolDefinition],
+    source: EndpointNode,
+    target: EndpointNode,
+) -> AdapterRule | None:
+    source_key = (source.protocol_id, source.version)
+    target_key = (target.protocol_id, target.version)
+    rules = protocols[source_key].legal_adapters + protocols[target_key].legal_adapters
+    matches = [
+        rule
+        for rule in rules
+        if (rule.source_protocol_id, rule.target_protocol_id)
+        == (source.protocol_id, target.protocol_id)
+    ]
     return min(matches, key=lambda item: item.kind) if matches else None
 
 
@@ -417,15 +516,22 @@ def _same_protocol_width_adapter(protocol: ProtocolDefinition) -> AdapterRule | 
     return min(matches, key=lambda item: item.kind) if matches else None
 
 
-def _pair_constraints(source: EndpointNode, target: EndpointNode, protocols: Mapping[str, ProtocolDefinition]) -> tuple[tuple[str, ...], str | None]:
+def _pair_constraints(
+    source: EndpointNode,
+    target: EndpointNode,
+    protocols: Mapping[tuple[str, str], ProtocolDefinition],
+) -> tuple[tuple[str, ...], str | None]:
     reasons: list[str] = []
     adapter: AdapterRule | None = None
     if source.component_id == target.component_id:
         reasons.append("self_connection")
     if source.side != "initiator" or target.side != "target":
         reasons.append("side")
-    if source.protocol_id != target.protocol_id:
-        adapter = _cross_adapter(protocols, source.protocol_id, target.protocol_id)
+    source_protocol_key = (source.protocol_id, source.version)
+    target_protocol_key = (target.protocol_id, target.version)
+    if source_protocol_key != target_protocol_key:
+        if source.protocol_id != target.protocol_id:
+            adapter = _cross_adapter(protocols, source, target)
         if adapter is None:
             reasons.append("protocol")
     if bool(source.clock_domain_ids) != bool(target.clock_domain_ids) or (source.clock_domain_ids and target.clock_domain_ids and source.clock_domain_ids != target.clock_domain_ids):
@@ -443,7 +549,13 @@ def _pair_constraints(source: EndpointNode, target: EndpointNode, protocols: Map
         if expected_left == expected_right:
             reasons.append("direction")
         if left.width != right.width:
-            width_adapter = adapter if adapter is not None and adapter.allows_width_mismatch else _same_protocol_width_adapter(protocols[source.protocol_id]) if source.protocol_id == target.protocol_id else None
+            width_adapter = (
+                adapter
+                if adapter is not None and adapter.allows_width_mismatch
+                else _same_protocol_width_adapter(protocols[source_protocol_key])
+                if source_protocol_key == target_protocol_key
+                else None
+            )
             if width_adapter is None:
                 reasons.append("width")
             elif adapter is None:
@@ -455,7 +567,16 @@ def build_constraint_graph(facts: HdlFacts, declarations: DeclarationSet, protoc
     """Build a normalized graph using only typed facts and explicit declarations."""
     declarations.validate_against(facts)
     definitions = _normalize_protocols(protocols)
-    protocol_by_id = {item.protocol_id: item for item in definitions}
+    protocol_by_key = {
+        (item.protocol_id, item.version): item
+        for item in definitions
+    }
+    protocols_by_id: dict[str, tuple[ProtocolDefinition, ...]] = {}
+    for definition in definitions:
+        protocols_by_id[definition.protocol_id] = (
+            *protocols_by_id.get(definition.protocol_id, ()),
+            definition,
+        )
     fact_ports = {port.id: port for port in facts.ports}
     port_nodes: list[PortNode] = []
     for component in declarations.components:
@@ -470,13 +591,34 @@ def build_constraint_graph(facts: HdlFacts, declarations: DeclarationSet, protoc
     bound_ports: set[int] = set()
     for component in declarations.components:
         for binding in component.protocol_bindings:
-            if binding.protocol_id not in protocol_by_id:
+            matching_protocols = protocols_by_id.get(binding.protocol_id, ())
+            if not matching_protocols:
                 _fail(f"components.{component.id}.protocol_bindings.{binding.id}.protocol_id", "unsupported")
+            if binding.version is None:
+                if len(matching_protocols) != 1:
+                    _fail(
+                        f"components.{component.id}.protocol_bindings.{binding.id}.version",
+                        "protocol-version-ambiguous",
+                    )
+                protocol = matching_protocols[0]
+            else:
+                protocol = protocol_by_key.get((binding.protocol_id, binding.version))
+                if protocol is None:
+                    _fail(
+                        f"components.{component.id}.protocol_bindings.{binding.id}.version",
+                        "protocol-version-unsupported",
+                    )
             for field in binding.fields:
                 if field.port_id in bound_ports:
                     _fail(f"components.{component.id}.protocol_bindings.{binding.id}.fields", f"duplicate-port:{field.port_id}")
                 bound_ports.add(field.port_id)
-            endpoint, conflicts = _make_endpoint(binding, component, port_by_id, protocol_by_id[binding.protocol_id], evidence)
+            endpoint, conflicts = _make_endpoint(
+                binding,
+                component,
+                port_by_id,
+                protocol,
+                evidence,
+            )
             endpoints.append(endpoint)
             input_conflicts.extend(conflicts)
     for port in port_nodes:
@@ -489,7 +631,7 @@ def build_constraint_graph(facts: HdlFacts, declarations: DeclarationSet, protoc
             source, target = (first, second)
             if second.side == "initiator" and first.side == "target":
                 source, target = second, first
-            reasons, _ = _pair_constraints(source, target, protocol_by_id)
+            reasons, _ = _pair_constraints(source, target, protocol_by_key)
             if reasons:
                 forbidden.append(ForbiddenEdge(source.id, target.id, reasons))
     return ConstraintGraph(
@@ -540,7 +682,7 @@ def _edge_id(kind: str, source_id: int, target_id: int | None) -> int:
 
 
 def _candidate(source: EndpointNode, target: EndpointNode, graph: ConstraintGraph) -> EdgeCandidate:
-    protocols = {item.protocol_id: item for item in graph.protocols}
+    protocols = {(item.protocol_id, item.version): item for item in graph.protocols}
     _, adapter = _pair_constraints(source, target, protocols)
     target_fields = {field.role: field for field in target.fields}
     fields: list[FieldConnection] = []

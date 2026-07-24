@@ -5,7 +5,6 @@
 #include "V3Ast.h"
 #include "V3DiagSarif.h"
 #include "V3EmitCBase.h"
-#include "V3EmitV.h"
 #include "V3File.h"
 #include "V3Stats.h"
 #include "V3Waiver.h"
@@ -60,21 +59,3 @@ std::pair<string, FileLine*> EmitCBaseVisitorConst::scSection(const AstNodeModul
                                                               VSystemCSectionType) {
     return {"", nullptr};
 }
-
-void V3EmitV::verilogForTree(const AstNode* nodep, std::ostream& os) {
-    if (!nodep) return;
-    os << nodep->prettyTypeName() << ":" << nodep->prettyName();
-}
-
-void V3EmitV::debugVerilogForTree(const AstNode* nodep, std::ostream& os) {
-    verilogForTree(nodep, os);
-}
-
-std::string V3EmitV::debugVerilogForTree(const AstNode* nodep) {
-    std::ostringstream os;
-    verilogForTree(nodep, os);
-    return os.str();
-}
-
-void V3EmitV::emitvFiles() {}
-void V3EmitV::debugEmitV(const string&) {}

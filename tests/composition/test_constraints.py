@@ -88,7 +88,143 @@ def _declarations(*, required_a: bool = True, required_b: bool = True, protocol_
     )
 
 
+def _with_protocol_parameters(
+    declarations: DeclarationSet,
+    parameters: tuple[tuple[str, object], ...],
+) -> DeclarationSet:
+    return replace(
+        declarations,
+        components=tuple(
+            replace(
+                component,
+                protocol_bindings=tuple(
+                    replace(binding, version="1", parameters=parameters)
+                    for binding in component.protocol_bindings
+                ),
+            )
+            for component in declarations.components
+        ),
+    )
+
+
 class ConstraintGraphTests(unittest.TestCase):
+    def test_protocol_definitions_are_keyed_by_id_and_version(self) -> None:
+        version_one = _protocol()
+        version_one["channels"][0]["fields"][0]["width"] = 32
+        version_two = copy.deepcopy(version_one)
+        version_two["plugin_version"] = "2"
+        version_two["channels"][0]["fields"][0]["width"] = 8
+        declarations = replace(
+            _declarations(),
+            components=tuple(
+                replace(
+                    component,
+                    protocol_bindings=tuple(
+                        replace(binding, version="1")
+                        for binding in component.protocol_bindings
+                    ),
+                )
+                for component in _declarations().components
+            ),
+        )
+
+        graph = build_constraint_graph(
+            _facts(),
+            declarations,
+            (version_two, version_one),
+        )
+
+        self.assertEqual(
+            [(protocol.protocol_id, protocol.version) for protocol in graph.protocols],
+            [("bus", "1"), ("bus", "2")],
+        )
+        self.assertEqual({endpoint.version for endpoint in graph.endpoints}, {"1"})
+        self.assertEqual(len(list(candidate_edges(graph))), 1)
+
+    def test_protocol_binding_without_version_rejects_ambiguous_id(self) -> None:
+        version_one = _protocol()
+        version_two = copy.deepcopy(version_one)
+        version_two["plugin_version"] = "2"
+
+        with self.assertRaisesRegex(ConstraintGraphError, "protocol-version-ambiguous"):
+            build_constraint_graph(
+                _facts(),
+                _declarations(),
+                (version_one, version_two),
+            )
+
+    def test_same_protocol_id_with_different_versions_is_not_directly_compatible(self) -> None:
+        version_one = _protocol()
+        version_one["channels"][0]["fields"][0]["width"] = 32
+        version_two = copy.deepcopy(version_one)
+        version_two["plugin_version"] = "2"
+        version_two["channels"][0]["fields"][0]["width"] = 8
+        declarations = _declarations()
+        declarations = replace(
+            declarations,
+            components=(
+                replace(
+                    declarations.components[0],
+                    protocol_bindings=(
+                        replace(
+                            declarations.components[0].protocol_bindings[0],
+                            version="1",
+                        ),
+                    ),
+                ),
+                replace(
+                    declarations.components[1],
+                    protocol_bindings=(
+                        replace(
+                            declarations.components[1].protocol_bindings[0],
+                            version="2",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        graph = build_constraint_graph(
+            _facts(width_a=32, width_b=8),
+            declarations,
+            (version_one, version_two),
+        )
+
+        self.assertTrue(any(conflict.kind == "protocol" for conflict in reject_hard_conflicts(graph)))
+        self.assertEqual(list(candidate_edges(graph)), [])
+
+    def test_width_expression_is_compiled_against_binding_parameters(self) -> None:
+        protocol = _protocol()
+        protocol["channels"][0]["fields"][0]["width"] = "data_width"
+        declarations = _with_protocol_parameters(
+            _declarations(),
+            (("data_width", 8),),
+        )
+
+        graph = build_constraint_graph(
+            _facts(width_a=1, width_b=1),
+            declarations,
+            (protocol,),
+        )
+
+        self.assertTrue(any(conflict.kind == "width" for conflict in graph.input_conflicts))
+        self.assertEqual(list(candidate_edges(graph)), [])
+
+    def test_width_expression_rejects_unknown_and_invalid_parameters(self) -> None:
+        cases = (
+            ("missing_width", (("data_width", 8),)),
+            ("data_width", (("data_width", True),)),
+            ("data_width", (("data_width", 0),)),
+        )
+        for expression, parameters in cases:
+            protocol = _protocol()
+            protocol["channels"][0]["fields"][0]["width"] = expression
+            declarations = _with_protocol_parameters(_declarations(), parameters)
+            with self.subTest(expression=expression, parameters=parameters), self.assertRaises(
+                ConstraintGraphError
+            ):
+                build_constraint_graph(_facts(), declarations, (protocol,))
+
     def test_typed_protocol_values_receive_full_semantic_validation(self) -> None:
         field = ProtocolField("request.data", "initiator_to_target", 1, 64, True)
         adapter = AdapterRule("width", "bus", "bus", True)

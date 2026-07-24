@@ -55,6 +55,24 @@ def design(count: int = 2, *, bad_target_direction: bool = False) -> tuple[HdlFa
 
 
 class CompositionSearchTests(unittest.TestCase):
+    def test_excluded_graph_hashes_are_backfilled_without_expanding_the_heap(self) -> None:
+        facts, declarations, protocols = design(3)
+        initial = list(compose_topk(facts, declarations, protocols, 2))
+        self.assertEqual(len(initial), 2)
+
+        replacement = list(
+            compose_topk(
+                facts,
+                declarations,
+                protocols,
+                2,
+                excluded_graph_hashes={initial[0].graph_hash},
+            )
+        )
+
+        self.assertNotIn(initial[0].graph_hash, {item.graph_hash for item in replacement})
+        self.assertEqual(len(replacement), 2)
+
     def test_tied_address_facts_are_validated_before_graph_hard_conflict_return(self) -> None:
         facts, declarations, protocols = design(1, bad_target_direction=True)
         invalid_records = (

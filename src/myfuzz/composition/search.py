@@ -168,6 +168,8 @@ def _canonical_declarations(declarations: DeclarationSet) -> DeclarationSet:
                         "id": binding.id,
                         "protocol_id": binding.protocol_id,
                         "side": binding.side,
+                        "version": binding.version,
+                        "parameters": _json_value(dict(binding.parameters)),
                         "fields": [
                             {"field_role": field.field_role, "port_id": field.port_id}
                             for field in binding.fields
@@ -262,6 +264,8 @@ def _parent_hash(
                 endpoint.required,
                 list(endpoint.clock_domain_ids),
                 list(endpoint.reset_domain_ids),
+                endpoint.version,
+                _json_value(dict(endpoint.parameters)),
             )
             for endpoint in graph.endpoints
         ],
@@ -277,6 +281,7 @@ def _parent_hash(
         "protocols": [
             (
                 protocol.protocol_id,
+                protocol.version,
                 list(protocol.endpoint_roles),
                 [(field.role, field.direction, field.minimum_width, field.maximum_width, field.required) for field in protocol.fields],
                 [(rule.kind, rule.source_protocol_id, rule.target_protocol_id, rule.allows_width_mismatch) for rule in protocol.legal_adapters],
@@ -436,10 +441,22 @@ def _make_candidate(
     )
 
 
-def compose_topk(facts: HdlFacts, declarations: DeclarationSet, protocols: object, limit: int) -> Iterator[CompositionCandidate]:
+def compose_topk(
+    facts: HdlFacts,
+    declarations: DeclarationSet,
+    protocols: object,
+    limit: int,
+    *,
+    excluded_graph_hashes: object = (),
+) -> Iterator[CompositionCandidate]:
     """Yield at most ``limit`` legal candidates in deterministic score order."""
     if not isinstance(limit, int) or isinstance(limit, bool) or limit <= 0:
         raise ValueError("limit:positive-integer-required")
+    if not isinstance(excluded_graph_hashes, (set, frozenset, list, tuple)):
+        raise ValueError("excluded_graph_hashes:type")
+    excluded = frozenset(excluded_graph_hashes)
+    if any(not isinstance(value, str) for value in excluded):
+        raise ValueError("excluded_graph_hashes:type")
     facts = _canonical_facts(facts)
     declarations = _canonical_declarations(declarations)
     graph = build_constraint_graph(facts, declarations, protocols)
@@ -486,6 +503,8 @@ def compose_topk(facts: HdlFacts, declarations: DeclarationSet, protocols: objec
     used_targets: set[int] = set()
 
     def retain(candidate: CompositionCandidate) -> None:
+        if candidate.graph_hash in excluded:
+            return
         if any(item[2].graph_hash == candidate.graph_hash for item in heap):
             return
         reverse_score = tuple(-value for value in candidate.score_vector)

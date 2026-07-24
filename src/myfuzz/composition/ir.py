@@ -6,7 +6,7 @@ import hashlib
 from collections.abc import Mapping
 
 from .search import CompositionCandidate
-from .metadata import sanitize_metadata
+from .metadata import sanitize_metadata, semantic_content_hash
 
 
 def _json_value(value: object) -> object:
@@ -24,11 +24,34 @@ def _net_id(source_port_id: int, target_port_id: int) -> int:
     return max(1, int.from_bytes(digest[:8], "big"))
 
 
+def _adapter_evidence_id(edge: object) -> str:
+    evidence = getattr(edge, "evidence")
+    document = [
+        {
+            "kind": item.kind,
+            "ordinal": item.ordinal,
+            "record": _json_value(item.record),
+        }
+        for item in evidence
+    ]
+    if not document:
+        document = [
+            {
+                "kind": "declared-adapter",
+                "edge_id": getattr(edge, "id"),
+                "source_endpoint_id": getattr(edge, "source_endpoint_id"),
+                "target_endpoint_id": getattr(edge, "target_endpoint_id"),
+            }
+        ]
+    return semantic_content_hash(document, context="composition.adapter_evidence")
+
+
 def composition_ir(candidate: CompositionCandidate) -> dict[str, object]:
     """Return a deterministic, path-free composition_ir.v1 document."""
     graph = candidate.graph
     declarations = candidate.declarations
     component_by_id = {component.id: component for component in declarations.components}
+    port_by_id = {port.id: port for port in graph.ports}
     unresolved = set(candidate.unresolved_optional_endpoint_ids)
     external_port_ids = {
         port.id
@@ -67,24 +90,64 @@ def composition_ir(candidate: CompositionCandidate) -> dict[str, object]:
                 "endpoint_id": endpoint.id,
                 "component_id": endpoint.component_id,
                 "protocol_id": endpoint.protocol_id,
+                "version": endpoint.version,
                 "side": endpoint.side,
+                "parameters": _json_value(dict(endpoint.parameters)),
                 "fields": [
-                    {"field_role": field.role, "port_id": field.port_id}
+                    {
+                        "field_role": field.role,
+                        "port_id": field.port_id,
+                        "direction": port_by_id[field.port_id].direction,
+                        "width": port_by_id[field.port_id].width,
+                        "signed": port_by_id[field.port_id].signed,
+                    }
                     for field in sorted(endpoint.fields, key=lambda item: (item.role, item.port_id))
                 ],
             }
             for endpoint in graph.endpoints
         ], key=lambda item: item["endpoint_id"]),
-        "adapters": sorted([
-            {
-                "edge_id": edge.id,
-                "kind": edge.adapter,
-                "source_endpoint_id": edge.source_endpoint_id,
-                "target_endpoint_id": edge.target_endpoint_id,
-            }
-            for edge in candidate.edges
-            if edge.adapter is not None
-        ], key=lambda item: (item["source_endpoint_id"], item["target_endpoint_id"], item["edge_id"])),
+        "adapters": sorted(
+            [
+                {
+                    "edge_id": edge.id,
+                    "adapter_id": f"adapter-{edge.id}",
+                    "kind": edge.adapter,
+                    "source_endpoint_id": edge.source_endpoint_id,
+                    "target_endpoint_id": edge.target_endpoint_id,
+                    "source_port_id": edge.fields[0].source_port_id,
+                    "target_port_id": edge.fields[0].target_port_id,
+                    "evidence_id": _adapter_evidence_id(edge),
+                    "port_bindings": [
+                        {
+                            "field_role": field.role,
+                            "source_port_id": field.source_port_id,
+                            "target_port_id": field.target_port_id,
+                            "source_width": field.source_width,
+                            "target_width": field.target_width,
+                        }
+                        for field in edge.fields
+                    ],
+                    "shape_status": "resolved" if len(edge.fields) == 1 else "irreducible",
+                    **(
+                        {}
+                        if len(edge.fields) == 1
+                        else {
+                            "shape_conflict": {
+                                "reason": "adapter-spans-multiple-field-connections",
+                                "field_count": len(edge.fields),
+                            }
+                        }
+                    ),
+                }
+                for edge in candidate.edges
+                if edge.adapter is not None and edge.fields
+            ],
+            key=lambda item: (
+                item["source_endpoint_id"],
+                item["target_endpoint_id"],
+                item["edge_id"],
+            ),
+        ),
         "address_regions": sorted([
             {
                 "component_id": region.component_id,
@@ -126,6 +189,7 @@ def composition_ir(candidate: CompositionCandidate) -> dict[str, object]:
                 "component_id": port.component_id,
                 "direction": port.direction,
                 "width": port.width,
+                "signed": port.signed,
                 "semantic_role": port.role,
             }
             for port in graph.ports

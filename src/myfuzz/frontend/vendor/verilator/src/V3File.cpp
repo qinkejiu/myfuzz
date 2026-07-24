@@ -119,6 +119,7 @@ class V3FileDependImp final {
     V3Mutex m_mutex;  // Protects members
     std::set<string> m_filenameSet VL_GUARDED_BY(m_mutex);  // Files generated (elim duplicates)
     std::set<DependFile> m_filenameList;  // Files sourced/generated
+    std::vector<string> m_sourceFilenamesInReadOrder;
 
     static string stripQuotes(const string& in) {
         string pretty = in;
@@ -137,6 +138,7 @@ public:
             DependFile df{filename, false};
             df.loadStats();  // Get size now, in case changes during the run
             m_filenameList.insert(df);
+            if (df.exists()) m_sourceFilenamesInReadOrder.push_back(filename);
         }
     }
     void addTgtDepend(const string& filename) VL_MT_SAFE_EXCLUDES(m_mutex) {
@@ -144,8 +146,15 @@ public:
         const auto itFoundPair = m_filenameSet.insert(filename);
         if (itFoundPair.second) m_filenameList.insert(DependFile{filename, true});
     }
+    void clearDependencies() VL_MT_SAFE_EXCLUDES(m_mutex) {
+        const V3LockGuard lock{m_mutex};
+        m_filenameSet.clear();
+        m_filenameList.clear();
+        m_sourceFilenamesInReadOrder.clear();
+    }
     void writeDepend(const string& filename);
     std::vector<string> getAllDeps() const;
+    std::vector<string> getAllDepsInReadOrder() const { return m_sourceFilenamesInReadOrder; }
     void writeTimes(const string& filename, const string& cmdlineIn);
     bool checkTimes(const string& filename, const string& cmdlineIn);
 };
@@ -327,8 +336,12 @@ bool V3FileDependImp::checkTimes(const string& filename, const string& cmdlineIn
 
 void V3File::addSrcDepend(const string& filename) VL_MT_SAFE { dependImp.addSrcDepend(filename); }
 void V3File::addTgtDepend(const string& filename) VL_MT_SAFE { dependImp.addTgtDepend(filename); }
+void V3File::clearDependencies() VL_MT_SAFE { dependImp.clearDependencies(); }
 void V3File::writeDepend(const string& filename) { dependImp.writeDepend(filename); }
 std::vector<string> V3File::getAllDeps() { return dependImp.getAllDeps(); }
+std::vector<string> V3File::getAllDepsInReadOrder() {
+    return dependImp.getAllDepsInReadOrder();
+}
 void V3File::writeTimes(const string& filename, const string& cmdlineIn) {
     dependImp.writeTimes(filename, cmdlineIn);
 }

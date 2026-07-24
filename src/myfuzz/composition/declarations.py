@@ -34,6 +34,8 @@ class ProtocolBinding:
     protocol_id: str
     side: str
     fields: tuple[ProtocolFieldBinding, ...]
+    version: str | None = None
+    parameters: tuple[tuple[str, object], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -79,7 +81,10 @@ class DeclarationSet:
                 _fail(f"{component_path}.ports:unresolved-reference:{port_id}")
             for port_id, port in declared_ports.items():
                 fact_port = fact_ports[port_id]
-                if port.role != fact_port.declared_role:
+                if (
+                    fact_port.declared_role != "uninterpreted_external"
+                    and port.role != fact_port.declared_role
+                ):
                     _fail(f"{component_path}.ports:{port_id}:role-conflict")
 
             for binding_index, binding in enumerate(component.protocol_bindings):
@@ -159,6 +164,24 @@ def _unique(values: Sequence[int], path: str) -> None:
                 _fail(f"{path}[{index}].id:duplicate-id")
 
 
+def _parameter_value(value: object, path: str) -> object:
+    if value is None or isinstance(value, (bool, int, str)):
+        return value
+    if isinstance(value, list):
+        return tuple(
+            _parameter_value(item, f"{path}[{index}]")
+            for index, item in enumerate(value)
+        )
+    if isinstance(value, Mapping):
+        result: list[tuple[str, object]] = []
+        for key, item in sorted(value.items(), key=lambda pair: str(pair[0])):
+            if not isinstance(key, str) or not key:
+                _fail(f"{path}:invalid-key")
+            result.append((key, _parameter_value(item, f"{path}.{key}")))
+        return tuple(result)
+    _fail(f"{path}:type")
+
+
 def _parse_ports(value: object, path: str) -> tuple[PortDecl, ...]:
     ports: list[PortDecl] = []
     ids: set[int] = set()
@@ -191,12 +214,25 @@ def _parse_protocols(value: object, path: str) -> tuple[ProtocolBinding, ...]:
                 _fail(f"{field_path}.field_role:duplicate-role")
             roles.add(field_role)
             fields.append(ProtocolFieldBinding(field_role, _positive_int(field, "port_id", field_path)))
+        raw_version = record.get("version")
+        version = None
+        if raw_version is not None:
+            if not isinstance(raw_version, str) or not raw_version:
+                _fail(f"{item_path}.version:type")
+            version = raw_version
+        raw_parameters = record.get("parameters", {})
+        if not isinstance(raw_parameters, Mapping):
+            _fail(f"{item_path}.parameters:type")
+        parameters = _parameter_value(raw_parameters, f"{item_path}.parameters")
+        assert isinstance(parameters, tuple)
         bindings.append(
             ProtocolBinding(
                 id=binding_id,
                 protocol_id=_string(record, "protocol_id", item_path),
                 side=_string(record, "side", item_path),
                 fields=tuple(sorted(fields, key=lambda field: (field.field_role, field.port_id))),
+                version=version,
+                parameters=parameters,
             )
         )
     _unique(ids, f"{path}.protocol_bindings")
