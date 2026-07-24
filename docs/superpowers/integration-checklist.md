@@ -12,7 +12,7 @@ remote ancestry check succeed.
 | I3 | Process-shared memory tokens and synthetic pipeline | Verified |
 | I4 | Reference-free Ibex + OpenTitan declaration | Published |
 | I5 | Generated-only RVX boundary | Published |
-| I6 | Isolated reference evaluation | Implemented; review pending |
+| I6 | Isolated reference evaluation | Published |
 | I7 | Fair experiment matrix and report | Pending |
 
 ## I3 Gate
