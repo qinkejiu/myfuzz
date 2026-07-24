@@ -1,0 +1,35 @@
+{
+  "schema_version": "experiment.v1",
+  "target": {"target_id": 101},
+  "source_lists": [{"source_list_id": 1, "files": ["synthetic/opaque_input.sv"]}],
+  "components": [
+    {"component_id": 10, "role": "initiator", "source_list_ids": [1]},
+    {"component_id": 20, "role": "target", "source_list_ids": [1]}
+  ],
+  "ports": [
+    {"port_id": 100, "component_id": 10, "role": "addr", "direction": "output", "width": 32},
+    {"port_id": 101, "component_id": 10, "role": "write", "direction": "output", "width": 1},
+    {"port_id": 102, "component_id": 10, "role": "wdata", "direction": "output", "width": 32},
+    {"port_id": 103, "component_id": 10, "role": "valid", "direction": "output", "width": 1},
+    {"port_id": 104, "component_id": 10, "role": "ready", "direction": "input", "width": 1},
+    {"port_id": 105, "component_id": 10, "role": "rdata", "direction": "input", "width": 32},
+    {"port_id": 200, "component_id": 20, "role": "addr", "direction": "input", "width": 32},
+    {"port_id": 201, "component_id": 20, "role": "write", "direction": "input", "width": 1},
+    {"port_id": 202, "component_id": 20, "role": "wdata", "direction": "input", "width": 32},
+    {"port_id": 203, "component_id": 20, "role": "valid", "direction": "input", "width": 1},
+    {"port_id": 204, "component_id": 20, "role": "ready", "direction": "output", "width": 1},
+    {"port_id": 205, "component_id": 20, "role": "rdata", "direction": "output", "width": 32}
+  ],
+  "protocol_endpoints": [
+    {"endpoint_id": 1000, "component_id": 10, "protocol_id": "ready-valid-mmio", "version": "1", "side": "initiator", "field_bindings": [{"field_role": "addr", "port_id": 100}, {"field_role": "write", "port_id": 101}, {"field_role": "wdata", "port_id": 102}, {"field_role": "valid", "port_id": 103}, {"field_role": "ready", "port_id": 104}, {"field_role": "rdata", "port_id": 105}]},
+    {"endpoint_id": 1001, "component_id": 20, "protocol_id": "ready-valid-mmio", "version": "1", "side": "target", "field_bindings": [{"field_role": "addr", "port_id": 200}, {"field_role": "write", "port_id": 201}, {"field_role": "wdata", "port_id": 202}, {"field_role": "valid", "port_id": 203}, {"field_role": "ready", "port_id": 204}, {"field_role": "rdata", "port_id": 205}]}
+  ],
+  "generated_candidates": {"count": 1},
+  "seeds": [1],
+  "budget": {"cycles": 100, "seconds": 1},
+  "raw_width": 32,
+  "coverage": {"metric": "shared-stable-source-id"},
+  "harness_groups": ["flat-direct", "candidate-direct", "candidate-depaware"],
+  "mutation": {"max_len": 128, "timeout_ms": 100},
+  "build_concurrency": 1
+}

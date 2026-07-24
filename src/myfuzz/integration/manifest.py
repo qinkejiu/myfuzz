@@ -57,6 +57,11 @@ def _runtime_ready(runtime: Mapping[str, object]) -> bool:
     return validation.get("compile") in _READY_VALUES and validation.get("smoke") in _READY_VALUES
 
 
+def _complete_harness(value: object) -> bool:
+    """Accept the frozen fixture array and B's public artifact object shape."""
+    return isinstance(value, (Mapping, list)) and bool(value)
+
+
 def merge_candidate_manifest(
     composition_manifest: Mapping[str, object],
     harness_fragment: Mapping[str, object],
@@ -71,7 +76,7 @@ def merge_candidate_manifest(
     groups = fragment.get("harnesses")
     if not isinstance(groups, Mapping) or set(groups) != _REQUIRED_GROUPS:
         _error("harnesses", "missing-required-group")
-    if any(not isinstance(groups[group], list) or not groups[group] for group in _REQUIRED_GROUPS):
+    if any(not _complete_harness(groups[group]) for group in _REQUIRED_GROUPS):
         _error("harnesses", "incomplete-required-group")
 
     candidate_id = fragment.get("candidate_id", base.get("candidate_id"))

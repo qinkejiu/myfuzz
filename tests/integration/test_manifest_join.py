@@ -89,6 +89,18 @@ class ManifestJoinTests(unittest.TestCase):
         with self.assertRaisesRegex(ContractError, "composition_ir_hash:mismatch"):
             merge_candidate_manifest(base, fragment)
 
+    def test_empty_array_or_object_harness_group_is_incomplete(self) -> None:
+        base = _base()
+        for empty_value in ([], {}):
+            fragment = copy.deepcopy(READY_FRAGMENT)
+            fragment["input_manifest_hash"] = content_hash(base)
+            fragment["harnesses"]["candidate-direct"] = empty_value
+            with self.subTest(empty_value=empty_value), self.assertRaisesRegex(
+                ContractError,
+                "incomplete-required-group",
+            ):
+                merge_candidate_manifest(base, fragment)
+
     def test_candidate_mismatch_and_untrusted_fragment_fields_fail(self) -> None:
         base = _base()
         fragment = copy.deepcopy(READY_FRAGMENT)
