@@ -14,6 +14,7 @@ import yaml
 
 EXPECTED_OPENTITAN_REVISION = "13a8919bceac625dbd1b6ad804e62f9bdeadee86"
 ROOT_CORES = (
+    "lowrisc:ibex:ibex_top",
     "lowrisc:ip:uart",
     "lowrisc:earlgrey_ip:gpio",
     "lowrisc:ip:rv_timer",
@@ -94,6 +95,7 @@ def _file_path(item: object) -> tuple[str, bool]:
 def resolve_synthesizable_core_closure(
     opentitan_root: Path,
     root_cores: tuple[str, ...] = ROOT_CORES,
+    include_files: list[Path] | None = None,
 ) -> tuple[Path, ...]:
     index = _build_index(opentitan_root)
     providers = dict(VIRTUAL_PROVIDERS)
@@ -139,6 +141,8 @@ def resolve_synthesizable_core_closure(
                     resolved.append(path)
                 if is_include and path.suffix not in SOURCE_SUFFIXES | HEADER_SUFFIXES:
                     raise RuntimeError(f"unsupported include file: {path}")
+                if is_include and include_files is not None and path not in include_files:
+                    include_files.append(path)
         visiting.remove(key)
         visited.add(key)
 
@@ -154,10 +158,14 @@ def _relative(repo_root: Path, path: Path) -> str:
         raise RuntimeError(f"source escapes repository root: {path}") from error
 
 
-def write_relative_flist(repo_root: Path, sources: tuple[Path, ...]) -> Path:
+def write_relative_flist(
+    repo_root: Path,
+    sources: tuple[Path, ...],
+    include_files: tuple[Path, ...] = (),
+) -> Path:
     target = repo_root / "configs/designs/ibex_opentitan_real_ip/rtl/opentitan_sources.f"
     target.parent.mkdir(parents=True, exist_ok=True)
-    include_dirs = sorted({path.parent for path in sources})
+    include_dirs = sorted({path.parent for path in sources + include_files})
     lines = [f"+incdir+{_relative(repo_root, path)}" for path in include_dirs]
     lines.extend(_relative(repo_root, path) for path in sources)
     target.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -175,11 +183,14 @@ def prepare_sources(
             f"OpenTitan revision {actual_revision!r}, expected "
             f"{EXPECTED_OPENTITAN_REVISION}"
         )
-    sources = resolve_synthesizable_core_closure(opentitan_root)
+    include_files: list[Path] = []
+    sources = resolve_synthesizable_core_closure(
+        opentitan_root, include_files=include_files
+    )
     required = {"uart.sv", "gpio.sv", "rv_timer.sv"}
     if not required.issubset({path.name for path in sources}):
         raise RuntimeError("official OpenTitan IP tops are incomplete")
-    write_relative_flist(repo_root, sources)
+    write_relative_flist(repo_root, sources, tuple(include_files))
     return sources
 
 
@@ -192,6 +203,7 @@ def main() -> int:
         "rv_timer": sum("/hw/ip/rv_timer/" in path.as_posix() for path in sources),
         "prim": sum("/hw/ip/prim/" in path.as_posix() for path in sources),
         "tlul": sum("/hw/ip/tlul/" in path.as_posix() for path in sources),
+        "ibex": sum("/hw/vendor/lowrisc_ibex/" in path.as_posix() for path in sources),
     }
     counts = " ".join(f"{name}={count}" for name, count in categories.items())
     print(f"OpenTitan {EXPECTED_OPENTITAN_REVISION}: sources={len(sources)} {counts}")
