@@ -1,0 +1,1 @@
+-F configs/designs/ibex_opentitan_real_ip/rtl/opentitan_sources.f
