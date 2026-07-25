@@ -2464,7 +2464,12 @@ def strip_line_comment(line: str) -> str:
     return line if idx < 0 else line[:idx]
 
 
-def parse_flist(flist: Path, project_root: Path, seen: set[Path] | None = None) -> FlistParseResult:
+def parse_flist(
+    flist: Path,
+    project_root: Path,
+    seen: set[Path] | None = None,
+    path_base: Path | None = None,
+) -> FlistParseResult:
     if seen is None:
         seen = set()
     flist = flist.resolve()
@@ -2472,7 +2477,7 @@ def parse_flist(flist: Path, project_root: Path, seen: set[Path] | None = None) 
         return FlistParseResult()
     seen.add(flist)
     result = FlistParseResult()
-    base = flist.parent
+    base = project_root.resolve() if path_base is None else path_base.resolve()
     for raw_line in flist.read_text(errors="ignore").splitlines():
         line = strip_line_comment(raw_line).strip()
         if not line:
@@ -2482,25 +2487,31 @@ def parse_flist(flist: Path, project_root: Path, seen: set[Path] | None = None) 
             result.lines.append(raw_line)
             continue
         if line.startswith("-f "):
-            nested = expand_path(line[3:].strip(), base)
-            nested_result = parse_flist(nested, project_root, seen)
+            nested = expand_path(line[3:].strip(), project_root)
+            nested_result = parse_flist(
+                nested, project_root, seen, project_root
+            )
             result.files.extend(nested_result.files)
             result.lines.extend(nested_result.lines)
             result.incdirs.update(nested_result.incdirs)
             continue
         if line.startswith("-F "):
-            nested = expand_path(line[3:].strip(), project_root)
-            nested_result = parse_flist(nested, project_root, seen)
+            nested = expand_path(line[3:].strip(), base)
+            nested_result = parse_flist(
+                nested, project_root, seen, nested.parent
+            )
             result.files.extend(nested_result.files)
             result.lines.extend(nested_result.lines)
             result.incdirs.update(nested_result.incdirs)
             continue
         if line.startswith("+incdir+"):
+            expanded_dirs: list[str] = []
             for item in line[len("+incdir+") :].split("+"):
                 path = expand_path(item, base)
+                expanded_dirs.append(path.as_posix())
                 if path.exists() and path.is_dir():
                     result.incdirs.add(path)
-            result.lines.append(raw_line)
+            result.lines.append("+incdir+" + "+".join(expanded_dirs))
             continue
         if line.startswith("-I"):
             item = line[2:].strip()
@@ -2508,13 +2519,18 @@ def parse_flist(flist: Path, project_root: Path, seen: set[Path] | None = None) 
                 path = expand_path(item, base)
                 if path.exists() and path.is_dir():
                     result.incdirs.add(path)
-            result.lines.append(raw_line)
+                result.lines.append("-I" + path.as_posix())
+            else:
+                result.lines.append(raw_line)
             continue
         first = line.split()[0]
         path = expand_path(first, base)
         if path.suffix.lower() in HDL_SUFFIXES and path.exists():
             result.files.append(path)
-        result.lines.append(raw_line)
+            suffix = line[len(first) :]
+            result.lines.append(path.as_posix() + suffix)
+        else:
+            result.lines.append(raw_line)
     return result
 
 

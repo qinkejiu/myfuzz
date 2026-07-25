@@ -1,0 +1,40 @@
+{
+  "name": "ibex_opentitan_real_ip_depaware_projection",
+  "description": "Ibex with official OpenTitan UART, GPIO, and RV timer using dependency-aware time-varying external events.",
+  "top": "ibex_opentitan_real_ip_top",
+  "project_root": ".",
+  "flist": "configs/designs/ibex_opentitan_real_ip/rtl/sources.f",
+  "out_dir": "runs/designs/ibex_opentitan_real_ip_depaware_projection",
+  "coverage_port": "__vi_coverage",
+  "signal_prefix": "__vi_branch_cov",
+  "instrumentation": {
+    "coverage_port": "__vi_coverage",
+    "signal_prefix": "__vi_branch_cov",
+    "branch": {"if": true, "case": true},
+    "statement": {"block_enter": false},
+    "loop": {"body": false},
+    "hierarchy": {"propagate_to_top": true}
+  },
+  "harness": {
+    "manual_harness": "configs/designs/ibex_opentitan_real_ip/harness/ibex_ot_depaware_projection_harness.sv",
+    "manual_harness_module": "ibex_ot_depaware_projection_harness"
+  },
+  "server": {
+    "extra_verilator_sources": [
+      "configs/designs/ibex_opentitan_real_ip/harness/ibex_ot_depaware_projection_harness.sv"
+    ]
+  },
+  "verilator_args": [
+    "-DSYNTHESIS",
+    "-Wno-WIDTHEXPAND",
+    "-Wno-WIDTHTRUNC",
+    "-Wno-MULTIDRIVEN",
+    "-Wno-PINMISSING"
+  ],
+  "projection_policy": {
+    "input_mapping": "dependency_aware_projection",
+    "dependency_projection": true,
+    "time_varying_events": true,
+    "dut_feedback": false
+  }
+}

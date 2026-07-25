@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
+import re
+import tempfile
 import unittest
 
 
@@ -21,6 +24,11 @@ def load_prepare_module():
 
 
 class IbexOpenTitanRealIpTargetTest(unittest.TestCase):
+    def load_config(self, variant: str) -> dict:
+        path = TARGET / variant / "config.json"
+        self.assertTrue(path.is_file(), path)
+        return json.loads(path.read_text(encoding="utf-8"))
+
     def test_real_target_uses_pinned_official_ip_sources(self) -> None:
         source_list = TARGET / "rtl" / "opentitan_sources.f"
         self.assertTrue(source_list.is_file(), source_list)
@@ -87,6 +95,45 @@ class IbexOpenTitanRealIpTargetTest(unittest.TestCase):
             "-f configs/designs/ibex_opentitan_real_ip/rtl/opentitan_sources.f",
             sources,
         )
+
+    def test_harnesses_share_top_width_and_instrumentation(self) -> None:
+        variants = ("baseline_direct_slice", "depaware_projection")
+        configs = [self.load_config(variant) for variant in variants]
+        for key in ("top", "flist", "instrumentation"):
+            self.assertEqual(configs[0][key], configs[1][key])
+        self.assertEqual(configs[0]["top"], "ibex_opentitan_real_ip_top")
+
+        for config in configs:
+            harness_path = ROOT / config["harness"]["manual_harness"]
+            source = harness_path.read_text(encoding="utf-8")
+            self.assertIn("logic [511:0] rfuzz_input_bits", source)
+            self.assertIn("ibex_opentitan_real_ip_top dut", source)
+
+    def test_depaware_projection_has_no_dut_output_feedback(self) -> None:
+        config = self.load_config("depaware_projection")
+        source = (ROOT / config["harness"]["manual_harness"]).read_text(
+            encoding="utf-8"
+        )
+        self.assertIsNone(re.search(r"assign\s+\w+\s*=.*dut\.", source))
+        self.assertNotIn("dut.", source)
+
+    def test_instrumenter_honors_verilator_lowercase_f_paths(self) -> None:
+        from scripts.source_branch_instrumenter import parse_flist
+
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "lists").mkdir()
+            (project / "rtl").mkdir()
+            top = project / "rtl" / "top.sv"
+            child = project / "rtl" / "child.sv"
+            top.write_text("module top; endmodule\n", encoding="ascii")
+            child.write_text("module child; endmodule\n", encoding="ascii")
+            (project / "nested.f").write_text("rtl/child.sv\n", encoding="ascii")
+            outer = project / "lists" / "sources.f"
+            outer.write_text("-f nested.f\nrtl/top.sv\n", encoding="ascii")
+
+            result = parse_flist(outer, project)
+            self.assertEqual(set(result.files), {top.resolve(), child.resolve()})
 
 
 if __name__ == "__main__":
