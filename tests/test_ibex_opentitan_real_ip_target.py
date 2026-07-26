@@ -76,6 +76,23 @@ class IbexOpenTitanRealIpTargetTest(unittest.TestCase):
         self.assertTrue(image.is_file(), image)
         self.assertGreater(image.stat().st_size, 0)
 
+    def test_firmware_matches_ibex_reset_entry(self) -> None:
+        link = (TARGET / "programs" / "link.ld").read_text(encoding="ascii")
+        self.assertIn(". = 0x80;", link)
+        words = (TARGET / "programs" / "mmio_exerciser.hex").read_text(
+            encoding="ascii"
+        ).splitlines()
+        self.assertGreaterEqual(len(words), 33)
+        self.assertEqual(words[:32], ["00000013"] * 32)
+        self.assertNotEqual(words[32], "00000013")
+
+    def test_depaware_debug_event_is_reachable_within_server_budget(self) -> None:
+        source = (TARGET / "harness" / "ibex_ot_depaware_projection_harness.sv").read_text(
+            encoding="ascii"
+        )
+        self.assertIn("cycle_q[7:0] == {2'b00, rfuzz_input_bits[247:242]}", source)
+        self.assertNotIn("8'hff", source)
+
     def test_outer_filelist_contains_shared_top_and_upstream_ibex(self) -> None:
         sources = (TARGET / "rtl" / "sources.f").read_text(encoding="utf-8")
         official_sources = (TARGET / "rtl" / "opentitan_sources.f").read_text(

@@ -8,6 +8,7 @@ import subprocess
 
 
 HERE = Path(__file__).resolve().parent
+RESET_ENTRY_BYTES = 0x80
 
 
 def main() -> int:
@@ -27,11 +28,11 @@ def main() -> int:
         ],
         check=True,
     )
-    payload = binary.read_bytes()
-    payload += bytes((-len(payload)) % 4)
+    image = b"\x13\x00\x00\x00" * (RESET_ENTRY_BYTES // 4) + binary.read_bytes()
+    image += bytes((-len(image)) % 4)
     words = [
-        payload[offset : offset + 4][::-1].hex()
-        for offset in range(0, len(payload), 4)
+        image[offset : offset + 4][::-1].hex()
+        for offset in range(0, len(image), 4)
     ]
     (HERE / "mmio_exerciser.hex").write_text(
         "\n".join(words) + "\n", encoding="ascii"

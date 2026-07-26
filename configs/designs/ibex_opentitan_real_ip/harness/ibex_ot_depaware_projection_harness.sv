@@ -29,7 +29,7 @@ module ibex_ot_depaware_projection_harness (
 
   wire strap_event = rfuzz_input_bits[200] && (cycle_q == 16'd8);
   wire irq_window = cycle_q[7:0] == rfuzz_input_bits[239:232];
-  wire debug_window = cycle_q[9:0] == {rfuzz_input_bits[249:248], 8'hff};
+  wire debug_window = cycle_q[7:0] == {2'b00, rfuzz_input_bits[247:242]};
   wire irq_software_event = irq_window && rfuzz_input_bits[240];
   wire irq_external_event = irq_window && rfuzz_input_bits[241];
   wire debug_event = debug_window && rfuzz_input_bits[250] &&
