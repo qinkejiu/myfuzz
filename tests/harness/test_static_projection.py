@@ -136,7 +136,10 @@ class StaticProjectionTest(unittest.TestCase):
         self.assertEqual(project_static_sample(self.plan, (1 << 7) | (1 << 1))[30], 0)
         self.assertEqual(project_static_sample(self.plan, (1 << 7) | 1)[30], 1)
         self.assertEqual(project_static_sample(self.plan, 1 << 8)[40], 1)
-        self.assertEqual(project_static_sample(self.plan, (1 << 8) | (1 << 7) | 1)[40], 0)
+        self.assertEqual(
+            project_static_sample(self.plan, (1 << 8) | (1 << 7) | (1 << 1) | 1)[40],
+            0,
+        )
         self.assertEqual(project_static_sample(self.plan, 1 << 9)[50], 1)
         self.assertEqual(project_static_sample(self.plan, (1 << 9) | (1 << 2) | 1)[50], 0)
 

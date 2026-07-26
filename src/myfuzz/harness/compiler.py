@@ -1252,6 +1252,8 @@ def write_harness_bundle(bundle: HarnessBundle, output_dir: Path) -> dict[str, P
     for filename, document in json_documents.items():
         text = json.dumps(document, sort_keys=True, indent=2, ensure_ascii=True) + "\n"
         _atomic_write(output_dir / filename, text)
+    if bundle.candidate_static is None:
+        (output_dir / "candidate-static.sv").unlink(missing_ok=True)
     filenames = tuple((*sources, *json_documents))
     return {filename: output_dir / filename for filename in filenames}
 

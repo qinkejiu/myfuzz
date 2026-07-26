@@ -529,7 +529,12 @@ def _compile_actions(
             excluded.update(declaration.values)
         elif declaration.kind == "mutual_exclusion":
             for peer_id in declaration.values:
-                excluded.update(destination_raw_bits(peer_id))
+                excluded.update(selector_exclusions[peer_id])
+    transformed_destinations = {
+        declaration.destination_id
+        for declaration in semantic
+        if declaration.kind != "entropy_mix"
+    }
     for declaration in semantic:
         layout = layouts[declaration.destination_id]
         if layout is None:
@@ -572,6 +577,12 @@ def _compile_actions(
         else:
             if len(declaration.values) < selector_width:
                 raise ValueError("entropy_mix selector has too few bits for direct_ratio")
+            if (
+                parameters.direct_ratio > 1
+                and declaration.destination_id in transformed_destinations
+                and set(declaration.values) & selector_exclusions[declaration.destination_id]
+            ):
+                raise ValueError("entropy_mix selector requires independent entropy")
             parameters_for_action = action_parameters(
                 direct_ratio=parameters.direct_ratio,
                 selector_bits=declaration.values,
@@ -615,10 +626,11 @@ def _compile_actions(
         all_raw_bits = inclusive_bits(0, raw_abi.raw_width - 1)
         excluded = selector_exclusions[destination_id]
         safe_bits = tuple(raw_bit for raw_bit in all_raw_bits if raw_bit not in excluded)
-        fallback_bits = tuple(raw_bit for raw_bit in all_raw_bits if raw_bit in excluded)
-        selector_bits = (*safe_bits, *fallback_bits)[:selector_width]
+        if parameters.direct_ratio == 1:
+            safe_bits = all_raw_bits
+        selector_bits = safe_bits[:selector_width]
         if len(selector_bits) < selector_width:
-            raise ValueError("raw ABI has too few bits for direct_ratio")
+            raise ValueError("raw ABI has too few bits of independent entropy for direct_ratio")
         generated_parameters: dict[str, StaticParameterValue] = {
             "direct_ratio": parameters.direct_ratio,
             "selector_bits": selector_bits,
@@ -706,6 +718,31 @@ def _validate_plan_actions(
     action_ids: set[int] = set()
     transform_max_ids: dict[int, int] = {}
     entropy_max_ids: dict[int, int] = {}
+    selector_exclusions: dict[int, set[int]] = {}
+
+    for destination_id, layout in layouts.items():
+        if layout is None:
+            continue
+        fragments = layout[3]
+        bits: set[int] = set()
+        for fragment_lo, fragment_hi in zip(fragments[::3], fragments[1::3]):
+            current = fragment_lo
+            while current <= fragment_hi:
+                bits.add(current)
+                current += 1
+        selector_exclusions[destination_id] = bits
+    for action in actions:
+        values = dict(action.parameters)
+        excluded = selector_exclusions.get(action.destination_id)
+        if excluded is None:
+            continue
+        if action.kind == "dependency_gate":
+            excluded.add(values["gate_bit"])
+        elif action.kind == "rarity_fold":
+            excluded.update(values["fold_bits"])
+        elif action.kind == "mutual_exclusion":
+            for peer_id in values["peer_ids"]:
+                excluded.update(selector_exclusions.get(peer_id, ()))
 
     for action in actions:
         if action.action_id in action_ids:
@@ -779,6 +816,11 @@ def _validate_plan_actions(
                 raise ValueError("rarity_fold action parameters do not match the policy")
         else:
             selector_bits = values["selector_bits"]
+            correlated_selector = (
+                parameters.direct_ratio > 1
+                and action.destination_id in transform_max_ids
+                and bool(set(selector_bits) & selector_exclusions[action.destination_id])
+            )
             if (
                 values["direct_ratio"] != parameters.direct_ratio
                 or not isinstance(selector_bits, tuple)
@@ -786,9 +828,12 @@ def _validate_plan_actions(
                 or tuple(sorted(set(selector_bits))) != selector_bits
                 or any(value >= raw_abi.raw_width for value in selector_bits)
                 or len(selector_bits) < max(1, (parameters.direct_ratio - 1).bit_length())
+                or correlated_selector
             ):
                 if len(selector_bits) < max(1, (parameters.direct_ratio - 1).bit_length()):
                     raise ValueError("entropy_mix selector has too few bits for direct_ratio")
+                if correlated_selector:
+                    raise ValueError("entropy_mix selector requires independent entropy")
                 raise ValueError("entropy_mix action parameters do not match the policy")
             entropy_max_ids[action.destination_id] = max(
                 action.action_id,

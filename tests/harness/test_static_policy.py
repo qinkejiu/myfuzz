@@ -71,7 +71,7 @@ def declarations() -> dict[str, object]:
             {"action_id": 50, "destination_id": 50, "fold_bits": [8, 9]}
         ],
         "entropy_mix": [
-            {"action_id": 60, "destination_id": 10, "selector_bits": [0, 1]}
+            {"action_id": 60, "destination_id": 10, "selector_bits": [4, 5]}
         ],
     }
 
@@ -119,7 +119,7 @@ class StaticPolicyTest(unittest.TestCase):
         self.assertEqual(by_kind["rarity_fold"].parameters, (("fold_bits", (8, 9)), ("rarity", 4)))
         self.assertEqual(
             declared_entropy.parameters,
-            (("direct_ratio", 2), ("selector_bits", (0, 1))),
+            (("direct_ratio", 2), ("selector_bits", (4, 5))),
         )
 
     def test_every_transformed_destination_retains_a_direct_branch(self) -> None:
@@ -165,6 +165,54 @@ class StaticPolicyTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "too few bits for direct_ratio"):
             StaticPolicyPlan(plan.raw_abi, plan.parameters, actions, plan.plan_hash)
 
+    def test_direct_selector_rejects_correlated_destination_entropy(self) -> None:
+        minimal = RawBitAbi(
+            raw_width=1,
+            destinations=(RawDestination(1, 100, 1, 1),),
+            uses=(RawBitUse(0, 0, 1, 0, "direct", "direct"),),
+            abi_hash="not-trusted",
+        )
+        parameters = StaticPolicyParameters(2, 4, 2, "none")
+        declarations = {
+            "mask_align": [
+                {"action_id": 1, "destination_id": 1, "alignment": 2},
+            ],
+        }
+
+        with self.assertRaisesRegex(ValueError, "independent entropy"):
+            compile_static_policy(minimal, declarations, parameters)
+
+        explicit = {
+            **declarations,
+            "entropy_mix": [
+                {"action_id": 2, "destination_id": 1, "selector_bits": [0]},
+            ],
+        }
+        with self.assertRaisesRegex(ValueError, "independent entropy"):
+            compile_static_policy(minimal, explicit, parameters)
+
+        safe_abi = raw_abi()
+        safe = compile_static_policy(
+            safe_abi,
+            {
+                "mask_align": [
+                    {"action_id": 1, "destination_id": 10, "alignment": 2},
+                ],
+                "entropy_mix": [
+                    {"action_id": 2, "destination_id": 10, "selector_bits": [4]},
+                ],
+            },
+            parameters,
+        )
+        direct = next(action for action in safe.actions if action.kind == "entropy_mix")
+        forged = replace(
+            direct,
+            parameters=(("direct_ratio", 2), ("selector_bits", (0,))),
+        )
+        actions = tuple(forged if action is direct else action for action in safe.actions)
+        with self.assertRaisesRegex(ValueError, "independent entropy"):
+            StaticPolicyPlan(safe.raw_abi, safe.parameters, actions, safe.plan_hash)
+
     def test_priority_exclusion_requires_lower_stable_id_peers(self) -> None:
         with self.assertRaisesRegex(ValueError, "priority peers must have lower stable IDs"):
             compile_static_policy(
@@ -208,7 +256,11 @@ class StaticPolicyTest(unittest.TestCase):
         }
 
         with patch("builtins.range", side_effect=AssertionError("range materialization")):
-            plan = compile_static_policy(wide, semantic, BALANCED_POLICY)
+            plan = compile_static_policy(
+                wide,
+                semantic,
+                StaticPolicyParameters(1, 4, 2, "one_hot"),
+            )
 
         action = next(item for item in plan.actions if item.kind == "legal_set")
         self.assertEqual(dict(action.parameters)["values"], (0, (1 << 32) - 1))
@@ -226,7 +278,7 @@ class StaticPolicyTest(unittest.TestCase):
         plan = compile_static_policy(
             fragmented,
             {"mask_align": [{"action_id": 1, "destination_id": 7, "alignment": 2}]},
-            BALANCED_POLICY,
+            StaticPolicyParameters(1, 4, 2, "one_hot"),
         )
 
         action = next(item for item in plan.actions if item.kind == "mask_align")

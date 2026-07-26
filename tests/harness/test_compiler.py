@@ -893,6 +893,32 @@ class HarnessCompilerTest(unittest.TestCase):
                 self.assertEqual(f"{name}.sv", fragment["harnesses"][name]["source"])
             self.assertNotIn(directory, json.dumps(fragment, sort_keys=True))
 
+    def test_rewrite_removes_static_artifact_absent_from_new_bundle(self) -> None:
+        facts, composition, manifest = load_runtime_documents()
+        static_bundle = compile_harness_bundle(
+            facts,
+            composition,
+            manifest,
+            protocols(),
+            static_declarations={
+                "legal_set": [
+                    {"action_id": 1, "destination_id": 10, "values": [0, 1]},
+                ],
+            },
+            static_parameters=StaticPolicyParameters(2, 4, 2, "none"),
+        )
+        direct_bundle = compile_harness_bundle(facts, composition, manifest, protocols())
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "bundle"
+            write_harness_bundle(static_bundle, output)
+            self.assertTrue((output / "candidate-static.sv").exists())
+
+            paths = write_harness_bundle(direct_bundle, output)
+
+            self.assertFalse((output / "candidate-static.sv").exists())
+            self.assertEqual(set(paths), {path.name for path in output.iterdir()})
+
     def test_rejects_missing_baseline_and_incomplete_runtime_evidence(self) -> None:
         facts, composition, manifest = load_runtime_documents()
         cases: list[tuple[str, dict[str, object], dict[str, object], dict[str, object]]] = []
