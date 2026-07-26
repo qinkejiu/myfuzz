@@ -113,14 +113,31 @@ def _metric(summary: Mapping[str, object], name: str) -> float:
 
 
 def _normal_exit(summary: Mapping[str, object]) -> bool:
-    return_code = summary.get("return_code", 0)
+    if "runtime" not in summary:
+        runtime: Mapping[str, object] | None = None
+    elif isinstance(summary["runtime"], Mapping):
+        runtime_value = summary["runtime"]
+        runtime = runtime_value
+    else:
+        raise ValueError("runtime must be an object")
+    status_fields = ("return_code", "failure_reasons")
+    top_level_status = any(field in summary for field in status_fields)
+    runtime_status = runtime is not None and any(field in runtime for field in status_fields)
+    if top_level_status and runtime_status:
+        raise ValueError("status must use exactly one representation")
+    status = runtime if runtime_status else summary
+    return_code = status.get("return_code", 0)
     if isinstance(return_code, bool) or not isinstance(return_code, int):
         raise ValueError("return_code must be an integer")
-    failures = summary.get("failure_reasons", {})
+    failures = status.get("failure_reasons", {})
     if not isinstance(failures, Mapping):
         raise ValueError("failure_reasons must be an object")
-    for reason in ("dut_crash", "resource_terminated"):
-        if _number(failures.get(reason, 0), f"failure_reasons.{reason}", positive=False) > 0:
+    for reason, count in failures.items():
+        _string(reason, "failure_reasons key")
+        if _number(count, f"failure_reasons.{reason}", positive=False) > 0 and reason in {
+            "dut_crash",
+            "resource_terminated",
+        }:
             return False
     return return_code == 0
 
@@ -135,12 +152,15 @@ def _parameters(value: object) -> StaticPolicyParameters:
     }
     if set(document) != expected:
         raise ValueError("parameters must contain exactly the global policy fields")
-    return StaticPolicyParameters(
-        document["direct_ratio"],
-        document["event_rarity"],
-        document["legal_set_strength"],
-        document["mutual_exclusion"],
-    )
+    try:
+        return StaticPolicyParameters(
+            document["direct_ratio"],
+            document["event_rarity"],
+            document["legal_set_strength"],
+            document["mutual_exclusion"],
+        )
+    except (TypeError, ValueError) as error:
+        raise ValueError("parameters contain invalid values") from error
 
 
 def _pair_metrics(value: object) -> _PairMetrics:
@@ -257,7 +277,10 @@ def promote(results: object) -> tuple[PromotionDecision, ...]:
             targets[pair.target_id].append(pair)
         if len(targets) != 2:
             continue
-        target_improvements = [median(pair.coverage_improvement for pair in target) for target in targets.values()]
+        target_improvements = [
+            median(pair.coverage_improvement for pair in targets[target_id])
+            for target_id in sorted(targets)
+        ]
         if any(value < PROMOTION_IMPROVEMENT for value in target_improvements):
             continue
         if any(pair.coverage_improvement < PROMOTION_MAX_REGRESSION for pair in pairs):
@@ -272,7 +295,7 @@ def promote(results: object) -> tuple[PromotionDecision, ...]:
                 next(iter(plan_hashes)),
                 next(iter(parameter_sets)),
                 min(target_improvements),
-                mean(pair.coverage_improvement for pair in pairs),
+                mean(target_improvements),
                 throughput,
                 content_hash({"pairs": evidence}),
                 evidence,

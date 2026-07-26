@@ -5,13 +5,18 @@ import math
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from myfuzz.experiments import static_portfolio as portfolio_module
 from myfuzz.experiments.static_portfolio import (
     PORTFOLIO,
+    compile_portfolio,
     freeze_policy,
     promote,
     screen,
 )
+from myfuzz.harness.abi import RawBitAbi, RawBitUse, RawDestination, content_hash
+from myfuzz.harness.static_policy import compile_static_policy
 
 
 def pair(
@@ -49,6 +54,17 @@ def abnormal_pair() -> dict[str, object]:
     return pair(return_code=1)
 
 
+def report_pair(**kwargs: object) -> dict[str, object]:
+    value = pair(**kwargs)
+    for summary in (value["baseline"], value["candidate"]):
+        summary["runtime"] = {
+            "tests_per_second": summary.pop("tests_per_second"),
+            "failure_reasons": {"dut_crash": 0, "resource_terminated": 0},
+        }
+        summary.pop("return_code")
+    return value
+
+
 class StaticPortfolioTest(unittest.TestCase):
     def setUp(self) -> None:
         self.training_results = [
@@ -63,6 +79,33 @@ class StaticPortfolioTest(unittest.TestCase):
         self.assertEqual(screen(abnormal_pair()).reason, "abnormal_exit")
         self.assertEqual(screen(pair(coverage_ratio=.94)).reason, "coverage_loss")
         self.assertEqual(screen(pair(throughput_ratio=.849)).reason, "throughput")
+
+    def test_nested_report_failure_status_rejects_screen_and_promotion(self) -> None:
+        abnormal = report_pair(policy_id="runtime", target_id="target-a", coverage_ratio=1.20)
+        abnormal["candidate"]["runtime"]["failure_reasons"]["dut_crash"] = 1  # type: ignore[index]
+        normal = report_pair(policy_id="runtime", target_id="target-b", coverage_ratio=1.20)
+
+        self.assertEqual(screen(abnormal).reason, "abnormal_exit")
+        self.assertEqual(promote([abnormal, normal]), ())
+
+    def test_status_representations_are_consistent_and_malformed_values_fail_closed(self) -> None:
+        duplicate = report_pair()
+        duplicate["candidate"]["failure_reasons"] = {}  # type: ignore[index]
+        malformed = report_pair()
+        malformed["candidate"]["runtime"]["failure_reasons"] = []  # type: ignore[index]
+        null_runtime = pair()
+        null_runtime["candidate"]["runtime"] = None  # type: ignore[index]
+        for value in (duplicate, malformed, null_runtime):
+            with self.subTest(value=value):
+                self.assertEqual(screen(value).reason, "invalid")
+
+    def test_json_shaped_parameter_type_errors_fail_closed(self) -> None:
+        malformed = pair(policy_id="bad-parameters", target_id="target-a")
+        malformed["parameters"]["mutual_exclusion"] = []  # type: ignore[index]
+        normal = pair(policy_id="bad-parameters", target_id="target-b", coverage_ratio=1.20)
+
+        self.assertEqual(screen(malformed).reason, "invalid")
+        self.assertEqual(promote([malformed, normal]), ())
 
     def test_screen_accepts_exact_five_and_eighty_five_percent_boundaries(self) -> None:
         self.assertTrue(screen(pair(coverage_ratio=.95, throughput_ratio=.85)).accepted)
@@ -84,6 +127,53 @@ class StaticPortfolioTest(unittest.TestCase):
     def test_promotion_requires_both_targets_and_ranks_worst_target_first(self) -> None:
         decisions = promote(self.training_results)
         self.assertEqual([item.policy_id for item in decisions], ["policy-3", "policy-1"])
+
+    def test_ranking_uses_the_mean_of_target_median_improvements(self) -> None:
+        results = [
+            *[
+                pair(policy_id="target-median", target_id="target-a", coverage_ratio=1.10)
+                for _ in range(9)
+            ],
+            pair(policy_id="target-median", target_id="target-b", coverage_ratio=1.50),
+            pair(policy_id="raw-pair", target_id="target-a", coverage_ratio=1.10),
+            *[
+                pair(policy_id="raw-pair", target_id="target-b", coverage_ratio=1.30)
+                for _ in range(9)
+            ],
+        ]
+
+        self.assertEqual(
+            [decision.policy_id for decision in promote(results)],
+            ["target-median", "raw-pair"],
+        )
+
+    def test_ranking_breaks_ties_by_mean_throughput_then_stable_policy_id(self) -> None:
+        results = [
+            pair(policy_id="mean-high", target_id="target-a", coverage_ratio=1.11),
+            pair(policy_id="mean-high", target_id="target-b", coverage_ratio=1.20),
+            pair(policy_id="mean-low", target_id="target-a", coverage_ratio=1.11),
+            pair(policy_id="mean-low", target_id="target-b", coverage_ratio=1.18),
+            pair(policy_id="throughput-high", target_id="target-a", coverage_ratio=1.10, throughput_ratio=.95),
+            pair(policy_id="throughput-high", target_id="target-b", coverage_ratio=1.10, throughput_ratio=.95),
+            pair(policy_id="throughput-low", target_id="target-a", coverage_ratio=1.10, throughput_ratio=.90),
+            pair(policy_id="throughput-low", target_id="target-b", coverage_ratio=1.10, throughput_ratio=.90),
+            pair(policy_id="policy-a", target_id="target-a", coverage_ratio=1.10, throughput_ratio=.90),
+            pair(policy_id="policy-a", target_id="target-b", coverage_ratio=1.10, throughput_ratio=.90),
+            pair(policy_id="policy-b", target_id="target-a", coverage_ratio=1.10, throughput_ratio=.90),
+            pair(policy_id="policy-b", target_id="target-b", coverage_ratio=1.10, throughput_ratio=.90),
+        ]
+
+        self.assertEqual(
+            [decision.policy_id for decision in promote(results)],
+            [
+                "mean-high",
+                "mean-low",
+                "throughput-high",
+                "policy-a",
+                "policy-b",
+                "throughput-low",
+            ],
+        )
 
     def test_promotion_accepts_exact_ten_two_and_ninety_percent_boundaries(self) -> None:
         results = [
@@ -130,6 +220,27 @@ class StaticPortfolioTest(unittest.TestCase):
         self.assertEqual(len(set(PORTFOLIO)), 54)
         self.assertEqual((1, 2, 1, "none"), self._parameter_values(PORTFOLIO[0]))
         self.assertEqual((4, 8, 2, "priority"), self._parameter_values(PORTFOLIO[-1]))
+
+    def test_compile_portfolio_deduplicates_real_compiler_plan_hashes(self) -> None:
+        destination = RawDestination(1, 1, 1, 1)
+        raw_use = RawBitUse(0, 0, 1, 0, "direct", "direct")
+        raw_abi = RawBitAbi(
+            1,
+            (destination,),
+            (raw_use,),
+            content_hash(
+                {
+                    "raw_width": 1,
+                    "destinations": [{"destination_id": 1, "component_id": 1, "port_id": 1, "width": 1}],
+                    "uses": [{"raw_lo": 0, "raw_hi": 0, "destination_id": 1, "destination_lo": 0, "action": "direct", "category": "direct"}],
+                }
+            ),
+        )
+        with patch.object(portfolio_module, "PORTFOLIO", (PORTFOLIO[0], PORTFOLIO[0])):
+            plans = compile_portfolio(raw_abi, {})
+
+        self.assertEqual(1, len(plans))
+        self.assertEqual(plans[0], compile_static_policy(raw_abi, {}, PORTFOLIO[0]))
 
     def test_freeze_publishes_canonical_immutable_evidence(self) -> None:
         decision = promote(self.training_results)[0]
