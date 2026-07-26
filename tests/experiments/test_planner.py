@@ -238,8 +238,8 @@ class ExperimentPlannerTest(unittest.TestCase):
             malformed_hash = copy.deepcopy(manifest)
             malformed_hash["harnesses"]["candidate-static"][field] = "not-a-hash"
             with self.subTest(malformed=field), self.assertRaisesRegex(
-                ExperimentPlanError,
-                rf"candidate-static.{field}.*canonical SHA-256",
+                ContractError,
+                rf"candidate_manifest\.v1:harnesses:candidate-static:{field}:invalid-hash",
             ):
                 plan_experiment(config, [malformed_hash])
 
@@ -626,6 +626,21 @@ class ExperimentPlannerTest(unittest.TestCase):
 
         with self.assertRaises(ContractError):
             plan_experiment(self.rvx, [invalid])
+
+    def test_manifest_contract_rejects_malformed_harness_identity_hashes(self) -> None:
+        malformed_values = (
+            ("flat-direct", "content_hash", "not-a-hash"),
+            ("candidate-direct", "abi_hash", "also-not-a-hash"),
+            ("candidate-depaware", "projection_plan_hash", "sha256:short"),
+        )
+        for harness, field, value in malformed_values:
+            invalid = copy.deepcopy(self.manifest)
+            invalid["harnesses"][harness] = {field: value}
+            with self.subTest(harness=harness, field=field), self.assertRaisesRegex(
+                ContractError,
+                rf"candidate_manifest\.v1:harnesses:{harness}:{field}:invalid-hash",
+            ):
+                plan_experiment(self.rvx, [invalid])
 
     def test_duplicate_candidate_ids_are_rejected(self) -> None:
         with self.assertRaisesRegex(ExperimentPlanError, "candidate IDs must be unique"):

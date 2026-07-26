@@ -159,6 +159,13 @@ def _validate_manifest(document: Mapping[str, object], schema_id: str) -> None:
     for group in ("flat-direct", "candidate-direct", "candidate-depaware"):
         if group not in harnesses or group not in mappings:
             _error(schema_id, group, "missing")
+    for group, harness_value in harnesses.items():
+        if not isinstance(harness_value, Mapping):
+            continue
+        for field in ("content_hash", "abi_hash", "projection_plan_hash"):
+            value = harness_value.get(field)
+            if value is not None:
+                _hash(value, schema_id, f"harnesses.{group}.{field}")
     for index, port_value in enumerate(_array(document["top_port_abi"], schema_id, "top_port_abi")):
         port = _object(port_value, schema_id, f"top_port_abi[{index}]")
         _require(port, schema_id, ("port_id", "emitted_name", "direction", "width"))
