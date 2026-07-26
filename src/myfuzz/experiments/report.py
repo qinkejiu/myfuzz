@@ -10,7 +10,12 @@ from dataclasses import dataclass
 from myfuzz.contracts import canonical_bytes, content_hash, validate_contract
 
 from .identity import candidate_semantic_hash
-from .planner import ExperimentJob, ExperimentPlan, HarnessIdentity
+from .planner import (
+    ExperimentJob,
+    ExperimentPlan,
+    ExperimentPlanError,
+    validate_candidate_pair_fairness,
+)
 
 
 class ReportError(ValueError):
@@ -453,38 +458,31 @@ def _plan_index(plan: ExperimentPlan) -> _PlanIndex:
         previous = universes.setdefault(key, job.coverage_universe)
         if previous != job.coverage_universe:
             raise ReportError(f"plan has inconsistent coverage universes for {job.candidate_id}/{job.harness}")
+    audit_flags = (
+        plan.fairness.candidate_pair_has_equal_budget,
+        plan.fairness.candidate_pair_has_equal_seeds,
+        plan.fairness.candidate_pair_has_equal_raw_width,
+        plan.fairness.shared_instrumented_rtl,
+        plan.fairness.shared_coverage_universe,
+        plan.fairness.shared_coverage_metadata,
+    )
+    if any(flag is not True for flag in audit_flags):
+        raise ReportError("plan fairness audit flags must all be true")
+    try:
+        audited_fairness = validate_candidate_pair_fairness(
+            tuple(jobs_by_id.values()),
+            ("candidate-direct", candidate_harness),
+        )
+    except ExperimentPlanError as exc:
+        raise ReportError(str(exc)) from exc
+    if pair_identities != audited_fairness.candidate_pair_identities:
+        raise ReportError("plan fairness identity does not match jobs")
     for candidate_id in candidate_ids:
         direct_key = (candidate_id, "candidate-direct")
         candidate_key = (candidate_id, candidate_harness)
         flat_key = (candidate_id, "flat-direct")
         if direct_key not in universes or candidate_key not in universes or flat_key not in universes:
             raise ReportError(f"plan is missing a harness group for {candidate_id}")
-        pair_identity = next(
-            identity
-            for identity in pair_identities
-            if identity.candidate_id == candidate_id
-        )
-        jobs_for_candidate = tuple(
-            job for job in jobs_by_id.values() if job.candidate_id == candidate_id
-        )
-        for harness, expected in (
-            ("candidate-direct", pair_identity.direct),
-            (candidate_harness, pair_identity.candidate),
-        ):
-            planned_identities = {
-                HarnessIdentity(
-                    raw_width=job.raw_width,
-                    instrumented_rtl_hash=job.instrumented_rtl_hash,
-                    coverage_universe=job.coverage_universe,
-                    coverage_metadata_hash=job.coverage_metadata_hash,
-                )
-                for job in jobs_for_candidate
-                if job.harness == harness
-            }
-            if planned_identities != {expected}:
-                raise ReportError(
-                    f"plan fairness identity does not match jobs for {candidate_id}/{harness}"
-                )
         if universes[direct_key] != universes[candidate_key]:
             raise ReportError(f"candidate pair coverage universe must be shared for {candidate_id}")
         if universes[flat_key] == universes[direct_key]:

@@ -976,8 +976,8 @@ def _audit_fairness(
 
 def _require_fairness(audit: FairnessAudit) -> None:
     checks = (
-        (audit.candidate_pair_has_equal_budget, "candidate pair budget must be equal"),
         (audit.candidate_pair_has_equal_seeds, "candidate pair seeds must be equal"),
+        (audit.candidate_pair_has_equal_budget, "candidate pair budget must be equal"),
         (audit.candidate_pair_has_equal_raw_width, "candidate pair raw width must be equal"),
         (audit.shared_instrumented_rtl, "candidate pair instrumented RTL must be shared"),
         (audit.shared_coverage_universe, "candidate pair coverage universe must be shared"),
@@ -986,6 +986,34 @@ def _require_fairness(audit: FairnessAudit) -> None:
     for passed, message in checks:
         if not passed:
             raise ExperimentPlanError(message)
+
+
+def validate_candidate_pair_fairness(
+    jobs: tuple[ExperimentJob, ...],
+    comparison_pair: tuple[str, str],
+) -> FairnessAudit:
+    """Recompute and require the frozen candidate-pair fairness contract."""
+    audit = _audit_fairness(jobs, comparison_pair)
+    _require_fairness(audit)
+    direct_harness, candidate_harness = comparison_pair
+    for candidate_id in sorted({job.candidate_id for job in jobs}):
+        mutations_by_cell = {
+            harness: {
+                (
+                    job.seed,
+                    job.budget_name,
+                    job.budget_kind,
+                    job.budget_value,
+                    job.mutation,
+                )
+                for job in jobs
+                if job.candidate_id == candidate_id and job.harness == harness
+            }
+            for harness in comparison_pair
+        }
+        if mutations_by_cell[direct_harness] != mutations_by_cell[candidate_harness]:
+            raise ExperimentPlanError("candidate pair mutation must be equal")
+    return audit
 
 
 def _run_blocks(
@@ -1071,8 +1099,10 @@ def plan_experiment(config: object, candidate_manifests: Sequence[object]) -> Ex
     )
     for fuzz_job in frozen_jobs:
         resolve_build_prerequisite(prerequisite_plan, fuzz_job)
-    fairness = _audit_fairness(frozen_jobs, parsed_config.comparison_pair)
-    _require_fairness(fairness)
+    fairness = validate_candidate_pair_fairness(
+        frozen_jobs,
+        parsed_config.comparison_pair,
+    )
     run_blocks = _run_blocks(frozen_jobs, parsed_config, selected)
     plan_document = {
         "build_jobs": [_base_job_document(job) for job in build_jobs],

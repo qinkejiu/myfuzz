@@ -449,6 +449,92 @@ class ExperimentReportTest(unittest.TestCase):
             ):
                 build_report(stale, self.manifests, self.samples, self.reference)
 
+    def test_report_requires_all_candidate_pair_fairness_audit_flags(self) -> None:
+        for field in (
+            "candidate_pair_has_equal_budget",
+            "candidate_pair_has_equal_seeds",
+            "candidate_pair_has_equal_raw_width",
+            "shared_instrumented_rtl",
+            "shared_coverage_universe",
+            "shared_coverage_metadata",
+        ):
+            stale = replace(
+                self.plan,
+                fairness=replace(self.plan.fairness, **{field: False}),
+            )
+
+            with self.subTest(field=field), self.assertRaisesRegex(
+                ReportError,
+                "fairness audit flags",
+            ):
+                build_report(stale, self.manifests, self.samples, self.reference)
+
+    def test_report_recomputes_candidate_pair_fairness_from_jobs(self) -> None:
+        candidate_id = "candidate-a"
+        candidate_harness = self.plan.fairness.candidate_pair_identities[0].candidate_harness
+        cases = (
+            ("budget", "budget", {}, {}),
+            ("seeds", "seeds", {}, {}),
+            ("raw width", "raw_width", {"raw_width": 2}, {"raw_width": 2}),
+            (
+                "instrumented RTL",
+                "instrumented_rtl_hash",
+                {"instrumented_rtl_hash": sha256_id("unpaired-rtl")},
+                {"instrumented_rtl_hash": sha256_id("unpaired-rtl")},
+            ),
+            (
+                "coverage universe",
+                "coverage_universe",
+                {"coverage_universe": sha256_id("unpaired-universe")},
+                {"coverage_universe": sha256_id("unpaired-universe")},
+            ),
+            (
+                "coverage metadata",
+                "coverage_metadata_hash",
+                {"coverage_metadata_hash": sha256_id("unpaired-metadata")},
+                {"coverage_metadata_hash": sha256_id("unpaired-metadata")},
+            ),
+            ("mutation", "mutation", {"mutation": (("unpaired", True),)}, {}),
+        )
+        identity = self.plan.fairness.candidate_pair_identities[0]
+
+        for expected, _field, job_changes, identity_changes in cases:
+            def forge_job(job: ExperimentJob) -> ExperimentJob:
+                changes = dict(job_changes)
+                if _field == "budget":
+                    changes["budget_name"] = f"{job.budget_name}-unpaired"
+                elif _field == "seeds":
+                    changes["seed"] = job.seed + 100
+                return replace(job, **changes)
+
+            forged_identity = replace(
+                identity,
+                candidate=replace(identity.candidate, **identity_changes),
+            )
+            tampered = replace(
+                self.plan,
+                jobs=tuple(
+                    forge_job(job)
+                    if job.candidate_id == candidate_id
+                    and job.harness == candidate_harness
+                    else job
+                    for job in self.plan.jobs
+                ),
+                fairness=replace(
+                    self.plan.fairness,
+                    candidate_pair_identities=(
+                        forged_identity,
+                        *self.plan.fairness.candidate_pair_identities[1:],
+                    ),
+                ),
+            )
+
+            with self.subTest(field=_field), self.assertRaisesRegex(
+                ReportError,
+                f"candidate pair {expected}",
+            ):
+                build_report(tampered, self.manifests, self.samples, self.reference)
+
     def test_reference_comparison_uses_only_stable_source_intersection(self) -> None:
         report = build_report(self.plan, self.manifests, self.samples, self.reference)
         comparison = report["candidates"]["candidate-a"]["budgets"]["long"]["reference_comparison"]
