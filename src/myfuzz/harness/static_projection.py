@@ -5,13 +5,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from .abi import RawBitAbi, content_hash, control_declarations, manifest_ports
-from .direct import HarnessArtifact, _constant, _logic, _sv_identifier, candidate_id, coverage_id, top_content_hash
+from .direct import HarnessArtifact, _constant, _identifier, _logic, candidate_id, coverage_id, top_content_hash
 from .static_policy import StaticAction, StaticPolicyPlan
 
 
 def _escaped_sv_identifier(value: object, fallback: str) -> str:
-    identifier = _sv_identifier(value, fallback)
-    return identifier if identifier.startswith("\\") else f"\\{identifier} "
+    return f"\\{_identifier(value, fallback)} "
 
 
 def _parameter(action: StaticAction, name: str) -> int | str | tuple[int, ...]:
@@ -46,6 +45,7 @@ def _apply_selection_or_entropy(
     projected_value: int,
     direct_value: int,
     raw_value: int,
+    peer_values: Mapping[int, int],
 ) -> int:
     if action.kind == "mutual_exclusion":
         mode = _parameter(action, "mode")
@@ -53,8 +53,13 @@ def _apply_selection_or_entropy(
         if mode == "none":
             return projected_value
         if mode == "one_hot":
-            return projected_value & -projected_value
-        return int(projected_value != 0)
+            return projected_value if not any(peer_values.values()) else 0
+        lower_priority_active = any(
+            value
+            for destination_id, value in peer_values.items()
+            if destination_id < action.destination_id
+        )
+        return projected_value if not lower_priority_active else 0
     assert action.kind == "entropy_mix"
     return direct_value if _fold(raw_value, action) == 0 else projected_value
 
@@ -64,6 +69,7 @@ def _apply(
     projected_value: int,
     direct_value: int,
     raw_value: int,
+    peer_values: Mapping[int, int],
 ) -> int:
     if action.kind == "mask_align":
         mask = _parameter(action, "mask")
@@ -76,7 +82,13 @@ def _apply(
         return projected_value if _raw_bit(raw_value, _parameter(action, "gate_bit")) else 0
     if action.kind == "rarity_fold":
         return int(_fold(raw_value, action) == 0)
-    return _apply_selection_or_entropy(action, projected_value, direct_value, raw_value)
+    return _apply_selection_or_entropy(
+        action,
+        projected_value,
+        direct_value,
+        raw_value,
+        peer_values,
+    )
 
 
 def _raw_values(abi: RawBitAbi, raw_value: int) -> dict[int, int]:
@@ -100,11 +112,16 @@ def project_static_sample(plan: StaticPolicyPlan, raw_value: int) -> dict[int, i
     widths = {destination.destination_id: destination.width for destination in plan.raw_abi.destinations}
     for action in plan.actions:
         destination_id = action.destination_id
+        peer_values = {
+            peer_id: values[peer_id]
+            for peer_id in _tuple_parameter(action, "peer_ids")
+        } if action.kind == "mutual_exclusion" else {}
         values[destination_id] = _apply(
             action,
             values[destination_id],
             direct_values[destination_id],
             raw_value,
+            peer_values,
         ) & (
             (1 << widths[destination_id]) - 1
         )
@@ -134,6 +151,7 @@ def _selection_expression(
     source: str,
     direct: str,
     width: int,
+    peer_sources: Mapping[int, str],
 ) -> str:
     if action.kind == "mutual_exclusion":
         mode = _parameter(action, "mode")
@@ -141,8 +159,17 @@ def _selection_expression(
         if mode == "none":
             return source
         if mode == "one_hot":
-            return f"(({source}) & -({source}))"
-        return f"(({source}) != {_constant(width, 0)})"
+            competing = tuple(peer_sources.values())
+        else:
+            competing = tuple(
+                peer_source
+                for destination_id, peer_source in peer_sources.items()
+                if destination_id < action.destination_id
+            )
+        if not competing:
+            return source
+        active = " || ".join(f"(({peer}) != 0)" for peer in competing)
+        return f"(({active}) ? {_constant(width, 0)} : ({source}))"
     bits = _tuple_parameter(action, "selector_bits")
     direct_ratio = _parameter(action, "direct_ratio")
     assert isinstance(direct_ratio, int)
@@ -150,7 +177,13 @@ def _selection_expression(
     return f"((({folded}) % {direct_ratio}) == 0 ? ({direct}) : ({source}))"
 
 
-def _action_expression(action: StaticAction, source: str, direct: str, width: int) -> str:
+def _action_expression(
+    action: StaticAction,
+    source: str,
+    direct: str,
+    width: int,
+    peer_sources: Mapping[int, str],
+) -> str:
     if action.kind == "mask_align":
         mask = _parameter(action, "mask")
         assert isinstance(mask, int)
@@ -175,7 +208,7 @@ def _action_expression(action: StaticAction, source: str, direct: str, width: in
         assert isinstance(rarity, int)
         folded = "{" + ", ".join(f"rfuzz_input_bits[{bit}]" for bit in reversed(bits)) + "}"
         return f"((({folded}) % {rarity}) == 0)"
-    return _selection_expression(action, source, direct, width)
+    return _selection_expression(action, source, direct, width, peer_sources)
 
 
 def emit_static_projection(manifest: object, plan: StaticPolicyPlan) -> str:
@@ -206,9 +239,30 @@ def emit_static_projection(manifest: object, plan: StaticPolicyPlan) -> str:
         f"    // purely combinational static projection of {top['module']}",
     ]
     destinations = {destination.port_id: destination for destination in plan.raw_abi.destinations}
-    actions = {destination.destination_id: [] for destination in plan.raw_abi.destinations}
+    destination_by_id = {
+        destination.destination_id: destination
+        for destination in plan.raw_abi.destinations
+    }
+    direct_expressions = {
+        destination_id: _raw_expression(plan.raw_abi, destination_id, destination.width)
+        for destination_id, destination in destination_by_id.items()
+    }
+    expressions = dict(direct_expressions)
+    action_comments = {destination_id: [] for destination_id in destination_by_id}
     for action in plan.actions:
-        actions[action.destination_id].append(action)
+        destination_id = action.destination_id
+        peer_sources = {
+            peer_id: expressions[peer_id]
+            for peer_id in _tuple_parameter(action, "peer_ids")
+        } if action.kind == "mutual_exclusion" else {}
+        expressions[destination_id] = _action_expression(
+            action,
+            expressions[destination_id],
+            direct_expressions[destination_id],
+            destination_by_id[destination_id].width,
+            peer_sources,
+        )
+        action_comments[destination_id].append(action)
     ports = manifest_ports(manifest)
     for port in ports:
         port_id, width = port["port_id"], port["width"]
@@ -225,24 +279,12 @@ def emit_static_projection(manifest: object, plan: StaticPolicyPlan) -> str:
             lines.append(f"    assign {signal} = {expression};")
         elif port_id in destinations:
             destination = destinations[port_id]
-            direct_expression = _raw_expression(
-                plan.raw_abi,
-                destination.destination_id,
-                width,
-            )
-            expression = direct_expression
-            for action in actions[destination.destination_id]:
+            for action in action_comments[destination.destination_id]:
                 if action.kind == "entropy_mix":
                     lines.append(f"    // direct sample branch for port {port_id}")
                 else:
                     lines.append(f"    // action {action.action_id} {action.kind} for port {port_id}")
-                expression = _action_expression(
-                    action,
-                    expression,
-                    direct_expression,
-                    width,
-                )
-            lines.append(f"    assign {signal} = {expression};")
+            lines.append(f"    assign {signal} = {expressions[destination.destination_id]};")
         elif port["direction"] in {"input", "inout"}:
             value = port.get("constant_value", port.get("reset_value"))
             assert isinstance(value, int)

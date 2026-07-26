@@ -126,8 +126,25 @@ class StaticProjectionTest(unittest.TestCase):
         self.assertEqual(project_static_sample(self.plan, 1 << 7)[30], 0)
         self.assertEqual(project_static_sample(self.plan, (1 << 7) | 1)[30], 1)
         self.assertEqual(project_static_sample(self.plan, 1 << 8)[40], 1)
+        self.assertEqual(project_static_sample(self.plan, (1 << 8) | (1 << 7) | 1)[40], 0)
         self.assertEqual(project_static_sample(self.plan, 1 << 9)[50], 1)
         self.assertEqual(project_static_sample(self.plan, (1 << 9) | 1)[50], 0)
+
+    def test_priority_mutual_exclusion_uses_stable_destination_ids(self) -> None:
+        priority_plan = compile_static_policy(
+            raw_abi(),
+            {
+                "mutual_exclusion": [
+                    {"action_id": 40, "destination_id": 40, "peer_ids": [30]},
+                ],
+            },
+            StaticPolicyParameters(2, 4, 2, "priority"),
+        )
+
+        projected = project_static_sample(priority_plan, (1 << 8) | (1 << 7))
+
+        self.assertEqual(projected[30], 1)
+        self.assertEqual(projected[40], 0)
 
     def test_generated_fixture_passes_verilator_lint(self) -> None:
         if shutil.which("verilator") is None:
