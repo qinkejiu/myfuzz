@@ -19,8 +19,9 @@ class ReportError(ValueError):
 
 _UINT32_MAX = (1 << 32) - 1
 _UINT64_MAX = (1 << 64) - 1
-_HARNESS_GROUPS = frozenset(("flat-direct", "candidate-direct", "candidate-depaware"))
-_CANDIDATE_GROUPS = ("candidate-direct", "candidate-depaware")
+_SUPPORTED_CANDIDATE_HARNESSES = frozenset(
+    ("candidate-depaware", "candidate-static")
+)
 _CUMULATIVE_COUNTER_FIELDS = (
     "tests_executed",
     "cycles_executed",
@@ -119,6 +120,9 @@ class _PlanIndex:
     candidate_budgets: dict[str, tuple[str, ...]]
     budget_metadata: dict[str, tuple[str, int]]
     universes: dict[tuple[str, str], str]
+    candidate_harness: str
+    harness_groups: tuple[str, ...]
+    projection_plan_hash: str | None
 
 
 def _object(value: object, label: str) -> Mapping[str, object]:
@@ -240,7 +244,11 @@ def _manifest_coverage_universe_override(
     return None
 
 
-def _parse_manifest(value: object, index: int) -> _CandidateManifest:
+def _parse_manifest(
+    value: object,
+    index: int,
+    harness_groups: tuple[str, ...],
+) -> _CandidateManifest:
     validate_contract(value, "candidate_manifest.v1")
     manifest = _object(value, f"candidate_manifests[{index}]")
     candidate_id = _string(manifest.get("candidate_id"), f"candidate_manifests[{index}].candidate_id")
@@ -299,7 +307,7 @@ def _parse_manifest(value: object, index: int) -> _CandidateManifest:
     fallback_width = _fallback_raw_width(manifest)
     raw_widths = tuple(
         (harness, _manifest_raw_width(manifest, harness, fallback_width))
-        for harness in sorted(_HARNESS_GROUPS)
+        for harness in sorted(harness_groups)
     )
     instrumented_rtl_hashes = tuple(
         (
@@ -310,14 +318,14 @@ def _parse_manifest(value: object, index: int) -> _CandidateManifest:
                 top_content_hash,
             ),
         )
-        for harness in sorted(_HARNESS_GROUPS)
+        for harness in sorted(harness_groups)
     )
     default_coverage_universe = content_hash(
         {"coverage_universe": sorted(coverage_points, key=canonical_bytes)}
     )
     coverage_universe_overrides = tuple(
         (harness, _manifest_coverage_universe_override(manifest, harness))
-        for harness in sorted(_HARNESS_GROUPS)
+        for harness in sorted(harness_groups)
     )
     candidate_hash = candidate_semantic_hash(manifest)
     return _CandidateManifest(
@@ -333,7 +341,11 @@ def _parse_manifest(value: object, index: int) -> _CandidateManifest:
     )
 
 
-def _parse_sample(value: object, index: int) -> _Sample:
+def _parse_sample(
+    value: object,
+    index: int,
+    harness_groups: tuple[str, ...],
+) -> _Sample:
     label = f"samples[{index}]"
     sample = _object(value, label)
     covered_point_ids = tuple(
@@ -368,7 +380,7 @@ def _parse_sample(value: object, index: int) -> _Sample:
         validation_passed=_uint64(sample.get("validation_passed"), f"{label}.validation_passed"),
         failure_reasons=_counter_map(sample.get("failure_reasons"), f"{label}.failure_reasons"),
     )
-    if parsed.harness not in _HARNESS_GROUPS:
+    if parsed.harness not in harness_groups:
         raise ReportError(f"{label}.harness is not declared by the report contract")
     if parsed.validation_passed > parsed.generation_count:
         raise ReportError(f"{label}.validation_passed must not exceed generation_count")
@@ -379,6 +391,16 @@ def _plan_index(plan: ExperimentPlan) -> _PlanIndex:
     if not isinstance(plan, ExperimentPlan):
         raise ReportError("plan must be an ExperimentPlan")
     candidate_ids = tuple(sorted({job.candidate_id for job in plan.jobs}))
+    pair_identities = plan.fairness.candidate_pair_identities
+    if {identity.candidate_id for identity in pair_identities} != set(candidate_ids):
+        raise ReportError("plan fairness identities must exactly match selected candidates")
+    candidate_harnesses = {identity.candidate_harness for identity in pair_identities}
+    if len(candidate_harnesses) != 1:
+        raise ReportError("plan fairness must declare one candidate harness")
+    candidate_harness = next(iter(candidate_harnesses))
+    if candidate_harness not in _SUPPORTED_CANDIDATE_HARNESSES:
+        raise ReportError(f"plan fairness contains unsupported candidate harness {candidate_harness}")
+    harness_groups = ("flat-direct", "candidate-direct", candidate_harness)
     jobs_by_id: dict[str, ExperimentJob] = {}
     budget_metadata: dict[str, tuple[str, int]] = {}
     candidate_budgets: defaultdict[str, set[str]] = defaultdict(set)
@@ -389,7 +411,7 @@ def _plan_index(plan: ExperimentPlan) -> _PlanIndex:
             raise ReportError("plan.jobs must contain only ExperimentJob values")
         if job.job_id in jobs_by_id:
             raise ReportError(f"plan contains duplicate job_id {job.job_id}")
-        if job.harness not in _HARNESS_GROUPS:
+        if job.harness not in harness_groups:
             raise ReportError(f"plan contains unsupported harness {job.harness}")
         if not job.budget_name:
             raise ReportError(f"plan job {job.job_id} has an empty budget_name")
@@ -411,11 +433,11 @@ def _plan_index(plan: ExperimentPlan) -> _PlanIndex:
             raise ReportError(f"plan has inconsistent coverage universes for {job.candidate_id}/{job.harness}")
     for candidate_id in candidate_ids:
         direct_key = (candidate_id, "candidate-direct")
-        depaware_key = (candidate_id, "candidate-depaware")
+        candidate_key = (candidate_id, candidate_harness)
         flat_key = (candidate_id, "flat-direct")
-        if direct_key not in universes or depaware_key not in universes or flat_key not in universes:
+        if direct_key not in universes or candidate_key not in universes or flat_key not in universes:
             raise ReportError(f"plan is missing a harness group for {candidate_id}")
-        if universes[direct_key] != universes[depaware_key]:
+        if universes[direct_key] != universes[candidate_key]:
             raise ReportError(f"candidate pair coverage universe must be shared for {candidate_id}")
         if universes[flat_key] == universes[direct_key]:
             raise ReportError(f"flat-direct coverage universe must be distinct for {candidate_id}")
@@ -427,7 +449,7 @@ def _plan_index(plan: ExperimentPlan) -> _PlanIndex:
             ]
             seeds_by_harness = {
                 harness: {job.seed for job in budget_jobs if job.harness == harness}
-                for harness in _HARNESS_GROUPS
+                for harness in harness_groups
             }
             if any(not seeds for seeds in seeds_by_harness.values()):
                 raise ReportError(
@@ -437,6 +459,19 @@ def _plan_index(plan: ExperimentPlan) -> _PlanIndex:
                 raise ReportError(
                     f"plan seeds differ across harnesses for {candidate_id}/{budget_name}"
                 )
+    projection_plan_hash: str | None = None
+    if candidate_harness == "candidate-static":
+        projection_hashes = {
+            job.projection_plan_hash
+            for job in (*plan.build_jobs, *plan.jobs)
+            if job.harness == candidate_harness
+        }
+        if len(projection_hashes) != 1 or None in projection_hashes:
+            raise ReportError(
+                "candidate-static projection_plan_hash must be present and consistent"
+            )
+        projection_plan_hash = next(iter(projection_hashes))
+
     return _PlanIndex(
         candidate_ids,
         jobs_by_id,
@@ -446,6 +481,9 @@ def _plan_index(plan: ExperimentPlan) -> _PlanIndex:
         },
         budget_metadata,
         universes,
+        candidate_harness,
+        harness_groups,
+        projection_plan_hash,
     )
 
 
@@ -494,7 +532,7 @@ def _validate_inputs(
     plan_index = _plan_index(plan)
     manifests: dict[str, _CandidateManifest] = {}
     for index, value in enumerate(_array(candidate_manifests, "candidate_manifests")):
-        manifest = _parse_manifest(value, index)
+        manifest = _parse_manifest(value, index, plan_index.harness_groups)
         if manifest.candidate_id in manifests:
             raise ReportError(f"candidate_manifests contains duplicate candidate_id {manifest.candidate_id}")
         manifests[manifest.candidate_id] = manifest
@@ -533,7 +571,10 @@ def _validate_inputs(
 
     parsed_samples = tuple(
         sorted(
-            (_parse_sample(value, index) for index, value in enumerate(_array(samples, "samples"))),
+            (
+                _parse_sample(value, index, plan_index.harness_groups)
+                for index, value in enumerate(_array(samples, "samples"))
+            ),
             key=lambda sample: sample.sort_key,
         )
     )
@@ -554,7 +595,7 @@ def _validate_inputs(
                     f"sample {field} does not match job_id {sample.job_id}"
                 )
         manifest = manifests[sample.candidate_id]
-        if sample.harness in _CANDIDATE_GROUPS:
+        if sample.harness != "flat-direct":
             unknown_points = set(sample.covered_point_ids) - manifest.point_ids
             if unknown_points:
                 raise ReportError(
@@ -593,7 +634,7 @@ def _validate_inputs(
             candidate_totals = {
                 totals[job.job_id]
                 for job in candidate_jobs
-                if job.harness in _CANDIDATE_GROUPS
+                if job.harness != "flat-direct"
             }
             if len(candidate_totals) != 1:
                 raise ReportError(
@@ -786,12 +827,13 @@ def _reference_comparison(
     manifest: _CandidateManifest,
     covered_by_harness: Mapping[str, frozenset[int]],
     reference: tuple[frozenset[str], frozenset[str]],
+    candidate_harness: str,
 ) -> dict[str, object]:
     reference_sources, reference_covered = reference
     shared = manifest.stable_source_ids.intersection(reference_sources)
     source_by_point = {point.point_id: point.stable_source_id for point in manifest.points}
     harness_covered: dict[str, object] = {}
-    for harness in sorted(_CANDIDATE_GROUPS):
+    for harness in sorted(("candidate-direct", candidate_harness)):
         sources = {source_by_point[point_id] for point_id in covered_by_harness[harness]}
         harness_covered[harness] = sorted(sources.intersection(shared))
     return {
@@ -823,38 +865,54 @@ def build_report(
         for budget_name in plan_index.candidate_budgets[candidate_id]:
             harnesses: dict[str, object] = {}
             covered_by_harness: dict[str, frozenset[int]] = {}
-            for harness in sorted(_HARNESS_GROUPS):
+            for harness in sorted(plan_index.harness_groups):
                 summary, covered = _harness_summary(
                     grouped[(candidate_id, budget_name, harness)],
                     manifest,
                     plan_index.universes[(candidate_id, harness)],
-                    component_roles_available=harness in _CANDIDATE_GROUPS,
+                    component_roles_available=harness != "flat-direct",
                 )
                 harnesses[harness] = summary
                 covered_by_harness[harness] = covered
 
             direct = covered_by_harness["candidate-direct"]
-            depaware = covered_by_harness["candidate-depaware"]
+            candidate_harness = plan_index.candidate_harness
+            candidate = covered_by_harness[candidate_harness]
             direct_total = harnesses["candidate-direct"]["common_total"]
             budget_kind, budget_value = plan_index.budget_metadata[budget_name]
-            budget: dict[str, object] = {
-                "budget_kind": budget_kind,
-                "budget_value": budget_value,
-                "harnesses": harnesses,
-                "coverage_attribution": {
+            if candidate_harness == "candidate-depaware":
+                coverage_attribution = {
                     "comparison_scope": "harness-attribution",
                     "coverage_universe": plan_index.universes[
                         (candidate_id, "candidate-direct")
                     ],
                     "common_total": direct_total,
-                    "direct_only_point_ids": sorted(direct - depaware),
-                    "depaware_only_point_ids": sorted(depaware - direct),
-                    "overlap_point_ids": sorted(direct & depaware),
-                },
+                    "direct_only_point_ids": sorted(direct - candidate),
+                    "depaware_only_point_ids": sorted(candidate - direct),
+                    "overlap_point_ids": sorted(direct & candidate),
+                }
+            else:
+                coverage_attribution = {
+                    "comparison_scope": "harness-attribution",
+                    "candidate_harness": candidate_harness,
+                    "coverage_universe": plan_index.universes[
+                        (candidate_id, "candidate-direct")
+                    ],
+                    "common_total": direct_total,
+                    "direct_only_point_ids": sorted(direct - candidate),
+                    "static_only_point_ids": sorted(candidate - direct),
+                    "overlap_point_ids": sorted(direct & candidate),
+                    "projection_plan_hash": plan_index.projection_plan_hash,
+                }
+            budget: dict[str, object] = {
+                "budget_kind": budget_kind,
+                "budget_value": budget_value,
+                "harnesses": harnesses,
+                "coverage_attribution": coverage_attribution,
                 "structure_and_projection": {
                     "comparison_scope": "structure-and-projection",
                     "candidate-direct": harnesses["candidate-direct"]["runtime"],
-                    "candidate-depaware": harnesses["candidate-depaware"]["runtime"],
+                    candidate_harness: harnesses[candidate_harness]["runtime"],
                 },
                 "flat_scope": {
                     "comparison_scope": "harness-attribution",
@@ -868,7 +926,10 @@ def build_report(
             }
             if reference is not None:
                 budget["reference_comparison"] = _reference_comparison(
-                    manifest, covered_by_harness, reference
+                    manifest,
+                    covered_by_harness,
+                    reference,
+                    candidate_harness,
                 )
             budgets[budget_name] = budget
         candidates[candidate_id] = {"budgets": budgets}

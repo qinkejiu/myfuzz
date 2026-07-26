@@ -140,11 +140,13 @@ class ExperimentPlannerTest(unittest.TestCase):
         self.assertEqual(1, len(plan.fairness.candidate_pair_identities))
         identity = plan.fairness.candidate_pair_identities[0]
         self.assertEqual(self.manifest["candidate_id"], identity.candidate_id)
+        self.assertEqual("candidate-depaware", identity.candidate_harness)
         self.assertEqual(identity.direct, identity.depaware)
         compatible_identity = CandidatePairIdentity(
             candidate_id=identity.candidate_id,
+            candidate_harness="candidate-depaware",
             direct=identity.direct,
-            depaware=identity.depaware,
+            candidate=identity.candidate,
         )
         self.assertEqual(compatible_identity.depaware, compatible_identity.candidate)
         self.assertEqual(plan.jobs[1].raw_width, identity.direct.raw_width)
@@ -185,6 +187,33 @@ class ExperimentPlannerTest(unittest.TestCase):
             plan.fairness.candidate_pair_identities[0].direct,
             plan.fairness.candidate_pair_identities[0].candidate,
         )
+        self.assertEqual(
+            "candidate-static",
+            plan.fairness.candidate_pair_identities[0].candidate_harness,
+        )
+        with self.assertRaises(AttributeError):
+            _ = plan.fairness.candidate_pair_identities[0].depaware
+
+        for seed in (1, 7, 19):
+            for budget in (("cycles", 1_000), ("seconds", 300), ("seconds", 3_600)):
+                pair = {
+                    job.harness: job
+                    for job in plan.jobs
+                    if job.seed == seed
+                    and (job.budget_kind, job.budget_value) == budget
+                    and job.harness != "flat-direct"
+                }
+                direct = pair["candidate-direct"]
+                static = pair["candidate-static"]
+                self.assertEqual(direct.raw_width, static.raw_width)
+                self.assertEqual(direct.instrumented_rtl_hash, static.instrumented_rtl_hash)
+                self.assertEqual(direct.coverage_universe, static.coverage_universe)
+                self.assertEqual(direct.coverage_metadata_hash, static.coverage_metadata_hash)
+                self.assertEqual(direct.mutation, static.mutation)
+                self.assertEqual(direct.seed, static.seed)
+                self.assertEqual(direct.budget_name, static.budget_name)
+                self.assertEqual(direct.budget_kind, static.budget_kind)
+                self.assertEqual(direct.budget_value, static.budget_value)
 
         builds = {job.job_id: job for job in plan.build_jobs}
         direct_ids = {job.build_job_id for job in plan.jobs if job.harness == "candidate-direct"}

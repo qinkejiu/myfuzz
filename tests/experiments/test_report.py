@@ -5,6 +5,7 @@ import hashlib
 import json
 import math
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 from myfuzz.contracts import ContractError, canonical_bytes
@@ -93,6 +94,11 @@ def experiment_samples(
                 (point_ids[0], point_ids[2]),
                 (point_ids[0], point_ids[2], point_ids[3]),
             ),
+            "candidate-static": (
+                (),
+                (point_ids[0], point_ids[2]),
+                (point_ids[0], point_ids[2], point_ids[3]),
+            ),
         }
         scale = _BUDGET_SCALE[job.budget_name]
         for sequence, (elapsed_seconds, covered_point_ids) in enumerate(
@@ -152,6 +158,27 @@ class ExperimentReportTest(unittest.TestCase):
             "stable_source_ids": ["cpu.shared", "candidate-a.direct", "reference.extra"],
             "covered_stable_source_ids": ["cpu.shared", "reference.extra"],
         }
+
+    def static_inputs(
+        self,
+    ) -> tuple[dict[str, object], list[dict[str, object]], str]:
+        config = load_json(CONFIGS / "rvx.json")
+        config["harness_groups"] = [
+            "flat-direct",
+            "candidate-direct",
+            "candidate-static",
+        ]
+        config["coverage"]["comparisons"][0]["right_harness"] = "candidate-static"
+        plan_hash = sha256_id("static-projection-plan")
+        manifests = copy.deepcopy(self.manifests)
+        for manifest in manifests:
+            manifest["harnesses"]["candidate-static"] = {
+                "raw_width": 1,
+                "content_hash": sha256_id(f"{manifest['candidate_id']}-static-content"),
+                "abi_hash": sha256_id("static-abi"),
+                "projection_plan_hash": plan_hash,
+            }
+        return config, manifests, plan_hash
 
     def job(
         self,
@@ -296,6 +323,54 @@ class ExperimentReportTest(unittest.TestCase):
         self.assertEqual(18, failures["resource_terminated"])
         self.assertEqual(36, failures["dut_crash"])
         self.assertNotEqual(failures["resource_terminated"], failures["dut_crash"])
+
+    def test_static_pair_attribution_runtime_and_reference_use_the_candidate_harness(self) -> None:
+        config, manifests, expected_plan_hash = self.static_inputs()
+        plan = plan_experiment(config, manifests)
+        samples = experiment_samples(plan, manifests, flat_total=6)
+
+        report = build_report(plan, manifests, samples, self.reference)
+        budget = report["candidates"]["candidate-a"]["budgets"]["long"]
+        attribution = budget["coverage_attribution"]
+        self.assertEqual("candidate-static", attribution["candidate_harness"])
+        self.assertEqual([3], attribution["static_only_point_ids"])
+        self.assertEqual([2], attribution["direct_only_point_ids"])
+        self.assertEqual([1, 4], attribution["overlap_point_ids"])
+        self.assertEqual(expected_plan_hash, attribution["projection_plan_hash"])
+        self.assertNotIn("depaware_only_point_ids", attribution)
+        self.assertEqual(
+            ["candidate-direct", "candidate-static", "comparison_scope"],
+            sorted(budget["structure_and_projection"]),
+        )
+        self.assertEqual(
+            ["candidate-direct", "candidate-static"],
+            list(budget["reference_comparison"]["harness_covered_stable_source_ids"]),
+        )
+
+        reverse = build_report(
+            plan,
+            list(reversed(manifests)),
+            list(reversed(samples)),
+            self.reference,
+        )
+        self.assertEqual(canonical_bytes(report), canonical_bytes(reverse))
+
+    def test_static_report_rejects_inconsistent_projection_plan_hashes(self) -> None:
+        config, manifests, _ = self.static_inputs()
+        plan = plan_experiment(config, manifests)
+        static_jobs = [job for job in plan.jobs if job.harness == "candidate-static"]
+        changed = replace(
+            static_jobs[0],
+            projection_plan_hash=sha256_id("different-static-projection-plan"),
+        )
+        inconsistent = replace(
+            plan,
+            jobs=tuple(changed if job.job_id == changed.job_id else job for job in plan.jobs),
+        )
+        samples = experiment_samples(inconsistent, manifests, flat_total=6)
+
+        with self.assertRaisesRegex(ReportError, "projection_plan_hash"):
+            build_report(inconsistent, manifests, samples, self.reference)
 
     def test_reference_comparison_uses_only_stable_source_intersection(self) -> None:
         report = build_report(self.plan, self.manifests, self.samples, self.reference)

@@ -129,16 +129,19 @@ class HarnessIdentity:
 
 @dataclass(frozen=True, slots=True)
 class CandidatePairIdentity:
-    """Auditable direct and dependency-aware identities for one candidate."""
+    """Auditable identities for one configured candidate harness pair."""
 
     candidate_id: str
+    candidate_harness: str
     direct: HarnessIdentity
-    depaware: HarnessIdentity
+    candidate: HarnessIdentity
 
     @property
-    def candidate(self) -> HarnessIdentity:
-        """Return the configured candidate comparison harness identity."""
-        return self.depaware
+    def depaware(self) -> HarnessIdentity:
+        """Return the legacy dependency-aware identity when that pair is configured."""
+        if self.candidate_harness != "candidate-depaware":
+            raise AttributeError("depaware is only available for candidate-depaware plans")
+        return self.candidate
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,12 +198,16 @@ class _PlannerConfig:
     config_path: str
     design_config_path: str
     harness_groups: tuple[str, ...]
-    candidate_harness: str
+    comparison_pair: tuple[str, str]
     candidate_count: int
     seeds: tuple[int, ...]
     budgets: tuple[_Budget, ...]
     mutation: tuple[tuple[str, int | bool | str], ...]
     runtime_policy: RuntimePolicy
+
+    @property
+    def candidate_harness(self) -> str:
+        return self.comparison_pair[1]
 
 
 @dataclass(frozen=True, slots=True)
@@ -309,7 +316,10 @@ def _parse_budgets(value: object) -> tuple[_Budget, ...]:
     return tuple(sorted(budgets, key=lambda budget: (budget.name, budget.kind, budget.value)))
 
 
-def _validate_coverage(value: object, harness_groups: tuple[str, ...]) -> str:
+def _validate_coverage(
+    value: object,
+    harness_groups: tuple[str, ...],
+) -> tuple[str, str]:
     coverage = _object(value, "coverage")
     _string(coverage.get("metric"), "coverage.metric")
     scopes = {
@@ -336,7 +346,7 @@ def _validate_coverage(value: object, harness_groups: tuple[str, ...]) -> str:
         raise ExperimentPlanError(
             "coverage must declare exactly one candidate-direct comparison"
         )
-    return candidate_harnesses[0]
+    return "candidate-direct", candidate_harnesses[0]
 
 
 def _validate_reference(value: object) -> None:
@@ -386,7 +396,8 @@ def _parse_config(config: object) -> _PlannerConfig:
 
     budgets = _parse_budgets(document.get("budgets"))
     mutation = _parse_mutation(document.get("mutation"))
-    candidate_harness = _validate_coverage(document.get("coverage"), declared_groups)
+    comparison_pair = _validate_coverage(document.get("coverage"), declared_groups)
+    _, candidate_harness = comparison_pair
     if candidate_harness not in declared_groups:
         raise ExperimentPlanError("coverage candidate comparison references an undeclared harness")
     harness_groups = (*_BASE_HARNESS_GROUPS, candidate_harness)
@@ -432,7 +443,7 @@ def _parse_config(config: object) -> _PlannerConfig:
         config_path,
         design_config_path,
         harness_groups,
-        candidate_harness,
+        comparison_pair,
         candidate_count,
         seeds,
         budgets,
@@ -908,8 +919,9 @@ def _harness_identity(jobs: tuple[ExperimentJob, ...]) -> HarnessIdentity:
 
 def _audit_fairness(
     jobs: tuple[ExperimentJob, ...],
-    candidate_harness: str,
+    comparison_pair: tuple[str, str],
 ) -> FairnessAudit:
+    direct_harness, candidate_harness = comparison_pair
     candidate_ids = sorted({job.candidate_id for job in jobs})
     equal_budget = True
     equal_seeds = True
@@ -922,7 +934,7 @@ def _audit_fairness(
         direct = tuple(
             job
             for job in jobs
-            if job.candidate_id == candidate_id and job.harness == "candidate-direct"
+            if job.candidate_id == candidate_id and job.harness == direct_harness
         )
         candidate = tuple(
             job
@@ -946,8 +958,9 @@ def _audit_fairness(
         identities.append(
             CandidatePairIdentity(
                 candidate_id=candidate_id,
+                candidate_harness=candidate_harness,
                 direct=_harness_identity(direct),
-                depaware=_harness_identity(candidate),
+                candidate=_harness_identity(candidate),
             )
         )
     return FairnessAudit(
@@ -991,7 +1004,7 @@ def _run_blocks(
                 digest = hashlib.sha256(
                     canonical_bytes({"seed": seed, "candidate_id": candidate.candidate_id})
                 ).digest()
-                candidate_pair = ("candidate-direct", config.candidate_harness)
+                candidate_pair = config.comparison_pair
                 pair = candidate_pair if digest[0] & 1 == 0 else tuple(reversed(candidate_pair))
                 blocks.append(
                     (
@@ -1058,7 +1071,7 @@ def plan_experiment(config: object, candidate_manifests: Sequence[object]) -> Ex
     )
     for fuzz_job in frozen_jobs:
         resolve_build_prerequisite(prerequisite_plan, fuzz_job)
-    fairness = _audit_fairness(frozen_jobs, parsed_config.candidate_harness)
+    fairness = _audit_fairness(frozen_jobs, parsed_config.comparison_pair)
     _require_fairness(fairness)
     run_blocks = _run_blocks(frozen_jobs, parsed_config, selected)
     plan_document = {
@@ -1075,13 +1088,14 @@ def plan_experiment(config: object, candidate_manifests: Sequence[object]) -> Ex
             "candidate_pair_identities": [
                 {
                     "candidate_id": identity.candidate_id,
+                    "candidate_harness": identity.candidate_harness,
                     "direct": {
                         "raw_width": identity.direct.raw_width,
                         "instrumented_rtl_hash": identity.direct.instrumented_rtl_hash,
                         "coverage_universe": identity.direct.coverage_universe,
                         "coverage_metadata_hash": identity.direct.coverage_metadata_hash,
                     },
-                    "depaware": {
+                    "candidate": {
                         "raw_width": identity.candidate.raw_width,
                         "instrumented_rtl_hash": identity.candidate.instrumented_rtl_hash,
                         "coverage_universe": identity.candidate.coverage_universe,
