@@ -120,6 +120,179 @@ class FlowIntegrationTest(unittest.TestCase):
         self.assertEqual("flat_direct", run_design_flow.select_candidate_mode(None, {"candidate_mode": "flat_direct"}))
         self.assertEqual("candidate_depaware", run_design_flow.select_candidate_mode("candidate_depaware", {"candidate_mode": "flat_direct"}))
 
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_design_flow.py",
+                "--config",
+                "config.json",
+                "--candidate-mode",
+                "candidate_static",
+            ],
+        ):
+            static_args = run_design_flow.parse_args()
+        self.assertEqual("candidate_static", static_args.candidate_mode)
+
+        artifact_id = "sha256:" + "a" * 64
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_design_flow.py",
+                "--config",
+                "config.json",
+                "--server-artifact-id",
+                artifact_id,
+            ],
+        ):
+            artifact_args = run_design_flow.parse_args()
+        self.assertEqual(artifact_id, artifact_args.server_artifact_id)
+
+    def test_artifact_flow_paths_require_canonical_sha256_and_isolate_server_outputs(self) -> None:
+        out_dir = Path("flow")
+        paths = {
+            "out_dir": out_dir,
+            "instrumented": out_dir / "instrumented",
+            "toml": out_dir / "instrumented" / "generated_top.toml",
+            "harness": out_dir / "harness",
+            "server": out_dir / "server",
+            "queue": out_dir / "queue",
+        }
+
+        self.assertIs(paths, run_design_flow.artifact_flow_paths(paths, None))
+        for artifact_id in (
+            "a" * 64,
+            "sha256:" + "A" * 64,
+            "sha256:" + "a" * 63,
+            "sha256:" + "a" * 65,
+        ):
+            with self.subTest(artifact_id=artifact_id):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "server artifact ID must be a canonical SHA-256 identity",
+                ):
+                    run_design_flow.artifact_flow_paths(paths, artifact_id)
+
+        suffix = "a" * 64
+        selected = run_design_flow.artifact_flow_paths(paths, f"sha256:{suffix}")
+        artifact_root = out_dir / "server_artifacts" / suffix
+        self.assertEqual(
+            artifact_root / "instrumented" / "generated_top.toml",
+            selected["toml"],
+        )
+        self.assertEqual(artifact_root / "harness", selected["harness"])
+        self.assertEqual(artifact_root / "server", selected["server"])
+        self.assertEqual(artifact_root / "queue", selected["queue"])
+        self.assertEqual(paths["instrumented"], selected["instrumented"])
+
+    def test_artifact_server_regenerates_toml_and_harness_before_building(self) -> None:
+        artifact_id = "sha256:" + "b" * 64
+        with tempfile.TemporaryDirectory() as directory:
+            execution_root = Path(directory)
+            out_dir = execution_root / "out"
+            (out_dir / "instrumented").mkdir(parents=True)
+            (out_dir / "frontend.json").write_text(json.dumps(frontend_manifest()))
+            (out_dir / "instrumented" / "instrumentation.json").write_text(
+                json.dumps(instrumentation_manifest())
+            )
+            (execution_root / "candidate.json").write_text(json.dumps(candidate_manifest()))
+            (execution_root / "config.json").write_text(
+                json.dumps(
+                    {
+                        "top": "generated_top",
+                        "out_dir": "out",
+                        "project_root": ".",
+                        "flist": "sources.f",
+                        "candidate_manifest": "candidate.json",
+                    }
+                )
+            )
+            calls: list[tuple[str, dict[str, Path]]] = []
+
+            def record(name):
+                def stage(*args):
+                    calls.append((name, args[2]))
+                return stage
+
+            with (
+                patch.object(run_design_flow, "repo_root", return_value=execution_root),
+                patch.object(run_design_flow, "default_frontend_library", return_value=execution_root / "frontend.so"),
+                patch.object(run_design_flow, "default_server_verilator", return_value="verilator"),
+                patch.object(run_design_flow, "stage_toml", side_effect=record("toml")),
+                patch.object(run_design_flow, "stage_harness", side_effect=record("harness")),
+                patch.object(run_design_flow, "stage_server", side_effect=record("server")),
+                patch.object(
+                    sys,
+                    "argv",
+                    [
+                        "run_design_flow.py",
+                        "--config",
+                        "config.json",
+                        "--stage",
+                        "server",
+                        "--server-artifact-id",
+                        artifact_id,
+                    ],
+                ),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(0, run_design_flow.main())
+
+        self.assertEqual(["toml", "harness", "server"], [name for name, _ in calls])
+        selected = calls[0][1]
+        artifact_root = out_dir / "server_artifacts" / ("b" * 64)
+        self.assertEqual(artifact_root / "server", selected["server"])
+        self.assertEqual(out_dir / "instrumented", selected["instrumented"])
+        self.assertTrue(all(paths is selected for _, paths in calls))
+
+    def test_artifact_fuzz_reuses_selected_server_without_rebuilding(self) -> None:
+        artifact_id = "sha256:" + "c" * 64
+        with tempfile.TemporaryDirectory() as directory:
+            execution_root = Path(directory)
+            (execution_root / "config.json").write_text(
+                json.dumps(
+                    {
+                        "top": "generated_top",
+                        "out_dir": "out",
+                        "project_root": ".",
+                        "flist": "sources.f",
+                    }
+                )
+            )
+            with (
+                patch.object(run_design_flow, "repo_root", return_value=execution_root),
+                patch.object(run_design_flow, "default_frontend_library", return_value=execution_root / "frontend.so"),
+                patch.object(run_design_flow, "default_server_verilator", return_value="verilator"),
+                patch.object(run_design_flow, "stage_toml") as toml_stage,
+                patch.object(run_design_flow, "stage_harness") as harness_stage,
+                patch.object(run_design_flow, "stage_server") as server_stage,
+                patch.object(run_design_flow, "stage_fuzz") as fuzz_stage,
+                patch.object(
+                    sys,
+                    "argv",
+                    [
+                        "run_design_flow.py",
+                        "--config",
+                        "config.json",
+                        "--stage",
+                        "fuzz",
+                        "--server-artifact-id",
+                        artifact_id,
+                    ],
+                ),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(0, run_design_flow.main())
+
+        toml_stage.assert_not_called()
+        harness_stage.assert_not_called()
+        server_stage.assert_not_called()
+        selected = fuzz_stage.call_args.args[3]
+        artifact_root = execution_root / "out" / "server_artifacts" / ("c" * 64)
+        self.assertEqual(artifact_root / "server", selected["server"])
+        self.assertEqual(artifact_root / "queue", selected["queue"])
+
     def test_flow_cli_accepts_adapter_seed_and_cycle_bounds(self) -> None:
         argv = [
             "run_design_flow.py",
@@ -263,6 +436,58 @@ class FlowIntegrationTest(unittest.TestCase):
                 self.assertEqual(source.resolve().as_posix(), captured[mode]["manual_harness"])
                 self.assertEqual(abi.resolve().as_posix(), captured[mode]["raw_abi_manifest"])
             self.assertEqual({8}, {artifact.raw_width for artifact in artifacts.values()})
+
+    def test_stage_harness_materializes_static_projection_from_typed_config(self) -> None:
+        api = (
+            lambda conf, ports, top, out_dir, harness_cfg: (
+                Path(harness_cfg["manual_harness"]),
+                Path(out_dir) / "static.rfuzz.toml",
+            ),
+            lambda path: {"source": str(path)},
+            lambda frontend, top: frontend["modules"][0]["ports"],
+            lambda *args: None,
+        )
+        config = {
+            "top": "generated_top",
+            "harness": {"validate": False},
+            "static_projection": {
+                "declarations": {
+                    "mask_align": [
+                        {"action_id": 20, "destination_id": 3, "alignment": 2}
+                    ]
+                },
+                "parameters": {
+                    "direct_ratio": 1,
+                    "event_rarity": 4,
+                    "legal_set_strength": 2,
+                    "mutual_exclusion": "none",
+                },
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = {
+                "harness": root / "harness",
+                "toml": root / "input.toml",
+                "instrumented": root / "instrumented",
+            }
+            paths["toml"].write_text("[general]\n")
+            with patch.object(run_design_flow, "rfuzz_harness_api", return_value=api):
+                artifact = run_design_flow.stage_harness(
+                    root,
+                    config,
+                    paths,
+                    "verilator",
+                    frontend_manifest(),
+                    candidate_manifest(),
+                    "candidate_static",
+                )
+
+            fragment = json.loads(
+                (paths["harness"] / "candidate_static.abi.json").read_text()
+            )
+        self.assertEqual("candidate_static", artifact.mode)
+        self.assertEqual(artifact.manifest_fragment()["projection_plan_hash"], fragment["projection_plan_hash"])
 
     def test_toml_stage_uses_materialized_raw_abi_input(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

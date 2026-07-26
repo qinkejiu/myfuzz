@@ -7,6 +7,7 @@ import argparse
 from collections.abc import Mapping
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -38,11 +39,11 @@ from frontend_manifest_to_rfuzz_toml import (
     generate_toml,
     validate_frontend_candidate_join,
 )
-from myfuzz.harness import HarnessArtifact, build_harness
+from myfuzz.harness import HarnessArtifact, StaticPolicyParameters, build_harness
 
 
 STAGES = ["frontend", "composition", "instrument", "toml", "harness", "server", "fuzz"]
-HARNESS_MODES = {"flat_direct", "candidate_direct", "candidate_depaware"}
+HARNESS_MODES = {"flat_direct", "candidate_direct", "candidate_depaware", "candidate_static"}
 
 
 def repo_root() -> Path:
@@ -191,6 +192,34 @@ def validate_candidate_manifest(candidate_manifest: object) -> dict:
     return candidate_manifest
 
 
+def build_configured_harness(
+    manifest: object,
+    cfg: Mapping[str, object],
+    mode: str,
+) -> HarnessArtifact:
+    if mode != "candidate_static":
+        return build_harness(manifest, mode)
+    static = cfg.get("static_projection")
+    if not isinstance(static, Mapping):
+        raise ValueError("candidate_static requires static_projection config")
+    declarations = static.get("declarations")
+    parameters = static.get("parameters")
+    if not isinstance(declarations, Mapping) or not isinstance(parameters, Mapping):
+        raise ValueError("static_projection requires declarations and parameters")
+    typed = StaticPolicyParameters(
+        parameters.get("direct_ratio"),
+        parameters.get("event_rarity"),
+        parameters.get("legal_set_strength"),
+        parameters.get("mutual_exclusion"),
+    )
+    return build_harness(
+        manifest,
+        mode,
+        static_declarations=declarations,
+        static_parameters=typed,
+    )
+
+
 def _artifact_module_name(artifact: HarnessArtifact) -> str:
     declaration = artifact.source_text.splitlines()[0].split()
     if len(declaration) < 2 or declaration[0] != "module":
@@ -248,7 +277,7 @@ def stage_toml(
     manifest = validate_candidate_manifest(candidate_manifest)
     frontend_module = find_top_module(frontend_manifest, cfg["top"])
     validate_frontend_candidate_join(frontend_module, cfg["top"], manifest)
-    artifact = build_harness(manifest, candidate_mode)
+    artifact = build_configured_harness(manifest, cfg, candidate_mode)
     source_path, fragment_path = write_candidate_harness_artifact(paths, artifact)
     harness_cfg = harness_config_for_artifact(cfg, artifact, source_path, fragment_path)
     generate_toml(
@@ -275,7 +304,7 @@ def stage_harness(
     manifest = validate_candidate_manifest(candidate_manifest)
     frontend_module = find_top_module(frontend_manifest, cfg["top"])
     validate_frontend_candidate_join(frontend_module, cfg["top"], manifest)
-    artifact = build_harness(manifest, candidate_mode)
+    artifact = build_configured_harness(manifest, cfg, candidate_mode)
     source_path, fragment_path = write_candidate_harness_artifact(paths, artifact)
     generate_harness_files, load_toml, top_ports_from_frontend_manifest, validate_harness = rfuzz_harness_api()
     conf = load_toml(paths["toml"])
@@ -790,6 +819,22 @@ def selected_stages(stage: str) -> list[str]:
     return [stage]
 
 
+def artifact_flow_paths(paths: dict[str, Path], artifact_id: str | None) -> dict[str, Path]:
+    if artifact_id is None:
+        return paths
+    if re.fullmatch(r"sha256:[0-9a-f]{64}", artifact_id) is None:
+        raise ValueError("server artifact ID must be a canonical SHA-256 identity")
+    root = paths["out_dir"] / "server_artifacts" / artifact_id.removeprefix("sha256:")
+    selected = dict(paths)
+    selected.update({
+        "toml": root / "instrumented" / paths["toml"].name,
+        "harness": root / "harness",
+        "server": root / "server",
+        "queue": root / "queue",
+    })
+    return selected
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run myfuzz design flow.")
     parser.add_argument("--config", required=True)
@@ -797,6 +842,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--frontend-library")
     parser.add_argument("--manifest", "--candidate-manifest", dest="manifest")
     parser.add_argument("--candidate-mode", choices=sorted(HARNESS_MODES), default=None)
+    parser.add_argument("--server-artifact-id")
     parser.add_argument("--server-verilator-bin")
     parser.add_argument("--jobs", default=os.environ.get("MYFUZZ_JOBS", "1"))
     parser.add_argument("--fuzz-seconds", type=int)
@@ -862,6 +908,8 @@ def main() -> int:
         "server": out_dir / "server",
         "queue": out_dir / "queue",
     }
+    server_artifact_id = getattr(args, "server_artifact_id", None)
+    paths = artifact_flow_paths(paths, server_artifact_id)
     frontend_library = resolve(root, args.frontend_library) if args.frontend_library else default_frontend_library(root)
     server_bin = args.server_verilator_bin or default_server_verilator(root)
 
@@ -890,6 +938,33 @@ def main() -> int:
             raise ValueError("validated candidate manifest path is required for harness generation")
         stage_harness(root, cfg, paths, server_bin, frontend_manifest, candidate_manifest, candidate_mode)
     if "server" in stages:
+        if server_artifact_id is not None:
+            if frontend_manifest is None:
+                frontend_manifest = json.loads(paths["frontend_json"].read_text())
+            if instrumentation is None:
+                instrumentation = json.loads(
+                    (paths["instrumented"] / "instrumentation.json").read_text()
+                )
+            if candidate_manifest is None:
+                raise ValueError("validated candidate manifest path is required for server generation")
+            stage_toml(
+                root,
+                cfg,
+                paths,
+                frontend_manifest,
+                instrumentation,
+                candidate_manifest,
+                candidate_mode,
+            )
+            stage_harness(
+                root,
+                cfg,
+                paths,
+                server_bin,
+                frontend_manifest,
+                candidate_manifest,
+                candidate_mode,
+            )
         stage_server(root, cfg, paths, server_bin, args.jobs)
     if "fuzz" in stages:
         fuzz_seconds = fuzz_seconds_arg

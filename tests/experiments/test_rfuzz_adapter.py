@@ -72,6 +72,18 @@ def build_job() -> ExperimentBuildJob:
 
 
 class RfuzzAdapterTest(unittest.TestCase):
+    def test_static_candidate_mode_reaches_the_existing_driver(self) -> None:
+        static_job = job(budget_kind="seconds", budget_value=60)
+        object.__setattr__(static_job.execution, "candidate_mode", "candidate_static")
+        object.__setattr__(static_job, "harness", "candidate-static")
+
+        command = RfuzzAdapter(Path.cwd()).command(static_job)
+
+        self.assertEqual(
+            "candidate_static",
+            command[command.index("--candidate-mode") + 1],
+        )
+
     def test_constructs_supported_fixed_runtime_commands_without_waveforms(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             adapter = RfuzzAdapter(Path(directory).resolve())

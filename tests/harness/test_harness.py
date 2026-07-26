@@ -7,6 +7,7 @@ from myfuzz.harness import HarnessArtifact, build_harness, coverage_universe, ra
 from myfuzz.harness.abi import build_raw_abi
 from myfuzz.harness.depaware import build_depaware
 from myfuzz.harness.projection import build_projection_plan
+from myfuzz.harness.static_policy import StaticPolicyParameters
 
 
 def manifest() -> dict[str, object]:
@@ -34,6 +35,42 @@ def manifest() -> dict[str, object]:
 
 
 class HarnessTest(unittest.TestCase):
+    def test_candidate_static_is_a_first_class_task3_artifact(self) -> None:
+        document = manifest()
+        artifact = build_harness(
+            document,
+            "candidate_static",
+            static_declarations={
+                "mask_align": [
+                    {"action_id": 20, "destination_id": 10, "alignment": 4}
+                ]
+            },
+            static_parameters=StaticPolicyParameters(2, 4, 2, "none"),
+        )
+        direct = build_harness(document, "candidate_direct")
+
+        self.assertEqual(direct.raw_width, artifact.raw_width)
+        self.assertEqual(direct.abi.abi_hash, artifact.abi.abi_hash)
+        self.assertEqual(direct.coverage_universe_id, artifact.coverage_universe_id)
+        self.assertEqual("candidate_static", artifact.mode)
+        fragment = artifact.manifest_fragment()
+        self.assertRegex(fragment["content_hash"], r"^[0-9a-f]{64}$")
+        self.assertRegex(
+            fragment["projection_plan_hash"],
+            r"^[0-9a-f]{64}$",
+        )
+
+    def test_candidate_static_requires_static_inputs(self) -> None:
+        with self.assertRaisesRegex(ValueError, "static"):
+            build_harness(manifest(), "candidate_static")
+
+        with self.assertRaisesRegex(ValueError, "static inputs require candidate_static mode"):
+            build_harness(
+                manifest(),
+                "candidate_direct",
+                static_declarations={},
+            )
+
     def test_all_modes_share_raw_width_and_candidate_identity(self) -> None:
         document = manifest()
         artifacts = {mode: build_harness(document, mode) for mode in ("flat_direct", "candidate_direct", "candidate_depaware")}
