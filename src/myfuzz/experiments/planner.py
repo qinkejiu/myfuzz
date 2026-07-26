@@ -863,6 +863,12 @@ def resolve_build_prerequisite(
     if len(matches) != 1:
         raise ExperimentPlanError("fuzz build prerequisite must resolve exactly once")
     build = matches[0]
+    for field in ("candidate_hash", "build_cache_key"):
+        if getattr(build, field) != getattr(fuzz_job, field):
+            raise ExperimentPlanError(f"fuzz build prerequisite {field} does not match")
+    for field in ("candidate_id", "target_id"):
+        if getattr(build, field) and getattr(build, field) != getattr(fuzz_job, field):
+            raise ExperimentPlanError(f"fuzz build prerequisite {field} does not match")
     if build.harness and build.harness != fuzz_job.harness:
         raise ExperimentPlanError("fuzz build prerequisite harness does not match")
     if build.harness:

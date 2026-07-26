@@ -316,6 +316,45 @@ class ExperimentPlannerTest(unittest.TestCase):
         with self.assertRaisesRegex(ExperimentPlanError, "build execution server artifact ID"):
             resolve_build_prerequisite(mismatched_plan, fuzz_job)
 
+    def test_explicit_build_prerequisite_cannot_rebind_across_candidates(self) -> None:
+        plan = plan_experiment(
+            self.rvx,
+            [candidate_manifest("candidate-a"), candidate_manifest("candidate-b")],
+        )
+        fuzz_a = next(
+            job
+            for job in plan.jobs
+            if job.candidate_id == "candidate-a" and job.harness == "candidate-direct"
+        )
+        build_b = next(
+            job
+            for job in plan.build_jobs
+            if job.candidate_id == "candidate-b" and job.harness == fuzz_a.harness
+        )
+        rebound = replace(
+            fuzz_a,
+            build_job_id=build_b.job_id,
+            execution=replace(
+                fuzz_a.execution,
+                server_artifact_id=build_b.artifact_id,
+            ),
+        )
+
+        with self.assertRaisesRegex(ExperimentPlanError, "candidate_hash does not match"):
+            resolve_build_prerequisite(plan, rebound)
+
+        forged_candidate_identity = replace(
+            rebound,
+            candidate_hash=build_b.candidate_hash,
+            build_cache_key=build_b.build_cache_key,
+        )
+        with self.assertRaisesRegex(ExperimentPlanError, "candidate_id does not match"):
+            resolve_build_prerequisite(plan, forged_candidate_identity)
+
+        wrong_target = replace(fuzz_a, target_id="different-target")
+        with self.assertRaisesRegex(ExperimentPlanError, "target_id does not match"):
+            resolve_build_prerequisite(plan, wrong_target)
+
     def test_jobs_are_directly_runnable_by_b7_and_build_prerequisites_are_exposed(self) -> None:
         measured = copy.deepcopy(self.manifest)
         measured["resources"]["peak_rss_bytes"] = 1024 * 1024
