@@ -632,11 +632,14 @@ class ExperimentPlannerTest(unittest.TestCase):
             ("flat-direct", "content_hash", "not-a-hash"),
             ("candidate-direct", "abi_hash", "also-not-a-hash"),
             ("candidate-depaware", "projection_plan_hash", "sha256:short"),
+            ("flat-direct", "content_hash", None),
+            ("candidate-direct", "abi_hash", None),
+            ("candidate-depaware", "projection_plan_hash", None),
         )
         for harness, field, value in malformed_values:
             invalid = copy.deepcopy(self.manifest)
             invalid["harnesses"][harness] = {field: value}
-            with self.subTest(harness=harness, field=field), self.assertRaisesRegex(
+            with self.subTest(harness=harness, field=field, value=value), self.assertRaisesRegex(
                 ContractError,
                 rf"candidate_manifest\.v1:harnesses:{harness}:{field}:invalid-hash",
             ):
