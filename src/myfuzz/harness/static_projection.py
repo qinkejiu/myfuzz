@@ -9,6 +9,11 @@ from .direct import HarnessArtifact, _constant, _logic, _sv_identifier, candidat
 from .static_policy import StaticAction, StaticPolicyPlan
 
 
+def _escaped_sv_identifier(value: object, fallback: str) -> str:
+    identifier = _sv_identifier(value, fallback)
+    return identifier if identifier.startswith("\\") else f"\\{identifier} "
+
+
 def _parameter(action: StaticAction, name: str) -> int | str | tuple[int, ...]:
     return dict(action.parameters)[name]
 
@@ -242,10 +247,13 @@ def emit_static_projection(manifest: object, plan: StaticPolicyPlan) -> str:
             value = port.get("constant_value", port.get("reset_value"))
             assert isinstance(value, int)
             lines.append(f"    assign {signal} = {_constant(width, value)};")
-    lines.append(f"    {_sv_identifier(top['module'], 'generated_top')} dut (")
+    lines.append(f"    {_escaped_sv_identifier(top['module'], 'generated_top')} dut (")
     for index, port in enumerate(ports):
         comma = "," if index + 1 < len(ports) else ""
-        pin = _sv_identifier(port.get("emitted_name"), f"port_{port['port_id']}")
+        pin = _escaped_sv_identifier(
+            port.get("emitted_name"),
+            f"port_{port['port_id']}",
+        )
         lines.append(f"        .{pin}(port_{port['port_id']}){comma}")
     lines.extend(("    );", "endmodule"))
     return "\n".join(lines) + "\n"
