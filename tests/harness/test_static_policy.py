@@ -143,6 +143,18 @@ class StaticPolicyTest(unittest.TestCase):
             ]
             self.assertGreater(max(direct_ids), max(transform_ids))
 
+    def test_priority_exclusion_requires_lower_stable_id_peers(self) -> None:
+        with self.assertRaisesRegex(ValueError, "priority peers must have lower stable IDs"):
+            compile_static_policy(
+                self.abi,
+                {
+                    "mutual_exclusion": [
+                        {"action_id": 1, "destination_id": 30, "peer_ids": [40]},
+                    ],
+                },
+                StaticPolicyParameters(2, 4, 2, "priority"),
+            )
+
     def test_direct_only_plan_preserves_fragmented_raw_abi_geometry(self) -> None:
         fragmented = RawBitAbi(
             raw_width=4,

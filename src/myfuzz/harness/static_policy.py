@@ -521,6 +521,11 @@ def _compile_actions(
         elif declaration.kind == "dependency_gate":
             parameters_for_action = action_parameters(gate_bit=declaration.values[0])
         elif declaration.kind == "mutual_exclusion":
+            if (
+                parameters.mutual_exclusion == "priority"
+                and any(peer_id > declaration.destination_id for peer_id in declaration.values)
+            ):
+                raise ValueError("priority peers must have lower stable IDs")
             parameters_for_action = action_parameters(
                 mode=parameters.mutual_exclusion,
                 peer_ids=declaration.values,
@@ -708,6 +713,9 @@ def _validate_plan_actions(
                 raise ValueError("dependency_gate action parameters do not match raw ABI")
         elif action.kind == "mutual_exclusion":
             peers = values["peer_ids"]
+            invalid_priority_order = values["mode"] == "priority" and any(
+                peer_id > action.destination_id for peer_id in peers
+            )
             if (
                 values["mode"] != parameters.mutual_exclusion
                 or not isinstance(peers, tuple)
@@ -715,7 +723,10 @@ def _validate_plan_actions(
                 or tuple(sorted(set(peers))) != peers
                 or action.destination_id in peers
                 or not set(peers) <= set(layouts)
+                or invalid_priority_order
             ):
+                if invalid_priority_order:
+                    raise ValueError("priority peers must have lower stable IDs")
                 raise ValueError("mutual_exclusion action parameters do not match the policy")
         elif action.kind == "rarity_fold":
             fold_bits = values["fold_bits"]

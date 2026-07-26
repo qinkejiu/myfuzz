@@ -77,7 +77,9 @@ def _apply(
         return projected_value & mask
     if action.kind == "legal_set":
         values = _tuple_parameter(action, "values")
-        return values[projected_value % len(values)]
+        strength = _parameter(action, "strength")
+        assert isinstance(strength, int)
+        return values[(projected_value // strength) % len(values)]
     if action.kind == "dependency_gate":
         return projected_value if _raw_bit(raw_value, _parameter(action, "gate_bit")) else 0
     if action.kind == "rarity_fold":
@@ -146,6 +148,21 @@ def _raw_expression(abi: RawBitAbi, destination_id: int, width: int) -> str:
     return pieces[0] if len(pieces) == 1 else " | ".join(pieces)
 
 
+def _zero_extended(source: str, source_width: int, target_width: int) -> str:
+    assert 0 < source_width <= target_width
+    padding = target_width - source_width
+    if not padding:
+        return source
+    return f"{{{{{padding}{{1'b0}}}}, ({source})}}"
+
+
+def _folded_expression(bits: tuple[int, ...], divisor: int) -> str:
+    source = "{" + ", ".join(f"rfuzz_input_bits[{bit}]" for bit in reversed(bits)) + "}"
+    width = max(len(bits), divisor.bit_length())
+    extended = _zero_extended(source, len(bits), width)
+    return f"(({extended}) % {_constant(width, divisor)})"
+
+
 def _selection_expression(
     action: StaticAction,
     source: str,
@@ -173,8 +190,9 @@ def _selection_expression(
     bits = _tuple_parameter(action, "selector_bits")
     direct_ratio = _parameter(action, "direct_ratio")
     assert isinstance(direct_ratio, int)
-    folded = "{" + ", ".join(f"rfuzz_input_bits[{bit}]" for bit in reversed(bits)) + "}"
-    return f"((({folded}) % {direct_ratio}) == 0 ? ({direct}) : ({source}))"
+    folded = _folded_expression(bits, direct_ratio)
+    folded_width = max(len(bits), direct_ratio.bit_length())
+    return f"(({folded}) == {_constant(folded_width, 0)} ? ({direct}) : ({source}))"
 
 
 def _action_expression(
@@ -190,13 +208,24 @@ def _action_expression(
         return f"(({source}) & {_constant(width, mask)})"
     if action.kind == "legal_set":
         values = _tuple_parameter(action, "values")
+        strength = _parameter(action, "strength")
+        assert isinstance(strength, int)
+        arithmetic_width = max(width, strength.bit_length(), len(values).bit_length())
+        extended = _zero_extended(source, width, arithmetic_width)
+        index_expression = (
+            f"((({extended}) / {_constant(arithmetic_width, strength)}) "
+            f"% {_constant(arithmetic_width, len(values))})"
+        )
         choices = [
             _constant(width, value)
             for value in values
         ]
         expression = choices[-1]
         for index in range(len(choices) - 2, -1, -1):
-            expression = f"((({source}) % {len(choices)}) == {index}) ? {choices[index]} : ({expression})"
+            expression = (
+                f"((({index_expression}) == {_constant(arithmetic_width, index)}) "
+                f"? {choices[index]} : ({expression}))"
+            )
         return expression
     if action.kind == "dependency_gate":
         bit = _parameter(action, "gate_bit")
@@ -206,8 +235,9 @@ def _action_expression(
         bits = _tuple_parameter(action, "fold_bits")
         rarity = _parameter(action, "rarity")
         assert isinstance(rarity, int)
-        folded = "{" + ", ".join(f"rfuzz_input_bits[{bit}]" for bit in reversed(bits)) + "}"
-        return f"((({folded}) % {rarity}) == 0)"
+        folded = _folded_expression(bits, rarity)
+        folded_width = max(len(bits), rarity.bit_length())
+        return f"(({folded}) == {_constant(folded_width, 0)})"
     return _selection_expression(action, source, direct, width, peer_sources)
 
 

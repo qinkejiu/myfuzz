@@ -122,7 +122,7 @@ class StaticProjectionTest(unittest.TestCase):
 
     def test_evaluator_primitives_have_exact_results(self) -> None:
         self.assertEqual(project_static_sample(self.plan, 0b0011)[10], 0)
-        self.assertEqual(project_static_sample(self.plan, 1 << 4)[20], 3)
+        self.assertEqual(project_static_sample(self.plan, 1 << 4)[20], 1)
         self.assertEqual(project_static_sample(self.plan, 1 << 7)[30], 0)
         self.assertEqual(project_static_sample(self.plan, (1 << 7) | 1)[30], 1)
         self.assertEqual(project_static_sample(self.plan, 1 << 8)[40], 1)
@@ -145,6 +145,26 @@ class StaticProjectionTest(unittest.TestCase):
 
         self.assertEqual(projected[30], 1)
         self.assertEqual(projected[40], 0)
+
+    def test_legal_set_strength_changes_the_mapping(self) -> None:
+        semantic = {
+            "legal_set": [
+                {"action_id": 10, "destination_id": 20, "values": [1, 3, 5]},
+            ],
+        }
+        weak = compile_static_policy(
+            raw_abi(),
+            semantic,
+            StaticPolicyParameters(2, 4, 1, "none"),
+        )
+        strong = compile_static_policy(
+            raw_abi(),
+            semantic,
+            StaticPolicyParameters(2, 4, 2, "none"),
+        )
+
+        self.assertEqual(project_static_sample(weak, 1 << 4)[20], 3)
+        self.assertEqual(project_static_sample(strong, 1 << 4)[20], 1)
 
     def test_generated_fixture_passes_verilator_lint(self) -> None:
         if shutil.which("verilator") is None:
