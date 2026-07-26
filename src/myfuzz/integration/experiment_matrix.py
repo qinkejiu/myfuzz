@@ -415,6 +415,33 @@ def _persist_checkpoint(
     )
 
 
+def _is_legacy_build_prerequisite(job: Job) -> bool:
+    return (
+        getattr(job, "target_id", "") == ""
+        and getattr(job, "candidate_id", "") == ""
+        and getattr(job, "harness", "") == ""
+        and getattr(job, "artifact_id", "") == ""
+        and getattr(job, "harness_content_hash", None) is None
+        and getattr(job, "harness_abi_hash", None) is None
+        and getattr(job, "projection_plan_hash", None) is None
+        and getattr(getattr(job, "execution", None), "candidate_mode", None) is None
+        and getattr(getattr(job, "execution", None), "server_artifact_id", None) is None
+    )
+
+
+def _require_completed_build_prerequisite(
+    job: ExperimentJob,
+    prerequisites: Mapping[str, Job],
+    completed_builds: set[str],
+) -> Job:
+    required = prerequisites[job.job_id]
+    if required.job_id not in completed_builds:
+        raise ExperimentMatrixError(
+            f"fuzz build prerequisite did not complete: {required.job_id}"
+        )
+    return required
+
+
 def _write_all(descriptor: int, payload: bytes) -> None:
     offset = 0
     while offset < len(payload):
@@ -644,11 +671,12 @@ def _run_experiment_matrix(
     try:
         prerequisites = {}
         for job in plan.jobs:
-            if job.execution.server_artifact_id and not job.build_job_id:
+            required = resolve_build_prerequisite(plan, job)
+            if not job.build_job_id and not _is_legacy_build_prerequisite(required):
                 raise ExperimentPlanError(
                     "harness-specific fuzz build prerequisite is missing build_job_id"
                 )
-            prerequisites[job.job_id] = resolve_build_prerequisite(plan, job)
+            prerequisites[job.job_id] = required
     except ExperimentPlanError as error:
         raise ExperimentMatrixError(str(error)) from error
     completed_builds: set[str] = set()
@@ -719,21 +747,13 @@ def _run_experiment_matrix(
             resource_terminated.add(job.job_id)
 
     for job in fuzz_order:
-        required = prerequisites[job.job_id]
-        if required.job_id not in completed_builds:
-            raise ExperimentMatrixError(
-                f"fuzz build prerequisite did not complete: {required.job_id}"
-            )
+        _require_completed_build_prerequisite(job, prerequisites, completed_builds)
         accept_fuzz_result(job, execute(job))
 
     while retry_queue:
         retry_queue.sort(key=lambda item: (item[0].priority, item[2], item[0].job_id))
         job, _previous_event, order_index = retry_queue.pop(0)
-        required = prerequisites[job.job_id]
-        if required.job_id not in completed_builds:
-            raise ExperimentMatrixError(
-                f"fuzz build prerequisite did not complete: {required.job_id}"
-            )
+        _require_completed_build_prerequisite(job, prerequisites, completed_builds)
         result = execute(job)
         if isinstance(result, ResourceCheckpointEvent):
             _persist_checkpoint(

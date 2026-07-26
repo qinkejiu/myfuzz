@@ -6,6 +6,7 @@ import os
 import tempfile
 import unittest
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
@@ -238,6 +239,112 @@ class ExperimentMatrixTest(unittest.TestCase):
                         )
                 self.assertEqual([], runner.jobs)
 
+    def test_modern_idless_prerequisite_cannot_masquerade_as_legacy(self) -> None:
+        config = self.config()
+        plan = matrix_module.plan_experiment(
+            config["planner_config"],
+            config["candidate_manifests"],
+        )
+        fuzz_job = plan.jobs[0]
+        build_job = next(
+            build for build in plan.build_jobs if build.job_id == fuzz_job.build_job_id
+        )
+        erased_build = replace(
+            build_job,
+            harness="",
+            artifact_id="",
+            harness_content_hash=None,
+            harness_abi_hash=None,
+            projection_plan_hash=None,
+            execution=replace(
+                build_job.execution,
+                candidate_mode=None,
+                server_artifact_id=None,
+            ),
+        )
+        erased_fuzz = replace(
+            fuzz_job,
+            build_job_id="",
+            harness_content_hash=None,
+            harness_abi_hash=None,
+            projection_plan_hash=None,
+            execution=replace(
+                fuzz_job.execution,
+                server_artifact_id=None,
+            ),
+        )
+        invalid_plan = replace(
+            plan,
+            build_jobs=tuple(
+                erased_build if build.job_id == build_job.job_id else build
+                for build in plan.build_jobs
+            ),
+            jobs=(erased_fuzz,) + plan.jobs[1:],
+        )
+        runner = RecordingRunner(self.successful_result)
+
+        with patch.object(
+            matrix_module,
+            "plan_experiment",
+            return_value=invalid_plan,
+        ):
+            with self.assertRaisesRegex(ExperimentMatrixError, "build_job_id"):
+                run_experiment_matrix(
+                    config,
+                    runner=runner,
+                    report_path=self.root / "modern-idless.json",
+                )
+        self.assertEqual([], runner.jobs)
+
+    def test_cross_candidate_build_prerequisite_is_rejected_before_execution(self) -> None:
+        second = copy.deepcopy(self.manifest)
+        second["candidate_id"] = "candidate-z"
+        second["build_cache_key"] = "sha256:" + "f" * 64
+        config = self.config()
+        config["planner_config"]["candidate_selection"]["k"] = 2
+        config["candidate_manifests"].append(second)
+        plan = matrix_module.plan_experiment(
+            config["planner_config"],
+            config["candidate_manifests"],
+        )
+        fuzz_a = next(
+            job
+            for job in plan.jobs
+            if job.candidate_id == "candidate-000"
+            and job.harness == "candidate-direct"
+        )
+        build_b = next(
+            job
+            for job in plan.build_jobs
+            if job.candidate_id == "candidate-z" and job.harness == fuzz_a.harness
+        )
+        rebound = replace(
+            fuzz_a,
+            build_job_id=build_b.job_id,
+            execution=replace(
+                fuzz_a.execution,
+                server_artifact_id=build_b.artifact_id,
+            ),
+        )
+        invalid_plan = replace(
+            plan,
+            jobs=tuple(rebound if job.job_id == fuzz_a.job_id else job for job in plan.jobs),
+        )
+        runner = RecordingRunner(self.successful_result)
+
+        with patch.object(
+            matrix_module,
+            "plan_experiment",
+            return_value=invalid_plan,
+        ):
+            with self.assertRaisesRegex(ExperimentMatrixError, "candidate_hash"):
+                run_experiment_matrix(
+                    config,
+                    runner=runner,
+                    report_path=self.root / "cross-candidate.json",
+                )
+        self.assertEqual([], runner.jobs)
+
     def test_mismatched_build_artifact_prevents_fuzz_dispatch(self) -> None:
         wrong_artifact_id = "sha256:" + "f" * 64
 
@@ -261,6 +368,175 @@ class ExperimentMatrixTest(unittest.TestCase):
             )
         self.assertTrue(runner.jobs)
         self.assertTrue(all(job.kind is JobKind.BUILD for job in runner.jobs))
+
+    def test_empty_build_artifact_prevents_fuzz_dispatch(self) -> None:
+        def execute(job: Job) -> object:
+            if job.kind is JobKind.BUILD:
+                return BuildJobResult(job.job_id, attempt=1)
+            assert isinstance(job, ExperimentJob)
+            return FuzzJobResult(job.job_id, 1, (self.sample(job),), MIB)
+
+        runner = RecordingRunner(execute)
+        with self.assertRaisesRegex(ExperimentMatrixError, "artifact_id"):
+            run_experiment_matrix(
+                self.config(),
+                runner=runner,
+                report_path=self.root / "empty-build-artifact.json",
+            )
+        self.assertTrue(runner.jobs)
+        self.assertTrue(all(job.kind is JobKind.BUILD for job in runner.jobs))
+
+    def test_true_legacy_plan_accepts_empty_build_artifact_end_to_end(self) -> None:
+        config = self.config()
+        plan = matrix_module.plan_experiment(
+            config["planner_config"],
+            config["candidate_manifests"],
+        )
+        current_build = plan.build_jobs[0]
+        legacy_build = replace(
+            current_build,
+            target_id="",
+            candidate_id="",
+            harness="",
+            artifact_id="",
+            harness_content_hash=None,
+            harness_abi_hash=None,
+            projection_plan_hash=None,
+            execution=replace(
+                current_build.execution,
+                candidate_mode=None,
+                server_artifact_id=None,
+            ),
+        )
+        legacy_jobs = tuple(
+            replace(
+                job,
+                build_job_id="",
+                harness_content_hash=None,
+                harness_abi_hash=None,
+                projection_plan_hash=None,
+                execution=replace(job.execution, server_artifact_id=None),
+            )
+            for job in plan.jobs
+        )
+        legacy_plan = replace(
+            plan,
+            build_jobs=(legacy_build,),
+            jobs=legacy_jobs,
+        )
+        runner = RecordingRunner(self.successful_result)
+
+        with patch.object(
+            matrix_module,
+            "plan_experiment",
+            return_value=legacy_plan,
+        ):
+            result = run_experiment_matrix(
+                config,
+                runner=runner,
+                report_path=self.root / "legacy-plan.json",
+            )
+
+        self.assertEqual("experiment_matrix_run.v1", result["schema_version"])
+        self.assertEqual(legacy_build.job_id, runner.jobs[0].job_id)
+        self.assertTrue(all(job.kind is JobKind.FUZZ for job in runner.jobs[1:]))
+
+    def test_completed_prerequisite_gate_rejects_missing_attestation(self) -> None:
+        plan = matrix_module.plan_experiment(
+            self.planner_config,
+            [self.manifest],
+        )
+        fuzz_job = plan.jobs[0]
+        build_job = next(
+            build for build in plan.build_jobs if build.job_id == fuzz_job.build_job_id
+        )
+        gate = matrix_module._require_completed_build_prerequisite
+
+        with self.assertRaisesRegex(ExperimentMatrixError, build_job.job_id):
+            gate(
+                fuzz_job,
+                {fuzz_job.job_id: build_job},
+                set(),
+            )
+
+        self.assertEqual(
+            build_job,
+            gate(
+                fuzz_job,
+                {fuzz_job.job_id: build_job},
+                {build_job.job_id},
+            ),
+        )
+
+    def test_retry_rechecks_completed_prerequisite_before_runner_dispatch(self) -> None:
+        attempts: defaultdict[str, int] = defaultdict(int)
+        gate_attempts: defaultdict[str, int] = defaultdict(int)
+        attested_artifacts: dict[str, str] = {}
+        first_fuzz_job_id: str | None = None
+        original_gate = matrix_module._require_completed_build_prerequisite
+
+        def revoke_after_initial_gate(
+            job: ExperimentJob,
+            prerequisites: Mapping[str, Job],
+            completed_builds: set[str],
+        ) -> Job:
+            nonlocal first_fuzz_job_id
+            gate_attempts[job.job_id] += 1
+            required = original_gate(job, prerequisites, completed_builds)
+            if first_fuzz_job_id is None:
+                first_fuzz_job_id = job.job_id
+                completed_builds.remove(required.job_id)
+            return required
+
+        def execute(job: Job) -> object:
+            if job.kind is JobKind.BUILD:
+                attested_artifacts[job.job_id] = job.artifact_id
+                return BuildJobResult(
+                    job.job_id,
+                    attempt=1,
+                    artifact_id=job.artifact_id,
+                )
+            assert isinstance(job, ExperimentJob)
+            self.assertEqual(
+                job.execution.server_artifact_id,
+                attested_artifacts.get(job.build_job_id),
+            )
+            attempts[job.job_id] += 1
+            if attempts[job.job_id] == 1 and job.job_id == first_fuzz_job_id:
+                return ResourceCheckpointEvent(
+                    job.job_id,
+                    1,
+                    4 * MIB,
+                    "hard_memory_limit",
+                    {},
+                    (self.sample(job, resource_terminated=1, peak_rss_bytes=4 * MIB),),
+                )
+            return FuzzJobResult(
+                job.job_id,
+                attempts[job.job_id],
+                (self.sample(job),),
+                MIB,
+            )
+
+        runner = RecordingRunner(execute)
+        with patch.object(
+            matrix_module,
+            "_require_completed_build_prerequisite",
+            side_effect=revoke_after_initial_gate,
+        ):
+            with self.assertRaisesRegex(
+                ExperimentMatrixError,
+                "fuzz build prerequisite did not complete",
+            ):
+                run_experiment_matrix(
+                    self.config(retries=1),
+                    runner=runner,
+                    report_path=self.root / "retry-prerequisite.json",
+                )
+
+        assert first_fuzz_job_id is not None
+        self.assertEqual(1, attempts[first_fuzz_job_id])
+        self.assertEqual(2, gate_attempts[first_fuzz_job_id])
 
     def test_fuzz_is_not_dispatched_when_build_never_completes(self) -> None:
         attempts: defaultdict[str, int] = defaultdict(int)
@@ -366,12 +642,18 @@ class ExperimentMatrixTest(unittest.TestCase):
             {"name": "top", "kind": "cycles", "value": 300},
         ]
         attempts: defaultdict[str, int] = defaultdict(int)
+        attested_artifacts: dict[str, str] = {}
         runner: RecordingRunner
 
         def execute(job: Job) -> object:
             if job.kind is JobKind.BUILD:
+                attested_artifacts[job.job_id] = job.artifact_id
                 return BuildJobResult(job.job_id, attempt=1, artifact_id=job.artifact_id)
             assert isinstance(job, ExperimentJob)
+            self.assertEqual(
+                job.execution.server_artifact_id,
+                attested_artifacts.get(job.build_job_id),
+            )
             attempts[job.job_id] += 1
             if attempts[job.job_id] == 1:
                 return ResourceCheckpointEvent(
@@ -393,6 +675,15 @@ class ExperimentMatrixTest(unittest.TestCase):
         )
 
         fuzz_calls = [job for job in runner.jobs if isinstance(job, ExperimentJob)]
+        for index, fuzz_job in enumerate(runner.jobs):
+            if not isinstance(fuzz_job, ExperimentJob):
+                continue
+            build_index = next(
+                build_index
+                for build_index, build_job in enumerate(runner.jobs)
+                if build_job.job_id == fuzz_job.build_job_id
+            )
+            self.assertLess(build_index, index)
         retry_calls = [job for job in fuzz_calls if attempts[job.job_id] == 2][-9:]
         self.assertEqual(sorted(job.priority for job in retry_calls), [job.priority for job in retry_calls])
         self.assertEqual(9, len(result["execution"]["checkpoints"]))
