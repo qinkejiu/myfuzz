@@ -765,6 +765,29 @@ class HarnessCompilerTest(unittest.TestCase):
             bundle.candidate_static.coverage_universe_id,
         )
         self.assertNotIn("always_ff", bundle.candidate_static.source_text)
+        static_fragment = bundle.manifest_fragment()["harnesses"]["candidate-static"]
+        self.assertEqual(
+            bundle.candidate_static.policy_plan_hash,
+            static_fragment["projection_plan_hash"],
+        )
+
+    def test_static_projection_requires_declarations_and_parameters_together(self) -> None:
+        facts, composition, manifest = load_runtime_documents()
+        for options in (
+            {"static_declarations": {}},
+            {"static_parameters": StaticPolicyParameters(2, 4, 2, "one_hot")},
+        ):
+            with self.subTest(options=tuple(options)), self.assertRaisesRegex(
+                ValueError,
+                "static declarations and parameters must be provided together",
+            ):
+                compile_harness_bundle(
+                    facts,
+                    composition,
+                    manifest,
+                    protocols(),
+                    **options,
+                )
 
     def test_active_view_changes_priority_without_changing_raw_geometry(self) -> None:
         facts, composition, manifest = load_runtime_documents()

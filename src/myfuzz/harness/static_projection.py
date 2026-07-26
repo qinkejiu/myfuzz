@@ -344,6 +344,7 @@ def build_static_harness(manifest: object, plan: StaticPolicyPlan) -> HarnessArt
         source_text=source,
         content_hash=content_hash({"source_text": source}),
         top_content_hash=top_content_hash(manifest),
+        policy_plan_hash=plan.plan_hash,
     )
 
 

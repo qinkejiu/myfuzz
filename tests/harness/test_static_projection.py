@@ -91,11 +91,21 @@ class StaticProjectionTest(unittest.TestCase):
         self.legal_opcodes = {1, 3, 5}
 
     def test_projection_outputs_have_declared_width_and_legal_membership(self) -> None:
+        opcode_selector = next(
+            action
+            for action in self.plan.actions
+            if action.kind == "entropy_mix" and action.destination_id == self.opcode_id
+        )
+        selector_bits = dict(opcode_selector.parameters)["selector_bits"]
         for raw in property_samples(self.plan.raw_abi.raw_width):
             values = project_static_sample(self.plan, raw)
             self.assertEqual(set(values), self.destination_ids)
             raw_opcode = (raw >> 4) & 0b111
-            if raw_opcode % POLICY.direct_ratio:
+            selector = sum(
+                ((raw >> bit) & 1) << index
+                for index, bit in enumerate(selector_bits)
+            )
+            if selector % POLICY.direct_ratio:
                 self.assertIn(values[self.opcode_id], self.legal_opcodes)
             else:
                 self.assertEqual(values[self.opcode_id], raw_opcode)
@@ -112,23 +122,23 @@ class StaticProjectionTest(unittest.TestCase):
         self.assertIn("direct sample", rtl)
 
     def test_entropy_mix_selects_between_projected_and_direct_values(self) -> None:
-        # Destination 10 is aligned to four.  An even raw value selects the
-        # direct branch, while an odd raw value keeps the aligned projection.
+        # Destination 10 is aligned to four.  Independent selector bit 4
+        # chooses between the direct and aligned projections.
         self.assertEqual(project_static_sample(self.plan, 0b0010)[10], 0b0010)
-        self.assertEqual(project_static_sample(self.plan, 0b0011)[10], 0)
+        self.assertEqual(project_static_sample(self.plan, (1 << 4) | 0b0011)[10], 0)
 
         rtl = emit_static_projection(self.manifest, self.plan)
         self.assertIn("? ({{2{1'b0}}, rfuzz_input_bits[1:0]} |", rtl)
 
     def test_evaluator_primitives_have_exact_results(self) -> None:
-        self.assertEqual(project_static_sample(self.plan, 0b0011)[10], 0)
-        self.assertEqual(project_static_sample(self.plan, 1 << 4)[20], 1)
-        self.assertEqual(project_static_sample(self.plan, 1 << 7)[30], 0)
+        self.assertEqual(project_static_sample(self.plan, (1 << 4) | 0b0011)[10], 0)
+        self.assertEqual(project_static_sample(self.plan, (1 << 4) | 1)[20], 1)
+        self.assertEqual(project_static_sample(self.plan, (1 << 7) | (1 << 1))[30], 0)
         self.assertEqual(project_static_sample(self.plan, (1 << 7) | 1)[30], 1)
         self.assertEqual(project_static_sample(self.plan, 1 << 8)[40], 1)
         self.assertEqual(project_static_sample(self.plan, (1 << 8) | (1 << 7) | 1)[40], 0)
         self.assertEqual(project_static_sample(self.plan, 1 << 9)[50], 1)
-        self.assertEqual(project_static_sample(self.plan, (1 << 9) | 1)[50], 0)
+        self.assertEqual(project_static_sample(self.plan, (1 << 9) | (1 << 2) | 1)[50], 0)
 
     def test_priority_mutual_exclusion_uses_stable_destination_ids(self) -> None:
         priority_plan = compile_static_policy(
@@ -141,7 +151,7 @@ class StaticProjectionTest(unittest.TestCase):
             StaticPolicyParameters(2, 4, 2, "priority"),
         )
 
-        projected = project_static_sample(priority_plan, (1 << 8) | (1 << 7))
+        projected = project_static_sample(priority_plan, (1 << 8) | (1 << 7) | 1)
 
         self.assertEqual(projected[30], 1)
         self.assertEqual(projected[40], 0)
@@ -163,8 +173,8 @@ class StaticProjectionTest(unittest.TestCase):
             StaticPolicyParameters(2, 4, 2, "none"),
         )
 
-        self.assertEqual(project_static_sample(weak, 1 << 4)[20], 3)
-        self.assertEqual(project_static_sample(strong, 1 << 4)[20], 1)
+        self.assertEqual(project_static_sample(weak, (1 << 4) | 1)[20], 3)
+        self.assertEqual(project_static_sample(strong, (1 << 4) | 1)[20], 1)
 
     def test_generated_fixture_passes_verilator_lint(self) -> None:
         if shutil.which("verilator") is None:

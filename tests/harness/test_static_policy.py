@@ -143,6 +143,28 @@ class StaticPolicyTest(unittest.TestCase):
             ]
             self.assertGreater(max(direct_ids), max(transform_ids))
 
+    def test_generated_direct_selector_has_enough_independent_entropy(self) -> None:
+        plan = compile_static_policy(
+            self.abi,
+            {
+                "dependency_gate": [
+                    {"action_id": 1, "destination_id": 30, "gate_bit": 0},
+                ],
+            },
+            StaticPolicyParameters(4, 4, 2, "none"),
+        )
+
+        direct = next(action for action in plan.actions if action.kind == "entropy_mix")
+        self.assertEqual(dict(direct.parameters)["selector_bits"], (1, 2))
+
+        forged = replace(
+            direct,
+            parameters=(("direct_ratio", 4), ("selector_bits", (0,))),
+        )
+        actions = tuple(forged if action is direct else action for action in plan.actions)
+        with self.assertRaisesRegex(ValueError, "too few bits for direct_ratio"):
+            StaticPolicyPlan(plan.raw_abi, plan.parameters, actions, plan.plan_hash)
+
     def test_priority_exclusion_requires_lower_stable_id_peers(self) -> None:
         with self.assertRaisesRegex(ValueError, "priority peers must have lower stable IDs"):
             compile_static_policy(

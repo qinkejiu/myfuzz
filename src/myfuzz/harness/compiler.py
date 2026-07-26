@@ -1267,6 +1267,8 @@ def compile_harness_bundle(
     static_parameters: StaticPolicyParameters | None = None,
 ) -> HarnessBundle:
     """Compile direct, dependency-aware, and static harness modes after validation."""
+    if (static_declarations is None) != (static_parameters is None):
+        raise ValueError("static declarations and parameters must be provided together")
     validate_contract(hdl_facts, "hdl_facts.v2")
     validate_contract(composition_ir, "composition_ir.v1")
     validate_contract(candidate_manifest, "candidate_manifest.v1")
@@ -1331,15 +1333,11 @@ def compile_harness_bundle(
     )
     candidate_depaware = build_depaware(harness_manifest, plan)
     candidate_static = None
-    if static_declarations is not None or static_parameters is not None:
+    if static_declarations is not None and static_parameters is not None:
         static_plan = compile_static_policy(
             candidate_direct.abi,
-            {} if static_declarations is None else static_declarations,
-            (
-                StaticPolicyParameters(1, 1, 1, "none")
-                if static_parameters is None
-                else static_parameters
-            ),
+            static_declarations,
+            static_parameters,
         )
         candidate_static = build_static_harness(harness_manifest, static_plan)
     if not (

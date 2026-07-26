@@ -496,6 +496,40 @@ def _compile_actions(
     actions: list[StaticAction] = []
     transform_max_ids: dict[int, int] = {}
     entropy_max_ids: dict[int, int] = {}
+    selector_width = max(1, (parameters.direct_ratio - 1).bit_length())
+
+    def inclusive_bits(low: int, high: int) -> tuple[int, ...]:
+        bits: list[int] = []
+        current = low
+        while current <= high:
+            bits.append(current)
+            current += 1
+        return tuple(bits)
+
+    def destination_raw_bits(destination_id: int) -> tuple[int, ...]:
+        layout = layouts[destination_id]
+        assert layout is not None
+        fragments = layout[3]
+        return tuple(
+            raw_bit
+            for fragment_lo, fragment_hi in zip(fragments[::3], fragments[1::3])
+            for raw_bit in inclusive_bits(fragment_lo, fragment_hi)
+        )
+
+    selector_exclusions = {
+        destination_id: set(destination_raw_bits(destination_id))
+        for destination_id in layouts
+        if layouts[destination_id] is not None
+    }
+    for declaration in semantic:
+        excluded = selector_exclusions[declaration.destination_id]
+        if declaration.kind == "dependency_gate":
+            excluded.add(declaration.values[0])
+        elif declaration.kind == "rarity_fold":
+            excluded.update(declaration.values)
+        elif declaration.kind == "mutual_exclusion":
+            for peer_id in declaration.values:
+                excluded.update(destination_raw_bits(peer_id))
     for declaration in semantic:
         layout = layouts[declaration.destination_id]
         if layout is None:
@@ -536,6 +570,8 @@ def _compile_actions(
                 rarity=parameters.event_rarity,
             )
         else:
+            if len(declaration.values) < selector_width:
+                raise ValueError("entropy_mix selector has too few bits for direct_ratio")
             parameters_for_action = action_parameters(
                 direct_ratio=parameters.direct_ratio,
                 selector_bits=declaration.values,
@@ -576,11 +612,13 @@ def _compile_actions(
         if layout is None:
             raise ValueError("static policy requires complete raw slices for transformed destinations")
         raw_lo, raw_hi, _, fragments = layout
-        selector_bits = tuple(
-            raw_bit
-            for fragment_lo, fragment_hi in zip(fragments[::3], fragments[1::3])
-            for raw_bit in range(fragment_lo, fragment_hi + 1)
-        )
+        all_raw_bits = inclusive_bits(0, raw_abi.raw_width - 1)
+        excluded = selector_exclusions[destination_id]
+        safe_bits = tuple(raw_bit for raw_bit in all_raw_bits if raw_bit not in excluded)
+        fallback_bits = tuple(raw_bit for raw_bit in all_raw_bits if raw_bit in excluded)
+        selector_bits = (*safe_bits, *fallback_bits)[:selector_width]
+        if len(selector_bits) < selector_width:
+            raise ValueError("raw ABI has too few bits for direct_ratio")
         generated_parameters: dict[str, StaticParameterValue] = {
             "direct_ratio": parameters.direct_ratio,
             "selector_bits": selector_bits,
@@ -747,7 +785,10 @@ def _validate_plan_actions(
                 or not selector_bits
                 or tuple(sorted(set(selector_bits))) != selector_bits
                 or any(value >= raw_abi.raw_width for value in selector_bits)
+                or len(selector_bits) < max(1, (parameters.direct_ratio - 1).bit_length())
             ):
+                if len(selector_bits) < max(1, (parameters.direct_ratio - 1).bit_length()):
+                    raise ValueError("entropy_mix selector has too few bits for direct_ratio")
                 raise ValueError("entropy_mix action parameters do not match the policy")
             entropy_max_ids[action.destination_id] = max(
                 action.action_id,

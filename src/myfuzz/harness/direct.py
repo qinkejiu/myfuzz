@@ -24,6 +24,7 @@ class HarnessArtifact:
     top_content_hash: str = ""
     counters: tuple[str, ...] = ()
     projection_plan: ProjectionPlan | None = None
+    policy_plan_hash: str | None = None
 
     @property
     def kind(self) -> str:
@@ -81,6 +82,8 @@ class HarnessArtifact:
             fragment["projection_max_temporal_cycles"] = (
                 self.projection_plan.max_temporal_cycles
             )
+        elif self.policy_plan_hash is not None:
+            fragment["projection_plan_hash"] = self.policy_plan_hash
         return fragment
 
 
