@@ -494,8 +494,8 @@ def _compile_actions(
 ) -> tuple[StaticAction, ...]:
     layouts = _destination_layouts(raw_abi)
     actions: list[StaticAction] = []
-    transformed: set[int] = set()
-    entropy_destinations: set[int] = set()
+    transform_max_ids: dict[int, int] = {}
+    entropy_max_ids: dict[int, int] = {}
     for declaration in semantic:
         layout = layouts[declaration.destination_id]
         if layout is None:
@@ -535,7 +535,10 @@ def _compile_actions(
                 direct_ratio=parameters.direct_ratio,
                 selector_bits=declaration.values,
             )
-            entropy_destinations.add(declaration.destination_id)
+            entropy_max_ids[declaration.destination_id] = max(
+                declaration.action_id,
+                entropy_max_ids.get(declaration.destination_id, -1),
+            )
         actions.append(
             StaticAction(
                 declaration.action_id,
@@ -547,12 +550,19 @@ def _compile_actions(
             )
         )
         if declaration.kind != "entropy_mix":
-            transformed.add(declaration.destination_id)
+            transform_max_ids[declaration.destination_id] = max(
+                declaration.action_id,
+                transform_max_ids.get(declaration.destination_id, -1),
+            )
 
-    missing_direct = tuple(sorted(transformed - entropy_destinations))
+    missing_direct = tuple(
+        destination_id
+        for destination_id, transform_max_id in sorted(transform_max_ids.items())
+        if entropy_max_ids.get(destination_id, -1) <= transform_max_id
+    )
     used_action_ids = {item.action_id for item in semantic}
-    next_action_id = 0
     for destination_id in missing_direct:
+        next_action_id = transform_max_ids[destination_id] + 1
         while next_action_id in used_action_ids:
             next_action_id += 1
         if next_action_id > _MAX_INTEGER:
@@ -651,8 +661,8 @@ def _validate_plan_actions(
 ) -> None:
     layouts = _destination_layouts(raw_abi)
     action_ids: set[int] = set()
-    transformed: set[int] = set()
-    entropy_destinations: set[int] = set()
+    transform_max_ids: dict[int, int] = {}
+    entropy_max_ids: dict[int, int] = {}
 
     for action in actions:
         if action.action_id in action_ids:
@@ -728,12 +738,21 @@ def _validate_plan_actions(
                 or any(value >= raw_abi.raw_width for value in selector_bits)
             ):
                 raise ValueError("entropy_mix action parameters do not match the policy")
-            entropy_destinations.add(action.destination_id)
+            entropy_max_ids[action.destination_id] = max(
+                action.action_id,
+                entropy_max_ids.get(action.destination_id, -1),
+            )
         if action.kind != "entropy_mix":
-            transformed.add(action.destination_id)
+            transform_max_ids[action.destination_id] = max(
+                action.action_id,
+                transform_max_ids.get(action.destination_id, -1),
+            )
 
-    if not transformed <= entropy_destinations:
-        raise ValueError("every transformed destination requires a direct branch")
+    for destination_id, transform_max_id in transform_max_ids.items():
+        if entropy_max_ids.get(destination_id, -1) <= transform_max_id:
+            raise ValueError(
+                "every transformed destination's direct branch must follow its transforms"
+            )
 
 
 def compile_static_policy(

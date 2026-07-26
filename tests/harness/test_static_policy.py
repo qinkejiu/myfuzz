@@ -130,6 +130,18 @@ class StaticPolicyTest(unittest.TestCase):
         }
 
         self.assertTrue(transformed <= direct_branches)
+        for destination_id in transformed:
+            transform_ids = [
+                action.action_id
+                for action in plan.actions
+                if action.destination_id == destination_id and action.kind != "entropy_mix"
+            ]
+            direct_ids = [
+                action.action_id
+                for action in plan.actions
+                if action.destination_id == destination_id and action.kind == "entropy_mix"
+            ]
+            self.assertGreater(max(direct_ids), max(transform_ids))
 
     def test_direct_only_plan_preserves_fragmented_raw_abi_geometry(self) -> None:
         fragmented = RawBitAbi(
@@ -210,15 +222,46 @@ class StaticPolicyTest(unittest.TestCase):
         self.assertEqual([item.raw_lo for item in left.raw_abi.uses], [0, 1])
         self.assertNotIn(left.raw_abi.abi_hash, {"first-forgery", "second-forgery"})
 
-    def test_generated_direct_action_reuses_lowest_available_id_after_maximum_user_id(self) -> None:
+    def test_unrelated_maximum_action_id_does_not_block_generated_direct_action(self) -> None:
         plan = compile_static_policy(
             self.abi,
-            {"mask_align": [{"action_id": (1 << 31) - 1, "destination_id": 10, "alignment": 2}]},
+            {
+                "mask_align": [{"action_id": 5, "destination_id": 10, "alignment": 2}],
+                "entropy_mix": [
+                    {
+                        "action_id": (1 << 31) - 1,
+                        "destination_id": 20,
+                        "selector_bits": [4],
+                    }
+                ],
+            },
             BALANCED_POLICY,
         )
 
-        generated = next(action for action in plan.actions if action.kind == "entropy_mix")
-        self.assertEqual(generated.action_id, 0)
+        generated = next(
+            action
+            for action in plan.actions
+            if action.kind == "entropy_mix" and action.destination_id == 10
+        )
+        self.assertEqual(generated.action_id, 6)
+
+    def test_public_plan_rejects_direct_branch_before_destination_transform(self) -> None:
+        plan = compile_static_policy(self.abi, self.declarations, BALANCED_POLICY)
+        direct = next(
+            action
+            for action in plan.actions
+            if action.kind == "entropy_mix" and action.destination_id == 10
+        )
+        forged = replace(direct, action_id=19)
+        actions = tuple(
+            sorted(
+                (forged if action is direct else action for action in plan.actions),
+                key=lambda action: action.action_id,
+            )
+        )
+
+        with self.assertRaisesRegex(ValueError, "direct branch must follow"):
+            StaticPolicyPlan(plan.raw_abi, plan.parameters, actions, plan.plan_hash)
 
     def test_public_constructors_reject_forged_action_and_plan_invariants(self) -> None:
         with self.assertRaisesRegex(ValueError, "must declare exactly"):
