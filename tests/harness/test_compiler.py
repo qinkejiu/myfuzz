@@ -18,6 +18,7 @@ from myfuzz.harness import (
 from myfuzz.harness.abi import content_hash as abi_content_hash
 from myfuzz.harness import compiler as compiler_module
 from myfuzz.harness.compiler import _compiled_protocols
+from myfuzz.harness.static_policy import StaticPolicyParameters
 from myfuzz.protocols import load_builtin_protocol
 from tests.runtime_fixtures import load_runtime_documents
 
@@ -670,6 +671,7 @@ class HarnessCompilerTest(unittest.TestCase):
         bundle = compile_harness_bundle(facts, composition, manifest, protocols())
 
         self.assertEqual(18, bundle.candidate_direct.raw_width)
+        self.assertIsNone(bundle.candidate_static)
         self.assertEqual(bundle.candidate_direct.raw_width, bundle.candidate_depaware.raw_width)
         self.assertIn("flat_runtime_top", bundle.flat_direct.source_text)
         self.assertNotIn("candidate_runtime_top", bundle.flat_direct.source_text)
@@ -737,6 +739,32 @@ class HarnessCompilerTest(unittest.TestCase):
             fragment["harnesses"]["flat-direct"]["instrumented_rtl_hash"],
             fragment["harnesses"]["candidate-direct"]["instrumented_rtl_hash"],
         )
+
+    def test_compiles_static_projection_with_direct_identity(self) -> None:
+        facts, composition, manifest = load_runtime_documents()
+        bundle = compile_harness_bundle(
+            facts,
+            composition,
+            manifest,
+            protocols(),
+            static_declarations={
+                "legal_set": [
+                    {"action_id": 1, "destination_id": 10, "values": [0, 1, 2, 3]}
+                ]
+            },
+            static_parameters=StaticPolicyParameters(2, 4, 2, "one_hot"),
+        )
+
+        self.assertIsNotNone(bundle.candidate_static)
+        self.assertEqual("candidate_static", bundle.candidate_static.mode)
+        self.assertEqual(bundle.candidate_direct.raw_width, bundle.candidate_static.raw_width)
+        self.assertEqual(bundle.candidate_direct.abi.abi_hash, bundle.candidate_static.abi.abi_hash)
+        self.assertEqual(bundle.candidate_direct.candidate_id, bundle.candidate_static.candidate_id)
+        self.assertEqual(
+            bundle.candidate_direct.coverage_universe_id,
+            bundle.candidate_static.coverage_universe_id,
+        )
+        self.assertNotIn("always_ff", bundle.candidate_static.source_text)
 
     def test_active_view_changes_priority_without_changing_raw_geometry(self) -> None:
         facts, composition, manifest = load_runtime_documents()
