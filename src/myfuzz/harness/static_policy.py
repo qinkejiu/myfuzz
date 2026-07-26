@@ -11,11 +11,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from typing import Literal
 
-from .abi import RawBitAbi, content_hash
+from .abi import RawBitAbi, RawBitUse, RawDestination, content_hash
 
 
 _MAX_INTEGER = (1 << 31) - 1
 _MAX_POLICY_PARAMETER = 256
+_MAX_ACTION_VALUE = (1 << 4096) - 1
 _ACTION_KINDS = frozenset(
     (
         "mask_align",
@@ -27,11 +28,26 @@ _ACTION_KINDS = frozenset(
     )
 )
 _DECLARATION_KEYS = _ACTION_KINDS | frozenset(("diagnostics",))
+_ACTION_PARAMETER_KEYS = {
+    "mask_align": frozenset(("alignment", "mask")),
+    "legal_set": frozenset(("strength", "values")),
+    "dependency_gate": frozenset(("gate_bit",)),
+    "mutual_exclusion": frozenset(("mode", "peer_ids")),
+    "rarity_fold": frozenset(("fold_bits", "rarity")),
+    "entropy_mix": frozenset(("direct_ratio", "selector_bits")),
+}
+_FRAGMENTS_KEY = "fragments"
 
 
 def _integer(value: object, label: str, *, minimum: int = 0, maximum: int = _MAX_INTEGER) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or not minimum <= value <= maximum:
         raise ValueError(f"{label} must be an integer in {minimum}..{maximum}")
+    return value
+
+
+def _action_value(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= _MAX_ACTION_VALUE:
+        raise ValueError(f"{label} must be a bounded non-negative integer")
     return value
 
 
@@ -101,13 +117,71 @@ class StaticAction:
             if isinstance(value, bool) or not isinstance(value, (int, str, tuple)):
                 raise ValueError("static action parameter has an unsupported value")
             if isinstance(value, int):
-                _integer(value, f"static action parameter {key}")
+                _action_value(value, f"static action parameter {key}")
             elif isinstance(value, str):
                 if not value:
                     raise ValueError("static action string parameter must be non-empty")
             else:
                 for entry in value:
-                    _integer(entry, f"static action parameter {key}")
+                    _action_value(entry, f"static action parameter {key}")
+        keys = frozenset(item[0] for item in self.parameters)
+        expected = _ACTION_PARAMETER_KEYS[self.kind]
+        if keys not in {expected, expected | {_FRAGMENTS_KEY}}:
+            raise ValueError(f"{self.kind} parameters must declare exactly {sorted(expected)}")
+        if _FRAGMENTS_KEY in keys:
+            fragments = dict(self.parameters)[_FRAGMENTS_KEY]
+            if not isinstance(fragments, tuple) or not fragments or len(fragments) % 3:
+                raise ValueError("fragments must contain raw_lo/raw_hi/destination_lo triples")
+            for raw_lo, raw_hi, destination_lo in zip(fragments[::3], fragments[1::3], fragments[2::3]):
+                if raw_hi < raw_lo or destination_lo < 0:
+                    raise ValueError("fragments must contain valid raw-bit slices")
+        values = dict(self.parameters)
+        if self.kind == "mask_align":
+            alignment = values["alignment"]
+            if not isinstance(alignment, int) or alignment < 1 or alignment & (alignment - 1):
+                raise ValueError("mask_align alignment must be a positive power of two")
+        elif self.kind == "legal_set":
+            legal_values = values["values"]
+            if (
+                not isinstance(values["strength"], int)
+                or not 1 <= values["strength"] <= _MAX_POLICY_PARAMETER
+                or not isinstance(legal_values, tuple)
+                or not legal_values
+                or tuple(sorted(set(legal_values))) != legal_values
+            ):
+                raise ValueError("legal_set parameters must contain sorted values and bounded strength")
+        elif self.kind == "dependency_gate":
+            if not isinstance(values["gate_bit"], int):
+                raise ValueError("dependency_gate gate_bit must be an integer")
+        elif self.kind == "mutual_exclusion":
+            peers = values["peer_ids"]
+            if (
+                values["mode"] not in {"none", "one_hot", "priority"}
+                or not isinstance(peers, tuple)
+                or not peers
+                or tuple(sorted(set(peers))) != peers
+            ):
+                raise ValueError("mutual_exclusion parameters must be canonical")
+        elif self.kind == "rarity_fold":
+            fold_bits = values["fold_bits"]
+            if (
+                not isinstance(values["rarity"], int)
+                or not 1 <= values["rarity"] <= _MAX_POLICY_PARAMETER
+                or not isinstance(fold_bits, tuple)
+                or not fold_bits
+                or tuple(sorted(set(fold_bits))) != fold_bits
+            ):
+                raise ValueError("rarity_fold parameters must be canonical")
+        else:
+            selector_bits = values["selector_bits"]
+            if (
+                not isinstance(values["direct_ratio"], int)
+                or not 1 <= values["direct_ratio"] <= _MAX_POLICY_PARAMETER
+                or not isinstance(selector_bits, tuple)
+                or not selector_bits
+                or tuple(sorted(set(selector_bits))) != selector_bits
+            ):
+                raise ValueError("entropy_mix parameters must be canonical")
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,19 +194,23 @@ class StaticPolicyPlan:
     def __post_init__(self) -> None:
         if not isinstance(self.raw_abi, RawBitAbi):
             raise TypeError("raw_abi must be RawBitAbi")
-        self.raw_abi.validate_total_use()
+        canonical_abi = _canonical_raw_abi(self.raw_abi)
+        object.__setattr__(self, "raw_abi", canonical_abi)
         if not isinstance(self.parameters, StaticPolicyParameters):
             raise TypeError("parameters must be StaticPolicyParameters")
         if not isinstance(self.actions, tuple) or any(not isinstance(item, StaticAction) for item in self.actions):
             raise ValueError("actions must be an immutable tuple of StaticAction records")
         if tuple(sorted(self.actions, key=_action_key)) != self.actions:
             raise ValueError("static actions must be in canonical order")
+        _validate_plan_actions(canonical_abi, self.parameters, self.actions)
         if not isinstance(self.plan_hash, str) or len(self.plan_hash) != 64:
             raise ValueError("plan_hash must be a SHA-256 digest")
         try:
             int(self.plan_hash, 16)
         except ValueError as error:
             raise ValueError("plan_hash must be a SHA-256 digest") from error
+        if self.plan_hash != _plan_hash(canonical_abi, self.parameters, self.actions):
+            raise ValueError("plan_hash does not match static policy content hash")
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,25 +250,89 @@ def _declaration_record(
     return record
 
 
-def _destination_ranges(raw_abi: RawBitAbi) -> dict[int, tuple[int, int, int]]:
-    ranges: dict[int, tuple[int, int, int]] = {}
+def _raw_abi_geometry_document(
+    raw_width: int,
+    destinations: tuple[RawDestination, ...],
+    uses: tuple[RawBitUse, ...],
+) -> dict[str, object]:
+    return {
+        "raw_width": raw_width,
+        "destinations": [
+            {
+                "destination_id": item.destination_id,
+                "component_id": item.component_id,
+                "port_id": item.port_id,
+                "width": item.width,
+            }
+            for item in destinations
+        ],
+        "uses": [
+            {
+                "raw_lo": item.raw_lo,
+                "raw_hi": item.raw_hi,
+                "destination_id": item.destination_id,
+                "destination_lo": item.destination_lo,
+                "action": item.action,
+                "category": item.category,
+            }
+            for item in uses
+        ],
+    }
+
+
+def _canonical_raw_abi(raw_abi: RawBitAbi) -> RawBitAbi:
+    if not isinstance(raw_abi, RawBitAbi):
+        raise TypeError("raw_abi must be RawBitAbi")
+    raw_abi.validate_total_use()
+    destinations = tuple(sorted(raw_abi.destinations, key=lambda item: item.destination_id))
+    if len(destinations) != len({item.destination_id for item in destinations}):
+        raise ValueError("raw ABI has duplicate destination IDs")
+    uses = tuple(sorted(raw_abi.uses, key=lambda item: item.raw_lo))
+    geometry = _raw_abi_geometry_document(raw_abi.raw_width, destinations, uses)
+    return RawBitAbi(raw_abi.raw_width, destinations, uses, content_hash(geometry))
+
+
+def _destination_layouts(raw_abi: RawBitAbi) -> dict[int, tuple[int, int, int, tuple[int, ...]] | None]:
+    layouts: dict[int, tuple[int, int, int, tuple[int, ...]] | None] = {}
     for destination in raw_abi.destinations:
-        if destination.destination_id in ranges:
-            raise ValueError("raw ABI has duplicate destination IDs")
         matches = tuple(use for use in raw_abi.uses if use.destination_id == destination.destination_id)
-        if len(matches) == 1:
-            use = matches[0]
-            if use.destination_lo == 0 and use.raw_hi - use.raw_lo + 1 == destination.width:
-                ranges[destination.destination_id] = (use.raw_lo, use.raw_hi, destination.width)
+        cursor = 0
+        for use in sorted(matches, key=lambda item: item.destination_lo):
+            width = use.raw_hi - use.raw_lo + 1
+            if use.destination_lo != cursor:
+                layouts[destination.destination_id] = None
+                break
+            cursor += width
+        else:
+            if cursor != destination.width:
+                layouts[destination.destination_id] = None
                 continue
-        ranges[destination.destination_id] = (-1, -1, destination.width)
-    return ranges
+            ordered = tuple(sorted(matches, key=lambda item: item.raw_lo))
+            fragments = tuple(
+                value
+                for use in ordered
+                for value in (use.raw_lo, use.raw_hi, use.destination_lo)
+            )
+            layouts[destination.destination_id] = (
+                ordered[0].raw_lo,
+                ordered[-1].raw_hi,
+                destination.width,
+                fragments,
+            )
+    return layouts
 
 
 def _stable_ids(value: object, label: str, known: set[int], *, nonempty: bool = True) -> tuple[int, ...]:
     values = tuple(_integer(item, label) for item in _sequence(value, label))
     if (nonempty and not values) or len(values) != len(set(values)) or not set(values) <= known:
         raise ValueError(f"{label} must contain unique known stable IDs")
+    return tuple(sorted(values))
+
+
+def _legal_values(value: object, label: str, width: int) -> tuple[int, ...]:
+    values = tuple(_action_value(item, label) for item in _sequence(value, label))
+    if not values or len(values) != len(set(values)) or any(item >= 1 << width for item in values):
+        raise ValueError(f"{label} must contain unique values representable by its destination")
     return tuple(sorted(values))
 
 
@@ -206,9 +348,7 @@ def validate_static_declarations(
     raw_abi: RawBitAbi,
 ) -> tuple[_SemanticAction, ...]:
     """Validate and canonically normalize declared, numeric static semantics."""
-    if not isinstance(raw_abi, RawBitAbi):
-        raise TypeError("raw_abi must be RawBitAbi")
-    raw_abi.validate_total_use()
+    raw_abi = _canonical_raw_abi(raw_abi)
     source = _mapping(declarations, "static declarations")
     unknown = set(source) - _DECLARATION_KEYS
     if unknown:
@@ -216,8 +356,8 @@ def validate_static_declarations(
     if "diagnostics" in source and not isinstance(source["diagnostics"], Mapping):
         raise ValueError("diagnostics must be an object")
 
-    ranges = _destination_ranges(raw_abi)
-    known_destinations = set(ranges)
+    layouts = _destination_layouts(raw_abi)
+    known_destinations = set(layouts)
     result: list[_SemanticAction] = []
     action_ids: set[int] = set()
 
@@ -229,8 +369,8 @@ def validate_static_declarations(
         destination_id = _integer(record["destination_id"], f"{kind}.destination_id")
         if destination_id not in known_destinations:
             raise ValueError(f"{kind} references an unknown destination")
-        if ranges[destination_id][0] < 0:
-            raise ValueError("static policy requires one contiguous raw slice per transformed destination")
+        if layouts[destination_id] is None:
+            raise ValueError("static policy requires complete raw slices for transformed destinations")
         result.append(_SemanticAction(action_id, kind, destination_id, values))
 
     for item in _sequence(source.get("mask_align", ()), "mask_align"):
@@ -240,7 +380,8 @@ def validate_static_declarations(
             frozenset(("action_id", "destination_id", "alignment")),
         )
         destination_id = _integer(record["destination_id"], "mask_align.destination_id")
-        width = ranges.get(destination_id, (0, 0, 0))[2]
+        layout = layouts.get(destination_id)
+        width = layout[2] if layout is not None else 0
         alignment = _integer(record["alignment"], "alignment", minimum=1)
         if alignment & (alignment - 1) or alignment > 1 << width:
             raise ValueError("alignment must be a destination-width power of two")
@@ -253,8 +394,9 @@ def validate_static_declarations(
             frozenset(("action_id", "destination_id", "values")),
         )
         destination_id = _integer(record["destination_id"], "legal_set.destination_id")
-        width = ranges.get(destination_id, (0, 0, 0))[2]
-        values = _stable_ids(record["values"], "legal_set.values", set(range(1 << width)))
+        layout = layouts.get(destination_id)
+        width = layout[2] if layout is not None else 0
+        values = _legal_values(record["values"], "legal_set.values", width)
         add("legal_set", record, values)
 
     for item in _sequence(source.get("dependency_gate", ()), "dependency_gate"):
@@ -285,7 +427,8 @@ def validate_static_declarations(
             frozenset(("action_id", "destination_id", "fold_bits")),
         )
         destination_id = _integer(record["destination_id"], "rarity_fold.destination_id")
-        if ranges.get(destination_id, (0, 0, 0))[2] != 1:
+        layout = layouts.get(destination_id)
+        if layout is None or layout[2] != 1:
             raise ValueError("rarity_fold requires a one-bit event destination")
         add("rarity_fold", record, _raw_bits(record["fold_bits"], "rarity_fold.fold_bits", raw_abi.raw_width))
 
@@ -309,37 +452,46 @@ def _compile_actions(
     raw_abi: RawBitAbi,
     parameters: StaticPolicyParameters,
 ) -> tuple[StaticAction, ...]:
-    ranges = _destination_ranges(raw_abi)
+    layouts = _destination_layouts(raw_abi)
     actions: list[StaticAction] = []
     transformed: set[int] = set()
     entropy_destinations: set[int] = set()
     for declaration in semantic:
-        raw_lo, raw_hi, width = ranges[declaration.destination_id]
+        layout = layouts[declaration.destination_id]
+        if layout is None:
+            raise ValueError("static policy requires complete raw slices for transformed destinations")
+        raw_lo, raw_hi, width, fragments = layout
+
+        def action_parameters(**values: StaticParameterValue) -> tuple[tuple[str, StaticParameterValue], ...]:
+            if len(fragments) > 3:
+                values[_FRAGMENTS_KEY] = fragments
+            return _parameters(**values)
+
         if declaration.kind == "mask_align":
             alignment = declaration.values[0]
-            action_parameters = _parameters(
+            parameters_for_action = action_parameters(
                 alignment=alignment,
                 mask=((1 << width) - 1) & ~(alignment - 1),
             )
         elif declaration.kind == "legal_set":
-            action_parameters = _parameters(
+            parameters_for_action = action_parameters(
                 strength=parameters.legal_set_strength,
                 values=declaration.values,
             )
         elif declaration.kind == "dependency_gate":
-            action_parameters = _parameters(gate_bit=declaration.values[0])
+            parameters_for_action = action_parameters(gate_bit=declaration.values[0])
         elif declaration.kind == "mutual_exclusion":
-            action_parameters = _parameters(
+            parameters_for_action = action_parameters(
                 mode=parameters.mutual_exclusion,
                 peer_ids=declaration.values,
             )
         elif declaration.kind == "rarity_fold":
-            action_parameters = _parameters(
+            parameters_for_action = action_parameters(
                 fold_bits=declaration.values,
                 rarity=parameters.event_rarity,
             )
         else:
-            action_parameters = _parameters(
+            parameters_for_action = action_parameters(
                 direct_ratio=parameters.direct_ratio,
                 selector_bits=declaration.values,
             )
@@ -351,15 +503,32 @@ def _compile_actions(
                 declaration.destination_id,
                 raw_lo,
                 raw_hi,
-                action_parameters,
+                parameters_for_action,
             )
         )
         if declaration.kind != "entropy_mix":
             transformed.add(declaration.destination_id)
 
+    missing_direct = tuple(sorted(transformed - entropy_destinations))
     next_action_id = max((item.action_id for item in semantic), default=-1) + 1
-    for destination_id in sorted(transformed - entropy_destinations):
-        raw_lo, raw_hi, _ = ranges[destination_id]
+    if missing_direct and next_action_id + len(missing_direct) - 1 > _MAX_INTEGER:
+        raise ValueError("static action IDs leave no generated direct action IDs")
+    for destination_id in missing_direct:
+        layout = layouts[destination_id]
+        if layout is None:
+            raise ValueError("static policy requires complete raw slices for transformed destinations")
+        raw_lo, raw_hi, _, fragments = layout
+        selector_bits = tuple(
+            raw_bit
+            for fragment_lo, fragment_hi in zip(fragments[::3], fragments[1::3])
+            for raw_bit in range(fragment_lo, fragment_hi + 1)
+        )
+        generated_parameters: dict[str, StaticParameterValue] = {
+            "direct_ratio": parameters.direct_ratio,
+            "selector_bits": selector_bits,
+        }
+        if len(fragments) > 3:
+            generated_parameters[_FRAGMENTS_KEY] = fragments
         actions.append(
             StaticAction(
                 next_action_id,
@@ -367,10 +536,7 @@ def _compile_actions(
                 destination_id,
                 raw_lo,
                 raw_hi,
-                _parameters(
-                    direct_ratio=parameters.direct_ratio,
-                    selector_bits=tuple(range(raw_lo, raw_hi + 1)),
-                ),
+                _parameters(**generated_parameters),
             )
         )
         next_action_id += 1
@@ -379,6 +545,7 @@ def _compile_actions(
 
 def abi_document(raw_abi: RawBitAbi) -> dict[str, object]:
     """Return the complete canonical ABI identity document for policy hashes."""
+    raw_abi = _canonical_raw_abi(raw_abi)
     return {
         "raw_width": raw_abi.raw_width,
         "destinations": [
@@ -419,6 +586,110 @@ def action_documents(actions: tuple[StaticAction, ...]) -> list[dict[str, object
     ]
 
 
+def _plan_hash(
+    raw_abi: RawBitAbi,
+    parameters: StaticPolicyParameters,
+    actions: tuple[StaticAction, ...],
+) -> str:
+    return content_hash(
+        {
+            "raw_abi": abi_document(raw_abi),
+            "parameters": asdict(parameters),
+            "actions": action_documents(actions),
+        }
+    )
+
+
+def _validate_plan_actions(
+    raw_abi: RawBitAbi,
+    parameters: StaticPolicyParameters,
+    actions: tuple[StaticAction, ...],
+) -> None:
+    layouts = _destination_layouts(raw_abi)
+    action_ids: set[int] = set()
+    transformed: set[int] = set()
+    entropy_destinations: set[int] = set()
+
+    for action in actions:
+        if action.action_id in action_ids:
+            raise ValueError("static action IDs must be unique")
+        action_ids.add(action.action_id)
+        layout = layouts.get(action.destination_id)
+        if layout is None:
+            raise ValueError("static action references an incomplete destination")
+        raw_lo, raw_hi, width, fragments = layout
+        if (action.raw_lo, action.raw_hi) != (raw_lo, raw_hi):
+            raise ValueError("static action raw range does not match its destination")
+        values = dict(action.parameters)
+        expected_fragments = fragments if len(fragments) > 3 else None
+        if values.get(_FRAGMENTS_KEY) != expected_fragments:
+            raise ValueError("static action fragments do not match its destination geometry")
+
+        if action.kind == "mask_align":
+            alignment = values["alignment"]
+            if (
+                not isinstance(alignment, int)
+                or alignment < 1
+                or alignment & (alignment - 1)
+                or alignment > 1 << width
+                or values["mask"] != ((1 << width) - 1) & ~(alignment - 1)
+            ):
+                raise ValueError("mask_align action parameters do not match its destination")
+        elif action.kind == "legal_set":
+            legal_values = values["values"]
+            if (
+                not isinstance(values["strength"], int)
+                or not 1 <= values["strength"] <= _MAX_POLICY_PARAMETER
+                or not isinstance(legal_values, tuple)
+                or not legal_values
+                or tuple(sorted(set(legal_values))) != legal_values
+                or any(value >= 1 << width for value in legal_values)
+            ):
+                raise ValueError("legal_set action parameters do not match its destination")
+        elif action.kind == "dependency_gate":
+            gate_bit = values["gate_bit"]
+            if not isinstance(gate_bit, int) or gate_bit >= raw_abi.raw_width:
+                raise ValueError("dependency_gate action parameters do not match raw ABI")
+        elif action.kind == "mutual_exclusion":
+            peers = values["peer_ids"]
+            if (
+                values["mode"] != parameters.mutual_exclusion
+                or not isinstance(peers, tuple)
+                or not peers
+                or tuple(sorted(set(peers))) != peers
+                or action.destination_id in peers
+                or not set(peers) <= set(layouts)
+            ):
+                raise ValueError("mutual_exclusion action parameters do not match the policy")
+        elif action.kind == "rarity_fold":
+            fold_bits = values["fold_bits"]
+            if (
+                width != 1
+                or values["rarity"] != parameters.event_rarity
+                or not isinstance(fold_bits, tuple)
+                or not fold_bits
+                or tuple(sorted(set(fold_bits))) != fold_bits
+                or any(value >= raw_abi.raw_width for value in fold_bits)
+            ):
+                raise ValueError("rarity_fold action parameters do not match the policy")
+        else:
+            selector_bits = values["selector_bits"]
+            if (
+                values["direct_ratio"] != parameters.direct_ratio
+                or not isinstance(selector_bits, tuple)
+                or not selector_bits
+                or tuple(sorted(set(selector_bits))) != selector_bits
+                or any(value >= raw_abi.raw_width for value in selector_bits)
+            ):
+                raise ValueError("entropy_mix action parameters do not match the policy")
+            entropy_destinations.add(action.destination_id)
+        if action.kind != "entropy_mix":
+            transformed.add(action.destination_id)
+
+    if not transformed <= entropy_destinations:
+        raise ValueError("every transformed destination requires a direct branch")
+
+
 def compile_static_policy(
     raw_abi: RawBitAbi,
     declarations: Mapping[str, object],
@@ -427,14 +698,10 @@ def compile_static_policy(
     """Compile only explicit semantics into a deterministic static policy plan."""
     if not isinstance(parameters, StaticPolicyParameters):
         raise TypeError("parameters must be StaticPolicyParameters")
-    semantic = validate_static_declarations(declarations, raw_abi)
-    actions = _compile_actions(semantic, raw_abi, parameters)
-    document = {
-        "raw_abi": abi_document(raw_abi),
-        "parameters": asdict(parameters),
-        "actions": action_documents(actions),
-    }
-    return StaticPolicyPlan(raw_abi, parameters, actions, content_hash(document))
+    canonical_abi = _canonical_raw_abi(raw_abi)
+    semantic = validate_static_declarations(declarations, canonical_abi)
+    actions = _compile_actions(semantic, canonical_abi, parameters)
+    return StaticPolicyPlan(canonical_abi, parameters, actions, _plan_hash(canonical_abi, parameters, actions))
 
 
 __all__ = [
