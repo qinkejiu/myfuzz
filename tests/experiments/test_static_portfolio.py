@@ -134,6 +134,22 @@ class StaticPortfolioTest(unittest.TestCase):
         self.assertEqual(promote([missing, normal]), ())
         self.assertEqual(promote([partial, partial_normal]), ())
 
+    def test_incomplete_counter_only_exit_evidence_fails_closed(self) -> None:
+        counter_maps = {
+            "empty": {},
+            "dut-crash-only": {"dut_crash": 0},
+            "resource-terminated-only": {"resource_terminated": 0},
+            "unrelated-only": {"timeout": 0},
+        }
+        for label, counter_map in counter_maps.items():
+            with self.subTest(label=label):
+                invalid = report_pair(policy_id=label, target_id="target-a", coverage_ratio=1.20)
+                invalid["candidate"]["runtime"]["failure_reasons"] = counter_map  # type: ignore[index]
+                normal = report_pair(policy_id=label, target_id="target-b", coverage_ratio=1.20)
+
+                self.assertEqual(screen(invalid).reason, "invalid")
+                self.assertEqual(promote([invalid, normal]), ())
+
     def test_screen_accepts_exact_five_and_eighty_five_percent_boundaries(self) -> None:
         self.assertTrue(screen(pair(coverage_ratio=.95, throughput_ratio=.85)).accepted)
 

@@ -138,6 +138,12 @@ def _normal_exit(summary: Mapping[str, object]) -> bool:
     failures = status.get("failure_reasons", {})
     if not isinstance(failures, Mapping):
         raise ValueError("failure_reasons must be an object")
+    if "return_code" not in status:
+        required_counters = ("dut_crash", "resource_terminated")
+        if any(reason not in failures for reason in required_counters):
+            raise ValueError("failure_reasons must include required counters")
+        for reason in required_counters:
+            _number(failures[reason], f"failure_reasons.{reason}", positive=False)
     for reason, count in failures.items():
         _string(reason, "failure_reasons key")
         if _number(count, f"failure_reasons.{reason}", positive=False) > 0 and reason in {
