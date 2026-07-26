@@ -14,6 +14,13 @@ from .projection import (
     build_projection_plan,
     project_sample,
 )
+from .static_policy import (
+    StaticAction,
+    StaticPolicyParameters,
+    StaticPolicyPlan,
+    compile_static_policy,
+    validate_static_declarations,
+)
 
 
 _MODES = {"flat_direct", "candidate_direct", "candidate_depaware"}
@@ -45,11 +52,16 @@ __all__ = [
     "RawBitAbi",
     "RawBitUse",
     "RawDestination",
+    "StaticAction",
+    "StaticPolicyParameters",
+    "StaticPolicyPlan",
     "build_harness",
     "build_projection_plan",
     "compile_harness_bundle",
+    "compile_static_policy",
     "write_harness_bundle",
     "raw_width",
     "project_sample",
+    "validate_static_declarations",
     "coverage_universe",
 ]
