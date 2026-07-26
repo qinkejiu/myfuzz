@@ -107,6 +107,33 @@ class StaticPortfolioTest(unittest.TestCase):
         self.assertEqual(screen(malformed).reason, "invalid")
         self.assertEqual(promote([malformed, normal]), ())
 
+    def test_duplicate_flat_and_runtime_metrics_fail_closed_for_screen_and_promotion(self) -> None:
+        mixed = pair(policy_id="mixed-metrics", target_id="target-a", coverage_ratio=1.20)
+        mixed["candidate"]["runtime"] = {"tests_per_second": 10.0}  # type: ignore[index]
+        equal_duplicate = pair(policy_id="equal-metrics", target_id="target-a", coverage_ratio=1.20)
+        equal_duplicate["candidate"]["runtime"] = {"tests_per_second": 100.0}  # type: ignore[index]
+        normal = pair(policy_id="mixed-metrics", target_id="target-b", coverage_ratio=1.20)
+        equal_normal = pair(policy_id="equal-metrics", target_id="target-b", coverage_ratio=1.20)
+
+        self.assertEqual(screen(mixed).reason, "invalid")
+        self.assertEqual(screen(equal_duplicate).reason, "invalid")
+        self.assertEqual(promote([mixed, normal]), ())
+        self.assertEqual(promote([equal_duplicate, equal_normal]), ())
+
+    def test_missing_exit_evidence_fails_closed_for_screen_and_promotion(self) -> None:
+        missing = pair(policy_id="missing-status", target_id="target-a", coverage_ratio=1.20)
+        missing["baseline"].pop("return_code")  # type: ignore[index]
+        missing["candidate"].pop("return_code")  # type: ignore[index]
+        partial = pair(policy_id="partial-status", target_id="target-a", coverage_ratio=1.20)
+        partial["candidate"].pop("return_code")  # type: ignore[index]
+        normal = pair(policy_id="missing-status", target_id="target-b", coverage_ratio=1.20)
+        partial_normal = pair(policy_id="partial-status", target_id="target-b", coverage_ratio=1.20)
+
+        self.assertEqual(screen(missing).reason, "invalid")
+        self.assertEqual(screen(partial).reason, "invalid")
+        self.assertEqual(promote([missing, normal]), ())
+        self.assertEqual(promote([partial, partial_normal]), ())
+
     def test_screen_accepts_exact_five_and_eighty_five_percent_boundaries(self) -> None:
         self.assertTrue(screen(pair(coverage_ratio=.95, throughput_ratio=.85)).accepted)
 

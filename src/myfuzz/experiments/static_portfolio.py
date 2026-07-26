@@ -104,10 +104,14 @@ def _number(value: object, label: str, *, positive: bool) -> float:
 
 
 def _metric(summary: Mapping[str, object], name: str) -> float:
-    if name in summary:
-        return _number(summary[name], name, positive=False)
+    top_level = name in summary
     runtime = summary.get("runtime")
-    if isinstance(runtime, Mapping) and name in runtime:
+    runtime_metric = isinstance(runtime, Mapping) and name in runtime
+    if top_level and runtime_metric:
+        raise ValueError(f"{name} must use exactly one representation")
+    if top_level:
+        return _number(summary[name], name, positive=False)
+    if runtime_metric:
         return _number(runtime[name], f"runtime.{name}", positive=False)
     raise ValueError(f"missing {name}")
 
@@ -123,6 +127,8 @@ def _normal_exit(summary: Mapping[str, object]) -> bool:
     status_fields = ("return_code", "failure_reasons")
     top_level_status = any(field in summary for field in status_fields)
     runtime_status = runtime is not None and any(field in runtime for field in status_fields)
+    if not top_level_status and not runtime_status:
+        raise ValueError("normal exit evidence is required")
     if top_level_status and runtime_status:
         raise ValueError("status must use exactly one representation")
     status = runtime if runtime_status else summary
