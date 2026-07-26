@@ -36,35 +36,42 @@ def _fold(raw_value: int, action: StaticAction) -> int:
     return value % divisor
 
 
-def _apply_selection_or_entropy(action: StaticAction, raw_slice: int, raw_value: int) -> int:
+def _apply_selection_or_entropy(
+    action: StaticAction,
+    projected_value: int,
+    direct_value: int,
+    raw_value: int,
+) -> int:
     if action.kind == "mutual_exclusion":
         mode = _parameter(action, "mode")
         assert isinstance(mode, str)
         if mode == "none":
-            return raw_slice
+            return projected_value
         if mode == "one_hot":
-            return raw_slice & -raw_slice
-        return int(raw_slice != 0)
+            return projected_value & -projected_value
+        return int(projected_value != 0)
     assert action.kind == "entropy_mix"
-    # The terminal entropy branch preserves the currently projected direct sample.
-    # Folding still makes the declared direct-selection decision explicit in RTL.
-    _fold(raw_value, action)
-    return raw_slice
+    return direct_value if _fold(raw_value, action) == 0 else projected_value
 
 
-def _apply(action: StaticAction, raw_slice: int, raw_value: int) -> int:
+def _apply(
+    action: StaticAction,
+    projected_value: int,
+    direct_value: int,
+    raw_value: int,
+) -> int:
     if action.kind == "mask_align":
         mask = _parameter(action, "mask")
         assert isinstance(mask, int)
-        return raw_slice & mask
+        return projected_value & mask
     if action.kind == "legal_set":
         values = _tuple_parameter(action, "values")
-        return values[raw_slice % len(values)]
+        return values[projected_value % len(values)]
     if action.kind == "dependency_gate":
-        return raw_slice if _raw_bit(raw_value, _parameter(action, "gate_bit")) else 0
+        return projected_value if _raw_bit(raw_value, _parameter(action, "gate_bit")) else 0
     if action.kind == "rarity_fold":
         return int(_fold(raw_value, action) == 0)
-    return _apply_selection_or_entropy(action, raw_slice, raw_value)
+    return _apply_selection_or_entropy(action, projected_value, direct_value, raw_value)
 
 
 def _raw_values(abi: RawBitAbi, raw_value: int) -> dict[int, int]:
@@ -83,11 +90,17 @@ def project_static_sample(plan: StaticPolicyPlan, raw_value: int) -> dict[int, i
         raise TypeError("plan must be StaticPolicyPlan")
     if isinstance(raw_value, bool) or not isinstance(raw_value, int) or not 0 <= raw_value < 1 << plan.raw_abi.raw_width:
         raise ValueError("raw_value must fit the static policy raw width")
-    values = _raw_values(plan.raw_abi, raw_value)
+    direct_values = _raw_values(plan.raw_abi, raw_value)
+    values = dict(direct_values)
     widths = {destination.destination_id: destination.width for destination in plan.raw_abi.destinations}
     for action in plan.actions:
         destination_id = action.destination_id
-        values[destination_id] = _apply(action, values[destination_id], raw_value) & (
+        values[destination_id] = _apply(
+            action,
+            values[destination_id],
+            direct_values[destination_id],
+            raw_value,
+        ) & (
             (1 << widths[destination_id]) - 1
         )
     return values
@@ -111,7 +124,12 @@ def _raw_expression(abi: RawBitAbi, destination_id: int, width: int) -> str:
     return pieces[0] if len(pieces) == 1 else " | ".join(pieces)
 
 
-def _selection_expression(action: StaticAction, source: str, width: int) -> str:
+def _selection_expression(
+    action: StaticAction,
+    source: str,
+    direct: str,
+    width: int,
+) -> str:
     if action.kind == "mutual_exclusion":
         mode = _parameter(action, "mode")
         assert isinstance(mode, str)
@@ -124,10 +142,10 @@ def _selection_expression(action: StaticAction, source: str, width: int) -> str:
     direct_ratio = _parameter(action, "direct_ratio")
     assert isinstance(direct_ratio, int)
     folded = "{" + ", ".join(f"rfuzz_input_bits[{bit}]" for bit in reversed(bits)) + "}"
-    return f"((({folded}) % {direct_ratio}) == 0 ? ({source}) : ({source}))"
+    return f"((({folded}) % {direct_ratio}) == 0 ? ({direct}) : ({source}))"
 
 
-def _action_expression(action: StaticAction, source: str, width: int) -> str:
+def _action_expression(action: StaticAction, source: str, direct: str, width: int) -> str:
     if action.kind == "mask_align":
         mask = _parameter(action, "mask")
         assert isinstance(mask, int)
@@ -152,7 +170,7 @@ def _action_expression(action: StaticAction, source: str, width: int) -> str:
         assert isinstance(rarity, int)
         folded = "{" + ", ".join(f"rfuzz_input_bits[{bit}]" for bit in reversed(bits)) + "}"
         return f"((({folded}) % {rarity}) == 0)"
-    return _selection_expression(action, source, width)
+    return _selection_expression(action, source, direct, width)
 
 
 def emit_static_projection(manifest: object, plan: StaticPolicyPlan) -> str:
@@ -202,13 +220,23 @@ def emit_static_projection(manifest: object, plan: StaticPolicyPlan) -> str:
             lines.append(f"    assign {signal} = {expression};")
         elif port_id in destinations:
             destination = destinations[port_id]
-            expression = _raw_expression(plan.raw_abi, destination.destination_id, width)
+            direct_expression = _raw_expression(
+                plan.raw_abi,
+                destination.destination_id,
+                width,
+            )
+            expression = direct_expression
             for action in actions[destination.destination_id]:
                 if action.kind == "entropy_mix":
                     lines.append(f"    // direct sample branch for port {port_id}")
                 else:
                     lines.append(f"    // action {action.action_id} {action.kind} for port {port_id}")
-                expression = _action_expression(action, expression, width)
+                expression = _action_expression(
+                    action,
+                    expression,
+                    direct_expression,
+                    width,
+                )
             lines.append(f"    assign {signal} = {expression};")
         elif port["direction"] in {"input", "inout"}:
             value = port.get("constant_value", port.get("reset_value"))

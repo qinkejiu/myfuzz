@@ -80,7 +80,11 @@ class StaticProjectionTest(unittest.TestCase):
         for raw in property_samples(self.plan.raw_abi.raw_width):
             values = project_static_sample(self.plan, raw)
             self.assertEqual(set(values), self.destination_ids)
-            self.assertIn(values[self.opcode_id], self.legal_opcodes)
+            raw_opcode = (raw >> 4) & 0b111
+            if raw_opcode % POLICY.direct_ratio:
+                self.assertIn(values[self.opcode_id], self.legal_opcodes)
+            else:
+                self.assertEqual(values[self.opcode_id], raw_opcode)
             for destination in self.plan.raw_abi.destinations:
                 self.assertLess(values[destination.destination_id], 1 << destination.width)
 
@@ -92,6 +96,16 @@ class StaticProjectionTest(unittest.TestCase):
         self.assertNotRegex(rtl, r"dut\s*\.")
         self.assertIn("rfuzz_input_bits", rtl)
         self.assertIn("direct sample", rtl)
+
+    def test_entropy_mix_selects_between_projected_and_direct_values(self) -> None:
+        # Destination 10 is aligned to four.  An even raw value selects the
+        # direct branch, while an odd raw value keeps the aligned projection.
+        self.assertEqual(project_static_sample(self.plan, 0b0010)[10], 0b0010)
+        self.assertEqual(project_static_sample(self.plan, 0b0011)[10], 0)
+
+        rtl = emit_static_projection(self.manifest, self.plan)
+        self.assertIn("? (rfuzz_input_bits[3:0]) :", rtl)
+        self.assertNotIn("? (rfuzz_input_bits[3:0]) : (rfuzz_input_bits[3:0])", rtl)
 
     def test_generated_fixture_passes_verilator_lint(self) -> None:
         if shutil.which("verilator") is None:
