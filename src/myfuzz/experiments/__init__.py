@@ -29,6 +29,7 @@ from .planner import (
     RuntimePolicy,
     RfuzzExecution,
     plan_experiment,
+    resolve_build_prerequisite,
 )
 from .pipeline import PreparedCandidateRuntime, prepare_candidate_runtime
 from .report import ReportError, build_report
@@ -84,6 +85,7 @@ __all__ = [
     "preflight_experiment_sources",
     "plan_jobs",
     "plan_experiment",
+    "resolve_build_prerequisite",
     "prepare_candidate_runtime",
     "release_job",
     "run_job",

@@ -70,6 +70,8 @@ class RfuzzAdapter:
         ]
         if execution.candidate_mode is not None:
             command.extend(("--candidate-mode", execution.candidate_mode))
+        if execution.server_artifact_id is not None:
+            command.extend(("--server-artifact-id", execution.server_artifact_id))
         if execution.seed is not None:
             command.extend(("--seed", str(execution.seed)))
         if execution.fuzz_seconds is not None:

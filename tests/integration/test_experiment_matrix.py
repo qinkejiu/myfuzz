@@ -152,7 +152,7 @@ class ExperimentMatrixTest(unittest.TestCase):
 
         builds = [job for job in runner.jobs if job.kind is JobKind.BUILD]
         fuzz = [job for job in runner.jobs if job.kind is JobKind.FUZZ]
-        self.assertEqual(1, len(builds))
+        self.assertEqual(3, len(builds))
         self.assertEqual(3, len(fuzz))
         by_harness = {job.harness: job for job in fuzz if isinstance(job, ExperimentJob)}
         direct = by_harness["candidate-direct"]
@@ -166,7 +166,9 @@ class ExperimentMatrixTest(unittest.TestCase):
         self.assertEqual(direct.budget_value, depaware.budget_value)
         self.assertNotEqual(by_harness["flat-direct"].coverage_universe, direct.coverage_universe)
         self.assertEqual("experiment_report.v1", result["report"]["schema_version"])
-        self.assertNotIn(builds[0].job_id, json.dumps(result["report"], sort_keys=True))
+        report_json = json.dumps(result["report"], sort_keys=True)
+        for build in builds:
+            self.assertNotIn(build.job_id, report_json)
 
     def test_interleaving_seed_is_stable_and_does_not_change_job_identity(self) -> None:
         first, first_runner = self.run_success(seed=5, name="first.json")
