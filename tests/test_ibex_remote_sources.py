@@ -25,6 +25,19 @@ class IbexRemoteSourcesTest(unittest.TestCase):
                 ["+incdir+third_party/ibex/rtl", "third_party/ibex/rtl/top.sv"],
             )
 
+    def test_flattened_paths_reject_sources_outside_the_repository(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            root = workspace / "repo"
+            root.mkdir()
+            external = workspace / "external.sv"
+            external.write_text("module external; endmodule\n")
+            flist = root / "sources.f"
+            flist.write_text(f"{external}\n")
+
+            with self.assertRaisesRegex(ValueError, "outside repository root"):
+                MODULE.flatten_flist(flist, root)
+
 
 if __name__ == "__main__":
     unittest.main()

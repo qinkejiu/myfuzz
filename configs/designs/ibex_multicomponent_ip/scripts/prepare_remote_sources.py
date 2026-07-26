@@ -40,10 +40,13 @@ def expand(raw: str, base: Path) -> Path:
 
 
 def portable(path: Path, root: Path) -> str:
+    resolved_path = path.resolve()
     try:
-        return path.resolve().relative_to(root.resolve()).as_posix()
+        return resolved_path.relative_to(root.resolve()).as_posix()
     except ValueError:
-        return path.resolve().as_posix()
+        raise ValueError(
+            f"resolved path outside repository root: {resolved_path}"
+        ) from None
 
 
 def flatten_flist(path: Path, root: Path, seen: set[Path] | None = None) -> list[str]:
