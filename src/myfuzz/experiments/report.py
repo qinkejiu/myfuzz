@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from myfuzz.contracts import canonical_bytes, content_hash, validate_contract
 
 from .identity import candidate_semantic_hash
-from .planner import ExperimentJob, ExperimentPlan
+from .planner import ExperimentJob, ExperimentPlan, HarnessIdentity
 
 
 class ReportError(ValueError):
@@ -53,6 +53,7 @@ class _CandidateManifest:
     peak_rss_bytes: int | None
     raw_widths: tuple[tuple[str, int], ...]
     instrumented_rtl_hashes: tuple[tuple[str, str], ...]
+    projection_plan_hashes: tuple[tuple[str, str | None], ...]
 
     @property
     def point_ids(self) -> frozenset[int]:
@@ -67,6 +68,9 @@ class _CandidateManifest:
 
     def instrumented_rtl_hash(self, harness: str) -> str:
         return dict(self.instrumented_rtl_hashes)[harness]
+
+    def projection_plan_hash(self, harness: str) -> str | None:
+        return dict(self.projection_plan_hashes)[harness]
 
     def coverage_universe(self, harness: str, target_id: str) -> str:
         override = dict(self.coverage_universe_overrides)[harness]
@@ -244,6 +248,16 @@ def _manifest_coverage_universe_override(
     return None
 
 
+def _manifest_projection_plan_hash(
+    manifest: Mapping[str, object],
+    harness: str,
+) -> str | None:
+    value = _harness_record(manifest, harness).get("projection_plan_hash")
+    if value is None:
+        return None
+    return _string(value, f"manifest.harnesses.{harness}.projection_plan_hash")
+
+
 def _parse_manifest(
     value: object,
     index: int,
@@ -327,6 +341,10 @@ def _parse_manifest(
         (harness, _manifest_coverage_universe_override(manifest, harness))
         for harness in sorted(harness_groups)
     )
+    projection_plan_hashes = tuple(
+        (harness, _manifest_projection_plan_hash(manifest, harness))
+        for harness in sorted(harness_groups)
+    )
     candidate_hash = candidate_semantic_hash(manifest)
     return _CandidateManifest(
         candidate_id,
@@ -338,6 +356,7 @@ def _parse_manifest(
         peak_rss_bytes,
         raw_widths,
         instrumented_rtl_hashes,
+        projection_plan_hashes,
     )
 
 
@@ -392,7 +411,10 @@ def _plan_index(plan: ExperimentPlan) -> _PlanIndex:
         raise ReportError("plan must be an ExperimentPlan")
     candidate_ids = tuple(sorted({job.candidate_id for job in plan.jobs}))
     pair_identities = plan.fairness.candidate_pair_identities
-    if {identity.candidate_id for identity in pair_identities} != set(candidate_ids):
+    if (
+        len(pair_identities) != len(candidate_ids)
+        or {identity.candidate_id for identity in pair_identities} != set(candidate_ids)
+    ):
         raise ReportError("plan fairness identities must exactly match selected candidates")
     candidate_harnesses = {identity.candidate_harness for identity in pair_identities}
     if len(candidate_harnesses) != 1:
@@ -437,6 +459,32 @@ def _plan_index(plan: ExperimentPlan) -> _PlanIndex:
         flat_key = (candidate_id, "flat-direct")
         if direct_key not in universes or candidate_key not in universes or flat_key not in universes:
             raise ReportError(f"plan is missing a harness group for {candidate_id}")
+        pair_identity = next(
+            identity
+            for identity in pair_identities
+            if identity.candidate_id == candidate_id
+        )
+        jobs_for_candidate = tuple(
+            job for job in jobs_by_id.values() if job.candidate_id == candidate_id
+        )
+        for harness, expected in (
+            ("candidate-direct", pair_identity.direct),
+            (candidate_harness, pair_identity.candidate),
+        ):
+            planned_identities = {
+                HarnessIdentity(
+                    raw_width=job.raw_width,
+                    instrumented_rtl_hash=job.instrumented_rtl_hash,
+                    coverage_universe=job.coverage_universe,
+                    coverage_metadata_hash=job.coverage_metadata_hash,
+                )
+                for job in jobs_for_candidate
+                if job.harness == harness
+            }
+            if planned_identities != {expected}:
+                raise ReportError(
+                    f"plan fairness identity does not match jobs for {candidate_id}/{harness}"
+                )
         if universes[direct_key] != universes[candidate_key]:
             raise ReportError(f"candidate pair coverage universe must be shared for {candidate_id}")
         if universes[flat_key] == universes[direct_key]:
@@ -555,6 +603,10 @@ def _validate_inputs(
         if job.instrumented_rtl_hash != manifest.instrumented_rtl_hash(job.harness):
             raise ReportError(
                 f"manifest instrumented_rtl_hash does not match job_id {job.job_id}"
+            )
+        if job.projection_plan_hash != manifest.projection_plan_hash(job.harness):
+            raise ReportError(
+                f"manifest projection_plan_hash does not match job_id {job.job_id}"
             )
         if job.coverage_universe != manifest.coverage_universe(
             job.harness,

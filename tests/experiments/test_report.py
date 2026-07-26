@@ -372,6 +372,83 @@ class ExperimentReportTest(unittest.TestCase):
         with self.assertRaisesRegex(ReportError, "projection_plan_hash"):
             build_report(inconsistent, manifests, samples, self.reference)
 
+    def test_static_report_rejects_stale_manifest_projection_provenance(self) -> None:
+        config, manifests, _ = self.static_inputs()
+        plan = plan_experiment(config, manifests)
+        samples = experiment_samples(plan, manifests, flat_total=6)
+        stale = copy.deepcopy(manifests)
+        stale[0]["harnesses"]["candidate-static"]["projection_plan_hash"] = sha256_id(
+            "stale-static-projection-plan"
+        )
+
+        with self.assertRaisesRegex(ReportError, "candidate_hash"):
+            build_report(plan, stale, samples, self.reference)
+
+    def test_static_report_rejects_consistently_tampered_plan_projection_provenance(
+        self,
+    ) -> None:
+        config, manifests, _ = self.static_inputs()
+        plan = plan_experiment(config, manifests)
+        forged_hash = sha256_id("forged-static-projection-plan")
+        tampered = replace(
+            plan,
+            build_jobs=tuple(
+                replace(job, projection_plan_hash=forged_hash)
+                if job.harness == "candidate-static"
+                else job
+                for job in plan.build_jobs
+            ),
+            jobs=tuple(
+                replace(job, projection_plan_hash=forged_hash)
+                if job.harness == "candidate-static"
+                else job
+                for job in plan.jobs
+            ),
+        )
+        samples = experiment_samples(tampered, manifests, flat_total=6)
+
+        with self.assertRaisesRegex(ReportError, "projection_plan_hash"):
+            build_report(tampered, manifests, samples, self.reference)
+
+    def test_report_rejects_duplicate_candidate_pair_fairness_identities(self) -> None:
+        identity = self.plan.fairness.candidate_pair_identities[0]
+        duplicate = replace(
+            self.plan,
+            fairness=replace(
+                self.plan.fairness,
+                candidate_pair_identities=(identity, identity)
+                + self.plan.fairness.candidate_pair_identities[1:],
+            ),
+        )
+
+        with self.assertRaisesRegex(ReportError, "fairness identities"):
+            build_report(duplicate, self.manifests, self.samples, self.reference)
+
+    def test_report_rejects_stale_candidate_pair_fairness_identities(self) -> None:
+        identity = self.plan.fairness.candidate_pair_identities[0]
+        for side in ("direct", "candidate"):
+            stale_harness = replace(
+                getattr(identity, side),
+                raw_width=getattr(identity, side).raw_width + 1,
+            )
+            stale_identity = replace(identity, **{side: stale_harness})
+            stale = replace(
+                self.plan,
+                fairness=replace(
+                    self.plan.fairness,
+                    candidate_pair_identities=(
+                        stale_identity,
+                        *self.plan.fairness.candidate_pair_identities[1:],
+                    ),
+                ),
+            )
+
+            with self.subTest(side=side), self.assertRaisesRegex(
+                ReportError,
+                "fairness identity",
+            ):
+                build_report(stale, self.manifests, self.samples, self.reference)
+
     def test_reference_comparison_uses_only_stable_source_intersection(self) -> None:
         report = build_report(self.plan, self.manifests, self.samples, self.reference)
         comparison = report["candidates"]["candidate-a"]["budgets"]["long"]["reference_comparison"]

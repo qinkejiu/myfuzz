@@ -236,7 +236,11 @@ class ExperimentPlannerTest(unittest.TestCase):
         baseline = plan_experiment(config, [manifest])
         baseline_static = next(job for job in baseline.build_jobs if job.harness == "candidate-static")
 
-        for field, marker in (("content_hash", "d"), ("projection_plan_hash", "e")):
+        for field, marker in (
+            ("content_hash", "d"),
+            ("abi_hash", "e"),
+            ("projection_plan_hash", "f"),
+        ):
             changed = copy.deepcopy(manifest)
             changed["harnesses"]["candidate-static"][field] = "sha256:" + marker * 64
             current = plan_experiment(config, [changed])
@@ -244,6 +248,10 @@ class ExperimentPlannerTest(unittest.TestCase):
             with self.subTest(field=field):
                 self.assertNotEqual(baseline_static.artifact_id, current_static.artifact_id)
                 self.assertNotEqual(baseline_static.job_id, current_static.job_id)
+                self.assertNotEqual(
+                    {job.candidate_hash for job in baseline.execution_jobs},
+                    {job.candidate_hash for job in current.execution_jobs},
+                )
                 self.assertNotEqual(baseline.plan_hash, current.plan_hash)
 
     def test_static_planning_requires_a_manifest_record_with_artifact_hashes(self) -> None:

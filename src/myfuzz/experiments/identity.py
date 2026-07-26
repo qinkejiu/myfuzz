@@ -14,7 +14,10 @@ def _harness_semantics(manifest: Mapping[str, object]) -> dict[str, dict[str, ob
     harnesses = manifest.get("harnesses")
     records = harnesses if isinstance(harnesses, Mapping) else {}
     result: dict[str, dict[str, object]] = {}
-    for harness in _HARNESS_GROUPS:
+    harness_groups = _HARNESS_GROUPS + (
+        ("candidate-static",) if "candidate-static" in records else ()
+    )
+    for harness in harness_groups:
         value = records.get(harness)
         record = value if isinstance(value, Mapping) else {}
         result[harness] = {
