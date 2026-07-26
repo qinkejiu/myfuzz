@@ -210,13 +210,15 @@ class StaticPolicyTest(unittest.TestCase):
         self.assertEqual([item.raw_lo for item in left.raw_abi.uses], [0, 1])
         self.assertNotIn(left.raw_abi.abi_hash, {"first-forgery", "second-forgery"})
 
-    def test_rejects_action_ids_that_leave_no_generated_direct_id(self) -> None:
-        with self.assertRaisesRegex(ValueError, "generated direct action IDs"):
-            compile_static_policy(
-                self.abi,
-                {"mask_align": [{"action_id": (1 << 31) - 1, "destination_id": 10, "alignment": 2}]},
-                BALANCED_POLICY,
-            )
+    def test_generated_direct_action_reuses_lowest_available_id_after_maximum_user_id(self) -> None:
+        plan = compile_static_policy(
+            self.abi,
+            {"mask_align": [{"action_id": (1 << 31) - 1, "destination_id": 10, "alignment": 2}]},
+            BALANCED_POLICY,
+        )
+
+        generated = next(action for action in plan.actions if action.kind == "entropy_mix")
+        self.assertEqual(generated.action_id, 0)
 
     def test_public_constructors_reject_forged_action_and_plan_invariants(self) -> None:
         with self.assertRaisesRegex(ValueError, "must declare exactly"):
@@ -240,6 +242,54 @@ class StaticPolicyTest(unittest.TestCase):
             )
         with self.assertRaisesRegex(ValueError, "content hash"):
             StaticPolicyPlan(plan.raw_abi, plan.parameters, plan.actions, "0" * 64)
+
+    def test_public_plan_rejects_legal_set_strength_that_differs_from_policy(self) -> None:
+        plan = compile_static_policy(self.abi, self.declarations, BALANCED_POLICY)
+        legal_set = next(action for action in plan.actions if action.kind == "legal_set")
+        forged = replace(
+            legal_set,
+            parameters=(("strength", 1), ("values", dict(legal_set.parameters)["values"])),
+        )
+        actions = tuple(forged if action is legal_set else action for action in plan.actions)
+
+        with self.assertRaisesRegex(ValueError, "legal_set action strength does not match the policy"):
+            StaticPolicyPlan(plan.raw_abi, plan.parameters, actions, plan.plan_hash)
+
+    def test_canonical_abi_rejects_invalid_records_before_hashing(self) -> None:
+        valid_destination = RawDestination(1, 100, 1, 1)
+        invalid_abis = {
+            "display component": RawBitAbi(
+                1,
+                (RawDestination(1, "display-name", 1, 1),),
+                (RawBitUse(0, 0, 1, 0, "direct", "direct"),),
+                "not-trusted",
+            ),
+            "overlapping destination slices": RawBitAbi(
+                2,
+                (RawDestination(1, 100, 1, 2),),
+                (
+                    RawBitUse(0, 0, 1, 0, "direct", "direct"),
+                    RawBitUse(1, 1, 1, 0, "direct", "direct"),
+                ),
+                "not-trusted",
+            ),
+            "non-semantic action": RawBitAbi(
+                1,
+                (valid_destination,),
+                (RawBitUse(0, 0, 1, 0, "target-label", "direct"),),
+                "not-trusted",
+            ),
+            "non-semantic category": RawBitAbi(
+                1,
+                (valid_destination,),
+                (RawBitUse(0, 0, 1, 0, "direct", "target-label"),),
+                "not-trusted",
+            ),
+        }
+
+        for label, invalid_abi in invalid_abis.items():
+            with self.subTest(label=label), self.assertRaisesRegex(ValueError, "raw ABI"):
+                compile_static_policy(invalid_abi, {}, BALANCED_POLICY)
 
     def test_rejects_invalid_parameters_unknown_keys_and_non_boolean_integers(self) -> None:
         with self.assertRaisesRegex(ValueError, "direct_ratio"):

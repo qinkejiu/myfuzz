@@ -37,6 +37,17 @@ _ACTION_PARAMETER_KEYS = {
     "entropy_mix": frozenset(("direct_ratio", "selector_bits")),
 }
 _FRAGMENTS_KEY = "fragments"
+_RAW_ABI_ACTIONS = frozenset(("direct", "mask", "gate", "delay_select", "fold_xor"))
+_RAW_ABI_CATEGORIES = frozenset(
+    (
+        "direct",
+        "protocol_legality",
+        "progress",
+        "dependency_consistency",
+        "event_rarity",
+        "address_validity",
+    )
+)
 
 
 def _integer(value: object, label: str, *, minimum: int = 0, maximum: int = _MAX_INTEGER) -> int:
@@ -283,13 +294,42 @@ def _raw_abi_geometry_document(
 def _canonical_raw_abi(raw_abi: RawBitAbi) -> RawBitAbi:
     if not isinstance(raw_abi, RawBitAbi):
         raise TypeError("raw_abi must be RawBitAbi")
+    _validate_raw_abi_records(raw_abi)
     raw_abi.validate_total_use()
     destinations = tuple(sorted(raw_abi.destinations, key=lambda item: item.destination_id))
     if len(destinations) != len({item.destination_id for item in destinations}):
         raise ValueError("raw ABI has duplicate destination IDs")
     uses = tuple(sorted(raw_abi.uses, key=lambda item: item.raw_lo))
     geometry = _raw_abi_geometry_document(raw_abi.raw_width, destinations, uses)
-    return RawBitAbi(raw_abi.raw_width, destinations, uses, content_hash(geometry))
+    canonical = RawBitAbi(raw_abi.raw_width, destinations, uses, content_hash(geometry))
+    if any(layout is None for layout in _destination_layouts(canonical).values()):
+        raise ValueError("raw ABI has incomplete or overlapping destination geometry")
+    return canonical
+
+
+def _validate_raw_abi_records(raw_abi: RawBitAbi) -> None:
+    _integer(raw_abi.raw_width, "raw ABI raw_width", minimum=1)
+    if not isinstance(raw_abi.destinations, tuple) or not isinstance(raw_abi.uses, tuple):
+        raise ValueError("raw ABI destinations and uses must be immutable tuples")
+    for destination in raw_abi.destinations:
+        if not isinstance(destination, RawDestination):
+            raise ValueError("raw ABI destination must be RawDestination")
+        _integer(destination.destination_id, "raw ABI destination_id")
+        if destination.component_id is not None:
+            _integer(destination.component_id, "raw ABI component_id")
+        _integer(destination.port_id, "raw ABI port_id")
+        _integer(destination.width, "raw ABI destination width", minimum=1)
+    for use in raw_abi.uses:
+        if not isinstance(use, RawBitUse):
+            raise ValueError("raw ABI use must be RawBitUse")
+        _integer(use.raw_lo, "raw ABI raw_lo")
+        _integer(use.raw_hi, "raw ABI raw_hi")
+        _integer(use.destination_id, "raw ABI use destination_id")
+        _integer(use.destination_lo, "raw ABI destination_lo")
+        if not isinstance(use.action, str) or use.action not in _RAW_ABI_ACTIONS:
+            raise ValueError("raw ABI action is not an explicit semantic action")
+        if not isinstance(use.category, str) or use.category not in _RAW_ABI_CATEGORIES:
+            raise ValueError("raw ABI category is not an explicit semantic category")
 
 
 def _destination_layouts(raw_abi: RawBitAbi) -> dict[int, tuple[int, int, int, tuple[int, ...]] | None]:
@@ -510,10 +550,13 @@ def _compile_actions(
             transformed.add(declaration.destination_id)
 
     missing_direct = tuple(sorted(transformed - entropy_destinations))
-    next_action_id = max((item.action_id for item in semantic), default=-1) + 1
-    if missing_direct and next_action_id + len(missing_direct) - 1 > _MAX_INTEGER:
-        raise ValueError("static action IDs leave no generated direct action IDs")
+    used_action_ids = {item.action_id for item in semantic}
+    next_action_id = 0
     for destination_id in missing_direct:
+        while next_action_id in used_action_ids:
+            next_action_id += 1
+        if next_action_id > _MAX_INTEGER:
+            raise ValueError("static action IDs leave no generated direct action IDs")
         layout = layouts[destination_id]
         if layout is None:
             raise ValueError("static policy requires complete raw slices for transformed destinations")
@@ -539,6 +582,7 @@ def _compile_actions(
                 _parameters(**generated_parameters),
             )
         )
+        used_action_ids.add(next_action_id)
         next_action_id += 1
     return tuple(sorted(actions, key=_action_key))
 
@@ -637,6 +681,8 @@ def _validate_plan_actions(
                 raise ValueError("mask_align action parameters do not match its destination")
         elif action.kind == "legal_set":
             legal_values = values["values"]
+            if values["strength"] != parameters.legal_set_strength:
+                raise ValueError("legal_set action strength does not match the policy")
             if (
                 not isinstance(values["strength"], int)
                 or not 1 <= values["strength"] <= _MAX_POLICY_PARAMETER
