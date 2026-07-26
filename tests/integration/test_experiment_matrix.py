@@ -6,6 +6,7 @@ import os
 import tempfile
 import unittest
 from collections import defaultdict
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -15,6 +16,7 @@ from myfuzz.integration import (
     ExperimentMatrixError,
     FuzzJobResult,
     ResourceCheckpointEvent,
+    ResourceTerminatedError,
     run_experiment_matrix,
 )
 from myfuzz.integration import experiment_matrix as matrix_module
@@ -128,9 +130,12 @@ class ExperimentMatrixTest(unittest.TestCase):
 
     def successful_result(self, job: Job) -> object:
         if job.kind is JobKind.BUILD:
-            return BuildJobResult(job.job_id, 1)
+            return BuildJobResult(job.job_id, attempt=1, artifact_id=job.artifact_id)
         assert isinstance(job, ExperimentJob)
         return FuzzJobResult(job.job_id, 1, (self.sample(job),), MIB)
+
+    def test_build_result_contract_includes_artifact_identity(self) -> None:
+        self.assertIn("artifact_id", BuildJobResult.__dataclass_fields__)
 
     def run_success(
         self,
@@ -169,6 +174,152 @@ class ExperimentMatrixTest(unittest.TestCase):
         report_json = json.dumps(result["report"], sort_keys=True)
         for build in builds:
             self.assertNotIn(build.job_id, report_json)
+        calls = [job.job_id for job in runner.jobs]
+        plan = matrix_module.plan_experiment(
+            self.planner_config,
+            [self.manifest],
+        )
+        for fuzz_job in plan.jobs:
+            self.assertLess(
+                calls.index(fuzz_job.build_job_id),
+                calls.index(fuzz_job.job_id),
+            )
+            build = next(
+                job for job in plan.build_jobs if job.job_id == fuzz_job.build_job_id
+            )
+            self.assertEqual(
+                build.artifact_id,
+                fuzz_job.execution.server_artifact_id,
+            )
+
+    def test_invalid_fuzz_build_prerequisite_graph_is_rejected_before_execution(self) -> None:
+        config = self.config()
+        plan = matrix_module.plan_experiment(
+            config["planner_config"],
+            config["candidate_manifests"],
+        )
+        fuzz_job = plan.jobs[0]
+        cross_harness_build = next(
+            build for build in plan.build_jobs if build.harness != fuzz_job.harness
+        )
+        invalid_jobs = {
+            "missing-id": replace(fuzz_job, build_job_id=""),
+            "unknown-id": replace(fuzz_job, build_job_id="build-unknown"),
+            "cross-harness-id": replace(
+                fuzz_job,
+                build_job_id=cross_harness_build.job_id,
+            ),
+            "mismatched-planned-hash": replace(
+                fuzz_job,
+                execution=replace(
+                    fuzz_job.execution,
+                    server_artifact_id="sha256:" + "0" * 64,
+                ),
+            ),
+        }
+
+        for label, invalid_job in invalid_jobs.items():
+            with self.subTest(label=label):
+                invalid_plan = replace(
+                    plan,
+                    jobs=(invalid_job,) + plan.jobs[1:],
+                )
+                runner = RecordingRunner(self.successful_result)
+                with patch.object(
+                    matrix_module,
+                    "plan_experiment",
+                    return_value=invalid_plan,
+                ):
+                    with self.assertRaises(ExperimentMatrixError):
+                        run_experiment_matrix(
+                            config,
+                            runner=runner,
+                            report_path=self.root / f"{label}.json",
+                        )
+                self.assertEqual([], runner.jobs)
+
+    def test_mismatched_build_artifact_prevents_fuzz_dispatch(self) -> None:
+        wrong_artifact_id = "sha256:" + "f" * 64
+
+        def execute(job: Job) -> object:
+            if job.kind is JobKind.BUILD:
+                self.assertNotEqual(wrong_artifact_id, job.artifact_id)
+                return BuildJobResult(
+                    job.job_id,
+                    attempt=1,
+                    artifact_id=wrong_artifact_id,
+                )
+            assert isinstance(job, ExperimentJob)
+            return FuzzJobResult(job.job_id, 1, (self.sample(job),), MIB)
+
+        runner = RecordingRunner(execute)
+        with self.assertRaisesRegex(ExperimentMatrixError, "artifact_id"):
+            run_experiment_matrix(
+                self.config(),
+                runner=runner,
+                report_path=self.root / "wrong-build-artifact.json",
+            )
+        self.assertTrue(runner.jobs)
+        self.assertTrue(all(job.kind is JobKind.BUILD for job in runner.jobs))
+
+    def test_fuzz_is_not_dispatched_when_build_never_completes(self) -> None:
+        attempts: defaultdict[str, int] = defaultdict(int)
+
+        def terminate_build(job: Job) -> object:
+            self.assertIs(job.kind, JobKind.BUILD)
+            attempts[job.job_id] += 1
+            return ResourceCheckpointEvent(
+                job.job_id,
+                attempts[job.job_id],
+                4 * MIB,
+                "hard_memory_limit",
+                {"attempt": attempts[job.job_id]},
+            )
+
+        runner = RecordingRunner(terminate_build)
+        with self.assertRaisesRegex(
+            ResourceTerminatedError,
+            "build job remained resource_terminated",
+        ):
+            run_experiment_matrix(
+                self.config(retries=1),
+                runner=runner,
+                report_path=self.root / "incomplete-build.json",
+            )
+        self.assertEqual([2], list(attempts.values()))
+        self.assertTrue(all(job.kind is JobKind.BUILD for job in runner.jobs))
+
+    def test_legacy_build_result_accepts_only_empty_artifact_identity(self) -> None:
+        legacy_job = Job(
+            job_id="build-legacy",
+            kind=JobKind.BUILD,
+            gate_name="build",
+            owner="job-build-legacy",
+            requested_mib=1,
+            seed=0,
+            candidate_hash="sha256:" + "1" * 64,
+            build_cache_key="sha256:" + "2" * 64,
+            worker_limit=1,
+        )
+        accepted = matrix_module._validated_result(
+            legacy_job,
+            BuildJobResult(legacy_job.job_id, attempt=1),
+            4 * MIB,
+            1,
+        )
+        self.assertEqual("", accepted.artifact_id)
+
+        with self.assertRaisesRegex(ExperimentMatrixError, "artifact_id"):
+            matrix_module._validated_result(
+                legacy_job,
+                BuildJobResult(
+                    legacy_job.job_id,
+                    attempt=1,
+                    artifact_id="sha256:" + "3" * 64,
+                ),
+                4 * MIB,
+                1,
+            )
 
     def test_interleaving_seed_is_stable_and_does_not_change_job_identity(self) -> None:
         first, first_runner = self.run_success(seed=5, name="first.json")
@@ -219,7 +370,7 @@ class ExperimentMatrixTest(unittest.TestCase):
 
         def execute(job: Job) -> object:
             if job.kind is JobKind.BUILD:
-                return BuildJobResult(job.job_id, 1)
+                return BuildJobResult(job.job_id, attempt=1, artifact_id=job.artifact_id)
             assert isinstance(job, ExperimentJob)
             attempts[job.job_id] += 1
             if attempts[job.job_id] == 1:
@@ -255,7 +406,7 @@ class ExperimentMatrixTest(unittest.TestCase):
 
         def execute(job: Job) -> object:
             if job.kind is JobKind.BUILD:
-                return BuildJobResult(job.job_id, 1)
+                return BuildJobResult(job.job_id, attempt=1, artifact_id=job.artifact_id)
             assert isinstance(job, ExperimentJob)
             attempts[job.job_id] += 1
             if attempts[job.job_id] > 1:
@@ -295,7 +446,7 @@ class ExperimentMatrixTest(unittest.TestCase):
 
         def terminate(job: Job) -> object:
             if job.kind is JobKind.BUILD:
-                return BuildJobResult(job.job_id, 1)
+                return BuildJobResult(job.job_id, attempt=1, artifact_id=job.artifact_id)
             assert isinstance(job, ExperimentJob)
             return ResourceCheckpointEvent(
                 job.job_id,
@@ -320,7 +471,7 @@ class ExperimentMatrixTest(unittest.TestCase):
     def test_hard_limit_event_requires_actual_signal_rss_and_checkpoint_sink(self) -> None:
         def under_limit(job: Job) -> object:
             if job.kind is JobKind.BUILD:
-                return BuildJobResult(job.job_id, 1)
+                return BuildJobResult(job.job_id, attempt=1, artifact_id=job.artifact_id)
             assert isinstance(job, ExperimentJob)
             return ResourceCheckpointEvent(
                 job.job_id,
@@ -341,7 +492,11 @@ class ExperimentMatrixTest(unittest.TestCase):
         class NoCheckpointSink:
             def __call__(inner_self, job: Job) -> object:
                 if job.kind is JobKind.BUILD:
-                    return BuildJobResult(job.job_id, 1)
+                    return BuildJobResult(
+                        job.job_id,
+                        attempt=1,
+                        artifact_id=job.artifact_id,
+                    )
                 assert isinstance(job, ExperimentJob)
                 return ResourceCheckpointEvent(
                     job.job_id,
@@ -362,7 +517,7 @@ class ExperimentMatrixTest(unittest.TestCase):
     def test_fuzz_samples_fail_closed_on_duplicate_or_wrong_identity(self) -> None:
         def duplicate(job: Job) -> object:
             if job.kind is JobKind.BUILD:
-                return BuildJobResult(job.job_id, 1)
+                return BuildJobResult(job.job_id, attempt=1, artifact_id=job.artifact_id)
             assert isinstance(job, ExperimentJob)
             sample = self.sample(job)
             return FuzzJobResult(job.job_id, 1, (sample, copy.deepcopy(sample)), MIB)
@@ -376,7 +531,7 @@ class ExperimentMatrixTest(unittest.TestCase):
 
         def wrong(job: Job) -> object:
             if job.kind is JobKind.BUILD:
-                return BuildJobResult(job.job_id, 1)
+                return BuildJobResult(job.job_id, attempt=1, artifact_id=job.artifact_id)
             assert isinstance(job, ExperimentJob)
             sample = self.sample(job)
             sample["job_id"] = "fuzz-wrong"
@@ -468,7 +623,7 @@ class ExperimentMatrixTest(unittest.TestCase):
 
         def stale_retry(job: Job) -> object:
             if job.kind is JobKind.BUILD:
-                return BuildJobResult(job.job_id, 1)
+                return BuildJobResult(job.job_id, attempt=1, artifact_id=job.artifact_id)
             assert isinstance(job, ExperimentJob)
             attempts[job.job_id] += 1
             if attempts[job.job_id] == 1:
@@ -492,7 +647,7 @@ class ExperimentMatrixTest(unittest.TestCase):
     def test_runner_rss_evidence_cannot_bypass_typed_result_boundary(self) -> None:
         def ordinary_resource_failure(job: Job) -> object:
             if job.kind is JobKind.BUILD:
-                return BuildJobResult(job.job_id, 1)
+                return BuildJobResult(job.job_id, attempt=1, artifact_id=job.artifact_id)
             assert isinstance(job, ExperimentJob)
             return FuzzJobResult(
                 job.job_id,
@@ -510,7 +665,7 @@ class ExperimentMatrixTest(unittest.TestCase):
 
         def mismatched_peak(job: Job) -> object:
             if job.kind is JobKind.BUILD:
-                return BuildJobResult(job.job_id, 1)
+                return BuildJobResult(job.job_id, attempt=1, artifact_id=job.artifact_id)
             assert isinstance(job, ExperimentJob)
             return FuzzJobResult(job.job_id, 1, (self.sample(job),), 2 * MIB)
 
@@ -523,7 +678,7 @@ class ExperimentMatrixTest(unittest.TestCase):
 
         def mismatched_event_peak(job: Job) -> object:
             if job.kind is JobKind.BUILD:
-                return BuildJobResult(job.job_id, 1)
+                return BuildJobResult(job.job_id, attempt=1, artifact_id=job.artifact_id)
             assert isinstance(job, ExperimentJob)
             return ResourceCheckpointEvent(
                 job.job_id,
@@ -543,7 +698,7 @@ class ExperimentMatrixTest(unittest.TestCase):
 
         def zero_sample_peak(job: Job) -> object:
             if job.kind is JobKind.BUILD:
-                return BuildJobResult(job.job_id, 1)
+                return BuildJobResult(job.job_id, attempt=1, artifact_id=job.artifact_id)
             assert isinstance(job, ExperimentJob)
             return FuzzJobResult(
                 job.job_id,

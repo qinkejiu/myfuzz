@@ -26,10 +26,12 @@ from typing import Protocol, TypeAlias
 
 from myfuzz.experiments import (
     ExperimentJob,
+    ExperimentPlanError,
     Job,
     JobKind,
     build_report,
     plan_experiment,
+    resolve_build_prerequisite,
     run_job,
 )
 
@@ -48,6 +50,7 @@ class BuildJobResult:
 
     job_id: str
     attempt: int
+    artifact_id: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -304,6 +307,10 @@ def _validated_result(
             raise ExperimentMatrixError("BuildJobResult job_id does not match job")
         if _positive_attempt(result.attempt, "BuildJobResult.attempt") != expected_attempt:
             raise ExperimentMatrixError("BuildJobResult attempt does not match current attempt")
+        if result.artifact_id != getattr(job, "artifact_id", ""):
+            raise ExperimentMatrixError(
+                "BuildJobResult artifact_id does not match planned build artifact_id"
+            )
         return result
     if isinstance(result, FuzzJobResult):
         if not isinstance(job, ExperimentJob) or job.kind is not JobKind.FUZZ:
@@ -634,6 +641,17 @@ def _run_experiment_matrix(
 ) -> dict[str, object]:
     planner_config, manifests, execution, reference_summary = _parse_config(config)
     plan = plan_experiment(planner_config, manifests)
+    try:
+        prerequisites = {}
+        for job in plan.jobs:
+            if job.execution.server_artifact_id and not job.build_job_id:
+                raise ExperimentPlanError(
+                    "harness-specific fuzz build prerequisite is missing build_job_id"
+                )
+            prerequisites[job.job_id] = resolve_build_prerequisite(plan, job)
+    except ExperimentPlanError as error:
+        raise ExperimentMatrixError(str(error)) from error
+    completed_builds: set[str] = set()
 
     fuzz_order = list(plan.jobs)
     random.Random(execution.interleaving_seed).shuffle(fuzz_order)
@@ -662,6 +680,7 @@ def _run_experiment_matrix(
         while True:
             result = execute(build_job)
             if isinstance(result, BuildJobResult):
+                completed_builds.add(build_job.job_id)
                 break
             if not isinstance(result, ResourceCheckpointEvent):
                 raise ExperimentMatrixError("build jobs must return BuildJobResult")
@@ -700,11 +719,21 @@ def _run_experiment_matrix(
             resource_terminated.add(job.job_id)
 
     for job in fuzz_order:
+        required = prerequisites[job.job_id]
+        if required.job_id not in completed_builds:
+            raise ExperimentMatrixError(
+                f"fuzz build prerequisite did not complete: {required.job_id}"
+            )
         accept_fuzz_result(job, execute(job))
 
     while retry_queue:
         retry_queue.sort(key=lambda item: (item[0].priority, item[2], item[0].job_id))
         job, _previous_event, order_index = retry_queue.pop(0)
+        required = prerequisites[job.job_id]
+        if required.job_id not in completed_builds:
+            raise ExperimentMatrixError(
+                f"fuzz build prerequisite did not complete: {required.job_id}"
+            )
         result = execute(job)
         if isinstance(result, ResourceCheckpointEvent):
             _persist_checkpoint(
