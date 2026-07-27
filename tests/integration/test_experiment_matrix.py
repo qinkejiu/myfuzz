@@ -11,6 +11,7 @@ from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
+from myfuzz.contracts import content_hash
 from myfuzz.experiments import ExperimentJob, Job, JobKind
 from myfuzz.integration import (
     BuildJobResult,
@@ -637,16 +638,36 @@ class ExperimentMatrixTest(unittest.TestCase):
 
     def test_matrix_publishes_authoritative_per_seed_pair_evidence(self) -> None:
         self.planner_config["candidate_pair"]["seeds"] = [1, 7, 19]
+        self.planner_config["harness_groups"] = [
+            "flat-direct", "candidate-direct", "candidate-static",
+        ]
+        self.planner_config["coverage"]["comparisons"][0]["right_harness"] = (
+            "candidate-static"
+        )
+        parameters = {
+            "direct_ratio": 1,
+            "event_rarity": 2,
+            "legal_set_strength": 1,
+            "mutual_exclusion": "none",
+        }
+        plan_hash = content_hash(parameters)
+        policy_id = "policy-" + plan_hash.removeprefix("sha256:")[:16]
+        projection_hash = "sha256:" + "c" * 64
+        self.manifest["candidate_id"] = (
+            f"{self.planner_config['target']['target_id']}-{policy_id}"
+        )
+        self.manifest["harnesses"]["candidate-static"] = {
+            "raw_width": 1,
+            "content_hash": "sha256:" + "a" * 64,
+            "abi_hash": "sha256:" + "b" * 64,
+            "projection_plan_hash": projection_hash,
+        }
         config = self.config(seed=13)
         config["pair_metadata"] = {
-            "policy_id": "policy-opaque",
-            "plan_hash": "sha256:" + "a" * 64,
-            "parameters": {
-                "direct_ratio": 1,
-                "event_rarity": 2,
-                "legal_set_strength": 1,
-                "mutual_exclusion": "none",
-            },
+            "policy_id": policy_id,
+            "plan_hash": plan_hash,
+            "projection_plan_hash": projection_hash,
+            "parameters": parameters,
         }
 
         def execute(job: Job) -> object:
@@ -675,12 +696,60 @@ class ExperimentMatrixTest(unittest.TestCase):
         pairs = result["promotion_pairs"]
         self.assertEqual([1, 7, 19], sorted(pair["seed"] for pair in pairs))
         for pair in pairs:
-            self.assertEqual("policy-opaque", pair["policy_id"])
-            self.assertEqual("sha256:" + "a" * 64, pair["plan_hash"])
+            self.assertEqual(policy_id, pair["policy_id"])
+            self.assertEqual(plan_hash, pair["plan_hash"])
+            self.assertEqual(projection_hash, pair["projection_plan_hash"])
             self.assertEqual(self.planner_config["target"]["target_id"], pair["target_id"])
             self.assertEqual(0, pair["baseline"]["failure_reasons"]["dut_crash"])
             self.assertEqual(10.0, pair["candidate"]["tests_per_second"])
             self.assertTrue(pair["candidate"]["handshake_succeeded"])
+
+    def test_pair_metadata_must_match_parameters_and_planned_projection(self) -> None:
+        self.planner_config["harness_groups"] = [
+            "flat-direct", "candidate-direct", "candidate-static",
+        ]
+        self.planner_config["coverage"]["comparisons"][0]["right_harness"] = (
+            "candidate-static"
+        )
+        parameters = {
+            "direct_ratio": 1,
+            "event_rarity": 2,
+            "legal_set_strength": 1,
+            "mutual_exclusion": "none",
+        }
+        plan_hash = content_hash(parameters)
+        policy_id = "policy-" + plan_hash.removeprefix("sha256:")[:16]
+        projection_hash = "sha256:" + "c" * 64
+        self.manifest["candidate_id"] = (
+            f"{self.planner_config['target']['target_id']}-{policy_id}"
+        )
+        self.manifest["harnesses"]["candidate-static"] = {
+            "raw_width": 1,
+            "content_hash": "sha256:" + "a" * 64,
+            "abi_hash": "sha256:" + "b" * 64,
+            "projection_plan_hash": projection_hash,
+        }
+        valid = {
+            "policy_id": policy_id,
+            "plan_hash": plan_hash,
+            "projection_plan_hash": projection_hash,
+            "parameters": parameters,
+        }
+        for field, replacement, message in (
+            ("policy_id", "policy-lie", "policy_id"),
+            ("plan_hash", "sha256:" + "d" * 64, "plan_hash"),
+            ("projection_plan_hash", "sha256:" + "e" * 64, "projection_plan_hash"),
+        ):
+            config = self.config()
+            config["pair_metadata"] = dict(valid, **{field: replacement})
+            with self.subTest(field=field), self.assertRaisesRegex(
+                ExperimentMatrixError, message
+            ):
+                run_experiment_matrix(
+                    config,
+                    runner=RecordingRunner(self.successful_result),
+                    report_path=self.root / f"pair-mismatch-{field}.json",
+                )
 
     def test_every_runner_exit_releases_the_exact_b_job_lease(self) -> None:
         for label, error in (
@@ -756,6 +825,45 @@ class ExperimentMatrixTest(unittest.TestCase):
         self.assertEqual(1, result["execution"]["checkpoints"][0]["attempt"])
         self.assertIn("job_id", result["execution"]["checkpoints"][0])
         self.assertEqual({2}, set(result["execution"]["attempts"].values()) - {1})
+
+    def test_resource_checkpoint_without_measurements_is_retried(self) -> None:
+        attempts: defaultdict[str, int] = defaultdict(int)
+
+        def execute(job: Job) -> object:
+            if job.kind is JobKind.BUILD:
+                return BuildJobResult(job.job_id, 1, job.artifact_id)
+            assert isinstance(job, ExperimentJob)
+            attempts[job.job_id] += 1
+            if attempts[job.job_id] == 1:
+                return ResourceCheckpointEvent(
+                    job.job_id, 1, 4 * MIB, "hard_memory_limit", {}, ()
+                )
+            return FuzzJobResult(job.job_id, 2, (self.sample(job),), MIB)
+
+        result = run_experiment_matrix(
+            self.config(retries=1),
+            runner=RecordingRunner(execute),
+            report_path=self.root / "resource-before-measurements.json",
+        )
+
+        self.assertEqual({2}, set(attempts.values()))
+        self.assertEqual(3, len(result["execution"]["checkpoints"]))
+
+    def test_resource_checkpoint_without_measurements_fails_after_retries(self) -> None:
+        def execute(job: Job) -> object:
+            if job.kind is JobKind.BUILD:
+                return BuildJobResult(job.job_id, 1, job.artifact_id)
+            assert isinstance(job, ExperimentJob)
+            return ResourceCheckpointEvent(
+                job.job_id, 1, 4 * MIB, "hard_memory_limit", {}, ()
+            )
+
+        with self.assertRaisesRegex(ResourceTerminatedError, "without authoritative samples"):
+            run_experiment_matrix(
+                self.config(retries=0),
+                runner=RecordingRunner(execute),
+                report_path=self.root / "resource-no-measurements.json",
+            )
 
     def test_resource_retry_is_bounded_and_remains_distinct_from_dut_crash(self) -> None:
         attempts: defaultdict[str, int] = defaultdict(int)

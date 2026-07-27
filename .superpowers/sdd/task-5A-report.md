@@ -300,3 +300,71 @@ OK
 
 `git diff --check` also exited zero. Live RFuzz evidence remains the next gate;
 no coverage improvement is claimed from these unit/integration results.
+
+## Review Fix Gate Follow-Up
+
+The final gate closed the remaining lifecycle, binding, and filesystem findings
+with failure-first tests.
+
+Resource termination before FIFO handshake initially failed four focused tests:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest \
+  tests.integration.test_rfuzz_runner.InstrumentationCoverageTest.test_resource_result_before_handshake_does_not_require_statistics \
+  tests.integration.test_rfuzz_runner.RfuzzExperimentRunnerTest.test_pre_handshake_resource_document_maps_to_empty_checkpoint \
+  tests.integration.test_experiment_matrix.ExperimentMatrixTest.test_resource_checkpoint_without_measurements_is_retried \
+  tests.integration.test_experiment_matrix.ExperimentMatrixTest.test_resource_checkpoint_without_measurements_fails_after_retries -v
+```
+
+RED: `Ran 4 tests ... FAILED (errors=4)`. GREEN: `Ran 4 tests ... OK`.
+The driver now publishes a closed resource-only document without fabricated
+coverage, the runner maps it to an empty-sample checkpoint, and the matrix
+retries it or fails explicitly when no authoritative sample is ever produced.
+
+Pair metadata binding initially failed the two focused matrix tests with one
+error and one failure. After the fix, both pass. Policy and plan identities are
+derived from the parameters, the projection hash must match the planned
+`candidate-static` job, and matrix-owned pair evidence publishes that planned
+projection identity.
+
+Filesystem escape tests initially showed both instrumentation reads and
+checkpoint writes following symlinks outside the repository. The final
+implementation traverses evidence and checkpoint paths through pinned directory
+descriptors with `O_NOFOLLOW`; deterministic intermediate-directory swap tests
+for both instrumentation and result documents now pass.
+
+Promotion authority received two RED tests: one showed a selector could choose
+a screen-rejected policy, and the other showed it could choose a policy that
+passed screening but failed promotion thresholds. Both now pass. A selected
+decision must match `promote(matrix_promotion_pairs(promotion))` exactly,
+including its evidence hash, before the policy is frozen and validation starts.
+
+Final focused verification:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest \
+  tests.experiments.test_pipeline tests.experiments.test_planner \
+  tests.experiments.test_rfuzz_adapter tests.experiments.test_static_portfolio \
+  tests.integration.test_experiment_matrix tests.integration.test_rfuzz_runner \
+  tests.test_static_projection_campaign -v
+```
+
+```text
+Ran 156 tests in 4.441s
+OK
+```
+
+One final discovery pass:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest discover -v
+```
+
+```text
+Ran 647 tests in 9.297s
+OK
+```
+
+The final independent read-only review reported no Critical or Important
+findings. `git diff --check` also exited zero. No live RFuzz campaign was run,
+and no coverage improvement is claimed from these tests.

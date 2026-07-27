@@ -10,7 +10,6 @@ import secrets
 import stat
 import subprocess
 import sys
-import tempfile
 import time
 from collections.abc import Mapping
 from pathlib import Path
@@ -37,33 +36,134 @@ _FUZZ_KEYS = frozenset((
     "server_returncode", "fuzzer_returncode", "handshake_succeeded",
     "fifo_cleanup_succeeded", "crash_restart_count", "failure_reasons",
 ))
+_FUZZ_RESOURCE_KEYS = frozenset((
+    "kind", "job_id", "artifact_id", "peak_rss_bytes",
+    "server_returncode", "fuzzer_returncode", "handshake_succeeded",
+    "fifo_cleanup_succeeded", "crash_restart_count", "failure_reasons",
+))
 _MAX_RESULT_BYTES = 1024 * 1024
 
 
-def _atomic_json(path: Path, document: object) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+def _read_regular_json(
+    path: Path,
+    label: str,
+    *,
+    max_bytes: int,
+    started_ns: int | None = None,
+    repository_root: Path | None = None,
+) -> object:
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    descriptor: int | None = None
+    directory: int | None = None
+    if repository_root is None:
+        try:
+            descriptor = os.open(path, flags)
+        except FileNotFoundError as error:
+            raise ValueError(f"{label} is missing") from error
+        except OSError as error:
+            raise ValueError(f"{label} must be a regular file") from error
+    else:
+        try:
+            parts = path.relative_to(repository_root).parts
+        except ValueError as error:
+            raise ValueError(f"{label} must remain beneath the repository") from error
+        if not parts or any(
+            part in {"", ".", ".."} or "/" in part or "\0" in part
+            for part in parts
+        ):
+            raise ValueError(f"{label} must remain beneath the repository")
+        directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+        directory_flags |= getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+        directory = os.open(repository_root, directory_flags)
+        try:
+            for part in parts[:-1]:
+                child = os.open(part, directory_flags, dir_fd=directory)
+                os.close(directory)
+                directory = child
+            descriptor = os.open(parts[-1], flags, dir_fd=directory)
+        except FileNotFoundError as error:
+            if directory is not None:
+                os.close(directory)
+                directory = None
+            raise ValueError(f"{label} is missing") from error
+        except OSError as error:
+            if directory is not None:
+                os.close(directory)
+                directory = None
+            raise ValueError(f"{label} must remain beneath the repository") from error
+    try:
+        assert descriptor is not None
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise ValueError(f"{label} must be a regular file")
+        if started_ns is not None and metadata.st_mtime_ns < started_ns:
+            raise ValueError(f"{label} is stale")
+        if metadata.st_size > max_bytes:
+            raise ValueError(f"{label} exceeds the size limit")
+        with os.fdopen(descriptor, "r", encoding="utf-8") as stream:
+            descriptor = None
+            return json.load(stream)
+    except (UnicodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"{label} is not valid JSON") from error
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+        if directory is not None:
+            os.close(directory)
+
+
+def _open_beneath_directory(root: Path, parts: tuple[str, ...], label: str) -> int:
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    flags |= getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(root, flags)
+    try:
+        for part in parts:
+            if part in {"", ".", ".."} or "/" in part or "\0" in part:
+                raise ValueError(f"{label} contains an unsafe path component")
+            try:
+                child = os.open(part, flags, dir_fd=descriptor)
+            except FileNotFoundError:
+                os.mkdir(part, mode=0o700, dir_fd=descriptor)
+                child = os.open(part, flags, dir_fd=descriptor)
+            except OSError as error:
+                raise ValueError(f"{label} must remain beneath the repository") from error
+            os.close(descriptor)
+            descriptor = child
+        return descriptor
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+def _atomic_json_at(directory: int, name: str, document: object) -> None:
+    if name in {"", ".", ".."} or "/" in name or "\0" in name:
+        raise ValueError("checkpoint name is unsafe")
     payload = json.dumps(
         document, sort_keys=True, separators=(",", ":"), ensure_ascii=True
     ).encode("ascii") + b"\n"
-    temporary: Path | None = None
+    temporary = f".{name}.{secrets.token_hex(8)}.tmp"
+    descriptor: int | None = None
     try:
-        descriptor, name = tempfile.mkstemp(
-            prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        flags |= getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open(
+            temporary, flags, 0o600, dir_fd=directory
         )
-        temporary = Path(name)
         with os.fdopen(descriptor, "wb") as stream:
+            descriptor = None
             stream.write(payload)
             stream.flush()
             os.fsync(stream.fileno())
-        temporary.replace(path)
-        directory = os.open(path.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory)
-        finally:
-            os.close(directory)
+        os.replace(temporary, name, src_dir_fd=directory, dst_dir_fd=directory)
+        os.fsync(directory)
     finally:
-        if temporary is not None:
-            temporary.unlink(missing_ok=True)
+        if descriptor is not None:
+            os.close(descriptor)
+        try:
+            os.unlink(temporary, dir_fd=directory)
+        except FileNotFoundError:
+            pass
 
 
 def _closed_object(value: object, keys: frozenset[str], label: str) -> Mapping[str, object]:
@@ -102,6 +202,7 @@ class RfuzzExperimentRunner:
             raise ValueError("result_dir must be beneath repo_root") from error
         self._repo_root = root
         self._result_dir = results
+        self._result_parts = results.relative_to(root).parts
         self._adapter = RfuzzAdapter(root)
         self._attempts: dict[str, int] = {}
 
@@ -138,19 +239,19 @@ class RfuzzExperimentRunner:
 
     def _load_result(self, path: Path, started_ns: int) -> object:
         try:
-            metadata = path.lstat()
-        except FileNotFoundError as error:
-            raise ValueError("RFuzz design flow did not publish a result document") from error
-        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
-            raise ValueError("RFuzz result must be a regular file")
-        if metadata.st_mtime_ns < started_ns:
-            raise ValueError("RFuzz result document is stale")
-        if metadata.st_size > _MAX_RESULT_BYTES:
-            raise ValueError("RFuzz result document exceeds the size limit")
-        try:
-            return json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError) as error:
-            raise ValueError("RFuzz result document is not valid JSON") from error
+            return _read_regular_json(
+                path,
+                "RFuzz result document",
+                max_bytes=_MAX_RESULT_BYTES,
+                started_ns=started_ns,
+                repository_root=self._repo_root,
+            )
+        except ValueError as error:
+            if "missing" in str(error):
+                raise ValueError(
+                    "RFuzz design flow did not publish a result document"
+                ) from error
+            raise
 
     def _repository_file(self, value: object, label: str) -> Path:
         if not isinstance(value, str) or not value:
@@ -193,6 +294,8 @@ class RfuzzExperimentRunner:
     def _fuzz_result(
         self, job: ExperimentJob, attempt: int, value: object
     ) -> FuzzJobResult | ResourceCheckpointEvent:
+        if isinstance(value, Mapping) and value.get("kind") == "fuzz-resource":
+            return self._fuzz_resource_result(job, attempt, value)
         document = _closed_object(value, _FUZZ_KEYS, "fuzz result")
         if document["kind"] != "fuzz":
             raise ValueError("fuzz result kind must be fuzz")
@@ -277,11 +380,59 @@ class RfuzzExperimentRunner:
             )
         return FuzzJobResult(job.job_id, attempt, (sample,), peak)
 
+    def _fuzz_resource_result(
+        self, job: ExperimentJob, attempt: int, value: object
+    ) -> ResourceCheckpointEvent:
+        document = _closed_object(value, _FUZZ_RESOURCE_KEYS, "fuzz resource result")
+        if document["kind"] != "fuzz-resource":
+            raise ValueError("fuzz resource result kind must be fuzz-resource")
+        if document["job_id"] != job.job_id:
+            raise ValueError("fuzz resource result job_id does not match the job")
+        artifact_id = job.execution.server_artifact_id
+        if not isinstance(artifact_id, str) or document["artifact_id"] != artifact_id:
+            raise ValueError("fuzz resource result artifact_id does not match the planned artifact")
+        peak = _uint(document["peak_rss_bytes"], "peak_rss_bytes", positive=True)
+        _returncode(document["server_returncode"], "server_returncode")
+        _returncode(document["fuzzer_returncode"], "fuzzer_returncode")
+        if not isinstance(document["handshake_succeeded"], bool):
+            raise ValueError("handshake_succeeded must be a boolean")
+        if document["fifo_cleanup_succeeded"] is not True:
+            raise ValueError("RFuzz FIFO cleanup did not succeed")
+        _uint(document["crash_restart_count"], "crash_restart_count")
+        failures = _closed_object(
+            document["failure_reasons"],
+            frozenset(("dut_crash", "resource_terminated")),
+            "failure_reasons",
+        )
+        if _uint(failures["dut_crash"], "failure_reasons.dut_crash") != 0:
+            raise ValueError("resource termination must not be classified as dut_crash")
+        if _uint(
+            failures["resource_terminated"],
+            "failure_reasons.resource_terminated",
+        ) != 1:
+            raise ValueError("fuzz resource result must mark resource_terminated")
+        return ResourceCheckpointEvent(
+            job.job_id,
+            attempt,
+            peak,
+            "hard_memory_limit",
+            copy.deepcopy(dict(document)),
+            (),
+        )
+
     def persist_checkpoint(self, event: ResourceCheckpointEvent) -> None:
         if not isinstance(event, ResourceCheckpointEvent):
             raise TypeError("event must be a ResourceCheckpointEvent")
         name = f"{event.job_id}.{event.attempt}.checkpoint.json"
-        _atomic_json(self._result_dir / "checkpoints" / name, event.checkpoint)
+        directory = _open_beneath_directory(
+            self._repo_root,
+            self._result_parts + ("checkpoints",),
+            "checkpoint destination",
+        )
+        try:
+            _atomic_json_at(directory, name, event.checkpoint)
+        finally:
+            os.close(directory)
 
     def prepare_manifest(
         self,
@@ -327,10 +478,12 @@ class RfuzzExperimentRunner:
             if completed.returncode != 0:
                 raise ValueError(f"RFuzz coverage preparation {stage} stage failed")
         instrumentation_path = out / "instrumented" / "instrumentation.json"
-        try:
-            instrumentation = json.loads(instrumentation_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError) as error:
-            raise ValueError("instrumentation stage did not publish valid JSON") from error
+        instrumentation = _read_regular_json(
+            instrumentation_path,
+            "instrumentation evidence",
+            max_bytes=64 * 1024 * 1024,
+            repository_root=self._repo_root,
+        )
         from myfuzz.scripts.run_design_flow import coverage_universe_from_instrumentation
 
         points = coverage_universe_from_instrumentation(instrumentation)

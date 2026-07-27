@@ -460,6 +460,15 @@ def _matrix_config(
         "token_bytes": 64_000_000,
         "reference": {"mode": "evaluation-only", "allowed_stage": "report", "comparison": "shared-stable-source-id"},
     }
+    harnesses = manifest.get("harnesses")
+    if not isinstance(harnesses, Mapping):
+        raise ValueError("prepared manifest harnesses must be an object")
+    static_harness = harnesses.get("candidate-static")
+    if not isinstance(static_harness, Mapping):
+        raise ValueError("prepared candidate-static harness must be an object")
+    projection_plan_hash = static_harness.get("projection_plan_hash")
+    if not isinstance(projection_plan_hash, str):
+        raise ValueError("prepared candidate-static projection_plan_hash is required")
     return {
         "planner_config": planner,
         "candidate_manifests": [manifest],
@@ -471,6 +480,7 @@ def _matrix_config(
         "pair_metadata": {
             "policy_id": policy_id,
             "plan_hash": content_hash(asdict(parameters)),
+            "projection_plan_hash": projection_plan_hash,
             "parameters": asdict(parameters),
         },
     }
@@ -481,7 +491,9 @@ def _default_selector(results: object) -> PromotionDecision | None:
     return decisions[0] if decisions else None
 
 
-def _freeze(value: PromotionDecision | Mapping[str, object], path: Path) -> dict[str, object]:
+def _frozen_document(
+    value: PromotionDecision | Mapping[str, object],
+) -> dict[str, object]:
     expected = frozenset(("policy_id", "plan_hash", "parameters", "training_evidence_hash"))
     if isinstance(value, PromotionDecision):
         decision: Mapping[str, object] = {
@@ -503,6 +515,11 @@ def _freeze(value: PromotionDecision | Mapping[str, object], path: Path) -> dict
             canonical=False,
         ),
     }
+    return frozen
+
+
+def _freeze(value: PromotionDecision | Mapping[str, object], path: Path) -> dict[str, object]:
+    frozen = _frozen_document(value)
     _atomic_json(path, frozen)
     return frozen
 
@@ -572,6 +589,10 @@ def run_campaign(
         if _policy_id(parameters) in eligible_ids
     )
     promotion = run_stage("promotion", config.promotion, eligible_parameters)
+    authoritative_decisions = tuple(
+        _frozen_document(decision)
+        for decision in promote(matrix_promotion_pairs(promotion))
+    )
     selected = promotion_selector(promotion)
     if selected is None:
         negative = {
@@ -586,8 +607,21 @@ def run_campaign(
             "promotion_matrix": promotion,
             "promotion": negative,
         }
+    pending_frozen = _frozen_document(selected)
+    selected_parameters = _parameters(pending_frozen["parameters"])
+    expected_policy_id = _policy_id(selected_parameters)
+    if pending_frozen["policy_id"] != expected_policy_id:
+        raise ValueError("promotion decision.policy_id does not match parameters")
+    if pending_frozen["plan_hash"] != content_hash(asdict(selected_parameters)):
+        raise ValueError("promotion decision.plan_hash does not match parameters")
+    if expected_policy_id not in eligible_ids:
+        raise ValueError("promotion decision policy did not pass screening")
+    if pending_frozen not in authoritative_decisions:
+        raise ValueError(
+            "promotion decision does not match authoritative promotion evidence"
+        )
     frozen = _freeze(selected, output / "frozen-policy.json")
-    frozen_parameters = (_parameters(frozen["parameters"]),)
+    frozen_parameters = (selected_parameters,)
     validation = run_stage("validation", config.validation, frozen_parameters)
     return {
         "stages": ["screen", "promotion", "validation"],

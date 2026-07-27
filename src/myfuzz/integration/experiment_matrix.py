@@ -25,6 +25,7 @@ import secrets
 import stat
 from typing import Protocol, TypeAlias
 
+from myfuzz.contracts import content_hash
 from myfuzz.experiments import (
     ExperimentJob,
     ExperimentPlanError,
@@ -111,6 +112,7 @@ class _ExecutionConfig:
 class _PairMetadata:
     policy_id: str
     plan_hash: str
+    projection_plan_hash: str
     parameters: Mapping[str, object]
 
 
@@ -207,23 +209,41 @@ def _parse_config(
     pair_metadata = None
     if "pair_metadata" in document:
         metadata = _object(document["pair_metadata"], "pair_metadata")
-        metadata_keys = frozenset(("policy_id", "plan_hash", "parameters"))
+        metadata_keys = frozenset((
+            "policy_id", "plan_hash", "projection_plan_hash", "parameters",
+        ))
         _strict_keys(metadata, metadata_keys, metadata_keys, "pair_metadata")
         policy_id = metadata["policy_id"]
         plan_hash = metadata["plan_hash"]
+        projection_plan_hash = metadata["projection_plan_hash"]
         parameters = _object(metadata["parameters"], "pair_metadata.parameters")
         parameter_keys = frozenset((
             "direct_ratio", "event_rarity", "legal_set_strength", "mutual_exclusion",
         ))
         _strict_keys(parameters, parameter_keys, parameter_keys, "pair_metadata.parameters")
-        if not isinstance(policy_id, str) or not policy_id:
-            raise ExperimentMatrixError("pair_metadata.policy_id must be a non-empty string")
-        if not isinstance(plan_hash, str) or re.fullmatch(
-            r"sha256:[0-9a-f]{64}", plan_hash
+        expected_plan_hash = content_hash(parameters)
+        expected_policy_id = (
+            "policy-" + expected_plan_hash.removeprefix("sha256:")[:16]
+        )
+        if policy_id != expected_policy_id:
+            raise ExperimentMatrixError(
+                "pair_metadata.policy_id does not match pair_metadata.parameters"
+            )
+        if plan_hash != expected_plan_hash:
+            raise ExperimentMatrixError(
+                "pair_metadata.plan_hash does not match pair_metadata.parameters"
+            )
+        if not isinstance(projection_plan_hash, str) or re.fullmatch(
+            r"sha256:[0-9a-f]{64}", projection_plan_hash
         ) is None:
-            raise ExperimentMatrixError("pair_metadata.plan_hash must be canonical SHA-256")
+            raise ExperimentMatrixError(
+                "pair_metadata.projection_plan_hash must be canonical SHA-256"
+            )
         pair_metadata = _PairMetadata(
-            policy_id, plan_hash, copy.deepcopy(dict(parameters))
+            policy_id,
+            plan_hash,
+            projection_plan_hash,
+            copy.deepcopy(dict(parameters)),
         )
     return (
         planner_config, manifests, _ExecutionConfig(seed, retries, float(timeout)),
@@ -278,14 +298,32 @@ def _promotion_pairs(
 
     for block in plan.run_blocks:
         block_jobs = [jobs[job_id] for job_id in block]
-        direct = next(job for job in block_jobs if job.harness == "candidate-direct")
-        candidate = next(
-            job for job in block_jobs
-            if job.harness not in {"flat-direct", "candidate-direct"}
-        )
+        direct_jobs = [job for job in block_jobs if job.harness == "candidate-direct"]
+        candidate_jobs = [job for job in block_jobs if job.harness == "candidate-static"]
+        if len(direct_jobs) != 1 or len(candidate_jobs) != 1:
+            raise ExperimentMatrixError(
+                "pair_metadata requires one candidate-direct/candidate-static pair"
+            )
+        direct = direct_jobs[0]
+        candidate = candidate_jobs[0]
+        expected_candidate_id = f"{direct.target_id}-{metadata.policy_id}"
+        if (
+            direct.candidate_id != expected_candidate_id
+            or candidate.candidate_id != expected_candidate_id
+        ):
+            raise ExperimentMatrixError(
+                "pair_metadata.policy_id does not match planned candidate identity"
+            )
+        if candidate.projection_plan_hash != metadata.projection_plan_hash:
+            raise ExperimentMatrixError(
+                "pair_metadata.projection_plan_hash does not match planned candidate-static projection"
+            )
+        if candidate.target_id != direct.target_id or candidate.seed != direct.seed:
+            raise ExperimentMatrixError("planned promotion pair identity is inconsistent")
         pairs.append({
             "policy_id": metadata.policy_id,
             "plan_hash": metadata.plan_hash,
+            "projection_plan_hash": candidate.projection_plan_hash,
             "parameters": copy.deepcopy(dict(metadata.parameters)),
             "target_id": direct.target_id,
             "seed": direct.seed,
@@ -481,11 +519,16 @@ def _validated_result(
             dict(_object(result.checkpoint, "ResourceCheckpointEvent.checkpoint"))
         )
         if isinstance(job, ExperimentJob):
-            samples, sample_peak = _sample_identity(job, result.samples, resource_event=True)
-            if sample_peak != observed:
-                raise ExperimentMatrixError(
-                    "ResourceCheckpointEvent observed_peak_rss_bytes must equal sample peak_rss_bytes"
+            if result.samples:
+                samples, sample_peak = _sample_identity(
+                    job, result.samples, resource_event=True
                 )
+                if sample_peak != observed:
+                    raise ExperimentMatrixError(
+                        "ResourceCheckpointEvent observed_peak_rss_bytes must equal sample peak_rss_bytes"
+                    )
+            else:
+                samples = ()
         else:
             if result.samples:
                 raise ExperimentMatrixError("build resource events cannot contain fuzz samples")
@@ -865,6 +908,11 @@ def _run_experiment_matrix(
         if attempts[job.job_id] <= execution.max_resource_retries:
             retry_queue.append((job, result, stable_order[job.job_id]))
         else:
+            if not result.samples:
+                raise ResourceTerminatedError(
+                    "fuzz job remained resource_terminated without authoritative "
+                    f"samples: {job.job_id}"
+                )
             samples_by_job[job.job_id] = tuple(dict(sample) for sample in result.samples)
             resource_terminated.add(job.job_id)
 
@@ -888,6 +936,11 @@ def _run_experiment_matrix(
             if attempts[job.job_id] <= execution.max_resource_retries:
                 retry_queue.append((job, result, order_index))
             else:
+                if not result.samples:
+                    raise ResourceTerminatedError(
+                        "fuzz job remained resource_terminated without authoritative "
+                        f"samples: {job.job_id}"
+                    )
                 samples_by_job[job.job_id] = tuple(
                     dict(sample) for sample in result.samples
                 )

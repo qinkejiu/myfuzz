@@ -206,6 +206,27 @@ class InstrumentationCoverageTest(unittest.TestCase):
         self.assertEqual(0, result["failure_reasons"]["dut_crash"])
         self.assertEqual(1, result["failure_reasons"]["resource_terminated"])
 
+    def test_resource_result_before_handshake_does_not_require_statistics(self) -> None:
+        execution = {
+            "peak_rss_bytes": 8192,
+            "server_returncode": -9,
+            "fuzzer_returncode": -15,
+            "handshake_succeeded": False,
+            "fifo_cleanup_succeeded": True,
+            "crash_restart_count": 1,
+            "failure_reasons": {"dut_crash": 0, "resource_terminated": 1},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            missing = Path(directory) / "missing.json"
+            document = run_design_flow.fuzz_result_document(
+                "job-bound", "sha256:" + "a" * 64, execution, missing, (), 0
+            )
+
+        self.assertEqual("fuzz-resource", document["kind"])
+        self.assertEqual("job-bound", document["job_id"])
+        self.assertNotIn("elapsed_seconds", document)
+        self.assertNotIn("covered_point_ids", document)
+
     def test_monitored_command_terminates_at_hard_memory_limit(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             result = run_design_flow.run_monitored_command(
@@ -425,6 +446,33 @@ class RfuzzExperimentRunnerTest(unittest.TestCase):
                 )
                 self.assertTrue(checkpoint.is_file())
 
+    def test_pre_handshake_resource_document_maps_to_empty_checkpoint(self) -> None:
+        artifact_id = "sha256:" + "a" * 64
+        planned = job(
+            budget_kind="seconds", budget_value=1,
+            artifact_id=artifact_id, build_job_id="build-bound",
+        )
+        document = {
+            "kind": "fuzz-resource",
+            "job_id": planned.job_id,
+            "artifact_id": artifact_id,
+            "peak_rss_bytes": 8192,
+            "server_returncode": -9,
+            "fuzzer_returncode": -15,
+            "handshake_succeeded": False,
+            "fifo_cleanup_succeeded": True,
+            "crash_restart_count": 1,
+            "failure_reasons": {"dut_crash": 0, "resource_terminated": 1},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            runner = self._fixture(Path(directory), document)
+            result = runner(planned)
+
+        self.assertIsInstance(result, ResourceCheckpointEvent)
+        assert isinstance(result, ResourceCheckpointEvent)
+        self.assertEqual((), result.samples)
+        self.assertEqual(1, result.checkpoint["crash_restart_count"])
+
     def test_fuzz_result_copies_job_identity_and_document_measurements(self) -> None:
         artifact_id = "sha256:" + "a" * 64
         planned = job(
@@ -563,6 +611,148 @@ class RfuzzExperimentRunnerTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "out_dir.*beneath"):
                     runner.prepare_manifest({}, Path("configs/design.json"))
                 execute.assert_not_called()
+
+    def test_prepare_manifest_rejects_symlinked_instrumentation_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            root = Path(directory)
+            self._install_fixture_paths(root)
+            config_path = root / "configs" / "design.json"
+            config_path.parent.mkdir(parents=True)
+            config_path.write_text(
+                json.dumps({"out_dir": "runs/design"}), encoding="utf-8"
+            )
+            instrumentation = Path(outside) / "instrumentation.json"
+            instrumentation.write_text(
+                json.dumps({"coverage_point_count": 0, "coverage": []}),
+                encoding="utf-8",
+            )
+            linked = root / "runs" / "design" / "instrumented" / "instrumentation.json"
+            linked.parent.mkdir(parents=True)
+            linked.symlink_to(instrumentation)
+            runner = RfuzzExperimentRunner(root, root / "runs" / "results")
+            with patch("myfuzz.integration.rfuzz_runner.subprocess.run") as execute:
+                execute.return_value.returncode = 0
+                with self.assertRaisesRegex(ValueError, "instrumentation.*repository|regular"):
+                    runner.prepare_manifest({}, Path("configs/design.json"))
+
+    def test_instrumentation_read_is_pinned_against_parent_directory_swap(self) -> None:
+        from myfuzz.harness import StaticPolicyParameters
+        from scripts.runs.run_static_projection_campaign import _runtime_manifest, load_campaign
+
+        campaign = load_campaign(
+            Path(__file__).resolve().parents[2]
+            / "configs" / "experiments" / "static_projection_training.json"
+        )
+        runtime = _runtime_manifest(
+            campaign.targets[0], StaticPolicyParameters(1, 2, 1, "none")
+        )
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            root = Path(directory)
+            self._install_fixture_paths(root)
+            config_path = root / "configs" / "design.json"
+            config_path.parent.mkdir(parents=True)
+            config_path.write_text(
+                json.dumps({"out_dir": "runs/design"}), encoding="utf-8"
+            )
+            instrumented = root / "runs" / "design" / "instrumented"
+            instrumented.mkdir(parents=True)
+            instrumentation_path = instrumented / "instrumentation.json"
+            safe_document = {
+                "coverage_point_count": 1,
+                "coverage": [{
+                    "module": "top", "signal": "safe", "kind": "branch",
+                    "file": "top.sv", "line": 1,
+                }],
+            }
+            instrumentation_path.write_text(
+                json.dumps(safe_document), encoding="utf-8"
+            )
+            outside_instrumented = Path(outside) / "instrumented"
+            outside_instrumented.mkdir()
+            (outside_instrumented / "instrumentation.json").write_text(json.dumps({
+                "coverage_point_count": 1,
+                "coverage": [{
+                    "module": "top", "signal": "outside", "kind": "branch",
+                    "file": "outside.sv", "line": 1,
+                }],
+            }), encoding="utf-8")
+            saved = instrumented.with_name("instrumented-saved")
+            original_open = os.open
+            swapped = False
+
+            def swapping_open(path, *args, **kwargs):
+                nonlocal swapped
+                final_at = path == "instrumentation.json" and kwargs.get("dir_fd") is not None
+                if not swapped and (Path(path) == instrumentation_path or final_at):
+                    instrumented.rename(saved)
+                    instrumented.symlink_to(outside_instrumented, target_is_directory=True)
+                    swapped = True
+                return original_open(path, *args, **kwargs)
+
+            runner = RfuzzExperimentRunner(root, root / "runs" / "results")
+            with patch("myfuzz.integration.rfuzz_runner.subprocess.run") as execute, patch(
+                "myfuzz.integration.rfuzz_runner.os.open", side_effect=swapping_open
+            ):
+                execute.return_value.returncode = 0
+                prepared = runner.prepare_manifest(runtime, Path("configs/design.json"))
+
+        self.assertTrue(swapped)
+        expected = run_design_flow.coverage_universe_from_instrumentation(
+            safe_document
+        )[0]["stable_source_id"]
+        self.assertEqual(
+            expected, prepared["coverage_universe"][0]["stable_source_id"]
+        )
+
+    def test_result_read_is_pinned_against_parent_directory_swap(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            root = Path(directory)
+            results = root / "runs" / "results"
+            results.mkdir(parents=True)
+            result_path = results / "result.json"
+            result_path.write_text(json.dumps({"source": "safe"}), encoding="utf-8")
+            outside_results = Path(outside) / "results"
+            outside_results.mkdir()
+            (outside_results / "result.json").write_text(
+                json.dumps({"source": "outside"}), encoding="utf-8"
+            )
+            saved = results.with_name("results-saved")
+            original_open = os.open
+            swapped = False
+
+            def swapping_open(path, *args, **kwargs):
+                nonlocal swapped
+                final_at = path == "result.json" and kwargs.get("dir_fd") is not None
+                if not swapped and (Path(path) == result_path or final_at):
+                    results.rename(saved)
+                    results.symlink_to(outside_results, target_is_directory=True)
+                    swapped = True
+                return original_open(path, *args, **kwargs)
+
+            runner = RfuzzExperimentRunner(root, results)
+            with patch(
+                "myfuzz.integration.rfuzz_runner.os.open", side_effect=swapping_open
+            ):
+                document = runner._load_result(result_path, 0)
+
+        self.assertTrue(swapped)
+        self.assertEqual({"source": "safe"}, document)
+
+    def test_checkpoint_sink_rejects_symlinked_destination_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            root = Path(directory)
+            results = root / "runs" / "results"
+            results.mkdir(parents=True)
+            (results / "checkpoints").symlink_to(Path(outside), target_is_directory=True)
+            runner = RfuzzExperimentRunner(root, results)
+            event = ResourceCheckpointEvent(
+                "job-bound", 1, 4096, "hard_memory_limit", {"bound": True}
+            )
+
+            with self.assertRaisesRegex(ValueError, "checkpoint"):
+                runner.persist_checkpoint(event)
+
+            self.assertEqual([], list(Path(outside).iterdir()))
 
     @staticmethod
     def _valid_fuzz_document(planned) -> dict[str, object]:

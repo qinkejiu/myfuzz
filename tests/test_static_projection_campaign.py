@@ -6,11 +6,18 @@ import math
 import os
 import tempfile
 import unittest
+from dataclasses import asdict
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from myfuzz.experiments import ExperimentJob, JobKind, plan_experiment
-from myfuzz.integration import BuildJobResult, FuzzJobResult
+from myfuzz.contracts import content_hash
+from myfuzz.experiments import ExperimentJob, JobKind, plan_experiment, promote
+from myfuzz.harness import StaticPolicyParameters
+from myfuzz.integration import (
+    BuildJobResult,
+    FuzzJobResult,
+    matrix_promotion_pairs,
+)
 
 from scripts.runs.run_static_projection_campaign import (
     load_campaign,
@@ -41,6 +48,26 @@ def valid_pair() -> dict[str, object]:
         "fifo_paths": [],
     }
     return {"baseline": copy.deepcopy(shared), "candidate": copy.deepcopy(shared)}
+
+
+def promotion_decision(parameters: StaticPolicyParameters) -> dict[str, object]:
+    plan_hash = content_hash(asdict(parameters))
+    return {
+        "policy_id": "policy-" + plan_hash.removeprefix("sha256:")[:16],
+        "plan_hash": plan_hash,
+        "parameters": asdict(parameters),
+        "training_evidence_hash": "sha256:" + "5" * 64,
+    }
+
+
+def authoritative_mapping(results: object) -> dict[str, object]:
+    decision = promote(matrix_promotion_pairs(results))[0]
+    return {
+        "policy_id": decision.policy_id,
+        "plan_hash": decision.plan_hash,
+        "parameters": asdict(decision.parameters),
+        "training_evidence_hash": decision.training_evidence_hash,
+    }
 
 
 class SuccessfulMatrixRunner:
@@ -179,6 +206,82 @@ class StaticProjectionCampaignTest(unittest.TestCase):
         self.assertEqual({promotion_calls[0][1]}, {call[1] for call in promotion_calls})
         self.assertEqual(2, len(validation_calls))
         self.assertTrue(all(call[3] for call in validation_calls))
+
+    def test_selector_cannot_promote_policy_rejected_by_screen(self) -> None:
+        config = load_campaign(CONFIG)
+        accepted = StaticPolicyParameters(1, 2, 1, "none")
+        rejected = StaticPolicyParameters(1, 4, 1, "none")
+        calls: list[str] = []
+
+        def matrix(config_value, *, runner, report_path):
+            del runner, report_path
+            planner = config_value["planner_config"]
+            metadata = config_value["pair_metadata"]
+            stage_name = planner["budgets"][0]["name"]
+            calls.append(stage_name)
+            candidate_covered = (
+                1
+                if metadata["parameters"]["event_rarity"] == 4
+                else (10 if stage_name == "screen" else 12)
+            )
+            return self._matrix_pairs(
+                metadata,
+                planner["target"]["target_id"],
+                planner["candidate_pair"]["seeds"],
+                candidate_covered=candidate_covered,
+            )
+
+        with tempfile.TemporaryDirectory(dir=ROOT) as directory, patch(
+            "scripts.runs.run_static_projection_campaign.PORTFOLIO",
+            (accepted, rejected),
+        ), patch(
+            "scripts.runs.run_static_projection_campaign.run_experiment_matrix",
+            side_effect=matrix,
+        ):
+            with self.assertRaisesRegex(ValueError, "did not pass screening"):
+                run_campaign(
+                    config,
+                    runner=object(),
+                    preparer=lambda manifest, _path: manifest,
+                    output_dir=Path(directory),
+                    promotion_selector=lambda _results: promotion_decision(rejected),
+                )
+
+        self.assertNotIn("validation", calls)
+
+    def test_selector_cannot_promote_policy_rejected_by_promotion_evidence(self) -> None:
+        config = load_campaign(CONFIG)
+        policy = StaticPolicyParameters(1, 2, 1, "none")
+        calls: list[str] = []
+
+        def matrix(config_value, *, runner, report_path):
+            del runner, report_path
+            planner = config_value["planner_config"]
+            stage_name = planner["budgets"][0]["name"]
+            calls.append(stage_name)
+            return self._matrix_pairs(
+                config_value["pair_metadata"],
+                planner["target"]["target_id"],
+                planner["candidate_pair"]["seeds"],
+                candidate_covered=10,
+            )
+
+        with tempfile.TemporaryDirectory(dir=ROOT) as directory, patch(
+            "scripts.runs.run_static_projection_campaign.PORTFOLIO", (policy,)
+        ), patch(
+            "scripts.runs.run_static_projection_campaign.run_experiment_matrix",
+            side_effect=matrix,
+        ):
+            with self.assertRaisesRegex(ValueError, "authoritative promotion"):
+                run_campaign(
+                    config,
+                    runner=object(),
+                    preparer=lambda manifest, _path: manifest,
+                    output_dir=Path(directory),
+                    promotion_selector=lambda _results: promotion_decision(policy),
+                )
+
+        self.assertNotIn("validation", calls)
     def test_target_manifests_publish_report_compatible_coverage_points(self) -> None:
         config = load_campaign(CONFIG)
         for target in config.targets:
@@ -357,17 +460,7 @@ class StaticProjectionCampaignTest(unittest.TestCase):
                 runner=object(),
                 preparer=lambda manifest, _path: manifest,
                 output_dir=Path(directory),
-                promotion_selector=lambda _results: {
-                    "policy_id": "policy-1",
-                    "plan_hash": "sha256:" + "4" * 64,
-                    "parameters": {
-                        "direct_ratio": 1,
-                        "event_rarity": 2,
-                        "legal_set_strength": 1,
-                        "mutual_exclusion": "none",
-                    },
-                    "training_evidence_hash": "sha256:" + "5" * 64,
-                },
+                promotion_selector=authoritative_mapping,
             )
 
         self.assertEqual(6, matrix.call_count)
@@ -426,15 +519,7 @@ class StaticProjectionCampaignTest(unittest.TestCase):
                 runner=object(),
                 preparer=preparer,
                 output_dir=Path(directory),
-                promotion_selector=lambda _results: {
-                    "policy_id": "policy-1",
-                    "plan_hash": "sha256:" + "4" * 64,
-                    "parameters": {
-                        "direct_ratio": 1, "event_rarity": 2,
-                        "legal_set_strength": 1, "mutual_exclusion": "none",
-                    },
-                    "training_evidence_hash": "sha256:" + "5" * 64,
-                },
+                promotion_selector=authoritative_mapping,
             )
 
         self.assertEqual(6, len(prepared))
@@ -482,22 +567,11 @@ class StaticProjectionCampaignTest(unittest.TestCase):
         self.assertIs(preparer, campaign_run.call_args.kwargs["preparer"])
         self.assertEqual("smoke", campaign_run.call_args.kwargs["stage"])
 
-    def test_campaign_publishes_all_stage_reports_through_the_real_matrix(self) -> None:
+    def test_campaign_publishes_negative_real_matrix_evidence_without_validation(self) -> None:
         config = load_campaign(CONFIG)
         policy = __import__(
             "myfuzz.harness", fromlist=["StaticPolicyParameters"]
         ).StaticPolicyParameters(1, 2, 1, "none")
-        decision = {
-            "policy_id": "policy-real-matrix",
-            "plan_hash": "sha256:" + "4" * 64,
-            "parameters": {
-                "direct_ratio": 1,
-                "event_rarity": 2,
-                "legal_set_strength": 1,
-                "mutual_exclusion": "none",
-            },
-            "training_evidence_hash": "sha256:" + "5" * 64,
-        }
         with tempfile.TemporaryDirectory(dir=ROOT) as directory, patch(
             "scripts.runs.run_static_projection_campaign.PORTFOLIO", (policy,)
         ), patch.dict(
@@ -509,12 +583,12 @@ class StaticProjectionCampaignTest(unittest.TestCase):
                 runner=SuccessfulMatrixRunner(),
                 preparer=lambda manifest, _path: manifest,
                 output_dir=Path(directory),
-                promotion_selector=lambda _results: decision,
             )
             reports = sorted(Path(directory).glob("*/*/*-matrix.json"))
 
-        self.assertEqual(["screen", "promotion", "validation"], result["stages"])
-        self.assertEqual(6, len(reports))
+        self.assertEqual(["screen", "promotion"], result["stages"])
+        self.assertFalse(result["promotion"]["promoted"])
+        self.assertEqual(4, len(reports))
 
     def test_real_static_bundle_provenance_is_forwarded_to_matrix_manifest(self) -> None:
         config = load_campaign(CONFIG)
@@ -530,17 +604,7 @@ class StaticProjectionCampaignTest(unittest.TestCase):
                 runner=object(),
                 preparer=lambda manifest, _path: manifest,
                 output_dir=Path(directory),
-                promotion_selector=lambda _results: {
-                    "policy_id": "policy-1",
-                    "plan_hash": "sha256:" + "4" * 64,
-                    "parameters": {
-                        "direct_ratio": 1,
-                        "event_rarity": 2,
-                        "legal_set_strength": 1,
-                        "mutual_exclusion": "none",
-                    },
-                    "training_evidence_hash": "sha256:" + "5" * 64,
-                },
+                promotion_selector=authoritative_mapping,
             )
         for call in matrix.call_args_list:
             for manifest in call.args[0]["candidate_manifests"]:
@@ -581,17 +645,6 @@ class StaticProjectionCampaignTest(unittest.TestCase):
 
     def test_promotion_freeze_is_deterministic_and_atomic(self) -> None:
         config = load_campaign(CONFIG)
-        decision = {
-            "policy_id": "policy-frozen",
-            "plan_hash": "sha256:" + "4" * 64,
-            "parameters": {
-                "direct_ratio": 1,
-                "event_rarity": 2,
-                "legal_set_strength": 1,
-                "mutual_exclusion": "none",
-            },
-            "training_evidence_hash": "sha256:" + "5" * 64,
-        }
         policy = __import__("myfuzz.harness", fromlist=["StaticPolicyParameters"]).StaticPolicyParameters(1, 2, 1, "none")
         with tempfile.TemporaryDirectory(dir=ROOT) as directory, patch(
             "scripts.runs.run_static_projection_campaign.PORTFOLIO", (policy,)
@@ -604,7 +657,7 @@ class StaticProjectionCampaignTest(unittest.TestCase):
                 runner=object(),
                 preparer=lambda manifest, _path: manifest,
                 output_dir=Path(directory),
-                promotion_selector=lambda _: decision,
+                promotion_selector=authoritative_mapping,
             )
             frozen_path = Path(directory) / "frozen-policy.json"
             payload = frozen_path.read_bytes()
@@ -618,7 +671,7 @@ class StaticProjectionCampaignTest(unittest.TestCase):
                     runner=object(),
                     preparer=lambda manifest, _path: manifest,
                     output_dir=Path(directory),
-                    promotion_selector=lambda _: decision,
+                    promotion_selector=authoritative_mapping,
                 )
             self.assertEqual(payload, frozen_path.read_bytes())
             self.assertEqual(first["frozen"], second["frozen"])

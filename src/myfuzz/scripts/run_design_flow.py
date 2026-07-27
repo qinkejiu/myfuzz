@@ -178,21 +178,67 @@ def load_rfuzz_measurements(
     points: object,
     started_ns: int,
 ) -> dict[str, object]:
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    descriptor: int | None = None
     try:
-        metadata = path.lstat()
+        descriptor = os.open(path, flags)
     except FileNotFoundError as error:
         raise ValueError("RFuzz statistics are missing") from error
-    if not stat.S_ISREG(metadata.st_mode):
-        raise ValueError("RFuzz statistics must be a regular file")
-    if metadata.st_mtime_ns < started_ns:
-        raise ValueError("RFuzz statistics are stale")
-    if metadata.st_size > 1024 * 1024:
-        raise ValueError("RFuzz statistics exceed the size limit")
+    except OSError as error:
+        raise ValueError("RFuzz statistics must be a regular file") from error
     try:
-        statistics = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise ValueError("RFuzz statistics must be a regular file")
+        if metadata.st_mtime_ns < started_ns:
+            raise ValueError("RFuzz statistics are stale")
+        if metadata.st_size > 1024 * 1024:
+            raise ValueError("RFuzz statistics exceed the size limit")
+        with os.fdopen(descriptor, "r", encoding="utf-8") as stream:
+            descriptor = None
+            statistics = json.load(stream)
+    except (UnicodeError, json.JSONDecodeError) as error:
         raise ValueError("RFuzz statistics must be valid JSON") from error
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
     return rfuzz_measurements(statistics, points)
+
+
+def fuzz_result_document(
+    job_id: str,
+    artifact_id: str,
+    execution_result: dict[str, object],
+    statistics_path: Path,
+    points: object,
+    started_ns: int,
+) -> dict[str, object]:
+    if not isinstance(job_id, str) or not job_id:
+        raise ValueError("--job-id is required for a fuzz result document")
+    if not isinstance(artifact_id, str):
+        raise ValueError("--server-artifact-id is required for a fuzz result document")
+    failures = execution_result.get("failure_reasons")
+    resource_terminated = (
+        failures.get("resource_terminated")
+        if isinstance(failures, dict)
+        else None
+    )
+    if resource_terminated == 1:
+        return {
+            "kind": "fuzz-resource",
+            "job_id": job_id,
+            "artifact_id": artifact_id,
+            **execution_result,
+        }
+    measurements = load_rfuzz_measurements(statistics_path, points, started_ns)
+    return {
+        "kind": "fuzz",
+        "job_id": job_id,
+        "artifact_id": artifact_id,
+        **measurements,
+        **execution_result,
+    }
 
 
 def rfuzz_fifos_ready(fpga_dir: Path, server_ids: tuple[str, ...]) -> bool:
@@ -1365,19 +1411,14 @@ def main() -> int:
                 (paths["instrumented"] / "instrumentation.json").read_text()
             )
             points = coverage_universe_from_instrumentation(instrumentation_document)
-            latest = paths["queue"] / "latest.json"
-            measurements = load_rfuzz_measurements(latest, points, started_ns)
-            if not isinstance(args.job_id, str) or not args.job_id:
-                raise ValueError("--job-id is required for a fuzz result document")
-            if not isinstance(server_artifact_id, str):
-                raise ValueError("--server-artifact-id is required for a fuzz result document")
-            document = {
-                "kind": "fuzz",
-                "job_id": args.job_id,
-                "artifact_id": server_artifact_id,
-                **measurements,
-                **execution_result,
-            }
+            document = fuzz_result_document(
+                args.job_id,
+                server_artifact_id,
+                execution_result,
+                paths["queue"] / "latest.json",
+                points,
+                started_ns,
+            )
             write_json(result_path, document)
 
     print(f"myfuzz output: {out_dir}")
