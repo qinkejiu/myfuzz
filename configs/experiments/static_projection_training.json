@@ -1,0 +1,17 @@
+{
+  "screen": {"seconds": 60, "seeds": [1]},
+  "promotion": {"seconds": 600, "seeds": [1, 7, 19]},
+  "validation": {"seconds": 3600, "seeds": [1, 7, 19]},
+  "targets": [
+    {
+      "target_id": "ibex_opentitan_real_ip",
+      "config_path": "configs/designs/ibex_opentitan_real_ip/static_projection/config.json",
+      "candidate_manifest_path": "configs/designs/ibex_opentitan_real_ip/static_projection/candidate_manifest.json"
+    },
+    {
+      "target_id": "rvx_multicomponent",
+      "config_path": "configs/designs/rvx_multicomponent/static_projection/config.json",
+      "candidate_manifest_path": "configs/designs/rvx_multicomponent/static_projection/candidate_manifest.json"
+    }
+  ]
+}

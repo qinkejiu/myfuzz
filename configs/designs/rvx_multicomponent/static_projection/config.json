@@ -1,0 +1,31 @@
+{
+  "name": "rvx_multicomponent_static_projection",
+  "description": "Pinned RVX multicomponent target with global static semantic projection.",
+  "top": "rvx",
+  "project_root": ".",
+  "flist": "configs/designs/rvx_multicomponent/rtl/sources.f",
+  "out_dir": "runs/designs/rvx_multicomponent_static_projection",
+  "coverage_port": "__vi_coverage",
+  "signal_prefix": "__vi_branch_cov",
+  "instrumentation": {
+    "coverage_port": "__vi_coverage",
+    "signal_prefix": "__vi_branch_cov",
+    "branch": {"if": true, "case": true},
+    "statement": {"block_enter": false},
+    "loop": {"body": false},
+    "hierarchy": {"propagate_to_top": true}
+  },
+  "candidate_manifest": "configs/designs/rvx_multicomponent/static_projection/candidate_manifest.json",
+  "portfolio": "static_projection.PORTFOLIO",
+  "static_projection": {
+    "declarations": {
+      "rarity_fold": [
+        {"action_id": 1, "destination_id": 3, "fold_bits": [0]},
+        {"action_id": 2, "destination_id": 4, "fold_bits": [1]},
+        {"action_id": 3, "destination_id": 11, "fold_bits": [2]}
+      ],
+      "legal_set": [{"action_id": 4, "destination_id": 6, "values": [0, 1]}]
+    }
+  },
+  "verilator_args": ["-DSYNTHESIS", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC", "-Wno-CASEINCOMPLETE"]
+}
