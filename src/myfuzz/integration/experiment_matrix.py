@@ -681,8 +681,10 @@ def _run_experiment_matrix(
         raise ExperimentMatrixError(str(error)) from error
     completed_builds: set[str] = set()
 
-    fuzz_order = list(plan.jobs)
-    random.Random(execution.interleaving_seed).shuffle(fuzz_order)
+    jobs_by_id = {job.job_id: job for job in plan.jobs}
+    run_blocks = list(plan.run_blocks)
+    random.Random(execution.interleaving_seed).shuffle(run_blocks)
+    fuzz_order = [jobs_by_id[job_id] for block in run_blocks for job_id in block]
     execution_order: list[str] = []
     attempts: defaultdict[str, int] = defaultdict(int)
     checkpoints: list[dict[str, object]] = []

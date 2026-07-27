@@ -598,6 +598,7 @@ class ExperimentMatrixTest(unittest.TestCase):
             )
 
     def test_interleaving_seed_is_stable_and_does_not_change_job_identity(self) -> None:
+        self.planner_config["candidate_pair"]["seeds"] = [1, 7, 19]
         first, first_runner = self.run_success(seed=5, name="first.json")
         repeated, repeated_runner = self.run_success(seed=5, name="repeat.json")
         changed, changed_runner = self.run_success(seed=11, name="changed.json")
@@ -614,6 +615,24 @@ class ExperimentMatrixTest(unittest.TestCase):
         self.assertEqual(
             [job.job_id for job in repeated_runner.jobs],
             repeated["execution"]["execution_order"],
+        )
+
+    def test_interleaving_shuffles_complete_run_blocks_without_splitting_pairs(self) -> None:
+        self.planner_config["candidate_pair"]["seeds"] = [1, 7, 19]
+        result, runner = self.run_success(seed=13, name="run-blocks.json")
+        plan = matrix_module.plan_experiment(self.planner_config, [self.manifest])
+        fuzz_ids = [
+            job.job_id for job in runner.jobs if isinstance(job, ExperimentJob)
+        ]
+        observed_blocks = tuple(
+            tuple(fuzz_ids[index : index + len(plan.run_blocks[0])])
+            for index in range(0, len(fuzz_ids), len(plan.run_blocks[0]))
+        )
+
+        self.assertEqual(set(plan.run_blocks), set(observed_blocks))
+        self.assertEqual(
+            fuzz_ids,
+            result["execution"]["execution_order"][len(plan.build_jobs) :],
         )
 
     def test_every_runner_exit_releases_the_exact_b_job_lease(self) -> None:
