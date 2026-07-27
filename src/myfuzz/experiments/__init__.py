@@ -43,6 +43,7 @@ from .static_portfolio import (
     freeze_policy,
     promote,
     screen,
+    screened_policy_ids,
 )
 
 __all__ = [
@@ -92,4 +93,5 @@ __all__ = [
     "freeze_policy",
     "promote",
     "screen",
+    "screened_policy_ids",
 ]

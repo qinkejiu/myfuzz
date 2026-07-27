@@ -171,6 +171,21 @@ class RfuzzAdapterTest(unittest.TestCase):
                     command[command.index("--candidate-mode") + 1],
                 )
 
+    def test_planned_build_and_fuzz_commands_forward_matrix_hard_memory(self) -> None:
+        plan = static_plan()
+
+        for planned_job in (*plan.build_jobs, *plan.jobs):
+            command = RfuzzAdapter(ROOT).command(planned_job)
+            with self.subTest(job_id=planned_job.job_id):
+                self.assertEqual(
+                    plan.runtime_policy.hard_memory_bytes,
+                    planned_job.execution.hard_memory_bytes,
+                )
+                self.assertEqual(
+                    str(plan.runtime_policy.hard_memory_bytes),
+                    command[command.index("--hard-memory-bytes") + 1],
+                )
+
     def test_constructs_supported_fixed_runtime_commands_without_waveforms(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             adapter = RfuzzAdapter(Path(directory).resolve())
@@ -220,6 +235,23 @@ class RfuzzAdapterTest(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "repository-relative"):
             adapter.command(build_job(), result_json=Path("../outside.json"))
+
+    def test_fuzz_command_forwards_planned_job_binding(self) -> None:
+        artifact_id = "sha256:" + "a" * 64
+        planned = job(
+            budget_kind="seconds",
+            budget_value=1,
+            artifact_id=artifact_id,
+            build_job_id="build-bound",
+        )
+
+        command = RfuzzAdapter(ROOT).command(planned)
+
+        self.assertEqual(planned.job_id, command[command.index("--job-id") + 1])
+        self.assertEqual(
+            artifact_id,
+            command[command.index("--server-artifact-id") + 1],
+        )
 
     def test_reports_missing_fixed_installation_paths_without_importing_rfuzz(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

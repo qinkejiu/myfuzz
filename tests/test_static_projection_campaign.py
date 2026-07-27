@@ -53,11 +53,11 @@ class SuccessfulMatrixRunner:
             "candidate_id": job.candidate_id,
             "harness": job.harness,
             "seed": job.seed,
-            "elapsed_seconds": 0,
+            "elapsed_seconds": 1,
             "sequence": 0,
             "common_total": 1,
-            "covered_point_ids": [],
-            "tests_executed": 0,
+            "covered_point_ids": [1],
+            "tests_executed": 1,
             "cycles_executed": 0,
             "peak_rss_bytes": 1024 * 1024,
             "projection_count": 0,
@@ -67,6 +67,12 @@ class SuccessfulMatrixRunner:
             "generation_count": 0,
             "validation_passed": 0,
             "failure_reasons": {"dut_crash": 0, "resource_terminated": 0},
+            "artifact_id": job.execution.server_artifact_id,
+            "server_returncode": -15,
+            "fuzzer_returncode": -15,
+            "handshake_succeeded": True,
+            "fifo_cleanup_succeeded": True,
+            "crash_restart_count": 0,
         }
         return FuzzJobResult(job.job_id, 1, (sample,), 1024 * 1024)
 
@@ -75,6 +81,104 @@ class SuccessfulMatrixRunner:
 
 
 class StaticProjectionCampaignTest(unittest.TestCase):
+    @staticmethod
+    def _matrix_pairs(
+        metadata: dict[str, object],
+        target_id: str,
+        seeds: list[int],
+        *,
+        candidate_covered: int,
+    ) -> dict[str, object]:
+        return {
+            "schema_version": "experiment_matrix_run.v1",
+            "report": {},
+            "execution": {},
+            "promotion_pairs": [
+                {
+                    **copy.deepcopy(metadata),
+                    "target_id": target_id,
+                    "seed": seed,
+                    "baseline": {
+                        "covered": 10,
+                        "tests_per_second": 10.0,
+                        "failure_reasons": {"dut_crash": 0, "resource_terminated": 0},
+                    },
+                    "candidate": {
+                        "covered": candidate_covered,
+                        "tests_per_second": 10.0,
+                        "failure_reasons": {"dut_crash": 0, "resource_terminated": 0},
+                    },
+                }
+                for seed in seeds
+            ],
+        }
+
+    def _passing_matrix(self, config_value, *, runner, report_path):
+        del runner, report_path
+        planner = config_value["planner_config"]
+        return self._matrix_pairs(
+            config_value["pair_metadata"],
+            planner["target"]["target_id"],
+            planner["candidate_pair"]["seeds"],
+            candidate_covered=(
+                10 if planner["budgets"][0]["name"] == "screen" else 12
+            ),
+        )
+
+    def test_public_campaign_requires_measured_preparer(self) -> None:
+        config = load_campaign(CONFIG)
+        with tempfile.TemporaryDirectory(dir=ROOT) as directory:
+            with self.assertRaisesRegex(TypeError, "preparer.*required"):
+                run_campaign(config, runner=object(), output_dir=Path(directory))
+
+    def test_screen_gates_promotion_and_validation_runs_only_after_freeze(self) -> None:
+        config = load_campaign(CONFIG)
+        policy_type = __import__(
+            "myfuzz.harness", fromlist=["StaticPolicyParameters"]
+        ).StaticPolicyParameters
+        accepted = policy_type(1, 2, 1, "none")
+        rejected = policy_type(1, 4, 1, "none")
+        calls: list[tuple[str, str, list[int], bool]] = []
+
+        def matrix(config_value, *, runner, report_path):
+            del runner
+            planner = config_value["planner_config"]
+            stage_name = planner["budgets"][0]["name"]
+            target_id = planner["target"]["target_id"]
+            seeds = planner["candidate_pair"]["seeds"]
+            metadata = config_value["pair_metadata"]
+            frozen = (Path(directory) / "frozen-policy.json").is_file()
+            calls.append((stage_name, metadata["policy_id"], seeds, frozen))
+            candidate_covered = 1 if metadata["parameters"]["event_rarity"] == 4 else (
+                10 if stage_name == "screen" else 12
+            )
+            return self._matrix_pairs(
+                metadata, target_id, seeds, candidate_covered=candidate_covered
+            )
+
+        with tempfile.TemporaryDirectory(dir=ROOT) as directory, patch(
+            "scripts.runs.run_static_projection_campaign.PORTFOLIO", (accepted, rejected)
+        ), patch(
+            "scripts.runs.run_static_projection_campaign.run_experiment_matrix",
+            side_effect=matrix,
+        ):
+            result = run_campaign(
+                config,
+                runner=object(),
+                preparer=lambda manifest, _path: manifest,
+                output_dir=Path(directory),
+            )
+
+        self.assertEqual(["screen", "promotion", "validation"], result["stages"])
+        screen_calls = [call for call in calls if call[0] == "screen"]
+        promotion_calls = [call for call in calls if call[0] == "promotion"]
+        validation_calls = [call for call in calls if call[0] == "validation"]
+        self.assertEqual(4, len(screen_calls))
+        self.assertEqual(2, len(promotion_calls))
+        self.assertEqual({(1, 7, 19)}, {tuple(call[2]) for call in promotion_calls})
+        self.assertEqual({promotion_calls[0][1]}, {call[1] for call in promotion_calls})
+        self.assertEqual(2, len(validation_calls))
+        self.assertTrue(all(call[3] for call in validation_calls))
     def test_target_manifests_publish_report_compatible_coverage_points(self) -> None:
         config = load_campaign(CONFIG)
         for target in config.targets:
@@ -236,22 +340,22 @@ class StaticProjectionCampaignTest(unittest.TestCase):
             document = json.loads(absolute.read_text(encoding="utf-8"))
             self.assertEqual(target.candidate_manifest_path, document["candidate_manifest"])
             self.assertEqual(parameters, document["static_projection"]["parameters"])
-            self.assertEqual(7_000_000_000, document["hard_memory_bytes"])
+            self.assertNotIn("hard_memory_bytes", document)
             self.assertFalse(any(path.suffix == ".tmp" for path in absolute.parent.iterdir()))
 
     def test_each_training_stage_uses_the_existing_experiment_matrix(self) -> None:
         config = load_campaign(CONFIG)
         policy = __import__("myfuzz.harness", fromlist=["StaticPolicyParameters"]).StaticPolicyParameters(1, 2, 1, "none")
-        matrix_results = [{"report": {}} for _ in range(6)]
         with tempfile.TemporaryDirectory(dir=ROOT) as directory, patch(
             "scripts.runs.run_static_projection_campaign.PORTFOLIO", (policy,)
         ), patch(
             "scripts.runs.run_static_projection_campaign.run_experiment_matrix",
-            side_effect=matrix_results,
+            side_effect=self._passing_matrix,
         ) as matrix:
             report = run_campaign(
                 config,
                 runner=object(),
+                preparer=lambda manifest, _path: manifest,
                 output_dir=Path(directory),
                 promotion_selector=lambda _results: {
                     "policy_id": "policy-1",
@@ -315,7 +419,7 @@ class StaticProjectionCampaignTest(unittest.TestCase):
             "scripts.runs.run_static_projection_campaign.PORTFOLIO", (policy,)
         ), patch(
             "scripts.runs.run_static_projection_campaign.run_experiment_matrix",
-            side_effect=[{"report": {}} for _ in range(6)],
+            side_effect=self._passing_matrix,
         ) as matrix:
             run_campaign(
                 config,
@@ -403,6 +507,7 @@ class StaticProjectionCampaignTest(unittest.TestCase):
             result = run_campaign(
                 config,
                 runner=SuccessfulMatrixRunner(),
+                preparer=lambda manifest, _path: manifest,
                 output_dir=Path(directory),
                 promotion_selector=lambda _results: decision,
             )
@@ -418,11 +523,12 @@ class StaticProjectionCampaignTest(unittest.TestCase):
             config.targets[:1] and (__import__("myfuzz.harness", fromlist=["StaticPolicyParameters"]).StaticPolicyParameters(1, 2, 1, "none"),),
         ), patch(
             "scripts.runs.run_static_projection_campaign.run_experiment_matrix",
-            side_effect=[{"report": {}} for _ in range(6)],
+            side_effect=self._passing_matrix,
         ) as matrix:
             run_campaign(
                 config,
                 runner=object(),
+                preparer=lambda manifest, _path: manifest,
                 output_dir=Path(directory),
                 promotion_selector=lambda _results: {
                     "policy_id": "policy-1",
@@ -451,17 +557,19 @@ class StaticProjectionCampaignTest(unittest.TestCase):
             "scripts.runs.run_static_projection_campaign.PORTFOLIO", (policy,)
         ), patch(
             "scripts.runs.run_static_projection_campaign.run_experiment_matrix",
-            side_effect=[{"report": {}} for _ in range(8)],
+            side_effect=self._passing_matrix,
         ) as matrix:
             first = run_campaign(
                 config,
                 runner=object(),
+                preparer=lambda manifest, _path: manifest,
                 output_dir=Path(directory),
                 promotion_selector=lambda _results: None,
             )
             second = run_campaign(
                 config,
                 runner=object(),
+                preparer=lambda manifest, _path: manifest,
                 output_dir=Path(directory),
                 promotion_selector=lambda _results: None,
             )
@@ -489,17 +597,29 @@ class StaticProjectionCampaignTest(unittest.TestCase):
             "scripts.runs.run_static_projection_campaign.PORTFOLIO", (policy,)
         ), patch(
             "scripts.runs.run_static_projection_campaign.run_experiment_matrix",
-            side_effect=[{"report": {}} for _ in range(6)],
+            side_effect=self._passing_matrix,
         ):
-            first = run_campaign(config, runner=object(), output_dir=Path(directory), promotion_selector=lambda _: decision)
+            first = run_campaign(
+                config,
+                runner=object(),
+                preparer=lambda manifest, _path: manifest,
+                output_dir=Path(directory),
+                promotion_selector=lambda _: decision,
+            )
             frozen_path = Path(directory) / "frozen-policy.json"
             payload = frozen_path.read_bytes()
             frozen_path.unlink()
             with patch(
                 "scripts.runs.run_static_projection_campaign.run_experiment_matrix",
-                side_effect=[{"report": {}} for _ in range(6)],
+                side_effect=self._passing_matrix,
             ):
-                second = run_campaign(config, runner=object(), output_dir=Path(directory), promotion_selector=lambda _: decision)
+                second = run_campaign(
+                    config,
+                    runner=object(),
+                    preparer=lambda manifest, _path: manifest,
+                    output_dir=Path(directory),
+                    promotion_selector=lambda _: decision,
+                )
             self.assertEqual(payload, frozen_path.read_bytes())
             self.assertEqual(first["frozen"], second["frozen"])
             self.assertFalse(any(path.suffix == ".tmp" for path in Path(directory).iterdir()))

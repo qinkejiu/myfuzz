@@ -242,6 +242,38 @@ def screen(pair: object) -> ScreenDecision:
     return ScreenDecision(metrics.policy_id, metrics.target_id, True, None, coverage_ratio, metrics.throughput_ratio)
 
 
+def screened_policy_ids(
+    results: object,
+    expected_targets: frozenset[str],
+) -> frozenset[str]:
+    """Return policies whose every expected-target screen pair is accepted."""
+    if (
+        not isinstance(expected_targets, frozenset)
+        or not expected_targets
+        or any(not isinstance(target, str) or not target for target in expected_targets)
+    ):
+        raise ValueError("expected_targets must be a non-empty frozenset of strings")
+    try:
+        values = _pairs(results)
+    except (OverflowError, ValueError):
+        return frozenset()
+    grouped: defaultdict[str, list[object]] = defaultdict(list)
+    for value in values:
+        if not isinstance(value, Mapping) or not isinstance(value.get("policy_id"), str):
+            return frozenset()
+        grouped[value["policy_id"]].append(value)
+    accepted: set[str] = set()
+    for policy_id, policy_pairs in grouped.items():
+        decisions = tuple(screen(pair) for pair in policy_pairs)
+        if (
+            decisions
+            and all(decision.accepted and decision.policy_id == policy_id for decision in decisions)
+            and {decision.target_id for decision in decisions} == expected_targets
+        ):
+            accepted.add(policy_id)
+    return frozenset(accepted)
+
+
 def _pairs(results: object) -> tuple[object, ...]:
     if isinstance(results, Mapping):
         if "baseline" in results or "candidate" in results:
@@ -373,4 +405,5 @@ __all__ = [
     "freeze_policy",
     "promote",
     "screen",
+    "screened_policy_ids",
 ]

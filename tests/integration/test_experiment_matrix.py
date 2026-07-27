@@ -635,6 +635,53 @@ class ExperimentMatrixTest(unittest.TestCase):
             result["execution"]["execution_order"][len(plan.build_jobs) :],
         )
 
+    def test_matrix_publishes_authoritative_per_seed_pair_evidence(self) -> None:
+        self.planner_config["candidate_pair"]["seeds"] = [1, 7, 19]
+        config = self.config(seed=13)
+        config["pair_metadata"] = {
+            "policy_id": "policy-opaque",
+            "plan_hash": "sha256:" + "a" * 64,
+            "parameters": {
+                "direct_ratio": 1,
+                "event_rarity": 2,
+                "legal_set_strength": 1,
+                "mutual_exclusion": "none",
+            },
+        }
+
+        def execute(job: Job) -> object:
+            if job.kind is JobKind.BUILD:
+                return BuildJobResult(job.job_id, 1, job.artifact_id)
+            assert isinstance(job, ExperimentJob)
+            sample = self.sample(job)
+            sample.update({
+                "elapsed_seconds": 1,
+                "tests_executed": 10,
+                "server_returncode": -15,
+                "fuzzer_returncode": -15,
+                "handshake_succeeded": True,
+                "fifo_cleanup_succeeded": True,
+                "crash_restart_count": 0,
+                "artifact_id": job.execution.server_artifact_id,
+            })
+            return FuzzJobResult(job.job_id, 1, (sample,), MIB)
+
+        result = run_experiment_matrix(
+            config,
+            runner=RecordingRunner(execute),
+            report_path=self.root / "pair-evidence.json",
+        )
+
+        pairs = result["promotion_pairs"]
+        self.assertEqual([1, 7, 19], sorted(pair["seed"] for pair in pairs))
+        for pair in pairs:
+            self.assertEqual("policy-opaque", pair["policy_id"])
+            self.assertEqual("sha256:" + "a" * 64, pair["plan_hash"])
+            self.assertEqual(self.planner_config["target"]["target_id"], pair["target_id"])
+            self.assertEqual(0, pair["baseline"]["failure_reasons"]["dut_crash"])
+            self.assertEqual(10.0, pair["candidate"]["tests_per_second"])
+            self.assertTrue(pair["candidate"]["handshake_succeeded"])
+
     def test_every_runner_exit_releases_the_exact_b_job_lease(self) -> None:
         for label, error in (
             ("error", RuntimeError("runner failed")),

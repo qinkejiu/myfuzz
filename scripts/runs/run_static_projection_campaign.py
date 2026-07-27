@@ -15,9 +15,18 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from myfuzz.contracts import canonical_bytes, content_hash, validate_contract
-from myfuzz.experiments.static_portfolio import PORTFOLIO, PromotionDecision, promote
+from myfuzz.experiments.static_portfolio import (
+    PORTFOLIO,
+    PromotionDecision,
+    promote,
+    screened_policy_ids,
+)
 from myfuzz.harness import StaticPolicyParameters, build_harness
-from myfuzz.integration import RfuzzExperimentRunner, run_experiment_matrix
+from myfuzz.integration import (
+    RfuzzExperimentRunner,
+    matrix_promotion_pairs,
+    run_experiment_matrix,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -320,7 +329,6 @@ def materialize_derived_design_config(
     static["parameters"] = asdict(typed)
     source["static_projection"] = static
     source["candidate_manifest"] = target.candidate_manifest_path
-    source["hard_memory_bytes"] = 7_000_000_000
     destination = output / "derived" / target.target_id / policy_id / "config.json"
     _atomic_json(destination, source)
     return destination.relative_to(ROOT.resolve())
@@ -390,7 +398,7 @@ def _matrix_config(
     target: CampaignTarget,
     parameters: StaticPolicyParameters,
     output_dir: Path,
-    preparer: Callable[[dict[str, object], Path], dict[str, object]] | None = None,
+    preparer: Callable[[dict[str, object], Path], dict[str, object]],
 ) -> dict[str, object]:
     policy_id = _policy_id(parameters)
     derived = materialize_derived_design_config(
@@ -400,10 +408,31 @@ def _matrix_config(
         policy_id=policy_id,
     )
     manifest = _runtime_manifest(target, parameters)
-    if preparer is not None:
-        manifest = preparer(manifest, derived)
-        if not isinstance(manifest, dict):
-            raise TypeError("preparer must return a runtime manifest object")
+    expected_harnesses = _object(manifest.get("harnesses"), "manifest.harnesses")
+    expected_static = _object(
+        expected_harnesses.get("candidate-static"),
+        "manifest.harnesses.candidate-static",
+    )
+    expected_projection_hash = _hash(
+        expected_static.get("projection_plan_hash"),
+        "manifest candidate-static projection_plan_hash",
+        canonical=True,
+    )
+    manifest = preparer(manifest, derived)
+    if not isinstance(manifest, dict):
+        raise TypeError("preparer must return a runtime manifest object")
+    harnesses = _object(manifest.get("harnesses"), "prepared manifest.harnesses")
+    static_harness = _object(
+        harnesses.get("candidate-static"),
+        "prepared manifest.harnesses.candidate-static",
+    )
+    prepared_projection_hash = _hash(
+        static_harness.get("projection_plan_hash"),
+        "prepared manifest candidate-static projection_plan_hash",
+        canonical=True,
+    )
+    if prepared_projection_hash != expected_projection_hash:
+        raise ValueError("preparer changed candidate-static projection_plan_hash")
     planner = {
         "schema_version": "experiment.v1",
         "config_path": config.source_path,
@@ -439,14 +468,16 @@ def _matrix_config(
             "max_resource_retries": 1,
             "job_timeout_seconds": 0,
         },
+        "pair_metadata": {
+            "policy_id": policy_id,
+            "plan_hash": content_hash(asdict(parameters)),
+            "parameters": asdict(parameters),
+        },
     }
 
 
 def _default_selector(results: object) -> PromotionDecision | None:
-    values: object = results
-    if isinstance(results, Mapping):
-        values = results.get("promotion_pairs", results.get("pairs", ()))
-    decisions = promote(values)
+    decisions = promote(matrix_promotion_pairs(results))
     return decisions[0] if decisions else None
 
 
@@ -488,10 +519,10 @@ def run_campaign(
     """Compose screen/promotion/validation exclusively through the existing matrix."""
     if not isinstance(config, CampaignConfig):
         raise TypeError("config must be a CampaignConfig")
+    if preparer is None or not callable(preparer):
+        raise TypeError("preparer is required and must be callable")
     if not callable(promotion_selector):
         raise TypeError("promotion_selector must be callable")
-    if preparer is not None and not callable(preparer):
-        raise TypeError("preparer must be callable")
     if stage not in {"smoke", "training"}:
         raise ValueError("stage must be smoke or training")
     output = _beneath_repository(output_dir, "output_dir")
@@ -531,7 +562,16 @@ def run_campaign(
         return {"stages": ["smoke"], "smoke": smoke}
 
     screen = run_stage("screen", config.screen, all_parameters)
-    promotion = run_stage("promotion", config.promotion, all_parameters)
+    eligible_ids = screened_policy_ids(
+        matrix_promotion_pairs(screen),
+        frozenset(target.target_id for target in config.targets),
+    )
+    eligible_parameters = tuple(
+        parameters
+        for parameters in all_parameters
+        if _policy_id(parameters) in eligible_ids
+    )
+    promotion = run_stage("promotion", config.promotion, eligible_parameters)
     selected = promotion_selector(promotion)
     if selected is None:
         negative = {

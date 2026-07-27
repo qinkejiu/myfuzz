@@ -80,6 +80,10 @@ class RfuzzAdapter:
             command.extend(("--fuzz-seconds", str(execution.fuzz_seconds)))
         if execution.max_cycles is not None:
             command.extend(("--max-cycles", str(execution.max_cycles)))
+        if isinstance(job, ExperimentJob):
+            command.extend(("--job-id", job.job_id))
+        if execution.hard_memory_bytes is not None:
+            command.extend(("--hard-memory-bytes", str(execution.hard_memory_bytes)))
         if result_json is not None:
             if not isinstance(result_json, Path):
                 raise TypeError("result_json must be a pathlib.Path")

@@ -8,6 +8,7 @@ from .experiment_matrix import (
     ResourceCheckpointEvent,
     ResourceTerminatedError,
     RunnerResult,
+    matrix_promotion_pairs,
     run_experiment_matrix,
 )
 from .pipeline import GenerationRequest, RuntimeRequest, run_candidate_pipeline
@@ -43,6 +44,7 @@ __all__ = [
     "RuntimeRequest",
     "assert_semantic_rename_invariant",
     "assert_reference_not_in_generator_argv",
+    "matrix_promotion_pairs",
     "run_candidate_pipeline",
     "run_experiment_matrix",
     "semantic_projection",

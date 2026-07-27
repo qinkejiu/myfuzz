@@ -29,6 +29,7 @@ class RfuzzExecution:
     fuzz_seconds: int | None = None
     max_cycles: int | None = None
     server_artifact_id: str | None = None
+    hard_memory_bytes: int | None = None
 
     def __post_init__(self) -> None:
         path = self.design_config_path
@@ -50,6 +51,12 @@ class RfuzzExecution:
             r"sha256:[0-9a-f]{64}", self.server_artifact_id
         ) is None:
             raise ValueError("server_artifact_id must be a canonical SHA-256 content hash")
+        if self.hard_memory_bytes is not None and (
+            isinstance(self.hard_memory_bytes, bool)
+            or not isinstance(self.hard_memory_bytes, int)
+            or self.hard_memory_bytes <= 0
+        ):
+            raise ValueError("hard_memory_bytes must be a positive integer")
         if self.stage == "server":
             if any(
                 value is not None
@@ -643,6 +650,7 @@ def _execution_document(execution: RfuzzExecution) -> dict[str, object]:
         "seed": execution.seed,
         "fuzz_seconds": execution.fuzz_seconds,
         "max_cycles": execution.max_cycles,
+        "hard_memory_bytes": execution.hard_memory_bytes,
     }
 
 
@@ -721,6 +729,7 @@ def _make_job(
         seed=seed,
         fuzz_seconds=budget.value if budget.kind == "seconds" else None,
         max_cycles=budget.value if budget.kind == "cycles" else None,
+        hard_memory_bytes=config.runtime_policy.hard_memory_bytes,
     )
     identity = {
         "target_id": config.target_id,
@@ -814,6 +823,7 @@ def _make_build_jobs(
                 worker_count=1,
                 candidate_mode=_HARNESS_MODES[harness],
                 server_artifact_id=artifact_id,
+                hard_memory_bytes=config.runtime_policy.hard_memory_bytes,
             )
             identity = {
                 "kind": JobKind.BUILD.value,

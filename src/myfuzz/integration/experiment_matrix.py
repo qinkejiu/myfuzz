@@ -20,6 +20,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 import random
+import re
 import secrets
 import stat
 from typing import Protocol, TypeAlias
@@ -89,7 +90,10 @@ class ExperimentRunner(Protocol):
 _MAX_RETRIES = 16
 _MAX_REPORT_BYTES = 64 * 1024 * 1024
 _TOP_LEVEL_KEYS = frozenset(
-    ("planner_config", "candidate_manifests", "execution", "reference_summary")
+    (
+        "planner_config", "candidate_manifests", "execution", "reference_summary",
+        "pair_metadata",
+    )
 )
 _EXECUTION_KEYS = frozenset(
     ("interleaving_seed", "max_resource_retries", "job_timeout_seconds")
@@ -101,6 +105,13 @@ class _ExecutionConfig:
     interleaving_seed: int
     max_resource_retries: int
     job_timeout_seconds: float
+
+
+@dataclass(frozen=True, slots=True)
+class _PairMetadata:
+    policy_id: str
+    plan_hash: str
+    parameters: Mapping[str, object]
 
 
 @dataclass(slots=True)
@@ -154,7 +165,10 @@ def _bounded_nonnegative_int(value: object, label: str, maximum: int) -> int:
 
 def _parse_config(
     value: object,
-) -> tuple[Mapping[str, object], tuple[object, ...], _ExecutionConfig, object | None]:
+) -> tuple[
+    Mapping[str, object], tuple[object, ...], _ExecutionConfig,
+    object | None, _PairMetadata | None,
+]:
     document = _object(value, "config")
     _strict_keys(
         document,
@@ -190,7 +204,113 @@ def _parse_config(
             "execution.job_timeout_seconds must be finite and non-negative"
         )
     reference = copy.deepcopy(document.get("reference_summary"))
-    return planner_config, manifests, _ExecutionConfig(seed, retries, float(timeout)), reference
+    pair_metadata = None
+    if "pair_metadata" in document:
+        metadata = _object(document["pair_metadata"], "pair_metadata")
+        metadata_keys = frozenset(("policy_id", "plan_hash", "parameters"))
+        _strict_keys(metadata, metadata_keys, metadata_keys, "pair_metadata")
+        policy_id = metadata["policy_id"]
+        plan_hash = metadata["plan_hash"]
+        parameters = _object(metadata["parameters"], "pair_metadata.parameters")
+        parameter_keys = frozenset((
+            "direct_ratio", "event_rarity", "legal_set_strength", "mutual_exclusion",
+        ))
+        _strict_keys(parameters, parameter_keys, parameter_keys, "pair_metadata.parameters")
+        if not isinstance(policy_id, str) or not policy_id:
+            raise ExperimentMatrixError("pair_metadata.policy_id must be a non-empty string")
+        if not isinstance(plan_hash, str) or re.fullmatch(
+            r"sha256:[0-9a-f]{64}", plan_hash
+        ) is None:
+            raise ExperimentMatrixError("pair_metadata.plan_hash must be canonical SHA-256")
+        pair_metadata = _PairMetadata(
+            policy_id, plan_hash, copy.deepcopy(dict(parameters))
+        )
+    return (
+        planner_config, manifests, _ExecutionConfig(seed, retries, float(timeout)),
+        reference, pair_metadata,
+    )
+
+
+def _promotion_pairs(
+    plan: object,
+    samples_by_job: Mapping[str, tuple[dict[str, object], ...]],
+    metadata: _PairMetadata,
+) -> list[dict[str, object]]:
+    jobs = {job.job_id: job for job in plan.jobs}
+    pairs: list[dict[str, object]] = []
+
+    def summary(job: ExperimentJob) -> dict[str, object]:
+        samples = samples_by_job[job.job_id]
+        sample = max(samples, key=lambda item: (item["elapsed_seconds"], item["sequence"]))
+        elapsed = sample["elapsed_seconds"]
+        tests = sample["tests_executed"]
+        if (
+            isinstance(elapsed, bool) or not isinstance(elapsed, (int, float))
+            or elapsed <= 0 or not math.isfinite(float(elapsed))
+        ):
+            raise ExperimentMatrixError("pair evidence elapsed_seconds must be positive")
+        if isinstance(tests, bool) or not isinstance(tests, int) or tests < 0:
+            raise ExperimentMatrixError("pair evidence tests_executed must be non-negative")
+        expected_artifact = job.execution.server_artifact_id
+        if sample.get("artifact_id") != expected_artifact:
+            raise ExperimentMatrixError("pair evidence artifact_id does not match planned job")
+        for field in ("handshake_succeeded", "fifo_cleanup_succeeded"):
+            if sample.get(field) is not True:
+                raise ExperimentMatrixError(f"pair evidence {field} must be true")
+        for field in ("server_returncode", "fuzzer_returncode", "crash_restart_count"):
+            value = sample.get(field)
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise ExperimentMatrixError(f"pair evidence {field} must be an integer")
+        failures = copy.deepcopy(dict(_object(
+            sample.get("failure_reasons"), "pair evidence failure_reasons"
+        )))
+        return {
+            "covered": len(sample["covered_point_ids"]),
+            "tests_per_second": tests / float(elapsed),
+            "failure_reasons": failures,
+            "artifact_id": expected_artifact,
+            "server_returncode": sample["server_returncode"],
+            "fuzzer_returncode": sample["fuzzer_returncode"],
+            "handshake_succeeded": True,
+            "fifo_cleanup_succeeded": True,
+            "crash_restart_count": sample["crash_restart_count"],
+        }
+
+    for block in plan.run_blocks:
+        block_jobs = [jobs[job_id] for job_id in block]
+        direct = next(job for job in block_jobs if job.harness == "candidate-direct")
+        candidate = next(
+            job for job in block_jobs
+            if job.harness not in {"flat-direct", "candidate-direct"}
+        )
+        pairs.append({
+            "policy_id": metadata.policy_id,
+            "plan_hash": metadata.plan_hash,
+            "parameters": copy.deepcopy(dict(metadata.parameters)),
+            "target_id": direct.target_id,
+            "seed": direct.seed,
+            "baseline": summary(direct),
+            "candidate": summary(candidate),
+        })
+    return sorted(pairs, key=lambda pair: (pair["target_id"], pair["seed"]))
+
+
+def matrix_promotion_pairs(results: object) -> tuple[dict[str, object], ...]:
+    """Collect only matrix-published per-seed promotion evidence."""
+    wrappers = _array(results, "matrix results")
+    pairs: list[dict[str, object]] = []
+    for index, value in enumerate(wrappers):
+        wrapper = _object(value, f"matrix results[{index}]")
+        published = _array(
+            wrapper.get("promotion_pairs"),
+            f"matrix results[{index}].promotion_pairs",
+        )
+        for pair_index, pair in enumerate(published):
+            pairs.append(copy.deepcopy(dict(_object(
+                pair,
+                f"matrix results[{index}].promotion_pairs[{pair_index}]",
+            ))))
+    return tuple(pairs)
 
 
 def _open_report_destination(report_path: Path) -> _ReportDestination:
@@ -666,7 +786,7 @@ def _run_experiment_matrix(
     runner: Callable[[Job], object],
     destination: _ReportDestination,
 ) -> dict[str, object]:
-    planner_config, manifests, execution, reference_summary = _parse_config(config)
+    planner_config, manifests, execution, reference_summary, pair_metadata = _parse_config(config)
     plan = plan_experiment(planner_config, manifests)
     try:
         prerequisites = {}
@@ -809,6 +929,10 @@ def _run_experiment_matrix(
             "resource_terminated_job_ids": sorted(resource_terminated),
         },
     }
+    if pair_metadata is not None:
+        wrapper["promotion_pairs"] = _promotion_pairs(
+            plan, samples_by_job, pair_metadata
+        )
     _atomic_write_report(destination, wrapper)
     return copy.deepcopy(wrapper)
 
@@ -821,5 +945,6 @@ __all__ = [
     "ResourceCheckpointEvent",
     "ResourceTerminatedError",
     "RunnerResult",
+    "matrix_promotion_pairs",
     "run_experiment_matrix",
 ]

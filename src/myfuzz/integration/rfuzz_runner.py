@@ -27,12 +27,15 @@ from .experiment_matrix import (
 )
 
 
-_BUILD_KEYS = frozenset(("kind", "artifact_id", "server_path", "server_exists"))
+_BUILD_KEYS = frozenset((
+    "kind", "artifact_id", "server_path", "server_exists",
+    "peak_rss_bytes", "resource_terminated",
+))
 _FUZZ_KEYS = frozenset((
-    "kind", "elapsed_seconds", "tests_executed", "cycles_executed",
+    "kind", "job_id", "artifact_id", "elapsed_seconds", "tests_executed", "cycles_executed",
     "coverage_point_count", "covered_point_ids", "peak_rss_bytes",
     "server_returncode", "fuzzer_returncode", "handshake_succeeded",
-    "fifo_cleanup_succeeded", "failure_reasons",
+    "fifo_cleanup_succeeded", "crash_restart_count", "failure_reasons",
 ))
 _MAX_RESULT_BYTES = 1024 * 1024
 
@@ -102,9 +105,17 @@ class RfuzzExperimentRunner:
         self._adapter = RfuzzAdapter(root)
         self._attempts: dict[str, int] = {}
 
+    def _require_available(self) -> None:
+        availability = self._adapter.availability()
+        if not availability.available:
+            raise ValueError(
+                "RFuzz unavailable; missing: " + ", ".join(availability.missing_paths)
+            )
+
     def __call__(self, job: object) -> RunnerResult:
         if not isinstance(job, (ExperimentBuildJob, ExperimentJob)):
             raise TypeError("job must be a planned RFuzz build or fuzz job")
+        self._require_available()
         attempt = self._attempts.get(job.job_id, 0) + 1
         self._attempts[job.job_id] = attempt
         name = f"{job.job_id}.{attempt}.{secrets.token_hex(8)}.json"
@@ -156,12 +167,23 @@ class RfuzzExperimentRunner:
 
     def _build_result(
         self, job: ExperimentBuildJob, attempt: int, value: object
-    ) -> BuildJobResult:
+    ) -> BuildJobResult | ResourceCheckpointEvent:
         document = _closed_object(value, _BUILD_KEYS, "build result")
         if document["kind"] != "build":
             raise ValueError("build result kind must be build")
         if document["artifact_id"] != job.artifact_id:
             raise ValueError("build result artifact_id does not match the job")
+        peak = _uint(document["peak_rss_bytes"], "peak_rss_bytes", positive=True)
+        if not isinstance(document["resource_terminated"], bool):
+            raise ValueError("resource_terminated must be a boolean")
+        if document["resource_terminated"]:
+            return ResourceCheckpointEvent(
+                job.job_id,
+                attempt,
+                peak,
+                "hard_memory_limit",
+                copy.deepcopy(dict(document)),
+            )
         if document["server_exists"] is not True:
             raise ValueError("build result did not observe the server artifact")
         if not self._repository_file(document["server_path"], "server_path").is_file():
@@ -174,6 +196,11 @@ class RfuzzExperimentRunner:
         document = _closed_object(value, _FUZZ_KEYS, "fuzz result")
         if document["kind"] != "fuzz":
             raise ValueError("fuzz result kind must be fuzz")
+        if document["job_id"] != job.job_id:
+            raise ValueError("fuzz result job_id does not match the job")
+        artifact_id = job.execution.server_artifact_id
+        if not isinstance(artifact_id, str) or document["artifact_id"] != artifact_id:
+            raise ValueError("fuzz result artifact_id does not match the planned artifact")
         elapsed = document["elapsed_seconds"]
         if isinstance(elapsed, bool) or not isinstance(elapsed, (int, float)):
             raise ValueError("elapsed_seconds must be finite and non-negative")
@@ -203,12 +230,16 @@ class RfuzzExperimentRunner:
         resource = _uint(
             failures["resource_terminated"], "failure_reasons.resource_terminated"
         )
+        crash_restarts = _uint(document["crash_restart_count"], "crash_restart_count")
+        if resource:
+            if dut_crash != 0:
+                raise ValueError("resource termination must not be classified as dut_crash")
+        elif dut_crash != crash_restarts:
+            raise ValueError("dut_crash must equal crash_restart_count")
         server_rc = _returncode(document["server_returncode"], "server_returncode")
         fuzzer_rc = _returncode(document["fuzzer_returncode"], "fuzzer_returncode")
-        if resource == 0 and (server_rc not in (0, -15) or fuzzer_rc not in (0, 124)):
+        if resource == 0 and (server_rc not in (0, -15, -9) or fuzzer_rc not in (0, -15, -9)):
             raise ValueError("RFuzz result contains abnormal process return codes")
-        if resource == 0 and dut_crash != 0:
-            raise ValueError("successful RFuzz result cannot classify a DUT crash")
         sample = {
             "job_id": job.job_id,
             "candidate_id": job.candidate_id,
@@ -228,6 +259,12 @@ class RfuzzExperimentRunner:
             "generation_count": 0,
             "validation_passed": 0,
             "failure_reasons": {"dut_crash": dut_crash, "resource_terminated": resource},
+            "artifact_id": artifact_id,
+            "server_returncode": server_rc,
+            "fuzzer_returncode": fuzzer_rc,
+            "handshake_succeeded": True,
+            "fifo_cleanup_succeeded": True,
+            "crash_restart_count": crash_restarts,
         }
         if resource:
             return ResourceCheckpointEvent(
@@ -259,6 +296,21 @@ class RfuzzExperimentRunner:
         config_path = self._repository_file(
             design_config_path.as_posix(), "design_config_path"
         )
+        try:
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as error:
+            raise ValueError("design config must be valid JSON") from error
+        if not isinstance(config, Mapping) or not isinstance(config.get("out_dir"), str):
+            raise ValueError("design config out_dir is required")
+        out = Path(os.path.expandvars(os.path.expanduser(config["out_dir"])))
+        if not out.is_absolute():
+            out = self._repo_root / out
+        out = out.resolve()
+        try:
+            out.relative_to(self._repo_root)
+        except ValueError as error:
+            raise ValueError("design config out_dir must remain beneath the repository") from error
+        self._require_available()
         for stage in ("frontend", "instrument"):
             completed = subprocess.run(
                 (
@@ -274,13 +326,7 @@ class RfuzzExperimentRunner:
             )
             if completed.returncode != 0:
                 raise ValueError(f"RFuzz coverage preparation {stage} stage failed")
-        config = json.loads(config_path.read_text(encoding="utf-8"))
-        if not isinstance(config, Mapping) or not isinstance(config.get("out_dir"), str):
-            raise ValueError("design config out_dir is required")
-        out = Path(os.path.expandvars(os.path.expanduser(config["out_dir"])))
-        if not out.is_absolute():
-            out = self._repo_root / out
-        instrumentation_path = out.resolve() / "instrumented" / "instrumentation.json"
+        instrumentation_path = out / "instrumented" / "instrumentation.json"
         try:
             instrumentation = json.loads(instrumentation_path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError) as error:
@@ -299,8 +345,13 @@ class RfuzzExperimentRunner:
             raise ValueError("runtime manifest harnesses must be an object")
         detached_harnesses: dict[str, object] = {}
         for name, value in harnesses.items():
-            if not isinstance(name, str) or not isinstance(value, Mapping):
-                raise ValueError("runtime manifest harness records must be objects")
+            if not isinstance(name, str):
+                raise ValueError("runtime manifest harness names must be strings")
+            if name not in {"candidate-direct", "candidate-static"}:
+                detached_harnesses[name] = copy.deepcopy(value)
+                continue
+            if not isinstance(value, Mapping):
+                raise ValueError(f"runtime manifest {name} harness record must be an object")
             record = copy.deepcopy(dict(value))
             record["coverage_universe"] = metadata_hash
             record["coverage_metadata_hash"] = metadata_hash

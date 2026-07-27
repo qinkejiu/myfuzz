@@ -11,6 +11,7 @@ import os
 import re
 import signal
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -170,6 +171,40 @@ def rfuzz_measurements(
         "coverage_point_count": len(points),
         "covered_point_ids": list(covered),
     }
+
+
+def load_rfuzz_measurements(
+    path: Path,
+    points: object,
+    started_ns: int,
+) -> dict[str, object]:
+    try:
+        metadata = path.lstat()
+    except FileNotFoundError as error:
+        raise ValueError("RFuzz statistics are missing") from error
+    if not stat.S_ISREG(metadata.st_mode):
+        raise ValueError("RFuzz statistics must be a regular file")
+    if metadata.st_mtime_ns < started_ns:
+        raise ValueError("RFuzz statistics are stale")
+    if metadata.st_size > 1024 * 1024:
+        raise ValueError("RFuzz statistics exceed the size limit")
+    try:
+        statistics = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ValueError("RFuzz statistics must be valid JSON") from error
+    return rfuzz_measurements(statistics, points)
+
+
+def rfuzz_fifos_ready(fpga_dir: Path, server_ids: tuple[str, ...]) -> bool:
+    for server_id in server_ids:
+        for name in ("tx.fifo", "rx.fifo"):
+            try:
+                mode = (fpga_dir / server_id / name).lstat().st_mode
+            except FileNotFoundError:
+                return False
+            if not stat.S_ISFIFO(mode):
+                return False
+    return True
 
 
 def result_json_path(root: Path, value: str) -> Path:
@@ -473,7 +508,9 @@ def stage_harness(
     print(f"Generated raw ABI: {fragment_path}")
     return artifact
 
-def stage_server(root: Path, cfg: dict, paths: dict, server_bin: str, jobs: str) -> None:
+def stage_server(
+    root: Path, cfg: dict, paths: dict, server_bin: str, jobs: str
+) -> dict[str, object]:
     server_cfg = cfg.get("server", {}) if isinstance(cfg.get("server", {}), dict) else {}
     cmd = [
         sys.executable,
@@ -503,7 +540,14 @@ def stage_server(root: Path, cfg: dict, paths: dict, server_bin: str, jobs: str)
         cmd.append("--parallel-verilator-build")
     for arg in cfg.get("verilator_args", []):
         cmd.append(f"--verilator-arg={arg}")
-    run(cmd, cwd=root)
+    result = run_monitored_command(
+        cmd,
+        cwd=root,
+        hard_memory_bytes=cfg.get("hard_memory_bytes"),
+    )
+    if result["returncode"] != 0 and not result["resource_terminated"]:
+        raise subprocess.CalledProcessError(int(result["returncode"]), cmd)
+    return result
 
 
 def build_fuzzer(root: Path) -> Path:
@@ -518,11 +562,30 @@ def build_fuzzer(root: Path) -> Path:
 
 
 def terminate_process(proc: subprocess.Popen, timeout: int = 5) -> int | None:
+    group_id = proc.pid
+
+    def signal_tree(sig: int) -> bool:
+        try:
+            os.killpg(group_id, sig)
+            return True
+        except ProcessLookupError:
+            return False
+
+    def group_alive() -> bool:
+        try:
+            os.killpg(group_id, 0)
+            return True
+        except ProcessLookupError:
+            return False
+
+    owns_group = proc.poll() is not None
+
     if proc.poll() is None:
         try:
             group = os.getpgid(proc.pid)
             if group == proc.pid:
-                os.killpg(group, signal.SIGTERM)
+                owns_group = True
+                signal_tree(signal.SIGTERM)
             else:
                 proc.terminate()
         except ProcessLookupError:
@@ -533,12 +596,19 @@ def terminate_process(proc: subprocess.Popen, timeout: int = 5) -> int | None:
             try:
                 group = os.getpgid(proc.pid)
                 if group == proc.pid:
-                    os.killpg(group, signal.SIGKILL)
+                    signal_tree(signal.SIGKILL)
                 else:
                     proc.kill()
             except ProcessLookupError:
                 pass
             proc.wait()
+    if owns_group:
+        signal_tree(signal.SIGTERM)
+        deadline = time.monotonic() + timeout
+        while group_alive() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        if group_alive():
+            signal_tree(signal.SIGKILL)
     return proc.returncode
 
 
@@ -591,6 +661,36 @@ class _ProcessTreeMonitor:
             self.resource_terminated = True
             terminate_processes(self.processes)
         return self.resource_terminated
+
+
+def run_monitored_command(
+    cmd: list[str],
+    *,
+    cwd: Path,
+    hard_memory_bytes: int | None,
+    env: dict[str, str] | None = None,
+) -> dict[str, object]:
+    print("+ " + " ".join(cmd), flush=True)
+    process = subprocess.Popen(
+        cmd,
+        cwd=cwd,
+        env=env,
+        start_new_session=True,
+    )
+    monitor = _ProcessTreeMonitor([process], hard_memory_bytes)
+    while process.poll() is None:
+        monitor.observe()
+        if monitor.resource_terminated:
+            break
+        time.sleep(0.05)
+    monitor.observe()
+    returncode = process.wait()
+    terminate_process(process, timeout=1)
+    return {
+        "returncode": returncode,
+        "peak_rss_bytes": max(1, monitor.peak_rss_bytes),
+        "resource_terminated": monitor.resource_terminated,
+    }
 
 
 def first_returncode(procs: list[subprocess.Popen]) -> tuple[int | None, int | None]:
@@ -906,7 +1006,7 @@ def run_fuzz_attempt(
                         None, proc.returncode, latest_input, latest_batch, server_log, fuzzer_log,
                     )
                     return "crash", None, proc.returncode, archive, False, monitor.peak_rss_bytes, False
-                if (fpga_dir / server_id / "tx.fifo").exists():
+                if rfuzz_fifos_ready(fpga_dir, (server_id,)):
                     ready.add(server_id)
             time.sleep(0.1)
         if len(ready) < server_count:
@@ -978,7 +1078,7 @@ def run_fuzz_attempt(
                     fuzzer_rc = terminate_process(fuzzer_proc)
                     server_rc = terminate_processes(server_procs)
                     monitor.observe()
-                    return "ok", 124, server_rc, None, True, monitor.peak_rss_bytes, False
+                    return "ok", fuzzer_rc, server_rc, None, True, monitor.peak_rss_bytes, False
                 time.sleep(0.2)
 
         _, server_rc = first_returncode(server_procs)
@@ -1019,8 +1119,9 @@ def stage_fuzz(
     for attempt in range(1, max_restarts + 2):
         remaining = None if deadline is None else max(1, int(deadline - time.time()))
         if deadline is not None and time.time() >= deadline:
-            print(f"Fuzz time budget exhausted after {len(crashes)} crash restart(s).", flush=True)
-            return
+            raise RuntimeError(
+                f"fuzz time budget exhausted after {len(crashes)} crash restart(s)"
+            )
         outcome = run_fuzz_attempt(
             root, cfg, cfg_path, paths, fuzzer, remaining, attempt, resume_queue,
         )
@@ -1037,7 +1138,10 @@ def stage_fuzz(
                 "fuzzer_returncode": fuzzer_rc if fuzzer_rc is not None else -15,
                 "handshake_succeeded": handshake,
                 "fifo_cleanup_succeeded": cleanup,
-                "failure_reasons": {"dut_crash": 0, "resource_terminated": 1},
+                "crash_restart_count": len(crashes),
+                "failure_reasons": {
+                    "dut_crash": 0, "resource_terminated": 1,
+                },
             }
         if status == "ok":
             if crashes:
@@ -1048,7 +1152,10 @@ def stage_fuzz(
                 "fuzzer_returncode": fuzzer_rc if fuzzer_rc is not None else 0,
                 "handshake_succeeded": handshake,
                 "fifo_cleanup_succeeded": cleanup,
-                "failure_reasons": {"dut_crash": 0, "resource_terminated": 0},
+                "crash_restart_count": len(crashes),
+                "failure_reasons": {
+                    "dut_crash": len(crashes), "resource_terminated": 0,
+                },
             }
         if crash_dir is not None:
             crashes.append(crash_dir.as_posix())
@@ -1105,6 +1212,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int)
     parser.add_argument("--max-cycles", type=int)
     parser.add_argument("--hard-memory-bytes", type=int)
+    parser.add_argument("--job-id")
     parser.add_argument("--result-json")
     parser.add_argument("--force", action=argparse.BooleanOptionalAction, default=False)
     return parser.parse_args()
@@ -1235,7 +1343,7 @@ def main() -> int:
                 candidate_manifest,
                 candidate_mode,
             )
-        stage_server(root, cfg, paths, server_bin, args.jobs)
+        build_result = stage_server(root, cfg, paths, server_bin, args.jobs)
         if result_path is not None:
             server_path = paths["server"] / "server"
             write_json(result_path, {
@@ -1243,12 +1351,14 @@ def main() -> int:
                 "artifact_id": server_artifact_id or "",
                 "server_path": server_path.resolve().relative_to(root.resolve()).as_posix(),
                 "server_exists": server_path.is_file(),
+                "peak_rss_bytes": build_result["peak_rss_bytes"],
+                "resource_terminated": build_result["resource_terminated"],
             })
     if "fuzz" in stages:
         fuzz_seconds = fuzz_seconds_arg
         if fuzz_seconds is None and max_cycles_arg is None:
             fuzz_seconds = 5
-        started = time.monotonic()
+        started_ns = time.time_ns()
         execution_result = stage_fuzz(root, cfg, cfg_path, paths, fuzz_seconds)
         if result_path is not None:
             instrumentation_document = json.loads(
@@ -1256,17 +1366,18 @@ def main() -> int:
             )
             points = coverage_universe_from_instrumentation(instrumentation_document)
             latest = paths["queue"] / "latest.json"
-            if latest.is_file():
-                measurements = rfuzz_measurements(json.loads(latest.read_text()), points)
-            else:
-                measurements = {
-                    "elapsed_seconds": time.monotonic() - started,
-                    "tests_executed": 0,
-                    "cycles_executed": 0,
-                    "coverage_point_count": len(points),
-                    "covered_point_ids": [],
-                }
-            document = {"kind": "fuzz", **measurements, **execution_result}
+            measurements = load_rfuzz_measurements(latest, points, started_ns)
+            if not isinstance(args.job_id, str) or not args.job_id:
+                raise ValueError("--job-id is required for a fuzz result document")
+            if not isinstance(server_artifact_id, str):
+                raise ValueError("--server-artifact-id is required for a fuzz result document")
+            document = {
+                "kind": "fuzz",
+                "job_id": args.job_id,
+                "artifact_id": server_artifact_id,
+                **measurements,
+                **execution_result,
+            }
             write_json(result_path, document)
 
     print(f"myfuzz output: {out_dir}")

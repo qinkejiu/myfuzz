@@ -14,6 +14,7 @@ from myfuzz.experiments.static_portfolio import (
     freeze_policy,
     promote,
     screen,
+    screened_policy_ids,
 )
 from myfuzz.harness.abi import RawBitAbi, RawBitUse, RawDestination, content_hash
 from myfuzz.harness.static_policy import compile_static_policy
@@ -152,6 +153,20 @@ class StaticPortfolioTest(unittest.TestCase):
 
     def test_screen_accepts_exact_five_and_eighty_five_percent_boundaries(self) -> None:
         self.assertTrue(screen(pair(coverage_ratio=.95, throughput_ratio=.85)).accepted)
+
+    def test_screened_policy_ids_require_every_expected_target_to_pass(self) -> None:
+        results = [
+            pair(policy_id="accepted", target_id="target-a"),
+            pair(policy_id="accepted", target_id="target-b"),
+            pair(policy_id="rejected", target_id="target-a"),
+            pair(policy_id="rejected", target_id="target-b", coverage_ratio=.94),
+            pair(policy_id="incomplete", target_id="target-a"),
+        ]
+
+        self.assertEqual(
+            frozenset(("accepted",)),
+            screened_policy_ids(results, frozenset(("target-a", "target-b"))),
+        )
 
     def test_screen_fails_closed_for_missing_nonfinite_and_zero_denominator_metrics(self) -> None:
         for mutation in (
