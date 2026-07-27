@@ -767,7 +767,7 @@ class HarnessCompilerTest(unittest.TestCase):
         self.assertNotIn("always_ff", bundle.candidate_static.source_text)
         static_fragment = bundle.manifest_fragment()["harnesses"]["candidate-static"]
         self.assertEqual(
-            bundle.candidate_static.policy_plan_hash,
+            f"sha256:{bundle.candidate_static.policy_plan_hash}",
             static_fragment["projection_plan_hash"],
         )
 

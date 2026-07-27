@@ -206,6 +206,21 @@ class RfuzzAdapterTest(unittest.TestCase):
         self.assertEqual("1000", cycles[cycles.index("--max-cycles") + 1])
         self.assertNotIn("--fuzz-seconds", cycles)
 
+    def test_result_document_path_is_forwarded_to_the_existing_driver(self) -> None:
+        adapter = RfuzzAdapter(ROOT)
+
+        command = adapter.command(
+            build_job(),
+            result_json=Path("runs/results/job-build.json"),
+        )
+
+        self.assertEqual(
+            "runs/results/job-build.json",
+            command[command.index("--result-json") + 1],
+        )
+        with self.assertRaisesRegex(ValueError, "repository-relative"):
+            adapter.command(build_job(), result_json=Path("../outside.json"))
+
     def test_reports_missing_fixed_installation_paths_without_importing_rfuzz(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             availability = RfuzzAdapter(Path(directory).resolve()).availability()

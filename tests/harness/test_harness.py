@@ -54,10 +54,10 @@ class HarnessTest(unittest.TestCase):
         self.assertEqual(direct.coverage_universe_id, artifact.coverage_universe_id)
         self.assertEqual("candidate_static", artifact.mode)
         fragment = artifact.manifest_fragment()
-        self.assertRegex(fragment["content_hash"], r"^[0-9a-f]{64}$")
+        self.assertRegex(fragment["content_hash"], r"^sha256:[0-9a-f]{64}$")
         self.assertRegex(
             fragment["projection_plan_hash"],
-            r"^[0-9a-f]{64}$",
+            r"^sha256:[0-9a-f]{64}$",
         )
 
     def test_candidate_static_requires_static_inputs(self) -> None:

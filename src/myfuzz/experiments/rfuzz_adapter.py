@@ -50,6 +50,8 @@ class RfuzzAdapter:
     def command(
         self,
         job: ExperimentBuildJob | ExperimentJob,
+        *,
+        result_json: Path | None = None,
     ) -> tuple[str, ...]:
         """Return one deterministic single-worker driver command without executing it."""
         if not isinstance(job, (ExperimentBuildJob, ExperimentJob)):
@@ -78,4 +80,12 @@ class RfuzzAdapter:
             command.extend(("--fuzz-seconds", str(execution.fuzz_seconds)))
         if execution.max_cycles is not None:
             command.extend(("--max-cycles", str(execution.max_cycles)))
+        if result_json is not None:
+            if not isinstance(result_json, Path):
+                raise TypeError("result_json must be a pathlib.Path")
+            if result_json.is_absolute() or any(
+                part in {"", ".", ".."} for part in result_json.parts
+            ):
+                raise ValueError("result_json must be a repository-relative path")
+            command.extend(("--result-json", result_json.as_posix()))
         return tuple(command)

@@ -17,7 +17,7 @@ from pathlib import Path
 from myfuzz.contracts import canonical_bytes, content_hash, validate_contract
 from myfuzz.experiments.static_portfolio import PORTFOLIO, PromotionDecision, promote
 from myfuzz.harness import StaticPolicyParameters, build_harness
-from myfuzz.integration.experiment_matrix import run_experiment_matrix
+from myfuzz.integration import RfuzzExperimentRunner, run_experiment_matrix
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -320,6 +320,7 @@ def materialize_derived_design_config(
     static["parameters"] = asdict(typed)
     source["static_projection"] = static
     source["candidate_manifest"] = target.candidate_manifest_path
+    source["hard_memory_bytes"] = 7_000_000_000
     destination = output / "derived" / target.target_id / policy_id / "config.json"
     _atomic_json(destination, source)
     return destination.relative_to(ROOT.resolve())
@@ -389,6 +390,7 @@ def _matrix_config(
     target: CampaignTarget,
     parameters: StaticPolicyParameters,
     output_dir: Path,
+    preparer: Callable[[dict[str, object], Path], dict[str, object]] | None = None,
 ) -> dict[str, object]:
     policy_id = _policy_id(parameters)
     derived = materialize_derived_design_config(
@@ -398,6 +400,10 @@ def _matrix_config(
         policy_id=policy_id,
     )
     manifest = _runtime_manifest(target, parameters)
+    if preparer is not None:
+        manifest = preparer(manifest, derived)
+        if not isinstance(manifest, dict):
+            raise TypeError("preparer must return a runtime manifest object")
     planner = {
         "schema_version": "experiment.v1",
         "config_path": config.source_path,
@@ -474,7 +480,9 @@ def run_campaign(
     config: CampaignConfig,
     *,
     runner: object,
+    preparer: Callable[[dict[str, object], Path], dict[str, object]] | None = None,
     output_dir: Path,
+    stage: str = "training",
     promotion_selector: Callable[[object], PromotionDecision | Mapping[str, object] | None] = _default_selector,
 ) -> dict[str, object]:
     """Compose screen/promotion/validation exclusively through the existing matrix."""
@@ -482,6 +490,10 @@ def run_campaign(
         raise TypeError("config must be a CampaignConfig")
     if not callable(promotion_selector):
         raise TypeError("promotion_selector must be callable")
+    if preparer is not None and not callable(preparer):
+        raise TypeError("preparer must be callable")
+    if stage not in {"smoke", "training"}:
+        raise ValueError("stage must be smoke or training")
     output = _beneath_repository(output_dir, "output_dir")
     output.mkdir(parents=True, exist_ok=True)
     all_parameters = tuple(PORTFOLIO)
@@ -501,6 +513,7 @@ def run_campaign(
                     target,
                     policy,
                     output,
+                    preparer,
                 )
                 report_path = output / stage_name / target.target_id / f"{policy_id}-matrix.json"
                 report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -512,6 +525,10 @@ def run_campaign(
                     )
                 )
         return tuple(results)
+
+    if stage == "smoke":
+        smoke = run_stage("smoke", CampaignStage(1, (1,)), all_parameters[:1])
+        return {"stages": ["smoke"], "smoke": smoke}
 
     screen = run_stage("screen", config.screen, all_parameters)
     promotion = run_stage("promotion", config.promotion, all_parameters)
@@ -548,9 +565,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     campaign = load_campaign(args.config)
-    raise SystemExit(
-        "no concrete RFuzz ExperimentRunner is published; invoke run_campaign with the existing matrix runner boundary"
+    output = _beneath_repository(args.out, "output_dir")
+    runner = RfuzzExperimentRunner(ROOT.resolve(), output / "rfuzz-results")
+    run_campaign(
+        campaign,
+        runner=runner,
+        preparer=runner.prepare_manifest,
+        output_dir=output,
+        stage=args.stage,
     )
+    return 0
 
 
 if __name__ == "__main__":

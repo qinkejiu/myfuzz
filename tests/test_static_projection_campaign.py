@@ -7,13 +7,14 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from myfuzz.experiments import ExperimentJob, JobKind, plan_experiment
 from myfuzz.integration import BuildJobResult, FuzzJobResult
 
 from scripts.runs.run_static_projection_campaign import (
     load_campaign,
+    main,
     materialize_derived_design_config,
     run_campaign,
     validate_training_pair,
@@ -235,6 +236,7 @@ class StaticProjectionCampaignTest(unittest.TestCase):
             document = json.loads(absolute.read_text(encoding="utf-8"))
             self.assertEqual(target.candidate_manifest_path, document["candidate_manifest"])
             self.assertEqual(parameters, document["static_projection"]["parameters"])
+            self.assertEqual(7_000_000_000, document["hard_memory_bytes"])
             self.assertFalse(any(path.suffix == ".tmp" for path in absolute.parent.iterdir()))
 
     def test_each_training_stage_uses_the_existing_experiment_matrix(self) -> None:
@@ -297,6 +299,84 @@ class StaticProjectionCampaignTest(unittest.TestCase):
                     builds[job.harness].artifact_id,
                     job.execution.server_artifact_id,
                 )
+
+    def test_campaign_prepares_measured_coverage_before_every_matrix_plan(self) -> None:
+        config = load_campaign(CONFIG)
+        policy = __import__("myfuzz.harness", fromlist=["StaticPolicyParameters"]).StaticPolicyParameters(1, 2, 1, "none")
+        prepared: list[str] = []
+
+        def preparer(manifest: dict[str, object], design_config: Path) -> dict[str, object]:
+            prepared.append(design_config.as_posix())
+            result = copy.deepcopy(manifest)
+            result["prepared_coverage"] = True
+            return result
+
+        with tempfile.TemporaryDirectory(dir=ROOT) as directory, patch(
+            "scripts.runs.run_static_projection_campaign.PORTFOLIO", (policy,)
+        ), patch(
+            "scripts.runs.run_static_projection_campaign.run_experiment_matrix",
+            side_effect=[{"report": {}} for _ in range(6)],
+        ) as matrix:
+            run_campaign(
+                config,
+                runner=object(),
+                preparer=preparer,
+                output_dir=Path(directory),
+                promotion_selector=lambda _results: {
+                    "policy_id": "policy-1",
+                    "plan_hash": "sha256:" + "4" * 64,
+                    "parameters": {
+                        "direct_ratio": 1, "event_rarity": 2,
+                        "legal_set_strength": 1, "mutual_exclusion": "none",
+                    },
+                    "training_evidence_hash": "sha256:" + "5" * 64,
+                },
+            )
+
+        self.assertEqual(6, len(prepared))
+        self.assertTrue(all(call.args[0]["candidate_manifests"][0]["prepared_coverage"] for call in matrix.call_args_list))
+
+    def test_smoke_runs_first_policy_for_both_targets_at_one_second_seed_one(self) -> None:
+        config = load_campaign(CONFIG)
+        with tempfile.TemporaryDirectory(dir=ROOT) as directory, patch(
+            "scripts.runs.run_static_projection_campaign.run_experiment_matrix",
+            side_effect=[{"report": {}} for _ in range(2)],
+        ) as matrix:
+            report = run_campaign(
+                config,
+                runner=object(),
+                preparer=lambda manifest, _path: manifest,
+                output_dir=Path(directory),
+                stage="smoke",
+            )
+
+        self.assertEqual(["smoke"], report["stages"])
+        self.assertEqual(2, matrix.call_count)
+        for call in matrix.call_args_list:
+            planner = call.args[0]["planner_config"]
+            self.assertEqual([{"name": "smoke", "kind": "seconds", "value": 1}], planner["budgets"])
+            self.assertEqual({1}, set(planner["candidate_pair"]["seeds"]))
+
+    def test_cli_constructs_concrete_runner_and_preparer_for_smoke(self) -> None:
+        fake_runner = Mock()
+        preparer = object()
+        with tempfile.TemporaryDirectory(dir=ROOT) as directory, patch(
+            "scripts.runs.run_static_projection_campaign.RfuzzExperimentRunner"
+        ) as runner_type, patch(
+            "scripts.runs.run_static_projection_campaign.run_campaign"
+        ) as campaign_run:
+            runner_type.return_value = fake_runner
+            runner_type.return_value.prepare_manifest = preparer
+            result = main([
+                "--stage", "smoke", "--config", CONFIG.as_posix(),
+                "--out", directory,
+            ])
+
+        self.assertEqual(0, result)
+        runner_type.assert_called_once_with(ROOT.resolve(), Path(directory) / "rfuzz-results")
+        self.assertIs(fake_runner, campaign_run.call_args.kwargs["runner"])
+        self.assertIs(preparer, campaign_run.call_args.kwargs["preparer"])
+        self.assertEqual("smoke", campaign_run.call_args.kwargs["stage"])
 
     def test_campaign_publishes_all_stage_reports_through_the_real_matrix(self) -> None:
         config = load_campaign(CONFIG)

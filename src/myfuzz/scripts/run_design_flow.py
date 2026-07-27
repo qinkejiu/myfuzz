@@ -6,11 +6,14 @@ from __future__ import annotations
 import argparse
 from collections.abc import Mapping
 import json
+import math
 import os
 import re
+import signal
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -33,6 +36,7 @@ if SCRIPT_DIR.as_posix() not in sys.path:
 from myfuzz.scripts.composition_api import generate_compositions, write_composition_facts
 from myfuzz.scripts.frontend_api import default_frontend_library, run_frontend_manifest
 from myfuzz.scripts.source_only_frontend import run_source_only_frontend
+from myfuzz.contracts import content_hash as contract_content_hash
 from scripts.source_branch_instrumenter import instrument_project
 from frontend_manifest_to_rfuzz_toml import (
     find_top_module,
@@ -44,6 +48,142 @@ from myfuzz.harness import HarnessArtifact, StaticPolicyParameters, build_harnes
 
 STAGES = ["frontend", "composition", "instrument", "toml", "harness", "server", "fuzz"]
 HARNESS_MODES = {"flat_direct", "candidate_direct", "candidate_depaware", "candidate_static"}
+
+
+def coverage_universe_from_instrumentation(
+    instrumentation: object,
+) -> tuple[dict[str, object], ...]:
+    if not isinstance(instrumentation, Mapping):
+        raise ValueError("instrumentation must be an object")
+    count = instrumentation.get("coverage_point_count")
+    records = instrumentation.get("coverage")
+    if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+        raise ValueError("coverage_point_count must be a non-negative integer")
+    if not isinstance(records, list):
+        raise ValueError("instrumentation coverage must be an array")
+    if count != len(records):
+        raise ValueError("coverage_point_count does not match coverage records")
+
+    file_ids: dict[str, int] = {}
+    identities: set[str] = set()
+    points: list[dict[str, object]] = []
+    for index, value in enumerate(records):
+        if not isinstance(value, Mapping) or any(not isinstance(key, str) for key in value):
+            raise ValueError(f"instrumentation coverage[{index}] must be an object")
+        record = dict(value)
+        identity = contract_content_hash(record)
+        if identity in identities:
+            raise ValueError("instrumentation coverage contains duplicate derived identities")
+        identities.add(identity)
+        filename = record.get("file")
+        line = record.get("line")
+        column = record.get("column", 0)
+        if not isinstance(filename, str) or not filename:
+            raise ValueError(f"instrumentation coverage[{index}].file is required")
+        if isinstance(line, bool) or not isinstance(line, int) or line <= 0:
+            raise ValueError(f"instrumentation coverage[{index}].line must be positive")
+        if isinstance(column, bool) or not isinstance(column, int) or column < 0:
+            raise ValueError(f"instrumentation coverage[{index}].column must be non-negative")
+        component_id = record.get("component_id", 1)
+        if isinstance(component_id, bool) or not isinstance(component_id, int) or component_id <= 0:
+            raise ValueError(f"instrumentation coverage[{index}].component_id must be positive")
+        role = record.get("component_role", record.get("module", record.get("kind")))
+        if not isinstance(role, str) or not role:
+            raise ValueError(f"instrumentation coverage[{index}] has no component role")
+        file_id = file_ids.setdefault(filename, len(file_ids) + 1)
+        points.append({
+            "point_id": index + 1,
+            "stable_source_id": identity,
+            "component_id": component_id,
+            "component_role": role,
+            "source": {"file_id": file_id, "line": line, "column": column},
+        })
+    return tuple(points)
+
+
+def covered_point_ids_from_bitmap(
+    points: object,
+    bitmap: object,
+) -> tuple[int, ...]:
+    if not isinstance(points, (list, tuple)) or not isinstance(bitmap, (list, tuple)):
+        raise ValueError("coverage points and bitmap must be arrays")
+    if len(points) != len(bitmap):
+        raise ValueError("RFuzz bitmap width does not match coverage point count")
+    covered: list[int] = []
+    for index, (point, value) in enumerate(zip(points, bitmap)):
+        if not isinstance(point, Mapping):
+            raise ValueError(f"coverage points[{index}] must be an object")
+        point_id = point.get("point_id")
+        if isinstance(point_id, bool) or not isinstance(point_id, int) or point_id <= 0:
+            raise ValueError(f"coverage points[{index}].point_id must be positive")
+        if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 255:
+            raise ValueError(f"RFuzz bitmap[{index}] must be a byte")
+        if value != 255:
+            covered.append(point_id)
+    return tuple(covered)
+
+
+def rfuzz_measurements(
+    statistics: object,
+    points: object,
+) -> dict[str, object]:
+    if not isinstance(statistics, Mapping):
+        raise ValueError("RFuzz statistics must be an object")
+    if not isinstance(points, (list, tuple)):
+        raise ValueError("coverage points must be an array")
+
+    def numerator(field: str) -> int:
+        record = statistics.get(field)
+        if not isinstance(record, Mapping):
+            raise ValueError(f"RFuzz statistics {field} must be an object")
+        value = record.get("global_numerator")
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+            or float(value) < 0
+            or not float(value).is_integer()
+        ):
+            raise ValueError(f"RFuzz statistics {field}.global_numerator is invalid")
+        return int(value)
+
+    runtime = statistics.get("runtime")
+    if not isinstance(runtime, Mapping):
+        raise ValueError("RFuzz statistics runtime must be an object")
+    seconds = runtime.get("secs")
+    nanos = runtime.get("nanos")
+    if (
+        isinstance(seconds, bool)
+        or not isinstance(seconds, int)
+        or seconds < 0
+        or isinstance(nanos, bool)
+        or not isinstance(nanos, int)
+        or not 0 <= nanos < 1_000_000_000
+    ):
+        raise ValueError("RFuzz statistics runtime is invalid")
+    bitmap = statistics.get("bitmap")
+    covered = covered_point_ids_from_bitmap(points, bitmap)
+    return {
+        "elapsed_seconds": seconds + nanos / 1_000_000_000,
+        "tests_executed": numerator("tests_per_second"),
+        "cycles_executed": numerator("cycles_per_second"),
+        "coverage_point_count": len(points),
+        "covered_point_ids": list(covered),
+    }
+
+
+def result_json_path(root: Path, value: str) -> Path:
+    if not isinstance(root, Path) or not root.is_absolute():
+        raise ValueError("repository root must be absolute")
+    if not isinstance(value, str) or not value or "\0" in value:
+        raise ValueError("result path must be beneath the repository")
+    raw = Path(value)
+    destination = raw.resolve() if raw.is_absolute() else (root / raw).resolve()
+    try:
+        destination.relative_to(root.resolve())
+    except ValueError as error:
+        raise ValueError("result path must be beneath the repository") from error
+    return destination
 
 
 def repo_root() -> Path:
@@ -379,11 +519,25 @@ def build_fuzzer(root: Path) -> Path:
 
 def terminate_process(proc: subprocess.Popen, timeout: int = 5) -> int | None:
     if proc.poll() is None:
-        proc.terminate()
+        try:
+            group = os.getpgid(proc.pid)
+            if group == proc.pid:
+                os.killpg(group, signal.SIGTERM)
+            else:
+                proc.terminate()
+        except ProcessLookupError:
+            pass
         try:
             proc.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
-            proc.kill()
+            try:
+                group = os.getpgid(proc.pid)
+                if group == proc.pid:
+                    os.killpg(group, signal.SIGKILL)
+                else:
+                    proc.kill()
+            except ProcessLookupError:
+                pass
             proc.wait()
     return proc.returncode
 
@@ -395,6 +549,48 @@ def terminate_processes(procs: list[subprocess.Popen], timeout: int = 5) -> int 
         if result is None or (result == 0 and rc not in (None, 0)):
             result = rc
     return result
+
+
+class _ProcessTreeMonitor:
+    def __init__(self, processes: list[subprocess.Popen], hard_memory_bytes: int | None) -> None:
+        self.processes = list(processes)
+        self.hard_memory_bytes = hard_memory_bytes
+        self.peak_rss_bytes = 0
+        self.resource_terminated = False
+
+    def observe(self) -> bool:
+        roots = {process.pid for process in self.processes}
+        parents: dict[int, int] = {}
+        rss: dict[int, int] = {}
+        page_size = os.sysconf("SC_PAGE_SIZE")
+        for entry in Path("/proc").iterdir():
+            if not entry.name.isdigit():
+                continue
+            try:
+                suffix = (entry / "stat").read_text().rpartition(")")[2].split()
+                pid = int(entry.name)
+                parents[pid] = int(suffix[1])
+                rss[pid] = int(suffix[21]) * page_size
+            except (FileNotFoundError, IndexError, OSError, ValueError):
+                continue
+        selected = set(roots)
+        changed = True
+        while changed:
+            changed = False
+            for pid, parent in parents.items():
+                if parent in selected and pid not in selected:
+                    selected.add(pid)
+                    changed = True
+        current = sum(rss.get(pid, 0) for pid in selected)
+        self.peak_rss_bytes = max(self.peak_rss_bytes, current)
+        if (
+            self.hard_memory_bytes is not None
+            and current >= self.hard_memory_bytes
+            and not self.resource_terminated
+        ):
+            self.resource_terminated = True
+            terminate_processes(self.processes)
+        return self.resource_terminated
 
 
 def first_returncode(procs: list[subprocess.Popen]) -> tuple[int | None, int | None]:
@@ -418,7 +614,26 @@ def copy_if_exists(src: Path, dst: Path) -> bool:
 
 def write_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+    payload = (json.dumps(data, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    temporary: Path | None = None
+    try:
+        descriptor, name = tempfile.mkstemp(
+            prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+        )
+        temporary = Path(name)
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(path)
+        directory = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def fuzz_server_count(cfg: dict) -> int:
@@ -615,7 +830,7 @@ def run_fuzz_attempt(
     seconds: int | None,
     attempt: int,
     resume_queue: Path | None,
-) -> tuple[str, int | None, int | None, Path | None]:
+) -> tuple[str, int | None, int | None, Path | None, bool, int, bool]:
     fpga_dir = paths["out_dir"] / "fpga"
     queue_dir = paths["queue"]
     latest_dir = paths["out_dir"] / "latest"
@@ -659,27 +874,38 @@ def run_fuzz_attempt(
     fuzzer_log = attempt_dir / "kfuzz.log"
 
     server_procs: list[subprocess.Popen] = []
+    hard_memory = cfg.get("hard_memory_bytes")
+    if isinstance(hard_memory, bool) or (
+        hard_memory is not None and (not isinstance(hard_memory, int) or hard_memory <= 0)
+    ):
+        raise ValueError("hard_memory_bytes must be a positive integer")
+    monitor = _ProcessTreeMonitor(server_procs, hard_memory)
     for server_id, log_path in zip(server_ids, server_logs):
         print(f"+ {server} {server_id}", flush=True)
         with log_path.open("wb") as server_out:
-            server_procs.append(subprocess.Popen(
+            server_process = subprocess.Popen(
                 [server.as_posix(), server_id],
                 cwd=paths["out_dir"],
                 env=env,
                 stdout=server_out,
                 stderr=subprocess.STDOUT,
-            ))
+                start_new_session=True,
+            )
+            server_procs.append(server_process)
+            monitor.processes.append(server_process)
     try:
         ready: set[str] = set()
         deadline = time.time() + 20
         while time.time() < deadline and len(ready) < server_count:
+            if monitor.observe():
+                return "resource", None, terminate_processes(server_procs), None, False, monitor.peak_rss_bytes, True
             for server_id, proc in zip(server_ids, server_procs):
                 if proc.poll() is not None:
                     archive = archive_crash(
                         root, cfg, cfg_path, paths, attempt, f"server_{server_id}_exited_before_fifo",
                         None, proc.returncode, latest_input, latest_batch, server_log, fuzzer_log,
                     )
-                    return "crash", None, proc.returncode, archive
+                    return "crash", None, proc.returncode, archive, False, monitor.peak_rss_bytes, False
                 if (fpga_dir / server_id / "tx.fifo").exists():
                     ready.add(server_id)
             time.sleep(0.1)
@@ -689,7 +915,7 @@ def run_fuzz_attempt(
                 root, cfg, cfg_path, paths, attempt, "fifo_timeout",
                 None, server_rc, latest_input, latest_batch, server_log, fuzzer_log,
             )
-            return "crash", None, server_rc, archive
+            return "crash", None, server_rc, archive, False, monitor.peak_rss_bytes, False
 
         cmd = [
             fuzzer.as_posix(),
@@ -730,9 +956,13 @@ def run_fuzz_attempt(
                 env=env,
                 stdout=fuzzer_out,
                 stderr=subprocess.STDOUT,
+                start_new_session=True,
             )
+            monitor.processes.append(fuzzer_proc)
             attempt_deadline = None if seconds is None else time.time() + seconds
             while True:
+                if monitor.observe():
+                    return "resource", fuzzer_proc.returncode, terminate_processes(server_procs), None, True, monitor.peak_rss_bytes, True
                 fuzzer_rc = fuzzer_proc.poll()
                 server_index, server_rc = first_returncode(server_procs)
                 if fuzzer_rc is not None:
@@ -743,23 +973,26 @@ def run_fuzz_attempt(
                         root, cfg, cfg_path, paths, attempt, f"server_{server_index}_exited_during_fuzz",
                         fuzzer_rc, server_rc, latest_input, latest_batch, server_log, fuzzer_log,
                     )
-                    return "crash", fuzzer_rc, server_rc, archive
+                    return "crash", fuzzer_rc, server_rc, archive, True, monitor.peak_rss_bytes, False
                 if attempt_deadline is not None and time.time() >= attempt_deadline:
                     fuzzer_rc = terminate_process(fuzzer_proc)
                     server_rc = terminate_processes(server_procs)
-                    return "ok", 124, server_rc, None
+                    monitor.observe()
+                    return "ok", 124, server_rc, None, True, monitor.peak_rss_bytes, False
                 time.sleep(0.2)
 
         _, server_rc = first_returncode(server_procs)
         if fuzzer_rc == 0 and (server_rc is None or server_rc == 0):
             server_rc = terminate_processes(server_procs)
-            return "ok", fuzzer_rc, server_rc, None
+            monitor.observe()
+            return "ok", fuzzer_rc, server_rc, None, True, monitor.peak_rss_bytes, False
         server_rc = terminate_processes(server_procs)
         archive = archive_crash(
             root, cfg, cfg_path, paths, attempt, "fuzzer_failed",
             fuzzer_rc, server_rc, latest_input, latest_batch, server_log, fuzzer_log,
         )
-        return "crash", fuzzer_rc, server_rc, archive
+        monitor.observe()
+        return "crash", fuzzer_rc, server_rc, archive, True, monitor.peak_rss_bytes, False
     finally:
         terminate_processes(server_procs)
 
@@ -770,7 +1003,7 @@ def stage_fuzz(
     cfg_path: Path,
     paths: dict,
     seconds: int | None,
-) -> None:
+) -> dict[str, object]:
     fuzzer = build_fuzzer(root)
     fuzz_cfg = cfg.get("fuzz", {}) if isinstance(cfg.get("fuzz", {}), dict) else {}
     if seconds is None and "max_cycles" not in fuzz_cfg:
@@ -788,13 +1021,35 @@ def stage_fuzz(
         if deadline is not None and time.time() >= deadline:
             print(f"Fuzz time budget exhausted after {len(crashes)} crash restart(s).", flush=True)
             return
-        status, fuzzer_rc, server_rc, crash_dir = run_fuzz_attempt(
+        outcome = run_fuzz_attempt(
             root, cfg, cfg_path, paths, fuzzer, remaining, attempt, resume_queue,
         )
+        status, fuzzer_rc, server_rc, crash_dir = outcome[:4]
+        handshake = bool(outcome[4]) if len(outcome) > 4 else status == "ok"
+        peak_rss = int(outcome[5]) if len(outcome) > 5 else 1
+        resource_terminated = bool(outcome[6]) if len(outcome) > 6 else False
+        shutil.rmtree(paths["out_dir"] / "fpga", ignore_errors=True)
+        cleanup = not (paths["out_dir"] / "fpga").exists()
+        if resource_terminated:
+            return {
+                "peak_rss_bytes": max(1, peak_rss),
+                "server_returncode": server_rc if server_rc is not None else -15,
+                "fuzzer_returncode": fuzzer_rc if fuzzer_rc is not None else -15,
+                "handshake_succeeded": handshake,
+                "fifo_cleanup_succeeded": cleanup,
+                "failure_reasons": {"dut_crash": 0, "resource_terminated": 1},
+            }
         if status == "ok":
             if crashes:
                 print(f"Fuzz completed after {len(crashes)} crash restart(s).", flush=True)
-            return
+            return {
+                "peak_rss_bytes": max(1, peak_rss),
+                "server_returncode": server_rc if server_rc is not None else 0,
+                "fuzzer_returncode": fuzzer_rc if fuzzer_rc is not None else 0,
+                "handshake_succeeded": handshake,
+                "fifo_cleanup_succeeded": cleanup,
+                "failure_reasons": {"dut_crash": 0, "resource_terminated": 0},
+            }
         if crash_dir is not None:
             crashes.append(crash_dir.as_posix())
         if stop_on_crash or attempt > max_restarts:
@@ -811,6 +1066,7 @@ def stage_fuzz(
             if copy_queue_without_crash_inputs(candidate_resume, filtered, crash_jsons):
                 resume_queue = filtered
         print(f"Restarting fuzz after crash ({attempt}/{max_restarts}); resume_queue={resume_queue}", flush=True)
+    raise RuntimeError("fuzz stage exhausted without a terminal result")
 
 
 def selected_stages(stage: str) -> list[str]:
@@ -848,6 +1104,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fuzz-seconds", type=int)
     parser.add_argument("--seed", type=int)
     parser.add_argument("--max-cycles", type=int)
+    parser.add_argument("--hard-memory-bytes", type=int)
+    parser.add_argument("--result-json")
     parser.add_argument("--force", action=argparse.BooleanOptionalAction, default=False)
     return parser.parse_args()
 
@@ -869,9 +1127,12 @@ def main() -> int:
     fuzz_seconds_arg = getattr(args, "fuzz_seconds", None)
     seed_arg = getattr(args, "seed", None)
     max_cycles_arg = getattr(args, "max_cycles", None)
+    hard_memory_arg = getattr(args, "hard_memory_bytes", None)
     if fuzz_seconds_arg is not None and fuzz_seconds_arg <= 0:
         raise ValueError("--fuzz-seconds must be positive")
-    if seed_arg is not None or max_cycles_arg is not None:
+    if hard_memory_arg is not None and hard_memory_arg <= 0:
+        raise ValueError("--hard-memory-bytes must be positive")
+    if seed_arg is not None or max_cycles_arg is not None or hard_memory_arg is not None:
         if seed_arg is not None and seed_arg < 0:
             raise ValueError("--seed must be non-negative")
         if max_cycles_arg is not None and max_cycles_arg <= 0:
@@ -883,6 +1144,8 @@ def main() -> int:
             cfg["fuzz"]["seed"] = seed_arg
         if max_cycles_arg is not None:
             cfg["fuzz"]["max_cycles"] = max_cycles_arg
+        if hard_memory_arg is not None:
+            cfg["hard_memory_bytes"] = hard_memory_arg
     manifest_arg = getattr(args, "manifest", None) or cfg.get("candidate_manifest")
     candidate_manifest = None
     if manifest_arg:
@@ -912,6 +1175,13 @@ def main() -> int:
     paths = artifact_flow_paths(paths, server_artifact_id)
     frontend_library = resolve(root, args.frontend_library) if args.frontend_library else default_frontend_library(root)
     server_bin = args.server_verilator_bin or default_server_verilator(root)
+    result_path = (
+        result_json_path(root, args.result_json)
+        if getattr(args, "result_json", None) is not None
+        else None
+    )
+    if result_path is not None and args.stage not in {"server", "fuzz"}:
+        raise ValueError("--result-json requires exactly the server or fuzz stage")
 
     frontend_manifest = None
     instrumentation = None
@@ -966,11 +1236,38 @@ def main() -> int:
                 candidate_mode,
             )
         stage_server(root, cfg, paths, server_bin, args.jobs)
+        if result_path is not None:
+            server_path = paths["server"] / "server"
+            write_json(result_path, {
+                "kind": "build",
+                "artifact_id": server_artifact_id or "",
+                "server_path": server_path.resolve().relative_to(root.resolve()).as_posix(),
+                "server_exists": server_path.is_file(),
+            })
     if "fuzz" in stages:
         fuzz_seconds = fuzz_seconds_arg
         if fuzz_seconds is None and max_cycles_arg is None:
             fuzz_seconds = 5
-        stage_fuzz(root, cfg, cfg_path, paths, fuzz_seconds)
+        started = time.monotonic()
+        execution_result = stage_fuzz(root, cfg, cfg_path, paths, fuzz_seconds)
+        if result_path is not None:
+            instrumentation_document = json.loads(
+                (paths["instrumented"] / "instrumentation.json").read_text()
+            )
+            points = coverage_universe_from_instrumentation(instrumentation_document)
+            latest = paths["queue"] / "latest.json"
+            if latest.is_file():
+                measurements = rfuzz_measurements(json.loads(latest.read_text()), points)
+            else:
+                measurements = {
+                    "elapsed_seconds": time.monotonic() - started,
+                    "tests_executed": 0,
+                    "cycles_executed": 0,
+                    "coverage_point_count": len(points),
+                    "covered_point_ids": [],
+                }
+            document = {"kind": "fuzz", **measurements, **execution_result}
+            write_json(result_path, document)
 
     print(f"myfuzz output: {out_dir}")
     return 0

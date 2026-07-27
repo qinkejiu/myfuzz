@@ -11,6 +11,7 @@ from .experiment_matrix import (
     run_experiment_matrix,
 )
 from .pipeline import GenerationRequest, RuntimeRequest, run_candidate_pipeline
+from .rfuzz_runner import RfuzzExperimentRunner
 from .reference_adapter import (
     GeneratorCommand,
     GeneratorFlag,
@@ -35,6 +36,7 @@ __all__ = [
     "GeneratorPathArgument",
     "GeneratorPathSyntax",
     "ReferenceAdapter",
+    "RfuzzExperimentRunner",
     "ResourceCheckpointEvent",
     "ResourceTerminatedError",
     "RunnerResult",

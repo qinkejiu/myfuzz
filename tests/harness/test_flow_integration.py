@@ -431,7 +431,7 @@ class FlowIntegrationTest(unittest.TestCase):
                 fragment = json.loads(abi.read_text())
                 self.assertEqual(artifact.source_text, source.read_text())
                 self.assertEqual(mode, fragment["mode"])
-                self.assertEqual(artifact.abi.abi_hash, fragment["abi_hash"])
+                self.assertEqual(f"sha256:{artifact.abi.abi_hash}", fragment["abi_hash"])
                 self.assertEqual(artifact.raw_width, fragment["raw_width"])
                 self.assertEqual(source.resolve().as_posix(), captured[mode]["manual_harness"])
                 self.assertEqual(abi.resolve().as_posix(), captured[mode]["raw_abi_manifest"])

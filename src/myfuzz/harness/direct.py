@@ -4,12 +4,21 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+import re
 from typing import TYPE_CHECKING
 
 from .abi import RawBitAbi, _canonical, build_raw_abi, content_hash, control_declarations, manifest_ports
 
 if TYPE_CHECKING:
     from .projection import ProjectionPlan
+
+
+def _canonical_manifest_hash(value: str) -> str:
+    if re.fullmatch(r"sha256:[0-9a-f]{64}", value):
+        return value
+    if re.fullmatch(r"[0-9a-f]{64}", value):
+        return f"sha256:{value}"
+    raise ValueError("manifest hash must be exactly 64 lowercase hexadecimal characters")
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,8 +59,8 @@ class HarnessArtifact:
             "coverage_universe": self.coverage_universe_id,
             "coverage_metadata_hash": self.coverage_universe_id,
             "raw_width": self.raw_width,
-            "abi_hash": self.abi.abi_hash,
-            "content_hash": self.content_hash,
+            "abi_hash": _canonical_manifest_hash(self.abi.abi_hash),
+            "content_hash": _canonical_manifest_hash(self.content_hash),
             "instrumented_rtl_hash": self.top_content_hash,
             "top_content_hash": self.top_content_hash,
             "counters": list(self.counters),
@@ -77,13 +86,17 @@ class HarnessArtifact:
             ],
         }
         if self.projection_plan is not None:
-            fragment["projection_plan_hash"] = self.projection_plan.plan_hash
+            fragment["projection_plan_hash"] = _canonical_manifest_hash(
+                self.projection_plan.plan_hash
+            )
             fragment["projection_state_bits"] = self.projection_plan.max_state_bits
             fragment["projection_max_temporal_cycles"] = (
                 self.projection_plan.max_temporal_cycles
             )
         elif self.policy_plan_hash is not None:
-            fragment["projection_plan_hash"] = self.policy_plan_hash
+            fragment["projection_plan_hash"] = _canonical_manifest_hash(
+                self.policy_plan_hash
+            )
         return fragment
 
 
