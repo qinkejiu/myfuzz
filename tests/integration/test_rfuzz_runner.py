@@ -8,6 +8,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from myfuzz.experiments.rfuzz_adapter import RfuzzAvailability
@@ -51,6 +52,54 @@ class InstrumentationCoverageTest(unittest.TestCase):
         self.assertEqual([1, 2], [point["point_id"] for point in points])
         self.assertRegex(points[0]["stable_source_id"], r"^sha256:[0-9a-f]{64}$")
         self.assertEqual((1,), run_design_flow.covered_point_ids_from_bitmap(points, [254, 255]))
+
+    def test_selected_top_propagated_width_defines_the_logical_universe(self) -> None:
+        instrumentation = {
+            "coverage_port": "__vi_coverage",
+            "coverage_point_count": 2,
+            "coverage": [self.first, self.second],
+            "module_coverage": [
+                {
+                    "module": "top",
+                    "active": True,
+                    "coverage_width": 4,
+                    "local_points": 0,
+                    "propagated_child_count": 2,
+                }
+            ],
+        }
+
+        points = run_design_flow.coverage_universe_from_instrumentation(
+            instrumentation, "top"
+        )
+
+        self.assertEqual(4, len(points))
+        self.assertEqual([1, 2, 3, 4], [point["point_id"] for point in points])
+        self.assertEqual("top", points[2]["component_role"])
+        self.assertNotEqual(points[2]["stable_source_id"], points[3]["stable_source_id"])
+
+    def test_bitmap_accepts_only_logical_or_upstream_aligned_width(self) -> None:
+        points = run_design_flow.coverage_universe_from_instrumentation({
+            "coverage_point_count": 3,
+            "coverage": [
+                self.first,
+                self.second,
+                dict(self.second, signal="branch_2", line=13),
+            ],
+        })
+
+        self.assertEqual(
+            (1,),
+            run_design_flow.covered_point_ids_from_bitmap(
+                points, [254, 255, 255, 7, 8, 9]
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "bitmap width"):
+            run_design_flow.covered_point_ids_from_bitmap(points, [255] * 7)
+        with self.assertRaisesRegex(ValueError, r"bitmap\[5\].*byte"):
+            run_design_flow.covered_point_ids_from_bitmap(
+                points, [255, 255, 255, 0, 0, "invalid"]
+            )
 
     def test_instrumentation_and_bitmap_shape_mismatches_fail_closed(self) -> None:
         invalid = (
@@ -328,7 +377,19 @@ class InstrumentationCoverageTest(unittest.TestCase):
                 "peak_rss_bytes": 4096,
                 "resource_terminated": True,
             }
+            generated = SimpleNamespace(
+                coverage=SimpleNamespace(top="top"),
+                wrapper_module="wrapper",
+                wrapper=root / "harness/wrapper.sv",
+                header=root / "harness/dut.hpp",
+                raw_abi=SimpleNamespace(source=root / "harness/candidate.sv"),
+            )
+            command = ["verilator", "--build-jobs", "1"]
             with patch.object(
+                run_design_flow, "load_materialized_harness", return_value=generated
+            ), patch.object(
+                run_design_flow, "build_server_command", return_value=command
+            ) as build_command, patch.object(
                 run_design_flow, "run_monitored_command", return_value=observed
             ) as monitored, patch.object(run_design_flow, "run") as unmonitored:
                 result = run_design_flow.stage_server(
@@ -340,7 +401,10 @@ class InstrumentationCoverageTest(unittest.TestCase):
                 )
 
         self.assertEqual(observed, result)
+        self.assertEqual(command, monitored.call_args.args[0])
+        self.assertEqual("1", command[command.index("--build-jobs") + 1])
         self.assertEqual(2048, monitored.call_args.kwargs["hard_memory_bytes"])
+        build_command.assert_called_once()
         unmonitored.assert_not_called()
 
 
@@ -354,6 +418,11 @@ class RfuzzExperimentRunnerTest(unittest.TestCase):
         fuzzer.parent.mkdir(parents=True, exist_ok=True)
         fuzzer.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         fuzzer.chmod(0o755)
+        verilator = flow / "verilator"
+        verilator.mkdir(parents=True)
+        (verilator / "top.cpp").write_text("// fixture\n", encoding="utf-8")
+        (verilator / "fpga_queue.cpp").write_text("// fixture\n", encoding="utf-8")
+        (verilator / "fpga_queue.hpp").write_text("// fixture\n", encoding="utf-8")
 
     def _fixture(
         self,
@@ -570,10 +639,14 @@ class RfuzzExperimentRunnerTest(unittest.TestCase):
             self._install_fixture_paths(root)
             config_path = root / "configs" / "design.json"
             config_path.parent.mkdir(parents=True)
-            config_path.write_text(json.dumps({"out_dir": "runs/design"}), encoding="utf-8")
+            config_path.write_text(
+                json.dumps({"out_dir": "runs/design", "top": "top"}),
+                encoding="utf-8",
+            )
             instrumentation = root / "runs" / "design" / "instrumented" / "instrumentation.json"
             instrumentation.parent.mkdir(parents=True)
             instrumentation.write_text(json.dumps({
+                "coverage_port": "__vi_coverage",
                 "coverage_point_count": 1,
                 "coverage": [{
                     "module": "top", "kind": "branch", "file": "top.sv", "line": 1,
@@ -619,7 +692,8 @@ class RfuzzExperimentRunnerTest(unittest.TestCase):
             config_path = root / "configs" / "design.json"
             config_path.parent.mkdir(parents=True)
             config_path.write_text(
-                json.dumps({"out_dir": "runs/design"}), encoding="utf-8"
+                json.dumps({"out_dir": "runs/design", "top": "top"}),
+                encoding="utf-8",
             )
             instrumentation = Path(outside) / "instrumentation.json"
             instrumentation.write_text(
@@ -652,12 +726,14 @@ class RfuzzExperimentRunnerTest(unittest.TestCase):
             config_path = root / "configs" / "design.json"
             config_path.parent.mkdir(parents=True)
             config_path.write_text(
-                json.dumps({"out_dir": "runs/design"}), encoding="utf-8"
+                json.dumps({"out_dir": "runs/design", "top": "top"}),
+                encoding="utf-8",
             )
             instrumented = root / "runs" / "design" / "instrumented"
             instrumented.mkdir(parents=True)
             instrumentation_path = instrumented / "instrumentation.json"
             safe_document = {
+                "coverage_port": "__vi_coverage",
                 "coverage_point_count": 1,
                 "coverage": [{
                     "module": "top", "signal": "safe", "kind": "branch",
@@ -670,6 +746,7 @@ class RfuzzExperimentRunnerTest(unittest.TestCase):
             outside_instrumented = Path(outside) / "instrumented"
             outside_instrumented.mkdir()
             (outside_instrumented / "instrumentation.json").write_text(json.dumps({
+                "coverage_port": "__vi_coverage",
                 "coverage_point_count": 1,
                 "coverage": [{
                     "module": "top", "signal": "outside", "kind": "branch",

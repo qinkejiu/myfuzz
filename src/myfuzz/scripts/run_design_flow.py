@@ -40,11 +40,19 @@ from myfuzz.scripts.source_only_frontend import run_source_only_frontend
 from myfuzz.contracts import content_hash as contract_content_hash
 from scripts.source_branch_instrumenter import instrument_project
 from frontend_manifest_to_rfuzz_toml import (
+    coverage_records,
     find_top_module,
     generate_toml,
     validate_frontend_candidate_join,
 )
 from myfuzz.harness import HarnessArtifact, StaticPolicyParameters, build_harness
+from myfuzz.harness.abi import control_declarations
+from myfuzz.original_rfuzz import (
+    aligned_coverage_width,
+    build_server_command,
+    load_materialized_harness,
+    materialize_harness,
+)
 
 
 STAGES = ["frontend", "composition", "instrument", "toml", "harness", "server", "fuzz"]
@@ -53,17 +61,28 @@ HARNESS_MODES = {"flat_direct", "candidate_direct", "candidate_depaware", "candi
 
 def coverage_universe_from_instrumentation(
     instrumentation: object,
+    top: str | None = None,
 ) -> tuple[dict[str, object], ...]:
     if not isinstance(instrumentation, Mapping):
         raise ValueError("instrumentation must be an object")
     count = instrumentation.get("coverage_point_count")
-    records = instrumentation.get("coverage")
+    source_records = instrumentation.get("coverage")
     if isinstance(count, bool) or not isinstance(count, int) or count < 0:
         raise ValueError("coverage_point_count must be a non-negative integer")
-    if not isinstance(records, list):
+    if not isinstance(source_records, list):
         raise ValueError("instrumentation coverage must be an array")
-    if count != len(records):
+    if count != len(source_records):
         raise ValueError("coverage_point_count does not match coverage records")
+    selected_top = top
+    if selected_top is None:
+        selected_top = ""
+    if not isinstance(selected_top, str):
+        raise ValueError("selected top must be a string")
+    records = (
+        coverage_records(dict(instrumentation), selected_top)
+        if selected_top
+        else list(source_records)
+    )
 
     file_ids: dict[str, int] = {}
     identities: set[str] = set()
@@ -79,7 +98,13 @@ def coverage_universe_from_instrumentation(
         filename = record.get("file")
         line = record.get("line")
         column = record.get("column", 0)
-        if not isinstance(filename, str) or not filename:
+        padding = record.get("subtype") == "padding"
+        if padding:
+            if filename != "" or line != 0 or record.get("module") != selected_top:
+                raise ValueError(f"instrumentation coverage[{index}] has invalid padding metadata")
+            filename = f"<propagated:{selected_top}>"
+            line = index + 1
+        elif not isinstance(filename, str) or not filename:
             raise ValueError(f"instrumentation coverage[{index}].file is required")
         if isinstance(line, bool) or not isinstance(line, int) or line <= 0:
             raise ValueError(f"instrumentation coverage[{index}].line must be positive")
@@ -108,17 +133,22 @@ def covered_point_ids_from_bitmap(
 ) -> tuple[int, ...]:
     if not isinstance(points, (list, tuple)) or not isinstance(bitmap, (list, tuple)):
         raise ValueError("coverage points and bitmap must be arrays")
-    if len(points) != len(bitmap):
+    logical_width = len(points)
+    permitted_widths = {logical_width}
+    if logical_width:
+        permitted_widths.add(aligned_coverage_width(logical_width))
+    if len(bitmap) not in permitted_widths:
         raise ValueError("RFuzz bitmap width does not match coverage point count")
+    for index, value in enumerate(bitmap):
+        if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 255:
+            raise ValueError(f"RFuzz bitmap[{index}] must be a byte")
     covered: list[int] = []
-    for index, (point, value) in enumerate(zip(points, bitmap)):
+    for index, (point, value) in enumerate(zip(points, bitmap[:logical_width])):
         if not isinstance(point, Mapping):
             raise ValueError(f"coverage points[{index}] must be an object")
         point_id = point.get("point_id")
         if isinstance(point_id, bool) or not isinstance(point_id, int) or point_id <= 0:
             raise ValueError(f"coverage points[{index}].point_id must be positive")
-        if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 255:
-            raise ValueError(f"RFuzz bitmap[{index}] must be a byte")
         if value != 255:
             covered.append(point_id)
     return tuple(covered)
@@ -475,15 +505,21 @@ def harness_config_for_artifact(cfg: dict, artifact: HarnessArtifact, source_pat
     return harness_cfg
 
 
-def rfuzz_harness_api():
-    from rfuzz_flow.tools.verilog_instrumentation.generate_rfuzz_harness import (
-        generate_harness_files,
-        load_toml,
-        top_ports_from_frontend_manifest,
-        validate_harness,
+def original_rfuzz_candidate_ports(
+    candidate_manifest: Mapping[str, object], raw_width: int
+) -> tuple[tuple[str, int], ...]:
+    controls = control_declarations(candidate_manifest)
+    reset = controls.get("reset")
+    if "clock" not in controls or reset is None or reset.get("io_meta_reset") is not True:
+        raise ValueError(
+            "original RFuzz requires clock, reset, and explicit io_meta_reset candidate controls"
+        )
+    return (
+        ("clock", 1),
+        ("reset", 1),
+        ("io_meta_reset", 1),
+        ("rfuzz_input_bits", raw_width),
     )
-
-    return generate_harness_files, load_toml, top_ports_from_frontend_manifest, validate_harness
 
 
 def stage_toml(
@@ -519,6 +555,7 @@ def stage_harness(
     paths: dict,
     server_bin: str,
     frontend_manifest: dict,
+    instrumentation: dict,
     candidate_manifest: dict,
     candidate_mode: str,
 ) -> HarnessArtifact:
@@ -527,30 +564,17 @@ def stage_harness(
     validate_frontend_candidate_join(frontend_module, cfg["top"], manifest)
     artifact = build_configured_harness(manifest, cfg, candidate_mode)
     source_path, fragment_path = write_candidate_harness_artifact(paths, artifact)
-    generate_harness_files, load_toml, top_ports_from_frontend_manifest, validate_harness = rfuzz_harness_api()
-    conf = load_toml(paths["toml"])
-    ports = top_ports_from_frontend_manifest(frontend_manifest, cfg["top"])
-    harness_cfg = harness_config_for_artifact(cfg, artifact, source_path, fragment_path)
-    harness_path, augmented_toml = generate_harness_files(
-        conf,
-        ports,
-        cfg["top"],
-        paths["harness"],
-        harness_cfg,
+    del server_bin
+    generated = materialize_harness(
+        root,
+        harness_dir=paths["harness"],
+        base_toml=paths["toml"],
+        instrumentation=instrumentation,
+        top=cfg["top"],
+        expected_ports=original_rfuzz_candidate_ports(manifest, artifact.raw_width),
     )
-    if bool(harness_cfg.get("validate", False)):
-        validate_harness(
-            server_bin,
-            paths["toml"].parent,
-            (paths["instrumented"] / "sources.f").resolve(),
-            harness_path,
-            cfg["top"],
-            cfg.get("verilator_args", []),
-        )
-    else:
-        print("Skipped harness lint validation; set harness.validate=true to enable it.")
-    print(f"Generated harness: {harness_path}")
-    print(f"Generated augmented TOML: {augmented_toml}")
+    print(f"Generated harness: {generated.wrapper}")
+    print(f"Generated augmented TOML: {generated.toml}")
     print(f"Generated raw ABI: {fragment_path}")
     return artifact
 
@@ -558,34 +582,30 @@ def stage_server(
     root: Path, cfg: dict, paths: dict, server_bin: str, jobs: str
 ) -> dict[str, object]:
     server_cfg = cfg.get("server", {}) if isinstance(cfg.get("server", {}), dict) else {}
-    cmd = [
-        sys.executable,
-        (rfuzz_flow_root(root) / "tools" / "verilog_instrumentation" / "build_rfuzz_server.py").as_posix(),
-        "--project-dir",
-        paths["instrumented"].as_posix(),
-        "--harness-dir",
-        paths["harness"].as_posix(),
-        "--top",
-        cfg["top"],
-        "--out-dir",
-        paths["server"].as_posix(),
-        "--verilator-bin",
-        server_bin,
-        "--jobs",
-        jobs,
-        f"--cxx-opt={server_cfg.get('cxx_opt', '-O3')}",
-        f"--verilator-opt={server_cfg.get('verilator_opt', '-O3')}",
-    ]
-    for source in server_cfg.get("extra_verilator_sources", []):
-        cmd.append(f"--extra-source={resolve(root, str(source)).as_posix()}")
-    for flag in server_cfg.get("extra_cflags", []):
-        cmd.append(f"--extra-cflag={str(flag)}")
-    for flag in server_cfg.get("extra_ldflags", []):
-        cmd.append(f"--extra-ldflag={str(flag)}")
-    if bool(server_cfg.get("parallel_verilator_build", False)):
-        cmd.append("--parallel-verilator-build")
-    for arg in cfg.get("verilator_args", []):
-        cmd.append(f"--verilator-arg={arg}")
+    del jobs
+    generated = load_materialized_harness(root, paths["harness"])
+    if generated.coverage.top != cfg["top"]:
+        raise ValueError("materialized original RFuzz top does not match selected design top")
+    paths["server"].mkdir(parents=True, exist_ok=True)
+    cmd = build_server_command(
+        root,
+        verilator_bin=server_bin,
+        wrapper_module=generated.wrapper_module,
+        sources_file=paths["instrumented"] / "sources.f",
+        wrapper=generated.wrapper,
+        candidate_source=generated.raw_abi.source,
+        dut_header=generated.header,
+        server_dir=paths["server"],
+        extra_sources=tuple(
+            resolve(root, str(source))
+            for source in server_cfg.get("extra_verilator_sources", [])
+        ),
+        extra_cflags=tuple(str(flag) for flag in server_cfg.get("extra_cflags", [])),
+        extra_ldflags=tuple(str(flag) for flag in server_cfg.get("extra_ldflags", [])),
+        verilator_args=tuple(str(arg) for arg in cfg.get("verilator_args", [])),
+        cxx_opt=str(server_cfg.get("cxx_opt", "-O3")),
+        verilator_opt=str(server_cfg.get("verilator_opt", "-O3")),
+    )
     result = run_monitored_command(
         cmd,
         cwd=root,
@@ -1358,9 +1378,22 @@ def main() -> int:
     if "harness" in stages:
         if frontend_manifest is None:
             frontend_manifest = json.loads(paths["frontend_json"].read_text())
+        if instrumentation is None:
+            instrumentation = json.loads(
+                (paths["instrumented"] / "instrumentation.json").read_text()
+            )
         if candidate_manifest is None:
             raise ValueError("validated candidate manifest path is required for harness generation")
-        stage_harness(root, cfg, paths, server_bin, frontend_manifest, candidate_manifest, candidate_mode)
+        stage_harness(
+            root,
+            cfg,
+            paths,
+            server_bin,
+            frontend_manifest,
+            instrumentation,
+            candidate_manifest,
+            candidate_mode,
+        )
     if "server" in stages:
         if server_artifact_id is not None:
             if frontend_manifest is None:
@@ -1386,6 +1419,7 @@ def main() -> int:
                 paths,
                 server_bin,
                 frontend_manifest,
+                instrumentation,
                 candidate_manifest,
                 candidate_mode,
             )
@@ -1410,7 +1444,9 @@ def main() -> int:
             instrumentation_document = json.loads(
                 (paths["instrumented"] / "instrumentation.json").read_text()
             )
-            points = coverage_universe_from_instrumentation(instrumentation_document)
+            points = coverage_universe_from_instrumentation(
+                instrumentation_document, cfg["top"]
+            )
             document = fuzz_result_document(
                 args.job_id,
                 server_artifact_id,

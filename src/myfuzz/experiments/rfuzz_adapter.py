@@ -13,6 +13,9 @@ from .planner import ExperimentBuildJob, ExperimentJob, RfuzzExecution
 _FLOW_ROOT = "third_party/rfuzz/rfuzz_flow"
 _FUZZER = "third_party/rfuzz/rfuzz_flow/fuzzer/target/release/kfuzz"
 _DRIVER = "src/myfuzz/scripts/run_design_flow.py"
+_TOP_CPP = "third_party/rfuzz/rfuzz_flow/verilator/top.cpp"
+_QUEUE_CPP = "third_party/rfuzz/rfuzz_flow/verilator/fpga_queue.cpp"
+_QUEUE_HPP = "third_party/rfuzz/rfuzz_flow/verilator/fpga_queue.hpp"
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +38,9 @@ class RfuzzAdapter:
         requirements = (
             (_DRIVER, "file"),
             (_FLOW_ROOT, "directory"),
+            (_TOP_CPP, "file"),
+            (_QUEUE_CPP, "file"),
+            (_QUEUE_HPP, "file"),
             (_FUZZER, "executable"),
         )
         missing: list[str] = []

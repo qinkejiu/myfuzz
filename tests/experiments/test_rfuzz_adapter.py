@@ -262,7 +262,34 @@ class RfuzzAdapterTest(unittest.TestCase):
             (
                 "src/myfuzz/scripts/run_design_flow.py",
                 "third_party/rfuzz/rfuzz_flow",
+                "third_party/rfuzz/rfuzz_flow/verilator/top.cpp",
+                "third_party/rfuzz/rfuzz_flow/verilator/fpga_queue.cpp",
+                "third_party/rfuzz/rfuzz_flow/verilator/fpga_queue.hpp",
                 "third_party/rfuzz/rfuzz_flow/fuzzer/target/release/kfuzz",
+            ),
+            availability.missing_paths,
+        )
+
+    def test_old_flow_and_fuzzer_without_original_server_sources_are_unavailable(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            driver = root / "src/myfuzz/scripts/run_design_flow.py"
+            driver.parent.mkdir(parents=True)
+            driver.touch()
+            flow = root / "third_party/rfuzz/rfuzz_flow"
+            fuzzer = flow / "fuzzer/target/release/kfuzz"
+            fuzzer.parent.mkdir(parents=True)
+            fuzzer.write_text("#!/bin/sh\n", encoding="utf-8")
+            fuzzer.chmod(0o755)
+
+            availability = RfuzzAdapter(root).availability()
+
+        self.assertFalse(availability.available)
+        self.assertEqual(
+            (
+                "third_party/rfuzz/rfuzz_flow/verilator/top.cpp",
+                "third_party/rfuzz/rfuzz_flow/verilator/fpga_queue.cpp",
+                "third_party/rfuzz/rfuzz_flow/verilator/fpga_queue.hpp",
             ),
             availability.missing_paths,
         )

@@ -486,7 +486,10 @@ class RfuzzExperimentRunner:
         )
         from myfuzz.scripts.run_design_flow import coverage_universe_from_instrumentation
 
-        points = coverage_universe_from_instrumentation(instrumentation)
+        selected_top = config.get("top")
+        if not isinstance(selected_top, str) or not selected_top:
+            raise ValueError("design config top is required")
+        points = coverage_universe_from_instrumentation(instrumentation, selected_top)
         metadata_hash = content_hash({
             "coverage_universe": sorted(points, key=canonical_bytes)
         })

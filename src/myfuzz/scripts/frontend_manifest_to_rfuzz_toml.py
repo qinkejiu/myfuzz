@@ -41,6 +41,36 @@ def coverage_width(instrumentation: dict, top: str) -> int:
     return int(instrumentation.get("coverage_point_count", 0))
 
 
+def coverage_records(instrumentation: dict, top: str) -> list[dict]:
+    """Return the exact logical records represented by the selected top port."""
+    coverage_port = instrumentation.get("coverage_port")
+    if not isinstance(coverage_port, str) or not coverage_port:
+        raise ValueError("instrumentation coverage_port is required")
+    points = instrumentation.get("coverage")
+    count = instrumentation.get("coverage_point_count")
+    if not isinstance(points, list):
+        raise ValueError("instrumentation coverage must be an array")
+    if isinstance(count, bool) or not isinstance(count, int) or count != len(points):
+        raise ValueError("coverage_point_count does not match coverage records")
+    width = coverage_width(instrumentation, top)
+    if width < 0:
+        raise ValueError("selected top coverage width must be non-negative")
+    records = [dict(point) if isinstance(point, dict) else point for point in points[:width]]
+    for index in range(len(records), width):
+        records.append(
+            {
+                "file": "",
+                "module": top,
+                "signal": f"{coverage_port}[{index}]",
+                "kind": "unknown",
+                "subtype": "padding",
+                "line": 0,
+                "column": 0,
+            }
+        )
+    return records
+
+
 def strip_sv_comments(text: str) -> str:
     text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
     return re.sub(r"//.*", "", text)
@@ -182,22 +212,7 @@ def write_toml(
     manifest_by_name = validate_frontend_candidate_join(module, top, candidate_manifest)
     coverage_port = instrumentation["coverage_port"]
     top_cov_width = coverage_width(instrumentation, top)
-    points = list(instrumentation.get("coverage", []))
-    if top_cov_width > len(points):
-        for index in range(len(points), top_cov_width):
-            points.append(
-                {
-                    "file": "",
-                    "module": top,
-                    "signal": f"{coverage_port}[{index}]",
-                    "kind": "unknown",
-                    "subtype": "padding",
-                    "line": 0,
-                    "column": 0,
-                }
-            )
-    elif top_cov_width < len(points):
-        points = points[:top_cov_width]
+    points = coverage_records(instrumentation, top)
 
     timestamp = dt.datetime.now().astimezone().isoformat(timespec="seconds")
     with out_path.open("w") as out:

@@ -31,7 +31,7 @@ def candidate_manifest() -> dict[str, object]:
         "top": {"module": "generated_top"},
         "top_port_abi": [
             {"port_id": 1, "emitted_name": "wire_17", "direction": "input", "width": 1, "semantic_role": "clock", "active_level": 1, "fuzzable": False},
-            {"port_id": 2, "emitted_name": "data_3", "direction": "input", "width": 1, "semantic_role": "reset", "active_level": 0, "synchronous": False, "reset_value": 0, "fuzzable": False},
+            {"port_id": 2, "emitted_name": "data_3", "direction": "input", "width": 1, "semantic_role": "reset", "active_level": 0, "synchronous": False, "io_meta_reset": True, "reset_value": 0, "fuzzable": False},
             {"port_id": 3, "emitted_name": "payload_opaque", "direction": "input", "width": 8, "semantic_role": "data", "fuzzable": True},
             {"port_id": 4, "emitted_name": "result_opaque", "direction": "output", "width": 1, "semantic_role": "response", "fuzzable": False},
         ],
@@ -62,6 +62,15 @@ def instrumentation_manifest() -> dict[str, object]:
         "coverage_port": "__vi_coverage",
         "coverage_point_count": 1,
         "coverage": [{"module": "generated_top", "signal": "branch_0", "kind": "branch", "subtype": "hit", "file": "top.sv", "line": 1, "column": 1}],
+        "module_coverage": [
+            {
+                "module": "generated_top",
+                "active": True,
+                "coverage_width": 1,
+                "local_points": 1,
+                "propagated_child_count": 0,
+            }
+        ],
     }
 
 
@@ -389,64 +398,43 @@ class FlowIntegrationTest(unittest.TestCase):
         self.assertIsNone(attempt.call_args.args[5])
 
     def test_stage_harness_materializes_all_modes_and_propagates_abi(self) -> None:
-        captured: dict[str, dict] = {}
-
-        def generate_harness_files(conf, ports, top, out_dir, harness_cfg):
-            del conf, ports, top
-            captured[harness_cfg["candidate_mode"]] = dict(harness_cfg)
-            augmented = Path(out_dir) / f"{harness_cfg['candidate_mode']}.rfuzz.toml"
-            augmented.write_text("[general]\n")
-            return Path(harness_cfg["manual_harness"]), augmented
-
-        api = (
-            generate_harness_files,
-            lambda path: {"source": str(path)},
-            lambda frontend, top: frontend["modules"][0]["ports"],
-            lambda *args: None,
-        )
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            paths = {
-                "harness": root / "harness",
-                "toml": root / "input.toml",
-                "instrumented": root / "instrumented",
-            }
-            paths["toml"].write_text("[general]\n")
             artifacts = {}
-            with patch.object(run_design_flow, "rfuzz_harness_api", return_value=api):
-                for mode in ("flat_direct", "candidate_direct", "candidate_depaware"):
-                    artifacts[mode] = run_design_flow.stage_harness(
-                        root,
-                        {"top": "generated_top", "harness": {"validate": False}},
-                        paths,
-                        "verilator",
-                        frontend_manifest(),
-                        candidate_manifest(),
-                        mode,
-                    )
+            harness_dirs = {}
+            for mode in ("flat_direct", "candidate_direct", "candidate_depaware"):
+                paths = {
+                    "harness": root / "harness" / mode,
+                    "toml": root / f"{mode}.toml",
+                    "instrumented": root / "instrumented",
+                }
+                paths["toml"].write_text("[general]\n")
+                artifacts[mode] = run_design_flow.stage_harness(
+                    root,
+                    {"top": "generated_top"},
+                    paths,
+                    "verilator",
+                    frontend_manifest(),
+                    instrumentation_manifest(),
+                    candidate_manifest(),
+                    mode,
+                )
+                harness_dirs[mode] = paths["harness"]
 
             for mode, artifact in artifacts.items():
-                source = paths["harness"] / f"{mode}.sv"
-                abi = paths["harness"] / f"{mode}.abi.json"
+                harness = harness_dirs[mode]
+                source = harness / f"{mode}.sv"
+                abi = harness / f"{mode}.abi.json"
                 fragment = json.loads(abi.read_text())
                 self.assertEqual(artifact.source_text, source.read_text())
                 self.assertEqual(mode, fragment["mode"])
                 self.assertEqual(f"sha256:{artifact.abi.abi_hash}", fragment["abi_hash"])
                 self.assertEqual(artifact.raw_width, fragment["raw_width"])
-                self.assertEqual(source.resolve().as_posix(), captured[mode]["manual_harness"])
-                self.assertEqual(abi.resolve().as_posix(), captured[mode]["raw_abi_manifest"])
+                self.assertIn("candidate.dut.__vi_coverage", (harness / "original_rfuzz_wrapper.sv").read_text())
+                self.assertTrue((harness / "generated_top.rfuzz.toml").is_file())
             self.assertEqual({8}, {artifact.raw_width for artifact in artifacts.values()})
 
     def test_stage_harness_materializes_static_projection_from_typed_config(self) -> None:
-        api = (
-            lambda conf, ports, top, out_dir, harness_cfg: (
-                Path(harness_cfg["manual_harness"]),
-                Path(out_dir) / "static.rfuzz.toml",
-            ),
-            lambda path: {"source": str(path)},
-            lambda frontend, top: frontend["modules"][0]["ports"],
-            lambda *args: None,
-        )
         config = {
             "top": "generated_top",
             "harness": {"validate": False},
@@ -472,16 +460,16 @@ class FlowIntegrationTest(unittest.TestCase):
                 "instrumented": root / "instrumented",
             }
             paths["toml"].write_text("[general]\n")
-            with patch.object(run_design_flow, "rfuzz_harness_api", return_value=api):
-                artifact = run_design_flow.stage_harness(
-                    root,
-                    config,
-                    paths,
-                    "verilator",
-                    frontend_manifest(),
-                    candidate_manifest(),
-                    "candidate_static",
-                )
+            artifact = run_design_flow.stage_harness(
+                root,
+                config,
+                paths,
+                "verilator",
+                frontend_manifest(),
+                instrumentation_manifest(),
+                candidate_manifest(),
+                "candidate_static",
+            )
 
             fragment = json.loads(
                 (paths["harness"] / "candidate_static.abi.json").read_text()
@@ -639,34 +627,24 @@ class FlowIntegrationTest(unittest.TestCase):
         manifest["schema_version"] = "candidate_manifest.v2"
         with tempfile.TemporaryDirectory() as directory:
             paths = {"harness": Path(directory) / "harness", "toml": Path(directory) / "x.toml"}
-            with patch.object(run_design_flow, "rfuzz_harness_api", side_effect=AssertionError("rfuzz should not load")):
-                with self.assertRaisesRegex(ValueError, "schema_version"):
-                    run_design_flow.stage_harness(
-                        Path(directory),
-                        {"top": "generated_top"},
-                        paths,
-                        "verilator",
-                        frontend_manifest(),
-                        manifest,
-                        "candidate_direct",
-                    )
+            with self.assertRaisesRegex(ValueError, "schema_version"):
+                run_design_flow.stage_harness(
+                    Path(directory), {"top": "generated_top"}, paths, "verilator",
+                    frontend_manifest(), instrumentation_manifest(), manifest,
+                    "candidate_direct",
+                )
 
     def test_stage_harness_rejects_candidate_mapping_mismatch_before_materialization(self) -> None:
         manifest = candidate_manifest()
         manifest["top_port_abi"][2]["width"] = 7
         with tempfile.TemporaryDirectory() as directory:
             paths = {"harness": Path(directory) / "harness", "toml": Path(directory) / "x.toml"}
-            with patch.object(run_design_flow, "rfuzz_harness_api", side_effect=AssertionError("rfuzz should not load")):
-                with self.assertRaisesRegex(ValueError, "mapping mismatch"):
-                    run_design_flow.stage_harness(
-                        Path(directory),
-                        {"top": "generated_top"},
-                        paths,
-                        "verilator",
-                        frontend_manifest(),
-                        manifest,
-                        "candidate_direct",
-                    )
+            with self.assertRaisesRegex(ValueError, "mapping mismatch"):
+                run_design_flow.stage_harness(
+                    Path(directory), {"top": "generated_top"}, paths, "verilator",
+                    frontend_manifest(), instrumentation_manifest(), manifest,
+                    "candidate_direct",
+                )
             self.assertFalse(paths["harness"].exists())
 
     def test_stage_harness_rejects_candidate_top_mismatch_before_materialization(self) -> None:
@@ -674,17 +652,12 @@ class FlowIntegrationTest(unittest.TestCase):
         manifest["top"]["module"] = "other_top"
         with tempfile.TemporaryDirectory() as directory:
             paths = {"harness": Path(directory) / "harness", "toml": Path(directory) / "x.toml"}
-            with patch.object(run_design_flow, "rfuzz_harness_api", side_effect=AssertionError("rfuzz should not load")):
-                with self.assertRaisesRegex(ValueError, "selected frontend module"):
-                    run_design_flow.stage_harness(
-                        Path(directory),
-                        {"top": "generated_top"},
-                        paths,
-                        "verilator",
-                        frontend_manifest(),
-                        manifest,
-                        "candidate_direct",
-                    )
+            with self.assertRaisesRegex(ValueError, "selected frontend module"):
+                run_design_flow.stage_harness(
+                    Path(directory), {"top": "generated_top"}, paths, "verilator",
+                    frontend_manifest(), instrumentation_manifest(), manifest,
+                    "candidate_direct",
+                )
             self.assertFalse(paths["harness"].exists())
 
     def test_flow_has_no_identifier_role_tables(self) -> None:
