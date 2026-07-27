@@ -153,8 +153,11 @@ The design flow writes one atomic, closed-world result document when an
 explicit result path is supplied. A build result attests to the planned
 artifact ID and an existing server binary. A fuzz result records elapsed
 time, tests and cycles, covered point IDs, peak RSS, server/fuzzer return
-codes, handshake success, and FIFO cleanup. Malformed, incomplete, stale, or
-identity-mismatched result documents fail closed.
+codes, handshake success, FIFO cleanup, and an observed failure or resource
+termination classification. Malformed, incomplete, stale, or
+identity-mismatched result documents fail closed. The design flow samples the
+complete server/fuzzer process trees and enforces the matrix hard-memory limit;
+only an observed hard-limit termination may become a resource checkpoint.
 
 Coverage point IDs are joined by position between the instrumenter's ordered
 coverage metadata and RFuzz's ordered bitmap. Repository manifests provide
@@ -177,3 +180,16 @@ Internal harness code may retain its historical bare 64-hex digests. Values
 crossing into `candidate_manifest.v1` are normalized exactly once at the
 manifest-fragment boundary to canonical `sha256:<64 hex>` form; digest bytes
 must not be recomputed or changed.
+
+`run_experiment_matrix` and `experiments.jobs.run_job` remain the only memory
+gate lease boundary. A campaign command must not wrap the matrix in an outer
+`build` claim because the file lease is intentionally non-reentrant and the
+matrix build would wait on its own parent process.
+
+RFuzz direct/static execution has no runtime source for projection generation,
+correction, protocol generation, no-progress, candidate generation, or
+candidate validation counters. For this campaign those sample fields are
+defined as not applicable and encoded as zero (or an empty counter map). They
+are presentation-only fields and must not participate in screening or
+promotion. Coverage, throughput, RSS, handshake, cleanup, return codes, and
+failure/resource classifications must always come from observed execution.

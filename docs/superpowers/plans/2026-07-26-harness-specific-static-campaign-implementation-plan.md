@@ -516,10 +516,14 @@ Expected: every positive campaign stage uses the existing matrix and all invalid
 - [ ] **Step 8: Run real sequential build/handshake smoke**
 
 ```bash
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 scripts/memory_gate.py --claim build --memory-mib 3072 --owner static-campaign-smoke --exec python3 scripts/runs/run_static_projection_campaign.py --stage smoke --config configs/experiments/static_projection_training.json --out runs/static_projection/smoke
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 scripts/runs/run_static_projection_campaign.py --stage smoke --config configs/experiments/static_projection_training.json --out runs/static_projection/smoke
 ```
 
 Expected: exit `0`; direct/static artifact IDs are distinct, expected coverage is nonzero, handshakes succeed, and FIFO cleanup is complete.
+
+The matrix's `run_job` calls acquire and release the per-job build/fuzz leases.
+Do not add an outer `build` claim: the gate is non-reentrant and doing so would
+self-block the first build job.
 
 - [ ] **Step 9: Run full verification and commit**
 
@@ -606,8 +610,10 @@ contracts `content_hash(record)`. Add an optional `--result-json` path. Build
 results contain `kind`, `artifact_id`, `server_path`, and `server_exists`.
 Fuzz results contain `kind`, `elapsed_seconds`, `tests_executed`,
 `cycles_executed`, `covered_point_ids`, `peak_rss_bytes`, both return codes,
-`handshake_succeeded`, and `fifo_cleanup_succeeded`. Write with the existing
-atomic JSON helper and reject output paths outside the repository.
+`handshake_succeeded`, `fifo_cleanup_succeeded`, and observed failure/resource
+termination classification. The design flow monitors the complete process
+trees and terminates them at the supplied hard-memory limit. Write with the
+existing atomic JSON helper and reject output paths outside the repository.
 
 - [ ] **Step 5: Write RED tests for the typed concrete runner**
 
@@ -650,6 +656,10 @@ are never treated as measured coverage evidence.
 CLI constructs the concrete preparer and runner and calls
 `run_experiment_matrix`; it must not inspect RFuzz files itself. Screen,
 promotion, and validation use their exact configured budgets and seeds.
+The CLI does not acquire an outer memory-gate lease. RFuzz-only diagnostic
+counters without an observed source are explicitly not applicable for this
+campaign and are encoded as zero/empty maps; screening and promotion must not
+use them.
 
 - [ ] **Step 9: Verify, commit, and preserve unrelated files**
 
