@@ -133,3 +133,47 @@ Focused tests must prove:
 
 The existing full unit suite and real sequential server build/handshake smoke
 remain required before the campaign is considered integrated.
+
+## Concrete Execution Boundary
+
+The command-only `RfuzzAdapter` is insufficient for the required real smoke
+and campaign. The concrete runner is therefore part of the existing design
+flow boundary, not the campaign:
+
+- `run_design_flow` remains the sole owner of RFuzz process lifecycle, FIFO
+  handshake and cleanup, queue/statistics interpretation, and successful-run
+  result materialization;
+- an integration-layer runner executes the adapter's deterministic commands
+  and converts the design-flow result document into the matrix's existing
+  `BuildJobResult` and `FuzzJobResult` types; and
+- the campaign only supplies this runner to `run_experiment_matrix`. It does
+  not inspect RFuzz logs, queue entries, bitmaps, processes, or FIFOs itself.
+
+The design flow writes one atomic, closed-world result document when an
+explicit result path is supplied. A build result attests to the planned
+artifact ID and an existing server binary. A fuzz result records elapsed
+time, tests and cycles, covered point IDs, peak RSS, server/fuzzer return
+codes, handshake success, and FIFO cleanup. Malformed, incomplete, stale, or
+identity-mismatched result documents fail closed.
+
+Coverage point IDs are joined by position between the instrumenter's ordered
+coverage metadata and RFuzz's ordered bitmap. Repository manifests provide
+the target ABI and semantic declarations; before planning a real matrix, the
+same design flow refreshes frontend/instrumentation output and derives the
+runtime coverage universe from that output. Point `i` in RFuzz maps to the
+positive manifest point ID `i + 1`. The stable source identity is a canonical
+hash of the corresponding instrumentation record. The direct and static
+harnesses consume the same derived universe, and any width disagreement
+invalidates the run.
+
+Three alternatives were considered. Parsing RFuzz output in the campaign was
+rejected because it creates the prohibited second parser. Requiring callers
+to inject an unpublished external runner was rejected because the specified
+CLI smoke could never execute. Treating checked-in placeholder coverage
+records as empirical truth was rejected because schema validity does not
+establish instrumentation identity or coverage width.
+
+Internal harness code may retain its historical bare 64-hex digests. Values
+crossing into `candidate_manifest.v1` are normalized exactly once at the
+manifest-fragment boundary to canonical `sha256:<64 hex>` form; digest bytes
+must not be recomputed or changed.

@@ -532,6 +532,140 @@ git commit -m "feat: integrate static projection training campaign"
 
 Expected: full suite passes and the diff check is clean.
 
+### Task 5A: Publish the Existing Design Flow as a Concrete Matrix Runner
+
+**Files:**
+- Modify: `src/myfuzz/harness/direct.py`
+- Modify: `src/myfuzz/scripts/run_design_flow.py`
+- Modify: `src/myfuzz/experiments/rfuzz_adapter.py`
+- Create: `src/myfuzz/integration/rfuzz_runner.py`
+- Modify: `src/myfuzz/integration/__init__.py`
+- Modify: `scripts/runs/run_static_projection_campaign.py`
+- Test: `tests/experiments/test_pipeline.py`
+- Test: `tests/experiments/test_rfuzz_adapter.py`
+- Create: `tests/integration/test_rfuzz_runner.py`
+- Modify: `tests/test_static_projection_campaign.py`
+
+**Interfaces:**
+- Consumes: `RfuzzAdapter.command`, `run_design_flow`'s existing RFuzz
+  lifecycle, ordered instrumentation coverage, ordered RFuzz bitmap, and the
+  existing matrix result types.
+- Produces: `canonical_manifest_hash`, `coverage_universe_from_instrumentation`,
+  atomic design-flow result documents, `RfuzzExperimentRunner`, and a real
+  campaign CLI runner.
+
+- [ ] **Step 1: Reproduce and pin the manifest hash regression**
+
+Add an assertion to the existing runtime pipeline test that every emitted
+manifest identity is canonical:
+
+```python
+for record in runtime.manifest_fragment["harnesses"].values():
+    self.assertRegex(record["content_hash"], r"^sha256:[0-9a-f]{64}$")
+    self.assertRegex(record["abi_hash"], r"^sha256:[0-9a-f]{64}$")
+```
+
+Run:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest \
+  tests.experiments.test_pipeline.CandidateRuntimePipelineTest.test_frozen_runtime_fixture_produces_actual_three_mode_job_identities -v
+```
+
+Expected: fail at `candidate_manifest.v1:harnesses:flat-direct:content_hash:invalid-hash`.
+
+- [ ] **Step 2: Normalize hashes only at the manifest boundary**
+
+Add a private helper in `direct.py` that accepts canonical hashes unchanged,
+prefixes exactly 64 lowercase hex characters, and rejects every other value.
+Use it for `content_hash`, `abi_hash`, and optional projection-plan hashes in
+`HarnessArtifact.manifest_fragment`; do not change the internal ABI hash
+algorithm. Re-run the four previously failing pipeline/name-firewall tests.
+
+- [ ] **Step 3: Write RED tests for instrumentation-to-coverage joining**
+
+The wished-for API is:
+
+```python
+points = coverage_universe_from_instrumentation({
+    "coverage_point_count": 2,
+    "coverage": [first_record, second_record],
+})
+self.assertEqual([1, 2], [point["point_id"] for point in points])
+self.assertRegex(points[0]["stable_source_id"], r"^sha256:[0-9a-f]{64}$")
+```
+
+Tests must reject count/list disagreement, non-object records, duplicate
+derived identities, and bitmap widths different from the point count. Run the
+new test and verify it fails because the API is absent.
+
+- [ ] **Step 4: Implement the coverage/result functions in the design flow**
+
+Implement deterministic point IDs `index + 1` and stable source IDs using the
+contracts `content_hash(record)`. Add an optional `--result-json` path. Build
+results contain `kind`, `artifact_id`, `server_path`, and `server_exists`.
+Fuzz results contain `kind`, `elapsed_seconds`, `tests_executed`,
+`cycles_executed`, `covered_point_ids`, `peak_rss_bytes`, both return codes,
+`handshake_succeeded`, and `fifo_cleanup_succeeded`. Write with the existing
+atomic JSON helper and reject output paths outside the repository.
+
+- [ ] **Step 5: Write RED tests for the typed concrete runner**
+
+Use a temporary executable design-flow fixture that writes a result document.
+Assert:
+
+```python
+result = runner(build_job)
+self.assertEqual(BuildJobResult(build_job.job_id, 1, build_job.artifact_id), result)
+```
+
+For fuzz jobs, assert every matrix sample identity is copied from the job and
+every measurement comes from the validated result document. Tests must reject
+nonzero subprocess exits, missing/stale result files, wrong result kinds,
+wrong artifact IDs, missing server files, invalid coverage IDs, failed
+handshake/cleanup, and abnormal server/fuzzer return codes.
+
+- [ ] **Step 6: Implement `RfuzzExperimentRunner`**
+
+The runner owns one repository root and one result directory. It invokes only
+`RfuzzAdapter.command`, supplies a unique repository-local result path, loads
+one closed-world JSON object, and returns the existing matrix result types. It
+implements `persist_checkpoint` by atomically writing the supplied checkpoint;
+it does not schedule jobs or parse RFuzz queues/logs.
+
+- [ ] **Step 7: Replace placeholder coverage before real planning**
+
+Add a preparer method to the same integration boundary which runs the existing
+frontend and instrument stages for a derived design config, reads that
+instrumentation document, and returns a copied runtime manifest with the
+derived ordered coverage universe and matching `coverage_metadata_hash`.
+`run_campaign` accepts this preparer alongside the runner; unit tests inject a
+pure fixture preparer. The checked-in manifests remain ABI/semantic inputs and
+are never treated as measured coverage evidence.
+
+- [ ] **Step 8: Wire the CLI smoke through the existing matrix**
+
+`--stage smoke` selects the first global policy, both training targets, seed
+`1`, and a bounded one-second candidate-direct/candidate-static matrix. The
+CLI constructs the concrete preparer and runner and calls
+`run_experiment_matrix`; it must not inspect RFuzz files itself. Screen,
+promotion, and validation use their exact configured budgets and seeds.
+
+- [ ] **Step 9: Verify, commit, and preserve unrelated files**
+
+Run:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest \
+  tests.experiments.test_pipeline tests.experiments.test_rfuzz_adapter \
+  tests.integration.test_rfuzz_runner tests.test_static_projection_campaign -v
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest discover -v
+git diff --check
+```
+
+Expected: all tests pass. Stage only the files listed in Task 5A and commit
+with `fix: publish concrete RFuzz matrix runner`.
+
 ### Task 6: Independent Review and Task 6 Readiness Gate
 
 **Files:**
