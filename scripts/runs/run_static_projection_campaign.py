@@ -26,6 +26,7 @@ from myfuzz.harness import StaticPolicyParameters, build_harness
 from myfuzz.original_rfuzz import native_input_identity
 from myfuzz.rfuzz_compat import (
     resolve_rfuzz_verilator,
+    rfuzz_verilator_environment,
     validate_rfuzz_verilator_version,
 )
 from myfuzz.integration import (
@@ -348,10 +349,12 @@ def _campaign_verilator_bin() -> str:
 
 
 def _campaign_verilator_version(verilator_bin: str) -> str:
+    environment = rfuzz_verilator_environment(ROOT, verilator_bin)
     try:
         completed = subprocess.run(
             [verilator_bin, "--version"],
             cwd=ROOT,
+            env=environment,
             check=False,
             capture_output=True,
             text=True,

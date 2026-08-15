@@ -12,6 +12,8 @@
 
 - Native RFuzz defaults to `third_party/rfuzz/upstream/.tools/apt-root/usr/bin/verilator`.
 - Native RFuzz requires a reported version beginning with `Verilator 5.020`.
+- Bundled launcher invocations set `VERILATOR_ROOT` to the repository's
+  bundled `usr/share/verilator` directory and `VERILATOR_BIN=../../bin/verilator_bin`.
 - `MYFUZZ_SERVER_VERILATOR_BIN`, CLI server-bin arguments, and declared config paths remain explicit overrides.
 - Missing bundled tooling and incompatible observed versions are hard errors; no `PATH` fallback is allowed.
 - Compiler path, digest, and exact version remain part of the native input identity and build sidecar.
@@ -281,7 +283,7 @@ git diff --check
 
 Expected: focused and full test suites pass, compileall exits 0, and diff check is clean.
 
-- [ ] **Step 2: Run the bounded real native smoke with the fixed compiler**
+- [x] **Step 2: Run the bounded real native smoke with the fixed compiler**
 
 Run:
 
@@ -294,13 +296,38 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 scripts/runs/run_static_proje
 
 Expected: exit 0; every `build-input.json` under the smoke design outputs reports a version beginning with `Verilator 5.020`; every RFuzz result reports `server_returncode=0`, `fuzzer_returncode=0`, `handshake_succeeded=true`, and `fifo_cleanup_succeeded=true`.
 
-Verify with:
+Verify with a structured check that correlates each smoke result's artifact ID
+to its global design sidecar. `kind=build` documents are checked for the
+5.020 version and a materialized server; only `kind=fuzz` documents are
+checked for the server/fuzzer, handshake, and FIFO gates:
 
 ```bash
-find runs/static_projection/task5b_verilator_compat_smoke_20260815 -name build-input.json -print0 \
-  | xargs -0 -n1 jq -e '.verilator_version | startswith("Verilator 5.020")' >/dev/null
-find runs/static_projection/task5b_verilator_compat_smoke_20260815/rfuzz-results -name '*.json' -print0 \
-  | xargs -0 -n1 jq -e '(.server_returncode == 0 and .fuzzer_returncode == 0 and .handshake_succeeded == true and .fifo_cleanup_succeeded == true)' >/dev/null
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+root = Path("runs/static_projection/task5b_verilator_compat_smoke_20260815")
+results = sorted((root / "rfuzz-results").glob("*.json"))
+assert results
+for result_path in results:
+    result = json.loads(result_path.read_text())
+    artifact_id = result["artifact_id"].removeprefix("sha256:")
+    sidecars = list(Path("runs/designs").glob(
+        f"*/server_artifacts/{artifact_id}/server/build-input.json"
+    ))
+    assert len(sidecars) == 1, (result_path, sidecars)
+    sidecar = json.loads(sidecars[0].read_text())
+    assert sidecar["verilator_version"].startswith("Verilator 5.020")
+    if result["kind"] == "build":
+        assert sidecar["artifact_id"] == result["artifact_id"]
+        assert result["server_exists"] is True
+        assert result["resource_terminated"] is False
+    else:
+        assert result["server_returncode"] == 0
+        assert result["fuzzer_returncode"] == 0
+        assert result["handshake_succeeded"] is True
+        assert result["fifo_cleanup_succeeded"] is True
+PY
 ```
 
 - [ ] **Step 3: Run the fixed-policy training/promotion/validation campaign**

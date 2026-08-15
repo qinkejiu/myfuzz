@@ -10,6 +10,12 @@ from pathlib import Path
 RFUZZ_VERILATOR_RELATIVE = Path(
     "third_party/rfuzz/upstream/.tools/apt-root/usr/bin/verilator"
 )
+RFUZZ_VERILATOR_BIN_RELATIVE = Path(
+    "third_party/rfuzz/upstream/.tools/apt-root/usr/bin/verilator_bin"
+)
+RFUZZ_VERILATOR_ROOT_RELATIVE = Path(
+    "third_party/rfuzz/upstream/.tools/apt-root/usr/share/verilator"
+)
 RFUZZ_VERILATOR_VERSION_PREFIX = "Verilator 5.020"
 
 
@@ -37,6 +43,43 @@ def resolve_rfuzz_verilator(repo_root: Path) -> str:
             "set MYFUZZ_SERVER_VERILATOR_BIN to an explicitly validated executable"
         )
     return candidate.resolve().as_posix()
+
+
+def rfuzz_verilator_environment(
+    repo_root: Path, verilator_bin: str
+) -> dict[str, str] | None:
+    if not isinstance(repo_root, Path) or not repo_root.is_absolute():
+        raise ValueError("repo_root must be an absolute pathlib.Path")
+    if not isinstance(verilator_bin, str) or not verilator_bin:
+        raise ValueError("verilator_bin must be a non-empty string")
+    bundled = (repo_root / RFUZZ_VERILATOR_RELATIVE).resolve()
+    if Path(verilator_bin).resolve() != bundled:
+        return None
+
+    binary = repo_root / RFUZZ_VERILATOR_BIN_RELATIVE
+    install_root = repo_root / RFUZZ_VERILATOR_ROOT_RELATIVE
+    try:
+        binary_metadata = binary.lstat()
+        install_metadata = install_root.lstat()
+    except OSError as error:
+        raise ValueError(
+            "bundled RFuzz Verilator 5.020 installation is incomplete"
+        ) from error
+    if (
+        binary.is_symlink()
+        or not stat.S_ISREG(binary_metadata.st_mode)
+        or not os.access(binary, os.X_OK)
+        or install_root.is_symlink()
+        or not stat.S_ISDIR(install_metadata.st_mode)
+    ):
+        raise ValueError(
+            "bundled RFuzz Verilator 5.020 installation is incomplete"
+        )
+
+    environment = os.environ.copy()
+    environment["VERILATOR_ROOT"] = install_root.resolve().as_posix()
+    environment["VERILATOR_BIN"] = "../../bin/verilator_bin"
+    return environment
 
 
 def validate_rfuzz_verilator_version(version: str) -> str:

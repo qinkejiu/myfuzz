@@ -62,6 +62,7 @@ from myfuzz.original_rfuzz import (
 )
 from myfuzz.rfuzz_compat import (
     resolve_rfuzz_verilator,
+    rfuzz_verilator_environment,
     validate_rfuzz_verilator_version,
 )
 
@@ -466,10 +467,12 @@ def default_server_verilator(root: Path) -> str:
 def probe_verilator_version(verilator_bin: str, cwd: Path) -> str:
     if not isinstance(verilator_bin, str) or not verilator_bin:
         raise ValueError("Verilator executable is required")
+    environment = rfuzz_verilator_environment(cwd, verilator_bin)
     try:
         completed = subprocess.run(
             [verilator_bin, "--version"],
             cwd=cwd,
+            env=environment,
             check=False,
             capture_output=True,
             text=True,
@@ -822,9 +825,11 @@ def stage_server(
         cxx_opt=cxx_opt,
         verilator_opt=verilator_opt,
     )
+    environment = rfuzz_verilator_environment(root, server_bin)
     result = run_monitored_command(
         cmd,
         cwd=root,
+        env=environment,
         hard_memory_bytes=cfg.get("hard_memory_bytes"),
     )
     if result["returncode"] != 0 and not result["resource_terminated"]:

@@ -15,6 +15,12 @@ native RFuzz identity records already include the selected binary and exact
 version, but the default resolver still points at a stale 5.042 location and
 then silently falls back to the process `PATH`.
 
+The bundled Debian launcher is relocatable only when its runtime root is
+forwarded explicitly. Native invocations therefore set `VERILATOR_ROOT` to
+`third_party/rfuzz/upstream/.tools/apt-root/usr/share/verilator` and
+`VERILATOR_BIN=../../bin/verilator_bin`; explicit external compiler overrides
+retain their caller-provided environment.
+
 ## Decision
 
 Native RFuzz builds and campaign identity generation will use the bundled RFuzz
@@ -72,6 +78,11 @@ Tests will cover:
 - failure when the bundled executable is missing and no override is given;
 - campaign identity/config recording of the resolved path and version;
 - preservation of existing artifact version mismatch rejection.
+
+The real smoke verification must check build sidecars by their referenced
+artifact IDs and check only `kind=fuzz` result documents for the server,
+fuzzer, handshake, and FIFO gates; `kind=build` documents intentionally carry
+different fields.
 
 After the tests pass, verification will rebuild one native artifact with the
 bundled compiler, run a bounded native smoke using the real kfuzz binary, and

@@ -14,6 +14,7 @@ from myfuzz.rfuzz_compat import (
     render_rfuzz_toml,
     render_dut_header,
     resolve_rfuzz_verilator,
+    rfuzz_verilator_environment,
     server_build_command,
     validate_rfuzz_verilator_version,
 )
@@ -147,6 +148,27 @@ class RfuzzVerilatorResolverTests(unittest.TestCase):
         self.assertEqual(version, validate_rfuzz_verilator_version(version))
         with self.assertRaisesRegex(ValueError, "requires Verilator 5.020"):
             validate_rfuzz_verilator_version("Verilator 5.051 devel")
+
+    def test_bundled_environment_points_launcher_at_relocated_installation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bundled = root / "third_party/rfuzz/upstream/.tools/apt-root/usr/bin/verilator"
+            bundled.parent.mkdir(parents=True)
+            bundled.write_text("#!/bin/sh\n", encoding="utf-8")
+            bundled.chmod(0o755)
+            binary = root / "third_party/rfuzz/upstream/.tools/apt-root/usr/bin/verilator_bin"
+            binary.write_text("binary\n", encoding="utf-8")
+            binary.chmod(0o755)
+            install_root = root / "third_party/rfuzz/upstream/.tools/apt-root/usr/share/verilator"
+            (install_root / "include").mkdir(parents=True)
+            with patch.dict(os.environ, {"KEEP_ME": "1"}, clear=True):
+                environment = rfuzz_verilator_environment(root, bundled.as_posix())
+
+            self.assertIsNotNone(environment)
+            assert environment is not None
+            self.assertEqual("1", environment["KEEP_ME"])
+            self.assertEqual(install_root.as_posix(), environment["VERILATOR_ROOT"])
+            self.assertEqual("../../bin/verilator_bin", environment["VERILATOR_BIN"])
 
 
 if __name__ == "__main__":
