@@ -268,7 +268,7 @@ git commit -m "fix: enforce RFuzz Verilator compatibility at entrypoints"
 - Consumes: the fixed native resolver, the existing fixed training config, and the real kfuzz binary.
 - Produces: a verified 5.020 smoke artifact and the resumed fixed-policy campaign evidence.
 
-- [ ] **Step 1: Run the focused suite, syntax checks, and full regression suite**
+- [x] **Step 1: Run the focused suite, syntax checks, and full regression suite**
 
 Run:
 

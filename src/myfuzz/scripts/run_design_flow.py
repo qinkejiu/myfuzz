@@ -1738,7 +1738,12 @@ def validate_fuzz_artifact(root: Path, cfg: Mapping[str, object], paths: Mapping
     verilator_args = tuple(str(arg) for arg in cfg.get("verilator_args", []))
     cxx_opt = str(server_cfg.get("cxx_opt", "-O3"))
     verilator_opt = str(server_cfg.get("verilator_opt", "-O3"))
-    verilator_bin = str(cfg.get("native_rfuzz_verilator_bin", default_server_verilator(root)))
+    configured_verilator_bin = cfg.get("native_rfuzz_verilator_bin")
+    verilator_bin = (
+        str(configured_verilator_bin)
+        if configured_verilator_bin is not None
+        else default_server_verilator(root)
+    )
     verilator_version = probe_verilator_version(verilator_bin, root)
     declared_version = cfg.get("native_rfuzz_verilator_version")
     if declared_version is not None and declared_version != verilator_version:
@@ -1972,12 +1977,14 @@ def main() -> int:
     }
     paths = artifact_flow_paths(paths, server_artifact_id)
     frontend_library = resolve(root, args.frontend_library) if args.frontend_library else default_frontend_library(root)
-    server_bin = (
-        args.server_verilator_bin
-        or cfg.get("native_rfuzz_verilator_bin")
-        or default_server_verilator(root)
-    )
-    if cfg.get("native_rfuzz_input_identity") is not None or server_artifact_id is not None:
+    configured_server_bin = args.server_verilator_bin or cfg.get("native_rfuzz_verilator_bin")
+    if configured_server_bin is None and args.stage in {"server", "fuzz", "all"}:
+        configured_server_bin = default_server_verilator(root)
+    server_bin = str(configured_server_bin) if configured_server_bin is not None else ""
+    if (
+        (cfg.get("native_rfuzz_input_identity") is not None or server_artifact_id is not None)
+        and server_bin
+    ):
         cfg = dict(cfg)
         cfg["native_rfuzz_verilator_bin"] = server_bin
     result_path = (
