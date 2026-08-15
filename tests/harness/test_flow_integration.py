@@ -4,6 +4,7 @@ import copy
 import contextlib
 import io
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -75,6 +76,25 @@ def instrumentation_manifest() -> dict[str, object]:
 
 
 class FlowIntegrationTest(unittest.TestCase):
+    def test_default_server_verilator_uses_the_bundled_rfuzz_toolchain(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            expected = (
+                ROOT
+                / "third_party/rfuzz/upstream/.tools/apt-root/usr/bin/verilator"
+            ).as_posix()
+            self.assertEqual(expected, run_design_flow.default_server_verilator(ROOT))
+
+    def test_probe_rejects_an_incompatible_verilator_version(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            executable = Path(directory) / "verilator"
+            executable.write_text(
+                "#!/bin/sh\nprintf '%s\\n' 'Verilator 5.051 devel'\n",
+                encoding="utf-8",
+            )
+            executable.chmod(0o755)
+            with self.assertRaisesRegex(ValueError, "requires Verilator 5.020"):
+                run_design_flow.probe_verilator_version(executable.as_posix(), Path(directory))
+
     def test_opaque_control_names_are_selected_only_by_manifest_roles(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "flow.toml"
@@ -89,6 +109,19 @@ class FlowIntegrationTest(unittest.TestCase):
         self.assertIn('name = "payload_opaque"', text)
         self.assertNotIn('name = "wire_17"', text)
         self.assertNotIn('name = "data_3"', text)
+
+    def test_selected_top_coverage_width_cannot_fall_back_to_global_point_count(self) -> None:
+        instrumentation = instrumentation_manifest()
+        instrumentation["module_coverage"] = []
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "selected top coverage width"):
+                write_toml(
+                    frontend_manifest(),
+                    instrumentation,
+                    "generated_top",
+                    Path(directory) / "flow.toml",
+                    candidate_manifest=candidate_manifest(),
+                )
 
     def test_missing_control_declaration_and_reset_metadata_fail(self) -> None:
         missing = candidate_manifest()
@@ -400,6 +433,13 @@ class FlowIntegrationTest(unittest.TestCase):
     def test_stage_harness_materializes_all_modes_and_propagates_abi(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            instrumented = root / "instrumented"
+            instrumented.mkdir()
+            (instrumented / "top.sv").write_text(
+                "module generated_top; output wire __vi_coverage; endmodule\n",
+                encoding="utf-8",
+            )
+            (instrumented / "sources.f").write_text("top.sv\n", encoding="utf-8")
             artifacts = {}
             harness_dirs = {}
             for mode in ("flat_direct", "candidate_direct", "candidate_depaware"):
@@ -454,6 +494,13 @@ class FlowIntegrationTest(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            instrumented = root / "instrumented"
+            instrumented.mkdir()
+            (instrumented / "top.sv").write_text(
+                "module generated_top; output wire __vi_coverage; endmodule\n",
+                encoding="utf-8",
+            )
+            (instrumented / "sources.f").write_text("top.sv\n", encoding="utf-8")
             paths = {
                 "harness": root / "harness",
                 "toml": root / "input.toml",

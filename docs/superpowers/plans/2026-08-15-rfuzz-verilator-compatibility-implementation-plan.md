@@ -162,7 +162,7 @@ git commit -m "fix: pin native RFuzz to bundled Verilator"
 - Consumes: `resolve_rfuzz_verilator()` and `validate_rfuzz_verilator_version()` from Task 1.
 - Produces: identical default compiler selection in server construction and campaign identity generation, plus early rejection of Verilator 5.051.
 
-- [ ] **Step 1: Write failing call-site and version-probe tests**
+- [x] **Step 1: Write failing call-site and version-probe tests**
 
 Add `import os` beside the existing standard-library imports, then add these tests to `tests/harness/test_flow_integration.py`:
 
@@ -206,7 +206,7 @@ Run: `PYTHONPATH=src:. python3 -m unittest tests.harness.test_flow_integration.F
 
 Expected: FAIL because both production entrypoints still return the stale fallback or accept 5.051.
 
-- [ ] **Step 2: Wire the design-flow resolver and version validation**
+- [x] **Step 2: Wire the design-flow resolver and version validation**
 
 Import the shared functions in `src/myfuzz/scripts/run_design_flow.py`, replace the current stale-path implementation with:
 
@@ -223,7 +223,7 @@ Change the final version return in `probe_verilator_version()` to:
 
 Keep the existing explicit CLI/config selection in `main()` unchanged; it still flows through `probe_verilator_version()` during native server build and artifact validation.
 
-- [ ] **Step 3: Wire the campaign resolver and version validation**
+- [x] **Step 3: Wire the campaign resolver and version validation**
 
 Import the shared functions in `scripts/runs/run_static_projection_campaign.py`, replace `_campaign_verilator_bin()` with:
 
@@ -242,7 +242,7 @@ Change `_campaign_verilator_version()` to return:
 
 Keep the existing `native_input_identity()` call and derived-config fields unchanged so the selected path and exact version remain bound to each policy artifact.
 
-- [ ] **Step 4: Run the call-site tests and the focused RFuzz suite**
+- [x] **Step 4: Run the call-site tests and the focused RFuzz suite**
 
 Run: `PYTHONPATH=src:. python3 -m unittest tests.harness.test_flow_integration.FlowIntegrationTest.test_default_server_verilator_uses_the_bundled_rfuzz_toolchain tests.harness.test_flow_integration.FlowIntegrationTest.test_probe_rejects_an_incompatible_verilator_version tests.test_static_projection_campaign.StaticProjectionCampaignTest.test_campaign_uses_the_shared_bundled_verilator_resolver -v`
 
@@ -250,7 +250,7 @@ Run: `PYTHONPATH=src:. python3 -m unittest tests.test_rfuzz_compat tests.test_or
 
 Expected: all selected tests pass; the resolver reports the bundled 5.020 binary and rejects the synthetic 5.051 executable.
 
-- [ ] **Step 5: Commit the entrypoint wiring**
+- [x] **Step 5: Commit the entrypoint wiring**
 
 ```bash
 git add src/myfuzz/scripts/run_design_flow.py scripts/runs/run_static_projection_campaign.py tests/harness/test_flow_integration.py tests/test_static_projection_campaign.py

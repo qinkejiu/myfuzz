@@ -9,6 +9,7 @@ import json
 import math
 import os
 import re
+import subprocess
 import tempfile
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass
@@ -22,6 +23,11 @@ from myfuzz.experiments.static_portfolio import (
     screened_policy_ids,
 )
 from myfuzz.harness import StaticPolicyParameters, build_harness
+from myfuzz.original_rfuzz import native_input_identity
+from myfuzz.rfuzz_compat import (
+    resolve_rfuzz_verilator,
+    validate_rfuzz_verilator_version,
+)
 from myfuzz.integration import (
     RfuzzExperimentRunner,
     matrix_promotion_pairs,
@@ -329,9 +335,67 @@ def materialize_derived_design_config(
     static["parameters"] = asdict(typed)
     source["static_projection"] = static
     source["candidate_manifest"] = target.candidate_manifest_path
+    fuzz = copy.deepcopy(_object(source.get("fuzz", {}), "fuzz"))
+    fuzz["fuzzer_path"] = "third_party/rfuzz/upstream/target/release/kfuzz"
+    source["fuzz"] = fuzz
     destination = output / "derived" / target.target_id / policy_id / "config.json"
     _atomic_json(destination, source)
     return destination.relative_to(ROOT.resolve())
+
+
+def _campaign_verilator_bin() -> str:
+    return resolve_rfuzz_verilator(ROOT)
+
+
+def _campaign_verilator_version(verilator_bin: str) -> str:
+    try:
+        completed = subprocess.run(
+            [verilator_bin, "--version"],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise ValueError("cannot determine the campaign Verilator version") from error
+    if completed.returncode != 0 or not completed.stdout.strip():
+        raise ValueError("cannot determine the campaign Verilator version")
+    return validate_rfuzz_verilator_version(completed.stdout.strip().splitlines()[0])
+
+
+def _native_identity_for_derived_config(derived: Path) -> tuple[str, str, str]:
+    document = _object(_read_json(ROOT / derived), "derived design config")
+    out_value = document.get("out_dir")
+    out = Path(_string(out_value, "derived design config.out_dir"))
+    out = (ROOT / out if not out.is_absolute() else out).resolve()
+    _beneath_repository(out, "derived design config.out_dir")
+    server_cfg = document.get("server", {})
+    server_cfg = _object(server_cfg, "derived design config.server")
+    extra_sources = tuple(
+        (ROOT / Path(str(source))).resolve()
+        if not Path(str(source)).is_absolute()
+        else Path(str(source)).resolve()
+        for source in server_cfg.get("extra_verilator_sources", [])
+    )
+    extra_cflags = tuple(str(flag) for flag in server_cfg.get("extra_cflags", []))
+    extra_ldflags = tuple(str(flag) for flag in server_cfg.get("extra_ldflags", []))
+    verilator_args = tuple(str(arg) for arg in document.get("verilator_args", []))
+    verilator_bin = _campaign_verilator_bin()
+    verilator_version = _campaign_verilator_version(verilator_bin)
+    identity = native_input_identity(
+        ROOT,
+        sources_file=out / "instrumented" / "sources.f",
+        verilator_bin=verilator_bin,
+        verilator_version=verilator_version,
+        extra_sources=extra_sources,
+        extra_cflags=extra_cflags,
+        extra_ldflags=extra_ldflags,
+        verilator_args=verilator_args,
+        cxx_opt=str(server_cfg.get("cxx_opt", "-O3")),
+        verilator_opt=str(server_cfg.get("verilator_opt", "-O3")),
+    )
+    return identity, verilator_bin, verilator_version
 
 
 def _policy_id(parameters: StaticPolicyParameters) -> str:
@@ -433,10 +497,17 @@ def _matrix_config(
     )
     if prepared_projection_hash != expected_projection_hash:
         raise ValueError("preparer changed candidate-static projection_plan_hash")
+    native_identity, verilator_bin, verilator_version = _native_identity_for_derived_config(derived)
+    derived_document = dict(_object(_read_json(ROOT / derived), "derived design config"))
+    derived_document["native_rfuzz_input_identity"] = native_identity
+    derived_document["native_rfuzz_verilator_bin"] = verilator_bin
+    derived_document["native_rfuzz_verilator_version"] = verilator_version
+    _atomic_json(ROOT / derived, derived_document)
     planner = {
         "schema_version": "experiment.v1",
         "config_path": config.source_path,
         "design_config_path": derived.as_posix(),
+        "native_rfuzz_input_identity": native_identity,
         "target": {"target_id": target.target_id, "display": target.target_id},
         "candidate_selection": {"k": 1},
         "harness_groups": ["flat-direct", "candidate-direct", "candidate-static"],

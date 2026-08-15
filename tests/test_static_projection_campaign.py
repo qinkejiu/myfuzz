@@ -20,6 +20,7 @@ from myfuzz.integration import (
 )
 
 from scripts.runs.run_static_projection_campaign import (
+    _campaign_verilator_bin,
     load_campaign,
     main,
     materialize_derived_design_config,
@@ -108,6 +109,14 @@ class SuccessfulMatrixRunner:
 
 
 class StaticProjectionCampaignTest(unittest.TestCase):
+    def test_campaign_uses_the_shared_bundled_verilator_resolver(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            expected = (
+                ROOT
+                / "third_party/rfuzz/upstream/.tools/apt-root/usr/bin/verilator"
+            ).as_posix()
+            self.assertEqual(expected, _campaign_verilator_bin())
+
     @staticmethod
     def _matrix_pairs(
         metadata: dict[str, object],
@@ -443,6 +452,10 @@ class StaticProjectionCampaignTest(unittest.TestCase):
             document = json.loads(absolute.read_text(encoding="utf-8"))
             self.assertEqual(target.candidate_manifest_path, document["candidate_manifest"])
             self.assertEqual(parameters, document["static_projection"]["parameters"])
+            self.assertEqual(
+                "third_party/rfuzz/upstream/target/release/kfuzz",
+                document["fuzz"]["fuzzer_path"],
+            )
             self.assertNotIn("hard_memory_bytes", document)
             self.assertFalse(any(path.suffix == ".tmp" for path in absolute.parent.iterdir()))
 
