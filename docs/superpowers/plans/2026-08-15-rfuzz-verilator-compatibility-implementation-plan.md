@@ -30,7 +30,7 @@
 - Consumes: an absolute repository `Path` and the optional `MYFUZZ_SERVER_VERILATOR_BIN` environment override.
 - Produces: `resolve_rfuzz_verilator(repo_root: Path) -> str` and `validate_rfuzz_verilator_version(version: str) -> str`.
 
-- [ ] **Step 1: Write the failing resolver tests**
+- [x] **Step 1: Write the failing resolver tests**
 
 Add these imports and tests to `tests/test_rfuzz_compat.py`:
 
@@ -87,7 +87,7 @@ Run: `PYTHONPATH=src:. python3 -m unittest tests.test_rfuzz_compat.RfuzzVerilato
 
 Expected: FAIL because the resolver and validator do not exist yet.
 
-- [ ] **Step 2: Implement the minimal shared resolver and validator**
+- [x] **Step 2: Implement the minimal shared resolver and validator**
 
 Add the following constants and functions to `src/myfuzz/rfuzz_compat.py`, preserving the module's existing rendering APIs:
 
@@ -135,7 +135,7 @@ Run: `PYTHONPATH=src:. python3 -m unittest tests.test_rfuzz_compat.RfuzzVerilato
 
 Expected: PASS.
 
-- [ ] **Step 3: Run the complete compatibility test file and check the diff**
+- [x] **Step 3: Run the complete compatibility test file and check the diff**
 
 Run: `PYTHONPATH=src:. python3 -m unittest tests.test_rfuzz_compat -v`
 
@@ -143,7 +143,7 @@ Run: `git diff --check`
 
 Expected: all compatibility tests pass and the diff has no whitespace errors.
 
-- [ ] **Step 4: Commit the shared API**
+- [x] **Step 4: Commit the shared API**
 
 ```bash
 git add src/myfuzz/rfuzz_compat.py tests/test_rfuzz_compat.py
