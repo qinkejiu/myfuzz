@@ -15,6 +15,10 @@ import stat
 ORIGINAL_TOP_CPP = Path("third_party/rfuzz/rfuzz_flow/verilator/top.cpp")
 ORIGINAL_QUEUE_CPP = Path("third_party/rfuzz/rfuzz_flow/verilator/fpga_queue.cpp")
 ORIGINAL_QUEUE_HPP = Path("third_party/rfuzz/rfuzz_flow/verilator/fpga_queue.hpp")
+ORIGINAL_FUZZER_HPP = Path("third_party/rfuzz/rfuzz_flow/verilator/fuzzer.hpp")
+_SV_IDENTIFIER = re.compile(r"[A-Za-z_$][\w$]*")
+_SV_MODULE_DECLARATION = re.compile(r"\bmodule\s+(?P<name>[A-Za-z_$][\w$]*)\b")
+_SV_ENDMODULE = re.compile(r"\bendmodule\b")
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +69,48 @@ def _sv_width(range_text: str | None) -> int:
     return abs(int(match.group(1)) - int(match.group(2))) + 1
 
 
+def _require_sv_identifier(value: object, label: str) -> str:
+    if not isinstance(value, str) or _SV_IDENTIFIER.fullmatch(value) is None:
+        raise ValueError(f"{label} must be a SystemVerilog identifier")
+    return value
+
+
+def _module_declaration_end(text: str, start: int, label: str) -> int:
+    depth = 0
+    for index in range(start, len(text)):
+        character = text[index]
+        if character == "(":
+            depth += 1
+        elif character == ")":
+            if depth == 0:
+                raise ValueError(f"{label} has an unbalanced module declaration")
+            depth -= 1
+        elif character == ";" and depth == 0:
+            return index
+    raise ValueError(f"{label} declaration must end with a semicolon")
+
+
+def _selected_module_scope(source: str, module: str, label: str) -> tuple[str, str]:
+    """Return the selected module declaration and body, rejecting ambiguous scopes."""
+    text = _strip_sv_comments(source)
+    declarations = [
+        match for match in _SV_MODULE_DECLARATION.finditer(text) if match.group("name") == module
+    ]
+    if len(declarations) != 1:
+        raise ValueError(f"{label} requires exactly one {label} declaration")
+
+    declaration = declarations[0]
+    declaration_end = _module_declaration_end(text, declaration.end(), label)
+    body_start = declaration_end + 1
+    endmodule = _SV_ENDMODULE.search(text, body_start)
+    nested_module = _SV_MODULE_DECLARATION.search(text, body_start)
+    if endmodule is None or (
+        nested_module is not None and nested_module.start() < endmodule.start()
+    ):
+        raise ValueError(f"{label} must terminate with endmodule before another module declaration")
+    return text[declaration.end() : declaration_end], text[body_start : endmodule.start()]
+
+
 def validate_candidate_source(
     source: str,
     *,
@@ -74,17 +120,12 @@ def validate_candidate_source(
     dut_instance: str = "dut",
 ) -> CandidateSource:
     """Validate the generated candidate before any hierarchical reference is emitted."""
-    if not all(isinstance(value, str) and value for value in (source, module, dut_module, dut_instance)):
-        raise ValueError("candidate source and module identifiers are required")
-    text = _strip_sv_comments(source)
-    declaration = re.search(
-        rf"\bmodule\s+{re.escape(module)}\s*\((?P<header>.*?)\)\s*;",
-        text,
-        flags=re.S,
-    )
-    if declaration is None:
-        raise ValueError(f"candidate module {module!r} is not declared")
-    header = declaration.group("header")
+    if not isinstance(source, str) or not source:
+        raise ValueError("candidate source is required")
+    module = _require_sv_identifier(module, "candidate module")
+    dut_module = _require_sv_identifier(dut_module, "candidate DUT module")
+    dut_instance = _require_sv_identifier(dut_instance, "candidate DUT instance")
+    header, body = _selected_module_scope(source, module, "candidate module")
     declarations = re.findall(
         r"\b(input|output|inout)\b\s+(?:wire\s+|logic\s+|reg\s+)?"
         r"(?P<range>\[\s*\d+\s*:\s*\d+\s*\])?\s*(?P<name>[A-Za-z_$][\w$]*)",
@@ -101,7 +142,7 @@ def validate_candidate_source(
             f"candidate exact input ports mismatch: expected {expected!r}, got {tuple(actual)!r}"
         )
     instance = re.search(
-        rf"\b{re.escape(dut_module)}\s+{re.escape(dut_instance)}\s*\(", text
+        rf"\b{re.escape(dut_module)}\s+{re.escape(dut_instance)}\s*\(", body
     )
     if instance is None:
         raise ValueError(
@@ -110,12 +151,14 @@ def validate_candidate_source(
     return CandidateSource(module, expected, dut_module, dut_instance)
 
 
-def validate_coverage_binding(instrumentation: object, top: str) -> CoverageBinding:
+def validate_coverage_binding(
+    instrumentation: object, top: str, design_source: str | None = None
+) -> CoverageBinding:
     if not isinstance(instrumentation, Mapping):
         raise ValueError("instrumentation must be an object")
+    top = _require_sv_identifier(top, "selected top module")
     signal = instrumentation.get("coverage_port")
-    if not isinstance(signal, str) or re.fullmatch(r"[A-Za-z_$][\w$]*", signal) is None:
-        raise ValueError("instrumentation coverage signal must be a SystemVerilog identifier")
+    signal = _require_sv_identifier(signal, "instrumentation coverage signal")
     records = instrumentation.get("module_coverage")
     if not isinstance(records, list):
         raise ValueError("instrumentation module_coverage must be an array")
@@ -131,6 +174,26 @@ def validate_coverage_binding(instrumentation: object, top: str) -> CoverageBind
     width = selected[0].get("coverage_width")
     if isinstance(width, bool) or not isinstance(width, int) or width <= 0:
         raise ValueError("active module coverage width must be a positive integer")
+    if design_source is not None:
+        if not isinstance(design_source, str):
+            raise ValueError("selected top design source must be text")
+        header, body = _selected_module_scope(
+            design_source, top, "selected top coverage port"
+        )
+        port_pattern = (
+            r"\b(?P<direction>input|output|inout)\b\s+"
+            r"(?:(?:wire|logic|reg)\s+)?(?:signed\s+)?"
+            rf"(?P<range>\[\s*\d+\s*:\s*\d+\s*\])?\s*"
+            rf"{re.escape(signal)}\b"
+        )
+        ports = list(re.finditer(port_pattern, header + "\n" + body))
+        if len(ports) != 1 or ports[0].group("direction") not in {"output", "inout"}:
+            raise ValueError(f"selected top coverage port {signal!r} is not declared")
+        actual_width = _sv_width(ports[0].group("range") or None)
+        if actual_width != width:
+            raise ValueError(
+                f"selected top coverage port width {actual_width} does not match instrumentation width {width}"
+            )
     return CoverageBinding(top, signal, width)
 
 
@@ -347,6 +410,7 @@ def build_server_command(
     top_cpp = _regular_repository_file(root, ORIGINAL_TOP_CPP, "original RFuzz top.cpp")
     queue_cpp = _regular_repository_file(root, ORIGINAL_QUEUE_CPP, "original RFuzz fpga_queue.cpp")
     _regular_repository_file(root, ORIGINAL_QUEUE_HPP, "original RFuzz fpga_queue.hpp")
+    _regular_repository_file(root, ORIGINAL_FUZZER_HPP, "original RFuzz fuzzer.hpp")
     validated_extra = [
         _regular_repository_file(root, Path(path), "extra Verilator source")
         for path in extra_sources
@@ -398,6 +462,7 @@ def materialize_harness(
     instrumentation: object,
     top: str,
     expected_ports: Sequence[tuple[str, int]],
+    design_source: str | None = None,
 ) -> MaterializedHarness:
     """Materialize all generated inputs consumed by the original RFuzz server/fuzzer."""
     raw_abi = select_raw_abi_fragment(root, harness_dir)
@@ -409,7 +474,7 @@ def materialize_harness(
         dut_module=top,
         dut_instance="dut",
     )
-    coverage = validate_coverage_binding(instrumentation, top)
+    coverage = validate_coverage_binding(instrumentation, top, design_source)
     module = wrapper_module_name(candidate, coverage)
     harness = harness_dir.resolve()
     wrapper = write_text_file(
@@ -429,6 +494,9 @@ def materialize_harness(
         augment_toml(base.read_text(encoding="utf-8"), coverage.width),
     )
     metadata = harness / "original_rfuzz.json"
+    def file_hash(path: Path) -> str:
+        return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+
     metadata.write_text(
         json.dumps(
             {
@@ -445,6 +513,10 @@ def materialize_harness(
                 "wrapper_module": module,
                 "header": header.name,
                 "toml": toml.name,
+                "candidate_source_hash": file_hash(raw_abi.source),
+                "wrapper_hash": file_hash(wrapper),
+                "header_hash": file_hash(header),
+                "toml_hash": file_hash(toml),
             },
             sort_keys=True,
             separators=(",", ":"),
@@ -503,6 +575,16 @@ def load_materialized_harness(root: Path, harness_dir: Path) -> MaterializedHarn
     wrapper = bound_file("wrapper", "RFuzz wrapper")
     header = bound_file("header", "RFuzz DUT header")
     toml = bound_file("toml", "augmented RFuzz TOML")
+    expected_hashes = {
+        "candidate_source_hash": raw_abi.source,
+        "wrapper_hash": wrapper,
+        "header_hash": header,
+        "toml_hash": toml,
+    }
+    for key, path in expected_hashes.items():
+        expected_hash = document.get(key)
+        if not isinstance(expected_hash, str) or expected_hash != "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest():
+            raise ValueError(f"materialized {key} content hash does not match")
     return MaterializedHarness(
         raw_abi,
         wrapper,

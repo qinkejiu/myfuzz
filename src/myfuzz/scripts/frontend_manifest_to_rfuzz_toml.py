@@ -10,6 +10,9 @@ import re
 from pathlib import Path
 
 
+GENERATED_TIMESTAMP = "1970-01-01T00:00:00+00:00"
+
+
 try:
     from myfuzz.harness.abi import manifest_ports, selected_ports
 except ModuleNotFoundError:  # direct script execution without PYTHONPATH=src
@@ -52,10 +55,13 @@ def coverage_records(instrumentation: dict, top: str) -> list[dict]:
         raise ValueError("instrumentation coverage must be an array")
     if isinstance(count, bool) or not isinstance(count, int) or count != len(points):
         raise ValueError("coverage_point_count does not match coverage records")
+    for index, point in enumerate(points):
+        if not isinstance(point, dict):
+            raise ValueError(f"instrumentation coverage[{index}] must be an object")
     width = coverage_width(instrumentation, top)
     if width < 0:
         raise ValueError("selected top coverage width must be non-negative")
-    records = [dict(point) if isinstance(point, dict) else point for point in points[:width]]
+    records = [dict(point) for point in points[:width]]
     for index in range(len(records), width):
         records.append(
             {
@@ -209,19 +215,18 @@ def write_toml(
     candidate_manifest: dict | None = None,
 ) -> None:
     module = find_top_module(frontend, top)
-    manifest_by_name = validate_frontend_candidate_join(module, top, candidate_manifest)
     coverage_port = instrumentation["coverage_port"]
     top_cov_width = coverage_width(instrumentation, top)
     points = coverage_records(instrumentation, top)
+    manifest_by_name = validate_frontend_candidate_join(module, top, candidate_manifest)
 
-    timestamp = dt.datetime.now().astimezone().isoformat(timespec="seconds")
     with out_path.open("w") as out:
         out.write("# Generated from myfuzz frontend and source instrumentation metadata.\n")
         out.write("[general]\n")
         out.write(f"filename = {quote(top)}\n")
         out.write('instrumented = "sources.f"\n')
         out.write(f"top = {quote(top)}\n")
-        out.write(f"timestamp = {timestamp}\n\n")
+        out.write(f"timestamp = {GENERATED_TIMESTAMP}\n\n")
 
         manual_input = manual_harness_input(harness_config, root)
         if manual_input is not None:
