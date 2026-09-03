@@ -45,6 +45,14 @@ class ResourcePolicyTests(unittest.TestCase):
         self.assertEqual(16, constrained["field_groups_per_batch"])
         self.assertEqual(512 * MIB, constrained["soft_memory_bytes"])
         self.assertEqual(768 * MIB, constrained["hard_memory_bytes"])
+        self.assertEqual(64_000_000, constrained["token_bytes"])
+
+    def test_token_bytes_above_profile_ceiling_is_reduced(self) -> None:
+        config = load_config()
+        config["token_bytes"] = 128 * MIB
+
+        constrained = apply_resource_profile(config)
+
         self.assertEqual(64 * MIB, constrained["token_bytes"])
 
     def test_profile_preserves_stricter_input_limits(self) -> None:
