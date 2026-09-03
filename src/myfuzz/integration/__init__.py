@@ -11,6 +11,7 @@ from .experiment_matrix import (
     run_experiment_matrix,
 )
 from .pipeline import GenerationRequest, RuntimeRequest, run_candidate_pipeline
+from .low_resource_smoke import run_low_resource_smoke
 from .reference_adapter import (
     GeneratorCommand,
     GeneratorFlag,
@@ -43,5 +44,6 @@ __all__ = [
     "assert_reference_not_in_generator_argv",
     "run_candidate_pipeline",
     "run_experiment_matrix",
+    "run_low_resource_smoke",
     "semantic_projection",
 ]
