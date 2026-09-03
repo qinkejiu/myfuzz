@@ -33,6 +33,12 @@ from .planner import (
 from .pipeline import PreparedCandidateRuntime, prepare_candidate_runtime
 from .report import ReportError, build_report
 from .rfuzz_adapter import RfuzzAdapter, RfuzzAvailability
+from .resource_policy import (
+    CONSERVATIVE_PROFILE,
+    ResourceProfile,
+    ResourceProfileError,
+    apply_resource_profile,
+)
 from .scheduler import plan_jobs
 
 __all__ = [
@@ -41,6 +47,7 @@ __all__ = [
     "ClockResetPolicy",
     "Component",
     "CandidatePairIdentity",
+    "CONSERVATIVE_PROFILE",
     "DependencyPreflight",
     "ExperimentConfig",
     "ExperimentConfigurationError",
@@ -58,6 +65,8 @@ __all__ = [
     "PreparedCandidateRuntime",
     "ProtocolEndpoint",
     "ReportError",
+    "ResourceProfile",
+    "ResourceProfileError",
     "RfuzzAdapter",
     "RfuzzAvailability",
     "RfuzzExecution",
@@ -65,6 +74,7 @@ __all__ = [
     "SourceList",
     "SourceCapability",
     "claim_job",
+    "apply_resource_profile",
     "build_report",
     "load_experiment_config",
     "load_experiment_configs",
