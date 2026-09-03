@@ -116,18 +116,17 @@ def apply_resource_profile(
         if name in names:
             raise ResourceProfileError("budget names must be unique")
         names.add(name)
+        budget_label = "selected budget" if name == profile.budget_name else "budget"
+        kind = item.get("kind")
+        if not isinstance(kind, str) or kind not in {"cycles", "seconds"}:
+            raise ResourceProfileError(f"{budget_label} kind must be cycles or seconds")
+        value = item.get("value")
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            raise ResourceProfileError(f"{budget_label} value must be a positive integer")
         if name == profile.budget_name:
             selected_budget = copy.deepcopy(dict(item))
     if selected_budget is None:
         raise ResourceProfileError(f"required budget is missing: {profile.budget_name}")
-
-    for item in (selected_budget,):
-        kind = item.get("kind")
-        value = item.get("value")
-        if kind not in {"cycles", "seconds"}:
-            raise ResourceProfileError("selected budget kind must be cycles or seconds")
-        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
-            raise ResourceProfileError("selected budget value must be a positive integer")
 
     def positive_int(label: str) -> int:
         value = detached.get(label)

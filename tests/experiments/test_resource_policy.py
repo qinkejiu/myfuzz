@@ -86,6 +86,16 @@ class ResourcePolicyTests(unittest.TestCase):
         with self.assertRaisesRegex(ResourceProfileError, "smoke"):
             apply_resource_profile(config)
 
+    def test_malformed_non_smoke_budget_fails_closed(self) -> None:
+        config = load_config()
+        config["budgets"] = [
+            {"name": "smoke", "kind": "cycles", "value": 1000},
+            {"name": "short", "kind": "minutes", "value": 30},
+        ]
+
+        with self.assertRaisesRegex(ResourceProfileError, "budget kind"):
+            apply_resource_profile(config)
+
     def test_invalid_input_memory_policy_fails_closed(self) -> None:
         config = load_config()
         config["soft_memory_bytes"] = 256 * MIB
