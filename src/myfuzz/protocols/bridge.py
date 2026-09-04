@@ -84,12 +84,9 @@ class _BoundedBridgeModel:
             or request.wdata >= 1 << self.data_width
         ):
             return f"MMIO write data exceeds {self.data_width} bits: {request.wdata!r}"
-        if (
-            isinstance(request.byte_enable, bool)
-            or not isinstance(request.byte_enable, int)
-            or request.byte_enable < 0
-            or request.byte_enable & ~self._full_byte_enable
-        ):
+        if isinstance(request.byte_enable, bool) or not isinstance(request.byte_enable, int):
+            return f"byte_enable must be an integer mask: {request.byte_enable!r}"
+        if request.byte_enable < 0 or request.byte_enable & ~self._full_byte_enable:
             return f"byte_enable exceeds {self._data_bytes} data bytes: {request.byte_enable:#x}"
         return None
 
@@ -132,17 +129,19 @@ class _BoundedBridgeModel:
 
 
 class Apb4BridgeModel(_BoundedBridgeModel):
-    def _fields(self, *, enable: bool, ready: bool = False) -> dict[str, int]:
+    def _fields(
+        self, *, enable: bool, ready: bool = False, selected: bool = True
+    ) -> dict[str, int]:
         assert self._request is not None
         response = self._response
         return {
             "paddr": self._request.address,
             "pprot": 0,
-            "psel": 1,
+            "psel": int(selected),
             "penable": int(enable),
             "pwrite": int(self._request.write),
             "pwdata": self._request.wdata,
-            "pstrb": self._request.byte_enable,
+            "pstrb": self._request.byte_enable if self._request.write else 0,
             "pready": int(ready),
             "prdata": response.rdata if response is not None else 0,
             "pslverr": int(response.error) if response is not None else 0,
@@ -173,6 +172,20 @@ class Apb4BridgeModel(_BoundedBridgeModel):
             self._phase = "access"
 
         assert self._request is not None
+        if self._phase == "response":
+            cycle = BridgeCycle(
+                "response",
+                self._fields(enable=False, selected=False),
+                False,
+                None,
+                self._response,
+                self._error,
+            )
+            if response_ready:
+                self.reset()
+                return cycle
+            return self._tick(response_ready) or cycle
+
         if self._response is None:
             if not target_ready:
                 cycle = BridgeCycle(
@@ -193,18 +206,10 @@ class Apb4BridgeModel(_BoundedBridgeModel):
                 self._response,
                 self._error,
             )
-        else:
-            cycle = BridgeCycle(
-                "access",
-                self._fields(enable=True, ready=True),
-                False,
-                None,
-                self._response,
-                self._error,
-            )
         if response_ready:
             self.reset()
             return cycle
+        self._phase = "response"
         return self._tick(response_ready) or cycle
 
 

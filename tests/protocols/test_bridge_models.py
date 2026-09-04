@@ -84,17 +84,28 @@ class Apb4BridgeModelTest(unittest.TestCase):
             self.assertEqual(waiting.protocol_fields[field], still_waiting.protocol_fields[field])
         self.assertEqual(completed.response, MmioResponse(done=True, error=True))
         self.assertEqual(completed.error, "APB target error")
+        self.assertEqual(held.phase, "response")
+        self.assertEqual(held.protocol_fields["psel"], 0)
+        self.assertEqual(held.protocol_fields["penable"], 0)
+        self.assertEqual(held.protocol_fields["pready"], 0)
         self.assertFalse(held.target_valid)
         self.assertEqual(held.response, completed.response)
-        self.assertEqual(model.step(response_ready=True).response, completed.response)
+        released = model.step(response_ready=True)
+        self.assertEqual(released.phase, "response")
+        self.assertEqual(released.response, completed.response)
+        self.assertEqual(released.protocol_fields["psel"], 0)
+        self.assertEqual(released.protocol_fields["penable"], 0)
+        self.assertEqual(released.protocol_fields["pready"], 0)
         self.assertEqual(model.step().phase, "idle")
 
     def test_read_data_is_returned_on_access_completion(self) -> None:
         model = Apb4BridgeModel()
-        model.step(MmioRequest(0x10, False))
+        setup = model.step(MmioRequest(0x10, False, byte_enable=0b1010))
 
         completed = model.step(target_rdata=0xCAFE_BABE)
 
+        self.assertEqual(setup.protocol_fields["pstrb"], 0)
+        self.assertEqual(completed.protocol_fields["pstrb"], 0)
         self.assertEqual(completed.response, MmioResponse(True, 0xCAFE_BABE, False))
 
 
@@ -106,6 +117,7 @@ class Axi4LiteBridgeModelTest(unittest.TestCase):
         aw_wait = model.step(request, target_ready=False)
         aw_done = model.step(MmioRequest(0x88, False), target_ready=True)
         w_wait = model.step(target_ready=False)
+        w_held = model.step(MmioRequest(0x8C, True, 0x1234_5678, 0b1100), target_ready=False)
         w_done = model.step(target_ready=True, target_error=True)
         b_wait = model.step(response_ready=False)
         b_held = model.step(target_error=False, response_ready=False)
@@ -119,6 +131,7 @@ class Axi4LiteBridgeModelTest(unittest.TestCase):
         self.assertEqual(w_wait.protocol_fields["wvalid"], 1)
         self.assertEqual(w_wait.protocol_fields["wdata"], 0xDEAD_BEEF)
         self.assertEqual(w_wait.protocol_fields["wstrb"], 0b0011)
+        self.assertEqual(w_held.protocol_fields, w_wait.protocol_fields)
         self.assertEqual(w_done.target_request, request)
         self.assertTrue(w_done.target_valid)
         self.assertEqual(b_wait.phase, "write_response")
@@ -159,6 +172,9 @@ class TileLinkUlBridgeModelTest(unittest.TestCase):
 
         full = full_model.step(MmioRequest(0x40, True, 0x0102_0304, 0b1111), target_ready=False)
         partial = partial_model.step(MmioRequest(0x40, True, 0x0102_0304, 0b0101), target_ready=False)
+        held = partial_model.step(
+            MmioRequest(0x80, True, 0xA5A5_5A5A, 0b1010), target_ready=False
+        )
 
         self.assertEqual(full.phase, "a_channel")
         self.assertEqual(full.protocol_fields["a_opcode"], 0)
@@ -166,6 +182,7 @@ class TileLinkUlBridgeModelTest(unittest.TestCase):
         self.assertEqual(partial.protocol_fields["a_mask"], 0b0101)
         self.assertEqual(partial.protocol_fields["a_size"], 2)
         self.assertEqual(partial.protocol_fields["a_valid"], 1)
+        self.assertEqual(held.protocol_fields, partial.protocol_fields)
 
     def test_get_response_maps_denied_to_mmio_error_and_is_held(self) -> None:
         model = TileLinkUlBridgeModel()
@@ -190,6 +207,19 @@ class TileLinkUlBridgeModelTest(unittest.TestCase):
 
 
 class BridgeErrorTest(unittest.TestCase):
+    def test_all_models_reject_non_integer_byte_enable_deterministically(self) -> None:
+        for model_type in (Apb4BridgeModel, Axi4LiteBridgeModel, TileLinkUlBridgeModel):
+            with self.subTest(model=model_type.__name__):
+                cycle = model_type().step(
+                    MmioRequest(0x04, True, byte_enable="invalid")  # type: ignore[arg-type]
+                )
+
+                self.assertEqual(cycle.phase, "error")
+                self.assertEqual(
+                    cycle.error, "byte_enable must be an integer mask: 'invalid'"
+                )
+                self.assertEqual(cycle.response, MmioResponse(True, 0, True))
+
     def test_all_models_reject_invalid_requests_deterministically(self) -> None:
         for model_type in (Apb4BridgeModel, Axi4LiteBridgeModel, TileLinkUlBridgeModel):
             with self.subTest(model=model_type.__name__, case="alignment"):
