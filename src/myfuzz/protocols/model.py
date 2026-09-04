@@ -16,6 +16,7 @@ class FieldSpec:
     width_expression: str
     required: bool
     reset_value: int | None
+    runtime_required: bool = False
 
 
 @dataclass(frozen=True, slots=True)

@@ -48,7 +48,13 @@ def _width(expression: str, parameters: Mapping[str, object]) -> int:
     return result
 
 
-def compile_protocol(binding: object, facts: object, catalog: ProtocolCatalog) -> CompiledProtocol:
+def compile_protocol(
+    binding: object,
+    facts: object,
+    catalog: ProtocolCatalog,
+    *,
+    require_runtime: bool = False,
+) -> CompiledProtocol:
     if not isinstance(binding, Mapping):
         raise ProtocolCompilationError("binding must be an object")
     binding_id = binding.get("binding_id")
@@ -65,7 +71,8 @@ def compile_protocol(binding: object, facts: object, catalog: ProtocolCatalog) -
     except ProtocolDefinitionError as error:
         raise ProtocolCompilationError(str(error)) from error
     for field in plugin.fields:
-        if field.required and (not isinstance(ports.get(field.field_id), str) or not ports[field.field_id]):
+        required = field.required or (require_runtime and field.runtime_required)
+        if required and (not isinstance(ports.get(field.field_id), str) or not ports[field.field_id]):
             raise ProtocolCompilationError(f"missing declared port binding for field: {field.field_id}")
     if not isinstance(facts, Mapping) or not isinstance(facts.get("port_widths"), Mapping):
         raise ProtocolCompilationError("facts.port_widths must be an object")
@@ -83,6 +90,14 @@ def compile_protocol(binding: object, facts: object, catalog: ProtocolCatalog) -
             raise ProtocolCompilationError(f"width mismatch for field {field.field_id}: declared {expected_width}, fact {actual_width}")
         compiled.append(CompiledField(field.field_id, field.direction, actual_width, port_id, field.reset_value))
     return CompiledProtocol(binding_id, protocol_id, version, tuple(compiled))
+
+
+def compile_runtime_protocol(
+    binding: object,
+    facts: object,
+    catalog: ProtocolCatalog,
+) -> CompiledProtocol:
+    return compile_protocol(binding, facts, catalog, require_runtime=True)
 
 
 def protocol_input_fields(compiled: CompiledProtocol) -> tuple[CompiledField, ...]:

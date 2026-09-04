@@ -61,10 +61,13 @@ def _parse_plugin(document: object, source: Path) -> ProtocolPlugin:
         required = item.get("required")
         if not isinstance(required, bool):
             raise ProtocolDefinitionError(f"{source}: required must be boolean for {field_id}")
+        runtime_required = item.get("runtime_required", False)
+        if not isinstance(runtime_required, bool):
+            raise ProtocolDefinitionError(f"{source}: runtime_required must be boolean for {field_id}")
         reset_value = item.get("reset_value")
         if isinstance(reset_value, bool) or not isinstance(reset_value, int):
             raise ProtocolDefinitionError(f"{source}: reset_value must be integer for {field_id}")
-        fields.append(FieldSpec(field_id, direction, width_expression, required, reset_value))
+        fields.append(FieldSpec(field_id, direction, width_expression, required, reset_value, runtime_required))
     adapters_raw = document.get("legal_adapters", [])
     if not isinstance(adapters_raw, list) or not all(isinstance(adapter, str) and adapter for adapter in adapters_raw):
         raise ProtocolDefinitionError(f"{source}: legal_adapters must be a list of strings")
