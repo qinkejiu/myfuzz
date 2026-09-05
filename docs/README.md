@@ -17,5 +17,6 @@ kept in `PROJECT_SUMMARY_AND_ARTIFACT_INDEX_20260615.md`.
 - `CPU_IP_MULTICOMPONENT_EXPERIMENT_PLAN.md`: current concrete plan for an Ibex + multiple IP target, including the direct-slice baseline, dependency-aware projection variant, dependency manifest, local/remote directory layout, and first smoke-test milestones.
 - `PROTOCOL_CPU_PERIPHERAL_REFERENCE_20260906.md`: protocol contracts, CPU native/integration/bridge boundaries, common peripheral catalog, dependency-aware composition rules, and the fixed RFuzz input ABI.
 - `RISCV_ISA_ENCODING_REFERENCE_20260906.md`: RISC-V CPU profiles plus RV32I/RV64I/M/A/F/D/C instruction names, field layouts, 0/1 encoding rules, privileged/CSR boundaries, and optional B/Z extension catalog.
+- `reports/ibex_protocol_campaign_validation_20260906.md`: complete MVP regression, dependency preflight, low-resource 60-second soak, and evidence audit.
 - `research/protocol-research-notes.md`: source-oriented protocol notes used to cross-check the reference contract.
 - `research/component-rfuzz-research-notes.md`: source-oriented CPU/component, dependency graph, RFuzz ABI, and long-run metadata notes.

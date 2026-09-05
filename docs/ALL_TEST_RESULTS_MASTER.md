@@ -54,6 +54,7 @@
 | 2026-06-16 | Ibex | `scheme5_bit_constraints` vs baseline 100s | 100s | common coverage, 1058 | 成功，短测 | baseline 132/1058，高于 scheme5 107/1058；queue union 均为 135 |
 | 2026-06-16 | Ibex | baseline vs `scheme5_bit_constraints` vs `scheme6_relaxed_bit_constraints` 100s | 100s | common coverage, 1058 | 成功，短测 | baseline 132/1058；scheme5 107/1058；scheme6 118/1058。scheme6 比 scheme5 好，但仍低于 baseline |
 | 2026-06-16 | Ibex | baseline + scheme5/6 bit-only pre/post variants 6h | 6h | common coverage, 1058 | 成功，正式可引用 | `scheme5_pre` 506/1058、`scheme6_relaxed_pre` 487/1058，均高于 baseline 453/1058；41 路全部 returncode=0 |
+| 2026-09-06 | Ibex protocol composition MVP | local deterministic low-resource smoke | 60s | functional smoke, no RTL coverage claim | 成功 | 60 checkpoints、5 transactions、0 errors、峰值 RSS 约 12.1 MiB；真实 RFuzz/Ibex 因依赖缺失安全阻断 |
 
 ## 2. 运行策略与输入约束总览
 
@@ -1484,3 +1485,33 @@ real ibex_core from third_party/rfuzz/upstream/ibex
 - 这次测试确认 Ibex + RAM/timer/GPIO/UART/SPI 的 multi-component target 可以在远端完成 RFuzz frontend 到 server/fuzz 的最小闭环。
 - 两个方案使用同一 top、同一 instrumentation 设置、同一 coverage width、同一 512-bit input width。
 - 10 秒 fuzz 只作为 smoke，不作为正式覆盖率结论；后续需要跑更长时间并按 common coverage bitmap 做稳定对比。
+
+## 2026-09-06 Ibex protocol composition MVP 本地低资源长测
+
+设计对象：
+
+```text
+configs/designs/ibex_protocol_composition/
+```
+
+运行命令：
+
+```text
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 scripts/run_ibex_protocol_campaign.py \
+  --config configs/designs/ibex_protocol_composition/campaign.json \
+  --local-smoke --duration-seconds 60 --checkpoint-seconds 1 \
+  --output-dir runs/ibex_protocol_campaign_soak_final_20260906
+```
+
+运行策略：单 worker、单 build slot、无波形/VCD、512 MiB soft RSS、768 MiB hard RSS；检查点间隔 1 秒。
+
+结果文件：
+
+```text
+runs/ibex_protocol_campaign_soak_final_20260906/report.json
+runs/ibex_protocol_campaign_soak_final_20260906/checkpoint.json
+```
+
+结果：`status=completed`，实际运行约 `59.776 s`，`60` 个检查点，`5` 次迭代，`5` 次事务，`0` errors，`0` 条非法指标行，峰值 RSS `12,689,408` bytes（约 `12.1 MiB`）。协议事务为 APB4 `2`、AXI4-Lite `2`、TileLink-UL `1`。
+
+有效性边界：这是同一 supervisor/资源约束下的确定性本地 producer smoke，不代表真实 RTL 编译、Verilator 覆盖率或 RFuzz CPU fuzzing 结果。当前工作区缺少 `third_party/rfuzz/upstream/ibex/sources.f`，真实 campaign 以 `dependency-unavailable` 安全退出。
