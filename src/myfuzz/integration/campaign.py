@@ -208,6 +208,25 @@ def _prepare_output_dir(path: Path) -> None:
         raise CampaignError(f"cannot create campaign output directory: {path}") from error
 
 
+def _verify_process_group_support() -> None:
+    """Fail closed before launch when this host cannot own a process group."""
+
+    if os.name != "posix" or not all(
+        callable(getattr(os, name, None)) for name in ("getpgid", "getpgrp", "killpg")
+    ):
+        raise CampaignError("process-group supervision is unavailable")
+    try:
+        current_pid = os.getpid()
+        current_pgid = os.getpgid(current_pid)
+        if current_pgid != os.getpgrp() or current_pgid <= 0:
+            raise CampaignError("cannot verify the parent process group")
+        os.killpg(current_pgid, 0)
+    except CampaignError:
+        raise
+    except OSError as error:
+        raise CampaignError("cannot verify process-group supervision") from error
+
+
 def _atomic_write_json(path: Path, document: Mapping[str, object]) -> None:
     payload = json.dumps(document, sort_keys=True, separators=(",", ":")) + "\n"
     temporary_name: str | None = None
@@ -393,6 +412,10 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
     except CampaignError as error:
         return _startup_error("rss-unavailable", str(error))
     try:
+        _verify_process_group_support()
+    except CampaignError as error:
+        return _startup_error("process-group-unavailable", str(error))
+    try:
         _prepare_output_dir(options.output_dir)
         environment = os.environ.copy()
         environment.update(options.env)
@@ -409,7 +432,7 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
         return _startup_error("process-start-failed", str(error))
 
     assert process.stdout is not None
-    selector = selectors.DefaultSelector()
+    selector: selectors.BaseSelector | None = None
     metrics = _JsonLineMetrics()
     pid = process.pid
     started = time.monotonic()
@@ -424,11 +447,19 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
 
     try:
         try:
-            pgid = os.getpgid(pid)
+            # start_new_session makes the child PID the process-group ID.  Keep
+            # that safe fallback if a transient procfs lookup races process
+            # startup so cleanup still targets the owned group.
+            pgid = pid
+            observed_pgid = os.getpgid(pid)
+            if observed_pgid != pid:
+                raise CampaignError("child did not enter an independent process group")
+            pgid = observed_pgid
         except OSError as error:
             raise CampaignError(f"cannot inspect campaign process group {pid}") from error
         if pgid == os.getpgrp():
             raise CampaignError("refusing to supervise a process in the parent process group")
+        selector = selectors.DefaultSelector()
         descriptor = process.stdout.fileno()
         os.set_blocking(descriptor, False)
         selector.register(descriptor, selectors.EVENT_READ)
@@ -439,9 +470,13 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
             return_code = process.poll()
             now = time.monotonic()
             if return_code is not None:
-                _drain_output(selector, metrics, 0.2)
+                return_code = process.wait()
                 if return_code != 0:
                     status = "crashed"
+                if pgid is not None and _group_exists(pgid):
+                    termination_signal = _terminate_process_group(process, pgid)
+                if selector is not None:
+                    _drain_output(selector, metrics, 0.2)
                 break
 
             if now >= next_rss_poll:
@@ -497,10 +532,12 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
                 process.kill()
             except OSError:
                 pass
-        _drain_output(selector, metrics, 0.2)
+        if selector is not None:
+            _drain_output(selector, metrics, 0.2)
         return_code = process.wait()
     finally:
-        selector.close()
+        if selector is not None:
+            selector.close()
         process.stdout.close()
 
     duration_seconds = max(0.0, time.monotonic() - started)
