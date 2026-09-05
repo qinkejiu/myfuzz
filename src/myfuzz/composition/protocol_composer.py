@@ -26,6 +26,7 @@ from .registry import ComponentRegistry, default_component_registry
 _TOP_MODULE = "ibex_protocol_composition_top"
 _UPSTREAM_SOURCE_LIST = "third_party/rfuzz/upstream/ibex/sources.f"
 _PROTOCOL_SOURCE_ROOT = "src/myfuzz/protocols/rtl"
+_FIRST_STAGE_COMPONENT_TYPES = frozenset({"ram", "timer", "gpio", "uart", "spi"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,6 +180,46 @@ def _effective_parameters(
     parameters = dict(registration.parameter_defaults)
     parameters.update(component.parameters)
     return dict(sorted(parameters.items()))
+
+
+def _validate_first_stage_component_set(
+    manifest: ProtocolCompositionManifest,
+) -> None:
+    component_types = [component.component_type for component in manifest.components]
+    counts = {
+        component_type: component_types.count(component_type)
+        for component_type in set(component_types)
+    }
+    if set(component_types) != _FIRST_STAGE_COMPONENT_TYPES or any(
+        counts.get(component_type, 0) != 1
+        for component_type in _FIRST_STAGE_COMPONENT_TYPES
+    ):
+        details = ", ".join(
+            f"{component_type}={counts.get(component_type, 0)}"
+            for component_type in sorted(_FIRST_STAGE_COMPONENT_TYPES)
+        )
+        raise ValueError(
+            "first-stage protocol composition requires exactly one of each "
+            f"component type ({details})"
+        )
+
+
+def _validate_generation_sources(
+    root: Path,
+    manifest: ProtocolCompositionManifest,
+    registry: ComponentRegistry,
+) -> tuple[str, ...]:
+    source_files = _relative_source_files(manifest, registry)
+    for source in source_files:
+        source_path = (root / source).resolve()
+        if not source_path.is_file():
+            failure_kind = (
+                "missing-source-list"
+                if source == _UPSTREAM_SOURCE_LIST
+                else "missing-source-file"
+            )
+            raise ValueError(f"composition.source:{source}:{failure_kind}")
+    return source_files
 
 
 def _protocol_fields(
@@ -751,6 +792,18 @@ def _render_wrapper(
         "        end",
         "    endfunction",
         "",
+        "    function automatic logic address_in_region(",
+        "        input logic [ADDRESS_WIDTH-1:0] address,",
+        "        input logic [ADDRESS_WIDTH-1:0] base,",
+        "        input logic [ADDRESS_WIDTH-1:0] size",
+        "    );",
+        "        logic [ADDRESS_WIDTH-1:0] offset;",
+        "        begin",
+        "            offset = address - base;",
+        "            address_in_region = $unsigned(offset) < $unsigned(size);",
+        "        end",
+        "    endfunction",
+        "",
         "    assign instr_gnt = instr_req;",
         "    assign instr_rvalid = instr_req;",
         "    assign instr_rdata = boot_rom_instruction(instr_addr);",
@@ -777,8 +830,7 @@ def _render_wrapper(
             "spi": "REGION_SPI",
         }[component.component_type]
         lines.append(
-            f"        if ((data_addr >= BASE_{type_name}) && "
-            f"(data_addr < (BASE_{type_name} + SIZE_{type_name}))) data_region = {region_name};"
+            f"        if (address_in_region(data_addr, BASE_{type_name}, SIZE_{type_name})) data_region = {region_name};"
         )
     lines.extend([
         "    end",
@@ -851,7 +903,7 @@ def _render_wrapper(
     ram_prefix = prefixes.get(next((item.component_id for item in components if item.component_type == "ram"), ""), "")
     if ram_prefix:
         ram_component = next(item for item in components if item.component_type == "ram")
-        words = int(ram_component.parameters.get("WORDS", 64))
+        words = int(_effective_parameters(ram_component, registry).get("WORDS", 64))
         lines.extend([
             f"    ibex_mcip_ram #(.WORDS({words})) u_instr_ram (",
             "        .clk_i(clk_i),",
@@ -962,26 +1014,32 @@ def _render_wrapper(
 def _render_source_list(
     manifest: ProtocolCompositionManifest,
     registry: ComponentRegistry,
+    *,
+    root: Path,
+    wrapper_path: Path,
 ) -> str:
+    relative_sources = _relative_source_files(manifest, registry)
     sources = [
-        f"-f {_UPSTREAM_SOURCE_LIST}",
-        *(
-            source
-            for source in _relative_source_files(manifest, registry)
+        f"-f {(root / _UPSTREAM_SOURCE_LIST).resolve().as_posix()}",
+        *[
+            (root / source).resolve().as_posix()
+            for source in relative_sources
             if source != _UPSTREAM_SOURCE_LIST
-        ),
-        f"{_TOP_MODULE}.sv",
+        ],
+        wrapper_path.resolve().as_posix(),
     ]
     return "\n".join(sources) + "\n"
 
 
-def _source_hash(wrapper_text: str, source_list: str) -> str:
+def _source_hash(wrapper_text: str, relative_sources: tuple[str, ...]) -> str:
     # semantic_source_hash validates the generated HDL before the combined
     # source manifest is hashed as canonical JSON.
     from .metadata import semantic_source_hash
 
     wrapper_hash = semantic_source_hash(wrapper_text, context="composition.wrapper")
-    source_list_hash = content_hash({"source_list": source_list.splitlines()})
+    source_list_hash = content_hash(
+        {"source_list": [*relative_sources, f"{_TOP_MODULE}.sv"]}
+    )
     return content_hash({"wrapper_hash": wrapper_hash, "source_list_hash": source_list_hash})
 
 
@@ -999,12 +1057,23 @@ def compose_protocol_composition(
     selected_catalog = catalog or load_protocol_catalog(checkout_root / "src/myfuzz/protocols/plugins")
     selected_registry = registry or default_component_registry(checkout_root)
     validate_protocol_composition(manifest, selected_catalog, selected_registry)
+    _validate_first_stage_component_set(manifest)
+    relative_sources = _validate_generation_sources(
+        checkout_root,
+        manifest,
+        selected_registry,
+    )
     ir = _build_ir(manifest, selected_catalog, selected_registry)
     wrapper_text = _render_wrapper(manifest, selected_registry)
-    source_list = _render_source_list(manifest, selected_registry)
     output.mkdir(parents=True, exist_ok=True)
     wrapper_path = output / f"{_TOP_MODULE}.sv"
     source_list_path = output / "sources.f"
+    source_list = _render_source_list(
+        manifest,
+        selected_registry,
+        root=checkout_root,
+        wrapper_path=wrapper_path,
+    )
     wrapper_path.write_text(wrapper_text, encoding="utf-8")
     source_list_path.write_text(source_list, encoding="utf-8")
     return CompositionArtifact(
@@ -1012,7 +1081,7 @@ def compose_protocol_composition(
         wrapper_path=wrapper_path,
         source_list_path=source_list_path,
         content_hash=canonical_ir_hash(ir),
-        source_hash=_source_hash(wrapper_text, source_list),
+        source_hash=_source_hash(wrapper_text, relative_sources),
     )
 
 
