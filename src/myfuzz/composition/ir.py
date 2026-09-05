@@ -46,6 +46,24 @@ def _adapter_evidence_id(edge: object) -> str:
     return semantic_content_hash(document, context="composition.adapter_evidence")
 
 
+def canonical_ir_document(document: Mapping[str, object]) -> dict[str, object]:
+    """Return a path-free, JSON-compatible composition IR document.
+
+    The protocol-composition generator uses the same canonicalization boundary
+    as the existing candidate serializer.  Keeping it here prevents the two IR
+    producers from growing subtly different ordering and metadata rules.
+    """
+    normalized = sanitize_metadata(_json_value(document), context="composition_ir.metadata")
+    if not isinstance(normalized, dict):
+        raise TypeError("composition IR document must be an object")
+    return normalized
+
+
+def canonical_ir_hash(document: Mapping[str, object]) -> str:
+    """Hash a canonical composition IR document after metadata validation."""
+    return semantic_content_hash(canonical_ir_document(document), context="composition_ir.hash")
+
+
 def composition_ir(candidate: CompositionCandidate) -> dict[str, object]:
     """Return a deterministic, path-free composition_ir.v1 document."""
     graph = candidate.graph
@@ -214,7 +232,7 @@ def composition_ir(candidate: CompositionCandidate) -> dict[str, object]:
     # without exposing any source identifier text.
     if any(endpoint.component_id not in component_by_id for endpoint in graph.endpoints):
         raise ValueError("candidate:endpoint-component-unresolved")
-    return sanitize_metadata(document, context="composition_ir.metadata")  # type: ignore[return-value]
+    return canonical_ir_document(document)
 
 
-__all__ = ["composition_ir"]
+__all__ = ["canonical_ir_document", "canonical_ir_hash", "composition_ir"]
