@@ -1,0 +1,37 @@
+{
+  "name": "ibex_protocol_composition",
+  "description": "Low-resource design-flow configuration for the deterministic Ibex protocol composition.",
+  "top": "ibex_protocol_composition_top",
+  "project_root": "third_party/rfuzz/upstream/ibex",
+  "flist": "third_party/rfuzz/upstream/ibex/sources.f",
+  "out_dir": "runs/designs/ibex_protocol_composition",
+  "frontend": {
+    "mode": "source_only"
+  },
+  "composition": {
+    "kind": "protocol_composition",
+    "manifest": "configs/designs/ibex_protocol_composition/manifest.json",
+    "out_dir": "runs/designs/ibex_protocol_composition/composition"
+  },
+  "server": {
+    "cxx_opt": "-O3",
+    "verilator_opt": "-O3",
+    "parallel_verilator_build": false
+  },
+  "fuzz": {
+    "server_count": 1,
+    "crash_restarts": 2,
+    "stop_on_crash": false,
+    "max_runs": 64,
+    "buffer_count": 1
+  },
+  "waveforms": false,
+  "vcd": false,
+  "verilator_args": [
+    "-DSYNTHESIS",
+    "-Wno-DEPRECATED",
+    "-Wno-MULTIDRIVEN",
+    "-Wno-LATCH",
+    "-Wno-PINMISSING"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "schema_version": "ibex_campaign.v1",
+  "description": "Single-worker, wave-free Ibex protocol-composition campaign.",
+  "design_config": "configs/designs/ibex_protocol_composition/config.json",
+  "composition_manifest": "configs/designs/ibex_protocol_composition/manifest.json",
+  "source_list": "third_party/rfuzz/upstream/ibex/sources.f",
+  "output_dir": "runs/ibex_protocol_campaign",
+  "duration_seconds": 3600,
+  "checkpoint_seconds": 30,
+  "seed": 7,
+  "workers": 1,
+  "build_jobs": 1,
+  "waveforms": false,
+  "vcd": false,
+  "soft_memory_bytes": 536870912,
+  "hard_memory_bytes": 805306368,
+  "token_bytes": 67108864,
+  "max_restarts": 2,
+  "command_mode": "real"
+}

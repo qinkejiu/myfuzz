@@ -9,12 +9,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+import hashlib
 import json
 import os
 from pathlib import Path
 import selectors
 import signal
 import subprocess
+import sys
 import time
 
 from .campaign_report import (
@@ -614,10 +616,691 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
     return result
 
 
+_IBEX_CAMPAIGN_SCHEMA = "ibex_campaign.v1"
+_IBEX_SOURCE_LIST = "third_party/rfuzz/upstream/ibex/sources.f"
+_IBEX_CAMPAIGN_DEFAULT_OUTPUT = "runs/ibex_protocol_campaign"
+_IBEX_SOFT_MEMORY_CEILING = 512 * 1024 * 1024
+_IBEX_HARD_MEMORY_CEILING = 768 * 1024 * 1024
+_IBEX_TOKEN_MEMORY_CEILING = 64 * 1024 * 1024
+_IBEX_COMMAND_MODES = frozenset({"real", "local-smoke"})
+_IBEX_CAMPAIGN_REQUIRED_KEYS = frozenset(
+    {
+        "schema_version",
+        "design_config",
+        "composition_manifest",
+        "source_list",
+        "duration_seconds",
+        "checkpoint_seconds",
+        "seed",
+        "workers",
+        "build_jobs",
+        "waveforms",
+        "soft_memory_bytes",
+        "hard_memory_bytes",
+        "token_bytes",
+    }
+)
+_IBEX_CAMPAIGN_ALLOWED_KEYS = _IBEX_CAMPAIGN_REQUIRED_KEYS | frozenset(
+    {
+        "description",
+        "output_dir",
+        "max_restarts",
+        "command_mode",
+        "vcd",
+    }
+)
+
+
+class _DuplicateCampaignJsonKey(ValueError):
+    """Raised when a campaign document repeats a JSON object key."""
+
+
+def _reject_duplicate_campaign_json_keys(
+    pairs: list[tuple[str, object]],
+) -> dict[str, object]:
+    document: dict[str, object] = {}
+    for key, value in pairs:
+        if key in document:
+            raise _DuplicateCampaignJsonKey(key)
+        document[key] = value
+    return document
+
+
+def _campaign_repository_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+def _read_campaign_json(path: Path, label: str) -> dict[str, object]:
+    try:
+        raw = json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=_reject_duplicate_campaign_json_keys,
+        )
+    except _DuplicateCampaignJsonKey as error:
+        raise ValueError(f"{label}:duplicate-key:{error}") from error
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"{label}:read-failed:{error}") from error
+    if not isinstance(raw, dict):
+        raise ValueError(f"{label}:object-required")
+    return raw
+
+
+def _resolve_campaign_path(root: Path, value: object, label: str) -> Path:
+    if not isinstance(value, str) or not value or "\0" in value:
+        raise ValueError(f"{label}:path-required")
+    candidate = Path(value)
+    resolved_root = Path(root).resolve()
+    resolved = (candidate if candidate.is_absolute() else resolved_root / candidate).resolve()
+    try:
+        resolved.relative_to(resolved_root)
+    except ValueError as error:
+        raise ValueError(f"{label}:outside-repository-root") from error
+    return resolved
+
+
+def _validate_campaign_integer(
+    document: Mapping[str, object],
+    key: str,
+    *,
+    positive: bool = False,
+) -> int:
+    value = document.get(key)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{key} must be an integer")
+    if positive and value <= 0:
+        raise ValueError(f"{key} must be positive")
+    if not positive and value < 0:
+        raise ValueError(f"{key} must be non-negative")
+    return value
+
+
+@dataclass(frozen=True, slots=True)
+class _IbexCampaignConfig:
+    """Validated paths and low-resource values for one Ibex campaign."""
+
+    root: Path
+    config_path: Path
+    design_config: Path
+    composition_manifest: Path
+    source_list: Path
+    output_dir: Path
+    duration_seconds: int
+    checkpoint_seconds: int
+    seed: int
+    workers: int
+    build_jobs: int
+    waveforms: bool
+    vcd: bool
+    soft_memory_bytes: int
+    hard_memory_bytes: int
+    token_bytes: int
+    max_restarts: int
+    command_mode: str
+    document: Mapping[str, object]
+
+
+def _validate_design_flow_config(
+    root: Path,
+    path: Path,
+    composition_manifest: Path,
+    source_list: Path,
+) -> None:
+    document = _read_campaign_json(path, "design_config")
+    required = {"top", "project_root", "flist", "out_dir", "composition"}
+    missing = sorted(required - set(document))
+    if missing:
+        raise ValueError(f"design_config:missing-field:{missing[0]}")
+    if document.get("top") != "ibex_protocol_composition_top":
+        raise ValueError("design_config.top must be ibex_protocol_composition_top")
+    _resolve_campaign_path(root, document.get("out_dir"), "design_config.out_dir")
+    project_root = _resolve_campaign_path(root, document.get("project_root"), "design_config.project_root")
+    flist = _resolve_campaign_path(root, document.get("flist"), "design_config.flist")
+    if source_list.is_file() and flist != source_list:
+        raise ValueError("design_config.flist must match source_list")
+    if project_root == root:
+        raise ValueError("design_config.project_root must identify the Ibex checkout")
+
+    composition = document.get("composition")
+    if not isinstance(composition, Mapping):
+        raise ValueError("design_config.composition must be an object")
+    allowed_composition = {"kind", "manifest", "protocol_manifest", "out_dir"}
+    unknown = sorted(set(composition) - allowed_composition)
+    if unknown:
+        raise ValueError(f"design_config.composition:configuration-mixed:{unknown[0]}")
+    if composition.get("kind") != "protocol_composition":
+        raise ValueError("design_config.composition.kind must be protocol_composition")
+    manifest_keys = [key for key in ("manifest", "protocol_manifest") if key in composition]
+    if len(manifest_keys) != 1:
+        raise ValueError("design_config.composition:configuration-mixed")
+    if "out_dir" in composition:
+        _resolve_campaign_path(root, composition["out_dir"], "design_config.composition.out_dir")
+    manifest_path = _resolve_campaign_path(
+        root,
+        composition[manifest_keys[0]],
+        "design_config.composition.manifest",
+    )
+    if manifest_path != composition_manifest:
+        raise ValueError("design_config.composition.manifest must match composition_manifest")
+
+    fuzz = document.get("fuzz", {})
+    if fuzz is not None and not isinstance(fuzz, Mapping):
+        raise ValueError("design_config.fuzz must be an object")
+    if isinstance(fuzz, Mapping):
+        server_count = fuzz.get("server_count", 1)
+        if isinstance(server_count, bool) or not isinstance(server_count, int) or server_count != 1:
+            raise ValueError("design_config.fuzz.server_count must be 1")
+    server = document.get("server", {})
+    if server is not None and not isinstance(server, Mapping):
+        raise ValueError("design_config.server must be an object")
+    if isinstance(server, Mapping) and server.get("parallel_verilator_build", False) is not False:
+        raise ValueError("design_config.server.parallel_verilator_build must be false")
+    for key in ("waveforms", "vcd"):
+        if key in document and document[key] is not False:
+            raise ValueError(f"design_config.{key} must be false")
+
+
+def _parse_ibex_campaign_config(
+    config_path: Path,
+    *,
+    root: Path,
+) -> _IbexCampaignConfig:
+    checkout_root = Path(root).resolve()
+    path = _resolve_campaign_path(checkout_root, str(config_path), "campaign_config")
+    document = _read_campaign_json(path, "campaign_config")
+    missing = sorted(_IBEX_CAMPAIGN_REQUIRED_KEYS - set(document))
+    if missing:
+        raise ValueError(f"campaign_config:missing-field:{missing[0]}")
+    if "command" in document or "local_smoke" in document:
+        raise ValueError("campaign_config:configuration-mixed")
+    unknown = sorted(set(document) - _IBEX_CAMPAIGN_ALLOWED_KEYS)
+    if unknown:
+        raise ValueError(f"campaign_config:unknown-field:{unknown[0]}")
+    if document.get("schema_version") != _IBEX_CAMPAIGN_SCHEMA:
+        raise ValueError("campaign_config.schema_version:unsupported")
+
+    duration_seconds = _validate_campaign_integer(document, "duration_seconds", positive=True)
+    checkpoint_seconds = _validate_campaign_integer(document, "checkpoint_seconds", positive=True)
+    seed = _validate_campaign_integer(document, "seed")
+    if seed > 0xFFFF_FFFF:
+        raise ValueError("seed must be at most 4294967295")
+    workers = _validate_campaign_integer(document, "workers", positive=True)
+    if workers != 1:
+        raise ValueError("workers must be exactly 1")
+    build_jobs = _validate_campaign_integer(document, "build_jobs", positive=True)
+    if build_jobs != 1:
+        raise ValueError("build_jobs must be exactly 1")
+
+    for key in ("waveforms", "vcd"):
+        if key in document and document[key] is not False:
+            raise ValueError(f"{key} must be false")
+    waveforms = document["waveforms"]
+    if not isinstance(waveforms, bool):
+        raise ValueError("waveforms must be boolean")
+    vcd = document.get("vcd", False)
+    if not isinstance(vcd, bool):
+        raise ValueError("vcd must be boolean")
+
+    soft_memory_bytes = _validate_campaign_integer(document, "soft_memory_bytes", positive=True)
+    hard_memory_bytes = _validate_campaign_integer(document, "hard_memory_bytes", positive=True)
+    token_bytes = _validate_campaign_integer(document, "token_bytes", positive=True)
+    if soft_memory_bytes > _IBEX_SOFT_MEMORY_CEILING:
+        raise ValueError("soft_memory_bytes exceeds conservative ceiling")
+    if hard_memory_bytes > _IBEX_HARD_MEMORY_CEILING:
+        raise ValueError("hard_memory_bytes exceeds conservative ceiling")
+    if token_bytes > _IBEX_TOKEN_MEMORY_CEILING:
+        raise ValueError("token_bytes exceeds conservative ceiling")
+    if soft_memory_bytes >= hard_memory_bytes:
+        raise ValueError("soft_memory_bytes must be less than hard_memory_bytes")
+    if token_bytes > soft_memory_bytes:
+        raise ValueError("token_bytes must not exceed soft_memory_bytes")
+
+    max_restarts = _validate_campaign_integer(
+        {"max_restarts": document.get("max_restarts", 2)},
+        "max_restarts",
+    )
+    command_mode = document.get("command_mode", "real")
+    if not isinstance(command_mode, str) or command_mode not in _IBEX_COMMAND_MODES:
+        raise ValueError("command_mode must be real or local-smoke")
+
+    design_config = _resolve_campaign_path(
+        checkout_root,
+        document["design_config"],
+        "design_config",
+    )
+    composition_manifest = _resolve_campaign_path(
+        checkout_root,
+        document["composition_manifest"],
+        "composition_manifest",
+    )
+    source_list = _resolve_campaign_path(
+        checkout_root,
+        document["source_list"],
+        "source_list",
+    )
+    for label, required_path in (
+        ("design_config", design_config),
+        ("composition_manifest", composition_manifest),
+    ):
+        if not required_path.is_file():
+            raise ValueError(f"{label}:missing-file:{required_path}")
+    output_value = document.get("output_dir", _IBEX_CAMPAIGN_DEFAULT_OUTPUT)
+    if not isinstance(output_value, str) or not output_value or "\0" in output_value:
+        raise ValueError("output_dir:path-required")
+    output_dir = _resolve_campaign_path(checkout_root, output_value, "output_dir")
+
+    _validate_design_flow_config(
+        checkout_root,
+        design_config,
+        composition_manifest,
+        source_list,
+    )
+    return _IbexCampaignConfig(
+        root=checkout_root,
+        config_path=path,
+        design_config=design_config,
+        composition_manifest=composition_manifest,
+        source_list=source_list,
+        output_dir=output_dir,
+        duration_seconds=duration_seconds,
+        checkpoint_seconds=checkpoint_seconds,
+        seed=seed,
+        workers=workers,
+        build_jobs=build_jobs,
+        waveforms=waveforms,
+        vcd=vcd,
+        soft_memory_bytes=soft_memory_bytes,
+        hard_memory_bytes=hard_memory_bytes,
+        token_bytes=token_bytes,
+        max_restarts=max_restarts,
+        command_mode=command_mode,
+        document=document,
+    )
+
+
+def load_ibex_campaign_config(
+    config_path: Path,
+    *,
+    root: Path | None = None,
+) -> Mapping[str, object]:
+    """Validate and return a strict Ibex campaign document without side effects."""
+
+    spec = _parse_ibex_campaign_config(
+        Path(config_path),
+        root=_campaign_repository_root() if root is None else Path(root),
+    )
+    return dict(spec.document)
+
+
+def _effective_campaign_value(
+    value: int | None,
+    default: int,
+    label: str,
+    *,
+    positive: bool,
+) -> int:
+    selected = default if value is None else value
+    if isinstance(selected, bool) or not isinstance(selected, int):
+        raise ValueError(f"{label} must be an integer")
+    if positive and selected <= 0:
+        raise ValueError(f"{label} must be positive")
+    if not positive and selected < 0:
+        raise ValueError(f"{label} must be non-negative")
+    if label == "seed" and selected > 0xFFFF_FFFF:
+        raise ValueError("seed must be at most 4294967295")
+    return selected
+
+
+def _campaign_output_path(output_dir: Path, *, root: Path | None = None) -> Path:
+    if not isinstance(output_dir, Path):
+        raise TypeError("output_dir must be a pathlib.Path")
+    candidate = output_dir.expanduser()
+    if root is not None and not candidate.is_absolute():
+        candidate = Path(root) / candidate
+    resolved = candidate.resolve()
+    if resolved == Path(resolved.anchor):
+        raise ValueError("output_dir must not be the filesystem root")
+    return resolved
+
+
+def _validated_command(command: tuple[str, ...]) -> tuple[str, ...]:
+    if not isinstance(command, tuple) or not command:
+        raise TypeError("command must be a non-empty tuple of strings")
+    if any(not isinstance(argument, str) or not argument for argument in command):
+        raise TypeError("command must be a non-empty tuple of strings")
+    return command
+
+
+def _composition_manifest_hash(path: Path) -> str:
+    document = _read_campaign_json(path, "composition_manifest")
+    canonical = json.dumps(
+        document,
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(canonical).hexdigest()
+
+
+def _relative_campaign_path(root: Path, path: Path) -> str:
+    try:
+        return path.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return path.resolve().as_posix()
+
+
+def _upstream_dependency(
+    spec: _IbexCampaignConfig,
+    *,
+    status: str | None = None,
+) -> dict[str, object]:
+    dependency_status = (
+        "available"
+        if spec.source_list.is_file()
+        else "dependency-unavailable"
+    )
+    if status is not None:
+        dependency_status = status
+    return {
+        "status": dependency_status,
+        "source_list": _relative_campaign_path(spec.root, spec.source_list),
+        "required_for_real_target": True,
+    }
+
+
+def _execution_metadata(spec: _IbexCampaignConfig) -> dict[str, object]:
+    return {
+        "worker_count": 1,
+        "build_jobs": 1,
+        "waveforms": False,
+        "vcd": False,
+        "soft_memory_bytes": spec.soft_memory_bytes,
+        "hard_memory_bytes": spec.hard_memory_bytes,
+        "token_bytes": spec.token_bytes,
+    }
+
+
+def _annotate_campaign_report(
+    result: dict[str, object],
+    metadata: Mapping[str, object],
+) -> None:
+    report_value = result.get("report_path")
+    if not isinstance(report_value, str) or not report_value:
+        return
+    report_path = Path(report_value)
+    try:
+        document = _read_campaign_json(report_path, "campaign_report")
+        document.update(metadata)
+        publish_campaign_report(report_path, document)
+    except (CampaignReportError, ValueError, OSError) as error:
+        result["error"] = {
+            "type": "report-publish-failed",
+            "message": str(error),
+        }
+        result["report_path"] = None
+
+
+def build_ibex_campaign_command(
+    root: Path,
+    config_path: Path,
+    output_dir: Path,
+    duration_seconds: int,
+    seed: int,
+) -> tuple[str, ...]:
+    """Build the single-worker real Ibex design-flow command."""
+
+    checkout_root = Path(root).resolve()
+    spec = _parse_ibex_campaign_config(Path(config_path), root=checkout_root)
+    _campaign_output_path(output_dir, root=checkout_root)
+    duration = _effective_campaign_value(
+        duration_seconds,
+        spec.duration_seconds,
+        "duration_seconds",
+        positive=True,
+    )
+    selected_seed = _effective_campaign_value(
+        seed,
+        spec.seed,
+        "seed",
+        positive=False,
+    )
+    flow_script = checkout_root / "src" / "myfuzz" / "scripts" / "run_design_flow.py"
+    return (
+        sys.executable,
+        flow_script.as_posix(),
+        "--config",
+        spec.design_config.as_posix(),
+        "--stage",
+        "all",
+        "--jobs",
+        "1",
+        "--fuzz-seconds",
+        str(duration),
+        "--seed",
+        str(selected_seed),
+    )
+
+
+def _campaign_result_metadata(
+    spec: _IbexCampaignConfig,
+    dependency: Mapping[str, object],
+    *,
+    evidence: Mapping[str, object] | None = None,
+) -> dict[str, object]:
+    dependency_status = dependency.get("status")
+    metadata: dict[str, object] = {
+        "upstream_dependency": dict(dependency),
+        "upstream_dependency_status": dependency_status,
+        "dependency_status": dependency_status,
+        "execution": _execution_metadata(spec),
+    }
+    if evidence is not None:
+        metadata["evidence"] = dict(evidence)
+    return metadata
+
+
+def _dry_run_result(
+    spec: _IbexCampaignConfig,
+    output_dir: Path,
+    command: tuple[str, ...],
+    metadata: Mapping[str, object],
+) -> dict[str, object]:
+    result: dict[str, object] = {
+        "status": "dry-run",
+        "command": list(command),
+        "output_dir": output_dir.as_posix(),
+        "report_path": None,
+        "dry_run": True,
+    }
+    result.update(metadata)
+    return result
+
+
+def run_ibex_campaign(
+    config_path: Path,
+    output_dir: Path,
+    *,
+    duration_seconds: int | None = None,
+    seed: int | None = None,
+    checkpoint_seconds: int | None = None,
+    command: tuple[str, ...] | None = None,
+    dry_run: bool = False,
+    max_restarts: int | None = None,
+) -> Mapping[str, object]:
+    """Run or dry-run one strict, real-target Ibex campaign."""
+
+    spec = _parse_ibex_campaign_config(
+        Path(config_path),
+        root=_campaign_repository_root(),
+    )
+    selected_output = _campaign_output_path(output_dir, root=spec.root)
+    selected_duration = _effective_campaign_value(
+        duration_seconds,
+        spec.duration_seconds,
+        "duration_seconds",
+        positive=True,
+    )
+    selected_seed = _effective_campaign_value(
+        seed,
+        spec.seed,
+        "seed",
+        positive=False,
+    )
+    selected_checkpoint = _effective_campaign_value(
+        checkpoint_seconds,
+        spec.checkpoint_seconds,
+        "checkpoint_seconds",
+        positive=True,
+    )
+    selected_restarts = _effective_campaign_value(
+        max_restarts,
+        spec.max_restarts,
+        "max_restarts",
+        positive=False,
+    )
+
+    if command is None:
+        selected_command = build_ibex_campaign_command(
+            spec.root,
+            spec.config_path,
+            selected_output,
+            selected_duration,
+            selected_seed,
+        )
+        dependency = _upstream_dependency(spec)
+        metadata = _campaign_result_metadata(spec, dependency)
+        if dependency["status"] != "available":
+            return {
+                "status": "dependency-unavailable",
+                "command": list(selected_command),
+                "output_dir": selected_output.as_posix(),
+                "report_path": None,
+                "dry_run": dry_run,
+                "missing_dependencies": [str(dependency["source_list"])],
+                **metadata,
+            }
+    else:
+        selected_command = _validated_command(command)
+        dependency = _upstream_dependency(spec, status="override")
+        metadata = _campaign_result_metadata(spec, dependency)
+
+    if dry_run:
+        return _dry_run_result(spec, selected_output, selected_command, metadata)
+
+    options = CampaignOptions(
+        command=selected_command,
+        output_dir=selected_output,
+        duration_seconds=selected_duration,
+        seed=selected_seed,
+        checkpoint_seconds=selected_checkpoint,
+        limits=CampaignLimits(
+            soft_memory_bytes=spec.soft_memory_bytes,
+            hard_memory_bytes=spec.hard_memory_bytes,
+            max_restarts=selected_restarts,
+        ),
+        composition_hash=_composition_manifest_hash(spec.composition_manifest),
+    )
+    result = dict(run_supervised_command(options))
+    result["command"] = list(selected_command)
+    result["output_dir"] = selected_output.as_posix()
+    result.update(metadata)
+    _annotate_campaign_report(result, metadata)
+    return result
+
+
+def run_ibex_local_smoke(
+    config_path: Path,
+    output_dir: Path,
+    *,
+    duration_seconds: int | None = None,
+    seed: int | None = None,
+    checkpoint_seconds: int | None = None,
+    max_restarts: int | None = None,
+    dry_run: bool = False,
+) -> Mapping[str, object]:
+    """Run the deterministic local producer under the campaign supervisor."""
+
+    spec = _parse_ibex_campaign_config(
+        Path(config_path),
+        root=_campaign_repository_root(),
+    )
+    selected_output = _campaign_output_path(output_dir, root=spec.root)
+    selected_duration = _effective_campaign_value(
+        duration_seconds,
+        spec.duration_seconds,
+        "duration_seconds",
+        positive=True,
+    )
+    selected_seed = _effective_campaign_value(
+        seed,
+        spec.seed,
+        "seed",
+        positive=False,
+    )
+    selected_checkpoint = _effective_campaign_value(
+        checkpoint_seconds,
+        spec.checkpoint_seconds,
+        "checkpoint_seconds",
+        positive=True,
+    )
+    selected_restarts = _effective_campaign_value(
+        max_restarts,
+        spec.max_restarts,
+        "max_restarts",
+        positive=False,
+    )
+    producer = spec.root / "scripts" / "run_ibex_protocol_campaign_smoke.py"
+    selected_command = (
+        sys.executable,
+        producer.as_posix(),
+        "--duration-seconds",
+        str(selected_duration),
+        "--seed",
+        str(selected_seed),
+    )
+    dependency = _upstream_dependency(spec)
+    metadata = _campaign_result_metadata(
+        spec,
+        dependency,
+        evidence={
+            "kind": "local-json-producer",
+            "rtl_compilation_claimed": False,
+            "upstream_dependency_checked": True,
+        },
+    )
+    if dry_run:
+        return _dry_run_result(spec, selected_output, selected_command, metadata)
+
+    options = CampaignOptions(
+        command=selected_command,
+        output_dir=selected_output,
+        duration_seconds=selected_duration,
+        seed=selected_seed,
+        checkpoint_seconds=selected_checkpoint,
+        limits=CampaignLimits(
+            soft_memory_bytes=spec.soft_memory_bytes,
+            hard_memory_bytes=spec.hard_memory_bytes,
+            max_restarts=selected_restarts,
+        ),
+        composition_hash=_composition_manifest_hash(spec.composition_manifest),
+    )
+    result = dict(run_supervised_command(options))
+    result["command"] = list(selected_command)
+    result["output_dir"] = selected_output.as_posix()
+    result["local_smoke"] = True
+    result.update(metadata)
+    _annotate_campaign_report(result, metadata)
+    return result
+
+
 __all__ = [
     "CampaignError",
     "CampaignLimits",
     "CampaignOptions",
+    "build_ibex_campaign_command",
+    "load_ibex_campaign_config",
     "read_rss_bytes",
+    "run_ibex_campaign",
+    "run_ibex_local_smoke",
     "run_supervised_command",
 ]

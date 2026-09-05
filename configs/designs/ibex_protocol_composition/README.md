@@ -44,3 +44,53 @@ With the upstream checkout and its `sources.f` available, the same checker
 returns status `0` after the local checks pass.
 
 The checker does not start RFuzz, Verilator, or a long-running campaign.
+
+## Campaign entrypoint
+
+The campaign configuration is
+`configs/designs/ibex_protocol_composition/campaign.json`. It deliberately
+uses one build job, one RFuzz worker, no VCD or waveform output, a 512 MiB
+soft RSS limit, a 768 MiB hard RSS limit, and a 64 MiB token budget. The
+default duration is 3600 seconds, with seed `7` and 30-second checkpoints.
+
+Before an hour-long run, use an explicit 10–60 second real-target run on a
+machine that has the Ibex checkout and its source list:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 scripts/run_ibex_protocol_campaign.py \
+  --config configs/designs/ibex_protocol_composition/campaign.json \
+  --duration-seconds 10 \
+  --seed 7 \
+  --output-dir runs/ibex_protocol_campaign_short
+```
+
+The same command with `--duration-seconds 3600` is the default long-run form.
+The controller refuses to spawn the real design flow when
+`third_party/rfuzz/upstream/ibex/sources.f` is absent and returns the explicit
+status `dependency-unavailable`. That status is not a compile or fuzz result.
+
+When the upstream dependency is unavailable, local accounting can still be
+checked under the same RSS and process-group supervisor:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 scripts/run_ibex_protocol_campaign.py \
+  --config configs/designs/ibex_protocol_composition/campaign.json \
+  --local-smoke \
+  --duration-seconds 10 \
+  --seed 7 \
+  --output-dir runs/ibex_protocol_campaign_smoke
+```
+
+The local producer emits bounded JSON lines for TL-UL/RAM, APB/timer,
+APB/GPIO, AXI4-Lite/UART, and AXI4-Lite/SPI, plus one deterministic coverage
+point. It is accounting evidence only and explicitly does not claim RTL
+compilation.
+
+Each completed run atomically publishes `checkpoint.json` and `report.json`.
+The report fields are `schema_version`, `status`, `composition_hash`, `seed`,
+`duration_seconds`, `configured_duration_seconds`, `iterations`,
+`throughput_iterations_per_second`, `transactions`, `protocol_transactions`,
+`component_transactions`, `coverage`, `errors`, `peak_rss_bytes`,
+`checkpoint_count`, `last_output_line`, `replay_command`, and `limits`, with
+campaign metadata fields `upstream_dependency`, `execution`, and (for local
+smoke) `evidence`. A crashed run also records the replay command.
