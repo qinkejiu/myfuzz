@@ -65,6 +65,23 @@ def instrumentation_manifest() -> dict[str, object]:
     }
 
 
+def manual_harness_source(
+    root: Path,
+    *,
+    module: str = "fixed_harness",
+    input_name: str = "rfuzz_input_bits",
+    width: int = 395,
+) -> Path:
+    source = root / "fixed_harness.sv"
+    source.write_text(
+        f"module {module} (\n"
+        f"    input logic [{width - 1}:0] {input_name}\n"
+        ");\n"
+        "endmodule\n"
+    )
+    return source
+
+
 class FlowIntegrationTest(unittest.TestCase):
     def test_opaque_control_names_are_selected_only_by_manifest_roles(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -283,6 +300,185 @@ class FlowIntegrationTest(unittest.TestCase):
         self.assertIn("width = 8", text)
         self.assertNotIn('name = "payload_opaque"', text)
         self.assertEqual("candidate_depaware", fragment["mode"])
+
+    def test_legacy_manual_harness_without_new_abi_fields_keeps_generated_flow(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            legacy_source = root / "legacy_harness.sv"
+            legacy_source.write_text("module legacy_harness; endmodule\n")
+            paths = {"harness": root / "harness", "toml": root / "flow.toml"}
+            cfg = {
+                "top": "generated_top",
+                "harness": {
+                    "manual_harness": "legacy_harness.sv",
+                    "manual_harness_module": "legacy_harness",
+                },
+            }
+            with patch.object(run_design_flow, "generate_toml") as generate:
+                run_design_flow.stage_toml(
+                    root,
+                    cfg,
+                    paths,
+                    frontend_manifest(),
+                    instrumentation_manifest(),
+                    candidate_manifest(),
+                    "candidate_direct",
+                )
+
+            generated_source = paths["harness"] / "candidate_direct.sv"
+            self.assertTrue(generated_source.is_file())
+            harness_cfg = generate.call_args.args[4]
+            self.assertEqual(generated_source.resolve().as_posix(), harness_cfg["manual_harness"])
+            self.assertNotEqual(legacy_source.resolve().as_posix(), harness_cfg["manual_harness"])
+
+    def test_non_protocol_manual_fields_require_explicit_activation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = manual_harness_source(root)
+            paths = {"harness": root / "harness", "toml": root / "flow.toml"}
+            cfg = {
+                "top": "generated_top",
+                "harness": {
+                    "manual_harness": source.name,
+                    "manual_harness_module": "fixed_harness",
+                    "manual_harness_input": "rfuzz_input_bits",
+                    "raw_width": 395,
+                },
+            }
+            with patch.object(run_design_flow, "generate_toml") as generate:
+                run_design_flow.stage_toml(
+                    root,
+                    cfg,
+                    paths,
+                    frontend_manifest(),
+                    instrumentation_manifest(),
+                    candidate_manifest(),
+                    "candidate_direct",
+                )
+
+            self.assertTrue((paths["harness"] / "candidate_direct.sv").is_file())
+            self.assertEqual(
+                (paths["harness"] / "candidate_direct.sv").resolve().as_posix(),
+                generate.call_args.args[4]["manual_harness"],
+            )
+
+    def test_explicit_manual_harness_requires_source_module_and_input_width(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = manual_harness_source(root, module="different_harness", width=394)
+            cfg = {
+                "top": "generated_top",
+                "composition": {"kind": "protocol_composition"},
+                "harness": {
+                    "manual_harness": source.name,
+                    "manual_harness_module": "fixed_harness",
+                    "manual_harness_input": "rfuzz_input_bits",
+                    "raw_width": 395,
+                },
+            }
+            paths = {"harness": root / "harness", "toml": root / "flow.toml"}
+            with self.assertRaisesRegex(ValueError, "module"):
+                run_design_flow.stage_toml(
+                    root,
+                    cfg,
+                    paths,
+                    frontend_manifest(),
+                    instrumentation_manifest(),
+                    candidate_manifest(),
+                    "candidate_direct",
+                )
+
+            source = manual_harness_source(root, module="fixed_harness", width=394)
+            cfg["harness"]["manual_harness"] = source.name
+            with self.assertRaisesRegex(ValueError, "width"):
+                run_design_flow.stage_toml(
+                    root,
+                    cfg,
+                    paths,
+                    frontend_manifest(),
+                    instrumentation_manifest(),
+                    candidate_manifest(),
+                    "candidate_direct",
+                )
+
+    def test_manual_harness_matches_candidate_manifest_abi(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = manual_harness_source(root)
+            manifest = candidate_manifest()
+            manifest["harnesses"] = {
+                "manual": {
+                    "module": "manifest_harness",
+                    "input": "rfuzz_input_bits",
+                    "raw_width": 395,
+                }
+            }
+            cfg = {
+                "top": "generated_top",
+                "composition": {"kind": "protocol_composition"},
+                "harness": {
+                    "manual_harness": source.name,
+                    "manual_harness_module": "fixed_harness",
+                    "manual_harness_input": "rfuzz_input_bits",
+                    "raw_width": 395,
+                },
+            }
+            with self.assertRaisesRegex(ValueError, "candidate manifest"):
+                run_design_flow.stage_toml(
+                    root,
+                    cfg,
+                    {"harness": root / "harness", "toml": root / "flow.toml"},
+                    frontend_manifest(),
+                    instrumentation_manifest(),
+                    manifest,
+                    "candidate_direct",
+                )
+
+    def test_independent_protocol_instrument_stage_uses_custom_composition_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            custom_composition = root / "custom" / "composition-output"
+            custom_composition.mkdir(parents=True)
+            (custom_composition / "sources.f").write_text("top.sv\n")
+            out_dir = root / "out"
+            (out_dir / "frontend.json").parent.mkdir(parents=True)
+            (out_dir / "frontend.json").write_text(json.dumps(frontend_manifest()))
+            cfg = {
+                "out_dir": "out",
+                "project_root": ".",
+                "flist": "default/sources.f",
+                "top": "generated_top",
+                "composition": {
+                    "kind": "protocol_composition",
+                    "manifest": "manifest.json",
+                    "out_dir": "custom/composition-output",
+                },
+            }
+            args = type("Args", (), {
+                "config": "flow.json",
+                "stage": "instrument",
+                "frontend_library": None,
+                "server_verilator_bin": None,
+                "jobs": "1",
+                "fuzz_seconds": None,
+                "seed": None,
+                "max_cycles": None,
+                "force": False,
+                "manifest": None,
+                "candidate_mode": None,
+            })()
+            with (
+                patch.object(run_design_flow, "repo_root", return_value=root),
+                patch.object(run_design_flow, "parse_args", return_value=args),
+                patch.object(run_design_flow, "load_config", return_value=cfg),
+                patch.object(run_design_flow, "default_frontend_library", return_value=root / "frontend.so"),
+                patch.object(run_design_flow, "default_server_verilator", return_value="verilator"),
+                patch.object(run_design_flow, "stage_instrument", return_value={"coverage": []}) as instrument,
+            ):
+                self.assertEqual(0, run_design_flow.main())
+
+            self.assertEqual(custom_composition / "sources.f", instrument.call_args.args[2]["flist"])
+            self.assertNotEqual(root / "out" / "composition" / "sources.f", instrument.call_args.args[2]["flist"])
 
     def test_toml_stage_rejects_stale_candidate_manifest_before_manual_input(self) -> None:
         manifest = candidate_manifest()

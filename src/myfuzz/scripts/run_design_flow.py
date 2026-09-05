@@ -55,6 +55,7 @@ _COMPOSITION_LEGACY_KEYS = {
 }
 _PROTOCOL_COMPOSITION_KEYS = {"kind", "manifest", "protocol_manifest", "out_dir"}
 _IDENTIFIER_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*$")
+_MANUAL_HARNESS_RAW_WIDTH = 395
 
 
 def repo_root() -> Path:
@@ -272,12 +273,24 @@ def harness_config_for_artifact(cfg: dict, artifact: HarnessArtifact, source_pat
     return harness_cfg
 
 
-def manual_harness_config(root: Path, cfg: dict) -> dict | None:
+def manual_harness_config(
+    root: Path,
+    cfg: dict,
+    candidate_manifest: Mapping[str, object] | None = None,
+) -> dict | None:
     """Validate a checked-in manual harness declaration, if one is configured."""
 
     value = cfg.get("harness", {})
     if not isinstance(value, Mapping) or "manual_harness" not in value:
         return None
+    composition = cfg.get("composition")
+    protocol_composition = (
+        isinstance(composition, Mapping)
+        and composition.get("kind") == "protocol_composition"
+    )
+    if not protocol_composition:
+        return None
+
     harness_cfg = dict(value)
     source_value = harness_cfg.get("manual_harness")
     if not isinstance(source_value, str) or not source_value or "\0" in source_value:
@@ -296,8 +309,168 @@ def manual_harness_config(root: Path, cfg: dict) -> dict | None:
     raw_width = harness_cfg.get("raw_width")
     if isinstance(raw_width, bool) or not isinstance(raw_width, int) or raw_width <= 0:
         raise ValueError("harness.raw_width must be a positive integer")
+    if raw_width != _MANUAL_HARNESS_RAW_WIDTH:
+        raise ValueError(
+            "harness.raw_width must be "
+            f"{_MANUAL_HARNESS_RAW_WIDTH} for the fixed RFuzz ABI"
+        )
     harness_cfg["manual_harness"] = source_path.as_posix()
+
+    actual_module, actual_input, actual_width = _manual_harness_source_abi(
+        source_path,
+        harness_cfg["manual_harness_module"],
+        harness_cfg["manual_harness_input"],
+    )
+    configured_module = harness_cfg["manual_harness_module"]
+    configured_input = harness_cfg["manual_harness_input"]
+    if actual_module != configured_module:
+        raise ValueError(
+            "manual harness module mismatch: "
+            f"configured {configured_module!r}, source declares {actual_module!r}"
+        )
+    if actual_input != configured_input:
+        raise ValueError(
+            "manual harness input mismatch: "
+            f"configured {configured_input!r}, source declares {actual_input!r}"
+        )
+    if actual_width != raw_width:
+        raise ValueError(
+            "manual harness input width mismatch: "
+            f"configured {raw_width}, source declares {actual_width}"
+        )
+    _validate_candidate_manual_abi(
+        candidate_manifest,
+        configured_module,
+        configured_input,
+        raw_width,
+    )
     return harness_cfg
+
+
+def _strip_sv_comments(text: str) -> str:
+    def replace_comment(match: re.Match[str]) -> str:
+        return "".join("\n" if char == "\n" else " " for char in match.group(0))
+
+    return re.sub(r"//[^\r\n]*|/\*.*?\*/", replace_comment, text, flags=re.S)
+
+
+def _constant_sv_int(value: str) -> int:
+    normalized = value.replace("_", "")
+    if normalized.lower().startswith("0x"):
+        return int(normalized[2:], 16)
+    if not normalized.isdecimal():
+        raise ValueError("manual harness input range must use constant bounds")
+    return int(normalized, 10)
+
+
+def _sv_range_width(range_text: str | None) -> int:
+    if range_text is None:
+        return 1
+    match = re.fullmatch(
+        r"\[\s*(?P<msb>0[xX][0-9A-Fa-f_]+|[0-9][0-9_]*)\s*:\s*"
+        r"(?P<lsb>0[xX][0-9A-Fa-f_]+|[0-9][0-9_]*)\s*\]",
+        range_text,
+    )
+    if match is None:
+        raise ValueError("manual harness input range must use constant bounds")
+    return abs(
+        _constant_sv_int(match.group("msb"))
+        - _constant_sv_int(match.group("lsb"))
+    ) + 1
+
+
+def _manual_harness_source_abi(
+    source_path: Path,
+    expected_module: str,
+    expected_input: str,
+) -> tuple[str, str, int]:
+    text = _strip_sv_comments(source_path.read_text())
+    module_pattern = re.compile(
+        r"\bmodule\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\b"
+        r"(?P<body>.*?)(?:\bendmodule\b)",
+        flags=re.S,
+    )
+    module_match = next(
+        (match for match in module_pattern.finditer(text) if match.group("name") == expected_module),
+        None,
+    )
+    if module_match is None:
+        raise ValueError(
+            "manual harness module mismatch: "
+            f"configured {expected_module!r} is not declared in {source_path}"
+        )
+
+    input_pattern = re.compile(
+        r"\binput\b\s+"
+        r"(?:(?:wire|logic|reg|tri|tri0|tri1|uwire|signed|unsigned)\s+)*"
+        r"(?P<range>\[[^\]]+\])?\s*"
+        rf"(?P<name>{re.escape(expected_input)})\b"
+    )
+    input_match = input_pattern.search(module_match.group("body"))
+    if input_match is None:
+        raise ValueError(
+            "manual harness input mismatch: "
+            f"configured {expected_input!r} is not declared in module {expected_module!r}"
+        )
+    return (
+        module_match.group("name"),
+        input_match.group("name"),
+        _sv_range_width(input_match.group("range")),
+    )
+
+
+def _validate_candidate_manual_abi(
+    candidate_manifest: Mapping[str, object] | None,
+    module: str,
+    input_name: str,
+    raw_width: int,
+) -> None:
+    if candidate_manifest is None:
+        return
+    harnesses = candidate_manifest.get("harnesses")
+    if harnesses is None:
+        return
+    if not isinstance(harnesses, Mapping):
+        raise ValueError("candidate manifest harnesses must be an object")
+    manual = harnesses.get("manual")
+    if manual is None:
+        return
+    if not isinstance(manual, Mapping):
+        raise ValueError("candidate manifest manual ABI must be an object")
+    manifest_module = manual.get("module")
+    manifest_input = manual.get("input")
+    manifest_width = manual.get("raw_width")
+    if not isinstance(manifest_module, str) or not manifest_module:
+        raise ValueError("candidate manifest manual ABI module must be a non-empty string")
+    if not isinstance(manifest_input, str) or not manifest_input:
+        raise ValueError("candidate manifest manual ABI input must be a non-empty string")
+    if isinstance(manifest_width, bool) or not isinstance(manifest_width, int):
+        raise ValueError("candidate manifest manual ABI raw_width must be an integer")
+    expected = (module, input_name, raw_width)
+    actual = (manifest_module, manifest_input, manifest_width)
+    if actual != expected:
+        raise ValueError(
+            "candidate manifest manual ABI mismatch: "
+            f"configured {expected!r}, manifest declares {actual!r}"
+        )
+
+
+def _protocol_composition_source_list_path(
+    root: Path,
+    cfg: Mapping[str, object],
+    paths: Mapping[str, Path],
+) -> Path:
+    composition = cfg.get("composition")
+    if not isinstance(composition, Mapping) or composition.get("kind") != "protocol_composition":
+        return (Path(paths["composition"]) / "sources.f").resolve()
+    output_value = composition.get("out_dir")
+    if output_value is None:
+        output_path = Path(paths["composition"])
+    elif isinstance(output_value, str) and output_value and "\0" not in output_value:
+        output_path = resolve(root, output_value)
+    else:
+        raise ValueError("composition.out_dir:path-required")
+    return (output_path / "sources.f").resolve()
 
 
 def rfuzz_harness_api():
@@ -323,7 +496,7 @@ def stage_toml(
     manifest = validate_candidate_manifest(candidate_manifest)
     frontend_module = find_top_module(frontend_manifest, cfg["top"])
     validate_frontend_candidate_join(frontend_module, cfg["top"], manifest)
-    manual_cfg = manual_harness_config(root, cfg)
+    manual_cfg = manual_harness_config(root, cfg, candidate_manifest)
     if manual_cfg is not None:
         manual_cfg.setdefault("candidate_mode", candidate_mode)
         generate_toml(
@@ -368,7 +541,7 @@ def stage_harness(
     manifest = validate_candidate_manifest(candidate_manifest)
     frontend_module = find_top_module(frontend_manifest, cfg["top"])
     validate_frontend_candidate_join(frontend_module, cfg["top"], manifest)
-    manual_cfg = manual_harness_config(root, cfg)
+    manual_cfg = manual_harness_config(root, cfg, candidate_manifest)
     if manual_cfg is not None:
         generate_harness_files, load_toml, top_ports_from_frontend_manifest, validate_harness = rfuzz_harness_api()
         conf = load_toml(paths["toml"])
@@ -1002,7 +1175,7 @@ def main() -> int:
             raise ValueError(f"protocol composition source list is missing: {paths['flist']}")
         protocol_composition_prepared = True
     elif is_protocol_composition and "instrument" in stages:
-        generated_flist = paths["composition"] / "sources.f"
+        generated_flist = _protocol_composition_source_list_path(root, cfg, paths)
         if not generated_flist.is_file():
             raise ValueError(
                 "protocol composition source handoff is missing; run the composition stage first"
