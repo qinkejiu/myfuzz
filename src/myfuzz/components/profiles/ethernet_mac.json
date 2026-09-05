@@ -1,0 +1,13 @@
+{
+  "component_type": "ethernet_mac",
+  "module_name": "ethernet_mac",
+  "protocols": [["axi4", "1"], ["axi4-lite", "1"], ["axi-stream", "1"], ["tl-ul", "1"]],
+  "address_alignment": 4096,
+  "default_size": 4096,
+  "irq_capable": true,
+  "requires": ["dma"],
+  "source_status": "reference",
+  "source_paths": ["third_party/reference/ethernet/ethernet_mac.sv"],
+  "implemented": false,
+  "parameter_limits": {"DATA_WIDTH": [8, 128], "TX_DEPTH": [1, 4096], "RX_DEPTH": [1, 4096]}
+}

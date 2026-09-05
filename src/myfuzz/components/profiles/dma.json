@@ -1,0 +1,13 @@
+{
+  "component_type": "dma",
+  "module_name": "dma_engine",
+  "protocols": [["axi4", "1"], ["tl-ul", "1"], ["avalon-mm", "1"]],
+  "address_alignment": 4096,
+  "default_size": 4096,
+  "irq_capable": true,
+  "requires": ["ram"],
+  "source_status": "reference",
+  "source_paths": ["third_party/reference/dma/dma_engine.sv"],
+  "implemented": false,
+  "parameter_limits": {"CHANNELS": [1, 16], "ADDRESS_WIDTH": [16, 64]}
+}

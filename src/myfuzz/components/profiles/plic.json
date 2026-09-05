@@ -1,0 +1,13 @@
+{
+  "component_type": "plic",
+  "module_name": "plic",
+  "protocols": [["apb", "4"], ["axi4-lite", "1"], ["tl-ul", "1"]],
+  "address_alignment": 4096,
+  "default_size": 4096,
+  "irq_capable": true,
+  "requires": [],
+  "source_status": "reference",
+  "source_paths": ["third_party/reference/riscv-plic/plic.sv"],
+  "implemented": false,
+  "parameter_limits": {"SOURCES": [1, 1024], "TARGETS": [1, 256]}
+}

@@ -1,0 +1,13 @@
+{
+  "component_type": "timer",
+  "module_name": "ibex_mcip_timer",
+  "protocols": [["apb", "4"]],
+  "address_alignment": 4096,
+  "default_size": 4096,
+  "irq_capable": true,
+  "requires": [],
+  "source_status": "implemented",
+  "source_paths": ["configs/designs/ibex_multicomponent_ip/rtl/ibex_mcip_timer.sv"],
+  "implemented": true,
+  "parameter_limits": {}
+}

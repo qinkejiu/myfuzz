@@ -1,0 +1,13 @@
+{
+  "component_type": "ram",
+  "module_name": "ibex_mcip_ram",
+  "protocols": [["tl-ul", "1"]],
+  "address_alignment": 4,
+  "default_size": 65536,
+  "irq_capable": false,
+  "requires": [],
+  "source_status": "implemented",
+  "source_paths": ["configs/designs/ibex_multicomponent_ip/rtl/ibex_mcip_ram.sv"],
+  "implemented": true,
+  "parameter_limits": {"WORDS": [4, 16384]}
+}

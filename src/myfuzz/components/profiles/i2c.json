@@ -1,0 +1,13 @@
+{
+  "component_type": "i2c",
+  "module_name": "i2c_controller",
+  "protocols": [["apb", "4"], ["axi4-lite", "1"], ["tl-ul", "1"]],
+  "address_alignment": 4096,
+  "default_size": 4096,
+  "irq_capable": true,
+  "requires": [],
+  "source_status": "reference",
+  "source_paths": ["third_party/reference/i2c/i2c_controller.sv"],
+  "implemented": false,
+  "parameter_limits": {"FIFO_DEPTH": [1, 1024], "CLOCK_DIVIDER": [1, 65535]}
+}
