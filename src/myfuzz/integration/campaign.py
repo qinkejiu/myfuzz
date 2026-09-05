@@ -399,133 +399,138 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
     except (CampaignError, OSError) as error:
         return _startup_error("process-start-failed", str(error))
 
-    assert process.stdout is not None
     selector: selectors.BaseSelector | None = None
-    pid = process.pid
-    started = time.monotonic()
-    state = CampaignState(
-        seed=options.seed,
-        composition_hash=options.composition_hash,
-    )
-    metrics = _JsonLineMetrics(state)
-    peak_rss_bytes = 0
-    soft_limit_exceeded = False
-    status = "completed"
-    termination_signal: str | None = None
-    monitor_error: CampaignError | CampaignReportError | None = None
-    error_type: str | None = None
-    checkpoint_path = options.output_dir / "checkpoint.json"
     pgid: int | None = None
 
-    def persist_checkpoint(current_status: str, duration: float) -> None:
-        state.status = current_status
-        state.duration_seconds = max(0.0, duration)
-        state.peak_rss_bytes = peak_rss_bytes
-        try:
-            write_checkpoint(checkpoint_path, state)
-        except CampaignReportError as error:
-            raise CampaignError(str(error)) from error
-
     try:
-        try:
-            # start_new_session makes the child PID the process-group ID.  Keep
-            # that safe fallback if a transient procfs lookup races process
-            # startup so cleanup still targets the owned group.
-            pgid = pid
-            observed_pgid = os.getpgid(pid)
-            if observed_pgid != pid:
-                raise CampaignError("child did not enter an independent process group")
-            pgid = observed_pgid
-        except OSError as error:
-            raise CampaignError(f"cannot inspect campaign process group {pid}") from error
-        if pgid == os.getpgrp():
-            raise CampaignError("refusing to supervise a process in the parent process group")
-        selector = selectors.DefaultSelector()
-        descriptor = process.stdout.fileno()
-        os.set_blocking(descriptor, False)
-        selector.register(descriptor, selectors.EVENT_READ)
-
-        next_rss_poll = started
-        next_checkpoint = started + options.checkpoint_seconds
-        deadline = started + options.duration_seconds
-        while True:
-            return_code = process.poll()
-            now = time.monotonic()
-            if return_code is not None:
-                return_code = process.wait()
-                if return_code != 0:
-                    status = "crashed"
-                if pgid is not None and _group_exists(pgid):
-                    termination_signal = _terminate_process_group(process, pgid)
-                if selector is not None:
-                    _drain_output(selector, metrics, 0.2)
-                break
-
-            if now >= next_rss_poll:
-                try:
-                    rss_bytes = read_rss_bytes(pid)
-                except CampaignError as error:
-                    monitor_error = error
-                    status = "startup-error"
-                    termination_signal = _terminate_process_group(process, pgid)
-                    _drain_output(selector, metrics, 0.2)
-                    break
-                peak_rss_bytes = max(peak_rss_bytes, rss_bytes)
-                soft_limit_exceeded = soft_limit_exceeded or (
-                    rss_bytes >= options.limits.soft_memory_bytes
-                )
-                next_rss_poll = now + _POLL_SECONDS
-                if rss_bytes >= options.limits.hard_memory_bytes:
-                    status = "resource-terminated"
-                    termination_signal = _terminate_process_group(process, pgid)
-                    _drain_output(selector, metrics, 0.2)
-                    break
-
-            if now >= deadline:
-                status = "timed-out"
-                termination_signal = _terminate_process_group(process, pgid)
-                _drain_output(selector, metrics, 0.2)
-                break
-
-            wait_seconds = min(
-                _POLL_SECONDS,
-                max(0.0, next_rss_poll - time.monotonic()),
-                max(0.0, deadline - time.monotonic()),
-            )
-            _read_available_output(selector, metrics, wait_seconds)
-            now = time.monotonic()
-            if now >= next_checkpoint:
-                persist_checkpoint("running", now - started)
-                while next_checkpoint <= now:
-                    next_checkpoint += options.checkpoint_seconds
-
-        return_code = process.wait()
-    except (CampaignError, OSError) as error:
-        monitor_error = (
-            error if isinstance(error, CampaignError) else CampaignError(str(error))
+        pid = process.pid
+        # start_new_session makes the child PID the process-group ID. Record
+        # that safe fallback before any further post-launch initialization so
+        # parent-side shutdowns can always target the owned group.
+        pgid = pid
+        assert process.stdout is not None
+        started = time.monotonic()
+        state = CampaignState(
+            seed=options.seed,
+            composition_hash=options.composition_hash,
         )
-        status = "startup-error"
-        error_type = "monitor-setup-failed"
-        if pgid is not None:
+        metrics = _JsonLineMetrics(state)
+        peak_rss_bytes = 0
+        soft_limit_exceeded = False
+        status = "completed"
+        termination_signal: str | None = None
+        monitor_error: CampaignError | CampaignReportError | None = None
+        error_type: str | None = None
+        checkpoint_path = options.output_dir / "checkpoint.json"
+
+        def persist_checkpoint(current_status: str, duration: float) -> None:
+            state.status = current_status
+            state.duration_seconds = max(0.0, duration)
+            state.peak_rss_bytes = peak_rss_bytes
             try:
-                termination_signal = _terminate_process_group(process, pgid)
-            except CampaignError:
+                write_checkpoint(checkpoint_path, state)
+            except CampaignReportError as error:
+                raise CampaignError(str(error)) from error
+
+        try:
+            try:
+                # Keep the recorded PID fallback if a transient procfs lookup
+                # races process startup so cleanup still targets the owned group.
+                observed_pgid = os.getpgid(pid)
+                if observed_pgid != pid:
+                    raise CampaignError("child did not enter an independent process group")
+                pgid = observed_pgid
+            except OSError as error:
+                raise CampaignError(f"cannot inspect campaign process group {pid}") from error
+            if pgid == os.getpgrp():
+                raise CampaignError("refusing to supervise a process in the parent process group")
+            selector = selectors.DefaultSelector()
+            descriptor = process.stdout.fileno()
+            os.set_blocking(descriptor, False)
+            selector.register(descriptor, selectors.EVENT_READ)
+
+            next_rss_poll = started
+            next_checkpoint = started + options.checkpoint_seconds
+            deadline = started + options.duration_seconds
+            while True:
+                return_code = process.poll()
+                now = time.monotonic()
+                if return_code is not None:
+                    return_code = process.wait()
+                    if return_code != 0:
+                        status = "crashed"
+                    if pgid is not None and _group_exists(pgid):
+                        termination_signal = _terminate_process_group(process, pgid)
+                    if selector is not None:
+                        _drain_output(selector, metrics, 0.2)
+                    break
+
+                if now >= next_rss_poll:
+                    try:
+                        rss_bytes = read_rss_bytes(pid)
+                    except CampaignError as error:
+                        monitor_error = error
+                        status = "startup-error"
+                        termination_signal = _terminate_process_group(process, pgid)
+                        _drain_output(selector, metrics, 0.2)
+                        break
+                    peak_rss_bytes = max(peak_rss_bytes, rss_bytes)
+                    soft_limit_exceeded = soft_limit_exceeded or (
+                        rss_bytes >= options.limits.soft_memory_bytes
+                    )
+                    next_rss_poll = now + _POLL_SECONDS
+                    if rss_bytes >= options.limits.hard_memory_bytes:
+                        status = "resource-terminated"
+                        termination_signal = _terminate_process_group(process, pgid)
+                        _drain_output(selector, metrics, 0.2)
+                        break
+
+                if now >= deadline:
+                    status = "timed-out"
+                    termination_signal = _terminate_process_group(process, pgid)
+                    _drain_output(selector, metrics, 0.2)
+                    break
+
+                wait_seconds = min(
+                    _POLL_SECONDS,
+                    max(0.0, next_rss_poll - time.monotonic()),
+                    max(0.0, deadline - time.monotonic()),
+                )
+                _read_available_output(selector, metrics, wait_seconds)
+                now = time.monotonic()
+                if now >= next_checkpoint:
+                    persist_checkpoint("running", now - started)
+                    while next_checkpoint <= now:
+                        next_checkpoint += options.checkpoint_seconds
+
+            return_code = process.wait()
+        except (CampaignError, OSError) as error:
+            monitor_error = (
+                error if isinstance(error, CampaignError) else CampaignError(str(error))
+            )
+            status = "startup-error"
+            error_type = "monitor-setup-failed"
+            if pgid is not None:
+                try:
+                    termination_signal = _terminate_process_group(process, pgid)
+                except CampaignError:
+                    try:
+                        process.kill()
+                    except OSError:
+                        pass
+            else:
                 try:
                     process.kill()
                 except OSError:
                     pass
-        else:
-            try:
-                process.kill()
-            except OSError:
-                pass
-        if selector is not None:
-            _drain_output(selector, metrics, 0.2)
-        return_code = process.wait()
+            if selector is not None:
+                _drain_output(selector, metrics, 0.2)
+            return_code = process.wait()
     except BaseException:
         # KeyboardInterrupt and parent-side shutdowns must not leave an owned
-        # child group running after the monitoring stack unwinds.  Preserve the
-        # original exception after best-effort group termination and reaping.
+        # child group running after any post-launch initialization or
+        # monitoring stack unwinds. Preserve the original exception after
+        # best-effort group termination and reaping.
         try:
             if pgid is not None and _group_exists(pgid):
                 _terminate_process_group(process, pgid)

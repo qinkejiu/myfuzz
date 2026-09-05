@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from pathlib import Path
+import signal
 import sys
 import tempfile
 import textwrap
@@ -215,6 +217,72 @@ class CampaignReportTests(unittest.TestCase):
             while Path(f"/proc/{child_pid}").exists() and time.monotonic() < deadline:
                 time.sleep(0.05)
             self.assertFalse(Path(f"/proc/{child_pid}").exists())
+            self.assertFalse((output_dir / "report.json").exists())
+
+    def test_parent_interrupt_during_state_initialization_terminates_child_before_propagating(self) -> None:
+        source = """
+            from pathlib import Path
+            import os
+            import sys
+            import time
+
+            Path(sys.argv[1]).write_text(str(os.getpid()), encoding="utf-8")
+            time.sleep(30)
+        """
+
+        with tempfile.TemporaryDirectory() as temporary:
+            output_dir = Path(temporary) / "campaign"
+            marker = Path(temporary) / "child.pid"
+            child_pid: int | None = None
+
+            def interrupt_during_state_initialization(*_args: object, **_kwargs: object) -> CampaignState:
+                deadline = time.monotonic() + 2
+                while not marker.exists() and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                raise KeyboardInterrupt
+
+            try:
+                with mock.patch.object(
+                    campaign,
+                    "CampaignState",
+                    side_effect=interrupt_during_state_initialization,
+                ):
+                    with self.assertRaises(KeyboardInterrupt):
+                        campaign.run_supervised_command(
+                            CampaignOptions(
+                                command=(
+                                    sys.executable,
+                                    "-u",
+                                    "-c",
+                                    textwrap.dedent(source),
+                                    str(marker),
+                                ),
+                                output_dir=output_dir,
+                                duration_seconds=30,
+                                checkpoint_seconds=1,
+                                limits=CampaignLimits(max_restarts=0),
+                            )
+                        )
+
+                child_pid = int(marker.read_text(encoding="utf-8"))
+                deadline = time.monotonic() + 2
+                while Path(f"/proc/{child_pid}").exists() and time.monotonic() < deadline:
+                    time.sleep(0.05)
+                self.assertFalse(Path(f"/proc/{child_pid}").exists())
+            finally:
+                if child_pid is None and marker.exists():
+                    child_pid = int(marker.read_text(encoding="utf-8"))
+                if child_pid is not None:
+                    if Path(f"/proc/{child_pid}").exists():
+                        try:
+                            os.killpg(child_pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+                    try:
+                        os.waitpid(child_pid, 0)
+                    except ChildProcessError:
+                        pass
+
             self.assertFalse((output_dir / "report.json").exists())
 
     def test_reused_output_directory_removes_stale_success_report(self) -> None:
