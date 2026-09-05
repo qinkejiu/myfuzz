@@ -15,3 +15,7 @@ kept in `PROJECT_SUMMARY_AND_ARTIFACT_INDEX_20260615.md`.
 - `MULTICOMPONENT_SCHEME5_TARGETS_AND_CASES_20260617.md`: standalone structured comparison of candidate designs versus `XSTop`, multi-component scheme5 flow, and recommended test cases.
 - `CANDIDATE_COMPONENT_PROJECTS_RVX_COREV_PULP_20260617.md`: local clone and suitability notes for RVX, CV32E40P, CORE-V MCU, PULPissimo, and PULP as scheme5 multi-component targets.
 - `CPU_IP_MULTICOMPONENT_EXPERIMENT_PLAN.md`: current concrete plan for an Ibex + multiple IP target, including the direct-slice baseline, dependency-aware projection variant, dependency manifest, local/remote directory layout, and first smoke-test milestones.
+- `PROTOCOL_CPU_PERIPHERAL_REFERENCE_20260906.md`: protocol contracts, CPU native/integration/bridge boundaries, common peripheral catalog, dependency-aware composition rules, and the fixed RFuzz input ABI.
+- `RISCV_ISA_ENCODING_REFERENCE_20260906.md`: RISC-V CPU profiles plus RV32I/RV64I/M/A/F/D/C instruction names, field layouts, 0/1 encoding rules, privileged/CSR boundaries, and optional B/Z extension catalog.
+- `research/protocol-research-notes.md`: source-oriented protocol notes used to cross-check the reference contract.
+- `research/component-rfuzz-research-notes.md`: source-oriented CPU/component, dependency graph, RFuzz ABI, and long-run metadata notes.
