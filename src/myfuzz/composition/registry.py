@@ -74,7 +74,7 @@ def default_component_registry(root: Path) -> ComponentRegistry:
             _registration(
                 "ram", "ibex_mcip_ram", rtl + "ibex_mcip_ram.sv", ("tl-ul", "1"),
                 parameter_defaults={"WORDS": 64},
-                parameter_limits={"WORDS": (1, 16_384)},
+                parameter_limits={"WORDS": (4, 16_384)},
                 irq_capable=False,
             ),
             _registration("timer", "ibex_mcip_timer", rtl + "ibex_mcip_timer.sv", ("apb", "4"), irq_capable=True),

@@ -18,6 +18,19 @@ class ProtocolCompositionError(ValueError):
     """Raised when a protocol-composition input is outside the closed contract."""
 
 
+class _DuplicateJsonKey(ValueError):
+    pass
+
+
+def _reject_duplicate_json_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    document: dict[str, object] = {}
+    for key, value in pairs:
+        if key in document:
+            raise _DuplicateJsonKey(key)
+        document[key] = value
+    return document
+
+
 @dataclass(frozen=True, slots=True)
 class CompositionComponent:
     component_id: str
@@ -122,8 +135,13 @@ def _component(value: object, index: int) -> CompositionComponent:
 def load_protocol_composition(path: Path) -> ProtocolCompositionManifest:
     """Load a closed `protocol_composition.v1` document without side effects."""
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
+        raw = json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=_reject_duplicate_json_keys,
+        )
+    except _DuplicateJsonKey as error:
+        raise ProtocolCompositionError(f"manifest:duplicate-key:{error}") from error
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise ProtocolCompositionError(f"manifest:read:{error}") from error
     document = _object(
         raw,
@@ -231,9 +249,12 @@ def validate_protocol_composition(
             lower, upper = registration.parameter_limits[parameter_name]
             if not lower <= parameter_value <= upper:
                 raise _error(f"{label}.parameters.{parameter_name}", "out-of-range")
-        for parameter_name in registration.parameter_defaults:
-            if parameter_name not in component.parameters:
-                continue
+            if (
+                component.component_type == "ram"
+                and parameter_name == "WORDS"
+                and parameter_value & (parameter_value - 1)
+            ):
+                raise _error(f"{label}.parameters.{parameter_name}", "not-power-of-two")
         for start, end, existing in regions:
             if component.base < end and start < component.base + component.size:
                 raise _error(f"{label}.base", f"overlaps:{existing.component_id}")

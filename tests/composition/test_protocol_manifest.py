@@ -188,6 +188,43 @@ class ProtocolCompositionManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(ProtocolCompositionError, r"^runtime\.duration_seconds:not-positive$"):
             load_protocol_composition(self.write_manifest(document))
 
+    def test_rejects_ram_word_counts_not_supported_by_rtl(self) -> None:
+        document = approved_manifest()
+        document["components"][1]["parameters"] = {"WORDS": 1}  # type: ignore[index]
+        with self.assertRaisesRegex(
+            ProtocolCompositionError,
+            r"^components\[1\]\.parameters\.WORDS:out-of-range$",
+        ):
+            self.load_and_validate(document)
+
+        document = approved_manifest()
+        document["components"][1]["parameters"] = {"WORDS": 6}  # type: ignore[index]
+        with self.assertRaisesRegex(
+            ProtocolCompositionError,
+            r"^components\[1\]\.parameters\.WORDS:not-power-of-two$",
+        ):
+            self.load_and_validate(document)
+
+    def test_rejects_invalid_utf8_as_manifest_error(self) -> None:
+        temporary = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
+        with temporary:
+            temporary.write(b"\xff")
+        path = Path(temporary.name)
+        self.addCleanup(path.unlink, missing_ok=True)
+
+        with self.assertRaisesRegex(ProtocolCompositionError, r"^manifest:read:"):
+            load_protocol_composition(path)
+
+    def test_rejects_duplicate_json_keys(self) -> None:
+        temporary = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+        with temporary:
+            temporary.write('{"schema_version":"protocol_composition.v1", "schema_version":"protocol_composition.v1"}')
+        path = Path(temporary.name)
+        self.addCleanup(path.unlink, missing_ok=True)
+
+        with self.assertRaisesRegex(ProtocolCompositionError, r"^manifest:duplicate-key:schema_version$"):
+            load_protocol_composition(path)
+
     def test_rejects_registry_with_missing_source_before_generation(self) -> None:
         manifest = load_protocol_composition(self.write_manifest(approved_manifest()))
 
