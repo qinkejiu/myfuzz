@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 import sys
 import tempfile
 import textwrap
+import time
 import unittest
+from unittest import mock
 
 from myfuzz.integration import campaign
 from myfuzz.integration.campaign import CampaignLimits, CampaignOptions
@@ -169,6 +172,82 @@ class CampaignReportTests(unittest.TestCase):
             self.assertEqual(2, report["iterations"])
             self.assertEqual({"tl-ul": 3}, report["protocol_transactions"])
             self.assertEqual({"ram": 3}, report["component_transactions"])
+
+    def test_parent_interrupt_terminates_child_before_propagating(self) -> None:
+        source = """
+            from pathlib import Path
+            import os
+            import sys
+            import time
+
+            Path(sys.argv[1]).write_text(str(os.getpid()), encoding="utf-8")
+            time.sleep(30)
+        """
+
+        with tempfile.TemporaryDirectory() as temporary:
+            output_dir = Path(temporary) / "campaign"
+            marker = Path(temporary) / "child.pid"
+
+            def interrupt_after_child_starts(*_args: object, **_kwargs: object) -> int:
+                deadline = time.monotonic() + 2
+                while not marker.exists() and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                raise KeyboardInterrupt
+
+            with mock.patch.object(
+                campaign,
+                "_read_available_output",
+                side_effect=interrupt_after_child_starts,
+            ):
+                with self.assertRaises(KeyboardInterrupt):
+                    campaign.run_supervised_command(
+                        CampaignOptions(
+                            command=(sys.executable, "-u", "-c", textwrap.dedent(source), str(marker)),
+                            output_dir=output_dir,
+                            duration_seconds=30,
+                            checkpoint_seconds=1,
+                            limits=CampaignLimits(max_restarts=0),
+                        )
+                    )
+
+            child_pid = int(marker.read_text(encoding="utf-8"))
+            deadline = time.monotonic() + 2
+            while Path(f"/proc/{child_pid}").exists() and time.monotonic() < deadline:
+                time.sleep(0.05)
+            self.assertFalse(Path(f"/proc/{child_pid}").exists())
+            self.assertFalse((output_dir / "report.json").exists())
+
+    def test_reused_output_directory_removes_stale_success_report(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output_dir = Path(temporary) / "campaign"
+            completed = CampaignOptions(
+                command=(sys.executable, "-u", "-c", "pass"),
+                output_dir=output_dir,
+                duration_seconds=1,
+                checkpoint_seconds=1,
+                limits=CampaignLimits(max_restarts=0),
+            )
+            self.assertEqual("completed", campaign.run_supervised_command(completed)["status"])
+            self.assertTrue((output_dir / "report.json").is_file())
+
+            timed_out = CampaignOptions(
+                command=(sys.executable, "-u", "-c", "import time; time.sleep(30)"),
+                output_dir=output_dir,
+                duration_seconds=1,
+                checkpoint_seconds=1,
+                limits=CampaignLimits(max_restarts=0),
+            )
+            result = campaign.run_supervised_command(timed_out)
+
+            self.assertEqual("timed-out", result["status"])
+            self.assertIsNone(result["report_path"])
+            self.assertFalse((output_dir / "report.json").exists())
+
+    def test_campaign_state_rejects_non_finite_duration(self) -> None:
+        for duration in (math.nan, math.inf, -math.inf):
+            with self.subTest(duration=duration):
+                with self.assertRaises(CampaignReportError):
+                    CampaignState(seed=1, duration_seconds=duration)
 
 
 if __name__ == "__main__":

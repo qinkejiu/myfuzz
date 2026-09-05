@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 import json
+import math
 import os
 from pathlib import Path
 import tempfile
@@ -104,6 +105,12 @@ class CampaignState:
             self.duration_seconds, (int, float)
         ) or self.duration_seconds < 0:
             raise CampaignReportError("duration_seconds must be a non-negative number")
+        try:
+            duration_is_finite = math.isfinite(self.duration_seconds)
+        except (OverflowError, TypeError):
+            duration_is_finite = False
+        if not duration_is_finite:
+            raise CampaignReportError("duration_seconds must be finite")
         if self.last_output_line is not None:
             if not isinstance(self.last_output_line, str):
                 raise CampaignReportError("last_output_line must be a string or None")
@@ -238,6 +245,7 @@ def _encode(document: Mapping[str, object]) -> bytes:
                 ensure_ascii=True,
                 sort_keys=True,
                 separators=(",", ":"),
+                allow_nan=False,
             )
             + "\n"
         ).encode("utf-8")

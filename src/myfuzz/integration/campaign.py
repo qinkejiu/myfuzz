@@ -383,6 +383,8 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
         return _startup_error("process-group-unavailable", str(error))
     try:
         _prepare_output_dir(options.output_dir)
+        report_path = options.output_dir / "report.json"
+        report_path.unlink(missing_ok=True)
         environment = os.environ.copy()
         environment.update(options.env)
         process = subprocess.Popen(
@@ -413,7 +415,6 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
     monitor_error: CampaignError | CampaignReportError | None = None
     error_type: str | None = None
     checkpoint_path = options.output_dir / "checkpoint.json"
-    report_path = options.output_dir / "report.json"
     pgid: int | None = None
 
     def persist_checkpoint(current_status: str, duration: float) -> None:
@@ -521,6 +522,25 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
         if selector is not None:
             _drain_output(selector, metrics, 0.2)
         return_code = process.wait()
+    except BaseException:
+        # KeyboardInterrupt and parent-side shutdowns must not leave an owned
+        # child group running after the monitoring stack unwinds.  Preserve the
+        # original exception after best-effort group termination and reaping.
+        try:
+            if pgid is not None and _group_exists(pgid):
+                _terminate_process_group(process, pgid)
+            elif process.poll() is None:
+                process.kill()
+        except (CampaignError, OSError):
+            try:
+                process.kill()
+            except OSError:
+                pass
+        try:
+            process.wait()
+        except OSError:
+            pass
+        raise
     finally:
         if selector is not None:
             selector.close()
