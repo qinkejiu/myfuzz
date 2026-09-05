@@ -41,6 +41,8 @@ module axi4_lite_mmio_target #(
         ((MAX_WAIT_CYCLES > 16) ? 16 : MAX_WAIT_CYCLES);
     localparam integer WAIT_COUNTER_WIDTH =
         (EFFECTIVE_MAX_WAIT_CYCLES <= 1) ? 1 : $clog2(EFFECTIVE_MAX_WAIT_CYCLES);
+    localparam logic [WAIT_COUNTER_WIDTH-1:0] WAIT_TIMEOUT_VALUE =
+        WAIT_COUNTER_WIDTH'(EFFECTIVE_MAX_WAIT_CYCLES - 1);
 
     logic [ADDRESS_WIDTH-1:0] addr_q;
     logic [DATA_WIDTH-1:0] wdata_q;
@@ -108,7 +110,7 @@ module axi4_lite_mmio_target #(
                     bvalid_q <= 1'b1;
                     bresp_q <= error_i ? 2'b10 : 2'b00;
                     wait_count_q <= '0;
-                end else if (wait_count_q == EFFECTIVE_MAX_WAIT_CYCLES - 1) begin
+                end else if (wait_count_q == WAIT_TIMEOUT_VALUE) begin
                     write_active_q <= 1'b0;
                     bvalid_q <= 1'b1;
                     bresp_q <= 2'b10;
@@ -123,7 +125,7 @@ module axi4_lite_mmio_target #(
                     rdata_q <= rdata_i;
                     rresp_q <= error_i ? 2'b10 : 2'b00;
                     wait_count_q <= '0;
-                end else if (wait_count_q == EFFECTIVE_MAX_WAIT_CYCLES - 1) begin
+                end else if (wait_count_q == WAIT_TIMEOUT_VALUE) begin
                     read_active_q <= 1'b0;
                     rvalid_q <= 1'b1;
                     rdata_q <= '0;

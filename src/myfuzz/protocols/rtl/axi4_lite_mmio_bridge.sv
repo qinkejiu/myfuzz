@@ -44,6 +44,8 @@ module axi4_lite_mmio_bridge #(
         ((MAX_WAIT_CYCLES > 16) ? 16 : MAX_WAIT_CYCLES);
     localparam integer WAIT_COUNTER_WIDTH =
         (EFFECTIVE_MAX_WAIT_CYCLES <= 1) ? 1 : $clog2(EFFECTIVE_MAX_WAIT_CYCLES);
+    localparam logic [WAIT_COUNTER_WIDTH-1:0] WAIT_TIMEOUT_VALUE =
+        WAIT_COUNTER_WIDTH'(EFFECTIVE_MAX_WAIT_CYCLES - 1);
 
     typedef enum logic [2:0] {
         IDLE,
@@ -128,7 +130,7 @@ module axi4_lite_mmio_bridge #(
                     if ((aw_done_q || aw_take) && (w_done_q || w_take)) begin
                         state_q <= WRITE_RESPONSE;
                         wait_count_q <= '0;
-                    end else if (wait_count_q == EFFECTIVE_MAX_WAIT_CYCLES - 1) begin
+                    end else if (wait_count_q == WAIT_TIMEOUT_VALUE) begin
                         state_q <= IDLE;
                         wait_count_q <= '0;
                         rsp_valid_q <= 1'b1;
@@ -147,7 +149,7 @@ module axi4_lite_mmio_bridge #(
                         rsp_rdata_q <= '0;
                         rsp_error_q <= (bresp_i != 2'b00);
                     end else if (!rsp_valid_q) begin
-                        if (wait_count_q == EFFECTIVE_MAX_WAIT_CYCLES - 1) begin
+                        if (wait_count_q == WAIT_TIMEOUT_VALUE) begin
                             state_q <= IDLE;
                             wait_count_q <= '0;
                             rsp_valid_q <= 1'b1;
@@ -163,7 +165,7 @@ module axi4_lite_mmio_bridge #(
                     if (arready_i) begin
                         state_q <= READ_RESPONSE;
                         wait_count_q <= '0;
-                    end else if (wait_count_q == EFFECTIVE_MAX_WAIT_CYCLES - 1) begin
+                    end else if (wait_count_q == WAIT_TIMEOUT_VALUE) begin
                         state_q <= IDLE;
                         wait_count_q <= '0;
                         rsp_valid_q <= 1'b1;
@@ -182,7 +184,7 @@ module axi4_lite_mmio_bridge #(
                         rsp_rdata_q <= rdata_i;
                         rsp_error_q <= (rresp_i != 2'b00);
                     end else if (!rsp_valid_q) begin
-                        if (wait_count_q == EFFECTIVE_MAX_WAIT_CYCLES - 1) begin
+                        if (wait_count_q == WAIT_TIMEOUT_VALUE) begin
                             state_q <= IDLE;
                             wait_count_q <= '0;
                             rsp_valid_q <= 1'b1;
