@@ -332,6 +332,10 @@ def _build_ir(
     external_ports = [
         {"port_id": canonical_id("top-port", "clk_i"), "name": "clk_i", "direction": "input", "width": 1, "semantic_role": "clock"},
         {"port_id": canonical_id("top-port", "rst_ni"), "name": "rst_ni", "direction": "input", "width": 1, "semantic_role": "reset"},
+        {"port_id": canonical_id("top-port", "boot_addr_i"), "name": "boot_addr_i", "direction": "input", "width": 32, "semantic_role": "boot_address"},
+        {"port_id": canonical_id("top-port", "hart_id_i"), "name": "hart_id_i", "direction": "input", "width": 32, "semantic_role": "hart_id"},
+        {"port_id": canonical_id("top-port", "instr_seed_i"), "name": "instr_seed_i", "direction": "input", "width": 32, "semantic_role": "instruction_seed"},
+        {"port_id": canonical_id("top-port", "data_seed_i"), "name": "data_seed_i", "direction": "input", "width": 32, "semantic_role": "data_seed"},
         {"port_id": canonical_id("top-port", "gpio_pins_i"), "name": "gpio_pins_i", "direction": "input", "width": 16, "semantic_role": "gpio"},
         {"port_id": canonical_id("top-port", "uart_rx_valid_i"), "name": "uart_rx_valid_i", "direction": "input", "width": 1, "semantic_role": "uart_rx_valid"},
         {"port_id": canonical_id("top-port", "uart_rx_data_i"), "name": "uart_rx_data_i", "direction": "input", "width": 8, "semantic_role": "uart_rx_data"},

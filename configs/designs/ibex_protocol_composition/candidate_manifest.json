@@ -1,0 +1,242 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_version": "candidate_manifest.v1",
+  "lifecycle": "top_validated",
+  "candidate_id": "ibex-protocol-composition-v1",
+  "composition_ir_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "top": {
+    "module": "ibex_protocol_composition_top",
+    "source": "ibex_protocol_composition_top.sv",
+    "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "harnesses": {
+    "manual": {
+      "module": "ibex_protocol_composition_fixed_395_harness",
+      "input": "rfuzz_input_bits",
+      "raw_width": 395,
+      "projection": "fixed_395_manual_harness"
+    }
+  },
+  "top_port_abi": [
+    {
+      "port_id": 1,
+      "emitted_name": "clk_i",
+      "direction": "input",
+      "width": 1,
+      "semantic_role": "clock",
+      "active_level": 1,
+      "fuzzable": false
+    },
+    {
+      "port_id": 2,
+      "emitted_name": "rst_ni",
+      "direction": "input",
+      "width": 1,
+      "semantic_role": "reset",
+      "active_level": 0,
+      "synchronous": false,
+      "reset_value": 0,
+      "io_meta_reset": true,
+      "fuzzable": false
+    },
+    {
+      "port_id": 3,
+      "emitted_name": "boot_addr_i",
+      "direction": "input",
+      "width": 32,
+      "semantic_role": "boot_address",
+      "fuzzable": true
+    },
+    {
+      "port_id": 4,
+      "emitted_name": "hart_id_i",
+      "direction": "input",
+      "width": 32,
+      "semantic_role": "hart_id",
+      "fuzzable": true
+    },
+    {
+      "port_id": 5,
+      "emitted_name": "instr_seed_i",
+      "direction": "input",
+      "width": 32,
+      "semantic_role": "instruction_seed",
+      "fuzzable": true
+    },
+    {
+      "port_id": 6,
+      "emitted_name": "data_seed_i",
+      "direction": "input",
+      "width": 32,
+      "semantic_role": "data_seed",
+      "fuzzable": true
+    },
+    {
+      "port_id": 7,
+      "emitted_name": "gpio_pins_i",
+      "direction": "input",
+      "width": 16,
+      "semantic_role": "gpio",
+      "fuzzable": true
+    },
+    {
+      "port_id": 8,
+      "emitted_name": "uart_rx_valid_i",
+      "direction": "input",
+      "width": 1,
+      "semantic_role": "uart_rx_valid",
+      "fuzzable": true
+    },
+    {
+      "port_id": 9,
+      "emitted_name": "uart_rx_data_i",
+      "direction": "input",
+      "width": 8,
+      "semantic_role": "uart_rx_data",
+      "fuzzable": true
+    },
+    {
+      "port_id": 10,
+      "emitted_name": "spi_miso_valid_i",
+      "direction": "input",
+      "width": 1,
+      "semantic_role": "spi_miso_valid",
+      "fuzzable": true
+    },
+    {
+      "port_id": 11,
+      "emitted_name": "spi_miso_data_i",
+      "direction": "input",
+      "width": 8,
+      "semantic_role": "spi_miso_data",
+      "fuzzable": true
+    },
+    {
+      "port_id": 12,
+      "emitted_name": "timer_tick_i",
+      "direction": "input",
+      "width": 1,
+      "semantic_role": "timer_tick",
+      "fuzzable": true
+    },
+    {
+      "port_id": 13,
+      "emitted_name": "irq_fast_i",
+      "direction": "input",
+      "width": 15,
+      "semantic_role": "irq_fast",
+      "fuzzable": true
+    },
+    {
+      "port_id": 14,
+      "emitted_name": "irq_software_i",
+      "direction": "input",
+      "width": 1,
+      "semantic_role": "irq_software",
+      "fuzzable": true
+    },
+    {
+      "port_id": 15,
+      "emitted_name": "irq_nm_i",
+      "direction": "input",
+      "width": 1,
+      "semantic_role": "irq_nm",
+      "fuzzable": true
+    },
+    {
+      "port_id": 16,
+      "emitted_name": "debug_req_i",
+      "direction": "input",
+      "width": 1,
+      "semantic_role": "debug_request",
+      "fuzzable": true
+    },
+    {
+      "port_id": 17,
+      "emitted_name": "instr_err_i",
+      "direction": "input",
+      "width": 1,
+      "semantic_role": "instruction_error",
+      "fuzzable": true
+    },
+    {
+      "port_id": 18,
+      "emitted_name": "data_err_i",
+      "direction": "input",
+      "width": 1,
+      "semantic_role": "data_error",
+      "fuzzable": true
+    },
+    {
+      "port_id": 19,
+      "emitted_name": "fetch_enable_i",
+      "direction": "input",
+      "width": 4,
+      "semantic_role": "fetch_enable",
+      "fuzzable": true
+    },
+    {
+      "port_id": 20,
+      "emitted_name": "system_observe_o",
+      "direction": "output",
+      "width": 32,
+      "semantic_role": "observation",
+      "fuzzable": false
+    },
+    {
+      "port_id": 21,
+      "emitted_name": "ip_observe_o",
+      "direction": "output",
+      "width": 32,
+      "semantic_role": "observation",
+      "fuzzable": false
+    }
+  ],
+  "address_map": [],
+  "raw_bit_mappings": [],
+  "validation": {
+    "status": "valid",
+    "parse": "passed",
+    "link": "passed",
+    "width": "passed",
+    "elaboration": "pending",
+    "compile": "pending",
+    "smoke": "pending"
+  },
+  "coverage_universe": [
+    {
+      "id": "ibex_protocol_composition_coverage",
+      "source": "instrumentation"
+    }
+  ],
+  "source_map": [
+    {
+      "source": "ibex_protocol_composition_top.sv",
+      "role": "generated-wrapper"
+    }
+  ],
+  "build_cache_key": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "resources": {
+    "workers": 1,
+    "build_jobs": 1,
+    "waveforms": false
+  },
+  "diagnostics": {
+    "errors": [],
+    "warnings": [],
+    "unsupported": []
+  },
+  "evidence": {
+    "kind": "static-top-port-binding",
+    "rtl_compilation_claimed": false
+  },
+  "assumptions": [
+    "The generated protocol wrapper is the selected frontend top.",
+    "The fixed 395-bit harness projection is the RFuzz transport ABI."
+  ],
+  "rfuzz_abi": {
+    "transport_bytes": 56,
+    "effective_raw_width": 395,
+    "projection": "fixed_395_manual_harness"
+  }
+}

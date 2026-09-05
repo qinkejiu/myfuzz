@@ -20,7 +20,7 @@ class IbexProtocolCampaignSmokeTests(unittest.TestCase):
         environment["PYTHONDONTWRITEBYTECODE"] = "1"
         environment["PYTHONPATH"] = str(ROOT / "src")
 
-        with tempfile.TemporaryDirectory() as temporary:
+        with tempfile.TemporaryDirectory(dir=ROOT) as temporary:
             output_dir = Path(temporary) / "ibex-smoke"
             result = subprocess.run(
                 [

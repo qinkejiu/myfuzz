@@ -13,6 +13,15 @@
     "manifest": "configs/designs/ibex_protocol_composition/manifest.json",
     "out_dir": "runs/designs/ibex_protocol_composition/composition"
   },
+  "candidate_manifest": "configs/designs/ibex_protocol_composition/candidate_manifest.json",
+  "harness": {
+    "candidate_mode": "candidate_direct",
+    "manual_harness": "configs/designs/ibex_protocol_composition/harness/ibex_protocol_composition_fixed_395_harness.sv",
+    "manual_harness_module": "ibex_protocol_composition_fixed_395_harness",
+    "manual_harness_input": "rfuzz_input_bits",
+    "raw_width": 395,
+    "validate": false
+  },
   "server": {
     "cxx_opt": "-O3",
     "verilator_opt": "-O3",

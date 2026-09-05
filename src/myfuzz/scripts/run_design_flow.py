@@ -7,6 +7,7 @@ import argparse
 from collections.abc import Mapping
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -53,6 +54,7 @@ _COMPOSITION_LEGACY_KEYS = {
     "top_k",
 }
 _PROTOCOL_COMPOSITION_KEYS = {"kind", "manifest", "protocol_manifest", "out_dir"}
+_IDENTIFIER_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def repo_root() -> Path:
@@ -270,6 +272,34 @@ def harness_config_for_artifact(cfg: dict, artifact: HarnessArtifact, source_pat
     return harness_cfg
 
 
+def manual_harness_config(root: Path, cfg: dict) -> dict | None:
+    """Validate a checked-in manual harness declaration, if one is configured."""
+
+    value = cfg.get("harness", {})
+    if not isinstance(value, Mapping) or "manual_harness" not in value:
+        return None
+    harness_cfg = dict(value)
+    source_value = harness_cfg.get("manual_harness")
+    if not isinstance(source_value, str) or not source_value or "\0" in source_value:
+        raise ValueError("harness.manual_harness must be a non-empty path")
+    source_path = resolve(root, source_value)
+    try:
+        source_path.relative_to(root.resolve())
+    except ValueError as error:
+        raise ValueError("harness.manual_harness must stay inside the repository") from error
+    if not source_path.is_file():
+        raise ValueError(f"harness.manual_harness does not exist: {source_path}")
+    for key in ("manual_harness_module", "manual_harness_input"):
+        identifier = harness_cfg.get(key)
+        if not isinstance(identifier, str) or _IDENTIFIER_RE.fullmatch(identifier) is None:
+            raise ValueError(f"harness.{key} must be a Verilog identifier")
+    raw_width = harness_cfg.get("raw_width")
+    if isinstance(raw_width, bool) or not isinstance(raw_width, int) or raw_width <= 0:
+        raise ValueError("harness.raw_width must be a positive integer")
+    harness_cfg["manual_harness"] = source_path.as_posix()
+    return harness_cfg
+
+
 def rfuzz_harness_api():
     from rfuzz_flow.tools.verilog_instrumentation.generate_rfuzz_harness import (
         generate_harness_files,
@@ -293,6 +323,24 @@ def stage_toml(
     manifest = validate_candidate_manifest(candidate_manifest)
     frontend_module = find_top_module(frontend_manifest, cfg["top"])
     validate_frontend_candidate_join(frontend_module, cfg["top"], manifest)
+    manual_cfg = manual_harness_config(root, cfg)
+    if manual_cfg is not None:
+        manual_cfg.setdefault("candidate_mode", candidate_mode)
+        generate_toml(
+            frontend_manifest,
+            instrumentation,
+            cfg["top"],
+            paths["toml"],
+            manual_cfg,
+            root=root,
+            candidate_manifest=candidate_manifest,
+        )
+        print(f"Generated rfuzz TOML: {paths['toml']}")
+        print(
+            "Using fixed manual harness: "
+            f"{manual_cfg['manual_harness']} ({manual_cfg['raw_width']} raw bits)"
+        )
+        return
     artifact = build_harness(manifest, candidate_mode)
     source_path, fragment_path = write_candidate_harness_artifact(paths, artifact)
     harness_cfg = harness_config_for_artifact(cfg, artifact, source_path, fragment_path)
@@ -316,10 +364,36 @@ def stage_harness(
     frontend_manifest: dict,
     candidate_manifest: dict,
     candidate_mode: str,
-) -> HarnessArtifact:
+) -> HarnessArtifact | None:
     manifest = validate_candidate_manifest(candidate_manifest)
     frontend_module = find_top_module(frontend_manifest, cfg["top"])
     validate_frontend_candidate_join(frontend_module, cfg["top"], manifest)
+    manual_cfg = manual_harness_config(root, cfg)
+    if manual_cfg is not None:
+        generate_harness_files, load_toml, top_ports_from_frontend_manifest, validate_harness = rfuzz_harness_api()
+        conf = load_toml(paths["toml"])
+        ports = top_ports_from_frontend_manifest(frontend_manifest, cfg["top"])
+        harness_path, augmented_toml = generate_harness_files(
+            conf,
+            ports,
+            cfg["top"],
+            paths["harness"],
+            manual_cfg,
+        )
+        if bool(manual_cfg.get("validate", False)):
+            validate_harness(
+                server_bin,
+                paths["toml"].parent,
+                (paths["instrumented"] / "sources.f").resolve(),
+                harness_path,
+                cfg["top"],
+                cfg.get("verilator_args", []),
+            )
+        else:
+            print("Skipped harness lint validation; set harness.validate=true to enable it.")
+        print(f"Using manual harness: {harness_path}")
+        print(f"Generated augmented TOML: {augmented_toml}")
+        return None
     artifact = build_harness(manifest, candidate_mode)
     source_path, fragment_path = write_candidate_harness_artifact(paths, artifact)
     generate_harness_files, load_toml, top_ports_from_frontend_manifest, validate_harness = rfuzz_harness_api()
@@ -912,9 +986,31 @@ def main() -> int:
 
     frontend_manifest = None
     instrumentation = None
+    protocol_composition_prepared = False
+    composition_cfg = cfg.get("composition")
+    is_protocol_composition = (
+        isinstance(composition_cfg, Mapping)
+        and composition_cfg.get("kind") == "protocol_composition"
+    )
+    if is_protocol_composition and "frontend" in stages:
+        summary = stage_composition(root, cfg, paths, frontend_library)
+        generated_flist = summary.get("source_list_path") if isinstance(summary, Mapping) else None
+        if not isinstance(generated_flist, str) or not generated_flist:
+            raise ValueError("protocol composition did not publish a source_list_path")
+        paths["flist"] = Path(generated_flist).resolve()
+        if not paths["flist"].is_file():
+            raise ValueError(f"protocol composition source list is missing: {paths['flist']}")
+        protocol_composition_prepared = True
+    elif is_protocol_composition and "instrument" in stages:
+        generated_flist = paths["composition"] / "sources.f"
+        if not generated_flist.is_file():
+            raise ValueError(
+                "protocol composition source handoff is missing; run the composition stage first"
+            )
+        paths["flist"] = generated_flist.resolve()
     if "frontend" in stages:
         frontend_manifest = stage_frontend(root, cfg, paths, frontend_library)
-    if "composition" in stages:
+    if "composition" in stages and not protocol_composition_prepared:
         stage_composition(root, cfg, paths, frontend_library)
     if "instrument" in stages:
         if frontend_manifest is None:

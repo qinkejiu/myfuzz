@@ -15,6 +15,8 @@ import os
 from pathlib import Path
 import selectors
 import signal
+import shlex
+import shutil
 import subprocess
 import sys
 import time
@@ -623,6 +625,10 @@ _IBEX_SOFT_MEMORY_CEILING = 512 * 1024 * 1024
 _IBEX_HARD_MEMORY_CEILING = 768 * 1024 * 1024
 _IBEX_TOKEN_MEMORY_CEILING = 64 * 1024 * 1024
 _IBEX_COMMAND_MODES = frozenset({"real", "local-smoke"})
+_IBEX_HDL_SUFFIXES = frozenset({".sv", ".v", ".svh", ".vh"})
+_IBEX_SOURCE_LIST_MAX_BYTES = 4 * 1024 * 1024
+_IBEX_SOURCE_FILE_MAX_BYTES = 32 * 1024 * 1024
+_IBEX_MAX_NESTED_SOURCE_LISTS = 256
 _IBEX_CAMPAIGN_REQUIRED_KEYS = frozenset(
     {
         "schema_version",
@@ -723,6 +729,7 @@ class _IbexCampaignConfig:
     design_config: Path
     composition_manifest: Path
     source_list: Path
+    candidate_manifest: Path
     output_dir: Path
     duration_seconds: int
     checkpoint_seconds: int
@@ -746,7 +753,15 @@ def _validate_design_flow_config(
     source_list: Path,
 ) -> None:
     document = _read_campaign_json(path, "design_config")
-    required = {"top", "project_root", "flist", "out_dir", "composition"}
+    required = {
+        "top",
+        "project_root",
+        "flist",
+        "out_dir",
+        "composition",
+        "candidate_manifest",
+        "harness",
+    }
     missing = sorted(required - set(document))
     if missing:
         raise ValueError(f"design_config:missing-field:{missing[0]}")
@@ -754,11 +769,52 @@ def _validate_design_flow_config(
         raise ValueError("design_config.top must be ibex_protocol_composition_top")
     _resolve_campaign_path(root, document.get("out_dir"), "design_config.out_dir")
     project_root = _resolve_campaign_path(root, document.get("project_root"), "design_config.project_root")
-    flist = _resolve_campaign_path(root, document.get("flist"), "design_config.flist")
-    if source_list.is_file() and flist != source_list:
+    raw_flist = document.get("flist")
+    if raw_flist != _IBEX_SOURCE_LIST:
+        raise ValueError("design_config.flist must match fixed source_list")
+    flist = _resolve_campaign_path(root, raw_flist, "design_config.flist")
+    if flist != source_list:
         raise ValueError("design_config.flist must match source_list")
     if project_root == root:
         raise ValueError("design_config.project_root must identify the Ibex checkout")
+
+    candidate_manifest = _resolve_campaign_path(
+        root,
+        document.get("candidate_manifest"),
+        "design_config.candidate_manifest",
+    )
+    if not candidate_manifest.is_file():
+        raise ValueError(f"design_config.candidate_manifest:missing-file:{candidate_manifest}")
+    candidate_document = _read_campaign_json(candidate_manifest, "candidate_manifest")
+    if candidate_document.get("schema_version") != "candidate_manifest.v1":
+        raise ValueError("design_config.candidate_manifest.schema_version:unsupported")
+    if not isinstance(candidate_document.get("top_port_abi"), list):
+        raise ValueError("design_config.candidate_manifest.top_port_abi:array-required")
+    if not isinstance(candidate_document.get("coverage_universe"), list):
+        raise ValueError("design_config.candidate_manifest.coverage_universe:array-required")
+
+    harness = document.get("harness")
+    if not isinstance(harness, Mapping):
+        raise ValueError("design_config.harness must be an object")
+    manual_harness = harness.get("manual_harness")
+    if not isinstance(manual_harness, str) or not manual_harness or "\0" in manual_harness:
+        raise ValueError("design_config.harness.manual_harness:path-required")
+    manual_harness_path = _resolve_campaign_path(
+        root,
+        manual_harness,
+        "design_config.harness.manual_harness",
+    )
+    if not manual_harness_path.is_file():
+        raise ValueError(
+            f"design_config.harness.manual_harness:missing-file:{manual_harness_path}"
+        )
+    raw_width = harness.get("raw_width")
+    if isinstance(raw_width, bool) or not isinstance(raw_width, int) or raw_width != 395:
+        raise ValueError("design_config.harness.raw_width must be 395")
+    for key in ("manual_harness_module", "manual_harness_input"):
+        value = harness.get(key)
+        if not isinstance(value, str) or not value or not value.replace("_", "a").isalnum():
+            raise ValueError(f"design_config.harness.{key}:identifier-required")
 
     composition = document.get("composition")
     if not isinstance(composition, Mapping):
@@ -872,6 +928,8 @@ def _parse_ibex_campaign_config(
         document["composition_manifest"],
         "composition_manifest",
     )
+    if document.get("source_list") != _IBEX_SOURCE_LIST:
+        raise ValueError("source_list must use the fixed Ibex upstream source_list")
     source_list = _resolve_campaign_path(
         checkout_root,
         document["source_list"],
@@ -883,6 +941,13 @@ def _parse_ibex_campaign_config(
     ):
         if not required_path.is_file():
             raise ValueError(f"{label}:missing-file:{required_path}")
+    design_document = _read_campaign_json(design_config, "design_config")
+    candidate_value = design_document.get("candidate_manifest")
+    candidate_manifest = _resolve_campaign_path(
+        checkout_root,
+        candidate_value,
+        "candidate_manifest",
+    )
     output_value = document.get("output_dir", _IBEX_CAMPAIGN_DEFAULT_OUTPUT)
     if not isinstance(output_value, str) or not output_value or "\0" in output_value:
         raise ValueError("output_dir:path-required")
@@ -900,6 +965,7 @@ def _parse_ibex_campaign_config(
         design_config=design_config,
         composition_manifest=composition_manifest,
         source_list=source_list,
+        candidate_manifest=candidate_manifest,
         output_dir=output_dir,
         duration_seconds=duration_seconds,
         checkpoint_seconds=checkpoint_seconds,
@@ -950,15 +1016,272 @@ def _effective_campaign_value(
     return selected
 
 
+def _safe_source_path(source_root: Path, value: str, label: str) -> Path:
+    if not isinstance(value, str) or not value or "\0" in value:
+        raise ValueError(f"source_list:{label}:path-required")
+    if "\\" in value:
+        raise ValueError(f"source_list:{label}:backslash-path-is-not-allowed")
+    candidate = Path(value)
+    if candidate.is_absolute():
+        raise ValueError(f"source_list:{label}:absolute-path-is-not-allowed")
+    resolved_root = source_root.resolve()
+    resolved = (resolved_root / candidate).resolve()
+    try:
+        resolved.relative_to(resolved_root)
+    except ValueError as error:
+        raise ValueError(f"source_list:{label}:outside-upstream-ibex") from error
+    return resolved
+
+
+def _validate_source_file(path: Path, label: str) -> None:
+    if path.suffix.lower() not in _IBEX_HDL_SUFFIXES:
+        raise ValueError(f"source_list:{label}:non-HDL-entry:{path.name}")
+    try:
+        if not path.is_file():
+            raise ValueError(f"source_list:{label}:missing-file:{path}")
+        if path.stat().st_size > _IBEX_SOURCE_FILE_MAX_BYTES:
+            raise ValueError(f"source_list:{label}:file-too-large:{path}")
+    except OSError as error:
+        raise ValueError(f"source_list:{label}:stat-failed:{path}") from error
+
+
+def _validate_source_list(root: Path, source_list: Path) -> tuple[Path, ...]:
+    """Validate the fixed upstream HDL filelist without executing its flags.
+
+    Only HDL files and a small, explicitly handled set of filelist directives
+    are accepted.  Nested lists, include directories, and source files must
+    remain below the upstream Ibex directory; this prevents a real campaign
+    from silently compiling an arbitrary host path.
+    """
+
+    checkout_root = Path(root).resolve()
+    source_path = Path(source_list).resolve()
+    try:
+        source_path.relative_to(checkout_root)
+    except ValueError as error:
+        raise ValueError("source_list:outside-repository-root") from error
+    source_root = source_path.parent
+    try:
+        source_root.relative_to(checkout_root)
+    except ValueError as error:
+        raise ValueError("source_list:parent-outside-repository-root") from error
+
+    seen_lists: set[Path] = set()
+    seen_sources: set[Path] = set()
+    stack: list[Path] = [source_path]
+
+    while stack:
+        current = stack.pop().resolve()
+        if current in seen_lists:
+            continue
+        if len(seen_lists) >= _IBEX_MAX_NESTED_SOURCE_LISTS:
+            raise ValueError("source_list:too-many-nested-filelists")
+        try:
+            current.relative_to(source_root)
+        except ValueError as error:
+            raise ValueError("source_list:nested-filelist-outside-upstream-ibex") from error
+        seen_lists.add(current)
+        try:
+            payload = current.read_bytes()
+        except OSError as error:
+            raise ValueError(f"source_list:missing-file:{current}") from error
+        if not payload or len(payload) > _IBEX_SOURCE_LIST_MAX_BYTES:
+            raise ValueError(f"source_list:malformed-or-too-large:{current}")
+        try:
+            text = payload.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise ValueError(f"source_list:not-UTF8:{current}") from error
+
+        for line_number, raw_line in enumerate(text.splitlines(), 1):
+            line = raw_line.split("//", 1)[0].strip()
+            if not line:
+                continue
+            try:
+                tokens = shlex.split(line, comments=True, posix=True)
+            except ValueError as error:
+                raise ValueError(
+                    f"source_list:{current}:{line_number}:invalid-shell-quoting"
+                ) from error
+            index = 0
+            while index < len(tokens):
+                token = tokens[index]
+                if token in {"-f", "-F"}:
+                    index += 1
+                    if index >= len(tokens):
+                        raise ValueError(
+                            f"source_list:{current}:{line_number}:{token}-requires-path"
+                        )
+                    nested = _safe_source_path(
+                        source_root,
+                        tokens[index],
+                        f"{current}:{line_number}",
+                    )
+                    stack.append(nested)
+                    index += 1
+                    continue
+                if token.startswith("-f") and len(token) > 2:
+                    stack.append(
+                        _safe_source_path(
+                            source_root,
+                            token[2:],
+                            f"{current}:{line_number}",
+                        )
+                    )
+                    index += 1
+                    continue
+                if token.startswith("-F") and len(token) > 2:
+                    stack.append(
+                        _safe_source_path(
+                            source_root,
+                            token[2:],
+                            f"{current}:{line_number}",
+                        )
+                    )
+                    index += 1
+                    continue
+                if token == "-v":
+                    index += 1
+                    if index >= len(tokens):
+                        raise ValueError(
+                            f"source_list:{current}:{line_number}:-v-requires-path"
+                        )
+                    source = _safe_source_path(
+                        source_root,
+                        tokens[index],
+                        f"{current}:{line_number}",
+                    )
+                    _validate_source_file(source, f"{current}:{line_number}")
+                    seen_sources.add(source)
+                    index += 1
+                    continue
+                if token.startswith("+incdir+"):
+                    values = token[len("+incdir+"):].split("+")
+                    if not values or any(not value for value in values):
+                        raise ValueError(
+                            f"source_list:{current}:{line_number}:invalid-include-directory"
+                        )
+                    for value in values:
+                        include_dir = _safe_source_path(
+                            source_root,
+                            value,
+                            f"{current}:{line_number}",
+                        )
+                        if not include_dir.is_dir():
+                            raise ValueError(
+                                f"source_list:{current}:{line_number}:missing-include-directory"
+                            )
+                    index += 1
+                    continue
+                if token in {"-I", "-y"}:
+                    index += 1
+                    if index >= len(tokens):
+                        raise ValueError(
+                            f"source_list:{current}:{line_number}:{token}-requires-path"
+                        )
+                    include_dir = _safe_source_path(
+                        source_root,
+                        tokens[index],
+                        f"{current}:{line_number}",
+                    )
+                    if not include_dir.is_dir():
+                        raise ValueError(
+                            f"source_list:{current}:{line_number}:missing-include-directory"
+                        )
+                    index += 1
+                    continue
+                if token.startswith("-I") or token.startswith("-y"):
+                    include_dir = _safe_source_path(
+                        source_root,
+                        token[2:],
+                        f"{current}:{line_number}",
+                    )
+                    if not include_dir.is_dir():
+                        raise ValueError(
+                            f"source_list:{current}:{line_number}:missing-include-directory"
+                        )
+                    index += 1
+                    continue
+                if token.startswith("+") or token.startswith("-"):
+                    # Defines, library extensions, warning switches, and other
+                    # simulator flags do not name files and are intentionally
+                    # ignored after the path-bearing directives above.
+                    index += 1
+                    continue
+
+                source = _safe_source_path(
+                    source_root,
+                    token,
+                    f"{current}:{line_number}",
+                )
+                _validate_source_file(source, f"{current}:{line_number}")
+                seen_sources.add(source)
+                index += 1
+
+    if not seen_sources:
+        raise ValueError("source_list:must-contain-at-least-one-HDL-entry")
+    return tuple(sorted(seen_sources))
+
+
+def _tool_path(name: str, environment_name: str | None = None) -> str:
+    configured = os.environ.get(environment_name) if environment_name else None
+    candidate = configured or name
+    resolved = shutil.which(candidate)
+    if resolved is None:
+        label = environment_name or name
+        raise ValueError(f"toolchain:{label}:not-executable")
+    return resolved
+
+
+def _validate_real_dependencies(root: Path, source_list: Path) -> dict[str, object]:
+    """Check every dependency needed before spawning the real RFuzz flow."""
+
+    checkout_root = Path(root).resolve()
+    expected_source_list = (checkout_root / _IBEX_SOURCE_LIST).resolve()
+    if Path(source_list).resolve() != expected_source_list:
+        raise ValueError("source_list must match the fixed Ibex upstream source_list")
+    source_files = _validate_source_list(checkout_root, expected_source_list)
+
+    flow_root = checkout_root / "third_party" / "rfuzz" / "rfuzz_flow"
+    if not flow_root.is_dir():
+        raise ValueError(f"rfuzz_flow:missing-directory:{flow_root}")
+    required_flow_paths = (
+        flow_root / "tools" / "verilog_instrumentation" / "generate_rfuzz_harness.py",
+        flow_root / "tools" / "verilog_instrumentation" / "build_rfuzz_server.py",
+        flow_root / "fuzzer",
+    )
+    for required_path in required_flow_paths:
+        if not required_path.exists():
+            raise ValueError(f"rfuzz_flow:missing-path:{required_path}")
+
+    fuzzer = flow_root / "fuzzer" / "target" / "release" / "kfuzz"
+    cargo = None if fuzzer.is_file() else _tool_path("cargo")
+    verilator = _tool_path("verilator", "MYFUZZ_SERVER_VERILATOR_BIN")
+    return {
+        "source_files": len(source_files),
+        "rfuzz_flow": flow_root.as_posix(),
+        "verilator": verilator,
+        "cargo": cargo,
+        "fuzzer": fuzzer.as_posix(),
+    }
+
+
 def _campaign_output_path(output_dir: Path, *, root: Path | None = None) -> Path:
     if not isinstance(output_dir, Path):
         raise TypeError("output_dir must be a pathlib.Path")
     candidate = output_dir.expanduser()
-    if root is not None and not candidate.is_absolute():
-        candidate = Path(root) / candidate
+    resolved_root = Path(root).resolve() if root is not None else None
+    if resolved_root is not None and not candidate.is_absolute():
+        candidate = resolved_root / candidate
     resolved = candidate.resolve()
     if resolved == Path(resolved.anchor):
         raise ValueError("output_dir must not be the filesystem root")
+    if resolved_root is not None:
+        try:
+            resolved.relative_to(resolved_root)
+        except ValueError as error:
+            raise ValueError("output_dir:outside-repository-root") from error
+        if resolved == resolved_root:
+            raise ValueError("output_dir must be below the repository root")
     return resolved
 
 
@@ -994,17 +1317,20 @@ def _upstream_dependency(
     *,
     status: str | None = None,
 ) -> dict[str, object]:
-    dependency_status = (
-        "available"
-        if spec.source_list.is_file()
-        else "dependency-unavailable"
-    )
+    diagnostics: list[str] = []
+    if status is None:
+        try:
+            _validate_real_dependencies(spec.root, spec.source_list)
+        except ValueError as error:
+            diagnostics.append(str(error))
+    dependency_status = "available" if not diagnostics else "dependency-unavailable"
     if status is not None:
         dependency_status = status
     return {
         "status": dependency_status,
         "source_list": _relative_campaign_path(spec.root, spec.source_list),
         "required_for_real_target": True,
+        "diagnostics": diagnostics,
     }
 
 
@@ -1070,6 +1396,8 @@ def build_ibex_campaign_command(
         flow_script.as_posix(),
         "--config",
         spec.design_config.as_posix(),
+        "--manifest",
+        spec.candidate_manifest.as_posix(),
         "--stage",
         "all",
         "--jobs",
@@ -1133,6 +1461,18 @@ def run_ibex_campaign(
         Path(config_path),
         root=_campaign_repository_root(),
     )
+    if command is not None:
+        raise ValueError("command override is not allowed; use the declared campaign mode")
+    if spec.command_mode == "local-smoke":
+        return run_ibex_local_smoke(
+            config_path,
+            output_dir,
+            duration_seconds=duration_seconds,
+            seed=seed,
+            checkpoint_seconds=checkpoint_seconds,
+            max_restarts=max_restarts,
+            dry_run=dry_run,
+        )
     selected_output = _campaign_output_path(output_dir, root=spec.root)
     selected_duration = _effective_campaign_value(
         duration_seconds,
@@ -1159,30 +1499,25 @@ def run_ibex_campaign(
         positive=False,
     )
 
-    if command is None:
-        selected_command = build_ibex_campaign_command(
-            spec.root,
-            spec.config_path,
-            selected_output,
-            selected_duration,
-            selected_seed,
-        )
-        dependency = _upstream_dependency(spec)
-        metadata = _campaign_result_metadata(spec, dependency)
-        if dependency["status"] != "available":
-            return {
-                "status": "dependency-unavailable",
-                "command": list(selected_command),
-                "output_dir": selected_output.as_posix(),
-                "report_path": None,
-                "dry_run": dry_run,
-                "missing_dependencies": [str(dependency["source_list"])],
-                **metadata,
-            }
-    else:
-        selected_command = _validated_command(command)
-        dependency = _upstream_dependency(spec, status="override")
-        metadata = _campaign_result_metadata(spec, dependency)
+    selected_command = build_ibex_campaign_command(
+        spec.root,
+        spec.config_path,
+        selected_output,
+        selected_duration,
+        selected_seed,
+    )
+    dependency = _upstream_dependency(spec)
+    metadata = _campaign_result_metadata(spec, dependency)
+    if dependency["status"] != "available":
+        return {
+            "status": "dependency-unavailable",
+            "command": list(selected_command),
+            "output_dir": selected_output.as_posix(),
+            "report_path": None,
+            "dry_run": dry_run,
+            "missing_dependencies": [str(dependency["source_list"])],
+            **metadata,
+        }
 
     if dry_run:
         return _dry_run_result(spec, selected_output, selected_command, metadata)

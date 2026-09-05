@@ -32,6 +32,13 @@ class IbexProtocolCampaignCliTests(unittest.TestCase):
         path.write_text(json.dumps(document), encoding="utf-8")
         return path
 
+    def _design_config_copy(self, temporary: str, **updates: object) -> Path:
+        document = json.loads(DESIGN_CONFIG.read_text(encoding="utf-8"))
+        document.update(updates)
+        path = Path(temporary) / "design.json"
+        path.write_text(json.dumps(document), encoding="utf-8")
+        return path
+
     def test_default_config_is_single_worker_waveform_free_and_memory_bounded(self) -> None:
         document = json.loads(CAMPAIGN_CONFIG.read_text(encoding="utf-8"))
 
@@ -51,7 +58,7 @@ class IbexProtocolCampaignCliTests(unittest.TestCase):
         )
 
     def test_command_contains_single_worker_flow_flags_and_the_composition_config(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
+        with tempfile.TemporaryDirectory(dir=ROOT) as temporary:
             output_dir = Path(temporary) / "campaign"
             command = build_ibex_campaign_command(
                 ROOT,
@@ -72,10 +79,26 @@ class IbexProtocolCampaignCliTests(unittest.TestCase):
         self.assertIn("--seed", command)
         self.assertEqual("41", command[command.index("--seed") + 1])
         self.assertIn(str(DESIGN_CONFIG), command)
+        self.assertIn("--manifest", command)
         self.assertNotIn("--parallel-verilator-build", command)
 
+    def test_real_command_declares_generated_composition_source_handoff(self) -> None:
+        design_document = json.loads(DESIGN_CONFIG.read_text(encoding="utf-8"))
+        self.assertEqual("protocol_composition", design_document["composition"]["kind"])
+        self.assertEqual(
+            "third_party/rfuzz/upstream/ibex/sources.f",
+            design_document["flist"],
+        )
+        self.assertEqual(
+            "configs/designs/ibex_protocol_composition/candidate_manifest.json",
+            design_document["candidate_manifest"],
+        )
+        harness = design_document["harness"]
+        self.assertEqual(395, harness["raw_width"])
+        self.assertTrue(harness["manual_harness"].endswith("fixed_395_harness.sv"))
+
     def test_zero_duration_fails_closed_before_supervision(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
+        with tempfile.TemporaryDirectory(dir=ROOT) as temporary:
             with self.assertRaisesRegex(ValueError, "duration_seconds"):
                 run_ibex_campaign(
                     CAMPAIGN_CONFIG,
@@ -113,6 +136,88 @@ class IbexProtocolCampaignCliTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "configuration-mixed"):
                 run_ibex_campaign(config_path, Path(temporary) / "campaign", dry_run=True)
 
+    def test_local_smoke_command_mode_selects_local_producer(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT) as temporary:
+            config_path = self._config_copy(temporary, command_mode="local-smoke")
+            result = run_ibex_campaign(
+                config_path,
+                Path(temporary) / "campaign",
+                duration_seconds=1,
+                dry_run=True,
+            )
+
+        self.assertEqual("dry-run", result["status"])
+        command = result["command"]
+        self.assertIsInstance(command, list)
+        self.assertTrue(any(str(item).endswith("run_ibex_protocol_campaign_smoke.py") for item in command))
+        self.assertEqual("local-json-producer", result["evidence"]["kind"])
+
+    def test_real_command_override_cannot_bypass_dependency_preflight(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT) as temporary:
+            with self.assertRaisesRegex(ValueError, "command override"):
+                run_ibex_campaign(
+                    CAMPAIGN_CONFIG,
+                    Path(temporary) / "campaign",
+                    command=(sys.executable, "-c", "pass"),
+                    dry_run=True,
+                )
+
+    def test_output_path_outside_repository_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(ValueError, "outside-repository-root"):
+                run_ibex_campaign(
+                    CAMPAIGN_CONFIG,
+                    Path(temporary) / "campaign",
+                    dry_run=True,
+                )
+
+    def test_source_list_is_fixed_and_not_configurable(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT) as temporary:
+            config_path = self._config_copy(
+                temporary,
+                source_list="configs/designs/ibex_protocol_composition/other.f",
+            )
+            with self.assertRaisesRegex(ValueError, "source_list.*fixed"):
+                run_ibex_campaign(config_path, Path(temporary) / "campaign", dry_run=True)
+
+    def test_malformed_nested_design_config_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT) as temporary:
+            design_path = self._design_config_copy(
+                temporary,
+                composition={"kind": "protocol_composition", "manifest": "../escape.json"},
+            )
+            config_path = self._config_copy(
+                temporary,
+                design_config=str(design_path.relative_to(ROOT)),
+            )
+            with self.assertRaisesRegex(ValueError, "design_config.composition.manifest"):
+                run_ibex_campaign(config_path, Path(temporary) / "campaign", dry_run=True)
+
+    def test_source_list_validation_rejects_unsafe_and_non_hdl_entries(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            upstream = root / "third_party/rfuzz/upstream/ibex"
+            upstream.mkdir(parents=True)
+            source_list = upstream / "sources.f"
+            source_list.write_text("../escape.sv\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "source_list"):
+                campaign._validate_source_list(root, source_list)
+
+            source_list.write_text("README.md\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "HDL"):
+                campaign._validate_source_list(root, source_list)
+
+    def test_real_preflight_requires_rfuzz_flow_and_toolchain(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            upstream = root / "third_party/rfuzz/upstream/ibex"
+            upstream.mkdir(parents=True)
+            source = upstream / "core.sv"
+            source.write_text("module core; endmodule\n", encoding="utf-8")
+            (upstream / "sources.f").write_text("core.sv\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "rfuzz_flow"):
+                campaign._validate_real_dependencies(root, upstream / "sources.f")
+
     def test_unknown_cli_command_mode_is_rejected_by_argparse(self) -> None:
         environment = os.environ.copy()
         environment["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -133,11 +238,9 @@ class IbexProtocolCampaignCliTests(unittest.TestCase):
     def test_missing_real_source_list_returns_dependency_unavailable_without_spawning(self) -> None:
         with tempfile.TemporaryDirectory(dir=ROOT) as temporary:
             output_dir = Path(temporary) / "campaign"
-            missing_source_list = Path(temporary) / "missing" / "sources.f"
-            config_path = self._config_copy(temporary, source_list=str(missing_source_list.relative_to(ROOT)))
 
             with mock.patch.object(campaign.subprocess, "Popen") as popen:
-                result = run_ibex_campaign(config_path, output_dir, dry_run=False)
+                result = run_ibex_campaign(CAMPAIGN_CONFIG, output_dir, dry_run=False)
 
             self.assertEqual("dependency-unavailable", result["status"])
             self.assertEqual("dependency-unavailable", result["upstream_dependency"]["status"])
