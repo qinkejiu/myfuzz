@@ -6,6 +6,7 @@ Implemented Task 2 from base commit `e091679` on branch
 `feature/ibex-protocol-longrun`.
 
 Implementation commit: `8ee4395` (`feat: add peripheral capability catalog`).
+Reviewer fix commit: `20c1626` (`fix: harden component source path validation`).
 
 The change is self-contained under `myfuzz.components`. It does not modify
 existing composition, harness, protocol, or campaign implementation files.
@@ -139,3 +140,68 @@ forked worktree as unstaged/untracked state (`src/myfuzz/isa/**`, related
 No functional concerns remain for the Task 2 scope. The real upstream Ibex
 dependency is intentionally outside this catalog; reference profiles do not
 claim that dependency is present or executable.
+
+## Reviewer follow-up fix evidence
+
+The reviewer-requested fix is committed as `20c1626`. It preserves the
+runtime protocol allowlist and the existing Ibex component ABI/source
+bindings.
+
+### Path validation fix
+
+`_parse_source_path()` now rejects a NUL byte before path processing and
+requires the original string to equal `PurePosixPath(path).as_posix()` after
+the existing relative-path checks. This rejects `./file.sv`, repeated
+separators such as `dir//file.sv`, trailing-separator aliases, and equivalent
+non-canonical forms before `source_paths` duplicate checks. NUL input raises
+the same typed `ComponentDefinitionError` used for all other profile errors.
+
+### Strengthened focused tests
+
+The focused suite now compares every field of all 11 built-in profiles against
+an exact expected inventory, including protocols, source status, implemented
+flag, dependencies, source paths, and parameter limits. It also covers
+duplicate JSON keys, invalid booleans and numeric values, invalid source
+status, invalid parameter ranges, missing sources, portable symlink escapes,
+non-normalized aliases, and NUL-containing source paths.
+
+### Reviewer-fix TDD evidence
+
+After adding the reviewer tests but before the implementation fix, ran:
+
+```text
+$ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest tests.components.test_catalog -v
+Ran 18 tests in 0.012s
+FAILED (failures=4)
+```
+
+The four expected failures were the three non-normalized-alias subtests
+(`./fixture.sv`, `dir//fixture.sv`, and the aliased duplicate pair) and the
+NUL-path test. The other 14 tests passed.
+
+After `20c1626`, ran:
+
+```text
+$ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest tests.components.test_catalog -v
+Ran 18 tests in 0.012s
+OK
+
+$ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest discover -s tests/protocols -t . -v
+Ran 36 tests in 0.104s
+OK
+
+$ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest tests.contracts.test_contracts -v
+Ran 9 tests in 0.002s
+OK
+
+$ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest discover -s tests/composition -t . -v
+Ran 130 tests in 0.738s
+OK
+
+$ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_ibex_protocol_composition_config -v
+Ran 3 tests in 0.062s
+OK
+```
+
+The fix commit contains no Task 1, Task 3, or Task 4 files. The report update
+itself is the only remaining Task 2 evidence change after that fix commit.
