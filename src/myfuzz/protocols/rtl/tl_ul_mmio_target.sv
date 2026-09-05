@@ -38,6 +38,7 @@ module tl_ul_mmio_target #(
     input  logic                          error_i
 );
 
+    localparam integer BYTE_LANES = DATA_WIDTH / 8;
     localparam integer EFFECTIVE_MAX_WAIT_CYCLES =
         (MAX_WAIT_CYCLES < 1) ? 1 :
         ((MAX_WAIT_CYCLES > 16) ? 16 : MAX_WAIT_CYCLES);
@@ -45,8 +46,38 @@ module tl_ul_mmio_target #(
         (EFFECTIVE_MAX_WAIT_CYCLES <= 1) ? 1 : $clog2(EFFECTIVE_MAX_WAIT_CYCLES);
     localparam logic [WAIT_COUNTER_WIDTH-1:0] WAIT_TIMEOUT_VALUE =
         WAIT_COUNTER_WIDTH'(EFFECTIVE_MAX_WAIT_CYCLES - 1);
-    localparam logic [2:0] MAX_TRANSFER_SIZE = 3'($clog2(DATA_WIDTH / 8));
-    localparam logic [(DATA_WIDTH/8)-1:0] FULL_MASK = {(DATA_WIDTH/8){1'b1}};
+    localparam logic [2:0] MAX_TRANSFER_SIZE = 3'($clog2(BYTE_LANES));
+
+    function automatic [BYTE_LANES-1:0] transfer_mask(
+        input logic [2:0] size,
+        input logic [ADDRESS_WIDTH-1:0] address
+    );
+        integer transfer_bytes;
+        integer address_offset;
+        integer lane;
+        begin
+            transfer_bytes = 1 << size;
+            address_offset = address % BYTE_LANES;
+            transfer_mask = '0;
+            for (lane = 0; lane < BYTE_LANES; lane = lane + 1) begin
+                if ((lane >= address_offset) &&
+                    (lane < address_offset + transfer_bytes)) begin
+                    transfer_mask[lane] = 1'b1;
+                end
+            end
+        end
+    endfunction
+
+    function automatic logic address_is_aligned(
+        input logic [2:0] size,
+        input logic [ADDRESS_WIDTH-1:0] address
+    );
+        integer transfer_bytes;
+        begin
+            transfer_bytes = 1 << size;
+            address_is_aligned = (address % transfer_bytes) == 0;
+        end
+    endfunction
 
     logic active_q;
     logic write_q;
@@ -67,11 +98,18 @@ module tl_ul_mmio_target #(
     wire supported_opcode = (a_opcode_i == 3'd0) || (a_opcode_i == 3'd1) ||
                             (a_opcode_i == 3'd4);
     wire write_opcode = (a_opcode_i == 3'd0) || (a_opcode_i == 3'd1);
-    wire put_full_valid = (a_opcode_i != 3'd0) || (a_mask_i == FULL_MASK);
-    wire put_partial_valid = (a_opcode_i != 3'd1) || (a_mask_i != '0);
+    wire size_valid = a_size_i <= MAX_TRANSFER_SIZE;
+    wire address_aligned = size_valid && address_is_aligned(a_size_i, a_address_i);
+    wire [BYTE_LANES-1:0] expected_mask = transfer_mask(a_size_i, a_address_i);
+    wire get_mask_valid = (a_opcode_i != 3'd4) || (a_mask_i == expected_mask);
+    wire put_full_mask_valid = (a_opcode_i != 3'd0) || (a_mask_i == expected_mask);
+    wire put_partial_mask_valid = (a_opcode_i != 3'd1) ||
+                                  ((a_mask_i != '0) &&
+                                   ((a_mask_i & ~expected_mask) == '0));
     wire request_malformed = !supported_opcode || a_corrupt_i || (a_param_i != 3'd0) ||
-                             (a_size_i > MAX_TRANSFER_SIZE) || (a_source_i != 1'b0) ||
-                             !put_full_valid || !put_partial_valid;
+                             !size_valid || !address_aligned || (a_source_i != 1'b0) ||
+                             !get_mask_valid || !put_full_mask_valid ||
+                             !put_partial_mask_valid;
 
     assign a_ready_o = !active_q && !d_valid_q;
     assign d_valid_o = d_valid_q;
@@ -87,7 +125,7 @@ module tl_ul_mmio_target #(
     assign write_o = active_q && write_q;
     assign addr_o = active_q ? addr_q : '0;
     assign wdata_o = (active_q && write_q) ? wdata_q : '0;
-    assign be_o = !active_q ? '0 : (write_q ? be_q : FULL_MASK);
+    assign be_o = active_q ? be_q : '0;
 
     always_ff @(posedge clk_i) begin
         if (!rst_ni) begin
@@ -124,7 +162,7 @@ module tl_ul_mmio_target #(
                     d_size_q <= size_q;
                     d_denied_q <= error_i;
                     d_data_q <= error_i ? '0 : ((opcode_q == 3'd4) ? rdata_i : '0);
-                    d_corrupt_q <= 1'b0;
+                    d_corrupt_q <= error_i && (opcode_q == 3'd4);
                 end else if (wait_count_q == WAIT_TIMEOUT_VALUE) begin
                     active_q <= 1'b0;
                     wait_count_q <= '0;
@@ -133,7 +171,7 @@ module tl_ul_mmio_target #(
                     d_size_q <= size_q;
                     d_denied_q <= 1'b1;
                     d_data_q <= '0;
-                    d_corrupt_q <= 1'b0;
+                    d_corrupt_q <= opcode_q == 3'd4;
                 end else begin
                     wait_count_q <= wait_count_q + 1'b1;
                 end
@@ -151,7 +189,7 @@ module tl_ul_mmio_target #(
                     write_q <= write_opcode;
                     addr_q <= a_address_i;
                     wdata_q <= a_data_i;
-                    be_q <= (a_opcode_i == 3'd4) ? FULL_MASK : a_mask_i;
+                    be_q <= (a_opcode_i == 3'd4) ? expected_mask : a_mask_i;
                     opcode_q <= a_opcode_i;
                     size_q <= a_size_i;
                 end

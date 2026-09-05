@@ -27,10 +27,14 @@ protocol response.  At most one transaction is outstanding in each bridge.
 
 ## Progress, timeout, and responses
 
-An accepted request can wait for its MMIO target for at most 16 cycles.  A
-`ready` response on that boundary completes the transaction; otherwise the
-16th wait cycle creates a deterministic error response.  The same bounded
-counter also applies to incomplete protocol request handshakes where relevant.
+The three protocol bridges bound their request-side and target-side waits to
+16 cycles.  A `ready` response on the native MMIO boundary completes the
+transaction; otherwise the 16th wait cycle creates a deterministic protocol
+error.  For AXI4-Lite, the bridge also bounds incomplete AW/W collection and
+the B/R response wait.  The TL-UL bridge bounds both A and D waits.  The APB4
+target adapter is intentionally combinational and relies on the APB4 bridge
+for this bound; the AXI4-Lite target stores a partial AW/W pair in fixed
+registers and its bound starts after the unified MMIO request is accepted.
 
 Responses follow normal valid/ready backpressure semantics.  Once a response
 is available, its valid signal, payload, and error status remain stable until
@@ -39,9 +43,13 @@ request timeout.
 
 ## Error mapping
 
-All errors are deterministic.  MMIO `error` and a bounded timeout map to
-`PSLVERR` for APB4, `BRESP`/`RRESP = SLVERR` for AXI4-Lite, and `d_error` for
-TL-UL.  Unsupported TL-UL opcodes follow the same `d_error` path.
+All errors are deterministic.  On the bridge side, MMIO `error` and a bounded
+timeout map to `PSLVERR` for APB4, `BRESP`/`RRESP = SLVERR` for AXI4-Lite, and
+a native error for TL-UL.  On the TL-UL target side, MMIO errors and target
+timeouts set `d_denied`; malformed or unsupported A-channel requests set
+`d_corrupt`.  A denied Get returns `AccessAckData` with both `d_denied` and
+`d_corrupt` set, while a denied write returns `AccessAck` with deterministic
+zero data.  The public TL-UL interface has no `d_error` signal.
 
 ## Resource constraints
 

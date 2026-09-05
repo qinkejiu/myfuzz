@@ -48,6 +48,9 @@ class RuntimeProtocolApiTest(unittest.TestCase):
             "16",
             "backpressure",
             "error",
+            "d_denied",
+            "d_corrupt",
+            "AccessAckData",
             "resource",
         ):
             self.assertIn(phrase, readme)

@@ -193,14 +193,33 @@ class TileLinkUlRtlTest(unittest.TestCase):
                             tick;
                             check(!td_valid && ta_ready, "D handshake must release the target");
 
-                            // Get target mapping ignores inbound read mask and uses full byte enables.
+                            // Sub-word PutFullData must use the size/address-derived lane mask.
+                            @(negedge clk_i);
+                            td_ready = 0; target_ready = 0; target_error = 0; ta_valid = 1;
+                            ta_opcode = 3'd0; ta_param = 0; ta_size = 3'd1; ta_source = 0;
+                            ta_address = 32'h8000_0012; ta_mask = 4'b1100;
+                            ta_data = 32'haabb_ccdd; ta_corrupt = 0;
+                            tick;
+                            check(target_valid && target_write && target_be == 4'b1100,
+                                  "sub-word PutFullData must map its derived byte lanes");
+                            @(negedge clk_i);
+                            ta_valid = 0; target_ready = 1;
+                            tick;
+                            check(td_valid && td_opcode == 3'd0 && !td_denied && !td_corrupt,
+                                  "sub-word PutFullData must return AccessAck");
+                            @(negedge clk_i);
+                            td_ready = 1;
+                            tick;
+                            check(!td_valid && ta_ready, "sub-word D handshake must release the target");
+
+                            // Get validates and maps the size/address-derived read mask.
                             @(negedge clk_i);
                             td_ready = 0; target_error = 0; ta_valid = 1; ta_opcode = 3'd4; ta_param = 0;
-                            ta_size = 3'd2; ta_source = 0; ta_address = 32'h8000_0020; ta_mask = 4'h1;
+                            ta_size = 3'd1; ta_source = 0; ta_address = 32'h8000_0022; ta_mask = 4'b1100;
                             ta_data = 0; ta_corrupt = 0;
                             tick;
-                            check(target_valid && !target_write && target_be == 4'hf,
-                                  "Get target mapping must use full byte enables");
+                            check(target_valid && !target_write && target_be == 4'b1100,
+                                  "Get target mapping must use its derived byte lanes");
                             @(negedge clk_i);
                             ta_valid = 0; target_ready = 1; target_rdata = 32'hcafe_babe;
                             tick;
@@ -210,6 +229,23 @@ class TileLinkUlRtlTest(unittest.TestCase):
                             @(negedge clk_i);
                             td_ready = 1;
                             tick;
+
+                            // A Get target error must mark both denial and corrupt data.
+                            @(negedge clk_i);
+                            td_ready = 0; target_error = 0; ta_valid = 1; ta_opcode = 3'd4; ta_param = 0;
+                            ta_size = 3'd2; ta_source = 0; ta_address = 32'h8000_0030; ta_mask = 4'hf;
+                            ta_data = 0; ta_corrupt = 0;
+                            tick;
+                            check(target_valid && !target_write, "Get error request must reach the target");
+                            @(negedge clk_i);
+                            ta_valid = 0; target_ready = 1; target_error = 1; target_rdata = 32'hdead_beef;
+                            tick;
+                            check(td_valid && td_opcode == 3'd1 && td_denied && td_corrupt && td_data == 0,
+                                  "Get target error must return denied corrupt AccessAckData");
+                            @(negedge clk_i);
+                            td_ready = 1;
+                            tick;
+                            check(!td_valid && ta_ready, "Get error D handshake must release the target");
 
                             // Unsupported A opcode produces corrupt, deterministic data, no target request.
                             @(negedge clk_i);
@@ -237,8 +273,8 @@ class TileLinkUlRtlTest(unittest.TestCase):
                                       "target must remain active before its bounded wait expires");
                             end
                             tick;
-                            check(td_valid && td_opcode == 3'd1 && td_denied && !td_corrupt && td_data == 0,
-                                  "unready target must produce a bounded denied D response");
+                            check(td_valid && td_opcode == 3'd1 && td_denied && td_corrupt && td_data == 0,
+                                  "unready Get target must produce a bounded denied corrupt D response");
                             @(negedge clk_i);
                             td_ready = 1;
                             tick;
