@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import json
+import contextlib
+import importlib.util
+import io
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import unittest
 
 from myfuzz.composition.protocol_manifest import load_protocol_composition
@@ -75,7 +79,7 @@ class IbexProtocolCompositionConfigTests(unittest.TestCase):
             check=False,
         )
         upstream = ROOT / "third_party/rfuzz/upstream/ibex"
-        if upstream.is_dir():
+        if upstream.is_dir() and (upstream / "sources.f").is_file():
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
             self.assertIn("ok:", result.stdout)
         else:
@@ -83,6 +87,29 @@ class IbexProtocolCompositionConfigTests(unittest.TestCase):
             self.assertIn(
                 "dependency-unavailable: third_party/rfuzz/upstream/ibex",
                 result.stdout,
+            )
+
+    def test_local_checker_rejects_upstream_directory_without_source_list(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary_root = Path(temporary_directory)
+            (temporary_root / "third_party/rfuzz/upstream/ibex").mkdir(parents=True)
+
+            spec = importlib.util.spec_from_file_location(
+                "ibex_protocol_composition_check_local_test",
+                CHECKER,
+            )
+            self.assertIsNotNone(spec)
+            self.assertIsNotNone(spec.loader)
+            checker = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(checker)
+            checker.ROOT = temporary_root
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertFalse(checker._upstream_available())
+            self.assertIn(
+                "dependency-unavailable: third_party/rfuzz/upstream/ibex",
+                output.getvalue(),
             )
 
 
