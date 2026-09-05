@@ -91,7 +91,8 @@ def _parse_source_path(value: object, label: str, source: Path) -> str:
     posix = PurePosixPath(result)
     windows = PureWindowsPath(result)
     if (
-        posix.is_absolute()
+        not posix.parts
+        or posix.is_absolute()
         or windows.is_absolute()
         or windows.drive
         or "\\" in result

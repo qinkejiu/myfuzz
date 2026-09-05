@@ -386,6 +386,7 @@ class ComponentCatalogTest(unittest.TestCase):
 
     def test_loader_rejects_non_normalized_source_path_aliases(self) -> None:
         aliases = (
+            ["."],
             ["./fixture.sv"],
             ["dir//fixture.sv"],
             ["fixture.sv", "./fixture.sv"],
