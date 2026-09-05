@@ -12,6 +12,13 @@ from .experiment_matrix import (
 )
 from .pipeline import GenerationRequest, RuntimeRequest, run_candidate_pipeline
 from .low_resource_smoke import run_low_resource_smoke
+from .campaign import (
+    CampaignError,
+    CampaignLimits,
+    CampaignOptions,
+    read_rss_bytes,
+    run_supervised_command,
+)
 from .reference_adapter import (
     GeneratorCommand,
     GeneratorFlag,
@@ -27,6 +34,9 @@ from .semantic_projection import (
 
 __all__ = [
     "BuildJobResult",
+    "CampaignError",
+    "CampaignLimits",
+    "CampaignOptions",
     "ExperimentMatrixError",
     "ExperimentRunner",
     "FuzzJobResult",
@@ -45,5 +55,7 @@ __all__ = [
     "run_candidate_pipeline",
     "run_experiment_matrix",
     "run_low_resource_smoke",
+    "read_rss_bytes",
+    "run_supervised_command",
     "semantic_projection",
 ]
