@@ -6,7 +6,8 @@ Implemented Task 2 from base commit `e091679` on branch
 `feature/ibex-protocol-longrun`.
 
 Implementation commit: `8ee4395` (`feat: add peripheral capability catalog`).
-Reviewer fix commit: `20c1626` (`fix: harden component source path validation`).
+Reviewer fix commits: `20c1626` (`fix: harden component source path validation`)
+and `bdf5fb9` (`fix: reject current-directory component paths`).
 
 The change is self-contained under `myfuzz.components`. It does not modify
 existing composition, harness, protocol, or campaign implementation files.
@@ -143,9 +144,9 @@ claim that dependency is present or executable.
 
 ## Reviewer follow-up fix evidence
 
-The reviewer-requested fix is committed as `20c1626`. It preserves the
-runtime protocol allowlist and the existing Ibex component ABI/source
-bindings.
+The reviewer-requested fix is committed as `20c1626` and `bdf5fb9`. It
+preserves the runtime protocol allowlist and the existing Ibex component
+ABI/source bindings.
 
 ### Path validation fix
 
@@ -155,6 +156,8 @@ the existing relative-path checks. This rejects `./file.sv`, repeated
 separators such as `dir//file.sv`, trailing-separator aliases, and equivalent
 non-canonical forms before `source_paths` duplicate checks. NUL input raises
 the same typed `ComponentDefinitionError` used for all other profile errors.
+The follow-up boundary fix also rejects the standalone current-directory path
+`.` by requiring at least one path component.
 
 ### Strengthened focused tests
 
@@ -179,6 +182,24 @@ The four expected failures were the three non-normalized-alias subtests
 (`./fixture.sv`, `dir//fixture.sv`, and the aliased duplicate pair) and the
 NUL-path test. The other 14 tests passed.
 
+To close the remaining current-directory alias edge, added the `.` case and
+reran before `bdf5fb9`:
+
+```text
+$ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest tests.components.test_catalog -v
+Ran 18 tests in 0.013s
+FAILED (failures=1)
+```
+
+The only failure was the new `source_paths=["."]` subtest; the other tests
+passed. After `bdf5fb9`, the focused suite was GREEN:
+
+```text
+$ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest tests.components.test_catalog -v
+Ran 18 tests in 0.012s
+OK
+```
+
 After `20c1626`, ran:
 
 ```text
@@ -200,6 +221,26 @@ OK
 
 $ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_ibex_protocol_composition_config -v
 Ran 3 tests in 0.062s
+OK
+```
+
+The complete relevant regression set was rerun after `bdf5fb9` as well:
+
+```text
+$ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest discover -s tests/protocols -t . -v
+Ran 36 tests in 0.100s
+OK
+
+$ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest tests.contracts.test_contracts -v
+Ran 9 tests in 0.002s
+OK
+
+$ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest discover -s tests/composition -t . -v
+Ran 130 tests in 0.781s
+OK
+
+$ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_ibex_protocol_composition_config -v
+Ran 3 tests in 0.066s
 OK
 ```
 
