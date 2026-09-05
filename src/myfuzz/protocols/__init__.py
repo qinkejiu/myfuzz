@@ -1,4 +1,4 @@
-"""Declared protocol plugin compiler."""
+"""Declared protocol compiler and public bounded runtime bridge API."""
 
 from .bridge import (
     Apb4BridgeModel,
