@@ -287,12 +287,13 @@ class Axi4LiteBridgeModel(_BoundedBridgeModel):
         if self._phase == "idle":
             if request is None:
                 return self._idle_cycle()
-            phase = "write_address" if request.write else "read_address"
-            rejected = self._accept_request(request, phase)
+            rejected = self._accept_request(request, "request")
             if rejected is not None:
                 if response_ready:
                     self.reset()
                 return rejected
+            assert self._request is not None
+            self._phase = "write_address" if self._request.write else "read_address"
 
         assert self._request is not None
         fields = self._fields()

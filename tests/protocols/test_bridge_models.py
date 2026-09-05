@@ -252,6 +252,38 @@ class Axi4LiteBridgeModelTest(unittest.TestCase):
         self.assertEqual(r_held.protocol_fields, r_wait.protocol_fields)
         self.assertEqual(r_held.response, MmioResponse(True, 0x1234_5678, False))
 
+    def test_write_response_survives_more_than_sixteen_backpressure_cycles(self) -> None:
+        model = Axi4LiteBridgeModel()
+        request = MmioRequest(0x4C, True, 0xAABB_CCDD, 0b0110)
+
+        completed = model.step(
+            request,
+            target_ready=True,
+            target_error=True,
+            response_ready=False,
+        )
+        expected_response = MmioResponse(True, 0, True)
+        self.assertTrue(completed.target_valid)
+        self.assertEqual(completed.target_request, request)
+
+        for _ in range(20):
+            held = model.step(
+                target_ready=False,
+                target_rdata=0,
+                target_error=False,
+                response_ready=False,
+            )
+            self.assertEqual(held.phase, "write_response")
+            self.assertEqual(held.protocol_fields["bvalid"], 1)
+            self.assertEqual(held.protocol_fields["bresp"], 2)
+            self.assertEqual(held.response, expected_response)
+            self.assertEqual(held.error, "AXI write response error")
+
+        released = model.step(response_ready=True)
+        self.assertEqual(released.phase, "write_response")
+        self.assertEqual(released.response, expected_response)
+        self.assertEqual(model.step().phase, "idle")
+
 
 class TileLinkUlBridgeModelTest(unittest.TestCase):
     def test_write_opcode_and_mask_map_to_a_channel(self) -> None:
@@ -295,6 +327,15 @@ class TileLinkUlBridgeModelTest(unittest.TestCase):
 
 
 class BridgeErrorTest(unittest.TestCase):
+    def test_all_models_reject_non_request_objects_deterministically(self) -> None:
+        for model_type in (Apb4BridgeModel, Axi4LiteBridgeModel, TileLinkUlBridgeModel):
+            with self.subTest(model=model_type.__name__):
+                cycle = model_type().step(object(), response_ready=False)
+
+                self.assertEqual(cycle.phase, "error")
+                self.assertEqual(cycle.error, "request must be an MmioRequest")
+                self.assertEqual(cycle.response, MmioResponse(True, 0, True))
+
     def test_all_models_reject_non_integer_byte_enable_deterministically(self) -> None:
         for model_type in (Apb4BridgeModel, Axi4LiteBridgeModel, TileLinkUlBridgeModel):
             with self.subTest(model=model_type.__name__):
