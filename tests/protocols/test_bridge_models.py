@@ -110,30 +110,24 @@ class Apb4BridgeModelTest(unittest.TestCase):
 
 
 class Axi4LiteBridgeModelTest(unittest.TestCase):
-    def test_write_address_and_data_handshake_independently(self) -> None:
+    def test_write_address_and_data_can_handshake_together(self) -> None:
         model = Axi4LiteBridgeModel()
         request = MmioRequest(0x30, True, 0xDEAD_BEEF, 0b0011)
 
-        aw_wait = model.step(request, target_ready=False)
-        aw_done = model.step(MmioRequest(0x88, False), target_ready=True)
-        w_wait = model.step(target_ready=False)
-        w_held = model.step(MmioRequest(0x8C, True, 0x1234_5678, 0b1100), target_ready=False)
-        w_done = model.step(target_ready=True, target_error=True)
+        completed = model.step(request, target_ready=True, target_error=True)
         b_wait = model.step(response_ready=False)
         b_held = model.step(target_error=False, response_ready=False)
 
-        self.assertEqual(aw_wait.phase, "write_address")
-        self.assertEqual(aw_wait.protocol_fields["awvalid"], 1)
-        self.assertEqual(aw_wait.protocol_fields["awaddr"], 0x30)
-        self.assertEqual(aw_wait.protocol_fields["wvalid"], 0)
-        self.assertEqual(aw_done.protocol_fields["awaddr"], 0x30)
-        self.assertEqual(w_wait.phase, "write_data")
-        self.assertEqual(w_wait.protocol_fields["wvalid"], 1)
-        self.assertEqual(w_wait.protocol_fields["wdata"], 0xDEAD_BEEF)
-        self.assertEqual(w_wait.protocol_fields["wstrb"], 0b0011)
-        self.assertEqual(w_held.protocol_fields, w_wait.protocol_fields)
-        self.assertEqual(w_done.target_request, request)
-        self.assertTrue(w_done.target_valid)
+        self.assertEqual(completed.phase, "write_address")
+        self.assertEqual(completed.protocol_fields["awvalid"], 1)
+        self.assertEqual(completed.protocol_fields["awready"], 1)
+        self.assertEqual(completed.protocol_fields["awaddr"], 0x30)
+        self.assertEqual(completed.protocol_fields["wvalid"], 1)
+        self.assertEqual(completed.protocol_fields["wready"], 1)
+        self.assertEqual(completed.protocol_fields["wdata"], 0xDEAD_BEEF)
+        self.assertEqual(completed.protocol_fields["wstrb"], 0b0011)
+        self.assertEqual(completed.target_request, request)
+        self.assertTrue(completed.target_valid)
         self.assertEqual(b_wait.phase, "write_response")
         self.assertEqual(b_wait.protocol_fields["bvalid"], 1)
         self.assertEqual(b_wait.protocol_fields["bresp"], 2)
@@ -143,6 +137,100 @@ class Axi4LiteBridgeModelTest(unittest.TestCase):
         self.assertEqual(b_held.response, b_wait.response)
         model.step(response_ready=True)
         self.assertEqual(model.step().phase, "idle")
+
+    def test_write_data_can_handshake_before_address(self) -> None:
+        model = Axi4LiteBridgeModel()
+        request = MmioRequest(0x34, True, 0x1122_3344, 0b0101)
+
+        both_wait = model.step(request, target_ready={"aw": False, "w": False})
+        w_done = model.step(
+            MmioRequest(0x80, True, 0xA5A5_5A5A),
+            target_ready={"aw": False, "w": True},
+        )
+        aw_wait = model.step(target_ready={"aw": False, "w": False})
+        completed = model.step(
+            target_ready={"aw": True, "w": False}, target_error=True
+        )
+
+        self.assertEqual(both_wait.protocol_fields["awvalid"], 1)
+        self.assertEqual(both_wait.protocol_fields["wvalid"], 1)
+        self.assertEqual(w_done.protocol_fields["awready"], 0)
+        self.assertEqual(w_done.protocol_fields["wready"], 1)
+        self.assertFalse(w_done.target_valid)
+        self.assertEqual(aw_wait.protocol_fields["awvalid"], 1)
+        self.assertEqual(aw_wait.protocol_fields["awaddr"], request.address)
+        self.assertEqual(aw_wait.protocol_fields["wvalid"], 0)
+        self.assertEqual(aw_wait.protocol_fields["wdata"], request.wdata)
+        self.assertEqual(aw_wait.protocol_fields["wstrb"], request.byte_enable)
+        self.assertEqual(completed.protocol_fields["awready"], 1)
+        self.assertEqual(completed.protocol_fields["wvalid"], 0)
+        self.assertTrue(completed.target_valid)
+        self.assertEqual(completed.target_request, request)
+
+    def test_write_address_can_handshake_before_data(self) -> None:
+        model = Axi4LiteBridgeModel()
+        request = MmioRequest(0x38, True, 0x5566_7788, 0b1010)
+
+        aw_done = model.step(request, target_ready={"aw": True, "w": False})
+        w_wait = model.step(target_ready={"aw": False, "w": False})
+        completed = model.step(target_ready={"aw": False, "w": True})
+
+        self.assertEqual(aw_done.protocol_fields["awvalid"], 1)
+        self.assertEqual(aw_done.protocol_fields["awready"], 1)
+        self.assertEqual(aw_done.protocol_fields["wvalid"], 1)
+        self.assertFalse(aw_done.target_valid)
+        self.assertEqual(w_wait.phase, "write_data")
+        self.assertEqual(w_wait.protocol_fields["awvalid"], 0)
+        self.assertEqual(w_wait.protocol_fields["wvalid"], 1)
+        self.assertEqual(w_wait.protocol_fields["wdata"], request.wdata)
+        self.assertEqual(w_wait.protocol_fields["wstrb"], request.byte_enable)
+        self.assertEqual(completed.protocol_fields["wready"], 1)
+        self.assertTrue(completed.target_valid)
+        self.assertEqual(completed.target_request, request)
+
+    def test_invalid_write_ready_values_are_rejected_deterministically(self) -> None:
+        cases = (
+            (1, "AXI target_ready must be a bool or an aw/w mapping: 1"),
+            (
+                {"aw": True},
+                "AXI target_ready mapping must contain exactly 'aw' and 'w'",
+            ),
+            (
+                {"aw": True, "w": False, "ar": True},
+                "AXI target_ready mapping must contain exactly 'aw' and 'w'",
+            ),
+            (
+                {"aw": 1, "w": False},
+                "AXI target_ready['aw'] must be boolean: 1",
+            ),
+            (
+                {"aw": True, "w": None},
+                "AXI target_ready['w'] must be boolean: None",
+            ),
+        )
+
+        for target_ready, expected_error in cases:
+            with self.subTest(target_ready=target_ready):
+                cycle = Axi4LiteBridgeModel().step(
+                    MmioRequest(0x3C, True),
+                    target_ready=target_ready,  # type: ignore[arg-type]
+                    response_ready=False,
+                )
+
+                self.assertEqual(cycle.phase, "error")
+                self.assertEqual(cycle.error, expected_error)
+                self.assertEqual(cycle.response, MmioResponse(True, 0, True))
+
+    def test_ready_mapping_is_rejected_for_reads(self) -> None:
+        cycle = Axi4LiteBridgeModel().step(
+            MmioRequest(0x40, False),
+            target_ready={"aw": True, "w": True},
+            response_ready=False,
+        )
+
+        self.assertEqual(cycle.phase, "error")
+        self.assertEqual(cycle.error, "AXI read target_ready must be boolean")
+        self.assertEqual(cycle.response, MmioResponse(True, 0, True))
 
     def test_read_response_is_held_under_backpressure(self) -> None:
         model = Axi4LiteBridgeModel()
@@ -258,6 +346,50 @@ class BridgeErrorTest(unittest.TestCase):
                 timed_out = model.step(MmioRequest(0x20, False), target_ready=False)
 
                 self.assertEqual(timed_out.phase, "error")
+                self.assertEqual(model.step().phase, "idle")
+
+    def test_generated_responses_survive_more_than_sixteen_backpressure_cycles(self) -> None:
+        cases = (
+            (Apb4BridgeModel(), "response", "pready", 0),
+            (Axi4LiteBridgeModel(), "read_response", "rvalid", 1),
+            (TileLinkUlBridgeModel(), "d_channel", "d_valid", 1),
+        )
+
+        for model, response_phase, valid_field, valid_value in cases:
+            with self.subTest(model=type(model).__name__):
+                request = MmioRequest(0x60, False)
+                if isinstance(model, Apb4BridgeModel):
+                    model.step(request)
+                    generated = model.step(
+                        target_rdata=0xCAFE_BABE, response_ready=False
+                    )
+                else:
+                    model.step(
+                        request,
+                        target_ready=True,
+                        target_rdata=0xCAFE_BABE,
+                        response_ready=False,
+                    )
+                    generated = model.step(response_ready=False)
+
+                expected_response = MmioResponse(True, 0xCAFE_BABE, False)
+                self.assertEqual(generated.response, expected_response)
+
+                for _ in range(20):
+                    held = model.step(
+                        target_ready=False,
+                        target_rdata=0,
+                        target_error=True,
+                        response_ready=False,
+                    )
+                    self.assertEqual(held.phase, response_phase)
+                    self.assertEqual(held.protocol_fields[valid_field], valid_value)
+                    self.assertEqual(held.response, expected_response)
+                    self.assertIsNone(held.error)
+
+                released = model.step(response_ready=True)
+                self.assertEqual(released.phase, response_phase)
+                self.assertEqual(released.response, expected_response)
                 self.assertEqual(model.step().phase, "idle")
 
 

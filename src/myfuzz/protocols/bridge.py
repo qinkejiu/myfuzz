@@ -62,6 +62,8 @@ class _BoundedBridgeModel:
         self._response: MmioResponse | None = None
         self._error: str | None = None
         self._wait_cycles = 0
+        self._aw_seen = False
+        self._w_seen = False
 
     def _request_error(self, request: object) -> str | None:
         if not isinstance(request, MmioRequest):
@@ -184,7 +186,7 @@ class Apb4BridgeModel(_BoundedBridgeModel):
             if response_ready:
                 self.reset()
                 return cycle
-            return self._tick(response_ready) or cycle
+            return cycle
 
         if self._response is None:
             if not target_ready:
@@ -206,14 +208,40 @@ class Apb4BridgeModel(_BoundedBridgeModel):
                 self._response,
                 self._error,
             )
-        if response_ready:
-            self.reset()
-            return cycle
-        self._phase = "response"
-        return self._tick(response_ready) or cycle
+            if response_ready:
+                self.reset()
+                return cycle
+            self._phase = "response"
+            self._wait_cycles = 0
+        return cycle
 
 
 class Axi4LiteBridgeModel(_BoundedBridgeModel):
+    @staticmethod
+    def _write_ready_values(
+        target_ready: bool | Mapping[str, object],
+    ) -> tuple[tuple[bool, bool] | None, str | None]:
+        if isinstance(target_ready, bool):
+            return (target_ready, target_ready), None
+        if not isinstance(target_ready, Mapping):
+            return (
+                None,
+                f"AXI target_ready must be a bool or an aw/w mapping: {target_ready}",
+            )
+        if set(target_ready) != {"aw", "w"}:
+            return (
+                None,
+                "AXI target_ready mapping must contain exactly 'aw' and 'w'",
+            )
+        values = (target_ready["aw"], target_ready["w"])
+        for channel, value in zip(("aw", "w"), values):
+            if not isinstance(value, bool):
+                return (
+                    None,
+                    f"AXI target_ready['{channel}'] must be boolean: {value}",
+                )
+        return (values[0], values[1]), None
+
     def _fields(self) -> dict[str, int]:
         fields = {
             "awaddr": 0,
@@ -249,7 +277,7 @@ class Axi4LiteBridgeModel(_BoundedBridgeModel):
         self,
         request: MmioRequest | None = None,
         *,
-        target_ready: bool = True,
+        target_ready: bool | Mapping[str, object] = True,
         target_rdata: int = 0,
         target_error: bool = False,
         response_ready: bool = True,
@@ -274,20 +302,38 @@ class Axi4LiteBridgeModel(_BoundedBridgeModel):
         response = None
         error = None
 
-        if phase == "write_address":
-            fields["awvalid"] = 1
-            fields["awready"] = int(target_ready)
-            if target_ready:
-                self._phase = "write_data"
-        elif phase == "write_data":
-            fields["wvalid"] = 1
-            fields["wready"] = int(target_ready)
-            if target_ready:
+        if phase in {"write_address", "write_data"}:
+            ready_values, ready_error = self._write_ready_values(target_ready)
+            if ready_error is not None:
+                cycle = self._enter_error(ready_error)
+                if response_ready:
+                    self.reset()
+                return cycle
+            assert ready_values is not None
+            aw_ready, w_ready = ready_values
+            aw_valid = not self._aw_seen
+            w_valid = not self._w_seen
+            fields["awvalid"] = int(aw_valid)
+            fields["awready"] = int(aw_ready if aw_valid else False)
+            fields["wvalid"] = int(w_valid)
+            fields["wready"] = int(w_ready if w_valid else False)
+
+            if aw_valid and aw_ready:
+                self._aw_seen = True
+            if w_valid and w_ready:
+                self._w_seen = True
+
+            if self._aw_seen and self._w_seen:
                 target_valid = True
                 target_request = self._request
                 self._response = MmioResponse(done=True, error=bool(target_error))
                 self._error = "AXI write response error" if target_error else None
                 self._phase = "write_response"
+                self._wait_cycles = 0
+            elif self._aw_seen:
+                self._phase = "write_data"
+            else:
+                self._phase = "write_address"
         elif phase == "write_response":
             assert self._response is not None
             fields["bresp"] = 2 if self._response.error else 0
@@ -296,6 +342,11 @@ class Axi4LiteBridgeModel(_BoundedBridgeModel):
             response = self._response
             error = self._error
         elif phase == "read_address":
+            if not isinstance(target_ready, bool):
+                cycle = self._enter_error("AXI read target_ready must be boolean")
+                if response_ready:
+                    self.reset()
+                return cycle
             fields["arvalid"] = 1
             fields["arready"] = int(target_ready)
             if target_ready:
@@ -306,6 +357,7 @@ class Axi4LiteBridgeModel(_BoundedBridgeModel):
                 )
                 self._error = "AXI read response error" if target_error else None
                 self._phase = "read_response"
+                self._wait_cycles = 0
         elif phase == "read_response":
             assert self._response is not None
             fields["rdata"] = self._response.rdata
@@ -320,6 +372,10 @@ class Axi4LiteBridgeModel(_BoundedBridgeModel):
         )
         if response is not None and response_ready:
             self.reset()
+            return cycle
+        if response is not None:
+            return cycle
+        if target_valid:
             return cycle
         return self._tick(response_ready) or cycle
 
@@ -409,6 +465,8 @@ class TileLinkUlBridgeModel(_BoundedBridgeModel):
                 )
                 self._error = "TileLink response denied" if target_error else None
                 self._phase = "d_channel"
+                self._wait_cycles = 0
+                return cycle
             return self._tick(response_ready) or cycle
 
         assert self._phase == "d_channel"
@@ -424,7 +482,7 @@ class TileLinkUlBridgeModel(_BoundedBridgeModel):
         if response_ready:
             self.reset()
             return cycle
-        return self._tick(response_ready) or cycle
+        return cycle
 
 
 __all__ = [
