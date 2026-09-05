@@ -257,6 +257,26 @@ class TileLinkUlRtlTest(unittest.TestCase):
                             tick;
                             check(!td_valid && ta_ready, "sub-word D handshake must release the target");
 
+                            // A legal sub-word PutPartialData is accepted when its mask
+                            // is a non-empty subset of the derived transfer lanes.
+                            @(negedge clk_i);
+                            td_ready = 0; target_ready = 0; target_error = 0; ta_valid = 1;
+                            ta_opcode = 3'd1; ta_param = 0; ta_size = 3'd1; ta_source = 0;
+                            ta_address = 32'h8000_0022; ta_mask = 4'b0100;
+                            ta_data = 32'haabb_ccdd; ta_corrupt = 0;
+                            tick;
+                            check(target_valid && target_write && target_be == 4'b0100,
+                                  "legal sub-word PutPartialData must reach MMIO with a subset mask");
+                            @(negedge clk_i);
+                            ta_valid = 0; target_ready = 1;
+                            tick;
+                            check(td_valid && td_opcode == 3'd0 && !td_denied && !td_corrupt,
+                                  "legal sub-word PutPartialData must return AccessAck");
+                            @(negedge clk_i);
+                            td_ready = 1;
+                            tick;
+                            check(!td_valid && ta_ready, "sub-word PutPartialData D handshake must release the target");
+
                             // Get validates and maps the size/address-derived read mask.
                             @(negedge clk_i);
                             td_ready = 0; target_error = 0; ta_valid = 1; ta_opcode = 3'd4; ta_param = 0;
@@ -344,6 +364,29 @@ class TileLinkUlRtlTest(unittest.TestCase):
                             tick;
                             check(td_valid && td_opcode == 3'd1 && td_denied && td_corrupt && td_data == 0,
                                   "unready Get target must produce a bounded denied corrupt D response");
+                            @(negedge clk_i);
+                            td_ready = 1;
+                            tick;
+
+                            // A target ready on the timeout boundary wins over the timeout.
+                            @(negedge clk_i);
+                            td_ready = 0; target_error = 0; target_ready = 0; ta_valid = 1;
+                            ta_opcode = 3'd4; ta_param = 0; ta_size = 3'd2; ta_source = 0;
+                            ta_address = 32'h8000_0050; ta_mask = 4'hf; ta_data = 0; ta_corrupt = 0;
+                            tick;
+                            @(negedge clk_i);
+                            ta_valid = 0;
+                            repeat (15) begin
+                                tick;
+                                check(target_valid && !td_valid,
+                                      "target must remain active before the timeout boundary");
+                            end
+                            @(negedge clk_i);
+                            target_ready = 1; target_rdata = 32'h1234_5678;
+                            tick;
+                            check(td_valid && td_opcode == 3'd1 && !td_denied && !td_corrupt
+                                  && td_data == 32'h1234_5678,
+                                  "target ready at timeout boundary must complete successfully");
                             @(negedge clk_i);
                             td_ready = 1;
                             tick;
