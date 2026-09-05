@@ -1,0 +1,11 @@
+{
+  "cpu_id": "cv32e40p.rv32imc",
+  "vendor": "OpenHW Group",
+  "xlen": [32],
+  "extensions": ["I", "M", "C"],
+  "core_native_protocols": [["obi", "1.2"]],
+  "integration_protocols": [["obi", "1.2"]],
+  "source_status": "reference",
+  "source_paths": ["third_party/cv32e40p"],
+  "implemented": false
+}

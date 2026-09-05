@@ -1,0 +1,14 @@
+{
+  "cpu_id": "ibex.rv32imc",
+  "vendor": "lowRISC",
+  "xlen": [32],
+  "extensions": ["I", "M", "C"],
+  "core_native_protocols": [["ready-valid-mmio", "1"]],
+  "integration_protocols": [["tl-ul", "1"], ["apb", "4"], ["axi4-lite", "1"]],
+  "source_status": "implemented",
+  "source_paths": [
+    "configs/designs/ibex_multicomponent_ip/rtl/local_sources.f",
+    "configs/designs/ibex_multicomponent_ip/rtl/ibex_multicomponent_ip_top.sv"
+  ],
+  "implemented": true
+}

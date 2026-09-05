@@ -1,0 +1,11 @@
+{
+  "cpu_id": "rocket.rv64imafdc",
+  "vendor": "UC Berkeley",
+  "xlen": [64],
+  "extensions": ["I", "M", "A", "F", "D", "C"],
+  "core_native_protocols": [["tilelink", "1"]],
+  "integration_protocols": [["tilelink", "1"], ["axi4", "1"]],
+  "source_status": "reference",
+  "source_paths": ["third_party/rocket-chip"],
+  "implemented": false
+}

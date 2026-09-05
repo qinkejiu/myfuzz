@@ -1,0 +1,11 @@
+{
+  "cpu_id": "cva6.rv64imafdc",
+  "vendor": "OpenHW Group",
+  "xlen": [64],
+  "extensions": ["I", "M", "A", "F", "D", "C"],
+  "core_native_protocols": [["axi4", "1"]],
+  "integration_protocols": [["axi4", "1"]],
+  "source_status": "reference",
+  "source_paths": ["third_party/cva6"],
+  "implemented": false
+}

@@ -1,0 +1,11 @@
+{
+  "cpu_id": "picorv32.rv32i",
+  "vendor": "YosysHQ",
+  "xlen": [32],
+  "extensions": ["I"],
+  "core_native_protocols": [["ready-valid-mmio", "1"]],
+  "integration_protocols": [["axi4-lite", "1"], ["wishbone", "classic-b3"]],
+  "source_status": "reference",
+  "source_paths": ["third_party/picorv32"],
+  "implemented": false
+}
