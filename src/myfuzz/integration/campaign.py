@@ -15,8 +15,15 @@ from pathlib import Path
 import selectors
 import signal
 import subprocess
-import tempfile
 import time
+
+from .campaign_report import (
+    CampaignReportError,
+    CampaignState,
+    build_campaign_report,
+    publish_campaign_report,
+    write_checkpoint,
+)
 
 
 _PROC_ROOT = Path("/proc")
@@ -71,6 +78,7 @@ class CampaignOptions:
     checkpoint_seconds: int = 30
     limits: CampaignLimits = CampaignLimits()
     env: Mapping[str, str] = field(default_factory=dict)
+    composition_hash: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.command, tuple) or not self.command:
@@ -91,6 +99,10 @@ class CampaignOptions:
             for key, value in self.env.items()
         ):
             raise TypeError("env must be a mapping of strings")
+        if self.composition_hash is not None and (
+            not isinstance(self.composition_hash, str) or not self.composition_hash
+        ):
+            raise TypeError("composition_hash must be a non-empty string or None")
 
 
 def read_rss_bytes(pid: int) -> int:
@@ -136,9 +148,10 @@ class _JsonLineMetrics:
         "metric_count",
         "metrics",
         "metrics_truncated",
+        "state",
     )
 
-    def __init__(self) -> None:
+    def __init__(self, state: CampaignState | None = None) -> None:
         self.buffer = bytearray()
         self.discarding = False
         self.invalid_line_count = 0
@@ -146,6 +159,7 @@ class _JsonLineMetrics:
         self.metric_count = 0
         self.metrics: list[dict[str, object]] = []
         self.metrics_truncated = False
+        self.state = state
 
     def feed(self, payload: bytes) -> None:
         cursor = 0
@@ -154,15 +168,24 @@ class _JsonLineMetrics:
             if newline < 0:
                 self._append_fragment(payload[cursor:])
                 return
+            was_discarding = self.discarding
             self._append_fragment(payload[cursor:newline])
-            if not self.discarding:
+            if was_discarding or self.discarding:
+                self.invalid_line_count += 1
+                if self.state is not None:
+                    self.state.record_error()
+            else:
                 self._consume_line(bytes(self.buffer))
             self.buffer.clear()
             self.discarding = False
             cursor = newline + 1
 
     def finish(self) -> None:
-        if self.buffer and not self.discarding:
+        if self.buffer and self.discarding:
+            self.invalid_line_count += 1
+            if self.state is not None:
+                self.state.record_error()
+        elif self.buffer:
             self._consume_line(bytes(self.buffer))
         self.buffer.clear()
         self.discarding = False
@@ -186,6 +209,8 @@ class _JsonLineMetrics:
             document = json.loads(line)
         except (UnicodeDecodeError, ValueError, RecursionError):
             self.invalid_line_count += 1
+            if self.state is not None:
+                self.state.record_error()
             return
         if not isinstance(document, dict) or not any(
             key in _METRIC_KEYS for key in document
@@ -193,6 +218,8 @@ class _JsonLineMetrics:
             return
         self.metric_count += 1
         self.last_output_line = line
+        if self.state is not None:
+            self.state.record_metric(document, line)
         if len(self.metrics) < _MAX_METRICS:
             self.metrics.append(document)
         else:
@@ -225,67 +252,6 @@ def _verify_process_group_support() -> None:
         raise
     except OSError as error:
         raise CampaignError("cannot verify process-group supervision") from error
-
-
-def _atomic_write_json(path: Path, document: Mapping[str, object]) -> None:
-    payload = json.dumps(document, sort_keys=True, separators=(",", ":")) + "\n"
-    temporary_name: str | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            dir=path.parent,
-            prefix=f".{path.name}.",
-            suffix=".tmp",
-            delete=False,
-        ) as temporary:
-            temporary_name = temporary.name
-            temporary.write(payload)
-            temporary.flush()
-            os.fsync(temporary.fileno())
-        os.replace(temporary_name, path)
-        temporary_name = None
-    except OSError as error:
-        raise CampaignError(f"cannot persist campaign checkpoint: {path}") from error
-    finally:
-        if temporary_name is not None:
-            try:
-                os.unlink(temporary_name)
-            except OSError:
-                pass
-
-
-def _checkpoint_document(
-    options: CampaignOptions,
-    *,
-    status: str,
-    pid: int,
-    duration_seconds: float,
-    peak_rss_bytes: int,
-    metrics: _JsonLineMetrics,
-    return_code: int | None,
-    soft_limit_exceeded: bool,
-) -> dict[str, object]:
-    return {
-        "status": status,
-        "seed": options.seed,
-        "pid": pid,
-        "duration_seconds": duration_seconds,
-        "peak_rss_bytes": peak_rss_bytes,
-        "return_code": return_code,
-        "transactions": sum(
-            value
-            for document in metrics.metrics
-            for value in (document.get("transactions"),)
-            if isinstance(value, int) and not isinstance(value, bool) and value >= 0
-        ),
-        "metric_count": metrics.metric_count,
-        "metrics": metrics.metrics,
-        "metrics_truncated": metrics.metrics_truncated,
-        "invalid_metric_lines": metrics.invalid_line_count,
-        "last_output_line": metrics.last_output_line,
-        "soft_limit_exceeded": soft_limit_exceeded,
-    }
 
 
 def _group_exists(pgid: int) -> bool:
@@ -433,17 +399,31 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
 
     assert process.stdout is not None
     selector: selectors.BaseSelector | None = None
-    metrics = _JsonLineMetrics()
     pid = process.pid
     started = time.monotonic()
+    state = CampaignState(
+        seed=options.seed,
+        composition_hash=options.composition_hash,
+    )
+    metrics = _JsonLineMetrics(state)
     peak_rss_bytes = 0
     soft_limit_exceeded = False
     status = "completed"
     termination_signal: str | None = None
-    monitor_error: CampaignError | None = None
+    monitor_error: CampaignError | CampaignReportError | None = None
     error_type: str | None = None
     checkpoint_path = options.output_dir / "checkpoint.json"
+    report_path = options.output_dir / "report.json"
     pgid: int | None = None
+
+    def persist_checkpoint(current_status: str, duration: float) -> None:
+        state.status = current_status
+        state.duration_seconds = max(0.0, duration)
+        state.peak_rss_bytes = peak_rss_bytes
+        try:
+            write_checkpoint(checkpoint_path, state)
+        except CampaignReportError as error:
+            raise CampaignError(str(error)) from error
 
     try:
         try:
@@ -465,6 +445,7 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
         selector.register(descriptor, selectors.EVENT_READ)
 
         next_rss_poll = started
+        next_checkpoint = started + options.checkpoint_seconds
         deadline = started + options.duration_seconds
         while True:
             return_code = process.poll()
@@ -511,6 +492,11 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
                 max(0.0, deadline - time.monotonic()),
             )
             _read_available_output(selector, metrics, wait_seconds)
+            now = time.monotonic()
+            if now >= next_checkpoint:
+                persist_checkpoint("running", now - started)
+                while next_checkpoint <= now:
+                    next_checkpoint += options.checkpoint_seconds
 
         return_code = process.wait()
     except (CampaignError, OSError) as error:
@@ -541,22 +527,31 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
         process.stdout.close()
 
     duration_seconds = max(0.0, time.monotonic() - started)
-    if status in {"resource-terminated", "timed-out", "startup-error"}:
-        checkpoint = _checkpoint_document(
-            options,
-            status=status,
-            pid=pid,
-            duration_seconds=duration_seconds,
-            peak_rss_bytes=peak_rss_bytes,
-            metrics=metrics,
-            return_code=return_code,
-            soft_limit_exceeded=soft_limit_exceeded,
-        )
+    checkpoint_published = False
+    try:
+        persist_checkpoint(status, duration_seconds)
+        checkpoint_published = True
+    except CampaignError as error:
+        if monitor_error is None:
+            monitor_error = error
+            error_type = "checkpoint-publish-failed"
+
+    report_published = False
+    if status in {"completed", "crashed", "resource-terminated"} and checkpoint_published:
+        replay_command = options.command if status == "crashed" else None
         try:
-            _atomic_write_json(checkpoint_path, checkpoint)
-        except CampaignError as error:
+            report = build_campaign_report(
+                options,
+                state,
+                status,
+                replay_command,
+            )
+            publish_campaign_report(report_path, report)
+            report_published = True
+        except CampaignReportError as error:
             if monitor_error is None:
                 monitor_error = error
+                error_type = "report-publish-failed"
 
     result: dict[str, object] = {
         "status": status,
@@ -575,6 +570,14 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
         "checkpoint_path": str(checkpoint_path)
         if checkpoint_path.is_file()
         else None,
+        "report_path": str(report_path) if report_published else None,
+        "iterations": state.iterations,
+        "transactions": state.transactions,
+        "protocol_transactions": dict(sorted(state.protocol_transactions.items())),
+        "component_transactions": dict(sorted(state.component_transactions.items())),
+        "coverage": sorted(state.coverage),
+        "errors": state.errors,
+        "checkpoint_count": state.checkpoint_count,
     }
     if monitor_error is not None:
         result["error"] = {
