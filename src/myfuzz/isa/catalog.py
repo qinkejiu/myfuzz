@@ -279,9 +279,22 @@ def _catalog_directory(path: str | Path) -> tuple[Path, Path]:
     return supplied.resolve(), _source_root(supplied)
 
 
-def load_cpu_catalog(path: str | Path) -> CpuCatalog:
-    """Load every JSON profile below *path* using strict fail-closed parsing."""
-    catalog_dir, root = _catalog_directory(path)
+def load_cpu_catalog(
+    path: str | Path,
+    *,
+    root: str | Path | None = None,
+) -> CpuCatalog:
+    """Load every JSON profile below *path* using strict fail-closed parsing.
+
+    ``root`` overrides the source root used to calculate effective
+    implementation availability.  This is useful when the profile catalog is
+    packaged separately from the checkout containing its declared sources.
+    """
+    catalog_dir, inferred_root = _catalog_directory(path)
+    source_root = inferred_root if root is None else Path(root)
+    if not source_root.is_dir():
+        raise CpuDefinitionError(f"CPU source root does not exist: {source_root}")
+    source_root = source_root.resolve()
     profiles: list[CpuProfile] = []
     for source in sorted(catalog_dir.glob("*.json")):
         try:
@@ -293,14 +306,25 @@ def load_cpu_catalog(path: str | Path) -> CpuCatalog:
             raise CpuDefinitionError(f"{source}: duplicate JSON key: {error}") from error
         except (OSError, UnicodeError, json.JSONDecodeError) as error:
             raise CpuDefinitionError(f"{source}: cannot read profile: {error}") from error
-        profiles.append(_parse_profile(document, source, root))
+        profiles.append(_parse_profile(document, source, source_root))
     return CpuCatalog(tuple(profiles))
 
 
 @lru_cache(maxsize=1)
-def load_builtin_cpu_catalog() -> CpuCatalog:
-    """Return the cached catalog shipped with this package."""
+def _load_default_builtin_cpu_catalog() -> CpuCatalog:
     return load_cpu_catalog(Path(__file__).with_name("profiles"))
+
+
+def load_builtin_cpu_catalog(root: str | Path | None = None) -> CpuCatalog:
+    """Load the built-in profiles, optionally evaluating sources under *root*.
+
+    The no-argument form retains the historical package-root cache.  A
+    supplied root deliberately bypasses that cache so effective availability
+    reflects the checkout being planned.
+    """
+    if root is None:
+        return _load_default_builtin_cpu_catalog()
+    return load_cpu_catalog(Path(__file__).with_name("profiles"), root=root)
 
 
 __all__ = ["CpuCatalog", "load_builtin_cpu_catalog", "load_cpu_catalog"]

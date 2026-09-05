@@ -132,6 +132,33 @@ class CpuCatalogTest(unittest.TestCase):
             ),
         )
 
+    def test_builtin_catalog_recomputes_effective_status_for_supplied_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            source_paths = load_builtin_cpu_catalog().require("ibex.rv32imc").source_paths
+            for source_path in source_paths:
+                destination = root / source_path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text("// supplied-root fixture\n", encoding="utf-8")
+
+            supplied_root_catalog = load_builtin_cpu_catalog(root=root)
+
+            self.assertTrue(supplied_root_catalog.require("ibex.rv32imc").implemented)
+            self.assertEqual(
+                {
+                    ("apb", "4"),
+                    ("axi4-lite", "1"),
+                    ("tl-ul", "1"),
+                },
+                set(
+                    supplied_root_catalog.compatible_protocols(
+                        "ibex.rv32imc", runtime_only=True
+                    )
+                ),
+            )
+
+        self.assertFalse(load_builtin_cpu_catalog().require("ibex.rv32imc").implemented)
+
     def test_profiles_preserve_documented_native_and_integration_boundaries(self) -> None:
         catalog = load_builtin_cpu_catalog()
         ibex = catalog.require("ibex.rv32imc")

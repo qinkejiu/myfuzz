@@ -255,6 +255,101 @@ class AutoCompositionTests(unittest.TestCase):
                     write_auto_composition_manifest(plan, destination)
                 self.assertEqual(destination.read_bytes(), b"previous manifest\n")
 
+    def test_non_publishable_window_size_is_incomplete(self) -> None:
+        plan = self.plan(_request(window_size=0x2000))
+
+        self.assertFalse(plan.complete, plan.diagnostics)
+        self.assertTrue(
+            any("manifest-size" in diagnostic or "window" in diagnostic for diagnostic in plan.diagnostics),
+            plan.diagnostics,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaises(AutoCompositionError):
+                write_auto_composition_manifest(plan, Path(directory) / "manifest.json")
+
+    def test_plan_nested_records_are_immutable(self) -> None:
+        plan = self.plan(_request(component_types=("timer",)))
+
+        with self.assertRaises(TypeError):
+            plan.components[0]["protocol"]["id"] = "axi4"  # type: ignore[index]
+        with self.assertRaises(TypeError):
+            plan.components[0]["parameters"]["WORDS"] = 1  # type: ignore[index]
+
+    def test_writer_rechecks_source_evidence_at_publish(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "rtl" / "fixture.sv"
+            source.parent.mkdir(parents=True)
+            source.write_text("module fixture; endmodule\n", encoding="utf-8")
+            cpu_catalog = CpuCatalog(
+                (
+                    CpuProfile(
+                        cpu_id="fixture.rv32i",
+                        vendor="test",
+                        xlen=(32,),
+                        extensions=("I",),
+                        core_native_protocols=(("ready-valid-mmio", "1"),),
+                        integration_protocols=(("apb", "4"),),
+                        source_status="implemented",
+                        source_paths=("rtl/fixture.sv",),
+                        implemented=True,
+                    ),
+                )
+            )
+            component_catalog = ComponentCatalog(
+                (
+                    PeripheralProfile(
+                        component_type="timer",
+                        module_name="fixture_timer",
+                        protocols=(("apb", "4"),),
+                        address_alignment=4096,
+                        default_size=4096,
+                        irq_capable=True,
+                        requires=(),
+                        source_status="implemented",
+                        source_paths=("rtl/fixture.sv",),
+                        implemented=True,
+                        parameter_limits={},
+                    ),
+                )
+            )
+            plan = plan_auto_composition(
+                _request(component_types=("timer",)),
+                cpu_catalog=cpu_catalog,
+                component_catalog=component_catalog,
+                root=root,
+            )
+            self.assertTrue(plan.complete, plan.diagnostics)
+            source.unlink()
+            destination = root / "manifest.json"
+            destination.write_bytes(b"previous manifest\n")
+            with self.assertRaisesRegex(AutoCompositionError, "missing"):
+                write_auto_composition_manifest(plan, destination)
+            self.assertEqual(destination.read_bytes(), b"previous manifest\n")
+
+    def test_builtin_ibex_can_be_revalidated_against_planner_root(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_paths = set(load_builtin_cpu_catalog().require("ibex.rv32imc").source_paths)
+            component_catalog = load_builtin_component_catalog()
+            for component_type in ("timer", "gpio"):
+                source_paths.update(component_catalog.require(component_type).source_paths)
+            for relative_path in source_paths:
+                destination = root / relative_path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text("// planner-root fixture source\n", encoding="utf-8")
+
+            plan = plan_auto_composition(
+                AutoCompositionRequest(
+                    cpu_id="ibex.rv32imc",
+                    component_types=("timer", "gpio"),
+                    protocol_preferences=(("apb", "4"), ("axi4-lite", "1")),
+                ),
+                root=root,
+            )
+
+        self.assertTrue(plan.complete, plan.diagnostics)
+
     def test_builtin_ibex_plan_is_incomplete_when_upstream_is_absent(self) -> None:
         request = AutoCompositionRequest(
             cpu_id="ibex.rv32imc",

@@ -7,6 +7,7 @@ import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath, PureWindowsPath
+from types import MappingProxyType
 
 from myfuzz.components import (
     ComponentCatalog,
@@ -62,6 +63,17 @@ class AutoCompositionRequest:
         object.__setattr__(self, "protocol_preferences", preferences)
 
 
+def _freeze_nested(value: object) -> object:
+    """Copy mappings/sequences into recursively immutable equivalents."""
+    if isinstance(value, Mapping):
+        return MappingProxyType(
+            {key: _freeze_nested(item) for key, item in value.items()}
+        )
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_nested(item) for item in value)
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class AutoCompositionPlan:
     """A portable plan and its deterministic semantic hash."""
@@ -76,6 +88,31 @@ class AutoCompositionPlan:
     _component_source_paths: tuple[tuple[str, tuple[str, ...]], ...] = field(
         default=(), repr=False, compare=False
     )
+    _source_root: str | None = field(default=None, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "components",
+            tuple(_freeze_nested(component) for component in self.components),
+        )
+        object.__setattr__(
+            self,
+            "dependencies",
+            tuple(tuple(edge) for edge in self.dependencies),
+        )
+        object.__setattr__(self, "diagnostics", tuple(self.diagnostics))
+        object.__setattr__(self, "_cpu_source_paths", tuple(self._cpu_source_paths))
+        object.__setattr__(
+            self,
+            "_component_source_paths",
+            tuple(
+                (component_id, tuple(source_paths))
+                for component_id, source_paths in self._component_source_paths
+            ),
+        )
+        if self._source_root is not None:
+            object.__setattr__(self, "_source_root", str(self._source_root))
 
 
 def _plain(value: object) -> object:
@@ -132,6 +169,7 @@ def _make_plan(
     dependencies: tuple[tuple[str, str], ...],
     diagnostics: list[str],
     *,
+    source_root: Path | None = None,
     cpu_source_paths: tuple[str, ...] = (),
     component_source_paths: tuple[tuple[str, tuple[str, ...]], ...] = (),
 ) -> AutoCompositionPlan:
@@ -155,11 +193,22 @@ def _make_plan(
         content_hash=content_hash(hash_document),
         _cpu_source_paths=cpu_source_paths,
         _component_source_paths=component_source_paths,
+        _source_root=None if source_root is None else str(source_root.resolve()),
     )
 
 
 def _integer(value: object) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _manifest_size_is_publishable(component_type: object, size: object) -> bool:
+    if not isinstance(component_type, str) or not _integer(size):
+        return False
+    if size not in _MANIFEST_SIZES:
+        return False
+    if component_type == "ram":
+        return size == 0x10000
+    return size == 0x1000
 
 
 def _relative_source(root: Path, source_path: object) -> tuple[bool, str]:
@@ -210,6 +259,45 @@ def _check_sources(root: Path, source_paths: tuple[str, ...], owner: str) -> lis
             kind = "missing-source" if detail == source_path else "unsafe-source"
             diagnostics.append(f"{owner}:{kind}:{detail}")
     return diagnostics
+
+
+def _validate_source_evidence(
+    source_root: str | None,
+    source_paths: tuple[str, ...],
+    owner: str,
+) -> None:
+    """Revalidate retained source evidence immediately before publication."""
+    if source_root is None:
+        raise AutoCompositionError(f"plan:{owner}:source-root-missing")
+    try:
+        resolved_root = Path(source_root).resolve()
+    except (OSError, RuntimeError, TypeError, ValueError) as error:
+        raise AutoCompositionError(f"plan:{owner}:source-root-invalid") from error
+    if not resolved_root.is_dir():
+        raise AutoCompositionError(f"plan:{owner}:source-root-missing")
+    if not source_paths:
+        raise AutoCompositionError(f"plan:{owner}:source-evidence-missing")
+
+    for source_path in source_paths:
+        if not _safe_source_evidence_path(source_path):
+            raise AutoCompositionError(
+                f"plan:{owner}:source-evidence-invalid:{source_path}"
+            )
+        try:
+            resolved_source = (resolved_root / source_path).resolve(strict=False)
+            resolved_source.relative_to(resolved_root)
+        except (OSError, RuntimeError, ValueError) as error:
+            raise AutoCompositionError(
+                f"plan:{owner}:source-evidence-outside-root:{source_path}"
+            ) from error
+        if not resolved_source.exists():
+            raise AutoCompositionError(
+                f"plan:{owner}:source-evidence-missing:{source_path}"
+            )
+        if not resolved_source.is_file():
+            raise AutoCompositionError(
+                f"plan:{owner}:source-evidence-not-regular-file:{source_path}"
+            )
 
 
 def _parse_preferences(
@@ -297,7 +385,7 @@ def plan_auto_composition(
         raise AutoCompositionError("repository root:type") from error
     if not checkout_root.is_dir():
         raise AutoCompositionError(f"repository root does not exist: {checkout_root}")
-    selected_cpu_catalog = cpu_catalog or load_builtin_cpu_catalog()
+    selected_cpu_catalog = cpu_catalog or load_builtin_cpu_catalog(root=checkout_root)
     selected_component_catalog = component_catalog or load_builtin_component_catalog()
     try:
         cpu = selected_cpu_catalog.require(request.cpu_id)
@@ -379,7 +467,14 @@ def plan_auto_composition(
         diagnostics.append("cpu:unsupported-runtime-contract")
 
     if diagnostics:
-        return _make_plan(cpu, (), (), diagnostics, cpu_source_paths=cpu_source_paths)
+        return _make_plan(
+            cpu,
+            (),
+            (),
+            diagnostics,
+            source_root=checkout_root,
+            cpu_source_paths=cpu_source_paths,
+        )
 
     selected_profiles: dict[str, PeripheralProfile] = {}
     selected_protocols: dict[str, tuple[str, str]] = {}
@@ -442,6 +537,7 @@ def plan_auto_composition(
             (),
             (),
             selection_diagnostics,
+            source_root=checkout_root,
             cpu_source_paths=cpu_source_paths,
         )
 
@@ -465,6 +561,7 @@ def plan_auto_composition(
             (),
             tuple(sorted(set(dependencies))),
             dependency_diagnostics,
+            source_root=checkout_root,
             cpu_source_paths=cpu_source_paths,
         )
 
@@ -483,6 +580,13 @@ def plan_auto_composition(
             )
         if size % profile.address_alignment:
             address_diagnostics.append(f"address:{component_type}0:size-not-aligned")
+        if (
+            component_type in _MANIFEST_COMPONENT_TYPES
+            and not _manifest_size_is_publishable(component_type, size)
+        ):
+            address_diagnostics.append(
+                f"manifest-size:{component_type}0:unsupported:{size}"
+            )
         base = _align_up(address, alignment)
         if base + size > (1 << request.address_width):
             address_diagnostics.append(f"address:{component_type}0:outside-width")
@@ -517,6 +621,7 @@ def plan_auto_composition(
             (),
             tuple(sorted(set(dependencies))),
             address_diagnostics,
+            source_root=checkout_root,
             cpu_source_paths=cpu_source_paths,
         )
 
@@ -525,6 +630,7 @@ def plan_auto_composition(
         tuple(components),
         tuple(sorted(set(dependencies))),
         [],
+        source_root=checkout_root,
         cpu_source_paths=cpu_source_paths,
         component_source_paths=tuple(component_source_paths),
     )
@@ -567,9 +673,7 @@ def _manifest_component(component: Mapping[str, object], index: int) -> dict[str
         or base < 0
         or base % 0x1000
         or not _integer(size)
-        or size not in _MANIFEST_SIZES
-        or (component_type == "ram" and size != 0x10000)
-        or (component_type != "ram" and size != 0x1000)
+        or not _manifest_size_is_publishable(component_type, size)
         or base + size > (1 << 32)
     ):
         raise AutoCompositionError(f"manifest:component[{index}]:address")
@@ -614,6 +718,7 @@ def _manifest_document(plan: AutoCompositionPlan) -> dict[str, object]:
         for source_path in plan._cpu_source_paths
     ):
         raise AutoCompositionError("plan:cpu-source-evidence-invalid")
+    _validate_source_evidence(plan._source_root, plan._cpu_source_paths, "cpu")
     records = tuple(
         _manifest_component(component, index)
         for index, component in enumerate(plan.components)
@@ -640,6 +745,7 @@ def _manifest_document(plan: AutoCompositionPlan) -> dict[str, object]:
     for component_id, source_paths in evidence.items():
         if not source_paths or any(not _safe_source_evidence_path(path) for path in source_paths):
             raise AutoCompositionError(f"plan:{component_id}:source-evidence-invalid")
+        _validate_source_evidence(plan._source_root, source_paths, component_id)
     irq_values = [record["irq"] for record in records if record["irq"] is not None]
     if len(irq_values) != len(set(irq_values)):
         raise AutoCompositionError("manifest:components:duplicate-irq")
