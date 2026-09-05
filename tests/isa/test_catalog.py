@@ -45,6 +45,93 @@ class CpuCatalogTest(unittest.TestCase):
         )
         self.assertEqual(len(catalog.profiles), len({profile.cpu_id for profile in catalog.profiles}))
 
+    def test_builtin_profiles_have_exact_metadata_and_statuses(self) -> None:
+        expected = {
+            "ibex.rv32imc": {
+                "vendor": "lowRISC",
+                "xlen": (32,),
+                "extensions": ("I", "M", "C"),
+                "core_native_protocols": (("ready-valid-mmio", "1"),),
+                "integration_protocols": (("tl-ul", "1"), ("apb", "4"), ("axi4-lite", "1")),
+                "source_status": "implemented",
+                "source_paths": (
+                    "third_party/rfuzz/upstream/ibex/sources.f",
+                    "configs/designs/ibex_multicomponent_ip/rtl/local_sources.f",
+                    "configs/designs/ibex_multicomponent_ip/rtl/ibex_multicomponent_ip_top.sv",
+                ),
+                "implemented": False,
+            },
+            "cva6.rv64imafdc": {
+                "vendor": "OpenHW Group",
+                "xlen": (64,),
+                "extensions": ("I", "M", "A", "F", "D", "C"),
+                "core_native_protocols": (("axi4", "1"),),
+                "integration_protocols": (("axi4", "1"),),
+                "source_status": "reference",
+                "source_paths": ("third_party/cva6",),
+                "implemented": False,
+            },
+            "boom.rv64imafdc": {
+                "vendor": "Berkeley Architecture Research",
+                "xlen": (64,),
+                "extensions": ("I", "M", "A", "F", "D", "C"),
+                "core_native_protocols": (("boom-tile", "1"),),
+                "integration_protocols": (("tilelink", "1"),),
+                "source_status": "reference",
+                "source_paths": ("third_party/boom",),
+                "implemented": False,
+            },
+            "rocket.rv64imafdc": {
+                "vendor": "UC Berkeley",
+                "xlen": (64,),
+                "extensions": ("I", "M", "A", "F", "D", "C"),
+                "core_native_protocols": (("tilelink", "1"),),
+                "integration_protocols": (("tilelink", "1"), ("axi4", "1")),
+                "source_status": "reference",
+                "source_paths": ("third_party/rocket-chip",),
+                "implemented": False,
+            },
+            "picorv32.rv32i": {
+                "vendor": "YosysHQ",
+                "xlen": (32,),
+                "extensions": ("I",),
+                "core_native_protocols": (("ready-valid-mmio", "1"),),
+                "integration_protocols": (("axi4-lite", "1"), ("wishbone", "classic-b3")),
+                "source_status": "reference",
+                "source_paths": ("third_party/picorv32",),
+                "implemented": False,
+            },
+            "cv32e40p.rv32imc": {
+                "vendor": "OpenHW Group",
+                "xlen": (32,),
+                "extensions": ("I", "M", "C"),
+                "core_native_protocols": (("obi", "1.2"),),
+                "integration_protocols": (("obi", "1.2"),),
+                "source_status": "reference",
+                "source_paths": ("third_party/cv32e40p",),
+                "implemented": False,
+            },
+        }
+        catalog = load_builtin_cpu_catalog()
+
+        for cpu_id, fields in expected.items():
+            with self.subTest(cpu_id=cpu_id):
+                profile = catalog.require(cpu_id)
+                for field, value in fields.items():
+                    self.assertEqual(value, getattr(profile, field), field)
+
+    def test_missing_ibex_upstream_source_list_disables_runtime(self) -> None:
+        profile = load_builtin_cpu_catalog().require("ibex.rv32imc")
+
+        self.assertIn("third_party/rfuzz/upstream/ibex/sources.f", profile.source_paths)
+        self.assertFalse(profile.implemented)
+        self.assertEqual(
+            (),
+            load_builtin_cpu_catalog().compatible_protocols(
+                "ibex.rv32imc", runtime_only=True
+            ),
+        )
+
     def test_profiles_preserve_documented_native_and_integration_boundaries(self) -> None:
         catalog = load_builtin_cpu_catalog()
         ibex = catalog.require("ibex.rv32imc")
@@ -67,14 +154,64 @@ class CpuCatalogTest(unittest.TestCase):
     def test_runtime_protocols_require_an_implemented_profile(self) -> None:
         catalog = load_builtin_cpu_catalog()
 
-        self.assertTrue(catalog.require("ibex.rv32imc").implemented)
-        self.assertIn(("apb", "4"), catalog.compatible_protocols("ibex.rv32imc"))
-        self.assertIn(("tl-ul", "1"), catalog.compatible_protocols("ibex.rv32imc"))
+        self.assertFalse(catalog.require("ibex.rv32imc").implemented)
+        self.assertEqual((), catalog.compatible_protocols("ibex.rv32imc"))
         self.assertEqual((), catalog.compatible_protocols("cva6.rv64imafdc"))
         self.assertIn(
             ("axi4", "1"),
             catalog.compatible_protocols("cva6.rv64imafdc", runtime_only=False),
         )
+
+    def test_runtime_protocols_filter_to_tested_runtime_bindings(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            profiles = root / "profiles"
+            profiles.mkdir()
+            source = root / "rtl" / "cpu.sv"
+            source.parent.mkdir()
+            source.write_text("// test source\n", encoding="utf-8")
+            path = profiles / "test.json"
+            path.write_text(
+                json.dumps(
+                    _profile_document(
+                        core_native_protocols=[
+                            ["ready-valid-mmio", "1"],
+                            ["axi4", "1"],
+                            ["tilelink", "1"],
+                        ],
+                        integration_protocols=[
+                            ["apb", "4"],
+                            ["axi4-lite", "1"],
+                            ["tl-ul", "1"],
+                            ["obi", "1.2"],
+                            ["ready-valid-mmio", "1"],
+                        ],
+                        source_status="implemented",
+                        source_paths=["rtl/cpu.sv"],
+                        implemented=True,
+                    )
+                ),
+                encoding="utf-8",
+            )
+
+            catalog = load_cpu_catalog(root)
+
+            self.assertEqual(
+                (("apb", "4"), ("axi4-lite", "1"), ("tl-ul", "1")),
+                catalog.compatible_protocols("test.rv32i", runtime_only=True),
+            )
+            self.assertEqual(
+                (
+                    ("ready-valid-mmio", "1"),
+                    ("axi4", "1"),
+                    ("tilelink", "1"),
+                    ("apb", "4"),
+                    ("axi4-lite", "1"),
+                    ("tl-ul", "1"),
+                    ("obi", "1.2"),
+                ),
+                catalog.compatible_protocols("test.rv32i", runtime_only=False),
+            )
 
     def test_unknown_cpu_id_fails_closed(self) -> None:
         with self.assertRaises(CpuDefinitionError):

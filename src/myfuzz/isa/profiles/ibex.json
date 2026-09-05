@@ -7,6 +7,7 @@
   "integration_protocols": [["tl-ul", "1"], ["apb", "4"], ["axi4-lite", "1"]],
   "source_status": "implemented",
   "source_paths": [
+    "third_party/rfuzz/upstream/ibex/sources.f",
     "configs/designs/ibex_multicomponent_ip/rtl/local_sources.f",
     "configs/designs/ibex_multicomponent_ip/rtl/ibex_multicomponent_ip_top.sv"
   ],

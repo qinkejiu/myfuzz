@@ -27,6 +27,13 @@ _PROFILE_FIELDS = frozenset(
 _SOURCE_STATUSES = frozenset({"implemented", "reference"})
 _PROTOCOL_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]*\Z")
 _PROTOCOL_VERSION = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*\Z")
+_RUNTIME_PROTOCOLS = frozenset(
+    {
+        ("apb", "4"),
+        ("axi4-lite", "1"),
+        ("tl-ul", "1"),
+    }
+)
 
 
 class _DuplicateJsonKey(ValueError):
@@ -79,13 +86,18 @@ class CpuCatalog:
         *,
         runtime_only: bool = True,
     ) -> tuple[tuple[str, str], ...]:
+        """Return declared protocols, restricted to tested runtime bindings by default."""
         profile = self.require(cpu_id)
-        if runtime_only and not profile.implemented:
+        if runtime_only and (
+            not profile.implemented or profile.source_status != "implemented"
+        ):
             return ()
 
         protocols: list[tuple[str, str]] = []
         seen: set[tuple[str, str]] = set()
         for protocol in profile.core_native_protocols + profile.integration_protocols:
+            if runtime_only and protocol not in _RUNTIME_PROTOCOLS:
+                continue
             if protocol not in seen:
                 seen.add(protocol)
                 protocols.append(protocol)
@@ -229,6 +241,8 @@ def _parse_profile(document: object, source: Path, root: Path) -> CpuProfile:
     implemented = (
         declared_implemented
         and source_status == "implemented"
+        # `implemented` is effective availability: every declared source,
+        # including upstream dependencies, must exist below the source root.
         and _source_paths_exist(tuple(source_paths), root, source)
     )
     return CpuProfile(
