@@ -244,5 +244,27 @@ Ran 3 tests in 0.066s
 OK
 ```
 
-The fix commit contains no Task 1, Task 3, or Task 4 files. The report update
-itself is the only remaining Task 2 evidence change after that fix commit.
+## Follow-up evidence gap
+
+The implementation behavior was unchanged for this follow-up. Added two
+explicit negative tests to `tests/components/test_catalog.py`:
+
+- `test_loader_rejects_standalone_dot_slash_source_path` checks `source_paths`
+  containing `./`.
+- `test_loader_rejects_trailing_source_path_separator` checks
+  `source_paths` containing `fixture.sv/`.
+
+The focused Task 2 suite was rerun after these test-only changes:
+
+```text
+$ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest tests.components.test_catalog -v
+Ran 20 tests in 0.013s
+OK
+```
+
+No runtime behavior, allowlists, ABI constraints, or unrelated files were
+changed.
+
+The prior fix commits and this follow-up test/report change contain no Task 1,
+Task 3, or Task 4 files. Unrelated worktree changes were preserved and not
+touched.

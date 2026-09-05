@@ -403,6 +403,30 @@ class ComponentCatalogTest(unittest.TestCase):
                 with self.assertRaises(ComponentDefinitionError):
                     load_component_catalog(directory)
 
+    def test_loader_rejects_standalone_dot_slash_source_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            _write_document(
+                directory,
+                "dot_slash.json",
+                _profile_document(source_paths=["./"]),
+            )
+
+            with self.assertRaises(ComponentDefinitionError):
+                load_component_catalog(directory)
+
+    def test_loader_rejects_trailing_source_path_separator(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            _write_document(
+                directory,
+                "trailing_separator.json",
+                _profile_document(source_paths=["fixture.sv/"]),
+            )
+
+            with self.assertRaises(ComponentDefinitionError):
+                load_component_catalog(directory)
+
     def test_loader_rejects_nul_in_source_path(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
