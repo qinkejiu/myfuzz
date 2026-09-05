@@ -1,5 +1,12 @@
 """Name-independent declarative composition primitives."""
 
+from .auto import (
+    AutoCompositionError,
+    AutoCompositionPlan,
+    AutoCompositionRequest,
+    plan_auto_composition,
+    write_auto_composition_manifest,
+)
 from .declarations import DeclarationError, DeclarationSet, load_declarations
 from .facts import HdlFacts, normalize_facts
 from .ids import canonical_id
@@ -21,6 +28,9 @@ from .registry import ComponentRegistration, ComponentRegistry, default_componen
 from .search import CompositionCandidate, compose_topk
 
 __all__ = [
+    "AutoCompositionError",
+    "AutoCompositionPlan",
+    "AutoCompositionRequest",
     "DeclarationError",
     "DeclarationSet",
     "HdlFacts",
@@ -40,6 +50,8 @@ __all__ = [
     "load_declarations",
     "load_protocol_composition",
     "normalize_facts",
+    "plan_auto_composition",
     "validate_protocol_composition",
     "write_protocol_composition",
+    "write_auto_composition_manifest",
 ]
