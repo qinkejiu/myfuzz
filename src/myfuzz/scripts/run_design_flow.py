@@ -32,6 +32,7 @@ if SCRIPT_DIR.as_posix() not in sys.path:
 from myfuzz.scripts.composition_api import generate_compositions, write_composition_facts
 from myfuzz.scripts.frontend_api import default_frontend_library, run_frontend_manifest
 from myfuzz.scripts.source_only_frontend import run_source_only_frontend
+from myfuzz.composition import write_protocol_composition
 from scripts.source_branch_instrumenter import instrument_project
 from frontend_manifest_to_rfuzz_toml import (
     find_top_module,
@@ -43,6 +44,15 @@ from myfuzz.harness import HarnessArtifact, build_harness
 
 STAGES = ["frontend", "composition", "instrument", "toml", "harness", "server", "fuzz"]
 HARNESS_MODES = {"flat_direct", "candidate_direct", "candidate_depaware"}
+_COMPOSITION_KINDS = {"candidate_search", "protocol_composition"}
+_COMPOSITION_LEGACY_KEYS = {
+    "config",
+    "declarations",
+    "frontend_facts",
+    "frontend",
+    "top_k",
+}
+_PROTOCOL_COMPOSITION_KEYS = {"kind", "manifest", "protocol_manifest", "out_dir"}
 
 
 def repo_root() -> Path:
@@ -110,10 +120,45 @@ def stage_composition(
     paths: dict,
     frontend_library: Path | None,
 ) -> dict[str, object]:
-    """Materialize frontend facts and generate deterministic A candidates."""
+    """Generate either protocol-composition sources or legacy A candidates."""
     raw = cfg.get("composition")
     if not isinstance(raw, Mapping):
         raise ValueError("composition:configuration-required")
+
+    kind = raw.get("kind", "candidate_search")
+    if not isinstance(kind, str) or kind not in _COMPOSITION_KINDS:
+        raise ValueError("composition.kind:unsupported")
+
+    if kind == "protocol_composition":
+        if _COMPOSITION_LEGACY_KEYS.intersection(raw):
+            raise ValueError("composition:configuration-mixed")
+        if set(raw) - _PROTOCOL_COMPOSITION_KEYS:
+            raise ValueError("composition:configuration-mixed")
+
+        manifest_keys = [
+            key for key in ("manifest", "protocol_manifest") if key in raw
+        ]
+        if not manifest_keys:
+            raise ValueError("composition.protocol_manifest:required")
+        if len(manifest_keys) != 1:
+            raise ValueError("composition:configuration-mixed")
+        manifest_value = raw[manifest_keys[0]]
+        if not isinstance(manifest_value, str) or not manifest_value or "\0" in manifest_value:
+            raise ValueError("composition.protocol_manifest:path-required")
+
+        output_value = raw.get("out_dir")
+        if output_value is None:
+            output_path = paths["composition"]
+        elif isinstance(output_value, str) and output_value and "\0" not in output_value:
+            output_path = resolve(root, output_value)
+        else:
+            raise ValueError("composition.out_dir:path-required")
+
+        manifest_path = resolve(root, manifest_value)
+        return write_protocol_composition(manifest_path, output_path, root=root)
+
+    if "manifest" in raw or "protocol_manifest" in raw:
+        raise ValueError("composition:configuration-mixed")
 
     config_value = raw.get("config", raw.get("declarations"))
     if not isinstance(config_value, str) or not config_value or "\0" in config_value:

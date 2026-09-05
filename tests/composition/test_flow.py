@@ -4,6 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import importlib.util
+import io
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -16,6 +20,16 @@ from myfuzz.scripts import run_design_flow
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def load_generate_composition_module():
+    script = ROOT / "scripts" / "generate_composition.py"
+    spec = importlib.util.spec_from_file_location("generate_composition_task4", script)
+    if spec is None or spec.loader is None:
+        raise AssertionError(f"cannot load {script}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class CompositionFlowTests(unittest.TestCase):
@@ -112,6 +126,161 @@ class CompositionFlowTests(unittest.TestCase):
             root / "published" / "candidates",
             frontend_library=frontend_library,
         )
+
+    def test_stage_composition_dispatches_protocol_manifest(self) -> None:
+        root = Path("/repo").resolve()
+        paths = {
+            "composition": root / "runs" / "example" / "composition",
+            "composition_frontend": root / "runs" / "example" / "composition_hdl_facts.json",
+        }
+        cfg = {
+            "composition": {
+                "kind": "protocol_composition",
+                "manifest": "configs/designs/ibex_protocol_composition/manifest.json",
+                "out_dir": "published/protocol-composition",
+            }
+        }
+        expected = {"schema_version": "protocol_composition.v1", "complete": True}
+
+        with patch.object(
+            run_design_flow,
+            "write_protocol_composition",
+            create=True,
+            return_value=expected,
+        ) as write_protocol:
+            actual = run_design_flow.stage_composition(
+                root,
+                cfg,
+                paths,
+                root / "build" / "libmyfuzz_frontend.so",
+            )
+
+        write_protocol.assert_called_once_with(
+            root / "configs/designs/ibex_protocol_composition/manifest.json",
+            root / "published/protocol-composition",
+            root=root,
+        )
+        self.assertIs(actual, expected)
+
+    def test_protocol_composition_rejects_missing_or_mixed_configuration(self) -> None:
+        root = Path("/repo").resolve()
+        paths = {"composition": root / "out" / "composition"}
+        frontend_library = root / "build" / "libmyfuzz_frontend.so"
+
+        with self.assertRaisesRegex(ValueError, r"^composition.protocol_manifest:required$"):
+            run_design_flow.stage_composition(
+                root,
+                {"composition": {"kind": "protocol_composition"}},
+                paths,
+                frontend_library,
+            )
+
+        with self.assertRaisesRegex(ValueError, r"^composition:configuration-mixed$"):
+            run_design_flow.stage_composition(
+                root,
+                {
+                    "composition": {
+                        "kind": "protocol_composition",
+                        "manifest": "manifest.json",
+                        "config": "declarations.json",
+                    }
+                },
+                paths,
+                frontend_library,
+            )
+
+        with self.assertRaisesRegex(ValueError, r"^composition:configuration-mixed$"):
+            run_design_flow.stage_composition(
+                root,
+                {
+                    "composition": {
+                        "kind": "candidate_search",
+                        "config": "declarations.json",
+                        "protocol_manifest": "manifest.json",
+                    }
+                },
+                paths,
+                frontend_library,
+            )
+
+    def test_generate_composition_help_lists_protocol_mode(self) -> None:
+        result = subprocess.run(
+            [sys.executable, "scripts/generate_composition.py", "--help"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--protocol-manifest", result.stdout)
+        self.assertIn("--root", result.stdout)
+
+    def test_generate_composition_protocol_mode_forwards_paths_and_prints_summary(self) -> None:
+        module = load_generate_composition_module()
+        root = Path("/repo").resolve()
+        manifest = root / "manifest.json"
+        output = root / "generated"
+        summary = {
+            "schema_version": "protocol_composition.v1",
+            "manifest_hash": "sha256:" + "a" * 64,
+            "ir_path": (output / "composition_ir.json").as_posix(),
+            "wrapper_path": (output / "ibex_protocol_composition_top.sv").as_posix(),
+            "source_list_path": (output / "sources.f").as_posix(),
+            "complete": True,
+        }
+        args = argparse.Namespace(
+            protocol_manifest=manifest,
+            out_dir=output,
+            root=root,
+            config=None,
+            frontend=None,
+            top_k=None,
+            frontend_library=None,
+        )
+
+        stdout = io.StringIO()
+        with (
+            patch.object(module, "parse_args", return_value=args),
+            patch.object(
+                module,
+                "write_protocol_composition",
+                create=True,
+                return_value=summary,
+            ) as write_protocol,
+            contextlib.redirect_stdout(stdout),
+        ):
+            self.assertEqual(module.main(), 0)
+
+        write_protocol.assert_called_once_with(manifest, output, root=root)
+        self.assertEqual(json.loads(stdout.getvalue()), summary)
+
+    def test_generate_composition_protocol_mode_rejects_incomplete_summary(self) -> None:
+        module = load_generate_composition_module()
+        root = Path("/repo").resolve()
+        args = argparse.Namespace(
+            protocol_manifest=root / "manifest.json",
+            out_dir=root / "generated",
+            root=root,
+            config=None,
+            frontend=None,
+            top_k=None,
+            frontend_library=None,
+        )
+        stderr = io.StringIO()
+
+        with (
+            patch.object(module, "parse_args", return_value=args),
+            patch.object(
+                module,
+                "write_protocol_composition",
+                create=True,
+                return_value={"schema_version": "protocol_composition.v1", "complete": True},
+            ),
+            contextlib.redirect_stderr(stderr),
+        ):
+            self.assertEqual(module.main(), 1)
+
+        self.assertIn("summary", stderr.getvalue())
 
     def test_main_dispatches_explicit_composition_stage(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
