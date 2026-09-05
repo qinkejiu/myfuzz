@@ -47,6 +47,7 @@ module tl_ul_mmio_target #(
     localparam logic [WAIT_COUNTER_WIDTH-1:0] WAIT_TIMEOUT_VALUE =
         WAIT_COUNTER_WIDTH'(EFFECTIVE_MAX_WAIT_CYCLES - 1);
     localparam logic [2:0] MAX_TRANSFER_SIZE = 3'($clog2(BYTE_LANES));
+    localparam logic [ADDRESS_WIDTH-1:0] BYTE_LANES_COUNT = ADDRESS_WIDTH'(BYTE_LANES);
 
     function automatic [BYTE_LANES-1:0] transfer_mask(
         input logic [2:0] size,
@@ -57,7 +58,7 @@ module tl_ul_mmio_target #(
         integer lane;
         begin
             transfer_bytes = 1 << size;
-            address_offset = address % BYTE_LANES;
+            address_offset = integer'(address % BYTE_LANES_COUNT);
             transfer_mask = '0;
             for (lane = 0; lane < BYTE_LANES; lane = lane + 1) begin
                 if ((lane >= address_offset) &&
@@ -72,10 +73,12 @@ module tl_ul_mmio_target #(
         input logic [2:0] size,
         input logic [ADDRESS_WIDTH-1:0] address
     );
-        integer transfer_bytes;
+        logic [ADDRESS_WIDTH-1:0] transfer_bytes;
+        logic [ADDRESS_WIDTH-1:0] remainder;
         begin
-            transfer_bytes = 1 << size;
-            address_is_aligned = (address % transfer_bytes) == 0;
+            transfer_bytes = ADDRESS_WIDTH'(1) << size;
+            remainder = address % transfer_bytes;
+            address_is_aligned = remainder == '0;
         end
     endfunction
 

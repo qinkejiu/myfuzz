@@ -43,13 +43,18 @@ request timeout.
 
 ## Error mapping
 
-All errors are deterministic.  On the bridge side, MMIO `error` and a bounded
-timeout map to `PSLVERR` for APB4, `BRESP`/`RRESP = SLVERR` for AXI4-Lite, and
-a native error for TL-UL.  On the TL-UL target side, MMIO errors and target
-timeouts set `d_denied`; malformed or unsupported A-channel requests set
-`d_corrupt`.  A denied Get returns `AccessAckData` with both `d_denied` and
-`d_corrupt` set, while a denied write returns `AccessAck` with deterministic
-zero data.  The public TL-UL interface has no `d_error` signal.
+All errors are deterministic.  The bridge side maps a protocol response or
+internal timeout to the native MMIO `rsp_error_o` result (and zero read data):
+APB4 observes `PSLVERR`, AXI4-Lite observes `BRESP`/`RRESP = SLVERR`, and
+TL-UL observes denied/corrupt D-channel responses.  The target side maps native
+MMIO `error_i` and a target wait timeout back to a protocol error response.
+In short: bridge: protocol response and timeout -> native `rsp_error_o`;
+target: native MMIO `error_i` and timeout -> protocol error response.
+On the TL-UL target, those errors set `d_denied`; malformed or unsupported
+A-channel requests set `d_corrupt`.  A denied Get returns `AccessAckData` with
+both `d_denied` and `d_corrupt` set, while a denied write returns `AccessAck`
+with deterministic zero data.  The public TL-UL interface has no `d_error`
+signal.
 
 ## Resource constraints
 

@@ -54,6 +54,9 @@ class RuntimeProtocolApiTest(unittest.TestCase):
             "resource",
         ):
             self.assertIn(phrase, readme)
+        self.assertIn("bridge: protocol response and timeout -> native `rsp_error_o`", readme)
+        self.assertIn("target: native MMIO `error_i` and timeout -> protocol error response", readme)
+        self.assertNotIn("On the bridge side, MMIO `error`", readme)
 
 
 if __name__ == "__main__":

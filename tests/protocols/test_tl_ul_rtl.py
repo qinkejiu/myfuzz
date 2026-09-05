@@ -13,6 +13,51 @@ RTL_DIR = ROOT / "src" / "myfuzz" / "protocols" / "rtl"
 
 
 class TileLinkUlRtlTest(unittest.TestCase):
+    def test_target_compiles_cleanly_with_wide_address(self) -> None:
+        verilator = shutil.which("verilator")
+        if verilator is None:
+            self.skipTest("Verilator is not installed")
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary_path = Path(temporary_directory)
+            wrapper = temporary_path / "tl_ul_target_wrapper.sv"
+            wrapper.write_text(
+                textwrap.dedent(
+                    """
+                    module tl_ul_target_wrapper;
+                        logic clk_i, rst_ni, a_valid_i, a_ready_o;
+                        logic [2:0] a_opcode_i, a_param_i, a_size_i;
+                        logic [0:0] a_source_i;
+                        logic [63:0] a_address_i, a_data_i;
+                        logic [7:0] a_mask_i;
+                        logic a_corrupt_i, d_valid_o, d_ready_i;
+                        logic [2:0] d_opcode_o, d_size_o;
+                        logic [1:0] d_param_o;
+                        logic [0:0] d_source_o, d_sink_o;
+                        logic d_denied_o;
+                        logic [63:0] d_data_o;
+                        logic d_corrupt_o, valid_o, write_o;
+                        logic [63:0] addr_o, wdata_o, rdata_i;
+                        logic [7:0] be_o;
+                        logic ready_i, error_i;
+
+                        tl_ul_mmio_target #(.ADDRESS_WIDTH(64), .DATA_WIDTH(64)) dut (.*);
+                    endmodule
+                    """
+                ),
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [verilator, "--lint-only", "-Wall", "-Wno-fatal", "--language", "1800-2012", "--top-module",
+                 "tl_ul_target_wrapper", str(RTL_DIR / "tl_ul_mmio_target.sv"), str(wrapper)],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotRegex(result.stderr, r"WIDTHEXPAND|WIDTHTRUNC")
+
     def test_bridge_and_target_preserve_single_beat_tlul_rules(self) -> None:
         """Exercise Get/Put A/D holds, mask mapping, bounded waits, and errors."""
         iverilog = shutil.which("iverilog")
@@ -246,6 +291,30 @@ class TileLinkUlRtlTest(unittest.TestCase):
                             td_ready = 1;
                             tick;
                             check(!td_valid && ta_ready, "Get error D handshake must release the target");
+
+                            // Reject an unaligned sub-word request without touching MMIO.
+                            @(negedge clk_i);
+                            td_ready = 0; target_error = 0; target_ready = 0; ta_valid = 1;
+                            ta_opcode = 3'd4; ta_param = 0; ta_size = 3'd1; ta_source = 0;
+                            ta_address = 32'h8000_0021; ta_mask = 4'b0110; ta_data = 0; ta_corrupt = 0;
+                            tick;
+                            check(td_valid && !td_denied && td_corrupt && !target_valid,
+                                  "unaligned Get must be rejected as corrupt without MMIO");
+                            @(negedge clk_i);
+                            td_ready = 1;
+                            tick;
+
+                            // Reject a PutPartial mask that reaches outside the derived transfer lanes.
+                            @(negedge clk_i);
+                            td_ready = 0; ta_valid = 1; ta_opcode = 3'd1; ta_param = 0; ta_size = 3'd1;
+                            ta_source = 0; ta_address = 32'h8000_0022; ta_mask = 4'b0110;
+                            ta_data = 32'haabb_ccdd; ta_corrupt = 0;
+                            tick;
+                            check(td_valid && !td_denied && td_corrupt && !target_valid,
+                                  "out-of-range PutPartial mask must be rejected as corrupt");
+                            @(negedge clk_i);
+                            td_ready = 1;
+                            tick;
 
                             // Unsupported A opcode produces corrupt, deterministic data, no target request.
                             @(negedge clk_i);
