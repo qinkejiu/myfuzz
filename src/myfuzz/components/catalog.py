@@ -86,6 +86,8 @@ def _parse_protocols(value: object, source: Path) -> tuple[tuple[str, str], ...]
 
 def _parse_source_path(value: object, label: str, source: Path) -> str:
     result = _require_string(value, label, source)
+    if "\x00" in result:
+        raise _error(source, f"{label} must not contain NUL bytes")
     posix = PurePosixPath(result)
     windows = PureWindowsPath(result)
     if (
@@ -95,6 +97,8 @@ def _parse_source_path(value: object, label: str, source: Path) -> str:
         or "\\" in result
         or any(part in {"", ".", ".."} for part in posix.parts)
     ):
+        raise _error(source, f"{label} must be a normalized relative path")
+    if posix.as_posix() != result:
         raise _error(source, f"{label} must be a normalized relative path")
     return result
 
