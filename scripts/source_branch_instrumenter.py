@@ -18,6 +18,7 @@ only when the corresponding setting explicitly enables that source rewrite.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -160,7 +161,15 @@ class FrontendIndex:
 class FlistParseResult:
     files: list[Path] = field(default_factory=list)
     lines: list[str] = field(default_factory=list)
+    line_bases: list[Path] = field(default_factory=list)
     incdirs: set[Path] = field(default_factory=set)
+
+
+@dataclass
+class FlistPathMapping:
+    source_rel: dict[Path, Path] = field(default_factory=dict)
+    include_dir_rel: dict[Path, Path] = field(default_factory=dict)
+    include_file_destinations: list[tuple[Path, Path]] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -2473,34 +2482,46 @@ def parse_flist(flist: Path, project_root: Path, seen: set[Path] | None = None) 
     seen.add(flist)
     result = FlistParseResult()
     base = flist.parent
+    pending_nested: str | None = None
+
+    def append_line(raw_line: str) -> None:
+        result.lines.append(raw_line)
+        result.line_bases.append(base)
+
+    def append_nested(nested: Path) -> None:
+        nested_result = parse_flist(nested, project_root, seen)
+        result.files.extend(nested_result.files)
+        result.lines.extend(nested_result.lines)
+        result.line_bases.extend(nested_result.line_bases)
+        result.incdirs.update(nested_result.incdirs)
+
     for raw_line in flist.read_text(errors="ignore").splitlines():
         line = strip_line_comment(raw_line).strip()
         if not line:
-            result.lines.append(raw_line)
+            append_line(raw_line)
+            continue
+        if pending_nested is not None:
+            nested = expand_path(line, base if pending_nested == "-f" else project_root)
+            append_nested(nested)
+            pending_nested = None
             continue
         if line in {"-f", "-F"}:
-            result.lines.append(raw_line)
+            pending_nested = line
             continue
         if line.startswith("-f "):
             nested = expand_path(line[3:].strip(), base)
-            nested_result = parse_flist(nested, project_root, seen)
-            result.files.extend(nested_result.files)
-            result.lines.extend(nested_result.lines)
-            result.incdirs.update(nested_result.incdirs)
+            append_nested(nested)
             continue
         if line.startswith("-F "):
             nested = expand_path(line[3:].strip(), project_root)
-            nested_result = parse_flist(nested, project_root, seen)
-            result.files.extend(nested_result.files)
-            result.lines.extend(nested_result.lines)
-            result.incdirs.update(nested_result.incdirs)
+            append_nested(nested)
             continue
         if line.startswith("+incdir+"):
             for item in line[len("+incdir+") :].split("+"):
                 path = expand_path(item, base)
                 if path.exists() and path.is_dir():
                     result.incdirs.add(path)
-            result.lines.append(raw_line)
+            append_line(raw_line)
             continue
         if line.startswith("-I"):
             item = line[2:].strip()
@@ -2508,13 +2529,25 @@ def parse_flist(flist: Path, project_root: Path, seen: set[Path] | None = None) 
                 path = expand_path(item, base)
                 if path.exists() and path.is_dir():
                     result.incdirs.add(path)
-            result.lines.append(raw_line)
+            append_line(raw_line)
             continue
-        first = line.split()[0]
-        path = expand_path(first, base)
-        if path.suffix.lower() in HDL_SUFFIXES and path.exists():
+        if line.startswith("-y"):
+            item = line[2:].strip()
+            if item:
+                path = expand_path(item, base)
+                if path.exists() and path.is_dir():
+                    result.incdirs.add(path)
+            append_line(raw_line)
+            continue
+        parts = line.split(maxsplit=1)
+        first = parts[0]
+        source_token = parts[1].split(maxsplit=1)[0] if first == "-v" and len(parts) > 1 else first
+        path = expand_path(source_token, base)
+        if path.suffix.lower() in HDL_SUFFIXES and path.exists() and path.is_file():
             result.files.append(path)
-        result.lines.append(raw_line)
+        append_line(raw_line)
+    if pending_nested is not None:
+        append_line(pending_nested)
     return result
 
 
@@ -2545,45 +2578,209 @@ def rel_to_project(path: Path, project_root: Path) -> Path:
         return Path(path.name)
 
 
-def map_flist_line(raw_line: str, flist_base: Path, project_root: Path, out_dir: Path) -> str:
+def _external_output_rel(path: Path, *, kind: str) -> Path:
+    """Return a stable, collision-resistant output path for an external file.
+
+    Composition filelists commonly reference sources from several trees (the
+    upstream CPU, the local protocol library, and generated wrappers).  A
+    basename-only mapping silently aliases files such as ``shared.sv``.  The
+    canonical source path is therefore hashed into the destination while the
+    original basename remains readable for diagnostics.
+    """
+
+    resolved = path.resolve()
+    digest = hashlib.sha256(resolved.as_posix().encode()).hexdigest()[:24]
+    name = resolved.name or "source.sv"
+    return Path("__external__") / kind / digest / name
+
+
+def _safe_output_rel(path: Path, project_root: Path, *, kind: str = "source") -> Path:
+    try:
+        return path.resolve().relative_to(project_root.resolve())
+    except ValueError:
+        return _external_output_rel(path, kind=kind)
+
+
+def build_flist_path_mapping(
+    source_files: Iterable[Path],
+    include_dirs: Iterable[Path],
+    project_root: Path,
+) -> FlistPathMapping:
+    """Build deterministic source/include destinations under the output tree."""
+
+    mapping = FlistPathMapping()
+    used_source_rels: set[Path] = set()
+    for source in sorted({path.resolve() for path in source_files}):
+        rel = _safe_output_rel(source, project_root)
+        if rel in used_source_rels:
+            # This is only reachable for a pathological path collision (for
+            # example a symlink and a real path with the same canonical name).
+            rel = _external_output_rel(source, kind="source-collision")
+            while rel in used_source_rels:
+                rel = rel.with_name(f"{rel.stem}-{len(used_source_rels)}{rel.suffix}")
+        used_source_rels.add(rel)
+        mapping.source_rel[source] = rel
+
+    used_include_rels: set[Path] = set()
+    for include_dir in sorted({path.resolve() for path in include_dirs}):
+        if not include_dir.exists() or not include_dir.is_dir():
+            continue
+        rel = _safe_output_rel(include_dir, project_root, kind="include")
+        if rel in used_include_rels:
+            rel = _external_output_rel(include_dir, kind="include-collision")
+            while rel in used_include_rels:
+                rel = rel.with_name(f"{rel.stem}-{len(used_include_rels)}{rel.suffix}")
+        used_include_rels.add(rel)
+        mapping.include_dir_rel[include_dir] = rel
+        for source in sorted(include_dir.rglob("*")):
+            if not source.is_file():
+                continue
+            if set(source.parts) & DEFAULT_EXCLUDES:
+                continue
+            mapping.include_file_destinations.append((source.resolve(), rel / source.relative_to(include_dir)))
+    return mapping
+
+
+def _mapped_output_path(
+    path: Path,
+    *,
+    project_root: Path,
+    out_dir: Path,
+    source_rel: dict[Path, Path] | None = None,
+    include_dir_rel: dict[Path, Path] | None = None,
+    include_dir: bool = False,
+) -> Path:
+    resolved = path.resolve()
+    if include_dir:
+        if include_dir_rel is not None:
+            if resolved in include_dir_rel:
+                return out_dir / include_dir_rel[resolved]
+            raise ValueError(f"include directory is outside the declared mapping: {resolved}")
+    elif source_rel is not None:
+        if resolved in source_rel:
+            return out_dir / source_rel[resolved]
+        raise ValueError(f"source is outside the declared mapping: {resolved}")
+
+    try:
+        rel = resolved.relative_to(project_root.resolve())
+    except ValueError as error:
+        if source_rel is not None or include_dir_rel is not None:
+            kind = "include directory" if include_dir else "source"
+            raise ValueError(f"{kind} is outside the instrumented mapping: {resolved}") from error
+        raise
+    return out_dir / rel
+
+
+def map_flist_line(
+    raw_line: str,
+    flist_base: Path,
+    project_root: Path,
+    out_dir: Path,
+    *,
+    source_rel: dict[Path, Path] | None = None,
+    include_dir_rel: dict[Path, Path] | None = None,
+) -> str:
+    """Map one expanded filelist line into the closed instrumented tree.
+
+    ``source_rel`` and ``include_dir_rel`` are optional for compatibility with
+    the standalone helper's historical callers.  The production flow always
+    supplies them, which makes leaving an external HDL path in the generated
+    filelist an explicit error instead of a latent compile-time escape hatch.
+    """
+
     line = strip_line_comment(raw_line).strip()
     if not line:
         return raw_line
+
+    def map_source(raw_path: str) -> str:
+        path = expand_path(raw_path, flist_base)
+        if path.suffix.lower() not in HDL_SUFFIXES:
+            return raw_path
+        try:
+            return _mapped_output_path(
+                path,
+                project_root=project_root,
+                out_dir=out_dir,
+                source_rel=source_rel,
+            ).as_posix()
+        except ValueError:
+            if source_rel is not None:
+                raise ValueError(f"HDL source is not present in the instrumented mapping: {path}")
+            return raw_path
+
+    def map_include_dir(raw_path: str) -> str:
+        path = expand_path(raw_path, flist_base)
+        try:
+            return _mapped_output_path(
+                path,
+                project_root=project_root,
+                out_dir=out_dir,
+                include_dir_rel=include_dir_rel,
+                include_dir=True,
+            ).as_posix()
+        except ValueError:
+            if include_dir_rel is not None:
+                raise ValueError(f"include directory is not present in the instrumented mapping: {path}")
+            return raw_path
+
     if line.startswith("+incdir+"):
         dirs = line[len("+incdir+") :].split("+")
-        mapped = []
-        for item in dirs:
-            path = expand_path(item, flist_base)
-            try:
-                rel = path.relative_to(project_root)
-                mapped.append((out_dir / rel).as_posix())
-            except ValueError:
-                mapped.append(item)
+        mapped = [map_include_dir(item) for item in dirs if item]
         return "+incdir+" + "+".join(mapped)
-    first = line.split()[0]
-    path = expand_path(first, flist_base)
-    if path.suffix.lower() in HDL_SUFFIXES:
-        try:
-            rel = path.relative_to(project_root)
-            return (out_dir / rel).as_posix()
-        except ValueError:
-            return raw_line
+
+    if line in {"-f", "-F"} or line.startswith("-f ") or line.startswith("-F "):
+        raise ValueError(f"unexpanded nested filelist entry in instrumented filelist: {raw_line}")
+
+    parts = line.split(maxsplit=2)
+    if parts and parts[0] == "-v" and len(parts) > 1:
+        mapped = map_source(parts[1])
+        suffix = f" {parts[2]}" if len(parts) > 2 else ""
+        return f"-v {mapped}{suffix}"
+
+    if parts and parts[0] in {"-I", "-y"} and len(parts) > 1:
+        mapped = map_include_dir(parts[1])
+        suffix = f" {parts[2]}" if len(parts) > 2 else ""
+        return f"{parts[0]} {mapped}{suffix}"
+
+    for option in ("-I", "-y"):
+        if line.startswith(option) and len(line) > len(option):
+            attached = line[len(option) :].strip()
+            if attached:
+                return option + map_include_dir(attached)
+
+    if parts:
+        mapped = map_source(parts[0])
+        if mapped != parts[0]:
+            suffix = f" {parts[1]}" if len(parts) > 1 else ""
+            return f"{mapped}{suffix}"
     return raw_line
 
 
-def copy_include_dirs(incdirs: set[Path], project_root: Path, out_dir: Path) -> int:
+def copy_include_dirs(
+    incdirs: set[Path],
+    project_root: Path,
+    out_dir: Path,
+    include_dir_rel: dict[Path, Path] | None = None,
+) -> int:
     copied = 0
     for incdir in sorted(incdirs):
         if not incdir.exists() or not incdir.is_dir():
             continue
+        resolved_incdir = incdir.resolve()
+        if include_dir_rel is not None and resolved_incdir not in include_dir_rel:
+            raise ValueError(f"include directory is not present in the instrumented mapping: {resolved_incdir}")
+        destination_rel = (
+            include_dir_rel[resolved_incdir]
+            if include_dir_rel is not None
+            else rel_to_project(resolved_incdir, project_root)
+        )
         for src in incdir.rglob("*"):
             if not src.is_file():
                 continue
             parts = set(src.parts)
             if parts & DEFAULT_EXCLUDES:
                 continue
-            rel = rel_to_project(src, project_root)
-            dst = out_dir / rel
+            dst = out_dir / destination_rel / src.relative_to(incdir)
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
             copied += 1
@@ -2622,20 +2819,23 @@ def instrument_project(
 
     flist_files: list[Path] = []
     flist_lines: list[str] = []
+    flist_line_bases: list[Path] = []
     flist_incdirs: set[Path] = set()
     flist_path: Path | None = flist.resolve() if flist else None
     if flist_path:
         flist_result = parse_flist(flist_path, project_root)
         flist_files = flist_result.files
         flist_lines = flist_result.lines
+        flist_line_bases = flist_result.line_bases
         flist_incdirs = flist_result.incdirs
 
     all_files = set(flist_files) if flist_files else set(discover_hdl_files(project_root, out_dir))
+    flist_mapping = build_flist_path_mapping(all_files, flist_incdirs, project_root)
     next_index = 0
     file_plans: list[FilePlan] = []
 
     for src in sorted(all_files):
-        rel = rel_to_project(src, project_root)
+        rel = flist_mapping.source_rel[src.resolve()]
         file_plan, next_index = analyze_file(
             src, rel, signal_prefix, coverage_port, next_index, frontend_index, resolved_settings
         )
@@ -2676,8 +2876,14 @@ def instrument_project(
                 points.extend(module_plan.points)
                 merge_skipped(skipped, module_plan.skipped)
 
-    copied_include_file_count = copy_include_dirs(flist_incdirs, project_root, out_dir)
+    copied_include_file_count = copy_include_dirs(
+        flist_incdirs,
+        project_root,
+        out_dir,
+        flist_mapping.include_dir_rel,
+    )
 
+    rewritten_files: dict[Path, str] = {}
     for file_plan in file_plans:
         dst = out_dir / file_plan.rel_path
         dst.parent.mkdir(parents=True, exist_ok=True)
@@ -2685,15 +2891,49 @@ def instrument_project(
         if resolved_settings.assertion.neutralize_side_effects:
             rewritten = neutralize_assertion_side_effects(rewritten)
         dst.write_text(rewritten)
+        rewritten_files[dst.resolve()] = rewritten
 
     out_flist = None
+    mapped_lines: list[str] = []
     if flist_path:
         out_flist = out_dir / "instrumented_sources.f"
+        if len(flist_lines) != len(flist_line_bases):
+            raise ValueError("filelist parser returned misaligned source lines and bases")
         mapped_lines = [
-            map_flist_line(line, flist_path.parent, project_root, out_dir)
-            for line in flist_lines
+            map_flist_line(
+                line,
+                base,
+                project_root,
+                out_dir,
+                source_rel=flist_mapping.source_rel,
+                include_dir_rel=flist_mapping.include_dir_rel,
+            )
+            for line, base in zip(flist_lines, flist_line_bases)
         ]
         out_flist.write_text("\n".join(mapped_lines) + "\n")
+
+    source_map = {
+        source.as_posix(): (out_dir / rel).as_posix()
+        for source, rel in sorted(flist_mapping.source_rel.items(), key=lambda item: item[0].as_posix())
+    }
+    include_dir_map = {
+        source.as_posix(): (out_dir / rel).as_posix()
+        for source, rel in sorted(flist_mapping.include_dir_rel.items(), key=lambda item: item[0].as_posix())
+    }
+    top_module_set = set(top_modules)
+    top_output_files = {
+        out_dir / file_plan.rel_path
+        for file_plan in file_plans
+        if any(module_plan.region.name in top_module_set for module_plan in file_plan.modules)
+    }
+    coverage_port_present = any(
+        re.search(rf"\b{re.escape(coverage_port)}\b", rewritten_files.get(path.resolve(), ""))
+        for path in top_output_files
+    )
+    if out_flist and points and top_module_set and not coverage_port_present:
+        raise ValueError(
+            f"instrumented top module does not expose coverage port {coverage_port}: {sorted(top_module_set)}"
+        )
 
     manifest = {
         "project_root": project_root.as_posix(),
@@ -2710,6 +2950,10 @@ def instrument_project(
         "frontend_json": str(frontend_json.resolve()) if frontend_json else "",
         "top_modules": top_modules,
         "instrumented_flist": out_flist.as_posix() if out_flist else "",
+        "instrumented_flist_closed": bool(out_flist),
+        "coverage_port_present": coverage_port_present,
+        "source_map": source_map,
+        "include_dir_map": include_dir_map,
         "coverage": [point.__dict__ for point in points],
         "metadata": [point.__dict__ for point in metadata],
         "module_coverage": module_coverage,
