@@ -1,0 +1,82 @@
+{
+  "schema_version": "protocol_composition.v1",
+  "target": {
+    "kind": "ibex_core",
+    "base_config": "ibex_multicomponent_ip",
+    "address_width": 32,
+    "data_width": 32
+  },
+  "components": [
+    {
+      "component_id": "ram0",
+      "component_type": "ram",
+      "protocol": {
+        "id": "tl-ul",
+        "version": "1"
+      },
+      "base": 0,
+      "size": 65536,
+      "parameters": {
+        "WORDS": 4096
+      },
+      "external_input": false
+    },
+    {
+      "component_id": "timer0",
+      "component_type": "timer",
+      "protocol": {
+        "id": "apb",
+        "version": "4"
+      },
+      "base": 2147549184,
+      "size": 4096,
+      "irq": 1,
+      "parameters": {},
+      "external_input": true
+    },
+    {
+      "component_id": "gpio0",
+      "component_type": "gpio",
+      "protocol": {
+        "id": "apb",
+        "version": "4"
+      },
+      "base": 2147614720,
+      "size": 4096,
+      "irq": 2,
+      "parameters": {},
+      "external_input": true
+    },
+    {
+      "component_id": "uart0",
+      "component_type": "uart",
+      "protocol": {
+        "id": "axi4-lite",
+        "version": "1"
+      },
+      "base": 2147680256,
+      "size": 4096,
+      "irq": 3,
+      "parameters": {},
+      "external_input": true
+    },
+    {
+      "component_id": "spi0",
+      "component_type": "spi",
+      "protocol": {
+        "id": "axi4-lite",
+        "version": "1"
+      },
+      "base": 2147745792,
+      "size": 4096,
+      "irq": 4,
+      "parameters": {},
+      "external_input": true
+    }
+  ],
+  "runtime": {
+    "seed": 7,
+    "duration_seconds": 3600,
+    "checkpoint_seconds": 30
+  }
+}
