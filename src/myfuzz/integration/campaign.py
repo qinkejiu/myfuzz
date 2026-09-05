@@ -1,8 +1,9 @@
 """Low-resource process supervision for long-running campaigns.
 
-The supervisor deliberately keeps its state small: it reads one child process's
-RSS from procfs, retains only bounded JSON-line metrics, and owns the child's
-process group so a resource violation cannot leave a worker behind.
+The supervisor deliberately keeps its state small: it reads the owned process
+group's cumulative RSS from procfs, retains only bounded JSON-line metrics, and
+owns the child's process group so a resource violation cannot leave a worker
+behind.
 """
 
 from __future__ import annotations
@@ -139,6 +140,101 @@ def read_rss_bytes(pid: int) -> int:
     if kilobytes < 0:
         raise CampaignError(f"procfs RSS status for pid {pid} has negative VmRSS")
     return kilobytes * 1024
+
+
+def _read_process_group_and_state(pid: int) -> tuple[int, str]:
+    """Read the process group ID and state from ``/proc/<pid>/stat``."""
+
+    stat_path = _PROC_ROOT / str(pid) / "stat"
+    try:
+        payload = stat_path.read_bytes()
+    except (OSError, ValueError) as error:
+        raise CampaignError(f"cannot read procfs stat for pid {pid}") from error
+    if not payload or len(payload) > _MAX_STATUS_BYTES:
+        raise CampaignError(f"procfs stat for pid {pid} is unavailable or malformed")
+    try:
+        text = payload.decode("ascii")
+    except UnicodeDecodeError as error:
+        raise CampaignError(f"procfs stat for pid {pid} is not ASCII") from error
+
+    # The comm field may contain spaces and parentheses.  The final closing
+    # parenthesis is the delimiter before the state field.
+    closing_parenthesis = text.rfind(")")
+    if closing_parenthesis <= 0 or closing_parenthesis + 2 > len(text):
+        raise CampaignError(f"procfs stat for pid {pid} is malformed")
+    fields = text[closing_parenthesis + 2 :].split()
+    if len(fields) < 3 or len(fields[0]) != 1:
+        raise CampaignError(f"procfs stat for pid {pid} is malformed")
+    try:
+        process_group = int(fields[2], 10)
+    except ValueError as error:
+        raise CampaignError(f"procfs stat for pid {pid} has malformed process group") from error
+    return process_group, fields[0]
+
+
+def _proc_entry_disappeared(error: CampaignError) -> bool:
+    """Return whether a procfs lookup lost a process during the scan."""
+
+    cause = error.__cause__
+    return isinstance(cause, (FileNotFoundError, ProcessLookupError))
+
+
+def read_process_group_rss_bytes(pgid: int) -> int:
+    """Return cumulative RSS for live members of process group *pgid*.
+
+    Procfs is inherently racy: a member can exit between directory scanning,
+    stat reading, and status reading.  Such a member is omitted once, while
+    malformed or otherwise inaccessible procfs data remains a hard monitoring
+    error.  An empty result is also an error because it cannot prove that the
+    group is within the configured limit.
+    """
+
+    if isinstance(pgid, bool) or not isinstance(pgid, int) or pgid <= 0:
+        raise CampaignError("procfs RSS requires a positive process-group ID")
+    try:
+        entries = tuple(_PROC_ROOT.iterdir())
+    except (OSError, ValueError) as error:
+        raise CampaignError(f"cannot scan procfs process group {pgid}") from error
+
+    seen_pids: set[int] = set()
+    member_count = 0
+    total_rss = 0
+    for entry in entries:
+        name = entry.name
+        if not name.isdigit():
+            continue
+        try:
+            pid = int(name, 10)
+        except ValueError:
+            continue
+        if pid <= 0 or pid in seen_pids:
+            continue
+        seen_pids.add(pid)
+
+        try:
+            process_group, state = _read_process_group_and_state(pid)
+        except CampaignError as error:
+            if _proc_entry_disappeared(error):
+                continue
+            raise CampaignError(
+                f"cannot inspect procfs process group {pgid} member {pid}"
+            ) from error
+        if process_group != pgid or state == "Z":
+            continue
+        try:
+            rss_bytes = read_rss_bytes(pid)
+        except CampaignError as error:
+            if _proc_entry_disappeared(error):
+                continue
+            raise CampaignError(
+                f"cannot read procfs process group {pgid} member {pid} RSS"
+            ) from error
+        member_count += 1
+        total_rss += rss_bytes
+
+    if member_count == 0:
+        raise CampaignError(f"procfs process group {pgid} has no live members")
+    return total_rss
 
 
 class _JsonLineMetrics:
@@ -471,7 +567,9 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
 
                 if now >= next_rss_poll:
                     try:
-                        rss_bytes = read_rss_bytes(pid)
+                        if pgid is None:
+                            raise CampaignError("campaign process group is unavailable")
+                        rss_bytes = read_process_group_rss_bytes(pgid)
                     except CampaignError as error:
                         monitor_error = error
                         status = "startup-error"
