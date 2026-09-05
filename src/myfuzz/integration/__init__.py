@@ -16,6 +16,7 @@ from .campaign import (
     CampaignError,
     CampaignLimits,
     CampaignOptions,
+    read_process_group_rss_bytes,
     read_rss_bytes,
     run_supervised_command,
 )
@@ -55,6 +56,7 @@ __all__ = [
     "run_candidate_pipeline",
     "run_experiment_matrix",
     "run_low_resource_smoke",
+    "read_process_group_rss_bytes",
     "read_rss_bytes",
     "run_supervised_command",
     "semantic_projection",

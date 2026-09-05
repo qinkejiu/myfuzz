@@ -1732,6 +1732,7 @@ __all__ = [
     "CampaignOptions",
     "build_ibex_campaign_command",
     "load_ibex_campaign_config",
+    "read_process_group_rss_bytes",
     "read_rss_bytes",
     "run_ibex_campaign",
     "run_ibex_local_smoke",

@@ -2787,6 +2787,50 @@ def copy_include_dirs(
     return copied
 
 
+def validate_closed_flist(mapped_lines: Iterable[str], out_dir: Path) -> None:
+    """Reject a generated filelist that can still escape the instrumented tree."""
+
+    output_root = out_dir.resolve()
+
+    def require_inside(raw_path: str, kind: str, *, directory: bool = False) -> None:
+        path = Path(raw_path).resolve()
+        try:
+            path.relative_to(output_root)
+        except ValueError as error:
+            raise ValueError(f"instrumented filelist {kind} escapes output tree: {raw_path}") from error
+        if directory:
+            if not path.is_dir():
+                raise ValueError(f"instrumented filelist {kind} is not a directory: {path}")
+        elif not path.is_file():
+            raise ValueError(f"instrumented filelist {kind} is not a file: {path}")
+
+    for raw_line in mapped_lines:
+        line = strip_line_comment(raw_line).strip()
+        if not line:
+            continue
+        if line.startswith("+incdir+"):
+            for item in line[len("+incdir+") :].split("+"):
+                if item:
+                    require_inside(item, "include directory", directory=True)
+            continue
+        parts = line.split(maxsplit=2)
+        source_token: str | None = None
+        if parts and parts[0] == "-v" and len(parts) > 1:
+            source_token = parts[1]
+        elif parts and parts[0] in {"-I", "-y"} and len(parts) > 1:
+            require_inside(parts[1], "include directory", directory=True)
+            continue
+        elif parts:
+            for option in ("-I", "-y"):
+                if line.startswith(option) and len(line) > len(option):
+                    require_inside(line[len(option) :].strip(), "include directory", directory=True)
+                    break
+            else:
+                source_token = parts[0]
+        if source_token and Path(source_token).suffix.lower() in HDL_SUFFIXES:
+            require_inside(source_token, "HDL source")
+
+
 def instrument_project(
     project_root: Path,
     out_dir: Path,
@@ -2910,6 +2954,7 @@ def instrument_project(
             )
             for line, base in zip(flist_lines, flist_line_bases)
         ]
+        validate_closed_flist(mapped_lines, out_dir)
         out_flist.write_text("\n".join(mapped_lines) + "\n")
 
     source_map = {
