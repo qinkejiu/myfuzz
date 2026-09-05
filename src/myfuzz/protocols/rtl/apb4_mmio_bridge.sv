@@ -35,6 +35,8 @@ module apb4_mmio_bridge #(
         ((MAX_WAIT_CYCLES > 16) ? 16 : MAX_WAIT_CYCLES);
     localparam integer WAIT_COUNTER_WIDTH =
         (EFFECTIVE_MAX_WAIT_CYCLES <= 1) ? 1 : $clog2(EFFECTIVE_MAX_WAIT_CYCLES);
+    localparam logic [WAIT_COUNTER_WIDTH-1:0] WAIT_TIMEOUT_VALUE =
+        WAIT_COUNTER_WIDTH'(EFFECTIVE_MAX_WAIT_CYCLES - 1);
 
     typedef enum logic [1:0] {
         IDLE,
@@ -105,7 +107,7 @@ module apb4_mmio_bridge #(
                         rsp_error_q <= pslverr_i;
                         wait_count_q <= '0;
                         state_q <= IDLE;
-                    end else if (wait_count_q == EFFECTIVE_MAX_WAIT_CYCLES - 1) begin
+                    end else if (wait_count_q == WAIT_TIMEOUT_VALUE) begin
                         rsp_valid_q <= 1'b1;
                         rsp_rdata_q <= '0;
                         rsp_error_q <= 1'b1;
