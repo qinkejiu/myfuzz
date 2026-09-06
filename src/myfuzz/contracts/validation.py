@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 
 
 _HASH = re.compile(r"sha256:[0-9a-f]{64}\Z")
+_WINDOWS_DRIVE_QUALIFIED_PATH = re.compile(r"[A-Za-z]:")
 _DIRECTIONS = frozenset(("input", "output", "inout"))
 _SCHEMAS = frozenset(("hdl_facts.v2", "protocol.v1", "composition_ir.v1", "candidate_manifest.v1", "interface_description.v1"))
 
@@ -76,7 +77,7 @@ def _boolean(value: object, schema_id: str, path: str) -> None:
 def _relative_path(value: object, schema_id: str, path: str) -> None:
     if not isinstance(value, str) or not value:
         _error(schema_id, path, "invalid-path")
-    if value.startswith("/") or "\\" in value:
+    if value.startswith("/") or _WINDOWS_DRIVE_QUALIFIED_PATH.match(value) or "\\" in value:
         _error(schema_id, path, "invalid-path")
     if any(part in ("", ".", "..") for part in value.split("/")):
         _error(schema_id, path, "invalid-path")

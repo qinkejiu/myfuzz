@@ -64,7 +64,7 @@ class InterfaceDescriptionTests(unittest.TestCase):
         self.assertEqual(value.endpoints[0].fields[0], FieldHint(role="status"))
         self.assertEqual(value.endpoints[1].protocol, ("ready-valid-mmio", "1"))
         with self.assertRaises((FrozenInstanceError, TypeError)):
-            value.source.root = "other"  # type: ignore[misc]
+            value.source.source_root = "other"  # type: ignore[misc]
 
     def test_loads_json_path_and_canonicalizes_only_serialization_order(self) -> None:
         value = load_interface_description(self.write_document(interface_document()))

@@ -93,6 +93,23 @@ class InterfaceContractTests(unittest.TestCase):
         ):
             validate_contract(document, "interface_description.v1")
 
+    def test_drive_qualified_source_paths_are_rejected(self) -> None:
+        for key in ("root", "files", "filelist", "include_roots"):
+            with self.subTest(key=key):
+                document = valid_interface_document()
+                if key in ("files", "include_roots"):
+                    document["source"][key] = ["C:/outside/source"]  # type: ignore[index]
+                    path_pattern = rf"source:{key}\[0\]"
+                else:
+                    document["source"][key] = "C:/outside/source"  # type: ignore[index]
+                    path_pattern = f"source:{key}"
+
+                with self.assertRaisesRegex(
+                    ContractError,
+                    rf"^interface_description\.v1:{path_pattern}:invalid-path$",
+                ):
+                    validate_contract(document, "interface_description.v1")
+
     def test_unknown_members_are_forward_compatible(self) -> None:
         document = valid_interface_document()
         document["future_member"] = {"wire_version": 2}
