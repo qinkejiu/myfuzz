@@ -57,7 +57,7 @@ interface-function descriptions, peripheral/protocol contracts
 
 ### Input interface descriptions and source annotation
 
-Each composition request supplies an interface description for the CPU. The description identifies what an endpoint does, for example `instruction_master`, `memory_master`, `interrupt_input`, `debug_request`, or `clock_reset`, and describes its protocol, fields, directions, width constraints, timing requirements, and optional aliases. It may identify a top module and hierarchy path, but it must not select a renderer implementation.
+Each composition request supplies a semantic interface description for the CPU. The description identifies what an endpoint does, for example `instruction_master`, `memory_master`, `interrupt_input`, `debug_request`, or `clock_reset`, and may provide an expected/allowed protocol family, requiredness, hierarchy hints, documentation aliases, or source-level anchors. It does not need to repeat facts that are present in HDL. Port direction, width, signedness, clock/reset membership, and observable handshake timing are derived from the selected source and attached to the annotation as HDL facts. The description must not select a renderer implementation.
 
 The request also supplies a reproducible source locator: repository URL or local source root, pinned commit/tag, top module, file list, include roots, and any generated-source command or artifact reference required to materialize the design. A crawler fetches a pinned source revision into an isolated cache, or uses an existing checkout after validating its revision.
 
@@ -65,12 +65,14 @@ The crawler then:
 
 1. expands the declared file list and includes while keeping every path inside the source root;
 2. indexes modules, instances, ports, declarations, comments, interface declarations, and relevant documentation;
-3. matches each supplied interface function and field to concrete HDL objects using explicit aliases, source documentation, direction/width, and structural protocol evidence;
+3. matches each supplied interface function to a concrete endpoint and its fields using explicit aliases, source documentation, declaration facts, and structural protocol evidence;
 4. emits an annotation record linking the abstract function to the exact source file, module, port, and signal expression;
 5. records evidence, confidence, transformations, and unresolved alternatives;
 6. rejects missing, ambiguous, direction-inverted, width-incompatible, or semantically conflicting mappings.
 
-Mapping precedence is strict: explicit interface input is authoritative, source comments/documentation corroborate it, structural analysis validates it, and naming heuristics are only a last evidence source. If the source contradicts an explicit interface description, the composition fails closed and reports both sides of the conflict.
+Mapping precedence is strict by fact type: the input is authoritative for endpoint purpose and requiredness; HDL declarations are authoritative for physical direction, width, signedness, and clock/reset membership; source comments/documentation corroborate both; structural analysis validates protocol and handshake behavior; naming heuristics are only a last evidence source. If the source contradicts an input semantic description, or if a declared protocol cannot be validated from the source, the composition fails closed and reports both sides of the conflict. When the protocol family is omitted from the input, the analyzer may propose structural candidates, but generation proceeds only after the candidate is unique or explicitly resolved by a contract.
+
+Direction and width are read directly from port/interface declarations. Timing is derived from clocked/combinational assignments, state-machine transitions, valid/ready or request/response dependencies, and signal-stability conditions; the protocol validator converts those observations into temporal facts such as “hold request while stalled” or “response follows an accepted request”. Exact latency bounds, side effects, or implementation intent that are not observable in the RTL remain explicit contract fields rather than being guessed.
 
 The resulting `interface_annotations.v1` is the input to generic adapter synthesis. It contains no CPU-specific renderer choice:
 
