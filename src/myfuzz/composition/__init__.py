@@ -9,6 +9,14 @@ from .auto import (
 )
 from .declarations import DeclarationError, DeclarationSet, load_declarations
 from .facts import HdlFacts, normalize_facts
+from .interface_description import (
+    EndpointDescription,
+    FieldHint,
+    InterfaceDescription,
+    SourceLocator,
+    interface_description_document,
+    load_interface_description,
+)
 from .ids import canonical_id
 from .ir import composition_ir
 from .manifest import candidate_manifest
@@ -34,6 +42,10 @@ __all__ = [
     "DeclarationError",
     "DeclarationSet",
     "HdlFacts",
+    "EndpointDescription",
+    "FieldHint",
+    "InterfaceDescription",
+    "SourceLocator",
     "CompositionCandidate",
     "CompositionArtifact",
     "CompositionComponent",
@@ -47,7 +59,9 @@ __all__ = [
     "compose_protocol_composition",
     "composition_ir",
     "default_component_registry",
+    "interface_description_document",
     "load_declarations",
+    "load_interface_description",
     "load_protocol_composition",
     "normalize_facts",
     "plan_auto_composition",

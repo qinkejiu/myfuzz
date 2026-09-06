@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 
 _HASH = re.compile(r"sha256:[0-9a-f]{64}\Z")
 _DIRECTIONS = frozenset(("input", "output", "inout"))
-_SCHEMAS = frozenset(("hdl_facts.v2", "protocol.v1", "composition_ir.v1", "candidate_manifest.v1"))
+_SCHEMAS = frozenset(("hdl_facts.v2", "protocol.v1", "composition_ir.v1", "candidate_manifest.v1", "interface_description.v1"))
 
 
 class ContractError(ValueError):
@@ -66,6 +66,80 @@ def _string(value: object, schema_id: str, path: str) -> str:
 def _hash(value: object, schema_id: str, path: str) -> None:
     if not isinstance(value, str) or _HASH.fullmatch(value) is None:
         _error(schema_id, path, "invalid-hash")
+
+
+def _boolean(value: object, schema_id: str, path: str) -> None:
+    if not isinstance(value, bool):
+        _error(schema_id, path, "type")
+
+
+def _relative_path(value: object, schema_id: str, path: str) -> None:
+    if not isinstance(value, str) or not value:
+        _error(schema_id, path, "invalid-path")
+    if value.startswith("/") or "\\" in value:
+        _error(schema_id, path, "invalid-path")
+    if any(part in ("", ".", "..") for part in value.split("/")):
+        _error(schema_id, path, "invalid-path")
+
+
+def _strings(value: object, schema_id: str, path: str) -> None:
+    for index, item in enumerate(_array(value, schema_id, path)):
+        _string(item, schema_id, f"{path}[{index}]")
+
+
+def _validate_interface_description(document: Mapping[str, object], schema_id: str) -> None:
+    _require(document, schema_id, ("source", "endpoints"))
+    source = _object(document["source"], schema_id, "source")
+    for key in ("root", "revision", "top_module"):
+        if key not in source:
+            _error(schema_id, f"source.{key}", "missing")
+    _relative_path(source["root"], schema_id, "source.root")
+    _hash(source["revision"], schema_id, "source.revision")
+    _string(source["top_module"], schema_id, "source.top_module")
+    for key in ("files", "include_roots"):
+        if key in source:
+            for index, item in enumerate(_array(source[key], schema_id, f"source.{key}")):
+                _relative_path(item, schema_id, f"source.{key}[{index}]")
+    if "filelist" in source:
+        _relative_path(source["filelist"], schema_id, "source.filelist")
+
+    endpoint_ids: set[str] = set()
+    for endpoint_index, endpoint_value in enumerate(_array(document["endpoints"], schema_id, "endpoints")):
+        endpoint_path = f"endpoints[{endpoint_index}]"
+        endpoint = _object(endpoint_value, schema_id, endpoint_path)
+        _require(endpoint, schema_id, ("endpoint_id", "function"))
+        endpoint_id = _string(endpoint["endpoint_id"], schema_id, f"{endpoint_path}.endpoint_id")
+        if endpoint_id in endpoint_ids:
+            _error(schema_id, f"{endpoint_path}.endpoint_id", "duplicate-role")
+        endpoint_ids.add(endpoint_id)
+        _string(endpoint["function"], schema_id, f"{endpoint_path}.function")
+        if "module" in endpoint:
+            _string(endpoint["module"], schema_id, f"{endpoint_path}.module")
+        for key in ("hierarchy", "aliases"):
+            if key in endpoint:
+                _strings(endpoint[key], schema_id, f"{endpoint_path}.{key}")
+        if "required" in endpoint:
+            _boolean(endpoint["required"], schema_id, f"{endpoint_path}.required")
+        if "protocol" in endpoint:
+            protocol = _array(endpoint["protocol"], schema_id, f"{endpoint_path}.protocol")
+            if len(protocol) != 2:
+                _error(schema_id, f"{endpoint_path}.protocol", "invalid-pair")
+            _string(protocol[0], schema_id, f"{endpoint_path}.protocol[0]")
+            _string(protocol[1], schema_id, f"{endpoint_path}.protocol[1]")
+
+        roles: set[str] = set()
+        for field_index, field_value in enumerate(_array(endpoint.get("fields", []), schema_id, f"{endpoint_path}.fields")):
+            field_path = f"{endpoint_path}.fields[{field_index}]"
+            field = _object(field_value, schema_id, field_path)
+            _require(field, schema_id, ("role",))
+            role = _string(field["role"], schema_id, f"{field_path}.role")
+            if role in roles:
+                _error(schema_id, f"{field_path}.role", "duplicate-role")
+            roles.add(role)
+            if "aliases" in field:
+                _strings(field["aliases"], schema_id, f"{field_path}.aliases")
+            if "required" in field:
+                _boolean(field["required"], schema_id, f"{field_path}.required")
 
 
 def _validate_hardware_facts(document: Mapping[str, object], schema_id: str) -> None:
@@ -181,5 +255,7 @@ def validate_contract(document: object, schema_id: str) -> None:
         _validate_protocol(value, schema_id)
     elif schema_id == "composition_ir.v1":
         _validate_composition(value, schema_id)
-    else:
+    elif schema_id == "candidate_manifest.v1":
         _validate_manifest(value, schema_id)
+    else:
+        _validate_interface_description(value, schema_id)
