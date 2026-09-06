@@ -2,11 +2,11 @@
 
 **Date:** 2026-09-07  
 **Status:** Proposed for review  
-**Scope:** Replace the fixed Ibex protocol-composition path with a generic, evidence-driven composition platform.
+**Scope:** Replace the fixed Ibex protocol-composition path with a generic, input-described and source-validated composition platform.
 
 ## Goal
 
-Build a CPU-independent composition path that analyzes HDL interfaces, infers typed endpoint facts, matches CPU and peripheral capabilities through protocol contracts, synthesizes adapters and a top-level module, and generates a versioned RFuzz input layout without hard-coded CPU-specific signal slices.
+Build a CPU-independent composition path that consumes a supplied interface-function description, fetches the pinned CPU design source, automatically maps and annotates the described functions onto actual modules/ports/signals, matches CPU and peripheral capabilities through protocol contracts, synthesizes adapters and a top-level module, and generates a versioned RFuzz input layout without hard-coded CPU-specific signal slices.
 
 The current Ibex composition remains a compatibility fixture. CVA6 and BOOM become validation targets for the generic path rather than reasons to add CPU-specific generator branches.
 
@@ -14,7 +14,7 @@ The current Ibex composition remains a compatibility fixture. CVA6 and BOOM beco
 
 The existing composition path is useful but over-fitted: it accepts only `ibex_core`, requires exactly one RAM/timer/GPIO/UART/SPI set, fixes 32-bit widths, selects three runtime adapters from a local table, and maps a fixed 395-bit harness directly to named Ibex ports. The new path must move those decisions into declarative contracts and analyzed evidence.
 
-This design does not promise that arbitrary RTL can be understood with no evidence. Protocol and ISA semantics that cannot be reliably recovered from syntax must be supplied as machine-readable contracts or generic boundary annotations. Such annotations describe interface roles and capabilities; they must not select a CPU-specific implementation template.
+The CPU interface is an input contract, not an unconstrained guess made from a CPU name. The source crawler uses the supplied design locator and interface-function descriptions to find and annotate the real implementation. RTL analysis validates the mapping and supplies structural evidence; it may not silently replace an explicit input description with a CPU-specific template. Protocol and ISA semantics that cannot be reliably recovered from syntax must be supplied as machine-readable contracts or generic boundary annotations.
 
 ## Design principles
 
@@ -29,10 +29,14 @@ This design does not promise that arbitrary RTL can be understood with no eviden
 ## Architecture
 
 ```text
-HDL sources and optional generic boundary annotations
+Composition input: source locator, CPU/ISA data,
+interface-function descriptions, peripheral/protocol contracts
                     |
                     v
-          HDL facts v3 / endpoint candidates
+       pinned source acquisition and source crawler
+                    |
+                    v
+    interface annotations v1 + HDL facts v3/evidence
                     |
                     +---- CPU ISA contract (XLEN/extensions)
                     +---- peripheral capability profiles
@@ -51,9 +55,44 @@ HDL sources and optional generic boundary annotations
    coverage insertion -> RFuzz harness -> Verilator/RFuzz runtime
 ```
 
+### Input interface descriptions and source annotation
+
+Each composition request supplies an interface description for the CPU. The description identifies what an endpoint does, for example `instruction_master`, `memory_master`, `interrupt_input`, `debug_request`, or `clock_reset`, and describes its protocol, fields, directions, width constraints, timing requirements, and optional aliases. It may identify a top module and hierarchy path, but it must not select a renderer implementation.
+
+The request also supplies a reproducible source locator: repository URL or local source root, pinned commit/tag, top module, file list, include roots, and any generated-source command or artifact reference required to materialize the design. A crawler fetches a pinned source revision into an isolated cache, or uses an existing checkout after validating its revision.
+
+The crawler then:
+
+1. expands the declared file list and includes while keeping every path inside the source root;
+2. indexes modules, instances, ports, declarations, comments, interface declarations, and relevant documentation;
+3. matches each supplied interface function and field to concrete HDL objects using explicit aliases, source documentation, direction/width, and structural protocol evidence;
+4. emits an annotation record linking the abstract function to the exact source file, module, port, and signal expression;
+5. records evidence, confidence, transformations, and unresolved alternatives;
+6. rejects missing, ambiguous, direction-inverted, width-incompatible, or semantically conflicting mappings.
+
+Mapping precedence is strict: explicit interface input is authoritative, source comments/documentation corroborate it, structural analysis validates it, and naming heuristics are only a last evidence source. If the source contradicts an explicit interface description, the composition fails closed and reports both sides of the conflict.
+
+The resulting `interface_annotations.v1` is the input to generic adapter synthesis. It contains no CPU-specific renderer choice:
+
+```json
+{
+  "endpoint_id": "cpu.memory_master",
+  "function": "memory_master",
+  "protocol": {"id": "axi4", "version": "1"},
+  "module": "some_core",
+  "fields": [
+    {"role": "address", "port": "mem_awaddr", "width": 64},
+    {"role": "valid", "port": "mem_awvalid", "width": 1},
+    {"role": "ready", "port": "mem_awready", "width": 1}
+  ],
+  "evidence": ["input_description", "source_port", "valid_ready_relation"],
+  "confidence": 1.0
+}
+```
+
 ### HDL analysis and endpoint facts
 
-The frontend keeps its existing module, port, instance, hierarchy, source-file, and branch facts and adds a normalized endpoint layer. An endpoint contains:
+The frontend keeps its existing module, port, instance, hierarchy, source-file, and branch facts and adds a normalized endpoint layer. Endpoint facts are created from the input annotations and checked against the parsed HDL. Pure structural inference may propose additional candidates for review, but a required CPU endpoint is not accepted unless it has a valid input description and a source-backed annotation. An endpoint contains:
 
 - stable owner/module identity;
 - candidate role such as `instruction_master`, `memory_master`, `mmio_target`, `stream_source`, `interrupt_source`, `clock`, or `reset`;
@@ -63,7 +102,7 @@ The frontend keeps its existing module, port, instance, hierarchy, source-file, 
 - handshake and request/response relations;
 - evidence records and confidence scores.
 
-The inference engine recognizes structural patterns rather than CPU names. Examples include valid/ready pairs, request/grant/response pairs, APB setup/access phases, AXI channel groups, TileLink A/D channel pairs, OBI request/grant/response signals, and Wishbone cycle/strobe/ack signals. A protocol candidate is retained only when the required fields and relations are present. A generic annotation may add missing semantic role information at a boundary, but it cannot name or invoke a CPU-specific renderer.
+The validator recognizes structural patterns rather than CPU names. Examples include valid/ready pairs, request/grant/response pairs, APB setup/access phases, AXI channel groups, TileLink A/D channel pairs, OBI request/grant/response signals, and Wishbone cycle/strobe/ack signals. A protocol candidate is retained only when the required fields and relations are present. Generic input annotations may identify semantic roles; they cannot name or invoke a CPU-specific renderer.
 
 ### Contract catalogs
 
@@ -91,7 +130,7 @@ Adapters must declare which canonical features they preserve. A burst-capable AX
 
 ### Capability matching and dependency resolution
 
-The matcher creates candidate edges between analyzed CPU endpoints, adapter endpoints, and peripheral endpoints. It checks:
+The matcher creates candidate edges between source-annotated CPU endpoints, adapter endpoints, and peripheral endpoints. It checks:
 
 - endpoint role compatibility;
 - protocol and version compatibility or a declared adapter path;
@@ -106,13 +145,13 @@ Candidates are ranked deterministically by exact protocol match, complete eviden
 
 ### Adapter and top-level synthesis
 
-The renderer consumes only composition IR v2. It creates opaque stable identifiers, declares wires from field widths, instantiates the selected generic adapter modules, connects endpoint fields according to the IR, allocates address regions and interrupt routes, and emits clock/reset handling. It must not inspect `cpu_id` to choose a template.
+The renderer consumes only composition IR v2 and source-backed interface annotations. It creates opaque stable identifiers, declares wires from field widths, instantiates the selected generic adapter modules, connects endpoint fields according to the IR, allocates address regions and interrupt routes, and emits clock/reset handling. It must not inspect `cpu_id` to choose a template.
 
 The generated source list includes all selected CPU source evidence, peripheral sources, protocol adapters, and the generated top. Before publication, every path is checked to remain inside the supplied repository root and every generated module is parsed or linted with the selected frontend/toolchain.
 
 ## Generic input mapping
 
-The input mapper consumes endpoint facts and a declarative constraint provider and emits `input_layout.v1`. Each field has a stable ID, owner endpoint, semantic role, width, encoding, source bytes/bits, dependency group, and projection rules.
+The input mapper consumes source-backed endpoint annotations and a declarative constraint provider and emits `input_layout.v1`. Each field has a stable ID, owner endpoint, semantic role, width, encoding, source bytes/bits, dependency group, and projection rules. It maps to the annotated HDL ports rather than to a hard-coded CPU signal list.
 
 ```json
 {
@@ -127,7 +166,7 @@ The input mapper consumes endpoint facts and a declarative constraint provider a
 
 The mapper performs these steps:
 
-1. Collect required and optional input-capable fields from analyzed endpoints and external component pins.
+1. Collect required and optional input-capable fields from source-backed endpoint annotations and external component pins.
 2. Add CPU instruction/data memory and interrupt fields only when those endpoint roles are present.
 3. Apply protocol projections such as address alignment, byte-enable width, valid/ready gating, and bounded response timing.
 4. Apply component constraints such as FIFO depth, register width, and parameter-derived address ranges.
@@ -148,8 +187,9 @@ The implementation is intentionally staged:
 
 ### Slice A: generic platform core
 
-- Define endpoint facts, evidence, confidence, canonical transactions, adapter capabilities, composition IR v2, and input layout v1.
-- Add inference and matching tests using synthetic HDL facts and small protocol fixtures.
+- Define the input interface description, source locator, `interface_annotations.v1`, endpoint facts, evidence, confidence, canonical transactions, adapter capabilities, composition IR v2, and input layout v1.
+- Add a low-resource source crawler that works with local checkouts and pinned revisions, and tests its mapping against synthetic HDL/documentation fixtures.
+- Add annotation and matching tests using synthetic CPU interfaces with arbitrary module and signal names.
 - Migrate the existing Ibex five-component composition through a generic path while preserving the v1 path.
 
 ### Slice B: protocol coverage
@@ -172,20 +212,19 @@ The implementation is intentionally staged:
 
 ## Error handling and safety
 
-The system fails closed before file publication for unknown protocol versions, missing evidence, ambiguous required endpoints, unsupported adapter features, invalid widths, unsafe source paths, address overlap, dependency cycles, duplicate interrupt routes, and incompatible clock/reset domains. Diagnostics include the candidate edge, evidence, and rejected constraint.
+The system fails closed before file publication for missing or unpinned source revisions, unknown protocol versions, missing source-backed annotations, ambiguous required endpoints, unsupported adapter features, input/source annotation conflicts, invalid widths, unsafe source paths, address overlap, dependency cycles, duplicate interrupt routes, and incompatible clock/reset domains. Diagnostics include the candidate edge, source location, evidence, and rejected constraint.
 
 Generated artifacts are written to a temporary staging directory and atomically published only after IR validation, source-list validation, and top-level syntax/lint checks. Original RTL remains untouched.
 
 ## Verification strategy
 
-- Unit tests validate facts normalization, protocol fingerprints, capability matching, width projections, adapter feature rejection, address/IRQ allocation, input layout packing, and deterministic hashes.
+- Unit tests validate source-locator handling, interface annotation precedence, facts normalization, protocol fingerprints, capability matching, width projections, adapter feature rejection, address/IRQ allocation, input layout packing, and deterministic hashes.
 - Contract tests validate that semantically reordered JSON produces identical IR/layout hashes and that unsafe or ambiguous inputs fail closed.
-- Synthetic integration fixtures cover generic CPU endpoints connected to multiple peripheral types without CPU-specific names.
+- Synthetic integration fixtures cover input-described CPU endpoints connected to multiple peripheral types without CPU-specific names, and verify source crawling produces the expected annotations.
 - Regression tests verify the existing Ibex v1 manifest and generated behavior remain available.
-- CVA6 and BOOM tests first validate analysis and layout generation, then source instrumentation, then low-resource Verilator/RFuzz smoke when dependencies exist.
+- CVA6 and BOOM tests first fetch/validate their pinned sources and interface annotations, then validate layout generation, source instrumentation, and low-resource Verilator/RFuzz smoke when dependencies exist.
 - Full fuzz campaigns are reported separately from RTL smoke; missing upstream or RFuzz dependencies remain explicit `dependency-unavailable` results.
 
 ## Resource policy
 
 All new test and campaign entrypoints default to one frontend/build worker, one active Verilator build, no waveform output, bounded queues, and process-group RSS limits. Parallelism is opt-in and must not be required for correctness.
-
