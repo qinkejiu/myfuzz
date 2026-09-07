@@ -1349,8 +1349,8 @@ def _generic_routes(plan: object) -> tuple[dict[str, object], ...]:
             "max_wait_cycles": max_wait, "source_endpoint_id": source.endpoint_id,
             "contract": dict(contract), "control": {role: dict(value) for role, value in control.items()},
         })
-    if len({route["source_endpoint_id"] for route in routes}) != len(routes):
-        raise ValueError("generic composition adapter requires one target per source endpoint")
+    from .shared_native_bus import validate_groups
+    validate_groups(routes)
     return tuple(sorted(routes, key=lambda item: str(item["component_id"])))
 
 
@@ -1477,6 +1477,8 @@ def _render_generic_top(plan: object) -> str:
     routes = _generic_routes(plan)
     if not routes:
         return _render_generic_source_only_top(plan)
+    from .shared_native_bus import collapse_groups
+    routes, shared_modules = collapse_groups(routes)
     internal_ports = frozenset(
         str(field["source_port"]) for route in routes for field in route["fields"]
     )
@@ -1521,7 +1523,7 @@ def _render_generic_top(plan: object) -> str:
             terms = ["1'b1"]
         else:
             terms = [
-                f"(source_{canonical_id('generic-render-source-port', str(field['source_port'])):016x} >= {_sv_literal(int(field['width']), int(route['base']))} && source_{canonical_id('generic-render-source-port', str(field['source_port'])):016x} < {_sv_literal(int(field['width']), int(route['base']) + int(route['size']))})"
+                f"({{1'b0, source_{canonical_id('generic-render-source-port', str(field['source_port'])):016x}}} >= {_sv_literal(int(field['width']) + 1, int(route['base']))} && {{1'b0, source_{canonical_id('generic-render-source-port', str(field['source_port'])):016x}}} < {_sv_literal(int(field['width']) + 1, int(route['base']) + int(route['size']))})"
                 for field in route["fields"] if field["address"]
             ]
         if len(terms) != 1:
@@ -1582,6 +1584,7 @@ def _render_generic_top(plan: object) -> str:
         lines.append(f"  assign {source_signal(port)} = {wire};")
     lines.append("endmodule\n")
     lines.extend(_render_generic_adapter(route) for route in routes)
+    lines.extend(shared_modules)
     return "\n".join(lines)
 
 

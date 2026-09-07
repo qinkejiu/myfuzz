@@ -1581,7 +1581,9 @@ def plan_generic_composition(
                 choices = ",".join(f"{item[2][0]}@{item[2][1]}" for item in accepted_candidates)
                 raise AutoCompositionError(f"generic:component:{component_type}:ambiguous-protocol:{choices}")
             accepted = accepted_candidates[0]
-            if accepted[0].endpoint_id in used_endpoints:
+            if accepted[0].endpoint_id in used_endpoints and accepted[2] not in {
+                ("apb", "3"), ("apb", "4"), ("wishbone", "classic")
+            }:
                 raise AutoCompositionError(
                     f"generic:adapter:single-target-source:{accepted[0].endpoint_id}"
                 )
