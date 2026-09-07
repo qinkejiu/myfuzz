@@ -3,6 +3,9 @@ from pathlib import Path
 from dataclasses import replace
 import os
 import signal
+import sys
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 import shutil
 import tempfile
 import unittest
@@ -29,6 +32,104 @@ def make_plan(root, *, renamed=False):
 class RfuzzSimulatorTests(unittest.TestCase):
     def setUp(self):
         self.assertIsNotNone(rfuzz_simulator, "live layout-to-RTL simulator missing")
+
+    def test_campaign_monitor_runs_during_blocked_rtl_exchange(self):
+        import time
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, names = make_plan(root)
+            artifact = rfuzz_simulator.build_simulator(plan, root / "runtime", base_dir=root,
+                coverage_ports=((names[-1], 0),))
+            with rfuzz_simulator.RtlSimulator(artifact) as simulator:
+                os.kill(simulator.process.pid, signal.SIGSTOP)
+                started = time.monotonic()
+                calls = []
+                def monitor():
+                    calls.append(time.monotonic())
+                    if calls[-1] - started >= .05:
+                        raise MemoryError("aggregate memory limit")
+                with self.assertRaisesRegex(MemoryError, "aggregate"):
+                    simulator.run_test((artifact.transport.pack(0),), monitor=monitor)
+                self.assertGreater(len(calls), 1)
+                self.assertLess(time.monotonic() - started, 1)
+                self.assertIsNotNone(simulator.process.poll())
+
+    def test_rss_poll_interval_spans_replays_and_enforces_limit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, names = make_plan(root)
+            artifact = rfuzz_simulator.build_simulator(plan, root / "runtime", base_dir=root,
+                coverage_ports=((names[-1], 0),))
+            clock = SimpleNamespace(monotonic=Mock(return_value=100.0))
+            # Keep real Icarus and real IO; replace only the clock and RSS
+            # observation to test the polling cadence and limit deterministically.
+            with patch.object(rfuzz_simulator, "time", clock), patch.object(
+                    rfuzz_simulator, "read_process_group_rss_bytes", return_value=1024) as rss:
+                with rfuzz_simulator.RtlSimulator(artifact) as simulator:
+                    rss.assert_called_once_with(simulator.process.pid)
+                    for _ in range(20):
+                        self.assertEqual(simulator.run_test((artifact.transport.pack(0),)), b"\0")
+                    self.assertEqual(rss.call_count, 1)
+                    clock.monotonic.return_value = 100.099
+                    simulator.run_test((artifact.transport.pack(0),))
+                    self.assertEqual(rss.call_count, 1)
+                    clock.monotonic.return_value = 100.1
+                    simulator.run_test((artifact.transport.pack(0),))
+                    self.assertEqual(rss.call_count, 2)
+                    clock.monotonic.return_value = 100.2
+                    rss.return_value = 512 * 1024 * 1024
+                    with self.assertRaisesRegex(RuntimeError, "RSS soft limit"):
+                        simulator.run_test((artifact.transport.pack(0),))
+                    self.assertTrue(simulator.closed)
+                    self.assertIsNotNone(simulator.process.poll())
+
+    def test_rss_still_polled_while_waiting_for_io(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, names = make_plan(root)
+            artifact = rfuzz_simulator.build_simulator(plan, root / "runtime", base_dir=root,
+                coverage_ports=((names[-1], 0),))
+            with rfuzz_simulator.RtlSimulator(artifact) as simulator:
+                os.kill(simulator.process.pid, signal.SIGSTOP)
+                with patch.object(rfuzz_simulator, "read_process_group_rss_bytes",
+                                  return_value=512 * 1024 * 1024) as rss:
+                    with self.assertRaisesRegex(RuntimeError, "RSS soft limit"):
+                        simulator.run_test((artifact.transport.pack(0),))
+                    rss.assert_called_once_with(simulator.process.pid)
+                self.assertTrue(simulator.closed)
+
+    def test_publication_lint_deadline_cleans_up_process_group(self):
+        from myfuzz.composition import protocol_composer
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, names = make_plan(root)
+            binaries = root / "bin"
+            binaries.mkdir()
+            linter = binaries / "verilator"
+            # A real stalled linter and descendant. It eventually exits even
+            # on the unfixed publisher, making the RED run finite and safe.
+            linter.write_text(f"#!{sys.executable}\n"
+                "import os, subprocess, sys\n"
+                "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(2)'])\n"
+                "with open(os.environ['MYFUZZ_LINT_PIDS'], 'w') as output:\n"
+                "    output.write(f'{os.getpid()} {child.pid}')\n"
+                "child.wait()\n")
+            linter.chmod(0o700)
+            pids = root / "linter.pids"
+            with patch.dict(os.environ, {"PATH": str(binaries) + os.pathsep + os.environ["PATH"],
+                                         "MYFUZZ_LINT_PIDS": str(pids)}), patch.object(
+                    protocol_composer, "_GENERIC_LINT_TIMEOUT_SECONDS", 1, create=True):
+                with self.assertRaisesRegex(ValueError, "lint.*timed-out"):
+                    rfuzz_simulator.build_simulator(plan, root / "runtime", base_dir=root,
+                        coverage_ports=((names[-1], 0),))
+            self.assertFalse((root / "runtime/composition").exists())
+            self.assertFalse((root / "runtime/sim.vvp").exists())
+            self.assertEqual(len(pids.read_text().split()), 2)
+            for pid in map(int, pids.read_text().split()):
+                stat = Path(f"/proc/{pid}/stat")
+                if stat.exists():
+                    self.assertEqual(stat.read_text().rsplit(") ", 1)[1].split()[0], "Z",
+                                     "owned linter process survived timeout")
 
     def test_raw_layout_drives_rtl_and_replay_resets_deterministically(self):
         for renamed in (False, True):

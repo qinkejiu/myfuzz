@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -1588,6 +1589,65 @@ def _render_generic_top(plan: object) -> str:
     return "\n".join(lines)
 
 
+_GENERIC_LINT_TIMEOUT_SECONDS = 30
+_GENERIC_LINT_DIAGNOSTIC_BYTES = 64 * 1024
+_GENERIC_LINT_CAPTURE_SCRIPT = r"""
+import os
+import subprocess
+import sys
+
+diagnostic_path = sys.argv[1]
+limit = int(sys.argv[2])
+process = subprocess.Popen(
+    sys.argv[3:],
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+)
+with open(diagnostic_path, "wb", buffering=0) as diagnostic:
+    assert process.stdout is not None
+    descriptor = process.stdout.fileno()
+    retained = 0
+    while True:
+        chunk = os.read(descriptor, 64 * 1024)
+        if not chunk:
+            break
+        if retained <= limit:
+            payload = chunk[: limit + 1 - retained]
+            diagnostic.write(payload)
+            retained += len(payload)
+raise SystemExit(process.wait())
+"""
+
+
+def _generic_lint(command: tuple[str, ...]) -> None:
+    """Bound publication lint itself, not only a later simulator compilation."""
+    from myfuzz.integration.campaign import CampaignOptions, run_supervised_command
+
+    with tempfile.TemporaryDirectory(prefix="myfuzz-generic-lint-") as temporary:
+        diagnostic_path = Path(temporary) / "diagnostic.log"
+        result = run_supervised_command(CampaignOptions(
+            command=(
+                "nice", "-n15", sys.executable, "-c", _GENERIC_LINT_CAPTURE_SCRIPT,
+                diagnostic_path.as_posix(), str(_GENERIC_LINT_DIAGNOSTIC_BYTES), *command,
+            ),
+            output_dir=Path(temporary) / "supervision",
+            duration_seconds=_GENERIC_LINT_TIMEOUT_SECONDS,
+            checkpoint_seconds=1,
+            env={"JOBS": "1"},
+        ))
+        if result["status"] != "completed" or result["returncode"] != 0:
+            diagnostic = diagnostic_path.read_bytes() if diagnostic_path.is_file() else b""
+            truncated = len(diagnostic) > _GENERIC_LINT_DIAGNOSTIC_BYTES
+            diagnostic = diagnostic[:_GENERIC_LINT_DIAGNOSTIC_BYTES]
+            diagnostic_text = diagnostic.decode("utf-8", errors="replace").strip()
+            if truncated:
+                diagnostic_text += "\n[diagnostic truncated]"
+            summary = f"status={result['status']}, returncode={result['returncode']}"
+            if diagnostic_text:
+                summary += "\n" + diagnostic_text
+            raise ValueError("generic composition lint failed: " + summary)
+
+
 def _validate_generic_top(
     text: str, *, source_paths: tuple[Path, ...], include_paths: tuple[Path, ...] = (),
     define_options: tuple[str, ...] = (),
@@ -1602,17 +1662,12 @@ def _validate_generic_top(
     if text.count("module ") != text.count("endmodule") or text.count("module ") < 1:
         raise ValueError("generic composition top structure is invalid")
     if top_path is not None and shutil.which("verilator") is not None:
-        result = subprocess.run(
-             ["verilator", "--lint-only", "-Wno-fatal", "--sv", "--top-module", "generic_composition_top",
+        _generic_lint(
+             ("verilator", "--lint-only", "-Wno-fatal", "--sv", "--top-module", "generic_composition_top",
              *("-I" + path.as_posix() for path in include_paths),
              *define_options,
-             *(path.as_posix() for path in source_paths), top_path.as_posix()],
-            check=False,
-            capture_output=True,
-            text=True,
+             *(path.as_posix() for path in source_paths), top_path.as_posix()),
         )
-        if result.returncode != 0:
-            raise ValueError("generic composition lint failed: " + result.stderr.strip())
 
 
 def _validate_generic_output_boundary(

@@ -1,0 +1,262 @@
+import os
+import json
+import shutil
+import signal
+import subprocess
+import sys
+import time
+from types import SimpleNamespace
+from pathlib import Path
+import tempfile
+import unittest
+from contextlib import contextmanager
+from unittest.mock import patch
+from tests.integration.test_rfuzz_simulator import make_plan
+from myfuzz.integration.rfuzz_simulator import build_simulator
+try:
+    from myfuzz.integration.rfuzz_live import run_live
+except ImportError:
+    run_live = None
+
+
+@contextmanager
+def live_directory():
+    retained = os.environ.get("MYFUZZ_RFuzz_RUNS")
+    if retained:
+        parent = Path(retained).resolve()
+        parent.mkdir(parents=True, exist_ok=True)
+        root = Path(tempfile.mkdtemp(prefix="live-", dir=parent))
+        print(f"Retained RFuzz artifacts: {root}", flush=True)
+        yield str(root)
+    else:
+        with tempfile.TemporaryDirectory() as tmp:
+            yield tmp
+
+
+@unittest.skipUnless(os.environ.get("MYFUZZ_RFuzz_CLIENT"), "official RFuzz binary opt-in")
+class LiveTests(unittest.TestCase):
+    def test_official_mutator_uses_actual_rtl_feedback(self):
+        self.assertIsNotNone(run_live, "live upstream RFuzz runner missing")
+        with live_directory() as tmp:
+            root=Path(tmp)
+            plan,names=make_plan(root)
+            artifact=build_simulator(plan,root/"sim",base_dir=root,
+                coverage_ports=tuple((names[-1],i) for i in range(3)))
+            result=run_live(artifact,Path(os.environ["MYFUZZ_RFuzz_CLIENT"]),root/"run",duration_seconds=2)
+            self.assertEqual(result["returncode"],0)
+            self.assertGreater(result["tests"],1)
+            self.assertGreater(result["corpus_entries"],1)
+            self.assertTrue(any(result["counter_maxima"]))
+            self.assertEqual(result["coverage_kind"],artifact.coverage_kind)
+            self.assertEqual(result["remaining_segments"],[])
+            from myfuzz.integration.rfuzz_live import replay_corpus
+            replay = replay_corpus(artifact, root / "run/corpus")
+            self.assertEqual(replay["entries"], result["corpus_entries"])
+            (root / "run/replay.json").write_text(json.dumps(replay, sort_keys=True) + "\n")
+
+
+@unittest.skipUnless(shutil.which("iverilog") and shutil.which("vvp"), "Icarus required")
+class LiveFailureTests(unittest.TestCase):
+    def test_zero_work_client_is_not_completed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, names = make_plan(root)
+            artifact = build_simulator(plan, root / "sim", base_dir=root,
+                coverage_ports=((names[-1], 0),))
+            with self.assertRaisesRegex(RuntimeError, "no RTL tests"):
+                run_live(artifact, Path(shutil.which("true")), root / "run", duration_seconds=1)
+            self.assertEqual(json.loads((root / "run/report.json").read_text())["status"], "failed")
+
+    def test_aggregate_soft_limit_stops_before_serving(self):
+        from myfuzz.integration import rfuzz_live
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, names = make_plan(root)
+            artifact = build_simulator(plan, root / "sim", base_dir=root,
+                coverage_ports=((names[-1], 0),))
+            client = root / "client"
+            client.write_text(f"#!{sys.executable}\nimport time\ntime.sleep(5)\n")
+            client.chmod(0o700)
+            with patch.object(rfuzz_live, "read_process_group_rss_bytes", return_value=260 * 1024 * 1024), \
+                    patch.object(rfuzz_live.FifoEndpoint, "receive", side_effect=RuntimeError("served above soft limit")):
+                with self.assertRaisesRegex(MemoryError, "soft"):
+                    run_live(artifact, client, root / "run", duration_seconds=1)
+            result = json.loads((root / "run/report.json").read_text())
+            self.assertEqual(result["status"], "failed")
+            self.assertGreaterEqual(result["peak_rss_bytes"], 520 * 1024 * 1024)
+            self.assertIn("runner", result["memory_scope"])
+
+    def test_sigterm_reports_failure_and_restores_previous_handler(self):
+        self._sigterm_case("receive")
+
+    def test_sigterm_during_client_initialization_cleans_group(self):
+        self._sigterm_case("launch")
+
+    def test_sigterm_during_cleanup_finishes_cleanup(self):
+        self._sigterm_case("cleanup")
+
+    def _sigterm_case(self, phase):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Isolate the signal test so RED cannot terminate the test worker.
+            script = r'''
+import os, signal, sys
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch, MagicMock
+from myfuzz.integration import rfuzz_live
+root=Path(sys.argv[1])
+artifact=SimpleNamespace(layout=SimpleNamespace(layout_hash="test"),
+    coverage_kind="test", coverage_ports=(("flag",0),),
+    transport=SimpleNamespace(document=lambda: {}, byte_count=8))
+previous=signal.getsignal(signal.SIGTERM)
+client=MagicMock(pid=1000000000, returncode=0, args=("fake",))
+client.poll.return_value=None
+phase=sys.argv[2]
+def terminate(*args, **kwargs):
+    os.kill(os.getpid(), signal.SIGTERM)
+def launch(*args, **kwargs):
+    if phase=="launch": terminate()
+    return client
+def receive(*args, **kwargs):
+    if phase=="receive": terminate()
+    elif phase=="cleanup": raise RuntimeError("execution failure")
+def cleanup(*args, **kwargs):
+    if phase=="cleanup": terminate()
+    (root/"cleanup.calls").open("a").write("cleanup\n")
+with patch.object(rfuzz_live, "_configuration", return_value="test"), \
+     patch.object(rfuzz_live, "RtlSimulator"), \
+     patch.object(rfuzz_live.subprocess, "Popen", side_effect=launch), \
+     patch.object(rfuzz_live.os, "killpg", side_effect=cleanup), \
+     patch.object(rfuzz_live, "read_process_group_rss_bytes", return_value=0), \
+     patch.object(rfuzz_live.FifoEndpoint, "receive", side_effect=receive):
+    try:
+        rfuzz_live.run_live(artifact, Path(sys.executable), root/"run", duration_seconds=1)
+    except BaseException:
+        assert signal.getsignal(signal.SIGTERM) == previous
+        sys.exit(7)
+sys.exit(0)
+'''
+            process = subprocess.run((sys.executable, "-c", script, tmp, phase),
+                                     capture_output=True, timeout=5)
+            self.assertEqual(process.returncode, 7, process.stderr.decode())
+            result = json.loads((Path(tmp) / "run/report.json").read_text())
+            self.assertEqual(result["status"], "failed")
+            if phase != "cleanup":
+                self.assertIn("SIGTERM", result["error"])
+            self.assertEqual((Path(tmp) / "cleanup.calls").read_text().count("cleanup"), 2)
+
+    def test_replay_accepts_supported_large_wire_record(self):
+        from myfuzz.integration import rfuzz_live
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            # Exercise the JSON admission boundary without compiling a huge
+            # fixture. Actual RTL replay is covered in the companion test.
+            document = {"entry": {"inputs": [255] * (8192 * 200)},
+                        "trace_bits": [1, 0, 0, 0, 0, 0]}
+            (root / "entry_0000.json").write_text(json.dumps(document))
+            artifact = SimpleNamespace(coverage_ports=(("out", 0),),
+                transport=SimpleNamespace(byte_count=8192),
+                layout=SimpleNamespace(layout_hash="test"), coverage_kind="test")
+            with patch.object(rfuzz_live, "RtlSimulator") as constructor:
+                constructor.return_value.__enter__.return_value.run_test.return_value = b"\1"
+                try:
+                    result = rfuzz_live.replay_corpus(artifact, root)
+                except ValueError as error:
+                    self.fail(f"supported maximum-width record rejected: {error}")
+                self.assertEqual(result["entries"], 1)
+
+    def test_interrupt_cleans_client_descendant_and_reports_failure(self):
+        from myfuzz.integration import rfuzz_live
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, names = make_plan(root)
+            artifact = build_simulator(plan, root / "sim", base_dir=root,
+                coverage_ports=((names[-1], 0),))
+            pids = root / "child.pid"
+            client = root / "client"
+            client.write_text(f"#!{sys.executable}\nimport subprocess,sys,time\n"
+                "child=subprocess.Popen([sys.executable,'-c','import time; time.sleep(30)'])\n"
+                f"open({str(pids)!r},'w').write(str(child.pid))\n"
+                "time.sleep(30)\n")
+            client.chmod(0o700)
+            started = time.monotonic()
+            def interrupt(*args, **kwargs):
+                if pids.exists() or time.monotonic() - started > 3:
+                    raise KeyboardInterrupt("test interrupt")
+                time.sleep(.01)
+                return None
+            child = None
+            try:
+                with patch.object(rfuzz_live.FifoEndpoint, "receive", side_effect=interrupt):
+                    with self.assertRaises(KeyboardInterrupt):
+                        run_live(artifact, client, root / "run", duration_seconds=5)
+                self.assertTrue(pids.exists(), "client did not launch")
+                child = int(pids.read_text())
+                status = Path(f"/proc/{child}/stat")
+                deadline = time.monotonic() + 1
+                while status.exists() and status.read_text().split(") ", 1)[1][0] != "Z" and time.monotonic() < deadline:
+                    time.sleep(.01)
+                self.assertTrue(not status.exists() or status.read_text().split(") ", 1)[1][0] == "Z",
+                                "client descendant survived interrupt cleanup")
+                result = json.loads((root / "run/report.json").read_text())
+                self.assertEqual(result["status"], "failed")
+                self.assertIn("KeyboardInterrupt", result["error"])
+            finally:
+                if child is None and pids.exists():
+                    child = int(pids.read_text())
+                if child is not None:
+                    try:
+                        os.kill(child, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+
+    def test_simulator_start_failure_has_durable_report(self):
+        from myfuzz.integration import rfuzz_live
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, names = make_plan(root)
+            artifact = build_simulator(plan, root / "sim", base_dir=root,
+                coverage_ports=((names[-1], 0),))
+            with patch.object(rfuzz_live, "RtlSimulator", side_effect=RuntimeError("startup failure")):
+                with self.assertRaisesRegex(RuntimeError, "startup failure"):
+                    run_live(artifact, Path(shutil.which("true")), root / "run", duration_seconds=1)
+            report = root / "run/report.json"
+            self.assertTrue(report.exists(), "startup failure lost its report")
+            result = json.loads(report.read_text())
+            self.assertEqual(result["status"], "failed")
+            self.assertIn("startup failure", result["error"])
+            self.assertEqual(result["tests"], 0)
+            provenance = result.get("artifact_provenance")
+            self.assertIsNotNone(provenance, "report lost source and composition identity")
+            self.assertEqual(provenance["composition_ir_hash"], plan.composition_ir_hash)
+            self.assertEqual(provenance["interface_description"]["source"]["revision"],
+                             plan.interface_description.source.revision)
+            self.assertEqual(provenance["composition_seed"], plan.request.seed)
+
+    def test_corpus_replay_checks_actual_rtl_and_wire_padding(self):
+        from myfuzz.integration import rfuzz_live
+        replay = getattr(rfuzz_live, "replay_corpus", None)
+        self.assertIsNotNone(replay, "durable corpus RTL replay missing")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, names = make_plan(root)
+            artifact = build_simulator(plan, root / "sim", base_dir=root,
+                coverage_ports=((names[-1], 0),))
+            raw = sum(1 << field.raw_lo for field in artifact.layout.fields)
+            corpus = root / "corpus"
+            corpus.mkdir()
+            entry = {"entry": {"inputs": list(artifact.transport.pack(raw))},
+                     "trace_bits": [1, 0, 0, 0, 0, 0]}
+            path = corpus / "entry_0000.json"
+            path.write_text(json.dumps(entry))
+            result = replay(artifact, corpus)
+            self.assertEqual(result["entries"], 1)
+            self.assertEqual(result["status"], "passed")
+            entry["trace_bits"][0] = 0
+            path.write_text(json.dumps(entry))
+            with self.assertRaisesRegex(ValueError, "coverage mismatch"):
+                replay(artifact, corpus)
+            entry["trace_bits"] = [1, 0, 0, 0, 0, 1]
+            path.write_text(json.dumps(entry))
+            with self.assertRaisesRegex(ValueError, "padding"):
+                replay(artifact, corpus)

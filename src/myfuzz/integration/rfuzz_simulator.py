@@ -3,7 +3,7 @@
 Counters count asserted observations after each driven cycle (saturating at
 255). They are deliberately not advertised as RTL branch or toggle coverage.
 """
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 import hashlib
 import math
 import os
@@ -16,6 +16,7 @@ import time
 from myfuzz.contracts import canonical_bytes
 from myfuzz.composition.auto import _generic_with_reset_contract, _generic_endpoint_reset_contract
 from myfuzz.composition.input_layout import InputLayout, input_layout_document
+from myfuzz.composition.interface_description import interface_description_document
 from myfuzz.composition.protocol_composer import (
     _generic_routes, _generic_port_records, _generic_include_paths,
     _generic_define_options, _validate_generic_plan_freshness, write_generic_composition,
@@ -26,6 +27,7 @@ from .campaign import CampaignOptions, run_supervised_command, read_process_grou
 
 MAX_CYCLES = 65536
 MAX_IO_BYTES = 8 * 1024 * 1024
+RSS_POLL_SECONDS = 0.1
 
 
 @dataclass(frozen=True)
@@ -161,6 +163,23 @@ def build_simulator(plan, output_dir, *, base_dir, coverage_ports):
         duration_seconds=30, checkpoint_seconds=1, env={"JOBS": "1"}))
     if result["status"] != "completed" or result["returncode"] != 0:
         raise ValueError(f"Icarus build failed: {result}")
+    (output / "artifact_provenance.json").write_bytes(canonical_bytes({
+        "schema_version": "rfuzz_artifact_provenance.v1",
+        "interface_description": interface_description_document(plan.interface_description),
+        "composition_ir_hash": plan.composition_ir_hash,
+        "source_evidence_hash": plan.source_evidence_hash,
+        "composition_seed": plan.request.seed,
+        "isa": asdict(plan.request.isa) if plan.request.isa is not None else None,
+        "source_base_dir": str(root),
+        "source_sha256": {f: hashlib.sha256((root / f).read_bytes()).hexdigest()
+                          for f in plan.source_files},
+        "build_command": list(command),
+        "executable_sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
+        "layout_hash": layout.layout_hash,
+        "transport_hash": transport.document()["transport_hash"],
+        "coverage_kind": "sampled-output-bit-events-u8-saturating",
+        "coverage_ports": [list(c) for c in coverage],
+    }))
     return SimulatorArtifact(layout, transport, executable, coverage, projector)
 
 
@@ -173,6 +192,7 @@ class RtlSimulator:
                 or not 0 < timeout_seconds <= 60):
             raise ValueError("finite simulator deadline required")
         self.artifact, self.timeout_seconds = artifact, timeout_seconds
+        self._next_rss_poll = 0.0  # Immediate startup check; shared across tests.
         self.process = subprocess.Popen(("nice", "-n15", "vvp", str(artifact.executable)),
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
         self.closed = False
@@ -185,7 +205,7 @@ class RtlSimulator:
             self.close()
             raise
 
-    def _exchange(self, payload, max_reply):
+    def _exchange(self, payload, max_reply, monitor=None):
         deadline = time.monotonic() + self.timeout_seconds
         pending, reply = memoryview(payload), bytearray()
         with selectors.DefaultSelector() as selector:
@@ -193,10 +213,14 @@ class RtlSimulator:
             if pending:
                 selector.register(self.process.stdin, selectors.EVENT_WRITE)
             while True:
-                if time.monotonic() >= deadline:
+                if monitor is not None:
+                    monitor()
+                now = time.monotonic()
+                if now >= deadline:
                     raise TimeoutError("simulator IO deadline exceeded")
-                if self.process.poll() is None:
+                if now >= self._next_rss_poll and self.process.poll() is None:
                     rss = read_process_group_rss_bytes(self.process.pid)
+                    self._next_rss_poll = time.monotonic() + RSS_POLL_SECONDS
                     if rss >= 512 * 1024 * 1024:
                         raise RuntimeError("simulator group RSS soft limit exceeded")
                 for key, _ in selector.select(min(0.02, max(0, deadline - time.monotonic()))):
@@ -223,7 +247,7 @@ class RtlSimulator:
                                 raise ValueError("unexpected simulator response framing")
                             return bytes(reply[:-1])
 
-    def run_test(self, records):
+    def run_test(self, records, *, monitor=None):
         if self.closed:
             raise ValueError("simulator is closed")
         if not isinstance(records, (tuple, list)) or not 1 <= len(records) <= MAX_CYCLES:
@@ -234,7 +258,7 @@ class RtlSimulator:
         payload = (str(len(samples)) + "\n" + "".join(f"{s:x}\n" for s in samples)).encode("ascii")
         try:
             count = len(self.artifact.coverage_ports)
-            reply = self._exchange(payload, 2 * count + 32)
+            reply = self._exchange(payload, 2 * count + 32, monitor=monitor)
             prefix = b"RFUZZ_COUNTERS "
             if not reply.startswith(prefix) or len(reply) != len(prefix) + 2 * count:
                 raise ValueError("invalid simulator counter response")
