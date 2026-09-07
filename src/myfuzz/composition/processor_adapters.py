@@ -87,6 +87,18 @@ _ADAPTERS = {
         ),
         extension_policies=_OBI_EXTENSION_POLICIES,
     ),
+    ("tl-ul", "1"): ProcessorAdapterDefinition(
+        adapter_id="tl-ul-to-processor-memory-beat",
+        source_protocol=("tl-ul", "1"),
+        target_protocol=("processor-memory-beat", "1"),
+        rtl_module="tl_ul_processor_memory_adapter",
+        rtl_source="src/myfuzz/protocols/rtl/tl_ul_processor_memory_adapter.sv",
+        features=(
+            "single-outstanding", "get", "put-full", "put-partial",
+            "source-roundtrip", "denied-corrupt-error", "partial-write",
+        ),
+        extension_policies=(),
+    ),
 }
 
 

@@ -45,6 +45,25 @@ def _obi_memory(*optional: EndpointFieldFact) -> ProcessorMemoryBinding:
     )
 
 
+def _tl_memory() -> ProcessorMemoryBinding:
+    roles = (
+        ("a_valid", "output", 1), ("a_ready", "input", 1),
+        ("a_opcode", "output", 3), ("a_param", "output", 3),
+        ("a_size", "output", 3), ("a_source", "output", 1),
+        ("a_address", "output", 32), ("a_mask", "output", 4),
+        ("a_data", "output", 32), ("a_corrupt", "output", 1),
+        ("d_valid", "input", 1), ("d_ready", "output", 1),
+        ("d_opcode", "input", 3), ("d_param", "input", 3),
+        ("d_size", "input", 3), ("d_source", "input", 1),
+        ("d_sink", "input", 1), ("d_denied", "input", 1),
+        ("d_data", "input", 32), ("d_corrupt", "input", 1),
+    )
+    fields = tuple(_field(*item) for item in roles)
+    return ProcessorMemoryBinding(
+        "memory", "memory_master", ("tl-ul", "1"), fields, ()
+    )
+
+
 class ProcessorAdapterTests(unittest.TestCase):
     def test_axi_adapter_selection_uses_protocol_and_explicit_extension_policy(self) -> None:
         extras = tuple(
@@ -89,12 +108,20 @@ class ProcessorAdapterTests(unittest.TestCase):
 
     def test_protocol_without_implemented_adapter_is_explicitly_rejected(self) -> None:
         memory = ProcessorMemoryBinding(
-            "memory", "memory_master", ("tilelink-ul", "1"), (), ()
+            "memory", "memory_master", ("tilelink", "1"), (), ()
         )
         with self.assertRaisesRegex(
-            ProcessorAdapterError, "unsupported-processor-adapter:tilelink-ul@1"
+            ProcessorAdapterError, "unsupported-processor-adapter:tilelink@1"
         ):
             resolve_processor_adapter(memory)
+
+    def test_tl_ul_adapter_selection_uses_protocol_fields_only(self) -> None:
+        adapter = resolve_processor_adapter(_tl_memory())
+        self.assertEqual("tl-ul-to-processor-memory-beat", adapter.adapter_id)
+        self.assertEqual("tl_ul_processor_memory_adapter", adapter.rtl_module)
+        self.assertEqual(("processor-memory-beat", "1"), adapter.target_protocol)
+        self.assertEqual((), adapter.extension_policies)
+        self.assertNotIn("boom", repr(adapter).lower())
 
     def test_obi_adapter_is_derived_from_read_write_and_optional_signals(self) -> None:
         read_only = resolve_processor_adapter(_obi_memory(_field("error", "input")))
@@ -151,6 +178,17 @@ class ProcessorAdapterTests(unittest.TestCase):
         for policy in adapter.extension_policies:
             suffix = "_i" if policy.direction == "output" else "_o"
             self.assertIn(policy.role + suffix, rtl)
+        for field in catalog.require("processor-memory-beat", "1").fields:
+            suffix = "_o" if field.direction == "host_to_device" else "_i"
+            self.assertIn(field.field_id + suffix, rtl)
+
+    def test_tl_ul_rtl_ports_cover_protocol_and_backend(self) -> None:
+        catalog = load_protocol_catalog(ROOT / "src/myfuzz/protocols/plugins")
+        adapter = resolve_processor_adapter(_tl_memory())
+        rtl = (ROOT / adapter.rtl_source).read_text(encoding="utf-8")
+        for field in catalog.require("tl-ul", "1").fields:
+            suffix = "_i" if field.direction == "host_to_device" else "_o"
+            self.assertIn(field.field_id + suffix, rtl)
         for field in catalog.require("processor-memory-beat", "1").fields:
             suffix = "_o" if field.direction == "host_to_device" else "_i"
             self.assertIn(field.field_id + suffix, rtl)

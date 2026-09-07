@@ -352,15 +352,25 @@ independent AW/W arrival, backpressure, IDs, byte enables and backend errors.
 Unsupported bursts, locks and atomic requests complete with DECERR; rejected
 write bursts drain their AWLEN-declared W transfers, and atomic requests return
 the required number of R beats while R and B remain independently backpressured.
-The fixed real CVA6 boundary resolves through this generic path.  TileLink,
-timeout recovery and real processor execution acceptance remain open.
+The fixed real CVA6 boundary resolves through this generic path.  At this
+checkpoint, TileLink, timeout recovery and real processor execution acceptance
+remained open.
 
 The OBI substep is complete and independently reviewed.  Required read fields,
 an optional paired write capability, optional byte enables and a required
 observable error extension select read-only or read/write parameters without a
 processor identity.  Grant is tied to backend request acceptance; one accepted
-backend response produces one OBI response pulse.  TileLink, timeout recovery
-and real processor execution acceptance remain open.
+backend response produces one OBI response pulse.  At this checkpoint,
+TileLink, timeout recovery and real processor execution acceptance remained
+open.
+
+The TL-UL substep is complete and independently reviewed.  Get, PutFullData
+and PutPartialData serialize through the common backend with source/size,
+byte-enable, error and backpressure preservation.  Unsupported operations use
+protocol-shaped errors; oversized Get responses retain their D beat count and
+multibeat data requests drain A before responding.  Empty PutPartialData is a
+successful local no-op.  Task 8b now has executable AXI4, OBI and TL-UL paths;
+timeout recovery and real processor execution acceptance remain open.
 
 #### Task 8c: Packed RFuzz runtime projection and connected acceptance
 
