@@ -1933,7 +1933,20 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
     if not root.is_dir():
         raise ValueError("generic composition base_dir is missing")
     plan = _validate_generic_plan_freshness(plan, root)
-    sources = tuple(_generic_source(root, source) for source in plan.source_files)
+    backend = None
+    backend_document = None
+    backend_sources: tuple[str, ...] = ()
+    if plan.processor_execution is not None:
+        from .processor_backend import build_processor_backend, processor_backend_document
+        backend = build_processor_backend(
+            plan.processor_execution, getattr(plan, "ir", {}).get("address_regions", ()),
+        )
+        backend_document = processor_backend_document(backend)
+        backend_sources = backend.rtl_sources
+    sources = tuple(
+        _generic_source(root, source)
+        for source in sorted(set((*plan.source_files, *backend_sources)))
+    )
     output = Path(output_dir).resolve()
     _validate_generic_output_boundary(plan, output, root, sources)
     # POSIX has no portable atomic replacement for a non-empty directory.  A
@@ -1947,11 +1960,14 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
     ir_payload = canonical_bytes(_generic_plain(plan.ir))
     layout_payload = canonical_bytes(_generic_plain(input_layout_document(plan.layout)))
     execution_payload = None
+    backend_payload = None
     if plan.processor_execution is not None:
         from .processor_execution import processor_execution_document
         execution_payload = canonical_bytes(
             processor_execution_document(plan.processor_execution)
         )
+        assert backend_document is not None
+        backend_payload = canonical_bytes(backend_document)
     transport = build_rfuzz_transport(plan.layout)
     transport_document = transport.document()
     source_list = _generic_source_list(plan, root, output, sources)
@@ -1962,6 +1978,8 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
         (stage / "input_layout.json").write_bytes(layout_payload)
         if execution_payload is not None:
             (stage / "processor_execution.v1.json").write_bytes(execution_payload)
+        if backend_payload is not None:
+            (stage / "processor_backend.v1.json").write_bytes(backend_payload)
         (stage / "rfuzz_input_transport.json").write_bytes(canonical_bytes(transport_document))
         (stage / "rfuzz_input_transport.sv").write_text(transport.render_systemverilog(), encoding="utf-8")
         (stage / "generic_composition_top.sv").write_text(top_text, encoding="utf-8")
@@ -1977,6 +1995,8 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
         json.loads((stage / "input_layout.json").read_text(encoding="utf-8"))
         if execution_payload is not None:
             json.loads((stage / "processor_execution.v1.json").read_text(encoding="utf-8"))
+        if backend_payload is not None:
+            json.loads((stage / "processor_backend.v1.json").read_text(encoding="utf-8"))
         json.loads((stage / "rfuzz_input_transport.json").read_text(encoding="utf-8"))
         os.replace(stage, output)
         stage = None
@@ -1991,6 +2011,7 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
         "composition_ir_hash": plan.composition_ir_hash,
         "layout_hash": plan.layout.layout_hash,
         "transport_hash": transport_document["transport_hash"],
+        **({"backend_hash": backend.backend_hash} if backend is not None else {}),
         "top_path": (output / "generic_composition_top.sv").as_posix(),
         "source_list_path": (output / "sources.f").as_posix(),
         "complete": True,

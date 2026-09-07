@@ -84,6 +84,12 @@ from .processor_execution import (
     build_processor_execution,
     processor_execution_document,
 )
+from .processor_backend import (
+    ProcessorBackendError,
+    ProcessorBackendPlan,
+    build_processor_backend,
+    processor_backend_document,
+)
 from .registry import ComponentRegistration, ComponentRegistry, default_component_registry
 from .search import CompositionCandidate, compose_topk
 
@@ -137,9 +143,12 @@ __all__ = [
     "ProcessorExecutionError",
     "ProcessorExecutionPlan",
     "ProcessorExecutionRoute",
+    "ProcessorBackendError",
+    "ProcessorBackendPlan",
     "candidate_manifest",
     "build_input_layout",
     "build_processor_execution",
+    "build_processor_backend",
     "build_processor_boundary",
     "annotate_interfaces",
     "canonical_id",
@@ -160,6 +169,7 @@ __all__ = [
     "processor_boundary_document",
     "resolve_processor_adapter",
     "processor_execution_document",
+    "processor_backend_document",
     "source_tree_hash",
     "validate_protocol_composition",
     "validate_protocol_fingerprint",
