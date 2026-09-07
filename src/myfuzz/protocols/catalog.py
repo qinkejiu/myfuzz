@@ -8,6 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from .model import (
+    CapabilityLimitValue,
     ChannelRelationSpec,
     FieldSpec,
     ProjectionActionSpec,
@@ -21,6 +22,35 @@ _PROJECTION_KINDS = frozenset(("direct", "mask", "gate", "delay_select", "fold_x
 _PROJECTION_CATEGORIES = frozenset(
     ("direct", "protocol_legality", "progress", "dependency_consistency", "event_rarity", "address_validity")
 )
+_MAX_CAPABILITY_VALUE = 65_535
+_MAX_WAIT_CYCLES = 16
+_BOOLEAN_CAPABILITIES = frozenset(
+    (
+        "byte_enable",
+        "partial_write",
+        "single_beat_only",
+        "splitter_required_for_bursts",
+        "stall_supported",
+        "source_id_reordering",
+        "coherence",
+    )
+)
+_POSITIVE_INTEGER_CAPABILITIES = frozenset(("max_outstanding", "max_wait_cycles"))
+_NON_NEGATIVE_INTEGER_CAPABILITIES = frozenset(
+    ("supported_burst_length", "supported_id_value")
+)
+_INTEGER_ARRAY_CAPABILITIES = frozenset(
+    ("supported_burst_lengths", "supported_id_values")
+)
+_ENUM_CAPABILITIES = {
+    "ordering": frozenset(("in_order_single_id",)),
+    "completion": frozenset(("ack_or_err",)),
+}
+_BOOLEAN_OR_ENUM_CAPABILITIES = {
+    "bursts": frozenset(("reject_non_single_beat",)),
+    "ids": frozenset(("reject_nonzero",)),
+}
+_STRING_ARRAY_CAPABILITIES = {"completion_signals": ("ack", "err")}
 
 
 class ProtocolCatalog:
@@ -123,24 +153,87 @@ def _parse_channel_relations(
 
 def _parse_capability_limits(
     document: dict[object, object], source: Path
-) -> tuple[tuple[str, bool | int | str], ...]:
+) -> tuple[tuple[str, CapabilityLimitValue], ...]:
     raw = document.get("capability_limits", {})
     if not isinstance(raw, dict):
         raise ProtocolDefinitionError(f"{source}: capability_limits must be an object")
-    limits: list[tuple[str, bool | int | str]] = []
+    limits: list[tuple[str, CapabilityLimitValue]] = []
     for key, value in raw.items():
         name = _require_string(key, "capability limit name")
-        if isinstance(value, bool):
-            parsed: bool | int | str = value
-        elif isinstance(value, int) and value >= 0:
+        if name in _BOOLEAN_CAPABILITIES:
+            if not isinstance(value, bool):
+                raise ProtocolDefinitionError(f"{source}: capability limit {name} must be boolean")
+            parsed: CapabilityLimitValue = value
+        elif name in _POSITIVE_INTEGER_CAPABILITIES:
+            maximum = _MAX_WAIT_CYCLES if name == "max_wait_cycles" else _MAX_CAPABILITY_VALUE
+            if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= maximum:
+                raise ProtocolDefinitionError(
+                    f"{source}: capability limit {name} must be an integer in 1..{maximum}"
+                )
             parsed = value
-        elif isinstance(value, str) and value:
+        elif name in _NON_NEGATIVE_INTEGER_CAPABILITIES:
+            if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= _MAX_CAPABILITY_VALUE:
+                raise ProtocolDefinitionError(
+                    f"{source}: capability limit {name} must be an integer in 0..{_MAX_CAPABILITY_VALUE}"
+                )
             parsed = value
+        elif name in _INTEGER_ARRAY_CAPABILITIES:
+            maximum = 255 if name == "supported_burst_lengths" else _MAX_CAPABILITY_VALUE
+            if (
+                not isinstance(value, list)
+                or not value
+                or any(isinstance(item, bool) or not isinstance(item, int) or not 0 <= item <= maximum for item in value)
+                or value != sorted(set(value))
+            ):
+                raise ProtocolDefinitionError(
+                    f"{source}: capability limit {name} must be a non-empty sorted unique integer array"
+                )
+            parsed = tuple(value)
+        elif name in _ENUM_CAPABILITIES:
+            if value not in _ENUM_CAPABILITIES[name]:
+                values = ", ".join(sorted(_ENUM_CAPABILITIES[name]))
+                raise ProtocolDefinitionError(
+                    f"{source}: capability limit {name} must be one of: {values}"
+                )
+            parsed = value
+        elif name in _BOOLEAN_OR_ENUM_CAPABILITIES:
+            if value is False:
+                parsed = value
+            elif value in _BOOLEAN_OR_ENUM_CAPABILITIES[name]:
+                parsed = value
+            else:
+                values = ", ".join(sorted(_BOOLEAN_OR_ENUM_CAPABILITIES[name]))
+                raise ProtocolDefinitionError(
+                    f"{source}: capability limit {name} must be false or one of: {values}"
+                )
+        elif name in _STRING_ARRAY_CAPABILITIES:
+            expected = _STRING_ARRAY_CAPABILITIES[name]
+            if not isinstance(value, list) or tuple(value) != expected:
+                raise ProtocolDefinitionError(
+                    f"{source}: capability limit {name} must be the ordered array {list(expected)}"
+                )
+            parsed = expected
+        elif name.startswith("x-"):
+            if isinstance(value, bool):
+                parsed = value
+            elif isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= _MAX_CAPABILITY_VALUE:
+                parsed = value
+            elif isinstance(value, str) and value:
+                parsed = value
+            else:
+                raise ProtocolDefinitionError(
+                    f"{source}: extension capability limit {name} must be a bounded scalar"
+                )
         else:
             raise ProtocolDefinitionError(
-                f"{source}: capability limit {name} must be a non-negative integer, boolean, or non-empty string"
+                f"{source}: unsupported capability limit: {name}"
             )
         limits.append((name, parsed))
+    values = dict(limits)
+    if values.get("partial_write") is True and values.get("byte_enable") is False:
+        raise ProtocolDefinitionError(
+            f"{source}: partial_write requires byte_enable capability"
+        )
     return tuple(sorted(limits))
 
 
@@ -199,8 +292,11 @@ def _parse_plugin(document: object, source: Path) -> ProtocolPlugin:
             not isinstance(field_ids_raw, list)
             or not field_ids_raw
             or any(not isinstance(field_id, str) or field_id not in seen for field_id in field_ids_raw)
+            or len(field_ids_raw) != len(set(field_ids_raw))
         ):
-            raise ProtocolDefinitionError(f"{source}: projection action fields must reference declared fields")
+            raise ProtocolDefinitionError(
+                f"{source}: projection action fields must reference distinct declared fields"
+            )
         kind = _require_string(item.get("kind"), f"projection action {index}.kind")
         category = _require_string(item.get("category"), f"projection action {index}.category")
         if kind not in _PROJECTION_KINDS:
@@ -272,7 +368,24 @@ def load_protocol_catalog(path: str | Path) -> ProtocolCatalog:
     directory = Path(path)
     if not directory.is_dir():
         raise ProtocolDefinitionError(f"plugin directory does not exist: {directory}")
-    plugins = tuple(_parse_plugin(json.loads(source.read_text(encoding="utf-8")), source) for source in sorted(directory.glob("*.json")))
+    def reject_duplicate_keys(pairs: list[tuple[object, object]]) -> dict[object, object]:
+        result: dict[object, object] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ProtocolDefinitionError(f"duplicate JSON object key: {key!r}")
+            result[key] = value
+        return result
+
+    def load_document(source: Path) -> object:
+        try:
+            return json.loads(
+                source.read_text(encoding="utf-8"),
+                object_pairs_hook=reject_duplicate_keys,
+            )
+        except (json.JSONDecodeError, ProtocolDefinitionError) as error:
+            raise ProtocolDefinitionError(f"{source}: invalid plugin JSON: {error}") from error
+
+    plugins = tuple(_parse_plugin(load_document(source), source) for source in sorted(directory.glob("*.json")))
     keys = [(plugin.protocol_id, plugin.version) for plugin in plugins]
     if len(keys) != len(set(keys)):
         raise ProtocolDefinitionError("duplicate declared protocol_id and version")

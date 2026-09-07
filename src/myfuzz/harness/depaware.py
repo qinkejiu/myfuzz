@@ -92,6 +92,9 @@ def _projected_expression(
     if action.kind == "fold_xor" and action.value_width > 1:
         shift = (action.value_width + 1) // 2
         return f"({raw} ^ ({raw} >> {shift}))"
+    if action.kind == "constant":
+        assert action.constant_value is not None
+        return _constant(action.value_width, action.constant_value)
     if action.kind in {"gate", "delay_select"}:
         counter_lo = action.state_lo + action.value_width
         active_lo = counter_lo + action.counter_width
@@ -178,6 +181,14 @@ def _emit_depaware(manifest: Mapping[str, object], plan: ProjectionPlan) -> str:
     categories = tuple(sorted({action.category for action in plan.actions}))
     counters = _BASE_COUNTERS + tuple(f"correction_{category}" for category in categories)
     lines.extend(f"    logic [63:0] {counter};" for counter in counters)
+    for index, constraint in enumerate(plan.canonical_byte_enables):
+        signal = f"canonical_byte_enable_{index}"
+        lines.extend(
+            (
+                f"    logic [{constraint.width - 1}:0] {signal};",
+                f"    assign {signal} = {constraint.width}'d{constraint.value};",
+            )
+        )
 
     destinations = {item.port_id: item for item in plan.raw_abi.destinations}
     uses = {item.destination_id: item for item in plan.raw_abi.uses}

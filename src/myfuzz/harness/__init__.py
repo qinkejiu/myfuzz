@@ -7,6 +7,7 @@ from .compiler import HarnessBundle, compile_harness_bundle, write_harness_bundl
 from .depaware import build_depaware
 from .direct import HarnessArtifact, build_direct, coverage_id
 from .projection import (
+    CanonicalByteEnable,
     ProjectionAction,
     ProjectionPlan,
     ProjectionResult,
@@ -38,6 +39,7 @@ def build_harness(manifest: object, mode: str) -> HarnessArtifact:
 __all__ = [
     "HarnessArtifact",
     "HarnessBundle",
+    "CanonicalByteEnable",
     "ProjectionAction",
     "ProjectionPlan",
     "ProjectionResult",

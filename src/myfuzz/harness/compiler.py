@@ -21,7 +21,7 @@ from myfuzz.protocols.model import CompiledProtocol, ProtocolPlugin
 from .abi import RawBitAbi
 from .depaware import build_depaware
 from .direct import HarnessArtifact, build_direct
-from .projection import ProjectionPlan, build_projection_plan
+from .projection import CanonicalByteEnable, ProjectionPlan, build_projection_plan
 
 
 def _object(value: object, label: str) -> Mapping[str, object]:
@@ -1036,12 +1036,36 @@ def _projection_plan(
     action_candidates: list[
         tuple[tuple[str, int, str, str], dict[str, object]]
     ] = []
+    canonical_byte_enables: list[CanonicalByteEnable] = []
     active_destinations = {
         destination.destination_id: True for destination in direct_abi.destinations
     }
     plugins = _protocol_plugins(protocols)
     for compiled in compiled_protocols:
         plugin = plugins[(compiled.protocol_id, compiled.version)]
+        capabilities = dict(plugin.capability_limits)
+        if capabilities.get("partial_write") is False:
+            specifications = {
+                specification.field_id: specification for specification in plugin.fields
+            }
+            for field in compiled.fields:
+                specification = specifications[field.field_id]
+                if (
+                    specification.direction == "host_to_device"
+                    and specification.width_expression == "data_width"
+                ):
+                    if field.width % 8:
+                        raise ValueError(
+                            "partial-write-disabled protocol data width must be byte aligned"
+                        )
+                    canonical_byte_enables.append(
+                        CanonicalByteEnable(
+                            compiled.binding_id,
+                            field.field_id,
+                            field.width // 8,
+                            (1 << (field.width // 8)) - 1,
+                        )
+                    )
         rule_bounds = {
             rule.antecedent_field_id: rule.max_cycles
             for rule in plugin.temporal_rules
@@ -1119,7 +1143,14 @@ def _projection_plan(
             ),
         )
     )
-    return build_projection_plan(direct_abi, records, field_order=field_order)
+    return build_projection_plan(
+        direct_abi,
+        records,
+        field_order=field_order,
+        canonical_byte_enables=tuple(
+            sorted(canonical_byte_enables, key=lambda item: (item.binding_id, item.field_id))
+        ),
+    )
 
 
 @dataclass(frozen=True, slots=True)

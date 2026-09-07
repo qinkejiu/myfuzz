@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+CapabilityLimitValue = bool | int | str | tuple[int, ...] | tuple[str, ...]
+
+
 class ProtocolDefinitionError(ValueError):
     """Raised when a protocol declaration is inconsistent."""
 
@@ -60,7 +63,7 @@ class ProtocolPlugin:
     projection_actions: tuple[ProjectionActionSpec, ...] = ()
     temporal_rules: tuple[TemporalRuleSpec, ...] = ()
     channel_relations: tuple[ChannelRelationSpec, ...] = ()
-    capability_limits: tuple[tuple[str, bool | int | str], ...] = ()
+    capability_limits: tuple[tuple[str, CapabilityLimitValue], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

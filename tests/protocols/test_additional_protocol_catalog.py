@@ -240,6 +240,125 @@ class AdditionalProtocolCatalogTest(unittest.TestCase):
         self.assertEqual(driven[destination_for["arid"]], 0)
         self.assertEqual(driven[destination_for["wlast"]], 1)
 
+    def test_catalog_rejects_duplicate_json_keys_and_invalid_known_capabilities(self) -> None:
+        document = {
+            "protocol_id": "example",
+            "version": "1",
+            "legal_adapters": [],
+            "fields": [
+                {
+                    "field_id": "request",
+                    "direction": "host_to_device",
+                    "width": "8",
+                    "required": True,
+                    "reset_value": 0,
+                }
+            ],
+            "capability_limits": {
+                "max_wait_cycles": 1,
+                "byte_enable": False,
+                "partial_write": False,
+                "supported_burst_lengths": [0],
+                "supported_id_values": [0],
+                "ordering": "in_order_single_id",
+            },
+        }
+        invalid_limits = (
+            {**document["capability_limits"], "max_wait_cycles": 0},
+            {**document["capability_limits"], "byte_enable": 1},
+            {**document["capability_limits"], "supported_burst_lengths": [0, 0]},
+            {**document["capability_limits"], "supported_id_values": [1, 0]},
+            {**document["capability_limits"], "ordering": "unordered"},
+            {**document["capability_limits"], "future_feature": ["unsafe"]},
+        )
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            source = directory / "example.json"
+            source.write_text(json.dumps(document), encoding="utf-8")
+            self.assertEqual(
+                (0,),
+                dict(load_protocol_catalog(directory).require("example", "1").capability_limits)[
+                    "supported_burst_lengths"
+                ],
+            )
+            source.write_text(
+                json.dumps(document).replace(
+                    '"protocol_id": "example"',
+                    '"protocol_id": "example", "protocol_id": "other"',
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaises(ProtocolDefinitionError):
+                load_protocol_catalog(directory)
+            for capability_limits in invalid_limits:
+                with self.subTest(capability_limits=capability_limits):
+                    source.write_text(
+                        json.dumps({**document, "capability_limits": capability_limits}),
+                        encoding="utf-8",
+                    )
+                    with self.assertRaises(ProtocolDefinitionError):
+                        load_protocol_catalog(directory)
+
+    def test_partial_write_profiles_emit_fixed_full_byte_enable_constraints(self) -> None:
+        catalog = load_protocol_catalog(PLUGIN_DIR)
+        for protocol_id, version, data_field_id in (("apb", "3", "pwdata"), ("obi", "1", "wdata")):
+            with self.subTest(protocol=f"{protocol_id}@{version}"):
+                plugin = catalog.require(protocol_id, version)
+                fields = plugin.fields
+                widths = {
+                    field.field_id: 32
+                    if field.width_expression in {"address_width", "data_width"}
+                    else int(field.width_expression)
+                    for field in fields
+                }
+                input_fields = tuple(
+                    field for field in fields if field.direction == "host_to_device"
+                )
+                destinations = tuple(
+                    RawDestination(index, None, fields.index(field) + 1, widths[field.field_id])
+                    for index, field in enumerate(input_fields)
+                )
+                raw_abi = RawBitAbi(
+                    sum(destination.width for destination in destinations),
+                    destinations,
+                    tuple(
+                        RawBitUse(
+                            sum(previous.width for previous in destinations[:index]),
+                            sum(previous.width for previous in destinations[: index + 1]) - 1,
+                            destination.destination_id,
+                            0,
+                            "direct",
+                            "direct",
+                        )
+                        for index, destination in enumerate(destinations)
+                    ),
+                    content_hash({"fixture": f"{protocol_id}-partial-write"}),
+                )
+                ports = {field.field_id: str(index + 1) for index, field in enumerate(fields)}
+                compiled = compile_protocol(
+                    {
+                        "binding_id": f"{protocol_id}-binding",
+                        "protocol_id": protocol_id,
+                        "version": version,
+                        "ports": ports,
+                        "parameters": {"address_width": 32, "data_width": 32},
+                    },
+                    {"port_widths": {ports[field.field_id]: widths[field.field_id] for field in fields}},
+                    catalog,
+                    require_runtime=True,
+                )
+                graph = to_csr(build_static_graph({}, (compiled,)))
+
+                plan = _projection_plan(raw_abi, (compiled,), {protocol_id: plugin}, graph, None)
+
+                constraint = next(
+                    item for item in plan.canonical_byte_enables if item.field_id == data_field_id
+                )
+                self.assertEqual(4, constraint.width)
+                self.assertEqual(0b1111, constraint.value)
+
     def test_catalog_rejects_dangling_references_duplicate_fields_and_invalid_widths(self) -> None:
         document = {
             "protocol_id": "example",
@@ -284,6 +403,12 @@ class AdditionalProtocolCatalogTest(unittest.TestCase):
             "dangling_action": {**document, "projection_actions": [{**document["projection_actions"][0], "field_ids": ["missing"]}]},
             "dangling_rule": {**document, "temporal_rules": [{**document["temporal_rules"][0], "consequent_field_id": "missing"}]},
             "duplicate_field": {**document, "fields": [*document["fields"], document["fields"][0]]},
+            "duplicate_projection_action_field": {
+                **document,
+                "projection_actions": [
+                    {**document["projection_actions"][0], "field_ids": ["request", "request"]}
+                ],
+            },
             "invalid_width": {**document, "fields": [{**document["fields"][0], "width": "address_width +"}, document["fields"][1]]},
             "zero_divisor": {**document, "fields": [{**document["fields"][0], "width": "address_width / 0"}, document["fields"][1]]},
             "dangling_channel_relation": {

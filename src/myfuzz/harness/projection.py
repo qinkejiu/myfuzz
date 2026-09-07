@@ -55,6 +55,16 @@ class ProjectionAction:
 
 
 @dataclass(frozen=True, slots=True)
+class CanonicalByteEnable:
+    """A fixed full-byte-enable canonical request constraint."""
+
+    binding_id: str
+    field_id: str
+    width: int
+    value: int
+
+
+@dataclass(frozen=True, slots=True)
 class ProjectionState:
     value: int
     width: int
@@ -72,6 +82,7 @@ class ProjectionPlan:
     max_state_bits: int
     max_temporal_cycles: int
     plan_hash: str
+    canonical_byte_enables: tuple[CanonicalByteEnable, ...] = ()
 
     def __post_init__(self) -> None:
         self.raw_abi.validate_total_use()
@@ -100,6 +111,14 @@ class ProjectionPlan:
                 raise ValueError("projection action state exceeds max_state_bits")
             if action.kind in _TEMPORAL_KINDS and action.max_cycles is None:
                 raise ValueError("temporal projection action requires finite max_cycles")
+        constraints = {(item.binding_id, item.field_id) for item in self.canonical_byte_enables}
+        if len(constraints) != len(self.canonical_byte_enables):
+            raise ValueError("canonical byte-enable constraints must be unique per binding field")
+        for item in self.canonical_byte_enables:
+            if not item.binding_id or not item.field_id or item.width < 1:
+                raise ValueError("canonical byte-enable constraint is invalid")
+            if item.value != (1 << item.width) - 1:
+                raise ValueError("canonical byte-enable constraint must force every byte enabled")
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,6 +221,7 @@ def build_projection_plan(
     *,
     field_order: tuple[int, ...] | None = None,
     max_state_bits: int = _MAX_STATE_BITS,
+    canonical_byte_enables: Sequence[CanonicalByteEnable] = (),
 ) -> ProjectionPlan:
     """Compile explicit action records into fixed state slices and a derived ABI."""
     if not isinstance(raw_abi, RawBitAbi):
@@ -305,6 +325,9 @@ def build_projection_plan(
         (action.max_cycles or 0 for action in frozen_actions),
         default=0,
     )
+    constraints = tuple(canonical_byte_enables)
+    if any(not isinstance(item, CanonicalByteEnable) for item in constraints):
+        raise ValueError("canonical byte-enable constraints must be CanonicalByteEnable records")
     document = {
         "raw_abi_hash": projected_abi.abi_hash,
         "field_order": list(order),
@@ -312,6 +335,16 @@ def build_projection_plan(
         "max_state_bits": used_state_bits,
         "max_temporal_cycles": max_temporal_cycles,
     }
+    if constraints:
+        document["canonical_byte_enables"] = [
+            {
+                "binding_id": item.binding_id,
+                "field_id": item.field_id,
+                "width": item.width,
+                "value": item.value,
+            }
+            for item in constraints
+        ]
     return ProjectionPlan(
         projected_abi,
         order,
@@ -319,6 +352,7 @@ def build_projection_plan(
         used_state_bits,
         max_temporal_cycles,
         content_hash(document),
+        constraints,
     )
 
 
@@ -493,6 +527,7 @@ def project_sample(
 
 __all__ = [
     "ProjectionAction",
+    "CanonicalByteEnable",
     "ProjectionPlan",
     "ProjectionResult",
     "ProjectionState",

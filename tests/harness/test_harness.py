@@ -6,7 +6,7 @@ import unittest
 from myfuzz.harness import HarnessArtifact, build_harness, coverage_universe, raw_width
 from myfuzz.harness.abi import build_raw_abi
 from myfuzz.harness.depaware import build_depaware
-from myfuzz.harness.projection import build_projection_plan
+from myfuzz.harness.projection import CanonicalByteEnable, build_projection_plan
 
 
 def manifest() -> dict[str, object]:
@@ -115,6 +115,39 @@ class HarnessTest(unittest.TestCase):
         self.assertIn(">> 4", artifact.source_text)
         self.assertIn("<= 1", artifact.source_text)
         self.assertNotIn("timeout_count <= timeout_count + 1'b1;", artifact.source_text)
+
+    def test_depaware_sv_emits_constant_action_without_a_raw_input_expression(self) -> None:
+        document = manifest()
+        plan = build_projection_plan(
+            build_raw_abi(document),
+            (
+                {
+                    "action_id": 1,
+                    "destination_id": 20,
+                    "kind": "constant",
+                    "category": "protocol_legality",
+                    "constant_value": 9,
+                },
+            ),
+        )
+
+        artifact = build_depaware(document, plan)
+
+        self.assertIn("assign port_20 = 4'h9;", artifact.source_text)
+        self.assertNotIn("assign port_20 = rfuzz_input_bits[11:8];", artifact.source_text)
+
+    def test_depaware_sv_emits_full_byte_enable_without_a_raw_byte_enable_input(self) -> None:
+        document = manifest()
+        plan = build_projection_plan(
+            build_raw_abi(document),
+            (),
+            canonical_byte_enables=(CanonicalByteEnable("apb3-binding", "pwdata", 4, 0b1111),),
+        )
+
+        artifact = build_depaware(document, plan)
+
+        self.assertIn("assign canonical_byte_enable_0 = 4'd15;", artifact.source_text)
+        self.assertNotIn("canonical_byte_enable_0 = rfuzz_input_bits", artifact.source_text)
 
     def test_rejects_unknown_mode_and_structural_manifest_errors(self) -> None:
         with self.assertRaises(ValueError):
