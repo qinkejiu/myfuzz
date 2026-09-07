@@ -62,6 +62,15 @@ from .protocol_manifest import (
     load_protocol_composition,
     validate_protocol_composition,
 )
+from .processor_boundary import (
+    PackedInputContainer,
+    ProcessorBoundary,
+    ProcessorBoundaryError,
+    ProcessorControlBinding,
+    ProcessorMemoryBinding,
+    build_processor_boundary,
+    processor_boundary_document,
+)
 from .registry import ComponentRegistration, ComponentRegistry, default_component_registry
 from .search import CompositionCandidate, compose_topk
 
@@ -104,8 +113,14 @@ __all__ = [
     "ComponentRegistry",
     "ProtocolCompositionError",
     "ProtocolCompositionManifest",
+    "PackedInputContainer",
+    "ProcessorBoundary",
+    "ProcessorBoundaryError",
+    "ProcessorControlBinding",
+    "ProcessorMemoryBinding",
     "candidate_manifest",
     "build_input_layout",
+    "build_processor_boundary",
     "annotate_interfaces",
     "canonical_id",
     "compose_topk",
@@ -122,6 +137,7 @@ __all__ = [
     "normalize_facts",
     "plan_auto_composition",
     "plan_generic_composition",
+    "processor_boundary_document",
     "source_tree_hash",
     "validate_protocol_composition",
     "validate_protocol_fingerprint",

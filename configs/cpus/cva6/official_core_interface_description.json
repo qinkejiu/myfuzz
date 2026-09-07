@@ -1,0 +1,110 @@
+{
+  "schema_version": "interface_description.v1",
+  "source": {
+    "root": "third_party/cva6_upstream_reference",
+    "revision": "git:2e1336dcff3d1a0b49fbe6282b97802f32ea32af",
+    "top_module": "cva6",
+    "filelist": "core/Flist.cva6",
+    "filelist_variables": [
+      {"name": "CVA6_REPO_DIR", "value": "."},
+      {"name": "HPDCACHE_DIR", "value": "core/cache_subsystem/hpdcache"},
+      {"name": "TARGET_CFG", "value": "cv64a6_imafdc_sv39"}
+    ],
+    "repositories": [
+      {"path": "core/cache_subsystem/hpdcache", "revision": "git:f404e7ebbda8baa4af3729535f520a6b12a06d03"},
+      {"path": "core/cvfpu", "revision": "git:3eb6afeab2cb33f7d8689222955d0171aeb3a801"},
+      {"path": "core/cvfpu/src/fpu_div_sqrt_mvp", "revision": "git:86e1f558b3c95e91577c41b2fc452c86b04e85ac"}
+    ],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "endpoints": [
+    {
+      "endpoint_id": "processor.memory.unified",
+      "function": "memory_master",
+      "protocol": ["axi4", "1"],
+      "fields": [
+        {"role": "awid", "physical": {"port": "noc_req_o", "member_path": ["aw", "id"]}},
+        {"role": "awaddr", "physical": {"port": "noc_req_o", "member_path": ["aw", "addr"]}},
+        {"role": "awlen", "physical": {"port": "noc_req_o", "member_path": ["aw", "len"]}},
+        {"role": "awsize", "physical": {"port": "noc_req_o", "member_path": ["aw", "size"]}},
+        {"role": "awburst", "physical": {"port": "noc_req_o", "member_path": ["aw", "burst"]}},
+        {"role": "awlock", "physical": {"port": "noc_req_o", "member_path": ["aw", "lock"]}},
+        {"role": "awcache", "physical": {"port": "noc_req_o", "member_path": ["aw", "cache"]}},
+        {"role": "awprot", "physical": {"port": "noc_req_o", "member_path": ["aw", "prot"]}},
+        {"role": "awqos", "physical": {"port": "noc_req_o", "member_path": ["aw", "qos"]}},
+        {"role": "awregion", "physical": {"port": "noc_req_o", "member_path": ["aw", "region"]}},
+        {"role": "awatop", "physical": {"port": "noc_req_o", "member_path": ["aw", "atop"]}},
+        {"role": "awuser", "physical": {"port": "noc_req_o", "member_path": ["aw", "user"]}},
+        {"role": "awvalid", "physical": {"port": "noc_req_o", "member_path": ["aw_valid"]}},
+        {"role": "wdata", "physical": {"port": "noc_req_o", "member_path": ["w", "data"]}},
+        {"role": "wstrb", "physical": {"port": "noc_req_o", "member_path": ["w", "strb"]}},
+        {"role": "wlast", "physical": {"port": "noc_req_o", "member_path": ["w", "last"]}},
+        {"role": "wuser", "physical": {"port": "noc_req_o", "member_path": ["w", "user"]}},
+        {"role": "wvalid", "physical": {"port": "noc_req_o", "member_path": ["w_valid"]}},
+        {"role": "bready", "physical": {"port": "noc_req_o", "member_path": ["b_ready"]}},
+        {"role": "arid", "physical": {"port": "noc_req_o", "member_path": ["ar", "id"]}},
+        {"role": "araddr", "physical": {"port": "noc_req_o", "member_path": ["ar", "addr"]}},
+        {"role": "arlen", "physical": {"port": "noc_req_o", "member_path": ["ar", "len"]}},
+        {"role": "arsize", "physical": {"port": "noc_req_o", "member_path": ["ar", "size"]}},
+        {"role": "arburst", "physical": {"port": "noc_req_o", "member_path": ["ar", "burst"]}},
+        {"role": "arlock", "physical": {"port": "noc_req_o", "member_path": ["ar", "lock"]}},
+        {"role": "arcache", "physical": {"port": "noc_req_o", "member_path": ["ar", "cache"]}},
+        {"role": "arprot", "physical": {"port": "noc_req_o", "member_path": ["ar", "prot"]}},
+        {"role": "arqos", "physical": {"port": "noc_req_o", "member_path": ["ar", "qos"]}},
+        {"role": "arregion", "physical": {"port": "noc_req_o", "member_path": ["ar", "region"]}},
+        {"role": "aruser", "physical": {"port": "noc_req_o", "member_path": ["ar", "user"]}},
+        {"role": "arvalid", "physical": {"port": "noc_req_o", "member_path": ["ar_valid"]}},
+        {"role": "rready", "physical": {"port": "noc_req_o", "member_path": ["r_ready"]}},
+
+        {"role": "awready", "physical": {"port": "noc_resp_i", "member_path": ["aw_ready"]}},
+        {"role": "arready", "physical": {"port": "noc_resp_i", "member_path": ["ar_ready"]}},
+        {"role": "wready", "physical": {"port": "noc_resp_i", "member_path": ["w_ready"]}},
+        {"role": "bvalid", "physical": {"port": "noc_resp_i", "member_path": ["b_valid"]}},
+        {"role": "bid", "physical": {"port": "noc_resp_i", "member_path": ["b", "id"]}},
+        {"role": "bresp", "physical": {"port": "noc_resp_i", "member_path": ["b", "resp"]}},
+        {"role": "buser", "physical": {"port": "noc_resp_i", "member_path": ["b", "user"]}},
+        {"role": "rvalid", "physical": {"port": "noc_resp_i", "member_path": ["r_valid"]}},
+        {"role": "rid", "physical": {"port": "noc_resp_i", "member_path": ["r", "id"]}},
+        {"role": "rdata", "physical": {"port": "noc_resp_i", "member_path": ["r", "data"]}},
+        {"role": "rresp", "physical": {"port": "noc_resp_i", "member_path": ["r", "resp"]}},
+        {"role": "rlast", "physical": {"port": "noc_resp_i", "member_path": ["r", "last"]}},
+        {"role": "ruser", "physical": {"port": "noc_resp_i", "member_path": ["r", "user"]}}
+      ]
+    },
+    {
+      "endpoint_id": "processor.clock",
+      "function": "clock",
+      "fields": [{"role": "clock", "aliases": ["clk_i"]}]
+    },
+    {
+      "endpoint_id": "processor.reset",
+      "function": "reset",
+      "fields": [{"role": "reset", "aliases": ["rst_ni"]}]
+    },
+    {
+      "endpoint_id": "processor.boot",
+      "function": "boot_control",
+      "fields": [
+        {"role": "boot_address", "aliases": ["boot_addr_i"]},
+        {"role": "hart_id", "aliases": ["hart_id_i"]}
+      ]
+    },
+    {
+      "endpoint_id": "processor.interrupts",
+      "function": "interrupt_sink",
+      "fields": [
+        {"role": "external_interrupt", "aliases": ["irq_i"]},
+        {"role": "software_interrupt", "aliases": ["ipi_i"]},
+        {"role": "timer_interrupt", "aliases": ["time_irq_i"]}
+      ]
+    },
+    {
+      "endpoint_id": "processor.debug",
+      "function": "debug_transport",
+      "fields": [{"role": "request", "aliases": ["debug_req_i"]}]
+    }
+  ]
+}

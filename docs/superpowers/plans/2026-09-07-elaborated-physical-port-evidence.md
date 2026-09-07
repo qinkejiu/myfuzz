@@ -294,10 +294,58 @@ SourceCrawler run verifies 317 closure files across four repositories, retains
 207 modules and 865 supported source-only port facts, and adds all 13 actual
 compiler-proven `cva6` top ports with the stable 464-warning class summary.
 
-### Task 8: Explicit full-AXI semantics and runtime projection
+### Task 8: Protocol-neutral processor test boundary and runtime projection
 
-Annotate compiler-proven CVA6 packed members with explicit protocol roles and
-extend composition only for the full AXI channels required by the selected
-configuration. Separately extend RFuzz runtime projection for external packed
-input containers. Require complete input coverage, exact member offsets and a
-real compiled connected harness before claiming the CVA6 integration gate.
+Ibex, CVA6 and BOOM are test inputs for one generic RISC-V processor path; they
+must not select generator behavior by CPU name.  Normalize only the execution
+facts shared by processor tests: clock/reset, optional boot address and hart
+ID, interrupt inputs, and one or more instruction/data memory-master endpoints.
+Each memory endpoint keeps its declared bus protocol, but composition consumes
+one protocol-neutral request/response backend contract.  Protocol adapters are
+selected from declared endpoint protocol and capability evidence.
+
+#### Task 8a: Generic processor boundary and real packed-member annotation
+
+Define and validate the protocol-neutral processor boundary independently of
+HDL port spellings and CPU identity.  It must require exactly one clock and one
+reset, at least one declared memory-master endpoint, and explicit source-backed
+field facts.  Boot address, hart ID, interrupts and debug request are optional
+capabilities.  Split instruction/data masters and unified masters are both
+valid.  Reject ambiguous duplicate control functions, target-oriented memory
+endpoints, unknown protocols, and missing required protocol fields.
+
+Use the fixed CVA6 source only as a regression sample.  Bind every member of
+`noc_req_o` and `noc_resp_i` by compiler-proven path and offset.  AXI fields
+needed for generic reads/writes retain their standard roles; cache, protection,
+QoS, region, user and ATOP members remain explicit pass-through/unsupported
+capabilities rather than becoming processor-specific behavior.  Prove complete
+coverage of the packed response input and retain the exact source identity and
+warning summary.  Add a renamed synthetic processor fixture to prove the path
+does not dispatch on `ibex`, `cva6` or `boom`.
+
+Completed and independently reviewed.  The real-source regression verifies
+the fixed source identity, 464-warning summary, all 45 memory members, 16
+explicit extension fields and complete 210-bit packed response input.  The
+boundary builder contains no CPU-name dispatch and does not claim execution.
+
+#### Task 8b: Generic memory backend adapters
+
+Implement adapters from declared OBI, AXI4 and TileLink endpoint capabilities
+to a common beat-oriented memory backend.  The first executable subset may
+serialize requests, but it must preserve legal backpressure, response/error,
+byte-enable and transaction identity needed by the accepted request.  Any
+unsupported burst form, atomic operation, coherence message, ordering mode or
+width conversion fails during composition or receives the protocol-defined
+error response; it must never be silently dropped or rewritten.  Tests cover
+renamed initiators, independent AXI AW/W arrival, response stalls, IDs, INCR
+bursts used by ordinary instruction/data traffic, reset and timeout.
+
+#### Task 8c: Packed RFuzz runtime projection and connected acceptance
+
+Extend RFuzz runtime projection for external packed input containers using the
+canonical IR member ranges.  Require complete non-overlapping input coverage,
+stable bit ordering, and reconstruction equality between projected bits and
+the rendered container.  Compile and simulate a connected generic processor
+fixture before trying each real CPU source.  A real CPU integration gate also
+requires boot code, observed instruction/data progress and completion through
+the common backend; elaboration or wrapper compilation alone is insufficient.
