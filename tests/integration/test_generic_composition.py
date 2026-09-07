@@ -23,6 +23,85 @@ from tests.composition.test_generic_auto import GenericAutoCompositionTests, syn
 
 
 class GenericCompositionIntegrationTests(unittest.TestCase):
+    def test_stage_publish_error_leaves_no_output_or_hidden_transaction_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            description = synthetic_description(root, "stage_failure_cpu", ("clk", "rst", "fuzz", "seen"))
+            plan = plan_generic_composition(GenericCompositionRequest(description, ()), base_dir=root)
+            output = root / "out"
+
+            with patch.object(protocol_composer.os, "replace", side_effect=OSError("injected stage publish failure")), \
+                 patch.object(protocol_composer.os, "rename", side_effect=OSError("rename must not run")), \
+                 patch.object(protocol_composer.shutil, "rmtree", side_effect=OSError("rmtree must not run")):
+                with self.assertRaisesRegex(OSError, "injected stage publish failure"):
+                    write_generic_composition(plan, output, base_dir=root)
+
+            self.assertFalse(output.exists())
+            self.assertFalse(any(path.name.startswith(".out.") for path in root.iterdir()))
+
+    def test_writer_rejects_existing_output_directory_before_any_rollback_risk(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            description = synthetic_description(root, "published_directory_cpu", ("clk", "rst", "fuzz", "seen"))
+            plan = plan_generic_composition(GenericCompositionRequest(description, ()), base_dir=root)
+            output = root / "out"
+            output.mkdir()
+            (output / "old.txt").write_bytes(b"old output must survive")
+            before = {path.relative_to(output): path.read_bytes() for path in output.rglob("*") if path.is_file()}
+
+            with patch.object(protocol_composer.os, "replace", side_effect=OSError("replace must not run")), \
+                 patch.object(protocol_composer.os, "rename", side_effect=OSError("rename must not run")), \
+                 patch.object(protocol_composer.shutil, "rmtree", side_effect=OSError("rmtree must not run")):
+                with self.assertRaisesRegex(ValueError, "existing output"):
+                    write_generic_composition(plan, output, base_dir=root)
+
+            self.assertTrue(output.is_dir())
+            self.assertEqual(before, {path.relative_to(output): path.read_bytes() for path in output.rglob("*") if path.is_file()})
+            self.assertFalse(any(path.name.startswith(".out.") for path in root.iterdir()))
+
+    def test_filelist_expansion_emits_hdl_and_filelist_include_roots(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            hdl = source / "rtl" / "filelist_cpu.sv"
+            include = source / "includes"
+            hdl.parent.mkdir(parents=True)
+            include.mkdir()
+            (include / "defs.svh").write_text("`define FILELIST_VALUE 1\n", encoding="utf-8")
+            hdl.write_text(
+                "module filelist_cpu(input logic clk, input logic rst, input logic [7:0] fuzz, output logic [15:0] seen); "
+                "assign seen = {fuzz, fuzz}; endmodule\n", encoding="utf-8"
+            )
+            filelist = source / "sources.f"
+            filelist.write_text("+incdir+includes\nrtl/filelist_cpu.sv\n", encoding="utf-8")
+            description = load_interface_description({
+                "schema_version": "interface_description.v1",
+                "source": {"root": "source", "revision": source_tree_hash(source, (filelist, hdl)),
+                           "top_module": "filelist_cpu", "filelist": "sources.f"},
+                "endpoints": [{"endpoint_id": "cpu.control", "function": "control", "module": "filelist_cpu",
+                               "fields": [{"role": role, "aliases": [port]} for role, port in
+                                          (("clock", "clk"), ("reset", "rst"), ("stimulus", "fuzz"), ("observation", "seen"))]}],
+            })
+            plan = plan_generic_composition(GenericCompositionRequest(description, ()), base_dir=root)
+            self.assertEqual(plan.source_files, ("source/rtl/filelist_cpu.sv",))
+            output = root / "out"
+            write_generic_composition(plan, output, base_dir=root)
+
+            self.assertEqual(
+                (output / "sources.f").read_text(encoding="utf-8"),
+                "+incdir+../source/includes\n../source/rtl/filelist_cpu.sv\ngeneric_composition_top.sv\n",
+            )
+
+    def test_timeout_uses_minimum_of_projection_and_capability_bounds(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plan, _ = self._bounded_component_plan(root, "short_timeout_cpu", projection_cycles=2, max_wait_cycles=5)
+            write_generic_composition(plan, root / "out", base_dir=root)
+            adapter = plan.ir["adapters"][0]
+            self.assertEqual(adapter["max_wait_cycles"], 2)
+            top = (root / "out" / "generic_composition_top.sv").read_text(encoding="utf-8")
+            self.assertIn("localparam int unsigned MAX_WAIT_CYCLES = 2;", top)
+
     def test_writer_rejects_existing_output_file_without_mutating_it(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -31,7 +110,7 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
             output = root / "out"
             output.write_bytes(b"existing file must survive")
 
-            with self.assertRaisesRegex(ValueError, "existing output is not a directory"):
+            with self.assertRaisesRegex(ValueError, "existing output"):
                 write_generic_composition(plan, output, base_dir=root)
 
             self.assertTrue(output.is_file())
@@ -97,7 +176,8 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
                 FieldSpec("irq", "device_to_host", "1", False, 0),
             ), (), (ProjectionActionSpec(1, ("valid",), "gate", "protocol_legality", 16),), (),
                (ChannelRelationSpec(1, "request_response_handshake", ("valid", "ready", "rdata")),),
-               (("max_outstanding", 1), ("bursts", False), ("ids", False))),))
+               (("max_outstanding", 1), ("bursts", False), ("ids", False), ("single_beat_only", True),
+                ("ordering", "in_order_single_id"), ("completion", "ack_or_err"), ("max_wait_cycles", 16))),))
             description = load_interface_description({
                 "schema_version": "interface_description.v1",
                 "source": {"root": "source", "revision": source_tree_hash(root / "source", (cpu,)),
@@ -232,17 +312,13 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
             replacement = plan_generic_composition(GenericCompositionRequest(description, (), seed=8), base_dir=root)
             write_generic_composition(original, output, base_dir=root)
             before = {path.relative_to(output): path.read_bytes() for path in output.rglob("*") if path.is_file()}
-            original_replace = protocol_composer.os.replace
-
-            def fail_stage_publish(source, destination):
-                if Path(source).name.startswith(".out.generic-") and Path(destination) == output:
-                    raise OSError("injected publish failure")
-                return original_replace(source, destination)
-
-            with patch.object(protocol_composer.os, "replace", side_effect=fail_stage_publish):
-                with self.assertRaisesRegex(OSError, "injected publish failure"):
+            with patch.object(protocol_composer.os, "replace", side_effect=OSError("replace must not run")), \
+                 patch.object(protocol_composer.os, "rename", side_effect=OSError("rename must not run")), \
+                 patch.object(protocol_composer.shutil, "rmtree", side_effect=OSError("rmtree must not run")):
+                with self.assertRaisesRegex(ValueError, "existing output"):
                     write_generic_composition(replacement, output, base_dir=root)
             self.assertEqual(before, {path.relative_to(output): path.read_bytes() for path in output.rglob("*") if path.is_file()})
+            self.assertFalse(any(path.name.startswith(".out.") for path in root.iterdir()))
     def test_writer_publishes_deterministic_ir_layout_top_and_source_list(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -367,7 +443,7 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, 2)
 
     @staticmethod
-    def _bounded_component_plan(root: Path, module: str):
+    def _bounded_component_plan(root: Path, module: str, *, projection_cycles: int = 16, max_wait_cycles: int = 16):
         cpu = root / "source" / "rtl" / f"{module}.sv"
         cpu.parent.mkdir(parents=True)
         cpu.write_text(
@@ -395,9 +471,10 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
             FieldSpec("wdata", "host_to_device", "data_width", True, 0),
             FieldSpec("rdata", "device_to_host", "data_width", True, 0),
             FieldSpec("error", "device_to_host", "1", True, 0),
-        ), (), (ProjectionActionSpec(1, ("valid",), "gate", "protocol_legality", 16),), (),
+        ), (), (ProjectionActionSpec(1, ("valid",), "gate", "protocol_legality", projection_cycles),), (),
            (ChannelRelationSpec(1, "request_response_handshake", ("valid", "ready", "rdata")),),
-           (("max_outstanding", 1), ("bursts", False), ("ids", False))),))
+           (("max_outstanding", 1), ("bursts", False), ("ids", False), ("single_beat_only", True),
+            ("ordering", "in_order_single_id"), ("completion", "ack_or_err"), ("max_wait_cycles", max_wait_cycles))),))
         description = load_interface_description({
             "schema_version": "interface_description.v1",
             "source": {"root": "source", "revision": source_tree_hash(root / "source", (cpu,)),

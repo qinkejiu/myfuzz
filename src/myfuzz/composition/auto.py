@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import ast
 import os
+import re
+import shlex
 import tempfile
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from types import MappingProxyType
 
@@ -21,6 +23,7 @@ from myfuzz.isa.constraints import IsaContract
 from myfuzz.isa import CpuCatalog, CpuDefinitionError, CpuProfile, load_builtin_cpu_catalog
 from myfuzz.protocols.catalog import ProtocolCatalog
 from myfuzz.protocols.model import CompiledField, CompiledProtocol
+from myfuzz.scripts.source_only_frontend import HDL_SUFFIXES
 
 from .endpoint_capabilities import (
     EndpointCapability,
@@ -134,6 +137,7 @@ class GenericCompositionPlan:
     interface_annotation_hash: str
     composition_ir_hash: str
     source_files: tuple[str, ...]
+    source_include_roots: tuple[str, ...]
     source_evidence_hash: str
     request: GenericCompositionRequest
     component_catalog: ComponentCatalog
@@ -147,6 +151,7 @@ class GenericCompositionPlan:
         object.__setattr__(self, "diagnostics", tuple(self.diagnostics))
         object.__setattr__(self, "ir", _freeze_nested(self.ir))
         object.__setattr__(self, "source_files", tuple(self.source_files))
+        object.__setattr__(self, "source_include_roots", tuple(self.source_include_roots))
 
 
 def _freeze_nested(value: object) -> object:
@@ -897,6 +902,60 @@ def _generic_source_path(base_dir: Path, source_path: str) -> Path:
     return candidate
 
 
+def _generic_source_include_roots(root: Path, locator: SourceLocator) -> tuple[str, ...]:
+    """Preserve explicit and filelist include directories in generated filelists."""
+    source_root = (root.resolve() / locator.source_root).resolve()
+    try:
+        source_root.relative_to(root.resolve())
+    except ValueError as error:
+        raise AutoCompositionError("generic:source-root:outside-base") from error
+    if not source_root.is_dir() or source_root.is_symlink():
+        raise AutoCompositionError("generic:source-root:invalid")
+    includes: set[Path] = set()
+
+    def child(parent: Path, raw: str) -> Path:
+        raw_path = Path(raw)
+        if not raw or "\\" in raw or raw_path.is_absolute() or ".." in raw_path.parts:
+            raise AutoCompositionError("generic:source-list:unsafe-path")
+        candidate = (parent / raw_path).resolve()
+        try:
+            candidate.relative_to(source_root)
+        except ValueError as error:
+            raise AutoCompositionError("generic:source-list:unsafe-path") from error
+        return candidate
+
+    def add_include(parent: Path, raw: str) -> None:
+        directory = child(parent, raw)
+        if not directory.is_dir() or directory.is_symlink():
+            raise AutoCompositionError("generic:source-list:include-root-invalid")
+        includes.add(directory)
+
+    def expand(path: Path, seen: set[Path]) -> None:
+        if path in seen:
+            return
+        if not path.is_file() or path.is_symlink():
+            raise AutoCompositionError("generic:source-list:filelist-missing")
+        seen.add(path)
+        try:
+            tokens = iter(shlex.split(path.read_text(encoding="utf-8"), comments=True))
+            for item in tokens:
+                if item in ("-f", "-F"):
+                    expand(child(path.parent if item == "-f" else source_root, next(tokens)), seen)
+                elif item.startswith("+incdir+"):
+                    for raw in item[len("+incdir+"):].split("+"):
+                        add_include(path.parent, raw)
+                elif item == "-I" or item.startswith("-I"):
+                    add_include(path.parent, next(tokens) if item == "-I" else item[2:])
+        except (StopIteration, UnicodeDecodeError, ValueError) as error:
+            raise AutoCompositionError("generic:source-list:invalid-filelist") from error
+
+    for raw in locator.include_roots:
+        add_include(source_root, raw)
+    if locator.filelist is not None:
+        expand(child(source_root, locator.filelist), set())
+    return tuple(sorted(item.relative_to(root.resolve()).as_posix() for item in includes))
+
+
 def _generic_source_evidence_hash(
     base_dir: Path, source_files: tuple[str, ...], locator: SourceLocator,
 ) -> str:
@@ -908,14 +967,8 @@ def _generic_source_evidence_hash(
         source_root.relative_to(root)
     except ValueError as error:
         raise AutoCompositionError("generic:source-root:outside-base") from error
-    for include_root in locator.include_roots:
-        include = (source_root / include_root).resolve()
-        try:
-            include.relative_to(source_root)
-        except ValueError as error:
-            raise AutoCompositionError("generic:include-root:outside-source") from error
-        if not include.is_dir() or include.is_symlink():
-            raise AutoCompositionError("generic:include-root:invalid")
+    for include_root in _generic_source_include_roots(root, locator):
+        include = (root / include_root).resolve()
         for candidate in include.rglob("*"):
             if candidate.is_symlink():
                 raise AutoCompositionError("generic:include-root:symlink")
@@ -1044,11 +1097,79 @@ def _generic_target_capability(
         for observation in snapshot.timing
         if observation.module == profile.module_name
     )
-    return EndpointCapability(
+    capability = EndpointCapability(
         endpoint_id=f"component.{profile.component_type}", function="protocol_target",
         side="target", protocol=protocol, fields=tuple(fields), clock=controls["clock"],
         reset=controls["reset"], timing=timing, evidence=("component_profile", "component_hdl"),
     )
+    return capability
+
+
+def _generic_reset_contract(endpoint: EndpointCapability, root: Path) -> dict[str, str]:
+    """Prove reset polarity and synchrony from declared pins plus HDL conditionals.
+
+    An edge alone does not establish active polarity.  This deliberately
+    recognizes only simple source forms where event control and reset branch
+    agree, otherwise generic bridging is rejected before rendering.
+    """
+    fields = {field.role: field for field in endpoint.fields}
+    clock, reset = fields.get("clock"), fields.get("reset")
+    if (
+        clock is None or reset is None or endpoint.clock != clock.port or endpoint.reset != reset.port
+        or clock.direction != "input" or reset.direction != "input" or clock.width != 1 or reset.width != 1
+        or clock.source is None or reset.source is None
+    ):
+        raise AutoCompositionError(f"generic:endpoint:{endpoint.endpoint_id}:reset-semantics")
+    candidates: set[tuple[str, str]] = set()
+    source_files = {field.source.file for field in endpoint.fields if field.source is not None}
+    for source_file in source_files:
+        path = _generic_source_path(root, source_file)
+        text = path.read_text(encoding="utf-8")
+        event_re = re.compile(r"always(?:_ff)?\s*@\s*\(([^)]*)\)", re.S)
+        for event in event_re.finditer(text):
+            edges = re.findall(r"\b(posedge|negedge)\s+([A-Za-z_][A-Za-z0-9_$]*)", event.group(1))
+            if ("posedge", clock.port) not in edges:
+                continue
+            reset_edges = [edge for edge in edges if edge[1] == reset.port]
+            if len(reset_edges) > 1:
+                continue
+            body = text[event.end():event.end() + 512]
+            conditional = re.match(r"\s*(?:begin\s*)?if\s*\(([^)]*)\)", body, re.S)
+            if conditional is None:
+                continue
+            condition = re.sub(r"\s+", "", conditional.group(1))
+            low = {f"!{reset.port}", f"{reset.port}==1'b0", f"1'b0=={reset.port}", f"{reset.port}==1'b0"}
+            high = {reset.port, f"{reset.port}==1'b1", f"1'b1=={reset.port}"}
+            polarity = "active_low" if condition in low else "active_high" if condition in high else None
+            if polarity is None:
+                continue
+            if not reset_edges:
+                synchrony = "synchronous"
+            elif reset_edges[0][0] == ("negedge" if polarity == "active_low" else "posedge"):
+                synchrony = "asynchronous"
+            else:
+                continue
+            candidates.add((polarity, synchrony))
+    if len(candidates) != 1:
+        raise AutoCompositionError(f"generic:endpoint:{endpoint.endpoint_id}:reset-semantics")
+    polarity, synchrony = next(iter(candidates))
+    return {"polarity": polarity, "synchrony": synchrony}
+
+
+def _generic_with_reset_contract(endpoint: EndpointCapability, root: Path) -> EndpointCapability:
+    contract = _generic_reset_contract(endpoint, root)
+    marker = f"reset_contract:{contract['polarity']}:{contract['synchrony']}"
+    return replace(endpoint, evidence=tuple(sorted(set((*endpoint.evidence, marker)))))
+
+
+def _generic_endpoint_reset_contract(endpoint: EndpointCapability) -> dict[str, str]:
+    contracts = [item.split(":", 2) for item in endpoint.evidence if item.startswith("reset_contract:")]
+    if len(contracts) != 1 or len(contracts[0]) != 3:
+        raise AutoCompositionError(f"generic:endpoint:{endpoint.endpoint_id}:reset-semantics")
+    _, polarity, synchrony = contracts[0]
+    if polarity not in {"active_low", "active_high"} or synchrony not in {"synchronous", "asynchronous"}:
+        raise AutoCompositionError(f"generic:endpoint:{endpoint.endpoint_id}:reset-semantics")
+    return {"polarity": polarity, "synchrony": synchrony}
 
 
 def _generic_transport_capability(
@@ -1076,16 +1197,24 @@ def _generic_adapter_contract(
         action for action in plugin.projection_actions
         if action.kind == "gate" and action.category == "protocol_legality"
         and "valid" in action.field_ids and action.max_cycles is not None
-        and 1 <= action.max_cycles <= 16
+        and isinstance(action.max_cycles, int) and not isinstance(action.max_cycles, bool)
+        and 1 <= action.max_cycles <= 65_535
     ]
+    required_limits = {
+        "max_outstanding": 1,
+        "bursts": False,
+        "ids": False,
+        "single_beat_only": True,
+        "ordering": "in_order_single_id",
+        "completion": "ack_or_err",
+    }
+    max_wait = limits.get("max_wait_cycles")
     if (
         len(relations) != 1
         or relations[0].kind not in {"request_response_handshake", "single_channel_request_response"}
         or not {"valid", "ready"}.issubset(relations[0].field_ids)
-        or limits.get("max_outstanding") != 1
-        or limits.get("bursts", False) is not False
-        or limits.get("ids", False) is not False
-        or limits.get("single_beat_only", True) is not True
+        or any(name not in limits or limits[name] != value for name, value in required_limits.items())
+        or isinstance(max_wait, bool) or not isinstance(max_wait, int) or not 1 <= max_wait <= 65_535
         or len(gates) != 1
     ):
         raise AutoCompositionError(
@@ -1102,6 +1231,13 @@ def _generic_adapter_contract(
         raise AutoCompositionError(
             f"generic:adapter:{protocol[0]}@{protocol[1]}:single-address-contract"
         )
+    temporal_bounds = [int(gate.max_cycles) for gate in gates]
+    temporal_bounds.extend(
+        rule.max_cycles for rule in plugin.temporal_rules
+        if rule.antecedent_field_id == "valid" and rule.consequent_field_id == "ready"
+        and isinstance(rule.max_cycles, int) and not isinstance(rule.max_cycles, bool) and rule.max_cycles >= 1
+    )
+    bound = min(*temporal_bounds, max_wait)
     return {
         "mode": "single_target_single_channel",
         "request_field_id": "valid",
@@ -1110,22 +1246,13 @@ def _generic_adapter_contract(
         "address_field_id": address_ids[0],
         "request_fields": [field.field_id for field in plugin.fields if field.direction == "host_to_device"],
         "response_fields": [field.field_id for field in plugin.fields if field.direction == "device_to_host" and field.field_id != "irq"],
+        "max_wait_cycles": bound,
     }
 
 
-def _generic_async_active_low_reset(endpoint: EndpointCapability, *, clock: str, reset: str) -> bool:
-    """Return whether source evidence proves the sole reset form we render."""
-    reset_roles = {reset, *(field.role for field in endpoint.fields if field.port == reset)}
-    return any(
-        timing.kind == "reset_membership"
-        and timing.clock == clock
-        and bool(reset_roles.intersection(timing.fields))
-        for timing in endpoint.timing
-    )
-
-
 def _generic_control_binding(
-    source: EndpointCapability, target: EndpointCapability, component_type: str,
+    source: EndpointCapability, target: EndpointCapability, component_type: str, *,
+    source_root: Path, target_root: Path,
 ) -> dict[str, dict[str, object]]:
     source_fields = {field.role: field for field in source.fields}
     target_fields = {field.role: field for field in target.fields}
@@ -1148,18 +1275,13 @@ def _generic_control_binding(
         raise AutoCompositionError(
             f"generic:component:{component_type}:clock-semantics"
         )
-    if not (
-        _generic_async_active_low_reset(
-            source, clock=str(result["clock"]["source_port"]), reset=str(result["reset"]["source_port"])
-        )
-        and _generic_async_active_low_reset(
-            target, clock=str(result["clock"]["target_port"]), reset=str(result["reset"]["target_port"])
-        )
-    ):
+    source_contract = _generic_endpoint_reset_contract(_generic_with_reset_contract(source, source_root))
+    target_contract = _generic_endpoint_reset_contract(_generic_with_reset_contract(target, target_root))
+    if source_contract != target_contract:
         raise AutoCompositionError(
             f"generic:component:{component_type}:reset-semantics"
         )
-    result["reset_semantics"] = {"polarity": "active_low", "synchrony": "asynchronous"}
+    result["reset_semantics"] = source_contract
     return result
 
 
@@ -1284,6 +1406,7 @@ def plan_generic_composition(
         base_dir=root,
         protocol_catalog=selected_protocol_catalog,
     )
+    source_root = (root.resolve() / request.interface_description.source.source_root).resolve()
     capabilities = normalize_annotations(annotations, protocol_catalog=selected_protocol_catalog)
     if not capabilities:
         raise AutoCompositionError("generic:annotations:empty")
@@ -1294,6 +1417,7 @@ def plan_generic_composition(
         sorted(
             f"{source_prefix}/{source_file}" if source_prefix else source_file
             for source_file in annotations["source"]["files"]  # type: ignore[index]
+            if Path(str(source_file)).suffix in HDL_SUFFIXES
         )
     )
     for source_file in source_files:
@@ -1379,7 +1503,10 @@ def plan_generic_composition(
                 raise AutoCompositionError(
                     f"generic:adapter:single-target-source:{accepted[0].endpoint_id}"
                 )
-            control = _generic_control_binding(accepted[0], accepted[1], component_type)
+            control = _generic_control_binding(
+                accepted[0], accepted[1], component_type,
+                source_root=source_root, target_root=root,
+            )
             for discarded in accepted_candidates[1:]:
                 diagnostics.append(
                     f"rejected:{component_type}:{discarded[2][0]}@{discarded[2][1]}:lower-preference"
@@ -1454,7 +1581,9 @@ def plan_generic_composition(
          "component_id": item["component_id"], "protocol": [item["protocol"]["id"], item["protocol"]["version"]],
          "source_endpoint_id": item["selected_endpoint"],
          "target_endpoint_id": item["target_binding"]["endpoint_id"],
-         "max_wait_cycles": 16, "kind": "generic_protocol_bridge",
+         "max_wait_cycles": _generic_adapter_contract(
+             (item["protocol"]["id"], item["protocol"]["version"]), selected_protocol_catalog,
+         )["max_wait_cycles"], "kind": "generic_protocol_bridge",
          "contract": _generic_adapter_contract(
              (item["protocol"]["id"], item["protocol"]["version"]), selected_protocol_catalog,
          ),
@@ -1543,6 +1672,7 @@ def plan_generic_composition(
         interface_annotation_hash=annotation_hash,
         composition_ir_hash=canonical_ir_hash(ir),
         source_files=source_files,
+        source_include_roots=_generic_source_include_roots(root, request.interface_description.source),
         source_evidence_hash=_generic_source_evidence_hash(
             root, source_files, request.interface_description.source,
         ),

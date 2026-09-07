@@ -59,6 +59,56 @@ endmodule
 
 
 class GenericAutoCompositionTests(unittest.TestCase):
+    def test_adapter_rejects_negedge_reset_without_a_verified_polarity_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source" / "rtl" / "edge_only_cpu.sv"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "module edge_only_cpu(input logic clk, input logic rst, output logic [15:0] addr, output logic valid, "
+                "input logic ready, output logic [31:0] wdata, input logic [31:0] rdata, input logic error, output logic monitor); "
+                "always_ff @(posedge clk or negedge rst) monitor <= valid; endmodule\n",
+                encoding="utf-8",
+            )
+            (root / "device.sv").write_text(
+                "module device(input logic clock, input logic reset, input logic [15:0] addr, input logic valid, "
+                "output logic ready, input logic [31:0] wdata, output logic [31:0] rdata, output logic error); "
+                "logic state; always_ff @(posedge clock or negedge reset) if (!reset) state <= 1'b0; else state <= valid; "
+                "assign ready=valid; assign rdata=wdata; assign error=1'b0; endmodule\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "reset-semantics"):
+                plan_generic_composition(
+                    GenericCompositionRequest(self._bounded_description(root, source, "edge_only_cpu"), ("device",), (("bounded", "1"),)),
+                    base_dir=root, component_catalog=self._bounded_catalog(), protocol_catalog=self._bounded_protocol(),
+                )
+
+    def test_adapter_rejects_missing_safety_capability_declarations(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source" / "rtl" / "incomplete_limits_cpu.sv"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "module incomplete_limits_cpu(input logic clk, input logic rst, output logic [15:0] addr, output logic valid, "
+                "input logic ready, output logic [31:0] wdata, input logic [31:0] rdata, input logic error, output logic monitor); "
+                "always_ff @(posedge clk or negedge rst) if (!rst) monitor <= 1'b0; else monitor <= valid; endmodule\n",
+                encoding="utf-8",
+            )
+            (root / "device.sv").write_text(
+                "module device(input logic clock, input logic reset, input logic [15:0] addr, input logic valid, "
+                "output logic ready, input logic [31:0] wdata, output logic [31:0] rdata, output logic error); "
+                "logic state; always_ff @(posedge clock or negedge reset) if (!reset) state <= 1'b0; else state <= valid; "
+                "assign ready=valid; assign rdata=wdata; assign error=1'b0; endmodule\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "single-channel-metadata"):
+                plan_generic_composition(
+                    GenericCompositionRequest(self._bounded_description(root, source, "incomplete_limits_cpu"), ("device",), (("bounded", "1"),)),
+                    base_dir=root, component_catalog=self._bounded_catalog(), protocol_catalog=self._incomplete_bounded_protocol(),
+                )
+
     def test_adapter_rejects_unknown_reset_semantics(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -108,7 +158,8 @@ class GenericAutoCompositionTests(unittest.TestCase):
                     ChannelRelationSpec(1, "request_response_handshake", ("valid", "ready", "rdata")),
                     ChannelRelationSpec(2, "independent_read_channel", ("valid", "ready")),
                 ),
-                (("max_outstanding", 1), ("bursts", False), ("ids", False)),
+                (("max_outstanding", 1), ("bursts", False), ("ids", False), ("single_beat_only", True),
+                 ("ordering", "in_order_single_id"), ("completion", "ack_or_err"), ("max_wait_cycles", 16)),
             ),))
             with self.assertRaisesRegex(ValueError, "single-channel-metadata"):
                 plan_generic_composition(
@@ -149,7 +200,8 @@ class GenericAutoCompositionTests(unittest.TestCase):
                 "bounded", "1", fields, (),
                 (ProjectionActionSpec(1, ("valid",), "gate", "protocol_legality", 16),), (),
                 (ChannelRelationSpec(1, "request_response_handshake", ("valid", "ready", "rdata")),),
-                (("max_outstanding", 1), ("bursts", False), ("ids", False)),
+                (("max_outstanding", 1), ("bursts", False), ("ids", False), ("single_beat_only", True),
+                 ("ordering", "in_order_single_id"), ("completion", "ack_or_err"), ("max_wait_cycles", 16)),
             ),))
             description = load_interface_description({
                 "schema_version": "interface_description.v1",
@@ -389,6 +441,16 @@ class GenericAutoCompositionTests(unittest.TestCase):
                 FieldSpec("error", "device_to_host", "1", True, 0),
             ), (), (ProjectionActionSpec(1, ("valid",), "gate", "protocol_legality", 16),), (),
             (ChannelRelationSpec(1, "request_response_handshake", ("valid", "ready", "rdata")),),
+            (("max_outstanding", 1), ("bursts", False), ("ids", False), ("single_beat_only", True),
+             ("ordering", "in_order_single_id"), ("completion", "ack_or_err"), ("max_wait_cycles", 16)),
+        ),))
+
+    @staticmethod
+    def _incomplete_bounded_protocol() -> ProtocolCatalog:
+        plugin = GenericAutoCompositionTests._bounded_protocol().plugins[0]
+        return ProtocolCatalog((ProtocolPlugin(
+            plugin.protocol_id, plugin.version, plugin.fields, plugin.legal_adapters,
+            plugin.projection_actions, plugin.temporal_rules, plugin.channel_relations,
             (("max_outstanding", 1), ("bursts", False), ("ids", False)),
         ),))
 

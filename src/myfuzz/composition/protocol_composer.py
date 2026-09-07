@@ -1292,7 +1292,13 @@ def _generic_routes(plan: object) -> tuple[dict[str, object], ...]:
             item = control[role]
             if not isinstance(item, Mapping) or not isinstance(item.get("source_port"), str) or not isinstance(item.get("target_port"), str):
                 raise ValueError(f"generic composition {role} binding is invalid")
-        if control.get("reset_semantics") != {"polarity": "active_low", "synchrony": "asynchronous"}:
+        reset_semantics = control.get("reset_semantics")
+        if reset_semantics not in (
+            {"polarity": "active_low", "synchrony": "asynchronous"},
+            {"polarity": "active_high", "synchrony": "asynchronous"},
+            {"polarity": "active_low", "synchrony": "synchronous"},
+            {"polarity": "active_high", "synchrony": "synchronous"},
+        ):
             raise ValueError("generic composition reset semantics are unsupported")
         fields = raw.get("fields")
         if not isinstance(fields, (tuple, list)) or not fields:
@@ -1327,11 +1333,17 @@ def _generic_routes(plan: object) -> tuple[dict[str, object], ...]:
             or isinstance(size, bool) or not isinstance(size, int) or size <= 0
         ):
             raise ValueError("generic composition address region is invalid")
+        max_wait = raw.get("max_wait_cycles")
+        if (
+            isinstance(max_wait, bool) or not isinstance(max_wait, int) or not 1 <= max_wait <= 65_535
+            or contract.get("max_wait_cycles") != max_wait
+        ):
+            raise ValueError("generic composition adapter bound is invalid")
         routes.append({
             "component_id": component_id, "module_name": component.get("module_name"),
             "parameters": component.get("parameters", {}), "fields": tuple(route_fields),
             "base": base, "size": size, "adapter_id": raw.get("adapter_id"),
-            "max_wait_cycles": raw.get("max_wait_cycles"), "source_endpoint_id": source.endpoint_id,
+            "max_wait_cycles": max_wait, "source_endpoint_id": source.endpoint_id,
             "contract": dict(contract), "control": {role: dict(value) for role, value in control.items()},
         })
     if len({route["source_endpoint_id"] for route in routes}) != len(routes):
@@ -1349,15 +1361,19 @@ def _render_generic_adapter(route: Mapping[str, object]) -> str:
     address_width = max(int(field["width"]) for field in route["fields"] if field["address"])
     max_wait = route["max_wait_cycles"]
     contract = route.get("contract")
-    if isinstance(max_wait, bool) or not isinstance(max_wait, int) or not 1 <= max_wait <= 16:
+    if isinstance(max_wait, bool) or not isinstance(max_wait, int) or not 1 <= max_wait <= 65_535:
         raise ValueError("generic composition adapter bound is invalid")
     if not isinstance(contract, Mapping):
         raise ValueError("generic composition adapter contract is invalid")
     control = route.get("control")
-    if not isinstance(control, Mapping) or control.get("reset_semantics") != {
-        "polarity": "active_low", "synchrony": "asynchronous"
-    }:
+    if not isinstance(control, Mapping) or not isinstance(control.get("reset_semantics"), Mapping):
         raise ValueError("generic composition adapter reset semantics are unsupported")
+    reset_semantics = control["reset_semantics"]
+    polarity, synchrony = reset_semantics.get("polarity"), reset_semantics.get("synchrony")
+    if polarity not in {"active_low", "active_high"} or synchrony not in {"synchronous", "asynchronous"}:
+        raise ValueError("generic composition adapter reset semantics are unsupported")
+    reset_event = "" if synchrony == "synchronous" else f" or {'negedge' if polarity == 'active_low' else 'posedge'} reset"
+    reset_condition = "!reset" if polarity == "active_low" else "reset"
     valid_id, ready_id, error_id = (
         contract.get("request_field_id"), contract.get("response_field_id"), contract.get("error_field_id"),
     )
@@ -1419,8 +1435,8 @@ def _render_generic_adapter(route: Mapping[str, object]) -> str:
         ",\n".join(ports),
         ");",
         *declarations,
-        "  always_ff @(posedge clock or negedge reset) begin",
-        "    if (!reset) begin",
+        f"  always_ff @(posedge clock{reset_event}) begin",
+        f"    if ({reset_condition}) begin",
         "      state <= IDLE;",
         "      wait_cycles <= 0;",
         "      timeout_error <= 1'b0;",
@@ -1678,17 +1694,14 @@ def _validate_generic_plan_freshness(plan: object, root: Path) -> object:
 
 def _generic_source_list(plan: object, root: Path, output: Path, sources: tuple[Path, ...]) -> str:
     """Emit one output-directory-relative file list with its include context."""
-    description = getattr(plan, "interface_description", None)
-    locator = getattr(description, "source", None)
-    source_root = getattr(locator, "source_root", None)
-    include_roots = getattr(locator, "include_roots", ())
-    if not isinstance(source_root, str) or not isinstance(include_roots, tuple):
+    include_roots = getattr(plan, "source_include_roots", ())
+    if not isinstance(include_roots, tuple):
         raise ValueError("generic composition source-list evidence is invalid")
     entries: list[str] = []
     for include_root in sorted(include_roots):
         if not isinstance(include_root, str):
             raise ValueError("generic composition source-list include root is invalid")
-        include = (root / source_root / include_root).resolve()
+        include = (root / include_root).resolve()
         try:
             include.relative_to(root)
         except ValueError as error:
@@ -1703,7 +1716,7 @@ def _generic_source_list(plan: object, root: Path, output: Path, sources: tuple[
 
 
 def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path) -> dict[str, object]:
-    """Atomically publish a fully validated generic composition artifact set."""
+    """Publish a validated generic composition without risking existing output."""
     from .auto import GenericCompositionPlan
 
     if not isinstance(plan, GenericCompositionPlan) or not plan.complete:
@@ -1715,8 +1728,11 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
     sources = tuple(_generic_source(root, source) for source in plan.source_files)
     output = Path(output_dir).resolve()
     _validate_generic_output_boundary(plan, output, root, sources)
-    if output.exists() and not output.is_dir():
-        raise ValueError("generic composition existing output is not a directory")
+    # POSIX has no portable atomic replacement for a non-empty directory.  A
+    # backup/publish/restore sequence cannot prove recovery when the restore
+    # itself fails, so reject all pre-existing destinations before staging.
+    if output.exists():
+        raise ValueError("generic composition existing output cannot be replaced safely")
     top_text = _render_generic_top(plan)
     output_parent = output.parent
     output_parent.mkdir(parents=True, exist_ok=True)
@@ -1724,7 +1740,6 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
     layout_payload = canonical_bytes(_generic_plain(input_layout_document(plan.layout)))
     source_list = _generic_source_list(plan, root, output, sources)
     stage: Path | None = Path(tempfile.mkdtemp(prefix=f".{output.name}.generic-", dir=output_parent))
-    backup: Path | None = None
     try:
         (stage / "composition_ir.json").write_bytes(ir_payload)
         (stage / "input_layout.json").write_bytes(layout_payload)
@@ -1735,34 +1750,13 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
         # until every serialisation and renderer validation has succeeded.
         json.loads((stage / "composition_ir.json").read_text(encoding="utf-8"))
         json.loads((stage / "input_layout.json").read_text(encoding="utf-8"))
-        if not output.exists():
-            os.replace(stage, output)
-            stage = None
-        else:
-            backup = Path(tempfile.mkdtemp(prefix=f".{output.name}.backup-", dir=output_parent))
-            backup.rmdir()
-            os.replace(output, backup)
-            try:
-                os.replace(stage, output)
-                stage = None
-            except BaseException:
-                if output.exists():
-                    failed = Path(tempfile.mkdtemp(prefix=f".{output.name}.failed-", dir=output_parent))
-                    failed.rmdir()
-                    os.replace(output, failed)
-                    shutil.rmtree(failed)
-                os.replace(backup, output)
-                backup = None
-                raise
-            shutil.rmtree(backup)
-            backup = None
+        os.replace(stage, output)
+        stage = None
     finally:
         if stage is not None and stage.exists():
-            shutil.rmtree(stage)
-        if backup is not None and backup.exists() and output.exists():
-            # A successful replacement owns the published directory.  A
-            # failed replacement restores this backup before it can escape.
-            shutil.rmtree(backup)
+            for child in stage.iterdir():
+                child.unlink()
+            stage.rmdir()
     return {
         "schema_version": "composition_ir.v1",
         "interface_annotation_hash": plan.interface_annotation_hash,
