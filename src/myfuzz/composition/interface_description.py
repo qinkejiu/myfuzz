@@ -3,12 +3,42 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from os import PathLike
 from pathlib import Path
 
 from myfuzz.contracts import validate_contract
+
+
+@dataclass(frozen=True, slots=True)
+class ElaborationSettings:
+    frontend: str
+    defines: tuple[tuple[str, str], ...] = ()
+    parameters: tuple[tuple[str, str], ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.frontend != "verilator-json":
+            raise ValueError("unsupported-elaboration-frontend")
+        identifier = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
+        patterns = (("define", self.defines, re.compile(r"[A-Za-z0-9_]+\Z")),
+                    ("parameter", self.parameters, re.compile(r"-?(?:0|[1-9][0-9]*)\Z")))
+        for kind, pairs, value_pattern in patterns:
+            names: set[str] = set()
+            normalized: list[tuple[str, str]] = []
+            for pair in pairs:
+                if not isinstance(pair, tuple) or len(pair) != 2:
+                    raise ValueError(f"unsafe-elaboration-{kind}")
+                name, value = pair
+                if (not isinstance(name, str) or not isinstance(value, str)
+                        or identifier.fullmatch(name) is None or value_pattern.fullmatch(value) is None):
+                    raise ValueError(f"unsafe-elaboration-{kind}")
+                if name in names:
+                    raise ValueError(f"duplicate-elaboration-{kind}")
+                names.add(name)
+                normalized.append((name, value))
+            object.__setattr__(self, kind + "s", tuple(sorted(normalized)))
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,6 +49,7 @@ class SourceLocator:
     files: tuple[str, ...] = ()
     filelist: str | None = None
     include_roots: tuple[str, ...] = ()
+    elaboration: ElaborationSettings | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +126,18 @@ def load_interface_description(document_or_path: object) -> InterfaceDescription
     endpoints_value = document["endpoints"]
     assert isinstance(source_value, Mapping)
     assert isinstance(endpoints_value, list)
+    elaboration_value = source_value.get("elaboration")
+    elaboration = None
+    if isinstance(elaboration_value, Mapping):
+        def pairs(name: str) -> tuple[tuple[str, str], ...]:
+            values = elaboration_value.get(name, [])
+            assert isinstance(values, list)
+            return tuple((item["name"], item["value"]) for item in values if isinstance(item, Mapping))  # type: ignore[misc]
+        elaboration = ElaborationSettings(
+            frontend=elaboration_value["frontend"],  # type: ignore[arg-type]
+            defines=pairs("defines"),
+            parameters=pairs("parameters"),
+        )
     source = SourceLocator(
         source_root=source_value["root"],  # type: ignore[arg-type]
         revision=source_value["revision"],  # type: ignore[arg-type]
@@ -102,6 +145,7 @@ def load_interface_description(document_or_path: object) -> InterfaceDescription
         files=_strings(source_value.get("files", [])),
         filelist=source_value.get("filelist"),  # type: ignore[arg-type]
         include_roots=_strings(source_value.get("include_roots", [])),
+        elaboration=elaboration,
     )
     return InterfaceDescription(
         source=source,
@@ -153,6 +197,19 @@ def interface_description_document(value: InterfaceDescription) -> dict[str, obj
         source["filelist"] = value.source.filelist
     if value.source.include_roots:
         source["include_roots"] = list(value.source.include_roots)
+    if value.source.elaboration is not None:
+        settings = value.source.elaboration
+        source["elaboration"] = {
+            "frontend": settings.frontend,
+            "defines": [
+                {"name": name, "value": item_value}
+                for name, item_value in sorted(settings.defines)
+            ],
+            "parameters": [
+                {"name": name, "value": item_value}
+                for name, item_value in sorted(settings.parameters)
+            ],
+        }
     return {
         "schema_version": "interface_description.v1",
         "source": source,

@@ -82,3 +82,46 @@ source-only behavior stays unchanged. Any frontend failure, stale source,
 unsupported type or ambiguous member binding fails closed. Member semantic
 annotation and renderer support require a later reviewed task before a packed
 port can participate in composition.
+
+Files: extend `schemas/interface_description.v1.schema.json`,
+`src/myfuzz/contracts/validation.py`,
+`src/myfuzz/composition/interface_description.py`,
+`src/myfuzz/composition/source_crawler.py`, and their focused tests.
+
+The optional source block is:
+
+```json
+{"elaboration":{"frontend":"verilator-json","defines":[{"name":"NAME","value":"VALUE"}],"parameters":[{"name":"WIDTH","value":"13"}]}}
+```
+
+`frontend` initially accepts only `verilator-json`. Define and parameter names
+are identifiers; values use the Task 2 safe define and canonical decimal
+subsets. Duplicate names fail. The loader stores immutable ordered pairs and
+the serializer sorts them by name, so caller order cannot perturb identity.
+
+- [x] RED: schema/loader tests prove typed parsing, duplicate/unsafe rejection,
+  canonical serialization, and unchanged serialization when elaboration is
+  absent. Crawler tests prove the runner is never called by default, is called
+  with the resolved explicit closure when requested, and failures propagate.
+- [x] Add immutable `ElaborationSettings`, `ElaboratedPortFact`, and
+  `ElaboratedMemberFact` values. `SourceSnapshot` retains structured ports and
+  nested member paths/offsets/source locations separately. A structured port
+  must not enter `SourceSnapshot.ports`; therefore existing annotation and
+  composition cannot bind it as a scalar. Memberless elaborated top ports may
+  replace source-only top-port facts.
+- [x] Run elaboration in a temporary caller-owned directory beneath the source
+  root. Read its manifest before cleanup. Verify every manifest source against
+  the bytes already pinned by the crawler (and Git blobs for Git revisions),
+  then include the canonical elaboration block, stable source/tool hashes,
+  tool version, and physical evidence in `SourceSnapshot.content_hash`. Do not
+  hash absolute paths or temporary commands. Without elaboration, preserve the
+  existing content hash exactly.
+- [x] Collect safe include roots from explicit description and filelists for
+  the runner. If a filelist carries define syntax that cannot be represented
+  exactly by the typed block, reject opt-in elaboration explicitly rather than
+  compiling different settings.
+- [x] GREEN: run interface-contract, interface-description, source-crawler,
+  elaboration-reader/runner, and generic composition regressions under the
+  global low-resource policy. Preserve RED/GREEN logs, independently review
+  identity stability and the structured-port non-composition boundary, then
+  commit Task 3 separately.

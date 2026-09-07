@@ -109,6 +109,27 @@ def _validate_interface_description(document: Mapping[str, object], schema_id: s
                 _relative_path(item, schema_id, f"source.{key}[{index}]")
     if "filelist" in source:
         _relative_path(source["filelist"], schema_id, "source.filelist")
+    if "elaboration" in source:
+        elaboration = _object(source["elaboration"], schema_id, "source.elaboration")
+        _require(elaboration, schema_id, ("frontend",))
+        if elaboration["frontend"] != "verilator-json":
+            _error(schema_id, "source.elaboration.frontend", "invalid")
+        for kind in ("defines", "parameters"):
+            names: set[str] = set()
+            for index, value in enumerate(_array(elaboration.get(kind, []), schema_id, f"source.elaboration.{kind}")):
+                path = f"source.elaboration.{kind}[{index}]"
+                item = _object(value, schema_id, path)
+                _require(item, schema_id, ("name", "value"))
+                name = _string(item["name"], schema_id, f"{path}.name")
+                item_value = _string(item["value"], schema_id, f"{path}.value")
+                if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) is None:
+                    _error(schema_id, f"{path}.name", "invalid")
+                pattern = r"[A-Za-z0-9_]+" if kind == "defines" else r"-?(?:0|[1-9][0-9]*)"
+                if re.fullmatch(pattern, item_value) is None:
+                    _error(schema_id, f"{path}.value", "invalid")
+                if name in names:
+                    _error(schema_id, f"{path}.name", "duplicate-role")
+                names.add(name)
 
     endpoint_ids: set[str] = set()
     for endpoint_index, endpoint_value in enumerate(_array(document["endpoints"], schema_id, "endpoints")):

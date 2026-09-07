@@ -8,14 +8,16 @@ it in constrained, reproducible analysis environments.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import shlex
 import subprocess
+import tempfile
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from myfuzz.contracts import validate_contract
+from myfuzz.contracts import canonical_bytes, validate_contract
 from myfuzz.protocols.catalog import ProtocolCatalog
 from myfuzz.protocols.model import ProtocolDefinitionError
 from myfuzz.protocols.widths import ProtocolWidthError, compile_width_expression
@@ -76,6 +78,30 @@ class TimingObservation:
 
 
 @dataclass(frozen=True, slots=True)
+class ElaboratedMemberFact:
+    path: tuple[str, ...]
+    width: int
+    raw_lo: int
+    raw_hi: int
+    signed: bool
+    source_file: str
+    line: int
+    column: int
+
+
+@dataclass(frozen=True, slots=True)
+class ElaboratedPortFact:
+    name: str
+    direction: str
+    width: int
+    signed: bool
+    source_file: str
+    line: int
+    column: int
+    members: tuple[ElaboratedMemberFact, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class SourceSnapshot:
     revision: str
     content_hash: str
@@ -87,6 +113,8 @@ class SourceSnapshot:
     instances: tuple[tuple[str, str, str], ...] = ()
     # (module, port, source file, line, endpoint, field); immutable source evidence.
     documentation_tags: tuple[tuple[str, str, str, int, str, str], ...] = ()
+    elaborated_ports: tuple[ElaboratedPortFact, ...] = ()
+    elaboration_evidence: bytes | None = None
 
 
 def _relative(root: Path, value: Path) -> str:
@@ -142,15 +170,18 @@ def _safe_child(root: Path, raw: str) -> Path:
 
 def _declared_files(
     root: Path, locator: SourceLocator, read: Callable[[Path], bytes],
-) -> tuple[Path, ...]:
-    files: set[Path] = set()
+) -> tuple[tuple[Path, ...], tuple[str, ...], bool]:
+    files: list[Path] = []
+    include_roots: list[str] = []
+    filelist_defines = False
 
     def add_source(raw: str) -> None:
         source = _safe_child(root, raw)
         if source.suffix not in HDL_SUFFIXES or not source.is_file():
             raise SourceCrawlError(f"source-file-missing:{raw}")
         read(source)
-        files.add(source)
+        if source not in files:
+            files.append(source)
 
     def local_path(parent: Path, raw: str) -> Path:
         # Validate the raw option too: joining an absolute path must not erase it.
@@ -161,8 +192,12 @@ def _declared_files(
         directory = local_path(parent, raw)
         if not directory.is_dir():
             raise SourceCrawlError(f"include-root-missing:{raw}")
+        relative = _relative(root, directory)
+        if relative not in include_roots:
+            include_roots.append(relative)
 
     def expand_filelist(path: Path, seen: set[Path]) -> None:
+        nonlocal filelist_defines
         path = path.resolve()
         _relative(root, path)
         if path in seen:
@@ -183,6 +218,7 @@ def _declared_files(
                 elif item == "-I" or item.startswith("-I"):
                     include_root(path.parent, next(tokens) if item == "-I" else item[2:])
                 elif item.startswith("+define+"):
+                    filelist_defines = True
                     continue
                 elif item.startswith(("-", "+")):
                     raise SourceCrawlError(f"unsupported-filelist-option:{item}")
@@ -199,7 +235,11 @@ def _declared_files(
         expand_filelist(_safe_child(root, locator.filelist), set())
     for raw in locator.include_roots:
         include_root(root, raw)
-    return tuple(sorted(files, key=lambda item: _relative(root, item)))
+    return (
+        tuple(files),
+        tuple(include_roots),
+        filelist_defines,
+    )
 
 
 def _parts(text: str, offset: int) -> list[tuple[str, int]]:
@@ -531,9 +571,11 @@ class SourceCrawler:
                 contents[relative] = content
             return contents[relative]
 
-        files = _declared_files(root, locator, read)
+        files, include_roots, filelist_defines = _declared_files(root, locator, read)
+        if locator.elaboration is not None and filelist_defines:
+            raise SourceCrawlError("elaboration-filelist-defines-unsupported")
         content_hash = _content_hash(contents)
-        if locator.revision.startswith("sha256:") and locator.revision != content_hash:
+        if locator.elaboration is None and locator.revision.startswith("sha256:") and locator.revision != content_hash:
             raise SourceCrawlError("content-hash-mismatch")
 
         ports: list[SourcePortFact] = []
@@ -555,7 +597,13 @@ class SourceCrawler:
                 if end_match is None:
                     continue
                 modules.append(module)
-                records = _module_ports(original, masked, module_match, end_match.start(), module, relative)
+                try:
+                    records = _module_ports(original, masked, module_match, end_match.start(), module, relative)
+                except SourceCrawlError as error:
+                    deferred = str(error).startswith("unsupported-port-type") or str(error) == "unsupported-port-width"
+                    if not (locator.elaboration is not None and module == locator.top_module and deferred):
+                        raise
+                    records = []
                 ports.extend(record[0] for record in records)
                 tags = [
                     (tag.start(), tag.group(1), tag.group(2))
@@ -578,6 +626,81 @@ class SourceCrawler:
                     timing.extend(replace(item, module=module) for item in
                                   _timing(original, masked, header_end + 1, end_match.start(), relative))
                     instances.extend(_instances(masked[header_end + 1:end_match.start()], module))
+        elaborated_ports: tuple[ElaboratedPortFact, ...] = ()
+        elaboration_evidence: bytes | None = None
+        if locator.elaboration is not None:
+            from .source_elaboration import run_verilator_elaboration
+
+            with tempfile.TemporaryDirectory(prefix=".myfuzz-elaboration-", dir=root) as temporary:
+                temporary_root = Path(temporary)
+                output = temporary_root / "evidence"
+                settings = locator.elaboration
+                physical = run_verilator_elaboration(
+                    source_root=root,
+                    top_module=locator.top_module,
+                    source_files=tuple(_relative(root, path) for path in files),
+                    include_roots=include_roots,
+                    defines=settings.defines,
+                    parameters=settings.parameters,
+                    output_dir=output,
+                )
+                manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+            source_records = manifest.get("sources")
+            if not isinstance(source_records, list):
+                raise SourceCrawlError("elaboration-manifest-source-mismatch")
+            labels: set[str] = set()
+            for source_record in source_records:
+                if not isinstance(source_record, dict):
+                    raise SourceCrawlError("elaboration-manifest-source-mismatch")
+                label = source_record.get("file")
+                digest = source_record.get("sha256")
+                size = source_record.get("size")
+                if not isinstance(label, str) or label in labels:
+                    raise SourceCrawlError("elaboration-manifest-source-mismatch")
+                labels.add(label)
+                content = read(_safe_child(root, label))
+                if digest != hashlib.sha256(content).hexdigest() or size != len(content):
+                    raise SourceCrawlError("elaboration-manifest-source-mismatch")
+            explicit_labels = {_relative(root, path) for path in files}
+            if not explicit_labels.issubset(labels):
+                raise SourceCrawlError("elaboration-manifest-source-mismatch")
+            content_hash = _content_hash(contents)
+            if locator.revision.startswith("sha256:") and locator.revision != content_hash:
+                raise SourceCrawlError("content-hash-mismatch")
+            facts = []
+            for item in physical["ports"]:
+                source = item["source"]
+                members = tuple(
+                    ElaboratedMemberFact(tuple(member["path"]), member["width"], member["raw_lo"], member["raw_hi"], member["signed"], member["source"]["file"], member["source"]["line"], member["source"]["column"])
+                    for member in item["members"]
+                )
+                facts.append(ElaboratedPortFact(item["name"], item["direction"], item["width"], item["signed"], source["file"], source["line"], source["column"], members))
+            elaborated_ports = tuple(facts)
+            top_memberless = tuple(
+                SourcePortFact(locator.top_module, item.name, item.direction, item.width, item.signed, item.source_file, item.line, item.column)
+                for item in elaborated_ports if not item.members
+            )
+            ports = [item for item in ports if item.module != locator.top_module]
+            ports.extend(top_memberless)
+            stable_manifest = {
+                "settings": {
+                    "frontend": settings.frontend,
+                    "defines": sorted(settings.defines),
+                    "parameters": sorted(settings.parameters),
+                },
+                "source_files": [_relative(root, path) for path in files],
+                "include_roots": list(include_roots),
+                "sources": manifest["sources"],
+                "tool_sources": [{key: item[key] for key in ("name", "sha256", "size")} for item in manifest["tool_sources"]],
+                "tool_version": manifest["tool_version"],
+                "physical": physical,
+            }
+            digest = hashlib.sha256()
+            digest.update(content_hash.encode("ascii"))
+            stable_bytes = canonical_bytes(stable_manifest)
+            digest.update(stable_bytes)
+            content_hash = "sha256:" + digest.hexdigest()
+            elaboration_evidence = stable_bytes
         return SourceSnapshot(
             locator.revision,
             content_hash,
@@ -587,6 +710,8 @@ class SourceCrawler:
             tuple(sorted(timing, key=lambda item: (item.source_file, item.line, item.kind, item.fields))),
             tuple(sorted(instance for instance in instances if instance[2] in modules)),
             tuple(sorted(documentation_tags)),
+            elaborated_ports,
+            elaboration_evidence,
         )
 
     def _module_ports(

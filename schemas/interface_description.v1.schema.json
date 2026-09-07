@@ -1,1 +1,166 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"interface_description.v1","type":"object","required":["schema_version","source","endpoints"],"properties":{"schema_version":{"const":"interface_description.v1"},"source":{"type":"object","required":["root","revision","top_module"],"properties":{"root":{"type":"string","minLength":1},"revision":{"type":"string","pattern":"^(?:git:[0-9a-f]{40}|sha256:[0-9a-f]{64})$"},"top_module":{"type":"string","minLength":1},"files":{"type":"array","items":{"type":"string","minLength":1}},"filelist":{"type":"string","minLength":1},"include_roots":{"type":"array","items":{"type":"string","minLength":1}}},"additionalProperties":true},"endpoints":{"type":"array","items":{"type":"object","required":["endpoint_id","function"],"properties":{"endpoint_id":{"type":"string","minLength":1},"function":{"type":"string","minLength":1},"required":{"type":"boolean"},"module":{"type":"string","minLength":1},"hierarchy":{"type":"array","items":{"type":"string","minLength":1}},"aliases":{"type":"array","items":{"type":"string","minLength":1}},"protocol":{"type":"array","minItems":2,"maxItems":2,"items":{"type":"string","minLength":1}},"fields":{"type":"array","items":{"type":"object","required":["role"],"properties":{"role":{"type":"string","minLength":1},"aliases":{"type":"array","items":{"type":"string","minLength":1}},"required":{"type":"boolean"}},"additionalProperties":true}}},"additionalProperties":true}}},"additionalProperties":true}
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "interface_description.v1",
+    "type": "object",
+    "required": [
+        "schema_version",
+        "source",
+        "endpoints"
+    ],
+    "properties": {
+        "schema_version": {
+            "const": "interface_description.v1"
+        },
+        "source": {
+            "type": "object",
+            "required": [
+                "root",
+                "revision",
+                "top_module"
+            ],
+            "properties": {
+                "root": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "revision": {
+                    "type": "string",
+                    "pattern": "^(?:git:[0-9a-f]{40}|sha256:[0-9a-f]{64})$"
+                },
+                "top_module": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "filelist": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "include_roots": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "elaboration": {
+                    "type": "object",
+                    "required": ["frontend"],
+                    "properties": {
+                        "frontend": {"const": "verilator-json"},
+                        "defines": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": ["name", "value"],
+                                "properties": {
+                                    "name": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+                                    "value": {"type": "string", "pattern": "^[A-Za-z0-9_]+$"}
+                                },
+                                "additionalProperties": false
+                            }
+                        },
+                        "parameters": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": ["name", "value"],
+                                "properties": {
+                                    "name": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+                                    "value": {"type": "string", "pattern": "^-?(?:0|[1-9][0-9]*)$"}
+                                },
+                                "additionalProperties": false
+                            }
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            },
+            "additionalProperties": true
+        },
+        "endpoints": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": [
+                    "endpoint_id",
+                    "function"
+                ],
+                "properties": {
+                    "endpoint_id": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "function": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "required": {
+                        "type": "boolean"
+                    },
+                    "module": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "hierarchy": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "minLength": 1
+                        }
+                    },
+                    "aliases": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "minLength": 1
+                        }
+                    },
+                    "protocol": {
+                        "type": "array",
+                        "minItems": 2,
+                        "maxItems": 2,
+                        "items": {
+                            "type": "string",
+                            "minLength": 1
+                        }
+                    },
+                    "fields": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "role"
+                            ],
+                            "properties": {
+                                "role": {
+                                    "type": "string",
+                                    "minLength": 1
+                                },
+                                "aliases": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                    }
+                                },
+                                "required": {
+                                    "type": "boolean"
+                                }
+                            },
+                            "additionalProperties": true
+                        }
+                    }
+                },
+                "additionalProperties": true
+            }
+        }
+    },
+    "additionalProperties": true
+}

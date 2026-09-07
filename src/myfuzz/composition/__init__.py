@@ -24,6 +24,7 @@ from .endpoint_capabilities import (
 )
 from .facts import HdlFacts, normalize_facts
 from .interface_description import (
+    ElaborationSettings,
     EndpointDescription,
     FieldHint,
     InterfaceDescription,
@@ -32,6 +33,8 @@ from .interface_description import (
     load_interface_description,
 )
 from .source_crawler import (
+    ElaboratedMemberFact,
+    ElaboratedPortFact,
     SourceCrawler,
     SourceCrawlError,
     SourcePortFact,
@@ -71,6 +74,9 @@ __all__ = [
     "DeclarationSet",
     "HdlFacts",
     "EndpointDescription",
+    "ElaborationSettings",
+    "ElaboratedMemberFact",
+    "ElaboratedPortFact",
     "EndpointCapability",
     "EndpointCapabilityError",
     "EndpointFieldFact",

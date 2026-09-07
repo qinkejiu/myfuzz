@@ -7,6 +7,7 @@ from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 from myfuzz.composition.interface_description import (
+    ElaborationSettings,
     EndpointDescription,
     FieldHint,
     InterfaceDescription,
@@ -46,6 +47,39 @@ def interface_document() -> dict[str, object]:
 
 
 class InterfaceDescriptionTests(unittest.TestCase):
+    def test_loads_and_canonicalizes_elaboration_settings(self) -> None:
+        document = interface_document()
+        document["source"]["elaboration"] = {
+            "frontend": "verilator-json",
+            "defines": [{"name": "ZED", "value": "ON"}, {"name": "ALPHA", "value": "1"}],
+            "parameters": [{"name": "WIDTH", "value": "13"}],
+        }
+
+        value = load_interface_description(document)
+
+        self.assertEqual((("ALPHA", "1"), ("ZED", "ON")), value.source.elaboration.defines)
+        serialized = interface_description_document(value)
+        self.assertEqual(["ALPHA", "ZED"], [item["name"] for item in serialized["source"]["elaboration"]["defines"]])
+
+    def test_rejects_duplicate_and_unsafe_elaboration_pairs(self) -> None:
+        for entries in (
+            [{"name": "WIDTH", "value": "1"}, {"name": "WIDTH", "value": "2"}],
+            [{"name": "BAD-NAME", "value": "1"}],
+            [{"name": "WIDTH", "value": "1+2"}],
+        ):
+            with self.subTest(entries=entries):
+                document = interface_document()
+                document["source"]["elaboration"] = {"frontend": "verilator-json", "parameters": entries}
+                with self.assertRaises(ValueError):
+                    load_interface_description(document)
+
+    def test_direct_elaboration_settings_are_validated_and_normalized(self) -> None:
+        settings = ElaborationSettings("verilator-json", (("Z", "1"), ("A", "2")))
+        self.assertEqual((("A", "2"), ("Z", "1")), settings.defines)
+        with self.assertRaisesRegex(ValueError, "unsupported-elaboration-frontend"):
+            ElaborationSettings("other")
+        with self.assertRaisesRegex(ValueError, "duplicate-elaboration-define"):
+            ElaborationSettings("verilator-json", (("A", "1"), ("A", "2")))
     def write_document(self, document: dict[str, object]) -> Path:
         temporary = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
         with temporary:

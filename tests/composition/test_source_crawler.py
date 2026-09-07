@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import shutil
+import json
+import hashlib
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 from dataclasses import replace
 from pathlib import Path
 
-from myfuzz.composition.interface_description import SourceLocator, load_interface_description
+from myfuzz.composition.interface_description import ElaborationSettings, SourceLocator, load_interface_description
 from myfuzz.composition.source_crawler import (
     SourceCrawler,
     SourceCrawlError,
@@ -41,6 +44,187 @@ def _tree_hash(root: Path, files: tuple[Path, ...]) -> str:
 
 
 class SourceCrawlerTests(unittest.TestCase):
+    def test_elaboration_preserves_compiler_order_and_has_path_independent_identity(self) -> None:
+        calls = []
+
+        def crawl_at(parent: Path, files=("types.sv", "top.sv"), includes=("first", "second")):
+            root = parent / "source"
+            root.mkdir(parents=True)
+            (root / "types.sv").write_text("package p; endpackage\n", encoding="utf-8")
+            (root / "top.sv").write_text("module top(); endmodule\n", encoding="utf-8")
+            for directory, value in (("first", "1"), ("second", "2")):
+                path = root / directory / "same.svh"
+                path.parent.mkdir()
+                path.write_text(value, encoding="utf-8")
+            closure = tuple(root / name for name in ("types.sv", "top.sv", "first/same.svh", "second/same.svh"))
+            locator = SourceLocator("source", source_tree_hash(root, closure), "top", files=files, include_roots=includes, elaboration=ElaborationSettings("verilator-json"))
+
+            def runner(**arguments):
+                calls.append((arguments["source_files"], arguments["include_roots"]))
+                output = arguments["output_dir"]
+                output.mkdir()
+                records = []
+                for path in closure:
+                    payload = path.read_bytes()
+                    records.append({"file": path.relative_to(root).as_posix(), "sha256": hashlib.sha256(payload).hexdigest(), "size": len(payload)})
+                (output / "manifest.json").write_text(json.dumps({"sources": records, "tool_sources": [], "tool_version": "fake"}), encoding="utf-8")
+                return {"ports": []}
+
+            with mock.patch("myfuzz.composition.source_elaboration.run_verilator_elaboration", side_effect=runner):
+                return SourceCrawler().crawl(locator, base_dir=parent).content_hash
+
+        with tempfile.TemporaryDirectory() as left, tempfile.TemporaryDirectory() as right, tempfile.TemporaryDirectory() as reversed_root:
+            first = crawl_at(Path(left))
+            second = crawl_at(Path(right))
+            reversed_hash = crawl_at(Path(reversed_root), files=("top.sv", "types.sv"), includes=("second", "first"))
+        self.assertEqual(first, second)
+        self.assertNotEqual(first, reversed_hash)
+        self.assertEqual((("types.sv", "top.sv"), ("first", "second")), calls[0])
+        self.assertEqual((("top.sv", "types.sv"), ("second", "first")), calls[2])
+
+    def test_elaboration_rejects_invalid_manifest_source_records(self) -> None:
+        for corruption in ("duplicate", "sha", "size", "missing"):
+            with self.subTest(corruption=corruption), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary) / "source"
+                root.mkdir()
+                source = root / "top.sv"
+                source.write_text("module top(); endmodule\n", encoding="utf-8")
+                payload = source.read_bytes()
+                locator = SourceLocator("source", source_tree_hash(root, (source,)), "top", files=("top.sv",), elaboration=ElaborationSettings("verilator-json"))
+                record = {"file": "top.sv", "sha256": hashlib.sha256(payload).hexdigest(), "size": len(payload)}
+
+                def runner(**arguments):
+                    output = arguments["output_dir"]
+                    output.mkdir()
+                    records = [] if corruption == "missing" else [dict(record)]
+                    if corruption == "duplicate": records.append(dict(record))
+                    if corruption == "sha": records[0]["sha256"] = "0" * 64
+                    if corruption == "size": records[0]["size"] += 1
+                    (output / "manifest.json").write_text(json.dumps({"sources": records, "tool_sources": [], "tool_version": "fake"}), encoding="utf-8")
+                    return {"ports": []}
+
+                with mock.patch("myfuzz.composition.source_elaboration.run_verilator_elaboration", side_effect=runner):
+                    with self.assertRaisesRegex(SourceCrawlError, "manifest-source-mismatch"):
+                        SourceCrawler().crawl(locator, base_dir=Path(temporary))
+
+    def test_filelist_define_rejects_elaboration_before_runner(self) -> None:
+        temporary, root, source = self.make_source()
+        self.addCleanup(temporary.cleanup)
+        filelist = root / "files.f"
+        filelist.write_text("+define+WIDTH=8 rtl/opaque_tile.sv\n", encoding="utf-8")
+        locator = SourceLocator(root.name, source_tree_hash(root, (source, filelist)), "opaque_tile", filelist="files.f", elaboration=ElaborationSettings("verilator-json"))
+        with mock.patch("myfuzz.composition.source_elaboration.run_verilator_elaboration") as runner:
+            with self.assertRaisesRegex(SourceCrawlError, "filelist-defines-unsupported"):
+                SourceCrawler().crawl(locator, base_dir=root.parent)
+        runner.assert_not_called()
+
+    @unittest.skipUnless(shutil.which("verilator"), "verilator is not installed")
+    def test_real_elaboration_resolves_parameterized_top_width(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "source"
+            root.mkdir()
+            source = root / "top.sv"
+            source.write_text("module top #(parameter W=8) (input logic [W-1:0] a); endmodule\n", encoding="utf-8")
+            locator = SourceLocator(
+                "source", source_tree_hash(root, (source,)), "top", files=("top.sv",),
+                elaboration=ElaborationSettings("verilator-json", parameters=(("W", "13"),)),
+            )
+            snapshot = SourceCrawler().crawl(locator, base_dir=Path(temporary))
+        self.assertEqual(13, next(port.width for port in snapshot.ports if port.name == "a"))
+        self.assertEqual(13, next(port.width for port in snapshot.elaborated_ports if port.name == "a"))
+        self.assertIsInstance(snapshot.elaboration_evidence, bytes)
+
+    def test_elaboration_replaces_unsupported_structured_top_parse(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "source"
+            root.mkdir()
+            package = root / "types.sv"
+            top = root / "top.sv"
+            package.write_text("package p; typedef struct packed { logic [7:0] data; } request_t; endpackage\n", encoding="utf-8")
+            top.write_text("module top(input p::request_t bus); endmodule\n", encoding="utf-8")
+            revision = source_tree_hash(root, (package, top))
+            locator = SourceLocator("source", revision, "top", files=("types.sv", "top.sv"), elaboration=ElaborationSettings("verilator-json"))
+
+            def fake_runner(**arguments):
+                output = arguments["output_dir"]
+                output.mkdir()
+                records = []
+                for name in ("types.sv", "top.sv"):
+                    payload = (root / name).read_bytes()
+                    records.append({"file": name, "sha256": hashlib.sha256(payload).hexdigest(), "size": len(payload)})
+                (output / "manifest.json").write_text(json.dumps({"sources": records, "tool_sources": [], "tool_version": "fake"}), encoding="utf-8")
+                return {"ports": [{"name": "bus", "direction": "input", "width": 8, "signed": False, "source": {"file": "top.sv", "line": 1, "column": 12}, "members": [{"path": ["data"], "width": 8, "raw_lo": 0, "raw_hi": 7, "signed": False, "source": {"file": "types.sv", "line": 1, "column": 36}}]}]}
+
+            with mock.patch("myfuzz.composition.source_elaboration.run_verilator_elaboration", side_effect=fake_runner) as runner:
+                snapshot = SourceCrawler().crawl(locator, base_dir=Path(temporary))
+            self.assertEqual(("types.sv", "top.sv"), runner.call_args.kwargs["source_files"])
+            self.assertEqual((), snapshot.ports)
+            self.assertEqual("bus", snapshot.elaborated_ports[0].name)
+            description = load_interface_description({
+                "schema_version": "interface_description.v1",
+                "source": {"root": "source", "revision": revision, "top_module": "top", "files": ["types.sv", "top.sv"]},
+                "endpoints": [{"endpoint_id": "structured", "function": "memory_master", "module": "top", "fields": [{"role": "request", "aliases": ["bus"]}]}],
+            })
+            with self.assertRaisesRegex(SourceCrawlError, "endpoint-unresolved"):
+                SourceCrawler().annotate(snapshot, description)
+
+    def test_default_crawl_never_invokes_elaboration_runner(self) -> None:
+        temporary, root, source = self.make_source()
+        self.addCleanup(temporary.cleanup)
+        description = self.description(root, source)
+        with mock.patch(
+            "myfuzz.composition.source_elaboration.run_verilator_elaboration",
+            side_effect=AssertionError("runner called without opt-in"),
+        ):
+            SourceCrawler().crawl(description.source, base_dir=root.parent)
+
+    def test_elaboration_forwards_include_roots_and_propagates_failure(self) -> None:
+        temporary, root, source = self.make_source()
+        self.addCleanup(temporary.cleanup)
+        include = root / "include"
+        include.mkdir()
+        header = include / "width.svh"
+        header.write_text("`define WIDTH 8\n", encoding="utf-8")
+        revision = source_tree_hash(root, (source, header))
+        locator = SourceLocator(
+            root.name, revision, "opaque_tile", files=("rtl/opaque_tile.sv",),
+            include_roots=("include",), elaboration=ElaborationSettings("verilator-json"),
+        )
+        with mock.patch(
+            "myfuzz.composition.source_elaboration.run_verilator_elaboration",
+            side_effect=RuntimeError("frontend failed"),
+        ) as runner:
+            with self.assertRaisesRegex(RuntimeError, "frontend failed"):
+                SourceCrawler().crawl(locator, base_dir=root.parent)
+        self.assertEqual(("include",), runner.call_args.kwargs["include_roots"])
+        self.assertEqual(("rtl/opaque_tile.sv",), runner.call_args.kwargs["source_files"])
+        self.assertTrue(runner.call_args.kwargs["output_dir"].parent.name.startswith(".myfuzz-elaboration-"))
+
+    def test_elaboration_keeps_structured_top_port_out_of_scalar_ports(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "source"
+            root.mkdir()
+            source = root / "top.sv"
+            source.write_text("module top(input logic clk); endmodule\n", encoding="utf-8")
+            revision = source_tree_hash(root, (source,))
+            locator = SourceLocator("source", revision, "top", files=("top.sv",), elaboration=ElaborationSettings("verilator-json"))
+
+            def fake_runner(**arguments):
+                output = arguments["output_dir"]
+                output.mkdir()
+                payload = source.read_bytes()
+                (output / "manifest.json").write_text(json.dumps({"sources": [{"file": "top.sv", "sha256": hashlib.sha256(payload).hexdigest(), "size": len(payload)}], "tool_sources": [], "tool_version": "fake"}), encoding="utf-8")
+                return {"ports": [
+                    {"name": "clk", "direction": "input", "width": 1, "signed": False, "source": {"file": "top.sv", "line": 1, "column": 24}, "members": []},
+                    {"name": "bus", "direction": "input", "width": 8, "signed": False, "source": {"file": "top.sv", "line": 1, "column": 1}, "members": [{"path": ["data"], "width": 8, "raw_lo": 0, "raw_hi": 7, "signed": False, "source": {"file": "top.sv", "line": 1, "column": 1}}]},
+                ]}
+
+            with mock.patch("myfuzz.composition.source_elaboration.run_verilator_elaboration", side_effect=fake_runner):
+                snapshot = SourceCrawler().crawl(locator, base_dir=Path(temporary))
+            self.assertEqual(["clk"], [port.name for port in snapshot.ports])
+            self.assertEqual(["clk", "bus"], [port.name for port in snapshot.elaborated_ports])
+            with self.assertRaises(TypeError):
+                snapshot.elaboration_evidence[0] = 0
     def test_same_module_instance_aliases_remain_ambiguous(self) -> None:
         temporary, root, source = self.make_source(
             OPAQUE_TILE + "\nmodule wrapper(); opaque_tile u1(); opaque_tile u2(); endmodule"
