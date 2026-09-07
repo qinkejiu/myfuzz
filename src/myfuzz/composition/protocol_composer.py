@@ -1287,7 +1287,7 @@ def _generic_routes(plan: object) -> tuple[dict[str, object], ...]:
             raise ValueError("generic composition adapter binding is invalid")
         contract = raw.get("contract")
         control = binding.get("control")
-        if not isinstance(contract, Mapping) or contract.get("mode") not in {"single_target_single_channel", "native_apb", "native_wishbone_classic"}:
+        if not isinstance(contract, Mapping) or contract.get("mode") not in {"single_target_single_channel", "native_apb", "native_wishbone_classic", "native_axi4_lite"}:
             raise ValueError("generic composition adapter contract is unsupported")
         if not isinstance(control, Mapping) or set(control) != {"clock", "reset", "reset_semantics"}:
             raise ValueError("generic composition control binding is invalid")
@@ -1359,7 +1359,7 @@ def _route_tag(route: Mapping[str, object]) -> str:
 
 
 def _render_generic_adapter(route: Mapping[str, object]) -> str:
-    if isinstance(route.get("contract"), Mapping) and route["contract"].get("mode") in {"native_apb", "native_wishbone_classic"}:
+    if isinstance(route.get("contract"), Mapping) and route["contract"].get("mode") in {"native_apb", "native_wishbone_classic", "native_axi4_lite"}:
         from .generic_protocol_routes import render_native_adapter
         return render_native_adapter(route)
     tag = _route_tag(route)
@@ -1520,6 +1520,9 @@ def _render_generic_top(plan: object) -> str:
             f"(source_{canonical_id('generic-render-source-port', str(field['source_port'])):016x} >= {_sv_literal(int(field['width']), int(route['base']))} && source_{canonical_id('generic-render-source-port', str(field['source_port'])):016x} < {_sv_literal(int(field['width']), int(route['base']) + int(route['size']))})"
             for field in route["fields"] if field["address"]
         ]
+        if route["contract"]["mode"] == "native_axi4_lite":
+            # The adapter decodes AW and AR at their separate handshakes.
+            terms = ["1'b1"]
         if len(terms) != 1:
             raise ValueError("generic composition adapter requires one address channel")
         lines.extend((f"  logic {component_select};", f"  assign {component_select} = " + terms[0] + ";"))

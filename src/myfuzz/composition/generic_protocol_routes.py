@@ -1,12 +1,16 @@
 """Bounded same-protocol routes, selected only by declared protocol semantics.
 
 APB has a setup and an access phase; Wishbone classic holds a cycle until
-ACK/ERR. Neither route supports queues, pipelining, clock crossing or AXI.
+ACK/ERR. AXI4-Lite uses independent channel capture and timeout quarantine.
+No route supports queues, pipelining, clock crossing or AXI4 bursts/IDs.
 """
 from .ids import canonical_id
 
 
 def native_contract(protocol, plugin):
+    if protocol == ("axi4-lite", "1"):
+        from .generic_axi_lite import native_axi_lite_contract
+        return native_axi_lite_contract(plugin)
     if protocol not in {("apb", "3"), ("apb", "4"), ("wishbone", "classic")}:
         return None
     apb = protocol[0] == "apb"
@@ -47,6 +51,9 @@ def native_contract(protocol, plugin):
 def render_native_adapter(route):
     """Latch payload; propagate completion only during the native active phase."""
     contract = route["contract"]
+    if contract["mode"] == "native_axi4_lite":
+        from .generic_axi_lite import render_axi_lite_adapter
+        return render_axi_lite_adapter(route)
     apb = contract["mode"] == "native_apb"
     if contract["mode"] not in {"native_apb", "native_wishbone_classic"}:
         raise ValueError("unsupported native mode")
