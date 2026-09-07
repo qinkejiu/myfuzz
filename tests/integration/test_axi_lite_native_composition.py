@@ -7,10 +7,11 @@ import tempfile
 import unittest
 
 from tests.integration.test_native_protocol_composition import native_plan, catalog_for
-from myfuzz.composition import write_generic_composition
+from myfuzz.composition import plan_generic_composition, write_generic_composition
+from myfuzz.components.catalog import ComponentCatalog
 from myfuzz.composition.auto import _generic_adapter_contract, AutoCompositionError
 from myfuzz.composition.ids import canonical_id
-from myfuzz.composition.protocol_composer import _generic_routes, _render_generic_adapter
+from myfuzz.composition.protocol_composer import _generic_routes, _render_generic_adapter, _render_generic_top
 from myfuzz.protocols.catalog import ProtocolCatalog
 
 
@@ -18,6 +19,28 @@ KEY = ("axi4-lite", "1")
 
 
 class AxiLiteNativeCompositionTests(unittest.TestCase):
+    def test_generated_top_with_last_page_region(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plan = native_plan(Path(tmp), KEY)
+            region = {**plan.ir["address_regions"][0], "base": 0xff00, "size": 0x100, "end": 0x10000}
+            plan = replace(plan, ir={**plan.ir, "address_regions": [region]})
+            text = _render_generic_top(plan)
+            self.assertIn("ADDRESS_BASE = 16'hff00", text)
+            self.assertIn("ADDRESS_SIZE = 17'h100", text)
+
+    def test_source_backed_publication_at_address_space_end(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            original = native_plan(root, KEY)
+            profile = replace(original.component_catalog.require("device"), default_size=0x10000)
+            plan = plan_generic_composition(original.request, base_dir=root,
+                component_catalog=ComponentCatalog((profile,)), protocol_catalog=original.protocol_catalog)
+            self.assertEqual(plan.ir["address_regions"][0]["end"], 0x10000)
+            write_generic_composition(plan, root / "out", base_dir=root)
+            if shutil.which("iverilog"):
+                result = subprocess.run(["iverilog", "-g2012", "-s", "generic_composition_top", "-o", str(root / "compiled"), str(root / "source/source.sv"), str(root / "target.sv"), str(root / "out/generic_composition_top.sv")], capture_output=True, text=True, timeout=20)
+                self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_source_backed_publication(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

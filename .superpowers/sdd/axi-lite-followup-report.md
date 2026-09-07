@@ -158,3 +158,48 @@ changes remain the main agent's work. Preserved `.superpowers/sdd/task-2-report.
 
 `protocol_composer.py` ownership returns to the main agent after this commit for
 its RFuzz publication integration. Independent review is left to the controller.
+
+## Independent review P2 fix: publication at the address-space end
+
+The independent reviewer found an Important/P2 omission in top publication:
+`_render_generic_top` constructed single-address select literals before replacing
+them with the AXI constant select. Thus an exclusive upper address of `0x10000`
+for a 16-bit endpoint failed `_sv_literal`, even though the AXI adapter's extended
+address comparison supported it. The earlier adapter-level boundary simulation
+did not cover this outer publication path. The original no-known-concerns statement
+above describes the pre-review self-assessment, not evidence that this gap was absent.
+
+Reproduced with two new tests before the production fix:
+
+```text
+nice -n 15 env PYTHONPATH=src python3 -m unittest tests.integration.test_axi_lite_native_composition.AxiLiteNativeCompositionTests.test_generated_top_with_last_page_region tests.integration.test_axi_lite_native_composition.AxiLiteNativeCompositionTests.test_source_backed_publication_at_address_space_end -v
+Ran 2 tests in 0.066s
+FAILED (errors=2)
+ValueError: generic composition address literal is invalid
+```
+
+The first test exercises the generated top with the exact reported region
+`base=0xff00,size=0x100`. The second creates a legitimate source-backed plan with
+a catalog region covering `0..0x10000`, passes freshness reconstruction and full
+publication, then compiles the published top with real Icarus. No publication
+validation is mocked or bypassed in the latter test.
+
+Fix: branch on native AXI4-Lite before constructing any single-address literals;
+only non-AXI routes execute the previous comprehension. No adapter state machine,
+timeout logic, or writer/publication-bottom code was changed.
+
+GREEN, including all existing AXI simulations and APB/Wishbone native regressions:
+
+```text
+nice -n 15 env PYTHONPATH=src python3 -m unittest tests.integration.test_axi_lite_native_composition tests.integration.test_native_protocol_composition -q
+Ran 19 tests in 1.033s
+OK
+```
+
+No full suite run for this fix, as requested while the main agent runs its suite.
+Only the AXI test and this report are committed by the implementer. The renderer
+fix in `protocol_composer.py` is deliberately left unstaged for the main agent to
+commit alongside its separately owned writer-bottom changes. Main transport,
+docs, smoke tests, task-2 report and third-party files remain untouched. This fix
+is ready for independent re-review; the production fix still needs the main
+agent's commit.
