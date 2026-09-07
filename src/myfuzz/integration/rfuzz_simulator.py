@@ -41,13 +41,34 @@ class SimulatorArtifact:
 
 
 def _runtime_boundary(plan, base_dir):
-    routes = _generic_routes(plan)
-    internal = frozenset(f["source_port"] for r in routes for f in r["fields"])
+    execution = getattr(plan, "processor_execution", None)
+    if execution is None:
+        routes = _generic_routes(plan)
+        internal = frozenset(f["source_port"] for r in routes for f in r["fields"])
+        bound = {r["source_endpoint_id"] for r in routes}
+    else:
+        processor_routes = getattr(execution, "routes", None)
+        if not isinstance(processor_routes, tuple) or not processor_routes:
+            raise ValueError("invalid processor runtime routes")
+        internal = frozenset(
+            str(physical.get("port", physical.get("container_port")))
+            for route in processor_routes
+            for connection in route.field_connections
+            for physical in (connection["physical"],)
+        )
+        if "None" in internal:
+            raise ValueError("invalid processor runtime physical port")
+        bound = {route.endpoint_id for route in processor_routes}
     ports = {r["source_port"]: r for r in _generic_port_records(plan, internal_ports=internal)}
     clocks, resets, contracts = set(), set(), set()
     source_root = base_dir / plan.interface_description.source.source_root
     modules = {e["endpoint_id"]: e["module"] for e in plan.annotations["endpoints"]}
-    bound = {r["source_endpoint_id"] for r in routes}
+    if execution is not None:
+        from myfuzz.composition.protocol_composer import _processor_controls
+        processor_clock, processor_reset, semantics = _processor_controls(plan)
+        clocks.add(processor_clock)
+        resets.add(processor_reset)
+        contracts.add((semantics["polarity"], semantics["synchrony"]))
     for cap in plan.capabilities:
         if cap.protocol is not None and cap.endpoint_id not in bound:
             raise ValueError("unbound external protocol fields")
