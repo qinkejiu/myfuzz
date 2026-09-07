@@ -38,6 +38,7 @@ from .source_crawler import (
     source_tree_hash,
 )
 from .ids import canonical_id
+from .input_layout import InputLayout, InputLayoutError, LayoutField, build_input_layout, input_layout_document
 from .ir import composition_ir
 from .manifest import candidate_manifest
 from .protocol_composer import (
@@ -71,6 +72,9 @@ __all__ = [
     "TimingFact",
     "FieldHint",
     "InterfaceDescription",
+    "InputLayout",
+    "InputLayoutError",
+    "LayoutField",
     "SourceLocator",
     "SourceCrawler",
     "SourceCrawlError",
@@ -85,6 +89,7 @@ __all__ = [
     "ProtocolCompositionError",
     "ProtocolCompositionManifest",
     "candidate_manifest",
+    "build_input_layout",
     "annotate_interfaces",
     "canonical_id",
     "compose_topk",
@@ -92,6 +97,7 @@ __all__ = [
     "composition_ir",
     "default_component_registry",
     "interface_description_document",
+    "input_layout_document",
     "load_declarations",
     "load_interface_description",
     "match_endpoint_pair",
