@@ -287,10 +287,16 @@ def _declaration_ports(
         name_match = names[-1]
         if "[" in fragment[name_match.end():]:
             raise SourceCrawlError("unsupported-unpacked-port")
+        if fragment[name_match.end():].strip():
+            raise SourceCrawlError("unsupported-port-declaration")
         matched_direction = _DIRECTION_RE.search(fragment)
         if matched_direction is not None:
             direction = matched_direction.group(1)
             width, signed = _port_shape(fragment[:name_match.start()])
+        elif fragment[:name_match.start()].strip():
+            # Only bare names can inherit facts or name non-ANSI ports.
+            # A type/interface prefix requires elaboration, not scalar defaults.
+            raise SourceCrawlError("unsupported-port-type:directionless-declaration")
         if not direction:
             continue
         absolute = fragment_offset + name_match.start()
@@ -312,11 +318,16 @@ def _module_ports(
     module: str,
     source_file: str,
 ) -> list[tuple[SourcePortFact, int]]:
+    # Package imports belong to the header and have their own semicolons.
+    # Skip them before looking for the parameter/port lists and terminator.
+    header_start = module_match.end()
+    while imported := re.match(r"\s*import\b[^;]*;", masked[header_start:module_end]):
+        header_start += imported.end()
     # A packed record in an ANSI header can contain semicolons. Locate the
     # module-header terminator outside parentheses before validating its type.
     depth = 0
     semi = -1
-    for position in range(module_match.end(), module_end):
+    for position in range(header_start, module_end):
         char = masked[position]
         if char == "(":
             depth += 1
@@ -328,7 +339,7 @@ def _module_ports(
     if semi < 0:
         return []
     opens: list[int] = []
-    cursor = module_match.end()
+    cursor = header_start
     while True:
         opening = masked.find("(", cursor, semi)
         if opening < 0:
