@@ -59,6 +59,34 @@ endmodule
 
 
 class GenericAutoCompositionTests(unittest.TestCase):
+    def test_reset_contract_does_not_accept_evidence_from_an_unselected_module(self) -> None:
+        """Reset semantics must be proven by the selected endpoint module only."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source" / "rtl" / "bad_cpu.sv"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "module bad_cpu(input logic clk, input logic rst, output logic [15:0] addr, output logic valid, "
+                "input logic ready, output logic [31:0] wdata, input logic [31:0] rdata, input logic error, output logic monitor); "
+                "always_ff @(posedge clk or negedge rst) if (rst) monitor <= 1'b0; else monitor <= valid; endmodule\n"
+                "module unrelated_good_reset(input logic clk, input logic rst, output logic monitor); "
+                "always_ff @(posedge clk or negedge rst) if (!rst) monitor <= 1'b0; else monitor <= 1'b1; endmodule\n",
+                encoding="utf-8",
+            )
+            (root / "device.sv").write_text(
+                "module device(input logic clock, input logic reset, input logic [15:0] addr, input logic valid, "
+                "output logic ready, input logic [31:0] wdata, output logic [31:0] rdata, output logic error); "
+                "logic state; always_ff @(posedge clock or negedge reset) if (!reset) state <= 1'b0; else state <= valid; "
+                "assign ready=valid; assign rdata=wdata; assign error=1'b0; endmodule\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "reset-semantics"):
+                plan_generic_composition(
+                    GenericCompositionRequest(self._bounded_description(root, source, "bad_cpu"), ("device",), (("bounded", "1"),)),
+                    base_dir=root, component_catalog=self._bounded_catalog(), protocol_catalog=self._bounded_protocol(),
+                )
+
     def test_adapter_rejects_negedge_reset_without_a_verified_polarity_contract(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

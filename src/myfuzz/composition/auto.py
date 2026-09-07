@@ -23,7 +23,7 @@ from myfuzz.isa.constraints import IsaContract
 from myfuzz.isa import CpuCatalog, CpuDefinitionError, CpuProfile, load_builtin_cpu_catalog
 from myfuzz.protocols.catalog import ProtocolCatalog
 from myfuzz.protocols.model import CompiledField, CompiledProtocol
-from myfuzz.scripts.source_only_frontend import HDL_SUFFIXES
+from myfuzz.scripts.source_only_frontend import HDL_SUFFIXES, mask_comments_and_strings
 
 from .endpoint_capabilities import (
     EndpointCapability,
@@ -1120,13 +1120,26 @@ def _generic_reset_contract(endpoint: EndpointCapability, root: Path) -> dict[st
         or clock.source is None or reset.source is None
     ):
         raise AutoCompositionError(f"generic:endpoint:{endpoint.endpoint_id}:reset-semantics")
+    module = next((item.removeprefix("source_module:") for item in endpoint.evidence if item.startswith("source_module:")), None)
+    if module is None or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_$]*", module):
+        raise AutoCompositionError(f"generic:endpoint:{endpoint.endpoint_id}:reset-semantics")
     candidates: set[tuple[str, str]] = set()
     source_files = {field.source.file for field in endpoint.fields if field.source is not None}
     for source_file in source_files:
         path = _generic_source_path(root, source_file)
         text = path.read_text(encoding="utf-8")
+        masked = mask_comments_and_strings(text)
+        modules = []
+        for module_match in re.finditer(r"\bmodule\s+([A-Za-z_][A-Za-z0-9_$]*)\b", masked):
+            if module_match.group(1) != module:
+                continue
+            end_match = re.search(r"\bendmodule\b", masked[module_match.end():])
+            if end_match is not None:
+                modules.append(masked[module_match.start():module_match.end() + end_match.end()])
+        if len(modules) != 1:
+            raise AutoCompositionError(f"generic:endpoint:{endpoint.endpoint_id}:reset-semantics")
         event_re = re.compile(r"always(?:_ff)?\s*@\s*\(([^)]*)\)", re.S)
-        for event in event_re.finditer(text):
+        for event in event_re.finditer(modules[0]):
             edges = re.findall(r"\b(posedge|negedge)\s+([A-Za-z_][A-Za-z0-9_$]*)", event.group(1))
             if ("posedge", clock.port) not in edges:
                 continue
@@ -1156,7 +1169,10 @@ def _generic_reset_contract(endpoint: EndpointCapability, root: Path) -> dict[st
     return {"polarity": polarity, "synchrony": synchrony}
 
 
-def _generic_with_reset_contract(endpoint: EndpointCapability, root: Path) -> EndpointCapability:
+def _generic_with_reset_contract(endpoint: EndpointCapability, root: Path, module: str) -> EndpointCapability:
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_$]*", module):
+        raise AutoCompositionError(f"generic:endpoint:{endpoint.endpoint_id}:reset-semantics")
+    endpoint = replace(endpoint, evidence=tuple(sorted(set((*endpoint.evidence, f"source_module:{module}")))))
     contract = _generic_reset_contract(endpoint, root)
     marker = f"reset_contract:{contract['polarity']}:{contract['synchrony']}"
     return replace(endpoint, evidence=tuple(sorted(set((*endpoint.evidence, marker)))))
@@ -1252,7 +1268,7 @@ def _generic_adapter_contract(
 
 def _generic_control_binding(
     source: EndpointCapability, target: EndpointCapability, component_type: str, *,
-    source_root: Path, target_root: Path,
+    source_root: Path, target_root: Path, source_module: str, target_module: str,
 ) -> dict[str, dict[str, object]]:
     source_fields = {field.role: field for field in source.fields}
     target_fields = {field.role: field for field in target.fields}
@@ -1275,8 +1291,8 @@ def _generic_control_binding(
         raise AutoCompositionError(
             f"generic:component:{component_type}:clock-semantics"
         )
-    source_contract = _generic_endpoint_reset_contract(_generic_with_reset_contract(source, source_root))
-    target_contract = _generic_endpoint_reset_contract(_generic_with_reset_contract(target, target_root))
+    source_contract = _generic_endpoint_reset_contract(_generic_with_reset_contract(source, source_root, source_module))
+    target_contract = _generic_endpoint_reset_contract(_generic_with_reset_contract(target, target_root, target_module))
     if source_contract != target_contract:
         raise AutoCompositionError(
             f"generic:component:{component_type}:reset-semantics"
@@ -1410,6 +1426,11 @@ def plan_generic_composition(
     capabilities = normalize_annotations(annotations, protocol_catalog=selected_protocol_catalog)
     if not capabilities:
         raise AutoCompositionError("generic:annotations:empty")
+    endpoint_modules = {
+        str(endpoint["endpoint_id"]): endpoint.get("module")
+        for endpoint in annotations["endpoints"]  # type: ignore[index]
+        if isinstance(endpoint, Mapping)
+    }
     layout = build_input_layout(annotations, isa=request.isa)
 
     source_prefix = request.interface_description.source.source_root.rstrip("/")
@@ -1422,6 +1443,7 @@ def plan_generic_composition(
     )
     for source_file in source_files:
         _generic_source_path(root, source_file)
+    source_include_roots = _generic_source_include_roots(root, request.interface_description.source)
 
     profiles: dict[str, PeripheralProfile] = {}
     component_records: list[dict[str, object]] = []
@@ -1506,6 +1528,8 @@ def plan_generic_composition(
             control = _generic_control_binding(
                 accepted[0], accepted[1], component_type,
                 source_root=source_root, target_root=root,
+                source_module=str(endpoint_modules.get(accepted[0].endpoint_id, "")),
+                target_module=profile.module_name,
             )
             for discarded in accepted_candidates[1:]:
                 diagnostics.append(
@@ -1655,7 +1679,7 @@ def plan_generic_composition(
             "path_basis": "output-relative",
             "include_root_ids": [
                 canonical_id("generic-include-root", item)
-                for item in sorted(request.interface_description.source.include_roots)
+                for item in source_include_roots
             ],
         },
         "diagnostics": {"errors": [], "warnings": sorted(set(diagnostics))},
@@ -1672,7 +1696,7 @@ def plan_generic_composition(
         interface_annotation_hash=annotation_hash,
         composition_ir_hash=canonical_ir_hash(ir),
         source_files=source_files,
-        source_include_roots=_generic_source_include_roots(root, request.interface_description.source),
+        source_include_roots=source_include_roots,
         source_evidence_hash=_generic_source_evidence_hash(
             root, source_files, request.interface_description.source,
         ),

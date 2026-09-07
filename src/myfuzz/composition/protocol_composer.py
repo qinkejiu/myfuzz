@@ -1575,7 +1575,10 @@ def _render_generic_top(plan: object) -> str:
     return "\n".join(lines)
 
 
-def _validate_generic_top(text: str, *, source_paths: tuple[Path, ...], top_path: Path | None = None) -> None:
+def _validate_generic_top(
+    text: str, *, source_paths: tuple[Path, ...], include_paths: tuple[Path, ...] = (),
+    top_path: Path | None = None,
+) -> None:
     """Use the existing lightweight frontend boundary, with structural fallback."""
     from .metadata import semantic_source_hash
 
@@ -1587,6 +1590,7 @@ def _validate_generic_top(text: str, *, source_paths: tuple[Path, ...], top_path
     if top_path is not None and shutil.which("verilator") is not None:
         result = subprocess.run(
             ["verilator", "--lint-only", "-Wno-fatal", "--sv", "--top-module", "generic_composition_top",
+             *("-I" + path.as_posix() for path in include_paths),
              *(path.as_posix() for path in source_paths), top_path.as_posix()],
             check=False,
             capture_output=True,
@@ -1715,6 +1719,26 @@ def _generic_source_list(plan: object, root: Path, output: Path, sources: tuple[
     return "\n".join(entries) + "\n"
 
 
+def _generic_include_paths(plan: object, root: Path) -> tuple[Path, ...]:
+    """Resolve source-list include evidence once for lint and publication."""
+    include_roots = getattr(plan, "source_include_roots", ())
+    if not isinstance(include_roots, tuple):
+        raise ValueError("generic composition source-list evidence is invalid")
+    paths: list[Path] = []
+    for include_root in sorted(include_roots):
+        if not isinstance(include_root, str):
+            raise ValueError("generic composition source-list include root is invalid")
+        include = (root / include_root).resolve()
+        try:
+            include.relative_to(root)
+        except ValueError as error:
+            raise ValueError("generic composition source-list include root escapes base_dir") from error
+        if not include.is_dir() or include.is_symlink():
+            raise ValueError("generic composition source-list include root is missing")
+        paths.append(include)
+    return tuple(paths)
+
+
 def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path) -> dict[str, object]:
     """Publish a validated generic composition without risking existing output."""
     from .auto import GenericCompositionPlan
@@ -1739,13 +1763,17 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
     ir_payload = canonical_bytes(_generic_plain(plan.ir))
     layout_payload = canonical_bytes(_generic_plain(input_layout_document(plan.layout)))
     source_list = _generic_source_list(plan, root, output, sources)
+    include_paths = _generic_include_paths(plan, root)
     stage: Path | None = Path(tempfile.mkdtemp(prefix=f".{output.name}.generic-", dir=output_parent))
     try:
         (stage / "composition_ir.json").write_bytes(ir_payload)
         (stage / "input_layout.json").write_bytes(layout_payload)
         (stage / "generic_composition_top.sv").write_text(top_text, encoding="utf-8")
         (stage / "sources.f").write_text(source_list, encoding="utf-8")
-        _validate_generic_top(top_text, source_paths=sources, top_path=stage / "generic_composition_top.sv")
+        _validate_generic_top(
+            top_text, source_paths=sources, include_paths=include_paths,
+            top_path=stage / "generic_composition_top.sv",
+        )
         # Re-read staged data before publishing; no destination file is touched
         # until every serialisation and renderer validation has succeeded.
         json.loads((stage / "composition_ir.json").read_text(encoding="utf-8"))

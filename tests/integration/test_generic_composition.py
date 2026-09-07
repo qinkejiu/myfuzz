@@ -18,6 +18,7 @@ from myfuzz.composition import (
     write_generic_composition,
 )
 from myfuzz.composition import protocol_composer
+from myfuzz.composition.ids import canonical_id
 from myfuzz.composition.ir import canonical_ir_hash
 from tests.composition.test_generic_auto import GenericAutoCompositionTests, synthetic_description
 
@@ -70,7 +71,7 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
             (include / "defs.svh").write_text("`define FILELIST_VALUE 1\n", encoding="utf-8")
             hdl.write_text(
                 "module filelist_cpu(input logic clk, input logic rst, input logic [7:0] fuzz, output logic [15:0] seen); "
-                "assign seen = {fuzz, fuzz}; endmodule\n", encoding="utf-8"
+                "`include \"defs.svh\" assign seen = `FILELIST_VALUE ? {fuzz, fuzz} : '0; endmodule\n", encoding="utf-8"
             )
             filelist = source / "sources.f"
             filelist.write_text("+incdir+includes\nrtl/filelist_cpu.sv\n", encoding="utf-8")
@@ -84,6 +85,10 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
             })
             plan = plan_generic_composition(GenericCompositionRequest(description, ()), base_dir=root)
             self.assertEqual(plan.source_files, ("source/rtl/filelist_cpu.sv",))
+            self.assertEqual(
+                plan.ir["source_list"]["include_root_ids"],
+                (canonical_id("generic-include-root", "source/includes"),),
+            )
             output = root / "out"
             write_generic_composition(plan, output, base_dir=root)
 
@@ -101,6 +106,36 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
             self.assertEqual(adapter["max_wait_cycles"], 2)
             top = (root / "out" / "generic_composition_top.sv").read_text(encoding="utf-8")
             self.assertIn("localparam int unsigned MAX_WAIT_CYCLES = 2;", top)
+
+    def test_writer_lints_an_explicit_locator_include_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            hdl = source / "rtl" / "explicit_include_cpu.sv"
+            include = source / "includes"
+            hdl.parent.mkdir(parents=True)
+            include.mkdir()
+            (include / "defs.svh").write_text("`define EXPLICIT_INCLUDE_VALUE 1\n", encoding="utf-8")
+            hdl.write_text(
+                "`include \"defs.svh\"\n"
+                "module explicit_include_cpu(input logic clk, input logic rst, input logic [7:0] fuzz, output logic [15:0] seen); "
+                "assign seen = `EXPLICIT_INCLUDE_VALUE ? {fuzz, fuzz} : '0; endmodule\n",
+                encoding="utf-8",
+            )
+            description = load_interface_description({
+                "schema_version": "interface_description.v1",
+                "source": {"root": "source", "revision": source_tree_hash(source, (hdl,)),
+                           "top_module": "explicit_include_cpu", "files": ["rtl/explicit_include_cpu.sv"],
+                           "include_roots": ["includes"]},
+                "endpoints": [{"endpoint_id": "cpu.control", "function": "control", "module": "explicit_include_cpu",
+                               "fields": [{"role": role, "aliases": [port]} for role, port in
+                                          (("clock", "clk"), ("reset", "rst"), ("stimulus", "fuzz"), ("observation", "seen"))]}],
+            })
+
+            plan = plan_generic_composition(GenericCompositionRequest(description, ()), base_dir=root)
+            write_generic_composition(plan, root / "out", base_dir=root)
+
+            self.assertIn("+incdir+../source/includes", (root / "out" / "sources.f").read_text(encoding="utf-8"))
 
     def test_writer_rejects_existing_output_file_without_mutating_it(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
