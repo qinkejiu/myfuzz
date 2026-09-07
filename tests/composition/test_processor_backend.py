@@ -109,8 +109,21 @@ class ProcessorBackendTests(unittest.TestCase):
             {
                 "max_wait_cycles": 16,
                 "completion": "single_error",
-                "late_response": "quarantine_and_discard",
-                "reset": "abort_without_completion",
+                "cancellation": {
+                    "valid": "cancel_valid_o",
+                    "ready": "cancel_ready_i",
+                    "scope": "all_preceding_accepted_requests",
+                    "acknowledgment": "no_response_after_handshake",
+                },
+                "timeout": {
+                    "accepted_request": "cancel_or_drain_before_reuse",
+                    "late_response_before_cancel_ack": "discard",
+                },
+                "reset": {
+                    "initiator_completion": "none",
+                    "backend": "cancel_all_pre_reset_requests",
+                    "release": "after_cancel_ack",
+                },
             },
             document["recovery"],
         )

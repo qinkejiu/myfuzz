@@ -41,11 +41,13 @@ module processor_memory_arbiter #(
     input  logic rsp_valid_i,
     output logic rsp_ready_o,
     input  logic [DATA_WIDTH-1:0] rsp_rdata_i,
-    input  logic rsp_error_i
+    input  logic rsp_error_i,
+    output logic cancel_valid_o,
+    input  logic cancel_ready_i
 );
-  typedef enum logic [2:0] {IDLE, SEND, WAIT_RSP, RESPOND, QUARANTINE} state_t;
+  typedef enum logic [2:0] {RESET_FLUSH, IDLE, SEND, WAIT_RSP, RESPOND, CANCEL} state_t;
   state_t state_q;
-  logic owner_q, prefer_i1_q, mapped_q, write_q, late_response_q;
+  logic owner_q, prefer_i1_q, mapped_q, write_q, cancel_after_response_q;
   logic [ADDRESS_WIDTH-1:0] addr_q;
   logic [DATA_WIDTH-1:0] wdata_q, response_data_q;
   logic [(DATA_WIDTH/8)-1:0] be_q;
@@ -80,7 +82,8 @@ module processor_memory_arbiter #(
   assign req_be_o = be_q;
   assign rsp_ready_o = (state_q == WAIT_RSP) ||
                        ((state_q == SEND) && req_valid_o && req_ready_i) ||
-                       (state_q == QUARANTINE);
+                       (state_q == CANCEL);
+  assign cancel_valid_o = (state_q == RESET_FLUSH) || (state_q == CANCEL);
 
   assign i0_rsp_valid_o = (state_q == RESPOND) && !owner_q;
   assign i1_rsp_valid_o = (state_q == RESPOND) && owner_q;
@@ -91,7 +94,7 @@ module processor_memory_arbiter #(
 
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
-      state_q <= IDLE;
+      state_q <= RESET_FLUSH;
       owner_q <= 1'b0;
       prefer_i1_q <= 1'b0;
       mapped_q <= 1'b0;
@@ -101,14 +104,17 @@ module processor_memory_arbiter #(
       be_q <= '0;
       response_data_q <= '0;
       response_error_q <= 1'b0;
-      late_response_q <= 1'b0;
+      cancel_after_response_q <= 1'b0;
       wait_cycles_q <= 0;
     end else begin
       case (state_q)
+        RESET_FLUSH: begin
+          if (cancel_ready_i) state_q <= IDLE;
+        end
         IDLE: begin
           response_data_q <= '0;
           response_error_q <= 1'b0;
-          late_response_q <= 1'b0;
+          cancel_after_response_q <= 1'b0;
           wait_cycles_q <= 0;
           if (i0_req_valid_i && i0_req_ready_o) begin
             owner_q <= 1'b0;
@@ -147,7 +153,7 @@ module processor_memory_arbiter #(
           end else if (wait_cycles_q + 1 >= MAX_WAIT_CYCLES) begin
             response_data_q <= '0;
             response_error_q <= 1'b1;
-            late_response_q <= 1'b0;
+            cancel_after_response_q <= 1'b0;
             state_q <= RESPOND;
           end else begin
             wait_cycles_q <= wait_cycles_q + 1;
@@ -161,7 +167,7 @@ module processor_memory_arbiter #(
           end else if (wait_cycles_q + 1 >= MAX_WAIT_CYCLES) begin
             response_data_q <= '0;
             response_error_q <= 1'b1;
-            late_response_q <= 1'b1;
+            cancel_after_response_q <= 1'b1;
             state_q <= RESPOND;
           end else begin
             wait_cycles_q <= wait_cycles_q + 1;
@@ -169,13 +175,13 @@ module processor_memory_arbiter #(
         end
         RESPOND: begin
           if ((!owner_q && i0_rsp_ready_i) || (owner_q && i1_rsp_ready_i)) begin
-            if (late_response_q) state_q <= QUARANTINE;
+            if (cancel_after_response_q) state_q <= CANCEL;
             else state_q <= IDLE;
           end
         end
-        QUARANTINE: begin
-          if (rsp_valid_i) begin
-            late_response_q <= 1'b0;
+        CANCEL: begin
+          if (rsp_valid_i || cancel_ready_i) begin
+            cancel_after_response_q <= 1'b0;
             state_q <= IDLE;
           end
         end

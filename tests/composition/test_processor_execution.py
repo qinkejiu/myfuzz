@@ -182,10 +182,14 @@ def _generic_processor_plan(
         },
         "endpoints": endpoints,
     })
-    plan = plan_generic_composition(
-        GenericCompositionRequest(description, ()), base_dir=root,
-        protocol_catalog=catalog,
-    )
+    try:
+        plan = plan_generic_composition(
+            GenericCompositionRequest(description, ()), base_dir=root,
+            protocol_catalog=catalog,
+        )
+    except BaseException:
+        temporary.cleanup()
+        raise
     return temporary, plan
 
 

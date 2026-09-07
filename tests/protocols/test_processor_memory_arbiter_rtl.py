@@ -30,7 +30,8 @@ class ProcessorMemoryArbiterRtlTests(unittest.TestCase):
                   logic req_valid_o, req_ready_i=0, req_write_o; logic [31:0] req_addr_o, req_wdata_o;
                   logic [3:0] req_be_o; logic rsp_valid_i=0, rsp_ready_o;
                   logic [31:0] rsp_rdata_i=0; logic rsp_error_i=0;
-                  integer c0=0, c1=0, backend_accepts=0;
+                  logic cancel_valid_o, cancel_ready_i=0;
+                  integer c0=0, c1=0, backend_accepts=0, backend_cancels=0;
 
                   processor_memory_arbiter #(
                     .ADDRESS_WIDTH(32), .DATA_WIDTH(32), .MAX_WAIT_CYCLES(3),
@@ -39,6 +40,7 @@ class ProcessorMemoryArbiterRtlTests(unittest.TestCase):
                   always #5 clk_i=~clk_i;
                   always @(posedge clk_i) begin
                     if (rst_ni && req_valid_o && req_ready_i) backend_accepts <= backend_accepts+1;
+                    if (rst_ni && cancel_valid_o && cancel_ready_i) backend_cancels <= backend_cancels+1;
                     if (rst_ni && i0_rsp_valid_o && i0_rsp_ready_i) c0 <= c0+1;
                     if (rst_ni && i1_rsp_valid_o && i1_rsp_ready_i) c1 <= c1+1;
                   end
@@ -54,7 +56,14 @@ class ProcessorMemoryArbiterRtlTests(unittest.TestCase):
                   endtask
 
                   initial begin
-                    tick(); rst_ni=1;
+                    tick();
+                    check(cancel_valid_o && !i0_req_ready_o && !i1_req_ready_o,
+                      "reset requests backend flush");
+                    rst_ni=1; tick();
+                    check(cancel_valid_o && !i0_req_ready_o && !i1_req_ready_o,
+                      "reset release waits for backend flush ack");
+                    @(negedge clk_i); cancel_ready_i=1; tick();
+                    @(negedge clk_i); cancel_ready_i=0;
 
                     // Simultaneous named requesters: source 0 wins first, payload is held.
                     @(negedge clk_i);
@@ -104,7 +113,8 @@ class ProcessorMemoryArbiterRtlTests(unittest.TestCase):
                       "read-only instruction write rejected without side effect");
                     tick(); i1_req_write_i=0;
 
-                    // Accepted request times out once; late response is quarantined.
+                    // An accepted request times out once. With no late response, a
+                    // cancel acknowledgment is the safe reuse barrier.
                     @(negedge clk_i); i0_req_valid_i=1; i0_req_mapped_i=1; i0_req_addr_i=32'h500;
                     tick(); @(negedge clk_i); i0_req_valid_i=0; req_ready_i=1; tick();
                     @(negedge clk_i); req_ready_i=0;
@@ -112,26 +122,49 @@ class ProcessorMemoryArbiterRtlTests(unittest.TestCase):
                     check(i0_rsp_valid_o && i0_rsp_error_o, "timeout completes once with error");
                     tick(); check(c0==4, "timeout counted exactly once");
                     @(negedge clk_i); i1_req_valid_i=1; i1_req_addr_i=32'h600; #1;
-                    check(!i1_req_ready_o && rsp_ready_o, "late response quarantine blocks reuse");
-                    respond(32'h5555aaaa, 0); #1;
-                    check(c0==4 && c1==2 && i1_req_ready_o,
-                      "late response discarded then requests resume");
-                    tick(); @(negedge clk_i); i1_req_valid_i=0; req_ready_i=1; tick();
+                    check(!i1_req_ready_o && rsp_ready_o && cancel_valid_o,
+                      "timed-out request blocks reuse while cancellation is pending");
+                    repeat(2) begin tick(); check(c0==4 && cancel_valid_o,
+                      "no-response timeout remains exactly once while cancel waits"); end
+                    @(negedge clk_i); cancel_ready_i=1; tick();
+                    @(negedge clk_i); cancel_ready_i=0; #1;
+                    check(c0==4 && c1==2 && i1_req_ready_o && backend_cancels==2,
+                      "cancel ack allows requests to resume without a late response");
+                    // The cancel contract forbids a stale response after ack; the
+                    // arbiter also keeps ready low so an injected stale pulse is rejected.
+                    @(negedge clk_i); i1_req_valid_i=0;
+                    rsp_valid_i=1; rsp_rdata_i=32'h5555aaaa; tick();
+                    @(negedge clk_i); rsp_valid_i=0; #1;
+                    check(c0==4 && c1==2,
+                      "stale response after cancel ack is rejected");
+                    @(negedge clk_i); i1_req_valid_i=1; tick();
+                    @(negedge clk_i); i1_req_valid_i=0; req_ready_i=1; tick();
                     @(negedge clk_i); req_ready_i=0; respond(32'h600d600d, 0); tick();
                     check(c1==3, "post-timeout request completes normally");
 
-                    // Reset aborts an outstanding request and the arbiter recovers.
+                    // Reset while an accepted request waits for a response aborts the
+                    // owner, flushes the backend, rejects stale data, and recovers.
                     @(negedge clk_i); i0_req_valid_i=1; i0_req_addr_i=32'h700;
-                    tick(); @(negedge clk_i); i0_req_valid_i=0;
-                    tick(); rst_ni=0; #1;
-                    check(!req_valid_o && !rsp_ready_o && !i0_rsp_valid_o && !i1_rsp_valid_o,
-                      "reset aborts without completion");
-                    tick(); rst_ni=1;
+                    tick(); @(negedge clk_i); i0_req_valid_i=0; req_ready_i=1; tick();
+                    @(negedge clk_i); req_ready_i=0; rst_ni=0; #1;
+                    check(cancel_valid_o && !req_valid_o && !rsp_ready_o &&
+                      !i0_rsp_valid_o && !i1_rsp_valid_o,
+                      "reset aborts accepted request and requests backend flush");
+                    tick(); rst_ni=1; tick();
+                    check(cancel_valid_o && !i0_req_ready_o,
+                      "post-reset arbitration waits for flush ack");
+                    @(negedge clk_i); cancel_ready_i=1; tick();
+                    @(negedge clk_i); cancel_ready_i=0; rsp_valid_i=1;
+                    rsp_rdata_i=32'hbad07000; tick();
+                    @(negedge clk_i); rsp_valid_i=0;
+                    check(c0==4 && c1==3 && backend_cancels==3,
+                      "pre-reset stale response is rejected after flush ack");
                     @(negedge clk_i); i0_req_valid_i=1; i0_req_addr_i=32'h704;
                     tick(); @(negedge clk_i); i0_req_valid_i=0; req_ready_i=1; tick();
                     @(negedge clk_i); req_ready_i=0; respond(32'h70707070, 0); tick();
                     check(c0==5 && c1==3, "reset recovery completion ownership");
-                    $display("PASS accepts=%0d c0=%0d c1=%0d", backend_accepts, c0, c1);
+                    $display("PASS accepts=%0d cancels=%0d c0=%0d c1=%0d",
+                      backend_accepts, backend_cancels, c0, c1);
                     $finish;
                   end
                 endmodule
