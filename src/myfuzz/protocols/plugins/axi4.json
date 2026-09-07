@@ -1,0 +1,63 @@
+{
+  "protocol_id": "axi4",
+  "version": "1",
+  "legal_adapters": ["width-adapter"],
+  "fields": [
+    {"field_id": "awid", "direction": "host_to_device", "width": "id_width", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "awaddr", "direction": "host_to_device", "width": "address_width", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "awlen", "direction": "host_to_device", "width": "8", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "awsize", "direction": "host_to_device", "width": "3", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "awburst", "direction": "host_to_device", "width": "2", "required": true, "runtime_required": true, "reset_value": 1},
+    {"field_id": "awvalid", "direction": "host_to_device", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "awready", "direction": "device_to_host", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "wdata", "direction": "host_to_device", "width": "data_width", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "wstrb", "direction": "host_to_device", "width": "data_width / 8", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "wlast", "direction": "host_to_device", "width": "1", "required": true, "runtime_required": true, "reset_value": 1},
+    {"field_id": "wvalid", "direction": "host_to_device", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "wready", "direction": "device_to_host", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "bid", "direction": "device_to_host", "width": "id_width", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "bresp", "direction": "device_to_host", "width": "2", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "bvalid", "direction": "device_to_host", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "bready", "direction": "host_to_device", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "arid", "direction": "host_to_device", "width": "id_width", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "araddr", "direction": "host_to_device", "width": "address_width", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "arlen", "direction": "host_to_device", "width": "8", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "arsize", "direction": "host_to_device", "width": "3", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "arburst", "direction": "host_to_device", "width": "2", "required": true, "runtime_required": true, "reset_value": 1},
+    {"field_id": "arvalid", "direction": "host_to_device", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "arready", "direction": "device_to_host", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "rid", "direction": "device_to_host", "width": "id_width", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "rdata", "direction": "device_to_host", "width": "data_width", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "rresp", "direction": "device_to_host", "width": "2", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "rlast", "direction": "device_to_host", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "rvalid", "direction": "device_to_host", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "rready", "direction": "host_to_device", "width": "1", "required": true, "runtime_required": true, "reset_value": 0}
+  ],
+  "channel_relations": [
+    {"relation_id": 1, "kind": "write_address_and_data_before_response", "field_ids": ["awvalid", "awready", "wvalid", "wready", "bvalid", "bready"]},
+    {"relation_id": 2, "kind": "read_address_before_response", "field_ids": ["arvalid", "arready", "rvalid", "rready"]}
+  ],
+  "capability_limits": {
+    "max_outstanding": 1,
+    "single_beat_only": true,
+    "supported_burst_lengths": [0],
+    "supported_id_values": [0],
+    "ordering": "in_order_single_id",
+    "splitter_required_for_bursts": true
+  },
+  "projection_actions": [
+    {"action_id": 1, "field_ids": ["awaddr", "araddr"], "kind": "mask", "category": "address_validity"},
+    {"action_id": 2, "field_ids": ["awvalid", "wvalid", "bready", "arvalid", "rready"], "kind": "gate", "category": "protocol_legality", "max_cycles": 16},
+    {"action_id": 3, "field_ids": ["wdata", "wstrb"], "kind": "fold_xor", "category": "dependency_consistency"},
+    {"action_id": 4, "field_ids": ["awlen", "arlen", "wlast", "rlast"], "kind": "reject", "category": "unsupported_burst"},
+    {"action_id": 5, "field_ids": ["awid", "bid", "arid", "rid"], "kind": "reject", "category": "unsupported_id"},
+    {"action_id": 6, "field_ids": ["awid", "bid", "arid", "rid"], "kind": "reject", "category": "unsupported_ordering"}
+  ],
+  "temporal_rules": [
+    {"rule_id": 1, "kind": "handshake", "antecedent_field_id": "awvalid", "consequent_field_id": "awready", "max_cycles": 16},
+    {"rule_id": 2, "kind": "handshake", "antecedent_field_id": "wvalid", "consequent_field_id": "wready", "max_cycles": 16},
+    {"rule_id": 3, "kind": "write_response_after_write", "antecedent_field_id": "wvalid", "consequent_field_id": "bvalid", "max_cycles": 16},
+    {"rule_id": 4, "kind": "handshake", "antecedent_field_id": "arvalid", "consequent_field_id": "arready", "max_cycles": 16},
+    {"rule_id": 5, "kind": "read_response_after_read", "antecedent_field_id": "arvalid", "consequent_field_id": "rvalid", "max_cycles": 16}
+  ]
+}

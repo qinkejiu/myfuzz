@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 from functools import lru_cache
 from pathlib import Path
@@ -37,6 +38,42 @@ def _require_string(value: object, label: str) -> str:
     return value
 
 
+def _validate_width_expression(expression: str, source: Path, field_id: str) -> None:
+    """Reject malformed or non-arithmetic widths before accepting a plugin."""
+    try:
+        root = ast.parse(expression, mode="eval").body
+    except SyntaxError as error:
+        raise ProtocolDefinitionError(
+            f"{source}: invalid width expression for {field_id}: {expression}"
+        ) from error
+
+    def validate(node: ast.AST) -> None:
+        if isinstance(node, ast.Constant):
+            if isinstance(node.value, int) and not isinstance(node.value, bool):
+                return
+        elif isinstance(node, ast.Name):
+            return
+        elif isinstance(node, ast.BinOp) and isinstance(
+            node.op, (ast.Add, ast.Sub, ast.Mult, ast.FloorDiv, ast.Div)
+        ):
+            if (
+                isinstance(node.op, (ast.FloorDiv, ast.Div))
+                and isinstance(node.right, ast.Constant)
+                and node.right.value == 0
+            ):
+                raise ProtocolDefinitionError(
+                    f"{source}: invalid width expression for {field_id}: {expression}"
+                )
+            validate(node.left)
+            validate(node.right)
+            return
+        raise ProtocolDefinitionError(
+            f"{source}: invalid width expression for {field_id}: {expression}"
+        )
+
+    validate(root)
+
+
 def _parse_plugin(document: object, source: Path) -> ProtocolPlugin:
     if not isinstance(document, dict):
         raise ProtocolDefinitionError(f"{source}: plugin document must be an object")
@@ -58,6 +95,7 @@ def _parse_plugin(document: object, source: Path) -> ProtocolPlugin:
         if direction not in {"host_to_device", "device_to_host"}:
             raise ProtocolDefinitionError(f"{source}: invalid direction for {field_id}")
         width_expression = _require_string(item.get("width"), f"width for {field_id}")
+        _validate_width_expression(width_expression, source, field_id)
         required = item.get("required")
         if not isinstance(required, bool):
             raise ProtocolDefinitionError(f"{source}: required must be boolean for {field_id}")

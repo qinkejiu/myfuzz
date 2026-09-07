@@ -1,0 +1,36 @@
+{
+  "protocol_id": "wishbone",
+  "version": "classic",
+  "legal_adapters": ["width-adapter"],
+  "fields": [
+    {"field_id": "cyc", "direction": "host_to_device", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "stb", "direction": "host_to_device", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "we", "direction": "host_to_device", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "adr", "direction": "host_to_device", "width": "address_width", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "dat_w", "direction": "host_to_device", "width": "data_width", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "sel", "direction": "host_to_device", "width": "data_width / 8", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "ack", "direction": "device_to_host", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "err", "direction": "device_to_host", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "stall", "direction": "device_to_host", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "dat_r", "direction": "device_to_host", "width": "data_width", "required": true, "runtime_required": true, "reset_value": 0}
+  ],
+  "channel_relations": [
+    {"relation_id": 1, "kind": "cycle_strobe_held_until_completion", "field_ids": ["cyc", "stb", "ack", "err", "stall"]}
+  ],
+  "capability_limits": {
+    "max_outstanding": 1,
+    "single_beat_only": true,
+    "stall_supported": true,
+    "completion_signals": ["ack", "err"],
+    "max_wait_cycles": 16
+  },
+  "projection_actions": [
+    {"action_id": 1, "field_ids": ["adr"], "kind": "mask", "category": "address_validity"},
+    {"action_id": 2, "field_ids": ["cyc", "stb"], "kind": "gate", "category": "protocol_legality", "max_cycles": 16},
+    {"action_id": 3, "field_ids": ["dat_w", "sel"], "kind": "fold_xor", "category": "dependency_consistency"}
+  ],
+  "temporal_rules": [
+    {"rule_id": 1, "kind": "ack_or_error_after_strobe", "antecedent_field_id": "stb", "consequent_field_id": "ack", "max_cycles": 16},
+    {"rule_id": 2, "kind": "error_after_strobe", "antecedent_field_id": "stb", "consequent_field_id": "err", "max_cycles": 16}
+  ]
+}
