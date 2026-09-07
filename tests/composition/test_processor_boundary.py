@@ -7,6 +7,7 @@ from pathlib import Path
 from myfuzz.composition.endpoint_capabilities import normalize_annotations
 from myfuzz.composition.interface_description import load_interface_description
 from myfuzz.composition.source_crawler import SourceCrawler
+from myfuzz.composition.processor_adapters import resolve_processor_adapter
 from myfuzz.composition.processor_boundary import (
     ProcessorBoundaryError,
     build_processor_boundary,
@@ -328,6 +329,9 @@ class ProcessorBoundaryTests(unittest.TestCase):
         )
         self.assertEqual(45, len(boundary.memories[0].fields))
         self.assertEqual(16, len(boundary.memories[0].extension_fields))
+        adapter = resolve_processor_adapter(boundary.memories[0])
+        self.assertEqual("axi4-to-processor-memory-beat", adapter.adapter_id)
+        self.assertEqual(("axi4", "1"), adapter.source_protocol)
 
 
 def _catalog_for_path() -> ProtocolCatalog:

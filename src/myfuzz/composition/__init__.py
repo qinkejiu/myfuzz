@@ -71,6 +71,12 @@ from .processor_boundary import (
     build_processor_boundary,
     processor_boundary_document,
 )
+from .processor_adapters import (
+    ExtensionPolicy,
+    ProcessorAdapterDefinition,
+    ProcessorAdapterError,
+    resolve_processor_adapter,
+)
 from .registry import ComponentRegistration, ComponentRegistry, default_component_registry
 from .search import CompositionCandidate, compose_topk
 
@@ -86,6 +92,7 @@ __all__ = [
     "HdlFacts",
     "EndpointDescription",
     "ElaborationSettings",
+    "ExtensionPolicy",
     "ElaboratedMemberFact",
     "ElaboratedPortFact",
     "EndpointCapability",
@@ -116,6 +123,8 @@ __all__ = [
     "PackedInputContainer",
     "ProcessorBoundary",
     "ProcessorBoundaryError",
+    "ProcessorAdapterDefinition",
+    "ProcessorAdapterError",
     "ProcessorControlBinding",
     "ProcessorMemoryBinding",
     "candidate_manifest",
@@ -138,6 +147,7 @@ __all__ = [
     "plan_auto_composition",
     "plan_generic_composition",
     "processor_boundary_document",
+    "resolve_processor_adapter",
     "source_tree_hash",
     "validate_protocol_composition",
     "validate_protocol_fingerprint",

@@ -345,7 +345,16 @@ The first Task 8b substep is complete and independently reviewed:
 request/response boundary with byte enables, independent backpressure and
 error-qualified completion.  It is a distinct protocol identity, so the
 existing `ready-valid-mmio@1` unique-loading and behavior remain compatible.
-No OBI, AXI4 or TileLink adapter is claimed by this substep.
+
+The AXI4 substep is also complete and independently reviewed.  Protocol and
+field capabilities select a CPU-name-independent adapter that preserves
+independent AW/W arrival, backpressure, IDs, byte enables and backend errors.
+Unsupported bursts, locks and atomic requests complete with DECERR; rejected
+write bursts drain their AWLEN-declared W transfers, and atomic requests return
+the required number of R beats while R and B remain independently backpressured.
+The fixed real CVA6 boundary resolves through this generic path.  OBI and
+TileLink adapters, timeout recovery and real processor execution acceptance
+remain open.
 
 #### Task 8c: Packed RFuzz runtime projection and connected acceptance
 
