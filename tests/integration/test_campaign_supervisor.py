@@ -77,6 +77,44 @@ class CampaignSupervisorTests(unittest.TestCase):
             )
             self.assertNotEqual(os.getpgrp(), result["metrics"][0]["group_id"])
 
+    def test_rss_error_after_short_child_exit_uses_actual_return_code(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            options = self._options(Path(temporary) / "campaign", "raise SystemExit(0)")
+
+            def race(_pgid: int) -> int:
+                time.sleep(0.05)
+                raise CampaignError("member exited during RSS sample")
+
+            with mock.patch.object(campaign, "read_process_group_rss_bytes", side_effect=race):
+                result = campaign.run_supervised_command(options)
+
+            self.assertEqual("completed", result["status"])
+            self.assertEqual(0, result["returncode"])
+            self.assertEqual(0, result["rss_sample_count"])
+            self.assertEqual(0, result["peak_rss_bytes"])
+
+    def test_rss_error_after_crash_cleans_up_remaining_process_group(self) -> None:
+        source = """
+            import subprocess
+            import sys
+            subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])
+            raise SystemExit(3)
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            options = self._options(Path(temporary) / "campaign", source)
+
+            def race(_pgid: int) -> int:
+                time.sleep(0.05)
+                raise CampaignError("leader exited during RSS sample")
+
+            with mock.patch.object(campaign, "read_process_group_rss_bytes", side_effect=race):
+                result = campaign.run_supervised_command(options)
+
+            self.assertEqual("crashed", result["status"])
+            self.assertEqual(3, result["returncode"])
+            self.assertEqual(0, result["rss_sample_count"])
+            self.assertEqual("SIGTERM", result["termination_signal"])
+
     def test_unbounded_and_unrecognized_output_is_not_retained_as_a_metric(self) -> None:
         source = """
             import json

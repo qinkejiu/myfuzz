@@ -38,3 +38,47 @@ Supported initial AST nodes: BASICDTYPE (explicit integral kinds only), REFDTYPE
 `runs/p1_elaboration_probe_20260907/` retains a successful tiny typed-port JSON probe, plus a source-bound CVA6 default noc-type wrapper. The latter uses fixed config_pkg/build_config_pkg/selected config and AXI package objects, with extracted cva6.sv type declarations. Strict invocation exits on 14 upstream width warnings; exploratory -Wno-fatal retains warnings and permits JSON inspection. This does not authorize silent warning suppression in the later production elaboration supervisor.
 
 Next P1 gate after Task 1: integrate explicit frontend selection, immutable source closure and elaboration settings into SourceLocator/SourceSnapshot/schema; test actual upstream config/type overrides and member semantic bindings through the existing annotation/composition pipeline. Full CVA6/BOOM module elaboration and real execution remain separate later gates. Do not mark P1 complete after the JSON reader alone.
+
+## Task 2: Bounded compiler frontend over an explicit source closure
+
+Files: extend `src/myfuzz/composition/source_elaboration.py`; create
+`tests/composition/test_source_elaboration_runner.py`.
+
+Interface: `run_verilator_elaboration(*, source_root, top_module, source_files,
+include_roots=(), defines=(), parameters=(), output_dir) -> Mapping`. All source,
+include and output paths are `Path`/relative strings rooted in one caller-owned
+source root. Parameters are ordered `(name, decimal_integer)` pairs. This task
+does not change SourceLocator or SourceCrawler yet.
+
+- [x] RED: compile the existing nested package/module through this API and
+  verify identical physical evidence; reject missing/duplicate files, symlinks,
+  path escapes, unsafe define/parameter identifiers or values, duplicate
+  parameters, existing/symlink output, missing tool, nonzero frontend status,
+  timeout and malformed output. Verify diagnostics are retained with a 64 KiB
+  limit and that a stalled frontend/descendant is reaped.
+- [x] GREEN: construct a fixed Verilator JSON-only command from validated
+  tokens only. No caller-provided arbitrary flags and no `shell=True`. Run one
+  new process group at nice 15/JOBS=1, with 30-second duration and 512/768 MiB
+  RSS supervision. Preserve command, tool version, source SHA256, return status,
+  peak RSS and bounded diagnostics in a manifest even on failure. Parse output
+  only after a completed zero exit and pass the explicit absolute-path to stable
+  source-label mapping into `extract_physical_ports`.
+- [x] Tests must inject a tiny fake frontend for timeout/error/diagnostic cases;
+  only the positive integration test invokes installed Verilator and may skip
+  when unavailable. Preserve RED/GREEN logs below
+  `runs/p1_elaboration_probe_20260907/`.
+- [x] Run reader, runner and source-crawler regressions, then independent review.
+  Commit Task 2 separately. Do not suppress warnings or claim a CVA6 module is
+  elaborated merely because the retained exploratory wrapper used
+  `-Wno-fatal`.
+
+## Task 3: Opt-in source-description and snapshot integration
+
+After Task 2 review, add a typed, canonical elaboration block to
+`interface_description.v1`, include it in source/composition identity, and let
+SourceCrawler use the runner only when explicitly requested. Add member facts
+to SourceSnapshot without converting them to scalar top-level ports. Existing
+source-only behavior stays unchanged. Any frontend failure, stale source,
+unsupported type or ambiguous member binding fails closed. Member semantic
+annotation and renderer support require a later reviewed task before a packed
+port can participate in composition.

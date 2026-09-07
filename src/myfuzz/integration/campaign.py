@@ -468,6 +468,7 @@ def _startup_error(error_type: str, message: str) -> dict[str, object]:
         "returncode": None,
         "duration_seconds": 0.0,
         "peak_rss_bytes": 0,
+        "rss_sample_count": 0,
         "metric_count": 0,
         "metrics": [],
         "metrics_truncated": False,
@@ -527,6 +528,7 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
         )
         metrics = _JsonLineMetrics(state)
         peak_rss_bytes = 0
+        rss_sample_count = 0
         soft_limit_exceeded = False
         status = "completed"
         termination_signal: str | None = None
@@ -582,11 +584,20 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
                             raise CampaignError("campaign process group is unavailable")
                         rss_bytes = read_process_group_rss_bytes(pgid)
                     except CampaignError as error:
+                        raced_return_code = process.poll()
+                        if raced_return_code is not None:
+                            return_code = process.wait()
+                            status = "completed" if return_code == 0 else "crashed"
+                            if pgid is not None and _group_exists(pgid):
+                                termination_signal = _terminate_process_group(process, pgid)
+                            _drain_output(selector, metrics, 0.2)
+                            break
                         monitor_error = error
                         status = "startup-error"
                         termination_signal = _terminate_process_group(process, pgid)
                         _drain_output(selector, metrics, 0.2)
                         break
+                    rss_sample_count += 1
                     peak_rss_bytes = max(peak_rss_bytes, rss_bytes)
                     soft_limit_exceeded = soft_limit_exceeded or (
                         rss_bytes >= options.limits.soft_memory_bytes
@@ -698,6 +709,7 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
         "returncode": return_code,
         "duration_seconds": duration_seconds,
         "peak_rss_bytes": peak_rss_bytes,
+        "rss_sample_count": rss_sample_count,
         "soft_limit_exceeded": soft_limit_exceeded,
         "metric_count": metrics.metric_count,
         "metrics": metrics.metrics,
