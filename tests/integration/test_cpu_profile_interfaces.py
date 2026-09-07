@@ -9,6 +9,8 @@ from myfuzz.components import ComponentDefinitionError, load_builtin_component_c
 from myfuzz.composition import load_interface_description
 from myfuzz.composition.source_crawler import annotate_interfaces, source_tree_hash
 from myfuzz.isa import CpuDefinitionError, load_builtin_cpu_catalog, load_cpu_catalog
+from myfuzz.protocols import load_protocol_catalog
+from myfuzz.composition.source_crawler import SourceCrawlError
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -71,6 +73,45 @@ def _synthetic_interface(root_name: str, module_name: str, source_hash: str) -> 
 
 
 class CpuProfileInterfaceTests(unittest.TestCase):
+    def test_source_backed_availability_requires_verified_matching_annotation(self) -> None:
+        for failure in (None, "empty-interface", "missing-root", "zero-pin", "locator-mismatch", "missing-field"):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as temporary:
+                base = Path(temporary)
+                tree = base / "rtl"
+                (tree / "rtl").mkdir(parents=True)
+                source = tree / "rtl/core.sv"
+                source.write_text("module core(output [63:0] opaque_address, output opaque_valid, input opaque_ready, output [63:0] opaque_write_data, input [63:0] opaque_read_data); endmodule")
+                description = _synthetic_interface("rtl", "core", source_tree_hash(tree, (source,)))
+                locator = dict(description["source"], available=True)
+                if failure == "missing-root":
+                    locator["root"] = description["source"]["root"] = "absent"
+                elif failure == "zero-pin":
+                    locator["revision"] = description["source"]["revision"] = "sha256:" + "0" * 64
+                elif failure == "locator-mismatch":
+                    locator["top_module"] = "other"
+                elif failure == "missing-field":
+                    description["endpoints"][0]["fields"][0]["aliases"] = ["absent"]
+                (base / "interface.json").write_text(json.dumps({} if failure == "empty-interface" else description))
+                profiles = base / "profiles"
+                profiles.mkdir()
+                document = dict(cpu_id="fixture", vendor="fixture", xlen=[64], extensions=["I"], core_native_protocols=[], integration_protocols=[["apb", "4"]], source_status="implemented", source_paths=["rtl"], implemented=True, interface_description="interface.json", source_locator=locator)
+                (profiles / "fixture.json").write_text(json.dumps(document))
+                catalog = load_cpu_catalog(profiles, root=base)
+                self.assertEqual(failure is None, catalog.require("fixture").implemented)
+                if failure:
+                    self.assertEqual((), catalog.compatible_protocols("fixture"))
+                # Metadata-free legacy availability remains file based.
+                del document["interface_description"], document["source_locator"]
+                (profiles / "fixture.json").write_text(json.dumps(document))
+                self.assertTrue(load_cpu_catalog(profiles, root=base).require("fixture").implemented)
+
+    def test_templates_have_materialization_entry_and_consumed_endpoint_keys(self) -> None:
+        for path in CPU_INTERFACE_FILES.values():
+            document = _load_json(path)
+            self.assertEqual("sources.f", document["source"].get("filelist"))
+            for endpoint in document["endpoints"]:
+                self.assertNotIn("source_anchor", endpoint)
+
     def test_cva6_and_boom_profiles_expose_rv64_interfaces_as_reference_only(self) -> None:
         catalog = load_builtin_cpu_catalog(root=ROOT)
 
@@ -88,7 +129,7 @@ class CpuProfileInterfaceTests(unittest.TestCase):
 
                 document = _load_json(interface_path)
                 semantic_description = load_interface_description(interface_path)
-                self.assertEqual(6, len(semantic_description.endpoints))
+                self.assertEqual(5 if cpu_id.startswith("cva6") else 6, len(semantic_description.endpoints))
                 source = document["source"]
                 self.assertIsInstance(source, dict)
                 assert isinstance(source, dict)
@@ -98,8 +139,6 @@ class CpuProfileInterfaceTests(unittest.TestCase):
 
     def test_cpu_interface_documents_contain_semantics_not_physical_hdl_facts(self) -> None:
         expected_functions = {
-            "instruction_memory_master",
-            "data_memory_master",
             "interrupt_sink",
             "debug_transport",
             "clock",
@@ -125,6 +164,7 @@ class CpuProfileInterfaceTests(unittest.TestCase):
                 self.assertIsInstance(endpoints, list)
                 assert isinstance(endpoints, list)
                 self.assertTrue(expected_functions <= {item["function"] for item in endpoints})
+                self.assertTrue(any("memory_master" in item["function"] for item in endpoints))
                 self.assertNotIn("direction", walk(document))
                 self.assertNotIn("width", walk(document))
                 self.assertNotIn("signed", walk(document))
@@ -155,11 +195,14 @@ endmodule
                 source = source_root / "rtl" / "core.sv"
                 source.parent.mkdir(parents=True)
                 module_name = f"opaque_{cpu_name}"
-                source.write_text(source_template.format(module_name=module_name), encoding="utf-8")
+                prefix = "alpha_" if cpu_name == "cva6" else "beta_"
+                source.write_text(source_template.format(module_name=module_name).replace("opaque_", prefix), encoding="utf-8")
+                module_name = module_name.replace("opaque_", prefix)
                 source_hash = source_tree_hash(source_root, (source,))
-                description = load_interface_description(
-                    _synthetic_interface(cpu_name, module_name, source_hash)
-                )
+                document = _synthetic_interface(cpu_name, module_name, source_hash)
+                for field in document["endpoints"][0]["fields"]:
+                    field["aliases"] = [name.replace("opaque_", prefix) for name in field["aliases"]]
+                description = load_interface_description(document)
                 annotations[cpu_name] = annotate_interfaces(description, base_dir=base)
 
         self.assertEqual(
@@ -174,6 +217,79 @@ endmodule
             annotations["cva6"]["endpoints"][0]["module"],
             annotations["boom"]["endpoints"][0]["module"],
         )
+
+    def test_cva6_export_template_validates_complete_axi4_with_renamed_ports(self) -> None:
+        # Independent physical fixture: test every role, direction and channel width.
+        widths = {"awid": 4, "arid": 4, "bid": 4, "rid": 4,
+                  "awaddr": 64, "araddr": 64, "awlen": 8, "arlen": 8,
+                  "awsize": 3, "arsize": 3, "awburst": 2, "arburst": 2,
+                  "wdata": 64, "rdata": 64, "wstrb": 8, "bresp": 2, "rresp": 2}
+        inputs = {"awready", "wready", "bid", "bresp", "bvalid", "arready", "rid", "rdata", "rresp", "rlast", "rvalid"}
+        catalog = load_protocol_catalog(ROOT / "src/myfuzz/protocols/plugins")
+        for prefix in ("export_", "renamed_"):
+            with self.subTest(prefix=prefix), tempfile.TemporaryDirectory() as temporary:
+                base = Path(temporary)
+                tree = base / "source"
+                tree.mkdir()
+                document = _load_json(CPU_INTERFACE_FILES["cva6.rv64imafdc"])
+                ports = []
+                memory = document["endpoints"][0]
+                self.assertEqual({f.field_id for f in catalog.require("axi4", "1").fields}, {f["role"] for f in memory["fields"]})
+                for endpoint in document["endpoints"]:
+                    for field in endpoint["fields"]:
+                        role = field["role"]
+                        name = prefix + role
+                        field["aliases"] = [name]
+                        width = widths.get(role, 1)
+                        direction = "input" if endpoint is not memory or role in inputs else "output"
+                        ports.append(f"{direction} logic [{width - 1}:0] {name}")
+                hdl = tree / "boundary.sv"
+                hdl.write_text("module cva6_axi_boundary(" + ",".join(ports) + "); endmodule")
+                filelist = tree / "sources.f"
+                filelist.write_text("boundary.sv\n")
+                document["source"].update(root="source", revision=source_tree_hash(tree, (hdl, filelist)))
+                annotations = annotate_interfaces(load_interface_description(document), base_dir=base, protocol_catalog=catalog)
+                annotated = next(e for e in annotations["endpoints"] if e["endpoint_id"] == "cpu.memory")
+                self.assertEqual("consistent", annotated["protocol_candidates"][0]["status"])
+                (base / "interface.json").write_text(json.dumps(document))
+                profiles = base / "profiles"
+                profiles.mkdir()
+                profile = _load_json(CPU_PROFILE_DIR / "cva6.json")
+                profile.update(source_paths=["source"], interface_description="interface.json",
+                               source_status="implemented", implemented=True,
+                               source_locator=dict(document["source"], available=True))
+                (profiles / "cpu.json").write_text(json.dumps(profile))
+                self.assertTrue(load_cpu_catalog(profiles, root=base).require(profile["cpu_id"]).implemented)
+                # Protocol mismatches must also fail through catalog availability.
+                memory["fields"][0]["role"] = "not_an_axi_field"
+                (base / "interface.json").write_text(json.dumps(document))
+                self.assertFalse(load_cpu_catalog(profiles, root=base).require(profile["cpu_id"]).implemented)
+
+    def test_boom_materialized_template_still_requires_tilelink_dependency(self) -> None:
+        catalog = load_builtin_cpu_catalog(root=ROOT)
+        self.assertEqual((), catalog.compatible_protocols("boom.rv64imafdc"))
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            tree = base / "source"
+            tree.mkdir()
+            document = _load_json(CPU_INTERFACE_FILES["boom.rv64imafdc"])
+            ports = {alias for endpoint in document["endpoints"] for field in endpoint["fields"] for alias in field["aliases"]}
+            hdl = tree / "tile.sv"
+            hdl.write_text("module boom_tile(" + ",".join("input " + p for p in sorted(ports)) + "); endmodule")
+            filelist = tree / "sources.f"
+            filelist.write_text("tile.sv\n")
+            document["source"].update(root="source", revision=source_tree_hash(tree, (hdl, filelist)))
+            with self.assertRaisesRegex(SourceCrawlError, "protocol-unsupported:.*tilelink@1"):
+                annotate_interfaces(load_interface_description(document), base_dir=base, protocol_catalog=load_protocol_catalog(ROOT / "src/myfuzz/protocols/plugins"))
+            (base / "interface.json").write_text(json.dumps(document))
+            profiles = base / "profiles"
+            profiles.mkdir()
+            profile = _load_json(CPU_PROFILE_DIR / "boom.json")
+            profile.update(source_paths=["source"], interface_description="interface.json",
+                           source_status="implemented", implemented=True,
+                           source_locator=dict(document["source"], available=True))
+            (profiles / "cpu.json").write_text(json.dumps(profile))
+            self.assertFalse(load_cpu_catalog(profiles, root=base).require(profile["cpu_id"]).implemented)
 
     def test_reusable_profiles_have_generic_capabilities_and_are_not_implemented(self) -> None:
         catalog = load_builtin_component_catalog()

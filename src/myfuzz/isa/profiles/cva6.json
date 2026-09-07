@@ -1,19 +1,41 @@
 {
   "cpu_id": "cva6.rv64imafdc",
   "vendor": "OpenHW Group",
-  "xlen": [64],
-  "extensions": ["I", "M", "A", "F", "D", "C"],
-  "core_native_protocols": [["axi4", "1"]],
-  "integration_protocols": [["axi4", "1"]],
+  "xlen": [
+    64
+  ],
+  "extensions": [
+    "I",
+    "M",
+    "A",
+    "F",
+    "D",
+    "C"
+  ],
+  "core_native_protocols": [
+    [
+      "axi4",
+      "1"
+    ]
+  ],
+  "integration_protocols": [
+    [
+      "axi4",
+      "1"
+    ]
+  ],
   "source_status": "reference",
-  "source_paths": ["third_party/cva6"],
+  "source_paths": [
+    "third_party/cva6"
+  ],
   "implemented": false,
   "interface_description": "configs/cpus/cva6/interface_description.json",
   "source_locator": {
     "root": "third_party/cva6",
     "revision": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-    "top_module": "cva6",
+    "top_module": "cva6_axi_boundary",
     "available": false,
-    "reason": "reference-only placeholder until the pinned upstream checkout is materialized"
+    "reason": "reference-only: requires exported flattened AXI4 boundary, sources.f, verified pin and annotation",
+    "filelist": "sources.f"
   }
 }

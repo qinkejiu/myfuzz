@@ -13,8 +13,23 @@ digest (or a full verified Git commit) before runtime publication. The catalog
 must continue to report the profile as unavailable until annotation and the
 selected integration boundary both validate.
 
-The expected memory boundary is a generated Tile-facing interface, represented
-here as the reference `tilelink@1` expectation. It must be structurally
-validated before a candidate can select a concrete TileLink runtime adapter;
-the profile is not a CPU-name shortcut or a claim that every BOOM wrapper is
-TL-UL.
+There is an additional unavailable dependency: `tilelink@1` is not implemented
+in the protocol catalog. Downloading or generating BOOM sources alone cannot
+make this profile executable. The abstract instruction/data aliases are role
+placeholders, not a complete TileLink channel mapping. TL-UL support does not
+provide BOOM TileLink/coherence support.
+
+The explicit materialization entry is `third_party/boom/sources.f`. It must
+list generated RTL and its dependencies, including an exported `boom_tile`
+boundary. Use actual port aliases/module/hierarchy in the description; there
+is no supported `source_anchor` field. Update the profile and description
+locators identically and include filelists in the verified source pin.
+
+Runtime enablement additionally requires a supported, validated boundary:
+implement the applicable TileLink protocol, full channel mapping and adapter
+capabilities, or supply a separately verified boundary converter and describe
+its supported protocol honestly. Keep `implemented=false` and
+`available=false` until those dependencies exist. A regression test provides
+pinned synthetic RTL and verifies that annotation still rejects the missing
+`tilelink@1` dependency. This iteration does not download Chipyard or claim
+BOOM runtime support.

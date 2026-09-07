@@ -1,12 +1,33 @@
 {
   "cpu_id": "boom.rv64imafdc",
   "vendor": "Berkeley Architecture Research",
-  "xlen": [64],
-  "extensions": ["I", "M", "A", "F", "D", "C"],
-  "core_native_protocols": [["boom-tile", "1"]],
-  "integration_protocols": [["tilelink", "1"]],
+  "xlen": [
+    64
+  ],
+  "extensions": [
+    "I",
+    "M",
+    "A",
+    "F",
+    "D",
+    "C"
+  ],
+  "core_native_protocols": [
+    [
+      "boom-tile",
+      "1"
+    ]
+  ],
+  "integration_protocols": [
+    [
+      "tilelink",
+      "1"
+    ]
+  ],
   "source_status": "reference",
-  "source_paths": ["third_party/boom"],
+  "source_paths": [
+    "third_party/boom"
+  ],
   "implemented": false,
   "interface_description": "configs/cpus/boom/interface_description.json",
   "source_locator": {
@@ -14,6 +35,7 @@
     "revision": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
     "top_module": "boom_tile",
     "available": false,
-    "reason": "reference-only placeholder until the pinned generated or upstream checkout is materialized"
+    "reason": "dependency unavailable: generated RTL and supported TileLink boundary/protocol implementation required",
+    "filelist": "sources.f"
   }
 }

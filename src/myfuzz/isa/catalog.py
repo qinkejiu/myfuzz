@@ -260,6 +260,35 @@ def _parse_source_locator(
     return result
 
 
+def _verified_interface_available(root: Path, path: str, locator: Mapping[str, object]) -> bool:
+    """New-style profiles require matching, pinned source-backed annotations."""
+    # Lazy imports preserve the legacy catalog/composition import boundary.
+    from myfuzz.composition.interface_description import load_interface_description, SourceLocator
+    from myfuzz.composition.source_crawler import annotate_interfaces
+    from myfuzz.protocols import load_protocol_catalog
+
+    try:
+        interface_path = (root / path).resolve()
+        interface_path.relative_to(root.resolve())
+        description = load_interface_description(interface_path)
+        expected = SourceLocator(
+            source_root=locator["root"], revision=locator["revision"],
+            top_module=locator["top_module"], files=tuple(locator.get("files", ())),
+            filelist=locator.get("filelist"), include_roots=tuple(locator.get("include_roots", ())),
+        )
+        if description.source != expected:
+            return False
+        if not expected.files and not expected.filelist:
+            return False
+        annotations = annotate_interfaces(
+            description, base_dir=root,
+            protocol_catalog=load_protocol_catalog(Path(__file__).parents[1] / "protocols/plugins"),
+        )
+        return bool(annotations["endpoints"])
+    except (OSError, ValueError, TypeError):
+        return False
+
+
 def _parse_profile(document: object, source: Path, root: Path) -> CpuProfile:
     if not isinstance(document, dict):
         raise CpuDefinitionError(f"{source}: profile document must be an object")
@@ -320,7 +349,8 @@ def _parse_profile(document: object, source: Path, root: Path) -> CpuProfile:
         and _source_paths_exist(tuple(source_paths), root, source)
     )
     if implemented and interface_description is not None:
-        implemented = (root / interface_description).is_file()
+        assert source_locator is not None
+        implemented = _verified_interface_available(root, interface_description, source_locator)
     return CpuProfile(
         cpu_id=cpu_id,
         vendor=vendor,

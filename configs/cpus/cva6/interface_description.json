@@ -3,63 +3,262 @@
   "source": {
     "root": "third_party/cva6",
     "revision": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-    "top_module": "cva6"
+    "top_module": "cva6_axi_boundary",
+    "filelist": "sources.f"
   },
   "endpoints": [
     {
-      "endpoint_id": "cpu.instruction_memory",
-      "function": "instruction_memory_master",
-      "protocol": ["axi4", "1"],
-      "source_anchor": {"kind": "architectural_role", "value": "instruction-memory"},
+      "endpoint_id": "cpu.memory",
+      "function": "memory_master",
+      "protocol": [
+        "axi4",
+        "1"
+      ],
       "fields": [
-        {"role": "address", "aliases": ["instruction_address"]},
-        {"role": "read_data", "aliases": ["instruction_read_data"]},
-        {"role": "request", "aliases": ["instruction_request"]},
-        {"role": "response", "aliases": ["instruction_response"]}
-      ]
-    },
-    {
-      "endpoint_id": "cpu.data_memory",
-      "function": "data_memory_master",
-      "protocol": ["axi4", "1"],
-      "source_anchor": {"kind": "architectural_role", "value": "data-memory"},
-      "fields": [
-        {"role": "address", "aliases": ["data_address"]},
-        {"role": "write_data", "aliases": ["data_write_data"]},
-        {"role": "read_data", "aliases": ["data_read_data"]},
-        {"role": "request", "aliases": ["data_request"]},
-        {"role": "response", "aliases": ["data_response"]}
+        {
+          "role": "awid",
+          "aliases": [
+            "mem_awid"
+          ]
+        },
+        {
+          "role": "awaddr",
+          "aliases": [
+            "mem_awaddr"
+          ]
+        },
+        {
+          "role": "awlen",
+          "aliases": [
+            "mem_awlen"
+          ]
+        },
+        {
+          "role": "awsize",
+          "aliases": [
+            "mem_awsize"
+          ]
+        },
+        {
+          "role": "awburst",
+          "aliases": [
+            "mem_awburst"
+          ]
+        },
+        {
+          "role": "awvalid",
+          "aliases": [
+            "mem_awvalid"
+          ]
+        },
+        {
+          "role": "awready",
+          "aliases": [
+            "mem_awready"
+          ]
+        },
+        {
+          "role": "wdata",
+          "aliases": [
+            "mem_wdata"
+          ]
+        },
+        {
+          "role": "wstrb",
+          "aliases": [
+            "mem_wstrb"
+          ]
+        },
+        {
+          "role": "wlast",
+          "aliases": [
+            "mem_wlast"
+          ]
+        },
+        {
+          "role": "wvalid",
+          "aliases": [
+            "mem_wvalid"
+          ]
+        },
+        {
+          "role": "wready",
+          "aliases": [
+            "mem_wready"
+          ]
+        },
+        {
+          "role": "bid",
+          "aliases": [
+            "mem_bid"
+          ]
+        },
+        {
+          "role": "bresp",
+          "aliases": [
+            "mem_bresp"
+          ]
+        },
+        {
+          "role": "bvalid",
+          "aliases": [
+            "mem_bvalid"
+          ]
+        },
+        {
+          "role": "bready",
+          "aliases": [
+            "mem_bready"
+          ]
+        },
+        {
+          "role": "arid",
+          "aliases": [
+            "mem_arid"
+          ]
+        },
+        {
+          "role": "araddr",
+          "aliases": [
+            "mem_araddr"
+          ]
+        },
+        {
+          "role": "arlen",
+          "aliases": [
+            "mem_arlen"
+          ]
+        },
+        {
+          "role": "arsize",
+          "aliases": [
+            "mem_arsize"
+          ]
+        },
+        {
+          "role": "arburst",
+          "aliases": [
+            "mem_arburst"
+          ]
+        },
+        {
+          "role": "arvalid",
+          "aliases": [
+            "mem_arvalid"
+          ]
+        },
+        {
+          "role": "arready",
+          "aliases": [
+            "mem_arready"
+          ]
+        },
+        {
+          "role": "rid",
+          "aliases": [
+            "mem_rid"
+          ]
+        },
+        {
+          "role": "rdata",
+          "aliases": [
+            "mem_rdata"
+          ]
+        },
+        {
+          "role": "rresp",
+          "aliases": [
+            "mem_rresp"
+          ]
+        },
+        {
+          "role": "rlast",
+          "aliases": [
+            "mem_rlast"
+          ]
+        },
+        {
+          "role": "rvalid",
+          "aliases": [
+            "mem_rvalid"
+          ]
+        },
+        {
+          "role": "rready",
+          "aliases": [
+            "mem_rready"
+          ]
+        }
       ]
     },
     {
       "endpoint_id": "cpu.interrupts",
       "function": "interrupt_sink",
-      "source_anchor": {"kind": "architectural_role", "value": "interrupt-input"},
       "fields": [
-        {"role": "software_interrupt", "aliases": ["software_interrupt"]},
-        {"role": "timer_interrupt", "aliases": ["timer_interrupt"]},
-        {"role": "external_interrupt", "aliases": ["external_interrupt"]}
+        {
+          "role": "software_interrupt",
+          "aliases": [
+            "software_interrupt"
+          ]
+        },
+        {
+          "role": "timer_interrupt",
+          "aliases": [
+            "timer_interrupt"
+          ]
+        },
+        {
+          "role": "external_interrupt",
+          "aliases": [
+            "external_interrupt"
+          ]
+        }
       ]
     },
     {
       "endpoint_id": "cpu.debug",
       "function": "debug_transport",
       "required": false,
-      "source_anchor": {"kind": "architectural_role", "value": "debug-transport"},
       "fields": [
-        {"role": "request", "aliases": ["debug_request"], "required": false},
-        {"role": "response", "aliases": ["debug_response"], "required": false}
+        {
+          "role": "request",
+          "aliases": [
+            "debug_request"
+          ],
+          "required": false
+        },
+        {
+          "role": "response",
+          "aliases": [
+            "debug_response"
+          ],
+          "required": false
+        }
       ]
     },
     {
       "endpoint_id": "cpu.clock",
       "function": "clock",
-      "fields": [{"role": "clock", "aliases": ["clock"]}]
+      "fields": [
+        {
+          "role": "clock",
+          "aliases": [
+            "clock"
+          ]
+        }
+      ]
     },
     {
       "endpoint_id": "cpu.reset",
       "function": "reset",
-      "fields": [{"role": "reset", "aliases": ["reset"]}]
+      "fields": [
+        {
+          "role": "reset",
+          "aliases": [
+            "reset"
+          ]
+        }
+      ]
     }
   ]
 }
