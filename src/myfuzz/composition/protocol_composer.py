@@ -1286,11 +1286,14 @@ def _generic_routes(plan: object) -> tuple[dict[str, object], ...]:
         control = binding.get("control")
         if not isinstance(contract, Mapping) or contract.get("mode") != "single_target_single_channel":
             raise ValueError("generic composition adapter contract is unsupported")
-        if not isinstance(control, Mapping) or set(control) != {"clock", "reset"}:
+        if not isinstance(control, Mapping) or set(control) != {"clock", "reset", "reset_semantics"}:
             raise ValueError("generic composition control binding is invalid")
-        for role, item in control.items():
+        for role in ("clock", "reset"):
+            item = control[role]
             if not isinstance(item, Mapping) or not isinstance(item.get("source_port"), str) or not isinstance(item.get("target_port"), str):
                 raise ValueError(f"generic composition {role} binding is invalid")
+        if control.get("reset_semantics") != {"polarity": "active_low", "synchrony": "asynchronous"}:
+            raise ValueError("generic composition reset semantics are unsupported")
         fields = raw.get("fields")
         if not isinstance(fields, (tuple, list)) or not fields:
             raise ValueError("generic composition adapter fields are invalid")
@@ -1350,6 +1353,11 @@ def _render_generic_adapter(route: Mapping[str, object]) -> str:
         raise ValueError("generic composition adapter bound is invalid")
     if not isinstance(contract, Mapping):
         raise ValueError("generic composition adapter contract is invalid")
+    control = route.get("control")
+    if not isinstance(control, Mapping) or control.get("reset_semantics") != {
+        "polarity": "active_low", "synchrony": "asynchronous"
+    }:
+        raise ValueError("generic composition adapter reset semantics are unsupported")
     valid_id, ready_id, error_id = (
         contract.get("request_field_id"), contract.get("response_field_id"), contract.get("error_field_id"),
     )
@@ -1594,49 +1602,104 @@ def _validate_generic_output_boundary(
             raise ValueError("generic composition output overlaps source evidence")
 
 
-def _validate_generic_plan_freshness(plan: object, root: Path) -> None:
-    """Re-establish source evidence and reject a plan changed after planning."""
-    description = getattr(plan, "interface_description", None)
+def _generic_plan_reconstruction_document(plan: object) -> dict[str, object]:
+    """All planner facts that the generic renderer is allowed to consume."""
+    return {
+        "annotations": _generic_plain(getattr(plan, "annotations", None)),
+        "capabilities": [
+            {
+                "endpoint_id": endpoint.endpoint_id,
+                "function": endpoint.function,
+                "side": endpoint.side,
+                "protocol": endpoint.protocol,
+                "clock": endpoint.clock,
+                "reset": endpoint.reset,
+                "fields": [
+                    (field.role, field.port, field.direction, field.width, field.signed,
+                     None if field.source is None else (field.source.file, field.source.line, field.source.column),
+                     field.evidence)
+                    for field in endpoint.fields
+                ],
+                "timing": [
+                    (timing.kind, timing.fields, timing.clock, timing.max_latency,
+                     None if timing.source is None else (timing.source.file, timing.source.line, timing.source.column),
+                     timing.evidence)
+                    for timing in endpoint.timing
+                ],
+                "evidence": endpoint.evidence,
+            }
+            for endpoint in getattr(plan, "capabilities", ())
+        ],
+        "components": _generic_plain(getattr(plan, "components", None)),
+        "matches": _generic_plain(getattr(plan, "matches", None)),
+        "diagnostics": list(getattr(plan, "diagnostics", ())),
+        "layout": _generic_plain(input_layout_document(getattr(plan, "layout"))),
+        "ir": _generic_plain(getattr(plan, "ir", None)),
+        "interface_annotation_hash": getattr(plan, "interface_annotation_hash", None),
+        "composition_ir_hash": getattr(plan, "composition_ir_hash", None),
+        "source_files": list(getattr(plan, "source_files", ())),
+        "source_evidence_hash": getattr(plan, "source_evidence_hash", None),
+    }
+
+
+def _validate_generic_plan_freshness(plan: object, root: Path) -> object:
+    """Rebuild all pinned records; neither plan IR nor cached evidence is authority."""
+    from .auto import _generic_source_evidence_hash, plan_generic_composition
+
     capabilities = getattr(plan, "capabilities", None)
-    if description is None or not isinstance(capabilities, tuple):
-        raise ValueError("generic composition plan evidence is invalid")
     protocol_catalog = getattr(plan, "protocol_catalog", None)
+    request = getattr(plan, "request", None)
+    component_catalog = getattr(plan, "component_catalog", None)
+    if not isinstance(capabilities, tuple) or request is None or component_catalog is None:
+        raise ValueError("generic composition plan reconstruction evidence is missing")
     if any(getattr(endpoint, "protocol", None) is not None for endpoint in capabilities) and protocol_catalog is None:
         raise ValueError("generic composition protocol catalog evidence is missing")
     try:
-        annotations = annotate_interfaces(
-            description, base_dir=root, protocol_catalog=protocol_catalog,
+        source_files = tuple(getattr(plan, "source_files", ()))
+        description = getattr(plan, "interface_description", None)
+        locator = getattr(description, "source", None)
+        if locator is None:
+            raise ValueError("generic composition plan source locator is missing")
+        current_source_hash = _generic_source_evidence_hash(
+            root, source_files, locator,
+        )
+        expected = plan_generic_composition(
+            request, base_dir=root, component_catalog=component_catalog,
+            protocol_catalog=protocol_catalog,
         )
     except ValueError as error:
         raise ValueError("generic composition stale source evidence") from error
-    if (
-        content_hash(annotations) != getattr(plan, "interface_annotation_hash", None)
-        or canonical_bytes(_generic_plain(annotations))
-        != canonical_bytes(_generic_plain(getattr(plan, "annotations", None)))
-    ):
-        raise ValueError("generic composition stale source evidence")
-    source = getattr(description, "source", None)
-    source_root = getattr(source, "source_root", None)
-    annotated_files = annotations.get("source", {}).get("files", ()) if isinstance(annotations.get("source"), Mapping) else ()
-    if not isinstance(source_root, str) or not isinstance(annotated_files, list):
-        raise ValueError("generic composition source evidence is invalid")
-    component_files: list[str] = []
-    components = getattr(plan, "components", ())
-    if not isinstance(components, tuple):
-        raise ValueError("generic composition plan components are invalid")
-    for component in components:
-        if not isinstance(component, Mapping) or not isinstance(component.get("source_files"), (tuple, list)):
-            raise ValueError("generic composition component source evidence is invalid")
-        component_files.extend(component["source_files"])
-    expected_sources = tuple(sorted(set(
-        [f"{source_root.rstrip('/')}/{item}" if source_root else item for item in annotated_files]
-        + component_files
-    )))
-    if tuple(getattr(plan, "source_files", ())) != expected_sources:
-        raise ValueError("generic composition stale source evidence")
-    ir = getattr(plan, "ir", None)
-    if not isinstance(ir, Mapping) or canonical_ir_hash(ir) != getattr(plan, "composition_ir_hash", None):
-        raise ValueError("generic composition IR hash mismatch")
+    if current_source_hash != getattr(plan, "source_evidence_hash", None):
+        raise ValueError("generic composition plan reconstruction mismatch")
+    if canonical_bytes(_generic_plan_reconstruction_document(plan)) != canonical_bytes(_generic_plan_reconstruction_document(expected)):
+        raise ValueError("generic composition plan reconstruction mismatch")
+    return expected
+
+
+def _generic_source_list(plan: object, root: Path, output: Path, sources: tuple[Path, ...]) -> str:
+    """Emit one output-directory-relative file list with its include context."""
+    description = getattr(plan, "interface_description", None)
+    locator = getattr(description, "source", None)
+    source_root = getattr(locator, "source_root", None)
+    include_roots = getattr(locator, "include_roots", ())
+    if not isinstance(source_root, str) or not isinstance(include_roots, tuple):
+        raise ValueError("generic composition source-list evidence is invalid")
+    entries: list[str] = []
+    for include_root in sorted(include_roots):
+        if not isinstance(include_root, str):
+            raise ValueError("generic composition source-list include root is invalid")
+        include = (root / source_root / include_root).resolve()
+        try:
+            include.relative_to(root)
+        except ValueError as error:
+            raise ValueError("generic composition source-list include root escapes base_dir") from error
+        if not include.is_dir():
+            raise ValueError("generic composition source-list include root is missing")
+        entries.append("+incdir+" + Path(os.path.relpath(include, output)).as_posix())
+    for source in sources:
+        entries.append(Path(os.path.relpath(source, output)).as_posix())
+    entries.append("generic_composition_top.sv")
+    return "\n".join(entries) + "\n"
 
 
 def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path) -> dict[str, object]:
@@ -1648,16 +1711,18 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
     root = Path(base_dir).resolve()
     if not root.is_dir():
         raise ValueError("generic composition base_dir is missing")
-    _validate_generic_plan_freshness(plan, root)
+    plan = _validate_generic_plan_freshness(plan, root)
     sources = tuple(_generic_source(root, source) for source in plan.source_files)
     output = Path(output_dir).resolve()
     _validate_generic_output_boundary(plan, output, root, sources)
+    if output.exists() and not output.is_dir():
+        raise ValueError("generic composition existing output is not a directory")
     top_text = _render_generic_top(plan)
     output_parent = output.parent
     output_parent.mkdir(parents=True, exist_ok=True)
     ir_payload = canonical_bytes(_generic_plain(plan.ir))
     layout_payload = canonical_bytes(_generic_plain(input_layout_document(plan.layout)))
-    source_list = "\n".join([*plan.source_files, "generic_composition_top.sv"]) + "\n"
+    source_list = _generic_source_list(plan, root, output, sources)
     stage: Path | None = Path(tempfile.mkdtemp(prefix=f".{output.name}.generic-", dir=output_parent))
     backup: Path | None = None
     try:

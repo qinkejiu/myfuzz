@@ -26,6 +26,7 @@ from .endpoint_capabilities import (
     EndpointCapability,
     EndpointFieldFact,
     SourceReference,
+    TimingFact,
     match_endpoint_pair,
     normalize_annotations,
 )
@@ -133,6 +134,9 @@ class GenericCompositionPlan:
     interface_annotation_hash: str
     composition_ir_hash: str
     source_files: tuple[str, ...]
+    source_evidence_hash: str
+    request: GenericCompositionRequest
+    component_catalog: ComponentCatalog
     protocol_catalog: ProtocolCatalog | None
     complete: bool = True
 
@@ -893,6 +897,33 @@ def _generic_source_path(base_dir: Path, source_path: str) -> Path:
     return candidate
 
 
+def _generic_source_evidence_hash(
+    base_dir: Path, source_files: tuple[str, ...], locator: SourceLocator,
+) -> str:
+    """Pin selected HDL and every declared include-root byte consumed by lint."""
+    root = base_dir.resolve()
+    paths = {_generic_source_path(root, source_file) for source_file in source_files}
+    source_root = (root / locator.source_root).resolve()
+    try:
+        source_root.relative_to(root)
+    except ValueError as error:
+        raise AutoCompositionError("generic:source-root:outside-base") from error
+    for include_root in locator.include_roots:
+        include = (source_root / include_root).resolve()
+        try:
+            include.relative_to(source_root)
+        except ValueError as error:
+            raise AutoCompositionError("generic:include-root:outside-source") from error
+        if not include.is_dir() or include.is_symlink():
+            raise AutoCompositionError("generic:include-root:invalid")
+        for candidate in include.rglob("*"):
+            if candidate.is_symlink():
+                raise AutoCompositionError("generic:include-root:symlink")
+            if candidate.is_file():
+                paths.add(candidate)
+    return source_tree_hash(root, tuple(sorted(paths)))
+
+
 def _generic_capability_document(capability: EndpointCapability) -> dict[str, object]:
     return {
         "endpoint_id": capability.endpoint_id,
@@ -1004,10 +1035,19 @@ def _generic_target_capability(
             source=SourceReference(port.source_file, port.line, port.column),
             evidence=("component_hdl_declaration", "control_port"),
         ))
+    timing = tuple(
+        TimingFact(
+            observation.kind, observation.fields, observation.clock,
+            source=SourceReference(observation.source_file, observation.line),
+            evidence=("component_hdl_timing",),
+        )
+        for observation in snapshot.timing
+        if observation.module == profile.module_name
+    )
     return EndpointCapability(
         endpoint_id=f"component.{profile.component_type}", function="protocol_target",
-        side="target", protocol=protocol, fields=tuple(fields), clock=None,
-        reset=None, timing=(), evidence=("component_profile", "component_hdl"),
+        side="target", protocol=protocol, fields=tuple(fields), clock=controls["clock"],
+        reset=controls["reset"], timing=timing, evidence=("component_profile", "component_hdl"),
     )
 
 
@@ -1030,6 +1070,27 @@ def _generic_adapter_contract(
 ) -> dict[str, object]:
     """Declare the sole bounded adapter shape this renderer can materialize."""
     plugin = catalog.require(*protocol)
+    limits = dict(plugin.capability_limits)
+    relations = plugin.channel_relations
+    gates = [
+        action for action in plugin.projection_actions
+        if action.kind == "gate" and action.category == "protocol_legality"
+        and "valid" in action.field_ids and action.max_cycles is not None
+        and 1 <= action.max_cycles <= 16
+    ]
+    if (
+        len(relations) != 1
+        or relations[0].kind not in {"request_response_handshake", "single_channel_request_response"}
+        or not {"valid", "ready"}.issubset(relations[0].field_ids)
+        or limits.get("max_outstanding") != 1
+        or limits.get("bursts", False) is not False
+        or limits.get("ids", False) is not False
+        or limits.get("single_beat_only", True) is not True
+        or len(gates) != 1
+    ):
+        raise AutoCompositionError(
+            f"generic:adapter:{protocol[0]}@{protocol[1]}:single-channel-metadata"
+        )
     directions = {field.field_id: field.direction for field in plugin.fields}
     required = {"valid": "host_to_device", "ready": "device_to_host", "error": "device_to_host"}
     if any(directions.get(name) != direction for name, direction in required.items()):
@@ -1052,6 +1113,17 @@ def _generic_adapter_contract(
     }
 
 
+def _generic_async_active_low_reset(endpoint: EndpointCapability, *, clock: str, reset: str) -> bool:
+    """Return whether source evidence proves the sole reset form we render."""
+    reset_roles = {reset, *(field.role for field in endpoint.fields if field.port == reset)}
+    return any(
+        timing.kind == "reset_membership"
+        and timing.clock == clock
+        and bool(reset_roles.intersection(timing.fields))
+        for timing in endpoint.timing
+    )
+
+
 def _generic_control_binding(
     source: EndpointCapability, target: EndpointCapability, component_type: str,
 ) -> dict[str, dict[str, object]]:
@@ -1069,6 +1141,25 @@ def _generic_control_binding(
                 f"generic:component:{component_type}:control-binding:{role}"
             )
         result[role] = {"source_port": source_field.port, "target_port": target_field.port}
+    if (
+        source.clock != result["clock"]["source_port"]
+        or target.clock != result["clock"]["target_port"]
+    ):
+        raise AutoCompositionError(
+            f"generic:component:{component_type}:clock-semantics"
+        )
+    if not (
+        _generic_async_active_low_reset(
+            source, clock=str(result["clock"]["source_port"]), reset=str(result["reset"]["source_port"])
+        )
+        and _generic_async_active_low_reset(
+            target, clock=str(result["clock"]["target_port"]), reset=str(result["reset"]["target_port"])
+        )
+    ):
+        raise AutoCompositionError(
+            f"generic:component:{component_type}:reset-semantics"
+        )
+    result["reset_semantics"] = {"polarity": "active_low", "synchrony": "asynchronous"}
     return result
 
 
@@ -1430,6 +1521,14 @@ def plan_generic_composition(
             ],
         },
         "source_file_ids": [canonical_id("generic-source-file", item) for item in source_files],
+        "source_list": {
+            "cwd": "output_dir",
+            "path_basis": "output-relative",
+            "include_root_ids": [
+                canonical_id("generic-include-root", item)
+                for item in sorted(request.interface_description.source.include_roots)
+            ],
+        },
         "diagnostics": {"errors": [], "warnings": sorted(set(diagnostics))},
     })
     return GenericCompositionPlan(
@@ -1444,6 +1543,11 @@ def plan_generic_composition(
         interface_annotation_hash=annotation_hash,
         composition_ir_hash=canonical_ir_hash(ir),
         source_files=source_files,
+        source_evidence_hash=_generic_source_evidence_hash(
+            root, source_files, request.interface_description.source,
+        ),
+        request=request,
+        component_catalog=catalog,
         protocol_catalog=selected_protocol_catalog,
     )
 

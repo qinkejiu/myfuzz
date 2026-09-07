@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -17,10 +18,51 @@ from myfuzz.composition import (
     write_generic_composition,
 )
 from myfuzz.composition import protocol_composer
+from myfuzz.composition.ir import canonical_ir_hash
 from tests.composition.test_generic_auto import GenericAutoCompositionTests, synthetic_description
 
 
 class GenericCompositionIntegrationTests(unittest.TestCase):
+    def test_writer_rejects_existing_output_file_without_mutating_it(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            description = synthetic_description(root, "published_file_cpu", ("clk", "rst", "fuzz", "seen"))
+            plan = plan_generic_composition(GenericCompositionRequest(description, ()), base_dir=root)
+            output = root / "out"
+            output.write_bytes(b"existing file must survive")
+
+            with self.assertRaisesRegex(ValueError, "existing output is not a directory"):
+                write_generic_composition(plan, output, base_dir=root)
+
+            self.assertTrue(output.is_file())
+            self.assertEqual(output.read_bytes(), b"existing file must survive")
+
+    def test_writer_rejects_ir_forgery_even_when_hash_is_updated(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            description = synthetic_description(root, "forged_ir_cpu", ("clk", "rst", "fuzz", "seen"))
+            plan = plan_generic_composition(GenericCompositionRequest(description, ()), base_dir=root)
+            forged = dict(plan.ir)
+            forged["target"] = {"top_module": "forged_top"}
+            object.__setattr__(plan, "ir", forged)
+            object.__setattr__(plan, "composition_ir_hash", canonical_ir_hash(forged))
+
+            with self.assertRaisesRegex(ValueError, "plan reconstruction mismatch"):
+                write_generic_composition(plan, root / "out", base_dir=root)
+
+    def test_writer_rejects_component_source_bytes_changed_after_planning(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plan, component_source = self._bounded_component_plan(root, "component_pin_cpu")
+            component_source.write_text(
+                component_source.read_text(encoding="utf-8") + "// changed after planning\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "plan reconstruction mismatch"):
+                write_generic_composition(plan, root / "out", base_dir=root)
+            self.assertFalse((root / "out").exists())
+
     def test_writer_renders_stateful_bounded_adapter_with_real_control_nets(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -36,14 +78,15 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
             (root / "bounded_device.sv").write_text(
                 "module bounded_device(input logic clock, input logic reset, input logic [15:0] addr, "
                 "input logic valid, output logic ready, input logic [31:0] wdata, output logic [31:0] rdata, "
-                "output logic error, output logic irq); assign ready = valid; assign rdata = wdata; "
-                "assign error = 1'b0; assign irq = valid; endmodule\n",
+                "output logic error, output logic irq); logic state; "
+                "always_ff @(posedge clock or negedge reset) if (!reset) state <= 1'b0; else state <= valid; "
+                "assign ready = valid; assign rdata = wdata; assign error = 1'b0; assign irq = valid; endmodule\n",
                 encoding="utf-8",
             )
             from myfuzz.components.catalog import ComponentCatalog
             from myfuzz.components.model import PeripheralProfile
             from myfuzz.protocols.catalog import ProtocolCatalog
-            from myfuzz.protocols.model import FieldSpec, ProtocolPlugin
+            from myfuzz.protocols.model import ChannelRelationSpec, FieldSpec, ProjectionActionSpec, ProtocolPlugin
             protocol = ProtocolCatalog((ProtocolPlugin("bounded", "1", (
                 FieldSpec("addr", "host_to_device", "address_width", True, 0),
                 FieldSpec("valid", "host_to_device", "1", True, 0),
@@ -52,7 +95,9 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
                 FieldSpec("rdata", "device_to_host", "data_width", True, 0),
                 FieldSpec("error", "device_to_host", "1", True, 0),
                 FieldSpec("irq", "device_to_host", "1", False, 0),
-            ), ()),))
+            ), (), (ProjectionActionSpec(1, ("valid",), "gate", "protocol_legality", 16),), (),
+               (ChannelRelationSpec(1, "request_response_handshake", ("valid", "ready", "rdata")),),
+               (("max_outstanding", 1), ("bursts", False), ("ids", False))),))
             description = load_interface_description({
                 "schema_version": "interface_description.v1",
                 "source": {"root": "source", "revision": source_tree_hash(root / "source", (cpu,)),
@@ -132,7 +177,7 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
             changed_ir = dict(fresh.ir)
             changed_ir["instances"] = [{"instance_id": "forged"}]
             object.__setattr__(fresh, "ir", changed_ir)
-            with self.assertRaisesRegex(ValueError, "IR hash mismatch"):
+            with self.assertRaisesRegex(ValueError, "plan reconstruction mismatch"):
                 write_generic_composition(fresh, root / "out", base_dir=root)
 
     def test_writer_renders_source_verified_component_adapter_and_routes(self) -> None:
@@ -155,14 +200,28 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             description = synthetic_description(root, "portable_cpu", ("clk", "rst", "fuzz", "seen"))
+            include_root = root / "source" / "includes"
+            include_root.mkdir()
+            header = include_root / "portable_defs.svh"
+            header.write_text("`define PORTABLE_VALUE 1\n", encoding="utf-8")
+            description = replace(
+                description,
+                source=replace(description.source, include_roots=("includes",)),
+            )
             plan = plan_generic_composition(GenericCompositionRequest(description, ()), base_dir=root)
             first, second = root / "one", root / "two"
             write_generic_composition(plan, first, base_dir=root)
             write_generic_composition(plan, second, base_dir=root)
             self.assertEqual((first / "sources.f").read_bytes(), (second / "sources.f").read_bytes())
-            self.assertEqual((first / "sources.f").read_text(encoding="utf-8"), "source/rtl/portable_cpu.sv\ngeneric_composition_top.sv\n")
+            self.assertEqual(
+                (first / "sources.f").read_text(encoding="utf-8"),
+                "+incdir+../source/includes\n../source/rtl/portable_cpu.sv\ngeneric_composition_top.sv\n",
+            )
             with self.assertRaisesRegex(ValueError, "outside base_dir"):
                 write_generic_composition(plan, root.parent / "external", base_dir=root)
+            header.write_text("`define PORTABLE_VALUE 2\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "plan reconstruction mismatch"):
+                write_generic_composition(plan, root / "three", base_dir=root)
 
     def test_writer_restores_entire_existing_output_when_publish_replacement_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -210,7 +269,7 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
             self.assertIn("module generic_composition_top", top)
             self.assertIn("opaque_cpu", top)
             self.assertNotIn("ibex", top.lower())
-            self.assertEqual((first_dir / "sources.f").read_text(encoding="utf-8"), "source/rtl/opaque_cpu.sv\ngeneric_composition_top.sv\n")
+            self.assertEqual((first_dir / "sources.f").read_text(encoding="utf-8"), "../source/rtl/opaque_cpu.sv\ngeneric_composition_top.sv\n")
             self.assertEqual(json.loads((first_dir / "composition_ir.json").read_text())["composition_kind"], "generic_composition")
 
     def test_writer_does_not_replace_existing_artifacts_after_source_disappears(self) -> None:
@@ -306,6 +365,62 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
             with self.assertRaises(SystemExit) as raised:
                 module.parse_args()
         self.assertEqual(raised.exception.code, 2)
+
+    @staticmethod
+    def _bounded_component_plan(root: Path, module: str):
+        cpu = root / "source" / "rtl" / f"{module}.sv"
+        cpu.parent.mkdir(parents=True)
+        cpu.write_text(
+            f"module {module}(input logic clk, input logic rst, output logic [15:0] addr, output logic valid, "
+            "input logic ready, output logic [31:0] wdata, input logic [31:0] rdata, input logic error, output logic monitor); "
+            "always_ff @(posedge clk or negedge rst) if (!rst) monitor <= 1'b0; else monitor <= valid; endmodule\n",
+            encoding="utf-8",
+        )
+        component = root / "bounded_device.sv"
+        component.write_text(
+            "module bounded_device(input logic clock, input logic reset, input logic [15:0] addr, input logic valid, "
+            "output logic ready, input logic [31:0] wdata, output logic [31:0] rdata, output logic error); "
+            "logic state; always_ff @(posedge clock or negedge reset) if (!reset) state <= 1'b0; else state <= valid; "
+            "assign ready = valid; assign rdata = wdata; assign error = 1'b0; endmodule\n",
+            encoding="utf-8",
+        )
+        from myfuzz.components.catalog import ComponentCatalog
+        from myfuzz.components.model import PeripheralProfile
+        from myfuzz.protocols.catalog import ProtocolCatalog
+        from myfuzz.protocols.model import ChannelRelationSpec, FieldSpec, ProjectionActionSpec, ProtocolPlugin
+        protocol = ProtocolCatalog((ProtocolPlugin("bounded", "1", (
+            FieldSpec("addr", "host_to_device", "address_width", True, 0),
+            FieldSpec("valid", "host_to_device", "1", True, 0),
+            FieldSpec("ready", "device_to_host", "1", True, 0),
+            FieldSpec("wdata", "host_to_device", "data_width", True, 0),
+            FieldSpec("rdata", "device_to_host", "data_width", True, 0),
+            FieldSpec("error", "device_to_host", "1", True, 0),
+        ), (), (ProjectionActionSpec(1, ("valid",), "gate", "protocol_legality", 16),), (),
+           (ChannelRelationSpec(1, "request_response_handshake", ("valid", "ready", "rdata")),),
+           (("max_outstanding", 1), ("bursts", False), ("ids", False))),))
+        description = load_interface_description({
+            "schema_version": "interface_description.v1",
+            "source": {"root": "source", "revision": source_tree_hash(root / "source", (cpu,)),
+                       "top_module": module, "files": [f"rtl/{module}.sv"]},
+            "endpoints": [{"endpoint_id": "cpu.mmio", "function": "memory_master", "module": module,
+                           "protocol": ["bounded", "1"], "fields": [
+                               {"role": role, "aliases": [port]} for role, port in (
+                                   ("clock", "clk"), ("reset", "rst"), ("monitor", "monitor"), ("addr", "addr"), ("valid", "valid"),
+                                   ("ready", "ready"), ("wdata", "wdata"), ("rdata", "rdata"), ("error", "error"),
+                               )
+                           ]}],
+        })
+        catalog = ComponentCatalog((PeripheralProfile(
+            "bounded", "bounded_device", (("bounded", "1"),), 0x100, 0x100,
+            False, (), "implemented", ("bounded_device.sv",), True, {},
+        ),))
+        return (
+            plan_generic_composition(
+                GenericCompositionRequest(description, ("bounded",), (("bounded", "1"),)),
+                base_dir=root, component_catalog=catalog, protocol_catalog=protocol,
+            ),
+            component,
+        )
 
 
 if __name__ == "__main__":

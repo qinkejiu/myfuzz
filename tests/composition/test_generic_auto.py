@@ -13,7 +13,7 @@ from myfuzz.composition import (
 from myfuzz.components.catalog import ComponentCatalog
 from myfuzz.components.model import PeripheralProfile
 from myfuzz.protocols.catalog import ProtocolCatalog
-from myfuzz.protocols.model import FieldSpec, ProtocolPlugin
+from myfuzz.protocols.model import ChannelRelationSpec, FieldSpec, ProjectionActionSpec, ProtocolPlugin
 
 
 def synthetic_description(root: Path, module: str, names: tuple[str, str, str, str]):
@@ -59,6 +59,63 @@ endmodule
 
 
 class GenericAutoCompositionTests(unittest.TestCase):
+    def test_adapter_rejects_unknown_reset_semantics(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source" / "rtl" / "unknown_reset_cpu.sv"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "module unknown_reset_cpu(input logic clk, input logic rst, output logic [15:0] addr, output logic valid, "
+                "input logic ready, output logic [31:0] wdata, input logic [31:0] rdata, input logic error, output logic monitor); "
+                "always_ff @(posedge clk) monitor <= valid; endmodule\n",
+                encoding="utf-8",
+            )
+            (root / "device.sv").write_text(
+                "module device(input logic clock, input logic reset, input logic [15:0] addr, input logic valid, "
+                "output logic ready, input logic [31:0] wdata, output logic [31:0] rdata, output logic error); "
+                "logic state; always_ff @(posedge clock or negedge reset) if (!reset) state <= 1'b0; else state <= valid; "
+                "assign ready=valid; assign rdata=wdata; assign error=1'b0; endmodule\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "reset-semantics"):
+                plan_generic_composition(
+                    GenericCompositionRequest(self._bounded_description(root, source, "unknown_reset_cpu"), ("device",), (("bounded", "1"),)),
+                    base_dir=root, component_catalog=self._bounded_catalog(), protocol_catalog=self._bounded_protocol(),
+                )
+
+    def test_adapter_rejects_declared_multi_channel_protocol(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source" / "rtl" / "multi_channel_cpu.sv"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "module multi_channel_cpu(input logic clk, input logic rst, output logic [15:0] addr, output logic valid, "
+                "input logic ready, output logic [31:0] wdata, input logic [31:0] rdata, input logic error, output logic monitor); "
+                "always_ff @(posedge clk or negedge rst) if (!rst) monitor <= 1'b0; else monitor <= valid; endmodule\n",
+                encoding="utf-8",
+            )
+            (root / "device.sv").write_text(
+                "module device(input logic clock, input logic reset, input logic [15:0] addr, input logic valid, "
+                "output logic ready, input logic [31:0] wdata, output logic [31:0] rdata, output logic error); "
+                "logic state; always_ff @(posedge clock or negedge reset) if (!reset) state <= 1'b0; else state <= valid; "
+                "assign ready=valid; assign rdata=wdata; assign error=1'b0; endmodule\n",
+                encoding="utf-8",
+            )
+            protocol = ProtocolCatalog((ProtocolPlugin(
+                "bounded", "1", self._bounded_protocol().plugins[0].fields, (),
+                (ProjectionActionSpec(1, ("valid",), "gate", "protocol_legality", 16),), (),
+                (
+                    ChannelRelationSpec(1, "request_response_handshake", ("valid", "ready", "rdata")),
+                    ChannelRelationSpec(2, "independent_read_channel", ("valid", "ready")),
+                ),
+                (("max_outstanding", 1), ("bursts", False), ("ids", False)),
+            ),))
+            with self.assertRaisesRegex(ValueError, "single-channel-metadata"):
+                plan_generic_composition(
+                    GenericCompositionRequest(self._bounded_description(root, source, "multi_channel_cpu"), ("device",), (("bounded", "1"),)),
+                    base_dir=root, component_catalog=self._bounded_catalog(), protocol_catalog=protocol,
+                )
+
     def test_single_channel_profile_requires_real_controls_and_records_adapter_contract(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -74,8 +131,9 @@ class GenericAutoCompositionTests(unittest.TestCase):
             (root / "controlled_device.sv").write_text(
                 "module controlled_device(input logic clock, input logic reset, input logic [15:0] addr, "
                 "input logic valid, output logic ready, input logic [31:0] wdata, output logic [31:0] rdata, "
-                "output logic error, output logic irq); assign ready = valid; assign rdata = wdata; "
-                "assign error = 1'b0; assign irq = valid; endmodule\n",
+                "output logic error, output logic irq); logic state; "
+                "always_ff @(posedge clock or negedge reset) if (!reset) state <= 1'b0; else state <= valid; "
+                "assign ready = valid; assign rdata = wdata; assign error = 1'b0; assign irq = valid; endmodule\n",
                 encoding="utf-8",
             )
             fields = (
@@ -87,7 +145,12 @@ class GenericAutoCompositionTests(unittest.TestCase):
                 FieldSpec("error", "device_to_host", "1", True, 0),
                 FieldSpec("irq", "device_to_host", "1", False, 0),
             )
-            protocols = ProtocolCatalog((ProtocolPlugin("bounded", "1", fields, ()),))
+            protocols = ProtocolCatalog((ProtocolPlugin(
+                "bounded", "1", fields, (),
+                (ProjectionActionSpec(1, ("valid",), "gate", "protocol_legality", 16),), (),
+                (ChannelRelationSpec(1, "request_response_handshake", ("valid", "ready", "rdata")),),
+                (("max_outstanding", 1), ("bursts", False), ("ids", False)),
+            ),))
             description = load_interface_description({
                 "schema_version": "interface_description.v1",
                 "source": {"root": "source", "revision": source_tree_hash(root / "source", (cpu,)),
@@ -311,6 +374,43 @@ class GenericAutoCompositionTests(unittest.TestCase):
                            "protocol": ["opaque", "1"], "fields": [
                                {"role": name, "aliases": [name]}
                                for name in ("addr", "valid", "ready", "wdata", "rdata", "irq")
+                           ]}],
+        })
+
+    @staticmethod
+    def _bounded_protocol() -> ProtocolCatalog:
+        return ProtocolCatalog((ProtocolPlugin(
+            "bounded", "1", (
+                FieldSpec("addr", "host_to_device", "address_width", True, 0),
+                FieldSpec("valid", "host_to_device", "1", True, 0),
+                FieldSpec("ready", "device_to_host", "1", True, 0),
+                FieldSpec("wdata", "host_to_device", "data_width", True, 0),
+                FieldSpec("rdata", "device_to_host", "data_width", True, 0),
+                FieldSpec("error", "device_to_host", "1", True, 0),
+            ), (), (ProjectionActionSpec(1, ("valid",), "gate", "protocol_legality", 16),), (),
+            (ChannelRelationSpec(1, "request_response_handshake", ("valid", "ready", "rdata")),),
+            (("max_outstanding", 1), ("bursts", False), ("ids", False)),
+        ),))
+
+    @staticmethod
+    def _bounded_catalog() -> ComponentCatalog:
+        return ComponentCatalog((PeripheralProfile(
+            "device", "device", (("bounded", "1"),), 0x100, 0x100, False,
+            (), "implemented", ("device.sv",), True, {},
+        ),))
+
+    @staticmethod
+    def _bounded_description(root: Path, source: Path, module: str):
+        return load_interface_description({
+            "schema_version": "interface_description.v1",
+            "source": {"root": "source", "revision": source_tree_hash(root / "source", (source,)),
+                       "top_module": module, "files": [f"rtl/{module}.sv"]},
+            "endpoints": [{"endpoint_id": "cpu.mmio", "function": "memory_master", "module": module,
+                           "protocol": ["bounded", "1"], "fields": [
+                               {"role": role, "aliases": [port]} for role, port in (
+                                   ("clock", "clk"), ("reset", "rst"), ("monitor", "monitor"), ("addr", "addr"), ("valid", "valid"),
+                                   ("ready", "ready"), ("wdata", "wdata"), ("rdata", "rdata"), ("error", "error"),
+                               )
                            ]}],
         })
 
