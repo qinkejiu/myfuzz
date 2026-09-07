@@ -80,13 +80,19 @@ and a dependency cycle. None of those cases may publish output artifacts.
 
 ## Protocol and CPU boundary
 
-The generic renderer currently materializes only the declared bounded
-single-channel contract used by the synthetic fixture. The repository may
-contain protocol catalog entries and separate native RTL bridge work for APB,
-AXI4-Lite, TileLink, Wishbone, and OBI, but that does not mean the generic
-renderer can route every one of them yet. In particular, APB/AXI/Wishbone
-must not be reported as executable generic adapters until their native
-point-to-point route and validation are connected.
+The generic renderer materializes APB3, APB4, Wishbone Classic and the
+declared bounded single-channel contract used by the synthetic fixture.
+Native routes preserve APB setup/access and Wishbone CYC/STB/ACK/ERR behavior;
+clocked tests cover waiting, errors, timeout and aborted requests. Shared
+physical clock/reset ports are reused across endpoints.
+
+Native routing currently requires one source endpoint per target, the same
+protocol and width, and a supported error response. It does not provide a
+shared-bus multi-target interconnect, clock-domain crossing, Wishbone pipelining,
+AXI multichannel routing or OBI routing. AXI4 and OBI standalone MMIO bridges
+have separate directed RTL tests. The older Ibex composition path supports
+APB4, AXI4-Lite and TL-UL; its availability does not establish support in the
+new generic path.
 
 The CVA6 and BOOM profiles are source-annotated/reference integration data in
 this branch; the local Task8 fixture does not execute either real core. A
@@ -108,9 +114,47 @@ timeout termination, and `resource_diagnostics` is not evidence that a worker
 was supervised. Use the existing `run_supervised_command` path in a real
 campaign caller when process-group RSS and timeout enforcement are required.
 
-This branch intentionally does not start a 3x300-second campaign. The real
-RTL campaign entrypoint, DUT driver, transaction/assertion accounting, and
-RFuzz dependency handling are handed to the main thread. If the RFuzz flow is
-absent, the caller must report the concrete missing path
-`third_party/rfuzz/rfuzz_flow` as `dependency-unavailable` rather than claim a
-successful run.
+## Random real-RTL combination campaign
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 \
+  nice -n 15 python3 scripts/run_generic_rtl_campaign.py \
+  --output runs/my_new_generic_campaign --seconds 300 --count 3
+```
+
+Use a new output directory. The command records a randomly chosen seed;
+passing `--seed INTEGER` reproduces the selections and stimulus streams.
+The pool contains the three two-protocol combinations and one three-protocol
+combination of APB3, APB4 and Wishbone Classic register-bank fixtures.
+
+For each selection, pinned local source is analyzed by the production planner,
+and the generated top is compiled by Icarus. A synthetic traffic source
+performs alternating writes and readback checks against every register bank.
+It is a bus validation fixture, not a RISC-V CPU or production peripheral IP.
+All endpoints must independently complete more than 100 transactions per
+4096-clock batch, with zero readback/protocol errors. DUT state is retained
+throughout each campaign; a seeded xorshift stream supplies new write values.
+
+Execution is sequential: one worker and one persistent simulator, without
+waveforms. The worker pauses the owned simulator with SIGSTOP for 50 ms after
+each reported batch and resumes it with SIGCONT, reducing CPU demand while
+preserving DUT state. The existing supervisor enforces the requested elapsed duration
+and the combined worker/simulator RSS limit (512 MiB soft, 768 MiB hard).
+Source analysis and compilation have their own subprocess timeouts, but are
+not subject to the runtime RSS monitor. Runtime timing starts after build and
+a successful short preflight.
+
+`campaign.json` records selections and summary outcomes. Each combination
+retains its source, interface description, generated layout/IR/top, compiled
+simulation, build log, preflight log, runtime checkpoint and `result.json`.
+The supervisor's `timed-out` status and SIGTERM at the requested deadline are
+expected budget termination; a passing campaign additionally requires elapsed
+duration, positive transaction counts, zero metric/monitor errors and a
+published checkpoint. Raw metric history is bounded; aggregate counters
+continue after truncation. The inherited `iterations` field counts transactions,
+not fuzz cases. Neither structural nor code coverage is measured by this runner.
+
+The report explicitly records `riscv_cpu_execution=false` and
+`rfuzz_execution=false`. This runner does not validate CVA6/BOOM execution or
+RFuzz coverage feedback. Their upstream integration remains outstanding;
+the local RFuzz dependency is `third_party/rfuzz/rfuzz_flow` (including `kfuzz`).

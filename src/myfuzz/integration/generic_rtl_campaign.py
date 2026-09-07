@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import random
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -170,12 +171,15 @@ def worker(executable: Path, seed: int):
             if failures or transactions <= previous:
                 print(json.dumps({"transactions": 0, "error": 1}), flush=True)
                 raise RuntimeError(f"scoreboard/progress failure at seed {seed}")
+            os.kill(process.pid, signal.SIGSTOP)
             print(json.dumps({"transactions": transactions - previous, "component": executable.parent.name, "error": 0}), flush=True)
             previous = transactions
-            # Bounded pipe backpressure throttles the persistent simulator.
+            # A stopped simulator consumes no CPU during the pacing interval.
             time.sleep(0.05)
+            os.kill(process.pid, signal.SIGCONT)
     finally:
         if process.poll() is None:
+            os.kill(process.pid, signal.SIGCONT)
             process.terminate()
         process.wait(timeout=2)
 
