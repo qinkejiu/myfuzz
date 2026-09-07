@@ -350,7 +350,7 @@ def build_processor_execution(
     if not isinstance(boundary, ProcessorBoundary):
         raise ProcessorExecutionError("boundary:type")
     functions = [memory.function for memory in boundary.memories]
-    valid = functions == ["memory_master"] or sorted(functions) == [
+    valid = functions in (["memory_master"], ["processor_memory_master"]) or sorted(functions) == [
         "data_memory_master", "instruction_memory_master",
     ]
     if not valid:

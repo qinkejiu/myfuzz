@@ -65,6 +65,8 @@ def _endpoint(
     *,
     protocol: tuple[str, str] | None = None,
     side: str | None = None,
+    clock: str | None = None,
+    reset: str | None = None,
 ) -> dict[str, object]:
     return {
         "endpoint_id": endpoint_id,
@@ -72,6 +74,8 @@ def _endpoint(
         "fields": fields,
         **({} if protocol is None else {"protocol": list(protocol)}),
         **({} if side is None else {"side": side}),
+        **({} if clock is None else {"clock": clock}),
+        **({} if reset is None else {"reset": reset}),
     }
 
 
@@ -102,12 +106,14 @@ def _valid_document(*, split: bool = False) -> dict[str, object]:
     if split:
         memories = [
             _endpoint("memory.instruction", "instruction_memory_master", memory_fields,
-                      protocol=("test-memory", "1"), side="initiator"),
+                      protocol=("test-memory", "1"), side="initiator",
+                      clock="renamed_clk", reset="renamed_reset"),
             _endpoint("memory.data", "data_memory_master", [
                 {**field, "port": "data_" + str(field["port"]),
                  "source": _source(20 + index)}
                 for index, field in enumerate(memory_fields)
-            ], protocol=("test-memory", "1"), side="initiator"),
+            ], protocol=("test-memory", "1"), side="initiator",
+                clock="renamed_clk", reset="renamed_reset"),
         ]
     else:
         memories = [_endpoint("memory.unified", "memory_master", memory_fields,
@@ -154,7 +160,8 @@ class ProcessorBoundaryTests(unittest.TestCase):
                     _field("rvalid", "fetch_rvalid_x", "input"),
                     _field("rdata", "fetch_rdata_x", "input", 32),
                     _field("error", "fetch_error_x", "input"),
-                ], protocol=("obi", "1"), side="initiator"),
+                ], protocol=("obi", "1"), side="initiator",
+                    clock="clk_x", reset="rst_x"),
             ],
         }
         boundary = build_processor_boundary(

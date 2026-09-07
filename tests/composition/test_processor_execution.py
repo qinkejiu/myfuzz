@@ -117,6 +117,78 @@ def _layout(*fields: LayoutField) -> InputLayout:
     return InputLayout("input_layout.v1", sum(field.width for field in fields), fields, "layout")
 
 
+def _generic_processor_plan(
+    catalog, *, module: str = "processor_top", endpoint: str = "processor.memory",
+    request_value: str = "1'b1", boot_width: int | None = None,
+    duplicate_clock: bool = False, include_reset: bool = True,
+    timing_associated: bool = True,
+):
+    temporary = tempfile.TemporaryDirectory()
+    root = Path(temporary.name)
+    source = root / "source" / "rtl" / f"{module}.sv"
+    source.parent.mkdir(parents=True)
+    boot_port = "" if boot_width is None else f", input logic [{boot_width - 1}:0] boot_address"
+    behavior = (
+        "always_ff @(posedge clk or negedge rst_n) "
+        f"if (!rst_n) req <= 1'b0; else req <= {request_value};"
+        if timing_associated else f"assign req = {request_value};"
+    )
+    source.write_text(
+        f"module {module}(input logic clk, input logic rst_n, output logic req, "
+        "input logic gnt, output logic [31:0] addr, input logic rvalid, "
+        f"input logic [31:0] rdata, input logic error{boot_port}); "
+        f"{behavior} endmodule\n",
+        encoding="utf-8",
+    )
+    adapter_source = root / "src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv"
+    adapter_source.parent.mkdir(parents=True)
+    adapter_source.write_text(
+        (ROOT / "src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv").read_text(
+            encoding="utf-8"
+        ),
+        encoding="utf-8",
+    )
+    endpoints = [
+        {"endpoint_id": f"{endpoint}.clock", "function": "clock", "module": module,
+         "fields": [{"role": "clock", "aliases": ["clk"]}]},
+        {"endpoint_id": endpoint, "function": "processor_memory_master", "module": module,
+         "protocol": ["obi", "1"], "fields": [
+             {"role": role, "aliases": [role]}
+             for role in ("req", "gnt", "addr", "rvalid", "rdata", "error")
+         ]},
+    ]
+    if include_reset:
+        endpoints.insert(1, {
+            "endpoint_id": f"{endpoint}.reset", "function": "reset", "module": module,
+            "fields": [{"role": "reset", "aliases": ["rst_n"]}],
+        })
+    if duplicate_clock:
+        endpoints.insert(1, {
+            "endpoint_id": f"{endpoint}.clock.alternate", "function": "clock",
+            "module": module, "fields": [{"role": "clock", "aliases": ["clk"]}],
+        })
+    if boot_width is not None:
+        endpoints.append({
+            "endpoint_id": f"{endpoint}.boot", "function": "boot_control", "module": module,
+            "fields": [{"role": "boot_address", "aliases": ["boot_address"]}],
+        })
+    description = load_interface_description({
+        "schema_version": "interface_description.v1",
+        "source": {
+            "root": "source",
+            "revision": source_tree_hash(root / "source", (source,)),
+            "top_module": module,
+            "files": [f"rtl/{module}.sv"],
+        },
+        "endpoints": endpoints,
+    })
+    plan = plan_generic_composition(
+        GenericCompositionRequest(description, ()), base_dir=root,
+        protocol_catalog=catalog,
+    )
+    return temporary, plan
+
+
 class ProcessorExecutionTests(unittest.TestCase):
     def setUp(self) -> None:
         self.catalog = load_protocol_catalog(ROOT / "src/myfuzz/protocols/plugins")
@@ -281,7 +353,7 @@ class ProcessorExecutionTests(unittest.TestCase):
                          "fields": [{"role": "clock", "aliases": ["clk"]}]},
                         {"endpoint_id": f"{endpoint}.reset", "function": "reset", "module": module,
                          "fields": [{"role": "reset", "aliases": ["rst_n"]}]},
-                        {"endpoint_id": endpoint, "function": "memory_master", "module": module,
+                        {"endpoint_id": endpoint, "function": "processor_memory_master", "module": module,
                          "protocol": ["obi", "1"], "fields": [
                              {"role": role, "aliases": [role]}
                              for role in ("req", "gnt", "addr", "rvalid", "rdata", "error")
@@ -299,6 +371,8 @@ class ProcessorExecutionTests(unittest.TestCase):
                     plan.source_files,
                 )
                 self.assertEqual(plan.processor_execution.execution_hash, execution["execution_hash"])
+                self.assertEqual(2, len(plan.ir["source_file_ids"]))
+                self.assertTrue(plan.ir["capabilities"])
                 stable_documents.append(processor_execution_document(plan.processor_execution))
                 execution_hashes.append(plan.processor_execution.execution_hash)
                 generic_irs.append(plan.ir)
@@ -318,6 +392,43 @@ class ProcessorExecutionTests(unittest.TestCase):
         self.assertEqual(generic_irs[0], generic_irs[1])
         self.assertEqual(generic_hashes[0], generic_hashes[1])
 
+    def test_processor_classification_fails_closed_on_missing_or_ambiguous_timing(self) -> None:
+        cases = (
+            ("duplicate-clock", {"duplicate_clock": True}),
+            ("reset", {"include_reset": False}),
+            ("memory-clock", {"timing_associated": False}),
+        )
+        for reason, options in cases:
+            with self.subTest(reason=reason), self.assertRaisesRegex(ValueError, reason):
+                temporary, _plan = _generic_processor_plan(self.catalog, **options)
+                temporary.cleanup()
+
+    def test_processor_ir_tracks_control_and_source_evidence(self) -> None:
+        temporaries = []
+        try:
+            for options in ({}, {"request_value": "1'b0"}, {"boot_width": 32}, {"boot_width": 64}):
+                temporary, plan = _generic_processor_plan(self.catalog, **options)
+                temporaries.append(temporary)
+                if options == {}:
+                    baseline = plan
+                elif options == {"request_value": "1'b0"}:
+                    content_changed = plan
+                elif options == {"boot_width": 32}:
+                    control_32 = plan
+                else:
+                    control_64 = plan
+
+            self.assertNotEqual(
+                baseline.composition_ir_hash, content_changed.composition_ir_hash,
+            )
+            self.assertNotEqual(
+                baseline.ir["source_file_ids"], content_changed.ir["source_file_ids"],
+            )
+            self.assertNotEqual(control_32.composition_ir_hash, control_64.composition_ir_hash)
+        finally:
+            for temporary in temporaries:
+                temporary.cleanup()
+
     def test_clocked_mmio_without_processor_timing_association_keeps_legacy_path(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -326,7 +437,9 @@ class ProcessorExecutionTests(unittest.TestCase):
             source.write_text(
                 "module clocked_mmio(input logic clk, input logic rst_n, output logic req, "
                 "input logic gnt, output logic [31:0] addr, input logic rvalid, "
-                "input logic [31:0] rdata, input logic error); endmodule\n",
+                "input logic [31:0] rdata, input logic error); "
+                "always_ff @(posedge clk or negedge rst_n) "
+                "if (!rst_n) req <= 1'b0; else req <= gnt; endmodule\n",
                 encoding="utf-8",
             )
             description = load_interface_description({
@@ -356,6 +469,9 @@ class ProcessorExecutionTests(unittest.TestCase):
 
             self.assertIsNone(plan.processor_execution)
             self.assertNotIn("processor_execution", plan.ir)
+            mmio = next(item for item in plan.capabilities if item.function == "memory_master")
+            self.assertEqual("clk", mmio.clock)
+            self.assertEqual("rst_n", mmio.reset)
 
 
 if __name__ == "__main__":

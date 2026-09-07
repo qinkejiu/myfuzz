@@ -51,7 +51,12 @@ class ProcessorBoundary:
 
 
 _MEMORY_FUNCTIONS = frozenset(
-    {"memory_master", "instruction_memory_master", "data_memory_master"}
+    {
+        "memory_master",
+        "processor_memory_master",
+        "instruction_memory_master",
+        "data_memory_master",
+    }
 )
 _OPTIONAL_CONTROL_FUNCTIONS = frozenset(
     {"boot_control", "interrupt_sink", "debug_transport"}
@@ -228,13 +233,21 @@ def build_processor_boundary(
     if not memory_endpoints:
         raise ProcessorBoundaryError("memory")
     functions = [endpoint.function for endpoint in memory_endpoints]
-    if functions.count("memory_master") > 1:
+    unified_functions = {"memory_master", "processor_memory_master"}
+    if sum(functions.count(function) for function in unified_functions) > 1:
         raise ProcessorBoundaryError("duplicate-memory")
-    if "memory_master" in functions and len(functions) != 1:
+    if unified_functions.intersection(functions) and len(functions) != 1:
         raise ProcessorBoundaryError("ambiguous-memory")
     for function in ("instruction_memory_master", "data_memory_master"):
         if functions.count(function) > 1:
             raise ProcessorBoundaryError(f"duplicate-{function}")
+    for endpoint in memory_endpoints:
+        if endpoint.function == "memory_master":
+            continue
+        if endpoint.clock != clock.fields[0].port:
+            raise ProcessorBoundaryError(f"memory-clock:{endpoint.endpoint_id}")
+        if endpoint.reset != reset.fields[0].port:
+            raise ProcessorBoundaryError(f"memory-reset:{endpoint.endpoint_id}")
     memories = tuple(sorted(
         (_validate_memory(endpoint, protocol_catalog) for endpoint in memory_endpoints),
         key=lambda item: (item.function, item.endpoint_id),

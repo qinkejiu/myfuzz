@@ -1062,7 +1062,185 @@ def _generic_capability_document(capability: EndpointCapability) -> dict[str, ob
     }
 
 
-def _generic_ir_evidence(value: object) -> object:
+_PROCESSOR_MEMORY_FUNCTIONS = frozenset({
+    "processor_memory_master", "instruction_memory_master", "data_memory_master",
+})
+
+
+def _processor_source_records(
+    root: Path, source_files: tuple[str, ...], annotations: Mapping[str, object],
+) -> tuple[dict[str, int], list[int]]:
+    """Identify all processor evidence files by normalized content, never path."""
+    replacements: dict[str, str] = {}
+    endpoints = annotations.get("endpoints", ())
+    if isinstance(endpoints, (tuple, list)):
+        for endpoint in endpoints:
+            if not isinstance(endpoint, Mapping):
+                continue
+            module = endpoint.get("module")
+            if isinstance(module, str):
+                replacements[module] = "semantic_source_module"
+            function = endpoint.get("function")
+            fields = endpoint.get("fields", ())
+            if isinstance(function, str) and isinstance(fields, (tuple, list)):
+                for field in fields:
+                    if not isinstance(field, Mapping):
+                        continue
+                    port, role = field.get("port"), field.get("role")
+                    if isinstance(port, str) and isinstance(role, str):
+                        replacements[port] = f"semantic_port_{function}_{role}"
+    by_path: dict[str, int] = {}
+    ids: list[int] = []
+    source_prefix = str(annotations.get("source", {}).get("source_root", "")) if isinstance(
+        annotations.get("source"), Mapping
+    ) else ""
+    for source_file in source_files:
+        text = _generic_source_path(root, source_file).read_text(encoding="utf-8")
+        for name, replacement in sorted(
+            replacements.items(), key=lambda item: (-len(item[0]), item[0])
+        ):
+            text = re.sub(rf"\b{re.escape(name)}\b", replacement, text)
+        source_id = canonical_id(
+            "generic-source-content", content_hash({"normalized_source": text}),
+        )
+        by_path[source_file] = source_id
+        if source_prefix and source_file.startswith(source_prefix.rstrip("/") + "/"):
+            by_path[source_file[len(source_prefix.rstrip("/")) + 1:]] = source_id
+        ids.append(source_id)
+    source = annotations.get("source")
+    declared_files = source.get("files", ()) if isinstance(source, Mapping) else ()
+    if isinstance(declared_files, (tuple, list)):
+        for declared_file in declared_files:
+            if not isinstance(declared_file, str):
+                continue
+            matches = [
+                source_id for path, source_id in by_path.items()
+                if path == declared_file or path.endswith("/" + declared_file)
+            ]
+            if len(set(matches)) == 1:
+                by_path[declared_file] = matches[0]
+    return by_path, sorted(ids)
+
+
+def _processor_source_document(
+    source: SourceReference | None, source_ids: Mapping[str, int], semantic_location: str,
+) -> dict[str, object] | None:
+    if source is None:
+        return None
+    return {
+        "file_id": source_ids[source.file],
+        "line": source.line,
+        "semantic_location": semantic_location,
+    }
+
+
+def _processor_capability_documents(
+    capabilities: tuple[EndpointCapability, ...], source_ids: Mapping[str, int],
+) -> list[dict[str, object]]:
+    clock_ports = {
+        field.port: "clock" for endpoint in capabilities if endpoint.function == "clock"
+        for field in endpoint.fields if field.role == "clock"
+    }
+    reset_ports = {
+        field.port: "reset" for endpoint in capabilities if endpoint.function == "reset"
+        for field in endpoint.fields if field.role == "reset"
+    }
+
+    def association(value: str | None, ports: Mapping[str, str]) -> str | None:
+        if value is None:
+            return None
+        return ports.get(value, "unresolved")
+
+    documents = []
+    for capability in capabilities:
+        documents.append({
+            "function": capability.function,
+            "side": capability.side,
+            "protocol": None if capability.protocol is None else list(capability.protocol),
+            "clock": association(capability.clock, clock_ports),
+            "reset": association(capability.reset, reset_ports),
+            "fields": [{
+                "role": field.role,
+                "direction": field.direction,
+                "width": field.width,
+                "signed": field.signed,
+                "source": _processor_source_document(
+                    field.source, source_ids, f"field:{field.role}",
+                ),
+                "evidence": list(field.evidence),
+                **({
+                    "member_role": field.role,
+                    "raw_lo": field.raw_lo,
+                    "raw_hi": field.raw_hi,
+                    "container_width": field.container_width,
+                } if field.member_path else {}),
+            } for field in capability.fields],
+            "timing": [{
+                "kind": timing.kind,
+                "fields": list(timing.fields),
+                "clock": association(timing.clock, clock_ports),
+                "max_latency": timing.max_latency,
+                "source": _processor_source_document(
+                    timing.source, source_ids,
+                    f"timing:{timing.kind}:{','.join(timing.fields)}",
+                ),
+                "evidence": list(timing.evidence),
+            } for timing in capability.timing],
+            "evidence": list(capability.evidence),
+        })
+    return sorted(documents, key=lambda item: str(item["function"]))
+
+
+def _processor_layout_fields(
+    layout: InputLayout, capabilities: tuple[EndpointCapability, ...],
+    source_ids: Mapping[str, int],
+) -> list[dict[str, object]]:
+    functions = {endpoint.endpoint_id: endpoint.function for endpoint in capabilities}
+
+    def evidence(value: object) -> object:
+        if isinstance(value, Mapping):
+            normalized = {}
+            for key, item in value.items():
+                if key == "file" and isinstance(item, str) and item in source_ids:
+                    normalized["file_id"] = source_ids[item]
+                else:
+                    normalized[str(key)] = evidence(item)
+            return normalized
+        if isinstance(value, (tuple, list)):
+            return [evidence(item) for item in value]
+        if isinstance(value, str):
+            return functions.get(value, value)
+        return value
+
+    result = []
+    for field in input_layout_document(layout)["fields"]:
+        normalized = dict(field)
+        owner = normalized.get("owner")
+        function = functions.get(owner, owner)
+        role = normalized.get("role")
+        normalized["owner"] = function
+        normalized["field_id"] = f"{function}:{role}"
+        normalized["port"] = f"semantic_port:{function}:{role}"
+        binding = normalized.get("binding")
+        if isinstance(binding, Mapping):
+            normalized["binding"] = {
+                **binding, "port": f"semantic_port:{function}:{role}",
+            }
+        if "member_path" in normalized:
+            normalized["member_path"] = [str(role)]
+        if "provenance" in normalized:
+            provenance = evidence(normalized["provenance"])
+            if isinstance(provenance, dict):
+                provenance.pop("column", None)
+                provenance["semantic_location"] = f"field:{role}"
+            normalized["provenance"] = provenance
+        result.append(normalized)
+    return result
+
+
+def _generic_ir_evidence(
+    value: object, source_ids: Mapping[str, int] | None = None,
+) -> object:
     """Keep evidence in IR without embedding checkout-relative path spellings."""
     if isinstance(value, Mapping):
         result: dict[str, object] = {}
@@ -1074,18 +1252,27 @@ def _generic_ir_evidence(value: object) -> object:
                     "column": item.get("column"),
                 }
             elif key == "source_files" and isinstance(item, (tuple, list)):
-                result[str(key)] = [canonical_id("generic-source-file", source) for source in item]
+                result[str(key)] = [
+                    source_ids[source] if source_ids is not None and source in source_ids
+                    else canonical_id("generic-source-file", source)
+                    for source in item
+                ]
             elif key == "adapter_sources" and isinstance(item, (tuple, list)):
                 result["adapter_source_ids"] = [
-                    canonical_id("generic-source-file", source) for source in item
+                    source_ids[source] if source_ids is not None and source in source_ids
+                    else canonical_id("generic-source-file", source)
+                    for source in item
                 ]
             elif key == "rtl_source" and isinstance(item, str):
-                result["rtl_source_id"] = canonical_id("generic-source-file", item)
+                result["rtl_source_id"] = (
+                    source_ids[item] if source_ids is not None and item in source_ids
+                    else canonical_id("generic-source-file", item)
+                )
             else:
-                result[str(key)] = _generic_ir_evidence(item)
+                result[str(key)] = _generic_ir_evidence(item, source_ids)
         return result
     if isinstance(value, (tuple, list)):
-        return [_generic_ir_evidence(item) for item in value]
+        return [_generic_ir_evidence(item, source_ids) for item in value]
     return value
 
 
@@ -1509,32 +1696,10 @@ def plan_generic_composition(
     }
     processor_execution = None
     processor_boundary = None
-    memory_functions = {
-        "memory_master", "instruction_memory_master", "data_memory_master",
-    }
-    capability_functions = {endpoint.function for endpoint in capabilities}
-    clock_endpoints = [endpoint for endpoint in capabilities if endpoint.function == "clock"]
-    reset_endpoints = [endpoint for endpoint in capabilities if endpoint.function == "reset"]
-    memory_endpoints = [
-        endpoint for endpoint in capabilities if endpoint.function in memory_functions
-    ]
-    processor_associated = (
-        len(clock_endpoints) == 1
-        and len(reset_endpoints) == 1
-        and len(clock_endpoints[0].fields) == 1
-        and len(reset_endpoints[0].fields) == 1
-        and bool(memory_endpoints)
-        and all(
-            endpoint.clock == clock_endpoints[0].fields[0].port
-            and endpoint.reset == reset_endpoints[0].fields[0].port
-            for endpoint in memory_endpoints
-        )
+    processor_candidate = any(
+        endpoint.function in _PROCESSOR_MEMORY_FUNCTIONS for endpoint in capabilities
     )
-    if (
-        any(endpoint.function in memory_functions for endpoint in capabilities)
-        and {"clock", "reset"}.issubset(capability_functions)
-        and processor_associated
-    ):
+    if processor_candidate:
         if selected_protocol_catalog is None:
             raise AutoCompositionError("generic:protocol-catalog-required")
         processor_boundary = build_processor_boundary(
@@ -1798,22 +1963,29 @@ def plan_generic_composition(
         for item in component_records if item["irq"] is not None
     ]
     stable_processor_mode = processor_execution is not None
-    stable_annotation_hash = (
-        processor_execution.execution_hash
-        if processor_execution is not None else annotation_hash
-    )
-    stable_source_files = (
-        processor_execution.adapter_sources
-        if processor_execution is not None else source_files
-    )
-    stable_layout_fields = [
-        {
-            key: value for key, value in field.items()
-            if key not in ({"provenance", "field_id", "owner"}
-                           if stable_processor_mode else {"provenance"})
-        }
-        for field in input_layout_document(layout)["fields"]
-    ]
+    if stable_processor_mode:
+        processor_source_ids, stable_source_file_ids = _processor_source_records(
+            root, source_files, annotations,
+        )
+        stable_capabilities = _processor_capability_documents(
+            capabilities, processor_source_ids,
+        )
+        stable_annotation_hash = content_hash({"capabilities": stable_capabilities})
+        stable_layout_fields = _processor_layout_fields(
+            layout, capabilities, processor_source_ids,
+        )
+    else:
+        stable_source_file_ids = [
+            canonical_id("generic-source-file", item) for item in source_files
+        ]
+        stable_capabilities = [
+            _generic_capability_document(item) for item in capabilities
+        ]
+        stable_annotation_hash = annotation_hash
+        stable_layout_fields = [
+            {key: value for key, value in field.items() if key != "provenance"}
+            for field in input_layout_document(layout)["fields"]
+        ]
     stable_layout_hash = (
         canonical_ir_hash({
             "schema_version": layout.schema_version,
@@ -1831,9 +2003,7 @@ def plan_generic_composition(
                    ),
                    "address_width": address_width if request.component_types else None},
         "interface_annotation_hash": stable_annotation_hash,
-        "capabilities": ([] if stable_processor_mode else [
-            _generic_capability_document(item) for item in capabilities
-        ]),
+        "capabilities": stable_capabilities,
         "components": component_records,
         "instances": instances,
         "adapters": adapters,
@@ -1850,10 +2020,10 @@ def plan_generic_composition(
             "fields": stable_layout_fields,
         },
         **({"processor_execution": _generic_ir_evidence(
-                processor_execution_document(processor_execution)
+                processor_execution_document(processor_execution), processor_source_ids,
             )}
            if processor_execution is not None else {}),
-        "source_file_ids": [canonical_id("generic-source-file", item) for item in stable_source_files],
+        "source_file_ids": stable_source_file_ids,
         "source_list": {
             "cwd": "output_dir",
             "path_basis": "output-relative",
