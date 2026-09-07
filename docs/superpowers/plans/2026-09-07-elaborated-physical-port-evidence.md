@@ -173,3 +173,73 @@ Completed and independently reviewed. The final connected acceptance follows
 the real Verilator crawl, plan, canonical IR, freshness reconstruction,
 publication and strict compile path. Runtime RFuzz projection of external
 packed inputs remains a separate later boundary.
+
+## Task 6: Real CVA6 module evidence without weakening strict defaults
+
+Use the fixed upstream CVA6 revision
+`2e1336dcff3d1a0b49fbe6282b97802f32ea32af` and its pinned cvfpu, hpdcache and
+fpu_div_sqrt_mvp gitlinks. The official flattened `core/Flist.cva6` reaches the
+actual `cva6` module and produces a 28 MiB Verilator tree. The measured tree has
+2,650,008 JSON structure tokens and 1,361,725 traversed Python objects; the
+frontend peaks below 218 MiB RSS. Strict Verilator exits only because the
+upstream configuration emits 464 warnings. These measurements are retained
+under `runs/p1_cva6_module_20260907/`.
+
+### Task 6a: Reader scale and packed enum types
+
+Files: extend `src/myfuzz/composition/source_elaboration.py` and
+`tests/composition/test_source_elaboration.py`.
+
+- [x] RED: cover a packed enum whose `ENUMDTYPE.refDTypep` resolves to an
+  integral compiler-proven base type. Reject missing/unresolved enum bases,
+  unsupported bases and reference cycles. Prove enum leaves retain the base
+  width and signedness inside a packed structure.
+- [x] Raise the JSON structure budget to 3,000,000 and traversal budget to
+  1,500,000: both are bounded just above the measured fixed-revision artifact,
+  while the existing 64 MiB file and 768 MiB process limits remain unchanged.
+  Preserve focused over-limit tests.
+- [x] Parse the retained real CVA6 JSON under the production limits and iterate
+  on additional physical type forms only when the compiler artifact proves
+  they occur at a top-level port. Do not generalize unsupported language forms
+  speculatively. The measured next case is `rvfi_probes_o.csr.pmpcfg_q`, a
+  packed array of packed structs. Recursively validate the complete element
+  type, then expose the whole array as one aggregate member leaf with the
+  compiler-proven combined width; do not invent index path syntax or expose
+  unvalidated inner fields.
+- [x] Run focused reader and runner regressions under nice 15/JOBS=1, retain a
+  compact port/type diagnostic, obtain independent review, and commit this
+  bounded reader change separately.
+
+### Task 6b: Explicit recorded-warning frontend policy
+
+Keep `verilator-json` strict by default. Add one schema-validated opt-in policy
+that passes Verilator `-Wno-fatal` while continuing to retain its warning text.
+The wrapper must stream-count every `%Warning-CLASS` line and write a bounded,
+machine-readable summary containing total count, per-class counts, diagnostic
+SHA256 and whether human-readable diagnostics were truncated. Validate the
+summary before accepting physical evidence; any `%Error`, nonzero exit,
+malformed summary or changed source closure still fails closed. Include the
+policy and stable warning summary in elaboration identity.
+
+Use focused fake-frontend tests for full-stream accounting beyond 64 KiB and a
+real fixed-revision CVA6 run for acceptance. This gate establishes physical
+port evidence only; warning acceptance does not imply RTL execution quality or
+CPU support.
+
+### Task 7: Multi-repository source provenance for the official CVA6 closure
+
+The official closure crosses pinned gitlinks, so parent-repository blob lookup
+cannot authenticate all files. Introduce a typed source-repository map that
+binds each relative subtree to an exact revision and verifies every file
+against the owning repository. Resolve filelist variables only from explicit,
+typed caller values; never inherit arbitrary host environment variables.
+Then run SourceCrawler through the same actual CVA6 module evidence path and
+include every repository revision in canonical source identity.
+
+### Task 8: Explicit full-AXI semantics and runtime projection
+
+Annotate compiler-proven CVA6 packed members with explicit protocol roles and
+extend composition only for the full AXI channels required by the selected
+configuration. Separately extend RFuzz runtime projection for external packed
+input containers. Require complete input coverage, exact member offsets and a
+real compiled connected harness before claiming the CVA6 integration gate.

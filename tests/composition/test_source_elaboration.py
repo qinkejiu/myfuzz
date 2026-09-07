@@ -59,6 +59,98 @@ def fixture() -> tuple[dict[str, object], dict[str, object]]:
 
 
 class SourceElaborationTests(unittest.TestCase):
+    def test_structured_packed_array_becomes_one_parent_aggregate_leaf(self) -> None:
+        tree, metadata = fixture()
+        types = tree["miscsp"][0]["typesp"]
+        types.extend([
+            node("PACKARRAYDTYPE", "(requests)", refDTypep="(request)", declRange="[1:0]", loc="s,14:1,14:8"),
+            node("STRUCTDTYPE", "(array-parent)", packed=True, loc="s,15:1,15:7", membersp=[
+                node("MEMBERDTYPE", "(requests-member)", name="requests", refDTypep="(requests)", loc="s,15:20,15:28"),
+                node("MEMBERDTYPE", "(tail-member)", name="tail", refDTypep="(logic)", loc="s,15:30,15:34"),
+            ]),
+        ])
+        tree["modulesp"][0]["stmtsp"][1]["dtypep"] = "(array-parent)"
+        document = extract_physical_ports(tree, metadata, top_module="renamed_top", source_files={SOURCE: "rtl/stable.sv"})
+        port = document["ports"][1]
+        self.assertEqual(29, port["width"])
+        self.assertEqual(
+            [(["requests"], 28, 1, 28), (["tail"], 1, 0, 0)],
+            [(member["path"], member["width"], member["raw_lo"], member["raw_hi"]) for member in port["members"]],
+        )
+
+    def test_structured_packed_array_still_validates_invalid_element_closure(self) -> None:
+        tree, metadata = fixture()
+        tree["miscsp"][0]["typesp"].extend([
+            node("STRUCTDTYPE", "(bad-element)", packed=True, loc="s,14:1,14:7", membersp=[
+                node("MEMBERDTYPE", "(bad-member)", name="bad", refDTypep="(missing)", loc="s,14:20,14:23"),
+            ]),
+            node("PACKARRAYDTYPE", "(bad-array)", refDTypep="(bad-element)", declRange="[1:0]", loc="s,15:1,15:8"),
+        ])
+        tree["modulesp"][0]["stmtsp"][1]["dtypep"] = "(bad-array)"
+        with self.assertRaisesRegex(ElaborationError, "unresolved type reference"):
+            extract_physical_ports(tree, metadata, top_module="renamed_top", source_files={SOURCE: "rtl/stable.sv"})
+
+    def test_structured_array_cannot_be_enum_base_or_unpathed_top_port(self) -> None:
+        for enum_wrap in (False, True):
+            with self.subTest(enum_wrap=enum_wrap):
+                tree, metadata = fixture()
+                types = tree["miscsp"][0]["typesp"]
+                types.append(node("PACKARRAYDTYPE", "(requests)", refDTypep="(request)", declRange="[1:0]", loc="s,14:1,14:8"))
+                target = "(requests)"
+                if enum_wrap:
+                    types.append(node("ENUMDTYPE", "(enum-array)", refDTypep=target, loc="s,15:1,15:8"))
+                    target = "(enum-array)"
+                tree["modulesp"][0]["stmtsp"][1]["dtypep"] = target
+                with self.assertRaisesRegex(ElaborationError, "structured enum base|top-level aggregate"):
+                    extract_physical_ports(tree, metadata, top_module="renamed_top", source_files={SOURCE: "rtl/stable.sv"})
+
+    def test_structured_packed_array_product_obeys_width_limit(self) -> None:
+        tree, metadata = fixture()
+        tree["miscsp"][0]["typesp"].append(
+            node("PACKARRAYDTYPE", "(huge-array)", refDTypep="(request)", declRange="[8388607:0]", loc="s,14:1,14:8")
+        )
+        tree["modulesp"][0]["stmtsp"][1]["dtypep"] = "(huge-array)"
+        with self.assertRaisesRegex(ElaborationError, "width is outside supported bounds"):
+            extract_physical_ports(tree, metadata, top_module="renamed_top", source_files={SOURCE: "rtl/stable.sv"})
+
+    def test_production_tree_budgets_and_ast_over_limit_remain_bounded(self) -> None:
+        self.assertEqual(1_500_000, source_elaboration._MAX_AST_NODES)
+        self.assertEqual(3_000_000, source_elaboration._MAX_JSON_STRUCTURE_TOKENS)
+        tree, metadata = fixture()
+        with mock.patch.object(source_elaboration, "_MAX_AST_NODES", 2):
+            with self.assertRaisesRegex(ElaborationError, "node limit"):
+                extract_physical_ports(tree, metadata, top_module="renamed_top", source_files={SOURCE: "rtl/stable.sv"})
+
+    def test_packed_enum_member_uses_integral_base_width_and_signedness(self) -> None:
+        tree, metadata = fixture()
+        types = tree["miscsp"][0]["typesp"]
+        types.extend([
+            node("BASICDTYPE", "(enum-base)", keyword="logic", range="2:0", signed=True, loc="s,14:1,14:5", rangep=[]),
+            node("ENUMDTYPE", "(state-enum)", name="state_t", refDTypep="(enum-base)", loc="s,15:1,15:7"),
+            node("STRUCTDTYPE", "(enum-struct)", packed=True, loc="s,16:1,16:7", membersp=[
+                node("MEMBERDTYPE", "(state-member)", name="state", refDTypep="(state-enum)", loc="s,16:20,16:25"),
+            ]),
+        ])
+        tree["modulesp"][0]["stmtsp"][1]["dtypep"] = "(enum-struct)"
+        document = extract_physical_ports(tree, metadata, top_module="renamed_top", source_files={SOURCE: "rtl/stable.sv"})
+        member = document["ports"][1]["members"][0]
+        self.assertEqual((3, True, 0, 2), (member["width"], member["signed"], member["raw_lo"], member["raw_hi"]))
+
+    def test_rejects_missing_unsupported_and_cyclic_enum_bases(self) -> None:
+        cases = (
+            node("ENUMDTYPE", "(enum)", loc="s,14:1,14:5"),
+            node("ENUMDTYPE", "(enum)", refDTypep="(missing)", loc="s,14:1,14:5"),
+            node("ENUMDTYPE", "(enum)", refDTypep="(request)", loc="s,14:1,14:5"),
+            node("ENUMDTYPE", "(enum)", refDTypep="(enum)", loc="s,14:1,14:5"),
+        )
+        for enum in cases:
+            with self.subTest(enum=enum):
+                tree, metadata = fixture()
+                tree["miscsp"][0]["typesp"].append(enum)
+                tree["modulesp"][0]["stmtsp"][2]["dtypep"] = "(enum)"
+                with self.assertRaises(ElaborationError):
+                    extract_physical_ports(tree, metadata, top_module="renamed_top", source_files={SOURCE: "rtl/stable.sv"})
+
     def test_extracts_parameter_type_nested_struct_and_msb_first_offsets(self) -> None:
         tree, metadata = fixture()
 

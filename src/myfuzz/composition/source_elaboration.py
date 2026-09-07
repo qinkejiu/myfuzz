@@ -18,7 +18,7 @@ class ElaborationError(ValueError):
     """Compiler evidence is missing, ambiguous, or outside the supported subset."""
 
 
-_MAX_AST_NODES = 250_000
+_MAX_AST_NODES = 1_500_000
 _MAX_TYPE_DEPTH = 128
 _MAX_PORTS = 65_536
 _MAX_MEMBERS = 65_536
@@ -27,7 +27,7 @@ _ELABORATION_TIMEOUT_SECONDS = 30
 _DIAGNOSTIC_BYTES = 64 * 1024
 _VERSION_BYTES = 4096
 _MAX_JSON_BYTES = 64 * 1024 * 1024
-_MAX_JSON_STRUCTURE_TOKENS = 1_000_000
+_MAX_JSON_STRUCTURE_TOKENS = 3_000_000
 _MAX_CLOSURE_FILES = 20_000
 _MAX_CLOSURE_ENTRIES = 100_000
 _MAX_CLOSURE_BYTES = 512 * 1024 * 1024
@@ -94,6 +94,7 @@ class _PhysicalType:
     width: int
     signed: bool
     leaves: tuple[_Leaf, ...]
+    aggregate: bool = False
 
 
 def _objects(root: object):
@@ -233,13 +234,19 @@ class _Reader:
             return self.physical_type(self.pointer(node, "refDTypep"), active=active, depth=depth + 1)
         if kind == "PARAMTYPEDTYPE":
             return self.physical_type(self.pointer(node, "dtypep"), active=active, depth=depth + 1)
+        if kind == "ENUMDTYPE":
+            base = self.physical_type(self.pointer(node, "refDTypep"), active=active, depth=depth + 1)
+            if base.aggregate:
+                raise ElaborationError("unsupported structured enum base")
+            return base
         if kind == "PACKARRAYDTYPE":
             element = self.physical_type(self.pointer(node, "refDTypep"), active=active, depth=depth + 1)
-            if element.leaves:
-                raise ElaborationError("unsupported packed array of structured elements")
             count = _range_width(node.get("declRange"), "packed array")
             width = _bounded_width(element.width * count, "packed array")
-            return _PhysicalType(width, _signed(node, element.signed), ())
+            # Structured array indices are not stable semantic member names.
+            # Validate the complete element closure above, then expose the
+            # array only as one aggregate leaf when embedded in a structure.
+            return _PhysicalType(width, _signed(node, element.signed), (), element.aggregate)
         if kind == "STRUCTDTYPE":
             return self._structure(node, active, depth)
         raise ElaborationError(f"unsupported physical type: {kind}")
@@ -296,7 +303,7 @@ class _Reader:
                 expanded.append(_Leaf((name,), member_type.width, member_type.signed, self.source(member)))
             if len(expanded) > _MAX_MEMBERS:
                 raise ElaborationError("flattened member count exceeds supported bounds")
-        return _PhysicalType(total, _signed(node, False), tuple(expanded))
+        return _PhysicalType(total, _signed(node, False), tuple(expanded), True)
 
     def port(self, node: Mapping[str, object]) -> dict[str, object]:
         name = node.get("name")
@@ -306,6 +313,8 @@ class _Reader:
         if direction is None:
             raise ElaborationError(f"port direction is unsupported: {node.get('direction')}")
         physical = self.physical_type(self.pointer(node, "dtypep"))
+        if physical.aggregate and not physical.leaves:
+            raise ElaborationError("unsupported top-level aggregate without member paths")
         members: list[dict[str, object]] = []
         high = physical.width - 1
         for leaf in physical.leaves:
