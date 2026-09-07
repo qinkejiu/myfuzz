@@ -1045,6 +1045,9 @@ def _generic_capability_document(capability: EndpointCapability) -> dict[str, ob
                     "column": field.source.column,
                 },
                 "evidence": list(field.evidence),
+                **({"member_path": list(field.member_path), "raw_lo": field.raw_lo,
+                    "raw_hi": field.raw_hi, "container_width": field.container_width}
+                   if field.member_path else {}),
             }
             for field in capability.fields
         ],
@@ -1338,6 +1341,7 @@ def _generic_control_binding(
             source_field is None or target_field is None
             or source_field.direction != "input" or target_field.direction != "input"
             or source_field.width != 1 or target_field.width != 1
+            or source_field.member_path or target_field.member_path
         ):
             raise AutoCompositionError(
                 f"generic:component:{component_type}:control-binding:{role}"
@@ -1485,8 +1489,6 @@ def plan_generic_composition(
     capabilities = normalize_annotations(annotations, protocol_catalog=selected_protocol_catalog)
     if not capabilities:
         raise AutoCompositionError("generic:annotations:empty")
-    if any(field.member_path for endpoint in capabilities for field in endpoint.fields):
-        raise AutoCompositionError("generic:packed-member-rendering-unsupported")
     endpoint_modules = {
         str(endpoint["endpoint_id"]): endpoint.get("module")
         for endpoint in annotations["endpoints"]  # type: ignore[index]
@@ -1506,6 +1508,11 @@ def plan_generic_composition(
         _generic_source_path(root, source_file)
     source_list_metadata = _generic_source_list_metadata(root, request.interface_description.source)
     source_include_roots = source_list_metadata.include_roots
+    elaboration = request.interface_description.source.elaboration
+    source_defines = source_list_metadata.defines + (
+        tuple(f"+define+{name}={value}" for name, value in elaboration.defines)
+        if elaboration is not None else ()
+    )
 
     profiles: dict[str, PeripheralProfile] = {}
     component_records: list[dict[str, object]] = []
@@ -1745,7 +1752,7 @@ def plan_generic_composition(
                 canonical_id("generic-include-root", item)
                 for item in source_include_roots
             ],
-            "defines": list(source_list_metadata.defines),
+            "defines": list(source_defines),
         },
         "diagnostics": {"errors": [], "warnings": sorted(set(diagnostics))},
     })
@@ -1762,7 +1769,7 @@ def plan_generic_composition(
         composition_ir_hash=canonical_ir_hash(ir),
         source_files=source_files,
         source_include_roots=source_include_roots,
-        source_defines=source_list_metadata.defines,
+        source_defines=source_defines,
         source_evidence_hash=_generic_source_evidence_hash(
             root, source_files, request.interface_description.source,
         ),

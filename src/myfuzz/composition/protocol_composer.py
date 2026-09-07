@@ -1184,12 +1184,29 @@ def _generic_port_records(
                 "source_port": port,
                 "opaque_port": opaque,
                 "direction": direction,
-                "width": width,
-                "signed": field.get("signed", False),
+                "width": field.get("container_width", width),
+                "signed": False if field.get("member_path") else field.get("signed", False),
+                "members": (),
             }
-            if existing is not None and existing != record:
+            member_path = field.get("member_path")
+            if member_path:
+                if existing is not None and not existing.get("members"):
+                    raise ValueError(f"generic composition mixes whole port and members: {port}")
+                member = (tuple(member_path), field.get("raw_lo"), field.get("raw_hi"), width)
+                prior = () if existing is None else existing["members"]
+                for other in prior:
+                    if not (member[2] < other[1] or member[1] > other[2]):
+                        raise ValueError(f"generic composition member slices overlap: {port}")
+                record["members"] = tuple(prior) + (member,)
+            elif existing is not None and existing.get("members"):
+                raise ValueError(f"generic composition mixes whole port and members: {port}")
+            if existing is not None and any(existing[key] != record[key] for key in ("opaque_port", "direction", "width", "signed")):
                 raise ValueError(f"generic composition port facts conflict: {port}")
             records[port] = record
+    for port, record in records.items():
+        if record["direction"] == "input" and record["members"]:
+            if not _complete_ranges([(member[1], member[2]) for member in record["members"]], int(record["width"])):
+                raise ValueError(f"generic composition input container is not fully covered: {port}")
     if require_records and not records:
         raise ValueError("generic composition has no source-backed ports")
     return tuple(sorted(records.values(), key=lambda item: str(item["opaque_port"])))
@@ -1226,7 +1243,7 @@ def _render_generic_source_only_top(plan: object) -> str:
         "module generic_composition_top (",
         ",\n".join(declarations),
         ");",
-        f"  {top_module} {instance} (",
+        f"  {top_module}{_source_parameter_clause(plan)} {instance} (",
         ",\n".join(connections),
         "  );",
         "endmodule",
@@ -1252,6 +1269,29 @@ def _sv_literal(width: int, value: int) -> str:
     if width <= 0 or value < 0 or value >= 1 << width:
         raise ValueError("generic composition address literal is invalid")
     return f"{width}'h{value:x}"
+
+
+def _source_parameter_clause(plan: object) -> str:
+    source = getattr(getattr(plan, "interface_description", None), "source", None)
+    elaboration = getattr(source, "elaboration", None)
+    parameters = getattr(elaboration, "parameters", ()) if elaboration is not None else ()
+    if not parameters:
+        return ""
+    rendered = []
+    for name, value in parameters:
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) is None or re.fullmatch(r"-?(?:0|[1-9][0-9]*)", value) is None:
+            raise ValueError("generic composition source parameter override is invalid")
+        rendered.append(f".{name}({value})")
+    return " #(\n        " + ",\n        ".join(rendered) + "\n  )"
+
+
+def _complete_ranges(ranges: list[tuple[int, int]], width: int) -> bool:
+    cursor = 0
+    for low, high in sorted(ranges):
+        if low != cursor or high < low or high >= width:
+            return False
+        cursor = high + 1
+    return cursor == width
 
 
 def _generic_routes(plan: object) -> tuple[dict[str, object], ...]:
@@ -1327,6 +1367,8 @@ def _generic_routes(plan: object) -> tuple[dict[str, object], ...]:
                 "target_port": target_port, "direction": direction, "width": width,
                 "signed": source_field.signed, "address": field.get("address") is True,
                 "irq_route": component_id in irq_components and field_id == "irq",
+                "member_path": source_field.member_path, "raw_lo": source_field.raw_lo,
+                "raw_hi": source_field.raw_hi, "container_width": source_field.container_width,
             })
         address_fields = [field for field in route_fields if field["address"]]
         if not address_fields:
@@ -1486,6 +1528,21 @@ def _render_generic_top(plan: object) -> str:
     top_module, external_ports = _generic_source_top(plan, internal_ports=internal_ports)
     all_ports = _generic_port_records(plan)
     source_records = {str(record["source_port"]): record for record in all_ports}
+    routed_by_port: dict[str, list[Mapping[str, object]]] = {}
+    for route in routes:
+        for field in route["fields"]:
+            routed_by_port.setdefault(str(field["source_port"]), []).append(field)
+    for port in internal_ports:
+        record = source_records.get(port)
+        routed = routed_by_port.get(port, [])
+        if record is None or not routed:
+            raise ValueError("generic composition internal source port is missing")
+        member_routes = [field for field in routed if field.get("member_path")]
+        if member_routes and len(member_routes) != len(routed):
+            raise ValueError(f"generic composition mixes whole port and members: {port}")
+        if record["direction"] == "input" and member_routes:
+            if not _complete_ranges([(int(field["raw_lo"]), int(field["raw_hi"])) for field in member_routes], int(record["width"])):
+                raise ValueError(f"generic composition routed input container is not fully covered: {port}")
     def source_signal(port: str) -> str:
         record = source_records.get(port)
         if record is None:
@@ -1494,6 +1551,11 @@ def _render_generic_top(plan: object) -> str:
             f"source_{canonical_id('generic-render-source-port', port):016x}"
             if port in internal_ports else str(record["opaque_port"])
         )
+    def field_signal(field: Mapping[str, object]) -> str:
+        signal = source_signal(str(field["source_port"]))
+        if field.get("member_path"):
+            signal += f"[{int(field['raw_hi'])}:{int(field['raw_lo'])}]"
+        return signal
     lines = ["// Generated from source-backed interface annotations. Do not edit.", "module generic_composition_top ("]
     declarations = []
     for record in sorted(external_ports.values(), key=lambda item: str(item["opaque_port"])):
@@ -1508,14 +1570,14 @@ def _render_generic_top(plan: object) -> str:
             raise ValueError("generic composition internal source port is missing")
         lines.append("  " + _sv_logic(f"source_{canonical_id('generic-render-source-port', port):016x}", int(record["width"]), signed=bool(record["signed"])) + ";")
     source_instance = f"u_{canonical_id('generic-source-instance', top_module):016x}"
-    lines.extend((f"  {top_module} {source_instance} (",))
+    lines.extend((f"  {top_module}{_source_parameter_clause(plan)} {source_instance} (",))
     source_connections = []
     for port, record in sorted(source_records.items()):
         signal = source_signal(port)
         source_connections.append(f"        .{_sv_identifier(port, context='source port')}({signal})")
     lines.extend((",\n".join(source_connections), "  );"))
-    responses: dict[str, str] = {}
-    irq_targets: dict[str, str] = {}
+    responses: dict[tuple[str, tuple[str, ...]], str] = {}
+    irq_targets: dict[tuple[str, tuple[str, ...]], tuple[Mapping[str, object], str]] = {}
     for route in routes:
         tag = _route_tag(route)
         component_select = f"component_select_{tag}"
@@ -1524,7 +1586,7 @@ def _render_generic_top(plan: object) -> str:
             terms = ["1'b1"]
         else:
             terms = [
-                f"({{1'b0, source_{canonical_id('generic-render-source-port', str(field['source_port'])):016x}}} >= {_sv_literal(int(field['width']) + 1, int(route['base']))} && {{1'b0, source_{canonical_id('generic-render-source-port', str(field['source_port'])):016x}}} < {_sv_literal(int(field['width']) + 1, int(route['base']) + int(route['size']))})"
+                f"({{1'b0, {field_signal(field)}}} >= {_sv_literal(int(field['width']) + 1, int(route['base']))} && {{1'b0, {field_signal(field)}}} < {_sv_literal(int(field['width']) + 1, int(route['base']) + int(route['size']))})"
                 for field in route["fields"] if field["address"]
             ]
         if len(terms) != 1:
@@ -1562,7 +1624,7 @@ def _render_generic_top(plan: object) -> str:
         ]
         for field in route["fields"]:
             field_tag = f"f_{canonical_id('generic-render-field', str(field['field_id'])):016x}"
-            field_source_signal = source_signal(str(field["source_port"]))
+            field_source_signal = field_signal(field)
             component_signal = f"component_{tag}_{field_tag}"
             if field["direction"] == "input":
                 adapter_connections.extend((f"        .source_{field_tag}({field_source_signal})", f"        .target_{field_tag}({component_signal})"))
@@ -1571,18 +1633,21 @@ def _render_generic_top(plan: object) -> str:
                 lines.append("  " + _sv_logic(response, int(field["width"]), signed=bool(field["signed"])) + ";")
                 adapter_connections.extend((f"        .target_{field_tag}({component_signal})", f"        .response_{field_tag}({response})"))
                 if field["irq_route"]:
-                    if str(field["source_port"]) in irq_targets:
+                    irq_key = (str(field["source_port"]), tuple(field.get("member_path") or ()))
+                    if irq_key in irq_targets:
                         raise ValueError("generic composition IRQ source has multiple targets")
-                    irq_targets[str(field["source_port"])] = component_signal
+                    irq_targets[irq_key] = (field, component_signal)
                 else:
-                    if str(field["source_port"]) in responses:
+                    response_key = (str(field["source_port"]), tuple(field.get("member_path") or ()))
+                    if response_key in responses:
                         raise ValueError("generic composition response source has multiple targets")
-                    responses[str(field["source_port"])] = response
+                    responses[response_key] = response
         lines.extend((f"  {adapter_module} u_{canonical_id('generic-adapter-instance', str(route['component_id'])):016x} (", ",\n".join(adapter_connections), "  );"))
-    for port, wire in sorted(responses.items()):
-        lines.append(f"  assign {source_signal(port)} = {wire};")
-    for port, wire in sorted(irq_targets.items()):
-        lines.append(f"  assign {source_signal(port)} = {wire};")
+    for (port, member_path), wire in sorted(responses.items()):
+        record = next(field for route in routes for field in route["fields"] if field["source_port"] == port and tuple(field.get("member_path") or ()) == member_path)
+        lines.append(f"  assign {field_signal(record)} = {wire};")
+    for _, (field, wire) in sorted(irq_targets.items()):
+        lines.append(f"  assign {field_signal(field)} = {wire};")
     lines.append("endmodule\n")
     lines.extend(_render_generic_adapter(route) for route in routes)
     lines.extend(shared_modules)
@@ -1740,7 +1805,7 @@ def _generic_plan_reconstruction_document(plan: object) -> dict[str, object]:
                 "fields": [
                     (field.role, field.port, field.direction, field.width, field.signed,
                      None if field.source is None else (field.source.file, field.source.line, field.source.column),
-                     field.evidence)
+                     field.evidence, field.member_path, field.raw_lo, field.raw_hi, field.container_width)
                     for field in endpoint.fields
                 ],
                 "timing": [

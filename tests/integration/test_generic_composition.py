@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import importlib.util
 import subprocess
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
 from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
@@ -25,6 +28,148 @@ from tests.composition.test_generic_auto import GenericAutoCompositionTests, syn
 
 
 class GenericCompositionIntegrationTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("verilator"), "verilator is not installed")
+    def test_source_only_packed_containers_compile_and_require_complete_inputs(self) -> None:
+        fields = [
+            {"role": "lo", "port": "req", "direction": "input", "width": 8, "signed": False,
+             "member_path": ["lo"], "raw_lo": 0, "raw_hi": 7, "container_width": 16},
+            {"role": "hi", "port": "req", "direction": "input", "width": 8, "signed": False,
+             "member_path": ["hi"], "raw_lo": 8, "raw_hi": 15, "container_width": 16},
+            {"role": "value", "port": "rsp", "direction": "output", "width": 8, "signed": False,
+             "member_path": ["value"], "raw_lo": 0, "raw_hi": 7, "container_width": 16},
+        ]
+        plan = SimpleNamespace(annotations={"endpoints": [{"endpoint_id": "packed", "fields": fields}]},
+                               interface_description=SimpleNamespace(source=SimpleNamespace(top_module="packed_dut", elaboration=SimpleNamespace(parameters=(("WIDTH", "16"),)))))
+        rendered = protocol_composer._render_generic_source_only_top(plan)
+        self.assertEqual(1, rendered.count(".req("))
+        self.assertEqual(1, rendered.count(".rsp("))
+        self.assertIn("#(\n        .WIDTH(16)", rendered)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "dut.sv").write_text("typedef struct packed {logic [7:0] hi; logic [7:0] lo;} req_t; typedef struct packed {logic [7:0] pad; logic [7:0] value;} rsp_t; module packed_dut #(parameter WIDTH=16) (input req_t req, output rsp_t rsp); assign rsp='{default:'0}; endmodule\n", encoding="utf-8")
+            (root / "top.sv").write_text(rendered, encoding="utf-8")
+            result = subprocess.run(("nice", "-n15", "verilator", "--lint-only", "--top-module", "generic_composition_top", "dut.sv", "top.sv"), cwd=root, env={**os.environ, "JOBS": "1"}, capture_output=True, text=True, timeout=20, check=False)
+            self.assertEqual(0, result.returncode, result.stderr)
+        incomplete = SimpleNamespace(annotations={"endpoints": [{"endpoint_id": "packed", "fields": fields[:1]}]}, interface_description=plan.interface_description)
+        with self.assertRaisesRegex(ValueError, "not fully covered"):
+            protocol_composer._render_generic_source_only_top(incomplete)
+
+    def test_complete_range_check_is_constant_in_container_width(self) -> None:
+        self.assertTrue(protocol_composer._complete_ranges([(0, 8_388_607), (8_388_608, 16_777_215)], 16_777_216))
+        self.assertFalse(protocol_composer._complete_ranges([(0, 8_388_607), (8_388_609, 16_777_215)], 16_777_216))
+
+    @unittest.skipUnless(shutil.which("verilator"), "verilator is not installed")
+    def test_connected_packed_plan_is_rebuilt_published_and_compiles(self) -> None:
+        from myfuzz.components.catalog import ComponentCatalog
+        from myfuzz.components.model import PeripheralProfile
+        from myfuzz.protocols.catalog import ProtocolCatalog
+        from myfuzz.protocols.model import (
+            ChannelRelationSpec,
+            FieldSpec,
+            ProjectionActionSpec,
+            ProtocolPlugin,
+        )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source_root = root / "source"
+            source_root.mkdir()
+            cpu = source_root / "packed_connected.sv"
+            cpu.write_text(
+                "`ifndef PACKED_FEATURE\npacked_feature_define_is_required\n`endif\n"
+                "module packed_connected #(parameter integer W=8) (\n"
+                " input logic clk, input logic rst,\n"
+                " output struct packed {logic [W-1:0] addr; logic valid; logic [31:0] wdata;} req,\n"
+                " input struct packed {logic ready; logic [31:0] rdata; logic error; logic irq;} rsp,\n"
+                " output logic monitor);\n"
+                " always_ff @(posedge clk or negedge rst) if (!rst) monitor <= 1'b0; else monitor <= req.valid;\n"
+                "endmodule\n",
+                encoding="utf-8",
+            )
+            device = root / "packed_device.sv"
+            device.write_text(
+                "module packed_device(input logic clock, input logic reset, input logic [15:0] addr, "
+                "input logic valid, output logic ready, input logic [31:0] wdata, output logic [31:0] rdata, "
+                "output logic error, output logic irq); "
+                "always_ff @(posedge clock or negedge reset) if (!reset) rdata <= '0; else if (valid) rdata <= wdata; "
+                "assign ready=valid; assign error=1'b0; assign irq=valid; endmodule\n",
+                encoding="utf-8",
+            )
+            protocol = ProtocolCatalog((ProtocolPlugin(
+                "packed-bounded", "1", (
+                    FieldSpec("addr", "host_to_device", "address_width", True, 0),
+                    FieldSpec("valid", "host_to_device", "1", True, 0),
+                    FieldSpec("ready", "device_to_host", "1", True, 0),
+                    FieldSpec("wdata", "host_to_device", "data_width", True, 0),
+                    FieldSpec("rdata", "device_to_host", "data_width", True, 0),
+                    FieldSpec("error", "device_to_host", "1", True, 0),
+                    FieldSpec("irq", "device_to_host", "1", False, 0),
+                ), (), (ProjectionActionSpec(1, ("valid",), "gate", "protocol_legality", 16),), (),
+                (ChannelRelationSpec(1, "request_response_handshake", ("valid", "ready", "rdata")),),
+                (("max_outstanding", 1), ("bursts", False), ("ids", False),
+                 ("single_beat_only", True), ("ordering", "in_order_single_id"),
+                 ("completion", "ack_or_err"), ("max_wait_cycles", 16)),
+            ),))
+            catalog = ComponentCatalog((PeripheralProfile(
+                "packed-device", "packed_device", (("packed-bounded", "1"),),
+                0x100, 0x100, True, (), "implemented", ("packed_device.sv",), True, {},
+            ),))
+            physical = {
+                "addr": ("req", ("addr",)), "valid": ("req", ("valid",)),
+                "wdata": ("req", ("wdata",)), "ready": ("rsp", ("ready",)),
+                "rdata": ("rsp", ("rdata",)), "error": ("rsp", ("error",)),
+                "irq": ("rsp", ("irq",)),
+            }
+            description = load_interface_description({
+                "schema_version": "interface_description.v1",
+                "source": {
+                    "root": "source", "revision": source_tree_hash(source_root, (cpu,)),
+                    "top_module": "packed_connected", "files": ["packed_connected.sv"],
+                    "elaboration": {"frontend": "verilator-json",
+                                    "defines": [{"name": "PACKED_FEATURE", "value": "1"}],
+                                    "parameters": [{"name": "W", "value": "16"}]},
+                },
+                "endpoints": [{
+                    "endpoint_id": "cpu.mmio", "function": "memory_master",
+                    "module": "packed_connected", "protocol": ["packed-bounded", "1"],
+                    "fields": [
+                        {"role": "clock", "aliases": ["clk"]},
+                        {"role": "reset", "aliases": ["rst"]},
+                        {"role": "monitor", "aliases": ["monitor"]},
+                        *({"role": role, "physical": {"port": port, "member_path": list(path)}}
+                          for role, (port, path) in physical.items()),
+                    ],
+                }],
+            })
+            plan = plan_generic_composition(
+                GenericCompositionRequest(description, ("packed-device",), (("packed-bounded", "1"),)),
+                base_dir=root, component_catalog=catalog, protocol_catalog=protocol,
+            )
+            self.assertEqual(16, next(
+                field.width for endpoint in plan.capabilities for field in endpoint.fields
+                if field.role == "addr"
+            ))
+            output = root / "out"
+            write_generic_composition(plan, output, base_dir=root)
+            rendered = (output / "generic_composition_top.sv").read_text(encoding="utf-8")
+            self.assertIn("#(\n        .W(16)", rendered)
+            self.assertEqual(1, rendered.count(".req("))
+            self.assertEqual(1, rendered.count(".rsp("))
+            for role in ("ready", "rdata", "error", "irq"):
+                field = next(
+                    item for endpoint in plan.capabilities for item in endpoint.fields
+                    if item.role == role
+                )
+                self.assertIn(f"[{field.raw_hi}:{field.raw_lo}]", rendered)
+            strict = subprocess.run(
+                ("nice", "-n15", "verilator", "--lint-only", "--sv", "--top-module",
+                 "generic_composition_top", "-Wno-DECLFILENAME", "-Wno-UNUSEDSIGNAL",
+                 "-Wno-UNDRIVEN", "-Wno-UNSIGNED", "-f", "sources.f"),
+                cwd=output, env={**os.environ, "JOBS": "1"}, capture_output=True,
+                text=True, timeout=20, check=False,
+            )
+            self.assertEqual(0, strict.returncode, strict.stderr)
+
     def test_stage_publish_error_leaves_no_output_or_hidden_transaction_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

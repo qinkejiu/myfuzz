@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from unittest import mock
 from pathlib import Path
 
 from myfuzz.composition import (
-    AutoCompositionError,
     GenericCompositionRequest,
     load_interface_description,
     plan_generic_composition,
@@ -61,27 +59,6 @@ endmodule
 
 
 class GenericAutoCompositionTests(unittest.TestCase):
-    def test_packed_member_is_rejected_before_layout_or_ir_planning(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            description = synthetic_description(root, "cpu", ("clk", "rst", "stim", "obs"))
-            annotations = _document = {
-                "schema_version": "interface_annotations.v1",
-                "source": {"revision": description.source.revision, "content_hash": description.source.revision,
-                           "files": ["rtl/cpu.sv"], "modules": ["cpu"]},
-                "endpoints": [{"endpoint_id": "cpu.control", "function": "control", "module": "cpu",
-                               "fields": [{"role": "stimulus", "port": "bus", "direction": "input", "width": 8,
-                                           "signed": False, "member_path": ["data"], "raw_lo": 0, "raw_hi": 7,
-                                           "container_width": 16, "evidence": ["explicit_member", "compiler_elaboration"]}],
-                               "clock": None, "reset": None, "timing": [], "protocol_candidates": [],
-                               "evidence": ["source_top_module"], "confidence": "high", "diagnostics": []}],
-                "diagnostics": [],
-            }
-            with mock.patch("myfuzz.composition.auto.annotate_interfaces", return_value=annotations), \
-                 mock.patch("myfuzz.composition.auto.build_input_layout", side_effect=AssertionError("layout reached")):
-                with self.assertRaisesRegex(AutoCompositionError, "packed-member-rendering-unsupported"):
-                    plan_generic_composition(GenericCompositionRequest(description, ()), base_dir=root)
-
     def test_reset_contract_does_not_accept_evidence_from_an_unselected_module(self) -> None:
         """Reset semantics must be proven by the selected endpoint module only."""
         with tempfile.TemporaryDirectory() as temporary:

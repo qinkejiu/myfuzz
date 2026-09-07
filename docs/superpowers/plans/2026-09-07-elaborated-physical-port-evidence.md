@@ -168,3 +168,8 @@ container facts, mixed whole-port/member bindings, and multiple response
 drivers. Carry container/member facts through canonical IR and render both the
 source-only and component-connected tops. Compile generated RTL against a real
 small packed-struct DUT before removing the Task 4 composition gate.
+
+Completed and independently reviewed. The final connected acceptance follows
+the real Verilator crawl, plan, canonical IR, freshness reconstruction,
+publication and strict compile path. Runtime RFuzz projection of external
+packed inputs remains a separate later boundary.
