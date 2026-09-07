@@ -22,6 +22,17 @@
     {"field_id": "d_data", "direction": "device_to_host", "width": "data_width", "required": true, "reset_value": 0},
     {"field_id": "d_corrupt", "direction": "device_to_host", "width": "1", "required": false, "runtime_required": true, "reset_value": 0}
   ],
+  "channel_relations": [
+    {"relation_id": 1, "kind": "a_request_before_d_response", "field_ids": ["a_valid", "a_ready", "d_valid", "d_ready"]}
+  ],
+  "capability_limits": {
+    "max_outstanding": 1,
+    "source_id_reordering": false,
+    "coherence": false,
+    "byte_enable": true,
+    "partial_write": true,
+    "max_wait_cycles": 16
+  },
   "projection_actions": [
     {"action_id": 1, "field_ids": ["a_address"], "kind": "mask", "category": "address_validity"},
     {"action_id": 2, "field_ids": ["a_valid", "d_ready"], "kind": "gate", "category": "protocol_legality", "max_cycles": 16},

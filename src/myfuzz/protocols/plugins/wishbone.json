@@ -21,8 +21,10 @@
     "max_outstanding": 1,
     "single_beat_only": true,
     "stall_supported": true,
-    "completion_signals": ["ack", "err"],
-    "max_wait_cycles": 16
+    "completion": "ack_or_err",
+    "max_wait_cycles": 16,
+    "byte_enable": true,
+    "partial_write": true
   },
   "projection_actions": [
     {"action_id": 1, "field_ids": ["adr"], "kind": "mask", "category": "address_validity"},

@@ -21,6 +21,18 @@
     {"field_id": "rvalid", "direction": "device_to_host", "width": "1", "required": true, "reset_value": 0},
     {"field_id": "rready", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0}
   ],
+  "channel_relations": [
+    {"relation_id": 1, "kind": "write_address_and_data_before_response", "field_ids": ["awvalid", "awready", "wvalid", "wready", "bvalid", "bready"]},
+    {"relation_id": 2, "kind": "read_address_before_response", "field_ids": ["arvalid", "arready", "rvalid", "rready"]}
+  ],
+  "capability_limits": {
+    "max_outstanding": 1,
+    "bursts": false,
+    "ids": false,
+    "byte_enable": true,
+    "partial_write": true,
+    "max_wait_cycles": 16
+  },
   "projection_actions": [
     {"action_id": 1, "field_ids": ["awaddr", "araddr"], "kind": "mask", "category": "address_validity"},
     {"action_id": 2, "field_ids": ["awvalid", "wvalid", "bready", "arvalid", "rready"], "kind": "gate", "category": "protocol_legality", "max_cycles": 16},

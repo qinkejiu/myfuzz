@@ -28,6 +28,16 @@ class ProjectionActionSpec:
     kind: str
     category: str
     max_cycles: int | None
+    constant_value: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ChannelRelationSpec:
+    """A declared relationship among protocol fields."""
+
+    relation_id: int
+    kind: str
+    field_ids: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +59,8 @@ class ProtocolPlugin:
     legal_adapters: tuple[str, ...]
     projection_actions: tuple[ProjectionActionSpec, ...] = ()
     temporal_rules: tuple[TemporalRuleSpec, ...] = ()
+    channel_relations: tuple[ChannelRelationSpec, ...] = ()
+    capability_limits: tuple[tuple[str, bool | int | str], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

@@ -40,18 +40,22 @@
   "capability_limits": {
     "max_outstanding": 1,
     "single_beat_only": true,
-    "supported_burst_lengths": [0],
-    "supported_id_values": [0],
+    "supported_burst_length": 0,
+    "supported_id_value": 0,
     "ordering": "in_order_single_id",
-    "splitter_required_for_bursts": true
+    "splitter_required_for_bursts": true,
+    "bursts": "reject_non_single_beat",
+    "ids": "reject_nonzero",
+    "byte_enable": true,
+    "partial_write": true
   },
   "projection_actions": [
     {"action_id": 1, "field_ids": ["awaddr", "araddr"], "kind": "mask", "category": "address_validity"},
     {"action_id": 2, "field_ids": ["awvalid", "wvalid", "bready", "arvalid", "rready"], "kind": "gate", "category": "protocol_legality", "max_cycles": 16},
     {"action_id": 3, "field_ids": ["wdata", "wstrb"], "kind": "fold_xor", "category": "dependency_consistency"},
-    {"action_id": 4, "field_ids": ["awlen", "arlen", "wlast", "rlast"], "kind": "reject", "category": "unsupported_burst"},
-    {"action_id": 5, "field_ids": ["awid", "bid", "arid", "rid"], "kind": "reject", "category": "unsupported_id"},
-    {"action_id": 6, "field_ids": ["awid", "bid", "arid", "rid"], "kind": "reject", "category": "unsupported_ordering"}
+    {"action_id": 4, "field_ids": ["awlen", "arlen"], "kind": "constant", "category": "protocol_legality", "constant_value": 0},
+    {"action_id": 5, "field_ids": ["wlast"], "kind": "constant", "category": "protocol_legality", "constant_value": 1},
+    {"action_id": 6, "field_ids": ["awid", "arid"], "kind": "constant", "category": "protocol_legality", "constant_value": 0}
   ],
   "temporal_rules": [
     {"rule_id": 1, "kind": "handshake", "antecedent_field_id": "awvalid", "consequent_field_id": "awready", "max_cycles": 16},

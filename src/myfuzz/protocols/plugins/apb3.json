@@ -10,6 +10,15 @@
     {"field_id": "prdata", "direction": "device_to_host", "width": "data_width", "required": true, "reset_value": 0},
     {"field_id": "pslverr", "direction": "device_to_host", "width": "1", "required": false, "reset_value": 0}
   ],
+  "channel_relations": [
+    {"relation_id": 1, "kind": "setup_access_response", "field_ids": ["psel", "penable", "pready"]}
+  ],
+  "capability_limits": {
+    "max_outstanding": 1,
+    "max_wait_cycles": 16,
+    "byte_enable": false,
+    "partial_write": false
+  },
   "projection_actions": [
     {"action_id": 1, "field_ids": ["paddr"], "kind": "mask", "category": "address_validity"},
     {"action_id": 2, "field_ids": ["psel", "penable"], "kind": "gate", "category": "protocol_legality", "max_cycles": 16},

@@ -10,7 +10,7 @@ from myfuzz.contracts import content_hash
 from .abi import RawBitAbi, RawBitUse
 
 
-_ACTION_KINDS = frozenset(("direct", "mask", "gate", "delay_select", "fold_xor"))
+_ACTION_KINDS = frozenset(("direct", "mask", "gate", "delay_select", "fold_xor", "constant"))
 _CATEGORIES = frozenset(
     (
         "direct",
@@ -50,6 +50,7 @@ class ProjectionAction:
     state_width: int
     value_width: int
     counter_width: int
+    constant_value: int | None = None
     active: bool = True
 
 
@@ -88,6 +89,11 @@ class ProjectionPlan:
                 raise ValueError("projection action references an unknown destination")
             if action.kind not in _ACTION_KINDS or action.category not in _CATEGORIES:
                 raise ValueError("projection action kind/category is unsupported")
+            if action.kind == "constant":
+                if action.constant_value is None or not 0 <= action.constant_value < 1 << action.value_width:
+                    raise ValueError("constant projection action value is outside its destination width")
+            elif action.constant_value is not None:
+                raise ValueError("only constant projection actions may declare a constant value")
             if action.state_lo < 0 or action.state_width < 0:
                 raise ValueError("projection action has an invalid state slice")
             if action.state_lo + action.state_width > self.max_state_bits:
@@ -122,6 +128,7 @@ def _action_document(action: ProjectionAction) -> dict[str, object]:
         "state_width": action.state_width,
         "value_width": action.value_width,
         "counter_width": action.counter_width,
+        "constant_value": action.constant_value,
         "active": action.active,
     }
 
@@ -218,7 +225,7 @@ def build_projection_plan(
     ):
         raise ValueError("projection actions must be an array")
 
-    parsed: list[tuple[int, int, str, str, int | None, bool]] = []
+    parsed: list[tuple[int, int, str, str, int | None, int | None, bool]] = []
     seen: set[int] = set()
     for index, value in enumerate(action_records):
         if not isinstance(value, Mapping):
@@ -253,11 +260,20 @@ def build_projection_plan(
         active = value.get("active", True)
         if not isinstance(active, bool):
             raise ValueError("projection action active flag must be boolean")
-        parsed.append((action_id, destination_id, kind, category, max_cycles, active))
+        constant_value = value.get("constant_value")
+        if kind == "constant":
+            constant_value = _integer(
+                constant_value, f"projection action {index}.constant_value"
+            )
+            if constant_value >= 1 << destination_widths[destination_id]:
+                raise ValueError("constant projection action value is outside its destination width")
+        elif constant_value is not None:
+            raise ValueError("only constant projection actions may declare a constant value")
+        parsed.append((action_id, destination_id, kind, category, max_cycles, constant_value, active))
 
     cursor = 0
     actions: list[ProjectionAction] = []
-    for action_id, destination_id, kind, category, max_cycles, active in sorted(
+    for action_id, destination_id, kind, category, max_cycles, constant_value, active in sorted(
         parsed, key=lambda item: (order.index(item[1]), item[0])
     ):
         value_width = destination_widths[destination_id]
@@ -276,6 +292,7 @@ def build_projection_plan(
                 state_width,
                 value_width,
                 counter_width,
+                constant_value,
                 active,
             )
         )
@@ -360,6 +377,9 @@ def project_sample(
                 events.append((destination_id, "fold"))
         elif action.kind == "mask":
             value = original & mask
+        elif action.kind == "constant":
+            assert action.constant_value is not None
+            value = action.constant_value
         elif action.kind in _TEMPORAL_KINDS:
             assert action.max_cycles is not None
             latched = _slice(state.value, action.state_lo, action.value_width)

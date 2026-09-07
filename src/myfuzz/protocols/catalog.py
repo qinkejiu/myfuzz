@@ -8,11 +8,18 @@ from functools import lru_cache
 from pathlib import Path
 
 from .model import (
+    ChannelRelationSpec,
     FieldSpec,
     ProjectionActionSpec,
     ProtocolDefinitionError,
     ProtocolPlugin,
     TemporalRuleSpec,
+)
+
+
+_PROJECTION_KINDS = frozenset(("direct", "mask", "gate", "delay_select", "fold_xor", "constant"))
+_PROJECTION_CATEGORIES = frozenset(
+    ("direct", "protocol_legality", "progress", "dependency_consistency", "event_rarity", "address_validity")
 )
 
 
@@ -74,6 +81,69 @@ def _validate_width_expression(expression: str, source: Path, field_id: str) -> 
     validate(root)
 
 
+def _parse_channel_relations(
+    document: dict[object, object], source: Path, fields: set[str]
+) -> tuple[ChannelRelationSpec, ...]:
+    raw = document.get("channel_relations", [])
+    if not isinstance(raw, list):
+        raise ProtocolDefinitionError(f"{source}: channel_relations must be a list")
+    relations: list[ChannelRelationSpec] = []
+    seen_ids: set[int] = set()
+    for index, item in enumerate(raw):
+        if not isinstance(item, dict):
+            raise ProtocolDefinitionError(f"{source}: channel relation must be an object")
+        relation_id = item.get("relation_id")
+        if (
+            isinstance(relation_id, bool)
+            or not isinstance(relation_id, int)
+            or relation_id < 0
+            or relation_id in seen_ids
+        ):
+            raise ProtocolDefinitionError(f"{source}: channel relation ID is invalid")
+        seen_ids.add(relation_id)
+        field_ids = item.get("field_ids")
+        if (
+            not isinstance(field_ids, list)
+            or not field_ids
+            or any(not isinstance(field_id, str) or field_id not in fields for field_id in field_ids)
+            or len(field_ids) != len(set(field_ids))
+        ):
+            raise ProtocolDefinitionError(
+                f"{source}: channel relation fields must reference distinct declared fields"
+            )
+        relations.append(
+            ChannelRelationSpec(
+                relation_id,
+                _require_string(item.get("kind"), f"channel relation {index}.kind"),
+                tuple(field_ids),
+            )
+        )
+    return tuple(sorted(relations, key=lambda relation: relation.relation_id))
+
+
+def _parse_capability_limits(
+    document: dict[object, object], source: Path
+) -> tuple[tuple[str, bool | int | str], ...]:
+    raw = document.get("capability_limits", {})
+    if not isinstance(raw, dict):
+        raise ProtocolDefinitionError(f"{source}: capability_limits must be an object")
+    limits: list[tuple[str, bool | int | str]] = []
+    for key, value in raw.items():
+        name = _require_string(key, "capability limit name")
+        if isinstance(value, bool):
+            parsed: bool | int | str = value
+        elif isinstance(value, int) and value >= 0:
+            parsed = value
+        elif isinstance(value, str) and value:
+            parsed = value
+        else:
+            raise ProtocolDefinitionError(
+                f"{source}: capability limit {name} must be a non-negative integer, boolean, or non-empty string"
+            )
+        limits.append((name, parsed))
+    return tuple(sorted(limits))
+
+
 def _parse_plugin(document: object, source: Path) -> ProtocolPlugin:
     if not isinstance(document, dict):
         raise ProtocolDefinitionError(f"{source}: plugin document must be an object")
@@ -133,6 +203,10 @@ def _parse_plugin(document: object, source: Path) -> ProtocolPlugin:
             raise ProtocolDefinitionError(f"{source}: projection action fields must reference declared fields")
         kind = _require_string(item.get("kind"), f"projection action {index}.kind")
         category = _require_string(item.get("category"), f"projection action {index}.category")
+        if kind not in _PROJECTION_KINDS:
+            raise ProtocolDefinitionError(f"{source}: unsupported projection action kind: {kind}")
+        if category not in _PROJECTION_CATEGORIES:
+            raise ProtocolDefinitionError(f"{source}: unsupported projection category: {category}")
         max_cycles = item.get("max_cycles")
         if max_cycles is not None and (
             isinstance(max_cycles, bool) or not isinstance(max_cycles, int) or not 1 <= max_cycles <= 65_535
@@ -140,8 +214,16 @@ def _parse_plugin(document: object, source: Path) -> ProtocolPlugin:
             raise ProtocolDefinitionError(f"{source}: projection action max_cycles is invalid")
         if kind in {"gate", "delay_select"} and max_cycles is None:
             raise ProtocolDefinitionError(f"{source}: temporal projection action requires max_cycles")
+        constant_value = item.get("constant_value")
+        if kind == "constant":
+            if isinstance(constant_value, bool) or not isinstance(constant_value, int) or constant_value < 0:
+                raise ProtocolDefinitionError(f"{source}: constant projection action requires a non-negative constant_value")
+        elif constant_value is not None:
+            raise ProtocolDefinitionError(f"{source}: only constant projection actions may declare constant_value")
         projection_actions.append(
-            ProjectionActionSpec(action_id, tuple(field_ids_raw), kind, category, max_cycles)
+            ProjectionActionSpec(
+                action_id, tuple(field_ids_raw), kind, category, max_cycles, constant_value
+            )
         )
 
     temporal_rules: list[TemporalRuleSpec] = []
@@ -172,6 +254,8 @@ def _parse_plugin(document: object, source: Path) -> ProtocolPlugin:
                 max_cycles,
             )
         )
+    channel_relations = _parse_channel_relations(document, source, seen)
+    capability_limits = _parse_capability_limits(document, source)
     return ProtocolPlugin(
         protocol_id,
         version,
@@ -179,6 +263,8 @@ def _parse_plugin(document: object, source: Path) -> ProtocolPlugin:
         tuple(adapters_raw),
         tuple(sorted(projection_actions, key=lambda action: action.action_id)),
         tuple(sorted(temporal_rules, key=lambda rule: rule.rule_id)),
+        channel_relations,
+        capability_limits,
     )
 
 

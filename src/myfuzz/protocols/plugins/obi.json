@@ -9,6 +9,15 @@
     {"field_id": "rvalid", "direction": "device_to_host", "width": "1", "required": true, "reset_value": 0},
     {"field_id": "rdata", "direction": "device_to_host", "width": "data_width", "required": true, "reset_value": 0}
   ],
+  "channel_relations": [
+    {"relation_id": 1, "kind": "request_grant_response", "field_ids": ["req", "gnt", "rvalid"]}
+  ],
+  "capability_limits": {
+    "max_outstanding": 1,
+    "byte_enable": false,
+    "partial_write": false,
+    "max_wait_cycles": 16
+  },
   "projection_actions": [
     {"action_id": 1, "field_ids": ["addr"], "kind": "mask", "category": "address_validity"},
     {"action_id": 2, "field_ids": ["req"], "kind": "gate", "category": "protocol_legality", "max_cycles": 16},

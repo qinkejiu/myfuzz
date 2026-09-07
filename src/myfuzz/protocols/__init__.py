@@ -16,6 +16,7 @@ from .compiler import (
     protocol_input_fields,
 )
 from .model import (
+    ChannelRelationSpec,
     ProjectionActionSpec,
     ProtocolDefinitionError,
     ProtocolPlugin,
@@ -26,6 +27,7 @@ __all__ = [
     "Apb4BridgeModel",
     "Axi4LiteBridgeModel",
     "BridgeCycle",
+    "ChannelRelationSpec",
     "MmioRequest",
     "MmioResponse",
     "ProtocolCatalog",

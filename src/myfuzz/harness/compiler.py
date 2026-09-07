@@ -1073,6 +1073,7 @@ def _projection_plan(
                             "kind": specification.kind,
                             "category": specification.category,
                             "max_cycles": max_cycles,
+                            "constant_value": specification.constant_value,
                             "active": active,
                         },
                     )
