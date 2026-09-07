@@ -321,6 +321,52 @@ class AdditionalProtocolCatalogTest(unittest.TestCase):
                     with self.assertRaises(ProtocolDefinitionError):
                         load_protocol_catalog(directory)
 
+    def test_catalog_normalizes_unhashable_declaration_values_to_definition_errors(self) -> None:
+        document = {
+            "protocol_id": "example",
+            "version": "1",
+            "legal_adapters": [],
+            "fields": [
+                {
+                    "field_id": "request",
+                    "direction": "host_to_device",
+                    "width": "8",
+                    "required": True,
+                    "reset_value": 0,
+                }
+            ],
+            "capability_limits": {"byte_enable": True, "ordering": "in_order_single_id"},
+        }
+        invalid_documents = {
+            "protocol_id_list": {**document, "protocol_id": []},
+            "protocol_id_object": {**document, "protocol_id": {}},
+            "version_list": {**document, "version": []},
+            "version_object": {**document, "version": {}},
+            "direction_list": {**document, "fields": [{**document["fields"][0], "direction": []}]},
+            "direction_object": {**document, "fields": [{**document["fields"][0], "direction": {}}]},
+            "required_list": {**document, "fields": [{**document["fields"][0], "required": []}]},
+            "required_object": {**document, "fields": [{**document["fields"][0], "required": {}}]},
+            "boolean_capability_list": {**document, "capability_limits": {"byte_enable": []}},
+            "boolean_capability_object": {**document, "capability_limits": {"byte_enable": {}}},
+            "enum_capability_list": {**document, "capability_limits": {"ordering": []}},
+            "enum_capability_object": {**document, "capability_limits": {"ordering": {}}},
+        }
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            source = directory / "example.json"
+            source.write_text(json.dumps(document), encoding="utf-8")
+            catalog = load_protocol_catalog(directory)
+            for protocol_id, version in (([], "1"), ({}, "1"), ("example", []), ("example", {})):
+                with self.subTest(protocol_id=protocol_id, version=version):
+                    with self.assertRaises(ProtocolDefinitionError):
+                        catalog.require(protocol_id, version)
+            for label, invalid_document in invalid_documents.items():
+                with self.subTest(case=label):
+                    source.write_text(json.dumps(invalid_document), encoding="utf-8")
+                    with self.assertRaises(ProtocolDefinitionError):
+                        load_protocol_catalog(directory)
+
     def test_catalog_rejects_constant_action_conflicts(self) -> None:
         document = {
             "protocol_id": "example",

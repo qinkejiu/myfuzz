@@ -62,6 +62,8 @@ class ProtocolCatalog:
         self._by_key = {(plugin.protocol_id, plugin.version): plugin for plugin in plugins}
 
     def require(self, protocol_id: str, version: str) -> ProtocolPlugin:
+        protocol_id = _require_string(protocol_id, "protocol_id")
+        version = _require_string(version, "version")
         try:
             return self._by_key[(protocol_id, version)]
         except KeyError as error:
@@ -277,7 +279,7 @@ def _parse_plugin(document: object, source: Path) -> ProtocolPlugin:
             raise ProtocolDefinitionError(f"{source}: duplicate field_id: {field_id}")
         seen.add(field_id)
         direction = item.get("direction")
-        if direction not in {"host_to_device", "device_to_host"}:
+        if not isinstance(direction, str) or direction not in {"host_to_device", "device_to_host"}:
             raise ProtocolDefinitionError(f"{source}: invalid direction for {field_id}")
         width_expression = _require_string(item.get("width"), f"width for {field_id}")
         _validate_width_expression(width_expression, source, field_id)
