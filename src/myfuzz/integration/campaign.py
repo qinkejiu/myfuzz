@@ -226,6 +226,17 @@ def read_process_group_rss_bytes(pgid: int) -> int:
         except CampaignError as error:
             if _proc_entry_disappeared(error):
                 continue
+            # A process may become a zombie after stat was read. Linux omits
+            # VmRSS for zombies even while /proc/PID still exists. Recheck the
+            # state before treating that normal exit race as monitor failure.
+            try:
+                current_group, current_state = _read_process_group_and_state(pid)
+            except CampaignError as state_error:
+                if _proc_entry_disappeared(state_error):
+                    continue
+            else:
+                if current_group != pgid or current_state == "Z":
+                    continue
             raise CampaignError(
                 f"cannot read procfs process group {pgid} member {pid} RSS"
             ) from error
