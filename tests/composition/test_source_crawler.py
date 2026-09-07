@@ -47,6 +47,53 @@ def _tree_hash(root: Path, files: tuple[Path, ...]) -> str:
 
 
 class SourceCrawlerTests(unittest.TestCase):
+    def test_filelist_variables_expand_only_declared_braced_names_and_bind_identity(self) -> None:
+        temporary, root, source = self.make_source()
+        self.addCleanup(temporary.cleanup)
+        filelist = root / "files.f"
+        filelist.write_text("// official-style filelist comment\n${RTL}/opaque_tile.sv\n", encoding="utf-8")
+        revision = source_tree_hash(root, (source, filelist))
+        locator = SourceLocator(root.name, revision, "opaque_tile", filelist="files.f",
+                                filelist_variables=(("RTL", "rtl"), ("EXTRA", "one")))
+        baseline = SourceCrawler().crawl(locator, base_dir=root.parent)
+        changed = SourceCrawler().crawl(replace(locator, filelist_variables=(("RTL", "rtl"), ("EXTRA", "two"))), base_dir=root.parent)
+        self.assertNotEqual(baseline.content_hash, changed.content_hash)
+        for text in ("${UNDEFINED}/opaque_tile.sv", "$RTL/opaque_tile.sv", "${RTL}/${OTHER}.sv"):
+            filelist.write_text(text + "\n", encoding="utf-8")
+            with self.subTest(text=text), mock.patch.dict("os.environ", {"RTL": ".", "OTHER": "opaque_tile"}), self.assertRaisesRegex(SourceCrawlError, "filelist-variable"):
+                SourceCrawler().crawl(replace(locator, revision=source_tree_hash(root, (source, filelist))), base_dir=root.parent)
+
+    def test_non_top_unsupported_ports_defer_only_with_elaboration(self) -> None:
+        temporary, root, source = self.make_source("module child_width(input logic [W-1:0] a); endmodule\nmodule child_type(input custom_t b); endmodule\nmodule child_unpacked(input logic c[]); endmodule\nmodule top; endmodule\n")
+        self.addCleanup(temporary.cleanup)
+        locator = self.description(root, source).source
+        with self.assertRaisesRegex(SourceCrawlError, "unsupported-port-width"):
+            SourceCrawler().crawl(locator, base_dir=root.parent)
+        def runner(**arguments):
+            output = arguments["output_dir"]; output.mkdir()
+            payload = source.read_bytes()
+            (output / "manifest.json").write_text(json.dumps({"sources": [{"file": source.relative_to(root).as_posix(), "sha256": hashlib.sha256(payload).hexdigest(), "size": len(payload)}], "tool_sources": [], "tool_version": "fake", "warning_summary": WARNING_SUMMARY, "warning_policy": "fatal"}))
+            return {"ports": []}
+        with mock.patch("myfuzz.composition.source_elaboration.run_verilator_elaboration", side_effect=runner):
+            snapshot = SourceCrawler().crawl(replace(locator, elaboration=ElaborationSettings("verilator-json"),
+                                                      filelist_variables=(("ROOT", "."),)), base_dir=root.parent)
+        self.assertEqual((), snapshot.ports)
+        self.assertEqual([["ROOT", "."]], json.loads(snapshot.elaboration_evidence)["filelist_variables"])
+
+    def test_filelist_variables_anchor_quoted_nested_and_compact_include_tokens(self) -> None:
+        temporary, root, source = self.make_source()
+        self.addCleanup(temporary.cleanup)
+        include = root / "include"; include.mkdir()
+        lists = root / "lists"; lists.mkdir()
+        nested = lists / "nested.f"
+        nested.write_text('"${ROOT}/rtl/opaque_tile.sv"\n-I${ROOT}/include\n', encoding="utf-8")
+        top = lists / "files.f"
+        top.write_text('-f "${ROOT}/lists/nested.f"\n', encoding="utf-8")
+        locator = SourceLocator(root.name, source_tree_hash(root, (source, nested, top)), "opaque_tile",
+                                filelist="lists/files.f", filelist_variables=(("ROOT", "."),))
+        snapshot = SourceCrawler().crawl(locator, base_dir=root.parent)
+        self.assertEqual(("opaque_tile",), snapshot.modules)
+
     def test_repository_pins_require_git_root_revision(self) -> None:
         temporary, root, source = self.make_source()
         self.addCleanup(temporary.cleanup)
@@ -63,6 +110,11 @@ class SourceCrawlerTests(unittest.TestCase):
         self.assertEqual(_with_repository_identity(base, first), _with_repository_identity(base, second))
         changed = replace(second, repositories=(RepositoryPin("a", "git:" + "c" * 40), RepositoryPin("z", "git:" + "b" * 40)))
         self.assertNotEqual(_with_repository_identity(base, first), _with_repository_identity(base, changed))
+        repositories_only = SourceLocator("one", first.revision, "top", repositories=(RepositoryPin("X", "git:" + "a" * 40),))
+        # Exercise the framing primitive directly with byte-identical arrays;
+        # public SourceLocator validation is stricter than this adversarial shape.
+        variables_only = mock.Mock(repositories=(), filelist_variables=(("X", "git:" + "a" * 40),))
+        self.assertNotEqual(_with_repository_identity(base, repositories_only), _with_repository_identity(base, variables_only))
     def test_declared_gitlink_uses_child_repository_as_blob_owner(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary)

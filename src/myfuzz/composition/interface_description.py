@@ -68,6 +68,29 @@ class SourceLocator:
     include_roots: tuple[str, ...] = ()
     elaboration: ElaborationSettings | None = None
     repositories: tuple[RepositoryPin, ...] = ()
+    filelist_variables: tuple[tuple[str, str], ...] = ()
+
+    def __post_init__(self) -> None:
+        identifier = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
+        names: set[str] = set()
+        for pair in self.filelist_variables:
+            if not isinstance(pair, tuple) or len(pair) != 2:
+                raise ValueError("invalid-filelist-variable")
+            name, value = pair
+            parts = value.split("/") if isinstance(value, str) else []
+            safe_value = (value == "." or (isinstance(value, str) and all(
+                re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]*", part) is not None
+                for part in parts
+            )))
+            if (not isinstance(name, str) or identifier.fullmatch(name) is None
+                    or name in names or not isinstance(value, str) or not value
+                    or "\0" in value or "\\" in value or "$" in value
+                    or "__MYFUZZ_FILELIST_ROOT__" in value
+                    or value[0] in "+-" or re.match(r"[A-Za-z]:", value)
+                    or not safe_value
+                    or (value != "." and (value.startswith("/") or any(part in {"", ".", ".."} for part in parts)))):
+                raise ValueError("invalid-filelist-variable")
+            names.add(name)
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,6 +217,7 @@ def load_interface_description(document_or_path: object) -> InterfaceDescription
         include_roots=_strings(source_value.get("include_roots", [])),
         elaboration=elaboration,
         repositories=tuple(RepositoryPin(item["path"], item["revision"]) for item in source_value.get("repositories", [])),  # type: ignore[union-attr]
+        filelist_variables=tuple((item["name"], item["value"]) for item in source_value.get("filelist_variables", [])),  # type: ignore[union-attr]
     )
     return InterfaceDescription(
         source=source,
@@ -266,6 +290,11 @@ def interface_description_document(value: InterfaceDescription) -> dict[str, obj
         source["repositories"] = [
             {"path": item.path, "revision": item.revision}
             for item in sorted(value.source.repositories, key=lambda item: item.path)
+        ]
+    if value.source.filelist_variables:
+        source["filelist_variables"] = [
+            {"name": name, "value": item_value}
+            for name, item_value in sorted(value.source.filelist_variables)
         ]
     return {
         "schema_version": "interface_description.v1",

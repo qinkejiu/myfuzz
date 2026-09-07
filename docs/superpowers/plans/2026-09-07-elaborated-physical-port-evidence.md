@@ -288,6 +288,12 @@ requiring absent facts must still fail closed. Retain all 13 compiler-proven top
 ports and the warning summary, and report exact source count, repository pins,
 runtime and sampled RSS.
 
+Completed and independently reviewed. The official Flist expands to 225 source
+files and seven include roots without consulting the host environment. The full
+SourceCrawler run verifies 317 closure files across four repositories, retains
+207 modules and 865 supported source-only port facts, and adds all 13 actual
+compiler-proven `cva6` top ports with the stable 464-warning class summary.
+
 ### Task 8: Explicit full-AXI semantics and runtime projection
 
 Annotate compiler-proven CVA6 packed members with explicit protocol roles and

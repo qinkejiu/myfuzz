@@ -49,6 +49,39 @@ def interface_document() -> dict[str, object]:
 
 
 class InterfaceDescriptionTests(unittest.TestCase):
+    def test_filelist_variables_are_typed_sorted_and_strict(self) -> None:
+        document = interface_document()
+        document["source"]["filelist_variables"] = [
+            {"name": "Z", "value": "core/cache"}, {"name": "A", "value": "."},
+        ]
+        value = load_interface_description(document)
+        self.assertEqual((("Z", "core/cache"), ("A", ".")), value.source.filelist_variables)
+        self.assertEqual(["A", "Z"], [item["name"] for item in interface_description_document(value)["source"]["filelist_variables"]])
+        for name, item_value in (("BAD-NAME", "."), ("A", ""), ("A", "../x"),
+                                 ("A", "$HOME"), ("A", "+incdir+x"), ("A", "C:/x"),
+                                 ("A", "a//b"), ("A", "a\\b")):
+            with self.subTest(name=name, value=item_value), self.assertRaises(ValueError):
+                SourceLocator("root", "sha256:" + "a" * 64, "top", filelist_variables=((name, item_value),))
+        with self.assertRaises(ValueError):
+            SourceLocator("root", "sha256:" + "a" * 64, "top", filelist_variables=(("A", "."), ("A", "x")))
+        for variables in (
+            [{"name": "A", "value": "."}, {"name": "A", "value": "x"}],
+            [{"name": "A-B", "value": "."}],
+            [{"name": "A", "value": "../x"}],
+            [{"name": "A", "value": "x -Ioutside"}],
+        ):
+            document = interface_document()
+            document["source"]["filelist_variables"] = variables
+            with self.subTest(variables=variables), self.assertRaises(ValueError):
+                load_interface_description(document)
+        with self.assertRaises(ValueError):
+            SourceLocator("root", "sha256:" + "a" * 64, "top",
+                          filelist_variables=(("A", "__MYFUZZ_FILELIST_ROOT__/x"),))
+        for item_value in ("two words", "quoted\"path", "comment#path", "plus+path", "-option", "dot/../path"):
+            with self.subTest(value=item_value), self.assertRaises(ValueError):
+                SourceLocator("root", "sha256:" + "a" * 64, "top",
+                              filelist_variables=(("A", item_value),))
+
     def test_repository_pins_are_typed_sorted_and_strict(self) -> None:
         document = interface_document()
         document["source"]["repositories"] = [

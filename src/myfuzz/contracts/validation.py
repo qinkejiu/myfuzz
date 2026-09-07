@@ -109,6 +109,25 @@ def _validate_interface_description(document: Mapping[str, object], schema_id: s
                 _relative_path(item, schema_id, f"source.{key}[{index}]")
     if "filelist" in source:
         _relative_path(source["filelist"], schema_id, "source.filelist")
+    variable_names: set[str] = set()
+    for index, value in enumerate(_array(source.get("filelist_variables", []), schema_id, "source.filelist_variables")):
+        path = f"source.filelist_variables[{index}]"
+        item = _object(value, schema_id, path)
+        _require(item, schema_id, ("name", "value"))
+        name = _string(item["name"], schema_id, f"{path}.name")
+        item_value = _string(item["value"], schema_id, f"{path}.value")
+        parts = item_value.split("/")
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) is None:
+            _error(schema_id, f"{path}.name", "invalid")
+        if (not item_value or "\0" in item_value or "\\" in item_value or "$" in item_value
+                or item_value.startswith(("+", "-", "/")) or re.match(r"[A-Za-z]:", item_value)
+                or "__MYFUZZ_FILELIST_ROOT__" in item_value
+                or (item_value != "." and any(re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]*", part) is None for part in parts))
+                or (item_value != "." and any(part in {"", ".", ".."} for part in parts))):
+            _error(schema_id, f"{path}.value", "invalid")
+        if name in variable_names:
+            _error(schema_id, f"{path}.name", "duplicate")
+        variable_names.add(name)
     repository_paths: set[str] = set()
     for index, value in enumerate(_array(source.get("repositories", []), schema_id, "source.repositories")):
         path = f"source.repositories[{index}]"

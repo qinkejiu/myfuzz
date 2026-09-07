@@ -164,6 +164,7 @@ def _verify_elaboration_identity(snapshot: SourceSnapshot, description: Interfac
     if (not isinstance(document, dict)
             or document.get("settings") != expected_settings
             or document.get("repositories", []) != [[item.path, item.revision] for item in sorted(description.source.repositories, key=lambda item: item.path)]
+            or document.get("filelist_variables", []) != [list(item) for item in sorted(description.source.filelist_variables)]
             or not isinstance(physical, dict)
             or physical.get("top_module") != description.source.top_module
             or physical.get("ports") != [_physical_port_document(port) for port in snapshot.elaborated_ports]
@@ -207,11 +208,15 @@ def _content_hash(contents: Mapping[str, bytes]) -> str:
 
 
 def _with_repository_identity(content_hash: str, locator: SourceLocator) -> str:
-    if not locator.repositories:
+    if not locator.repositories and not locator.filelist_variables:
         return content_hash
     digest = hashlib.sha256()
     digest.update(content_hash.encode("ascii"))
-    digest.update(canonical_bytes([[item.path, item.revision] for item in sorted(locator.repositories, key=lambda item: item.path)]))
+    if locator.repositories:
+        digest.update(canonical_bytes([[item.path, item.revision] for item in sorted(locator.repositories, key=lambda item: item.path)]))
+    if locator.filelist_variables:
+        digest.update(b"\0myfuzz-filelist-variables-v1\0")
+        digest.update(canonical_bytes([list(item) for item in sorted(locator.filelist_variables)]))
     return "sha256:" + digest.hexdigest()
 
 
@@ -237,6 +242,7 @@ def _declared_files(
     files: list[Path] = []
     include_roots: list[str] = []
     filelist_defines = False
+    root_marker = "__MYFUZZ_FILELIST_ROOT__/"
 
     def add_source(raw: str) -> None:
         source = _safe_child(root, raw)
@@ -247,6 +253,8 @@ def _declared_files(
             files.append(source)
 
     def local_path(parent: Path, raw: str) -> Path:
+        if raw.startswith(root_marker):
+            return _safe_child(root, raw[len(root_marker):])
         # Validate the raw option too: joining an absolute path must not erase it.
         _safe_child(root, raw)
         return _safe_child(root, (parent.relative_to(root) / raw).as_posix())
@@ -270,7 +278,27 @@ def _declared_files(
         seen.add(path)
         # Verify before interpreting even the first directive; hash filelists too.
         try:
-            tokens = iter(shlex.split(read(path).decode("utf-8"), comments=True))
+            text = read(path).decode("utf-8")
+            if root_marker in text:
+                raise SourceCrawlError("invalid-filelist-variable")
+            text = "\n".join(
+                "" if line.lstrip().startswith("//") else line
+                for line in text.splitlines()
+            )
+            variables = dict(locator.filelist_variables)
+            def expand_token(token: str) -> str:
+                def substitute(match: re.Match[str]) -> str:
+                    name = match.group(1)
+                    if name not in variables:
+                        raise SourceCrawlError("undefined-filelist-variable")
+                    anchored = (match.start() == 0 or match.start() == 2 and token.startswith("-I")
+                                or token[match.start() - 1] == "+")
+                    return (root_marker if anchored else "") + variables[name]
+                expanded = re.sub(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}", substitute, token)
+                if "$" in expanded:
+                    raise SourceCrawlError("invalid-filelist-variable")
+                return expanded
+            tokens = iter(expand_token(token) for token in shlex.split(text, comments=True))
             for item in tokens:
                 if item in ("-f", "-F"):
                     parent = path.parent if item == "-f" else root
@@ -694,8 +722,9 @@ class SourceCrawler:
                 try:
                     records = _module_ports(original, masked, module_match, end_match.start(), module, relative)
                 except SourceCrawlError as error:
-                    deferred = str(error).startswith("unsupported-port-type") or str(error) == "unsupported-port-width"
-                    if not (locator.elaboration is not None and module == locator.top_module and deferred):
+                    deferred = (str(error).startswith("unsupported-port-type")
+                                or str(error) in {"unsupported-port-width", "unsupported-unpacked-port"})
+                    if not (locator.elaboration is not None and deferred):
                         raise
                     records = []
                 ports.extend(record[0] for record in records)
@@ -820,6 +849,8 @@ class SourceCrawler:
             }
             if locator.repositories:
                 stable_manifest["repositories"] = [[item.path, item.revision] for item in sorted(locator.repositories, key=lambda item: item.path)]
+            if locator.filelist_variables:
+                stable_manifest["filelist_variables"] = [list(item) for item in sorted(locator.filelist_variables)]
             digest = hashlib.sha256()
             digest.update(content_hash.encode("ascii"))
             stable_bytes = canonical_bytes(stable_manifest)

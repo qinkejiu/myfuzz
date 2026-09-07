@@ -42,6 +42,18 @@
                     "type": "string",
                     "minLength": 1
                 },
+                "filelist_variables": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["name", "value"],
+                        "properties": {
+                            "name": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+                            "value": {"type": "string", "minLength": 1}
+                        },
+                        "additionalProperties": false
+                    }
+                },
                 "include_roots": {
                     "type": "array",
                     "items": {
