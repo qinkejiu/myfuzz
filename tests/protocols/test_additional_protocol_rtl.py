@@ -14,6 +14,25 @@ RTL_DIR = ROOT / "src" / "myfuzz" / "protocols" / "rtl"
 
 
 class AdditionalProtocolRtlTest(unittest.TestCase):
+    def test_invalid_bridge_parameters_fail_before_simulation(self) -> None:
+        iverilog, vvp = shutil.which("iverilog"), shutil.which("vvp")
+        if not iverilog or not vvp:
+            self.skipTest("Icarus Verilog is not installed")
+        with tempfile.TemporaryDirectory() as directory:
+            executable = Path(directory) / "invalid.vvp"
+            for module in ("apb3_mmio_bridge", "obi_mmio_bridge", "wishbone_mmio_bridge", "axi4_mmio_bridge"):
+                for parameter, value in (("MAX_WAIT_CYCLES", 0), ("MAX_WAIT_CYCLES", 17), ("DATA_WIDTH", 15), ("ADDRESS_WIDTH", 0)):
+                    with self.subTest(module=module, parameter=parameter, value=value):
+                        compiled = subprocess.run(
+                            [iverilog, "-g2012", "-s", module, "-P", f"{module}.{parameter}={value}",
+                             "-o", str(executable), str(RTL_DIR / f"{module}.sv")],
+                            capture_output=True, text=True, timeout=10,
+                        )
+                        if compiled.returncode:
+                            continue  # Elaboration rejection is also a valid fail-closed outcome.
+                        result = subprocess.run([vvp, str(executable)], capture_output=True, text=True, timeout=10)
+                        self.assertNotEqual(result.returncode, 0, "Invalid configuration was silently accepted")
+
     def test_classic_wishbone_does_not_advertise_pipelined_stall(self) -> None:
         document = json.loads((RTL_DIR.parent / "plugins/wishbone.json").read_text())
         self.assertFalse(document["capability_limits"]["stall_supported"])

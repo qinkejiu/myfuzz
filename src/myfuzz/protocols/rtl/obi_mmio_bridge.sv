@@ -21,6 +21,12 @@ module obi_mmio_bridge #(
     input logic rvalid_i,
     input logic [DATA_WIDTH-1:0] rdata_i
 );
+    initial begin
+        if (ADDRESS_WIDTH < 1 || DATA_WIDTH < 8 || DATA_WIDTH % 8 != 0)
+            $fatal(1, "invalid MMIO address/data width");
+        if (MAX_WAIT_CYCLES < 1 || MAX_WAIT_CYCLES > 16)
+            $fatal(1, "MAX_WAIT_CYCLES must be in [1,16]");
+    end
     localparam integer EFFECTIVE_MAX_WAIT_CYCLES =
         (MAX_WAIT_CYCLES < 1) ? 1 : ((MAX_WAIT_CYCLES > 16) ? 16 : MAX_WAIT_CYCLES);
     localparam integer WAIT_COUNTER_WIDTH =
