@@ -114,6 +114,8 @@ def _validate_interface_description(document: Mapping[str, object], schema_id: s
         _require(elaboration, schema_id, ("frontend",))
         if elaboration["frontend"] != "verilator-json":
             _error(schema_id, "source.elaboration.frontend", "invalid")
+        if elaboration.get("warning_policy", "fatal") not in {"fatal", "recorded-nonfatal"}:
+            _error(schema_id, "source.elaboration.warning_policy", "invalid")
         for kind in ("defines", "parameters"):
             names: set[str] = set()
             for index, value in enumerate(_array(elaboration.get(kind, []), schema_id, f"source.elaboration.{kind}")):

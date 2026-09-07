@@ -48,6 +48,19 @@ def interface_document() -> dict[str, object]:
 
 
 class InterfaceDescriptionTests(unittest.TestCase):
+    def test_warning_policy_defaults_omitted_and_recorded_mode_round_trips(self) -> None:
+        document = interface_document()
+        document["source"]["elaboration"] = {"frontend": "verilator-json"}
+        fatal = load_interface_description(document)
+        self.assertEqual("fatal", fatal.source.elaboration.warning_policy)
+        self.assertNotIn("warning_policy", interface_description_document(fatal)["source"]["elaboration"])
+        document["source"]["elaboration"]["warning_policy"] = "recorded-nonfatal"
+        recorded = load_interface_description(document)
+        self.assertEqual("recorded-nonfatal", recorded.source.elaboration.warning_policy)
+        self.assertEqual("recorded-nonfatal", interface_description_document(recorded)["source"]["elaboration"]["warning_policy"])
+        document["source"]["elaboration"]["warning_policy"] = "ignore"
+        with self.assertRaises(ValueError):
+            load_interface_description(document)
     def test_loads_explicit_physical_member_selector(self) -> None:
         document = interface_document()
         document["source"]["elaboration"] = {"frontend": "verilator-json"}

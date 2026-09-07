@@ -226,6 +226,13 @@ real fixed-revision CVA6 run for acceptance. This gate establishes physical
 port evidence only; warning acceptance does not imply RTL execution quality or
 CPU support.
 
+Completed and independently reviewed. The default remains fatal. The explicit
+recorded mode accepted the actual fixed-revision CVA6 frontend with 464 fully
+classified warnings, zero error records, a zero exit status and all 13 physical
+ports. Raw diagnostic bytes and their hash remain in the run manifest; stable
+snapshot identity contains only the policy and deterministic warning class
+counts so source-root relocation cannot perturb identity.
+
 ### Task 7: Multi-repository source provenance for the official CVA6 closure
 
 The official closure crosses pinned gitlinks, so parent-repository blob lookup

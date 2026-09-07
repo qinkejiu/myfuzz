@@ -17,6 +17,7 @@ class ElaborationSettings:
     frontend: str
     defines: tuple[tuple[str, str], ...] = ()
     parameters: tuple[tuple[str, str], ...] = ()
+    warning_policy: str = "fatal"
 
     def __post_init__(self) -> None:
         if self.frontend != "verilator-json":
@@ -39,6 +40,8 @@ class ElaborationSettings:
                 names.add(name)
                 normalized.append((name, value))
             object.__setattr__(self, kind + "s", tuple(sorted(normalized)))
+        if self.warning_policy not in {"fatal", "recorded-nonfatal"}:
+            raise ValueError("unsupported-elaboration-warning-policy")
 
 
 @dataclass(frozen=True, slots=True)
@@ -165,6 +168,7 @@ def load_interface_description(document_or_path: object) -> InterfaceDescription
             frontend=elaboration_value["frontend"],  # type: ignore[arg-type]
             defines=pairs("defines"),
             parameters=pairs("parameters"),
+            warning_policy=elaboration_value.get("warning_policy", "fatal"),  # type: ignore[arg-type]
         )
     source = SourceLocator(
         source_root=source_value["root"],  # type: ignore[arg-type]
@@ -240,6 +244,8 @@ def interface_description_document(value: InterfaceDescription) -> dict[str, obj
                 for name, item_value in sorted(settings.parameters)
             ],
         }
+        if settings.warning_policy != "fatal":
+            source["elaboration"]["warning_policy"] = settings.warning_policy
     return {
         "schema_version": "interface_description.v1",
         "source": source,

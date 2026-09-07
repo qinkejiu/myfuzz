@@ -37,6 +37,8 @@ module opaque_tile(
   end
 endmodule
 """
+WARNING_SUMMARY = {"sha256": hashlib.sha256(b"").hexdigest(), "byte_count": 0,
+                   "warning_classes": {}, "warning_count": 0, "error_count": 0, "parse_complete": True}
 
 
 def _tree_hash(root: Path, files: tuple[Path, ...]) -> str:
@@ -67,7 +69,9 @@ class SourceCrawlerTests(unittest.TestCase):
                 for path in closure:
                     payload = path.read_bytes()
                     records.append({"file": path.relative_to(root).as_posix(), "sha256": hashlib.sha256(payload).hexdigest(), "size": len(payload)})
-                (output / "manifest.json").write_text(json.dumps({"sources": records, "tool_sources": [], "tool_version": "fake"}), encoding="utf-8")
+                summary = dict(WARNING_SUMMARY)
+                summary.update(sha256=hashlib.sha256(str(root).encode()).hexdigest(), byte_count=len(str(root)))
+                (output / "manifest.json").write_text(json.dumps({"sources": records, "tool_sources": [], "tool_version": "fake", "warning_summary": summary, "warning_policy": "fatal"}), encoding="utf-8")
                 return {"ports": []}
 
             with mock.patch("myfuzz.composition.source_elaboration.run_verilator_elaboration", side_effect=runner):
@@ -100,11 +104,35 @@ class SourceCrawlerTests(unittest.TestCase):
                     if corruption == "duplicate": records.append(dict(record))
                     if corruption == "sha": records[0]["sha256"] = "0" * 64
                     if corruption == "size": records[0]["size"] += 1
-                    (output / "manifest.json").write_text(json.dumps({"sources": records, "tool_sources": [], "tool_version": "fake"}), encoding="utf-8")
+                    (output / "manifest.json").write_text(json.dumps({"sources": records, "tool_sources": [], "tool_version": "fake", "warning_summary": WARNING_SUMMARY, "warning_policy": "fatal"}), encoding="utf-8")
                     return {"ports": []}
 
                 with mock.patch("myfuzz.composition.source_elaboration.run_verilator_elaboration", side_effect=runner):
                     with self.assertRaisesRegex(SourceCrawlError, "manifest-source-mismatch"):
+                        SourceCrawler().crawl(locator, base_dir=Path(temporary))
+
+    def test_elaboration_rejects_missing_malformed_or_wrong_policy_summary(self) -> None:
+        for corruption in ("missing", "malformed", "policy", "error"):
+            with self.subTest(corruption=corruption), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary) / "source"
+                root.mkdir()
+                source = root / "top.sv"
+                source.write_text("module top(); endmodule\n", encoding="utf-8")
+                payload = source.read_bytes()
+                locator = SourceLocator("source", source_tree_hash(root, (source,)), "top", files=("top.sv",), elaboration=ElaborationSettings("verilator-json"))
+                def runner(**arguments):
+                    output = arguments["output_dir"]
+                    output.mkdir()
+                    manifest = {"sources": [{"file": "top.sv", "sha256": hashlib.sha256(payload).hexdigest(), "size": len(payload)}],
+                                "tool_sources": [], "tool_version": "fake", "warning_policy": "fatal", "warning_summary": WARNING_SUMMARY}
+                    if corruption == "missing": manifest.pop("warning_summary")
+                    if corruption == "malformed": manifest["warning_summary"] = {"parse_complete": True}
+                    if corruption == "policy": manifest["warning_policy"] = "recorded-nonfatal"
+                    if corruption == "error": manifest["warning_summary"] = {**WARNING_SUMMARY, "error_count": 1}
+                    (output / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+                    return {"ports": []}
+                with mock.patch("myfuzz.composition.source_elaboration.run_verilator_elaboration", side_effect=runner):
+                    with self.assertRaisesRegex(SourceCrawlError, "warning-summary-mismatch"):
                         SourceCrawler().crawl(locator, base_dir=Path(temporary))
 
     def test_filelist_define_rejects_elaboration_before_runner(self) -> None:
@@ -152,7 +180,7 @@ class SourceCrawlerTests(unittest.TestCase):
                 for name in ("types.sv", "top.sv"):
                     payload = (root / name).read_bytes()
                     records.append({"file": name, "sha256": hashlib.sha256(payload).hexdigest(), "size": len(payload)})
-                (output / "manifest.json").write_text(json.dumps({"sources": records, "tool_sources": [], "tool_version": "fake"}), encoding="utf-8")
+                (output / "manifest.json").write_text(json.dumps({"sources": records, "tool_sources": [], "tool_version": "fake", "warning_summary": WARNING_SUMMARY, "warning_policy": "fatal"}), encoding="utf-8")
                 return {"schema_version": "elaborated_ports.v1", "top_module": "top", "ports": [{"name": "bus", "direction": "input", "width": 8, "signed": False, "source": {"file": "top.sv", "line": 1, "column": 12}, "members": [{"path": ["data"], "width": 8, "raw_lo": 0, "raw_hi": 7, "signed": False, "source": {"file": "types.sv", "line": 1, "column": 36}}]}]}
 
             with mock.patch("myfuzz.composition.source_elaboration.run_verilator_elaboration", side_effect=fake_runner) as runner:
@@ -236,7 +264,7 @@ class SourceCrawlerTests(unittest.TestCase):
                 output = arguments["output_dir"]
                 output.mkdir()
                 payload = source.read_bytes()
-                (output / "manifest.json").write_text(json.dumps({"sources": [{"file": "top.sv", "sha256": hashlib.sha256(payload).hexdigest(), "size": len(payload)}], "tool_sources": [], "tool_version": "fake"}), encoding="utf-8")
+                (output / "manifest.json").write_text(json.dumps({"sources": [{"file": "top.sv", "sha256": hashlib.sha256(payload).hexdigest(), "size": len(payload)}], "tool_sources": [], "tool_version": "fake", "warning_summary": WARNING_SUMMARY, "warning_policy": "fatal"}), encoding="utf-8")
                 return {"ports": [
                     {"name": "clk", "direction": "input", "width": 1, "signed": False, "source": {"file": "top.sv", "line": 1, "column": 24}, "members": []},
                     {"name": "bus", "direction": "input", "width": 8, "signed": False, "source": {"file": "top.sv", "line": 1, "column": 1}, "members": [{"path": ["data"], "width": 8, "raw_lo": 0, "raw_hi": 7, "signed": False, "source": {"file": "top.sv", "line": 1, "column": 1}}]},

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 from pathlib import Path
 import shutil
@@ -18,6 +19,34 @@ from tests.composition.test_source_elaboration import SOURCE, fixture
 
 
 class SourceElaborationRunnerTests(unittest.TestCase):
+    def test_zero_exit_rejects_malformed_incomplete_and_error_summaries(self) -> None:
+        cases = ("malformed", "incomplete", "error")
+        for case in cases:
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                (root / "top.sv").write_text("ok", encoding="utf-8")
+                output = root / "evidence"
+                def supervise(_options):
+                    (output / "frontend.log").write_bytes(b"")
+                    (output / "tool-version.log").write_text("fake\n", encoding="utf-8")
+                    summary = {"sha256": hashlib.sha256(b"").hexdigest(), "byte_count": 0,
+                               "warning_classes": {}, "warning_count": 0, "error_count": 0,
+                               "parse_complete": True}
+                    if case == "malformed":
+                        (output / "frontend.log.summary.json").write_text("{", encoding="utf-8")
+                    else:
+                        if case == "incomplete": summary["parse_complete"] = False
+                        if case == "error": summary["error_count"] = 1
+                        (output / "frontend.log.summary.json").write_text(json.dumps(summary), encoding="utf-8")
+                    return {"status": "completed", "returncode": 0, "peak_rss_bytes": 1, "rss_sample_count": 1}
+                with mock.patch.object(source_elaboration.shutil, "which", return_value=sys.executable), \
+                     mock.patch.object(source_elaboration, "_tool_source_allowlist", return_value={}), \
+                     mock.patch("myfuzz.integration.campaign.run_supervised_command", side_effect=supervise):
+                    with self.assertRaises(ElaborationError):
+                        run_verilator_elaboration(source_root=root, top_module="top", source_files=("top.sv",), output_dir=output)
+                manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+                self.assertNotEqual("completed", manifest["status"])
+
     def test_frontend_wrapper_keeps_fast_child_alive_through_first_rss_poll(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -67,6 +96,21 @@ class SourceElaborationRunnerTests(unittest.TestCase):
                     time.sleep(60)
                 if mode == 'mutate':
                     open(source, 'w').write('changed')
+                if mode == 'warning':
+                    sys.stderr.write('%Warning-WIDTH: top.sv:1: warning detail\\n')
+                    sys.stderr.flush()
+                if mode == 'warning-large':
+                    sys.stderr.write('%Warning-WIDTH: top.sv:1: warning detail\\n' * 2000)
+                    sys.stderr.flush()
+                if mode == 'warning-long-line':
+                    sys.stderr.write('%Warning-WIDTH: ' + 'x' * (70 * 1024) + '\\n')
+                    sys.stderr.flush()
+                if mode == 'warning-bad-class':
+                    sys.stderr.write('%Warning-lower: invalid category\\n')
+                    sys.stderr.flush()
+                if mode == 'warning-many-classes':
+                    sys.stderr.write(''.join(f'%Warning-W{{index:04d}}: category\\n' for index in range(1025)))
+                    sys.stderr.flush()
                 tree_path = args[args.index('--json-only-output') + 1]
                 meta_path = args[args.index('--json-only-meta-output') + 1]
                 if mode == 'huge':
@@ -112,7 +156,7 @@ class SourceElaborationRunnerTests(unittest.TestCase):
         script.chmod(0o755)
         return script
 
-    def _run(self, root: Path, output: Path, source: str = "ok"):
+    def _run(self, root: Path, output: Path, source: str = "ok", warning_policy: str = "fatal"):
         source_path = root / "top.sv"
         source_path.write_text(source, encoding="utf-8")
         frontend = self._fake_frontend(root)
@@ -121,8 +165,54 @@ class SourceElaborationRunnerTests(unittest.TestCase):
                 source_root=root,
                 top_module="renamed_top",
                 source_files=("top.sv",),
+                warning_policy=warning_policy,
                 output_dir=output,
             )
+
+    def test_recorded_nonfatal_warning_is_hashed_counted_and_manifested(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "evidence"
+            self._run(root, output, "warning", "recorded-nonfatal")
+            manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual("recorded-nonfatal", manifest["warning_policy"])
+        self.assertEqual({"WIDTH": 1}, manifest["warning_summary"]["warning_classes"])
+        self.assertEqual(1, manifest["warning_summary"]["warning_count"])
+        self.assertEqual(0, manifest["warning_summary"]["error_count"])
+        self.assertTrue(manifest["warning_summary"]["parse_complete"])
+        self.assertIn("-Wno-fatal", manifest["command"])
+
+    def test_truncated_diagnostics_retain_complete_stream_hash_and_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "evidence"
+            self._run(root, output, "warning-large", "recorded-nonfatal")
+            manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+        payload = ("%Warning-WIDTH: top.sv:1: warning detail\n" * 2000).encode()
+        self.assertTrue(manifest["diagnostics_truncated"])
+        self.assertEqual((len(payload), hashlib.sha256(payload).hexdigest(), 2000),
+                         (manifest["warning_summary"]["byte_count"], manifest["warning_summary"]["sha256"], manifest["warning_summary"]["warning_count"]))
+
+    def test_zero_exit_rejects_overlong_complete_line(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "evidence"
+            with self.assertRaisesRegex(ElaborationError, "summary rejected"):
+                self._run(root, output, "warning-long-line", "recorded-nonfatal")
+            manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+        self.assertFalse(manifest["warning_summary"]["parse_complete"])
+        self.assertEqual(0, manifest["warning_summary"]["warning_count"])
+
+    def test_producer_rejects_invalid_or_excess_warning_classes(self) -> None:
+        for mode in ("warning-bad-class", "warning-many-classes"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                output = root / "evidence"
+                with self.assertRaises(ElaborationError):
+                    self._run(root, output, mode, "recorded-nonfatal")
+                manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+                self.assertFalse(manifest["warning_summary"]["parse_complete"])
+                self.assertLessEqual(len(manifest["warning_summary"]["warning_classes"]), 1024)
 
     def test_runs_bounded_frontend_and_publishes_manifest_and_physical_ports(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -276,6 +366,13 @@ class SourceElaborationRunnerTests(unittest.TestCase):
 
             def mutate(_options):
                 standard.write_text("changed", encoding="utf-8")
+                (output / "frontend.log").write_bytes(b"")
+                (output / "tool-version.log").write_text("Python fake\n", encoding="utf-8")
+                (output / "frontend.log.summary.json").write_text(json.dumps({
+                    "sha256": hashlib.sha256(b"").hexdigest(), "byte_count": 0,
+                    "warning_classes": {}, "warning_count": 0, "error_count": 0,
+                    "parse_complete": True,
+                }), encoding="utf-8")
                 return {"status": "completed", "returncode": 0, "peak_rss_bytes": 1, "rss_sample_count": 1}
 
             with mock.patch.object(source_elaboration.shutil, "which", return_value=sys.executable), mock.patch.object(source_elaboration, "_tool_source_allowlist", return_value=allowlist), mock.patch("myfuzz.integration.campaign.run_supervised_command", side_effect=mutate):

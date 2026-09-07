@@ -28,6 +28,8 @@ _DIAGNOSTIC_BYTES = 64 * 1024
 _VERSION_BYTES = 4096
 _MAX_JSON_BYTES = 64 * 1024 * 1024
 _MAX_JSON_STRUCTURE_TOKENS = 3_000_000
+_MAX_SUMMARY_BYTES = 64 * 1024
+_MAX_WARNING_CLASSES = 1024
 _MAX_CLOSURE_FILES = 20_000
 _MAX_CLOSURE_ENTRIES = 100_000
 _MAX_CLOSURE_BYTES = 512 * 1024 * 1024
@@ -45,7 +47,10 @@ _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _DEFINE_VALUE = re.compile(r"^[A-Za-z0-9_]+$")
 _DECIMAL_INTEGER = re.compile(r"^-?(?:0|[1-9][0-9]*)$")
 _FRONTEND_WRAPPER = r"""
+import hashlib
+import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -55,8 +60,31 @@ diagnostic_limit, version_limit = map(int, sys.argv[3:5])
 tool = sys.argv[5]
 command = sys.argv[6:]
 
-def run(argv, path, limit):
+def run(argv, path, limit, summarize=False):
     process = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    digest = hashlib.sha256()
+    byte_count = 0
+    pending = b""
+    parse_complete = True
+    warnings = {}
+    error_count = 0
+    def parse(line):
+        nonlocal error_count, parse_complete
+        if len(line) > 64 * 1024:
+            parse_complete = False
+            return
+        match = re.match(br"%Warning-([A-Z0-9_]{1,128}):", line)
+        if line.startswith(b"%Warning-"):
+            if match is None:
+                parse_complete = False
+                return
+            name = match.group(1).decode("ascii")
+            if name not in warnings and len(warnings) >= 1024:
+                parse_complete = False
+                return
+            warnings[name] = warnings.get(name, 0) + 1
+        elif re.match(br"%Error(?:-[A-Za-z0-9_-]+)?:", line):
+            error_count += 1
     with open(path, "wb", buffering=0) as output:
         retained = 0
         assert process.stdout is not None
@@ -65,17 +93,40 @@ def run(argv, path, limit):
             chunk = os.read(descriptor, 64 * 1024)
             if not chunk:
                 break
+            digest.update(chunk)
+            byte_count += len(chunk)
+            if summarize:
+                pending += chunk
+                while b"\n" in pending:
+                    line, pending = pending.split(b"\n", 1)
+                    parse(line)
+                if len(pending) > 64 * 1024:
+                    parse_complete = False
+                    pending = b""
             if retained <= limit:
                 payload = chunk[:limit + 1 - retained]
                 output.write(payload)
                 retained += len(payload)
-    return process.wait()
+    status = process.wait()
+    if summarize and pending:
+        parse(pending)
+    if summarize:
+        summary = {"sha256": digest.hexdigest(), "byte_count": byte_count,
+                   "warning_classes": warnings, "warning_count": sum(warnings.values()),
+                   "error_count": error_count, "parse_complete": parse_complete}
+        temporary = path + ".summary.tmp"
+        with open(temporary, "w", encoding="utf-8") as destination:
+            json.dump(summary, destination, sort_keys=True)
+            destination.flush()
+            os.fsync(destination.fileno())
+        os.replace(temporary, path + ".summary.json")
+    return status
 
 version_status = run([tool, "--version"], version_path, version_limit)
 if version_status:
     time.sleep(0.2)
     raise SystemExit(version_status)
-frontend_status = run(command, diagnostic_path, diagnostic_limit)
+frontend_status = run(command, diagnostic_path, diagnostic_limit, True)
 time.sleep(0.2)
 raise SystemExit(frontend_status)
 """
@@ -545,6 +596,19 @@ def _json_file(path: Path) -> object:
         raise ElaborationError("frontend JSON output is malformed") from error
 
 
+def _summary_file(path: Path) -> object:
+    try:
+        status = path.lstat()
+    except OSError as error:
+        raise ElaborationError("frontend warning summary is missing") from error
+    if path.is_symlink() or not stat.S_ISREG(status.st_mode) or status.st_size > _MAX_SUMMARY_BYTES:
+        raise ElaborationError("frontend warning summary is invalid")
+    try:
+        return json.loads(path.read_bytes())
+    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError) as error:
+        raise ElaborationError("frontend warning summary is invalid") from error
+
+
 def _write_manifest(path: Path, manifest: Mapping[str, object]) -> None:
     path.write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8")
 
@@ -615,6 +679,7 @@ def run_verilator_elaboration(
     include_roots: Sequence[str] = (),
     defines: Sequence[tuple[str, str]] = (),
     parameters: Sequence[tuple[str, str]] = (),
+    warning_policy: str = "fatal",
     output_dir: Path,
 ) -> Mapping[str, object]:
     """Run a bounded Verilator JSON frontend over one explicit source closure."""
@@ -649,6 +714,8 @@ def run_verilator_elaboration(
         resolved_includes.append(path)
     define_pairs = _pairs(defines, kind="define", value_pattern=_DEFINE_VALUE)
     parameter_pairs = _pairs(parameters, kind="parameter", value_pattern=_DECIMAL_INTEGER)
+    if warning_policy not in {"fatal", "recorded-nonfatal"}:
+        raise ElaborationError("warning policy is unsupported")
 
     if ".." in output_dir.parts:
         raise ElaborationError("output path escape is forbidden")
@@ -688,6 +755,7 @@ def run_verilator_elaboration(
     logical_command: tuple[str, ...] = (
         () if tool is None else (
             "nice", "-n15", tool, "--json-only",
+            *(("-Wno-fatal",) if warning_policy == "recorded-nonfatal" else ()),
             "--json-only-output", tree_path.as_posix(),
             "--json-only-meta-output", metadata_path.as_posix(),
             "--top-module", top_module,
@@ -700,6 +768,7 @@ def run_verilator_elaboration(
     manifest: dict[str, object] = {
         "schema_version": "elaboration_manifest.v1",
         "top_module": top_module,
+        "warning_policy": warning_policy,
         "command": list(logical_command),
         "tool_version": "",
         "sources": [
@@ -722,6 +791,7 @@ def run_verilator_elaboration(
         "rss_sample_count": 0,
         "diagnostics": "",
         "diagnostics_truncated": False,
+        "warning_summary": None,
         "error": None,
     }
     _write_manifest(manifest_path, manifest)
@@ -755,6 +825,8 @@ def run_verilator_elaboration(
 
     try:
         diagnostics, diagnostics_truncated = _bounded_text(diagnostic_path, _DIAGNOSTIC_BYTES)
+        summary_path = Path(diagnostic_path.as_posix() + ".summary.json")
+        summary = _summary_file(summary_path) if summary_path.exists() else None
         version, _ = _bounded_text(version_path, _VERSION_BYTES)
         manifest.update(
             frontend_status=result.get("status"),
@@ -763,6 +835,7 @@ def run_verilator_elaboration(
             rss_sample_count=result.get("rss_sample_count", 0),
             diagnostics=diagnostics,
             diagnostics_truncated=diagnostics_truncated,
+            warning_summary=None if summary is None else dict(summary),
             tool_version=version,
         )
         if result.get("status") != "completed" or result.get("returncode") != 0:
@@ -770,6 +843,34 @@ def run_verilator_elaboration(
             _write_manifest(manifest_path, manifest)
             detail = "\n" + diagnostics if diagnostics else ""
             raise ElaborationError(f"verilator frontend failed: {result.get('status')}{detail}")
+        if not isinstance(summary, Mapping):
+            manifest.update(status="summary-error", error="frontend warning summary is invalid")
+            _write_manifest(manifest_path, manifest)
+            raise ElaborationError("frontend warning summary is invalid")
+        required_summary = {"sha256", "byte_count", "warning_classes", "warning_count", "error_count", "parse_complete"}
+        if set(summary) != required_summary or not isinstance(summary["sha256"], str) or re.fullmatch(r"[0-9a-f]{64}", summary["sha256"]) is None:
+            manifest.update(status="summary-error", error="frontend warning summary is invalid")
+            _write_manifest(manifest_path, manifest)
+            raise ElaborationError("frontend warning summary is invalid")
+        counts = (summary["byte_count"], summary["warning_count"], summary["error_count"])
+        classes = summary["warning_classes"]
+        if (any(isinstance(value, bool) or not isinstance(value, int) or value < 0 for value in counts)
+                or summary["byte_count"] > (1 << 63) - 1 or summary["warning_count"] > summary["byte_count"]
+                or not isinstance(classes, Mapping) or len(classes) > _MAX_WARNING_CLASSES
+                or any(not isinstance(key, str) or re.fullmatch(r"[A-Z0-9_]{1,128}", key) is None or isinstance(value, bool) or not isinstance(value, int) or value < 0 for key, value in classes.items())
+                or summary["warning_count"] != sum(classes.values()) or not isinstance(summary["parse_complete"], bool)
+                or diagnostics_truncated != (summary["byte_count"] > _DIAGNOSTIC_BYTES)):
+            manifest.update(status="summary-error", error="frontend warning summary is invalid")
+            _write_manifest(manifest_path, manifest)
+            raise ElaborationError("frontend warning summary is invalid")
+        if not diagnostics_truncated and hashlib.sha256(diagnostic_path.read_bytes()).hexdigest() != summary["sha256"]:
+            manifest.update(status="summary-error", error="frontend warning summary hash mismatch")
+            _write_manifest(manifest_path, manifest)
+            raise ElaborationError("frontend warning summary hash mismatch")
+        if summary["parse_complete"] is not True or summary["error_count"] != 0:
+            manifest.update(status="frontend-error", error="frontend warning summary is incomplete or contains errors")
+            _write_manifest(manifest_path, manifest)
+            raise ElaborationError("verilator frontend warning summary rejected")
 
         current_tool_sources = _tool_source_allowlist(tool)
         current_tool_snapshot: dict[str, tuple[Path, str, int]] = {}

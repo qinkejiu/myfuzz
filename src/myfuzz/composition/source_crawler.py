@@ -158,6 +158,7 @@ def _verify_elaboration_identity(snapshot: SourceSnapshot, description: Interfac
         "frontend": settings.frontend,
         "defines": [list(item) for item in sorted(settings.defines)],
         "parameters": [list(item) for item in sorted(settings.parameters)],
+        "warning_policy": settings.warning_policy,
     }
     physical = document.get("physical") if isinstance(document, dict) else None
     if (not isinstance(document, dict)
@@ -694,6 +695,7 @@ class SourceCrawler:
                     include_roots=include_roots,
                     defines=settings.defines,
                     parameters=settings.parameters,
+                    warning_policy=settings.warning_policy,
                     output_dir=output,
                 )
                 manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
@@ -716,6 +718,25 @@ class SourceCrawler:
             explicit_labels = {_relative(root, path) for path in files}
             if not explicit_labels.issubset(labels):
                 raise SourceCrawlError("elaboration-manifest-source-mismatch")
+            warning_summary = manifest.get("warning_summary")
+            if (manifest.get("warning_policy") != settings.warning_policy
+                    or not isinstance(warning_summary, dict)
+                    or set(warning_summary) != {"sha256", "byte_count", "warning_classes", "warning_count", "error_count", "parse_complete"}
+                    or warning_summary.get("parse_complete") is not True
+                    or not isinstance(warning_summary.get("sha256"), str)
+                    or re.fullmatch(r"[0-9a-f]{64}", warning_summary["sha256"]) is None
+                    or any(isinstance(warning_summary.get(key), bool) or not isinstance(warning_summary.get(key), int)
+                           or warning_summary[key] < 0 for key in ("byte_count", "warning_count", "error_count"))
+                    or not isinstance(warning_summary.get("warning_classes"), dict)
+                    or len(warning_summary["warning_classes"]) > 1024
+                    or warning_summary["byte_count"] > (1 << 63) - 1
+                    or warning_summary["warning_count"] > warning_summary["byte_count"]
+                    or warning_summary["error_count"] != 0
+                    or any(not isinstance(key, str) or re.fullmatch(r"[A-Z0-9_]{1,128}", key) is None
+                           or isinstance(value, bool) or not isinstance(value, int) or value < 0
+                           for key, value in warning_summary["warning_classes"].items())
+                    or warning_summary["warning_count"] != sum(warning_summary["warning_classes"].values())):
+                raise SourceCrawlError("elaboration-manifest-warning-summary-mismatch")
             content_hash = _content_hash(contents)
             if locator.revision.startswith("sha256:") and locator.revision != content_hash:
                 raise SourceCrawlError("content-hash-mismatch")
@@ -739,12 +760,20 @@ class SourceCrawler:
                     "frontend": settings.frontend,
                     "defines": sorted(settings.defines),
                     "parameters": sorted(settings.parameters),
+                    "warning_policy": settings.warning_policy,
                 },
                 "source_files": [_relative(root, path) for path in files],
                 "include_roots": list(include_roots),
                 "sources": manifest["sources"],
                 "tool_sources": [{key: item[key] for key in ("name", "sha256", "size")} for item in manifest["tool_sources"]],
                 "tool_version": manifest["tool_version"],
+                "warning_summary": {
+                    "warning_count": warning_summary["warning_count"],
+                    "warning_classes": {
+                        key: warning_summary["warning_classes"][key]
+                        for key in sorted(warning_summary["warning_classes"])
+                    },
+                },
                 "physical": physical,
             }
             digest = hashlib.sha256()
