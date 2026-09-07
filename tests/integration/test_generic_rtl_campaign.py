@@ -5,11 +5,37 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from myfuzz.integration.generic_rtl_campaign import select_combinations, prepare_demo
+from myfuzz.integration.generic_rtl_campaign import select_combinations, prepare_demo, run_demo_campaign
 from myfuzz.integration import campaign
 
 
 class GenericRtlCampaignTests(unittest.TestCase):
+    @unittest.skipUnless(all(shutil.which(t) for t in ("iverilog", "vvp", "verilator")), "RTL toolchain required")
+    def test_checkpoint_failure_cannot_pass_campaign(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(campaign, "write_checkpoint", side_effect=campaign.CampaignReportError("injected checkpoint failure")):
+                result = run_demo_campaign(Path(directory) / "campaign", seed=1, count=1, seconds=1)
+            self.assertEqual(result["status"], "failed")
+            self.assertFalse(result["results"][0]["passed"])
+            self.assertTrue(result["results"][0]["result"]["error"])
+
+    @unittest.skipUnless(all(shutil.which(t) for t in ("iverilog", "vvp", "verilator")), "RTL toolchain required")
+    def test_one_stalled_endpoint_fails_even_when_other_endpoint_runs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "fault"
+            plan, executable = prepare_demo(root, ("apb3_register", "wishbone_register"))
+            source = root / "source/traffic.sv"
+            # Deliberate post-publication DUT fault, compiled below for the oracle test.
+            source.write_text(source.read_text().replace("state_0 <= 1;", "state_0 <= 0;"))
+            compiled = subprocess.run(["iverilog", "-g2012", "-s", "campaign_tb", "-o", str(executable),
+                                       *(str(root / p) for p in plan.source_files),
+                                       str(root / "generated/generic_composition_top.sv"), str(root / "campaign_tb.sv")],
+                                      capture_output=True, text=True, timeout=15)
+            self.assertEqual(compiled.returncode, 0, compiled.stderr)
+            result = subprocess.run(["vvp", str(executable), "+batches=1"], capture_output=True, text=True, timeout=15)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("endpoint 0 scoreboard/progress failure", result.stdout)
+
     def test_rss_sampling_handles_exit_to_zombie_between_stat_and_status(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -50,8 +76,11 @@ class GenericRtlCampaignTests(unittest.TestCase):
                         roles = {field["role"] for field in endpoint["fields"]}
                         for observation in endpoint["timing"]:
                             self.assertTrue(set(observation["fields"]) <= roles)
-                    result = subprocess.run(["vvp", str(executable), "+seed=81273"], capture_output=True, text=True, timeout=15)
+                    result = subprocess.run(["vvp", str(executable), "+seed=81273", "+batches=3"], capture_output=True, text=True, timeout=15)
                     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                     row = next(line for line in result.stdout.splitlines() if line.startswith("RESULT ")).split()
                     self.assertGreater(int(row[1]), 100)
                     self.assertEqual(int(row[2]), 0)
+                    rows = [line.split() for line in result.stdout.splitlines() if line.startswith("RESULT ")]
+                    self.assertEqual(len(rows), 3)
+                    self.assertGreater(int(rows[-1][1]), int(rows[0][1]))

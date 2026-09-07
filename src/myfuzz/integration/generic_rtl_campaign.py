@@ -41,6 +41,7 @@ def prepare_demo(root: Path, selected: tuple[str, ...]):
     ports = ["input logic clk", "input logic rst", "input logic [31:0] stimulus", "output logic [31:0] transaction_count", "output logic [31:0] failure_count"]
     blocks, endpoints, profiles = [], [], []
     for index, name in enumerate(selected):
+        ports += [f"output logic [31:0] done_{index}", f"output logic [31:0] bad_{index}"]
         key = DEMO_PROTOCOLS[name]
         plugin = catalog.require(*key)
         fields = tuple(f for f in plugin.fields if f.field_id != "stall")
@@ -62,7 +63,7 @@ def prepare_demo(root: Path, selected: tuple[str, ...]):
             assignments += [f"assign {prefix}cyc = state_{index} == 1;", f"assign {prefix}stb = state_{index} == 1;", f"assign {prefix}sel = 4'hf;"]
         blocks.append(f"""
 logic [1:0] state_{index}; logic writing_{index};
-logic [31:0] value_{index}, done_{index}, bad_{index};
+logic [31:0] value_{index};
 {' '.join(assignments)}
 always_ff @(posedge clk or negedge rst) begin
  if (!rst) begin state_{index} <= 0; writing_{index} <= 1; value_{index} <= 0; done_{index} <= 0; bad_{index} <= 0; end
@@ -107,7 +108,9 @@ endmodule
     blocks += ["assign transaction_count = " + " + ".join(f"done_{i}" for i in range(len(selected))) + ";", "assign failure_count = " + " + ".join(f"bad_{i}" for i in range(len(selected))) + ";"]
     source = source_root / "traffic.sv"
     source.write_text("module traffic_source(" + ",\n".join(ports) + ");\n" + "\n".join(blocks) + "\nendmodule\n")
-    endpoints.append({"endpoint_id": "control", "function": "control", "module": "traffic_source", "fields": [{"role": r, "aliases": [p]} for r, p in (("stimulus", "stimulus"), ("transaction_count", "transaction_count"), ("failure_count", "failure_count"))]})
+    observations = [("stimulus", "stimulus"), ("transaction_count", "transaction_count"), ("failure_count", "failure_count")]
+    observations += [(f"{kind}_{i}", f"{kind}_{i}") for i in range(len(selected)) for kind in ("done", "bad")]
+    endpoints.append({"endpoint_id": "control", "function": "control", "module": "traffic_source", "fields": [{"role": r, "aliases": [p]} for r, p in observations]})
     document = {"schema_version": "interface_description.v1", "source": {"root": "source", "top_module": "traffic_source", "files": ["traffic.sv"], "revision": source_tree_hash(source_root, (source,))}, "endpoints": endpoints}
     (root / "interface.json").write_text(json.dumps(document, indent=2))
     plan = plan_generic_composition(GenericCompositionRequest(load_interface_description(document), selected), base_dir=root, component_catalog=ComponentCatalog(tuple(profiles)), protocol_catalog=catalog)
@@ -118,19 +121,26 @@ endmodule
     bench = f"""module campaign_tb;
 logic clk=0, rst=0; logic [31:0] stimulus=1;
 wire [31:0] transaction_count, failure_count;
-integer seed, unused, i;
+{' '.join(f'wire [31:0] done_{i}, bad_{i}; integer prev_{i}=0;' for i in range(len(selected)))}
+integer seed, unused, i, batches, completed_batches;
 generic_composition_top dut({connections});
 task tick; begin #5; clk=1; #5; clk=0; end endtask
 initial begin
- seed=1; unused=$value$plusargs("seed=%d",seed); stimulus=seed;
+ seed=1; batches=0; completed_batches=0;
+ unused=$value$plusargs("seed=%d",seed); unused=$value$plusargs("batches=%d",batches); stimulus=seed;
  tick(); tick(); rst=1;
+ forever begin
  for(i=0;i<4096;i=i+1) begin
   stimulus = stimulus ^ (stimulus << 13); stimulus = stimulus ^ (stimulus >> 17); stimulus = stimulus ^ (stimulus << 5);
   tick();
  end
+ {' '.join(f'if (bad_{i} != 0 || done_{i} <= prev_{i} + 100) $fatal(1,"endpoint {i} scoreboard/progress failure"); prev_{i} = done_{i};' for i in range(len(selected)))}
  $display("RESULT %0d %0d",transaction_count,failure_count);
+ $fflush();
  if(failure_count != 0 || transaction_count < 100) $fatal(1,"scoreboard/progress failure");
- $finish;
+ completed_batches=completed_batches+1;
+ if(batches > 0 && completed_batches >= batches) $finish;
+ end
 end
 endmodule
 """
@@ -145,20 +155,29 @@ endmodule
 
 
 def worker(executable: Path, seed: int):
-    """Fresh seed per real 4096-cycle simulation, supervised as one process group."""
-    rng = random.Random(seed)
-    while True:
-        batch_seed = rng.randrange(1, 2**31)
-        result = subprocess.run(["vvp", str(executable), f"+seed={batch_seed}"], capture_output=True, text=True, timeout=15)
-        lines = [line.split() for line in result.stdout.splitlines() if line.startswith("RESULT ")]
-        if result.returncode or len(lines) != 1 or len(lines[0]) != 3:
-            print(json.dumps({"transactions": 0, "error": 1}), flush=True)
-            raise RuntimeError(f"RTL seed {batch_seed} failed: {result.stdout[-2000:]} {result.stderr[-2000:]}")
-        transactions, failures = map(int, lines[0][1:])
-        if failures or transactions < 100:
-            raise RuntimeError(f"scoreboard failure at seed {batch_seed}")
-        print(json.dumps({"transactions": transactions, "component": executable.parent.name, "error": 0}), flush=True)
-        time.sleep(0.05)
+    """Keep DUT state and seeded stimulus across batches in one bounded process."""
+    process = subprocess.Popen(["vvp", str(executable), f"+seed={seed % (2**31-1) or 1}"],
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    previous = 0
+    try:
+        while True:
+            line = process.stdout.readline(1024)
+            fields = line.split()
+            if len(fields) != 3 or fields[0] != "RESULT":
+                print(json.dumps({"transactions": 0, "error": 1}), flush=True)
+                raise RuntimeError(f"RTL seed {seed} failed: {line}")
+            transactions, failures = map(int, fields[1:])
+            if failures or transactions <= previous:
+                print(json.dumps({"transactions": 0, "error": 1}), flush=True)
+                raise RuntimeError(f"scoreboard/progress failure at seed {seed}")
+            print(json.dumps({"transactions": transactions - previous, "component": executable.parent.name, "error": 0}), flush=True)
+            previous = transactions
+            # Bounded pipe backpressure throttles the persistent simulator.
+            time.sleep(0.05)
+    finally:
+        if process.poll() is None:
+            process.terminate()
+        process.wait(timeout=2)
 
 
 def run_demo_campaign(output: Path, *, seed: int, seconds: int = 300, count: int = 3):
@@ -184,7 +203,7 @@ def run_demo_campaign(output: Path, *, seed: int, seconds: int = 300, count: int
         case = output / f"combination_{index+1}"
         plan, executable = prepare_demo(case, selection)
         # Check a real batch before allocating the 300-second campaign budget.
-        check = subprocess.run(["vvp", str(executable), f"+seed={seed % (2**31-1) or 1}"], capture_output=True, text=True, timeout=15)
+        check = subprocess.run(["vvp", str(executable), f"+seed={seed % (2**31-1) or 1}", "+batches=1"], capture_output=True, text=True, timeout=15)
         (case / "preflight.log").write_text(check.stdout + check.stderr)
         if check.returncode or "RESULT " not in check.stdout:
             raise RuntimeError(f"RTL preflight failed: {case}")
@@ -196,9 +215,11 @@ def run_demo_campaign(output: Path, *, seed: int, seconds: int = 300, count: int
         ))
         result_document = dict(result)
         (case / "runtime/result.json").write_text(json.dumps(result_document, indent=2))
-        successful = (result.get("status") == "timed-out" and result.get("duration_seconds", 0) >= seconds
+        successful = (not result.get("error") and result.get("status") == "timed-out" and result.get("duration_seconds", 0) >= seconds
                       and result.get("transactions", 0) > 0 and result.get("errors", 1) == 0
-                      and result.get("invalid_metric_lines", 1) == 0 and not result.get("soft_limit_exceeded"))
+                      and result.get("invalid_metric_lines", 1) == 0 and not result.get("soft_limit_exceeded")
+                      and result.get("checkpoint_count", 0) > 0
+                      and (case / "runtime/checkpoint.json").is_file())
         metadata["results"].append({"combination": selection, "passed": successful,
                                     "result": {k: v for k, v in result_document.items() if k != "metrics"}})
         persist()
