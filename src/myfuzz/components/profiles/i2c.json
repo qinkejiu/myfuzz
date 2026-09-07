@@ -9,5 +9,26 @@
   "source_status": "reference",
   "source_paths": ["third_party/reference/i2c/i2c_controller.sv"],
   "implemented": false,
-  "parameter_limits": {"FIFO_DEPTH": [1, 1024], "CLOCK_DIVIDER": [1, 65535]}
+  "parameter_limits": {"FIFO_DEPTH": [1, 1024], "CLOCK_DIVIDER": [1, 65535]},
+  "endpoints": [
+    {"endpoint_id": "register_target", "role": "register_target", "function": "memory_mapped_registers", "protocols": [["apb", "4"], ["axi4-lite", "1"], ["tl-ul", "1"]]},
+    {"endpoint_id": "serial_bus", "role": "serial_controller", "function": "two_wire_serial_bus", "protocols": []}
+  ],
+  "protocol_features": {
+    "apb@4": ["single_beat", "byte_enable", "bounded_wait"],
+    "axi4-lite@1": ["single_beat", "byte_enable", "bounded_wait"],
+    "tl-ul@1": ["single_beat", "byte_enable", "bounded_wait"]
+  },
+  "external_pins": [
+    {"pin_id": "serial_clock", "role": "clock_line", "direction": "inout", "width": 1},
+    {"pin_id": "serial_data", "role": "data_line", "direction": "inout", "width": 1}
+  ],
+  "dependencies": [
+    {"kind": "clock", "name": "clock_domain"},
+    {"kind": "reset", "name": "reset_domain"}
+  ],
+  "parameters": {
+    "FIFO_DEPTH": {"type": "integer", "default": 16, "range": [1, 1024]},
+    "CLOCK_DIVIDER": {"type": "integer", "default": 4, "range": [1, 65535]}
+  }
 }

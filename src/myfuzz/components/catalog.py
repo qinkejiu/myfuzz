@@ -8,10 +8,17 @@ from functools import lru_cache
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
-from .model import ComponentDefinitionError, PeripheralProfile
+from .model import (
+    ComponentDefinitionError,
+    DependencySpec,
+    EndpointSpec,
+    ExternalPinSpec,
+    ParameterSpec,
+    PeripheralProfile,
+)
 
 
-_PROFILE_FIELDS = frozenset(
+_REQUIRED_PROFILE_FIELDS = frozenset(
     {
         "component_type",
         "module_name",
@@ -26,10 +33,20 @@ _PROFILE_FIELDS = frozenset(
         "parameter_limits",
     }
 )
+_OPTIONAL_PROFILE_FIELDS = frozenset(
+    {"endpoints", "protocol_features", "external_pins", "dependencies", "parameters"}
+)
+_PROFILE_FIELDS = _REQUIRED_PROFILE_FIELDS | _OPTIONAL_PROFILE_FIELDS
 _SOURCE_STATUSES = frozenset(("implemented", "reference"))
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*\Z")
+_METADATA_TOKEN = re.compile(r"^[A-Za-z_][A-Za-z0-9_.-]*\Z")
+_WIDTH = re.compile(r"^(?:[1-9][0-9]*|[A-Za-z_][A-Za-z0-9_]*)\Z")
 _PROTOCOL_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]*\Z")
 _PROTOCOL_VERSION = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*\Z")
+_DEPENDENCY_KINDS = frozenset(
+    {"component", "clock", "reset", "address_space", "interrupt", "memory", "protocol"}
+)
+_CPU_NAME_TOKENS = frozenset(("ibex", "cva6", "boom"))
 _RUNTIME_PROTOCOLS = frozenset(
     {
         ("apb", "4"),
@@ -152,13 +169,203 @@ def _parse_parameter_limits(
     return limits
 
 
+def _metadata_token(value: object, label: str, source: Path) -> str:
+    result = _require_string(value, label, source)
+    if _METADATA_TOKEN.fullmatch(result) is None:
+        raise _error(source, f"{label} is invalid")
+    return result
+
+
+def _parse_endpoint_protocols(value: object, label: str, source: Path) -> tuple[tuple[str, str], ...]:
+    if not isinstance(value, list):
+        raise _error(source, f"{label} must be a list")
+    if not value:
+        return ()
+    return _parse_protocols(value, source)
+
+
+def _parse_endpoints(value: object, source: Path) -> tuple[EndpointSpec, ...]:
+    if not isinstance(value, list) or not value:
+        raise _error(source, "endpoints must be a non-empty list")
+    endpoints: list[EndpointSpec] = []
+    seen: set[str] = set()
+    for index, item in enumerate(value):
+        label = f"endpoints[{index}]"
+        if not isinstance(item, dict):
+            raise _error(source, f"{label} must be an object")
+        allowed = {"endpoint_id", "role", "function", "protocols", "required"}
+        unknown = sorted(set(item) - allowed)
+        if unknown:
+            raise _error(source, f"{label} unknown fields: {', '.join(unknown)}")
+        missing = sorted({"endpoint_id", "role", "function", "protocols"} - set(item))
+        if missing:
+            raise _error(source, f"{label} missing fields: {', '.join(missing)}")
+        endpoint_id = _metadata_token(item["endpoint_id"], f"{label}.endpoint_id", source)
+        if endpoint_id in seen:
+            raise _error(source, f"duplicate endpoint_id: {endpoint_id}")
+        seen.add(endpoint_id)
+        role = _metadata_token(item["role"], f"{label}.role", source)
+        function = _metadata_token(item["function"], f"{label}.function", source)
+        protocols = _parse_endpoint_protocols(item["protocols"], f"{label}.protocols", source)
+        required = item.get("required", True)
+        if not isinstance(required, bool):
+            raise _error(source, f"{label}.required must be boolean")
+        if any(token in endpoint_id.lower() or token in role.lower() or token in function.lower()
+               for token in _CPU_NAME_TOKENS):
+            raise _error(source, f"{label} must not contain CPU-specific names")
+        endpoints.append(EndpointSpec(endpoint_id, role, function, protocols, required))
+    return tuple(endpoints)
+
+
+def _parse_protocol_features(
+    value: object, source: Path
+) -> dict[tuple[str, str], tuple[str, ...]]:
+    if not isinstance(value, dict) or not value:
+        raise _error(source, "protocol_features must be a non-empty object")
+    features: dict[tuple[str, str], tuple[str, ...]] = {}
+    for key, raw_features in value.items():
+        if not isinstance(key, str) or key.count("@") != 1:
+            raise _error(source, "protocol_features keys must be protocol_id@version")
+        protocol_id, version = key.split("@", 1)
+        if _PROTOCOL_ID.fullmatch(protocol_id) is None or _PROTOCOL_VERSION.fullmatch(version) is None:
+            raise _error(source, f"invalid protocol_features key: {key}")
+        if not isinstance(raw_features, list) or not raw_features:
+            raise _error(source, f"protocol_features.{key} must be a non-empty list")
+        parsed = tuple(_metadata_token(item, f"protocol_features.{key}", source) for item in raw_features)
+        if len(parsed) != len(set(parsed)):
+            raise _error(source, f"protocol_features.{key} must contain unique features")
+        if any(token in feature.lower() for feature in parsed for token in _CPU_NAME_TOKENS):
+            raise _error(source, f"protocol_features.{key} must not contain CPU-specific names")
+        features[(protocol_id, version)] = parsed
+    return features
+
+
+def _parse_external_pins(value: object, source: Path) -> tuple[ExternalPinSpec, ...]:
+    if not isinstance(value, list) or not value:
+        raise _error(source, "external_pins must be a non-empty list")
+    pins: list[ExternalPinSpec] = []
+    seen: set[str] = set()
+    for index, item in enumerate(value):
+        label = f"external_pins[{index}]"
+        if not isinstance(item, dict):
+            raise _error(source, f"{label} must be an object")
+        allowed = {"pin_id", "role", "direction", "width", "required"}
+        unknown = sorted(set(item) - allowed)
+        if unknown:
+            raise _error(source, f"{label} unknown fields: {', '.join(unknown)}")
+        missing = sorted({"pin_id", "role", "direction", "width"} - set(item))
+        if missing:
+            raise _error(source, f"{label} missing fields: {', '.join(missing)}")
+        pin_id = _metadata_token(item["pin_id"], f"{label}.pin_id", source)
+        if pin_id in seen:
+            raise _error(source, f"duplicate pin_id: {pin_id}")
+        seen.add(pin_id)
+        role = _metadata_token(item["role"], f"{label}.role", source)
+        direction = _require_string(item["direction"], f"{label}.direction", source)
+        if direction not in {"input", "output", "inout"}:
+            raise _error(source, f"{label}.direction is invalid")
+        width_value = item["width"]
+        if isinstance(width_value, bool) or not isinstance(width_value, (int, str)):
+            raise _error(source, f"{label}.width is invalid")
+        width = str(width_value)
+        if _WIDTH.fullmatch(width) is None:
+            raise _error(source, f"{label}.width is invalid")
+        required = item.get("required", True)
+        if not isinstance(required, bool):
+            raise _error(source, f"{label}.required must be boolean")
+        if any(token in pin_id.lower() or token in role.lower() for token in _CPU_NAME_TOKENS):
+            raise _error(source, f"{label} must not contain CPU-specific names")
+        pins.append(ExternalPinSpec(pin_id, role, direction, width, required))
+    return tuple(pins)
+
+
+def _parse_dependencies(value: object, source: Path) -> tuple[DependencySpec, ...]:
+    if not isinstance(value, list) or not value:
+        raise _error(source, "dependencies must be a non-empty list")
+    dependencies: list[DependencySpec] = []
+    seen: set[tuple[str, str]] = set()
+    for index, item in enumerate(value):
+        label = f"dependencies[{index}]"
+        if not isinstance(item, dict):
+            raise _error(source, f"{label} must be an object")
+        allowed = {"kind", "name", "required"}
+        unknown = sorted(set(item) - allowed)
+        if unknown:
+            raise _error(source, f"{label} unknown fields: {', '.join(unknown)}")
+        missing = sorted({"kind", "name"} - set(item))
+        if missing:
+            raise _error(source, f"{label} missing fields: {', '.join(missing)}")
+        kind = _metadata_token(item["kind"], f"{label}.kind", source)
+        if kind not in _DEPENDENCY_KINDS:
+            raise _error(source, f"{label}.kind is unsupported")
+        name = _metadata_token(item["name"], f"{label}.name", source)
+        key = (kind, name)
+        if key in seen:
+            raise _error(source, f"duplicate dependency: {kind}:{name}")
+        seen.add(key)
+        required = item.get("required", True)
+        if not isinstance(required, bool):
+            raise _error(source, f"{label}.required must be boolean")
+        dependencies.append(DependencySpec(kind, name, required))
+    return tuple(dependencies)
+
+
+def _parse_parameters(
+    value: object | None,
+    source: Path,
+    parameter_limits: dict[str, tuple[int, int]],
+) -> dict[str, ParameterSpec] | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise _error(source, "parameters must be an object")
+    parameters: dict[str, ParameterSpec] = {}
+    for name, item in value.items():
+        parameter_name = _require_identifier(name, "parameters key", source)
+        if not isinstance(item, dict):
+            raise _error(source, f"parameters.{parameter_name} must be an object")
+        allowed = {"type", "default", "range"}
+        unknown = sorted(set(item) - allowed)
+        if unknown:
+            raise _error(source, f"parameters.{parameter_name} unknown fields: {', '.join(unknown)}")
+        parameter_type = _require_string(item.get("type"), f"parameters.{parameter_name}.type", source)
+        if parameter_type not in {"integer", "boolean"}:
+            raise _error(source, f"parameters.{parameter_name}.type is unsupported")
+        if "default" not in item:
+            raise _error(source, f"parameters.{parameter_name}.default is missing")
+        default = item["default"]
+        if parameter_type == "boolean":
+            if not isinstance(default, bool) or "range" in item:
+                raise _error(source, f"parameters.{parameter_name} boolean metadata is invalid")
+            if parameter_name in parameter_limits:
+                raise _error(source, f"parameters.{parameter_name} conflicts with parameter_limits")
+            limits = None
+        else:
+            if isinstance(default, bool) or not isinstance(default, int):
+                raise _error(source, f"parameters.{parameter_name}.default must be an integer")
+            bounds = item.get("range")
+            if not isinstance(bounds, list) or len(bounds) != 2:
+                raise _error(source, f"parameters.{parameter_name}.range must be a two-item list")
+            if any(isinstance(bound, bool) or not isinstance(bound, int) for bound in bounds) or bounds[0] > bounds[1]:
+                raise _error(source, f"parameters.{parameter_name}.range must be an integer range")
+            limits = (bounds[0], bounds[1])
+            if not limits[0] <= default <= limits[1]:
+                raise _error(source, f"parameters.{parameter_name}.default is outside range")
+            if parameter_name in parameter_limits and parameter_limits[parameter_name] != limits:
+                raise _error(source, f"parameters.{parameter_name}.range conflicts with parameter_limits")
+        parameters[parameter_name] = ParameterSpec(parameter_name, parameter_type, default, limits)
+    if set(parameters) != set(parameter_limits):
+        raise _error(source, "parameters must describe exactly parameter_limits")
+    return parameters
+
+
 def _parse_profile(document: object, source: Path) -> PeripheralProfile:
     if not isinstance(document, dict):
         raise _error(source, "profile document must be an object")
     unknown = sorted(set(document) - _PROFILE_FIELDS)
     if unknown:
         raise _error(source, f"unknown profile fields: {', '.join(unknown)}")
-    missing = sorted(_PROFILE_FIELDS - set(document))
+    missing = sorted(_REQUIRED_PROFILE_FIELDS - set(document))
     if missing:
         raise _error(source, f"missing profile fields: {', '.join(missing)}")
 
@@ -187,6 +394,33 @@ def _parse_profile(document: object, source: Path) -> PeripheralProfile:
     if implemented != (source_status == "implemented"):
         raise _error(source, "implemented and source_status disagree")
     parameter_limits = _parse_parameter_limits(document["parameter_limits"], source)
+    endpoints = _parse_endpoints(document["endpoints"], source) if "endpoints" in document else ()
+    protocol_features = (
+        _parse_protocol_features(document["protocol_features"], source)
+        if "protocol_features" in document
+        else {}
+    )
+    external_pins = (
+        _parse_external_pins(document["external_pins"], source)
+        if "external_pins" in document
+        else ()
+    )
+    dependencies = (
+        _parse_dependencies(document["dependencies"], source)
+        if "dependencies" in document
+        else ()
+    )
+    parameters = _parse_parameters(document.get("parameters"), source, parameter_limits)
+    if endpoints and any(protocol not in protocols for endpoint in endpoints for protocol in endpoint.protocols):
+        raise _error(source, "endpoint protocol is not declared in protocols")
+    if protocol_features and any(protocol not in protocols for protocol in protocol_features):
+        raise _error(source, "protocol_features key is not declared in protocols")
+    if dependencies:
+        component_dependencies = {
+            dependency.name for dependency in dependencies if dependency.kind == "component"
+        }
+        if not component_dependencies <= set(requires):
+            raise _error(source, "component dependencies must also be listed in requires")
 
     return PeripheralProfile(
         component_type=component_type,
@@ -200,6 +434,11 @@ def _parse_profile(document: object, source: Path) -> PeripheralProfile:
         source_paths=source_paths,
         implemented=implemented,
         parameter_limits=parameter_limits,
+        endpoints=endpoints,
+        protocol_features=protocol_features,
+        external_pins=external_pins,
+        dependencies=dependencies,
+        parameters=parameters,
     )
 
 
@@ -252,6 +491,11 @@ class ComponentCatalog:
                 raise ComponentDefinitionError(
                     f"{profile.component_type}: unknown dependency: {unknown[0]}"
                 )
+            for dependency in profile.dependencies:
+                if dependency.kind == "component" and dependency.name not in by_type:
+                    raise ComponentDefinitionError(
+                        f"{profile.component_type}: unknown metadata dependency: {dependency.name}"
+                    )
         self._profiles = tuple(sorted(records, key=lambda profile: profile.component_type))
         self._by_type = by_type
 

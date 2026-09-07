@@ -9,5 +9,25 @@
   "source_status": "reference",
   "source_paths": ["third_party/reference/pwm/pwm_controller.sv"],
   "implemented": false,
-  "parameter_limits": {"CHANNELS": [1, 16], "COUNTER_WIDTH": [8, 32]}
+  "parameter_limits": {"CHANNELS": [1, 16], "COUNTER_WIDTH": [8, 32]},
+  "endpoints": [
+    {"endpoint_id": "register_target", "role": "register_target", "function": "memory_mapped_registers", "protocols": [["apb", "4"], ["axi4-lite", "1"], ["tl-ul", "1"]]},
+    {"endpoint_id": "pwm_output", "role": "signal_source", "function": "pulse_width_outputs", "protocols": []}
+  ],
+  "protocol_features": {
+    "apb@4": ["single_beat", "byte_enable", "bounded_wait"],
+    "axi4-lite@1": ["single_beat", "byte_enable", "bounded_wait"],
+    "tl-ul@1": ["single_beat", "byte_enable", "bounded_wait"]
+  },
+  "external_pins": [
+    {"pin_id": "pwm_output", "role": "output", "direction": "output", "width": "CHANNELS"}
+  ],
+  "dependencies": [
+    {"kind": "clock", "name": "clock_domain"},
+    {"kind": "reset", "name": "reset_domain"}
+  ],
+  "parameters": {
+    "CHANNELS": {"type": "integer", "default": 1, "range": [1, 16]},
+    "COUNTER_WIDTH": {"type": "integer", "default": 16, "range": [8, 32]}
+  }
 }

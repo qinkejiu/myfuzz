@@ -1,0 +1,65 @@
+{
+  "schema_version": "interface_description.v1",
+  "source": {
+    "root": "third_party/cva6",
+    "revision": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "top_module": "cva6"
+  },
+  "endpoints": [
+    {
+      "endpoint_id": "cpu.instruction_memory",
+      "function": "instruction_memory_master",
+      "protocol": ["axi4", "1"],
+      "source_anchor": {"kind": "architectural_role", "value": "instruction-memory"},
+      "fields": [
+        {"role": "address", "aliases": ["instruction_address"]},
+        {"role": "read_data", "aliases": ["instruction_read_data"]},
+        {"role": "request", "aliases": ["instruction_request"]},
+        {"role": "response", "aliases": ["instruction_response"]}
+      ]
+    },
+    {
+      "endpoint_id": "cpu.data_memory",
+      "function": "data_memory_master",
+      "protocol": ["axi4", "1"],
+      "source_anchor": {"kind": "architectural_role", "value": "data-memory"},
+      "fields": [
+        {"role": "address", "aliases": ["data_address"]},
+        {"role": "write_data", "aliases": ["data_write_data"]},
+        {"role": "read_data", "aliases": ["data_read_data"]},
+        {"role": "request", "aliases": ["data_request"]},
+        {"role": "response", "aliases": ["data_response"]}
+      ]
+    },
+    {
+      "endpoint_id": "cpu.interrupts",
+      "function": "interrupt_sink",
+      "source_anchor": {"kind": "architectural_role", "value": "interrupt-input"},
+      "fields": [
+        {"role": "software_interrupt", "aliases": ["software_interrupt"]},
+        {"role": "timer_interrupt", "aliases": ["timer_interrupt"]},
+        {"role": "external_interrupt", "aliases": ["external_interrupt"]}
+      ]
+    },
+    {
+      "endpoint_id": "cpu.debug",
+      "function": "debug_transport",
+      "required": false,
+      "source_anchor": {"kind": "architectural_role", "value": "debug-transport"},
+      "fields": [
+        {"role": "request", "aliases": ["debug_request"], "required": false},
+        {"role": "response", "aliases": ["debug_response"], "required": false}
+      ]
+    },
+    {
+      "endpoint_id": "cpu.clock",
+      "function": "clock",
+      "fields": [{"role": "clock", "aliases": ["clock"]}]
+    },
+    {
+      "endpoint_id": "cpu.reset",
+      "function": "reset",
+      "fields": [{"role": "reset", "aliases": ["reset"]}]
+    }
+  ]
+}

@@ -9,5 +9,27 @@
   "source_status": "reference",
   "source_paths": ["third_party/reference/riscv-plic/plic.sv"],
   "implemented": false,
-  "parameter_limits": {"SOURCES": [1, 1024], "TARGETS": [1, 256]}
+  "parameter_limits": {"SOURCES": [1, 1024], "TARGETS": [1, 256]},
+  "endpoints": [
+    {"endpoint_id": "register_target", "role": "register_target", "function": "memory_mapped_registers", "protocols": [["apb", "4"], ["axi4-lite", "1"], ["tl-ul", "1"]]},
+    {"endpoint_id": "interrupt_source_input", "role": "interrupt_source", "function": "external_interrupt_sources", "protocols": []},
+    {"endpoint_id": "interrupt_target_output", "role": "interrupt_target", "function": "interrupt_target", "protocols": []}
+  ],
+  "protocol_features": {
+    "apb@4": ["single_beat", "byte_enable", "bounded_wait"],
+    "axi4-lite@1": ["single_beat", "byte_enable", "bounded_wait"],
+    "tl-ul@1": ["single_beat", "byte_enable", "bounded_wait"]
+  },
+  "external_pins": [
+    {"pin_id": "interrupt_sources", "role": "interrupt", "direction": "input", "width": "SOURCES"},
+    {"pin_id": "interrupt_targets", "role": "interrupt", "direction": "output", "width": "TARGETS"}
+  ],
+  "dependencies": [
+    {"kind": "clock", "name": "clock_domain"},
+    {"kind": "reset", "name": "reset_domain"}
+  ],
+  "parameters": {
+    "SOURCES": {"type": "integer", "default": 1, "range": [1, 1024]},
+    "TARGETS": {"type": "integer", "default": 1, "range": [1, 256]}
+  }
 }

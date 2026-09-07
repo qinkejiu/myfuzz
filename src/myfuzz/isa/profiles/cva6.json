@@ -7,5 +7,13 @@
   "integration_protocols": [["axi4", "1"]],
   "source_status": "reference",
   "source_paths": ["third_party/cva6"],
-  "implemented": false
+  "implemented": false,
+  "interface_description": "configs/cpus/cva6/interface_description.json",
+  "source_locator": {
+    "root": "third_party/cva6",
+    "revision": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "top_module": "cva6",
+    "available": false,
+    "reason": "reference-only placeholder until the pinned upstream checkout is materialized"
+  }
 }

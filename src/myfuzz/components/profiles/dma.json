@@ -9,5 +9,28 @@
   "source_status": "reference",
   "source_paths": ["third_party/reference/dma/dma_engine.sv"],
   "implemented": false,
-  "parameter_limits": {"CHANNELS": [1, 16], "ADDRESS_WIDTH": [16, 64]}
+  "parameter_limits": {"CHANNELS": [1, 16], "ADDRESS_WIDTH": [16, 64]},
+  "endpoints": [
+    {"endpoint_id": "control_target", "role": "register_target", "function": "control_registers", "protocols": [["axi4", "1"], ["tl-ul", "1"], ["avalon-mm", "1"]]},
+    {"endpoint_id": "read_master", "role": "memory_master", "function": "source_memory_reader", "protocols": [["axi4", "1"], ["tl-ul", "1"], ["avalon-mm", "1"]]},
+    {"endpoint_id": "write_master", "role": "memory_master", "function": "destination_memory_writer", "protocols": [["axi4", "1"], ["tl-ul", "1"], ["avalon-mm", "1"]]},
+    {"endpoint_id": "completion_interrupt", "role": "interrupt_source", "function": "transfer_completion", "protocols": []}
+  ],
+  "protocol_features": {
+    "axi4@1": ["single_beat", "byte_enable", "bounded_wait"],
+    "tl-ul@1": ["single_beat", "byte_enable", "bounded_wait"],
+    "avalon-mm@1": ["single_beat", "byte_enable", "bounded_wait"]
+  },
+  "external_pins": [
+    {"pin_id": "completion_interrupt", "role": "interrupt", "direction": "output", "width": "CHANNELS"}
+  ],
+  "dependencies": [
+    {"kind": "component", "name": "ram"},
+    {"kind": "clock", "name": "clock_domain"},
+    {"kind": "reset", "name": "reset_domain"}
+  ],
+  "parameters": {
+    "CHANNELS": {"type": "integer", "default": 1, "range": [1, 16]},
+    "ADDRESS_WIDTH": {"type": "integer", "default": 32, "range": [16, 64]}
+  }
 }

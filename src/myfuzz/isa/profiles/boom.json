@@ -7,5 +7,13 @@
   "integration_protocols": [["tilelink", "1"]],
   "source_status": "reference",
   "source_paths": ["third_party/boom"],
-  "implemented": false
+  "implemented": false,
+  "interface_description": "configs/cpus/boom/interface_description.json",
+  "source_locator": {
+    "root": "third_party/boom",
+    "revision": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "top_module": "boom_tile",
+    "available": false,
+    "reason": "reference-only placeholder until the pinned generated or upstream checkout is materialized"
+  }
 }

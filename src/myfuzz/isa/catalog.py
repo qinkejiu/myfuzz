@@ -7,11 +7,12 @@ import re
 from functools import lru_cache
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from types import MappingProxyType
+from collections.abc import Mapping
 
 from .model import CpuDefinitionError, CpuProfile
 
 
-_PROFILE_FIELDS = frozenset(
+_REQUIRED_PROFILE_FIELDS = frozenset(
     {
         "cpu_id",
         "vendor",
@@ -24,9 +25,13 @@ _PROFILE_FIELDS = frozenset(
         "implemented",
     }
 )
+_OPTIONAL_PROFILE_FIELDS = frozenset({"interface_description", "source_locator"})
+_PROFILE_FIELDS = _REQUIRED_PROFILE_FIELDS | _OPTIONAL_PROFILE_FIELDS
 _SOURCE_STATUSES = frozenset({"implemented", "reference"})
 _PROTOCOL_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]*\Z")
 _PROTOCOL_VERSION = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*\Z")
+_SOURCE_REVISION = re.compile(r"^(?:git:[0-9a-f]{40}|sha256:[0-9a-f]{64})\Z")
+_MODULE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*\Z")
 _RUNTIME_PROTOCOLS = frozenset(
     {
         ("apb", "4"),
@@ -203,11 +208,63 @@ def _source_paths_exist(source_paths: tuple[str, ...], root: Path, source: Path)
     return all_exist
 
 
+def _parse_source_locator(
+    value: object, source: Path
+) -> dict[str, object]:
+    if not isinstance(value, Mapping):
+        raise CpuDefinitionError(f"{source}: source_locator must be an object")
+    allowed = {"root", "revision", "top_module", "files", "filelist", "include_roots", "available", "reason"}
+    unknown = sorted(set(value) - allowed)
+    if unknown:
+        raise CpuDefinitionError(f"{source}: unknown source_locator field(s): {', '.join(unknown)}")
+    required = {"root", "revision", "top_module", "available"}
+    missing = sorted(required - set(value))
+    if missing:
+        raise CpuDefinitionError(f"{source}: source_locator missing field(s): {', '.join(missing)}")
+    root = _safe_source_path(value["root"], "source_locator.root", source)
+    revision = value["revision"]
+    if not isinstance(revision, str) or _SOURCE_REVISION.fullmatch(revision) is None:
+        raise CpuDefinitionError(f"{source}: source_locator.revision is invalid")
+    top_module = value["top_module"]
+    if not isinstance(top_module, str) or _MODULE_NAME.fullmatch(top_module) is None:
+        raise CpuDefinitionError(f"{source}: source_locator.top_module is invalid")
+    available = value["available"]
+    if not isinstance(available, bool):
+        raise CpuDefinitionError(f"{source}: source_locator.available must be boolean")
+    result: dict[str, object] = {
+        "root": root,
+        "revision": revision,
+        "top_module": top_module,
+        "available": available,
+    }
+    if "reason" in value:
+        reason = value["reason"]
+        if not isinstance(reason, str) or not reason.strip():
+            raise CpuDefinitionError(f"{source}: source_locator.reason must be a non-empty string")
+        result["reason"] = reason
+    for key in ("files", "include_roots"):
+        if key in value:
+            raw_paths = value[key]
+            if (
+                not isinstance(raw_paths, list)
+                or any(not isinstance(item, str) for item in raw_paths)
+                or len(raw_paths) != len(set(raw_paths))
+            ):
+                raise CpuDefinitionError(f"{source}: source_locator.{key} must be a unique path list")
+            result[key] = tuple(
+                _safe_source_path(item, f"source_locator.{key}[{index}]", source)
+                for index, item in enumerate(raw_paths)
+            )
+    if "filelist" in value:
+        result["filelist"] = _safe_source_path(value["filelist"], "source_locator.filelist", source)
+    return result
+
+
 def _parse_profile(document: object, source: Path, root: Path) -> CpuProfile:
     if not isinstance(document, dict):
         raise CpuDefinitionError(f"{source}: profile document must be an object")
     unknown = set(document) - _PROFILE_FIELDS
-    missing = _PROFILE_FIELDS - set(document)
+    missing = _REQUIRED_PROFILE_FIELDS - set(document)
     if unknown:
         names = ", ".join(sorted(unknown))
         raise CpuDefinitionError(f"{source}: unknown profile field(s): {names}")
@@ -238,6 +295,23 @@ def _parse_profile(document: object, source: Path, root: Path) -> CpuProfile:
     declared_implemented = _require_boolean(document["implemented"], "implemented")
     if declared_implemented != (source_status == "implemented"):
         raise CpuDefinitionError(f"{source}: implemented and source_status disagree")
+    interface_description = None
+    source_locator = None
+    if ("interface_description" in document) != ("source_locator" in document):
+        raise CpuDefinitionError(
+            f"{source}: interface_description and source_locator must be declared together"
+        )
+    if "interface_description" in document:
+        interface_description = _safe_source_path(
+            document["interface_description"], "interface_description", source
+        )
+        source_locator = _parse_source_locator(document["source_locator"], source)
+        available = source_locator["available"]
+        assert isinstance(available, bool)
+        if available != (source_status == "implemented"):
+            raise CpuDefinitionError(
+                f"{source}: source_locator.available disagrees with source_status"
+            )
     implemented = (
         declared_implemented
         and source_status == "implemented"
@@ -245,6 +319,8 @@ def _parse_profile(document: object, source: Path, root: Path) -> CpuProfile:
         # including upstream dependencies, must exist below the source root.
         and _source_paths_exist(tuple(source_paths), root, source)
     )
+    if implemented and interface_description is not None:
+        implemented = (root / interface_description).is_file()
     return CpuProfile(
         cpu_id=cpu_id,
         vendor=vendor,
@@ -255,6 +331,8 @@ def _parse_profile(document: object, source: Path, root: Path) -> CpuProfile:
         source_status=source_status,
         source_paths=tuple(source_paths),
         implemented=implemented,
+        interface_description=interface_description,
+        source_locator=source_locator,
     )
 
 
