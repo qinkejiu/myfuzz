@@ -228,10 +228,39 @@ def _parts(text: str, offset: int) -> list[tuple[str, int]]:
 
 
 def _constant_width(fragment: str) -> int:
+    remainder = RANGE_RE.sub("", fragment)
+    if "[" in remainder or "]" in remainder:
+        raise SourceCrawlError("unsupported-port-width")
     for most_significant, least_significant in RANGE_RE.findall(fragment):
         if const_int(most_significant) is None or const_int(least_significant) is None:
             raise SourceCrawlError("unsupported-port-width")
     return width_from_ranges(fragment)
+
+
+def _port_shape(prefix: str) -> tuple[int, bool]:
+    """Recognize integral builtins only; opaque types require elaboration.
+
+    An unresolved typedef/record must never acquire a fabricated scalar width.
+    Integer atom types have an implicit width and signedness, unlike vectors.
+    """
+    width = _constant_width(prefix)
+    words = RANGE_RE.sub("", prefix).split()
+    atoms = {"byte": 8, "shortint": 16, "int": 32, "integer": 32,
+             "longint": 64, "time": 64}
+    types = {"logic", "bit", "reg", *atoms}
+    allowed = types | {"input", "output", "inout", "wire", "tri", "var", "signed", "unsigned"}
+    if any(word not in allowed for word in words):
+        raise SourceCrawlError("unsupported-port-type")
+    declared = [word for word in words if word in types]
+    if len(declared) > 1 or ("signed" in words and "unsigned" in words):
+        raise SourceCrawlError("unsupported-port-type")
+    kind = declared[0] if declared else "logic"
+    if kind in atoms:
+        if "[" in prefix:
+            raise SourceCrawlError("unsupported-port-type:packed-integer-atom")
+        width = atoms[kind]
+    signed = "signed" in words or (kind in atoms and kind != "time" and "unsigned" not in words)
+    return width, signed
 
 
 def _declaration_ports(
@@ -246,6 +275,8 @@ def _declaration_ports(
     width = 1
     signed = False
     for fragment, fragment_offset in _parts(masked, offset):
+        if "=" in fragment:
+            raise SourceCrawlError("unsupported-port-default")
         # Ignore identifiers inside ranges when locating the declared port name.
         # Any range after that name is unpacked, including inherited declarations.
         name_fragment = re.sub(r"\[[^\]]*\]", lambda match: " " * len(match.group()), fragment)
@@ -259,10 +290,7 @@ def _declaration_ports(
         matched_direction = _DIRECTION_RE.search(fragment)
         if matched_direction is not None:
             direction = matched_direction.group(1)
-            width = _constant_width(fragment[:name_match.start()])
-            signed = bool(re.search(r"\bsigned\b", fragment)) and not bool(
-                re.search(r"\bunsigned\b", fragment)
-            )
+            width, signed = _port_shape(fragment[:name_match.start()])
         if not direction:
             continue
         absolute = fragment_offset + name_match.start()
@@ -284,7 +312,19 @@ def _module_ports(
     module: str,
     source_file: str,
 ) -> list[tuple[SourcePortFact, int]]:
-    semi = masked.find(";", module_match.end(), module_end)
+    # A packed record in an ANSI header can contain semicolons. Locate the
+    # module-header terminator outside parentheses before validating its type.
+    depth = 0
+    semi = -1
+    for position in range(module_match.end(), module_end):
+        char = masked[position]
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+        elif char == ";" and depth == 0:
+            semi = position
+            break
     if semi < 0:
         return []
     opens: list[int] = []
