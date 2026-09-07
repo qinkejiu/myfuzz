@@ -19,6 +19,28 @@ def _json_value(value: object) -> object:
     return value
 
 
+def _canonical_structural_key(value: object) -> tuple[object, ...]:
+    """Order JSON-like values without relying on implementation representations."""
+    if value is None:
+        return ("null",)
+    if isinstance(value, bool):
+        return ("bool", value)
+    if isinstance(value, int):
+        return ("int", value)
+    if isinstance(value, float):
+        return ("float", value)
+    if isinstance(value, str):
+        return ("str", value)
+    if isinstance(value, Mapping):
+        return ("map", tuple(
+            (str(key), _canonical_structural_key(item))
+            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+        ))
+    if isinstance(value, (tuple, list)):
+        return ("sequence", tuple(_canonical_structural_key(item) for item in value))
+    raise TypeError(f"unsupported canonical structural value: {type(value).__name__}")
+
+
 def _net_id(source_port_id: int, target_port_id: int) -> int:
     digest = hashlib.sha256(f"net:{source_port_id}:{target_port_id}".encode("ascii")).digest()
     return max(1, int.from_bytes(digest[:8], "big"))
@@ -65,22 +87,40 @@ def canonical_ir_hash(document: Mapping[str, object]) -> str:
 
 
 def _capability_record(value: object) -> dict[str, object]:
-    return {
+    record: dict[str, object] = {
         "endpoint_id": getattr(value, "endpoint_id"),
-        "function": getattr(value, "function"),
         "side": getattr(value, "side"),
         "protocol": list(getattr(value, "protocol")) if getattr(value, "protocol") is not None else None,
-        "fields": [
-            {"role": field.role, "direction": field.direction, "width": field.width, "signed": field.signed}
-            for field in getattr(value, "fields")
-        ],
+        "fields": [],
         "clocked": getattr(value, "clock") is not None,
         "reset": getattr(value, "reset") is not None,
         "timing": [
-            {"kind": item["kind"], "fields": list(item["fields"]), "clocked": item["clock"] is not None}
+            {
+                "kind": item.kind, "fields": list(item.fields), "clocked": item.clock is not None,
+                "max_latency": item.max_latency,
+                **({} if item.source is None else {"source": {
+                    "file": item.source.file, "line": item.source.line,
+                    **({} if item.source.column is None else {"column": item.source.column}),
+                }}),
+                **({} if not item.evidence else {"evidence": list(item.evidence)}),
+            }
             for item in getattr(value, "timing")
         ],
     }
+    for field in getattr(value, "fields"):
+        item: dict[str, object] = {
+            "role": field.role, "direction": field.direction, "width": field.width, "signed": field.signed,
+        }
+        if field.source is not None:
+            item["source"] = {"file": field.source.file, "line": field.source.line}
+            if field.source.column is not None:
+                item["source"]["column"] = field.source.column
+        if field.evidence:
+            item["evidence"] = list(field.evidence)
+        record["fields"].append(item)
+    if getattr(value, "evidence"):
+        record["evidence"] = list(getattr(value, "evidence"))
+    return record
 
 
 def composition_ir(
@@ -247,8 +287,8 @@ def composition_ir(
             }
             for item in candidate.evidence
         ], key=lambda item: (item["kind"], item["ordinal"])),
-        "assumptions": sorted((_json_value(item) for item in candidate.assumptions), key=lambda item: repr(item)),
-        "rejected_alternatives": sorted((_json_value(item) for item in candidate.rejected_alternatives), key=lambda item: repr(item)),
+        "assumptions": sorted((_json_value(item) for item in candidate.assumptions), key=_canonical_structural_key),
+        "rejected_alternatives": sorted((_json_value(item) for item in candidate.rejected_alternatives), key=_canonical_structural_key),
         "score_vector": list(candidate.score_vector),
         "diagnostics": {"errors": [], "warnings": []},
     }
@@ -263,7 +303,7 @@ def composition_ir(
         )
         document["capability_matches"] = sorted(
             (_json_value(item) for item in capability_matches),
-            key=lambda item: repr(item),
+            key=_canonical_structural_key,
         )
     return canonical_ir_document(document)
 

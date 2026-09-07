@@ -9,7 +9,9 @@ from myfuzz.composition.endpoint_capabilities import (
     normalize_annotations,
     validate_protocol_fingerprint,
 )
-from myfuzz.protocols.model import CompiledField, CompiledProtocol
+from myfuzz.composition.constraints import build_capability_constraint_graph
+from myfuzz.protocols.catalog import ProtocolCatalog
+from myfuzz.protocols.model import CompiledField, CompiledProtocol, FieldSpec, ProtocolPlugin
 
 
 def _endpoint(
@@ -22,6 +24,7 @@ def _endpoint(
     timing_fields: tuple[str, ...] = ("valid", "ready"),
     protocol: tuple[str, str] = ("opaque-bus", "1"),
     burst: bool = False,
+    timing_max_latency: int | None = None,
 ) -> dict[str, object]:
     directions = {
         "initiator": {"address": "output", "valid": "output", "ready": "input", "data": "output"},
@@ -47,12 +50,42 @@ def _endpoint(
         "fields": fields,
         "clock": clock,
         "reset": "reset_alpha",
-        "timing": [{"kind": "transfer_accept", "fields": list(timing_fields), "clock": clock}],
+        "timing": [{
+            "kind": "transfer_accept", "fields": list(timing_fields), "clock": clock,
+            **({} if timing_max_latency is None else {"max_latency": timing_max_latency}),
+        }],
     }
 
 
 def _document(*endpoints: dict[str, object]) -> dict[str, object]:
     return {"schema_version": "interface_annotations.v1", "endpoints": list(endpoints)}
+
+
+def _protocol_context(*endpoints: object) -> tuple[ProtocolCatalog, dict[str, CompiledProtocol]]:
+    capabilities = [endpoint for endpoint in endpoints if hasattr(endpoint, "protocol")]
+    plugins: dict[tuple[str, str], ProtocolPlugin] = {}
+    compiled: dict[str, CompiledProtocol] = {}
+    directions = {
+        "address": "host_to_device", "valid": "host_to_device", "ready": "device_to_host",
+        "data": "host_to_device", "burst": "host_to_device",
+    }
+    for endpoint in capabilities:
+        if endpoint.protocol is None:
+            continue
+        key = endpoint.protocol
+        plugins.setdefault(key, ProtocolPlugin(
+            key[0], key[1], tuple(
+                FieldSpec(field.role, directions[field.role], str(field.width), True, 0)
+                for field in endpoint.fields
+            ), (),
+        ))
+        compiled[endpoint.endpoint_id] = CompiledProtocol(
+            endpoint.endpoint_id, key[0], key[1], tuple(
+                CompiledField(field.role, directions[field.role], field.width, field.role, 0)
+                for field in endpoint.fields
+            ),
+        )
+    return ProtocolCatalog(tuple(plugins.values())), compiled
 
 
 class EndpointCapabilityTests(unittest.TestCase):
@@ -62,7 +95,8 @@ class EndpointCapabilityTests(unittest.TestCase):
             _endpoint("target", side="target"),
         ))
 
-        matches = match_endpoint_pair(source, target, ())
+        catalog, compiled = _protocol_context(source, target)
+        matches = match_endpoint_pair(source, target, (), protocol_catalog=catalog, compiled_protocols=compiled)
 
         accepted = [item for item in matches if item["accepted"]]
         self.assertEqual(len(accepted), 1)
@@ -119,7 +153,8 @@ class EndpointCapabilityTests(unittest.TestCase):
         for label, case_target, adapters, reason in cases:
             with self.subTest(label=label):
                 case_source = burst_source if label == "feature" else source
-                matches = match_endpoint_pair(case_source, case_target, adapters)
+                catalog, compiled = _protocol_context(case_source, case_target)
+                matches = match_endpoint_pair(case_source, case_target, adapters, protocol_catalog=catalog, compiled_protocols=compiled)
                 self.assertFalse(any(item["accepted"] for item in matches))
                 self.assertTrue(any(any(item_reason.startswith(reason) for item_reason in item["reasons"]) for item in matches))
                 self.assertTrue(all(item["evidence"] for item in matches))
@@ -154,11 +189,88 @@ class EndpointCapabilityTests(unittest.TestCase):
             "target", side="target", protocol=("axi4-lite", "1"),
         )))[0]
 
+        catalog, compiled = _protocol_context(source, target)
         matches = match_endpoint_pair(source, target, (
             AdapterCapability("axi-burst", ("axi4", "1"), ("axi4-lite", "1"), ("burst",), 2, True),
-        ))
+        ), protocol_catalog=catalog, compiled_protocols=compiled)
 
         self.assertTrue(any(item["accepted"] and item["adapter_id"] == "axi-burst" for item in matches))
+
+    def test_matching_rejects_unsupported_or_unvalidated_declared_protocols(self) -> None:
+        source, target = normalize_annotations(_document(
+            _endpoint("source", side="initiator"), _endpoint("target", side="target"),
+        ))
+
+        unvalidated = match_endpoint_pair(source, target, ())
+        unsupported = match_endpoint_pair(source, target, (), protocol_catalog=ProtocolCatalog(()))
+
+        self.assertTrue(any("protocol-validation-required" in item["reasons"] for item in unvalidated))
+        self.assertTrue(any("unsupported-protocol:opaque-bus@1" in item["reasons"] for item in unsupported))
+
+    def test_matching_uses_fingerprints_for_protocol_invalid_directions(self) -> None:
+        source_document = _endpoint("source", side="initiator")
+        target_document = _endpoint("target", side="target")
+        next(field for field in source_document["fields"] if field["role"] == "valid")["direction"] = "input"
+        next(field for field in target_document["fields"] if field["role"] == "valid")["direction"] = "output"
+        source, target = normalize_annotations(_document(source_document, target_document))
+        catalog, compiled = _protocol_context(source, target)
+
+        matches = match_endpoint_pair(source, target, (), protocol_catalog=catalog, compiled_protocols=compiled)
+
+        self.assertFalse(any(item["accepted"] for item in matches))
+        self.assertTrue(any("direction:valid" in item["reasons"] for item in matches))
+
+    def test_width_projection_requires_an_explicit_role_declaration(self) -> None:
+        target_document = _endpoint("target", side="target")
+        next(field for field in target_document["fields"] if field["role"] == "data")["width"] = 16
+        source, target = normalize_annotations(_document(_endpoint("source", side="initiator"), target_document))
+        catalog, compiled = _protocol_context(source, target)
+        legacy = AdapterCapability("legacy", ("opaque-bus", "1"), ("opaque-bus", "1"), (), 2, True)
+        declared = AdapterCapability(
+            "data-narrow", ("opaque-bus", "1"), ("opaque-bus", "1"), (), 2, True, ("data",),
+        )
+
+        matches = match_endpoint_pair(source, target, (legacy, declared), protocol_catalog=catalog, compiled_protocols=compiled)
+
+        self.assertTrue(any(item["adapter_id"] == "legacy" and "width-projection:data" in item["reasons"] for item in matches))
+        self.assertTrue(any(item["adapter_id"] == "data-narrow" and item["accepted"] for item in matches))
+
+    def test_temporal_observations_fail_closed_and_bound_declared_adapter_latency(self) -> None:
+        source, target = normalize_annotations(_document(
+            _endpoint("source", side="initiator", timing_max_latency=2),
+            _endpoint("target", side="target", timing_max_latency=2),
+        ))
+        catalog, compiled = _protocol_context(source, target)
+        slow = AdapterCapability("slow", ("opaque-bus", "1"), ("opaque-bus", "1"), (), 3, False)
+        fast = AdapterCapability("fast", ("opaque-bus", "1"), ("opaque-bus", "1"), (), 2, False)
+        bounded = match_endpoint_pair(source, target, (slow, fast), protocol_catalog=catalog, compiled_protocols=compiled)
+        one_sided_document = _endpoint("target", side="target")
+        one_sided_document["timing"] = []
+        one_sided = normalize_annotations(_document(one_sided_document))[0]
+        one_sided_matches = match_endpoint_pair(source, one_sided, (), protocol_catalog=catalog, compiled_protocols=compiled)
+
+        self.assertTrue(any(item["adapter_id"] == "slow" and "temporal-latency" in item["reasons"] for item in bounded))
+        self.assertTrue(any(item["adapter_id"] == "fast" and item["accepted"] for item in bounded))
+        self.assertTrue(any("temporal-relation" in item["reasons"] for item in one_sided_matches))
+
+    def test_normalization_retains_relative_source_evidence_and_unknown_identity(self) -> None:
+        source_document = _endpoint("source", side="initiator")
+        source_document["fields"][0]["source"] = {"file": "rtl/tile.sv", "line": 7, "column": 3}
+        source_document["fields"][0]["evidence"] = ["explicit_alias", "hdl_declaration"]
+        unknown = _endpoint("target", side="target")
+        unknown.pop("side")
+        unknown.pop("protocol")
+        source, target = normalize_annotations(_document(source_document, unknown))
+        catalog, compiled = _protocol_context(source)
+        matches = match_endpoint_pair(source, target, (), protocol_catalog=catalog, compiled_protocols=compiled)
+        graph = build_capability_constraint_graph(_document(source_document, unknown), (), protocol_catalog=catalog, compiled_protocols=compiled)
+
+        field_evidence = next(item for item in matches[0]["evidence"] if item["kind"] == "field" and item["role"] == "address")
+        self.assertEqual(field_evidence["source"], {"file": "rtl/tile.sv", "line": 7, "column": 3})
+        self.assertEqual(field_evidence["evidence"], ["explicit_alias", "hdl_declaration"])
+        self.assertTrue(any("side-ambiguous" in item["reasons"] for item in matches))
+        self.assertTrue(any("protocol-ambiguous" in item["reasons"] for item in matches))
+        self.assertEqual(len(graph.alternatives), len(matches) * 2)
 
 
 if __name__ == "__main__":

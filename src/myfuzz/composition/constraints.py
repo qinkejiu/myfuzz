@@ -12,6 +12,8 @@ from myfuzz.protocols.widths import (
     compile_width_expression,
     width_parameters,
 )
+from myfuzz.protocols.catalog import ProtocolCatalog
+from myfuzz.protocols.model import CompiledProtocol
 
 from .declarations import DeclarationSet, ProtocolBinding
 from .endpoint_capabilities import (
@@ -659,7 +661,9 @@ def build_constraint_graph(facts: HdlFacts, declarations: DeclarationSet, protoc
 
 
 def build_capability_constraint_graph(
-    annotations: Mapping[str, object], adapters: Sequence[AdapterCapability]
+    annotations: Mapping[str, object], adapters: Sequence[AdapterCapability], *,
+    protocol_catalog: ProtocolCatalog | None = None,
+    compiled_protocols: Mapping[str, CompiledProtocol] | None = None,
 ) -> CapabilityConstraintGraph:
     """Build generic source-backed alternatives without changing legacy callers."""
     endpoints = normalize_annotations(annotations)
@@ -668,7 +672,11 @@ def build_capability_constraint_graph(
         for source in endpoints
         for target in endpoints
         if source.endpoint_id != target.endpoint_id
-        for alternative in match_endpoint_pair(source, target, adapters)
+        for alternative in match_endpoint_pair(
+            source, target, adapters,
+            protocol_catalog=protocol_catalog,
+            compiled_protocols=compiled_protocols,
+        )
     )
     return CapabilityConstraintGraph(endpoints, alternatives)
 

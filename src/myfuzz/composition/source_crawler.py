@@ -759,6 +759,7 @@ class SourceCrawler:
                             "fields": [matched_names.get(name, name) for name in observation.fields],
                             "clock": observation.clock,
                             "source": {"file": observation.source_file, "line": observation.line},
+                            "evidence": ["hdl_observation"],
                         }
                         for observation in related
                     ],
