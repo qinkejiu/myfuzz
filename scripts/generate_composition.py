@@ -71,7 +71,7 @@ def parse_args() -> argparse.Namespace:
                         metavar="ID@VERSION", help="generic protocol preference, in priority order")
     parser.add_argument("--isa-xlen", type=int, choices=(32, 64), help="generic RISC-V XLEN")
     parser.add_argument("--isa-extension", action="append", default=[], help="generic ISA extension (repeatable)")
-    parser.add_argument("--seed", type=int, default=7, help="generic deterministic seed")
+    parser.add_argument("--seed", type=int, default=None, help="generic deterministic seed")
     parser.add_argument(
         "--root",
         type=Path,
@@ -100,11 +100,11 @@ def _validate_mode_arguments(args: argparse.Namespace) -> None:
         "--protocol-preference": getattr(args, "protocol_preference", ()),
         "--isa-xlen": getattr(args, "isa_xlen", None),
         "--isa-extension": getattr(args, "isa_extension", ()),
-        "--seed": getattr(args, "seed", 7),
+        "--seed": getattr(args, "seed", None),
     }
     uses_generic_options = bool(generic_values["--component-type"] or generic_values["--protocol-preference"]
                                 or generic_values["--isa-xlen"] is not None or generic_values["--isa-extension"]
-                                or generic_values["--seed"] != 7)
+                                or generic_values["--seed"] is not None)
     if protocol_manifest is not None and interface_description is not None:
         raise ValueError("--protocol-manifest cannot be combined with --interface-description")
     if interface_description is not None:
@@ -198,7 +198,7 @@ def main() -> int:
                 isa = IsaContract(args.isa_xlen, tuple(args.isa_extension))
             plan = plan_generic_composition(GenericCompositionRequest(
                 load_interface_description(description_path), tuple(args.component_type),
-                tuple(args.protocol_preference), isa=isa, seed=args.seed,
+                tuple(args.protocol_preference), isa=isa, seed=7 if args.seed is None else args.seed,
             ), base_dir=base_dir)
             summary = _validate_generic_summary(
                 write_generic_composition(plan, output_path, base_dir=base_dir)

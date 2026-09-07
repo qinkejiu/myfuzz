@@ -59,6 +59,63 @@ endmodule
 
 
 class GenericAutoCompositionTests(unittest.TestCase):
+    def test_single_channel_profile_requires_real_controls_and_records_adapter_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            cpu = root / "source" / "rtl" / "controlled_cpu.sv"
+            cpu.parent.mkdir(parents=True)
+            cpu.write_text(
+                "module controlled_cpu(input logic clk, input logic rst, output logic [15:0] addr, "
+                "output logic valid, input logic ready, output logic [31:0] wdata, input logic [31:0] rdata, "
+                "input logic error, input logic irq, output logic monitor); "
+                "always_ff @(posedge clk or negedge rst) if (!rst) monitor <= 1'b0; else monitor <= valid; endmodule\n",
+                encoding="utf-8",
+            )
+            (root / "controlled_device.sv").write_text(
+                "module controlled_device(input logic clock, input logic reset, input logic [15:0] addr, "
+                "input logic valid, output logic ready, input logic [31:0] wdata, output logic [31:0] rdata, "
+                "output logic error, output logic irq); assign ready = valid; assign rdata = wdata; "
+                "assign error = 1'b0; assign irq = valid; endmodule\n",
+                encoding="utf-8",
+            )
+            fields = (
+                FieldSpec("addr", "host_to_device", "address_width", True, 0),
+                FieldSpec("valid", "host_to_device", "1", True, 0),
+                FieldSpec("ready", "device_to_host", "1", True, 0),
+                FieldSpec("wdata", "host_to_device", "data_width", True, 0),
+                FieldSpec("rdata", "device_to_host", "data_width", True, 0),
+                FieldSpec("error", "device_to_host", "1", True, 0),
+                FieldSpec("irq", "device_to_host", "1", False, 0),
+            )
+            protocols = ProtocolCatalog((ProtocolPlugin("bounded", "1", fields, ()),))
+            description = load_interface_description({
+                "schema_version": "interface_description.v1",
+                "source": {"root": "source", "revision": source_tree_hash(root / "source", (cpu,)),
+                           "top_module": "controlled_cpu", "files": ["rtl/controlled_cpu.sv"]},
+                "endpoints": [{"endpoint_id": "cpu.mmio", "function": "memory_master", "module": "controlled_cpu",
+                               "protocol": ["bounded", "1"], "fields": [
+                                   {"role": role, "aliases": [port]} for role, port in (
+                                       ("clock", "clk"), ("reset", "rst"), ("monitor", "monitor"),
+                                       ("addr", "addr"), ("valid", "valid"), ("ready", "ready"),
+                                       ("wdata", "wdata"), ("rdata", "rdata"), ("error", "error"), ("irq", "irq"),
+                                   )
+                               ]}],
+            })
+            catalog = ComponentCatalog((PeripheralProfile(
+                "controlled", "controlled_device", (("bounded", "1"),), 0x100, 0x100,
+                True, (), "implemented", ("controlled_device.sv",), True, {},
+            ),))
+            plan = plan_generic_composition(
+                GenericCompositionRequest(description, ("controlled",), (("bounded", "1"),)),
+                base_dir=root, component_catalog=catalog, protocol_catalog=protocols,
+            )
+            adapter = plan.ir["adapters"][0]
+            self.assertEqual(adapter["contract"]["request_field_id"], "valid")
+            self.assertEqual(adapter["contract"]["response_field_id"], "ready")
+            self.assertEqual(adapter["contract"]["error_field_id"], "error")
+            self.assertEqual(plan.ir["endpoint_bindings"][0]["control"]["clock"]["target_port"], "clock")
+            self.assertEqual(plan.ir["irq_routes"][0]["target_port"], "irq")
+
     def test_component_binding_is_source_verified_and_records_generic_topology(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -87,20 +144,11 @@ class GenericAutoCompositionTests(unittest.TestCase):
                 (), "implemented", ("device.sv",), True, {},
             ),))
 
-            plan = plan_generic_composition(
-                GenericCompositionRequest(description, ("device",), (("opaque", "1"),)),
-                base_dir=root, component_catalog=catalog, protocol_catalog=protocol,
-            )
-
-            self.assertTrue(plan.complete)
-            self.assertEqual(plan.components[0]["module_name"], "device")
-            self.assertEqual(plan.components[0]["selected_endpoint"], "cpu.mmio")
-            self.assertEqual(plan.components[0]["target_binding"]["module"], "device")
-            self.assertTrue(any(match["accepted"] for match in plan.matches))
-            self.assertEqual(plan.ir["instances"][0]["module_name"], "device")
-            self.assertEqual(plan.ir["adapters"][0]["protocol"], ("opaque", "1"))
-            self.assertEqual(plan.ir["address_regions"][0]["base"], 0)
-            self.assertEqual(plan.ir["irq_routes"][0]["component_id"], "device0")
+            with self.assertRaisesRegex(ValueError, "target-binding:control:clock"):
+                plan_generic_composition(
+                    GenericCompositionRequest(description, ("device",), (("opaque", "1"),)),
+                    base_dir=root, component_catalog=catalog, protocol_catalog=protocol,
+                )
 
     def test_component_without_source_proven_ports_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -165,11 +213,11 @@ class GenericAutoCompositionTests(unittest.TestCase):
                 "apb_device", "apb_device", (("apb", "4"),), 0x100, 0x100, False,
                 (), "implemented", ("apb_device.sv",), True, {},
             ),))
-            plan = plan_generic_composition(
-                GenericCompositionRequest(description, ("apb_device",), (("apb", "4"),)),
-                base_dir=root, component_catalog=catalog,
-            )
-            self.assertEqual(plan.ir["target"]["address_width"], 24)
+            with self.assertRaisesRegex(ValueError, "target-binding:control:clock"):
+                plan_generic_composition(
+                    GenericCompositionRequest(description, ("apb_device",), (("apb", "4"),)),
+                    base_dir=root, component_catalog=catalog,
+                )
 
     def test_ambiguous_initiator_binding_fails_closed_with_candidates(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -183,7 +231,7 @@ class GenericAutoCompositionTests(unittest.TestCase):
 ); endmodule
 """, encoding="utf-8")
             (root / "device.sv").write_text(
-                """module device(input logic [15:0] addr, input logic valid, output logic ready, input logic [31:0] wdata, output logic [31:0] rdata); assign ready=valid; assign rdata=wdata; endmodule
+                """module device(input logic clock, input logic reset, input logic [15:0] addr, input logic valid, output logic ready, input logic [31:0] wdata, output logic [31:0] rdata); assign ready=valid; assign rdata=wdata; endmodule
 """, encoding="utf-8")
             description = load_interface_description({
                 "schema_version": "interface_description.v1", "source": {"root": "source", "revision": source_tree_hash(root / "source", (source,)), "top_module": "ambiguous", "files": ["rtl/ambiguous.sv"]},
@@ -208,7 +256,7 @@ class GenericAutoCompositionTests(unittest.TestCase):
                 "); endmodule\n", encoding="utf-8"
             )
             (root / "device.sv").write_text(
-                "module device(input logic [15:0] addr, input logic valid, output logic ready, "
+                "module device(input logic clock, input logic reset, input logic [15:0] addr, input logic valid, output logic ready, "
                 "input logic [31:0] wdata, output logic [31:0] rdata); assign ready=valid; assign rdata=wdata; endmodule\n",
                 encoding="utf-8",
             )
@@ -237,11 +285,10 @@ class GenericAutoCompositionTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "ambiguous-protocol:opaque@1,opaque@2"):
                 plan_generic_composition(GenericCompositionRequest(description, ("device",)), base_dir=root,
                                          component_catalog=catalog, protocol_catalog=protocols)
-            plan = plan_generic_composition(GenericCompositionRequest(
-                description, ("device",), (("opaque", "2"), ("opaque", "1")),
-            ), base_dir=root, component_catalog=catalog, protocol_catalog=protocols)
-            self.assertEqual(plan.components[0]["protocol"]["version"], "2")
-            self.assertEqual(plan.components[0]["selected_endpoint"], "cpu.b")
+            with self.assertRaisesRegex(ValueError, "control-binding:clock"):
+                plan_generic_composition(GenericCompositionRequest(
+                    description, ("device",), (("opaque", "2"), ("opaque", "1")),
+                ), base_dir=root, component_catalog=catalog, protocol_catalog=protocols)
 
     @staticmethod
     def _opaque_protocol() -> ProtocolCatalog:
@@ -351,26 +398,11 @@ class GenericAutoCompositionTests(unittest.TestCase):
                 (), "implemented", ("device.sv",), True, {},
             ),))
 
-            plan = plan_generic_composition(
-                GenericCompositionRequest(description, ("device",), (("opaque", "1"),)),
-                base_dir=root,
-                component_catalog=catalog,
-                protocol_catalog=protocol,
-            )
-
-            self.assertEqual(plan.components[0]["base"], 0)
-            self.assertEqual(plan.components[0]["size"], 0x100)
-            self.assertTrue(any(match["accepted"] for match in plan.matches))
-
-            irq_catalog = ComponentCatalog((PeripheralProfile(
-                "irq_device", "device", (("opaque", "1"),), 0x100, 0x100, True,
-                (), "implemented", ("device.sv",), True, {},
-            ),))
-            with self.assertRaisesRegex(ValueError, "irq-endpoint-unavailable"):
+            with self.assertRaisesRegex(ValueError, "target-binding:control:clock"):
                 plan_generic_composition(
-                    GenericCompositionRequest(description, ("irq_device",), (("opaque", "1"),)),
+                    GenericCompositionRequest(description, ("device",), (("opaque", "1"),)),
                     base_dir=root,
-                    component_catalog=irq_catalog,
+                    component_catalog=catalog,
                     protocol_catalog=protocol,
                 )
 

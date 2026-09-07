@@ -133,6 +133,7 @@ class GenericCompositionPlan:
     interface_annotation_hash: str
     composition_ir_hash: str
     source_files: tuple[str, ...]
+    protocol_catalog: ProtocolCatalog | None
     complete: bool = True
 
     def __post_init__(self) -> None:
@@ -990,11 +991,85 @@ def _generic_target_capability(
             source=SourceReference(port.source_file, port.line, port.column),
             evidence=("component_hdl_declaration", "protocol_field_id"),
         ))
+    controls: dict[str, str] = {}
+    for role in ("clock", "reset"):
+        port = by_name.get(role)
+        if port is None or getattr(port, "direction", None) != "input":
+            raise AutoCompositionError(
+                f"generic:component:{profile.component_type}:target-binding:control:{role}"
+            )
+        controls[role] = getattr(port, "name")
+        fields.append(EndpointFieldFact(
+            role=role, port=controls[role], direction="input", width=1, signed=False,
+            source=SourceReference(port.source_file, port.line, port.column),
+            evidence=("component_hdl_declaration", "control_port"),
+        ))
     return EndpointCapability(
         endpoint_id=f"component.{profile.component_type}", function="protocol_target",
         side="target", protocol=protocol, fields=tuple(fields), clock=None,
         reset=None, timing=(), evidence=("component_profile", "component_hdl"),
     )
+
+
+def _generic_transport_capability(
+    endpoint: EndpointCapability, catalog: ProtocolCatalog,
+) -> EndpointCapability:
+    """Limit generic bridging to declared protocol fields, never port spellings."""
+    if endpoint.protocol is None:
+        raise AutoCompositionError("generic:protocol:ambiguous")
+    roles = {spec.field_id for spec in catalog.require(*endpoint.protocol).fields}
+    return EndpointCapability(
+        endpoint.endpoint_id, endpoint.function, endpoint.side, endpoint.protocol,
+        tuple(field for field in endpoint.fields if field.role in roles), None, None,
+        (), endpoint.evidence,
+    )
+
+
+def _generic_adapter_contract(
+    protocol: tuple[str, str], catalog: ProtocolCatalog,
+) -> dict[str, object]:
+    """Declare the sole bounded adapter shape this renderer can materialize."""
+    plugin = catalog.require(*protocol)
+    directions = {field.field_id: field.direction for field in plugin.fields}
+    required = {"valid": "host_to_device", "ready": "device_to_host", "error": "device_to_host"}
+    if any(directions.get(name) != direction for name, direction in required.items()):
+        raise AutoCompositionError(
+            f"generic:adapter:{protocol[0]}@{protocol[1]}:single-channel-contract"
+        )
+    address_ids = _generic_address_field_ids(catalog, protocol)
+    if len(address_ids) != 1:
+        raise AutoCompositionError(
+            f"generic:adapter:{protocol[0]}@{protocol[1]}:single-address-contract"
+        )
+    return {
+        "mode": "single_target_single_channel",
+        "request_field_id": "valid",
+        "response_field_id": "ready",
+        "error_field_id": "error",
+        "address_field_id": address_ids[0],
+        "request_fields": [field.field_id for field in plugin.fields if field.direction == "host_to_device"],
+        "response_fields": [field.field_id for field in plugin.fields if field.direction == "device_to_host" and field.field_id != "irq"],
+    }
+
+
+def _generic_control_binding(
+    source: EndpointCapability, target: EndpointCapability, component_type: str,
+) -> dict[str, dict[str, object]]:
+    source_fields = {field.role: field for field in source.fields}
+    target_fields = {field.role: field for field in target.fields}
+    result: dict[str, dict[str, object]] = {}
+    for role in ("clock", "reset"):
+        source_field, target_field = source_fields.get(role), target_fields.get(role)
+        if (
+            source_field is None or target_field is None
+            or source_field.direction != "input" or target_field.direction != "input"
+            or source_field.width != 1 or target_field.width != 1
+        ):
+            raise AutoCompositionError(
+                f"generic:component:{component_type}:control-binding:{role}"
+            )
+        result[role] = {"source_port": source_field.port, "target_port": target_field.port}
+    return result
 
 
 def _generic_compiled_protocols(
@@ -1138,6 +1213,7 @@ def plan_generic_composition(
     matches: list[Mapping[str, object]] = []
     diagnostics: list[str] = []
     catalog = component_catalog or load_builtin_component_catalog()
+    used_endpoints: set[str] = set()
     if request.component_types:
         if selected_protocol_catalog is None:
             raise AutoCompositionError("generic:protocol-catalog-required")
@@ -1171,9 +1247,11 @@ def plan_generic_composition(
                 target = _generic_target_capability(profile, protocol, root, selected_protocol_catalog)
                 compatible: list[tuple[EndpointCapability, Mapping[str, object]]] = []
                 for source in sources:
+                    transport_source = _generic_transport_capability(source, selected_protocol_catalog)
+                    transport_target = _generic_transport_capability(target, selected_protocol_catalog)
                     alternatives = match_endpoint_pair(
-                        source,
-                        target,
+                        transport_source,
+                        transport_target,
                         (),
                         protocol_catalog=selected_protocol_catalog,
                         compiled_protocols=_generic_compiled_protocols(source, target, selected_protocol_catalog),
@@ -1206,6 +1284,11 @@ def plan_generic_composition(
                 choices = ",".join(f"{item[2][0]}@{item[2][1]}" for item in accepted_candidates)
                 raise AutoCompositionError(f"generic:component:{component_type}:ambiguous-protocol:{choices}")
             accepted = accepted_candidates[0]
+            if accepted[0].endpoint_id in used_endpoints:
+                raise AutoCompositionError(
+                    f"generic:adapter:single-target-source:{accepted[0].endpoint_id}"
+                )
+            control = _generic_control_binding(accepted[0], accepted[1], component_type)
             for discarded in accepted_candidates[1:]:
                 diagnostics.append(
                     f"rejected:{component_type}:{discarded[2][0]}@{discarded[2][1]}:lower-preference"
@@ -1253,15 +1336,18 @@ def plan_generic_composition(
                              "column": field.source.column,
                          }}
                         for field in accepted[1].fields
-                    ],
+                    ], "control": control,
                 },
             })
+            used_endpoints.add(accepted[0].endpoint_id)
             if profile.irq_capable:
                 irq += 1
             address = base + size
             profiles[component_type] = profile
             source_files = tuple(sorted(set((*source_files, *profile.source_paths))))
         dependencies = _generic_dependencies(profiles)
+        if dependencies:
+            raise AutoCompositionError("generic:dependency:unbound-source-port")
     else:
         dependencies = ()
 
@@ -1278,6 +1364,9 @@ def plan_generic_composition(
          "source_endpoint_id": item["selected_endpoint"],
          "target_endpoint_id": item["target_binding"]["endpoint_id"],
          "max_wait_cycles": 16, "kind": "generic_protocol_bridge",
+         "contract": _generic_adapter_contract(
+             (item["protocol"]["id"], item["protocol"]["version"]), selected_protocol_catalog,
+         ),
          "address_field_ids": list(_generic_address_field_ids(
              selected_protocol_catalog, (item["protocol"]["id"], item["protocol"]["version"])
          )),
@@ -1288,6 +1377,7 @@ def plan_generic_composition(
                   selected_protocol_catalog, (item["protocol"]["id"], item["protocol"]["version"])
               )}
              for field in item["target_binding"]["fields"]
+             if field["role"] not in {"clock", "reset"}
          ]}
         for item in component_records
     ]
@@ -1296,7 +1386,7 @@ def plan_generic_composition(
          "component_id": item["component_id"], "source_endpoint_id": item["selected_endpoint"],
          "target_endpoint_id": item["target_binding"]["endpoint_id"],
          "protocol": [item["protocol"]["id"], item["protocol"]["version"]],
-         "target_binding": item["target_binding"]}
+         "target_binding": item["target_binding"], "control": item["target_binding"]["control"]}
         for item in component_records
     ]
     regions = [
@@ -1309,7 +1399,9 @@ def plan_generic_composition(
         {"route_id": canonical_id("generic-irq-route", str(item["component_id"])),
          "component_id": item["component_id"], "irq": item["irq"],
          "source_endpoint_id": item["selected_endpoint"],
-         "field_id": "irq"}
+         "field_id": "irq", "target_port": next(
+             field["port"] for field in item["target_binding"]["fields"] if field["role"] == "irq"
+         )}
         for item in component_records if item["irq"] is not None
     ]
     ir = canonical_ir_document({
@@ -1352,6 +1444,7 @@ def plan_generic_composition(
         interface_annotation_hash=annotation_hash,
         composition_ir_hash=canonical_ir_hash(ir),
         source_files=source_files,
+        protocol_catalog=selected_protocol_catalog,
     )
 
 

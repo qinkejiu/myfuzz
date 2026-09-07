@@ -9,12 +9,132 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from myfuzz.composition import GenericCompositionRequest, plan_generic_composition, write_generic_composition
+from myfuzz.composition import (
+    GenericCompositionRequest,
+    load_interface_description,
+    plan_generic_composition,
+    source_tree_hash,
+    write_generic_composition,
+)
 from myfuzz.composition import protocol_composer
 from tests.composition.test_generic_auto import GenericAutoCompositionTests, synthetic_description
 
 
 class GenericCompositionIntegrationTests(unittest.TestCase):
+    def test_writer_renders_stateful_bounded_adapter_with_real_control_nets(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            cpu = root / "source" / "rtl" / "bounded_cpu.sv"
+            cpu.parent.mkdir(parents=True)
+            cpu.write_text(
+                "module bounded_cpu(input logic clk, input logic rst, output logic [15:0] addr, "
+                "output logic valid, input logic ready, output logic [31:0] wdata, input logic [31:0] rdata, "
+                "input logic error, input logic irq, output logic monitor); "
+                "always_ff @(posedge clk or negedge rst) if (!rst) monitor <= 1'b0; else monitor <= valid; endmodule\n",
+                encoding="utf-8",
+            )
+            (root / "bounded_device.sv").write_text(
+                "module bounded_device(input logic clock, input logic reset, input logic [15:0] addr, "
+                "input logic valid, output logic ready, input logic [31:0] wdata, output logic [31:0] rdata, "
+                "output logic error, output logic irq); assign ready = valid; assign rdata = wdata; "
+                "assign error = 1'b0; assign irq = valid; endmodule\n",
+                encoding="utf-8",
+            )
+            from myfuzz.components.catalog import ComponentCatalog
+            from myfuzz.components.model import PeripheralProfile
+            from myfuzz.protocols.catalog import ProtocolCatalog
+            from myfuzz.protocols.model import FieldSpec, ProtocolPlugin
+            protocol = ProtocolCatalog((ProtocolPlugin("bounded", "1", (
+                FieldSpec("addr", "host_to_device", "address_width", True, 0),
+                FieldSpec("valid", "host_to_device", "1", True, 0),
+                FieldSpec("ready", "device_to_host", "1", True, 0),
+                FieldSpec("wdata", "host_to_device", "data_width", True, 0),
+                FieldSpec("rdata", "device_to_host", "data_width", True, 0),
+                FieldSpec("error", "device_to_host", "1", True, 0),
+                FieldSpec("irq", "device_to_host", "1", False, 0),
+            ), ()),))
+            description = load_interface_description({
+                "schema_version": "interface_description.v1",
+                "source": {"root": "source", "revision": source_tree_hash(root / "source", (cpu,)),
+                           "top_module": "bounded_cpu", "files": ["rtl/bounded_cpu.sv"]},
+                "endpoints": [{"endpoint_id": "cpu.mmio", "function": "memory_master", "module": "bounded_cpu",
+                               "protocol": ["bounded", "1"], "fields": [
+                                   {"role": role, "aliases": [port]} for role, port in (
+                                       ("clock", "clk"), ("reset", "rst"), ("monitor", "monitor"),
+                                       ("addr", "addr"), ("valid", "valid"), ("ready", "ready"),
+                                       ("wdata", "wdata"), ("rdata", "rdata"), ("error", "error"), ("irq", "irq"),
+                                   )
+                               ]}],
+            })
+            catalog = ComponentCatalog((PeripheralProfile(
+                "bounded", "bounded_device", (("bounded", "1"),), 0x100, 0x100,
+                True, (), "implemented", ("bounded_device.sv",), True, {},
+            ),))
+            plan = plan_generic_composition(
+                GenericCompositionRequest(description, ("bounded",), (("bounded", "1"),)),
+                base_dir=root, component_catalog=catalog, protocol_catalog=protocol,
+            )
+            write_generic_composition(plan, root / "out", base_dir=root)
+            top = (root / "out" / "generic_composition_top.sv").read_text(encoding="utf-8")
+            self.assertIn("typedef enum logic", top)
+            self.assertIn("wait_cycles", top)
+            self.assertIn("timeout_error", top)
+            self.assertIn("MAX_WAIT_CYCLES", top)
+            self.assertIn(".clock(p_", top)
+            self.assertIn(".reset(p_", top)
+            self.assertNotIn(" || ", top)
+
+    def test_writer_rejects_base_and_source_overlap_before_any_publish(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            description = synthetic_description(root, "sealed_boundary_cpu", ("clk", "rst", "fuzz", "seen"))
+            plan = plan_generic_composition(GenericCompositionRequest(description, ()), base_dir=root)
+            protected = (root, root / "source", root / "source" / "rtl" / "sealed_boundary_cpu.sv")
+            original_replace = protocol_composer.os.replace
+
+            def reject_publish(source, destination):
+                if Path(destination) in protected and ".generic-" in Path(source).name:
+                    raise AssertionError("writer attempted publication into protected source")
+                return original_replace(source, destination)
+
+            for output in protected:
+                with self.subTest(output=output), patch.object(
+                    protocol_composer.os, "replace", side_effect=reject_publish
+                ):
+                    with self.assertRaisesRegex(ValueError, "base_dir itself|overlaps source"):
+                        write_generic_composition(plan, output, base_dir=root)
+            self.assertTrue((root / "source" / "rtl" / "sealed_boundary_cpu.sv").is_file())
+
+    def test_writer_rejects_stale_source_evidence_and_mutated_ir(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            description = synthetic_description(root, "stale_cpu", ("clk", "rst", "fuzz", "seen"))
+            plan = plan_generic_composition(GenericCompositionRequest(description, ()), base_dir=root)
+            source = root / "source" / "rtl" / "stale_cpu.sv"
+            source.write_text(source.read_text(encoding="utf-8") + "// stale plan\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "stale source evidence"):
+                write_generic_composition(plan, root / "out", base_dir=root)
+
+            fresh = plan_generic_composition(
+                GenericCompositionRequest(
+                    load_interface_description({
+                        "schema_version": "interface_description.v1",
+                        "source": {"root": "source", "revision": source_tree_hash(root / "source", (source,)),
+                                   "top_module": "stale_cpu", "files": ["rtl/stale_cpu.sv"]},
+                        "endpoints": [{"endpoint_id": "cpu.control", "function": "control", "module": "stale_cpu",
+                                       "fields": [{"role": role, "aliases": [port]} for role, port in
+                                                  (("clock", "clk"), ("reset", "rst"), ("stimulus", "fuzz"), ("observation", "seen"))]}],
+                    }),
+                    (),
+                ),
+                base_dir=root,
+            )
+            changed_ir = dict(fresh.ir)
+            changed_ir["instances"] = [{"instance_id": "forged"}]
+            object.__setattr__(fresh, "ir", changed_ir)
+            with self.assertRaisesRegex(ValueError, "IR hash mismatch"):
+                write_generic_composition(fresh, root / "out", base_dir=root)
+
     def test_writer_renders_source_verified_component_adapter_and_routes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -25,20 +145,11 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
             from myfuzz.components.catalog import ComponentCatalog
             from myfuzz.components.model import PeripheralProfile
             catalog = ComponentCatalog((PeripheralProfile("device", "device", (("opaque", "1"),), 0x100, 0x100, True, (), "implemented", ("device.sv",), True, {}),))
-            plan = plan_generic_composition(
-                GenericCompositionRequest(GenericAutoCompositionTests._opaque_description(root, source), ("device",), (("opaque", "1"),)),
-                base_dir=root, component_catalog=catalog, protocol_catalog=GenericAutoCompositionTests._opaque_protocol(),
-            )
-            output = root / "out"
-            write_generic_composition(plan, output, base_dir=root)
-            top = (output / "generic_composition_top.sv").read_text(encoding="utf-8")
-            self.assertIn("device u_", top)
-            self.assertIn("myfuzz_generic_adapter_", top)
-            self.assertIn("component_select", top)
-            self.assertIn("IRQ_ROUTE", top)
-            document = json.loads((output / "composition_ir.json").read_text(encoding="utf-8"))
-            self.assertEqual(document["instances"][0]["module_name"], "device")
-            self.assertEqual(document["endpoint_bindings"][0]["source_endpoint_id"], "cpu.mmio")
+            with self.assertRaisesRegex(ValueError, "target-binding:control:clock"):
+                plan_generic_composition(
+                    GenericCompositionRequest(GenericAutoCompositionTests._opaque_description(root, source), ("device",), (("opaque", "1"),)),
+                    base_dir=root, component_catalog=catalog, protocol_catalog=GenericAutoCompositionTests._opaque_protocol(),
+                )
 
     def test_writer_uses_relative_stable_sources_and_rejects_external_output(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -116,7 +227,7 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
             }
             (root / "source" / "rtl" / "sealed_cpu.sv").unlink()
 
-            with self.assertRaisesRegex(ValueError, "source is missing"):
+            with self.assertRaisesRegex(ValueError, "stale source evidence"):
                 write_generic_composition(plan, output, base_dir=root)
 
             self.assertEqual(
@@ -184,6 +295,17 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
             self.assertEqual(observed[0].isa.xlen, 64)
             self.assertEqual(observed[0].isa.extensions, ("I", "M"))
             self.assertEqual(observed[0].seed, 23)
+
+    def test_cli_rejects_explicit_generic_default_seed_in_protocol_mode(self) -> None:
+        script = Path(__file__).resolve().parents[2] / "scripts" / "generate_composition.py"
+        spec = importlib.util.spec_from_file_location("generic_composition_cli_seed", script)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with patch.object(sys, "argv", [str(script), "--protocol-manifest", "plan.json", "--out-dir", "out", "--seed", "7"]):
+            with self.assertRaises(SystemExit) as raised:
+                module.parse_args()
+        self.assertEqual(raised.exception.code, 2)
 
 
 if __name__ == "__main__":
