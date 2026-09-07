@@ -1,16 +1,78 @@
 from __future__ import annotations
 
 import json
+import importlib.util
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from myfuzz.composition import GenericCompositionRequest, plan_generic_composition, write_generic_composition
-from tests.composition.test_generic_auto import synthetic_description
+from myfuzz.composition import protocol_composer
+from tests.composition.test_generic_auto import GenericAutoCompositionTests, synthetic_description
 
 
 class GenericCompositionIntegrationTests(unittest.TestCase):
+    def test_writer_renders_source_verified_component_adapter_and_routes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source" / "rtl" / "bus_cpu.sv"
+            source.parent.mkdir(parents=True)
+            source.write_text("module bus_cpu(output logic [15:0] addr, output logic valid, input logic ready, output logic [31:0] wdata, input logic [31:0] rdata, input logic irq); endmodule\n", encoding="utf-8")
+            (root / "device.sv").write_text("module device(input logic [15:0] addr, input logic valid, output logic ready, input logic [31:0] wdata, output logic [31:0] rdata, output logic irq); assign ready=valid; assign rdata=wdata; assign irq=valid; endmodule\n", encoding="utf-8")
+            from myfuzz.components.catalog import ComponentCatalog
+            from myfuzz.components.model import PeripheralProfile
+            catalog = ComponentCatalog((PeripheralProfile("device", "device", (("opaque", "1"),), 0x100, 0x100, True, (), "implemented", ("device.sv",), True, {}),))
+            plan = plan_generic_composition(
+                GenericCompositionRequest(GenericAutoCompositionTests._opaque_description(root, source), ("device",), (("opaque", "1"),)),
+                base_dir=root, component_catalog=catalog, protocol_catalog=GenericAutoCompositionTests._opaque_protocol(),
+            )
+            output = root / "out"
+            write_generic_composition(plan, output, base_dir=root)
+            top = (output / "generic_composition_top.sv").read_text(encoding="utf-8")
+            self.assertIn("device u_", top)
+            self.assertIn("myfuzz_generic_adapter_", top)
+            self.assertIn("component_select", top)
+            self.assertIn("IRQ_ROUTE", top)
+            document = json.loads((output / "composition_ir.json").read_text(encoding="utf-8"))
+            self.assertEqual(document["instances"][0]["module_name"], "device")
+            self.assertEqual(document["endpoint_bindings"][0]["source_endpoint_id"], "cpu.mmio")
+
+    def test_writer_uses_relative_stable_sources_and_rejects_external_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            description = synthetic_description(root, "portable_cpu", ("clk", "rst", "fuzz", "seen"))
+            plan = plan_generic_composition(GenericCompositionRequest(description, ()), base_dir=root)
+            first, second = root / "one", root / "two"
+            write_generic_composition(plan, first, base_dir=root)
+            write_generic_composition(plan, second, base_dir=root)
+            self.assertEqual((first / "sources.f").read_bytes(), (second / "sources.f").read_bytes())
+            self.assertEqual((first / "sources.f").read_text(encoding="utf-8"), "source/rtl/portable_cpu.sv\ngeneric_composition_top.sv\n")
+            with self.assertRaisesRegex(ValueError, "outside base_dir"):
+                write_generic_composition(plan, root.parent / "external", base_dir=root)
+
+    def test_writer_restores_entire_existing_output_when_publish_replacement_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            description = synthetic_description(root, "transaction_cpu", ("clk", "rst", "fuzz", "seen"))
+            output = root / "out"
+            original = plan_generic_composition(GenericCompositionRequest(description, (), seed=7), base_dir=root)
+            replacement = plan_generic_composition(GenericCompositionRequest(description, (), seed=8), base_dir=root)
+            write_generic_composition(original, output, base_dir=root)
+            before = {path.relative_to(output): path.read_bytes() for path in output.rglob("*") if path.is_file()}
+            original_replace = protocol_composer.os.replace
+
+            def fail_stage_publish(source, destination):
+                if Path(source).name.startswith(".out.generic-") and Path(destination) == output:
+                    raise OSError("injected publish failure")
+                return original_replace(source, destination)
+
+            with patch.object(protocol_composer.os, "replace", side_effect=fail_stage_publish):
+                with self.assertRaisesRegex(OSError, "injected publish failure"):
+                    write_generic_composition(replacement, output, base_dir=root)
+            self.assertEqual(before, {path.relative_to(output): path.read_bytes() for path in output.rglob("*") if path.is_file()})
     def test_writer_publishes_deterministic_ir_layout_top_and_source_list(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -37,7 +99,7 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
             self.assertIn("module generic_composition_top", top)
             self.assertIn("opaque_cpu", top)
             self.assertNotIn("ibex", top.lower())
-            self.assertIn((root / "source" / "rtl" / "opaque_cpu.sv").as_posix(), (first_dir / "sources.f").read_text(encoding="utf-8"))
+            self.assertEqual((first_dir / "sources.f").read_text(encoding="utf-8"), "source/rtl/opaque_cpu.sv\ngeneric_composition_top.sv\n")
             self.assertEqual(json.loads((first_dir / "composition_ir.json").read_text())["composition_kind"], "generic_composition")
 
     def test_writer_does_not_replace_existing_artifacts_after_source_disappears(self) -> None:
@@ -86,6 +148,42 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
             summary = json.loads(result.stdout)
             self.assertTrue(summary["complete"])
             self.assertTrue((root / "out" / "generic_composition_top.sv").is_file())
+
+    def test_cli_generic_options_are_forwarded_to_the_request(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            description = synthetic_description(root, "cli_options_cpu", ("clk", "rst", "fuzz", "seen"))
+            document = {
+                "schema_version": "interface_description.v1",
+                "source": {"root": description.source.source_root, "revision": description.source.revision,
+                           "top_module": description.source.top_module, "files": list(description.source.files)},
+                "endpoints": [{"endpoint_id": endpoint.endpoint_id, "function": endpoint.function,
+                               "module": endpoint.module,
+                               "fields": [{"role": field.role, "aliases": list(field.aliases)} for field in endpoint.fields]}
+                              for endpoint in description.endpoints],
+            }
+            (root / "interface.json").write_text(json.dumps(document), encoding="utf-8")
+            script = Path(__file__).resolve().parents[2] / "scripts" / "generate_composition.py"
+            spec = importlib.util.spec_from_file_location("generic_composition_cli", script)
+            assert spec is not None and spec.loader is not None
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            observed = []
+            summary = {"schema_version": "composition_ir.v1", "interface_annotation_hash": "a",
+                       "composition_ir_hash": "b", "layout_hash": "c", "top_path": "top",
+                       "source_list_path": "sources", "complete": True}
+            with patch.object(module, "plan_generic_composition", side_effect=lambda request, **_: observed.append(request) or object()), \
+                 patch.object(module, "write_generic_composition", return_value=summary), \
+                 patch.object(sys, "argv", [str(script), "--interface-description", "interface.json", "--base-dir", str(root),
+                                              "--out-dir", "out", "--component-type", "ram", "--component-type", "gpio",
+                                              "--protocol-preference", "obi@1", "--protocol-preference", "apb@4",
+                                              "--isa-xlen", "64", "--isa-extension", "I", "--isa-extension", "M", "--seed", "23"]):
+                self.assertEqual(module.main(), 0)
+            self.assertEqual(observed[0].component_types, ("ram", "gpio"))
+            self.assertEqual(observed[0].protocol_preferences, (("obi", "1"), ("apb", "4")))
+            self.assertEqual(observed[0].isa.xlen, 64)
+            self.assertEqual(observed[0].isa.extensions, ("I", "M"))
+            self.assertEqual(observed[0].seed, 23)
 
 
 if __name__ == "__main__":

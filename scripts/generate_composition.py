@@ -22,6 +22,7 @@ from myfuzz.composition import (  # noqa: E402
     write_generic_composition,
     write_protocol_composition,
 )
+from myfuzz.isa.constraints import IsaContract  # noqa: E402
 from myfuzz.scripts.composition_api import generate_compositions  # noqa: E402
 
 
@@ -44,6 +45,13 @@ _GENERIC_SUMMARY_KEYS = (
 )
 
 
+def _protocol_preference(value: str) -> tuple[str, str]:
+    protocol, separator, version = value.partition("@")
+    if separator != "@" or not protocol or not version or "@" in version:
+        raise argparse.ArgumentTypeError("protocol preference must be ID@VERSION")
+    return protocol, version
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -58,6 +66,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--interface-description", type=Path, help="source-pinned interface_description.v1 input")
     parser.add_argument("--base-dir", type=Path, help="base directory for generic source roots and output")
     parser.add_argument("--out-dir", type=Path, help="directory for generated files")
+    parser.add_argument("--component-type", action="append", default=[], help="generic implemented component type (repeatable)")
+    parser.add_argument("--protocol-preference", action="append", default=[], type=_protocol_preference,
+                        metavar="ID@VERSION", help="generic protocol preference, in priority order")
+    parser.add_argument("--isa-xlen", type=int, choices=(32, 64), help="generic RISC-V XLEN")
+    parser.add_argument("--isa-extension", action="append", default=[], help="generic ISA extension (repeatable)")
+    parser.add_argument("--seed", type=int, default=7, help="generic deterministic seed")
     parser.add_argument(
         "--root",
         type=Path,
@@ -81,6 +95,16 @@ def _validate_mode_arguments(args: argparse.Namespace) -> None:
         "--top-k": getattr(args, "top_k", None),
         "--frontend-library": getattr(args, "frontend_library", None),
     }
+    generic_values = {
+        "--component-type": getattr(args, "component_type", ()),
+        "--protocol-preference": getattr(args, "protocol_preference", ()),
+        "--isa-xlen": getattr(args, "isa_xlen", None),
+        "--isa-extension": getattr(args, "isa_extension", ()),
+        "--seed": getattr(args, "seed", 7),
+    }
+    uses_generic_options = bool(generic_values["--component-type"] or generic_values["--protocol-preference"]
+                                or generic_values["--isa-xlen"] is not None or generic_values["--isa-extension"]
+                                or generic_values["--seed"] != 7)
     if protocol_manifest is not None and interface_description is not None:
         raise ValueError("--protocol-manifest cannot be combined with --interface-description")
     if interface_description is not None:
@@ -95,11 +119,15 @@ def _validate_mode_arguments(args: argparse.Namespace) -> None:
             raise ValueError("--protocol-manifest cannot be combined with legacy options")
         if getattr(args, "base_dir", None) is not None:
             raise ValueError("--base-dir requires --interface-description")
+        if uses_generic_options:
+            raise ValueError("generic options require --interface-description")
     else:
         if getattr(args, "root", None) is not None:
             raise ValueError("--root requires --protocol-manifest")
         if getattr(args, "base_dir", None) is not None:
             raise ValueError("--base-dir requires --interface-description")
+        if uses_generic_options:
+            raise ValueError("generic options require --interface-description")
         missing = [
             name
             for name in ("--config", "--frontend", "--top-k")
@@ -110,6 +138,11 @@ def _validate_mode_arguments(args: argparse.Namespace) -> None:
 
     if getattr(args, "out_dir", None) is None:
         raise ValueError("--out-dir is required")
+    if interface_description is not None:
+        has_xlen = getattr(args, "isa_xlen", None) is not None
+        has_extensions = bool(getattr(args, "isa_extension", ()))
+        if has_xlen != has_extensions:
+            raise ValueError("--isa-xlen and --isa-extension must be provided together")
 
 
 def _resolve_from_root(root: Path, value: Path) -> Path:
@@ -160,10 +193,13 @@ def main() -> int:
             base_dir = _resolve_from_root(Path.cwd(), args.base_dir)
             description_path = _resolve_from_root(base_dir, interface_description)
             output_path = _resolve_from_root(base_dir, args.out_dir)
-            plan = plan_generic_composition(
-                GenericCompositionRequest(load_interface_description(description_path), ()),
-                base_dir=base_dir,
-            )
+            isa = None
+            if args.isa_xlen is not None:
+                isa = IsaContract(args.isa_xlen, tuple(args.isa_extension))
+            plan = plan_generic_composition(GenericCompositionRequest(
+                load_interface_description(description_path), tuple(args.component_type),
+                tuple(args.protocol_preference), isa=isa, seed=args.seed,
+            ), base_dir=base_dir)
             summary = _validate_generic_summary(
                 write_generic_composition(plan, output_path, base_dir=base_dir)
             )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import os
 import tempfile
 from collections.abc import Mapping
@@ -24,6 +25,7 @@ from myfuzz.protocols.model import CompiledField, CompiledProtocol
 from .endpoint_capabilities import (
     EndpointCapability,
     EndpointFieldFact,
+    SourceReference,
     match_endpoint_pair,
     normalize_annotations,
 )
@@ -32,6 +34,8 @@ from .input_layout import InputLayout, build_input_layout, input_layout_document
 from .interface_description import InterfaceDescription
 from .ir import canonical_ir_document, canonical_ir_hash
 from .source_crawler import annotate_interfaces
+from .source_crawler import SourceCrawler, SourceCrawlError, source_tree_hash
+from .interface_description import SourceLocator
 
 
 class AutoCompositionError(ValueError):
@@ -938,41 +942,58 @@ def _generic_ir_evidence(value: object) -> object:
 
 
 def _generic_target_capability(
-    component_type: str,
+    profile: PeripheralProfile,
     protocol: tuple[str, str],
-    source: EndpointCapability,
+    root: Path,
+    catalog: ProtocolCatalog,
 ) -> EndpointCapability:
-    """Use a checked source endpoint as a physical compatibility contract.
+    """Derive a target binding from actual component source, or fail closed.
 
-    Current component profiles declare protocol support but not a separate
-    source-pinned component interface.  Mirroring the physical contract here
-    is deliberately only a planner proof; rendering still exposes the source
-    CPU ports rather than guessing peripheral port names.
+    A profile's protocol declaration is selection metadata, not evidence that
+    its HDL has compatible pins.  The generic route therefore accepts only
+    source ports named by the protocol's stable field IDs (or an eventual
+    profile-provided mapping) and records their exact locations in the plan.
     """
-    reverse = {"input": "output", "output": "input"}
-    if any(field.direction not in reverse for field in source.fields):
-        raise AutoCompositionError(f"generic:component:{component_type}:inout-unsupported")
+    try:
+        paths = tuple(_generic_source_path(root, item) for item in profile.source_paths)
+        locator = SourceLocator(
+            source_root=".",
+            revision=source_tree_hash(root, paths),
+            top_module=profile.module_name,
+            files=profile.source_paths,
+        )
+        snapshot = SourceCrawler().crawl(locator, base_dir=root)
+    except (SourceCrawlError, OSError, ValueError) as error:
+        raise AutoCompositionError(f"generic:component:{profile.component_type}:target-binding:source") from error
+    ports = [port for port in snapshot.ports if port.module == profile.module_name]
+    if profile.module_name not in snapshot.modules:
+        raise AutoCompositionError(f"generic:component:{profile.component_type}:target-binding:module:{profile.module_name}")
+    plugin = catalog.require(*protocol)
+    by_name: dict[str, object] = {}
+    for port in ports:
+        if port.name in by_name:
+            raise AutoCompositionError(f"generic:component:{profile.component_type}:target-binding:ambiguous-port:{port.name}")
+        by_name[port.name] = port
+    fields: list[EndpointFieldFact] = []
+    for spec in plugin.fields:
+        port = by_name.get(spec.field_id)
+        if port is None:
+            if spec.required:
+                raise AutoCompositionError(f"generic:component:{profile.component_type}:target-binding:required-field:{spec.field_id}")
+            continue
+        expected = "input" if spec.direction == "host_to_device" else "output"
+        if port.direction != expected:
+            raise AutoCompositionError(f"generic:component:{profile.component_type}:target-binding:direction:{spec.field_id}")
+        fields.append(EndpointFieldFact(
+            role=spec.field_id, port=port.name, direction=port.direction,
+            width=port.width, signed=port.signed,
+            source=SourceReference(port.source_file, port.line, port.column),
+            evidence=("component_hdl_declaration", "protocol_field_id"),
+        ))
     return EndpointCapability(
-        endpoint_id=f"component.{component_type}",
-        function="protocol_target",
-        side="target",
-        protocol=protocol,
-        fields=tuple(
-            EndpointFieldFact(
-                role=field.role,
-                port=field.port,
-                direction=reverse[field.direction],
-                width=field.width,
-                signed=field.signed,
-                source=field.source,
-                evidence=("profile_protocol_contract",),
-            )
-            for field in source.fields
-        ),
-        clock=source.clock,
-        reset=source.reset,
-        timing=source.timing,
-        evidence=("profile_protocol_contract",),
+        endpoint_id=f"component.{profile.component_type}", function="protocol_target",
+        side="target", protocol=protocol, fields=tuple(fields), clock=None,
+        reset=None, timing=(), evidence=("component_profile", "component_hdl"),
     )
 
 
@@ -1026,16 +1047,40 @@ def _generic_dependencies(profiles: Mapping[str, PeripheralProfile]) -> tuple[tu
     return tuple(sorted(set(edges)))
 
 
-def _generic_address_width(capabilities: tuple[EndpointCapability, ...]) -> int:
-    widths = {
-        field.width
-        for endpoint in capabilities
-        for field in endpoint.fields
-        if field.role in {"address", "addr"}
-    }
+def _generic_address_width(
+    capabilities: tuple[EndpointCapability, ...], catalog: ProtocolCatalog | None,
+) -> int:
+    widths: set[int] = set()
+    for endpoint in capabilities:
+        fields = {field.role: field for field in endpoint.fields}
+        address_roles = {"address", "addr"}
+        if catalog is not None and endpoint.protocol is not None:
+            plugin = catalog.require(*endpoint.protocol)
+            address_roles.update(
+                spec.field_id for spec in plugin.fields
+                if "address_width" in _generic_width_expression_names(spec.width_expression)
+            )
+        widths.update(field.width for role, field in fields.items() if role in address_roles)
     if len(widths) != 1:
         raise AutoCompositionError("generic:address-width:ambiguous")
     return widths.pop()
+
+
+def _generic_width_expression_names(expression: str) -> frozenset[str]:
+    """Return only stable parameter identifiers used by a protocol width."""
+    try:
+        tree = ast.parse(expression, mode="eval")
+    except (SyntaxError, TypeError) as error:
+        raise AutoCompositionError("generic:protocol:width-expression") from error
+    return frozenset(node.id for node in ast.walk(tree) if isinstance(node, ast.Name))
+
+
+def _generic_address_field_ids(catalog: ProtocolCatalog, protocol: tuple[str, str]) -> tuple[str, ...]:
+    return tuple(
+        spec.field_id
+        for spec in catalog.require(*protocol).fields
+        if "address_width" in _generic_width_expression_names(spec.width_expression)
+    )
 
 
 def _generic_irq_capacity(capabilities: tuple[EndpointCapability, ...]) -> int:
@@ -1094,10 +1139,12 @@ def plan_generic_composition(
     diagnostics: list[str] = []
     catalog = component_catalog or load_builtin_component_catalog()
     if request.component_types:
-        address_width = _generic_address_width(capabilities)
+        if selected_protocol_catalog is None:
+            raise AutoCompositionError("generic:protocol-catalog-required")
+        address_width = _generic_address_width(capabilities, selected_protocol_catalog)
         address = 0
         irq = 0
-        for component_type in sorted(request.component_types):
+        for component_type in request.component_types:
             try:
                 profile = catalog.require(component_type)
             except ComponentDefinitionError as error:
@@ -1106,14 +1153,14 @@ def plan_generic_composition(
                 raise AutoCompositionError(f"generic:component:{component_type}:unavailable")
             for source_file in profile.source_paths:
                 _generic_source_path(root, source_file)
-            candidates = tuple(
-                pair for pair in profile.protocols
-                if not request.protocol_preferences or pair in request.protocol_preferences
+            candidates = (
+                tuple(pair for pair in request.protocol_preferences if pair in profile.protocols)
+                if request.protocol_preferences else profile.protocols
             )
             if not candidates:
                 raise AutoCompositionError(f"generic:component:{component_type}:protocol-preference")
-            accepted: tuple[EndpointCapability, tuple[str, str], Mapping[str, object]] | None = None
-            for protocol in sorted(candidates):
+            accepted_candidates: list[tuple[EndpointCapability, EndpointCapability, tuple[str, str], Mapping[str, object]]] = []
+            for protocol in candidates:
                 sources = tuple(
                     endpoint for endpoint in capabilities
                     if endpoint.side == "initiator" and endpoint.protocol == protocol
@@ -1121,8 +1168,9 @@ def plan_generic_composition(
                 if not sources:
                     diagnostics.append(f"rejected:{component_type}:{protocol[0]}@{protocol[1]}:no-source-endpoint")
                     continue
+                target = _generic_target_capability(profile, protocol, root, selected_protocol_catalog)
+                compatible: list[tuple[EndpointCapability, Mapping[str, object]]] = []
                 for source in sources:
-                    target = _generic_target_capability(component_type, protocol, source)
                     alternatives = match_endpoint_pair(
                         source,
                         target,
@@ -1130,7 +1178,12 @@ def plan_generic_composition(
                         protocol_catalog=selected_protocol_catalog,
                         compiled_protocols=_generic_compiled_protocols(source, target, selected_protocol_catalog),
                     )
-                    matches.extend(alternatives)
+                    matches.extend(
+                        {**item, "component_type": component_type,
+                         "source_endpoint_id": source.endpoint_id,
+                         "target_endpoint_id": target.endpoint_id}
+                        for item in alternatives
+                    )
                     selected = next((item for item in alternatives if item["accepted"]), None)
                     if selected is None:
                         diagnostics.extend(
@@ -1138,12 +1191,25 @@ def plan_generic_composition(
                             for item in alternatives for reason in item["reasons"]  # type: ignore[index]
                         )
                         continue
-                    accepted = (source, protocol, selected)
-                    break
-                if accepted is not None:
-                    break
-            if accepted is None:
+                    compatible.append((source, selected))
+                if len(compatible) > 1:
+                    endpoints = ",".join(sorted(source.endpoint_id for source, _ in compatible))
+                    raise AutoCompositionError(
+                        f"generic:component:{component_type}:ambiguous-source-endpoint:{endpoints}"
+                    )
+                if compatible:
+                    source, selected = compatible[0]
+                    accepted_candidates.append((source, target, protocol, selected))
+            if not accepted_candidates:
                 raise AutoCompositionError(f"generic:component:{component_type}:no-compatible-endpoint")
+            if not request.protocol_preferences and len(accepted_candidates) > 1:
+                choices = ",".join(f"{item[2][0]}@{item[2][1]}" for item in accepted_candidates)
+                raise AutoCompositionError(f"generic:component:{component_type}:ambiguous-protocol:{choices}")
+            accepted = accepted_candidates[0]
+            for discarded in accepted_candidates[1:]:
+                diagnostics.append(
+                    f"rejected:{component_type}:{discarded[2][0]}@{discarded[2][1]}:lower-preference"
+                )
             alignment = profile.address_alignment
             if alignment <= 0 or alignment & (alignment - 1):
                 raise AutoCompositionError(f"generic:component:{component_type}:invalid-alignment")
@@ -1158,17 +1224,37 @@ def plan_generic_composition(
                 raise AutoCompositionError(
                     f"generic:component:{component_type}:irq-endpoint-unavailable"
                 )
+            if profile.irq_capable:
+                source_roles = {field.role for field in accepted[0].fields}
+                target_roles = {field.role for field in accepted[1].fields}
+                if "irq" not in source_roles or "irq" not in target_roles:
+                    raise AutoCompositionError(
+                        f"generic:component:{component_type}:irq-route-unavailable"
+                    )
             component_records.append({
                 "component_id": component_id,
                 "component_type": component_type,
                 "module_name": profile.module_name,
-                "protocol": {"id": accepted[1][0], "version": accepted[1][1]},
+                "protocol": {"id": accepted[2][0], "version": accepted[2][1]},
                 "base": base,
                 "size": size,
                 "irq": irq if profile.irq_capable else None,
                 "parameters": _default_parameters(profile),
                 "source_files": list(profile.source_paths),
                 "selected_endpoint": accepted[0].endpoint_id,
+                "target_binding": {
+                    "endpoint_id": accepted[1].endpoint_id,
+                    "module": profile.module_name,
+                    "fields": [
+                        {"role": field.role, "port": field.port, "direction": field.direction,
+                         "width": field.width,
+                         "source": None if field.source is None else {
+                             "file": field.source.file, "line": field.source.line,
+                             "column": field.source.column,
+                         }}
+                        for field in accepted[1].fields
+                    ],
+                },
             })
             if profile.irq_capable:
                 irq += 1
@@ -1180,14 +1266,66 @@ def plan_generic_composition(
         dependencies = ()
 
     annotation_hash = content_hash(annotations)
+    instances = [
+        {"instance_id": canonical_id("generic-component-instance", str(item["component_id"])),
+         "component_id": item["component_id"], "module_name": item["module_name"],
+         "parameters": item["parameters"], "role": item["component_type"]}
+        for item in component_records
+    ]
+    adapters = [
+        {"adapter_id": canonical_id("generic-adapter", str(item["component_id"])),
+         "component_id": item["component_id"], "protocol": [item["protocol"]["id"], item["protocol"]["version"]],
+         "source_endpoint_id": item["selected_endpoint"],
+         "target_endpoint_id": item["target_binding"]["endpoint_id"],
+         "max_wait_cycles": 16, "kind": "generic_protocol_bridge",
+         "address_field_ids": list(_generic_address_field_ids(
+             selected_protocol_catalog, (item["protocol"]["id"], item["protocol"]["version"])
+         )),
+         "fields": [
+             {"field_id": field["role"], "target_port": field["port"],
+              "direction": field["direction"], "width": field["width"],
+              "address": field["role"] in _generic_address_field_ids(
+                  selected_protocol_catalog, (item["protocol"]["id"], item["protocol"]["version"])
+              )}
+             for field in item["target_binding"]["fields"]
+         ]}
+        for item in component_records
+    ]
+    bindings = [
+        {"binding_id": canonical_id("generic-binding", str(item["component_id"])),
+         "component_id": item["component_id"], "source_endpoint_id": item["selected_endpoint"],
+         "target_endpoint_id": item["target_binding"]["endpoint_id"],
+         "protocol": [item["protocol"]["id"], item["protocol"]["version"]],
+         "target_binding": item["target_binding"]}
+        for item in component_records
+    ]
+    regions = [
+        {"region_id": canonical_id("generic-address-region", str(item["component_id"])),
+         "component_id": item["component_id"], "base": item["base"], "size": item["size"],
+         "end": int(item["base"]) + int(item["size"]), "address_width": address_width}
+        for item in component_records
+    ] if request.component_types else []
+    irq_routes = [
+        {"route_id": canonical_id("generic-irq-route", str(item["component_id"])),
+         "component_id": item["component_id"], "irq": item["irq"],
+         "source_endpoint_id": item["selected_endpoint"],
+         "field_id": "irq"}
+        for item in component_records if item["irq"] is not None
+    ]
     ir = canonical_ir_document({
         "schema_version": "composition_ir.v1",
         "composition_kind": "generic_composition",
-        "target": {"top_module": "generic_composition_top", "source_top_module": request.interface_description.source.top_module},
+        "target": {"top_module": "generic_composition_top", "source_top_module": request.interface_description.source.top_module,
+                   "address_width": address_width if request.component_types else None},
         "interface_annotation_hash": annotation_hash,
         "capabilities": [_generic_capability_document(item) for item in capabilities],
-        "components": sorted(component_records, key=lambda item: str(item["component_id"])),
-        "dependencies": [list(item) for item in dependencies],
+        "components": component_records,
+        "instances": instances,
+        "adapters": adapters,
+        "endpoint_bindings": bindings,
+        "address_regions": regions,
+        "irq_routes": irq_routes,
+        "dependencies": [[f"{item[0]}0", f"{item[1]}0"] for item in dependencies],
         "runtime": {"seed": request.seed},
         "match_alternatives": _generic_ir_evidence(matches),
         "input_layout": {

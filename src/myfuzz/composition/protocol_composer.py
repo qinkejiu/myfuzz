@@ -1147,7 +1147,9 @@ def _generic_source(root: Path, relative: str) -> Path:
     return candidate
 
 
-def _generic_port_records(plan: object) -> tuple[dict[str, object], ...]:
+def _generic_port_records(
+    plan: object, *, internal_ports: frozenset[str] = frozenset(), require_records: bool = True,
+) -> tuple[dict[str, object], ...]:
     annotations = getattr(plan, "annotations", None)
     if not isinstance(annotations, Mapping):
         raise ValueError("generic composition plan annotations are invalid")
@@ -1168,6 +1170,8 @@ def _generic_port_records(plan: object) -> tuple[dict[str, object], ...]:
                 or isinstance(width, bool) or not isinstance(width, int) or width <= 0
             ):
                 raise ValueError("generic composition field facts are invalid")
+            if port in internal_ports:
+                continue
             identity = f"{endpoint['endpoint_id']}:{field.get('role')}:{port}"
             opaque = f"p_{canonical_id('generic-top-port', identity):016x}"
             record = {
@@ -1181,26 +1185,37 @@ def _generic_port_records(plan: object) -> tuple[dict[str, object], ...]:
             if existing is not None and existing != record:
                 raise ValueError(f"generic composition port facts conflict: {port}")
             records[port] = record
-    if not records:
+    if require_records and not records:
         raise ValueError("generic composition has no source-backed ports")
     return tuple(sorted(records.values(), key=lambda item: str(item["opaque_port"])))
 
 
-def _render_generic_top(plan: object) -> str:
-    ports = _generic_port_records(plan)
+def _generic_source_top(plan: object, *, internal_ports: frozenset[str] = frozenset()) -> tuple[str, dict[str, dict[str, object]]]:
+    ports = _generic_port_records(plan, internal_ports=internal_ports, require_records=False)
     description = getattr(plan, "interface_description", None)
     source = getattr(description, "source", None)
     top_module = getattr(source, "top_module", None)
     if not isinstance(top_module, str) or not top_module:
         raise ValueError("generic composition source top module is invalid")
-    declarations = []
+    declarations: list[str] = []
     for record in ports:
         width = int(record["width"])
         shape = "logic" if width == 1 else f"logic {'signed ' if record['signed'] else ''}[{width - 1}:0]"
         signed = " signed" if record["signed"] and width == 1 else ""
         declarations.append(f"    {record['direction']} {shape}{signed} {record['opaque_port']}")
+    return top_module, {str(record["source_port"]): record for record in ports}
+
+
+def _render_generic_source_only_top(plan: object) -> str:
+    top_module, ports = _generic_source_top(plan)
+    declarations = []
+    for record in sorted(ports.values(), key=lambda item: str(item["opaque_port"])):
+        width = int(record["width"])
+        shape = "logic" if width == 1 else f"logic {'signed ' if record['signed'] else ''}[{width - 1}:0]"
+        signed = " signed" if record["signed"] and width == 1 else ""
+        declarations.append(f"    {record['direction']} {shape}{signed} {record['opaque_port']}")
     instance = f"u_{canonical_id('generic-source-instance', top_module):016x}"
-    connections = [f"        .{record['source_port']}({record['opaque_port']})" for record in ports]
+    connections = [f"        .{record['source_port']}({record['opaque_port']})" for record in sorted(ports.values(), key=lambda item: str(item["opaque_port"]))]
     return "\n".join([
         "// Generated from source-backed interface annotations. Do not edit.",
         "module generic_composition_top (",
@@ -1214,12 +1229,230 @@ def _render_generic_top(plan: object) -> str:
     ])
 
 
+def _sv_identifier(value: object, *, context: str) -> str:
+    if not isinstance(value, str) or re.fullmatch(r"[A-Za-z_][A-Za-z0-9_$]*", value) is None:
+        raise ValueError(f"generic composition {context} is not a SystemVerilog identifier")
+    return value
+
+
+def _sv_logic(name: str, width: int, *, signed: bool = False) -> str:
+    if width <= 0:
+        raise ValueError("generic composition wire width is invalid")
+    if width == 1:
+        return f"logic{' signed' if signed else ''} {name}"
+    return f"logic {'signed ' if signed else ''}[{width - 1}:0] {name}"
+
+
+def _sv_literal(width: int, value: int) -> str:
+    if width <= 0 or value < 0 or value >= 1 << width:
+        raise ValueError("generic composition address literal is invalid")
+    return f"{width}'h{value:x}"
+
+
+def _generic_routes(plan: object) -> tuple[dict[str, object], ...]:
+    """Validate the IR topology used by the name-independent renderer."""
+    ir = getattr(plan, "ir", None)
+    capabilities = getattr(plan, "capabilities", None)
+    components = getattr(plan, "components", None)
+    if not isinstance(ir, Mapping) or not isinstance(capabilities, tuple) or not isinstance(components, tuple):
+        raise ValueError("generic composition topology is invalid")
+    adapters = ir.get("adapters")
+    regions = ir.get("address_regions")
+    irq_routes = ir.get("irq_routes")
+    if not isinstance(adapters, (tuple, list)) or not isinstance(regions, (tuple, list)) or not isinstance(irq_routes, (tuple, list)):
+        raise ValueError("generic composition topology is missing")
+    irq_components = {
+        item.get("component_id") for item in irq_routes
+        if isinstance(item, Mapping) and item.get("field_id") == "irq"
+    }
+    by_component = {item.get("component_id"): item for item in components if isinstance(item, Mapping)}
+    by_region = {item.get("component_id"): item for item in regions if isinstance(item, Mapping)}
+    by_endpoint = {item.endpoint_id: item for item in capabilities}
+    routes: list[dict[str, object]] = []
+    for raw in adapters:
+        if not isinstance(raw, Mapping):
+            raise ValueError("generic composition adapter is invalid")
+        component_id = raw.get("component_id")
+        component, region = by_component.get(component_id), by_region.get(component_id)
+        source = by_endpoint.get(raw.get("source_endpoint_id"))
+        if not isinstance(component_id, str) or component is None or region is None or source is None:
+            raise ValueError("generic composition adapter binding is invalid")
+        fields = raw.get("fields")
+        if not isinstance(fields, (tuple, list)) or not fields:
+            raise ValueError("generic composition adapter fields are invalid")
+        source_fields = {field.role: field for field in source.fields}
+        route_fields: list[dict[str, object]] = []
+        for field in fields:
+            if not isinstance(field, Mapping):
+                raise ValueError("generic composition adapter field is invalid")
+            field_id, target_port = field.get("field_id"), field.get("target_port")
+            direction, width = field.get("direction"), field.get("width")
+            source_field = source_fields.get(field_id)
+            if (
+                not isinstance(field_id, str) or source_field is None
+                or not isinstance(target_port, str) or not isinstance(direction, str)
+                or isinstance(width, bool) or not isinstance(width, int) or width != source_field.width
+                or direction not in {"input", "output"}
+            ):
+                raise ValueError("generic composition adapter field binding is invalid")
+            route_fields.append({
+                "field_id": field_id, "source_port": source_field.port, "source_direction": source_field.direction,
+                "target_port": target_port, "direction": direction, "width": width,
+                "signed": source_field.signed, "address": field.get("address") is True,
+                "irq_route": component_id in irq_components and field_id == "irq",
+            })
+        address_fields = [field for field in route_fields if field["address"]]
+        if not address_fields:
+            raise ValueError("generic composition adapter has no address field")
+        base, size = region.get("base"), region.get("size")
+        if (
+            isinstance(base, bool) or not isinstance(base, int) or base < 0
+            or isinstance(size, bool) or not isinstance(size, int) or size <= 0
+        ):
+            raise ValueError("generic composition address region is invalid")
+        routes.append({
+            "component_id": component_id, "module_name": component.get("module_name"),
+            "parameters": component.get("parameters", {}), "fields": tuple(route_fields),
+            "base": base, "size": size, "adapter_id": raw.get("adapter_id"),
+            "max_wait_cycles": raw.get("max_wait_cycles"), "source_endpoint_id": source.endpoint_id,
+        })
+    return tuple(sorted(routes, key=lambda item: str(item["component_id"])))
+
+
+def _route_tag(route: Mapping[str, object]) -> str:
+    return f"{canonical_id('generic-render-route', str(route['component_id'])):016x}"
+
+
+def _render_generic_adapter(route: Mapping[str, object]) -> str:
+    tag = _route_tag(route)
+    module = f"myfuzz_generic_adapter_{tag}"
+    address_width = max(int(field["width"]) for field in route["fields"] if field["address"])
+    max_wait = route["max_wait_cycles"]
+    if isinstance(max_wait, bool) or not isinstance(max_wait, int) or not 0 <= max_wait <= 16:
+        raise ValueError("generic composition adapter bound is invalid")
+    ports = ["    input logic component_select"]
+    assignments: list[str] = [f"  localparam int unsigned MAX_WAIT_CYCLES = {max_wait};"]
+    for field in route["fields"]:
+        field_id = f"f_{canonical_id('generic-render-field', str(field['field_id'])):016x}"
+        width, signed = int(field["width"]), bool(field["signed"])
+        shape = _sv_logic(field_id, width, signed=signed).rsplit(" ", 1)[0]
+        if field["direction"] == "input":
+            ports.extend((f"    input {shape} source_{field_id}", f"    output {shape} target_{field_id}"))
+            expression = f"source_{field_id}"
+            if field["address"]:
+                expression = f"(source_{field_id} - ADDRESS_BASE)"
+            assignments.append(f"  assign target_{field_id} = component_select ? {expression} : '0;")
+        else:
+            ports.extend((f"    input {shape} target_{field_id}", f"    output {shape} response_{field_id}"))
+            assignments.append(f"  assign response_{field_id} = component_select ? target_{field_id} : '0;")
+    return "\n".join([
+        f"module {module} #(",
+        f"    parameter logic [{address_width - 1}:0] ADDRESS_BASE = {_sv_literal(address_width, int(route['base']))}",
+        ") (",
+        ",\n".join(ports),
+        ");",
+        *assignments,
+        "endmodule",
+        "",
+    ])
+
+
+def _render_generic_top(plan: object) -> str:
+    routes = _generic_routes(plan)
+    if not routes:
+        return _render_generic_source_only_top(plan)
+    internal_ports = frozenset(
+        str(field["source_port"]) for route in routes for field in route["fields"]
+    )
+    top_module, external_ports = _generic_source_top(plan, internal_ports=internal_ports)
+    all_ports = _generic_port_records(plan)
+    source_records = {str(record["source_port"]): record for record in all_ports}
+    lines = ["// Generated from source-backed interface annotations. Do not edit.", "module generic_composition_top ("]
+    declarations = []
+    for record in sorted(external_ports.values(), key=lambda item: str(item["opaque_port"])):
+        width = int(record["width"])
+        shape = "logic" if width == 1 else f"logic {'signed ' if record['signed'] else ''}[{width - 1}:0]"
+        signed = " signed" if record["signed"] and width == 1 else ""
+        declarations.append(f"    {record['direction']} {shape}{signed} {record['opaque_port']}")
+    lines.extend((",\n".join(declarations), ");"))
+    for port in sorted(internal_ports):
+        record = source_records.get(port)
+        if record is None:
+            raise ValueError("generic composition internal source port is missing")
+        lines.append("  " + _sv_logic(f"source_{canonical_id('generic-render-source-port', port):016x}", int(record["width"]), signed=bool(record["signed"])) + ";")
+    source_instance = f"u_{canonical_id('generic-source-instance', top_module):016x}"
+    lines.extend((f"  {top_module} {source_instance} (",))
+    source_connections = []
+    for port, record in sorted(source_records.items()):
+        signal = record["opaque_port"] if port not in internal_ports else f"source_{canonical_id('generic-render-source-port', port):016x}"
+        source_connections.append(f"        .{_sv_identifier(port, context='source port')}({signal})")
+    lines.extend((",\n".join(source_connections), "  );"))
+    responses: dict[str, list[str]] = {}
+    irq_targets: dict[str, list[str]] = {}
+    for route in routes:
+        tag = _route_tag(route)
+        component_select = f"component_select_{tag}"
+        terms = [
+            f"(source_{canonical_id('generic-render-source-port', str(field['source_port'])):016x} >= {_sv_literal(int(field['width']), int(route['base']))} && source_{canonical_id('generic-render-source-port', str(field['source_port'])):016x} < {_sv_literal(int(field['width']), int(route['base']) + int(route['size']))})"
+            for field in route["fields"] if field["address"]
+        ]
+        lines.extend((f"  logic {component_select};", f"  assign {component_select} = " + " || ".join(terms) + ";"))
+        for field in route["fields"]:
+            field_tag = f"f_{canonical_id('generic-render-field', str(field['field_id'])):016x}"
+            wire = f"component_{tag}_{field_tag}"
+            lines.append("  " + _sv_logic(wire, int(field["width"]), signed=bool(field["signed"])) + ";")
+        module_name = _sv_identifier(route["module_name"], context="component module")
+        parameter_text = []
+        if not isinstance(route["parameters"], Mapping):
+            raise ValueError("generic composition component parameters are invalid")
+        for name, value in sorted(route["parameters"].items()):
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise ValueError("generic composition component parameter is invalid")
+            parameter_text.append(f".{_sv_identifier(name, context='component parameter')}({value})")
+        instance = f"u_{canonical_id('generic-component-instance', str(route['component_id'])):016x}"
+        lines.append(f"  {module_name}" + (" #(\n        " + ",\n        ".join(parameter_text) + "\n  )" if parameter_text else "") + f" {instance} (")
+        component_connections = []
+        for field in route["fields"]:
+            field_tag = f"f_{canonical_id('generic-render-field', str(field['field_id'])):016x}"
+            component_connections.append(f"        .{_sv_identifier(field['target_port'], context='component port')}(component_{tag}_{field_tag})")
+        lines.extend((",\n".join(component_connections), "  );"))
+        adapter_module = f"myfuzz_generic_adapter_{tag}"
+        adapter_connections = [f"        .component_select({component_select})"]
+        for field in route["fields"]:
+            field_tag = f"f_{canonical_id('generic-render-field', str(field['field_id'])):016x}"
+            source_signal = f"source_{canonical_id('generic-render-source-port', str(field['source_port'])):016x}"
+            component_signal = f"component_{tag}_{field_tag}"
+            if field["direction"] == "input":
+                adapter_connections.extend((f"        .source_{field_tag}({source_signal})", f"        .target_{field_tag}({component_signal})"))
+            else:
+                response = f"response_{tag}_{field_tag}"
+                lines.append("  " + _sv_logic(response, int(field["width"]), signed=bool(field["signed"])) + ";")
+                adapter_connections.extend((f"        .target_{field_tag}({component_signal})", f"        .response_{field_tag}({response})"))
+                if field["irq_route"]:
+                    irq_targets.setdefault(str(field["source_port"]), []).append(component_signal)
+                else:
+                    responses.setdefault(str(field["source_port"]), []).append(response)
+        lines.extend((f"  {adapter_module} u_{canonical_id('generic-adapter-instance', str(route['component_id'])):016x} (", ",\n".join(adapter_connections), "  );"))
+    for port, wires in sorted(responses.items()):
+        signal = f"source_{canonical_id('generic-render-source-port', port):016x}"
+        lines.append(f"  assign {signal} = " + " | ".join(wires) + ";")
+    for port, wires in sorted(irq_targets.items()):
+        signal = f"source_{canonical_id('generic-render-source-port', port):016x}"
+        lines.append(f"  // IRQ_ROUTE: source endpoint receives the OR of source-proven component IRQ fields.")
+        lines.append(f"  assign {signal} = " + " | ".join(wires) + ";")
+    lines.append("endmodule\n")
+    lines.extend(_render_generic_adapter(route) for route in routes)
+    return "\n".join(lines)
+
+
 def _validate_generic_top(text: str, *, source_paths: tuple[Path, ...], top_path: Path | None = None) -> None:
     """Use the existing lightweight frontend boundary, with structural fallback."""
     from .metadata import semantic_source_hash
 
     semantic_source_hash(text, context="generic.composition.top")
-    if text.count("module ") != 1 or text.count("endmodule") != 1:
+    if not text.startswith("// Generated from source-backed interface annotations. Do not edit.\nmodule generic_composition_top "):
+        raise ValueError("generic composition top structure is invalid")
+    if text.count("module ") != text.count("endmodule") or text.count("module ") < 1:
         raise ValueError("generic composition top structure is invalid")
     if top_path is not None and shutil.which("verilator") is not None:
         result = subprocess.run(
@@ -1245,12 +1478,17 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
     sources = tuple(_generic_source(root, source) for source in plan.source_files)
     top_text = _render_generic_top(plan)
     output = Path(output_dir).resolve()
+    try:
+        output.relative_to(root)
+    except ValueError as error:
+        raise ValueError("generic composition output is outside base_dir") from error
     output_parent = output.parent
     output_parent.mkdir(parents=True, exist_ok=True)
     ir_payload = canonical_bytes(_generic_plain(plan.ir))
     layout_payload = canonical_bytes(_generic_plain(input_layout_document(plan.layout)))
-    source_list = "\n".join([*(item.as_posix() for item in sources), (output / "generic_composition_top.sv").as_posix()]) + "\n"
+    source_list = "\n".join([*plan.source_files, "generic_composition_top.sv"]) + "\n"
     stage: Path | None = Path(tempfile.mkdtemp(prefix=f".{output.name}.generic-", dir=output_parent))
+    backup: Path | None = None
     try:
         (stage / "composition_ir.json").write_bytes(ir_payload)
         (stage / "input_layout.json").write_bytes(layout_payload)
@@ -1265,13 +1503,30 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
             os.replace(stage, output)
             stage = None
         else:
-            for name in ("composition_ir.json", "input_layout.json", "generic_composition_top.sv", "sources.f"):
-                os.replace(stage / name, output / name)
+            backup = Path(tempfile.mkdtemp(prefix=f".{output.name}.backup-", dir=output_parent))
+            backup.rmdir()
+            os.replace(output, backup)
+            try:
+                os.replace(stage, output)
+                stage = None
+            except BaseException:
+                if output.exists():
+                    failed = Path(tempfile.mkdtemp(prefix=f".{output.name}.failed-", dir=output_parent))
+                    failed.rmdir()
+                    os.replace(output, failed)
+                    shutil.rmtree(failed)
+                os.replace(backup, output)
+                backup = None
+                raise
+            shutil.rmtree(backup)
+            backup = None
     finally:
         if stage is not None and stage.exists():
-            for child in stage.iterdir():
-                child.unlink()
-            stage.rmdir()
+            shutil.rmtree(stage)
+        if backup is not None and backup.exists() and output.exists():
+            # A successful replacement owns the published directory.  A
+            # failed replacement restores this backup before it can escape.
+            shutil.rmtree(backup)
     return {
         "schema_version": "composition_ir.v1",
         "interface_annotation_hash": plan.interface_annotation_hash,
