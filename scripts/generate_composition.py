@@ -15,7 +15,13 @@ SRC = ROOT / "src"
 if SRC.as_posix() not in sys.path:
     sys.path.insert(0, SRC.as_posix())
 
-from myfuzz.composition import write_protocol_composition  # noqa: E402
+from myfuzz.composition import (  # noqa: E402
+    GenericCompositionRequest,
+    load_interface_description,
+    plan_generic_composition,
+    write_generic_composition,
+    write_protocol_composition,
+)
 from myfuzz.scripts.composition_api import generate_compositions  # noqa: E402
 
 
@@ -24,6 +30,15 @@ _PROTOCOL_SUMMARY_KEYS = (
     "manifest_hash",
     "ir_path",
     "wrapper_path",
+    "source_list_path",
+    "complete",
+)
+_GENERIC_SUMMARY_KEYS = (
+    "schema_version",
+    "interface_annotation_hash",
+    "composition_ir_hash",
+    "layout_hash",
+    "top_path",
     "source_list_path",
     "complete",
 )
@@ -40,6 +55,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--frontend", type=Path, help="legacy HDL facts")
     parser.add_argument("--top-k", type=int, help="legacy candidate count")
     parser.add_argument("--protocol-manifest", type=Path, help="protocol_composition.v1 manifest")
+    parser.add_argument("--interface-description", type=Path, help="source-pinned interface_description.v1 input")
+    parser.add_argument("--base-dir", type=Path, help="base directory for generic source roots and output")
     parser.add_argument("--out-dir", type=Path, help="directory for generated files")
     parser.add_argument(
         "--root",
@@ -57,18 +74,32 @@ def parse_args() -> argparse.Namespace:
 
 def _validate_mode_arguments(args: argparse.Namespace) -> None:
     protocol_manifest = getattr(args, "protocol_manifest", None)
+    interface_description = getattr(args, "interface_description", None)
     legacy_values = {
         "--config": getattr(args, "config", None),
         "--frontend": getattr(args, "frontend", None),
         "--top-k": getattr(args, "top_k", None),
         "--frontend-library": getattr(args, "frontend_library", None),
     }
-    if protocol_manifest is not None:
+    if protocol_manifest is not None and interface_description is not None:
+        raise ValueError("--protocol-manifest cannot be combined with --interface-description")
+    if interface_description is not None:
+        if any(value is not None for value in legacy_values.values()):
+            raise ValueError("--interface-description cannot be combined with legacy options")
+        if getattr(args, "root", None) is not None:
+            raise ValueError("--root cannot be combined with --interface-description")
+        if getattr(args, "base_dir", None) is None:
+            raise ValueError("--base-dir is required with --interface-description")
+    elif protocol_manifest is not None:
         if any(value is not None for value in legacy_values.values()):
             raise ValueError("--protocol-manifest cannot be combined with legacy options")
+        if getattr(args, "base_dir", None) is not None:
+            raise ValueError("--base-dir requires --interface-description")
     else:
         if getattr(args, "root", None) is not None:
             raise ValueError("--root requires --protocol-manifest")
+        if getattr(args, "base_dir", None) is not None:
+            raise ValueError("--base-dir requires --interface-description")
         missing = [
             name
             for name in ("--config", "--frontend", "--top-k")
@@ -105,12 +136,38 @@ def _validate_protocol_summary(summary: object) -> dict[str, object]:
     return dict(summary)
 
 
+def _validate_generic_summary(summary: object) -> dict[str, object]:
+    if not isinstance(summary, Mapping):
+        raise ValueError("generic composition summary must be an object")
+    missing = [key for key in _GENERIC_SUMMARY_KEYS if key not in summary]
+    if missing:
+        raise ValueError("generic composition summary missing keys: " + ", ".join(missing))
+    for key in _GENERIC_SUMMARY_KEYS[:-1]:
+        if not isinstance(summary[key], str) or not summary[key]:
+            raise ValueError(f"generic composition summary {key} must be a non-empty string")
+    if not isinstance(summary["complete"], bool):
+        raise ValueError("generic composition summary complete must be boolean")
+    return dict(summary)
+
+
 def main() -> int:
     args = parse_args()
     try:
         _validate_mode_arguments(args)
         protocol_manifest = getattr(args, "protocol_manifest", None)
-        if protocol_manifest is not None:
+        interface_description = getattr(args, "interface_description", None)
+        if interface_description is not None:
+            base_dir = _resolve_from_root(Path.cwd(), args.base_dir)
+            description_path = _resolve_from_root(base_dir, interface_description)
+            output_path = _resolve_from_root(base_dir, args.out_dir)
+            plan = plan_generic_composition(
+                GenericCompositionRequest(load_interface_description(description_path), ()),
+                base_dir=base_dir,
+            )
+            summary = _validate_generic_summary(
+                write_generic_composition(plan, output_path, base_dir=base_dir)
+            )
+        elif protocol_manifest is not None:
             root_value = ROOT if getattr(args, "root", None) is None else args.root
             root = _resolve_from_root(Path.cwd(), root_value)
             manifest_path = _resolve_from_root(root, protocol_manifest)

@@ -4,7 +4,10 @@ from .auto import (
     AutoCompositionError,
     AutoCompositionPlan,
     AutoCompositionRequest,
+    GenericCompositionPlan,
+    GenericCompositionRequest,
     plan_auto_composition,
+    plan_generic_composition,
     write_auto_composition_manifest,
 )
 from .declarations import DeclarationError, DeclarationSet, load_declarations
@@ -44,6 +47,7 @@ from .manifest import candidate_manifest
 from .protocol_composer import (
     CompositionArtifact,
     compose_protocol_composition,
+    write_generic_composition,
     write_protocol_composition,
 )
 from .protocol_manifest import (
@@ -60,6 +64,8 @@ __all__ = [
     "AutoCompositionError",
     "AutoCompositionPlan",
     "AutoCompositionRequest",
+    "GenericCompositionPlan",
+    "GenericCompositionRequest",
     "AdapterCapability",
     "DeclarationError",
     "DeclarationSet",
@@ -105,9 +111,11 @@ __all__ = [
     "load_protocol_composition",
     "normalize_facts",
     "plan_auto_composition",
+    "plan_generic_composition",
     "source_tree_hash",
     "validate_protocol_composition",
     "validate_protocol_fingerprint",
     "write_protocol_composition",
+    "write_generic_composition",
     "write_auto_composition_manifest",
 ]

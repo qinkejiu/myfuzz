@@ -16,7 +16,22 @@ from myfuzz.components import (
     load_builtin_component_catalog,
 )
 from myfuzz.contracts import canonical_bytes, content_hash
+from myfuzz.isa.constraints import IsaContract
 from myfuzz.isa import CpuCatalog, CpuDefinitionError, CpuProfile, load_builtin_cpu_catalog
+from myfuzz.protocols.catalog import ProtocolCatalog
+from myfuzz.protocols.model import CompiledField, CompiledProtocol
+
+from .endpoint_capabilities import (
+    EndpointCapability,
+    EndpointFieldFact,
+    match_endpoint_pair,
+    normalize_annotations,
+)
+from .ids import canonical_id
+from .input_layout import InputLayout, build_input_layout, input_layout_document
+from .interface_description import InterfaceDescription
+from .ir import canonical_ir_document, canonical_ir_hash
+from .source_crawler import annotate_interfaces
 
 
 class AutoCompositionError(ValueError):
@@ -61,6 +76,68 @@ class AutoCompositionRequest:
             raise AutoCompositionError("protocol_preferences:type") from error
         object.__setattr__(self, "component_types", component_types)
         object.__setattr__(self, "protocol_preferences", preferences)
+
+
+@dataclass(frozen=True, slots=True)
+class GenericCompositionRequest:
+    """A source-annotated, CPU-name-independent composition request."""
+
+    interface_description: InterfaceDescription
+    component_types: tuple[str, ...]
+    protocol_preferences: tuple[tuple[str, str], ...] = ()
+    isa: IsaContract | None = None
+    seed: int = _DEFAULT_SEED
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.interface_description, InterfaceDescription):
+            raise AutoCompositionError("generic:interface-description:type")
+        if isinstance(self.component_types, str):
+            raise AutoCompositionError("generic:component-types:type")
+        try:
+            component_types = tuple(self.component_types)
+            preferences = tuple(tuple(item) for item in self.protocol_preferences)
+        except TypeError as error:
+            raise AutoCompositionError("generic:request:type") from error
+        if any(not isinstance(item, str) or not item for item in component_types):
+            raise AutoCompositionError("generic:component-types:invalid")
+        if len(component_types) != len(set(component_types)):
+            raise AutoCompositionError("generic:component-types:duplicate")
+        if any(len(item) != 2 or not all(isinstance(value, str) and value for value in item) for item in preferences):
+            raise AutoCompositionError("generic:protocol-preferences:invalid")
+        if len(preferences) != len(set(preferences)):
+            raise AutoCompositionError("generic:protocol-preferences:duplicate")
+        if self.isa is not None and not isinstance(self.isa, IsaContract):
+            raise AutoCompositionError("generic:isa:type")
+        if not _integer(self.seed) or self.seed < 0:
+            raise AutoCompositionError("generic:seed:invalid")
+        object.__setattr__(self, "component_types", component_types)
+        object.__setattr__(self, "protocol_preferences", preferences)
+
+
+@dataclass(frozen=True, slots=True)
+class GenericCompositionPlan:
+    """Fully validated inputs for generic top-level publication."""
+
+    interface_description: InterfaceDescription
+    annotations: Mapping[str, object]
+    capabilities: tuple[EndpointCapability, ...]
+    components: tuple[Mapping[str, object], ...]
+    matches: tuple[Mapping[str, object], ...]
+    diagnostics: tuple[str, ...]
+    layout: InputLayout
+    ir: Mapping[str, object]
+    interface_annotation_hash: str
+    composition_ir_hash: str
+    source_files: tuple[str, ...]
+    complete: bool = True
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "annotations", _freeze_nested(self.annotations))
+        object.__setattr__(self, "components", tuple(_freeze_nested(item) for item in self.components))
+        object.__setattr__(self, "matches", tuple(_freeze_nested(item) for item in self.matches))
+        object.__setattr__(self, "diagnostics", tuple(self.diagnostics))
+        object.__setattr__(self, "ir", _freeze_nested(self.ir))
+        object.__setattr__(self, "source_files", tuple(self.source_files))
 
 
 def _freeze_nested(value: object) -> object:
@@ -796,10 +873,357 @@ def write_auto_composition_manifest(plan: AutoCompositionPlan, path: Path) -> No
                 pass
 
 
+def _generic_source_path(base_dir: Path, source_path: str) -> Path:
+    """Resolve one evidence path without allowing it to escape *base_dir*."""
+    if not _safe_source_evidence_path(source_path):
+        raise AutoCompositionError(f"generic:source-path:invalid:{source_path}")
+    root = base_dir.resolve()
+    candidate = (root / source_path).resolve(strict=False)
+    try:
+        candidate.relative_to(root)
+    except ValueError as error:
+        raise AutoCompositionError(f"generic:source-path:outside-base:{source_path}") from error
+    if not candidate.is_file():
+        raise AutoCompositionError(f"generic:source-path:missing:{source_path}")
+    return candidate
+
+
+def _generic_capability_document(capability: EndpointCapability) -> dict[str, object]:
+    return {
+        "endpoint_id": capability.endpoint_id,
+        "function": capability.function,
+        "side": capability.side,
+        "protocol": None if capability.protocol is None else list(capability.protocol),
+        "clock": capability.clock,
+        "reset": capability.reset,
+        "fields": [
+            {
+                "role": field.role,
+                "port": field.port,
+                "direction": field.direction,
+                "width": field.width,
+                "signed": field.signed,
+                "source": None if field.source is None else {
+                    "file_id": canonical_id("generic-source-file", field.source.file),
+                    "line": field.source.line,
+                    "column": field.source.column,
+                },
+                "evidence": list(field.evidence),
+            }
+            for field in capability.fields
+        ],
+        "evidence": list(capability.evidence),
+    }
+
+
+def _generic_ir_evidence(value: object) -> object:
+    """Keep evidence in IR without embedding checkout-relative path spellings."""
+    if isinstance(value, Mapping):
+        result: dict[str, object] = {}
+        for key, item in value.items():
+            if key == "source" and isinstance(item, Mapping) and isinstance(item.get("file"), str):
+                result[str(key)] = {
+                    "file_id": canonical_id("generic-source-file", item["file"]),
+                    "line": item.get("line"),
+                    "column": item.get("column"),
+                }
+            elif key == "source_files" and isinstance(item, (tuple, list)):
+                result[str(key)] = [canonical_id("generic-source-file", source) for source in item]
+            else:
+                result[str(key)] = _generic_ir_evidence(item)
+        return result
+    if isinstance(value, (tuple, list)):
+        return [_generic_ir_evidence(item) for item in value]
+    return value
+
+
+def _generic_target_capability(
+    component_type: str,
+    protocol: tuple[str, str],
+    source: EndpointCapability,
+) -> EndpointCapability:
+    """Use a checked source endpoint as a physical compatibility contract.
+
+    Current component profiles declare protocol support but not a separate
+    source-pinned component interface.  Mirroring the physical contract here
+    is deliberately only a planner proof; rendering still exposes the source
+    CPU ports rather than guessing peripheral port names.
+    """
+    reverse = {"input": "output", "output": "input"}
+    if any(field.direction not in reverse for field in source.fields):
+        raise AutoCompositionError(f"generic:component:{component_type}:inout-unsupported")
+    return EndpointCapability(
+        endpoint_id=f"component.{component_type}",
+        function="protocol_target",
+        side="target",
+        protocol=protocol,
+        fields=tuple(
+            EndpointFieldFact(
+                role=field.role,
+                port=field.port,
+                direction=reverse[field.direction],
+                width=field.width,
+                signed=field.signed,
+                source=field.source,
+                evidence=("profile_protocol_contract",),
+            )
+            for field in source.fields
+        ),
+        clock=source.clock,
+        reset=source.reset,
+        timing=source.timing,
+        evidence=("profile_protocol_contract",),
+    )
+
+
+def _generic_compiled_protocols(
+    source: EndpointCapability,
+    target: EndpointCapability,
+    catalog: ProtocolCatalog,
+) -> dict[str, CompiledProtocol]:
+    if source.protocol is None or target.protocol is None:
+        raise AutoCompositionError("generic:protocol:ambiguous")
+    plugin = catalog.require(*source.protocol)
+    fields = {field.role: field for field in source.fields}
+    target_fields = {field.role: field for field in target.fields}
+    compiled: dict[str, CompiledProtocol] = {}
+    for endpoint, records in ((source, fields), (target, target_fields)):
+        compiled[endpoint.endpoint_id] = CompiledProtocol(
+            endpoint.endpoint_id,
+            source.protocol[0],
+            source.protocol[1],
+            tuple(
+                CompiledField(spec.field_id, spec.direction, records[spec.field_id].width,
+                              records[spec.field_id].port, spec.reset_value)
+                for spec in plugin.fields
+                if spec.field_id in records
+            ),
+        )
+    return compiled
+
+
+def _generic_dependencies(profiles: Mapping[str, PeripheralProfile]) -> tuple[tuple[str, str], ...]:
+    edges: list[tuple[str, str]] = []
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(component_type: str, trail: tuple[str, ...]) -> None:
+        if component_type in visiting:
+            raise AutoCompositionError("generic:dependency-cycle:" + "->".join((*trail, component_type)))
+        if component_type in visited:
+            return
+        visiting.add(component_type)
+        for dependency in sorted(profiles[component_type].requires):
+            if dependency not in profiles:
+                raise AutoCompositionError(f"generic:dependency:{component_type}:missing:{dependency}")
+            edges.append((component_type, dependency))
+            visit(dependency, (*trail, component_type))
+        visiting.remove(component_type)
+        visited.add(component_type)
+
+    for component_type in sorted(profiles):
+        visit(component_type, ())
+    return tuple(sorted(set(edges)))
+
+
+def _generic_address_width(capabilities: tuple[EndpointCapability, ...]) -> int:
+    widths = {
+        field.width
+        for endpoint in capabilities
+        for field in endpoint.fields
+        if field.role in {"address", "addr"}
+    }
+    if len(widths) != 1:
+        raise AutoCompositionError("generic:address-width:ambiguous")
+    return widths.pop()
+
+
+def _generic_irq_capacity(capabilities: tuple[EndpointCapability, ...]) -> int:
+    """Return source-proven interrupt inputs available to selected devices."""
+    return sum(
+        field.width
+        for endpoint in capabilities
+        for field in endpoint.fields
+        if endpoint.side == "initiator"
+        and field.direction == "input"
+        and field.role in {"irq", "interrupt", "interrupts"}
+    )
+
+
+def plan_generic_composition(
+    request: GenericCompositionRequest,
+    *,
+    base_dir: Path,
+    component_catalog: ComponentCatalog | None = None,
+    protocol_catalog: ProtocolCatalog | None = None,
+) -> GenericCompositionPlan:
+    """Validate a source-backed composition before any file is published."""
+    if not isinstance(request, GenericCompositionRequest):
+        raise AutoCompositionError("generic:request:type")
+    root = Path(base_dir)
+    if not root.is_dir():
+        raise AutoCompositionError("generic:base-dir:missing")
+    selected_protocol_catalog = protocol_catalog
+    if selected_protocol_catalog is None and any(endpoint.protocol for endpoint in request.interface_description.endpoints):
+        # The built-in catalog is data, not a CPU or renderer selection table.
+        from myfuzz.protocols.catalog import _builtin_catalog
+        selected_protocol_catalog = _builtin_catalog()
+    annotations = annotate_interfaces(
+        request.interface_description,
+        base_dir=root,
+        protocol_catalog=selected_protocol_catalog,
+    )
+    capabilities = normalize_annotations(annotations, protocol_catalog=selected_protocol_catalog)
+    if not capabilities:
+        raise AutoCompositionError("generic:annotations:empty")
+    layout = build_input_layout(annotations, isa=request.isa)
+
+    source_prefix = request.interface_description.source.source_root.rstrip("/")
+    source_files = tuple(
+        sorted(
+            f"{source_prefix}/{source_file}" if source_prefix else source_file
+            for source_file in annotations["source"]["files"]  # type: ignore[index]
+        )
+    )
+    for source_file in source_files:
+        _generic_source_path(root, source_file)
+
+    profiles: dict[str, PeripheralProfile] = {}
+    component_records: list[dict[str, object]] = []
+    matches: list[Mapping[str, object]] = []
+    diagnostics: list[str] = []
+    catalog = component_catalog or load_builtin_component_catalog()
+    if request.component_types:
+        address_width = _generic_address_width(capabilities)
+        address = 0
+        irq = 0
+        for component_type in sorted(request.component_types):
+            try:
+                profile = catalog.require(component_type)
+            except ComponentDefinitionError as error:
+                raise AutoCompositionError(f"generic:component:{component_type}:unknown") from error
+            if not profile.implemented or profile.source_status != "implemented":
+                raise AutoCompositionError(f"generic:component:{component_type}:unavailable")
+            for source_file in profile.source_paths:
+                _generic_source_path(root, source_file)
+            candidates = tuple(
+                pair for pair in profile.protocols
+                if not request.protocol_preferences or pair in request.protocol_preferences
+            )
+            if not candidates:
+                raise AutoCompositionError(f"generic:component:{component_type}:protocol-preference")
+            accepted: tuple[EndpointCapability, tuple[str, str], Mapping[str, object]] | None = None
+            for protocol in sorted(candidates):
+                sources = tuple(
+                    endpoint for endpoint in capabilities
+                    if endpoint.side == "initiator" and endpoint.protocol == protocol
+                )
+                if not sources:
+                    diagnostics.append(f"rejected:{component_type}:{protocol[0]}@{protocol[1]}:no-source-endpoint")
+                    continue
+                for source in sources:
+                    target = _generic_target_capability(component_type, protocol, source)
+                    alternatives = match_endpoint_pair(
+                        source,
+                        target,
+                        (),
+                        protocol_catalog=selected_protocol_catalog,
+                        compiled_protocols=_generic_compiled_protocols(source, target, selected_protocol_catalog),
+                    )
+                    matches.extend(alternatives)
+                    selected = next((item for item in alternatives if item["accepted"]), None)
+                    if selected is None:
+                        diagnostics.extend(
+                            f"rejected:{component_type}:{protocol[0]}@{protocol[1]}:{reason}"
+                            for item in alternatives for reason in item["reasons"]  # type: ignore[index]
+                        )
+                        continue
+                    accepted = (source, protocol, selected)
+                    break
+                if accepted is not None:
+                    break
+            if accepted is None:
+                raise AutoCompositionError(f"generic:component:{component_type}:no-compatible-endpoint")
+            alignment = profile.address_alignment
+            if alignment <= 0 or alignment & (alignment - 1):
+                raise AutoCompositionError(f"generic:component:{component_type}:invalid-alignment")
+            size = profile.default_size
+            if size <= 0 or size % alignment:
+                raise AutoCompositionError(f"generic:component:{component_type}:invalid-size")
+            base = _align_up(address, alignment)
+            if base + size > 1 << address_width:
+                raise AutoCompositionError(f"generic:component:{component_type}:address-outside-width")
+            component_id = f"{component_type}0"
+            if profile.irq_capable and irq >= _generic_irq_capacity(capabilities):
+                raise AutoCompositionError(
+                    f"generic:component:{component_type}:irq-endpoint-unavailable"
+                )
+            component_records.append({
+                "component_id": component_id,
+                "component_type": component_type,
+                "module_name": profile.module_name,
+                "protocol": {"id": accepted[1][0], "version": accepted[1][1]},
+                "base": base,
+                "size": size,
+                "irq": irq if profile.irq_capable else None,
+                "parameters": _default_parameters(profile),
+                "source_files": list(profile.source_paths),
+                "selected_endpoint": accepted[0].endpoint_id,
+            })
+            if profile.irq_capable:
+                irq += 1
+            address = base + size
+            profiles[component_type] = profile
+            source_files = tuple(sorted(set((*source_files, *profile.source_paths))))
+        dependencies = _generic_dependencies(profiles)
+    else:
+        dependencies = ()
+
+    annotation_hash = content_hash(annotations)
+    ir = canonical_ir_document({
+        "schema_version": "composition_ir.v1",
+        "composition_kind": "generic_composition",
+        "target": {"top_module": "generic_composition_top", "source_top_module": request.interface_description.source.top_module},
+        "interface_annotation_hash": annotation_hash,
+        "capabilities": [_generic_capability_document(item) for item in capabilities],
+        "components": sorted(component_records, key=lambda item: str(item["component_id"])),
+        "dependencies": [list(item) for item in dependencies],
+        "runtime": {"seed": request.seed},
+        "match_alternatives": _generic_ir_evidence(matches),
+        "input_layout": {
+            "schema_version": layout.schema_version,
+            "raw_width": layout.raw_width,
+            "layout_hash": layout.layout_hash,
+            "fields": [
+                {key: value for key, value in field.items() if key != "provenance"}
+                for field in input_layout_document(layout)["fields"]
+            ],
+        },
+        "source_file_ids": [canonical_id("generic-source-file", item) for item in source_files],
+        "diagnostics": {"errors": [], "warnings": sorted(set(diagnostics))},
+    })
+    return GenericCompositionPlan(
+        interface_description=request.interface_description,
+        annotations=annotations,
+        capabilities=capabilities,
+        components=tuple(component_records),
+        matches=tuple(matches),
+        diagnostics=tuple(sorted(set(diagnostics))),
+        layout=layout,
+        ir=ir,
+        interface_annotation_hash=annotation_hash,
+        composition_ir_hash=canonical_ir_hash(ir),
+        source_files=source_files,
+    )
+
+
 __all__ = [
     "AutoCompositionError",
     "AutoCompositionPlan",
     "AutoCompositionRequest",
+    "GenericCompositionPlan",
+    "GenericCompositionRequest",
     "plan_auto_composition",
+    "plan_generic_composition",
     "write_auto_composition_manifest",
 ]

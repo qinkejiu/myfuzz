@@ -4,15 +4,20 @@ from __future__ import annotations
 
 import ast
 import json
+import os
 import re
+import shutil
+import subprocess
+import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from myfuzz.contracts import content_hash
+from myfuzz.contracts import canonical_bytes, content_hash
 from myfuzz.protocols.catalog import ProtocolCatalog, load_protocol_catalog
 
 from .ids import canonical_id
+from .input_layout import input_layout_document
 from .ir import canonical_ir_document, canonical_ir_hash
 from .protocol_manifest import (
     CompositionComponent,
@@ -1123,8 +1128,164 @@ def write_protocol_composition(
     }
 
 
+def _generic_plain(value: object) -> object:
+    if isinstance(value, Mapping):
+        return {str(key): _generic_plain(item) for key, item in value.items()}
+    if isinstance(value, tuple | list):
+        return [_generic_plain(item) for item in value]
+    return value
+
+
+def _generic_source(root: Path, relative: str) -> Path:
+    candidate = (root / relative).resolve(strict=False)
+    try:
+        candidate.relative_to(root)
+    except ValueError as error:
+        raise ValueError(f"generic composition source escapes base_dir: {relative}") from error
+    if not candidate.is_file():
+        raise ValueError(f"generic composition source is missing: {relative}")
+    return candidate
+
+
+def _generic_port_records(plan: object) -> tuple[dict[str, object], ...]:
+    annotations = getattr(plan, "annotations", None)
+    if not isinstance(annotations, Mapping):
+        raise ValueError("generic composition plan annotations are invalid")
+    endpoints = annotations.get("endpoints")
+    if not isinstance(endpoints, list | tuple):
+        raise ValueError("generic composition plan endpoints are invalid")
+    records: dict[str, dict[str, object]] = {}
+    for endpoint in endpoints:
+        if not isinstance(endpoint, Mapping) or not isinstance(endpoint.get("endpoint_id"), str):
+            raise ValueError("generic composition endpoint is invalid")
+        for field in endpoint.get("fields", ()):
+            if not isinstance(field, Mapping):
+                raise ValueError("generic composition field is invalid")
+            port, direction, width = field.get("port"), field.get("direction"), field.get("width")
+            if (
+                not isinstance(port, str) or not port
+                or direction not in {"input", "output"}
+                or isinstance(width, bool) or not isinstance(width, int) or width <= 0
+            ):
+                raise ValueError("generic composition field facts are invalid")
+            identity = f"{endpoint['endpoint_id']}:{field.get('role')}:{port}"
+            opaque = f"p_{canonical_id('generic-top-port', identity):016x}"
+            record = {
+                "source_port": port,
+                "opaque_port": opaque,
+                "direction": direction,
+                "width": width,
+                "signed": field.get("signed", False),
+            }
+            existing = records.get(port)
+            if existing is not None and existing != record:
+                raise ValueError(f"generic composition port facts conflict: {port}")
+            records[port] = record
+    if not records:
+        raise ValueError("generic composition has no source-backed ports")
+    return tuple(sorted(records.values(), key=lambda item: str(item["opaque_port"])))
+
+
+def _render_generic_top(plan: object) -> str:
+    ports = _generic_port_records(plan)
+    description = getattr(plan, "interface_description", None)
+    source = getattr(description, "source", None)
+    top_module = getattr(source, "top_module", None)
+    if not isinstance(top_module, str) or not top_module:
+        raise ValueError("generic composition source top module is invalid")
+    declarations = []
+    for record in ports:
+        width = int(record["width"])
+        shape = "logic" if width == 1 else f"logic {'signed ' if record['signed'] else ''}[{width - 1}:0]"
+        signed = " signed" if record["signed"] and width == 1 else ""
+        declarations.append(f"    {record['direction']} {shape}{signed} {record['opaque_port']}")
+    instance = f"u_{canonical_id('generic-source-instance', top_module):016x}"
+    connections = [f"        .{record['source_port']}({record['opaque_port']})" for record in ports]
+    return "\n".join([
+        "// Generated from source-backed interface annotations. Do not edit.",
+        "module generic_composition_top (",
+        ",\n".join(declarations),
+        ");",
+        f"  {top_module} {instance} (",
+        ",\n".join(connections),
+        "  );",
+        "endmodule",
+        "",
+    ])
+
+
+def _validate_generic_top(text: str, *, source_paths: tuple[Path, ...], top_path: Path | None = None) -> None:
+    """Use the existing lightweight frontend boundary, with structural fallback."""
+    from .metadata import semantic_source_hash
+
+    semantic_source_hash(text, context="generic.composition.top")
+    if text.count("module ") != 1 or text.count("endmodule") != 1:
+        raise ValueError("generic composition top structure is invalid")
+    if top_path is not None and shutil.which("verilator") is not None:
+        result = subprocess.run(
+            ["verilator", "--lint-only", "-Wno-fatal", "--sv", "--top-module", "generic_composition_top",
+             *(path.as_posix() for path in source_paths), top_path.as_posix()],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise ValueError("generic composition lint failed: " + result.stderr.strip())
+
+
+def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path) -> dict[str, object]:
+    """Atomically publish a fully validated generic composition artifact set."""
+    from .auto import GenericCompositionPlan
+
+    if not isinstance(plan, GenericCompositionPlan) or not plan.complete:
+        raise ValueError("generic composition plan is incomplete")
+    root = Path(base_dir).resolve()
+    if not root.is_dir():
+        raise ValueError("generic composition base_dir is missing")
+    sources = tuple(_generic_source(root, source) for source in plan.source_files)
+    top_text = _render_generic_top(plan)
+    output = Path(output_dir).resolve()
+    output_parent = output.parent
+    output_parent.mkdir(parents=True, exist_ok=True)
+    ir_payload = canonical_bytes(_generic_plain(plan.ir))
+    layout_payload = canonical_bytes(_generic_plain(input_layout_document(plan.layout)))
+    source_list = "\n".join([*(item.as_posix() for item in sources), (output / "generic_composition_top.sv").as_posix()]) + "\n"
+    stage: Path | None = Path(tempfile.mkdtemp(prefix=f".{output.name}.generic-", dir=output_parent))
+    try:
+        (stage / "composition_ir.json").write_bytes(ir_payload)
+        (stage / "input_layout.json").write_bytes(layout_payload)
+        (stage / "generic_composition_top.sv").write_text(top_text, encoding="utf-8")
+        (stage / "sources.f").write_text(source_list, encoding="utf-8")
+        _validate_generic_top(top_text, source_paths=sources, top_path=stage / "generic_composition_top.sv")
+        # Re-read staged data before publishing; no destination file is touched
+        # until every serialisation and renderer validation has succeeded.
+        json.loads((stage / "composition_ir.json").read_text(encoding="utf-8"))
+        json.loads((stage / "input_layout.json").read_text(encoding="utf-8"))
+        if not output.exists():
+            os.replace(stage, output)
+            stage = None
+        else:
+            for name in ("composition_ir.json", "input_layout.json", "generic_composition_top.sv", "sources.f"):
+                os.replace(stage / name, output / name)
+    finally:
+        if stage is not None and stage.exists():
+            for child in stage.iterdir():
+                child.unlink()
+            stage.rmdir()
+    return {
+        "schema_version": "composition_ir.v1",
+        "interface_annotation_hash": plan.interface_annotation_hash,
+        "composition_ir_hash": plan.composition_ir_hash,
+        "layout_hash": plan.layout.layout_hash,
+        "top_path": (output / "generic_composition_top.sv").as_posix(),
+        "source_list_path": (output / "sources.f").as_posix(),
+        "complete": True,
+    }
+
+
 __all__ = [
     "CompositionArtifact",
     "compose_protocol_composition",
+    "write_generic_composition",
     "write_protocol_composition",
 ]
