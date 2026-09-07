@@ -77,6 +77,13 @@ from .processor_adapters import (
     ProcessorAdapterError,
     resolve_processor_adapter,
 )
+from .processor_execution import (
+    ProcessorExecutionError,
+    ProcessorExecutionPlan,
+    ProcessorExecutionRoute,
+    build_processor_execution,
+    processor_execution_document,
+)
 from .registry import ComponentRegistration, ComponentRegistry, default_component_registry
 from .search import CompositionCandidate, compose_topk
 
@@ -127,8 +134,12 @@ __all__ = [
     "ProcessorAdapterError",
     "ProcessorControlBinding",
     "ProcessorMemoryBinding",
+    "ProcessorExecutionError",
+    "ProcessorExecutionPlan",
+    "ProcessorExecutionRoute",
     "candidate_manifest",
     "build_input_layout",
+    "build_processor_execution",
     "build_processor_boundary",
     "annotate_interfaces",
     "canonical_id",
@@ -148,6 +159,7 @@ __all__ = [
     "plan_generic_composition",
     "processor_boundary_document",
     "resolve_processor_adapter",
+    "processor_execution_document",
     "source_tree_hash",
     "validate_protocol_composition",
     "validate_protocol_fingerprint",

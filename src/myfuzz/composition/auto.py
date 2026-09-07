@@ -37,6 +37,12 @@ from .ids import canonical_id
 from .input_layout import InputLayout, build_input_layout, input_layout_document
 from .interface_description import InterfaceDescription
 from .ir import canonical_ir_document, canonical_ir_hash
+from .processor_boundary import build_processor_boundary
+from .processor_execution import (
+    ProcessorExecutionPlan,
+    build_processor_execution,
+    processor_execution_document,
+)
 from .source_crawler import annotate_interfaces
 from .source_crawler import SourceCrawler, SourceCrawlError, source_tree_hash
 from .interface_description import SourceLocator
@@ -133,6 +139,7 @@ class GenericCompositionPlan:
     matches: tuple[Mapping[str, object], ...]
     diagnostics: tuple[str, ...]
     layout: InputLayout
+    processor_execution: ProcessorExecutionPlan | None
     ir: Mapping[str, object]
     interface_annotation_hash: str
     composition_ir_hash: str
@@ -1068,6 +1075,12 @@ def _generic_ir_evidence(value: object) -> object:
                 }
             elif key == "source_files" and isinstance(item, (tuple, list)):
                 result[str(key)] = [canonical_id("generic-source-file", source) for source in item]
+            elif key == "adapter_sources" and isinstance(item, (tuple, list)):
+                result["adapter_source_ids"] = [
+                    canonical_id("generic-source-file", source) for source in item
+                ]
+            elif key == "rtl_source" and isinstance(item, str):
+                result["rtl_source_id"] = canonical_id("generic-source-file", item)
             else:
                 result[str(key)] = _generic_ir_evidence(item)
         return result
@@ -1494,7 +1507,50 @@ def plan_generic_composition(
         for endpoint in annotations["endpoints"]  # type: ignore[index]
         if isinstance(endpoint, Mapping)
     }
-    layout = build_input_layout(annotations, isa=request.isa)
+    processor_execution = None
+    processor_boundary = None
+    memory_functions = {
+        "memory_master", "instruction_memory_master", "data_memory_master",
+    }
+    capability_functions = {endpoint.function for endpoint in capabilities}
+    if (
+        any(endpoint.function in memory_functions for endpoint in capabilities)
+        and {"clock", "reset"}.issubset(capability_functions)
+    ):
+        if selected_protocol_catalog is None:
+            raise AutoCompositionError("generic:protocol-catalog-required")
+        processor_boundary = build_processor_boundary(
+            capabilities, protocol_catalog=selected_protocol_catalog,
+        )
+        adapter_driven = {
+            (memory.endpoint_id, field.role)
+            for memory in processor_boundary.memories
+            for field in memory.fields
+            if field.direction == "input"
+        }
+        layout_annotations = {
+            **annotations,
+            "endpoints": [
+                {
+                    **endpoint,
+                    "fields": [
+                        field for field in endpoint["fields"]
+                        if (endpoint["endpoint_id"], field["role"]) not in adapter_driven
+                    ],
+                }
+                for endpoint in annotations["endpoints"]
+            ],
+        }
+    else:
+        layout_annotations = annotations
+    layout = build_input_layout(layout_annotations, isa=request.isa)
+    if processor_boundary is not None:
+        assert selected_protocol_catalog is not None
+        processor_execution = build_processor_execution(
+            processor_boundary,
+            protocol_catalog=selected_protocol_catalog,
+            input_layout=layout,
+        )
 
     source_prefix = request.interface_description.source.source_root.rstrip("/")
     source_files = tuple(
@@ -1506,6 +1562,10 @@ def plan_generic_composition(
     )
     for source_file in source_files:
         _generic_source_path(root, source_file)
+    if processor_execution is not None:
+        source_files = tuple(sorted(set((*source_files, *processor_execution.adapter_sources))))
+        for source_file in processor_execution.adapter_sources:
+            _generic_source_path(root, source_file)
     source_list_metadata = _generic_source_list_metadata(root, request.interface_description.source)
     source_include_roots = source_list_metadata.include_roots
     elaboration = request.interface_description.source.elaboration
@@ -1744,6 +1804,10 @@ def plan_generic_composition(
                 for field in input_layout_document(layout)["fields"]
             ],
         },
+        **({"processor_execution": _generic_ir_evidence(
+                processor_execution_document(processor_execution)
+            )}
+           if processor_execution is not None else {}),
         "source_file_ids": [canonical_id("generic-source-file", item) for item in source_files],
         "source_list": {
             "cwd": "output_dir",
@@ -1764,6 +1828,7 @@ def plan_generic_composition(
         matches=tuple(matches),
         diagnostics=tuple(sorted(set(diagnostics))),
         layout=layout,
+        processor_execution=processor_execution,
         ir=ir,
         interface_annotation_hash=annotation_hash,
         composition_ir_hash=canonical_ir_hash(ir),
