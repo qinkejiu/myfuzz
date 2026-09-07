@@ -247,7 +247,8 @@ class GenericLowResourceSmokeTests(unittest.TestCase):
             self.assertEqual("passed", result["status"])
             self.assertTrue(result["published"])
             self.assertEqual(
-                {"composition_ir.json", "input_layout.json", "generic_composition_top.sv", "sources.f"},
+                {"composition_ir.json", "input_layout.json", "generic_composition_top.sv", "sources.f",
+                 "rfuzz_input_transport.json", "rfuzz_input_transport.sv"},
                 {Path(path).name for path in result["artifact_paths"]},
             )
             self.assertEqual(5, len(result["capabilities"]))

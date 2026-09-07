@@ -50,12 +50,33 @@ routes, source evidence, and the generated input layout. Publication emits:
 
 * `composition_ir.json`;
 * `input_layout.json`;
+* `rfuzz_input_transport.json` and `rfuzz_input_transport.sv`;
 * `generic_composition_top.sv`; and
 * `sources.f`.
 
 `write_generic_composition` re-crawls the pinned source before publication,
 checks the address map, and uses an atomic staging directory. If Verilator is
 installed, it performs a bounded `--lint-only` check before publishing.
+
+### RFuzz transport boundary
+
+The transport sidecar is derived from the same validated `InputLayout`, not a
+CPU name or the legacy 395-bit constant. It provides one cycle's byte packing:
+`ceil(raw_width / 64) * 8` bytes, MSB-first payload with trailing ignored
+padding. Python `build_rfuzz_transport(layout).pack(raw_bits)` and
+`.unpack(record)` follow the emitted combinational RTL. Canonical encoders
+zero padding; random fuzzer changes to padding do not change the DUT input.
+The JSON binds this interpretation to `layout_hash` and `transport_hash`.
+
+The sidecar is **not** instantiated by `generic_composition_top.sv` or added
+to its `sources.f`: it is a reusable byte-to-raw-bits boundary for a future
+RFuzz harness. It does not yet wire field projection into a DUT, generate a
+coverage server, or run RFuzz. Protocol sequencing and RISC-V instruction
+legality remain separate obligations; packing a record does not make its
+instructions or transaction history legal.
+
+See [pinned upstream boundary probe](reports/upstream_boundary_probe_20260907.md)
+for source revisions, transport evidence and real-core integration gaps.
 
 ## Local synthetic smoke
 
@@ -80,7 +101,7 @@ and a dependency cycle. None of those cases may publish output artifacts.
 
 ## Protocol and CPU boundary
 
-The generic renderer materializes APB3, APB4, Wishbone Classic and the
+The generic renderer materializes APB3, APB4, Wishbone Classic, AXI4-Lite and the
 declared bounded single-channel contract used by the synthetic fixture.
 Native routes preserve APB setup/access and Wishbone CYC/STB/ACK/ERR behavior;
 clocked tests cover waiting, errors, timeout and aborted requests. Shared
@@ -89,10 +110,21 @@ physical clock/reset ports are reused across endpoints.
 Native routing currently requires one source endpoint per target, the same
 protocol and width, and a supported error response. It does not provide a
 shared-bus multi-target interconnect, clock-domain crossing, Wishbone pipelining,
-AXI multichannel routing or OBI routing. AXI4 and OBI standalone MMIO bridges
+full AXI4 burst/ID routing or OBI routing. AXI4 and OBI standalone MMIO bridges
 have separate directed RTL tests. The older Ibex composition path supports
 APB4, AXI4-Lite and TL-UL; its availability does not establish support in the
 new generic path.
+
+The native AXI4-Lite route accepts AW and W in either order and decodes AW/AR
+addresses independently. It uses one outstanding slot total, gives writes
+priority on simultaneous arbitration, and retains responses under source
+backpressure. Unmapped addresses receive local DECERR without a target
+request. The strictest catalog wait bound applies to the downstream transaction
+after request assertion, not to collecting the source's missing write channel
+or waiting for source response READY. A timeout returns SLVERR and quarantines
+the route until the shared reset: pending target VALID/payload remain until
+their handshakes or reset; late responses cannot become new responses.
+This does not add AXI4-to-Lite conversion or make CVA6 executable.
 
 The CVA6 and BOOM profiles are source-annotated/reference integration data in
 this branch; the local Task8 fixture does not execute either real core. A

@@ -1516,13 +1516,14 @@ def _render_generic_top(plan: object) -> str:
     for route in routes:
         tag = _route_tag(route)
         component_select = f"component_select_{tag}"
-        terms = [
-            f"(source_{canonical_id('generic-render-source-port', str(field['source_port'])):016x} >= {_sv_literal(int(field['width']), int(route['base']))} && source_{canonical_id('generic-render-source-port', str(field['source_port'])):016x} < {_sv_literal(int(field['width']), int(route['base']) + int(route['size']))})"
-            for field in route["fields"] if field["address"]
-        ]
         if route["contract"]["mode"] == "native_axi4_lite":
             # The adapter decodes AW and AR at their separate handshakes.
             terms = ["1'b1"]
+        else:
+            terms = [
+                f"(source_{canonical_id('generic-render-source-port', str(field['source_port'])):016x} >= {_sv_literal(int(field['width']), int(route['base']))} && source_{canonical_id('generic-render-source-port', str(field['source_port'])):016x} < {_sv_literal(int(field['width']), int(route['base']) + int(route['size']))})"
+                for field in route["fields"] if field["address"]
+            ]
         if len(terms) != 1:
             raise ValueError("generic composition adapter requires one address channel")
         lines.extend((f"  logic {component_select};", f"  assign {component_select} = " + terms[0] + ";"))
@@ -1800,6 +1801,7 @@ def _generic_define_options(plan: object) -> tuple[str, ...]:
 def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path) -> dict[str, object]:
     """Publish a validated generic composition without risking existing output."""
     from .auto import GenericCompositionPlan
+    from .rfuzz_transport import build_rfuzz_transport
 
     if not isinstance(plan, GenericCompositionPlan) or not plan.complete:
         raise ValueError("generic composition plan is incomplete")
@@ -1821,12 +1823,16 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
     output_parent.mkdir(parents=True, exist_ok=True)
     ir_payload = canonical_bytes(_generic_plain(plan.ir))
     layout_payload = canonical_bytes(_generic_plain(input_layout_document(plan.layout)))
+    transport = build_rfuzz_transport(plan.layout)
+    transport_document = transport.document()
     source_list = _generic_source_list(plan, root, output, sources)
     include_paths = _generic_include_paths(plan, root)
     stage: Path | None = Path(tempfile.mkdtemp(prefix=f".{output.name}.generic-", dir=output_parent))
     try:
         (stage / "composition_ir.json").write_bytes(ir_payload)
         (stage / "input_layout.json").write_bytes(layout_payload)
+        (stage / "rfuzz_input_transport.json").write_bytes(canonical_bytes(transport_document))
+        (stage / "rfuzz_input_transport.sv").write_text(transport.render_systemverilog(), encoding="utf-8")
         (stage / "generic_composition_top.sv").write_text(top_text, encoding="utf-8")
         (stage / "sources.f").write_text(source_list, encoding="utf-8")
         _validate_generic_top(
@@ -1838,6 +1844,7 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
         # until every serialisation and renderer validation has succeeded.
         json.loads((stage / "composition_ir.json").read_text(encoding="utf-8"))
         json.loads((stage / "input_layout.json").read_text(encoding="utf-8"))
+        json.loads((stage / "rfuzz_input_transport.json").read_text(encoding="utf-8"))
         os.replace(stage, output)
         stage = None
     finally:
@@ -1850,6 +1857,7 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
         "interface_annotation_hash": plan.interface_annotation_hash,
         "composition_ir_hash": plan.composition_ir_hash,
         "layout_hash": plan.layout.layout_hash,
+        "transport_hash": transport_document["transport_hash"],
         "top_path": (output / "generic_composition_top.sv").as_posix(),
         "source_list_path": (output / "sources.f").as_posix(),
         "complete": True,
