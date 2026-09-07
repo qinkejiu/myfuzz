@@ -11,16 +11,16 @@
     {"field_id": "sel", "direction": "host_to_device", "width": "data_width / 8", "required": true, "runtime_required": true, "reset_value": 0},
     {"field_id": "ack", "direction": "device_to_host", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
     {"field_id": "err", "direction": "device_to_host", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
-    {"field_id": "stall", "direction": "device_to_host", "width": "1", "required": true, "runtime_required": true, "reset_value": 0},
+    {"field_id": "stall", "direction": "device_to_host", "width": "1", "required": false, "runtime_required": false, "reset_value": 0},
     {"field_id": "dat_r", "direction": "device_to_host", "width": "data_width", "required": true, "runtime_required": true, "reset_value": 0}
   ],
   "channel_relations": [
-    {"relation_id": 1, "kind": "cycle_strobe_held_until_completion", "field_ids": ["cyc", "stb", "ack", "err", "stall"]}
+    {"relation_id": 1, "kind": "cycle_strobe_held_until_completion", "field_ids": ["cyc", "stb", "ack", "err"]}
   ],
   "capability_limits": {
     "max_outstanding": 1,
     "single_beat_only": true,
-    "stall_supported": true,
+    "stall_supported": false,
     "completion": "ack_or_err",
     "max_wait_cycles": 16,
     "byte_enable": true,

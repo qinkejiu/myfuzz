@@ -17,6 +17,8 @@ module wishbone_mmio_bridge #(
     output logic [ADDRESS_WIDTH-1:0] adr_o,
     output logic [DATA_WIDTH-1:0] dat_w_o,
     output logic [(DATA_WIDTH/8)-1:0] sel_o,
+    // Classic cycles complete on ACK/ERR. This compatibility input is unused:
+    // B4 STALL is pipeline admission (spec 3.1.3.2), not response backpressure.
     input logic ack_i, err_i, stall_i,
     input logic [DATA_WIDTH-1:0] dat_r_i
 );
@@ -68,8 +70,7 @@ module wishbone_mmio_bridge #(
                     end else if (wait_count_q == WAIT_TIMEOUT_VALUE) begin
                         state_q <= IDLE; wait_count_q <= '0; rsp_valid_q <= 1'b1;
                         rsp_rdata_q <= '0; rsp_error_q <= 1'b1;
-                    end else if (stall_i) wait_count_q <= wait_count_q + 1'b1;
-                    else wait_count_q <= wait_count_q + 1'b1;
+                    end else wait_count_q <= wait_count_q + 1'b1;
                 end
                 default: begin
                     state_q <= IDLE; wait_count_q <= '0; rsp_valid_q <= 1'b1;

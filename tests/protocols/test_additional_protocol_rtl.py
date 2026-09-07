@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+import json
 import subprocess
 import tempfile
 import textwrap
@@ -13,6 +14,13 @@ RTL_DIR = ROOT / "src" / "myfuzz" / "protocols" / "rtl"
 
 
 class AdditionalProtocolRtlTest(unittest.TestCase):
+    def test_classic_wishbone_does_not_advertise_pipelined_stall(self) -> None:
+        document = json.loads((RTL_DIR.parent / "plugins/wishbone.json").read_text())
+        self.assertFalse(document["capability_limits"]["stall_supported"])
+        stall = next(field for field in document["fields"] if field["field_id"] == "stall")
+        self.assertFalse(stall["required"])
+        self.assertFalse(stall["runtime_required"])
+
     def test_bridges_expose_bounded_canonical_mmio_contracts(self) -> None:
         expected_ports = {
             "apb3_mmio_bridge.sv": ("apb3_mmio_bridge", ("paddr_o", "psel_o", "penable_o", "pwrite_o", "pwdata_o", "pready_i", "prdata_i", "pslverr_i")),
@@ -136,7 +144,7 @@ class AdditionalProtocolRtlTest(unittest.TestCase):
                     )
                     self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_wishbone_directed_handshake_holds_through_stall(self) -> None:
+    def test_wishbone_classic_waits_for_ack_and_ignores_pipeline_stall(self) -> None:
         iverilog = shutil.which("iverilog")
         vvp = shutil.which("vvp")
         if iverilog is None or vvp is None:
@@ -176,8 +184,9 @@ class AdditionalProtocolRtlTest(unittest.TestCase):
                                   "Wishbone request must start with CYC/STB");
                             @(negedge clk_i); req_valid_i = 0; stall_i = 1;
                             tick;
-                            check(cyc_o && stb_o && !rsp_valid_o, "STALL must hold CYC/STB without a response");
-                            @(negedge clk_i); stall_i = 0; ack_i = 1; dat_r_i = 32'hcafe_babe;
+                            check(cyc_o && stb_o && !rsp_valid_o, "Classic cycle waits for ACK/ERR");
+                            // STALL controls pipeline admission, not classic completion.
+                            @(negedge clk_i); stall_i = 1; ack_i = 1; dat_r_i = 32'hcafe_babe;
                             tick;
                             check(!cyc_o && !stb_o && rsp_valid_o && !rsp_error_o && rsp_rdata_o == 32'hcafe_babe,
                                   "ACK must complete the held read with data");
