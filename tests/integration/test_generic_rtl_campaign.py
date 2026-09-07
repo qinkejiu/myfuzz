@@ -3,13 +3,28 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import io
+import sys
+from contextlib import redirect_stdout
 from unittest.mock import patch
 
-from myfuzz.integration.generic_rtl_campaign import select_combinations, prepare_demo, run_demo_campaign
+from myfuzz.integration.generic_rtl_campaign import select_combinations, prepare_demo, run_demo_campaign, worker
 from myfuzz.integration import campaign
 
 
 class GenericRtlCampaignTests(unittest.TestCase):
+    def test_failed_child_buffered_metrics_are_not_counted_as_success(self):
+        child = subprocess.Popen([sys.executable, "-c", "print('RESULT 1000 0', flush=True); raise SystemExit(1)"], stdout=subprocess.PIPE, text=True)
+        payload = child.stdout.read()  # Wait for EOF without reaping the child.
+        child.stdout.close()
+        child.stdout = io.StringIO(payload)
+        output = io.StringIO()
+        with patch("myfuzz.integration.generic_rtl_campaign.subprocess.Popen", return_value=child), redirect_stdout(output):
+            with self.assertRaises(RuntimeError):
+                worker(Path("unused.vvp"), 1)
+        self.assertNotIn('"transactions": 1000', output.getvalue())
+        self.assertIn('"error": 1', output.getvalue())
+
     @unittest.skipUnless(all(shutil.which(t) for t in ("iverilog", "vvp", "verilator")), "RTL toolchain required")
     def test_checkpoint_failure_cannot_pass_campaign(self):
         with tempfile.TemporaryDirectory() as directory:

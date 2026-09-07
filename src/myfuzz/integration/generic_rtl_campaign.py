@@ -162,6 +162,9 @@ def worker(executable: Path, seed: int):
     previous = 0
     try:
         while True:
+            if process.poll() is not None:
+                print(json.dumps({"transactions": 0, "error": 1}), flush=True)
+                raise RuntimeError(f"RTL process exited: {process.returncode}")
             line = process.stdout.readline(1024)
             fields = line.split()
             if len(fields) != 3 or fields[0] != "RESULT":
@@ -172,6 +175,13 @@ def worker(executable: Path, seed: int):
                 print(json.dumps({"transactions": 0, "error": 1}), flush=True)
                 raise RuntimeError(f"scoreboard/progress failure at seed {seed}")
             os.kill(process.pid, signal.SIGSTOP)
+            # Confirm the stop before counting buffered metrics. A terminated
+            # child can still have valid-looking output queued in the pipe.
+            _, stopped = os.waitpid(process.pid, os.WUNTRACED)
+            if not os.WIFSTOPPED(stopped):
+                process.returncode = os.waitstatus_to_exitcode(stopped)
+                print(json.dumps({"transactions": 0, "error": 1}), flush=True)
+                raise RuntimeError(f"RTL process exited: {process.returncode}")
             print(json.dumps({"transactions": transactions - previous, "component": executable.parent.name, "error": 0}), flush=True)
             previous = transactions
             # A stopped simulator consumes no CPU during the pacing interval.
