@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 from .search import CompositionCandidate
 from .metadata import sanitize_metadata, semantic_content_hash
@@ -64,7 +64,31 @@ def canonical_ir_hash(document: Mapping[str, object]) -> str:
     return semantic_content_hash(canonical_ir_document(document), context="composition_ir.hash")
 
 
-def composition_ir(candidate: CompositionCandidate) -> dict[str, object]:
+def _capability_record(value: object) -> dict[str, object]:
+    return {
+        "endpoint_id": getattr(value, "endpoint_id"),
+        "function": getattr(value, "function"),
+        "side": getattr(value, "side"),
+        "protocol": list(getattr(value, "protocol")) if getattr(value, "protocol") is not None else None,
+        "fields": [
+            {"role": field.role, "direction": field.direction, "width": field.width, "signed": field.signed}
+            for field in getattr(value, "fields")
+        ],
+        "clocked": getattr(value, "clock") is not None,
+        "reset": getattr(value, "reset") is not None,
+        "timing": [
+            {"kind": item["kind"], "fields": list(item["fields"]), "clocked": item["clock"] is not None}
+            for item in getattr(value, "timing")
+        ],
+    }
+
+
+def composition_ir(
+    candidate: CompositionCandidate,
+    *,
+    endpoint_capabilities: Sequence[object] = (),
+    capability_matches: Sequence[Mapping[str, object]] = (),
+) -> dict[str, object]:
     """Return a deterministic, path-free composition_ir.v1 document."""
     graph = candidate.graph
     declarations = candidate.declarations
@@ -232,6 +256,15 @@ def composition_ir(candidate: CompositionCandidate) -> dict[str, object]:
     # without exposing any source identifier text.
     if any(endpoint.component_id not in component_by_id for endpoint in graph.endpoints):
         raise ValueError("candidate:endpoint-component-unresolved")
+    if endpoint_capabilities or capability_matches:
+        document["endpoint_capabilities"] = sorted(
+            (_capability_record(item) for item in endpoint_capabilities),
+            key=lambda item: item["endpoint_id"],
+        )
+        document["capability_matches"] = sorted(
+            (_json_value(item) for item in capability_matches),
+            key=lambda item: repr(item),
+        )
     return canonical_ir_document(document)
 
 

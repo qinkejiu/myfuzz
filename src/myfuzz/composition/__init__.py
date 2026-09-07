@@ -8,6 +8,15 @@ from .auto import (
     write_auto_composition_manifest,
 )
 from .declarations import DeclarationError, DeclarationSet, load_declarations
+from .endpoint_capabilities import (
+    AdapterCapability,
+    EndpointCapability,
+    EndpointCapabilityError,
+    EndpointFieldFact,
+    match_endpoint_pair,
+    normalize_annotations,
+    validate_protocol_fingerprint,
+)
 from .facts import HdlFacts, normalize_facts
 from .interface_description import (
     EndpointDescription,
@@ -48,10 +57,14 @@ __all__ = [
     "AutoCompositionError",
     "AutoCompositionPlan",
     "AutoCompositionRequest",
+    "AdapterCapability",
     "DeclarationError",
     "DeclarationSet",
     "HdlFacts",
     "EndpointDescription",
+    "EndpointCapability",
+    "EndpointCapabilityError",
+    "EndpointFieldFact",
     "FieldHint",
     "InterfaceDescription",
     "SourceLocator",
@@ -77,11 +90,14 @@ __all__ = [
     "interface_description_document",
     "load_declarations",
     "load_interface_description",
+    "match_endpoint_pair",
+    "normalize_annotations",
     "load_protocol_composition",
     "normalize_facts",
     "plan_auto_composition",
     "source_tree_hash",
     "validate_protocol_composition",
+    "validate_protocol_fingerprint",
     "write_protocol_composition",
     "write_auto_composition_manifest",
 ]

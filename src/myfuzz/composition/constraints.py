@@ -14,11 +14,25 @@ from myfuzz.protocols.widths import (
 )
 
 from .declarations import DeclarationSet, ProtocolBinding
+from .endpoint_capabilities import (
+    AdapterCapability,
+    EndpointCapability,
+    match_endpoint_pair,
+    normalize_annotations,
+)
 from .facts import HdlFacts, canonical_structural_value
 
 
 class ConstraintGraphError(ValueError):
     """Raised when semantic declarations needed by the graph are absent."""
+
+
+@dataclass(frozen=True, slots=True)
+class CapabilityConstraintGraph:
+    """Source-backed alternatives kept separate from legacy declaration graphs."""
+
+    endpoints: tuple[EndpointCapability, ...]
+    alternatives: tuple[Mapping[str, object], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -644,6 +658,21 @@ def build_constraint_graph(facts: HdlFacts, declarations: DeclarationSet, protoc
     )
 
 
+def build_capability_constraint_graph(
+    annotations: Mapping[str, object], adapters: Sequence[AdapterCapability]
+) -> CapabilityConstraintGraph:
+    """Build generic source-backed alternatives without changing legacy callers."""
+    endpoints = normalize_annotations(annotations)
+    alternatives = tuple(
+        alternative
+        for source in endpoints
+        for target in endpoints
+        if source.endpoint_id != target.endpoint_id
+        for alternative in match_endpoint_pair(source, target, adapters)
+    )
+    return CapabilityConstraintGraph(endpoints, alternatives)
+
+
 def _forbidden(graph: ConstraintGraph, source_id: int, target_id: int) -> ForbiddenEdge | None:
     # ``forbidden_edges`` is sorted by endpoint IDs; binary search keeps
     # enumeration bounded without materializing a second lookup table.
@@ -826,6 +855,7 @@ def reject_hard_conflicts(graph: ConstraintGraph) -> list[Conflict]:
 
 __all__ = [
     "Adapter",
+    "CapabilityConstraintGraph",
     "AdapterRule",
     "Conflict",
     "ConstraintGraph",
@@ -842,6 +872,7 @@ __all__ = [
     "ProtocolField",
     "ProtocolSpec",
     "build_constraint_graph",
+    "build_capability_constraint_graph",
     "candidate_edges",
     "reject_hard_conflicts",
 ]
