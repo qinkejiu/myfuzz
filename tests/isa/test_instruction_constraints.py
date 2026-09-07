@@ -63,6 +63,38 @@ class InstructionConstraintsTest(unittest.TestCase):
         self.assertFalse(i_provider.is_legal_word((2 << 12) | 0x3B))
         self.assertFalse(i_provider.is_legal_word((1 << 25) | (1 << 12) | 0x3B))
 
+    def test_rv64m_op_32_accepts_all_word_arithmetic_encodings_and_rejects_reserved(self) -> None:
+        rv64i = RiscvInstructionProvider(IsaContract(64, ("I",)))
+        rv64im = RiscvInstructionProvider(IsaContract(64, ("I", "M")))
+        rv32im = RiscvInstructionProvider(IsaContract(32, ("I", "M")))
+        rv64i_encodings = (
+            0x3B,  # ADDW
+            (0x20 << 25) | 0x3B,  # SUBW
+            (1 << 12) | 0x3B,  # SLLW
+            (5 << 12) | 0x3B,  # SRLW
+            (0x20 << 25) | (5 << 12) | 0x3B,  # SRAW
+        )
+        rv64m_encodings = (
+            (1 << 25) | 0x3B,  # MULW
+            (1 << 25) | (4 << 12) | 0x3B,  # DIVW
+            (1 << 25) | (5 << 12) | 0x3B,  # DIVUW
+            (1 << 25) | (6 << 12) | 0x3B,  # REMW
+            (1 << 25) | (7 << 12) | 0x3B,  # REMUW
+        )
+        for instruction in rv64i_encodings:
+            with self.subTest(instruction=instruction, kind="rv64i"):
+                self.assertTrue(rv64i.is_legal_word(instruction))
+                self.assertTrue(rv64im.is_legal_word(instruction))
+        for instruction in rv64m_encodings:
+            with self.subTest(instruction=instruction, kind="rv64m"):
+                self.assertTrue(rv64im.is_legal_word(instruction))
+                self.assertFalse(rv64i.is_legal_word(instruction))
+                self.assertFalse(rv32im.is_legal_word(instruction))
+        for funct3 in (1, 2, 3):
+            instruction = (1 << 25) | (funct3 << 12) | 0x3B
+            with self.subTest(instruction=instruction, kind="reserved"):
+                self.assertFalse(rv64im.is_legal_word(instruction))
+
     def test_contract_rejects_invalid_xlen_duplicate_extensions_and_alignment(self) -> None:
         for args in ((48, ("I",)), (32, ("I", "I")), (32, ("I",), ("M",), 3)):
             with self.subTest(args=args):

@@ -154,7 +154,7 @@ class RiscvInstructionProvider:
                 return funct3 in (0, 1, 5)  # ADDW / SLLW / SRLW
             if funct7 == 0x20:
                 return funct3 in (0, 5)  # SUBW / SRAW
-            return funct7 == 1 and funct3 == 0 and "M" in self.contract.extensions  # MULW
+            return funct7 == 1 and funct3 in (0, 4, 5, 6, 7) and "M" in self.contract.extensions
         if opcode == 0x33:  # OP
             if funct7 == 1:
                 return "M" in self.contract.extensions
