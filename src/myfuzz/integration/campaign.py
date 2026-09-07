@@ -39,6 +39,8 @@ _MAX_STATUS_BYTES = 64 * 1024
 _MAX_JSON_LINE_BYTES = 64 * 1024
 _MAX_METRICS = 1024
 _MAX_DRAIN_BYTES_PER_POLL = 256 * 1024
+_RSS_SNAPSHOT_ATTEMPTS = 3
+_RSS_SNAPSHOT_RETRY_SECONDS = 0.005
 _METRIC_KEYS = frozenset({"transactions", "protocol", "component", "coverage", "error"})
 
 
@@ -246,6 +248,21 @@ def read_process_group_rss_bytes(pgid: int) -> int:
     if member_count == 0:
         raise CampaignError(f"procfs process group {pgid} has no live members")
     return total_rss
+
+
+def _read_process_group_rss_with_retry(pgid: int) -> int:
+    """Retry a procfs snapshot briefly when group membership changes mid-scan."""
+
+    last_error: CampaignError | None = None
+    for attempt in range(_RSS_SNAPSHOT_ATTEMPTS):
+        try:
+            return read_process_group_rss_bytes(pgid)
+        except CampaignError as error:
+            last_error = error
+            if attempt + 1 < _RSS_SNAPSHOT_ATTEMPTS:
+                time.sleep(_RSS_SNAPSHOT_RETRY_SECONDS)
+    assert last_error is not None
+    raise last_error
 
 
 class _JsonLineMetrics:
@@ -582,7 +599,7 @@ def run_supervised_command(options: CampaignOptions) -> Mapping[str, object]:
                     try:
                         if pgid is None:
                             raise CampaignError("campaign process group is unavailable")
-                        rss_bytes = read_process_group_rss_bytes(pgid)
+                        rss_bytes = _read_process_group_rss_with_retry(pgid)
                     except CampaignError as error:
                         raced_return_code = process.poll()
                         if raced_return_code is not None:

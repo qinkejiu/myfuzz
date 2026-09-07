@@ -93,6 +93,35 @@ class CampaignSupervisorTests(unittest.TestCase):
             self.assertEqual(0, result["rss_sample_count"])
             self.assertEqual(0, result["peak_rss_bytes"])
 
+    def test_transient_rss_error_is_retried_while_child_remains_live(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            options = self._options(
+                Path(temporary) / "campaign",
+                "import time; time.sleep(0.2)",
+            )
+            original = campaign.read_process_group_rss_bytes
+            calls = 0
+
+            def transient(pgid: int) -> int:
+                nonlocal calls
+                calls += 1
+                if calls == 1:
+                    raise CampaignError("member changed state during RSS sample")
+                return original(pgid)
+
+            with mock.patch.object(
+                campaign,
+                "read_process_group_rss_bytes",
+                side_effect=transient,
+            ):
+                result = campaign.run_supervised_command(options)
+
+            self.assertEqual("completed", result["status"])
+            self.assertEqual(0, result["returncode"])
+            self.assertGreaterEqual(calls, 2)
+            self.assertGreater(result["rss_sample_count"], 0)
+            self.assertGreater(result["peak_rss_bytes"], 0)
+
     def test_rss_error_after_crash_cleans_up_remaining_process_group(self) -> None:
         source = """
             import subprocess
