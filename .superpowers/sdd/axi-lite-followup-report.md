@@ -201,5 +201,6 @@ Only the AXI test and this report are committed by the implementer. The renderer
 fix in `protocol_composer.py` is deliberately left unstaged for the main agent to
 commit alongside its separately owned writer-bottom changes. Main transport,
 docs, smoke tests, task-2 report and third-party files remain untouched. This fix
-is ready for independent re-review; the production fix still needs the main
-agent's commit.
+was committed by the main agent in `f8e83e1`. Independent re-review passed:
+the original top-address-range finding is closed. The controller's final
+full suite at that commit passed 853 tests in 18.111 seconds.

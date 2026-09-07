@@ -42,3 +42,12 @@ raw_bits = big_endian_integer(record) >> padding_bits
 新增 `myfuzz.composition.rfuzz_transport` 提供布局驱动的逐周期编解码、带布局哈希的运输格式描述和组合逻辑 RTL。它只负责字节到 raw bits，不负责 ISA 合法性、跨周期握手、覆盖率采集或模糊器启动。这些义务仍由相应上层执行。
 
 原项目运行路径依赖 `third_party/rfuzz/rfuzz_flow/tools/verilog_instrumentation/generate_rfuzz_harness.py`、`build_rfuzz_server.py` 等额外工具。官方固定版本中没有该 `tools` 树。不能仅把官方仓库重命名为 `rfuzz_flow` 就宣称现有运行流程可用；需要显式实现或恢复该集成层，并测试覆盖率反馈与 corpus 回放。
+
+## 本轮实现和验证结果
+
+- 泛化端口类型检查：内建整数宽度/符号性、方向省略时的继承、import 头部；未知类型和非法维度拒绝。独立审查通过。
+- 通用 AXI4-Lite 原生适配：AW/W 任意先后、独立 AW/AR 地址检查、单个未完成事务、背压保持、非法地址 DECERR、超时 SLVERR 后隔离到共享复位。16 次定向 RTL 仿真；另有地址空间末尾区间的顶层生成/发布回归。独立审查通过。
+- 动态 RFuzz 字节映射：Python 编解码及 13/64/65/395 位 RTL 对照测试；发布附属 JSON/SV，并绑定布局哈希。独立审查通过。附属模块尚未接入 DUT 模糊测试 harness。
+- 最终代码提交 `f8e83e1`：全量 **853 项测试通过，18.111 秒**。验证使用单 worker、`nice -n 15`、无波形；保留原有负向 CLI 测试的预期输出。
+
+本轮没有重复执行先前的三组 300 秒合成总线激励测试。系统总目标仍未完成，尤其是实核接入、结构体/参数 elaboration、完整 AXI4/TileLink、多目标共享总线，以及实际 RFuzz 覆盖率反馈执行。
