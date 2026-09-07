@@ -33,6 +33,8 @@ class ProcessorAdapterDefinition:
     extension_policies: tuple[ExtensionPolicy, ...]
     source_ports: tuple[tuple[str, str, str], ...]
     parameter_values: tuple[tuple[str, int], ...] = ()
+    reset_polarity: str = "active_low"
+    reset_synchrony: str = "asynchronous"
 
 
 _AXI4_EXTENSION_POLICIES = tuple(sorted((

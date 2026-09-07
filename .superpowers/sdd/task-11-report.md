@@ -150,3 +150,48 @@ Result: exit 0, no output.
 - No independent reviewer/subagent tool was available, so review was performed inline.
 - The requested focused suites were run; the full repository suite was intentionally not run.
 - Generated split-top compilation is exercised through the same renderer branch and the Task 10 arbiter is covered by RTL simulation, but the new Task 11 integration fixture set compiles unified/direct processor routes rather than an additional split CPU fixture.
+
+## Review Fix RED/GREEN Evidence
+
+### RED: complete Task 11 review regression set
+
+Command:
+
+    PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 python3 -m unittest tests.composition.test_processor_backend.ProcessorBackendTests.test_split_routes_use_fair_arbiter_and_reject_instruction_writes tests.composition.test_processor_execution.ProcessorExecutionTests.test_generic_plan_embeds_execution_and_adapter_source_name_independently tests.integration.test_processor_auto_wiring.ProcessorAutoWiringIntegrationTests.test_direct_backend_flushes_an_accepted_nonresponding_target_before_reuse tests.integration.test_processor_auto_wiring.ProcessorAutoWiringIntegrationTests.test_direct_target_without_explicit_flush_contract_is_rejected tests.integration.test_processor_auto_wiring.ProcessorAutoWiringIntegrationTests.test_synchronous_cpu_reset_is_rejected_by_asynchronous_fixed_adapter tests.integration.test_processor_auto_wiring.ProcessorAutoWiringIntegrationTests.test_split_renamed_fixture_compiles_and_recovers_after_timeout tests.integration.test_processor_auto_wiring.ProcessorAutoWiringIntegrationTests.test_split_routing_evidence_tampering_is_rejected -v
+
+Output after correcting fixture-only timing associations:
+
+    KeyError: 'rtl_source'
+    KeyError: 'audit'
+    TypeError: _render_processor_backend_module() takes 2 positional arguments but 4 were given
+    AssertionError: ValueError not raised (missing recovery-contract rejection)
+    AssertionError: "adapter-reset-synchrony" does not match "memory-reset:execution.route.4"
+    ProcessorBoundaryError: memory-clock:route.data
+    Ran 7 tests in 1.415s
+    FAILED (failures=2, errors=5)
+
+These failures independently exposed missing Task 10 routing source/reset facts, publication audit evidence, bounded direct recovery generation, target recovery rejection, reset-synchrony compatibility, and split endpoint integration.
+
+### GREEN: focused Task 11 and contract tests
+
+Command:
+
+    PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 python3 -m unittest tests.composition.test_processor_backend tests.composition.test_processor_execution tests.integration.test_processor_auto_wiring -v
+
+Output:
+
+    Ran 17 tests in 5.083s
+    OK
+
+This includes Icarus behavioral coverage for an accepted nonresponding direct target followed by safe reset-flush reuse, and a renamed split instruction/data fixture covering two adapters, ordering, timeout, cancellation/flush, reset, and post-recovery progress. Installed Icarus and Verilator compile the published strict source list; absence raises an explicit SkipTest.
+
+### GREEN: Task 9/10/composition/RTL regression gate
+
+Command:
+
+    PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 python3 -m unittest tests.composition.test_processor_execution tests.composition.test_processor_backend tests.composition.test_processor_adapters tests.composition.test_processor_boundary tests.composition.test_protocol_composer tests.composition.test_generic_auto tests.composition.test_generic_lint_diagnostics tests.protocols.test_processor_memory_backend tests.protocols.test_processor_memory_arbiter_rtl tests.protocols.test_obi_processor_memory_adapter_rtl tests.protocols.test_axi4_processor_memory_adapter_rtl tests.protocols.test_tl_ul_processor_memory_adapter_rtl tests.integration.test_generic_composition tests.integration.test_processor_auto_wiring -v
+
+Output:
+
+    Ran 101 tests in 14.346s
+    OK

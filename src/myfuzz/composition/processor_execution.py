@@ -37,6 +37,7 @@ class ProcessorExecutionRoute:
     field_connections: tuple[Mapping[str, object], ...]
     backend_contract: Mapping[str, object]
     extension_policies: tuple[Mapping[str, object], ...]
+    reset_contract: Mapping[str, str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -318,6 +319,7 @@ def _route(
         tuple(sorted(parameters.items())), tuple(sorted(widths.items())),
         connections, _backend_contract(catalog, widths),
         tuple(_extension_document(item) for item in adapter.extension_policies),
+        {"polarity": adapter.reset_polarity, "synchrony": adapter.reset_synchrony},
     )
 
 
@@ -337,6 +339,7 @@ def _document(routes: tuple[ProcessorExecutionRoute, ...]) -> dict[str, object]:
             "widths": dict(route.widths),
             "field_connections": list(route.field_connections),
             "extension_policies": list(route.extension_policies),
+            "reset_contract": dict(route.reset_contract),
             "backend_contract": dict(route.backend_contract),
         } for route in routes],
     }

@@ -1721,43 +1721,60 @@ def plan_generic_composition(
     if processor_candidate:
         if selected_protocol_catalog is None:
             raise AutoCompositionError("generic:protocol-catalog-required")
-        processor_boundary = build_processor_boundary(
-            capabilities, protocol_catalog=selected_protocol_catalog,
-        )
-        clock_endpoint = next(
-            endpoint for endpoint in capabilities
-            if endpoint.endpoint_id == processor_boundary.clock.endpoint_id
-        )
-        reset_endpoint = next(
-            endpoint for endpoint in capabilities
-            if endpoint.endpoint_id == processor_boundary.reset.endpoint_id
-        )
-        memory_endpoint = next(
-            endpoint for endpoint in capabilities
-            if endpoint.endpoint_id == processor_boundary.memories[0].endpoint_id
-        )
-        reset_module = endpoint_modules.get(memory_endpoint.endpoint_id)
-        if not isinstance(reset_module, str) or not reset_module:
-            raise AutoCompositionError("generic:processor-reset-module")
-        verification_view = replace(
-            memory_endpoint,
-            fields=(*memory_endpoint.fields, *clock_endpoint.fields, *reset_endpoint.fields),
-            clock=processor_boundary.clock.fields[0].port,
-            reset=processor_boundary.reset.fields[0].port,
-        )
-        verified_view = _generic_with_reset_contract(
-            verification_view, source_root, reset_module,
-        )
-        reset_markers = tuple(
-            item for item in verified_view.evidence
-            if item.startswith("reset_contract:")
-        )
+        clock_endpoints = [item for item in capabilities if item.function == "clock"]
+        reset_endpoints = [item for item in capabilities if item.function == "reset"]
+        if len(clock_endpoints) != 1:
+            raise AutoCompositionError("duplicate-clock" if clock_endpoints else "clock")
+        if len(reset_endpoints) != 1:
+            raise AutoCompositionError("duplicate-reset" if reset_endpoints else "reset")
+        clock_endpoint, reset_endpoint = clock_endpoints[0], reset_endpoints[0]
+        if len(clock_endpoint.fields) != 1 or len(reset_endpoint.fields) != 1:
+            raise AutoCompositionError("generic:processor-control-fields")
+        clock_port, reset_port = clock_endpoint.fields[0].port, reset_endpoint.fields[0].port
+        memory_endpoints = [
+            item for item in capabilities if item.function in _PROCESSOR_MEMORY_FUNCTIONS
+        ]
+        reset_contracts: set[tuple[str, str]] = set()
+        associated: dict[str, EndpointCapability] = {}
+        for memory_endpoint in memory_endpoints:
+            reset_module = endpoint_modules.get(memory_endpoint.endpoint_id)
+            if (
+                not isinstance(reset_module, str) or not reset_module
+                or endpoint_modules.get(clock_endpoint.endpoint_id) != reset_module
+                or endpoint_modules.get(reset_endpoint.endpoint_id) != reset_module
+            ):
+                raise AutoCompositionError("generic:processor-reset-module")
+            verification_view = replace(
+                memory_endpoint,
+                fields=(*memory_endpoint.fields, *clock_endpoint.fields, *reset_endpoint.fields),
+                clock=clock_port, reset=reset_port,
+            )
+            try:
+                verified_view = _generic_with_reset_contract(
+                    verification_view, source_root, reset_module,
+                )
+            except AutoCompositionError as error:
+                if memory_endpoint.clock != clock_port:
+                    raise AutoCompositionError(
+                        f"memory-clock:{memory_endpoint.endpoint_id}"
+                    ) from error
+                raise
+            contract = _generic_endpoint_reset_contract(verified_view)
+            reset_contracts.add((contract["polarity"], contract["synchrony"]))
+            associated[memory_endpoint.endpoint_id] = replace(
+                memory_endpoint, clock=clock_port, reset=reset_port,
+            )
+        if len(reset_contracts) != 1:
+            raise AutoCompositionError("generic:processor-reset-semantics")
+        polarity, synchrony = next(iter(reset_contracts))
+        reset_markers = (f"reset_contract:{polarity}:{synchrony}",)
         verified_reset = replace(
             reset_endpoint,
             evidence=tuple(sorted(set((*reset_endpoint.evidence, *reset_markers)))),
         )
         capabilities = tuple(
-            verified_reset if endpoint.endpoint_id == verified_reset.endpoint_id else endpoint
+            verified_reset if endpoint.endpoint_id == verified_reset.endpoint_id
+            else associated.get(endpoint.endpoint_id, endpoint)
             for endpoint in capabilities
         )
         processor_boundary = build_processor_boundary(
@@ -1792,6 +1809,11 @@ def plan_generic_composition(
             protocol_catalog=selected_protocol_catalog,
             input_layout=layout,
         )
+        execution_document = processor_execution_document(processor_execution)
+        for route in execution_document["routes"]:
+            contract = route.get("reset_contract")
+            if not isinstance(contract, Mapping) or contract.get("synchrony") != synchrony:
+                raise AutoCompositionError("generic:processor:adapter-reset-synchrony")
         execution_route = processor_execution_document(processor_execution)["routes"][0]
         backend_fields = {
             item["field_id"]: item for item in execution_route["backend_contract"]["fields"]
@@ -1942,6 +1964,21 @@ def plan_generic_composition(
                 source_module=str(endpoint_modules.get(accepted[0].endpoint_id, "")),
                 target_module=profile.module_name,
             )
+            recovery_contract = None
+            if accepted[2] == ("processor-memory-beat", "1"):
+                features = profile.protocol_features.get(accepted[2], ())
+                if "reset_flush" not in features:
+                    raise AutoCompositionError(
+                        f"generic:component:{component_type}:recovery-contract"
+                    )
+                recovery_contract = {
+                    "mode": "reset_flush",
+                    "scope": "all_accepted_requests",
+                    "acknowledgment": "one_active_clock_edge",
+                    "late_response_after_ack": "forbidden",
+                    "reset_semantics": dict(control["reset_semantics"]),
+                    "evidence": ["component_profile:reset_flush", "component_hdl:reset"],
+                }
             for discarded in accepted_candidates[1:]:
                 diagnostics.append(
                     f"rejected:{component_type}:{discarded[2][0]}@{discarded[2][1]}:lower-preference"
@@ -1990,6 +2027,7 @@ def plan_generic_composition(
                          }}
                         for field in accepted[1].fields
                     ], "control": control,
+                    **({"recovery": recovery_contract} if recovery_contract is not None else {}),
                 },
             })
             used_endpoints.add(accepted[0].endpoint_id)

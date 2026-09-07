@@ -390,9 +390,26 @@ class ProcessorExecutionTests(unittest.TestCase):
                     self.assertEqual("processor_backend.v1", published_document["backend_route"]["schema_version"])
                     self.assertTrue(published_document["source_hashes"])
                     self.assertRegex(published_document["publication_hash"], r"^sha256:[0-9a-f]{64}$")
+                    from myfuzz.contracts import content_hash
+                    publication_payload = {
+                        key: value for key, value in published_document.items()
+                        if key != "publication_hash"
+                    }
+                    self.assertEqual(
+                        content_hash(publication_payload),
+                        published_document["publication_hash"],
+                    )
+                    audit = published_document["audit"]
+                    self.assertEqual(module, audit["source_top_module"])
+                    self.assertEqual("clk", audit["controls"]["clock"]["port"])
+                    self.assertEqual("rst_n", audit["controls"]["reset"]["port"])
+                    self.assertEqual(
+                        {item.endpoint_id for item in description.endpoints},
+                        {item["endpoint_id"] for item in audit["endpoints"]},
+                    )
                     planning_projection = {
                         key: value for key, value in published_document.items()
-                        if key not in {"backend_route", "source_hashes", "publication_hash"}
+                        if key not in {"audit", "backend_route", "source_hashes", "publication_hash"}
                     }
                     self.assertEqual(
                         stable_documents[-1],

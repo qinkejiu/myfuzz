@@ -193,7 +193,14 @@ def build_processor_backend(
     }
     rtl_sources: tuple[str, ...] = ()
     if mode == "round_robin":
-        routing.update({"rtl_module": _ARBITER_MODULE, "fairness": "round_robin"})
+        routing.update({
+            "rtl_module": _ARBITER_MODULE,
+            "rtl_source": _ARBITER_SOURCE,
+            "reset_contract": {
+                "polarity": "active_low", "synchrony": "asynchronous",
+            },
+            "fairness": "round_robin",
+        })
         rtl_sources = (_ARBITER_SOURCE,)
     recovery = {
         "max_wait_cycles": max_wait_cycles,

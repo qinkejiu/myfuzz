@@ -95,6 +95,14 @@ class ProcessorBackendTests(unittest.TestCase):
         self.assertEqual("round_robin", document["routing"]["mode"])
         self.assertEqual("processor_memory_arbiter", document["routing"]["rtl_module"])
         self.assertEqual(
+            "src/myfuzz/protocols/rtl/processor_memory_arbiter.sv",
+            document["routing"]["rtl_source"],
+        )
+        self.assertEqual(
+            {"polarity": "active_low", "synchrony": "asynchronous"},
+            document["routing"]["reset_contract"],
+        )
+        self.assertEqual(
             ["src/myfuzz/protocols/rtl/processor_memory_arbiter.sv"],
             document["rtl_sources"],
         )
