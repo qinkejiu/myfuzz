@@ -299,12 +299,15 @@ def _route(
     if "user" in widths:
         parameters["USER_WIDTH"] = widths["user"]
     parameters.update(adapter.parameter_values)
+    source_ports = {
+        role: port for role, port, _direction in adapter.source_ports
+    }
     connections = tuple({
         "field_id": field.role,
         "direction": field.direction,
         "width": field.width,
         "signed": field.signed,
-        "adapter_port": field.role + ("_i" if field.direction == "output" else "_o"),
+        "adapter_port": source_ports[field.role],
         "physical": _physical(field),
     } for field in sorted(memory.fields, key=lambda item: item.role))
     route_key = f"{memory.function}:{memory.protocol[0]}@{memory.protocol[1]}"
@@ -324,7 +327,6 @@ def _document(routes: tuple[ProcessorExecutionRoute, ...]) -> dict[str, object]:
         "adapter_sources": sorted({route.rtl_source for route in routes}),
         "routes": [{
             "route_id": route.route_id,
-            "endpoint_id": route.endpoint_id,
             "function": route.function,
             "source_protocol": list(route.source_protocol),
             "target_protocol": list(route.target_protocol),

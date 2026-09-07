@@ -31,6 +31,7 @@ class ProcessorAdapterDefinition:
     rtl_source: str
     features: tuple[str, ...]
     extension_policies: tuple[ExtensionPolicy, ...]
+    source_ports: tuple[tuple[str, str, str], ...]
     parameter_values: tuple[tuple[str, int], ...] = ()
 
 
@@ -74,6 +75,31 @@ _ADAPTERS = {
             "error-response",
         ),
         extension_policies=_AXI4_EXTENSION_POLICIES,
+        source_ports=(
+            ("awid", "awid_i", "input"), ("awaddr", "awaddr_i", "input"),
+            ("awlen", "awlen_i", "input"), ("awsize", "awsize_i", "input"),
+            ("awburst", "awburst_i", "input"), ("awlock", "awlock_i", "input"),
+            ("awcache", "awcache_i", "input"), ("awprot", "awprot_i", "input"),
+            ("awqos", "awqos_i", "input"), ("awregion", "awregion_i", "input"),
+            ("awatop", "awatop_i", "input"), ("awuser", "awuser_i", "input"),
+            ("awvalid", "awvalid_i", "input"), ("awready", "awready_o", "output"),
+            ("wdata", "wdata_i", "input"), ("wstrb", "wstrb_i", "input"),
+            ("wlast", "wlast_i", "input"), ("wuser", "wuser_i", "input"),
+            ("wvalid", "wvalid_i", "input"), ("wready", "wready_o", "output"),
+            ("bid", "bid_o", "output"), ("bresp", "bresp_o", "output"),
+            ("buser", "buser_o", "output"), ("bvalid", "bvalid_o", "output"),
+            ("bready", "bready_i", "input"), ("arid", "arid_i", "input"),
+            ("araddr", "araddr_i", "input"), ("arlen", "arlen_i", "input"),
+            ("arsize", "arsize_i", "input"), ("arburst", "arburst_i", "input"),
+            ("arlock", "arlock_i", "input"), ("arcache", "arcache_i", "input"),
+            ("arprot", "arprot_i", "input"), ("arqos", "arqos_i", "input"),
+            ("arregion", "arregion_i", "input"), ("aruser", "aruser_i", "input"),
+            ("arvalid", "arvalid_i", "input"), ("arready", "arready_o", "output"),
+            ("rid", "rid_o", "output"), ("rdata", "rdata_o", "output"),
+            ("rresp", "rresp_o", "output"), ("rlast", "rlast_o", "output"),
+            ("ruser", "ruser_o", "output"), ("rvalid", "rvalid_o", "output"),
+            ("rready", "rready_i", "input"),
+        ),
     ),
     ("obi", "1"): ProcessorAdapterDefinition(
         adapter_id="obi-to-processor-memory-beat",
@@ -86,6 +112,13 @@ _ADAPTERS = {
             "partial-write-when-byte-enable-present", "error-response",
         ),
         extension_policies=_OBI_EXTENSION_POLICIES,
+        source_ports=(
+            ("req", "req_i", "input"), ("gnt", "gnt_o", "output"),
+            ("addr", "addr_i", "input"), ("we", "we_i", "input"),
+            ("wdata", "wdata_i", "input"), ("be", "be_i", "input"),
+            ("rvalid", "rvalid_o", "output"), ("rdata", "rdata_o", "output"),
+            ("error", "error_o", "output"),
+        ),
     ),
     ("tl-ul", "1"): ProcessorAdapterDefinition(
         adapter_id="tl-ul-to-processor-memory-beat",
@@ -98,6 +131,18 @@ _ADAPTERS = {
             "source-roundtrip", "denied-corrupt-error", "partial-write",
         ),
         extension_policies=(),
+        source_ports=(
+            ("a_valid", "a_valid_i", "input"), ("a_ready", "a_ready_o", "output"),
+            ("a_opcode", "a_opcode_i", "input"), ("a_param", "a_param_i", "input"),
+            ("a_size", "a_size_i", "input"), ("a_source", "a_source_i", "input"),
+            ("a_address", "a_address_i", "input"), ("a_mask", "a_mask_i", "input"),
+            ("a_data", "a_data_i", "input"), ("a_corrupt", "a_corrupt_i", "input"),
+            ("d_valid", "d_valid_o", "output"), ("d_ready", "d_ready_i", "input"),
+            ("d_opcode", "d_opcode_o", "output"), ("d_param", "d_param_o", "output"),
+            ("d_size", "d_size_o", "output"), ("d_source", "d_source_o", "output"),
+            ("d_sink", "d_sink_o", "output"), ("d_denied", "d_denied_o", "output"),
+            ("d_data", "d_data_o", "output"), ("d_corrupt", "d_corrupt_o", "output"),
+        ),
     ),
 }
 
@@ -113,6 +158,10 @@ def resolve_processor_adapter(
             f"unsupported-processor-adapter:{memory.protocol[0]}@{memory.protocol[1]}"
         ) from error
     policies = {item.role: item for item in adapter.extension_policies}
+    source_ports = {role: (port, direction) for role, port, direction in adapter.source_ports}
+    if len(source_ports) != len(adapter.source_ports):
+        raise ProcessorAdapterError(f"adapter-source-port-duplicate:{adapter.adapter_id}")
+    protocol_roles = set(source_ports) - set(policies)
     seen: set[str] = set()
     field_roles = {field.role for field in memory.fields}
     if memory.protocol == ("obi", "1"):
@@ -125,8 +174,16 @@ def resolve_processor_adapter(
         if "error" not in field_roles:
             raise ProcessorAdapterError("obi-error-field")
     grouped_widths: dict[str, set[int]] = {}
-    for field in memory.extension_fields:
-        if field.role in seen or field.role not in field_roles:
+    for field in memory.fields:
+        port_fact = source_ports.get(field.role)
+        if port_fact is None:
+            raise ProcessorAdapterError(f"unsupported-extension:{field.role}")
+        expected_adapter_direction = "input" if field.direction == "output" else "output"
+        if field.role in protocol_roles:
+            if port_fact[1] != expected_adapter_direction:
+                raise ProcessorAdapterError(f"adapter-source-direction:{field.role}")
+            continue
+        if field.role in seen:
             raise ProcessorAdapterError(f"invalid-extension:{field.role}")
         seen.add(field.role)
         policy = policies.get(field.role)
@@ -145,6 +202,8 @@ def resolve_processor_adapter(
                 raise ProcessorAdapterError(f"extension-width:{field.role}")
         if policy.width_group is not None:
             grouped_widths.setdefault(policy.width_group, set()).add(field.width)
+        if port_fact[1] != expected_adapter_direction:
+            raise ProcessorAdapterError(f"adapter-source-direction:{field.role}")
     for group, widths in grouped_widths.items():
         if len(widths) != 1:
             raise ProcessorAdapterError(f"extension-width-group:{group}")

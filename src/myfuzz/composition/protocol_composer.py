@@ -1946,6 +1946,12 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
     output_parent.mkdir(parents=True, exist_ok=True)
     ir_payload = canonical_bytes(_generic_plain(plan.ir))
     layout_payload = canonical_bytes(_generic_plain(input_layout_document(plan.layout)))
+    execution_payload = None
+    if plan.processor_execution is not None:
+        from .processor_execution import processor_execution_document
+        execution_payload = canonical_bytes(
+            processor_execution_document(plan.processor_execution)
+        )
     transport = build_rfuzz_transport(plan.layout)
     transport_document = transport.document()
     source_list = _generic_source_list(plan, root, output, sources)
@@ -1954,6 +1960,8 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
     try:
         (stage / "composition_ir.json").write_bytes(ir_payload)
         (stage / "input_layout.json").write_bytes(layout_payload)
+        if execution_payload is not None:
+            (stage / "processor_execution.v1.json").write_bytes(execution_payload)
         (stage / "rfuzz_input_transport.json").write_bytes(canonical_bytes(transport_document))
         (stage / "rfuzz_input_transport.sv").write_text(transport.render_systemverilog(), encoding="utf-8")
         (stage / "generic_composition_top.sv").write_text(top_text, encoding="utf-8")
@@ -1967,6 +1975,8 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
         # until every serialisation and renderer validation has succeeded.
         json.loads((stage / "composition_ir.json").read_text(encoding="utf-8"))
         json.loads((stage / "input_layout.json").read_text(encoding="utf-8"))
+        if execution_payload is not None:
+            json.loads((stage / "processor_execution.v1.json").read_text(encoding="utf-8"))
         json.loads((stage / "rfuzz_input_transport.json").read_text(encoding="utf-8"))
         os.replace(stage, output)
         stage = None

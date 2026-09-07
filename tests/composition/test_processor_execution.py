@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 import tempfile
 from dataclasses import replace
@@ -21,6 +22,7 @@ from myfuzz.composition.processor_execution import (
 )
 from myfuzz.composition.auto import GenericCompositionRequest, plan_generic_composition
 from myfuzz.composition.interface_description import load_interface_description
+from myfuzz.composition.protocol_composer import write_generic_composition
 from myfuzz.composition.source_crawler import source_tree_hash
 from myfuzz.protocols.catalog import load_protocol_catalog
 from myfuzz.protocols.widths import compile_width_expression
@@ -156,6 +158,17 @@ class ProcessorExecutionTests(unittest.TestCase):
             )
             self.assertIn("ADDRESS_WIDTH", route["parameters"])
             self.assertIn("DATA_WIDTH", route["parameters"])
+            adapter = resolve_processor_adapter(memory)
+            explicit_source_ports = {
+                role: port for role, port, _direction in adapter.source_ports
+            }
+            self.assertEqual(
+                explicit_source_ports,
+                {
+                    item["field_id"]: item["adapter_port"]
+                    for item in route["field_connections"]
+                },
+            )
             input_connection = next(item for item in route["field_connections"] if item["direction"] == "input")
             self.assertEqual("renamed_response_bundle", input_connection["physical"]["container_port"])
             self.assertIn("part_select", input_connection["physical"])
@@ -197,6 +210,13 @@ class ProcessorExecutionTests(unittest.TestCase):
             _layout(),
         ))
         cases.append((
+            "unsupported-extension",
+            _boundary(replace(
+                memory, fields=(*memory.fields, mystery),
+            ), containers),
+            _layout(),
+        ))
+        cases.append((
             "ambiguous-memory",
             replace(_boundary(memory, containers), memories=(memory, replace(memory, endpoint_id="other"))),
             _layout(),
@@ -225,8 +245,11 @@ class ProcessorExecutionTests(unittest.TestCase):
                 )
 
     def test_generic_plan_embeds_execution_and_adapter_source_name_independently(self) -> None:
-        route_records = []
-        for module, endpoint in (("first_cpu", "cpu.first"), ("renamed_cpu", "cpu.renamed")):
+        stable_documents = []
+        execution_hashes = []
+        generic_irs = []
+        generic_hashes = []
+        for index, (module, endpoint) in enumerate((("first_cpu", "cpu.first"), ("renamed_cpu", "cpu.renamed"))):
             with tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 source = root / "source" / "rtl" / f"{module}.sv"
@@ -234,7 +257,9 @@ class ProcessorExecutionTests(unittest.TestCase):
                 source.write_text(
                     f"module {module}(input logic clk, input logic rst_n, output logic req, "
                     "input logic gnt, output logic [31:0] addr, input logic rvalid, "
-                    "input logic [31:0] rdata, input logic error); endmodule\n",
+                    "input logic [31:0] rdata, input logic error); "
+                    "always_ff @(posedge clk or negedge rst_n) "
+                    "if (!rst_n) req <= 1'b0; else req <= 1'b1; endmodule\n",
                     encoding="utf-8",
                 )
                 adapter_source = root / "src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv"
@@ -274,11 +299,63 @@ class ProcessorExecutionTests(unittest.TestCase):
                     plan.source_files,
                 )
                 self.assertEqual(plan.processor_execution.execution_hash, execution["execution_hash"])
-                route_records.append(execution["routes"][0])
+                stable_documents.append(processor_execution_document(plan.processor_execution))
+                execution_hashes.append(plan.processor_execution.execution_hash)
+                generic_irs.append(plan.ir)
+                generic_hashes.append(plan.composition_ir_hash)
+                if index == 0:
+                    output = root / "published"
+                    write_generic_composition(plan, output, base_dir=root)
+                    published = output / "processor_execution.v1.json"
+                    self.assertTrue(published.is_file())
+                    self.assertEqual(
+                        stable_documents[-1],
+                        json.loads(published.read_text(encoding="utf-8")),
+                    )
 
-        self.assertEqual(route_records[0]["route_id"], route_records[1]["route_id"])
-        self.assertEqual(route_records[0]["adapter_id"], route_records[1]["adapter_id"])
-        self.assertEqual(route_records[0]["parameters"], route_records[1]["parameters"])
+        self.assertEqual(stable_documents[0], stable_documents[1])
+        self.assertEqual(execution_hashes[0], execution_hashes[1])
+        self.assertEqual(generic_irs[0], generic_irs[1])
+        self.assertEqual(generic_hashes[0], generic_hashes[1])
+
+    def test_clocked_mmio_without_processor_timing_association_keeps_legacy_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source" / "rtl" / "clocked_mmio.sv"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "module clocked_mmio(input logic clk, input logic rst_n, output logic req, "
+                "input logic gnt, output logic [31:0] addr, input logic rvalid, "
+                "input logic [31:0] rdata, input logic error); endmodule\n",
+                encoding="utf-8",
+            )
+            description = load_interface_description({
+                "schema_version": "interface_description.v1",
+                "source": {
+                    "root": "source",
+                    "revision": source_tree_hash(root / "source", (source,)),
+                    "top_module": "clocked_mmio",
+                    "files": ["rtl/clocked_mmio.sv"],
+                },
+                "endpoints": [
+                    {"endpoint_id": "peripheral.clock", "function": "clock", "module": "clocked_mmio",
+                     "fields": [{"role": "clock", "aliases": ["clk"]}]},
+                    {"endpoint_id": "peripheral.reset", "function": "reset", "module": "clocked_mmio",
+                     "fields": [{"role": "reset", "aliases": ["rst_n"]}]},
+                    {"endpoint_id": "peripheral.mmio", "function": "memory_master", "module": "clocked_mmio",
+                     "protocol": ["obi", "1"], "fields": [
+                         {"role": role, "aliases": [role]}
+                         for role in ("req", "gnt", "addr", "rvalid", "rdata", "error")
+                     ]},
+                ],
+            })
+            plan = plan_generic_composition(
+                GenericCompositionRequest(description, ()), base_dir=root,
+                protocol_catalog=self.catalog,
+            )
+
+            self.assertIsNone(plan.processor_execution)
+            self.assertNotIn("processor_execution", plan.ir)
 
 
 if __name__ == "__main__":

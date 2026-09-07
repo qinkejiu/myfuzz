@@ -1513,9 +1513,27 @@ def plan_generic_composition(
         "memory_master", "instruction_memory_master", "data_memory_master",
     }
     capability_functions = {endpoint.function for endpoint in capabilities}
+    clock_endpoints = [endpoint for endpoint in capabilities if endpoint.function == "clock"]
+    reset_endpoints = [endpoint for endpoint in capabilities if endpoint.function == "reset"]
+    memory_endpoints = [
+        endpoint for endpoint in capabilities if endpoint.function in memory_functions
+    ]
+    processor_associated = (
+        len(clock_endpoints) == 1
+        and len(reset_endpoints) == 1
+        and len(clock_endpoints[0].fields) == 1
+        and len(reset_endpoints[0].fields) == 1
+        and bool(memory_endpoints)
+        and all(
+            endpoint.clock == clock_endpoints[0].fields[0].port
+            and endpoint.reset == reset_endpoints[0].fields[0].port
+            for endpoint in memory_endpoints
+        )
+    )
     if (
         any(endpoint.function in memory_functions for endpoint in capabilities)
         and {"clock", "reset"}.issubset(capability_functions)
+        and processor_associated
     ):
         if selected_protocol_catalog is None:
             raise AutoCompositionError("generic:protocol-catalog-required")
@@ -1779,13 +1797,43 @@ def plan_generic_composition(
          )}
         for item in component_records if item["irq"] is not None
     ]
+    stable_processor_mode = processor_execution is not None
+    stable_annotation_hash = (
+        processor_execution.execution_hash
+        if processor_execution is not None else annotation_hash
+    )
+    stable_source_files = (
+        processor_execution.adapter_sources
+        if processor_execution is not None else source_files
+    )
+    stable_layout_fields = [
+        {
+            key: value for key, value in field.items()
+            if key not in ({"provenance", "field_id", "owner"}
+                           if stable_processor_mode else {"provenance"})
+        }
+        for field in input_layout_document(layout)["fields"]
+    ]
+    stable_layout_hash = (
+        canonical_ir_hash({
+            "schema_version": layout.schema_version,
+            "raw_width": layout.raw_width,
+            "fields": stable_layout_fields,
+        })
+        if stable_processor_mode else layout.layout_hash
+    )
     ir = canonical_ir_document({
         "schema_version": "composition_ir.v1",
         "composition_kind": "generic_composition",
-        "target": {"top_module": "generic_composition_top", "source_top_module": request.interface_description.source.top_module,
+        "target": {"top_module": "generic_composition_top", "source_top_module": (
+                       "processor_source" if stable_processor_mode
+                       else request.interface_description.source.top_module
+                   ),
                    "address_width": address_width if request.component_types else None},
-        "interface_annotation_hash": annotation_hash,
-        "capabilities": [_generic_capability_document(item) for item in capabilities],
+        "interface_annotation_hash": stable_annotation_hash,
+        "capabilities": ([] if stable_processor_mode else [
+            _generic_capability_document(item) for item in capabilities
+        ]),
         "components": component_records,
         "instances": instances,
         "adapters": adapters,
@@ -1798,17 +1846,14 @@ def plan_generic_composition(
         "input_layout": {
             "schema_version": layout.schema_version,
             "raw_width": layout.raw_width,
-            "layout_hash": layout.layout_hash,
-            "fields": [
-                {key: value for key, value in field.items() if key != "provenance"}
-                for field in input_layout_document(layout)["fields"]
-            ],
+            "layout_hash": stable_layout_hash,
+            "fields": stable_layout_fields,
         },
         **({"processor_execution": _generic_ir_evidence(
                 processor_execution_document(processor_execution)
             )}
            if processor_execution is not None else {}),
-        "source_file_ids": [canonical_id("generic-source-file", item) for item in source_files],
+        "source_file_ids": [canonical_id("generic-source-file", item) for item in stable_source_files],
         "source_list": {
             "cwd": "output_dir",
             "path_basis": "output-relative",
