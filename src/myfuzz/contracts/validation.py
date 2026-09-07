@@ -8,7 +8,7 @@ _HASH = re.compile(r"sha256:[0-9a-f]{64}\Z")
 _SOURCE_REVISION = re.compile(r"(?:git:[0-9a-f]{40}|sha256:[0-9a-f]{64})\Z")
 _WINDOWS_DRIVE_QUALIFIED_PATH = re.compile(r"[A-Za-z]:")
 _DIRECTIONS = frozenset(("input", "output", "inout"))
-_SCHEMAS = frozenset(("hdl_facts.v2", "protocol.v1", "composition_ir.v1", "candidate_manifest.v1", "interface_description.v1"))
+_SCHEMAS = frozenset(("hdl_facts.v2", "protocol.v1", "composition_ir.v1", "candidate_manifest.v1", "interface_description.v1", "interface_annotations.v1"))
 
 
 class ContractError(ValueError):
@@ -247,6 +247,34 @@ def _validate_manifest(document: Mapping[str, object], schema_id: str) -> None:
             _error(schema_id, f"top_port_abi[{index}].direction", "invalid")
 
 
+def _validate_interface_annotations(document: Mapping[str, object], schema_id: str) -> None:
+    _require(document, schema_id, ("source", "endpoints", "diagnostics"))
+    source = _object(document["source"], schema_id, "source")
+    _require(source, schema_id, ("revision", "content_hash", "files", "modules"))
+    _source_revision(source["revision"], schema_id, "source.revision")
+    _hash(source["content_hash"], schema_id, "source.content_hash")
+    for key in ("files", "modules"):
+        _array(source[key], schema_id, f"source.{key}")
+    for index, endpoint_value in enumerate(_array(document["endpoints"], schema_id, "endpoints")):
+        endpoint = _object(endpoint_value, schema_id, f"endpoints[{index}]")
+        _require(endpoint, schema_id, ("endpoint_id", "function", "module", "fields", "timing", "protocol_candidates", "evidence", "confidence", "diagnostics"))
+        for key in ("endpoint_id", "function", "module", "confidence"):
+            _string(endpoint[key], schema_id, f"endpoints[{index}].{key}")
+        for field_index, field_value in enumerate(_array(endpoint["fields"], schema_id, f"endpoints[{index}].fields")):
+            field = _object(field_value, schema_id, f"endpoints[{index}].fields[{field_index}]")
+            _require(field, schema_id, ("role", "port", "direction", "width", "signed", "source", "evidence", "confidence"))
+            if field["direction"] not in _DIRECTIONS:
+                _error(schema_id, f"endpoints[{index}].fields[{field_index}].direction", "invalid")
+            if not isinstance(field["width"], int) or isinstance(field["width"], bool) or field["width"] <= 0:
+                _error(schema_id, f"endpoints[{index}].fields[{field_index}].width", "invalid")
+            _boolean(field["signed"], schema_id, f"endpoints[{index}].fields[{field_index}].signed")
+            location = _object(field["source"], schema_id, f"endpoints[{index}].fields[{field_index}].source")
+            _require(location, schema_id, ("file", "line", "column"))
+            _relative_path(location["file"], schema_id, f"endpoints[{index}].fields[{field_index}].source.file")
+            _positive_id(location["line"], schema_id, f"endpoints[{index}].fields[{field_index}].source.line")
+            _positive_id(location["column"], schema_id, f"endpoints[{index}].fields[{field_index}].source.column")
+
+
 def validate_contract(document: object, schema_id: str) -> None:
     if schema_id not in _SCHEMAS:
         raise ContractError(schema_id, "schema_id", "unsupported")
@@ -264,5 +292,7 @@ def validate_contract(document: object, schema_id: str) -> None:
         _validate_composition(value, schema_id)
     elif schema_id == "candidate_manifest.v1":
         _validate_manifest(value, schema_id)
+    elif schema_id == "interface_annotations.v1":
+        _validate_interface_annotations(value, schema_id)
     else:
         _validate_interface_description(value, schema_id)

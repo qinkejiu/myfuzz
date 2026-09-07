@@ -17,6 +17,15 @@ from .interface_description import (
     interface_description_document,
     load_interface_description,
 )
+from .source_crawler import (
+    SourceCrawler,
+    SourceCrawlError,
+    SourcePortFact,
+    SourceSnapshot,
+    TimingObservation,
+    annotate_interfaces,
+    source_tree_hash,
+)
 from .ids import canonical_id
 from .ir import composition_ir
 from .manifest import candidate_manifest
@@ -46,6 +55,11 @@ __all__ = [
     "FieldHint",
     "InterfaceDescription",
     "SourceLocator",
+    "SourceCrawler",
+    "SourceCrawlError",
+    "SourcePortFact",
+    "SourceSnapshot",
+    "TimingObservation",
     "CompositionCandidate",
     "CompositionArtifact",
     "CompositionComponent",
@@ -54,6 +68,7 @@ __all__ = [
     "ProtocolCompositionError",
     "ProtocolCompositionManifest",
     "candidate_manifest",
+    "annotate_interfaces",
     "canonical_id",
     "compose_topk",
     "compose_protocol_composition",
@@ -65,6 +80,7 @@ __all__ = [
     "load_protocol_composition",
     "normalize_facts",
     "plan_auto_composition",
+    "source_tree_hash",
     "validate_protocol_composition",
     "write_protocol_composition",
     "write_auto_composition_manifest",
