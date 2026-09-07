@@ -290,6 +290,23 @@ class EndpointCapabilityTests(unittest.TestCase):
         self.assertFalse(any(item["accepted"] for item in matches))
         self.assertTrue(any("undeclared-role:debug" in item["reasons"] for item in matches))
 
+    def test_compiled_only_matching_rejects_shared_undeclared_role(self) -> None:
+        source_document = _endpoint("source", side="initiator")
+        target_document = _endpoint("target", side="target")
+        base_source, base_target = normalize_annotations(_document(source_document, target_document))
+        _, compiled = _protocol_context(base_source, base_target)
+        for document, port in ((source_document, "left_extra"), (target_document, "right_extra")):
+            document["fields"].append(
+                {"role": "debug", "port": port, "direction": "output" if document["side"] == "initiator" else "input",
+                 "width": 1, "signed": False}
+            )
+        source, target = normalize_annotations(_document(source_document, target_document))
+
+        matches = match_endpoint_pair(source, target, (), compiled_protocols=compiled)
+
+        self.assertFalse(any(item["accepted"] for item in matches))
+        self.assertTrue(any("undeclared-role:debug" in item["reasons"] for item in matches))
+
     def test_normalization_retains_relative_source_evidence_and_unknown_identity(self) -> None:
         source_document = _endpoint("source", side="initiator")
         source_document["fields"][0]["source"] = {"file": "rtl/tile.sv", "line": 7, "column": 3}

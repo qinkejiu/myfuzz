@@ -259,7 +259,11 @@ def _expected_direction(protocol_direction: str, side: str) -> str:
     raise EndpointCapabilityError(f"protocol.direction:{protocol_direction}:invalid")
 
 
-def validate_protocol_fingerprint(endpoint: EndpointCapability, protocol: CompiledProtocol) -> tuple[str, ...]:
+def validate_protocol_fingerprint(
+    endpoint: EndpointCapability,
+    protocol: CompiledProtocol,
+    allowed_roles: frozenset[str] = frozenset(),
+) -> tuple[str, ...]:
     """Return deterministic protocol-fingerprint conflicts for an endpoint."""
     reasons: list[str] = []
     if endpoint.side is None:
@@ -267,6 +271,11 @@ def validate_protocol_fingerprint(endpoint: EndpointCapability, protocol: Compil
     if endpoint.protocol is not None and endpoint.protocol != (protocol.protocol_id, protocol.version):
         reasons.append("protocol-version")
     fields = {field.role: field for field in endpoint.fields}
+    declared_roles = {field.field_id for field in protocol.fields}
+    reasons.extend(
+        f"undeclared-role:{role}"
+        for role in sorted(fields.keys() - declared_roles - allowed_roles)
+    )
     for expected in protocol.fields:
         actual = fields.get(expected.field_id)
         if actual is None:
@@ -367,7 +376,7 @@ def _validation_reasons(
     if compiled is None:
         reasons.append("protocol-validation-required")
     else:
-        reasons.extend(validate_protocol_fingerprint(endpoint, compiled))
+        reasons.extend(validate_protocol_fingerprint(endpoint, compiled, adapter_roles))
     return tuple(dict.fromkeys(reasons))
 
 
