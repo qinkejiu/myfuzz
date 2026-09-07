@@ -163,6 +163,7 @@ def _verify_elaboration_identity(snapshot: SourceSnapshot, description: Interfac
     physical = document.get("physical") if isinstance(document, dict) else None
     if (not isinstance(document, dict)
             or document.get("settings") != expected_settings
+            or document.get("repositories", []) != [[item.path, item.revision] for item in sorted(description.source.repositories, key=lambda item: item.path)]
             or not isinstance(physical, dict)
             or physical.get("top_module") != description.source.top_module
             or physical.get("ports") != [_physical_port_document(port) for port in snapshot.elaborated_ports]
@@ -203,6 +204,15 @@ def _content_hash(contents: Mapping[str, bytes]) -> str:
         digest.update(len(content).to_bytes(8, "big"))
         digest.update(content)
     return f"sha256:{digest.hexdigest()}"
+
+
+def _with_repository_identity(content_hash: str, locator: SourceLocator) -> str:
+    if not locator.repositories:
+        return content_hash
+    digest = hashlib.sha256()
+    digest.update(content_hash.encode("ascii"))
+    digest.update(canonical_bytes([[item.path, item.revision] for item in sorted(locator.repositories, key=lambda item: item.path)]))
+    return "sha256:" + digest.hexdigest()
 
 
 def _safe_child(root: Path, raw: str) -> Path:
@@ -579,10 +589,13 @@ class SourceCrawler:
     def crawl(self, locator: SourceLocator, *, base_dir: Path) -> SourceSnapshot:
         if _PIN_RE.fullmatch(locator.revision) is None:
             raise SourceCrawlError("invalid-source-pin")
+        if locator.repositories and not locator.revision.startswith("git:"):
+            raise SourceCrawlError("repository-pins-require-git-root")
         root = _safe_child(base_dir.resolve(), locator.source_root)
         if not root.is_dir():
             raise SourceCrawlError("source-root-missing")
         git_root: Path | None = None
+        repository_owners: list[tuple[Path, str]] = []
         if locator.revision.startswith("git:"):
             revision = locator.revision[4:]
             command = ["git", "-C", root.as_posix(), "rev-parse", "--verify", f"{revision}^{{commit}}"]
@@ -604,6 +617,31 @@ class SourceCrawler:
             if top.returncode != 0:
                 raise SourceCrawlError("git-revision-mismatch")
             git_root = Path(top.stdout.strip()).resolve()
+            repository_owners.append((git_root, revision))
+            seen_repository_paths: set[Path] = set()
+            declared = []
+            for pin in locator.repositories:
+                pin_revision = pin.revision[4:]
+                repository_root = _safe_child(root, pin.path)
+                if repository_root in seen_repository_paths or repository_root.is_symlink() or not repository_root.is_dir():
+                    raise SourceCrawlError("invalid-repository-pin")
+                seen_repository_paths.add(repository_root)
+                top = subprocess.run(["git", "-C", str(repository_root), "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=False)
+                head = subprocess.run(["git", "-C", str(repository_root), "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
+                if top.returncode or Path(top.stdout.strip()).resolve() != repository_root or head.returncode or head.stdout.strip() != pin_revision:
+                    raise SourceCrawlError("git-repository-pin-mismatch")
+                declared.append((repository_root, pin_revision))
+            for repository_root, child_revision in sorted(declared, key=lambda item: len(item[0].parts)):
+                parents = [(path, rev) for path, rev in repository_owners if path in repository_root.parents]
+                if not parents:
+                    raise SourceCrawlError("gitlink-parent-missing")
+                parent_root, parent_revision = max(parents, key=lambda item: len(item[0].parts))
+                relative = repository_root.relative_to(parent_root).as_posix()
+                link = subprocess.run(["git", "-C", str(parent_root), "ls-tree", parent_revision, "--", relative], capture_output=True, text=True, check=False)
+                expected = f"160000 commit {child_revision}\t{relative}"
+                if link.returncode or link.stdout.strip() != expected:
+                    raise SourceCrawlError("gitlink-pin-mismatch")
+                repository_owners.append((repository_root, child_revision))
 
         contents: dict[str, bytes] = {}
 
@@ -614,9 +652,11 @@ class SourceCrawler:
                     raise SourceCrawlError(f"source-file-missing:{relative}")
                 content = path.read_bytes()
                 if git_root is not None:
-                    tree_path = path.relative_to(git_root).as_posix()
+                    owners = [(repo, rev) for repo, rev in repository_owners if repo == path or repo in path.parents]
+                    owner, owner_revision = max(owners, key=lambda item: len(item[0].parts))
+                    tree_path = path.relative_to(owner).as_posix()
                     blob = subprocess.run(
-                        ["git", "-C", str(git_root), "cat-file", "blob", f"{revision}:{tree_path}"],
+                        ["git", "-C", str(owner), "cat-file", "blob", f"{owner_revision}:{tree_path}"],
                         capture_output=True, check=False,
                     )
                     if blob.returncode != 0 or blob.stdout != content:
@@ -630,6 +670,7 @@ class SourceCrawler:
         content_hash = _content_hash(contents)
         if locator.elaboration is None and locator.revision.startswith("sha256:") and locator.revision != content_hash:
             raise SourceCrawlError("content-hash-mismatch")
+        content_hash = _with_repository_identity(content_hash, locator)
 
         ports: list[SourcePortFact] = []
         modules: list[str] = []
@@ -740,6 +781,7 @@ class SourceCrawler:
             content_hash = _content_hash(contents)
             if locator.revision.startswith("sha256:") and locator.revision != content_hash:
                 raise SourceCrawlError("content-hash-mismatch")
+            content_hash = _with_repository_identity(content_hash, locator)
             facts = []
             for item in physical["ports"]:
                 source = item["source"]
@@ -776,6 +818,8 @@ class SourceCrawler:
                 },
                 "physical": physical,
             }
+            if locator.repositories:
+                stable_manifest["repositories"] = [[item.path, item.revision] for item in sorted(locator.repositories, key=lambda item: item.path)]
             digest = hashlib.sha256()
             digest.update(content_hash.encode("ascii"))
             stable_bytes = canonical_bytes(stable_manifest)

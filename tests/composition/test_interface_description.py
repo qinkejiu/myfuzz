@@ -12,6 +12,7 @@ from myfuzz.composition.interface_description import (
     FieldHint,
     InterfaceDescription,
     PhysicalSelector,
+    RepositoryPin,
     SourceLocator,
     interface_description_document,
     load_interface_description,
@@ -48,6 +49,22 @@ def interface_document() -> dict[str, object]:
 
 
 class InterfaceDescriptionTests(unittest.TestCase):
+    def test_repository_pins_are_typed_sorted_and_strict(self) -> None:
+        document = interface_document()
+        document["source"]["repositories"] = [
+            {"path": "vendor/z", "revision": "git:" + "b" * 40},
+            {"path": "vendor/a", "revision": "git:" + "a" * 40},
+        ]
+        value = load_interface_description(document)
+        self.assertEqual(("vendor/z", "vendor/a"), tuple(item.path for item in value.source.repositories))
+        serialized = interface_description_document(value)
+        self.assertEqual(("vendor/a", "vendor/z"), tuple(item["path"] for item in serialized["source"]["repositories"]))
+        document["source"]["repositories"].append({"path": "vendor/a", "revision": "git:" + "c" * 40})
+        with self.assertRaises(ValueError):
+            load_interface_description(document)
+        for path in (".", "a//b", "a/./b", "a\0b", "C:/repo", "../repo"):
+            with self.subTest(path=path), self.assertRaises(ValueError):
+                RepositoryPin(path, "git:" + "a" * 40)
     def test_warning_policy_defaults_omitted_and_recorded_mode_round_trips(self) -> None:
         document = interface_document()
         document["source"]["elaboration"] = {"frontend": "verilator-json"}

@@ -109,6 +109,19 @@ def _validate_interface_description(document: Mapping[str, object], schema_id: s
                 _relative_path(item, schema_id, f"source.{key}[{index}]")
     if "filelist" in source:
         _relative_path(source["filelist"], schema_id, "source.filelist")
+    repository_paths: set[str] = set()
+    for index, value in enumerate(_array(source.get("repositories", []), schema_id, "source.repositories")):
+        path = f"source.repositories[{index}]"
+        item = _object(value, schema_id, path)
+        _require(item, schema_id, ("path", "revision"))
+        _relative_path(item["path"], schema_id, f"{path}.path")
+        repository_path = _string(item["path"], schema_id, f"{path}.path")
+        revision = _string(item["revision"], schema_id, f"{path}.revision")
+        if not re.fullmatch(r"git:[0-9a-f]{40}", revision):
+            _error(schema_id, f"{path}.revision", "invalid")
+        if repository_path in repository_paths:
+            _error(schema_id, f"{path}.path", "duplicate")
+        repository_paths.add(repository_path)
     if "elaboration" in source:
         elaboration = _object(source["elaboration"], schema_id, "source.elaboration")
         _require(elaboration, schema_id, ("frontend",))

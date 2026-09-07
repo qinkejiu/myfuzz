@@ -10,16 +10,17 @@ from unittest import mock
 from dataclasses import replace
 from pathlib import Path
 
-from myfuzz.composition.interface_description import ElaborationSettings, SourceLocator, load_interface_description
+from myfuzz.composition.interface_description import ElaborationSettings, RepositoryPin, SourceLocator, load_interface_description
 from myfuzz.composition.source_crawler import (
     SourceCrawler,
     SourceCrawlError,
     annotate_interfaces,
     source_tree_hash,
+    _with_repository_identity,
 )
 from myfuzz.protocols.catalog import ProtocolCatalog
 from myfuzz.protocols.model import FieldSpec, ProtocolPlugin
-from myfuzz.contracts import ContractError
+from myfuzz.contracts import ContractError, canonical_bytes
 
 
 OPAQUE_TILE = """\
@@ -46,6 +47,77 @@ def _tree_hash(root: Path, files: tuple[Path, ...]) -> str:
 
 
 class SourceCrawlerTests(unittest.TestCase):
+    def test_repository_pins_require_git_root_revision(self) -> None:
+        temporary, root, source = self.make_source()
+        self.addCleanup(temporary.cleanup)
+        locator = replace(self.description(root, source).source,
+                          repositories=(RepositoryPin("vendor", "git:" + "a" * 40),))
+        with self.assertRaisesRegex(SourceCrawlError, "require-git-root"):
+            SourceCrawler().crawl(locator, base_dir=root.parent)
+
+    def test_repository_identity_is_canonical_and_revision_sensitive(self) -> None:
+        first = SourceLocator("one", "git:" + "f" * 40, "top", repositories=(
+            RepositoryPin("z", "git:" + "b" * 40), RepositoryPin("a", "git:" + "a" * 40)))
+        second = SourceLocator("different-root", first.revision, "top", repositories=tuple(reversed(first.repositories)))
+        base = "sha256:" + "0" * 64
+        self.assertEqual(_with_repository_identity(base, first), _with_repository_identity(base, second))
+        changed = replace(second, repositories=(RepositoryPin("a", "git:" + "c" * 40), RepositoryPin("z", "git:" + "b" * 40)))
+        self.assertNotEqual(_with_repository_identity(base, first), _with_repository_identity(base, changed))
+    def test_declared_gitlink_uses_child_repository_as_blob_owner(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            root = base / "root"
+            child = root / "child"
+            grandchild = child / "grandchild"
+            child.mkdir(parents=True)
+            def git(directory, *arguments):
+                return subprocess.run(("git", "-C", str(directory), *arguments), check=True, capture_output=True, text=True).stdout.strip()
+            git(child, "init", "-q")
+            git(child, "config", "user.email", "test@example.invalid")
+            git(child, "config", "user.name", "Test")
+            grandchild.mkdir()
+            git(grandchild, "init", "-q")
+            git(grandchild, "config", "user.email", "test@example.invalid")
+            git(grandchild, "config", "user.name", "Test")
+            source = grandchild / "top.sv"
+            source.write_text("module top(input logic a); endmodule\n", encoding="utf-8")
+            git(grandchild, "add", "top.sv"); git(grandchild, "commit", "-qm", "grandchild")
+            grandchild_revision = git(grandchild, "rev-parse", "HEAD")
+            git(child, "update-index", "--add", "--cacheinfo", f"160000,{grandchild_revision},grandchild")
+            git(child, "commit", "-qm", "child")
+            child_revision = git(child, "rev-parse", "HEAD")
+            git(root, "init", "-q")
+            git(root, "config", "user.email", "test@example.invalid")
+            git(root, "config", "user.name", "Test")
+            git(root, "update-index", "--add", "--cacheinfo", f"160000,{child_revision},child")
+            git(root, "commit", "-qm", "root")
+            root_revision = git(root, "rev-parse", "HEAD")
+            locator = SourceLocator("root", f"git:{root_revision}", "top", files=("child/grandchild/top.sv",), repositories=(RepositoryPin("child", "git:" + child_revision), RepositoryPin("child/grandchild", "git:" + grandchild_revision)))
+            with self.assertRaisesRegex(SourceCrawlError, "git-content-mismatch"):
+                SourceCrawler().crawl(replace(locator, repositories=()), base_dir=base)
+            with self.assertRaisesRegex(SourceCrawlError, "repository-pin-mismatch"):
+                SourceCrawler().crawl(replace(locator, repositories=(RepositoryPin("child", "git:" + "c" * 40), RepositoryPin("child/grandchild", "git:" + grandchild_revision))), base_dir=base)
+            ordinary = root / "ordinary"
+            ordinary.mkdir()
+            (ordinary / "plain.sv").write_text("module plain; endmodule\n", encoding="utf-8")
+            git(root, "add", "ordinary/plain.sv")
+            git(root, "commit", "-qm", "ordinary-tree")
+            root_revision = git(root, "rev-parse", "HEAD")
+            locator = replace(locator, revision="git:" + root_revision)
+            git(ordinary, "init", "-q")
+            git(ordinary, "config", "user.email", "test@example.invalid")
+            git(ordinary, "config", "user.name", "Test")
+            git(ordinary, "add", "plain.sv")
+            git(ordinary, "commit", "-qm", "ordinary-checkout")
+            ordinary_revision = git(ordinary, "rev-parse", "HEAD")
+            with self.assertRaisesRegex(SourceCrawlError, "gitlink-pin-mismatch"):
+                SourceCrawler().crawl(replace(locator, repositories=(RepositoryPin("ordinary", "git:" + ordinary_revision), RepositoryPin("child/grandchild", "git:" + grandchild_revision))), base_dir=base)
+            snapshot = SourceCrawler().crawl(locator, base_dir=base)
+            self.assertEqual(("top",), snapshot.modules)
+            source.write_text("module top(input logic changed); endmodule\n", encoding="utf-8")
+            with self.assertRaisesRegex(SourceCrawlError, "git-content-mismatch"):
+                SourceCrawler().crawl(locator, base_dir=base)
+
     def test_elaboration_preserves_compiler_order_and_has_path_independent_identity(self) -> None:
         calls = []
 
@@ -274,6 +346,12 @@ class SourceCrawlerTests(unittest.TestCase):
                 snapshot = SourceCrawler().crawl(locator, base_dir=Path(temporary))
             self.assertEqual(["clk"], [port.name for port in snapshot.ports])
             self.assertEqual(["clk", "bus"], [port.name for port in snapshot.elaborated_ports])
+            evidence = json.loads(snapshot.elaboration_evidence)
+            self.assertNotIn("repositories", evidence)
+            digest = hashlib.sha256()
+            digest.update(revision.encode("ascii"))
+            digest.update(canonical_bytes(evidence))
+            self.assertEqual("sha256:" + digest.hexdigest(), snapshot.content_hash)
             with self.assertRaises(TypeError):
                 snapshot.elaboration_evidence[0] = 0
     def test_same_module_instance_aliases_remain_ambiguous(self) -> None:

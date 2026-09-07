@@ -243,6 +243,51 @@ typed caller values; never inherit arbitrary host environment variables.
 Then run SourceCrawler through the same actual CVA6 module evidence path and
 include every repository revision in canonical source identity.
 
+#### Task 7a: Typed gitlink repository ownership
+
+Add optional source `repositories` entries with canonical shape
+`{"path":"relative/subtree","revision":"git:<40 lowercase hex>"}`. The root
+repository continues to use `source.revision`. Reject duplicate paths,
+absolute/empty/dot/parent paths, symlink roots, non-Git checkouts and revisions
+that do not equal checkout HEAD. Sort serialized entries by path.
+
+For each nested repository, select its nearest declared ancestor repository and
+prove the ancestor tree records the relative path as mode `160000`, type
+`commit`, with the exact child revision. Files belong to the deepest declared
+repository containing them; verify their bytes using `git cat-file blob` at
+that repository revision. A file beneath an undeclared or mismatched gitlink
+fails instead of falling back to filesystem bytes. Include the canonical
+repository map in elaboration evidence and verify it again before physical
+member annotation.
+
+RED/GREEN tests create a root repository, a nested repository and a repository
+nested inside that child. Cover successful deepest-owner reads, dirty tracked
+files, missing pins, wrong revisions, forged non-gitlink directories,
+duplicate/unsafe paths and path-independent identity. Commit this provenance
+primitive separately after independent review.
+
+Completed and independently reviewed. Empty repository maps preserve the
+existing source and elaboration identities byte-for-byte. The actual CVA6
+explicit 225-file list passes all four repository and blob ownership checks,
+then stops at the separately planned non-top source-parser boundary.
+
+#### Task 7b: Explicit filelist variables and actual SourceCrawler run
+
+Add a typed mapping for filelist variables used by the official Flist. Variable
+names are identifiers and values are safe paths rooted in one of the declared
+repositories. Expand only `${NAME}` tokens from this mapping; reject `$NAME`,
+host environment fallback, undefined variables, substitutions that form
+options, recursive values and paths outside the source root. Canonicalize the
+mapping into source/elaboration identity.
+
+Run the official fixed-revision CVA6 closure through SourceCrawler with the
+three nested repository pins and `recorded-nonfatal`. If source-only parsing
+encounters unsupported types in non-top modules, it may defer those individual
+port facts only while compiler elaboration is explicitly enabled; endpoints
+requiring absent facts must still fail closed. Retain all 13 compiler-proven top
+ports and the warning summary, and report exact source count, repository pins,
+runtime and sampled RSS.
+
 ### Task 8: Explicit full-AXI semantics and runtime projection
 
 Annotate compiler-proven CVA6 packed members with explicit protocol roles and

@@ -45,6 +45,20 @@ class ElaborationSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class RepositoryPin:
+    path: str
+    revision: str
+
+    def __post_init__(self) -> None:
+        path = Path(self.path)
+        if (not self.path or self.path == "." or "\0" in self.path or "\\" in self.path or path.is_absolute()
+                or path.as_posix() != self.path or any(part in {"", ".", ".."} for part in path.parts)
+                or re.match(r"[A-Za-z]:", self.path)
+                or re.fullmatch(r"git:[0-9a-f]{40}", self.revision) is None):
+            raise ValueError("invalid-repository-pin")
+
+
+@dataclass(frozen=True, slots=True)
 class SourceLocator:
     source_root: str
     revision: str
@@ -53,6 +67,7 @@ class SourceLocator:
     filelist: str | None = None
     include_roots: tuple[str, ...] = ()
     elaboration: ElaborationSettings | None = None
+    repositories: tuple[RepositoryPin, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,6 +193,7 @@ def load_interface_description(document_or_path: object) -> InterfaceDescription
         filelist=source_value.get("filelist"),  # type: ignore[arg-type]
         include_roots=_strings(source_value.get("include_roots", [])),
         elaboration=elaboration,
+        repositories=tuple(RepositoryPin(item["path"], item["revision"]) for item in source_value.get("repositories", [])),  # type: ignore[union-attr]
     )
     return InterfaceDescription(
         source=source,
@@ -246,6 +262,11 @@ def interface_description_document(value: InterfaceDescription) -> dict[str, obj
         }
         if settings.warning_policy != "fatal":
             source["elaboration"]["warning_policy"] = settings.warning_policy
+    if value.source.repositories:
+        source["repositories"] = [
+            {"path": item.path, "revision": item.revision}
+            for item in sorted(value.source.repositories, key=lambda item: item.path)
+        ]
     return {
         "schema_version": "interface_description.v1",
         "source": source,
