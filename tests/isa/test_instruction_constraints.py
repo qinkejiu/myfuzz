@@ -46,6 +46,23 @@ class InstructionConstraintsTest(unittest.TestCase):
         self.assertTrue(provider.is_legal_word(0x0200_00B3))
         self.assertTrue(provider.is_legal_word(0x0001, compressed=True))
 
+    def test_rv64_op_32_accepts_only_rv64i_m_word_operation_encodings(self) -> None:
+        i_provider = RiscvInstructionProvider(IsaContract(64, ("I",)))
+        m_provider = RiscvInstructionProvider(IsaContract(64, ("I", "M")))
+        for instruction in (
+            0x3B,  # ADDW
+            (0x20 << 25) | 0x3B,  # SUBW
+            (1 << 12) | 0x3B,  # SLLW
+            (5 << 12) | 0x3B,  # SRLW
+            (0x20 << 25) | (5 << 12) | 0x3B,  # SRAW
+        ):
+            with self.subTest(instruction=instruction):
+                self.assertTrue(i_provider.is_legal_word(instruction))
+        self.assertTrue(m_provider.is_legal_word((1 << 25) | 0x3B))  # MULW
+        self.assertFalse(i_provider.is_legal_word((1 << 25) | 0x3B))
+        self.assertFalse(i_provider.is_legal_word((2 << 12) | 0x3B))
+        self.assertFalse(i_provider.is_legal_word((1 << 25) | (1 << 12) | 0x3B))
+
     def test_contract_rejects_invalid_xlen_duplicate_extensions_and_alignment(self) -> None:
         for args in ((48, ("I",)), (32, ("I", "I")), (32, ("I",), ("M",), 3)):
             with self.subTest(args=args):

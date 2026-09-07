@@ -30,9 +30,11 @@ class LayoutField:
     signed: bool = False
     direction: str = "input"
     provenance: Mapping[str, object] | None = None
+    evidence: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "constraint", MappingProxyType(dict(self.constraint)))
+        object.__setattr__(self, "evidence", tuple(self.evidence))
         if self.provenance is not None:
             object.__setattr__(self, "provenance", MappingProxyType(dict(self.provenance)))
 
@@ -101,6 +103,15 @@ def _provenance(value: object) -> Mapping[str, object] | None:
             _error("invalid provenance")
         result["column"] = column
     return result
+
+
+def _evidence(value: object) -> tuple[str, ...]:
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)) or not value:
+        _error("invalid field evidence")
+    evidence = tuple(_name(item, "invalid field evidence") for item in value)
+    if len(set(evidence)) != len(evidence):
+        _error("invalid field evidence")
+    return tuple(sorted(evidence))
 
 
 def _protocol_is_apb(endpoint: Mapping[str, object]) -> bool:
@@ -182,6 +193,7 @@ def _field_document(field: LayoutField, *, include_provenance: bool) -> dict[str
         "raw_lo": field.raw_lo, "raw_hi": field.raw_hi, "encoding": field.encoding,
         "constraint": dict(field.constraint), "dependency_group": field.dependency_group,
         "binding": {"port": field.port, "direction": field.direction, "signed": field.signed},
+        "evidence": list(field.evidence),
     }
     if include_provenance and field.provenance is not None:
         document["provenance"] = dict(field.provenance)
@@ -201,7 +213,7 @@ def build_input_layout(annotations: Mapping[str, object], *, component_constrain
     if not isinstance(endpoints, Sequence) or isinstance(endpoints, (str, bytes)):
         _error("annotations.endpoints must be a sequence")
 
-    candidates: list[tuple[str, str, int, bool, bool, bool, str, str, Mapping[str, object] | None]] = []
+    candidates: list[tuple[str, str, int, bool, bool, bool, str, str, Mapping[str, object] | None, tuple[str, ...]]] = []
     seen: set[tuple[str, str]] = set()
     for endpoint in endpoints:
         if not isinstance(endpoint, Mapping):
@@ -231,7 +243,8 @@ def build_input_layout(annotations: Mapping[str, object], *, component_constrain
             if not isinstance(optional, bool):
                 _error("invalid optional flag")
             candidates.append((owner, role, _width(source.get("width"), f"{owner}:{role}"), signed, optional, is_apb,
-                               _name(source.get("port"), "field port missing"), direction, _provenance(source.get("source"))))
+                               _name(source.get("port"), "field port missing"), direction, _provenance(source.get("source")),
+                               _evidence(source.get("evidence"))))
     if not candidates:
         _error("empty input layout")
     candidates.sort(key=lambda item: (item[0], item[4], _ROLE_ORDER.get(item[1], 100), item[1], item[6]))
@@ -241,7 +254,7 @@ def build_input_layout(annotations: Mapping[str, object], *, component_constrain
 
     fields: list[LayoutField] = []
     cursor = 0
-    for owner, role, width, signed, _optional, is_apb, port, direction, provenance in candidates:
+    for owner, role, width, signed, _optional, is_apb, port, direction, provenance, evidence in candidates:
         constraint = dict(records.get((owner, role), {}))
         group = constraint.pop("dependency_group", None)
         if group is not None:
@@ -276,7 +289,7 @@ def build_input_layout(annotations: Mapping[str, object], *, component_constrain
                 _error("gated_by must reference owner valid")
         encoding = _instruction_encoding(isa) if role == "instruction" else "bits"
         fields.append(LayoutField(f"{owner}:{role}", owner, role, width, cursor, cursor + width - 1, encoding,
-                                  constraint, group, port, signed, direction, provenance))
+                                  constraint, group, port, signed, direction, provenance, evidence))
         cursor += width
     document = {"schema_version": "input_layout.v1", "raw_width": cursor,
                 "fields": [_field_document(field, include_provenance=False) for field in fields]}

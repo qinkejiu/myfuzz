@@ -53,6 +53,18 @@ class InputLayoutTest(unittest.TestCase):
         address_document = next(field for field in document["fields"] if field["role"] == "address")
         self.assertEqual(address_document["binding"], {"port": "opaque_address", "direction": "input", "signed": False})
         self.assertEqual(address_document["provenance"], {"file": "rtl/device.sv", "line": 10, "column": 1})
+        self.assertEqual(address_document.get("evidence"), ["explicit_alias"])
+
+    def test_field_evidence_is_preserved_and_changes_canonical_layout_hash(self) -> None:
+        left = _annotations(include_optional=False)
+        right = copy.deepcopy(left)
+        address = next(field for field in right["endpoints"][0]["fields"] if field["role"] == "address")  # type: ignore[index]
+        address["evidence"] = ["hdl_declaration"]
+        first = build_input_layout(left)
+        second = build_input_layout(right)
+        self.assertNotEqual(first.layout_hash, second.layout_hash)
+        first_address = next(field for field in input_layout_document(first)["fields"] if field["role"] == "address")
+        self.assertEqual(first_address["evidence"], ["explicit_alias"])
 
     def test_byte_enable_uses_same_endpoint_data_width_not_address_width(self) -> None:
         layout = build_input_layout(_annotations(address_width=64, data_width=32, include_optional=False))
