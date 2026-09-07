@@ -1574,11 +1574,14 @@ def _generic_control_binding(
         )
     source_contract = _generic_endpoint_reset_contract(_generic_with_reset_contract(source, source_root, source_module))
     target_contract = _generic_endpoint_reset_contract(_generic_with_reset_contract(target, target_root, target_module))
-    if source_contract != target_contract:
+    processor_backend = source.function == "processor_memory_backend"
+    if source_contract != target_contract and not processor_backend:
         raise AutoCompositionError(
             f"generic:component:{component_type}:reset-semantics"
         )
-    result["reset_semantics"] = source_contract
+    if processor_backend:
+        result["source_reset_semantics"] = source_contract
+    result["reset_semantics"] = target_contract
     return result
 
 
@@ -1812,8 +1815,8 @@ def plan_generic_composition(
         execution_document = processor_execution_document(processor_execution)
         for route in execution_document["routes"]:
             contract = route.get("reset_contract")
-            if not isinstance(contract, Mapping) or contract.get("synchrony") != synchrony:
-                raise AutoCompositionError("generic:processor:adapter-reset-synchrony")
+            if contract != {"polarity": "active_low", "synchrony": "synchronous"}:
+                raise AutoCompositionError("generic:processor:adapter-reset-contract")
         execution_route = processor_execution_document(processor_execution)["routes"][0]
         backend_fields = {
             item["field_id"]: item for item in execution_route["backend_contract"]["fields"]

@@ -1714,6 +1714,40 @@ endmodule
 """
 
 
+def _processor_reset_signal(
+    lines: list[str], *, domain: str, clock: str, raw_reset_n: str,
+    source_contract: Mapping[str, str], target_contract: Mapping[str, str],
+) -> str:
+    """Render an explicit reset-domain adapter from normalized CPU reset."""
+    if source_contract.get("polarity") not in {"active_low", "active_high"}:
+        raise ValueError("processor composition source reset contract is invalid")
+    if source_contract.get("synchrony") not in {"synchronous", "asynchronous"}:
+        raise ValueError("processor composition source reset contract is invalid")
+    polarity = target_contract.get("polarity")
+    synchrony = target_contract.get("synchrony")
+    if polarity not in {"active_low", "active_high"} or synchrony not in {"synchronous", "asynchronous"}:
+        raise ValueError("processor composition target reset contract is invalid")
+    active_low = f"{domain}_reset_n"
+    lines.append(f"  logic {active_low};")
+    if source_contract["synchrony"] == "asynchronous" and synchrony == "synchronous":
+        synchronizer = f"{domain}_reset_sync_q"
+        lines.extend((
+            f"  logic [1:0] {synchronizer};",
+            f"  always_ff @(posedge {clock} or negedge {raw_reset_n}) begin",
+            f"    if (!{raw_reset_n}) {synchronizer} <= 2'b00;",
+            f"    else {synchronizer} <= {{{synchronizer}[0], 1'b1}};",
+            "  end",
+            f"  assign {active_low} = {synchronizer}[1];",
+        ))
+    else:
+        lines.append(f"  assign {active_low} = {raw_reset_n};")
+    if polarity == "active_low":
+        return active_low
+    active_high = f"{domain}_reset"
+    lines.extend((f"  logic {active_high};", f"  assign {active_high} = ~{active_low};"))
+    return active_high
+
+
 def _render_processor_top(plan: object, backend: object) -> str:
     from .processor_backend import processor_backend_document
     from .processor_execution import processor_execution_document
@@ -1759,13 +1793,10 @@ def _render_processor_top(plan: object, backend: object) -> str:
         raise ValueError("processor composition reset polarity is invalid")
     if reset_semantics["synchrony"] not in {"synchronous", "asynchronous"}:
         raise ValueError("processor composition reset synchrony is invalid")
+    adapter_reset_contract = {"polarity": "active_low", "synchrony": "synchronous"}
     for route in routes:
         contract = route.get("reset_contract")
-        if (
-            not isinstance(contract, Mapping)
-            or contract.get("polarity") != "active_low"
-            or contract.get("synchrony") != reset_semantics["synchrony"]
-        ):
+        if contract != adapter_reset_contract:
             raise ValueError("processor composition adapter reset contract is incompatible")
 
     declarations = []
@@ -1785,6 +1816,11 @@ def _render_processor_top(plan: object, backend: object) -> str:
         lines.append("  " + _sv_logic(source_signals[port], int(record["width"]), signed=bool(record["signed"])) + ";")
     if normalized_reset == "processor_reset_n":
         lines.extend(("  logic processor_reset_n;", f"  assign processor_reset_n = ~{reset_signal};"))
+    adapter_reset = _processor_reset_signal(
+        lines, domain="processor_adapter", clock=clock_signal,
+        raw_reset_n=normalized_reset, source_contract=reset_semantics,
+        target_contract=adapter_reset_contract,
+    )
     source_connections = [
         f"        .{_sv_identifier(port, context='source port')}({source_signals[port]})"
         for port in sorted(all_records)
@@ -1818,7 +1854,7 @@ def _render_processor_top(plan: object, backend: object) -> str:
             for region in backend_record["address_decode"]["regions"]
         ]
         lines.append(f"  assign {wires['mapped']} = " + (" || ".join(terms) if terms else "1'b0") + ";")
-        adapter_connections = [f"        .clk_i({clock_signal})", f"        .rst_ni({normalized_reset})"]
+        adapter_connections = [f"        .clk_i({clock_signal})", f"        .rst_ni({adapter_reset})"]
         for connection in route["field_connections"]:
             physical = connection["physical"]
             adapter_connections.append(
@@ -1851,6 +1887,15 @@ def _render_processor_top(plan: object, backend: object) -> str:
         ("rsp_valid", 1), ("rsp_ready", 1), ("rdata", data_width), ("error", 1),
     ))
     lines.extend(("  logic backend_cancel_valid;", "  logic backend_cancel_ready;"))
+    routing = backend_record["routing"]
+    backend_reset_contract = routing.get("backend_reset_contract")
+    if backend_reset_contract != {"polarity": "active_low", "synchrony": "asynchronous"}:
+        raise ValueError("processor composition backend reset contract is malformed")
+    backend_reset = _processor_reset_signal(
+        lines, domain="processor_backend", clock=clock_signal,
+        raw_reset_n=normalized_reset, source_contract=reset_semantics,
+        target_contract=backend_reset_contract,
+    )
     if len(routes) == 1:
         wires = route_wires[0]
         for field in ("req_valid", "write", "addr", "wdata", "be", "rsp_ready"):
@@ -1860,18 +1905,23 @@ def _render_processor_top(plan: object, backend: object) -> str:
         lines.append("  assign backend_cancel_valid = 1'b0;")
         backend_mapped = wires["mapped"]
     else:
-        arbiter = backend_record["routing"]
+        arbiter = routing
         expected_source = arbiter.get("rtl_source")
         if (
-            set(arbiter) != {"mode", "max_outstanding", "address_width", "data_width", "rtl_module", "rtl_source", "reset_contract", "fairness"}
+            set(arbiter) != {"mode", "max_outstanding", "address_width", "data_width", "backend_reset_contract", "rtl_module", "rtl_source", "reset_contract", "fairness"}
             or expected_source not in backend_record.get("rtl_sources", ())
-            or arbiter.get("reset_contract") != {"polarity": "active_low", "synchrony": reset_semantics["synchrony"]}
+            or arbiter.get("reset_contract") != {"polarity": "active_low", "synchrony": "asynchronous"}
         ):
             raise ValueError("processor composition routing evidence is malformed")
+        arbiter_reset = _processor_reset_signal(
+            lines, domain="processor_arbiter", clock=clock_signal,
+            raw_reset_n=normalized_reset, source_contract=reset_semantics,
+            target_contract=arbiter["reset_contract"],
+        )
         initiators = backend_record["initiators"]
         by_route = {int(route["route_id"]): wires for route, wires in zip(routes, route_wires)}
         ordered = [by_route[int(item["route_id"])] for item in initiators]
-        connections = [f"        .clk_i({clock_signal})", f"        .rst_ni({normalized_reset})"]
+        connections = [f"        .clk_i({clock_signal})", f"        .rst_ni({arbiter_reset})"]
         for index, wires in enumerate(ordered):
             for field, suffix in (
                 ("req_valid", "req_valid_i"), ("req_ready", "req_ready_o"),
@@ -1910,7 +1960,7 @@ def _render_processor_top(plan: object, backend: object) -> str:
         backend_mapped = "backend_mapped"
         lines.extend(("  logic backend_mapped;", "  assign backend_mapped = " + (" || ".join(terms) if terms else "1'b0") + ";"))
     backend_connections = [
-        f"        .clk_i({clock_signal})", f"        .rst_ni({normalized_reset})",
+        f"        .clk_i({clock_signal})", f"        .rst_ni({backend_reset})",
         "        .req_valid_i(backend_req_valid)", "        .req_ready_o(backend_req_ready)",
         "        .req_write_i(backend_write)", "        .req_addr_i(backend_addr)",
         "        .req_wdata_i(backend_wdata)", "        .req_be_i(backend_be)",
@@ -1984,7 +2034,7 @@ def _render_processor_top(plan: object, backend: object) -> str:
             f"  assign {component_signals['addr']} = backend_target_addr;",
             f"  assign {component_signals['wdata']} = backend_target_wdata;",
             f"  assign {component_signals['be']} = backend_target_be;",
-            f"  assign {component_signals['rsp_ready']} = backend_target_rsp_ready;",
+            f"  assign {component_signals['rsp_ready']} = backend_target_rsp_ready && {select};",
         ))
         control = binding.get("control")
         if not isinstance(control, Mapping):
@@ -1998,12 +2048,20 @@ def _render_processor_top(plan: object, backend: object) -> str:
             or recovery.get("reset_semantics") != control.get("reset_semantics")
         ):
             raise ValueError("processor composition backend target recovery contract is invalid")
-        component_reset = f"{tag}_reset"
+        target_reset_contract = control.get("reset_semantics")
+        if not isinstance(target_reset_contract, Mapping):
+            raise ValueError("processor composition backend target reset contract is invalid")
+        target_reset = _processor_reset_signal(
+            lines, domain=tag, clock=clock_signal, raw_reset_n=normalized_reset,
+            source_contract=reset_semantics, target_contract=target_reset_contract,
+        )
+        component_reset = f"{tag}_flush_reset"
         lines.append(f"  logic {component_reset};")
-        if reset_semantics["polarity"] == "active_low":
-            lines.append(f"  assign {component_reset} = {reset_signal} && !backend_target_flush;")
+        selected_flush = f"(backend_target_flush && {select})"
+        if target_reset_contract["polarity"] == "active_low":
+            lines.append(f"  assign {component_reset} = {target_reset} && !{selected_flush};")
         else:
-            lines.append(f"  assign {component_reset} = {reset_signal} || backend_target_flush;")
+            lines.append(f"  assign {component_reset} = {target_reset} || {selected_flush};")
         component_connections = [
             f"        .{_sv_identifier(fields[role]['port'], context='processor component port')}({component_signals[role]})"
             for role in _PROCESSOR_BEAT_FIELDS
@@ -2028,7 +2086,7 @@ def _render_processor_top(plan: object, backend: object) -> str:
         ))
         response_terms.append((
             f"({select} && {component_signals['req_ready']})",
-            component_signals["rsp_valid"], component_signals["rdata"],
+            f"({select} && {component_signals['rsp_valid']})", component_signals["rdata"],
             component_signals["error"],
         ))
     if response_terms:
@@ -2049,7 +2107,7 @@ def _render_processor_top(plan: object, backend: object) -> str:
         _render_processor_backend_module(
             address_width, data_width,
             int(backend_record["recovery"]["max_wait_cycles"]),
-            str(reset_semantics["synchrony"]),
+            str(backend_reset_contract["synchrony"]),
         ),
     ))
     return "\n".join(lines)

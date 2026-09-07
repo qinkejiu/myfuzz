@@ -93,6 +93,10 @@ class ProcessorBackendTests(unittest.TestCase):
         document = processor_backend_document(plan)
 
         self.assertEqual("round_robin", document["routing"]["mode"])
+        self.assertEqual(
+            {"polarity": "active_low", "synchrony": "asynchronous"},
+            document["routing"]["backend_reset_contract"],
+        )
         self.assertEqual("processor_memory_arbiter", document["routing"]["rtl_module"])
         self.assertEqual(
             "src/myfuzz/protocols/rtl/processor_memory_arbiter.sv",

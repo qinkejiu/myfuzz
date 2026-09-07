@@ -190,6 +190,9 @@ def build_processor_backend(
         "max_outstanding": 1,
         "address_width": address_width,
         "data_width": data_width,
+        "backend_reset_contract": {
+            "polarity": "active_low", "synchrony": "asynchronous",
+        },
     }
     rtl_sources: tuple[str, ...] = ()
     if mode == "round_robin":

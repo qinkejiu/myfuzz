@@ -183,16 +183,23 @@ def _split_fixture(root: Path):
         "output logic d_request, input logic d_grant, output logic [31:0] d_address, "
         "output logic d_write, output logic [31:0] d_write_data, output logic [3:0] d_bytes, "
         "input logic d_response, input logic [31:0] d_read_data, input logic d_fault, "
-        "output logic completion_flag); "
-        "typedef enum logic [2:0] {START_I, WAIT_I, START_D, WAIT_D, FINISHED} state_t; "
-        "state_t state; assign i_address=0; "
-        "assign d_address=4; assign d_write=0; "
-        "assign d_write_data=0; assign d_bytes=4'hf; assign completion_flag=state==FINISHED; "
+        "output logic completion_flag, output logic instruction_errors_ok, "
+        "output logic [3:0] i_completion_count, output logic [3:0] d_completion_count, "
+        "output logic [7:0] completion_order, output logic [15:0] data_history); "
+        "logic i_active, d_active; assign i_address=0; "
+        "assign d_address=4; assign d_write=0; assign d_write_data=0; assign d_bytes=4'hf; "
+        "assign i_request=(i_completion_count<4)&&!i_active; "
+        "assign d_request=(d_completion_count<4)&&!d_active; "
+        "assign completion_flag=(i_completion_count==4)&&(d_completion_count==4); "
         "always_ff @(posedge clock_pin or negedge reset_pin) if (!reset_pin) begin "
-        "state<=START_I; i_request<=0; d_request<=0; end else begin "
-        "i_request<=state==START_I; d_request<=state==START_D; "
-        "case(state) START_I:if(i_request&&i_grant)state<=WAIT_I; WAIT_I:if(i_response)state<=START_D; "
-        "START_D:if(d_request&&d_grant)state<=WAIT_D; WAIT_D:if(d_response)state<=FINISHED; default:state<=state; endcase end endmodule\n",
+        "i_active<=0; d_active<=0; i_completion_count<=0; d_completion_count<=0; "
+        "completion_order<=0; data_history<=0; instruction_errors_ok<=1; end else begin "
+        "if(i_request&&i_grant)i_active<=1; if(d_request&&d_grant)d_active<=1; "
+        "if(i_response)begin i_active<=0; i_completion_count<=i_completion_count+1; "
+        "completion_order<={completion_order[6:0],1'b0}; if(!i_fault)instruction_errors_ok<=0; end "
+        "if(d_response)begin d_active<=0; d_completion_count<=d_completion_count+1; "
+        "completion_order<={completion_order[6:0],1'b1}; "
+        "data_history<={data_history[11:0],d_read_data[3:0]}; end end endmodule\n",
         encoding="utf-8",
     )
     adapter_source = root / "src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv"
@@ -200,16 +207,26 @@ def _split_fixture(root: Path):
     adapter_source.write_bytes((ROOT / "src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv").read_bytes())
     arbiter_source = root / "src/myfuzz/protocols/rtl/processor_memory_arbiter.sv"
     arbiter_source.write_bytes((ROOT / "src/myfuzz/protocols/rtl/processor_memory_arbiter.sv").read_bytes())
-    target = root / "semantic_split_target.sv"
-    target.write_text(
-        "module semantic_split_target(input logic clock, input logic reset, input logic req_valid, "
+    timeout_target = root / "semantic_timeout_target.sv"
+    timeout_target.write_text(
+        "module semantic_timeout_target(input logic clock, input logic reset, input logic req_valid, "
         "output logic req_ready, input logic write, input logic [31:0] addr, input logic [31:0] wdata, "
         "input logic [3:0] be, output logic rsp_valid, input logic rsp_ready, output logic [31:0] rdata, "
-        "output logic error); logic pending; logic [31:0] saved; assign req_ready=!pending; "
-        "assign rsp_valid=pending && saved==4; assign rdata=32'h12345678; assign error=0; "
-        "always_ff @(posedge clock or negedge reset) if(!reset) begin pending<=0; saved<=0; end "
-        "else if(req_valid&&req_ready) begin pending<=1; saved<=addr; end "
-        "else if(rsp_valid&&rsp_ready) pending<=0; endmodule\n",
+        "output logic error); logic pending; assign req_ready=!pending; assign rsp_valid=0; "
+        "assign rdata=0; assign error=0; always_ff @(posedge clock or negedge reset) "
+        "if(!reset)pending<=0;else if(req_valid&&req_ready)pending<=1; endmodule\n",
+        encoding="utf-8",
+    )
+    stateful_target = root / "semantic_stateful_target.sv"
+    stateful_target.write_text(
+        "module semantic_stateful_target(input logic clock, input logic reset, input logic req_valid, "
+        "output logic req_ready, input logic write, input logic [31:0] addr, input logic [31:0] wdata, "
+        "input logic [3:0] be, output logic rsp_valid, input logic rsp_ready, output logic [31:0] rdata, "
+        "output logic error); logic pending; logic [31:0] state; assign req_ready=!pending; "
+        "assign rsp_valid=pending; assign rdata=state; assign error=0; "
+        "always_ff @(posedge clock or negedge reset) if(!reset)begin pending<=0;state<=0;end "
+        "else begin if(req_valid&&req_ready)pending<=1; if(rsp_valid&&rsp_ready)begin "
+        "pending<=0;state<=state+1;end end endmodule\n",
         encoding="utf-8",
     )
     endpoints = [
@@ -231,7 +248,14 @@ def _split_fixture(root: Path):
                  ("we", "d_write"), ("wdata", "d_write_data"), ("be", "d_bytes"),
                  ("rvalid", "d_response"), ("rdata", "d_read_data"), ("error", "d_fault"))]},
         {"endpoint_id": "status", "function": "observation", "module": "renamed_split",
-         "fields": [{"role": "done", "aliases": ["completion_flag"]}]},
+         "fields": [
+             {"role": "done", "aliases": ["completion_flag"]},
+             {"role": "instruction_errors_ok", "aliases": ["instruction_errors_ok"]},
+             {"role": "instruction_completions", "aliases": ["i_completion_count"]},
+             {"role": "data_completions", "aliases": ["d_completion_count"]},
+             {"role": "completion_order", "aliases": ["completion_order"]},
+             {"role": "data_history", "aliases": ["data_history"]},
+         ]},
     ]
     description = load_interface_description({
         "schema_version": "interface_description.v1",
@@ -240,14 +264,21 @@ def _split_fixture(root: Path):
                    "elaboration": {"frontend": "verilator-json"}},
         "endpoints": endpoints,
     })
-    profile = PeripheralProfile(
-        "split_storage", "semantic_split_target", (("processor-memory-beat", "1"),),
-        4, 0x1000, False, (), "implemented", ("semantic_split_target.sv",), True, {},
-        protocol_features={("processor-memory-beat", "1"): ("reset_flush",)},
+    profiles = (
+        PeripheralProfile(
+            "timeout_storage", "semantic_timeout_target", (("processor-memory-beat", "1"),),
+            4, 4, False, (), "implemented", ("semantic_timeout_target.sv",), True, {},
+            protocol_features={("processor-memory-beat", "1"): ("reset_flush",)},
+        ),
+        PeripheralProfile(
+            "stateful_storage", "semantic_stateful_target", (("processor-memory-beat", "1"),),
+            4, 4, False, (), "implemented", ("semantic_stateful_target.sv",), True, {},
+            protocol_features={("processor-memory-beat", "1"): ("reset_flush",)},
+        ),
     )
     plan = plan_generic_composition(
-        GenericCompositionRequest(description, ("split_storage",)), base_dir=root,
-        component_catalog=ComponentCatalog((profile,)), protocol_catalog=catalog,
+        GenericCompositionRequest(description, ("timeout_storage", "stateful_storage")), base_dir=root,
+        component_catalog=ComponentCatalog(profiles), protocol_catalog=catalog,
     )
     return plan
 
@@ -312,13 +343,48 @@ endmodule
         ):
             _fixture(Path(temporary), ("obi", "1"), 3, with_ram=True, flush_contract=False)
 
-    def test_synchronous_cpu_reset_is_rejected_by_asynchronous_fixed_adapter(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary, self.assertRaisesRegex(
-            ValueError, "adapter-reset-synchrony"
-        ):
-            _fixture(Path(temporary), ("obi", "1"), 4, synchronous_reset=True)
+    def test_synchronous_cpu_reset_matches_fixed_adapter_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plan, _, _, _ = _fixture(root, ("obi", "1"), 4, synchronous_reset=True)
+            self.assertEqual(
+                {"polarity": "active_low", "synchrony": "synchronous"},
+                plan.processor_execution.routes[0].reset_contract,
+            )
+            output = root / "published"
+            write_generic_composition(plan, output, base_dir=root)
+            top = (output / "generic_composition_top.sv").read_text(encoding="utf-8")
+            self.assertNotIn("processor_adapter_reset_sync_q", top)
 
-    def test_split_renamed_fixture_compiles_and_recovers_after_timeout(self) -> None:
+    def test_asynchronous_cpu_reset_derives_synchronous_fixed_adapter_reset(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plan, _, _, _ = _fixture(root, ("obi", "1"), 5)
+            output = root / "published"
+            write_generic_composition(plan, output, base_dir=root)
+            top = (output / "generic_composition_top.sv").read_text(encoding="utf-8")
+            self.assertEqual(
+                {"polarity": "active_low", "synchrony": "synchronous"},
+                plan.processor_execution.routes[0].reset_contract,
+            )
+            self.assertIn("logic [1:0] processor_adapter_reset_sync_q;", top)
+            self.assertIn(".rst_ni(processor_adapter_reset_n)", top)
+
+    def test_tampered_fixed_adapter_reset_fact_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plan, _, _, _ = _fixture(root, ("obi", "1"), 6)
+            route = replace(
+                plan.processor_execution.routes[0],
+                reset_contract={"polarity": "active_low", "synchrony": "asynchronous"},
+            )
+            execution = replace(plan.processor_execution, routes=(route,))
+            malformed = replace(plan, processor_execution=execution)
+            backend = build_processor_backend(execution, plan.ir["address_regions"])
+            with self.assertRaisesRegex(ValueError, "adapter reset contract"):
+                _render_processor_top(malformed, backend)
+
+    def test_split_multitarget_contention_is_fair_and_flush_is_target_local(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             plan = _split_fixture(root)
@@ -342,13 +408,39 @@ endmodule
             clk = f"p_{canonical_id('generic-top-port', 'timing.clock:clock:clock_pin'):016x}"
             rst = f"p_{canonical_id('generic-top-port', 'timing.reset:reset:reset_pin'):016x}"
             done = f"p_{canonical_id('generic-top-port', 'status:done:completion_flag'):016x}"
+            errors_ok = f"p_{canonical_id('generic-top-port', 'status:instruction_errors_ok:instruction_errors_ok'):016x}"
+            i_count = f"p_{canonical_id('generic-top-port', 'status:instruction_completions:i_completion_count'):016x}"
+            d_count = f"p_{canonical_id('generic-top-port', 'status:data_completions:d_completion_count'):016x}"
+            order = f"p_{canonical_id('generic-top-port', 'status:completion_order:completion_order'):016x}"
+            data_history = f"p_{canonical_id('generic-top-port', 'status:data_history:data_history'):016x}"
+            stateful_tag = f"c_{canonical_id('processor-backend-component', 'stateful_storage0'):016x}"
             stdout = _run_iverilog(output, f"""
-module tb; logic clk=0,rst=0; wire done; always #1 clk=~clk;
-generic_composition_top dut(.{clk}(clk),.{rst}(rst),.{done}(done));
-initial begin repeat(2) @(posedge clk); rst=1; wait(done); $display("PASS split recovery"); $finish; end
-initial begin repeat(160) @(posedge clk); $fatal(1,"timeout"); end endmodule
+module tb; logic clk=0,rst=0; wire done,errors_ok; wire [3:0] i_count,d_count;
+wire [7:0] order; wire [15:0] data_history;
+integer cancel_events=0,flush_events=0,unselected_reset_cycles=0;
+logic armed=0,cancel_q=0;
+always #1 clk=~clk;
+generic_composition_top dut(.{clk}(clk),.{rst}(rst),.{done}(done),.{errors_ok}(errors_ok),
+  .{i_count}(i_count),.{d_count}(d_count),.{order}(order),.{data_history}(data_history));
+always @(posedge clk) begin
+  cancel_q <= dut.backend_cancel_valid;
+  if(armed && dut.backend_cancel_valid && !cancel_q) cancel_events <= cancel_events+1;
+  if(armed && dut.backend_target_flush) flush_events <= flush_events+1;
+  if(armed && !dut.{stateful_tag}_flush_reset) unselected_reset_cycles <= unselected_reset_cycles+1;
+end
+initial begin repeat(2) @(negedge clk); rst=1; wait(!dut.backend_cancel_valid); armed=1;
+  wait(done); repeat(2) @(posedge clk);
+  if(!errors_ok) $fatal(1,"instruction timeout did not return errors");
+  if(unselected_reset_cycles!=0) $fatal(1,"unselected reset cycles %0d",unselected_reset_cycles);
+  if(data_history!=16'h0123) $fatal(1,"unselected target history %h",data_history);
+  if(i_count!=4 || d_count!=4) $fatal(1,"missing completions");
+  if(order!=8'b10101010) $fatal(1,"unfair completion order %b",order);
+  if(cancel_events!=4) $fatal(1,"timeout cancellation count %0d",cancel_events);
+  if(flush_events!=4) $fatal(1,"target flush count %0d",flush_events);
+  $display("PASS split fairness cancel=%0d flush=%0d",cancel_events,flush_events); $finish; end
+initial begin repeat(400) @(posedge clk); $fatal(1,"timeout"); end endmodule
 """)
-            self.assertIn("PASS split recovery", stdout)
+            self.assertIn("PASS split fairness cancel=4 flush=4", stdout)
 
     def test_split_routing_evidence_tampering_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -392,6 +484,10 @@ initial begin repeat(160) @(posedge clk); $fatal(1,"timeout"); end endmodule
                         signal = f"source_{canonical_id('generic-render-source-port', physical['container_port']):016x}"
                         self.assertEqual(1, top.count(signal + physical["part_select"]))
                 self.assertEqual("direct", backend["routing"]["mode"])
+                self.assertEqual(
+                    {"polarity": "active_low", "synchrony": "synchronous"},
+                    execution["routes"][0]["reset_contract"],
+                )
                 self.assertEqual(backend["backend_hash"], execution["backend_route"]["backend_hash"])
                 self.assertTrue(execution["source_hashes"])
                 self.assertIn("generic_composition_top.sv", {

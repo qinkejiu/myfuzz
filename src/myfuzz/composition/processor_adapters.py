@@ -32,9 +32,9 @@ class ProcessorAdapterDefinition:
     features: tuple[str, ...]
     extension_policies: tuple[ExtensionPolicy, ...]
     source_ports: tuple[tuple[str, str, str], ...]
+    reset_polarity: str
+    reset_synchrony: str
     parameter_values: tuple[tuple[str, int], ...] = ()
-    reset_polarity: str = "active_low"
-    reset_synchrony: str = "asynchronous"
 
 
 _AXI4_EXTENSION_POLICIES = tuple(sorted((
@@ -77,6 +77,8 @@ _ADAPTERS = {
             "error-response",
         ),
         extension_policies=_AXI4_EXTENSION_POLICIES,
+        reset_polarity="active_low",
+        reset_synchrony="synchronous",
         source_ports=(
             ("awid", "awid_i", "input"), ("awaddr", "awaddr_i", "input"),
             ("awlen", "awlen_i", "input"), ("awsize", "awsize_i", "input"),
@@ -114,6 +116,8 @@ _ADAPTERS = {
             "partial-write-when-byte-enable-present", "error-response",
         ),
         extension_policies=_OBI_EXTENSION_POLICIES,
+        reset_polarity="active_low",
+        reset_synchrony="synchronous",
         source_ports=(
             ("req", "req_i", "input"), ("gnt", "gnt_o", "output"),
             ("addr", "addr_i", "input"), ("we", "we_i", "input"),
@@ -133,6 +137,8 @@ _ADAPTERS = {
             "source-roundtrip", "denied-corrupt-error", "partial-write",
         ),
         extension_policies=(),
+        reset_polarity="active_low",
+        reset_synchrony="synchronous",
         source_ports=(
             ("a_valid", "a_valid_i", "input"), ("a_ready", "a_ready_o", "output"),
             ("a_opcode", "a_opcode_i", "input"), ("a_param", "a_param_i", "input"),

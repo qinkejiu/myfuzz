@@ -2,14 +2,23 @@
 
 ## Status
 
-Complete from base `04c4ce32308e037da12aaa8d54aa3003f00a82d2`.
+Complete through the second review-fix wave from base `04c4ce32308e037da12aaa8d54aa3003f00a82d2`.
 
-Implementation commit: `f023be1` (`feat(composition): generate processor wiring`)
+Implementation and fix commits:
+
+- `f023be1` (`feat(composition): generate processor wiring`)
+- `763ece7` (`docs: report task 11 processor wiring`)
+- `d8cc08f` (`fix(composition): close Task 11 recovery gaps`)
+- This commit (`fix(composition): reconcile Task 11 reset and flush contracts`)
 
 ## Changed Files
 
 - `src/myfuzz/composition/auto.py`
+- `src/myfuzz/composition/processor_adapters.py`
+- `src/myfuzz/composition/processor_backend.py`
+- `src/myfuzz/composition/processor_execution.py`
 - `src/myfuzz/composition/protocol_composer.py`
+- `tests/composition/test_processor_backend.py`
 - `tests/composition/test_processor_execution.py`
 - `tests/integration/test_processor_auto_wiring.py`
 - `.superpowers/sdd/task-11-report.md`
@@ -24,7 +33,8 @@ Pre-existing changes in `.superpowers/sdd/task-2-report.md` and the untracked `t
 - The generated top declares and instantiates the source CPU, validated protocol adapter, direct backend or Task 10 round-robin arbiter, generated cancellation-safe backend bridge, and source-verified backend-native components.
 - Scalar CPU fields connect directly. Packed fields use only the compiler-proven `part_select`; each physical container is declared and connected to the CPU once.
 - Adapter-driven CPU input ranges are checked for unique ownership before any SystemVerilog is emitted.
-- Clock and reset are selected from processor boundary facts. Active-high reset is explicitly normalized for adapter/backend RTL; polarity and synchrony must both be present in verified evidence.
+- Clock and raw CPU reset are selected from processor boundary facts. The three fixed adapters record their RTL-proven active-low synchronous reset contract; asynchronous CPU reset is converted with an explicit asynchronous-assert/synchronous-release reset adapter. The generated backend and Task 10 arbiter independently record and receive their active-low asynchronous reset, while each target receives a fact-derived reset of its own polarity and synchrony.
+- Backend target response-ready, response selection, and reset-flush are gated by the retained decoded target selection. A timed-out target cannot consume or reset another target's state.
 - Split arbitration connects `cancel_valid_o` to the generated backend's `cancel_valid_i` and `cancel_ready_o` back to `cancel_ready_i`. Cancellation acknowledgment is withheld until an accepted target response has been drained or no response remains.
 - `processor_execution.v1.json` contains the Task 9 route records, complete Task 10 backend route, deterministic external/generated RTL SHA-256 records, and a publication hash.
 - Source hashes are checked before staging publication and again after atomic publication. A changed post-publication source removes the newly created output instead of retaining invalid evidence.
@@ -149,7 +159,7 @@ Result: exit 0, no output.
 
 - No independent reviewer/subagent tool was available, so review was performed inline.
 - The requested focused suites were run; the full repository suite was intentionally not run.
-- Generated split-top compilation is exercised through the same renderer branch and the Task 10 arbiter is covered by RTL simulation, but the new Task 11 integration fixture set compiles unified/direct processor routes rather than an additional split CPU fixture.
+- Reset facts are source-proven from the selected RTL module's event control and reset branch. More complex reset structures that this parser cannot prove still fail closed.
 
 ## Review Fix RED/GREEN Evidence
 
@@ -195,3 +205,65 @@ Output:
 
     Ran 101 tests in 14.346s
     OK
+
+## Second Review Fix RED/GREEN Evidence
+
+### RED: reset facts, selected-target flush, and split contention
+
+Command:
+
+    PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 python3 -m unittest tests.composition.test_processor_backend.ProcessorBackendTests.test_split_routes_use_fair_arbiter_and_reject_instruction_writes tests.integration.test_processor_auto_wiring.ProcessorAutoWiringIntegrationTests.test_synchronous_cpu_reset_matches_fixed_adapter_contract tests.integration.test_processor_auto_wiring.ProcessorAutoWiringIntegrationTests.test_asynchronous_cpu_reset_derives_synchronous_fixed_adapter_reset tests.integration.test_processor_auto_wiring.ProcessorAutoWiringIntegrationTests.test_tampered_fixed_adapter_reset_fact_is_rejected tests.integration.test_processor_auto_wiring.ProcessorAutoWiringIntegrationTests.test_split_multitarget_contention_is_fair_and_flush_is_target_local -v
+
+Output before production edits:
+
+    KeyError: 'backend_reset_contract'
+    AutoCompositionError: generic:processor:adapter-reset-synchrony
+    AssertionError: expected synchronous adapter reset contract, got asynchronous
+    AssertionError: ValueError not raised for tampered asynchronous adapter fact
+    FATAL: unselected target state was reset
+    Ran 5 tests in 2.265s
+    FAILED (failures=3, errors=2)
+
+These failures prove the previous metadata contradicted all three fixed adapter RTL implementations, synchronous CPU reset was rejected, malformed adapter facts were accepted, backend reset facts were absent, and a timeout flush reset every target.
+
+### GREEN: focused second-wave regressions
+
+Command:
+
+    PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 python3 -m unittest tests.composition.test_processor_backend.ProcessorBackendTests.test_split_routes_use_fair_arbiter_and_reject_instruction_writes tests.integration.test_processor_auto_wiring.ProcessorAutoWiringIntegrationTests.test_synchronous_cpu_reset_matches_fixed_adapter_contract tests.integration.test_processor_auto_wiring.ProcessorAutoWiringIntegrationTests.test_asynchronous_cpu_reset_derives_synchronous_fixed_adapter_reset tests.integration.test_processor_auto_wiring.ProcessorAutoWiringIntegrationTests.test_tampered_fixed_adapter_reset_fact_is_rejected tests.integration.test_processor_auto_wiring.ProcessorAutoWiringIntegrationTests.test_split_multitarget_contention_is_fair_and_flush_is_target_local -v
+
+Output:
+
+    Ran 5 tests in 2.637s
+    OK
+
+The split behavioral fixture issues sustained simultaneous instruction/data requests and directly checks four completions per initiator, completion order `10101010`, four timeout-cancellation events, four reset-flush events, zero unselected-target reset cycles, and preserved state history `0123`.
+
+### GREEN: focused Task 11 group
+
+Command:
+
+    PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 python3 -m unittest tests.composition.test_processor_backend tests.composition.test_processor_execution tests.integration.test_processor_auto_wiring -v
+
+Output:
+
+    Ran 19 tests in 6.506s
+    OK
+
+### GREEN: Task 9/10/composition/RTL regression gate
+
+Compiler discovery:
+
+    /home/qinkejiu/.local/bin/iverilog
+    /home/qinkejiu/.local/bin/verilator
+
+Command:
+
+    PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 python3 -m unittest tests.composition.test_processor_execution tests.composition.test_processor_backend tests.composition.test_processor_adapters tests.composition.test_processor_boundary tests.composition.test_protocol_composer tests.composition.test_generic_auto tests.composition.test_generic_lint_diagnostics tests.protocols.test_processor_memory_backend tests.protocols.test_processor_memory_arbiter_rtl tests.protocols.test_obi_processor_memory_adapter_rtl tests.protocols.test_axi4_processor_memory_adapter_rtl tests.protocols.test_tl_ul_processor_memory_adapter_rtl tests.integration.test_generic_composition tests.integration.test_processor_auto_wiring -v
+
+Output:
+
+    Ran 103 tests in 15.607s
+    OK
+
+The renamed OBI, AXI4, and TL-UL direct fixtures and the renamed OBI split fixture compiled with both installed compilers. The full repository suite was intentionally not run.
