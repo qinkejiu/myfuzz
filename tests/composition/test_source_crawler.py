@@ -73,6 +73,53 @@ class SourceCrawlerTests(unittest.TestCase):
         description = replace(description, source=replace(description.source, top_module="wrapper"), endpoints=(endpoint,))
         self.assertEqual(annotate_interfaces(description, base_dir=root.parent)["endpoints"][0]["module"], "opaque_tile")
 
+    def test_snapshot_documentation_tags_are_independent_of_crawler_state(self) -> None:
+        tagged_temporary, tagged_root, tagged_source = self.make_source(OPAQUE_TILE.replace(
+            "  output logic [31:0] q_addr,", "  // myfuzz: endpoint=legacy field=address\n  output logic [31:0] q_addr,"
+        ))
+        plain_temporary, plain_root, plain_source = self.make_source()
+        self.addCleanup(tagged_temporary.cleanup)
+        self.addCleanup(plain_temporary.cleanup)
+        tagged_description = self.description(tagged_root, tagged_source, fields=[{"role": "address"}])
+        tagged_endpoint = replace(tagged_description.endpoints[0], module=None, aliases=("legacy",))
+        tagged_description = replace(
+            tagged_description,
+            source=replace(tagged_description.source, top_module="opaque_tile"),
+            endpoints=(tagged_endpoint,),
+        )
+        plain_description = self.description(plain_root, plain_source, fields=[{"role": "address"}])
+        plain_endpoint = replace(plain_description.endpoints[0], module=None, aliases=("legacy",))
+        plain_description = replace(plain_description, endpoints=(plain_endpoint,))
+
+        crawler = SourceCrawler()
+        tagged_snapshot = crawler.crawl(tagged_description.source, base_dir=tagged_root.parent)
+        plain_snapshot = crawler.crawl(plain_description.source, base_dir=plain_root.parent)
+
+        self.assertIn(
+            "source_documentation",
+            crawler.annotate(tagged_snapshot, tagged_description)["endpoints"][0]["fields"][0]["evidence"],
+        )
+        with self.assertRaisesRegex(SourceCrawlError, "endpoint-unresolved"):
+            crawler.annotate(plain_snapshot, plain_description)
+        self.assertIn(
+            "source_documentation",
+            SourceCrawler().annotate(tagged_snapshot, tagged_description)["endpoints"][0]["fields"][0]["evidence"],
+        )
+
+    def test_transfer_accept_requires_explicit_handshake_signal_names(self) -> None:
+        text = OPAQUE_TILE.replace(
+            "    if (q_valid && !q_ready) q_wdata <= q_wdata;",
+            "    if (q_valid && !q_ready) q_wdata <= q_wdata;\n"
+            "    if (foo && bar) q_addr <= q_addr;\n"
+            "    if (q_valid && q_ready) q_addr <= q_addr;",
+        ).replace("  always_ff", "  logic foo, bar;\n  always_ff")
+        temporary, root, source = self.make_source(text)
+        self.addCleanup(temporary.cleanup)
+        snapshot = SourceCrawler().crawl(self.description(root, source).source, base_dir=root.parent)
+        transfers = [observation for observation in snapshot.timing if observation.kind == "transfer_accept"]
+        self.assertEqual([(observation.fields, observation.clock) for observation in transfers],
+                         [(('q_valid', 'q_ready'), "clk_x")])
+
     def test_annotate_validates_malformed_snapshot_before_return(self) -> None:
         temporary, root, source = self.make_source()
         self.addCleanup(temporary.cleanup)

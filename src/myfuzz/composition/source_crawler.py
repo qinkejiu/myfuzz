@@ -85,6 +85,8 @@ class SourceSnapshot:
     timing: tuple[TimingObservation, ...]
     # (parent module, instance name, child module); no elaboration is inferred.
     instances: tuple[tuple[str, str, str], ...] = ()
+    # (module, port, source file, line, endpoint, field); immutable source evidence.
+    documentation_tags: tuple[tuple[str, str, str, int, str, str], ...] = ()
 
 
 def _relative(root: Path, value: Path) -> str:
@@ -365,13 +367,22 @@ def _timing(
             r"\bif\s*\(\s*([A-Za-z_][A-Za-z0-9_$]*)\s*&&\s*([A-Za-z_][A-Za-z0-9_$]*)\s*\)",
             block,
         ):
-            if "!" not in transfer.group(0):
+            if "!" not in transfer.group(0) and _is_handshake_pair(*transfer.groups()):
                 line, _ = line_col(original, start + block_start + transfer.start())
                 observations.append(TimingObservation("transfer_accept", transfer.groups(), clock, source_file, line))
     for combinational in re.finditer(r"\balways_(?:comb|latch)\b", body):
         line, _ = line_col(original, start + combinational.start())
         observations.append(TimingObservation("combinational_assignment", (), None, source_file, line))
     return observations
+
+
+def _is_handshake_pair(first: str, second: str) -> bool:
+    names = (_normalized(first), _normalized(second))
+    pairs = (("valid", "ready"), ("req", "ack"), ("request", "ack"),
+             ("request", "grant"))
+    return any((left in names[0] and right in names[1]) or
+               (left in names[1] and right in names[0])
+               for left, right in pairs)
 
 
 def _normalized(value: str) -> str:
@@ -481,7 +492,7 @@ class SourceCrawler:
         modules: list[str] = []
         timing: list[TimingObservation] = []
         instances: list[tuple[str, str, str]] = []
-        self._tags = {}
+        documentation_tags: list[tuple[str, str, str, int, str, str]] = []
         for path in files:
             relative = _relative(root, path)
             try:
@@ -510,7 +521,10 @@ class SourceCrawler:
                         and not any(other_position < position and other_position > tag_position for _, other_position in records)
                     )
                     if attached:
-                        self._tags[(port.module, port.name, port.source_file, port.line)] = attached
+                        documentation_tags.extend(
+                            (port.module, port.name, port.source_file, port.line, endpoint, field)
+                            for endpoint, field in attached
+                        )
                 header_end = masked.find(";", module_match.end(), end_match.start())
                 if header_end >= 0:
                     timing.extend(replace(item, module=module) for item in
@@ -524,6 +538,7 @@ class SourceCrawler:
             tuple(sorted(ports, key=lambda item: (item.module, item.name, item.source_file, item.line, item.column))),
             tuple(sorted(timing, key=lambda item: (item.source_file, item.line, item.kind, item.fields))),
             tuple(sorted(instance for instance in instances if instance[2] in modules)),
+            tuple(sorted(documentation_tags)),
         )
 
     def _module_ports(
@@ -555,10 +570,11 @@ class SourceCrawler:
             candidates, evidence = hierarchy(endpoint.hierarchy), "hierarchy_hint"
         elif endpoint.aliases:
             candidates = []
+            tags = snapshot.documentation_tags
             for alias in sorted(set(endpoint.aliases)):
                 named = hierarchy(tuple(re.split(r"[./]", alias)))
-                tagged = sorted({key[0] for key, tags in self._tags.items()
-                                 if any(tag_endpoint == alias for tag_endpoint, _ in tags)})
+                tagged = sorted({module for module, _, _, _, tag_endpoint, _ in tags
+                                 if tag_endpoint == alias})
                 # Corroborating tags may agree with one selector, but different
                 # instance aliases are still different endpoint candidates.
                 candidates.extend(sorted(set(named + tagged)))
@@ -576,15 +592,19 @@ class SourceCrawler:
         return matches, module, evidence
 
     def _field_port(
-        self, endpoint: EndpointDescription, field: FieldHint, ports: tuple[SourcePortFact, ...]
+        self, snapshot: SourceSnapshot, endpoint: EndpointDescription, field: FieldHint,
+        ports: tuple[SourcePortFact, ...]
     ) -> tuple[SourcePortFact, str]:
         aliases = set(field.aliases)
         explicit = tuple(port for port in ports if port.name in aliases)
         tagged = tuple(
             port for port in ports
-            if any((alias, field.role) in self._tags.get(
-                (port.module, port.name, port.source_file, port.line), ()
-            ) for alias in (endpoint.endpoint_id, *endpoint.aliases))
+            if any(tag_endpoint in (endpoint.endpoint_id, *endpoint.aliases)
+                   and tag_field == field.role
+                   for module, name, source_file, line, tag_endpoint, tag_field
+                   in snapshot.documentation_tags
+                   if (module, name, source_file, line) ==
+                   (port.module, port.name, port.source_file, port.line))
         )
         if explicit and tagged and {port.name for port in explicit} != {port.name for port in tagged}:
             raise SourceCrawlError(f"source-semantic-conflict:{endpoint.endpoint_id}:{field.role}")
@@ -692,7 +712,7 @@ class SourceCrawler:
             matched_names: dict[str, str] = {}
             for field in endpoint.fields:
                 try:
-                    port, evidence = self._field_port(endpoint, field, ports)
+                    port, evidence = self._field_port(snapshot, endpoint, field, ports)
                 except SourceCrawlError:
                     if field.required:
                         raise
