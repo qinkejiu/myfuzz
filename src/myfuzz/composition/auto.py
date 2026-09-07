@@ -138,6 +138,7 @@ class GenericCompositionPlan:
     composition_ir_hash: str
     source_files: tuple[str, ...]
     source_include_roots: tuple[str, ...]
+    source_defines: tuple[str, ...]
     source_evidence_hash: str
     request: GenericCompositionRequest
     component_catalog: ComponentCatalog
@@ -152,6 +153,7 @@ class GenericCompositionPlan:
         object.__setattr__(self, "ir", _freeze_nested(self.ir))
         object.__setattr__(self, "source_files", tuple(self.source_files))
         object.__setattr__(self, "source_include_roots", tuple(self.source_include_roots))
+        object.__setattr__(self, "source_defines", tuple(self.source_defines))
 
 
 def _freeze_nested(value: object) -> object:
@@ -902,8 +904,23 @@ def _generic_source_path(base_dir: Path, source_path: str) -> Path:
     return candidate
 
 
-def _generic_source_include_roots(root: Path, locator: SourceLocator) -> tuple[str, ...]:
-    """Preserve explicit and filelist include directories in generated filelists."""
+@dataclass(frozen=True, slots=True)
+class _GenericSourceListMetadata:
+    """Normalized filelist context, preserving frontend declaration order."""
+
+    include_roots: tuple[str, ...]
+    defines: tuple[str, ...]
+    filelists: tuple[str, ...]
+
+
+def _generic_source_list_metadata(root: Path, locator: SourceLocator) -> _GenericSourceListMetadata:
+    """Normalize source-list context without changing ordered frontend semantics.
+
+    Include roots use first-declaration-wins de-duplication because repeated
+    roots have no useful frontend effect. Macro definitions are deliberately
+    not de-duplicated: a repeated definition is observable to the HDL frontend,
+    so preserving filelist order is the only safe behavior.
+    """
     source_root = (root.resolve() / locator.source_root).resolve()
     try:
         source_root.relative_to(root.resolve())
@@ -911,7 +928,10 @@ def _generic_source_include_roots(root: Path, locator: SourceLocator) -> tuple[s
         raise AutoCompositionError("generic:source-root:outside-base") from error
     if not source_root.is_dir() or source_root.is_symlink():
         raise AutoCompositionError("generic:source-root:invalid")
-    includes: set[Path] = set()
+    includes: list[Path] = []
+    include_seen: set[Path] = set()
+    defines: list[str] = []
+    filelists: list[Path] = []
 
     def child(parent: Path, raw: str) -> Path:
         raw_path = Path(raw)
@@ -928,7 +948,15 @@ def _generic_source_include_roots(root: Path, locator: SourceLocator) -> tuple[s
         directory = child(parent, raw)
         if not directory.is_dir() or directory.is_symlink():
             raise AutoCompositionError("generic:source-list:include-root-invalid")
-        includes.add(directory)
+        if directory not in include_seen:
+            include_seen.add(directory)
+            includes.append(directory)
+
+    def add_define(item: str) -> None:
+        payload = item[len("+define+"):]
+        if not payload or any(not part for part in payload.split("+")):
+            raise AutoCompositionError("generic:source-list:invalid-define")
+        defines.append(item)
 
     def expand(path: Path, seen: set[Path]) -> None:
         if path in seen:
@@ -936,6 +964,7 @@ def _generic_source_include_roots(root: Path, locator: SourceLocator) -> tuple[s
         if not path.is_file() or path.is_symlink():
             raise AutoCompositionError("generic:source-list:filelist-missing")
         seen.add(path)
+        filelists.append(path)
         try:
             tokens = iter(shlex.split(path.read_text(encoding="utf-8"), comments=True))
             for item in tokens:
@@ -946,6 +975,8 @@ def _generic_source_include_roots(root: Path, locator: SourceLocator) -> tuple[s
                         add_include(path.parent, raw)
                 elif item == "-I" or item.startswith("-I"):
                     add_include(path.parent, next(tokens) if item == "-I" else item[2:])
+                elif item.startswith("+define+"):
+                    add_define(item)
         except (StopIteration, UnicodeDecodeError, ValueError) as error:
             raise AutoCompositionError("generic:source-list:invalid-filelist") from error
 
@@ -953,9 +984,11 @@ def _generic_source_include_roots(root: Path, locator: SourceLocator) -> tuple[s
         add_include(source_root, raw)
     if locator.filelist is not None:
         expand(child(source_root, locator.filelist), set())
-    return tuple(sorted(item.relative_to(root.resolve()).as_posix() for item in includes))
-
-
+    return _GenericSourceListMetadata(
+        include_roots=tuple(item.relative_to(root.resolve()).as_posix() for item in includes),
+        defines=tuple(defines),
+        filelists=tuple(item.relative_to(root.resolve()).as_posix() for item in filelists),
+    )
 def _generic_source_evidence_hash(
     base_dir: Path, source_files: tuple[str, ...], locator: SourceLocator,
 ) -> str:
@@ -967,13 +1000,16 @@ def _generic_source_evidence_hash(
         source_root.relative_to(root)
     except ValueError as error:
         raise AutoCompositionError("generic:source-root:outside-base") from error
-    for include_root in _generic_source_include_roots(root, locator):
+    metadata = _generic_source_list_metadata(root, locator)
+    for include_root in metadata.include_roots:
         include = (root / include_root).resolve()
         for candidate in include.rglob("*"):
             if candidate.is_symlink():
                 raise AutoCompositionError("generic:include-root:symlink")
             if candidate.is_file():
                 paths.add(candidate)
+    for filelist in metadata.filelists:
+        paths.add(_generic_source_path(root, filelist))
     return source_tree_hash(root, tuple(sorted(paths)))
 
 
@@ -1146,7 +1182,10 @@ def _generic_reset_contract(endpoint: EndpointCapability, root: Path) -> dict[st
             reset_edges = [edge for edge in edges if edge[1] == reset.port]
             if len(reset_edges) > 1:
                 continue
-            body = text[event.end():event.end() + 512]
+            # ``event`` offsets are relative to the selected module body;
+            # consulting the original file here could borrow a conditional
+            # from an unrelated module preceding this one.
+            body = modules[0][event.end():event.end() + 512]
             conditional = re.match(r"\s*(?:begin\s*)?if\s*\(([^)]*)\)", body, re.S)
             if conditional is None:
                 continue
@@ -1443,7 +1482,8 @@ def plan_generic_composition(
     )
     for source_file in source_files:
         _generic_source_path(root, source_file)
-    source_include_roots = _generic_source_include_roots(root, request.interface_description.source)
+    source_list_metadata = _generic_source_list_metadata(root, request.interface_description.source)
+    source_include_roots = source_list_metadata.include_roots
 
     profiles: dict[str, PeripheralProfile] = {}
     component_records: list[dict[str, object]] = []
@@ -1681,6 +1721,7 @@ def plan_generic_composition(
                 canonical_id("generic-include-root", item)
                 for item in source_include_roots
             ],
+            "defines": list(source_list_metadata.defines),
         },
         "diagnostics": {"errors": [], "warnings": sorted(set(diagnostics))},
     })
@@ -1697,6 +1738,7 @@ def plan_generic_composition(
         composition_ir_hash=canonical_ir_hash(ir),
         source_files=source_files,
         source_include_roots=source_include_roots,
+        source_defines=source_list_metadata.defines,
         source_evidence_hash=_generic_source_evidence_hash(
             root, source_files, request.interface_description.source,
         ),

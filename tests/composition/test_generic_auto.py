@@ -66,11 +66,14 @@ class GenericAutoCompositionTests(unittest.TestCase):
             source = root / "source" / "rtl" / "bad_cpu.sv"
             source.parent.mkdir(parents=True)
             source.write_text(
-                "module bad_cpu(input logic clk, input logic rst, output logic [15:0] addr, output logic valid, "
-                "input logic ready, output logic [31:0] wdata, input logic [31:0] rdata, input logic error, output logic monitor); "
-                "always_ff @(posedge clk or negedge rst) if (rst) monitor <= 1'b0; else monitor <= valid; endmodule\n"
-                "module unrelated_good_reset(input logic clk, input logic rst, output logic monitor); "
-                "always_ff @(posedge clk or negedge rst) if (!rst) monitor <= 1'b0; else monitor <= 1'b1; endmodule\n",
+                "module unrelated_prefix(input logic clk, input logic rst, output logic monitor); "
+                + (" " * 127)
+                + "always_ff @(posedge clk or negedge rst) if (!rst) monitor <= 1'b0; else monitor <= 1'b1; endmodule\n"
+                + "module bad_cpu(input logic clk, input logic rst, output logic [15:0] addr, output logic valid, "
+                + "input logic ready, output logic [31:0] wdata, input logic [31:0] rdata, input logic error, output logic monitor); "
+                + "always_ff @(posedge clk or negedge rst) if (rst) monitor <= 1'b0; else monitor <= valid; endmodule\n"
+                + "module unrelated_good_reset(input logic clk, input logic rst, output logic monitor); "
+                + "always_ff @(posedge clk or negedge rst) if (!rst) monitor <= 1'b0; else monitor <= 1'b1; endmodule\n",
                 encoding="utf-8",
             )
             (root / "device.sv").write_text(

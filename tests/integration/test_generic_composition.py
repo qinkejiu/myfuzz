@@ -18,6 +18,7 @@ from myfuzz.composition import (
     write_generic_composition,
 )
 from myfuzz.composition import protocol_composer
+from myfuzz.composition.auto import _generic_source_evidence_hash
 from myfuzz.composition.ids import canonical_id
 from myfuzz.composition.ir import canonical_ir_hash
 from tests.composition.test_generic_auto import GenericAutoCompositionTests, synthetic_description
@@ -65,16 +66,17 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
             root = Path(temporary)
             source = root / "source"
             hdl = source / "rtl" / "filelist_cpu.sv"
-            include = source / "includes"
+            include = source / "zdir"
+            second_include = source / "adir"
             hdl.parent.mkdir(parents=True)
             include.mkdir()
-            (include / "defs.svh").write_text("`define FILELIST_VALUE 1\n", encoding="utf-8")
+            second_include.mkdir()
             hdl.write_text(
                 "module filelist_cpu(input logic clk, input logic rst, input logic [7:0] fuzz, output logic [15:0] seen); "
-                "`include \"defs.svh\" assign seen = `FILELIST_VALUE ? {fuzz, fuzz} : '0; endmodule\n", encoding="utf-8"
+                "assign seen = `FILELIST_VALUE ? {fuzz, fuzz} : '0; endmodule\n", encoding="utf-8"
             )
             filelist = source / "sources.f"
-            filelist.write_text("+incdir+includes\nrtl/filelist_cpu.sv\n", encoding="utf-8")
+            filelist.write_text("+incdir+zdir+adir\n+define+FILELIST_VALUE=1\nrtl/filelist_cpu.sv\n", encoding="utf-8")
             description = load_interface_description({
                 "schema_version": "interface_description.v1",
                 "source": {"root": "source", "revision": source_tree_hash(source, (filelist, hdl)),
@@ -87,14 +89,24 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
             self.assertEqual(plan.source_files, ("source/rtl/filelist_cpu.sv",))
             self.assertEqual(
                 plan.ir["source_list"]["include_root_ids"],
-                (canonical_id("generic-include-root", "source/includes"),),
+                (
+                    canonical_id("generic-include-root", "source/zdir"),
+                    canonical_id("generic-include-root", "source/adir"),
+                ),
             )
             output = root / "out"
             write_generic_composition(plan, output, base_dir=root)
 
             self.assertEqual(
                 (output / "sources.f").read_text(encoding="utf-8"),
-                "+incdir+../source/includes\n../source/rtl/filelist_cpu.sv\ngeneric_composition_top.sv\n",
+                "+incdir+../source/zdir\n+incdir+../source/adir\n+define+FILELIST_VALUE=1\n../source/rtl/filelist_cpu.sv\ngeneric_composition_top.sv\n",
+            )
+
+            before = plan.source_evidence_hash
+            filelist.write_text("+incdir+zdir+adir\n+define+FILELIST_VALUE=0\nrtl/filelist_cpu.sv\n", encoding="utf-8")
+            self.assertNotEqual(
+                before,
+                _generic_source_evidence_hash(root, plan.source_files, description.source),
             )
 
     def test_timeout_uses_minimum_of_projection_and_capability_bounds(self) -> None:

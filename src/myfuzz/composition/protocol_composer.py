@@ -1577,6 +1577,7 @@ def _render_generic_top(plan: object) -> str:
 
 def _validate_generic_top(
     text: str, *, source_paths: tuple[Path, ...], include_paths: tuple[Path, ...] = (),
+    define_options: tuple[str, ...] = (),
     top_path: Path | None = None,
 ) -> None:
     """Use the existing lightweight frontend boundary, with structural fallback."""
@@ -1589,8 +1590,9 @@ def _validate_generic_top(
         raise ValueError("generic composition top structure is invalid")
     if top_path is not None and shutil.which("verilator") is not None:
         result = subprocess.run(
-            ["verilator", "--lint-only", "-Wno-fatal", "--sv", "--top-module", "generic_composition_top",
+             ["verilator", "--lint-only", "-Wno-fatal", "--sv", "--top-module", "generic_composition_top",
              *("-I" + path.as_posix() for path in include_paths),
+             *define_options,
              *(path.as_posix() for path in source_paths), top_path.as_posix()],
             check=False,
             capture_output=True,
@@ -1658,6 +1660,8 @@ def _generic_plan_reconstruction_document(plan: object) -> dict[str, object]:
         "interface_annotation_hash": getattr(plan, "interface_annotation_hash", None),
         "composition_ir_hash": getattr(plan, "composition_ir_hash", None),
         "source_files": list(getattr(plan, "source_files", ())),
+        "source_include_roots": list(getattr(plan, "source_include_roots", ())),
+        "source_defines": list(getattr(plan, "source_defines", ())),
         "source_evidence_hash": getattr(plan, "source_evidence_hash", None),
     }
 
@@ -1702,7 +1706,7 @@ def _generic_source_list(plan: object, root: Path, output: Path, sources: tuple[
     if not isinstance(include_roots, tuple):
         raise ValueError("generic composition source-list evidence is invalid")
     entries: list[str] = []
-    for include_root in sorted(include_roots):
+    for include_root in include_roots:
         if not isinstance(include_root, str):
             raise ValueError("generic composition source-list include root is invalid")
         include = (root / include_root).resolve()
@@ -1713,6 +1717,10 @@ def _generic_source_list(plan: object, root: Path, output: Path, sources: tuple[
         if not include.is_dir():
             raise ValueError("generic composition source-list include root is missing")
         entries.append("+incdir+" + Path(os.path.relpath(include, output)).as_posix())
+    defines = getattr(plan, "source_defines", ())
+    if not isinstance(defines, tuple) or any(not isinstance(item, str) or not item.startswith("+define+") for item in defines):
+        raise ValueError("generic composition source-list define evidence is invalid")
+    entries.extend(defines)
     for source in sources:
         entries.append(Path(os.path.relpath(source, output)).as_posix())
     entries.append("generic_composition_top.sv")
@@ -1725,7 +1733,7 @@ def _generic_include_paths(plan: object, root: Path) -> tuple[Path, ...]:
     if not isinstance(include_roots, tuple):
         raise ValueError("generic composition source-list evidence is invalid")
     paths: list[Path] = []
-    for include_root in sorted(include_roots):
+    for include_root in include_roots:
         if not isinstance(include_root, str):
             raise ValueError("generic composition source-list include root is invalid")
         include = (root / include_root).resolve()
@@ -1737,6 +1745,14 @@ def _generic_include_paths(plan: object, root: Path) -> tuple[Path, ...]:
             raise ValueError("generic composition source-list include root is missing")
         paths.append(include)
     return tuple(paths)
+
+
+def _generic_define_options(plan: object) -> tuple[str, ...]:
+    """Return preserved filelist macro directives for the HDL frontend."""
+    defines = getattr(plan, "source_defines", ())
+    if not isinstance(defines, tuple) or any(not isinstance(item, str) or not item.startswith("+define+") for item in defines):
+        raise ValueError("generic composition source-list define evidence is invalid")
+    return defines
 
 
 def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path) -> dict[str, object]:
@@ -1772,6 +1788,7 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
         (stage / "sources.f").write_text(source_list, encoding="utf-8")
         _validate_generic_top(
             top_text, source_paths=sources, include_paths=include_paths,
+            define_options=_generic_define_options(plan),
             top_path=stage / "generic_composition_top.sv",
         )
         # Re-read staged data before publishing; no destination file is touched
