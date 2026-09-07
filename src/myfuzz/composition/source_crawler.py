@@ -753,7 +753,10 @@ class SourceCrawler:
                     "timing": [
                         {
                             "kind": observation.kind,
-                            "fields": [matched_names.get(name, name) for name in observation.fields],
+                            "fields": [matched_names[name] for name in observation.fields if name in matched_names],
+                            # Internal HDL names and other endpoints' ports are
+                            # evidence, not semantic roles of this endpoint.
+                            "external_fields": [name for name in observation.fields if name not in matched_names],
                             "clock": observation.clock,
                             "source": {"file": observation.source_file, "line": observation.line},
                             "evidence": ["hdl_observation"],
