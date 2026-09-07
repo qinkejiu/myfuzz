@@ -33,6 +33,18 @@ def _axi_memory(*extra: EndpointFieldFact) -> ProcessorMemoryBinding:
     )
 
 
+def _obi_memory(*optional: EndpointFieldFact) -> ProcessorMemoryBinding:
+    fields = (
+        _field("req", "output"), _field("gnt", "input"),
+        _field("addr", "output", 32), _field("rvalid", "input"),
+        _field("rdata", "input", 32), *optional,
+    )
+    extensions = tuple(field for field in optional if field.role in {"be", "error"})
+    return ProcessorMemoryBinding(
+        "memory", "instruction_memory_master", ("obi", "1"), fields, extensions
+    )
+
+
 class ProcessorAdapterTests(unittest.TestCase):
     def test_axi_adapter_selection_uses_protocol_and_explicit_extension_policy(self) -> None:
         extras = tuple(
@@ -77,18 +89,63 @@ class ProcessorAdapterTests(unittest.TestCase):
 
     def test_protocol_without_implemented_adapter_is_explicitly_rejected(self) -> None:
         memory = ProcessorMemoryBinding(
-            "memory", "memory_master", ("obi", "1"), (), ()
+            "memory", "memory_master", ("tilelink-ul", "1"), (), ()
         )
         with self.assertRaisesRegex(
-            ProcessorAdapterError, "unsupported-processor-adapter:obi@1"
+            ProcessorAdapterError, "unsupported-processor-adapter:tilelink-ul@1"
         ):
             resolve_processor_adapter(memory)
+
+    def test_obi_adapter_is_derived_from_read_write_and_optional_signals(self) -> None:
+        read_only = resolve_processor_adapter(_obi_memory(_field("error", "input")))
+        read_write = resolve_processor_adapter(_obi_memory(
+            _field("we", "output"), _field("wdata", "output", 32),
+            _field("be", "output", 4), _field("error", "input"),
+        ))
+
+        self.assertEqual("obi-to-processor-memory-beat", read_only.adapter_id)
+        self.assertEqual(("processor-memory-beat", "1"), read_only.target_protocol)
+        self.assertEqual((("READ_ONLY", 1), ("HAS_BE", 0), ("HAS_ERROR", 1)),
+                         read_only.parameter_values)
+        self.assertEqual((("READ_ONLY", 0), ("HAS_BE", 1), ("HAS_ERROR", 1)),
+                         read_write.parameter_values)
+        self.assertNotIn("ibex", repr(read_write).lower())
+
+        with self.assertRaisesRegex(ProcessorAdapterError, "obi-write-fields"):
+            resolve_processor_adapter(_obi_memory(_field("we", "output")))
+        with self.assertRaisesRegex(ProcessorAdapterError, "extension-width:be"):
+            resolve_processor_adapter(_obi_memory(
+                _field("we", "output"), _field("wdata", "output", 32),
+                _field("be", "output", 3), _field("error", "input"),
+            ))
+        with self.assertRaisesRegex(ProcessorAdapterError, "obi-error-field"):
+            resolve_processor_adapter(_obi_memory())
+        with self.assertRaisesRegex(
+            ProcessorAdapterError, "obi-byte-enable-without-write"
+        ):
+            resolve_processor_adapter(_obi_memory(
+                _field("be", "output", 4), _field("error", "input")
+            ))
 
     def test_axi_rtl_ports_cover_protocol_and_extension_contracts(self) -> None:
         catalog = load_protocol_catalog(ROOT / "src/myfuzz/protocols/plugins")
         adapter = resolve_processor_adapter(_axi_memory())
         rtl = (ROOT / adapter.rtl_source).read_text(encoding="utf-8")
         for field in catalog.require("axi4", "1").fields:
+            suffix = "_i" if field.direction == "host_to_device" else "_o"
+            self.assertIn(field.field_id + suffix, rtl)
+        for policy in adapter.extension_policies:
+            suffix = "_i" if policy.direction == "output" else "_o"
+            self.assertIn(policy.role + suffix, rtl)
+        for field in catalog.require("processor-memory-beat", "1").fields:
+            suffix = "_o" if field.direction == "host_to_device" else "_i"
+            self.assertIn(field.field_id + suffix, rtl)
+
+    def test_obi_rtl_ports_cover_protocol_extensions_and_backend(self) -> None:
+        catalog = load_protocol_catalog(ROOT / "src/myfuzz/protocols/plugins")
+        adapter = resolve_processor_adapter(_obi_memory(_field("error", "input")))
+        rtl = (ROOT / adapter.rtl_source).read_text(encoding="utf-8")
+        for field in catalog.require("obi", "1").fields:
             suffix = "_i" if field.direction == "host_to_device" else "_o"
             self.assertIn(field.field_id + suffix, rtl)
         for policy in adapter.extension_policies:

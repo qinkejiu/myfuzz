@@ -111,13 +111,13 @@ def _validate_memory(
     parameters: dict[str, int] = {}
     checked: list[tuple[FieldSpec, EndpointFieldFact]] = []
     for expected in plugin.fields:
-        if not (expected.required or expected.runtime_required):
-            continue
         field = fields.get(expected.field_id)
         if field is None:
-            raise ProcessorBoundaryError(
-                f"required-field:{expected.field_id}:{endpoint.endpoint_id}"
-            )
+            if expected.required or expected.runtime_required:
+                raise ProcessorBoundaryError(
+                    f"required-field:{expected.field_id}:{endpoint.endpoint_id}"
+                )
+            continue
         expected_direction = (
             "output" if expected.direction == "host_to_device" else "input"
         )

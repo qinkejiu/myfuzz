@@ -4,8 +4,8 @@
     {"field_id": "req", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
     {"field_id": "gnt", "direction": "device_to_host", "width": "1", "required": true, "reset_value": 0},
     {"field_id": "addr", "direction": "host_to_device", "width": "address_width", "required": true, "reset_value": 0},
-    {"field_id": "we", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
-    {"field_id": "wdata", "direction": "host_to_device", "width": "data_width", "required": true, "reset_value": 0},
+    {"field_id": "we", "direction": "host_to_device", "width": "1", "required": false, "reset_value": 0},
+    {"field_id": "wdata", "direction": "host_to_device", "width": "data_width", "required": false, "reset_value": 0},
     {"field_id": "rvalid", "direction": "device_to_host", "width": "1", "required": true, "reset_value": 0},
     {"field_id": "rdata", "direction": "device_to_host", "width": "data_width", "required": true, "reset_value": 0}
   ],

@@ -139,6 +139,40 @@ class ProcessorBoundaryTests(unittest.TestCase):
             tuple(item.function for item in boundary.memories),
         )
 
+    def test_read_only_obi_instruction_endpoint_uses_declared_capabilities(self) -> None:
+        document = {
+            "schema_version": "interface_annotations.v1",
+            "endpoints": [
+                _endpoint("control.clock", "clock", [_field("clock", "clk_x", "input")]),
+                _endpoint("control.reset", "reset", [_field("reset", "rst_x", "input")]),
+                _endpoint("memory.instruction", "instruction_memory_master", [
+                    _field("req", "fetch_req_x", "output"),
+                    _field("gnt", "fetch_gnt_x", "input"),
+                    _field("addr", "fetch_addr_x", "output", 32),
+                    _field("rvalid", "fetch_rvalid_x", "input"),
+                    _field("rdata", "fetch_rdata_x", "input", 32),
+                    _field("error", "fetch_error_x", "input"),
+                ], protocol=("obi", "1"), side="initiator"),
+            ],
+        }
+        boundary = build_processor_boundary(
+            normalize_annotations(document), protocol_catalog=_catalog_for_path()
+        )
+        adapter = resolve_processor_adapter(boundary.memories[0])
+
+        self.assertEqual("obi-to-processor-memory-beat", adapter.adapter_id)
+        self.assertIn(("READ_ONLY", 1), adapter.parameter_values)
+
+        memory = document["endpoints"][2]
+        assert isinstance(memory, dict)
+        fields = memory["fields"]
+        assert isinstance(fields, list)
+        fields.append(_field("we", "bad_we_x", "input"))
+        with self.assertRaisesRegex(ProcessorBoundaryError, "field-direction:we"):
+            build_processor_boundary(
+                normalize_annotations(document), protocol_catalog=_catalog_for_path()
+            )
+
     def test_rejects_missing_or_ambiguous_required_functions(self) -> None:
         cases = {
             "clock": lambda endpoints: endpoints.pop(0),
