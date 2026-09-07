@@ -357,12 +357,14 @@ class AutoCompositionTests(unittest.TestCase):
             protocol_preferences=(("apb", "4"), ("axi4-lite", "1"), ("tl-ul", "1")),
         )
 
-        plan = plan_auto_composition(
-            request,
-            cpu_catalog=load_builtin_cpu_catalog(),
-            component_catalog=load_builtin_component_catalog(),
-            root=ROOT,
-        )
+        with tempfile.TemporaryDirectory(prefix="myfuzz-missing-cpu-") as temporary:
+            root = Path(temporary)
+            plan = plan_auto_composition(
+                request,
+                cpu_catalog=load_builtin_cpu_catalog(root=root),
+                component_catalog=load_builtin_component_catalog(),
+                root=root,
+            )
 
         self.assertFalse(plan.complete, plan.diagnostics)
         self.assertTrue(

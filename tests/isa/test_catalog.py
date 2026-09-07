@@ -29,6 +29,11 @@ def _profile_document(**overrides: object) -> dict[str, object]:
 
 
 class CpuCatalogTest(unittest.TestCase):
+    def setUp(self) -> None:
+        temporary = tempfile.TemporaryDirectory(prefix="myfuzz-missing-cpu-")
+        self.addCleanup(temporary.cleanup)
+        self.missing_source_root = Path(temporary.name)
+
     def test_builtin_catalog_loads_all_six_profiles_with_unique_ids(self) -> None:
         catalog = load_builtin_cpu_catalog()
 
@@ -112,7 +117,7 @@ class CpuCatalogTest(unittest.TestCase):
                 "implemented": False,
             },
         }
-        catalog = load_builtin_cpu_catalog()
+        catalog = load_builtin_cpu_catalog(root=self.missing_source_root)
 
         for cpu_id, fields in expected.items():
             with self.subTest(cpu_id=cpu_id):
@@ -121,13 +126,14 @@ class CpuCatalogTest(unittest.TestCase):
                     self.assertEqual(value, getattr(profile, field), field)
 
     def test_missing_ibex_upstream_source_list_disables_runtime(self) -> None:
-        profile = load_builtin_cpu_catalog().require("ibex.rv32imc")
+        catalog = load_builtin_cpu_catalog(root=self.missing_source_root)
+        profile = catalog.require("ibex.rv32imc")
 
         self.assertIn("third_party/rfuzz/upstream/ibex/sources.f", profile.source_paths)
         self.assertFalse(profile.implemented)
         self.assertEqual(
             (),
-            load_builtin_cpu_catalog().compatible_protocols(
+            catalog.compatible_protocols(
                 "ibex.rv32imc", runtime_only=True
             ),
         )
@@ -157,7 +163,7 @@ class CpuCatalogTest(unittest.TestCase):
                 ),
             )
 
-        self.assertFalse(load_builtin_cpu_catalog().require("ibex.rv32imc").implemented)
+        self.assertFalse(load_builtin_cpu_catalog(root=self.missing_source_root).require("ibex.rv32imc").implemented)
 
     def test_profiles_preserve_documented_native_and_integration_boundaries(self) -> None:
         catalog = load_builtin_cpu_catalog()
@@ -179,7 +185,7 @@ class CpuCatalogTest(unittest.TestCase):
         self.assertNotEqual(boom.core_native_protocols, boom.integration_protocols)
 
     def test_runtime_protocols_require_an_implemented_profile(self) -> None:
-        catalog = load_builtin_cpu_catalog()
+        catalog = load_builtin_cpu_catalog(root=self.missing_source_root)
 
         self.assertFalse(catalog.require("ibex.rv32imc").implemented)
         self.assertEqual((), catalog.compatible_protocols("ibex.rv32imc"))
