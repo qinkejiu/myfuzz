@@ -1174,7 +1174,11 @@ def _generic_port_records(
             if port in internal_ports:
                 continue
             identity = f"{endpoint['endpoint_id']}:{field.get('role')}:{port}"
-            opaque = f"p_{canonical_id('generic-top-port', identity):016x}"
+            existing = records.get(port)
+            # Endpoints describe semantic views of the same source module.
+            # Shared physical pins retain their first opaque binding; only
+            # contradictory HDL facts constitute a conflict.
+            opaque = existing["opaque_port"] if existing is not None else f"p_{canonical_id('generic-top-port', identity):016x}"
             record = {
                 "source_port": port,
                 "opaque_port": opaque,
@@ -1182,7 +1186,6 @@ def _generic_port_records(
                 "width": width,
                 "signed": field.get("signed", False),
             }
-            existing = records.get(port)
             if existing is not None and existing != record:
                 raise ValueError(f"generic composition port facts conflict: {port}")
             records[port] = record

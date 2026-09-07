@@ -42,6 +42,61 @@ def native_plan(root, key):
 
 
 class NativeProtocolCompositionTests(unittest.TestCase):
+    def test_two_native_protocol_endpoints_share_physical_controls(self):
+        from myfuzz.composition.protocol_composer import _generic_port_records
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source"
+            source.mkdir()
+            declarations = ["input logic clk", "input logic rst", "output logic monitor"]
+            assignments, endpoints, profiles = [], [], []
+            keys = (("apb", "3"), ("wishbone", "classic"))
+            for index, key in enumerate(keys):
+                plugin = builtin_protocol_catalog().require(*key)
+                target_ports = ["input logic clock", "input logic reset"]
+                target_assignments = []
+                bindings = [{"role": "clock", "aliases": ["clk"]}, {"role": "reset", "aliases": ["rst"]}]
+                for field in plugin.fields:
+                    if field.field_id == "stall":
+                        continue
+                    width = int(eval(field.width_expression, {"__builtins__": {}}, {"address_width": 16, "data_width": 32}))
+                    request = field.direction == "host_to_device"
+                    port = f"bus{index}_{field.field_id}"
+                    declarations.append(f"{'output' if request else 'input'} logic [{width-1}:0] {port}")
+                    target_ports.append(f"{'input' if request else 'output'} logic [{width-1}:0] {field.field_id}")
+                    bindings.append({"role": field.field_id, "aliases": [port]})
+                    if request:
+                        assignments.append(f"assign {port} = '0;")
+                    else:
+                        target_assignments.append(f"assign {field.field_id} = '0;")
+                bindings.append({"role": "monitor", "aliases": ["monitor"]})
+                endpoints.append({"endpoint_id": f"bus{index}", "function": "memory_master", "module": "multi_cpu", "protocol": list(key), "fields": bindings})
+                module = f"device{index}"
+                (root / f"{module}.sv").write_text(f"module {module}(" + ",".join(target_ports) + "); logic marker; always_ff @(posedge clock or negedge reset) if (!reset) marker <= 0; else marker <= 1; " + " ".join(target_assignments) + " endmodule")
+                profiles.append(PeripheralProfile(module, module, (key,), 256, 256, False, (), "implemented", (f"{module}.sv",), True, {}))
+            cpu = source / "multi.sv"
+            cpu.write_text("module multi_cpu(" + ",".join(declarations) + "); always_ff @(posedge clk or negedge rst) if (!rst) monitor <= 0; else monitor <= 1; " + " ".join(assignments) + " endmodule")
+            description = load_interface_description({"schema_version": "interface_description.v1", "source": {"root": "source", "revision": source_tree_hash(source, (cpu,)), "top_module": "multi_cpu", "files": ["multi.sv"]}, "endpoints": endpoints})
+            plan = plan_generic_composition(GenericCompositionRequest(description, ("device0", "device1"), keys), base_dir=root, component_catalog=ComponentCatalog(tuple(profiles)), protocol_catalog=builtin_protocol_catalog())
+            records = _generic_port_records(plan)
+            for control in ("clk", "rst"):
+                self.assertEqual(sum(r["source_port"] == control for r in records), 1)
+            write_generic_composition(plan, root / "out", base_dir=root)
+            self.assertEqual(len(plan.ir["adapters"]), 2)
+            if shutil.which("iverilog"):
+                result = subprocess.run(["iverilog", "-g2012", "-s", "generic_composition_top", "-o", str(root / "compiled"), str(cpu), str(root / "device0.sv"), str(root / "device1.sv"), str(root / "out" / "generic_composition_top.sv")], capture_output=True, text=True, timeout=20)
+                self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_shared_port_rejects_conflicting_physical_facts(self):
+        from types import SimpleNamespace
+        from myfuzz.composition.protocol_composer import _generic_port_records
+        original = {"port": "clk", "role": "clock", "direction": "input", "width": 1, "signed": False}
+        for changed in ({"direction": "output"}, {"width": 2}, {"signed": True}):
+            with self.subTest(changed=changed):
+                plan = SimpleNamespace(annotations={"endpoints": [{"endpoint_id": "a", "fields": [original]}, {"endpoint_id": "b", "fields": [{**original, **changed}]}]})
+                with self.assertRaisesRegex(ValueError, "port facts conflict"):
+                    _generic_port_records(plan)
+
     def test_cpu_metadata_is_hashed_without_changing_legacy_document(self):
         from myfuzz.isa.model import CpuProfile
         from myfuzz.composition.auto import _cpu_document
