@@ -326,14 +326,20 @@ def _match_evidence(source: EndpointCapability, target: EndpointCapability) -> t
     return tuple(sorted(records, key=_evidence_key))
 
 
-def _temporal_relations(endpoint: EndpointCapability) -> dict[tuple[str, tuple[str, ...]], TimingFact]:
-    return {(item.kind, item.fields): item for item in endpoint.timing}
+def _temporal_relations(
+    endpoint: EndpointCapability,
+) -> dict[tuple[str, tuple[str, ...]], tuple[str, tuple[str, ...], str | None, int | None]]:
+    return {
+        (item.kind, item.fields): (item.kind, item.fields, item.clock, item.max_latency)
+        for item in endpoint.timing
+    }
 
 
 def _validation_reasons(
     endpoint: EndpointCapability,
     protocol_catalog: ProtocolCatalog | None,
     compiled_protocols: Mapping[str, CompiledProtocol] | None,
+    adapter_roles: frozenset[str] = frozenset(),
 ) -> tuple[str, ...]:
     if endpoint.protocol is None:
         return ()
@@ -344,6 +350,7 @@ def _validation_reasons(
         except ProtocolDefinitionError:
             return (f"unsupported-protocol:{endpoint.protocol[0]}@{endpoint.protocol[1]}",)
         fields = {field.role: field for field in endpoint.fields}
+        declared_roles = {field.field_id for field in plugin.fields}
         for expected in plugin.fields:
             actual = fields.get(expected.field_id)
             if actual is None:
@@ -352,6 +359,10 @@ def _validation_reasons(
                 continue
             if endpoint.side is not None and actual.direction != _expected_direction(expected.direction, endpoint.side):
                 reasons.append(f"direction:{expected.field_id}")
+        reasons.extend(
+            f"undeclared-role:{role}"
+            for role in sorted(fields.keys() - declared_roles - adapter_roles)
+        )
     compiled = None if compiled_protocols is None else compiled_protocols.get(endpoint.endpoint_id)
     if compiled is None:
         reasons.append("protocol-validation-required")
@@ -375,8 +386,9 @@ def _match_reasons(
     protocol_catalog: ProtocolCatalog | None, compiled_protocols: Mapping[str, CompiledProtocol] | None,
 ) -> tuple[str, ...]:
     reasons: list[str] = []
-    reasons.extend(_validation_reasons(source, protocol_catalog, compiled_protocols))
-    reasons.extend(_validation_reasons(target, protocol_catalog, compiled_protocols))
+    adapter_roles = frozenset() if adapter is None else frozenset((*adapter.features, *adapter.width_projection_fields))
+    reasons.extend(_validation_reasons(source, protocol_catalog, compiled_protocols, adapter_roles))
+    reasons.extend(_validation_reasons(target, protocol_catalog, compiled_protocols, adapter_roles))
     if source.side != "initiator" or target.side != "target":
         reasons.append("side-ambiguous" if source.side is None or target.side is None else "side")
     if adapter is None:
@@ -424,10 +436,7 @@ def _match_reasons(
             reasons.append("adapter-latency-invalid")
         else:
             for relation in source_relations:
-                bounds = tuple(
-                    item.max_latency for item in (source_relations[relation], target_relations[relation])
-                    if item.max_latency is not None
-                )
+                bounds = tuple(item[3] for item in (source_relations[relation], target_relations[relation]) if item[3] is not None)
                 if bounds and adapter.max_latency > min(bounds):
                     reasons.append("temporal-latency")
     return tuple(dict.fromkeys(reasons))

@@ -432,9 +432,6 @@ def _instances(body: str, parent: str) -> list[tuple[str, str, str]]:
 
 
 class SourceCrawler:
-    def __init__(self) -> None:
-        self._tags: dict[tuple[str, str, str, int], tuple[tuple[str, str], ...]] = {}
-
     def crawl(self, locator: SourceLocator, *, base_dir: Path) -> SourceSnapshot:
         if _PIN_RE.fullmatch(locator.revision) is None:
             raise SourceCrawlError("invalid-source-pin")

@@ -253,6 +253,43 @@ class EndpointCapabilityTests(unittest.TestCase):
         self.assertTrue(any(item["adapter_id"] == "fast" and item["accepted"] for item in bounded))
         self.assertTrue(any("temporal-relation" in item["reasons"] for item in one_sided_matches))
 
+    def test_temporal_matching_ignores_provenance_but_retains_it_as_evidence(self) -> None:
+        source_document = _endpoint("source", side="initiator")
+        target_document = _endpoint("target", side="target")
+        source_document["timing"][0].update(
+            {"source": {"file": "rtl/source.sv", "line": 11}, "evidence": ["source_trace"]}
+        )
+        target_document["timing"][0].update(
+            {"source": {"file": "rtl/target.sv", "line": 29}, "evidence": ["target_trace"]}
+        )
+        source, target = normalize_annotations(_document(source_document, target_document))
+        catalog, compiled = _protocol_context(source, target)
+
+        matches = match_endpoint_pair(source, target, (), protocol_catalog=catalog, compiled_protocols=compiled)
+
+        accepted = next(item for item in matches if item["accepted"])
+        timing_evidence = [item for item in accepted["evidence"] if item["kind"] == "timing"]
+        self.assertEqual(len(timing_evidence), 2)
+        self.assertEqual({item["source"]["file"] for item in timing_evidence}, {"rtl/source.sv", "rtl/target.sv"})
+        self.assertEqual({item["evidence"][0] for item in timing_evidence}, {"source_trace", "target_trace"})
+
+    def test_protocol_matching_rejects_shared_undeclared_role(self) -> None:
+        source_document = _endpoint("source", side="initiator")
+        target_document = _endpoint("target", side="target")
+        base_source, base_target = normalize_annotations(_document(source_document, target_document))
+        catalog, compiled = _protocol_context(base_source, base_target)
+        for document, port in ((source_document, "left_extra"), (target_document, "right_extra")):
+            document["fields"].append(
+                {"role": "debug", "port": port, "direction": "output" if document["side"] == "initiator" else "input",
+                 "width": 1, "signed": False}
+            )
+        source, target = normalize_annotations(_document(source_document, target_document))
+
+        matches = match_endpoint_pair(source, target, (), protocol_catalog=catalog, compiled_protocols=compiled)
+
+        self.assertFalse(any(item["accepted"] for item in matches))
+        self.assertTrue(any("undeclared-role:debug" in item["reasons"] for item in matches))
+
     def test_normalization_retains_relative_source_evidence_and_unknown_identity(self) -> None:
         source_document = _endpoint("source", side="initiator")
         source_document["fields"][0]["source"] = {"file": "rtl/tile.sv", "line": 7, "column": 3}
