@@ -6,6 +6,40 @@ from myfuzz.composition import runtime_projection
 
 
 class RuntimeProjectionTests(unittest.TestCase):
+    def test_projected_fields_reconstruct_compiler_proven_packed_input(self):
+        fields = (
+            LayoutField("e:ready", "e", "ready", 1, 0, 0, "bits", {},
+                        port="rsp_bundle", member_path=("ready",),
+                        port_raw_lo=32, port_raw_hi=32, port_width=33),
+            LayoutField("e:data", "e", "data", 32, 1, 32, "bits", {"range": [4, 12], "alignment": 4},
+                        port="rsp_bundle", member_path=("data",),
+                        port_raw_lo=0, port_raw_hi=31, port_width=33),
+        )
+        projector = runtime_projection.RuntimeProjector(
+            InputLayout("input_layout.v1", 33, fields, "packed")
+        )
+        projected = projector.project((1 << 0) | (15 << 1))
+        ports = projector.project_ports((1 << 0) | (15 << 1))
+
+        self.assertEqual(12, (projected >> 1) & 0xffffffff)
+        self.assertEqual((1 << 32) | 12, ports["rsp_bundle"])
+
+    def test_packed_runtime_binding_must_be_complete_and_nonoverlapping(self):
+        base = LayoutField("e:a", "e", "data", 4, 0, 3, "bits", {},
+                           port="bundle", member_path=("a",),
+                           port_raw_lo=0, port_raw_hi=3, port_width=8)
+        cases = (
+            (base,),
+            (base, replace(base, field_id="e:b", role="status", raw_lo=4, raw_hi=7,
+                           member_path=("b",), port_raw_lo=3, port_raw_hi=6)),
+            (base, replace(base, field_id="e:b", role="status", raw_lo=4, raw_hi=7,
+                           member_path=("b",), port_raw_lo=4, port_raw_hi=7, port_width=9)),
+        )
+        for fields in cases:
+            with self.subTest(fields=fields), self.assertRaisesRegex(ValueError, "packed runtime"):
+                runtime_projection.RuntimeProjector(
+                    InputLayout("input_layout.v1", sum(f.width for f in fields), fields, "bad")
+                )
     def test_declared_width_must_equal_raw_slice_width(self):
         field = LayoutField("a", "e", "data", 8, 0, 3, "bits", {"range": [16, 28]})
         adjacent = LayoutField("b", "e", "status", 4, 4, 7, "bits", {})

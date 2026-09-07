@@ -31,10 +31,15 @@ class LayoutField:
     direction: str = "input"
     provenance: Mapping[str, object] | None = None
     evidence: tuple[str, ...] = ()
+    member_path: tuple[str, ...] = ()
+    port_raw_lo: int | None = None
+    port_raw_hi: int | None = None
+    port_width: int | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "constraint", MappingProxyType(dict(self.constraint)))
         object.__setattr__(self, "evidence", tuple(self.evidence))
+        object.__setattr__(self, "member_path", tuple(self.member_path))
         if self.provenance is not None:
             object.__setattr__(self, "provenance", MappingProxyType(dict(self.provenance)))
 
@@ -188,11 +193,19 @@ def _instruction_encoding(isa: IsaContract | None) -> str:
 
 
 def _field_document(field: LayoutField, *, include_provenance: bool) -> dict[str, object]:
+    binding: dict[str, object] = {
+        "port": field.port, "direction": field.direction, "signed": field.signed,
+    }
+    if field.member_path:
+        binding.update(
+            member_path=list(field.member_path), raw_lo=field.port_raw_lo,
+            raw_hi=field.port_raw_hi, container_width=field.port_width,
+        )
     document: dict[str, object] = {
         "field_id": field.field_id, "owner": field.owner, "role": field.role, "width": field.width,
         "raw_lo": field.raw_lo, "raw_hi": field.raw_hi, "encoding": field.encoding,
         "constraint": dict(field.constraint), "dependency_group": field.dependency_group,
-        "binding": {"port": field.port, "direction": field.direction, "signed": field.signed},
+        "binding": binding,
         "evidence": list(field.evidence),
     }
     if include_provenance and field.provenance is not None:
@@ -213,7 +226,7 @@ def build_input_layout(annotations: Mapping[str, object], *, component_constrain
     if not isinstance(endpoints, Sequence) or isinstance(endpoints, (str, bytes)):
         _error("annotations.endpoints must be a sequence")
 
-    candidates: list[tuple[str, str, int, bool, bool, bool, str, str, Mapping[str, object] | None, tuple[str, ...]]] = []
+    candidates: list[tuple[object, ...]] = []
     seen: set[tuple[str, str]] = set()
     for endpoint in endpoints:
         if not isinstance(endpoint, Mapping):
@@ -242,9 +255,25 @@ def build_input_layout(annotations: Mapping[str, object], *, component_constrain
             optional = source.get("optional", False)
             if not isinstance(optional, bool):
                 _error("invalid optional flag")
+            member_value = source.get("member_path")
+            if member_value is None:
+                member_path: tuple[str, ...] = ()
+                port_raw_lo = port_raw_hi = port_width = None
+                if any(key in source for key in ("raw_lo", "raw_hi", "container_width")):
+                    _error("packed input coordinates require member_path")
+            else:
+                if (not isinstance(member_value, Sequence) or isinstance(member_value, (str, bytes))
+                        or not member_value):
+                    _error("invalid packed input member_path")
+                member_path = tuple(_name(item, "invalid packed input member_path") for item in member_value)
+                port_raw_lo, port_raw_hi, port_width = (
+                    source.get("raw_lo"), source.get("raw_hi"), source.get("container_width")
+                )
+                if any(type(value) is not int for value in (port_raw_lo, port_raw_hi, port_width)):
+                    _error("invalid packed input coordinates")
             candidates.append((owner, role, _width(source.get("width"), f"{owner}:{role}"), signed, optional, is_apb,
                                _name(source.get("port"), "field port missing"), direction, _provenance(source.get("source")),
-                               _evidence(source.get("evidence"))))
+                               _evidence(source.get("evidence")), member_path, port_raw_lo, port_raw_hi, port_width))
     if not candidates:
         _error("empty input layout")
     candidates.sort(key=lambda item: (item[0], item[4], _ROLE_ORDER.get(item[1], 100), item[1], item[6]))
@@ -254,7 +283,8 @@ def build_input_layout(annotations: Mapping[str, object], *, component_constrain
 
     fields: list[LayoutField] = []
     cursor = 0
-    for owner, role, width, signed, _optional, is_apb, port, direction, provenance, evidence in candidates:
+    for (owner, role, width, signed, _optional, is_apb, port, direction,
+         provenance, evidence, member_path, port_raw_lo, port_raw_hi, port_width) in candidates:
         constraint = dict(records.get((owner, role), {}))
         group = constraint.pop("dependency_group", None)
         if group is not None:
@@ -289,8 +319,33 @@ def build_input_layout(annotations: Mapping[str, object], *, component_constrain
                 _error("gated_by must reference owner valid")
         encoding = _instruction_encoding(isa) if role == "instruction" else "bits"
         fields.append(LayoutField(f"{owner}:{role}", owner, role, width, cursor, cursor + width - 1, encoding,
-                                  constraint, group, port, signed, direction, provenance, evidence))
+                                  constraint, group, port, signed, direction, provenance, evidence,
+                                  member_path, port_raw_lo, port_raw_hi, port_width))
         cursor += width
+    by_port: dict[str, list[LayoutField]] = {}
+    for field in fields:
+        by_port.setdefault(field.port, []).append(field)
+    for port, port_fields in by_port.items():
+        members = [field for field in port_fields if field.member_path]
+        if not members:
+            continue
+        if len(members) != len(port_fields):
+            _error(f"packed input mixes whole port: {port}")
+        widths = {field.port_width for field in members}
+        if len(widths) != 1:
+            _error(f"packed input has inconsistent width: {port}")
+        container_width = next(iter(widths))
+        if type(container_width) is not int or container_width <= 0:
+            _error(f"packed input has invalid width: {port}")
+        cursor_in_port = 0
+        for field in sorted(members, key=lambda item: item.port_raw_lo):
+            if (type(field.port_raw_lo) is not int or type(field.port_raw_hi) is not int or
+                    field.port_raw_lo != cursor_in_port or
+                    field.port_raw_hi - field.port_raw_lo + 1 != field.width):
+                _error(f"packed input is incomplete or overlapping: {port}")
+            cursor_in_port = field.port_raw_hi + 1
+        if cursor_in_port != container_width:
+            _error(f"packed input is incomplete: {port}")
     document = {"schema_version": "input_layout.v1", "raw_width": cursor,
                 "fields": [_field_document(field, include_provenance=False) for field in fields]}
     return InputLayout("input_layout.v1", cursor, tuple(fields), hashlib.sha256(canonical_bytes(document)).hexdigest())

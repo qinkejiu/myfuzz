@@ -381,3 +381,12 @@ the rendered container.  Compile and simulate a connected generic processor
 fixture before trying each real CPU source.  A real CPU integration gate also
 requires boot code, observed instruction/data progress and completion through
 the common backend; elaboration or wrapper compilation alone is insufficient.
+
+Packed runtime projection is complete and independently reviewed.  The layout
+hash includes compiler-proven member paths and physical container ranges;
+logical constraints run before fields are reconstructed into complete,
+non-overlapping physical input containers.  The Icarus RFuzz bench drives each
+member slice, and packed-member clock/reset bindings fail closed.  The fixed
+CVA6 sample reconstructs all 210 bits of `noc_resp_i`.  Automatic processor
+adapter instantiation, connected generic processor simulation and real CPU
+boot/progress acceptance remain open.

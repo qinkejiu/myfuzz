@@ -53,7 +53,9 @@ def _runtime_boundary(plan, base_dir):
             raise ValueError("unbound external protocol fields")
         for f in cap.fields:
             if f.role in {"clock", "reset"}:
-                if f.direction != "input" or f.width != 1 or f.port not in ports:
+                if (f.direction != "input" or f.width != 1 or f.port not in ports or
+                        f.member_path or f.container_width not in (None, 1) or
+                        ports[f.port]["width"] != 1):
                     raise ValueError("invalid runtime clock/reset")
                 (clocks if f.role == "clock" else resets).add(f.port)
         controls = {f.role: f.port for f in cap.fields if f.role in {"clock", "reset"}}
@@ -73,8 +75,6 @@ def _runtime_boundary(plan, base_dir):
     for field in plan.layout.fields:
         if field.port not in wanted:
             continue
-        if field.port in seen:
-            raise ValueError("ambiguous runtime input binding")
         seen.add(field.port)
         fields.append(replace(field, raw_lo=cursor, raw_hi=cursor + field.width - 1))
         cursor += field.width
@@ -93,7 +93,12 @@ def _runtime_boundary(plan, base_dir):
 def _bench(ports, clock, reset, polarity, layout, coverage):
     names = {p: r["opaque_port"] for p, r in ports.items()}
     declarations = [f"logic [{r['width']-1}:0] {r['opaque_port']};" for r in ports.values()]
-    inputs = [f"assign {names[f.port]} = raw_bits[{f.raw_hi}:{f.raw_lo}];" for f in layout.fields]
+    inputs = []
+    for field in layout.fields:
+        target = names[field.port]
+        if field.member_path:
+            target += f"[{field.port_raw_hi}:{field.port_raw_lo}]"
+        inputs.append(f"assign {target} = raw_bits[{field.raw_hi}:{field.raw_lo}];")
     connections = ",".join(f".{n}({n})" for n in names.values())
     active = 0 if polarity == "active_low" else 1
     c, r = names[clock], names[reset]

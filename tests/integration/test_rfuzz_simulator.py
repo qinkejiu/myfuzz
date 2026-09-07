@@ -11,6 +11,7 @@ import tempfile
 import unittest
 
 from myfuzz.composition import GenericCompositionRequest, load_interface_description, plan_generic_composition, source_tree_hash
+from myfuzz.composition.input_layout import InputLayout, LayoutField
 try:
     from myfuzz.integration import rfuzz_simulator
 except ImportError:
@@ -32,6 +33,52 @@ def make_plan(root, *, renamed=False):
 class RfuzzSimulatorTests(unittest.TestCase):
     def setUp(self):
         self.assertIsNotNone(rfuzz_simulator, "live layout-to-RTL simulator missing")
+
+    def test_bench_drives_packed_port_by_compiler_member_ranges(self):
+        fields = (
+            LayoutField("e:valid", "e", "valid", 1, 0, 0, "bits", {},
+                        port="bundle", member_path=("valid",),
+                        port_raw_lo=8, port_raw_hi=8, port_width=9),
+            LayoutField("e:data", "e", "data", 8, 1, 8, "bits", {},
+                        port="bundle", member_path=("data",),
+                        port_raw_lo=0, port_raw_hi=7, port_width=9),
+        )
+        layout = InputLayout("input_layout.v1", 9, fields, "packed")
+        ports = {
+            "clk": {"opaque_port": "p_clk", "width": 1},
+            "rst": {"opaque_port": "p_rst", "width": 1},
+            "bundle": {"opaque_port": "p_bundle", "width": 9},
+            "flags": {"opaque_port": "p_flags", "width": 1},
+        }
+        bench = rfuzz_simulator._bench(
+            ports, "clk", "rst", "active_low", layout, (("flags", 0),)
+        )
+        self.assertIn("assign p_bundle[8:8] = raw_bits[0:0];", bench)
+        self.assertIn("assign p_bundle[7:0] = raw_bits[8:1];", bench)
+        self.assertNotIn("assign p_bundle =", bench)
+
+    def test_packed_member_clock_is_rejected_before_container_driving(self):
+        field = SimpleNamespace(
+            role="clock", direction="input", width=1, port="ctl",
+            member_path=("clk",), container_width=2,
+        )
+        capability = SimpleNamespace(
+            protocol=None, endpoint_id="control", fields=(field,),
+        )
+        plan = SimpleNamespace(
+            capabilities=(capability,), annotations={"endpoints": []},
+            interface_description=SimpleNamespace(
+                source=SimpleNamespace(source_root="source")
+            ),
+        )
+        records = (
+            {"source_port": "ctl", "opaque_port": "p_ctl", "direction": "input",
+             "width": 2, "signed": False, "members": (("clk", 1, 1, 1),)},
+        )
+        with patch.object(rfuzz_simulator, "_generic_routes", return_value=()), \
+             patch.object(rfuzz_simulator, "_generic_port_records", return_value=records), \
+             self.assertRaisesRegex(ValueError, "clock/reset"):
+            rfuzz_simulator._runtime_boundary(plan, Path("/tmp"))
 
     def test_campaign_monitor_runs_during_blocked_rtl_exchange(self):
         import time

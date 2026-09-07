@@ -61,6 +61,47 @@ class RuntimeProjector:
             be = field.constraint.get("byte_enable_width")
             if be is not None and (type(be) is not int or be != field.width):
                 raise ValueError("invalid byte enable constraint")
+        self._validate_port_bindings()
+
+    def _validate_port_bindings(self) -> None:
+        by_port = {}
+        for field in self.layout.fields:
+            if not field.port:
+                continue
+            coordinates = (field.port_raw_lo, field.port_raw_hi, field.port_width)
+            if field.member_path:
+                if any(type(value) is not int for value in coordinates):
+                    raise ValueError("packed runtime binding is incomplete")
+                assert field.port_raw_lo is not None and field.port_raw_hi is not None
+                assert field.port_width is not None
+                if (field.port_raw_lo < 0 or field.port_raw_hi < field.port_raw_lo or
+                        field.port_raw_hi >= field.port_width or
+                        field.port_raw_hi - field.port_raw_lo + 1 != field.width):
+                    raise ValueError("packed runtime binding has invalid range")
+            elif any(value is not None for value in coordinates):
+                raise ValueError("packed runtime binding lacks member path")
+            by_port.setdefault(field.port, []).append(field)
+        for port, fields in by_port.items():
+            members = [field for field in fields if field.member_path]
+            if members and len(members) != len(fields):
+                raise ValueError(f"packed runtime binding mixes whole port: {port}")
+            if not members:
+                if len(fields) != 1:
+                    raise ValueError(f"runtime port binding is duplicated: {port}")
+                continue
+            widths = {field.port_width for field in members}
+            if len(widths) != 1:
+                raise ValueError(f"packed runtime binding has inconsistent width: {port}")
+            width = next(iter(widths))
+            assert width is not None
+            cursor = 0
+            for field in sorted(members, key=lambda item: item.port_raw_lo):
+                assert field.port_raw_lo is not None and field.port_raw_hi is not None
+                if field.port_raw_lo != cursor:
+                    raise ValueError(f"packed runtime binding is incomplete or overlapping: {port}")
+                cursor = field.port_raw_hi + 1
+            if cursor != width:
+                raise ValueError(f"packed runtime binding is incomplete: {port}")
 
     def project(self, raw: int) -> int:
         if type(raw) is not int or not 0 <= raw < 1 << self.layout.raw_width:
@@ -88,6 +129,21 @@ class RuntimeProjector:
             value = values[field.field_id] if gate is None or values[gate] else 0
             result |= value << field.raw_lo
         return result
+
+    def project_ports(self, raw: int) -> dict[str, int]:
+        """Project one RFuzz word and rebuild each physical DUT input port."""
+        projected = self.project(raw)
+        ports: dict[str, int] = {}
+        for field in self.layout.fields:
+            if not field.port:
+                raise ValueError(f"runtime field has no physical port: {field.field_id}")
+            value = (projected >> field.raw_lo) & ((1 << field.width) - 1)
+            if field.member_path:
+                assert field.port_raw_lo is not None
+                ports[field.port] = ports.get(field.port, 0) | (value << field.port_raw_lo)
+            else:
+                ports[field.port] = value
+        return ports
 
 
 def project_word(layout: InputLayout, raw: int, *, isa: IsaContract | None = None) -> int:

@@ -4,6 +4,7 @@ import copy
 import unittest
 
 from myfuzz.composition import InputLayoutError, build_input_layout, input_layout_document
+from myfuzz.composition.runtime_projection import RuntimeProjector
 from myfuzz.contracts import validate_contract
 from myfuzz.isa.constraints import IsaContract
 
@@ -30,6 +31,31 @@ def _annotations(*, address_width: int = 32, data_width: int = 32, include_optio
 
 
 class InputLayoutTest(unittest.TestCase):
+    def test_packed_member_coordinates_are_hashed_and_drive_the_container(self) -> None:
+        annotations = _annotations(include_optional=False)
+        endpoint = annotations["endpoints"][0]
+        endpoint["fields"] = [
+            {**_field("data", "packed_rsp", 8), "member_path": ["payload"],
+             "raw_lo": 0, "raw_hi": 7, "container_width": 9},
+            {**_field("valid", "packed_rsp", 1), "member_path": ["valid"],
+             "raw_lo": 8, "raw_hi": 8, "container_width": 9},
+        ]
+        layout = build_input_layout(annotations)
+        fields = {field.role: field for field in layout.fields}
+        document = input_layout_document(layout)
+
+        self.assertEqual(("payload",), fields["data"].member_path)
+        self.assertEqual((0, 7, 9), (fields["data"].port_raw_lo,
+                                    fields["data"].port_raw_hi, fields["data"].port_width))
+        raw = (0xab << fields["data"].raw_lo) | (1 << fields["valid"].raw_lo)
+        self.assertEqual(0x1ab, RuntimeProjector(layout).project_ports(raw)["packed_rsp"])
+        self.assertIn("member_path", document["fields"][0]["binding"])
+
+        broken = copy.deepcopy(annotations)
+        broken["endpoints"][0]["fields"][1]["raw_lo"] = 7
+        with self.assertRaisesRegex(InputLayoutError, "packed input"):
+            build_input_layout(broken)
+
     def test_real_annotation_endpoint_preserves_binding_and_path_independent_hash(self) -> None:
         left = _annotations()
         validate_contract(left, "interface_annotations.v1")

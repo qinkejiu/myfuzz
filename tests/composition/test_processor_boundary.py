@@ -8,6 +8,8 @@ from myfuzz.composition.endpoint_capabilities import normalize_annotations
 from myfuzz.composition.interface_description import load_interface_description
 from myfuzz.composition.source_crawler import SourceCrawler
 from myfuzz.composition.processor_adapters import resolve_processor_adapter
+from myfuzz.composition.input_layout import build_input_layout
+from myfuzz.composition.runtime_projection import RuntimeProjector
 from myfuzz.composition.processor_boundary import (
     ProcessorBoundaryError,
     build_processor_boundary,
@@ -366,6 +368,11 @@ class ProcessorBoundaryTests(unittest.TestCase):
         adapter = resolve_processor_adapter(boundary.memories[0])
         self.assertEqual("axi4-to-processor-memory-beat", adapter.adapter_id)
         self.assertEqual(("axi4", "1"), adapter.source_protocol)
+        layout = build_input_layout(annotations)
+        packed_ports = RuntimeProjector(layout).project_ports(
+            (1 << layout.raw_width) - 1
+        )
+        self.assertEqual((1 << 210) - 1, packed_ports["noc_resp_i"])
 
 
 def _catalog_for_path() -> ProtocolCatalog:
