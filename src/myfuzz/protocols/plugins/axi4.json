@@ -47,7 +47,9 @@
     "bursts": "reject_non_single_beat",
     "ids": "reject_nonzero",
     "byte_enable": true,
-    "partial_write": true
+    "partial_write": true,
+    "transfer_size": "data_width_log2_bytes",
+    "transfer_size_fields": ["awsize", "arsize"]
   },
   "projection_actions": [
     {"action_id": 1, "field_ids": ["awaddr", "araddr"], "kind": "mask", "category": "address_validity"},
@@ -55,7 +57,8 @@
     {"action_id": 3, "field_ids": ["wdata", "wstrb"], "kind": "fold_xor", "category": "dependency_consistency"},
     {"action_id": 4, "field_ids": ["awlen", "arlen"], "kind": "constant", "category": "protocol_legality", "constant_value": 0},
     {"action_id": 5, "field_ids": ["wlast"], "kind": "constant", "category": "protocol_legality", "constant_value": 1},
-    {"action_id": 6, "field_ids": ["awid", "arid"], "kind": "constant", "category": "protocol_legality", "constant_value": 0}
+    {"action_id": 6, "field_ids": ["awid", "arid"], "kind": "constant", "category": "protocol_legality", "constant_value": 0},
+    {"action_id": 7, "field_ids": ["awburst", "arburst"], "kind": "constant", "category": "protocol_legality", "constant_value": 1}
   ],
   "temporal_rules": [
     {"rule_id": 1, "kind": "handshake", "antecedent_field_id": "awvalid", "consequent_field_id": "awready", "max_cycles": 16},

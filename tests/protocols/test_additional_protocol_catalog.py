@@ -18,6 +18,60 @@ from myfuzz.protocols.model import ProtocolDefinitionError
 PLUGIN_DIR = Path(__file__).resolve().parents[2] / "src" / "myfuzz" / "protocols" / "plugins"
 
 
+def _axi4_projected_fields(data_width: int) -> tuple[dict[str, int], dict[str, int]]:
+    catalog = load_protocol_catalog(PLUGIN_DIR)
+    plugin = catalog.require("axi4", "1")
+    width_expressions = {
+        "address_width": 32,
+        "data_width": data_width,
+        "data_width / 8": data_width // 8,
+        "id_width": 4,
+    }
+    widths = {
+        field.field_id: (
+            width_expressions[field.width_expression]
+            if field.width_expression in width_expressions
+            else int(field.width_expression)
+        )
+        for field in plugin.fields
+    }
+    ports = {field.field_id: str(index + 1) for index, field in enumerate(plugin.fields)}
+    compiled = compile_protocol(
+        {
+            "binding_id": "axi4-binding",
+            "protocol_id": "axi4",
+            "version": "1",
+            "ports": ports,
+            "parameters": {"address_width": 32, "data_width": data_width, "id_width": 4},
+        },
+        {"port_widths": {ports[field_id]: width for field_id, width in widths.items()}},
+        catalog,
+        require_runtime=True,
+    )
+    inputs = tuple(field for field in compiled.fields if field.direction == "host_to_device")
+    destinations = tuple(
+        RawDestination(index, None, int(field.port_id), field.width)
+        for index, field in enumerate(inputs)
+    )
+    cursor = 0
+    uses = []
+    for destination in destinations:
+        uses.append(RawBitUse(cursor, cursor + destination.width - 1, destination.destination_id, 0, "direct", "direct"))
+        cursor += destination.width
+    raw_abi = RawBitAbi(
+        cursor,
+        destinations,
+        tuple(uses),
+        content_hash({"fixture": "axi4-projection", "width": cursor}),
+    )
+    graph = to_csr(build_static_graph({}, (compiled,)))
+    plan = _projection_plan(raw_abi, (compiled,), {"axi4": plugin}, graph, None)
+    return (
+        dict(project_sample(plan, (1 << cursor) - 1, ProjectionState.initial(plan)).driven_fields),
+        {field.field_id: index for index, field in enumerate(inputs)},
+    )
+
+
 class AdditionalProtocolCatalogTest(unittest.TestCase):
     def test_all_eight_declared_protocol_versions_load(self) -> None:
         catalog = load_protocol_catalog(PLUGIN_DIR)
@@ -136,6 +190,8 @@ class AdditionalProtocolCatalogTest(unittest.TestCase):
                 "ids": "reject_nonzero",
                 "byte_enable": True,
                 "partial_write": True,
+                "transfer_size": "data_width_log2_bytes",
+                "transfer_size_fields": ("awsize", "arsize"),
             },
         )
         self.assertEqual(
@@ -183,62 +239,22 @@ class AdditionalProtocolCatalogTest(unittest.TestCase):
                     )
 
     def test_axi4_constant_constraints_compile_through_projection_pipeline(self) -> None:
-        catalog = load_protocol_catalog(PLUGIN_DIR)
-        plugin = catalog.require("axi4", "1")
-        width_expressions = {
-            "address_width": 32,
-            "data_width": 32,
-            "data_width / 8": 4,
-            "id_width": 4,
-        }
-        widths = {
-            field.field_id: (
-                width_expressions[field.width_expression]
-                if field.width_expression in width_expressions
-                else int(field.width_expression)
-            )
-            for field in plugin.fields
-        }
-        ports = {field.field_id: str(index + 1) for index, field in enumerate(plugin.fields)}
-        compiled = compile_protocol(
-            {
-                "binding_id": "axi4-binding",
-                "protocol_id": "axi4",
-                "version": "1",
-                "ports": ports,
-                "parameters": {"address_width": 32, "data_width": 32, "id_width": 4},
-            },
-            {"port_widths": {ports[field_id]: width for field_id, width in widths.items()}},
-            catalog,
-            require_runtime=True,
-        )
-        inputs = tuple(field for field in compiled.fields if field.direction == "host_to_device")
-        destinations = tuple(
-            RawDestination(index, None, int(field.port_id), field.width)
-            for index, field in enumerate(inputs)
-        )
-        cursor = 0
-        uses = []
-        for destination in destinations:
-            uses.append(RawBitUse(cursor, cursor + destination.width - 1, destination.destination_id, 0, "direct", "direct"))
-            cursor += destination.width
-        raw_abi = RawBitAbi(
-            cursor,
-            destinations,
-            tuple(uses),
-            content_hash({"fixture": "axi4-projection", "width": cursor}),
-        )
-        graph = to_csr(build_static_graph({}, (compiled,)))
+        for data_width, transfer_size in ((32, 2), (64, 3)):
+            with self.subTest(data_width=data_width):
+                driven, destination_for = _axi4_projected_fields(data_width)
+                self.assertEqual(driven[destination_for["awlen"]], 0)
+                self.assertEqual(driven[destination_for["arlen"]], 0)
+                self.assertEqual(driven[destination_for["awid"]], 0)
+                self.assertEqual(driven[destination_for["arid"]], 0)
+                self.assertEqual(driven[destination_for["wlast"]], 1)
+                self.assertEqual(driven[destination_for["awburst"]], 1)
+                self.assertEqual(driven[destination_for["arburst"]], 1)
+                self.assertEqual(driven[destination_for["awsize"]], transfer_size)
+                self.assertEqual(driven[destination_for["arsize"]], transfer_size)
 
-        plan = _projection_plan(raw_abi, (compiled,), {"axi4": plugin}, graph, None)
-        driven = dict(project_sample(plan, (1 << cursor) - 1, ProjectionState.initial(plan)).driven_fields)
-        destination_for = {field.field_id: index for index, field in enumerate(inputs)}
-
-        self.assertEqual(driven[destination_for["awlen"]], 0)
-        self.assertEqual(driven[destination_for["arlen"]], 0)
-        self.assertEqual(driven[destination_for["awid"]], 0)
-        self.assertEqual(driven[destination_for["arid"]], 0)
-        self.assertEqual(driven[destination_for["wlast"]], 1)
+    def test_axi4_rejects_non_power_of_two_data_width_for_fixed_transfer_size(self) -> None:
+        with self.assertRaisesRegex(ValueError, "power-of-two"):
+            _axi4_projected_fields(24)
 
     def test_catalog_rejects_duplicate_json_keys_and_invalid_known_capabilities(self) -> None:
         document = {
@@ -269,7 +285,11 @@ class AdditionalProtocolCatalogTest(unittest.TestCase):
             {**document["capability_limits"], "supported_burst_lengths": [0, 0]},
             {**document["capability_limits"], "supported_id_values": [1, 0]},
             {**document["capability_limits"], "ordering": "unordered"},
+            {**document["capability_limits"], "ordering": ["in_order_single_id"]},
+            {**document["capability_limits"], "completion": {"value": "ack_or_err"}},
             {**document["capability_limits"], "future_feature": ["unsafe"]},
+            {**document["capability_limits"], "x-": True},
+            {**document["capability_limits"], "x-description": "x" * 257},
         )
 
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -301,63 +321,83 @@ class AdditionalProtocolCatalogTest(unittest.TestCase):
                     with self.assertRaises(ProtocolDefinitionError):
                         load_protocol_catalog(directory)
 
-    def test_partial_write_profiles_emit_fixed_full_byte_enable_constraints(self) -> None:
-        catalog = load_protocol_catalog(PLUGIN_DIR)
-        for protocol_id, version, data_field_id in (("apb", "3", "pwdata"), ("obi", "1", "wdata")):
-            with self.subTest(protocol=f"{protocol_id}@{version}"):
-                plugin = catalog.require(protocol_id, version)
-                fields = plugin.fields
-                widths = {
-                    field.field_id: 32
-                    if field.width_expression in {"address_width", "data_width"}
-                    else int(field.width_expression)
-                    for field in fields
+    def test_catalog_rejects_constant_action_conflicts(self) -> None:
+        document = {
+            "protocol_id": "example",
+            "version": "1",
+            "legal_adapters": [],
+            "fields": [
+                {
+                    "field_id": "request",
+                    "direction": "host_to_device",
+                    "width": "8",
+                    "required": True,
+                    "reset_value": 0,
                 }
-                input_fields = tuple(
-                    field for field in fields if field.direction == "host_to_device"
-                )
-                destinations = tuple(
-                    RawDestination(index, None, fields.index(field) + 1, widths[field.field_id])
-                    for index, field in enumerate(input_fields)
-                )
-                raw_abi = RawBitAbi(
-                    sum(destination.width for destination in destinations),
-                    destinations,
-                    tuple(
-                        RawBitUse(
-                            sum(previous.width for previous in destinations[:index]),
-                            sum(previous.width for previous in destinations[: index + 1]) - 1,
-                            destination.destination_id,
-                            0,
-                            "direct",
-                            "direct",
-                        )
-                        for index, destination in enumerate(destinations)
-                    ),
-                    content_hash({"fixture": f"{protocol_id}-partial-write"}),
-                )
-                ports = {field.field_id: str(index + 1) for index, field in enumerate(fields)}
-                compiled = compile_protocol(
-                    {
-                        "binding_id": f"{protocol_id}-binding",
-                        "protocol_id": protocol_id,
-                        "version": version,
-                        "ports": ports,
-                        "parameters": {"address_width": 32, "data_width": 32},
-                    },
-                    {"port_widths": {ports[field.field_id]: widths[field.field_id] for field in fields}},
-                    catalog,
-                    require_runtime=True,
-                )
-                graph = to_csr(build_static_graph({}, (compiled,)))
+            ],
+            "projection_actions": [
+                {
+                    "action_id": 1,
+                    "field_ids": ["request"],
+                    "kind": "constant",
+                    "category": "protocol_legality",
+                    "constant_value": 0,
+                },
+                {
+                    "action_id": 2,
+                    "field_ids": ["request"],
+                    "kind": "fold_xor",
+                    "category": "dependency_consistency",
+                },
+            ],
+        }
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            source = Path(temporary_directory) / "example.json"
+            source.write_text(json.dumps(document), encoding="utf-8")
+            with self.assertRaisesRegex(ProtocolDefinitionError, "constant"):
+                load_protocol_catalog(source.parent)
 
-                plan = _projection_plan(raw_abi, (compiled,), {protocol_id: plugin}, graph, None)
+    def test_partial_write_profiles_emit_fixed_full_byte_enable_constraints(self) -> None:
+        document = {
+            "protocol_id": "full-byte-only",
+            "version": "1",
+            "legal_adapters": [],
+            "fields": [
+                {"field_id": "wdata", "direction": "host_to_device", "width": "data_width", "required": True, "reset_value": 0},
+                {"field_id": "byte_enable", "direction": "host_to_device", "width": "data_width / 8", "required": True, "reset_value": 0},
+            ],
+            "capability_limits": {"byte_enable": False, "partial_write": False},
+        }
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            source = Path(temporary_directory) / "full-byte-only.json"
+            source.write_text(json.dumps(document), encoding="utf-8")
+            catalog = load_protocol_catalog(source.parent)
+            plugin = catalog.require("full-byte-only", "1")
+            compiled = compile_protocol(
+                {
+                    "binding_id": "full-byte-only-binding",
+                    "protocol_id": "full-byte-only",
+                    "version": "1",
+                    "ports": {"wdata": "1", "byte_enable": "2"},
+                    "parameters": {"data_width": 32},
+                },
+                {"port_widths": {"1": 32, "2": 4}},
+                catalog,
+            )
+            raw_abi = RawBitAbi(
+                36,
+                (RawDestination(0, None, 1, 32), RawDestination(1, None, 2, 4)),
+                (RawBitUse(0, 31, 0, 0, "direct", "direct"), RawBitUse(32, 35, 1, 0, "direct", "direct")),
+                content_hash({"fixture": "full-byte-only"}),
+            )
+            graph = to_csr(build_static_graph({}, (compiled,)))
+            plan = _projection_plan(raw_abi, (compiled,), {"full-byte-only": plugin}, graph, None)
 
-                constraint = next(
-                    item for item in plan.canonical_byte_enables if item.field_id == data_field_id
-                )
-                self.assertEqual(4, constraint.width)
-                self.assertEqual(0b1111, constraint.value)
+        self.assertEqual(
+            (("full-byte-only-binding", "byte_enable", 4, 0b1111, 1),),
+            tuple((item.binding_id, item.field_id, item.width, item.value, item.destination_id) for item in plan.canonical_byte_enables),
+        )
+        self.assertEqual(0b1111, dict(project_sample(plan, 0, ProjectionState.initial(plan)).driven_fields)[1])
 
     def test_catalog_rejects_dangling_references_duplicate_fields_and_invalid_widths(self) -> None:
         document = {

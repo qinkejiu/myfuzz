@@ -6,7 +6,12 @@ import unittest
 from myfuzz.harness import HarnessArtifact, build_harness, coverage_universe, raw_width
 from myfuzz.harness.abi import build_raw_abi
 from myfuzz.harness.depaware import build_depaware
-from myfuzz.harness.projection import CanonicalByteEnable, build_projection_plan
+from myfuzz.harness.projection import (
+    CanonicalByteEnable,
+    ProjectionState,
+    build_projection_plan,
+    project_sample,
+)
 
 
 def manifest() -> dict[str, object]:
@@ -136,18 +141,23 @@ class HarnessTest(unittest.TestCase):
         self.assertIn("assign port_20 = 4'h9;", artifact.source_text)
         self.assertNotIn("assign port_20 = rfuzz_input_bits[11:8];", artifact.source_text)
 
-    def test_depaware_sv_emits_full_byte_enable_without_a_raw_byte_enable_input(self) -> None:
+    def test_canonical_byte_enable_overrides_raw_sample_and_drives_the_dut_port(self) -> None:
         document = manifest()
         plan = build_projection_plan(
             build_raw_abi(document),
             (),
-            canonical_byte_enables=(CanonicalByteEnable("apb3-binding", "pwdata", 4, 0b1111),),
+            canonical_byte_enables=(
+                CanonicalByteEnable("apb3-binding", "byte_enable", 4, 0b1111, 20),
+            ),
         )
 
         artifact = build_depaware(document, plan)
+        result = project_sample(plan, 0, ProjectionState.initial(plan))
 
         self.assertIn("assign canonical_byte_enable_0 = 4'd15;", artifact.source_text)
-        self.assertNotIn("canonical_byte_enable_0 = rfuzz_input_bits", artifact.source_text)
+        self.assertIn("assign port_20 = canonical_byte_enable_0;", artifact.source_text)
+        self.assertNotIn("assign port_20 = rfuzz_input_bits[11:8];", artifact.source_text)
+        self.assertEqual(0b1111, dict(result.driven_fields)[20])
 
     def test_rejects_unknown_mode_and_structural_manifest_errors(self) -> None:
         with self.assertRaises(ValueError):

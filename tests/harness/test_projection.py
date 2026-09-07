@@ -4,6 +4,7 @@ import unittest
 
 from myfuzz.harness.abi import RawBitAbi, RawBitUse, RawDestination, content_hash
 from myfuzz.harness.projection import (
+    CanonicalByteEnable,
     ProjectionState,
     build_projection_plan,
     project_sample,
@@ -177,6 +178,37 @@ class ProjectionTest(unittest.TestCase):
             build_projection_plan(raw_abi(), (), max_state_bits=4097)
         with self.assertRaisesRegex(ValueError, "64"):
             build_projection_plan(raw_abi(), (), field_order=tuple(range(65)))
+
+    def test_rejects_constant_actions_that_can_be_overridden(self) -> None:
+        with self.assertRaisesRegex(ValueError, "constant"):
+            build_projection_plan(
+                raw_abi(),
+                (
+                    {
+                        "action_id": 1,
+                        "destination_id": 1,
+                        "kind": "constant",
+                        "category": "protocol_legality",
+                        "constant_value": 0b1111,
+                    },
+                    {
+                        "action_id": 2,
+                        "destination_id": 1,
+                        "kind": "fold_xor",
+                        "category": "dependency_consistency",
+                    },
+                ),
+            )
+
+    def test_canonical_byte_enable_requires_a_matching_raw_destination(self) -> None:
+        with self.assertRaisesRegex(ValueError, "destination"):
+            build_projection_plan(
+                raw_abi(),
+                (),
+                canonical_byte_enables=(
+                    CanonicalByteEnable("binding", "byte_enable", 4, 0b1111, 99),
+                ),
+            )
 
 
 if __name__ == "__main__":

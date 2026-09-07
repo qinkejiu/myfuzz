@@ -192,6 +192,10 @@ def _emit_depaware(manifest: Mapping[str, object], plan: ProjectionPlan) -> str:
 
     destinations = {item.port_id: item for item in plan.raw_abi.destinations}
     uses = {item.destination_id: item for item in plan.raw_abi.uses}
+    canonical_expressions = {
+        constraint.destination_id: f"canonical_byte_enable_{index}"
+        for index, constraint in enumerate(plan.canonical_byte_enables)
+    }
     actions_by_destination: dict[int, list[ProjectionAction]] = {}
     for action in plan.actions:
         actions_by_destination.setdefault(action.destination_id, []).append(action)
@@ -215,9 +219,12 @@ def _emit_depaware(manifest: Mapping[str, object], plan: ProjectionPlan) -> str:
             destination = destinations[port_id]
             use = uses[destination.destination_id]
             actions = actions_by_destination.get(destination.destination_id, ())
-            expression = final_expressions.get(
+            expression = canonical_expressions.get(
                 destination.destination_id,
-                f"rfuzz_input_bits[{use.raw_hi}:{use.raw_lo}]",
+                final_expressions.get(
+                    destination.destination_id,
+                    f"rfuzz_input_bits[{use.raw_hi}:{use.raw_lo}]",
+                ),
             )
             if actions:
                 for action in actions:

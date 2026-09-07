@@ -51,6 +51,9 @@ _BOOLEAN_OR_ENUM_CAPABILITIES = {
     "ids": frozenset(("reject_nonzero",)),
 }
 _STRING_ARRAY_CAPABILITIES = {"completion_signals": ("ack", "err")}
+_ENUM_CAPABILITIES["transfer_size"] = frozenset(("data_width_log2_bytes",))
+_FIELD_ARRAY_CAPABILITIES = frozenset(("transfer_size_fields",))
+_MAX_EXTENSION_LENGTH = 256
 
 
 class ProtocolCatalog:
@@ -152,7 +155,7 @@ def _parse_channel_relations(
 
 
 def _parse_capability_limits(
-    document: dict[object, object], source: Path
+    document: dict[object, object], source: Path, fields: set[str]
 ) -> tuple[tuple[str, CapabilityLimitValue], ...]:
     raw = document.get("capability_limits", {})
     if not isinstance(raw, dict):
@@ -190,7 +193,7 @@ def _parse_capability_limits(
                 )
             parsed = tuple(value)
         elif name in _ENUM_CAPABILITIES:
-            if value not in _ENUM_CAPABILITIES[name]:
+            if not isinstance(value, str) or value not in _ENUM_CAPABILITIES[name]:
                 values = ", ".join(sorted(_ENUM_CAPABILITIES[name]))
                 raise ProtocolDefinitionError(
                     f"{source}: capability limit {name} must be one of: {values}"
@@ -199,7 +202,7 @@ def _parse_capability_limits(
         elif name in _BOOLEAN_OR_ENUM_CAPABILITIES:
             if value is False:
                 parsed = value
-            elif value in _BOOLEAN_OR_ENUM_CAPABILITIES[name]:
+            elif isinstance(value, str) and value in _BOOLEAN_OR_ENUM_CAPABILITIES[name]:
                 parsed = value
             else:
                 values = ", ".join(sorted(_BOOLEAN_OR_ENUM_CAPABILITIES[name]))
@@ -213,12 +216,27 @@ def _parse_capability_limits(
                     f"{source}: capability limit {name} must be the ordered array {list(expected)}"
                 )
             parsed = expected
+        elif name in _FIELD_ARRAY_CAPABILITIES:
+            if (
+                not isinstance(value, list)
+                or not value
+                or any(not isinstance(item, str) or not item or item not in fields for item in value)
+                or len(value) != len(set(value))
+            ):
+                raise ProtocolDefinitionError(
+                    f"{source}: capability limit {name} must be a non-empty array of distinct declared fields"
+                )
+            parsed = tuple(value)
         elif name.startswith("x-"):
+            if len(name) <= 2 or len(name) > _MAX_EXTENSION_LENGTH:
+                raise ProtocolDefinitionError(
+                    f"{source}: extension capability limit name must be 3..{_MAX_EXTENSION_LENGTH} characters"
+                )
             if isinstance(value, bool):
                 parsed = value
             elif isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= _MAX_CAPABILITY_VALUE:
                 parsed = value
-            elif isinstance(value, str) and value:
+            elif isinstance(value, str) and 0 < len(value) <= _MAX_EXTENSION_LENGTH:
                 parsed = value
             else:
                 raise ProtocolDefinitionError(
@@ -233,6 +251,10 @@ def _parse_capability_limits(
     if values.get("partial_write") is True and values.get("byte_enable") is False:
         raise ProtocolDefinitionError(
             f"{source}: partial_write requires byte_enable capability"
+        )
+    if ("transfer_size" in values) != ("transfer_size_fields" in values):
+        raise ProtocolDefinitionError(
+            f"{source}: transfer_size and transfer_size_fields must be declared together"
         )
     return tuple(sorted(limits))
 
@@ -351,7 +373,15 @@ def _parse_plugin(document: object, source: Path) -> ProtocolPlugin:
             )
         )
     channel_relations = _parse_channel_relations(document, source, seen)
-    capability_limits = _parse_capability_limits(document, source)
+    capability_limits = _parse_capability_limits(document, source, seen)
+    action_kinds_by_field: dict[str, list[str]] = {}
+    for action in projection_actions:
+        for field_id in action.field_ids:
+            action_kinds_by_field.setdefault(field_id, []).append(action.kind)
+    if any("constant" in kinds and len(kinds) > 1 for kinds in action_kinds_by_field.values()):
+        raise ProtocolDefinitionError(
+            f"{source}: constant projection actions cannot share a field with another action"
+        )
     return ProtocolPlugin(
         protocol_id,
         version,

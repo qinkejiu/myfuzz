@@ -1052,20 +1052,51 @@ def _projection_plan(
                 specification = specifications[field.field_id]
                 if (
                     specification.direction == "host_to_device"
-                    and specification.width_expression == "data_width"
+                    and specification.width_expression == "data_width / 8"
+                    and field.port_id in destination_by_port
                 ):
-                    if field.width % 8:
-                        raise ValueError(
-                            "partial-write-disabled protocol data width must be byte aligned"
-                        )
                     canonical_byte_enables.append(
                         CanonicalByteEnable(
                             compiled.binding_id,
                             field.field_id,
-                            field.width // 8,
-                            (1 << (field.width // 8)) - 1,
+                            field.width,
+                            (1 << field.width) - 1,
+                            destination_by_port[field.port_id],
                         )
                     )
+        if capabilities.get("transfer_size") == "data_width_log2_bytes":
+            specifications = {field.field_id: field for field in plugin.fields}
+            data_widths = {
+                field.width
+                for field in compiled.fields
+                if specifications[field.field_id].width_expression == "data_width"
+            }
+            if len(data_widths) != 1:
+                raise ValueError("data-width transfer-size capability requires one data width")
+            data_width = data_widths.pop()
+            if data_width % 8 or (data_width // 8) & ((data_width // 8) - 1):
+                raise ValueError("data-width transfer-size capability requires a power-of-two byte width")
+            transfer_size = (data_width // 8).bit_length() - 1
+            transfer_size_fields = capabilities.get("transfer_size_fields")
+            assert isinstance(transfer_size_fields, tuple)
+            for field_id in transfer_size_fields:
+                field = compiled.field_for(field_id)
+                if field.direction != "host_to_device" or field.port_id not in destination_by_port:
+                    raise ValueError("transfer-size capability field must be a fuzzable host-to-device port")
+                if transfer_size >= 1 << field.width:
+                    raise ValueError("transfer-size capability value does not fit its declared field")
+                action_candidates.append(
+                    (
+                        (compiled.binding_id, -1, field_id, "capability"),
+                        {
+                            "destination_id": destination_by_port[field.port_id],
+                            "kind": "constant",
+                            "category": "protocol_legality",
+                            "constant_value": transfer_size,
+                            "active": True,
+                        },
+                    )
+                )
         rule_bounds = {
             rule.antecedent_field_id: rule.max_cycles
             for rule in plugin.temporal_rules

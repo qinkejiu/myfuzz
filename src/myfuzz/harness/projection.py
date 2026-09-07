@@ -62,6 +62,7 @@ class CanonicalByteEnable:
     field_id: str
     width: int
     value: int
+    destination_id: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,11 +115,20 @@ class ProjectionPlan:
         constraints = {(item.binding_id, item.field_id) for item in self.canonical_byte_enables}
         if len(constraints) != len(self.canonical_byte_enables):
             raise ValueError("canonical byte-enable constraints must be unique per binding field")
+        constrained_destinations: set[int] = set()
+        widths = {item.destination_id: item.width for item in self.raw_abi.destinations}
         for item in self.canonical_byte_enables:
             if not item.binding_id or not item.field_id or item.width < 1:
                 raise ValueError("canonical byte-enable constraint is invalid")
             if item.value != (1 << item.width) - 1:
                 raise ValueError("canonical byte-enable constraint must force every byte enabled")
+            if item.destination_id not in widths:
+                raise ValueError("canonical byte-enable constraint must target a raw ABI destination")
+            if widths[item.destination_id] != item.width:
+                raise ValueError("canonical byte-enable constraint width must match its raw ABI destination")
+            if item.destination_id in constrained_destinations:
+                raise ValueError("canonical byte-enable constraints must target distinct raw ABI destinations")
+            constrained_destinations.add(item.destination_id)
 
 
 @dataclass(frozen=True, slots=True)
@@ -291,6 +301,12 @@ def build_projection_plan(
             raise ValueError("only constant projection actions may declare a constant value")
         parsed.append((action_id, destination_id, kind, category, max_cycles, constant_value, active))
 
+    actions_by_destination: dict[int, list[str]] = {}
+    for _, destination_id, kind, _, _, _, _ in parsed:
+        actions_by_destination.setdefault(destination_id, []).append(kind)
+    if any("constant" in kinds and len(kinds) > 1 for kinds in actions_by_destination.values()):
+        raise ValueError("constant projection actions cannot be composed with other actions")
+
     cursor = 0
     actions: list[ProjectionAction] = []
     for action_id, destination_id, kind, category, max_cycles, constant_value, active in sorted(
@@ -342,6 +358,7 @@ def build_projection_plan(
                 "field_id": item.field_id,
                 "width": item.width,
                 "value": item.value,
+                "destination_id": item.destination_id,
             }
             for item in constraints
         ]
@@ -509,6 +526,10 @@ def project_sample(
         driven[destination_id] = value
         if action.kind != "direct":
             projected.add(destination_id)
+
+    for constraint in plan.canonical_byte_enables:
+        driven[constraint.destination_id] = constraint.value
+        projected.add(constraint.destination_id)
 
     return ProjectionResult(
         driven_fields=tuple((destination_id, driven[destination_id]) for destination_id in plan.field_order),
