@@ -75,9 +75,11 @@ class ObiProcessorMemoryAdapterRtlTests(unittest.TestCase):
                     if (!ok) begin $display("FAIL: %0s",msg); $fatal(1); end
                   endtask
                   initial begin
-                    req_i=0; we_i=0; addr_i=0; wdata_i=0; be_i=0;
-                    req_ready_i=0; rsp_valid_i=0; rsp_rdata_i=0; rsp_error_i=0;
-                    tick(); rst_ni=1;
+                    req_i=1; we_i=0; addr_i=0; wdata_i=0; be_i=0;
+                    req_ready_i=1; rsp_valid_i=0; rsp_rdata_i=0; rsp_error_i=0;
+                    #1; check(!gnt_o && !req_valid_o,
+                              "reset blocks source acceptance despite valid request");
+                    tick(); rst_ni=1; @(negedge clk_i); req_i=0; req_ready_i=0;
                     @(negedge clk_i); req_i=1; we_i=1; addr_i=32'h80;
                     wdata_i=32'h12345678; be_i=4'b0101;
                     repeat(2) begin tick(); check(req_valid_o && !gnt_o && req_write_o &&

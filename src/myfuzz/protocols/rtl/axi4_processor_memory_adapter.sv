@@ -133,12 +133,13 @@ module axi4_processor_memory_adapter #(
                          (rready_i && (read_beats_left_q == 8'd0));
     wire atomic_b_done = !atomic_b_pending_q || bready_i;
 
-    assign awready_o = collecting_write && !aw_captured_q;
-    assign wready_o = (collecting_write && !w_captured_q) ||
-                      (state_q == WRITE_DRAIN);
+    assign awready_o = rst_ni && collecting_write && !aw_captured_q;
+    assign wready_o = rst_ni && ((collecting_write && !w_captured_q) ||
+                                 (state_q == WRITE_DRAIN));
     // A partial AW/W transaction owns the adapter.  Simultaneous write input
     // receives deterministic priority over AR rather than depending on names.
-    assign arready_o = (state_q == IDLE) && !awvalid_i && !wvalid_i;
+    assign arready_o = rst_ni && (state_q == IDLE) &&
+                       !awvalid_i && !wvalid_i;
 
     assign bid_o = write_id_q;
     assign bresp_o = write_resp_q;

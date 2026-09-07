@@ -62,7 +62,11 @@ class Axi4ProcessorMemoryAdapterRtlTests(unittest.TestCase):
                     end
                   endtask
                   initial begin
-                    defaults(); tick(); rst_ni=1;
+                    defaults(); awvalid_i=1; wvalid_i=1; arvalid_i=1; #1;
+                    check(!awready_o && !wready_o && !arready_o,
+                          "reset blocks all source-facing acceptance");
+                    tick(); rst_ni=1; @(negedge clk_i);
+                    awvalid_i=0; wvalid_i=0; arvalid_i=0;
 
                     // W may arrive before AW.  The completed write request holds under backend stall.
                     @(negedge clk_i); wvalid_i=1; wdata_i=32'h11223344; wstrb_i=4'b0101;

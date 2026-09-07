@@ -161,6 +161,12 @@ module tb;
   integer accepted=0, completions=0, errors=0, cycles=0;
   always #1 clock=~clock;
   generic_composition_top dut({connections});
+  task fail_metrics(input [8*40-1:0] reason);
+    begin
+      $display("METRICS accepted=%0d completions=%0d readback=%08x errors=%0d cycles=%0d exit=%0s", accepted, completions, readback, errors + source_errors, source_cycles, reason);
+      $fatal(1,"processor fixture integrity failure: %0s", reason);
+    end
+  endtask
   always @(posedge clock) if (reset) begin
     cycles <= cycles + 1;
     random <= random + 8'h5b;
@@ -179,10 +185,13 @@ module tb;
       $fatal(1,"processor fixture stalled");
     end
     repeat(2) @(posedge clock);
-    if (accepted != 4 || completions != 4 || source_accepted != 4 ||
-        source_completions != 4 || errors != 0 || source_errors != 0 ||
-        readback != 32'haabb3344)
-      $fatal(1,"lost, duplicate, or corrupt request");
+    if (accepted != 4) fail_metrics("backend_accepted_count");
+    if (completions != 4) fail_metrics("backend_completion_count");
+    if (source_accepted != 4) fail_metrics("source_accepted_count");
+    if (source_completions != 4) fail_metrics("source_completion_count");
+    if (errors != 0) fail_metrics("backend_error");
+    if (source_errors != 0) fail_metrics("source_error");
+    if (readback != 32'haabb3344) fail_metrics("readback_corrupt");
     $display("METRICS accepted=%0d completions=%0d readback=%08x errors=%0d cycles=%0d exit=done", accepted, completions, readback, errors + source_errors, source_cycles);
     $finish;
   end
@@ -203,7 +212,7 @@ endmodule
         raise AssertionError("simulate failed:\n" + simulate_result.stdout + simulate_result.stderr)
     match = re.search(
         r"METRICS accepted=(\d+) completions=(\d+) readback=([0-9a-fA-F]+) "
-        r"errors=(\d+) cycles=(\d+) exit=(\w+)", simulate_result.stdout,
+        r"errors=(\d+) cycles=(\d+) exit=([a-z_]+)", simulate_result.stdout,
     )
     if match is None:
         raise AssertionError("missing simulator metrics:\n" + simulate_result.stdout)

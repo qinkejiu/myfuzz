@@ -30,9 +30,11 @@ class TlUlProcessorMemoryAdapterRtlTests(unittest.TestCase):
                 task tick; @(posedge clk_i); #1; endtask
                 task check(input bit ok,input [8*80-1:0] msg); if(!ok) begin $display("FAIL: %0s",msg);$fatal(1);end endtask
                 initial begin
-                  a_valid_i=0;a_opcode_i=4;a_param_i=0;a_size_i=2;a_source_i=1;a_address_i=32'h40;
+                  a_valid_i=1;a_opcode_i=4;a_param_i=0;a_size_i=2;a_source_i=1;a_address_i=32'h40;
                   a_mask_i=4'hf;a_data_i=0;a_corrupt_i=0;d_ready_i=0;req_ready_i=0;
-                  rsp_valid_i=0;rsp_rdata_i=0;rsp_error_i=0;tick();rst_ni=1;
+                  rsp_valid_i=0;rsp_rdata_i=0;rsp_error_i=0;#1;
+                  check(!a_ready_o,"reset blocks source acceptance despite valid request");
+                  tick();rst_ni=1;@(negedge clk_i);a_valid_i=0;
                   @(negedge clk_i);a_valid_i=1;tick();check(req_valid_o&&!a_ready_o&&!req_write_o&&req_addr_o==32'h40,
                     "Get becomes held backend request");
                   @(negedge clk_i);a_valid_i=0;repeat(2)begin tick();check(req_valid_o&&req_addr_o==32'h40,"request held");end

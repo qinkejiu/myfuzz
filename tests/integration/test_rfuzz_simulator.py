@@ -80,6 +80,85 @@ class RfuzzSimulatorTests(unittest.TestCase):
              self.assertRaisesRegex(ValueError, "clock/reset"):
             rfuzz_simulator._runtime_boundary(plan, Path("/tmp"))
 
+    def test_processor_projection_excludes_packed_response_container_only(self):
+        clock = SimpleNamespace(
+            role="clock", direction="input", width=1, port="clk",
+            member_path=(), container_width=None,
+        )
+        reset = SimpleNamespace(
+            role="reset", direction="input", width=1, port="rst_n",
+            member_path=(), container_width=None,
+        )
+        route = SimpleNamespace(
+            endpoint_id="processor.memory",
+            field_connections=(
+                {"direction": "input", "physical": {
+                    "container_port": "response_container",
+                    "member_path": ["gnt"], "part_select": "[0:0]",
+                    "raw_lo": 0, "raw_hi": 0, "container_width": 33,
+                }},
+                {"direction": "input", "physical": {
+                    "container_port": "response_container",
+                    "member_path": ["rdata"], "part_select": "[32:1]",
+                    "raw_lo": 1, "raw_hi": 32, "container_width": 33,
+                }},
+            ),
+        )
+        packed_random = (
+            LayoutField("random:low", "random", "low", 4, 33, 36, "bits", {},
+                        port="random_container", member_path=("low",),
+                        port_raw_lo=0, port_raw_hi=3, port_width=8),
+            LayoutField("random:high", "random", "high", 4, 37, 40, "bits", {},
+                        port="random_container", member_path=("high",),
+                        port_raw_lo=4, port_raw_hi=7, port_width=8),
+        )
+        scalar_random = LayoutField(
+            "random:scalar", "random", "scalar", 1, 41, 41, "bits", {},
+            port="random_scalar", direction="input",
+        )
+        owned = (
+            LayoutField("memory:gnt", "memory", "gnt", 1, 0, 0, "bits", {},
+                        port="response_container", member_path=("gnt",),
+                        port_raw_lo=0, port_raw_hi=0, port_width=33),
+            LayoutField("memory:rdata", "memory", "rdata", 32, 1, 32, "bits", {},
+                        port="response_container", member_path=("rdata",),
+                        port_raw_lo=1, port_raw_hi=32, port_width=33),
+        )
+        plan = SimpleNamespace(
+            processor_execution=SimpleNamespace(routes=(route,)),
+            capabilities=(
+                SimpleNamespace(protocol=None, endpoint_id="clock", fields=(clock,)),
+                SimpleNamespace(protocol=None, endpoint_id="reset", fields=(reset,)),
+                SimpleNamespace(protocol=("axi4", "1"), endpoint_id="processor.memory", fields=()),
+            ),
+            annotations={"endpoints": []},
+            interface_description=SimpleNamespace(source=SimpleNamespace(source_root="source")),
+            layout=InputLayout("input_layout.v1", 42, (*owned, *packed_random, scalar_random), "packed"),
+            request=SimpleNamespace(isa=None),
+        )
+        records = (
+            {"source_port": "clk", "opaque_port": "p_clk", "direction": "input", "width": 1},
+            {"source_port": "rst_n", "opaque_port": "p_rst", "direction": "input", "width": 1},
+            {"source_port": "response_container", "opaque_port": "p_rsp", "direction": "input", "width": 33},
+            {"source_port": "random_container", "opaque_port": "p_random", "direction": "input", "width": 8},
+            {"source_port": "random_scalar", "opaque_port": "p_scalar", "direction": "input", "width": 1},
+        )
+
+        def projected_records(_plan, *, internal_ports=frozenset(), **_kwargs):
+            return tuple(record for record in records if record["source_port"] not in internal_ports)
+
+        with patch.object(rfuzz_simulator, "_generic_port_records", side_effect=projected_records), \
+             patch("myfuzz.composition.protocol_composer._processor_controls",
+                   return_value=("clk", "rst_n", {"polarity": "active_low", "synchrony": "asynchronous"})):
+            ports, _, _, _, layout, _ = rfuzz_simulator._runtime_boundary(plan, Path("/tmp"))
+
+        self.assertNotIn("response_container", ports)
+        self.assertEqual(
+            [(field.port, field.member_path) for field in layout.fields],
+            [("random_container", ("low",)), ("random_container", ("high",)),
+             ("random_scalar", ())],
+        )
+
     def test_campaign_monitor_runs_during_blocked_rtl_exchange(self):
         import time
         with tempfile.TemporaryDirectory() as tmp:

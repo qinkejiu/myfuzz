@@ -93,9 +93,10 @@ module generic_processor_fixture (
     localparam logic [31:0] FINAL_DATA = 32'haabb3344;
 
     logic [2:0] operation_q;
-    logic [1:0] startup_q;
     logic [1:0] protocol_q;
     logic waiting_q;
+    logic axi_aw_accepted_q;
+    logic axi_w_accepted_q;
     logic accepted;
     logic [1:0] accepted_protocol;
     logic completed;
@@ -105,7 +106,13 @@ module generic_processor_fixture (
     logic writing;
     logic [31:0] address;
 
-    assign requesting = startup_q == 2'd3 && !done_o && !waiting_q;
+    wire axi_aw_take = axi_awvalid_o && (axi_awready_i === 1'b1);
+    wire axi_w_take = axi_wvalid_o && (axi_wready_i === 1'b1);
+    wire axi_write_accepted = requesting && writing &&
+                              (axi_aw_accepted_q || axi_aw_take) &&
+                              (axi_w_accepted_q || axi_w_take);
+
+    assign requesting = !done_o && !waiting_q;
     assign writing = operation_q == 3'd2;
     assign address = operation_q == 3'd0 ? 32'h0 : 32'h4;
 
@@ -127,12 +134,15 @@ module generic_processor_fixture (
     assign axi_awregion_o = '0;
     assign axi_awatop_o = '0;
     assign axi_awuser_o = '0;
-    assign axi_awvalid_o = requesting && writing;
+    assign axi_awvalid_o = requesting && writing && !axi_aw_accepted_q;
     assign axi_wdata_o = WRITE_DATA;
     assign axi_wstrb_o = 4'b0011;
     assign axi_wlast_o = 1'b1;
     assign axi_wuser_o = '0;
-    assign axi_wvalid_o = requesting && writing;
+    // Deliberately issue W after AW acceptance so the connected test covers
+    // independent channel readiness and never relies on a simultaneous take.
+    assign axi_wvalid_o = requesting && writing && axi_aw_accepted_q &&
+                          !axi_w_accepted_q;
     assign axi_bready_o = 1'b1;
     assign axi_arid_o = '0;
     assign axi_araddr_o = address;
@@ -165,8 +175,7 @@ module generic_processor_fixture (
         if (requesting && (obi_gnt_i === 1'b1)) begin
             accepted = 1'b1;
             accepted_protocol = 2'd1;
-        end else if (requesting && writing &&
-                     (axi_awready_i === 1'b1) && (axi_wready_i === 1'b1)) begin
+        end else if (axi_write_accepted) begin
             accepted = 1'b1;
             accepted_protocol = 2'd2;
         end else if (requesting && !writing && (axi_arready_i === 1'b1)) begin
@@ -207,9 +216,10 @@ module generic_processor_fixture (
     always_ff @(posedge clk_i or negedge rst_ni) begin
         if (!rst_ni) begin
             operation_q <= 3'd0;
-            startup_q <= 2'd0;
             protocol_q <= 2'd0;
             waiting_q <= 1'b0;
+            axi_aw_accepted_q <= 1'b0;
+            axi_w_accepted_q <= 1'b0;
             done_o <= 1'b0;
             accepted_o <= '0;
             completions_o <= '0;
@@ -218,12 +228,16 @@ module generic_processor_fixture (
             cycles_o <= '0;
         end else begin
             cycles_o <= cycles_o + 1'b1;
-            if (startup_q != 2'd3)
-                startup_q <= startup_q + 1'b1;
+            if (axi_aw_take)
+                axi_aw_accepted_q <= 1'b1;
+            if (axi_w_take)
+                axi_w_accepted_q <= 1'b1;
             if (accepted) begin
                 waiting_q <= 1'b1;
                 protocol_q <= accepted_protocol;
                 accepted_o <= accepted_o + 1'b1;
+                axi_aw_accepted_q <= 1'b0;
+                axi_w_accepted_q <= 1'b0;
             end
             if (waiting_q && completed) begin
                 waiting_q <= 1'b0;
