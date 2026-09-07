@@ -1284,7 +1284,7 @@ def _generic_routes(plan: object) -> tuple[dict[str, object], ...]:
             raise ValueError("generic composition adapter binding is invalid")
         contract = raw.get("contract")
         control = binding.get("control")
-        if not isinstance(contract, Mapping) or contract.get("mode") != "single_target_single_channel":
+        if not isinstance(contract, Mapping) or contract.get("mode") not in {"single_target_single_channel", "native_apb", "native_wishbone_classic"}:
             raise ValueError("generic composition adapter contract is unsupported")
         if not isinstance(control, Mapping) or set(control) != {"clock", "reset", "reset_semantics"}:
             raise ValueError("generic composition control binding is invalid")
@@ -1356,6 +1356,9 @@ def _route_tag(route: Mapping[str, object]) -> str:
 
 
 def _render_generic_adapter(route: Mapping[str, object]) -> str:
+    if isinstance(route.get("contract"), Mapping) and route["contract"].get("mode") in {"native_apb", "native_wishbone_classic"}:
+        from .generic_protocol_routes import render_native_adapter
+        return render_native_adapter(route)
     tag = _route_tag(route)
     module = f"myfuzz_generic_adapter_{tag}"
     address_width = max(int(field["width"]) for field in route["fields"] if field["address"])

@@ -217,7 +217,7 @@ def _plain(value: object) -> object:
 
 
 def _cpu_document(cpu: CpuProfile) -> dict[str, object]:
-    return {
+    document = {
         "cpu_id": cpu.cpu_id,
         "vendor": cpu.vendor,
         "xlen": list(cpu.xlen),
@@ -228,6 +228,17 @@ def _cpu_document(cpu: CpuProfile) -> dict[str, object]:
         "source_paths": list(cpu.source_paths),
         "implemented": cpu.implemented,
     }
+    def normalize(value: object) -> object:
+        if isinstance(value, Mapping):
+            return {key: normalize(item) for key, item in sorted(value.items())}
+        if isinstance(value, (tuple, list)):
+            return [normalize(item) for item in value]
+        return value
+    if cpu.interface_description is not None:
+        document["interface_description"] = cpu.interface_description
+    if cpu.source_locator is not None:
+        document["source_locator"] = normalize(cpu.source_locator)
+    return document
 
 
 def _plan_hash_document(
@@ -1244,8 +1255,17 @@ def _generic_transport_capability(
 def _generic_adapter_contract(
     protocol: tuple[str, str], catalog: ProtocolCatalog,
 ) -> dict[str, object]:
-    """Declare the sole bounded adapter shape this renderer can materialize."""
+    """Declare a source-independent bounded protocol implementation."""
     plugin = catalog.require(*protocol)
+    from .generic_protocol_routes import native_contract
+    try:
+        native = native_contract(protocol, plugin)
+    except ValueError as error:
+        raise AutoCompositionError(f"generic:adapter:{protocol[0]}@{protocol[1]}:{error}") from error
+    if native is not None:
+        return native
+    if protocol[0] in {"axi4", "axi4-lite", "apb", "wishbone", "obi"}:
+        raise AutoCompositionError(f"generic:adapter:{protocol[0]}@{protocol[1]}:native-protocol-unsupported")
     limits = dict(plugin.capability_limits)
     relations = plugin.channel_relations
     gates = [
