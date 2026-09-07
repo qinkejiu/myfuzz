@@ -164,7 +164,9 @@ class AdditionalProtocolCatalogTest(unittest.TestCase):
                 "dat_r": ("device_to_host", "data_width"),
             },
         )
-        self.assertTrue(all(field.required for field in fields.values()))
+        self.assertTrue(all(field.required for name, field in fields.items() if name != "stall"))
+        self.assertFalse(fields["stall"].required)
+        self.assertFalse(fields["stall"].runtime_required)
         self.assertEqual(plugin.legal_adapters, ("width-adapter",))
         self.assertTrue(any(rule.kind == "ack_or_error_after_strobe" for rule in plugin.temporal_rules))
 
@@ -203,7 +205,7 @@ class AdditionalProtocolCatalogTest(unittest.TestCase):
             {
                 "max_outstanding": 1,
                 "single_beat_only": True,
-                "stall_supported": True,
+                "stall_supported": False,
                 "completion": "ack_or_err",
                 "max_wait_cycles": 16,
                 "byte_enable": True,

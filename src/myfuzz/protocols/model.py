@@ -20,6 +20,7 @@ class FieldSpec:
     required: bool
     reset_value: int | None
     runtime_required: bool = False
+    semantic_role: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,6 +74,7 @@ class CompiledField:
     width: int
     port_id: str
     reset_value: int | None
+    semantic_role: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +83,8 @@ class CompiledProtocol:
     protocol_id: str
     version: str
     fields: tuple[CompiledField, ...]
+    channel_relations: tuple[ChannelRelationSpec, ...] = ()
+    capability_limits: tuple[tuple[str, CapabilityLimitValue], ...] = ()
 
     def field_for(self, field_id: str) -> CompiledField:
         for field in self.fields:

@@ -1037,6 +1037,7 @@ def _projection_plan(
         tuple[tuple[str, int, str, str], dict[str, object]]
     ] = []
     canonical_byte_enables: list[CanonicalByteEnable] = []
+    diagnostics: list[str] = []
     active_destinations = {
         destination.destination_id: True for destination in direct_abi.destinations
     }
@@ -1044,17 +1045,19 @@ def _projection_plan(
     for compiled in compiled_protocols:
         plugin = plugins[(compiled.protocol_id, compiled.version)]
         capabilities = dict(plugin.capability_limits)
+        if plugin.channel_relations:
+            diagnostics.append(f"{compiled.binding_id}: channel relations retained as adapter obligations; sample projection does not enforce cross-channel handshakes")
+        if capabilities:
+            diagnostics.append(f"{compiled.binding_id}: capabilities retained as adapter obligations; projection enforces only temporal bounds, transfer size and mapped full byte enables")
         if capabilities.get("partial_write") is False:
-            specifications = {
-                specification.field_id: specification for specification in plugin.fields
-            }
+            mapped_byte_enable = False
             for field in compiled.fields:
-                specification = specifications[field.field_id]
                 if (
-                    specification.direction == "host_to_device"
-                    and specification.width_expression == "data_width / 8"
+                    field.direction == "host_to_device"
+                    and field.semantic_role == "byte_enable"
                     and field.port_id in destination_by_port
                 ):
+                    mapped_byte_enable = True
                     canonical_byte_enables.append(
                         CanonicalByteEnable(
                             compiled.binding_id,
@@ -1064,6 +1067,8 @@ def _projection_plan(
                             destination_by_port[field.port_id],
                         )
                     )
+            if not mapped_byte_enable:
+                diagnostics.append(f"{compiled.binding_id}: canonical byte-enable has no mapped destination; full-write constraint must be enforced by canonical adapter")
         if capabilities.get("transfer_size") == "data_width_log2_bytes":
             specifications = {field.field_id: field for field in plugin.fields}
             data_widths = {
@@ -1097,10 +1102,10 @@ def _projection_plan(
                         },
                     )
                 )
-        rule_bounds = {
-            rule.antecedent_field_id: rule.max_cycles
-            for rule in plugin.temporal_rules
-        }
+        rule_bounds: dict[str, int] = {}
+        for rule in plugin.temporal_rules:
+            rule_bounds[rule.antecedent_field_id] = min(rule_bounds.get(rule.antecedent_field_id, rule.max_cycles), rule.max_cycles)
+        wait_cap = capabilities.get("max_wait_cycles", 65_535)
         targeted_fields: set[str] = set()
         for specification in plugin.projection_actions:
             for field_id in specification.field_ids:
@@ -1120,6 +1125,8 @@ def _projection_plan(
                 max_cycles = specification.max_cycles
                 if specification.kind in {"gate", "delay_select"} and field_id in rule_bounds:
                     max_cycles = min(max_cycles or rule_bounds[field_id], rule_bounds[field_id])
+                if specification.kind in {"gate", "delay_select"}:
+                    max_cycles = min(max_cycles or wait_cap, wait_cap)
                 action_candidates.append(
                     (
                         (compiled.binding_id, specification.action_id, field_id, "action"),
@@ -1157,7 +1164,7 @@ def _projection_plan(
                         "destination_id": destination_id,
                         "kind": "gate",
                         "category": "progress",
-                        "max_cycles": rule.max_cycles,
+                        "max_cycles": min(rule_bounds[rule.antecedent_field_id], wait_cap),
                         "active": active,
                     },
                 )
@@ -1178,6 +1185,8 @@ def _projection_plan(
         direct_abi,
         records,
         field_order=field_order,
+        protocol_contracts=compiled_protocols,
+        diagnostics=diagnostics,
         canonical_byte_enables=tuple(
             sorted(canonical_byte_enables, key=lambda item: (item.binding_id, item.field_id))
         ),

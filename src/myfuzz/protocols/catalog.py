@@ -54,6 +54,31 @@ _STRING_ARRAY_CAPABILITIES = {"completion_signals": ("ack", "err")}
 _ENUM_CAPABILITIES["transfer_size"] = frozenset(("data_width_log2_bytes",))
 _FIELD_ARRAY_CAPABILITIES = frozenset(("transfer_size_fields",))
 _MAX_EXTENSION_LENGTH = 256
+_RELATION_KINDS = frozenset((
+    "cycle_strobe_held_until_completion", "write_address_and_data_before_response",
+    "read_address_before_response", "setup_access_response", "a_request_before_d_response",
+    "request_response_handshake", "request_grant_response",
+))
+_RULE_KINDS = frozenset((
+    "ack_or_error_after_strobe", "error_after_strobe", "handshake",
+    "write_response_after_write", "read_response_after_read", "phase_sequence",
+    "response_after_request", "a_handshake", "d_handshake", "write_response",
+    "read_response", "grant_after_request",
+))
+
+
+def _keys(item: dict, allowed: str, source: Path) -> None:
+    unknown = [key for key in item if not isinstance(key, str) or
+               (key not in allowed.split() and not key.startswith("x-"))]
+    if unknown:
+        raise ProtocolDefinitionError(f"{source}: unknown declaration keys: {unknown}")
+
+
+def _kind(value: object, allowed: frozenset[str], label: str) -> str:
+    value = _require_string(value, label)
+    if value not in allowed:
+        raise ProtocolDefinitionError(f"unsupported {label}: {value}")
+    return value
 
 
 class ProtocolCatalog:
@@ -127,6 +152,7 @@ def _parse_channel_relations(
     for index, item in enumerate(raw):
         if not isinstance(item, dict):
             raise ProtocolDefinitionError(f"{source}: channel relation must be an object")
+        _keys(item, "relation_id kind field_ids", source)
         relation_id = item.get("relation_id")
         if (
             isinstance(relation_id, bool)
@@ -149,7 +175,7 @@ def _parse_channel_relations(
         relations.append(
             ChannelRelationSpec(
                 relation_id,
-                _require_string(item.get("kind"), f"channel relation {index}.kind"),
+                _kind(item.get("kind"), _RELATION_KINDS, f"channel relation {index}.kind"),
                 tuple(field_ids),
             )
         )
@@ -264,6 +290,7 @@ def _parse_capability_limits(
 def _parse_plugin(document: object, source: Path) -> ProtocolPlugin:
     if not isinstance(document, dict):
         raise ProtocolDefinitionError(f"{source}: plugin document must be an object")
+    _keys(document, "protocol_id version fields legal_adapters projection_actions temporal_rules channel_relations capability_limits", source)
     protocol_id = _require_string(document.get("protocol_id"), "protocol_id")
     version = _require_string(document.get("version"), "version")
     fields_raw = document.get("fields")
@@ -274,6 +301,7 @@ def _parse_plugin(document: object, source: Path) -> ProtocolPlugin:
     for item in fields_raw:
         if not isinstance(item, dict):
             raise ProtocolDefinitionError(f"{source}: field must be an object")
+        _keys(item, "field_id direction width required reset_value runtime_required semantic_role", source)
         field_id = _require_string(item.get("field_id"), "field_id")
         if field_id in seen:
             raise ProtocolDefinitionError(f"{source}: duplicate field_id: {field_id}")
@@ -292,7 +320,10 @@ def _parse_plugin(document: object, source: Path) -> ProtocolPlugin:
         reset_value = item.get("reset_value")
         if isinstance(reset_value, bool) or not isinstance(reset_value, int):
             raise ProtocolDefinitionError(f"{source}: reset_value must be integer for {field_id}")
-        fields.append(FieldSpec(field_id, direction, width_expression, required, reset_value, runtime_required))
+        role = item.get("semantic_role")
+        if role is not None:
+            role = _kind(role, frozenset(("byte_enable", "data")), "field semantic_role")
+        fields.append(FieldSpec(field_id, direction, width_expression, required, reset_value, runtime_required, role))
     adapters_raw = document.get("legal_adapters", [])
     if not isinstance(adapters_raw, list) or not all(isinstance(adapter, str) and adapter for adapter in adapters_raw):
         raise ProtocolDefinitionError(f"{source}: legal_adapters must be a list of strings")
@@ -305,6 +336,7 @@ def _parse_plugin(document: object, source: Path) -> ProtocolPlugin:
     for index, item in enumerate(actions_raw):
         if not isinstance(item, dict):
             raise ProtocolDefinitionError(f"{source}: projection action must be an object")
+        _keys(item, "action_id field_ids kind category max_cycles constant_value", source)
         action_id = item.get("action_id")
         if isinstance(action_id, bool) or not isinstance(action_id, int) or action_id < 0:
             raise ProtocolDefinitionError(f"{source}: projection action ID is invalid")
@@ -354,6 +386,7 @@ def _parse_plugin(document: object, source: Path) -> ProtocolPlugin:
     for index, item in enumerate(rules_raw):
         if not isinstance(item, dict):
             raise ProtocolDefinitionError(f"{source}: temporal rule must be an object")
+        _keys(item, "rule_id kind antecedent_field_id consequent_field_id max_cycles", source)
         rule_id = item.get("rule_id")
         if isinstance(rule_id, bool) or not isinstance(rule_id, int) or rule_id < 0 or rule_id in rule_ids:
             raise ProtocolDefinitionError(f"{source}: temporal rule ID is invalid")
@@ -368,7 +401,7 @@ def _parse_plugin(document: object, source: Path) -> ProtocolPlugin:
         temporal_rules.append(
             TemporalRuleSpec(
                 rule_id,
-                _require_string(item.get("kind"), f"temporal rule {index}.kind"),
+                _kind(item.get("kind"), _RULE_KINDS, f"temporal rule {index}.kind"),
                 antecedent,
                 consequent,
                 max_cycles,

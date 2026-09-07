@@ -88,8 +88,19 @@ def compile_protocol(
         expected_width = _width(field.width_expression, parameters)
         if expected_width != actual_width:
             raise ProtocolCompilationError(f"width mismatch for field {field.field_id}: declared {expected_width}, fact {actual_width}")
-        compiled.append(CompiledField(field.field_id, field.direction, actual_width, port_id, field.reset_value))
-    return CompiledProtocol(binding_id, protocol_id, version, tuple(compiled))
+        role = field.semantic_role
+        # Compatibility for existing declarative plugins: recognize the arithmetic
+        # byte-lane expression structurally, never an arbitrary same-width signal.
+        expression = ast.parse(field.width_expression, mode="eval").body
+        if role is None and isinstance(expression, ast.BinOp) and isinstance(expression.op, (ast.Div, ast.FloorDiv)):
+            if isinstance(expression.left, ast.Name) and expression.left.id == "data_width" and isinstance(expression.right, ast.Constant) and expression.right.value == 8:
+                role = "byte_enable"
+        if role == "byte_enable":
+            data_width = parameters.get("data_width")
+            if not isinstance(data_width, int) or data_width % 8 or actual_width != data_width // 8:
+                raise ProtocolCompilationError("byte-enable semantic role requires data_width / 8 lanes")
+        compiled.append(CompiledField(field.field_id, field.direction, actual_width, port_id, field.reset_value, role))
+    return CompiledProtocol(binding_id, protocol_id, version, tuple(compiled), plugin.channel_relations, plugin.capability_limits)
 
 
 def compile_runtime_protocol(

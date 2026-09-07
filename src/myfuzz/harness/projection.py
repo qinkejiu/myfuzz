@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 from myfuzz.contracts import content_hash
+from myfuzz.protocols.model import CompiledProtocol
 
 from .abi import RawBitAbi, RawBitUse
 
@@ -84,6 +85,8 @@ class ProjectionPlan:
     max_temporal_cycles: int
     plan_hash: str
     canonical_byte_enables: tuple[CanonicalByteEnable, ...] = ()
+    protocol_contracts: tuple[CompiledProtocol, ...] = ()
+    diagnostics: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         self.raw_abi.validate_total_use()
@@ -232,6 +235,8 @@ def build_projection_plan(
     field_order: tuple[int, ...] | None = None,
     max_state_bits: int = _MAX_STATE_BITS,
     canonical_byte_enables: Sequence[CanonicalByteEnable] = (),
+    protocol_contracts: Sequence[CompiledProtocol] = (),
+    diagnostics: Sequence[str] = (),
 ) -> ProjectionPlan:
     """Compile explicit action records into fixed state slices and a derived ABI."""
     if not isinstance(raw_abi, RawBitAbi):
@@ -351,6 +356,12 @@ def build_projection_plan(
         "max_state_bits": used_state_bits,
         "max_temporal_cycles": max_temporal_cycles,
     }
+    contracts = tuple(sorted(protocol_contracts, key=lambda item: item.binding_id))
+    notices = tuple(sorted(set(diagnostics)))
+    if contracts:
+        document["protocol_contracts"] = [asdict(item) for item in contracts]
+    if notices:
+        document["diagnostics"] = list(notices)
     if constraints:
         document["canonical_byte_enables"] = [
             {
@@ -370,6 +381,8 @@ def build_projection_plan(
         max_temporal_cycles,
         content_hash(document),
         constraints,
+        contracts,
+        notices,
     )
 
 
