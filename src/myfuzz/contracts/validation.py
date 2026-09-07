@@ -166,6 +166,28 @@ def _validate_interface_description(document: Mapping[str, object], schema_id: s
             roles.add(role)
             if "aliases" in field:
                 _strings(field["aliases"], schema_id, f"{field_path}.aliases")
+            if "physical" in field:
+                if "aliases" in field:
+                    _error(schema_id, field_path, "physical-aliases-mutually-exclusive")
+                if "elaboration" not in source:
+                    _error(schema_id, field_path, "physical-requires-elaboration")
+                if endpoint.get("module", source["top_module"]) != source["top_module"] or endpoint.get("hierarchy"):
+                    _error(schema_id, field_path, "physical-requires-selected-top")
+                physical = _object(field["physical"], schema_id, f"{field_path}.physical")
+                _require(physical, schema_id, ("port", "member_path"))
+                if set(physical) != {"port", "member_path"}:
+                    _error(schema_id, f"{field_path}.physical", "unknown-member")
+                for key, value in (("port", physical["port"]),):
+                    name = _string(value, schema_id, f"{field_path}.physical.{key}")
+                    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) is None:
+                        _error(schema_id, f"{field_path}.physical.{key}", "invalid")
+                path_values = _array(physical["member_path"], schema_id, f"{field_path}.physical.member_path")
+                if not path_values:
+                    _error(schema_id, f"{field_path}.physical.member_path", "empty")
+                for path_index, value in enumerate(path_values):
+                    name = _string(value, schema_id, f"{field_path}.physical.member_path[{path_index}]")
+                    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) is None:
+                        _error(schema_id, f"{field_path}.physical.member_path[{path_index}]", "invalid")
             if "required" in field:
                 _boolean(field["required"], schema_id, f"{field_path}.required")
 
@@ -293,9 +315,11 @@ def _validate_interface_annotations(document: Mapping[str, object], schema_id: s
         if value is not None:
             _string(value, schema_id, path)
 
-    def evidence(value: object, path: str, choices: Sequence[str]) -> None:
-        for index, item in enumerate(strings(value, path, nonempty=True)):
+    def evidence(value: object, path: str, choices: Sequence[str]) -> tuple[str, ...]:
+        items = strings(value, path, nonempty=True)
+        for index, item in enumerate(items):
             enum(item, f"{path}[{index}]", choices)
+        return tuple(items)
 
     def location(value: object, path: str, *, column: bool = False) -> None:
         keys = ("file", "line", "column") if column else ("file", "line")
@@ -345,21 +369,48 @@ def _validate_interface_annotations(document: Mapping[str, object], schema_id: s
                  ("explicit_module", "hierarchy_hint", "endpoint_alias", "source_top_module"))
         diagnostics(endpoint["diagnostics"], f"{path}.diagnostics")
         roles: set[str] = set()
-        ports: set[str] = set()
+        physical_keys: set[tuple[str, tuple[object, ...]]] = set()
         for field_index, field_value in enumerate(_array(endpoint["fields"], schema_id, f"{path}.fields")):
             field_path = f"{path}.fields[{field_index}]"
             field = record(field_value, field_path, ("role", "port", "direction", "width", "signed", "source", "evidence", "confidence"))
-            for key, seen in (("role", roles), ("port", ports)):
+            for key, seen in (("role", roles),):
                 name = _string(field[key], schema_id, f"{field_path}.{key}")
                 if name in seen:
                     _error(schema_id, f"{field_path}.{key}", "duplicate")
                 seen.add(name)
+            port = _string(field["port"], schema_id, f"{field_path}.port")
+            member_keys = ("member_path", "raw_lo", "raw_hi", "container_width")
+            present_member_keys = tuple(key for key in member_keys if key in field)
+            if present_member_keys and len(present_member_keys) != len(member_keys):
+                _error(schema_id, field_path, "incomplete-member-range")
+            member_path = tuple(_array(field.get("member_path", []), schema_id, f"{field_path}.member_path"))
+            physical_key = (port, member_path)
+            if physical_key in physical_keys:
+                _error(schema_id, field_path, "duplicate-physical")
+            physical_keys.add(physical_key)
+            if present_member_keys:
+                if not member_path:
+                    _error(schema_id, f"{field_path}.member_path", "empty")
+                _strings(field["member_path"], schema_id, f"{field_path}.member_path")
+                for key in ("raw_lo", "raw_hi", "container_width"):
+                    if key not in field:
+                        _error(schema_id, f"{field_path}.{key}", "missing")
+                    value = field[key]
+                    minimum = 1 if key == "container_width" else 0
+                    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+                        _error(schema_id, f"{field_path}.{key}", "invalid")
+                if (field["raw_hi"] < field["raw_lo"]
+                        or field["raw_hi"] - field["raw_lo"] + 1 != field["width"]
+                        or field["raw_hi"] >= field["container_width"]):
+                    _error(schema_id, field_path, "invalid-member-range")
             enum(field["direction"], f"{field_path}.direction", ("input", "output", "inout"))
             _positive_id(field["width"], schema_id, f"{field_path}.width")
             _boolean(field["signed"], schema_id, f"{field_path}.signed")
             location(field["source"], f"{field_path}.source", column=True)
-            evidence(field["evidence"], f"{field_path}.evidence", ("explicit_alias", "source_documentation",
-                     "exact_role_label", "normalized_name", "hdl_declaration"))
+            field_evidence = evidence(field["evidence"], f"{field_path}.evidence", ("explicit_alias", "source_documentation",
+                                      "exact_role_label", "normalized_name", "hdl_declaration", "explicit_member", "compiler_elaboration"))
+            if member_path and not {"explicit_member", "compiler_elaboration"}.issubset(field_evidence):
+                _error(schema_id, f"{field_path}.evidence", "missing-member-evidence")
             enum(field["confidence"], f"{field_path}.confidence", ("high", "medium", "low"))
         for timing_index, timing_value in enumerate(_array(endpoint["timing"], schema_id, f"{path}.timing")):
             timing_path = f"{path}.timing[{timing_index}]"

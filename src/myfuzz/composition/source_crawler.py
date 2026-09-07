@@ -115,6 +115,58 @@ class SourceSnapshot:
     documentation_tags: tuple[tuple[str, str, str, int, str, str], ...] = ()
     elaborated_ports: tuple[ElaboratedPortFact, ...] = ()
     elaboration_evidence: bytes | None = None
+    elaborated_top_module: str | None = None
+
+
+def _physical_port_document(port: ElaboratedPortFact) -> dict[str, object]:
+    return {
+        "name": port.name,
+        "direction": port.direction,
+        "width": port.width,
+        "signed": port.signed,
+        "source": {"file": port.source_file, "line": port.line, "column": port.column},
+        "members": [
+            {
+                "path": list(member.path),
+                "width": member.width,
+                "raw_lo": member.raw_lo,
+                "raw_hi": member.raw_hi,
+                "signed": member.signed,
+                "source": {
+                    "file": member.source_file,
+                    "line": member.line,
+                    "column": member.column,
+                },
+            }
+            for member in port.members
+        ],
+    }
+
+
+def _verify_elaboration_identity(snapshot: SourceSnapshot, description: InterfaceDescription) -> None:
+    settings = description.source.elaboration
+    if settings is None or snapshot.revision != description.source.revision:
+        raise SourceCrawlError("physical-selector-elaboration-identity-mismatch")
+    evidence = snapshot.elaboration_evidence
+    if not isinstance(evidence, bytes):
+        raise SourceCrawlError("physical-selector-elaboration-identity-mismatch")
+    try:
+        document = json.loads(evidence.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError, RecursionError) as error:
+        raise SourceCrawlError("physical-selector-elaboration-identity-mismatch") from error
+    expected_settings = {
+        "frontend": settings.frontend,
+        "defines": [list(item) for item in sorted(settings.defines)],
+        "parameters": [list(item) for item in sorted(settings.parameters)],
+    }
+    physical = document.get("physical") if isinstance(document, dict) else None
+    if (not isinstance(document, dict)
+            or document.get("settings") != expected_settings
+            or not isinstance(physical, dict)
+            or physical.get("top_module") != description.source.top_module
+            or physical.get("ports") != [_physical_port_document(port) for port in snapshot.elaborated_ports]
+            or snapshot.elaborated_top_module != description.source.top_module):
+        raise SourceCrawlError("physical-selector-elaboration-identity-mismatch")
 
 
 def _relative(root: Path, value: Path) -> str:
@@ -712,6 +764,7 @@ class SourceCrawler:
             tuple(sorted(documentation_tags)),
             elaborated_ports,
             elaboration_evidence,
+            locator.top_module if locator.elaboration is not None else None,
         )
 
     def _module_ports(
@@ -875,15 +928,57 @@ class SourceCrawler:
     ) -> dict[str, object]:
         endpoint_documents: list[dict[str, object]] = []
         for endpoint in description.endpoints:
+            has_physical = any(field.physical is not None for field in endpoint.fields)
+            if has_physical and description.source.elaboration is None:
+                raise SourceCrawlError(f"physical-selector-requires-elaboration:{endpoint.endpoint_id}")
+            if has_physical:
+                try:
+                    _verify_elaboration_identity(snapshot, description)
+                except SourceCrawlError as error:
+                    raise SourceCrawlError(
+                        f"physical-selector-elaboration-identity-mismatch:{endpoint.endpoint_id}"
+                    ) from error
+            if has_physical and (endpoint.module not in (None, description.source.top_module) or endpoint.hierarchy):
+                raise SourceCrawlError(f"physical-selector-requires-selected-top:{endpoint.endpoint_id}")
             try:
                 ports, module, endpoint_evidence = self._module_ports(snapshot, endpoint, description.source.top_module)
-            except SourceCrawlError:
-                if endpoint.required:
+            except SourceCrawlError as error:
+                if has_physical and str(error).startswith("endpoint-unresolved"):
+                    ports, module = (), description.source.top_module
+                    endpoint_evidence = "explicit_module" if endpoint.module is not None else "source_top_module"
+                elif endpoint.required:
                     raise
-                continue
+                else:
+                    continue
+            if module != description.source.top_module and has_physical:
+                raise SourceCrawlError(f"physical-selector-requires-selected-top:{endpoint.endpoint_id}")
             fields: list[dict[str, object]] = []
             matched_names: dict[str, str] = {}
+            matched_members: set[tuple[str, tuple[str, ...]]] = set()
             for field in endpoint.fields:
+                if field.physical is not None:
+                    selector = field.physical
+                    key = (selector.port, selector.member_path)
+                    if key in matched_members:
+                        raise SourceCrawlError(f"duplicate-physical-mapping:{endpoint.endpoint_id}:{selector.port}")
+                    candidates = [
+                        (port, member) for port in snapshot.elaborated_ports if port.name == selector.port
+                        for member in port.members if member.path == selector.member_path
+                    ]
+                    if len(candidates) != 1:
+                        raise SourceCrawlError(f"physical-member-unresolved:{endpoint.endpoint_id}:{field.role}")
+                    container, member = candidates[0]
+                    matched_members.add(key)
+                    matched_names[container.name] = field.role
+                    fields.append({
+                        "role": field.role, "port": container.name,
+                        "member_path": list(member.path), "raw_lo": member.raw_lo, "raw_hi": member.raw_hi,
+                        "container_width": container.width, "direction": container.direction,
+                        "width": member.width, "signed": member.signed,
+                        "source": {"file": member.source_file, "line": member.line, "column": member.column},
+                        "evidence": ["explicit_member", "compiler_elaboration"], "confidence": "high",
+                    })
+                    continue
                 try:
                     port, evidence = self._field_port(snapshot, endpoint, field, ports)
                 except SourceCrawlError:

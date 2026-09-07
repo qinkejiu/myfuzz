@@ -11,6 +11,7 @@ from myfuzz.composition.interface_description import (
     EndpointDescription,
     FieldHint,
     InterfaceDescription,
+    PhysicalSelector,
     SourceLocator,
     interface_description_document,
     load_interface_description,
@@ -47,6 +48,39 @@ def interface_document() -> dict[str, object]:
 
 
 class InterfaceDescriptionTests(unittest.TestCase):
+    def test_loads_explicit_physical_member_selector(self) -> None:
+        document = interface_document()
+        document["source"]["elaboration"] = {"frontend": "verilator-json"}
+        document["endpoints"][0]["fields"][0]["physical"] = {"port": "req_o", "member_path": ["aw", "addr"]}
+        value = load_interface_description(document)
+        self.assertEqual(PhysicalSelector("req_o", ("aw", "addr")), value.endpoints[0].fields[0].physical)
+        fields = [field for endpoint in interface_description_document(value)["endpoints"] for field in endpoint.get("fields", [])]
+        selected = next(field for field in fields if field["role"] == "status")
+        self.assertEqual({"port": "req_o", "member_path": ["aw", "addr"]}, selected["physical"])
+
+    def test_rejects_malformed_or_alias_mixed_physical_selectors(self) -> None:
+        cases = (
+            {"port": "req", "member_path": []},
+            {"port": "bad-port", "member_path": ["data"]},
+            {"port": "req"},
+            {"port": "req", "member_path": ["data"], "extra": True},
+        )
+        for physical in cases:
+            with self.subTest(physical=physical):
+                document = interface_document()
+                document["source"]["elaboration"] = {"frontend": "verilator-json"}
+                document["endpoints"][0]["fields"][0]["physical"] = physical
+                with self.assertRaises(ValueError):
+                    load_interface_description(document)
+        document = interface_document()
+        document["source"]["elaboration"] = {"frontend": "verilator-json"}
+        document["endpoints"][0]["fields"][0].update({"aliases": [], "physical": {"port": "req", "member_path": ["data"]}})
+        with self.assertRaises(ValueError):
+            load_interface_description(document)
+        with self.assertRaisesRegex(ValueError, "invalid-physical-selector"):
+            PhysicalSelector("req", "data")  # type: ignore[arg-type]
+        with self.assertRaisesRegex(ValueError, "physical-aliases-mutually-exclusive"):
+            FieldHint("status", ("req",), physical=PhysicalSelector("req", ("data",)))
     def test_loads_and_canonicalizes_elaboration_settings(self) -> None:
         document = interface_document()
         document["source"]["elaboration"] = {

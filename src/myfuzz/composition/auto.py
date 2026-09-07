@@ -1485,6 +1485,8 @@ def plan_generic_composition(
     capabilities = normalize_annotations(annotations, protocol_catalog=selected_protocol_catalog)
     if not capabilities:
         raise AutoCompositionError("generic:annotations:empty")
+    if any(field.member_path for endpoint in capabilities for field in endpoint.fields):
+        raise AutoCompositionError("generic:packed-member-rendering-unsupported")
     endpoint_modules = {
         str(endpoint["endpoint_id"]): endpoint.get("module")
         for endpoint in annotations["endpoints"]  # type: ignore[index]

@@ -5,6 +5,7 @@ import unittest
 
 from myfuzz.composition.endpoint_capabilities import (
     AdapterCapability,
+    EndpointCapabilityError,
     match_endpoint_pair,
     normalize_annotations,
     validate_protocol_fingerprint,
@@ -89,6 +90,36 @@ def _protocol_context(*endpoints: object) -> tuple[ProtocolCatalog, dict[str, Co
 
 
 class EndpointCapabilityTests(unittest.TestCase):
+    def test_member_fact_normalization_is_immutable(self) -> None:
+        endpoint = _endpoint("source", side="initiator")
+        field = endpoint["fields"][0]
+        field.update({"member_path": ["aw", "addr"], "raw_lo": 4, "raw_hi": 35, "container_width": 64,
+                      "evidence": ["compiler_elaboration", "explicit_member"]})
+        normalized = normalize_annotations(_document(endpoint))[0].fields[0]
+        self.assertEqual(("aw", "addr"), normalized.member_path)
+        self.assertEqual((4, 35, 64), (normalized.raw_lo, normalized.raw_hi, normalized.container_width))
+
+    def test_member_fact_requires_complete_range_and_compiler_evidence(self) -> None:
+        mutations = (
+            {"raw_lo": 0, "raw_hi": 7, "container_width": 8},
+            {"member_path": ["data"], "raw_lo": 0, "raw_hi": 7},
+            {"member_path": ["data"], "raw_lo": 0, "raw_hi": 7, "container_width": 8,
+             "evidence": ["explicit_member"]},
+        )
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                endpoint = _endpoint("source", side="initiator", data_width=8)
+                endpoint["fields"][0].update(mutation)
+                with self.assertRaises(EndpointCapabilityError):
+                    normalize_annotations(_document(endpoint))
+
+        endpoint = _endpoint("source", side="initiator", data_width=8)
+        for field in endpoint["fields"][:2]:
+            field.update({"port": "bus", "member_path": ["data"], "raw_lo": 0, "raw_hi": field["width"] - 1,
+                          "container_width": 8, "evidence": ["explicit_member", "compiler_elaboration"]})
+        with self.assertRaisesRegex(EndpointCapabilityError, "duplicate-physical"):
+            normalize_annotations(_document(endpoint))
+
     def test_arbitrary_port_names_match_by_roles_not_identifiers(self) -> None:
         source, target = normalize_annotations(_document(
             _endpoint("source", side="initiator"),

@@ -125,3 +125,46 @@ the serializer sorts them by name, so caller order cannot perturb identity.
   global low-resource policy. Preserve RED/GREEN logs, independently review
   identity stability and the structured-port non-composition boundary, then
   commit Task 3 separately.
+
+## Task 4: Explicit member semantic annotations with a composition gate
+
+Add an optional `physical` selector to an input field:
+
+```json
+{"role":"address","physical":{"port":"noc_req_o","member_path":["aw","addr"]}}
+```
+
+Both members are required together. `port` and every path segment are HDL
+identifiers; `member_path` is non-empty. A physical selector is mutually
+exclusive with alias-based scalar selection. It is valid only for the
+elaborated selected top module and must match exactly one compiler-proven leaf.
+
+- [x] RED: reject missing/extra/unsafe selectors, absent elaboration, non-top
+  endpoints, missing/ambiguous member paths, duplicate physical leaf mappings,
+  and source/member location mismatches. Prove nested member selection uses the
+  compiler width, signedness and raw offsets rather than declared semantics.
+- [x] Extend `FieldHint` and `interface_description.v1` with a frozen typed
+  physical selector. Emit member annotations with container port,
+  `member_path`, `raw_lo`, `raw_hi`, `container_width`, member width/signedness,
+  member source location, and evidence `explicit_member` plus
+  `compiler_elaboration`.
+- [x] Extend `interface_annotations.v1` validation and immutable capability
+  normalization for these fields. Duplicate checks use `(port, member_path)`;
+  scalar behavior and documents remain byte-compatible when selectors are
+  absent. Protocol consistency may inspect member width/direction.
+- [x] Add an explicit generic-composition rejection before any IR or RTL is
+  published when a normalized field has a member path. This task does not
+  render slices. Preserve RED/GREEN logs and independently review the gate so a
+  member can never silently become a whole-port connection.
+
+## Task 5: Packed-container renderer and complete-input policy
+
+After Task 4 passes review, represent one physical signal per packed container
+and use compiler-proven part selects for member bindings. Output members may be
+consumed independently. An input container may be driven only when its full bit
+range is covered by non-overlapping proven leaves; otherwise reject rather than
+inventing values for unbound bits. Reject overlapping slices, inconsistent
+container facts, mixed whole-port/member bindings, and multiple response
+drivers. Carry container/member facts through canonical IR and render both the
+source-only and component-connected tops. Compile generated RTL against a real
+small packed-struct DUT before removing the Task 4 composition gate.

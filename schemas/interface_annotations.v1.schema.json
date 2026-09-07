@@ -59,14 +59,31 @@
         "direction": {"enum": ["input", "output", "inout"]},
         "width": {"type": "integer", "minimum": 1},
         "signed": {"type": "boolean"},
+        "member_path": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/name"}},
+        "raw_lo": {"type": "integer", "minimum": 0},
+        "raw_hi": {"type": "integer", "minimum": 0},
+        "container_width": {"type": "integer", "minimum": 1},
         "source": {"allOf": [{"$ref": "#/$defs/location"}, {"required": ["column"]}]},
         "evidence": {
           "type": "array", "minItems": 1, "uniqueItems": true,
-          "items": {"enum": ["explicit_alias", "source_documentation", "exact_role_label", "normalized_name", "hdl_declaration"]}
+          "items": {"enum": ["explicit_alias", "source_documentation", "exact_role_label", "normalized_name", "hdl_declaration", "explicit_member", "compiler_elaboration"]}
         },
         "confidence": {"$ref": "#/$defs/confidence"}
       },
-      "additionalProperties": true
+      "additionalProperties": true,
+      "allOf": [{
+        "if": {"anyOf": [
+          {"required": ["member_path"]}, {"required": ["raw_lo"]},
+          {"required": ["raw_hi"]}, {"required": ["container_width"]}
+        ]},
+        "then": {
+          "required": ["member_path", "raw_lo", "raw_hi", "container_width"],
+          "properties": {"evidence": {"allOf": [
+            {"contains": {"const": "explicit_member"}},
+            {"contains": {"const": "compiler_elaboration"}}
+          ]}}
+        }
+      }]
     },
     "timing": {
       "type": "object", "required": ["kind", "fields", "clock", "source"],

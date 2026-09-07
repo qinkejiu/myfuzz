@@ -27,6 +27,10 @@ class EndpointFieldFact:
     signed: bool
     source: "SourceReference | None" = None
     evidence: tuple[str, ...] = ()
+    member_path: tuple[str, ...] = ()
+    raw_lo: int | None = None
+    raw_hi: int | None = None
+    container_width: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,6 +174,25 @@ def _field(value: object, path: str) -> EndpointFieldFact:
     signed = value.get("signed")
     if not isinstance(signed, bool):
         _error(f"{path}.signed", "invalid")
+    member_value = value.get("member_path", ())
+    if not isinstance(member_value, Sequence) or isinstance(member_value, (str, bytes)):
+        _error(f"{path}.member_path", "invalid")
+    member_path = tuple(_name(item, f"{path}.member_path") for item in member_value)
+    member_keys = ("member_path", "raw_lo", "raw_hi", "container_width")
+    present_member_keys = tuple(key for key in member_keys if key in value)
+    if present_member_keys and len(present_member_keys) != len(member_keys):
+        _error(path, "incomplete-member-range")
+    if present_member_keys and not member_path:
+        _error(path, "invalid-member-range")
+    offsets = tuple(value.get(key) for key in member_keys[1:])
+    if present_member_keys and any(isinstance(item, bool) or not isinstance(item, int) or item < 0 for item in offsets):
+        _error(path, "invalid-member-range")
+    if present_member_keys and (offsets[1] < offsets[0] or offsets[1] - offsets[0] + 1 != width
+                        or offsets[1] >= offsets[2]):
+        _error(path, "invalid-member-range")
+    normalized_evidence = _evidence(value.get("evidence"), f"{path}.evidence")
+    if member_path and not {"explicit_member", "compiler_elaboration"}.issubset(normalized_evidence):
+        _error(f"{path}.evidence", "missing-member-evidence")
     return EndpointFieldFact(
         _name(value.get("role"), f"{path}.role"),
         _name(value.get("port"), f"{path}.port"),
@@ -177,7 +200,9 @@ def _field(value: object, path: str) -> EndpointFieldFact:
         width,
         signed,
         _source_reference(value.get("source"), f"{path}.source"),
-        _evidence(value.get("evidence"), f"{path}.evidence"),
+        normalized_evidence,
+        member_path,
+        offsets[0], offsets[1], offsets[2],
     )
 
 
@@ -233,6 +258,9 @@ def normalize_annotations(
         roles = tuple(field.role for field in fields)
         if len(roles) != len(set(roles)):
             _error(f"{path}.fields", "duplicate-role")
+        physical_keys = tuple((field.port, field.member_path) for field in fields)
+        if len(physical_keys) != len(set(physical_keys)):
+            _error(f"{path}.fields", "duplicate-physical")
         timing_raw = raw.get("timing", ())
         if not isinstance(timing_raw, Sequence) or isinstance(timing_raw, (str, bytes)):
             _error(f"{path}.timing", "invalid")

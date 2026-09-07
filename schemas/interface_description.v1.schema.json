@@ -152,8 +152,18 @@
                                 },
                                 "required": {
                                     "type": "boolean"
+                                },
+                                "physical": {
+                                    "type": "object",
+                                    "required": ["port", "member_path"],
+                                    "properties": {
+                                        "port": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+                                        "member_path": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"}}
+                                    },
+                                    "additionalProperties": false
                                 }
                             },
+                            "allOf": [{"not": {"required": ["aliases", "physical"]}}],
                             "additionalProperties": true
                         }
                     }

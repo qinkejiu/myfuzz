@@ -175,6 +175,19 @@ def valid_interface_document() -> dict[str, object]:
 
 
 class InterfaceContractTests(unittest.TestCase):
+    def test_member_annotation_requires_complete_range_and_compiler_evidence(self) -> None:
+        mutations = (
+            {"raw_lo": 0, "raw_hi": 0, "container_width": 1},
+            {"member_path": ["data"], "raw_lo": 0, "raw_hi": 0, "container_width": 1,
+             "evidence": ["explicit_member"]},
+        )
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                document = valid_annotation_document()
+                document["endpoints"][0]["fields"][0].update(mutation)
+                with self.assertRaises(ContractError):
+                    validate_contract(document, "interface_annotations.v1")
+
     def test_direction_width_and_timing_are_not_required_in_input(self) -> None:
         document = {
             "schema_version": "interface_description.v1",

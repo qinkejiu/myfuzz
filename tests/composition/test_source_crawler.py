@@ -153,7 +153,7 @@ class SourceCrawlerTests(unittest.TestCase):
                     payload = (root / name).read_bytes()
                     records.append({"file": name, "sha256": hashlib.sha256(payload).hexdigest(), "size": len(payload)})
                 (output / "manifest.json").write_text(json.dumps({"sources": records, "tool_sources": [], "tool_version": "fake"}), encoding="utf-8")
-                return {"ports": [{"name": "bus", "direction": "input", "width": 8, "signed": False, "source": {"file": "top.sv", "line": 1, "column": 12}, "members": [{"path": ["data"], "width": 8, "raw_lo": 0, "raw_hi": 7, "signed": False, "source": {"file": "types.sv", "line": 1, "column": 36}}]}]}
+                return {"schema_version": "elaborated_ports.v1", "top_module": "top", "ports": [{"name": "bus", "direction": "input", "width": 8, "signed": False, "source": {"file": "top.sv", "line": 1, "column": 12}, "members": [{"path": ["data"], "width": 8, "raw_lo": 0, "raw_hi": 7, "signed": False, "source": {"file": "types.sv", "line": 1, "column": 36}}]}]}
 
             with mock.patch("myfuzz.composition.source_elaboration.run_verilator_elaboration", side_effect=fake_runner) as runner:
                 snapshot = SourceCrawler().crawl(locator, base_dir=Path(temporary))
@@ -162,11 +162,34 @@ class SourceCrawlerTests(unittest.TestCase):
             self.assertEqual("bus", snapshot.elaborated_ports[0].name)
             description = load_interface_description({
                 "schema_version": "interface_description.v1",
-                "source": {"root": "source", "revision": revision, "top_module": "top", "files": ["types.sv", "top.sv"]},
-                "endpoints": [{"endpoint_id": "structured", "function": "memory_master", "module": "top", "fields": [{"role": "request", "aliases": ["bus"]}]}],
+                "source": {"root": "source", "revision": revision, "top_module": "top", "files": ["types.sv", "top.sv"], "elaboration": {"frontend": "verilator-json"}},
+                "endpoints": [{"endpoint_id": "structured", "function": "memory_master", "module": "top", "fields": [{"role": "request", "physical": {"port": "bus", "member_path": ["data"]}}]}],
             })
-            with self.assertRaisesRegex(SourceCrawlError, "endpoint-unresolved"):
-                SourceCrawler().annotate(snapshot, description)
+            field = SourceCrawler().annotate(snapshot, description)["endpoints"][0]["fields"][0]
+            self.assertEqual((8, False, 0, 7, 8), (field["width"], field["signed"], field["raw_lo"], field["raw_hi"], field["container_width"]))
+            self.assertEqual(["explicit_member", "compiler_elaboration"], field["evidence"])
+            other_source = replace(description.source, top_module="other_top")
+            other_endpoint = replace(description.endpoints[0], module="other_top")
+            with self.assertRaisesRegex(SourceCrawlError, "physical-selector-elaboration-identity-mismatch"):
+                SourceCrawler().annotate(
+                    snapshot,
+                    replace(description, source=other_source, endpoints=(other_endpoint,)),
+                )
+            different_settings = replace(
+                description.source,
+                elaboration=ElaborationSettings("verilator-json", parameters=(("W", "32"),)),
+            )
+            with self.assertRaisesRegex(SourceCrawlError, "physical-selector-elaboration-identity-mismatch"):
+                SourceCrawler().annotate(snapshot, replace(description, source=different_settings))
+            different_revision = replace(description.source, revision="sha256:" + "0" * 64)
+            with self.assertRaisesRegex(SourceCrawlError, "physical-selector-elaboration-identity-mismatch"):
+                SourceCrawler().annotate(snapshot, replace(description, source=different_revision))
+            changed_port = replace(snapshot.elaborated_ports[0], width=9)
+            with self.assertRaisesRegex(SourceCrawlError, "physical-selector-elaboration-identity-mismatch"):
+                SourceCrawler().annotate(
+                    replace(snapshot, elaborated_ports=(changed_port,)),
+                    description,
+                )
 
     def test_default_crawl_never_invokes_elaboration_runner(self) -> None:
         temporary, root, source = self.make_source()

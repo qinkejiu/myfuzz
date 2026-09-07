@@ -53,10 +53,31 @@ class SourceLocator:
 
 
 @dataclass(frozen=True, slots=True)
+class PhysicalSelector:
+    port: str
+    member_path: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        identifier = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
+        if (not isinstance(self.member_path, (tuple, list))
+                or not isinstance(self.port, str) or identifier.fullmatch(self.port) is None
+                or not self.member_path or any(
+            not isinstance(item, str) or identifier.fullmatch(item) is None for item in self.member_path
+        )):
+            raise ValueError("invalid-physical-selector")
+        object.__setattr__(self, "member_path", tuple(self.member_path))
+
+
+@dataclass(frozen=True, slots=True)
 class FieldHint:
     role: str
     aliases: tuple[str, ...] = ()
     required: bool = True
+    physical: PhysicalSelector | None = None
+
+    def __post_init__(self) -> None:
+        if self.physical is not None and self.aliases:
+            raise ValueError("physical-aliases-mutually-exclusive")
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,10 +115,17 @@ def _strings(value: object) -> tuple[str, ...]:
 
 
 def _field(value: Mapping[str, object]) -> FieldHint:
+    physical_value = value.get("physical")
+    physical = None
+    if isinstance(physical_value, Mapping):
+        physical = PhysicalSelector(
+            physical_value["port"], tuple(physical_value["member_path"])  # type: ignore[arg-type]
+        )
     return FieldHint(
         role=value["role"],  # type: ignore[arg-type]
         aliases=_strings(value.get("aliases", [])),
         required=value.get("required", True),  # type: ignore[arg-type]
+        physical=physical,
     )
 
 
@@ -159,6 +187,8 @@ def _field_document(field: FieldHint) -> dict[str, object]:
         document["aliases"] = sorted(field.aliases)
     if not field.required:
         document["required"] = False
+    if field.physical is not None:
+        document["physical"] = {"port": field.physical.port, "member_path": list(field.physical.member_path)}
     return document
 
 
