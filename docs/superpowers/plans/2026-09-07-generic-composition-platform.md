@@ -166,7 +166,7 @@ Expected: FAIL because `interface_description.v1` is not registered and the type
 
 - [ ] **Step 3: Implement the contract registration and typed loader.**
 
-Register the two new schemas in `contracts.validation._SCHEMAS`. Validate the source object, endpoint IDs, field roles, aliases, optional protocol pairs, and relative path strings. Keep paths as input strings in the document; resolve them only at source-crawl time. The loader returns immutable tuples and sorts neither endpoints nor fields until canonical serialization, preserving semantic input order for diagnostics.
+Register the two new schemas in `contracts.validation._SCHEMAS`. Validate the source object, endpoint IDs, field roles, aliases, optional protocol pairs, and relative path strings. Accept either `git:<full-commit>` or `sha256:<64-hex-source-tree-digest>` as the revision pin; verify the selected revision against the declared source root during source crawling. Keep paths as input strings in the document; resolve them only at source-crawl time. The loader returns immutable tuples and sorts neither endpoints nor fields until canonical serialization, preserving semantic input order for diagnostics.
 
 - [ ] **Step 4: Run focused and existing contract tests.**
 

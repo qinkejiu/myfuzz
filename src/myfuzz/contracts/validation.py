@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 
 
 _HASH = re.compile(r"sha256:[0-9a-f]{64}\Z")
+_SOURCE_REVISION = re.compile(r"(?:git:[0-9a-f]{40}|sha256:[0-9a-f]{64})\Z")
 _WINDOWS_DRIVE_QUALIFIED_PATH = re.compile(r"[A-Za-z]:")
 _DIRECTIONS = frozenset(("input", "output", "inout"))
 _SCHEMAS = frozenset(("hdl_facts.v2", "protocol.v1", "composition_ir.v1", "candidate_manifest.v1", "interface_description.v1"))
@@ -69,6 +70,11 @@ def _hash(value: object, schema_id: str, path: str) -> None:
         _error(schema_id, path, "invalid-hash")
 
 
+def _source_revision(value: object, schema_id: str, path: str) -> None:
+    if not isinstance(value, str) or _SOURCE_REVISION.fullmatch(value) is None:
+        _error(schema_id, path, "invalid-hash")
+
+
 def _boolean(value: object, schema_id: str, path: str) -> None:
     if not isinstance(value, bool):
         _error(schema_id, path, "type")
@@ -95,7 +101,7 @@ def _validate_interface_description(document: Mapping[str, object], schema_id: s
         if key not in source:
             _error(schema_id, f"source.{key}", "missing")
     _relative_path(source["root"], schema_id, "source.root")
-    _hash(source["revision"], schema_id, "source.revision")
+    _source_revision(source["revision"], schema_id, "source.revision")
     _string(source["top_module"], schema_id, "source.top_module")
     for key in ("files", "include_roots"):
         if key in source:

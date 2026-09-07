@@ -59,6 +59,23 @@ class InterfaceContractTests(unittest.TestCase):
         ):
             validate_contract(document, "interface_description.v1")
 
+    def test_full_git_revision_is_accepted_and_malformed_git_revisions_are_rejected(self) -> None:
+        document = valid_interface_document()
+        document["source"]["revision"] = "git:" + "a" * 40  # type: ignore[index]
+
+        validate_contract(document, "interface_description.v1")
+
+        for revision in ("git:" + "a" * 39, "git:" + "a" * 41, "git:main"):
+            with self.subTest(revision=revision):
+                document = valid_interface_document()
+                document["source"]["revision"] = revision  # type: ignore[index]
+
+                with self.assertRaisesRegex(
+                    ContractError,
+                    r"^interface_description\.v1:source:revision:invalid-hash$",
+                ):
+                    validate_contract(document, "interface_description.v1")
+
     def test_duplicate_endpoint_id_and_field_role_are_rejected(self) -> None:
         document = valid_interface_document()
         document["endpoints"].append(dict(document["endpoints"][0]))  # type: ignore[index]
