@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .constraints import IsaContract
+
 
 class CpuDefinitionError(ValueError):
     """Raised when a CPU profile declaration is invalid or unavailable."""
