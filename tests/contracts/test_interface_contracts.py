@@ -1,8 +1,151 @@
 from __future__ import annotations
 
 import unittest
+import copy
+import json
+from pathlib import Path
 
 from myfuzz.contracts import ContractError, validate_contract
+
+try:
+    from jsonschema import Draft202012Validator
+except ImportError:
+    Draft202012Validator = None
+
+
+def valid_annotation_document() -> dict[str, object]:
+    return {
+        "schema_version": "interface_annotations.v1",
+        "source": {"revision": "git:" + "a" * 40, "content_hash": "sha256:" + "b" * 64,
+                   "files": ["rtl/top.sv"], "modules": ["top"]},
+        "endpoints": [{
+            "endpoint_id": "bus", "function": "memory_master", "module": "top",
+            "clock": "clk", "reset": None,
+            "fields": [{"role": "valid", "port": "q", "direction": "output", "width": 1,
+                        "signed": False, "source": {"file": "rtl/top.sv", "line": 2, "column": 3},
+                        "evidence": ["explicit_alias", "hdl_declaration"], "confidence": "high"}],
+            "timing": [{"kind": "sequential_assignment", "fields": ["valid"], "clock": "clk",
+                        "source": {"file": "rtl/top.sv", "line": 5}}],
+            "protocol_candidates": [{"id": "bus", "version": "1", "status": "consistent",
+                                     "orientation": "host", "evidence": "declared"}],
+            "evidence": ["explicit_module"], "confidence": "high", "diagnostics": [],
+        }],
+        "diagnostics": [{"code": "source-note", "severity": "info", "message": "Observed source."}],
+    }
+
+
+# Known members have a closed value contract; only additional members are open.
+ANNOTATION_MUTATIONS = (
+    (("source", "files"), [False]), (("source", "files"), ["../escape"]),
+    (("source", "files"), []), (("source", "modules"), [3]),
+    (("source", "modules"), []), (("source", "revision"), "git:main"),
+    (("source", "content_hash"), "invalid"),
+    (("endpoints", 0, "clock"), 7), (("endpoints", 0, "reset"), ""),
+    (("endpoints", 0, "fields", 0, "role"), False),
+    (("endpoints", 0, "fields", 0, "port"), ""),
+    (("endpoints", 0, "fields", 0, "direction"), []),
+    (("endpoints", 0, "fields", 0, "width"), True),
+    (("endpoints", 0, "fields", 0, "width"), 0),
+    (("endpoints", 0, "fields", 0, "signed"), "false"),
+    (("endpoints", 0, "fields", 0, "source", "line"), True),
+    (("endpoints", 0, "fields", 0, "source", "column"), 0),
+    (("endpoints", 0, "timing"), "wrong"),
+    (("endpoints", 0, "timing"), [{}]),
+    (("endpoints", 0, "timing", 0, "kind"), "guessed"),
+    (("endpoints", 0, "timing", 0, "fields"), [5]),
+    (("endpoints", 0, "timing", 0, "clock"), False),
+    (("endpoints", 0, "timing", 0, "source", "file"), "../outside"),
+    (("endpoints", 0, "timing", 0, "source", "line"), 0),
+    (("endpoints", 0, "protocol_candidates"), "wrong"),
+    (("endpoints", 0, "protocol_candidates"), [{}]),
+    (("endpoints", 0, "protocol_candidates", 0, "id"), ""),
+    (("endpoints", 0, "protocol_candidates", 0, "version"), 1),
+    (("endpoints", 0, "protocol_candidates", 0, "status"), "unverified"),
+    (("endpoints", 0, "protocol_candidates", 0, "orientation"), "unknown"),
+    (("endpoints", 0, "protocol_candidates", 0, "evidence"), []),
+    (("endpoints", 0, "evidence"), []),
+    (("endpoints", 0, "evidence"), "explicit_module"),
+    (("endpoints", 0, "evidence"), ["guessed"]),
+    (("endpoints", 0, "fields", 0, "evidence"), [False]),
+    (("endpoints", 0, "fields", 0, "evidence"), []),
+    (("endpoints", 0, "confidence"), "certain"),
+    (("endpoints", 0, "fields", 0, "confidence"), 1.0),
+    (("endpoints", 0, "diagnostics"), [False]),
+    (("diagnostics",), "wrong"), (("diagnostics",), [{}]),
+    (("diagnostics", 0, "severity"), "fatal"),
+    (("diagnostics", 0, "code"), ""), (("diagnostics", 0, "message"), []),
+)
+
+
+def mutated_annotation(path, value):
+    document = valid_annotation_document()
+    target = document
+    for part in path[:-1]:
+        target = target[part]
+    target[path[-1]] = value
+    return document
+
+
+class AnnotationContractTests(unittest.TestCase):
+    def test_malformed_annotation_known_members_fail_runtime_validation(self) -> None:
+        for path, value in ANNOTATION_MUTATIONS:
+            with self.subTest(path=path, value=value):
+                with self.assertRaises(ContractError):
+                    validate_contract(mutated_annotation(path, value), "interface_annotations.v1")
+
+    def test_nested_required_annotation_members_cannot_be_omitted(self) -> None:
+        document = valid_annotation_document()
+        for path in (("source",), ("endpoints", 0), ("endpoints", 0, "fields", 0),
+                     ("endpoints", 0, "fields", 0, "source"), ("endpoints", 0, "timing", 0),
+                     ("endpoints", 0, "timing", 0, "source"),
+                     ("endpoints", 0, "protocol_candidates", 0), ("diagnostics", 0)):
+            original = document
+            for part in path:
+                original = original[part]
+            for key in original:
+                with self.subTest(path=path, missing=key):
+                    changed = copy.deepcopy(original)
+                    del changed[key]
+                    with self.assertRaises(ContractError):
+                        validate_contract(mutated_annotation(path, changed), "interface_annotations.v1")
+
+    def test_annotations_validate_source_references_and_unique_mappings(self) -> None:
+        for path, value in (
+            (("endpoints", 0, "module"), "absent"),
+            (("endpoints", 0, "fields", 0, "source", "file"), "absent.sv"),
+            (("endpoints", 0, "timing", 0, "source", "file"), "absent.sv"),
+        ):
+            with self.subTest(path=path):
+                with self.assertRaises(ContractError):
+                    validate_contract(mutated_annotation(path, value), "interface_annotations.v1")
+        for array_path in (("endpoints",), ("endpoints", 0, "fields")):
+            document = valid_annotation_document()
+            target = document
+            for part in array_path:
+                target = target[part]
+            target.append(copy.deepcopy(target[0]))
+            with self.subTest(path=array_path):
+                with self.assertRaises(ContractError):
+                    validate_contract(document, "interface_annotations.v1")
+
+    def test_annotations_accept_valid_values_and_unknown_members(self) -> None:
+        document = valid_annotation_document()
+        for target in (document, document["source"], document["endpoints"][0],
+                       document["endpoints"][0]["fields"][0], document["endpoints"][0]["timing"][0],
+                       document["endpoints"][0]["protocol_candidates"][0], document["diagnostics"][0]):
+            target["future_member"] = {"arbitrary": True}
+        validate_contract(document, "interface_annotations.v1")
+
+    @unittest.skipIf(Draft202012Validator is None, "optional jsonschema package unavailable")
+    def test_json_schema_enforces_nested_annotation_contract(self) -> None:
+        schema = json.loads((Path(__file__).resolve().parents[2] / "schemas" /
+                             "interface_annotations.v1.schema.json").read_text())
+        Draft202012Validator.check_schema(schema)
+        validator = Draft202012Validator(schema)
+        validator.validate(valid_annotation_document())
+        for path, value in ANNOTATION_MUTATIONS:
+            with self.subTest(path=path, value=value):
+                self.assertTrue(list(validator.iter_errors(mutated_annotation(path, value))))
 
 
 def valid_interface_document() -> dict[str, object]:

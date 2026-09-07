@@ -248,31 +248,114 @@ def _validate_manifest(document: Mapping[str, object], schema_id: str) -> None:
 
 
 def _validate_interface_annotations(document: Mapping[str, object], schema_id: str) -> None:
+    def record(value: object, path: str, keys: Sequence[str]) -> Mapping[str, object]:
+        result = _object(value, schema_id, path)
+        for key in keys:
+            if key not in result:
+                _error(schema_id, f"{path}.{key}", "missing")
+        return result
+
+    def enum(value: object, path: str, choices: Sequence[str]) -> None:
+        if not isinstance(value, str) or value not in choices:
+            _error(schema_id, path, "invalid")
+
+    def strings(value: object, path: str, *, nonempty: bool = False) -> Sequence[object]:
+        items = _array(value, schema_id, path)
+        _strings(value, schema_id, path)
+        if nonempty and not items:
+            _error(schema_id, path, "empty")
+        if len(items) != len(set(items)):
+            _error(schema_id, path, "duplicate")
+        return items
+
+    def nullable_name(value: object, path: str) -> None:
+        if value is not None:
+            _string(value, schema_id, path)
+
+    def evidence(value: object, path: str, choices: Sequence[str]) -> None:
+        for index, item in enumerate(strings(value, path, nonempty=True)):
+            enum(item, f"{path}[{index}]", choices)
+
+    def location(value: object, path: str, *, column: bool = False) -> None:
+        keys = ("file", "line", "column") if column else ("file", "line")
+        source_location = record(value, path, keys)
+        _relative_path(source_location["file"], schema_id, f"{path}.file")
+        if source_location["file"] not in source_files:
+            _error(schema_id, f"{path}.file", "unknown-source")
+        _positive_id(source_location["line"], schema_id, f"{path}.line")
+        if "column" in source_location:
+            _positive_id(source_location["column"], schema_id, f"{path}.column")
+
+    def diagnostics(value: object, path: str) -> None:
+        for index, item in enumerate(_array(value, schema_id, path)):
+            item_path = f"{path}[{index}]"
+            diagnostic = record(item, item_path, ("code", "severity", "message"))
+            for key in ("code", "message"):
+                _string(diagnostic[key], schema_id, f"{item_path}.{key}")
+            enum(diagnostic["severity"], f"{item_path}.severity", ("info", "warning", "error"))
+            if "source" in diagnostic:
+                location(diagnostic["source"], f"{item_path}.source")
+
     _require(document, schema_id, ("source", "endpoints", "diagnostics"))
-    source = _object(document["source"], schema_id, "source")
-    _require(source, schema_id, ("revision", "content_hash", "files", "modules"))
+    source = record(document["source"], "source", ("revision", "content_hash", "files", "modules"))
     _source_revision(source["revision"], schema_id, "source.revision")
     _hash(source["content_hash"], schema_id, "source.content_hash")
-    for key in ("files", "modules"):
-        _array(source[key], schema_id, f"source.{key}")
+    source_files = strings(source["files"], "source.files", nonempty=True)
+    for index, path in enumerate(source_files):
+        _relative_path(path, schema_id, f"source.files[{index}]")
+    modules = strings(source["modules"], "source.modules", nonempty=True)
+    diagnostics(document["diagnostics"], "diagnostics")
+    endpoint_ids: set[str] = set()
     for index, endpoint_value in enumerate(_array(document["endpoints"], schema_id, "endpoints")):
-        endpoint = _object(endpoint_value, schema_id, f"endpoints[{index}]")
-        _require(endpoint, schema_id, ("endpoint_id", "function", "module", "fields", "timing", "protocol_candidates", "evidence", "confidence", "diagnostics"))
-        for key in ("endpoint_id", "function", "module", "confidence"):
-            _string(endpoint[key], schema_id, f"endpoints[{index}].{key}")
-        for field_index, field_value in enumerate(_array(endpoint["fields"], schema_id, f"endpoints[{index}].fields")):
-            field = _object(field_value, schema_id, f"endpoints[{index}].fields[{field_index}]")
-            _require(field, schema_id, ("role", "port", "direction", "width", "signed", "source", "evidence", "confidence"))
-            if field["direction"] not in _DIRECTIONS:
-                _error(schema_id, f"endpoints[{index}].fields[{field_index}].direction", "invalid")
-            if not isinstance(field["width"], int) or isinstance(field["width"], bool) or field["width"] <= 0:
-                _error(schema_id, f"endpoints[{index}].fields[{field_index}].width", "invalid")
-            _boolean(field["signed"], schema_id, f"endpoints[{index}].fields[{field_index}].signed")
-            location = _object(field["source"], schema_id, f"endpoints[{index}].fields[{field_index}].source")
-            _require(location, schema_id, ("file", "line", "column"))
-            _relative_path(location["file"], schema_id, f"endpoints[{index}].fields[{field_index}].source.file")
-            _positive_id(location["line"], schema_id, f"endpoints[{index}].fields[{field_index}].source.line")
-            _positive_id(location["column"], schema_id, f"endpoints[{index}].fields[{field_index}].source.column")
+        path = f"endpoints[{index}]"
+        endpoint = record(endpoint_value, path, ("endpoint_id", "function", "module", "fields", "clock", "reset",
+                                                "timing", "protocol_candidates", "evidence", "confidence", "diagnostics"))
+        for key in ("endpoint_id", "function", "module"):
+            _string(endpoint[key], schema_id, f"{path}.{key}")
+        if endpoint["endpoint_id"] in endpoint_ids:
+            _error(schema_id, f"{path}.endpoint_id", "duplicate-role")
+        endpoint_ids.add(endpoint["endpoint_id"])
+        if endpoint["module"] not in modules:
+            _error(schema_id, f"{path}.module", "unknown-module")
+        for key in ("clock", "reset"):
+            nullable_name(endpoint[key], f"{path}.{key}")
+        enum(endpoint["confidence"], f"{path}.confidence", ("high", "medium", "low"))
+        evidence(endpoint["evidence"], f"{path}.evidence",
+                 ("explicit_module", "hierarchy_hint", "endpoint_alias", "source_top_module"))
+        diagnostics(endpoint["diagnostics"], f"{path}.diagnostics")
+        roles: set[str] = set()
+        ports: set[str] = set()
+        for field_index, field_value in enumerate(_array(endpoint["fields"], schema_id, f"{path}.fields")):
+            field_path = f"{path}.fields[{field_index}]"
+            field = record(field_value, field_path, ("role", "port", "direction", "width", "signed", "source", "evidence", "confidence"))
+            for key, seen in (("role", roles), ("port", ports)):
+                name = _string(field[key], schema_id, f"{field_path}.{key}")
+                if name in seen:
+                    _error(schema_id, f"{field_path}.{key}", "duplicate")
+                seen.add(name)
+            enum(field["direction"], f"{field_path}.direction", ("input", "output", "inout"))
+            _positive_id(field["width"], schema_id, f"{field_path}.width")
+            _boolean(field["signed"], schema_id, f"{field_path}.signed")
+            location(field["source"], f"{field_path}.source", column=True)
+            evidence(field["evidence"], f"{field_path}.evidence", ("explicit_alias", "source_documentation",
+                     "exact_role_label", "normalized_name", "hdl_declaration"))
+            enum(field["confidence"], f"{field_path}.confidence", ("high", "medium", "low"))
+        for timing_index, timing_value in enumerate(_array(endpoint["timing"], schema_id, f"{path}.timing")):
+            timing_path = f"{path}.timing[{timing_index}]"
+            timing = record(timing_value, timing_path, ("kind", "fields", "clock", "source"))
+            enum(timing["kind"], f"{timing_path}.kind", ("sequential_assignment", "combinational_assignment",
+                 "reset_membership", "stall_holds_payload", "transfer_accept", "response_after_request"))
+            _strings(timing["fields"], schema_id, f"{timing_path}.fields")
+            nullable_name(timing["clock"], f"{timing_path}.clock")
+            location(timing["source"], f"{timing_path}.source")
+        for candidate_index, candidate_value in enumerate(_array(endpoint["protocol_candidates"], schema_id, f"{path}.protocol_candidates")):
+            candidate_path = f"{path}.protocol_candidates[{candidate_index}]"
+            candidate = record(candidate_value, candidate_path, ("id", "version", "status", "orientation", "evidence"))
+            for key in ("id", "version"):
+                _string(candidate[key], schema_id, f"{candidate_path}.{key}")
+            enum(candidate["status"], f"{candidate_path}.status", ("consistent",))
+            enum(candidate["orientation"], f"{candidate_path}.orientation", ("host", "device"))
+            enum(candidate["evidence"], f"{candidate_path}.evidence", ("declared",))
 
 
 def validate_contract(document: object, schema_id: str) -> None:

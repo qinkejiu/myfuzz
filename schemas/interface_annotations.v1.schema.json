@@ -1,1 +1,113 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"interface_annotations.v1","type":"object","required":["schema_version","source","endpoints","diagnostics"],"properties":{"schema_version":{"const":"interface_annotations.v1"},"source":{"type":"object","required":["revision","content_hash","files","modules"]},"endpoints":{"type":"array"},"diagnostics":{"type":"array"}},"additionalProperties":true}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "interface_annotations.v1",
+  "type": "object",
+  "required": ["schema_version", "source", "endpoints", "diagnostics"],
+  "properties": {
+    "schema_version": {"const": "interface_annotations.v1"},
+    "source": {
+      "type": "object",
+      "required": ["revision", "content_hash", "files", "modules"],
+      "properties": {
+        "revision": {"type": "string", "pattern": "^(?:git:[0-9a-f]{40}|sha256:[0-9a-f]{64})$"},
+        "content_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "files": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/path"}},
+        "modules": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/name"}}
+      },
+      "additionalProperties": true
+    },
+    "endpoints": {"type": "array", "items": {"$ref": "#/$defs/endpoint"}},
+    "diagnostics": {"$ref": "#/$defs/diagnostics"}
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "name": {"type": "string", "minLength": 1},
+    "path": {
+      "type": "string", "minLength": 1,
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*(?:^|/)\\.\\.?(?:/|$))[^/]+(?:/[^/]+)*$"
+    },
+    "nullableName": {"anyOf": [{"$ref": "#/$defs/name"}, {"type": "null"}]},
+    "confidence": {"enum": ["high", "medium", "low"]},
+    "location": {
+      "type": "object", "required": ["file", "line"],
+      "properties": {
+        "file": {"$ref": "#/$defs/path"},
+        "line": {"type": "integer", "minimum": 1},
+        "column": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": true
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["code", "severity", "message"],
+        "properties": {
+          "code": {"$ref": "#/$defs/name"},
+          "severity": {"enum": ["info", "warning", "error"]},
+          "message": {"$ref": "#/$defs/name"},
+          "source": {"$ref": "#/$defs/location"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "field": {
+      "type": "object",
+      "required": ["role", "port", "direction", "width", "signed", "source", "evidence", "confidence"],
+      "properties": {
+        "role": {"$ref": "#/$defs/name"},
+        "port": {"$ref": "#/$defs/name"},
+        "direction": {"enum": ["input", "output", "inout"]},
+        "width": {"type": "integer", "minimum": 1},
+        "signed": {"type": "boolean"},
+        "source": {"allOf": [{"$ref": "#/$defs/location"}, {"required": ["column"]}]},
+        "evidence": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": {"enum": ["explicit_alias", "source_documentation", "exact_role_label", "normalized_name", "hdl_declaration"]}
+        },
+        "confidence": {"$ref": "#/$defs/confidence"}
+      },
+      "additionalProperties": true
+    },
+    "timing": {
+      "type": "object", "required": ["kind", "fields", "clock", "source"],
+      "properties": {
+        "kind": {"enum": ["sequential_assignment", "combinational_assignment", "reset_membership", "stall_holds_payload", "transfer_accept", "response_after_request"]},
+        "fields": {"type": "array", "items": {"$ref": "#/$defs/name"}},
+        "clock": {"$ref": "#/$defs/nullableName"},
+        "source": {"$ref": "#/$defs/location"}
+      },
+      "additionalProperties": true
+    },
+    "protocolCandidate": {
+      "type": "object", "required": ["id", "version", "status", "orientation", "evidence"],
+      "properties": {
+        "id": {"$ref": "#/$defs/name"}, "version": {"$ref": "#/$defs/name"},
+        "status": {"const": "consistent"},
+        "orientation": {"enum": ["host", "device"]},
+        "evidence": {"const": "declared"}
+      },
+      "additionalProperties": true
+    },
+    "endpoint": {
+      "type": "object",
+      "required": ["endpoint_id", "function", "module", "fields", "clock", "reset", "timing", "protocol_candidates", "evidence", "confidence", "diagnostics"],
+      "properties": {
+        "endpoint_id": {"$ref": "#/$defs/name"},
+        "function": {"$ref": "#/$defs/name"},
+        "module": {"$ref": "#/$defs/name"},
+        "fields": {"type": "array", "items": {"$ref": "#/$defs/field"}},
+        "clock": {"$ref": "#/$defs/nullableName"},
+        "reset": {"$ref": "#/$defs/nullableName"},
+        "timing": {"type": "array", "items": {"$ref": "#/$defs/timing"}},
+        "protocol_candidates": {"type": "array", "items": {"$ref": "#/$defs/protocolCandidate"}},
+        "evidence": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": {"enum": ["explicit_module", "hierarchy_hint", "endpoint_alias", "source_top_module"]}
+        },
+        "confidence": {"$ref": "#/$defs/confidence"},
+        "diagnostics": {"$ref": "#/$defs/diagnostics"}
+      },
+      "additionalProperties": true
+    }
+  }
+}

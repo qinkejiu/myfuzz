@@ -9,14 +9,16 @@ from __future__ import annotations
 
 import hashlib
 import re
+import shlex
 import subprocess
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from myfuzz.contracts import validate_contract
 from myfuzz.protocols.catalog import ProtocolCatalog
 from myfuzz.protocols.model import ProtocolDefinitionError
+from myfuzz.protocols.widths import ProtocolWidthError, compile_width_expression
 from myfuzz.scripts.source_only_frontend import (
     HDL_SUFFIXES,
     IDENT_RE,
@@ -70,6 +72,7 @@ class TimingObservation:
     clock: str | None
     source_file: str
     line: int
+    module: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +83,8 @@ class SourceSnapshot:
     modules: tuple[str, ...]
     ports: tuple[SourcePortFact, ...]
     timing: tuple[TimingObservation, ...]
+    # (parent module, instance name, child module); no elaboration is inferred.
+    instances: tuple[tuple[str, str, str], ...] = ()
 
 
 def _relative(root: Path, value: Path) -> str:
@@ -90,35 +95,70 @@ def _relative(root: Path, value: Path) -> str:
 
 
 def source_tree_hash(root: Path, files: Sequence[Path]) -> str:
-    """Hash sorted relative file names and their bytes, independent of root path."""
+    """Hash unique sorted paths and bytes using unsigned 64-bit length framing.
+
+    The domain tag and length prefixes delimit paths, contents, and entries;
+    neither the absolute root nor caller ordering participates in the hash.
+    Filelists must be included alongside HDL when pinning a filelist input.
+    """
     resolved_root = root.resolve()
-    entries = sorted((_relative(resolved_root, path), path.resolve()) for path in files)
-    digest = hashlib.sha256()
-    for relative, path in entries:
+    contents = {}
+    for path in files:
+        relative = _relative(resolved_root, path)
         if not path.is_file():
             raise SourceCrawlError(f"source-file-missing:{relative}")
-        digest.update(relative.encode("utf-8"))
-        digest.update(path.read_bytes())
+        contents[relative] = path.read_bytes()
+    return _content_hash(contents)
+
+
+def _content_hash(contents: Mapping[str, bytes]) -> str:
+    digest = hashlib.sha256(b"myfuzz-source-tree-v2\0")
+    for relative, content in sorted(contents.items()):
+        name = relative.encode("utf-8")
+        digest.update(len(name).to_bytes(8, "big"))
+        digest.update(name)
+        digest.update(len(content).to_bytes(8, "big"))
+        digest.update(content)
     return f"sha256:{digest.hexdigest()}"
 
 
 def _safe_child(root: Path, raw: str) -> Path:
     path = Path(raw)
-    if path.is_absolute() or any(part in ("", ".", "..") for part in path.parts):
+    if (not raw or "\\" in raw or "\0" in raw or re.match(r"[A-Za-z]:", raw)
+            or path.is_absolute() or ".." in path.parts):
         raise SourceCrawlError("path-outside-source-root")
     candidate = (root / path).resolve()
     _relative(root, candidate)
+    # A symlink's resolved target is not the declared pinned tree entry.
+    current = root
+    for part in path.parts:
+        current = current / part
+        if current.is_symlink():
+            raise SourceCrawlError("unsupported-source-symlink")
     return candidate
 
 
-def _declared_files(root: Path, locator: SourceLocator) -> tuple[Path, ...]:
+def _declared_files(
+    root: Path, locator: SourceLocator, read: Callable[[Path], bytes],
+) -> tuple[Path, ...]:
     files: set[Path] = set()
 
     def add_source(raw: str) -> None:
         source = _safe_child(root, raw)
         if source.suffix not in HDL_SUFFIXES or not source.is_file():
             raise SourceCrawlError(f"source-file-missing:{raw}")
+        read(source)
         files.add(source)
+
+    def local_path(parent: Path, raw: str) -> Path:
+        # Validate the raw option too: joining an absolute path must not erase it.
+        _safe_child(root, raw)
+        return _safe_child(root, (parent.relative_to(root) / raw).as_posix())
+
+    def include_root(parent: Path, raw: str) -> None:
+        directory = local_path(parent, raw)
+        if not directory.is_dir():
+            raise SourceCrawlError(f"include-root-missing:{raw}")
 
     def expand_filelist(path: Path, seen: set[Path]) -> None:
         path = path.resolve()
@@ -128,31 +168,35 @@ def _declared_files(root: Path, locator: SourceLocator) -> tuple[Path, ...]:
         if not path.is_file():
             raise SourceCrawlError(f"source-file-missing:{_relative(root, path)}")
         seen.add(path)
-        for raw_line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
-            item = raw_line.strip()
-            if not item or item.startswith("#") or item.startswith("+"):
-                continue
-            if item.startswith("-f "):
-                nested = _safe_child(root, _relative(root, path.parent / item[3:].strip()))
-                expand_filelist(nested, seen)
-                continue
-            if item.startswith("-F "):
-                expand_filelist(_safe_child(root, item[3:].strip()), seen)
-                continue
-            if item.startswith("-"):
-                continue
-            candidate = item.split()[0]
-            base_relative = _relative(root, path.parent)
-            add_source(f"{base_relative}/{candidate}" if base_relative else candidate)
+        # Verify before interpreting even the first directive; hash filelists too.
+        try:
+            tokens = iter(shlex.split(read(path).decode("utf-8"), comments=True))
+            for item in tokens:
+                if item in ("-f", "-F"):
+                    parent = path.parent if item == "-f" else root
+                    expand_filelist(local_path(parent, next(tokens)), seen)
+                elif item.startswith("+incdir+"):
+                    for directory in item[len("+incdir+"):].split("+"):
+                        include_root(path.parent, directory)
+                elif item == "-I" or item.startswith("-I"):
+                    include_root(path.parent, next(tokens) if item == "-I" else item[2:])
+                elif item.startswith("+define+"):
+                    continue
+                elif item.startswith(("-", "+")):
+                    raise SourceCrawlError(f"unsupported-filelist-option:{item}")
+                else:
+                    add_source(_relative(root, local_path(path.parent, item)))
+        except (StopIteration, UnicodeDecodeError, ValueError) as error:
+            if isinstance(error, SourceCrawlError):
+                raise
+            raise SourceCrawlError("invalid-filelist") from error
 
     for raw in locator.files:
         add_source(raw)
     if locator.filelist is not None:
         expand_filelist(_safe_child(root, locator.filelist), set())
     for raw in locator.include_roots:
-        directory = _safe_child(root, raw)
-        if not directory.is_dir():
-            raise SourceCrawlError(f"include-root-missing:{raw}")
+        include_root(root, raw)
     return tuple(sorted(files, key=lambda item: _relative(root, item)))
 
 
@@ -200,22 +244,25 @@ def _declaration_ports(
     width = 1
     signed = False
     for fragment, fragment_offset in _parts(masked, offset):
+        # Ignore identifiers inside ranges when locating the declared port name.
+        # Any range after that name is unpacked, including inherited declarations.
+        name_fragment = re.sub(r"\[[^\]]*\]", lambda match: " " * len(match.group()), fragment)
+        names = [match for match in IDENT_RE.finditer(name_fragment)
+                 if match.group(0) not in _DECL_KEYWORDS]
+        if not names:
+            continue
+        name_match = names[-1]
+        if "[" in fragment[name_match.end():]:
+            raise SourceCrawlError("unsupported-unpacked-port")
         matched_direction = _DIRECTION_RE.search(fragment)
         if matched_direction is not None:
             direction = matched_direction.group(1)
-            width = _constant_width(fragment)
+            width = _constant_width(fragment[:name_match.start()])
             signed = bool(re.search(r"\bsigned\b", fragment)) and not bool(
                 re.search(r"\bunsigned\b", fragment)
             )
         if not direction:
             continue
-        names = [
-            match for match in IDENT_RE.finditer(fragment)
-            if match.group(0) not in _DECL_KEYWORDS
-        ]
-        if not names:
-            continue
-        name_match = names[-1]
         absolute = fragment_offset + name_match.start()
         line, column = line_col(original, absolute)
         records.append(
@@ -331,6 +378,48 @@ def _normalized(value: str) -> str:
     return re.sub(r"[^a-z0-9]", "", value.lower())
 
 
+def _instances(body: str, parent: str) -> list[tuple[str, str, str]]:
+    """Recognize simple module instances, retaining duplicates for ambiguity.
+
+    Array/generate scopes are not elaborated: hierarchy hints requiring those
+    shapes remain unresolved rather than inventing an instance path.
+    """
+    # Keep only unscoped declaration statements. Mask procedural/generate
+    # blocks so nested declarations cannot acquire a fabricated flat path.
+    masked = list(body)
+    depth = 0
+    start = 0
+    for token in re.finditer(r"\b(begin|end|generate|endgenerate)\b", body):
+        if token.group() in ("begin", "generate"):
+            if depth == 0:
+                start = token.start()
+            depth += 1
+        elif depth:
+            depth -= 1
+            if depth == 0:
+                masked[start:token.end()] = " " * (token.end() - start)
+    if depth:
+        masked[start:] = " " * (len(body) - start)
+    body = "".join(masked)
+    instances = []
+    for match in re.finditer(r"(?:^|;)\s*([A-Za-z_][A-Za-z0-9_$]*)\s+", body):
+        cursor = match.end()
+        if body[cursor:cursor + 1] == "#":
+            cursor += 1
+            while cursor < len(body) and body[cursor].isspace():
+                cursor += 1
+            if body[cursor:cursor + 1] != "(":
+                continue
+            closing = find_matching(body, cursor, "(", ")")
+            if closing < 0:
+                continue
+            cursor = closing + 1
+        instance = re.match(r"\s*([A-Za-z_][A-Za-z0-9_$]*)\s*\(", body[cursor:])
+        if instance is not None:
+            instances.append((parent, instance.group(1), match.group(1)))
+    return instances
+
+
 class SourceCrawler:
     def __init__(self) -> None:
         self._tags: dict[tuple[str, str, str, int], tuple[tuple[str, str], ...]] = {}
@@ -341,12 +430,8 @@ class SourceCrawler:
         root = _safe_child(base_dir.resolve(), locator.source_root)
         if not root.is_dir():
             raise SourceCrawlError("source-root-missing")
-        files = _declared_files(root, locator)
-        content_hash = source_tree_hash(root, files)
-        if locator.revision.startswith("sha256:"):
-            if locator.revision != content_hash:
-                raise SourceCrawlError("content-hash-mismatch")
-        else:
+        git_root: Path | None = None
+        if locator.revision.startswith("git:"):
             revision = locator.revision[4:]
             command = ["git", "-C", root.as_posix(), "rev-parse", "--verify", f"{revision}^{{commit}}"]
             result = subprocess.run(command, capture_output=True, text=True, check=False)
@@ -360,14 +445,49 @@ class SourceCrawler:
             )
             if head.returncode != 0 or head.stdout.strip() != revision:
                 raise SourceCrawlError("git-revision-mismatch")
+            top = subprocess.run(
+                ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+                capture_output=True, text=True, check=False,
+            )
+            if top.returncode != 0:
+                raise SourceCrawlError("git-revision-mismatch")
+            git_root = Path(top.stdout.strip()).resolve()
+
+        contents: dict[str, bytes] = {}
+
+        def read(path: Path) -> bytes:
+            relative = _relative(root, path)
+            if relative not in contents:
+                if not path.is_file():
+                    raise SourceCrawlError(f"source-file-missing:{relative}")
+                content = path.read_bytes()
+                if git_root is not None:
+                    tree_path = path.relative_to(git_root).as_posix()
+                    blob = subprocess.run(
+                        ["git", "-C", str(git_root), "cat-file", "blob", f"{revision}:{tree_path}"],
+                        capture_output=True, check=False,
+                    )
+                    if blob.returncode != 0 or blob.stdout != content:
+                        raise SourceCrawlError(f"git-content-mismatch:{relative}")
+                contents[relative] = content
+            return contents[relative]
+
+        files = _declared_files(root, locator, read)
+        content_hash = _content_hash(contents)
+        if locator.revision.startswith("sha256:") and locator.revision != content_hash:
+            raise SourceCrawlError("content-hash-mismatch")
 
         ports: list[SourcePortFact] = []
         modules: list[str] = []
         timing: list[TimingObservation] = []
+        instances: list[tuple[str, str, str]] = []
         self._tags = {}
         for path in files:
             relative = _relative(root, path)
-            original = path.read_text(encoding="utf-8", errors="ignore")
+            try:
+                original = read(path).decode("utf-8")
+            except UnicodeDecodeError as error:
+                raise SourceCrawlError(f"invalid-source-encoding:{relative}") from error
             masked = mask_comments_and_strings(original)
             matches = list(_MODULE_RE.finditer(masked))
             for module_match in matches:
@@ -393,26 +513,67 @@ class SourceCrawler:
                         self._tags[(port.module, port.name, port.source_file, port.line)] = attached
                 header_end = masked.find(";", module_match.end(), end_match.start())
                 if header_end >= 0:
-                    timing.extend(_timing(original, masked, header_end + 1, end_match.start(), relative))
+                    timing.extend(replace(item, module=module) for item in
+                                  _timing(original, masked, header_end + 1, end_match.start(), relative))
+                    instances.extend(_instances(masked[header_end + 1:end_match.start()], module))
         return SourceSnapshot(
             locator.revision,
             content_hash,
-            tuple(_relative(root, path) for path in files),
+            tuple(sorted(contents)),
             tuple(sorted(modules)),
             tuple(sorted(ports, key=lambda item: (item.module, item.name, item.source_file, item.line, item.column))),
             tuple(sorted(timing, key=lambda item: (item.source_file, item.line, item.kind, item.fields))),
+            tuple(sorted(instance for instance in instances if instance[2] in modules)),
         )
 
-    def _module_ports(self, snapshot: SourceSnapshot, endpoint: EndpointDescription) -> tuple[SourcePortFact, ...]:
-        module = endpoint.module or ""
-        if not module:
+    def _module_ports(
+        self, snapshot: SourceSnapshot, endpoint: EndpointDescription, top_module: str,
+    ) -> tuple[tuple[SourcePortFact, ...], str, str]:
+        def hierarchy(parts: tuple[str, ...]) -> list[str]:
+            if not parts:
+                return []
+            current = parts[0] if parts[0] in snapshot.modules else top_module
+            remaining = parts[1:] if parts[0] in snapshot.modules else parts
+            if snapshot.modules.count(current) > 1:
+                raise SourceCrawlError(f"endpoint-ambiguous:{endpoint.endpoint_id}")
+            for name in remaining:
+                children = [child for parent, instance, child in snapshot.instances
+                            if parent == current and name in (instance, child)]
+                if len(children) > 1:
+                    raise SourceCrawlError(f"endpoint-ambiguous:{endpoint.endpoint_id}")
+                if not children:
+                    return []
+                current = children[0]
+                if snapshot.modules.count(current) > 1:
+                    raise SourceCrawlError(f"endpoint-ambiguous:{endpoint.endpoint_id}")
+            return [current] if current in snapshot.modules else []
+
+        # An explicit but invalid selector is not permission to choose the top.
+        if endpoint.module is not None:
+            candidates, evidence = [endpoint.module], "explicit_module"
+        elif endpoint.hierarchy:
+            candidates, evidence = hierarchy(endpoint.hierarchy), "hierarchy_hint"
+        elif endpoint.aliases:
+            candidates = []
+            for alias in sorted(set(endpoint.aliases)):
+                named = hierarchy(tuple(re.split(r"[./]", alias)))
+                tagged = sorted({key[0] for key, tags in self._tags.items()
+                                 if any(tag_endpoint == alias for tag_endpoint, _ in tags)})
+                # Corroborating tags may agree with one selector, but different
+                # instance aliases are still different endpoint candidates.
+                candidates.extend(sorted(set(named + tagged)))
+            evidence = "endpoint_alias"
+        else:
+            candidates, evidence = [top_module], "source_top_module"
+        if not candidates:
             raise SourceCrawlError(f"endpoint-unresolved:{endpoint.endpoint_id}")
-        if snapshot.modules.count(module) > 1:
+        if len(candidates) != 1 or snapshot.modules.count(candidates[0]) > 1:
             raise SourceCrawlError(f"endpoint-ambiguous:{endpoint.endpoint_id}")
+        module = candidates[0]
         matches = tuple(port for port in snapshot.ports if port.module == module)
         if not matches:
             raise SourceCrawlError(f"endpoint-unresolved:{endpoint.endpoint_id}")
-        return matches
+        return matches, module, evidence
 
     def _field_port(
         self, endpoint: EndpointDescription, field: FieldHint, ports: tuple[SourcePortFact, ...]
@@ -421,9 +582,9 @@ class SourceCrawler:
         explicit = tuple(port for port in ports if port.name in aliases)
         tagged = tuple(
             port for port in ports
-            if (endpoint.endpoint_id, field.role) in self._tags.get(
+            if any((alias, field.role) in self._tags.get(
                 (port.module, port.name, port.source_file, port.line), ()
-            )
+            ) for alias in (endpoint.endpoint_id, *endpoint.aliases))
         )
         if explicit and tagged and {port.name for port in explicit} != {port.name for port in tagged}:
             raise SourceCrawlError(f"source-semantic-conflict:{endpoint.endpoint_id}:{field.role}")
@@ -457,14 +618,28 @@ class SourceCrawler:
         protocol_id, version = endpoint.protocol
         candidate: dict[str, object] = {"id": protocol_id, "version": version, "evidence": "declared"}
         if catalog is None:
-            candidate["status"] = "unverified"
-            return [candidate]
+            raise SourceCrawlError(f"protocol-catalog-required:{endpoint.endpoint_id}")
         try:
             plugin = catalog.require(protocol_id, version)
         except ProtocolDefinitionError as error:
             raise SourceCrawlError(f"protocol-unsupported:{endpoint.endpoint_id}:{protocol_id}@{version}") from error
-        by_role = {_normalized(str(field["role"])): field for field in fields}
+        # Semantic role tokens describe orientation, never a CPU or port name.
+        tokens = set(re.split(r"[^a-z0-9]+", endpoint.function.lower()))
+        host = bool(tokens & {"master", "host", "initiator"})
+        device = bool(tokens & {"slave", "device", "target"})
+        if host == device:
+            raise SourceCrawlError(f"protocol-orientation-ambiguous:{endpoint.endpoint_id}")
+        candidate["orientation"] = "host" if host else "device"
+        by_role: dict[str, dict[str, object]] = {}
         aliases = {"addr": "address", "wdata": "writedata", "rdata": "readdata"}
+        for field in fields:
+            normalized = _normalized(str(field["role"]))
+            role = aliases.get(normalized, normalized)
+            if role in by_role:
+                raise SourceCrawlError(f"protocol-conflict:{endpoint.endpoint_id}:ambiguous-role:{role}")
+            by_role[role] = field
+        matched_specs = []
+        parameters: dict[str, int] = {}
         for spec in plugin.fields:
             role = aliases.get(_normalized(spec.field_id), _normalized(spec.field_id))
             matched = by_role.get(role)
@@ -472,9 +647,29 @@ class SourceCrawler:
                 if spec.required:
                     raise SourceCrawlError(f"protocol-conflict:{endpoint.endpoint_id}:missing:{spec.field_id}")
                 continue
-            expected = "output" if spec.direction == "host_to_device" else "input"
-            if endpoint.function.endswith("master") and matched["direction"] != expected:
+            if spec.direction not in ("host_to_device", "device_to_host"):
                 raise SourceCrawlError(f"protocol-conflict:{endpoint.endpoint_id}:direction:{spec.field_id}")
+            expected = "output" if (spec.direction == "host_to_device") == host else "input"
+            if matched["direction"] != expected:
+                raise SourceCrawlError(f"protocol-conflict:{endpoint.endpoint_id}:direction:{spec.field_id}")
+            width = matched["width"]
+            if not isinstance(width, int) or isinstance(width, bool) or width <= 0:
+                raise SourceCrawlError(f"protocol-conflict:{endpoint.endpoint_id}:width:{spec.field_id}")
+            expression = spec.width_expression.strip()
+            # A bare symbol anchors a parameter to an observed physical width.
+            # Repeated symbols must agree; compound expressions cannot invent
+            # missing parameters and are evaluated only after all anchors exist.
+            if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", expression):
+                if parameters.setdefault(expression, width) != width:
+                    raise SourceCrawlError(f"protocol-conflict:{endpoint.endpoint_id}:width:{spec.field_id}")
+            matched_specs.append((spec, width))
+        for spec, width in matched_specs:
+            try:
+                expected_width = compile_width_expression(spec.width_expression, parameters)
+            except ProtocolWidthError as error:
+                raise SourceCrawlError(f"protocol-conflict:{endpoint.endpoint_id}:width:{spec.field_id}") from error
+            if width != expected_width:
+                raise SourceCrawlError(f"protocol-conflict:{endpoint.endpoint_id}:width:{spec.field_id}")
         candidate["status"] = "consistent"
         return [candidate]
 
@@ -487,31 +682,23 @@ class SourceCrawler:
     ) -> dict[str, object]:
         endpoint_documents: list[dict[str, object]] = []
         for endpoint in description.endpoints:
-            resolved = EndpointDescription(
-                endpoint.endpoint_id,
-                endpoint.function,
-                endpoint.required,
-                endpoint.module or description.source.top_module,
-                endpoint.hierarchy,
-                endpoint.aliases,
-                endpoint.protocol,
-                endpoint.fields,
-            )
             try:
-                ports = self._module_ports(snapshot, resolved)
+                ports, module, endpoint_evidence = self._module_ports(snapshot, endpoint, description.source.top_module)
             except SourceCrawlError:
                 if endpoint.required:
                     raise
                 continue
             fields: list[dict[str, object]] = []
             matched_names: dict[str, str] = {}
-            for field in resolved.fields:
+            for field in endpoint.fields:
                 try:
-                    port, evidence = self._field_port(resolved, field, ports)
+                    port, evidence = self._field_port(endpoint, field, ports)
                 except SourceCrawlError:
                     if field.required:
                         raise
                     continue
+                if port.name in matched_names:
+                    raise SourceCrawlError(f"duplicate-port-mapping:{endpoint.endpoint_id}:{port.name}")
                 matched_names[port.name] = field.role
                 fields.append(
                     {
@@ -525,7 +712,8 @@ class SourceCrawler:
                         "confidence": "high" if evidence != "normalized_name" else "low",
                     }
                 )
-            related = [observation for observation in snapshot.timing if set(observation.fields) & set(matched_names)]
+            related = [observation for observation in snapshot.timing
+                       if observation.module in ("", module) and set(observation.fields) & set(matched_names)]
             clocks = sorted({observation.clock for observation in related if observation.clock is not None})
             if len(clocks) > 1:
                 raise SourceCrawlError(f"clock-ambiguous:{endpoint.endpoint_id}")
@@ -541,7 +729,7 @@ class SourceCrawler:
                 {
                     "endpoint_id": endpoint.endpoint_id,
                     "function": endpoint.function,
-                    "module": resolved.module,
+                    "module": module,
                     "fields": sorted(fields, key=lambda item: str(item["role"])),
                     "clock": clocks[0] if clocks else None,
                     "reset": resets[0] if len(resets) == 1 else None,
@@ -555,7 +743,7 @@ class SourceCrawler:
                         for observation in related
                     ],
                     "protocol_candidates": self._protocol_candidates(endpoint, fields, protocol_catalog),
-                    "evidence": ["explicit_module" if endpoint.module else "source_top_module"],
+                    "evidence": [endpoint_evidence],
                     "confidence": "high",
                     "diagnostics": [],
                 }

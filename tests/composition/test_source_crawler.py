@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 from myfuzz.composition.interface_description import SourceLocator, load_interface_description
@@ -13,6 +14,9 @@ from myfuzz.composition.source_crawler import (
     annotate_interfaces,
     source_tree_hash,
 )
+from myfuzz.protocols.catalog import ProtocolCatalog
+from myfuzz.protocols.model import FieldSpec, ProtocolPlugin
+from myfuzz.contracts import ContractError
 
 
 OPAQUE_TILE = """\
@@ -37,6 +41,314 @@ def _tree_hash(root: Path, files: tuple[Path, ...]) -> str:
 
 
 class SourceCrawlerTests(unittest.TestCase):
+    def test_same_module_instance_aliases_remain_ambiguous(self) -> None:
+        temporary, root, source = self.make_source(
+            OPAQUE_TILE + "\nmodule wrapper(); opaque_tile u1(); opaque_tile u2(); endmodule"
+        )
+        self.addCleanup(temporary.cleanup)
+        description = self.description(root, source)
+        endpoint = replace(description.endpoints[0], module=None, aliases=("u1", "u2"))
+        description = replace(description, source=replace(description.source, top_module="wrapper"), endpoints=(endpoint,))
+        with self.assertRaisesRegex(SourceCrawlError, "endpoint-ambiguous"):
+            annotate_interfaces(description, base_dir=root.parent)
+
+    def test_generated_instance_is_not_flattened_into_false_hierarchy(self) -> None:
+        temporary, root, source = self.make_source(
+            OPAQUE_TILE + "\nmodule wrapper(); generate if (1) begin : scope\n"
+            "opaque_tile u_tile(); end endgenerate endmodule"
+        )
+        self.addCleanup(temporary.cleanup)
+        description = self.description(root, source)
+        endpoint = replace(description.endpoints[0], module=None, hierarchy=("wrapper", "u_tile"))
+        with self.assertRaisesRegex(SourceCrawlError, "endpoint-unresolved"):
+            annotate_interfaces(replace(description, endpoints=(endpoint,)), base_dir=root.parent)
+
+    def test_documentation_endpoint_alias_can_resolve_module(self) -> None:
+        temporary, root, source = self.make_source(OPAQUE_TILE.replace(
+            "  output logic [31:0] q_addr,", "  // myfuzz: endpoint=legacy field=address\n  output logic [31:0] q_addr,"
+        ) + "\nmodule wrapper(); endmodule")
+        self.addCleanup(temporary.cleanup)
+        description = self.description(root, source, fields=[{"role": "address"}])
+        endpoint = replace(description.endpoints[0], module=None, aliases=("legacy",))
+        description = replace(description, source=replace(description.source, top_module="wrapper"), endpoints=(endpoint,))
+        self.assertEqual(annotate_interfaces(description, base_dir=root.parent)["endpoints"][0]["module"], "opaque_tile")
+
+    def test_annotate_validates_malformed_snapshot_before_return(self) -> None:
+        temporary, root, source = self.make_source()
+        self.addCleanup(temporary.cleanup)
+        description = self.description(root, source)
+        crawler = SourceCrawler()
+        snapshot = crawler.crawl(description.source, base_dir=root.parent)
+        malformed = replace(snapshot, timing=tuple(replace(item, kind="made_up") for item in snapshot.timing))
+        with self.assertRaises(ContractError):
+            crawler.annotate(malformed, description)
+
+    def test_git_pin_supports_subdirectory_roots_and_ignores_undeclared_dirt(self) -> None:
+        temporary, root, source = self.make_source()
+        self.addCleanup(temporary.cleanup)
+        revision = self.pin_git(root.parent)
+        (root / "undeclared.sv").write_text("not HDL and not a declared input")
+        snapshot = SourceCrawler().crawl(self.description(root, source, revision=revision).source, base_dir=root.parent)
+        self.assertEqual(snapshot.modules, ("opaque_tile",))
+
+    def test_non_ansi_unpacked_and_symbolic_unpacked_shapes_are_rejected(self) -> None:
+        for text in ("module opaque_tile(q_addr); input logic q_addr [7:0]; endmodule",
+                     "module opaque_tile(input logic [3:0] q_addr [COUNT-1:0]); endmodule"):
+            with self.subTest(text=text):
+                temporary, root, source = self.make_source(text)
+                self.addCleanup(temporary.cleanup)
+                with self.assertRaisesRegex(SourceCrawlError, "unsupported-unpacked-port"):
+                    SourceCrawler().crawl(self.description(root, source).source, base_dir=root.parent)
+
+    def protocol_fixture(self, text: str = OPAQUE_TILE, *, function: str = "memory_master",
+                         widths: tuple[str, ...] = ("address_width", "1", "1", "data_width", "data_width")):
+        temporary, root, source = self.make_source(text)
+        self.addCleanup(temporary.cleanup)
+        description = self.description(root, source, protocol=["opaque-bus", "1"])
+        endpoint = replace(description.endpoints[0], function=function)
+        catalog = ProtocolCatalog((ProtocolPlugin("opaque-bus", "1", tuple(
+            FieldSpec(role, direction, width, True, 0)
+            for role, direction, width in zip(
+                ("addr", "valid", "ready", "wdata", "rdata"),
+                ("host_to_device", "host_to_device", "device_to_host", "host_to_device", "device_to_host"),
+                widths,
+            )
+        ), ()),))
+        return root, replace(description, endpoints=(endpoint,)), catalog
+
+    def test_declared_protocol_requires_catalog(self) -> None:
+        root, description, catalog = self.protocol_fixture()
+        with self.assertRaisesRegex(SourceCrawlError, "protocol-catalog-required"):
+            annotate_interfaces(description, base_dir=root.parent)
+
+    def test_declared_protocol_requires_unambiguous_orientation(self) -> None:
+        root, description, catalog = self.protocol_fixture()
+        for function in ("memory", "mysterymaster", "master_target"):
+            with self.subTest(function=function):
+                endpoint = replace(description.endpoints[0], function=function)
+                with self.assertRaisesRegex(SourceCrawlError, "protocol-orientation-ambiguous"):
+                    annotate_interfaces(replace(description, endpoints=(endpoint,)),
+                                        base_dir=root.parent, protocol_catalog=catalog)
+
+    def test_protocol_checks_both_host_and_target_directions(self) -> None:
+        for function in ("memory_host", "memory_initiator", "mmio_target", "memory_slave", "bus_device"):
+            with self.subTest(function=function):
+                root, description, catalog = self.protocol_fixture(function=function)
+                if function in ("memory_host", "memory_initiator"):
+                    document = annotate_interfaces(description, base_dir=root.parent, protocol_catalog=catalog)
+                    self.assertEqual(document["endpoints"][0]["protocol_candidates"][0]["status"], "consistent")
+                    source = root / "rtl" / "opaque_tile.sv"
+                    source.write_text(OPAQUE_TILE.replace("input  logic q_ready", "output logic q_ready"))
+                    description = replace(description, source=replace(description.source,
+                                          revision=source_tree_hash(root, (source,))))
+                with self.assertRaisesRegex(SourceCrawlError, "protocol-conflict:.*:direction:"):
+                    annotate_interfaces(description, base_dir=root.parent, protocol_catalog=catalog)
+        inverted = OPAQUE_TILE.replace("input", "TEMP").replace("output", "input").replace("TEMP", "output")
+        root, description, catalog = self.protocol_fixture(inverted, function="mmio_target")
+        self.assertEqual(annotate_interfaces(description, base_dir=root.parent, protocol_catalog=catalog)
+                         ["endpoints"][0]["protocol_candidates"][0]["status"], "consistent")
+
+    def test_protocol_rejects_fixed_and_symbolic_width_conflicts(self) -> None:
+        for text, widths in (
+            (OPAQUE_TILE.replace("logic q_valid", "logic [1:0] q_valid"), ("address_width", "1", "1", "data_width", "data_width")),
+            (OPAQUE_TILE, ("16", "1", "1", "data_width", "data_width")),
+            (OPAQUE_TILE.replace("[31:0] q_rdata", "[15:0] q_rdata"), ("address_width", "1", "1", "data_width", "data_width")),
+            (OPAQUE_TILE, ("address_width", "data_width / 8", "1", "data_width", "data_width")),
+            (OPAQUE_TILE, ("unbound / 8", "1", "1", "data_width", "data_width")),
+        ):
+            with self.subTest(widths=widths, text=text):
+                root, description, catalog = self.protocol_fixture(text, widths=widths)
+                with self.assertRaisesRegex(SourceCrawlError, "protocol-conflict:.*:width:"):
+                    annotate_interfaces(description, base_dir=root.parent, protocol_catalog=catalog)
+
+    def test_protocol_accepts_safe_symbolic_width_relations(self) -> None:
+        root, description, catalog = self.protocol_fixture(
+            OPAQUE_TILE.replace("logic q_valid", "logic [3:0] q_valid"),
+            widths=("16 * 2", "data_width / 8", "1", "data_width", "data_width"),
+        )
+        document = annotate_interfaces(description, base_dir=root.parent, protocol_catalog=catalog)
+        self.assertEqual(document["endpoints"][0]["protocol_candidates"][0]["status"], "consistent")
+
+    def test_protocol_missing_required_fields_fail_even_if_hint_optional(self) -> None:
+        root, description, catalog = self.protocol_fixture()
+        endpoint = description.endpoints[0]
+        missing = replace(endpoint.fields[0], aliases=("absent",), required=False)
+        endpoint = replace(endpoint, fields=(missing, *endpoint.fields[1:]))
+        with self.assertRaisesRegex(SourceCrawlError, "protocol-conflict:.*:missing:addr"):
+            annotate_interfaces(replace(description, endpoints=(endpoint,)), base_dir=root.parent, protocol_catalog=catalog)
+
+    def test_endpoint_resolution_uses_module_hierarchy_alias_then_top(self) -> None:
+        temporary, root, source = self.make_source(
+            OPAQUE_TILE + "\nmodule wrapper(); opaque_tile u_tile(); endmodule\n"
+        )
+        self.addCleanup(temporary.cleanup)
+        description = self.description(root, source)
+        description = replace(description, source=replace(description.source, top_module="wrapper"))
+        original = description.endpoints[0]
+        for endpoint, evidence in (
+            (replace(original, hierarchy=("invalid",), aliases=("invalid",)), "explicit_module"),
+            (replace(original, module=None, hierarchy=("wrapper", "u_tile")), "hierarchy_hint"),
+            (replace(original, module=None, hierarchy=("u_tile",)), "hierarchy_hint"),
+            (replace(original, module=None, hierarchy=("opaque_tile",)), "hierarchy_hint"),
+            (replace(original, module=None, aliases=("opaque_tile",)), "endpoint_alias"),
+            (replace(original, module=None, aliases=("u_tile",)), "endpoint_alias"),
+        ):
+            with self.subTest(endpoint=endpoint):
+                document = annotate_interfaces(replace(description, endpoints=(endpoint,)), base_dir=root.parent)
+                self.assertEqual(document["endpoints"][0]["module"], "opaque_tile")
+                self.assertIn(evidence, document["endpoints"][0]["evidence"])
+        fallback = replace(self.description(root, source), endpoints=(replace(original, module=None),))
+        self.assertIn("source_top_module", annotate_interfaces(fallback, base_dir=root.parent)["endpoints"][0]["evidence"])
+
+    def test_required_endpoint_hints_do_not_fall_back_on_failure_or_ambiguity(self) -> None:
+        temporary, root, source = self.make_source(OPAQUE_TILE + OPAQUE_TILE.replace("opaque_tile", "other_tile"))
+        self.addCleanup(temporary.cleanup)
+        description = self.description(root, source)
+        original = description.endpoints[0]
+        for endpoint, error in (
+            (replace(original, module="absent"), "endpoint-unresolved"),
+            (replace(original, module=None, hierarchy=("absent",)), "endpoint-unresolved"),
+            (replace(original, module=None, aliases=("absent",)), "endpoint-unresolved"),
+            (replace(original, module=None, aliases=("opaque_tile", "other_tile")), "endpoint-ambiguous"),
+        ):
+            with self.subTest(endpoint=endpoint):
+                with self.assertRaisesRegex(SourceCrawlError, error):
+                    annotate_interfaces(replace(description, endpoints=(endpoint,)), base_dir=root.parent)
+
+    def test_endpoint_aliases_match_documentation_tags(self) -> None:
+        temporary, root, source = self.make_source(OPAQUE_TILE.replace(
+            "  output logic [31:0] q_addr,", "  // myfuzz: endpoint=legacy field=address\n  output logic [31:0] q_addr,"
+        ))
+        self.addCleanup(temporary.cleanup)
+        description = self.description(root, source, fields=[{"role": "address"}])
+        endpoint = replace(description.endpoints[0], aliases=("legacy",))
+        document = annotate_interfaces(replace(description, endpoints=(endpoint,)), base_dir=root.parent)
+        self.assertIn("source_documentation", document["endpoints"][0]["fields"][0]["evidence"])
+
+    def test_duplicate_semantic_port_mapping_is_rejected(self) -> None:
+        temporary, root, source = self.make_source()
+        self.addCleanup(temporary.cleanup)
+        description = self.description(root, source, fields=[
+            {"role": "address", "aliases": ["q_addr"]},
+            {"role": "write_data", "aliases": ["q_addr"]},
+        ])
+        with self.assertRaisesRegex(SourceCrawlError, "duplicate-port-mapping"):
+            annotate_interfaces(description, base_dir=root.parent)
+
+    def pin_git(self, root: Path) -> str:
+        for args in (
+            ("init", "-q"), ("config", "user.email", "tests@example.invalid"),
+            ("config", "user.name", "Tests"), ("add", "."), ("commit", "-qm", "fixture"),
+        ):
+            subprocess.run(["git", "-C", str(root), *args], check=True)
+        return "git:" + subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "HEAD"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+
+    def test_git_pin_rejects_dirty_tracked_source_even_when_staged(self) -> None:
+        temporary, root, source = self.make_source()
+        self.addCleanup(temporary.cleanup)
+        locator = self.description(root, source, revision=self.pin_git(root)).source
+        source.write_text(OPAQUE_TILE.replace("[31:0]", "[15:0]"))
+        for staged in (False, True):
+            with self.subTest(staged=staged):
+                if staged:
+                    subprocess.run(["git", "-C", str(root), "add", "."], check=True)
+                with self.assertRaisesRegex(SourceCrawlError, "git-content-mismatch"):
+                    SourceCrawler().crawl(locator, base_dir=root.parent)
+
+    def test_git_pin_rejects_untracked_and_missing_declared_sources(self) -> None:
+        temporary, root, source = self.make_source()
+        self.addCleanup(temporary.cleanup)
+        locator = self.description(root, source, revision=self.pin_git(root)).source
+        extra = root / "extra.sv"
+        extra.write_text("module extra(); endmodule")
+        with self.assertRaisesRegex(SourceCrawlError, "git-content-mismatch"):
+            SourceCrawler().crawl(replace(locator, files=(*locator.files, "extra.sv")), base_dir=root.parent)
+        source.unlink()
+        with self.assertRaisesRegex(SourceCrawlError, "source-file-missing"):
+            SourceCrawler().crawl(locator, base_dir=root.parent)
+
+    def test_git_pin_verifies_nested_filelists_before_parsing(self) -> None:
+        temporary, root, source = self.make_source()
+        self.addCleanup(temporary.cleanup)
+        filelist = root / "files.f"
+        nested = root / "nested.f"
+        filelist.write_text("-f nested.f\n")
+        nested.write_text("rtl/opaque_tile.sv\n")
+        locator = replace(self.description(root, source, revision=self.pin_git(root)).source,
+                          files=(), filelist="files.f")
+        SourceCrawler().crawl(locator, base_dir=root.parent)
+        # Invalid content must be rejected by the pin guard, not parsed as a path.
+        nested.write_text("../escape.sv\n")
+        with self.assertRaisesRegex(SourceCrawlError, "git-content-mismatch"):
+            SourceCrawler().crawl(locator, base_dir=root.parent)
+        nested.write_text("rtl/opaque_tile.sv\n")
+        untracked = root / "untracked.f"
+        untracked.write_text("rtl/opaque_tile.sv\n")
+        with self.assertRaisesRegex(SourceCrawlError, "git-content-mismatch"):
+            SourceCrawler().crawl(replace(locator, filelist="untracked.f"), base_dir=root.parent)
+
+    def test_filelists_participate_in_content_pin(self) -> None:
+        temporary, root, source = self.make_source()
+        self.addCleanup(temporary.cleanup)
+        filelist = root / "files.f"
+        filelist.write_text("rtl/opaque_tile.sv\n")
+        locator = replace(self.description(root, source).source, files=(), filelist="files.f",
+                          revision=source_tree_hash(root, (source, filelist)))
+        snapshot = SourceCrawler().crawl(locator, base_dir=root.parent)
+        self.assertIn("files.f", snapshot.files)
+        filelist.write_text("# changed\nrtl/opaque_tile.sv\n")
+        with self.assertRaisesRegex(SourceCrawlError, "content-hash-mismatch"):
+            SourceCrawler().crawl(locator, base_dir=root.parent)
+
+    def test_filelist_include_options_are_contained(self) -> None:
+        temporary, root, source = self.make_source()
+        self.addCleanup(temporary.cleanup)
+        filelist = root / "files.f"
+        for option in ("+incdir+../escape", "+incdir+/tmp", "+incdir+rtl+../escape",
+                       "-I ../escape", "-I../escape"):
+            with self.subTest(option=option):
+                filelist.write_text(option + "\nrtl/opaque_tile.sv\n")
+                locator = replace(self.description(root, source).source, filelist="files.f")
+                with self.assertRaisesRegex(SourceCrawlError, "path-outside-source-root"):
+                    SourceCrawler().crawl(locator, base_dir=root.parent)
+
+    def test_filelist_safe_include_options_and_nested_paths(self) -> None:
+        temporary, root, source = self.make_source()
+        self.addCleanup(temporary.cleanup)
+        filelist = root / "files.f"
+        nested = root / "rtl" / "nested.f"
+        filelist.write_text("+incdir+rtl -Irtl\n-f rtl/nested.f\n")
+        nested.write_text("opaque_tile.sv\n")
+        locator = replace(self.description(root, source).source, files=(), filelist="files.f",
+                          revision=source_tree_hash(root, (source, filelist, nested)))
+        self.assertEqual(SourceCrawler().crawl(locator, base_dir=root.parent).modules, ("opaque_tile",))
+
+    def test_hash_frames_path_content_and_entry_boundaries(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            a, ab, c = (root / name for name in ("a", "ab", "c"))
+            a.write_bytes(b"bc")
+            ab.write_bytes(b"c")
+            self.assertNotEqual(source_tree_hash(root, (a,)), source_tree_hash(root, (ab,)))
+            a.write_bytes(b"b")
+            c.write_bytes(b"d")
+            split = source_tree_hash(root, (a, c))
+            self.assertEqual(split, source_tree_hash(root, (c, a)))
+            a.write_bytes(b"bcd")
+            self.assertNotEqual(split, source_tree_hash(root, (a,)))
+
+    def test_unpacked_ports_fail_closed_without_false_packed_width(self) -> None:
+        for declaration in ("input logic q_addr [7:0]", "input logic [31:0] q_addr [7:0]",
+                            "input logic [3:0] first, q_addr [7:0]", "input logic q_addr []"):
+            with self.subTest(declaration=declaration):
+                temporary, root, source = self.make_source(f"module opaque_tile({declaration}); endmodule")
+                self.addCleanup(temporary.cleanup)
+                with self.assertRaisesRegex(SourceCrawlError, "unsupported-unpacked-port"):
+                    SourceCrawler().crawl(self.description(root, source).source, base_dir=root.parent)
+
     def make_source(self, text: str = OPAQUE_TILE) -> tuple[tempfile.TemporaryDirectory[str], Path, Path]:
         temporary = tempfile.TemporaryDirectory()
         root = Path(temporary.name) / "opaque"
