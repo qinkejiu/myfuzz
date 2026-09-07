@@ -1,5 +1,15 @@
 # Shared native bus Task 1 evidence
 
+## Review follow-up
+
+Main reported Task 1 review PASS. The low-priority request-control assertion
+hardening now checks both PSEL/PENABLE and CYC/STB for every inactive target,
+rather than PSEL/CYC alone. No production behavior changed.
+Focused verification command:
+`PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 nice -n15 python3 -m unittest tests.integration.test_shared_native_bus`
+returned `Ran 6 tests in 1.228s`, `OK` (six real-Icarus protocol/address-map cases).
+Main's untracked RFuzz files remain untouched by this follow-up commit.
+
 Status: implemented and locally verified; independent main review remains an integration gate.
 Implementation SHA: `ab2eaa6999c58f264aae852ab901e16ea7283276`.
 This report is committed separately so the implementation SHA is exact, not self-referential.

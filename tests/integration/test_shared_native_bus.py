@@ -147,8 +147,8 @@ class SharedNativeBusTests(unittest.TestCase):
                     fabric = f"dut.u_{canonical_id('generic-component-instance', fabric_name):016x}"
                     guards = []
                     for i in range(3):
-                        select = "psel" if apb else "cyc"
-                        guards.append(f"if (!{fabric}.hit_{i} && {fabric}.t{i}_{select}) $fatal(1,\"inactive target request\");")
+                        for control in (("psel", "penable") if apb else ("cyc", "stb")):
+                            guards.append(f"if (!{fabric}.hit_{i} && {fabric}.t{i}_{control}) $fatal(1,\"inactive target {control}\");")
                     counts = f"""
 if ({fabric}.target_0.writes != 2 || {fabric}.target_1.writes != 1 ||
     {fabric}.target_2.writes != {2 if full_range else 1}) $fatal(1,"cross-target or duplicate write");
