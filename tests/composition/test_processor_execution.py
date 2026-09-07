@@ -386,9 +386,17 @@ class ProcessorExecutionTests(unittest.TestCase):
                     write_generic_composition(plan, output, base_dir=root)
                     published = output / "processor_execution.v1.json"
                     self.assertTrue(published.is_file())
+                    published_document = json.loads(published.read_text(encoding="utf-8"))
+                    self.assertEqual("processor_backend.v1", published_document["backend_route"]["schema_version"])
+                    self.assertTrue(published_document["source_hashes"])
+                    self.assertRegex(published_document["publication_hash"], r"^sha256:[0-9a-f]{64}$")
+                    planning_projection = {
+                        key: value for key, value in published_document.items()
+                        if key not in {"backend_route", "source_hashes", "publication_hash"}
+                    }
                     self.assertEqual(
                         stable_documents[-1],
-                        json.loads(published.read_text(encoding="utf-8")),
+                        planning_projection,
                     )
 
         self.assertEqual(stable_documents[0], stable_documents[1])

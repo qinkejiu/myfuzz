@@ -1460,6 +1460,24 @@ def _generic_adapter_contract(
 ) -> dict[str, object]:
     """Declare a source-independent bounded protocol implementation."""
     plugin = catalog.require(*protocol)
+    if protocol == ("processor-memory-beat", "1"):
+        limits = dict(plugin.capability_limits)
+        return {
+            "mode": "processor_memory_backend",
+            "request_field_id": "req_valid",
+            "response_field_id": "rsp_valid",
+            "error_field_id": "error",
+            "address_field_id": "addr",
+            "request_fields": [
+                field.field_id for field in plugin.fields
+                if field.direction == "host_to_device"
+            ],
+            "response_fields": [
+                field.field_id for field in plugin.fields
+                if field.direction == "device_to_host"
+            ],
+            "max_wait_cycles": int(limits["max_wait_cycles"]),
+        }
     from .generic_protocol_routes import native_contract
     try:
         native = native_contract(protocol, plugin)
@@ -1696,12 +1714,52 @@ def plan_generic_composition(
     }
     processor_execution = None
     processor_boundary = None
+    processor_backend_source = None
     processor_candidate = any(
         endpoint.function in _PROCESSOR_MEMORY_FUNCTIONS for endpoint in capabilities
     )
     if processor_candidate:
         if selected_protocol_catalog is None:
             raise AutoCompositionError("generic:protocol-catalog-required")
+        processor_boundary = build_processor_boundary(
+            capabilities, protocol_catalog=selected_protocol_catalog,
+        )
+        clock_endpoint = next(
+            endpoint for endpoint in capabilities
+            if endpoint.endpoint_id == processor_boundary.clock.endpoint_id
+        )
+        reset_endpoint = next(
+            endpoint for endpoint in capabilities
+            if endpoint.endpoint_id == processor_boundary.reset.endpoint_id
+        )
+        memory_endpoint = next(
+            endpoint for endpoint in capabilities
+            if endpoint.endpoint_id == processor_boundary.memories[0].endpoint_id
+        )
+        reset_module = endpoint_modules.get(memory_endpoint.endpoint_id)
+        if not isinstance(reset_module, str) or not reset_module:
+            raise AutoCompositionError("generic:processor-reset-module")
+        verification_view = replace(
+            memory_endpoint,
+            fields=(*memory_endpoint.fields, *clock_endpoint.fields, *reset_endpoint.fields),
+            clock=processor_boundary.clock.fields[0].port,
+            reset=processor_boundary.reset.fields[0].port,
+        )
+        verified_view = _generic_with_reset_contract(
+            verification_view, source_root, reset_module,
+        )
+        reset_markers = tuple(
+            item for item in verified_view.evidence
+            if item.startswith("reset_contract:")
+        )
+        verified_reset = replace(
+            reset_endpoint,
+            evidence=tuple(sorted(set((*reset_endpoint.evidence, *reset_markers)))),
+        )
+        capabilities = tuple(
+            verified_reset if endpoint.endpoint_id == verified_reset.endpoint_id else endpoint
+            for endpoint in capabilities
+        )
         processor_boundary = build_processor_boundary(
             capabilities, protocol_catalog=selected_protocol_catalog,
         )
@@ -1734,6 +1792,39 @@ def plan_generic_composition(
             protocol_catalog=selected_protocol_catalog,
             input_layout=layout,
         )
+        execution_route = processor_execution_document(processor_execution)["routes"][0]
+        backend_fields = {
+            item["field_id"]: item for item in execution_route["backend_contract"]["fields"]
+        }
+        backend_plugin = selected_protocol_catalog.require("processor-memory-beat", "1")
+        evidence_source = processor_boundary.memories[0].fields[0].source
+        virtual_fields = [
+            EndpointFieldFact(
+                role=spec.field_id,
+                port=f"processor_backend_{spec.field_id}",
+                direction="output" if spec.direction == "host_to_device" else "input",
+                width=int(backend_fields[spec.field_id]["width"]),
+                signed=False,
+                source=evidence_source,
+                evidence=("processor_execution_backend_contract",),
+            )
+            for spec in backend_plugin.fields
+        ]
+        virtual_fields.extend((*processor_boundary.clock.fields, *processor_boundary.reset.fields))
+        processor_backend_source = EndpointCapability(
+            endpoint_id="processor.execution.backend",
+            function="processor_memory_backend",
+            side="initiator",
+            protocol=("processor-memory-beat", "1"),
+            fields=tuple(virtual_fields),
+            clock=processor_boundary.clock.fields[0].port,
+            reset=processor_boundary.reset.fields[0].port,
+            timing=(),
+            evidence=("processor_execution.v1",),
+        )
+        endpoint_modules[processor_backend_source.endpoint_id] = endpoint_modules[
+            processor_boundary.memories[0].endpoint_id
+        ]
 
     source_prefix = request.interface_description.source.source_root.rstrip("/")
     source_files = tuple(
@@ -1786,9 +1877,14 @@ def plan_generic_composition(
                 raise AutoCompositionError(f"generic:component:{component_type}:protocol-preference")
             accepted_candidates: list[tuple[EndpointCapability, EndpointCapability, tuple[str, str], Mapping[str, object]]] = []
             for protocol in candidates:
-                sources = tuple(
-                    endpoint for endpoint in capabilities
-                    if endpoint.side == "initiator" and endpoint.protocol == protocol
+                sources = (
+                    (processor_backend_source,)
+                    if processor_backend_source is not None
+                    and protocol == ("processor-memory-beat", "1")
+                    else tuple(
+                        endpoint for endpoint in capabilities
+                        if endpoint.side == "initiator" and endpoint.protocol == protocol
+                    )
                 )
                 if not sources:
                     diagnostics.append(f"rejected:{component_type}:{protocol[0]}@{protocol[1]}:no-source-endpoint")
@@ -1834,7 +1930,8 @@ def plan_generic_composition(
                 raise AutoCompositionError(f"generic:component:{component_type}:ambiguous-protocol:{choices}")
             accepted = accepted_candidates[0]
             if accepted[0].endpoint_id in used_endpoints and accepted[2] not in {
-                ("apb", "3"), ("apb", "4"), ("wishbone", "classic")
+                ("apb", "3"), ("apb", "4"), ("wishbone", "classic"),
+                ("processor-memory-beat", "1"),
             }:
                 raise AutoCompositionError(
                     f"generic:adapter:single-target-source:{accepted[0].endpoint_id}"

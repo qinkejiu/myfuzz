@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
 import os
 import re
@@ -1516,7 +1517,481 @@ def _render_generic_adapter(route: Mapping[str, object]) -> str:
     ])
 
 
+_PROCESSOR_BEAT_FIELDS = (
+    "req_valid", "req_ready", "write", "addr", "wdata", "be",
+    "rsp_valid", "rsp_ready", "rdata", "error",
+)
+
+
+def _processor_controls(plan: object) -> tuple[str, str, dict[str, str]]:
+    """Return the processor clock/reset selected from semantic boundary facts."""
+    from .auto import _generic_endpoint_reset_contract
+    from .processor_boundary import build_processor_boundary
+
+    catalog = getattr(plan, "protocol_catalog", None)
+    if catalog is None:
+        raise ValueError("processor composition protocol catalog is missing")
+    boundary = build_processor_boundary(
+        getattr(plan, "capabilities", ()), protocol_catalog=catalog,
+    )
+    if len(boundary.clock.fields) != 1 or len(boundary.reset.fields) != 1:
+        raise ValueError("processor composition control binding is incomplete")
+    reset_endpoint = next(
+        (item for item in getattr(plan, "capabilities", ())
+         if item.endpoint_id == boundary.reset.endpoint_id),
+        None,
+    )
+    if reset_endpoint is None:
+        raise ValueError("processor composition reset evidence is missing")
+    return (
+        boundary.clock.fields[0].port,
+        boundary.reset.fields[0].port,
+        _generic_endpoint_reset_contract(reset_endpoint),
+    )
+
+
+def _processor_physical_signal(
+    physical: Mapping[str, object], signals: Mapping[str, str],
+) -> str:
+    if "port" in physical:
+        port = _sv_identifier(physical["port"], context="processor physical port")
+        if port not in signals:
+            raise ValueError("processor composition physical port is missing")
+        return signals[port]
+    port = _sv_identifier(
+        physical.get("container_port"), context="processor physical container",
+    )
+    part_select = physical.get("part_select")
+    lo, hi, width = (
+        physical.get("raw_lo"), physical.get("raw_hi"),
+        physical.get("container_width"),
+    )
+    if (
+        port not in signals or not isinstance(part_select, str)
+        or type(lo) is not int or type(hi) is not int or type(width) is not int
+        or part_select != f"[{hi}:{lo}]" or lo < 0 or hi < lo or hi >= width
+    ):
+        raise ValueError("processor composition packed mapping is invalid")
+    return signals[port] + part_select
+
+
+def _validate_processor_drivers(routes: tuple[Mapping[str, object], ...]) -> None:
+    """Prove that adapter-driven source inputs have pairwise unique ranges."""
+    claims: list[tuple[str, int | None, int | None]] = []
+    for route in routes:
+        connections = route.get("field_connections")
+        if not isinstance(connections, list | tuple):
+            raise ValueError("processor composition field connections are invalid")
+        for connection in connections:
+            if not isinstance(connection, Mapping) or connection.get("direction") != "input":
+                continue
+            physical = connection.get("physical")
+            if not isinstance(physical, Mapping):
+                raise ValueError("processor composition physical mapping is invalid")
+            if "port" in physical:
+                claim = (str(physical["port"]), None, None)
+            else:
+                lo, hi = physical.get("raw_lo"), physical.get("raw_hi")
+                if type(lo) is not int or type(hi) is not int:
+                    raise ValueError("processor composition packed mapping is invalid")
+                claim = (str(physical.get("container_port")), lo, hi)
+            for prior in claims:
+                if prior[0] != claim[0]:
+                    continue
+                if prior[1] is None or claim[1] is None or max(prior[1], claim[1]) <= min(prior[2], claim[2]):
+                    raise ValueError(f"processor composition duplicate driver: {claim[0]}")
+            claims.append(claim)
+
+
+def _render_processor_backend_module(address_width: int, data_width: int) -> str:
+    return f"""module myfuzz_processor_memory_backend (
+    input logic clk_i, input logic rst_ni,
+    input logic req_valid_i, output logic req_ready_o,
+    input logic req_write_i, input logic [{address_width - 1}:0] req_addr_i,
+    input logic [{data_width - 1}:0] req_wdata_i,
+    input logic [{data_width // 8 - 1}:0] req_be_i, input logic req_mapped_i,
+    output logic rsp_valid_o, input logic rsp_ready_i,
+    output logic [{data_width - 1}:0] rsp_rdata_o, output logic rsp_error_o,
+    input logic cancel_valid_i, output logic cancel_ready_o,
+    output logic target_req_valid_o, input logic target_req_ready_i,
+    output logic target_write_o, output logic [{address_width - 1}:0] target_addr_o,
+    output logic [{data_width - 1}:0] target_wdata_o,
+    output logic [{data_width // 8 - 1}:0] target_be_o,
+    input logic target_rsp_valid_i, output logic target_rsp_ready_o,
+    input logic [{data_width - 1}:0] target_rdata_i, input logic target_error_i
+);
+  typedef enum logic [1:0] {{IDLE, WAIT_TARGET, RESPOND, CANCEL}} state_t;
+  state_t state_q;
+  logic [{address_width - 1}:0] addr_q;
+  logic [{data_width - 1}:0] wdata_q, rdata_q;
+  logic [{data_width // 8 - 1}:0] be_q;
+  logic write_q, error_q;
+  assign req_ready_o = rst_ni && state_q == IDLE && !cancel_valid_i &&
+                       (!req_mapped_i || target_req_ready_i);
+  assign target_req_valid_o = state_q == IDLE && req_valid_i && req_mapped_i &&
+                              !cancel_valid_i;
+  assign target_write_o = state_q == IDLE ? req_write_i : write_q;
+  assign target_addr_o = state_q == IDLE ? req_addr_i : addr_q;
+  assign target_wdata_o = state_q == IDLE ? req_wdata_i : wdata_q;
+  assign target_be_o = state_q == IDLE ? req_be_i : be_q;
+  assign target_rsp_ready_o = state_q == WAIT_TARGET || state_q == CANCEL ||
+                              (state_q == IDLE && req_valid_i && req_mapped_i &&
+                               target_req_ready_i);
+  assign rsp_valid_o = state_q == RESPOND;
+  assign rsp_rdata_o = rdata_q;
+  assign rsp_error_o = error_q;
+  assign cancel_ready_o = cancel_valid_i &&
+                          (state_q == IDLE || state_q == RESPOND ||
+                           (state_q == WAIT_TARGET && target_rsp_valid_i) ||
+                           (state_q == CANCEL && target_rsp_valid_i));
+  always_ff @(posedge clk_i) begin
+    if (!rst_ni) begin
+      state_q <= IDLE; addr_q <= '0; wdata_q <= '0; be_q <= '0;
+      write_q <= 1'b0; rdata_q <= '0; error_q <= 1'b0;
+    end else begin
+      case (state_q)
+        IDLE: begin
+          if (cancel_valid_i) state_q <= IDLE;
+          else if (req_valid_i && req_ready_o) begin
+            addr_q <= req_addr_i; wdata_q <= req_wdata_i; be_q <= req_be_i;
+            write_q <= req_write_i;
+            if (!req_mapped_i) begin
+              rdata_q <= '0; error_q <= 1'b1; state_q <= RESPOND;
+            end else if (target_rsp_valid_i) begin
+              rdata_q <= target_rdata_i; error_q <= target_error_i;
+              state_q <= RESPOND;
+            end else state_q <= WAIT_TARGET;
+          end
+        end
+        WAIT_TARGET: begin
+          if (cancel_valid_i) begin
+            if (target_rsp_valid_i) state_q <= IDLE;
+            else state_q <= CANCEL;
+          end
+          else if (target_rsp_valid_i) begin
+            rdata_q <= target_rdata_i; error_q <= target_error_i;
+            state_q <= RESPOND;
+          end
+        end
+        RESPOND: begin
+          if (cancel_valid_i || rsp_ready_i) state_q <= IDLE;
+        end
+        CANCEL: begin
+          if (target_rsp_valid_i) state_q <= IDLE;
+        end
+        default: state_q <= IDLE;
+      endcase
+    end
+  end
+endmodule
+"""
+
+
+def _render_processor_top(plan: object, backend: object) -> str:
+    from .processor_backend import processor_backend_document
+    from .processor_execution import processor_execution_document
+
+    execution = processor_execution_document(getattr(plan, "processor_execution"))
+    routes = tuple(execution.get("routes", ()))
+    backend_record = processor_backend_document(backend)
+    if not routes or len(routes) not in (1, 2):
+        raise ValueError("processor composition route topology is invalid")
+    _validate_processor_drivers(routes)
+    clock_port, reset_port, reset_semantics = _processor_controls(plan)
+    all_records = {
+        str(item["source_port"]): item for item in _generic_port_records(plan)
+    }
+    internal_ports = frozenset(
+        str(physical.get("port", physical.get("container_port")))
+        for route in routes
+        for connection in route["field_connections"]
+        for physical in (connection["physical"],)
+    )
+    source_module, external = _generic_source_top(
+        plan, internal_ports=internal_ports,
+    )
+    source_signals = {
+        port: (
+            f"source_{canonical_id('generic-render-source-port', port):016x}"
+            if port in internal_ports else str(record["opaque_port"])
+        )
+        for port, record in all_records.items()
+    }
+    if clock_port not in source_signals or reset_port not in source_signals:
+        raise ValueError("processor composition control signal is missing")
+    clock_signal = source_signals[clock_port]
+    reset_signal = source_signals[reset_port]
+    if reset_semantics["polarity"] == "active_low":
+        normalized_reset = reset_signal
+    elif reset_semantics["polarity"] == "active_high":
+        normalized_reset = "processor_reset_n"
+    else:
+        raise ValueError("processor composition reset polarity is invalid")
+    if reset_semantics["synchrony"] not in {"synchronous", "asynchronous"}:
+        raise ValueError("processor composition reset synchrony is invalid")
+
+    declarations = []
+    for record in sorted(external.values(), key=lambda item: str(item["opaque_port"])):
+        width = int(record["width"])
+        shape = "logic" if width == 1 else f"logic {'signed ' if record['signed'] else ''}[{width - 1}:0]"
+        signed = " signed" if record["signed"] and width == 1 else ""
+        declarations.append(f"    {record['direction']} {shape}{signed} {record['opaque_port']}")
+    lines = [
+        "// Generated from source-backed interface annotations. Do not edit.",
+        "module generic_composition_top (", ",\n".join(declarations), ");",
+    ]
+    for port in sorted(internal_ports):
+        record = all_records.get(port)
+        if record is None:
+            raise ValueError("processor composition internal source port is missing")
+        lines.append("  " + _sv_logic(source_signals[port], int(record["width"]), signed=bool(record["signed"])) + ";")
+    if normalized_reset == "processor_reset_n":
+        lines.extend(("  logic processor_reset_n;", f"  assign processor_reset_n = ~{reset_signal};"))
+    source_connections = [
+        f"        .{_sv_identifier(port, context='source port')}({source_signals[port]})"
+        for port in sorted(all_records)
+    ]
+    lines.extend((
+        f"  {source_module}{_source_parameter_clause(plan)} u_{canonical_id('generic-source-instance', source_module):016x} (",
+        ",\n".join(source_connections), "  );",
+    ))
+
+    route_wires: list[dict[str, str]] = []
+    for route in routes:
+        tag = f"r_{int(route['route_id']):016x}"
+        widths = route.get("widths")
+        parameters = route.get("parameters")
+        if not isinstance(widths, Mapping) or not isinstance(parameters, Mapping):
+            raise ValueError("processor composition route parameters are invalid")
+        address_width, data_width = int(widths["address"]), int(widths["data"])
+        wires = {field: f"{tag}_{field}" for field in _PROCESSOR_BEAT_FIELDS}
+        wires["mapped"] = f"{tag}_mapped"
+        route_wires.append(wires)
+        for name, width in (
+            ("req_valid", 1), ("req_ready", 1), ("write", 1),
+            ("addr", address_width), ("wdata", data_width),
+            ("be", data_width // 8), ("rsp_valid", 1),
+            ("rsp_ready", 1), ("rdata", data_width), ("error", 1),
+            ("mapped", 1),
+        ):
+            lines.append("  " + _sv_logic(wires[name], width) + ";")
+        terms = [
+            f"({wires['addr']} >= {_sv_literal(address_width, int(region['base']))} && {wires['addr']} < {_sv_literal(address_width, int(region['end']))})"
+            for region in backend_record["address_decode"]["regions"]
+        ]
+        lines.append(f"  assign {wires['mapped']} = " + (" || ".join(terms) if terms else "1'b0") + ";")
+        adapter_connections = [f"        .clk_i({clock_signal})", f"        .rst_ni({normalized_reset})"]
+        for connection in route["field_connections"]:
+            physical = connection["physical"]
+            adapter_connections.append(
+                f"        .{_sv_identifier(connection['adapter_port'], context='processor adapter port')}({_processor_physical_signal(physical, source_signals)})"
+            )
+        backend_ports = {
+            item["field_id"]: item["adapter_port"]
+            for item in route["backend_contract"]["fields"]
+        }
+        for field in _PROCESSOR_BEAT_FIELDS:
+            adapter_connections.append(
+                f"        .{_sv_identifier(backend_ports[field], context='processor backend adapter port')}({wires[field]})"
+            )
+        parameter_lines = []
+        for name, value in sorted(parameters.items()):
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise ValueError("processor composition adapter parameter is invalid")
+            parameter_lines.append(f".{_sv_identifier(name, context='processor adapter parameter')}({value})")
+        lines.extend((
+            f"  {_sv_identifier(route['rtl_module'], context='processor adapter module')} #(\n        " + ",\n        ".join(parameter_lines) + f"\n  ) u_{tag} (",
+            ",\n".join(adapter_connections), "  );",
+        ))
+
+    first_widths = routes[0]["widths"]
+    address_width, data_width = int(first_widths["address"]), int(first_widths["data"])
+    backend_wires = {field: f"backend_{field}" for field in _PROCESSOR_BEAT_FIELDS}
+    lines.extend("  " + _sv_logic(backend_wires[name], width) + ";" for name, width in (
+        ("req_valid", 1), ("req_ready", 1), ("write", 1),
+        ("addr", address_width), ("wdata", data_width), ("be", data_width // 8),
+        ("rsp_valid", 1), ("rsp_ready", 1), ("rdata", data_width), ("error", 1),
+    ))
+    lines.extend(("  logic backend_cancel_valid;", "  logic backend_cancel_ready;"))
+    if len(routes) == 1:
+        wires = route_wires[0]
+        for field in ("req_valid", "write", "addr", "wdata", "be", "rsp_ready"):
+            lines.append(f"  assign {backend_wires[field]} = {wires[field]};")
+        for field in ("req_ready", "rsp_valid", "rdata", "error"):
+            lines.append(f"  assign {wires[field]} = {backend_wires[field]};")
+        lines.append("  assign backend_cancel_valid = 1'b0;")
+        backend_mapped = wires["mapped"]
+    else:
+        arbiter = backend_record["routing"]
+        initiators = backend_record["initiators"]
+        by_route = {int(route["route_id"]): wires for route, wires in zip(routes, route_wires)}
+        ordered = [by_route[int(item["route_id"])] for item in initiators]
+        connections = [f"        .clk_i({clock_signal})", f"        .rst_ni({normalized_reset})"]
+        for index, wires in enumerate(ordered):
+            for field, suffix in (
+                ("req_valid", "req_valid_i"), ("req_ready", "req_ready_o"),
+                ("write", "req_write_i"), ("addr", "req_addr_i"),
+                ("wdata", "req_wdata_i"), ("be", "req_be_i"),
+                ("mapped", "req_mapped_i"), ("rsp_valid", "rsp_valid_o"),
+                ("rsp_ready", "rsp_ready_i"), ("rdata", "rsp_rdata_o"),
+                ("error", "rsp_error_o"),
+            ):
+                connections.append(f"        .i{index}_{suffix}({wires[field]})")
+        for field, port in (
+            ("req_valid", "req_valid_o"), ("req_ready", "req_ready_i"),
+            ("write", "req_write_o"), ("addr", "req_addr_o"),
+            ("wdata", "req_wdata_o"), ("be", "req_be_o"),
+            ("rsp_valid", "rsp_valid_i"), ("rsp_ready", "rsp_ready_o"),
+            ("rdata", "rsp_rdata_i"), ("error", "rsp_error_i"),
+        ):
+            connections.append(f"        .{port}({backend_wires[field]})")
+        connections.extend((
+            "        .cancel_valid_o(backend_cancel_valid)",
+            "        .cancel_ready_i(backend_cancel_ready)",
+        ))
+        readonly = [1 if item["access"] == "read_only" else 0 for item in initiators]
+        lines.extend((
+            "  processor_memory_arbiter #(\n"
+            f"        .ADDRESS_WIDTH({address_width}), .DATA_WIDTH({data_width}),\n"
+            f"        .MAX_WAIT_CYCLES({int(backend_record['recovery']['max_wait_cycles'])}),\n"
+            f"        .INITIATOR0_READ_ONLY({readonly[0]}), .INITIATOR1_READ_ONLY({readonly[1]})\n"
+            "  ) u_processor_backend_arbiter (",
+            ",\n".join(connections), "  );",
+        ))
+        terms = [
+            f"(backend_addr >= {_sv_literal(address_width, int(region['base']))} && backend_addr < {_sv_literal(address_width, int(region['end']))})"
+            for region in backend_record["address_decode"]["regions"]
+        ]
+        backend_mapped = "backend_mapped"
+        lines.extend(("  logic backend_mapped;", "  assign backend_mapped = " + (" || ".join(terms) if terms else "1'b0") + ";"))
+    backend_connections = [
+        f"        .clk_i({clock_signal})", f"        .rst_ni({normalized_reset})",
+        "        .req_valid_i(backend_req_valid)", "        .req_ready_o(backend_req_ready)",
+        "        .req_write_i(backend_write)", "        .req_addr_i(backend_addr)",
+        "        .req_wdata_i(backend_wdata)", "        .req_be_i(backend_be)",
+        f"        .req_mapped_i({backend_mapped})", "        .rsp_valid_o(backend_rsp_valid)",
+        "        .rsp_ready_i(backend_rsp_ready)", "        .rsp_rdata_o(backend_rdata)",
+        "        .rsp_error_o(backend_error)", "        .cancel_valid_i(backend_cancel_valid)",
+        "        .cancel_ready_o(backend_cancel_ready)",
+    ]
+    target_wires = {
+        field: f"backend_target_{field}" for field in _PROCESSOR_BEAT_FIELDS
+    }
+    for name, width in (
+        ("req_valid", 1), ("req_ready", 1), ("write", 1),
+        ("addr", address_width), ("wdata", data_width), ("be", data_width // 8),
+        ("rsp_valid", 1), ("rsp_ready", 1), ("rdata", data_width), ("error", 1),
+    ):
+        lines.append("  " + _sv_logic(target_wires[name], width) + ";")
+    backend_connections.extend((
+        "        .target_req_valid_o(backend_target_req_valid)",
+        "        .target_req_ready_i(backend_target_req_ready)",
+        "        .target_write_o(backend_target_write)",
+        "        .target_addr_o(backend_target_addr)",
+        "        .target_wdata_o(backend_target_wdata)",
+        "        .target_be_o(backend_target_be)",
+        "        .target_rsp_valid_i(backend_target_rsp_valid)",
+        "        .target_rsp_ready_o(backend_target_rsp_ready)",
+        "        .target_rdata_i(backend_target_rdata)",
+        "        .target_error_i(backend_target_error)",
+    ))
+    components = getattr(plan, "components", ())
+    if not isinstance(components, tuple):
+        raise ValueError("processor composition component records are invalid")
+    response_terms: list[tuple[str, str, str, str]] = []
+    for component in components:
+        if not isinstance(component, Mapping):
+            raise ValueError("processor composition component record is invalid")
+        protocol = component.get("protocol")
+        if not isinstance(protocol, Mapping) or (protocol.get("id"), protocol.get("version")) != ("processor-memory-beat", "1"):
+            raise ValueError("processor composition backend target protocol is invalid")
+        binding = component.get("target_binding")
+        if not isinstance(binding, Mapping) or not isinstance(binding.get("fields"), list | tuple):
+            raise ValueError("processor composition backend target binding is invalid")
+        fields = {str(item["role"]): item for item in binding["fields"] if item["role"] not in {"clock", "reset"}}
+        if set(fields) != set(_PROCESSOR_BEAT_FIELDS):
+            raise ValueError("processor composition backend target fields are incomplete")
+        tag = f"c_{canonical_id('processor-backend-component', str(component['component_id'])):016x}"
+        region = next(
+            (item for item in backend_record["address_decode"]["regions"]
+             if item["component_id"] == component["component_id"]), None,
+        )
+        if region is None:
+            raise ValueError("processor composition backend target region is missing")
+        select = f"{tag}_select"
+        lines.extend((
+            f"  logic {select};",
+            f"  assign {select} = backend_target_addr >= {_sv_literal(address_width, int(region['base']))} && backend_target_addr < {_sv_literal(address_width, int(region['end']))};",
+        ))
+        component_signals: dict[str, str] = {}
+        for role, width in (
+            ("req_valid", 1), ("req_ready", 1), ("write", 1),
+            ("addr", address_width), ("wdata", data_width), ("be", data_width // 8),
+            ("rsp_valid", 1), ("rsp_ready", 1), ("rdata", data_width), ("error", 1),
+        ):
+            component_signals[role] = f"{tag}_{role}"
+            lines.append("  " + _sv_logic(component_signals[role], width) + ";")
+        lines.extend((
+            f"  assign {component_signals['req_valid']} = backend_target_req_valid && {select};",
+            f"  assign {component_signals['write']} = backend_target_write;",
+            f"  assign {component_signals['addr']} = backend_target_addr;",
+            f"  assign {component_signals['wdata']} = backend_target_wdata;",
+            f"  assign {component_signals['be']} = backend_target_be;",
+            f"  assign {component_signals['rsp_ready']} = backend_target_rsp_ready;",
+        ))
+        control = binding.get("control")
+        if not isinstance(control, Mapping):
+            raise ValueError("processor composition backend target control is invalid")
+        component_connections = [
+            f"        .{_sv_identifier(fields[role]['port'], context='processor component port')}({component_signals[role]})"
+            for role in _PROCESSOR_BEAT_FIELDS
+        ]
+        component_connections.extend((
+            f"        .{_sv_identifier(control['clock']['target_port'], context='processor component clock')}({clock_signal})",
+            f"        .{_sv_identifier(control['reset']['target_port'], context='processor component reset')}({normalized_reset})",
+        ))
+        parameter_text = []
+        parameters = component.get("parameters")
+        if not isinstance(parameters, Mapping):
+            raise ValueError("processor composition component parameters are invalid")
+        for name, value in sorted(parameters.items()):
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise ValueError("processor composition component parameter is invalid")
+            parameter_text.append(f".{_sv_identifier(name, context='processor component parameter')}({value})")
+        module_name = _sv_identifier(component["module_name"], context="processor component module")
+        parameter_clause = "" if not parameter_text else " #(\n        " + ",\n        ".join(parameter_text) + "\n  )"
+        lines.extend((
+            f"  {module_name}{parameter_clause} u_{tag} (",
+            ",\n".join(component_connections), "  );",
+        ))
+        response_terms.append((
+            f"({select} && {component_signals['req_ready']})",
+            component_signals["rsp_valid"], component_signals["rdata"],
+            component_signals["error"],
+        ))
+    if response_terms:
+        lines.append("  assign backend_target_req_ready = " + " || ".join(item[0] for item in response_terms) + ";")
+        lines.append("  assign backend_target_rsp_valid = " + " || ".join(item[1] for item in response_terms) + ";")
+        lines.append("  assign backend_target_rdata = " + " | ".join(f"({item[1]} ? {item[2]} : '0)" for item in response_terms) + ";")
+        lines.append("  assign backend_target_error = " + " || ".join(f"({item[1]} && {item[3]})" for item in response_terms) + ";")
+    else:
+        lines.extend((
+            "  assign backend_target_req_ready = 1'b0;",
+            "  assign backend_target_rsp_valid = 1'b0;",
+            "  assign backend_target_rdata = '0;",
+            "  assign backend_target_error = 1'b0;",
+        ))
+    lines.extend((
+        "  myfuzz_processor_memory_backend u_processor_memory_backend (",
+        ",\n".join(backend_connections), "  );", "endmodule", "",
+        _render_processor_backend_module(address_width, data_width),
+    ))
+    return "\n".join(lines)
+
+
 def _render_generic_top(plan: object) -> str:
+    if getattr(plan, "processor_execution", None) is not None:
+        raise ValueError("processor composition backend is required for rendering")
     routes = _generic_routes(plan)
     if not routes:
         return _render_generic_source_only_top(plan)
@@ -1921,6 +2396,17 @@ def _generic_define_options(plan: object) -> tuple[str, ...]:
     return defines
 
 
+def _processor_source_hashes(root: Path, source_files: tuple[str, ...]) -> list[dict[str, str]]:
+    records = []
+    for relative in sorted(set(source_files)):
+        source = _generic_source(root, relative)
+        records.append({
+            "path": relative,
+            "content_hash": "sha256:" + hashlib.sha256(source.read_bytes()).hexdigest(),
+        })
+    return records
+
+
 def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path) -> dict[str, object]:
     """Publish a validated generic composition without risking existing output."""
     from .auto import GenericCompositionPlan
@@ -1954,7 +2440,10 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
     # itself fails, so reject all pre-existing destinations before staging.
     if output.exists():
         raise ValueError("generic composition existing output cannot be replaced safely")
-    top_text = _render_generic_top(plan)
+    top_text = (
+        _render_processor_top(plan, backend)
+        if backend is not None else _render_generic_top(plan)
+    )
     output_parent = output.parent
     output_parent.mkdir(parents=True, exist_ok=True)
     ir_payload = canonical_bytes(_generic_plain(plan.ir))
@@ -1963,10 +2452,19 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
     backend_payload = None
     if plan.processor_execution is not None:
         from .processor_execution import processor_execution_document
-        execution_payload = canonical_bytes(
-            processor_execution_document(plan.processor_execution)
-        )
         assert backend_document is not None
+        execution_document = processor_execution_document(plan.processor_execution)
+        external_source_hashes = _processor_source_hashes(
+            root, tuple(sorted(set((*plan.source_files, *backend_sources)))),
+        )
+        source_hashes = [*external_source_hashes, {
+            "path": "generic_composition_top.sv",
+            "content_hash": "sha256:" + hashlib.sha256(top_text.encode("utf-8")).hexdigest(),
+        }]
+        execution_document["backend_route"] = backend_document
+        execution_document["source_hashes"] = source_hashes
+        execution_document["publication_hash"] = content_hash(execution_document)
+        execution_payload = canonical_bytes(execution_document)
         backend_payload = canonical_bytes(backend_document)
     transport = build_rfuzz_transport(plan.layout)
     transport_document = transport.document()
@@ -1989,6 +2487,17 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
             define_options=_generic_define_options(plan),
             top_path=stage / "generic_composition_top.sv",
         )
+        if execution_payload is not None:
+            current_hashes = _processor_source_hashes(
+                root, tuple(sorted(set((*plan.source_files, *backend_sources)))),
+            )
+            if current_hashes != external_source_hashes:
+                raise ValueError("processor composition source hash changed before publication")
+            staged_top_hash = "sha256:" + hashlib.sha256(
+                (stage / "generic_composition_top.sv").read_bytes()
+            ).hexdigest()
+            if staged_top_hash != source_hashes[-1]["content_hash"]:
+                raise ValueError("processor composition generated source hash changed before publication")
         # Re-read staged data before publishing; no destination file is touched
         # until every serialisation and renderer validation has succeeded.
         json.loads((stage / "composition_ir.json").read_text(encoding="utf-8"))
@@ -2000,6 +2509,21 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
         json.loads((stage / "rfuzz_input_transport.json").read_text(encoding="utf-8"))
         os.replace(stage, output)
         stage = None
+        if execution_payload is not None:
+            current_hashes = _processor_source_hashes(
+                root, tuple(sorted(set((*plan.source_files, *backend_sources)))),
+            )
+            published_top_hash = "sha256:" + hashlib.sha256(
+                (output / "generic_composition_top.sv").read_bytes()
+            ).hexdigest()
+            if (
+                current_hashes != external_source_hashes
+                or published_top_hash != source_hashes[-1]["content_hash"]
+            ):
+                for child in output.iterdir():
+                    child.unlink()
+                output.rmdir()
+                raise ValueError("processor composition source hash changed after publication")
     finally:
         if stage is not None and stage.exists():
             for child in stage.iterdir():
