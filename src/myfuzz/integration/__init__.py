@@ -11,7 +11,7 @@ from .experiment_matrix import (
     run_experiment_matrix,
 )
 from .pipeline import GenerationRequest, RuntimeRequest, run_candidate_pipeline
-from .low_resource_smoke import run_low_resource_smoke
+from .low_resource_smoke import run_generic_composition_smoke, run_low_resource_smoke
 from .campaign import (
     CampaignError,
     CampaignLimits,
@@ -56,6 +56,7 @@ __all__ = [
     "run_candidate_pipeline",
     "run_experiment_matrix",
     "run_low_resource_smoke",
+    "run_generic_composition_smoke",
     "read_process_group_rss_bytes",
     "read_rss_bytes",
     "run_supervised_command",

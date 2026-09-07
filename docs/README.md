@@ -20,3 +20,12 @@ kept in `PROJECT_SUMMARY_AND_ARTIFACT_INDEX_20260615.md`.
 - `reports/ibex_protocol_campaign_validation_20260906.md`: complete MVP regression, dependency preflight, low-resource 60-second soak, and evidence audit.
 - `research/protocol-research-notes.md`: source-oriented protocol notes used to cross-check the reference contract.
 - `research/component-rfuzz-research-notes.md`: source-oriented CPU/component, dependency graph, RFuzz ABI, and long-run metadata notes.
+- `generic-composition-usage.md`: source-annotated generic composition smoke, synthetic five-peripheral fixture, fail-closed cases, and the low-resource policy boundary.
+
+## Current Task8 boundary
+
+The generic smoke validates source analysis, capability matching, generated IR,
+top-level HDL, source list, and input layout. Its low-resource fields are
+returned policy metadata; this smoke does not itself enforce process RSS or
+timeouts and is not RTL simulation or an RFuzz campaign. Native APB/AXI/
+Wishbone/OBI routing and the real 3x300-second campaign remain separate work.

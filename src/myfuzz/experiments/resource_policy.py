@@ -26,6 +26,7 @@ class ResourceProfile:
     soft_memory_bytes: int
     hard_memory_bytes: int
     token_bytes: int
+    frontend_concurrency: int = 1
 
     def __post_init__(self) -> None:
         if not self.name:
@@ -42,12 +43,15 @@ class ResourceProfile:
             ("soft_memory_bytes", self.soft_memory_bytes),
             ("hard_memory_bytes", self.hard_memory_bytes),
             ("token_bytes", self.token_bytes),
+            ("frontend_concurrency", self.frontend_concurrency),
         )
         for label, value in positive:
             if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
                 raise ResourceProfileError(f"{label} must be a positive integer")
         if self.build_concurrency != 1:
             raise ResourceProfileError("low-resource build_concurrency must be 1")
+        if self.frontend_concurrency != 1:
+            raise ResourceProfileError("low-resource frontend_concurrency must be 1")
         if self.waveforms is not False:
             raise ResourceProfileError("low-resource waveforms must be false")
         if self.soft_memory_bytes >= self.hard_memory_bytes:
@@ -138,6 +142,13 @@ def apply_resource_profile(
     input_hard = positive_int("hard_memory_bytes")
     input_token = positive_int("token_bytes")
     input_build_concurrency = positive_int("build_concurrency")
+    input_frontend_concurrency = detached.get("frontend_concurrency", 1)
+    if (
+        isinstance(input_frontend_concurrency, bool)
+        or not isinstance(input_frontend_concurrency, int)
+        or input_frontend_concurrency <= 0
+    ):
+        raise ResourceProfileError("frontend_concurrency must be a positive integer")
     if not isinstance(detached.get("waveforms"), bool):
         raise ResourceProfileError("waveforms must be boolean")
     if input_soft >= input_hard:
@@ -153,6 +164,9 @@ def apply_resource_profile(
     detached["candidate_pair"] = output_pair
     detached["budgets"] = [selected_budget]
     detached["build_concurrency"] = min(input_build_concurrency, profile.build_concurrency)
+    detached["frontend_concurrency"] = min(
+        input_frontend_concurrency, profile.frontend_concurrency
+    )
     detached["waveforms"] = profile.waveforms
     detached["replay_queue_capacity"] = min(
         positive_int("replay_queue_capacity"), profile.replay_queue_capacity

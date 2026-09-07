@@ -12,6 +12,11 @@ import stat
 import tempfile
 
 from myfuzz.contracts import content_hash, validate_contract
+from myfuzz.composition import (
+    GenericCompositionRequest,
+    plan_generic_composition,
+    write_generic_composition,
+)
 from myfuzz.experiments import (
     CONSERVATIVE_PROFILE,
     ExperimentJob,
@@ -30,6 +35,37 @@ from .pipeline import GenerationRequest, RuntimeRequest, run_candidate_pipeline
 
 _MEMORY_GATE_ENV = "MYFUZZ_MEMORY_GATE_DIR"
 _MAX_JSON_BYTES = 16 * 1024 * 1024
+
+
+def _plain_json(value: object) -> object:
+    """Detach the immutable planner records into bounded JSON-shaped data."""
+    if isinstance(value, Mapping):
+        return {str(key): _plain_json(item) for key, item in value.items()}
+    if isinstance(value, (tuple, list)):
+        return [_plain_json(item) for item in value]
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    raise TypeError(f"generic smoke result is not JSON-shaped: {type(value).__name__}")
+
+
+def _generic_runtime_policy(
+    profile: ResourceProfile, timeout_seconds: int,
+) -> dict[str, object]:
+    return {
+        "enforcement": "metadata-only",
+        "build_concurrency": profile.build_concurrency,
+        "frontend_concurrency": profile.frontend_concurrency,
+        "active_workers": 1,
+        "waveforms": profile.waveforms,
+        "replay_queue_capacity": profile.replay_queue_capacity,
+        "event_ring_capacity": profile.event_ring_capacity,
+        "field_groups_per_batch": profile.field_groups_per_batch,
+        "soft_memory_bytes": profile.soft_memory_bytes,
+        "hard_memory_bytes": profile.hard_memory_bytes,
+        "timeout_seconds": timeout_seconds,
+        "rss_enforcement": "not-applied-by-generic-smoke",
+        "timeout_enforcement": "not-applied-by-generic-smoke",
+    }
 
 
 def _validate_repo_root(repo_root: Path) -> None:
@@ -232,6 +268,7 @@ def run_low_resource_smoke(
                 "dependency_graph": copy.deepcopy(manifest["dependency_graph"]),
                 "runtime_policy": {
                     "build_concurrency": plan.runtime_policy.build_concurrency,
+                    "frontend_concurrency": profile.frontend_concurrency,
                     "waveforms": plan.runtime_policy.waveforms,
                     "replay_queue_capacity": plan.runtime_policy.replay_queue_capacity,
                     "event_ring_capacity": plan.runtime_policy.event_ring_capacity,
@@ -249,4 +286,84 @@ def run_low_resource_smoke(
     return copy.deepcopy(summary)
 
 
-__all__ = ["run_low_resource_smoke"]
+def run_generic_composition_smoke(
+    repo_root: Path,
+    request: GenericCompositionRequest,
+    *,
+    output_dir: Path,
+    component_catalog: object | None = None,
+    protocol_catalog: object | None = None,
+    profile: ResourceProfile = CONSERVATIVE_PROFILE,
+    timeout_seconds: int = 60,
+) -> dict[str, object]:
+    """Run generic analysis/publication smoke and return policy metadata.
+
+    This is a functional smoke, not an RTL simulator or an RFuzz campaign.
+    It never substitutes an in-process fake DUT for a campaign.  A failed
+    analysis, source check, protocol check, or publication leaves no output
+    artifact and is reported in ``functional_diagnostics``.  The RSS and
+    timeout values returned here are metadata; this function does not launch
+    a worker and does not enforce process limits.
+    """
+    _validate_repo_root(repo_root)
+    if not isinstance(request, GenericCompositionRequest):
+        raise TypeError("request must be a GenericCompositionRequest")
+    if not isinstance(output_dir, Path):
+        raise TypeError("output_dir must be a pathlib.Path")
+    if isinstance(timeout_seconds, bool) or not isinstance(timeout_seconds, int) or timeout_seconds <= 0:
+        raise ValueError("timeout_seconds must be a positive integer")
+    if not isinstance(profile, ResourceProfile):
+        raise TypeError("profile must be a ResourceProfile")
+
+    runtime_policy = _generic_runtime_policy(profile, timeout_seconds)
+    result: dict[str, object] = {
+        "schema_version": "generic_composition_smoke.v1",
+        "status": "rejected",
+        "published": False,
+        "artifact_paths": [],
+        "annotations": {},
+        "capabilities": [],
+        "ir": {},
+        "input_layout": {},
+        "runtime_policy": runtime_policy,
+        "functional_diagnostics": [],
+        "resource_diagnostics": [],
+    }
+    try:
+        plan = plan_generic_composition(
+            request,
+            base_dir=repo_root,
+            component_catalog=component_catalog,
+            protocol_catalog=protocol_catalog,
+        )
+        artifact = write_generic_composition(plan, output_dir, base_dir=repo_root)
+        published = sorted(
+            path.as_posix()
+            for path in output_dir.iterdir()
+            if path.is_file()
+        )
+        result.update(
+            {
+                "status": "passed",
+                "published": True,
+                "artifact_paths": published,
+                "annotations": _plain_json(plan.annotations),
+                "capabilities": _plain_json(plan.ir.get("capabilities", ())),
+                "ir": _plain_json(plan.ir),
+                "input_layout": _plain_json(plan.ir.get("input_layout", {})),
+                "artifact": _plain_json(artifact),
+                "functional_diagnostics": list(plan.diagnostics),
+            }
+        )
+    except (OSError, TypeError, ValueError) as error:
+        result["functional_diagnostics"] = [
+            f"{type(error).__name__}:{error}"
+        ]
+        # Do not claim a partial publication.  The writer is atomic; files
+        # already present at the requested destination belong to the caller
+        # and are never reported as artifacts of this invocation.
+        result["artifact_paths"] = []
+    return copy.deepcopy(result)
+
+
+__all__ = ["run_generic_composition_smoke", "run_low_resource_smoke"]

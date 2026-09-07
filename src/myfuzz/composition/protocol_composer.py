@@ -1630,6 +1630,39 @@ def _validate_generic_output_boundary(
             raise ValueError("generic composition output overlaps source evidence")
 
 
+def _validate_generic_address_regions(ir: object) -> None:
+    """Reject malformed or overlapping regions before any publication work."""
+    if not isinstance(ir, Mapping):
+        raise ValueError("generic composition address map is missing")
+    raw_regions = ir.get("address_regions", ())
+    if not isinstance(raw_regions, (tuple, list)):
+        raise ValueError("generic composition address map is invalid")
+    regions: list[tuple[int, int, str]] = []
+    for index, region in enumerate(raw_regions):
+        if not isinstance(region, Mapping):
+            raise ValueError("generic composition address region is invalid")
+        base = region.get("base")
+        size = region.get("size")
+        end = region.get("end")
+        if (
+            isinstance(base, bool) or not isinstance(base, int) or base < 0
+            or isinstance(size, bool) or not isinstance(size, int) or size <= 0
+            or isinstance(end, bool) or not isinstance(end, int)
+            or end != base + size
+        ):
+            raise ValueError("generic composition address region is invalid")
+        component_id = region.get("component_id", index)
+        if not isinstance(component_id, (str, int)) or isinstance(component_id, bool):
+            raise ValueError("generic composition address region is invalid")
+        regions.append((base, end, str(component_id)))
+    for index, (base, end, component_id) in enumerate(sorted(regions)):
+        if index and base < sorted(regions)[index - 1][1]:
+            previous = sorted(regions)[index - 1][2]
+            raise ValueError(
+                f"generic composition address-overlap:{previous}:{component_id}"
+            )
+
+
 def _generic_plan_reconstruction_document(plan: object) -> dict[str, object]:
     """All planner facts that the generic renderer is allowed to consume."""
     return {
@@ -1767,6 +1800,7 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
 
     if not isinstance(plan, GenericCompositionPlan) or not plan.complete:
         raise ValueError("generic composition plan is incomplete")
+    _validate_generic_address_regions(getattr(plan, "ir", None))
     root = Path(base_dir).resolve()
     if not root.is_dir():
         raise ValueError("generic composition base_dir is missing")
