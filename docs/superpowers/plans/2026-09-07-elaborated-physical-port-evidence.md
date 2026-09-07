@@ -340,6 +340,13 @@ error response; it must never be silently dropped or rewritten.  Tests cover
 renamed initiators, independent AXI AW/W arrival, response stalls, IDs, INCR
 bursts used by ordinary instruction/data traffic, reset and timeout.
 
+The first Task 8b substep is complete and independently reviewed:
+`processor-memory-beat@1` now defines the common single-outstanding beat
+request/response boundary with byte enables, independent backpressure and
+error-qualified completion.  It is a distinct protocol identity, so the
+existing `ready-valid-mmio@1` unique-loading and behavior remain compatible.
+No OBI, AXI4 or TileLink adapter is claimed by this substep.
+
 #### Task 8c: Packed RFuzz runtime projection and connected acceptance
 
 Extend RFuzz runtime projection for external packed input containers using the

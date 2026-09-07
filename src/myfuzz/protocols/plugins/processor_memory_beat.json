@@ -1,0 +1,41 @@
+{
+  "protocol_id": "processor-memory-beat",
+  "version": "1",
+  "legal_adapters": ["width-adapter"],
+  "fields": [
+    {"field_id": "req_valid", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "req_ready", "direction": "device_to_host", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "write", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "addr", "direction": "host_to_device", "width": "address_width", "required": true, "reset_value": 0},
+    {"field_id": "wdata", "direction": "host_to_device", "width": "data_width", "required": true, "reset_value": 0, "semantic_role": "data"},
+    {"field_id": "be", "direction": "host_to_device", "width": "data_width / 8", "required": true, "reset_value": 0, "semantic_role": "byte_enable"},
+    {"field_id": "rsp_valid", "direction": "device_to_host", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "rsp_ready", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "rdata", "direction": "device_to_host", "width": "data_width", "required": true, "reset_value": 0, "semantic_role": "data"},
+    {"field_id": "error", "direction": "device_to_host", "width": "1", "required": true, "reset_value": 0}
+  ],
+  "channel_relations": [
+    {"relation_id": 1, "kind": "request_response_handshake", "field_ids": ["req_valid", "req_ready", "rsp_valid", "rsp_ready", "error"]}
+  ],
+  "capability_limits": {
+    "max_outstanding": 1,
+    "byte_enable": true,
+    "partial_write": true,
+    "stall_supported": true,
+    "completion": "ack_or_err",
+    "max_wait_cycles": 16,
+    "ordering": "in_order_single_id"
+  },
+  "projection_actions": [
+    {"action_id": 1, "field_ids": ["addr"], "kind": "mask", "category": "address_validity"},
+    {"action_id": 2, "field_ids": ["req_valid"], "kind": "gate", "category": "protocol_legality", "max_cycles": 16},
+    {"action_id": 3, "field_ids": ["wdata"], "kind": "fold_xor", "category": "dependency_consistency"},
+    {"action_id": 4, "field_ids": ["be"], "kind": "mask", "category": "dependency_consistency"},
+    {"action_id": 5, "field_ids": ["rsp_ready"], "kind": "constant", "category": "progress", "constant_value": 1}
+  ],
+  "temporal_rules": [
+    {"rule_id": 1, "kind": "handshake", "antecedent_field_id": "req_valid", "consequent_field_id": "req_ready", "max_cycles": 16},
+    {"rule_id": 2, "kind": "response_after_request", "antecedent_field_id": "req_valid", "consequent_field_id": "rsp_valid", "max_cycles": 16},
+    {"rule_id": 3, "kind": "handshake", "antecedent_field_id": "rsp_valid", "consequent_field_id": "rsp_ready", "max_cycles": 16}
+  ]
+}
