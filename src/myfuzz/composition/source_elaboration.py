@@ -391,11 +391,22 @@ def extract_physical_ports(
     *,
     top_module: str,
     source_files: Mapping[str, str],
+    selected_top_ports: Sequence[str] | None = None,
 ) -> dict[str, object]:
     """Return deterministic, source-owned physical facts for one elaborated module."""
     if not isinstance(top_module, str) or not top_module:
         raise ElaborationError("top module name is invalid")
     reader = _Reader(tree, metadata, source_files)
+    selected = None
+    if selected_top_ports is not None:
+        if (
+            not isinstance(selected_top_ports, (tuple, list))
+            or any(not isinstance(item, str) or _IDENTIFIER.fullmatch(item) is None
+                   for item in selected_top_ports)
+            or len(selected_top_ports) != len(set(selected_top_ports))
+        ):
+            raise ElaborationError("selected top ports are invalid")
+        selected = frozenset(selected_top_ports)
     modules = [
         item for item in _objects(tree)
         if item.get("type") == "MODULE" and item.get("name") == top_module
@@ -421,6 +432,8 @@ def extract_physical_ports(
             raise ElaborationError(f"duplicate port: {name}")
         if isinstance(name, str):
             names.add(name)
+        if selected is not None and name not in selected:
+            continue
         port = reader.port(port_node)
         total_members += len(port["members"])
         if total_members > _MAX_MEMBERS:
@@ -680,6 +693,7 @@ def run_verilator_elaboration(
     defines: Sequence[tuple[str, str]] = (),
     parameters: Sequence[tuple[str, str]] = (),
     warning_policy: str = "fatal",
+    selected_top_ports: Sequence[str] | None = None,
     output_dir: Path,
 ) -> Mapping[str, object]:
     """Run a bounded Verilator JSON frontend over one explicit source closure."""
@@ -714,6 +728,16 @@ def run_verilator_elaboration(
         resolved_includes.append(path)
     define_pairs = _pairs(defines, kind="define", value_pattern=_DEFINE_VALUE)
     parameter_pairs = _pairs(parameters, kind="parameter", value_pattern=_DECIMAL_INTEGER)
+    selected_ports = None
+    if selected_top_ports is not None:
+        if (
+            not isinstance(selected_top_ports, (tuple, list))
+            or any(not isinstance(item, str) or _IDENTIFIER.fullmatch(item) is None
+                   for item in selected_top_ports)
+            or len(selected_top_ports) != len(set(selected_top_ports))
+        ):
+            raise ElaborationError("selected top ports are invalid")
+        selected_ports = tuple(sorted(selected_top_ports))
     if warning_policy not in {"fatal", "recorded-nonfatal"}:
         raise ElaborationError("warning policy is unsupported")
 
@@ -769,6 +793,7 @@ def run_verilator_elaboration(
         "schema_version": "elaboration_manifest.v1",
         "top_module": top_module,
         "warning_policy": warning_policy,
+        "selected_top_ports": [] if selected_ports is None else list(selected_ports),
         "command": list(logical_command),
         "tool_version": "",
         "sources": [
@@ -900,7 +925,8 @@ def run_verilator_elaboration(
         try:
             _validate_metadata_closure(metadata, initial_closure, tool_sources)
             evidence = extract_physical_ports(
-                tree, metadata, top_module=top_module, source_files=mapping
+                tree, metadata, top_module=top_module, source_files=mapping,
+                selected_top_ports=selected_ports,
             )
         except Exception as error:
             manifest.update(status="evidence-error", error=f"{type(error).__name__}: {error}")

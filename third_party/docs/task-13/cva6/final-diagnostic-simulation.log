@@ -1,0 +1,19 @@
+AXI_AR cycle=268 addr=0000000000000080 len=0 size=3 burst=1
+BACKEND_REQ cycle=270 write=0 addr=0000000000000080 data=0000000000000000 be=ff
+BACKEND_RSP cycle=272 data=0000000000000000 error=0
+AXI_AR cycle=278 addr=0000000000000080 len=0 size=3 burst=1
+BACKEND_REQ cycle=280 write=0 addr=0000000000000080 data=0000000000000000 be=ff
+BACKEND_RSP cycle=282 data=0000000000000000 error=0
+AXI_AR cycle=288 addr=0000000000000088 len=0 size=3 burst=1
+BACKEND_REQ cycle=290 write=0 addr=0000000000000088 data=0000000000000000 be=ff
+BACKEND_RSP cycle=292 data=0000000000000000 error=0
+AXI_AR cycle=298 addr=0000000000000088 len=0 size=3 burst=1
+BACKEND_REQ cycle=300 write=0 addr=0000000000000088 data=0000000000000000 be=ff
+BACKEND_RSP cycle=302 data=0000000000000000 error=0
+AXI_AR cycle=308 addr=0000000000000090 len=0 size=3 burst=1
+BACKEND_REQ cycle=310 write=0 addr=0000000000000090 data=0000000000000000 be=ff
+BACKEND_RSP cycle=312 data=0000000000000000 error=0
+EXEC reset=1 fetches=5 progress=3 completions=5 pass=0 cycles=2000 exit=timeout
+[4001000] %Fatal: task13_tb.sv:65: Assertion failed in tb: execution timeout
+%Error: task13_tb.sv:65: Verilog $stop
+Aborting...

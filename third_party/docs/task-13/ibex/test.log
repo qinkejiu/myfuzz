@@ -1,0 +1,6 @@
+test_ibex_executes_boot_through_generated_split_obi_path (tests.integration.test_riscv_execution.RiscvExecutionTests.test_ibex_executes_boot_through_generated_split_obi_path) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 20.011s
+
+OK

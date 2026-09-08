@@ -614,7 +614,10 @@ def _instances(body: str, parent: str) -> list[tuple[str, str, str]]:
 
 
 class SourceCrawler:
-    def crawl(self, locator: SourceLocator, *, base_dir: Path) -> SourceSnapshot:
+    def crawl(
+        self, locator: SourceLocator, *, base_dir: Path,
+        selected_top_ports: tuple[str, ...] | None = None,
+    ) -> SourceSnapshot:
         if _PIN_RE.fullmatch(locator.revision) is None:
             raise SourceCrawlError("invalid-source-pin")
         if locator.repositories and not locator.revision.startswith("git:"):
@@ -766,6 +769,7 @@ class SourceCrawler:
                     defines=settings.defines,
                     parameters=settings.parameters,
                     warning_policy=settings.warning_policy,
+                    selected_top_ports=selected_top_ports,
                     output_dir=output,
                 )
                 manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
@@ -1166,8 +1170,18 @@ def annotate_interfaces(
     protocol_catalog: ProtocolCatalog | None = None,
 ) -> dict[str, object]:
     crawler = SourceCrawler()
+    selected_top_ports = tuple(sorted({
+        field.physical.port if field.physical is not None else alias
+        for endpoint in description.endpoints
+        if endpoint.module in {None, description.source.top_module}
+        for field in endpoint.fields
+        for alias in ((field.physical.port,) if field.physical is not None else field.aliases)
+    }))
     return crawler.annotate(
-        crawler.crawl(description.source, base_dir=base_dir),
+        crawler.crawl(
+            description.source, base_dir=base_dir,
+            selected_top_ports=selected_top_ports,
+        ),
         description,
         protocol_catalog=protocol_catalog,
     )

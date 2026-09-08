@@ -2587,10 +2587,8 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
         )
         backend_document = processor_backend_document(backend)
         backend_sources = backend.rtl_sources
-    sources = tuple(
-        _generic_source(root, source)
-        for source in sorted(set((*plan.source_files, *backend_sources)))
-    )
+    ordered_sources = tuple(dict.fromkeys((*plan.source_files, *backend_sources)))
+    sources = tuple(_generic_source(root, source) for source in ordered_sources)
     output = Path(output_dir).resolve()
     _validate_generic_output_boundary(plan, output, root, sources)
     # POSIX has no portable atomic replacement for a non-empty directory.  A

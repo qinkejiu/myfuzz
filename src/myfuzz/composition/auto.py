@@ -929,6 +929,7 @@ class _GenericSourceListMetadata:
     include_roots: tuple[str, ...]
     defines: tuple[str, ...]
     filelists: tuple[str, ...]
+    sources: tuple[str, ...]
 
 
 def _generic_source_list_metadata(root: Path, locator: SourceLocator) -> _GenericSourceListMetadata:
@@ -950,8 +951,15 @@ def _generic_source_list_metadata(root: Path, locator: SourceLocator) -> _Generi
     include_seen: set[Path] = set()
     defines: list[str] = []
     filelists: list[Path] = []
+    sources: list[Path] = []
+    source_seen: set[Path] = set()
+    variables = dict(locator.filelist_variables)
+    root_marker = "__MYFUZZ_SOURCE_ROOT__/"
 
     def child(parent: Path, raw: str) -> Path:
+        if raw.startswith(root_marker):
+            parent = source_root
+            raw = raw[len(root_marker):]
         raw_path = Path(raw)
         if not raw or "\\" in raw or raw_path.is_absolute() or ".." in raw_path.parts:
             raise AutoCompositionError("generic:source-list:unsafe-path")
@@ -976,6 +984,14 @@ def _generic_source_list_metadata(root: Path, locator: SourceLocator) -> _Generi
             raise AutoCompositionError("generic:source-list:invalid-define")
         defines.append(item)
 
+    def add_source(parent: Path, raw: str) -> None:
+        source = child(parent, raw)
+        if not source.is_file() or source.is_symlink():
+            raise AutoCompositionError("generic:source-list:source-missing")
+        if source not in source_seen:
+            source_seen.add(source)
+            sources.append(source)
+
     def expand(path: Path, seen: set[Path]) -> None:
         if path in seen:
             return
@@ -984,7 +1000,29 @@ def _generic_source_list_metadata(root: Path, locator: SourceLocator) -> _Generi
         seen.add(path)
         filelists.append(path)
         try:
-            tokens = iter(shlex.split(path.read_text(encoding="utf-8"), comments=True))
+            text = path.read_text(encoding="utf-8")
+            if root_marker in text:
+                raise AutoCompositionError("generic:source-list:invalid-filelist-variable")
+            text = "\n".join(
+                "" if line.lstrip().startswith("//") else line
+                for line in text.splitlines()
+            )
+            def expand_token(token: str) -> str:
+                def substitute(match: re.Match[str]) -> str:
+                    name = match.group(1)
+                    if name not in variables:
+                        raise AutoCompositionError("generic:source-list:undefined-filelist-variable")
+                    anchored = (
+                        match.start() == 0
+                        or match.start() == 2 and token.startswith("-I")
+                        or token[match.start() - 1] == "+"
+                    )
+                    return (root_marker if anchored else "") + variables[name]
+                expanded = re.sub(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}", substitute, token)
+                if "$" in expanded:
+                    raise AutoCompositionError("generic:source-list:invalid-filelist-variable")
+                return expanded
+            tokens = iter(expand_token(token) for token in shlex.split(text, comments=True))
             for item in tokens:
                 if item in ("-f", "-F"):
                     expand(child(path.parent if item == "-f" else source_root, next(tokens)), seen)
@@ -995,17 +1033,24 @@ def _generic_source_list_metadata(root: Path, locator: SourceLocator) -> _Generi
                     add_include(path.parent, next(tokens) if item == "-I" else item[2:])
                 elif item.startswith("+define+"):
                     add_define(item)
+                elif item.startswith(("-", "+")):
+                    raise AutoCompositionError("generic:source-list:unsupported-option")
+                else:
+                    add_source(path.parent, item)
         except (StopIteration, UnicodeDecodeError, ValueError) as error:
             raise AutoCompositionError("generic:source-list:invalid-filelist") from error
 
     for raw in locator.include_roots:
         add_include(source_root, raw)
+    for raw in locator.files:
+        add_source(source_root, raw)
     if locator.filelist is not None:
         expand(child(source_root, locator.filelist), set())
     return _GenericSourceListMetadata(
         include_roots=tuple(item.relative_to(root.resolve()).as_posix() for item in includes),
         defines=tuple(defines),
         filelists=tuple(item.relative_to(root.resolve()).as_posix() for item in filelists),
+        sources=tuple(item.relative_to(root.resolve()).as_posix() for item in sources),
     )
 def _generic_source_evidence_hash(
     base_dir: Path, source_files: tuple[str, ...], locator: SourceLocator,
@@ -1063,7 +1108,7 @@ def _generic_capability_document(capability: EndpointCapability) -> dict[str, ob
 
 
 _PROCESSOR_MEMORY_FUNCTIONS = frozenset({
-    "processor_memory_master", "instruction_memory_master", "data_memory_master",
+    "memory_master", "processor_memory_master", "instruction_memory_master", "data_memory_master",
 })
 
 
@@ -1404,7 +1449,10 @@ def _generic_reset_contract(endpoint: EndpointCapability, root: Path) -> dict[st
             if conditional is None:
                 continue
             condition = re.sub(r"\s+", "", conditional.group(1))
-            low = {f"!{reset.port}", f"{reset.port}==1'b0", f"1'b0=={reset.port}", f"{reset.port}==1'b0"}
+            low = {
+                f"!{reset.port}", f"~{reset.port}",
+                f"{reset.port}==1'b0", f"1'b0=={reset.port}",
+            }
             high = {reset.port, f"{reset.port}==1'b1", f"1'b1=={reset.port}"}
             polarity = "active_low" if condition in low else "active_high" if condition in high else None
             if polarity is None:
@@ -1852,20 +1900,23 @@ def plan_generic_composition(
         ]
 
     source_prefix = request.interface_description.source.source_root.rstrip("/")
-    source_files = tuple(
-        sorted(
-            f"{source_prefix}/{source_file}" if source_prefix else source_file
-            for source_file in annotations["source"]["files"]  # type: ignore[index]
-            if Path(str(source_file)).suffix in HDL_SUFFIXES
-        )
-    )
+    declared_source_files = request.interface_description.source.files
+    source_list_metadata = _generic_source_list_metadata(root, request.interface_description.source)
+    source_file_records = source_list_metadata.sources or tuple(
+        f"{source_prefix}/{source_file}" if source_prefix else str(source_file)
+        for source_file in declared_source_files
+    ) or annotations["source"]["files"]  # type: ignore[index]
+    source_files = tuple(dict.fromkeys(
+        str(source_file)
+        for source_file in source_file_records
+        if Path(str(source_file)).suffix in HDL_SUFFIXES
+    ))
     for source_file in source_files:
         _generic_source_path(root, source_file)
     if processor_execution is not None:
-        source_files = tuple(sorted(set((*source_files, *processor_execution.adapter_sources))))
+        source_files = tuple(dict.fromkeys((*source_files, *processor_execution.adapter_sources)))
         for source_file in processor_execution.adapter_sources:
             _generic_source_path(root, source_file)
-    source_list_metadata = _generic_source_list_metadata(root, request.interface_description.source)
     source_include_roots = source_list_metadata.include_roots
     elaboration = request.interface_description.source.elaboration
     source_defines = source_list_metadata.defines + (
@@ -2038,7 +2089,7 @@ def plan_generic_composition(
                 irq += 1
             address = base + size
             profiles[component_type] = profile
-            source_files = tuple(sorted(set((*source_files, *profile.source_paths))))
+            source_files = tuple(dict.fromkeys((*source_files, *profile.source_paths)))
         dependencies = _generic_dependencies(profiles)
         if dependencies:
             raise AutoCompositionError("generic:dependency:unbound-source-port")
@@ -2105,6 +2156,10 @@ def plan_generic_composition(
         processor_source_ids, stable_source_file_ids = _processor_source_records(
             root, source_files, annotations,
         )
+        stable_component_records = _generic_ir_evidence(
+            component_records, processor_source_ids,
+        )
+        stable_bindings = _generic_ir_evidence(bindings, processor_source_ids)
         stable_capabilities = _processor_capability_documents(
             capabilities, processor_source_ids,
         )
@@ -2113,6 +2168,8 @@ def plan_generic_composition(
             layout, capabilities, processor_source_ids,
         )
     else:
+        stable_component_records = component_records
+        stable_bindings = bindings
         stable_source_file_ids = [
             canonical_id("generic-source-file", item) for item in source_files
         ]
@@ -2142,10 +2199,10 @@ def plan_generic_composition(
                    "address_width": address_width if request.component_types else None},
         "interface_annotation_hash": stable_annotation_hash,
         "capabilities": stable_capabilities,
-        "components": component_records,
+        "components": stable_component_records,
         "instances": instances,
         "adapters": adapters,
-        "endpoint_bindings": bindings,
+        "endpoint_bindings": stable_bindings,
         "address_regions": regions,
         "irq_routes": irq_routes,
         "dependencies": [[f"{item[0]}0", f"{item[1]}0"] for item in dependencies],

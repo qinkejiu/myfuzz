@@ -1,0 +1,157 @@
+{
+  "schema_version": "interface_description.v1",
+  "source": {
+    "root": "third_party/rfuzz/upstream/ibex",
+    "revision": "git:34b0705760ef3dfa00e99637432473d2be8f22f3",
+    "top_module": "ibex_top",
+    "files": [
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_util_pkg.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_count_pkg.sv",
+      "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_ram_1p_pkg.sv",
+      "rtl/ibex_pkg.sv",
+      "rtl/ibex_cheriot_pkg.sv",
+      "rtl/ibex_cheriot_ex.sv",
+      "rtl/ibex_alu.sv",
+      "rtl/ibex_branch_predict.sv",
+      "rtl/ibex_compressed_decoder.sv",
+      "rtl/ibex_controller.sv",
+      "rtl/ibex_cs_registers.sv",
+      "rtl/ibex_csr.sv",
+      "rtl/ibex_counter.sv",
+      "rtl/ibex_decoder.sv",
+      "rtl/ibex_ex_block.sv",
+      "rtl/ibex_fetch_fifo.sv",
+      "rtl/ibex_id_stage.sv",
+      "rtl/ibex_if_stage.sv",
+      "rtl/ibex_load_store_unit.sv",
+      "rtl/ibex_multdiv_fast.sv",
+      "rtl/ibex_multdiv_slow.sv",
+      "rtl/ibex_prefetch_buffer.sv",
+      "rtl/ibex_pmp.sv",
+      "rtl/ibex_wb_stage.sv",
+      "rtl/ibex_dummy_instr.sv",
+      "rtl/ibex_register_file_ff.sv",
+      "rtl/ibex_trvk.sv",
+      "rtl/ibex_lockstep.sv",
+      "rtl/ibex_icache.sv",
+      "rtl/ibex_core.sv",
+      "rtl/ibex_top.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_assert.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_cipher_pkg.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_lfsr.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_mubi_pkg.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_mubi4_dec.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_pkg.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+      "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_buf.sv",
+      "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_clock_gating.sv"
+    ],
+    "include_roots": [
+      "vendor/lowrisc_ip/ip/prim/rtl",
+      "vendor/lowrisc_ip/ip/prim_generic/rtl",
+      "vendor/lowrisc_ip/dv/sv/dv_utils",
+      "vendor/pulp_common_cells/rtl"
+    ],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {"name": "PMPEnable", "value": "0"},
+        {"name": "RV32E", "value": "0"},
+        {"name": "ICache", "value": "0"},
+        {"name": "SecureIbex", "value": "0"}
+      ],
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "endpoints": [
+    {
+      "endpoint_id": "processor.instruction",
+      "function": "instruction_memory_master",
+      "protocol": ["obi", "1"],
+      "fields": [
+        {"role": "req", "aliases": ["instr_req_o"]},
+        {"role": "gnt", "aliases": ["instr_gnt_i"]},
+        {"role": "addr", "aliases": ["instr_addr_o"]},
+        {"role": "rvalid", "aliases": ["instr_rvalid_i"]},
+        {"role": "rdata", "aliases": ["instr_rdata_i"]},
+        {"role": "error", "aliases": ["instr_err_i"]}
+      ]
+    },
+    {
+      "endpoint_id": "processor.data",
+      "function": "data_memory_master",
+      "protocol": ["obi", "1"],
+      "fields": [
+        {"role": "req", "aliases": ["data_req_o"]},
+        {"role": "gnt", "aliases": ["data_gnt_i"]},
+        {"role": "addr", "aliases": ["data_addr_o"]},
+        {"role": "we", "aliases": ["data_we_o"]},
+        {"role": "wdata", "aliases": ["data_wdata_o"]},
+        {"role": "be", "aliases": ["data_be_o"]},
+        {"role": "rvalid", "aliases": ["data_rvalid_i"]},
+        {"role": "rdata", "aliases": ["data_rdata_i"]},
+        {"role": "error", "aliases": ["data_err_i"]}
+      ]
+    },
+    {
+      "endpoint_id": "processor.clock",
+      "function": "clock",
+      "fields": [{"role": "clock", "aliases": ["clk_i"]}]
+    },
+    {
+      "endpoint_id": "processor.reset",
+      "function": "reset",
+      "fields": [{"role": "reset", "aliases": ["rst_ni"]}]
+    },
+    {
+      "endpoint_id": "processor.boot",
+      "function": "boot_control",
+      "fields": [
+        {"role": "boot_address", "aliases": ["boot_addr_i"]},
+        {"role": "hart_id", "aliases": ["hart_id_i"]}
+      ]
+    },
+    {
+      "endpoint_id": "processor.interrupts",
+      "function": "interrupt_sink",
+      "fields": [
+        {"role": "software_interrupt", "aliases": ["irq_software_i"]},
+        {"role": "timer_interrupt", "aliases": ["irq_timer_i"]},
+        {"role": "external_interrupt", "aliases": ["irq_external_i"]},
+        {"role": "fast_interrupt", "aliases": ["irq_fast_i"]}
+      ]
+    },
+    {
+      "endpoint_id": "processor.debug",
+      "function": "debug_transport",
+      "fields": [{"role": "request", "aliases": ["debug_req_i"]}]
+    },
+    {
+      "endpoint_id": "processor.execution_controls",
+      "function": "observation",
+      "fields": [
+        {"role": "fetch_enable", "aliases": ["fetch_enable_i"]},
+        {"role": "scan_reset", "aliases": ["scan_rst_ni"]},
+        {"role": "test_enable", "aliases": ["test_en_i"]},
+        {"role": "counter_enable_writable", "aliases": ["mcounteren_writable_i"]},
+        {"role": "cheriot_enable", "aliases": ["cheriot_enable_i"]},
+        {"role": "trvk_heap_base", "aliases": ["trvk_heap_base_addr_i"]},
+        {"role": "instruction_integrity", "aliases": ["instr_rdata_intg_i"]},
+        {"role": "data_integrity", "aliases": ["data_rdata_intg_i"]},
+        {"role": "data_tag", "aliases": ["data_tag_i"]},
+        {"role": "trvk_grant", "aliases": ["trvk_revbm_gnt_i"]},
+        {"role": "trvk_response_valid", "aliases": ["trvk_revbm_rvalid_i"]},
+        {"role": "trvk_read_data", "aliases": ["trvk_revbm_rdata_i"]},
+        {"role": "trvk_read_integrity", "aliases": ["trvk_revbm_rdata_intg_i"]},
+        {"role": "trvk_error", "aliases": ["trvk_revbm_err_i"]},
+        {"role": "nonmaskable_interrupt", "aliases": ["irq_nm_i"]},
+        {"role": "scramble_key_valid", "aliases": ["scramble_key_valid_i"]},
+        {"role": "scramble_key", "aliases": ["scramble_key_i"]},
+        {"role": "scramble_nonce", "aliases": ["scramble_nonce_i"]}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "bounded": true,
+  "commands": {
+    "compile": [
+      "nice",
+      "-n15",
+      "verilator",
+      "--binary",
+      "--timing",
+      "--top-module",
+      "tb",
+      "-Wno-fatal",
+      "-Wno-PINMISSING",
+      "-Wno-WIDTH",
+      "-Wno-UNOPTFLAT",
+      "-j",
+      "1",
+      "--Mdir",
+      "obj_dir",
+      "-f",
+      "sources.f",
+      "task13_tb.sv"
+    ],
+    "simulation": [
+      "run/composition/obj_dir/Vtb",
+      "+riscv_boot_image=run/boot/boot.hex"
+    ]
+  },
+  "cpu_status": "incomplete-invalidated",
+  "event": {
+    "backend_completions": 8,
+    "cycles": 61,
+    "exit_reason": "pass",
+    "pass_observed": true,
+    "progress_events": 8,
+    "reset_released": true,
+    "successful_fetches": 8
+  },
+  "facts": {
+    "isa": "rv32imc",
+    "max_cycles": 400,
+    "pass_address": "0x400",
+    "pass_value": "0x600dcafe",
+    "reset_vector": "0x80",
+    "xlen": 32
+  },
+  "hashes": {
+    "boot_binary": "sha256:96a8e6a369f6f72c82b39af0ef863127690dad30c04ad2f6e2aba92fb3caa9ed",
+    "boot_elf": "sha256:2416ac77b858e03fa5df1c9cfffc0bbf7e4e0759fdc934e1512adec0bb1a3bc8",
+    "boot_hex": "sha256:2beb94087fadd5889e83e0cd3d4810c2e8aa2ee18fa49c8e2010447c088b8836",
+    "composition": "sha256:8f29d799a04916fd2f5e947a360b5265c8d4bffb71a9cdac7debb6884b997782",
+    "config": "sha256:db181ed864358817a51ede8dc8f43dca7892689ecccc5fcd45ed7a075174b3b2",
+    "generated_top": "sha256:38f0cf739b35a9fbdaa9e3f9c39f98c5fb99be8b01d740bb9fd35098d43f30e2",
+    "layout": "sha256:afd63350a53eaee94430da01be30b92ac1583af11a47767fcdee876ec8fe9599",
+    "processor_execution": "sha256:bd51179f2b0e894609b5840218e7f078dc263b2ccdba350eb396cfb4a32903c3",
+    "source_list": "sha256:53df3b5eb9ee799716c8f517b28db9e3912ac5bcb6d07294a3aeaea6ec2a6873"
+  },
+  "log_summary": {
+    "compile_returncode": 0,
+    "compile_warnings": 9,
+    "illegal_instruction_at_reset": true,
+    "simulation_returncode": 0
+  },
+  "manifest_hash": "sha256:e0fe7d17261450428cf38fe3a40fa5760ac38b7584d88977d7e102665d8f663a",
+  "peak_command_rss_kib": 301460,
+  "revision": {
+    "git": "34b0705760ef3dfa00e99637432473d2be8f22f3",
+    "nested_pins": [],
+    "root": "third_party/rfuzz/upstream/ibex"
+  },
+  "schema_version": "task13_execution_evidence.v1",
+  "tools": {
+    "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)",
+    "iverilog": "Icarus Verilog version 14.0 (devel) (f493076)",
+    "verilator": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67"
+  },
+  "validity": {
+    "accepted": false,
+    "reason": "simulator reported illegal instruction 0x00000000 at reset PC 0x80 before pass; byte-only boot.hex is loaded at RAM index 0, so execution trapped to zero before reaching the image"
+  }
+}
