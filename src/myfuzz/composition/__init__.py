@@ -68,6 +68,7 @@ from .processor_boundary import (
     ProcessorBoundaryError,
     ProcessorControlBinding,
     ProcessorMemoryBinding,
+    RequestClassification,
     build_processor_boundary,
     processor_boundary_document,
 )
@@ -172,6 +173,7 @@ __all__ = [
     "ProcessorAdapterError",
     "ProcessorControlBinding",
     "ProcessorMemoryBinding",
+    "RequestClassification",
     "ProcessorExecutionError",
     "ProcessorExecutionPlan",
     "ProcessorExecutionRoute",

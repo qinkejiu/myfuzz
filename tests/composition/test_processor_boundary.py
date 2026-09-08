@@ -92,7 +92,7 @@ def _catalog() -> ProtocolCatalog:
     ),))
 
 
-def _valid_document(*, split: bool = False) -> dict[str, object]:
+def _valid_document(*, split: bool = False, identity: bool = True) -> dict[str, object]:
     controls = [
         _endpoint("control.clock", "clock", [_field("clock", "renamed_clk", "input")]),
         _endpoint("control.reset", "reset", [_field("reset", "renamed_reset", "input")]),
@@ -118,6 +118,12 @@ def _valid_document(*, split: bool = False) -> dict[str, object]:
     else:
         memories = [_endpoint("memory.unified", "memory_master", memory_fields,
                               protocol=("test-memory", "1"), side="initiator")]
+    if identity and not split:
+        memory = memories[0]
+        assert isinstance(memory, dict)
+        fields = memory["fields"]
+        assert isinstance(fields, list)
+        fields.append(_field("instruction_identity", "mem_instr", "output", line=14))
     return {"schema_version": "interface_annotations.v1", "endpoints": controls + memories}
 
 
@@ -146,6 +152,46 @@ class ProcessorBoundaryTests(unittest.TestCase):
             ("data_memory_master", "instruction_memory_master"),
             tuple(item.function for item in boundary.memories),
         )
+
+    def test_unified_memory_uses_source_backed_instruction_identity(self) -> None:
+        document = _valid_document()
+
+        boundary = self.build(document)
+
+        self.assertEqual("explicit_signal", boundary.classification.mode)
+        self.assertEqual("instruction_identity", boundary.classification.field_role)
+        self.assertEqual("mem_instr", boundary.classification.port)
+        self.assertEqual(1, boundary.classification.instruction_value)
+        self.assertEqual(0, boundary.classification.data_value)
+
+    def test_unified_memory_without_instruction_identity_fails_closed(self) -> None:
+        with self.assertRaisesRegex(
+            ProcessorBoundaryError, "missing-instruction-identity"
+        ):
+            self.build(_valid_document(identity=False))
+
+    def test_instruction_identity_requires_output_one_bit_and_source(self) -> None:
+        for mutation, reason in (
+            (lambda field: field.update(width=2), "instruction-identity-width"),
+            (lambda field: field.update(direction="input"), "instruction-identity-direction"),
+            (lambda field: field.pop("source"), "source-evidence"),
+        ):
+            document = _valid_document(identity=False)
+            memory = document["endpoints"][-1]
+            assert isinstance(memory, dict)
+            fields = memory["fields"]
+            assert isinstance(fields, list)
+            identity = _field("instruction_identity", "mem_instr", "output")
+            mutation(identity)
+            fields.append(identity)
+            with self.subTest(reason=reason), self.assertRaisesRegex(
+                ProcessorBoundaryError, reason
+            ):
+                self.build(document)
+
+    def test_split_memory_boundary_records_function_classification(self) -> None:
+        boundary = self.build(_valid_document(split=True))
+        self.assertEqual("split_function", boundary.classification.mode)
 
     def test_read_only_obi_instruction_endpoint_uses_declared_capabilities(self) -> None:
         document = {
@@ -204,7 +250,7 @@ class ProcessorBoundaryTests(unittest.TestCase):
         mutations = (
             ("memory-side", lambda memory: memory.update(side="target")),
             ("unsupported-protocol", lambda memory: memory.update(protocol=["missing", "1"])),
-            ("required-field:read_data", lambda memory: memory["fields"].pop()),
+            ("required-field:read_data", lambda memory: memory["fields"].pop(3)),
             ("field-width:address", lambda memory: memory["fields"][1].update(width=31)),
             ("source-evidence", lambda memory: memory["fields"][0].pop("source")),
         )
@@ -344,7 +390,7 @@ class ProcessorBoundaryTests(unittest.TestCase):
         (ROOT / "third_party/cva6_upstream_reference/.git").exists(),
         "official CVA6 checkout is not materialized",
     )
-    def test_real_cva6_compiler_evidence_builds_complete_boundary(self) -> None:
+    def test_real_cva6_compiler_evidence_rejects_missing_instruction_identity(self) -> None:
         description = load_interface_description(
             ROOT / "configs/cpus/cva6/official_core_interface_description.json"
         )
@@ -354,9 +400,12 @@ class ProcessorBoundaryTests(unittest.TestCase):
         annotations = crawler.annotate(
             snapshot, description, protocol_catalog=catalog
         )
-        boundary = build_processor_boundary(
-            normalize_annotations(annotations), protocol_catalog=catalog
-        )
+        with self.assertRaisesRegex(
+            ProcessorBoundaryError, "missing-instruction-identity"
+        ):
+            build_processor_boundary(
+                normalize_annotations(annotations), protocol_catalog=catalog
+            )
         assert snapshot.elaboration_evidence is not None
         evidence = json.loads(snapshot.elaboration_evidence)
 
@@ -365,16 +414,11 @@ class ProcessorBoundaryTests(unittest.TestCase):
             snapshot.content_hash,
         )
         self.assertEqual(464, evidence["warning_summary"]["warning_count"])
-        self.assertEqual(
-            [("processor.memory.unified", "noc_resp_i", 210, 210)],
-            [(item.endpoint_id, item.port, item.width, item.covered_bits)
-             for item in boundary.packed_input_containers],
+        memory_annotation = next(
+            item for item in annotations["endpoints"]
+            if item["function"] == "memory_master"
         )
-        self.assertEqual(45, len(boundary.memories[0].fields))
-        self.assertEqual(16, len(boundary.memories[0].extension_fields))
-        adapter = resolve_processor_adapter(boundary.memories[0])
-        self.assertEqual("axi4-to-processor-memory-beat", adapter.adapter_id)
-        self.assertEqual(("axi4", "1"), adapter.source_protocol)
+        self.assertEqual(45, len(memory_annotation["fields"]))
         layout = build_input_layout(annotations)
         packed_ports = RuntimeProjector(layout).project_ports(
             (1 << layout.raw_width) - 1

@@ -27,6 +27,20 @@ class ProcessorMemoryBinding:
 
 
 @dataclass(frozen=True, slots=True)
+class RequestClassification:
+    mode: str
+    endpoint_id: str | None
+    field_role: str | None
+    field: EndpointFieldFact | None
+    instruction_value: int
+    data_value: int
+
+    @property
+    def port(self) -> str | None:
+        return None if self.field is None else self.field.port
+
+
+@dataclass(frozen=True, slots=True)
 class ProcessorControlBinding:
     endpoint_id: str
     function: str
@@ -48,6 +62,7 @@ class ProcessorBoundary:
     memories: tuple[ProcessorMemoryBinding, ...]
     controls: tuple[ProcessorControlBinding, ...]
     packed_input_containers: tuple[PackedInputContainer, ...]
+    classification: RequestClassification | None = None
 
 
 _MEMORY_FUNCTIONS = frozenset(
@@ -221,6 +236,39 @@ def _packed_input_coverage(
     return tuple(result)
 
 
+def _request_classification(
+    memories: tuple[ProcessorMemoryBinding, ...],
+) -> RequestClassification:
+    functions = {memory.function for memory in memories}
+    if functions and functions <= {
+        "instruction_memory_master", "data_memory_master"
+    } and len(memories) <= 2:
+        if any(
+            field.role == "instruction_identity"
+            for memory in memories for field in memory.fields
+        ):
+            raise ProcessorBoundaryError("classification-with-split-memory")
+        return RequestClassification("split_function", None, None, None, 1, 0)
+    if len(memories) != 1 or functions not in ({"memory_master"}, {"processor_memory_master"}):
+        raise ProcessorBoundaryError("ambiguous-memory")
+    memory = memories[0]
+    identity = [
+        field for field in memory.fields if field.role == "instruction_identity"
+    ]
+    if not identity:
+        raise ProcessorBoundaryError("missing-instruction-identity")
+    if len(identity) != 1:
+        raise ProcessorBoundaryError("duplicate-instruction-identity")
+    field = identity[0]
+    if field.direction != "output":
+        raise ProcessorBoundaryError("instruction-identity-direction")
+    if field.width != 1:
+        raise ProcessorBoundaryError("instruction-identity-width")
+    return RequestClassification(
+        "explicit_signal", memory.endpoint_id, field.role, field, 1, 0
+    )
+
+
 def build_processor_boundary(
     endpoints: Sequence[EndpointCapability], *, protocol_catalog: ProtocolCatalog
 ) -> ProcessorBoundary:
@@ -252,6 +300,7 @@ def build_processor_boundary(
         (_validate_memory(endpoint, protocol_catalog) for endpoint in memory_endpoints),
         key=lambda item: (item.function, item.endpoint_id),
     ))
+    classification = _request_classification(memories)
 
     controls: list[ProcessorControlBinding] = []
     for function in sorted(_OPTIONAL_CONTROL_FUNCTIONS):
@@ -306,6 +355,7 @@ def build_processor_boundary(
         memories,
         tuple(controls),
         _packed_input_coverage(endpoints),
+        classification,
     )
 
 
@@ -366,4 +416,13 @@ def processor_boundary_document(boundary: ProcessorBoundary) -> dict[str, object
             }
             for item in boundary.packed_input_containers
         ],
+        "classification": {
+            "mode": boundary.classification.mode,
+            "endpoint_id": boundary.classification.endpoint_id,
+            "field_role": boundary.classification.field_role,
+            "instruction_value": boundary.classification.instruction_value,
+            "data_value": boundary.classification.data_value,
+            **({"field": _field_document(boundary.classification.field)}
+               if boundary.classification.field is not None else {}),
+        } if boundary.classification is not None else None,
     }
