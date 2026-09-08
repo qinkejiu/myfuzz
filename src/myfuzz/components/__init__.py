@@ -1,6 +1,11 @@
 """Closed peripheral capability and dependency catalog."""
 
-from .catalog import ComponentCatalog, load_builtin_component_catalog, load_component_catalog
+from .catalog import (
+    ComponentCatalog,
+    load_builtin_component_catalog,
+    load_component_catalog,
+    load_real_component_catalog,
+)
 from .model import (
     ComponentDefinitionError,
     Dependency,
@@ -32,4 +37,5 @@ __all__ = [
     "ProtocolFeatureSpec",
     "load_builtin_component_catalog",
     "load_component_catalog",
+    "load_real_component_catalog",
 ]

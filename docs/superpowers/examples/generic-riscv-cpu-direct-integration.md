@@ -138,7 +138,50 @@ PYTHONPATH=src python3 examples/real_ibex_rfuzz/run_example.py test \
 `processor_execution.v1.json`、`contract_transducer.json` 和 `sources.f`。测试结果至少
 应记录 compose、编译、随机激励、feedback receipt、corpus、同构建重放和独立重建重放。
 
-## 5. Fail-closed 诊断
+## 5. 真实 CPU × 真实外设矩阵
+
+仓库中的 `scripts/run_real_cpu_peripheral_matrix.py` 用同一套 generic planner 验证多个
+真实 CPU 与多个真实外设的重复组合：
+
+```bash
+PYTHONPATH=src python3 scripts/run_real_cpu_peripheral_matrix.py \
+  --seed 20260909 \
+  --out-dir examples/real_cpu_peripheral_matrix/results
+```
+
+每个组合执行以下闭环：
+
+```text
+上游 CPU checkout + revision
+  → interface_description（split OBI instruction/data）
+  → ProcessorExecution OBI adapter
+  → processor-memory-beat@1
+  → profile/source closure/address allocation
+  → real target wrapper
+  → TL-UL、AXI4-Lite 或 APB4 bridge
+  → 真实 RAM/UART/SPI/Timer/GPIO
+  → plan/publication → Verilator lint → 有界时钟 smoke（2048 边沿）
+```
+
+CPU wrapper 只补充上游顶层没有的通用错误字段，不替换 CPU 的 OBI 行为。CV32E40P
+没有架构化 OBI error 输入，因此有效 error 响应会在仿真 shell 中 `$fatal`；本矩阵只验收
+无 error 路径，生产接入需要 CPU 专用异常桥。Ibex、CV32E40P、CV32E20 使用 32 位
+目标；CVA6 使用 64 位 wrapper。`real_ram64` 由两个一致性 32 位 bank 组成，保留完整
+beat；64 位 UART/SPI/Timer/GPIO 只转换一个对齐 lane，双 lane、未对齐访问和禁止的部分
+写会 fail-closed 地产生 `error`，不会静默截断或写入真实模块；TL 桥会保留 `+4` 高 lane
+的 32 位读写语义。真实目标的 profile 源码
+闭包位于 `configs/designs/ibex_multicomponent_ip/rtl/real_targets/`，其内部桥接分别为
+TL-UL（RAM）、AXI4-Lite（UART/SPI）和 APB4（Timer/GPIO）。IRQ 在本轮 smoke 中固定为零，
+因此不能把该结果解读为中断覆盖；smoke 检查的是公共 backend 的请求/响应活动，并未逐个
+访问每个外设寄存器；CVA6 的 smoke 周期额外覆盖了其复位 I-cache 清空。
+
+种子 `20260909` 产生 9 个组合，9/9 同时通过 planner、publication、Verilator lint 和
+smoke；四种 CPU 出现次数为 Ibex 2、CV32E40P 2、CV32E20 2、CVA6 3。每个 32 位真实
+外设在兼容 CPU 组合中至少复用两次。JSON/text 报告分别记录组合顺序、桥接协议、位宽、
+复用计数和失败诊断。CV32 上游仓库只放在运行时临时的已提交 source root 中，默认不会
+写入或清理用户的 `third_party/`；需要检查中间产物时使用 `--keep-artifacts`。
+
+## 6. Fail-closed 诊断
 
 约束发布没有 `instruction_identity` 时，转导器校验返回
 `missing-instruction-identity`；方向错误、宽度错误、重复字段、无源证据或交错 split/unified

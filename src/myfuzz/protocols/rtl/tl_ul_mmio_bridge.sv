@@ -62,16 +62,44 @@ module tl_ul_mmio_bridge #(
     logic                     write_q;
     logic [DATA_WIDTH-1:0]    wdata_q;
     logic [(DATA_WIDTH/8)-1:0] be_q;
+    logic [(DATA_WIDTH/8)-1:0] mask_q;
+    logic [2:0]               size_q;
     logic [WAIT_COUNTER_WIDTH-1:0] wait_count_q;
     logic rsp_valid_q;
     logic [DATA_WIDTH-1:0] rsp_rdata_q;
     logic rsp_error_q;
 
+    function automatic [2:0] request_size(
+        input logic [ADDRESS_WIDTH-1:0] address
+    );
+        begin
+            // A 64-bit processor beat can address either 32-bit lane.  Keep
+            // the upper lane as a legal 32-bit TL transfer at offset +4;
+            // all 32-bit requests and the aligned full 64-bit lane retain
+            // the bridge's native transfer size.
+            request_size = (DATA_WIDTH == 64 && address[2:0] == 3'b100) ?
+                           3'd2 : TRANSFER_SIZE;
+        end
+    endfunction
+
+    function automatic [(DATA_WIDTH/8)-1:0] request_mask(
+        input logic write,
+        input logic [ADDRESS_WIDTH-1:0] address,
+        input logic [(DATA_WIDTH/8)-1:0] byte_enable
+    );
+        begin
+            request_mask = write ? byte_enable : FULL_MASK;
+            if (!write && DATA_WIDTH == 64 && address[2:0] == 3'b100) begin
+                request_mask = 8'hf0;
+            end
+        end
+    endfunction
+
     wire a_take = a_valid_o && a_ready_i;
     wire d_take = d_valid_i && d_ready_o;
     wire d_shape_error = (d_opcode_i != (write_q ? 3'd0 : 3'd1)) ||
                          (d_param_i != 2'b00) ||
-                         (d_size_i != TRANSFER_SIZE) ||
+                         (d_size_i != size_q) ||
                          (d_source_i != 1'b0) || (d_sink_i != 1'b0);
     wire d_error = d_shape_error || d_denied_i || d_corrupt_i;
 
@@ -84,10 +112,10 @@ module tl_ul_mmio_bridge #(
     assign a_opcode_o = !a_valid_o ? 3'd0 :
                         !write_q ? 3'd4 : (be_q == FULL_MASK ? 3'd0 : 3'd1);
     assign a_param_o = 3'd0;
-    assign a_size_o = TRANSFER_SIZE;
+    assign a_size_o = size_q;
     assign a_source_o = 1'b0;
     assign a_address_o = a_valid_o ? addr_q : '0;
-    assign a_mask_o = !a_valid_o ? '0 : (!write_q ? FULL_MASK : be_q);
+    assign a_mask_o = !a_valid_o ? '0 : mask_q;
     assign a_data_o = a_valid_o ? wdata_q : '0;
     assign a_corrupt_o = 1'b0;
     assign d_ready_o = (state_q == D_CHANNEL) && !rsp_valid_q;
@@ -99,6 +127,8 @@ module tl_ul_mmio_bridge #(
             write_q <= 1'b0;
             wdata_q <= '0;
             be_q <= '0;
+            mask_q <= '0;
+            size_q <= TRANSFER_SIZE;
             wait_count_q <= '0;
             rsp_valid_q <= 1'b0;
             rsp_rdata_q <= '0;
@@ -116,6 +146,8 @@ module tl_ul_mmio_bridge #(
                         write_q <= req_write_i;
                         wdata_q <= req_wdata_i;
                         be_q <= req_be_i;
+                        mask_q <= request_mask(req_write_i, req_addr_i, req_be_i);
+                        size_q <= request_size(req_addr_i);
                         state_q <= A_CHANNEL;
                     end
                 end

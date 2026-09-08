@@ -1,0 +1,20 @@
+{
+  "component_type": "real_spi64",
+  "module_name": "real_axi_spi_target64",
+  "protocols": [["processor-memory-beat", "1"]],
+  "address_alignment": 4096,
+  "default_size": 4096,
+  "irq_capable": false,
+  "requires": [],
+  "source_status": "implemented",
+  "source_paths": [
+    "configs/designs/ibex_multicomponent_ip/rtl/real_targets/real_axi_spi_target64.sv",
+    "configs/designs/ibex_multicomponent_ip/rtl/real_targets/real_64_to_32_lane.sv",
+    "src/myfuzz/protocols/rtl/axi4_lite_mmio_bridge.sv",
+    "src/myfuzz/protocols/rtl/axi4_lite_mmio_target.sv",
+    "configs/designs/ibex_multicomponent_ip/rtl/ibex_mcip_spi.sv"
+  ],
+  "implemented": true,
+  "parameter_limits": {},
+  "protocol_features": {"processor-memory-beat@1": ["reset_flush"]}
+}

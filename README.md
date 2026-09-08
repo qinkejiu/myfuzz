@@ -94,6 +94,44 @@ flags. Tuning flags require `--constrained`. In constrained mode, missing or
 ambiguous instruction identity is rejected before any output is published;
 unconstrained mode may still be used to inspect a protocol-only route.
 
+### Real CPU × real peripheral matrix
+
+The repository also contains a deterministic matrix runner for source-backed
+Ibex, CV32E40P, CV32E20, and CVA6 targets. It composes each CPU through its
+declared OBI/AXI interface, maps the common `processor-memory-beat@1` contract
+through the existing bridges, and instantiates real RAM, UART, SPI, Timer, and
+GPIO RTL targets. Run it from the repository root:
+
+```bash
+PYTHONPATH=src python3 scripts/run_real_cpu_peripheral_matrix.py \
+  --seed 20260909 \
+  --out-dir examples/real_cpu_peripheral_matrix/results
+```
+
+The runner clones the two CV32 upstream repositories into a temporary,
+committed provenance directory, so it does not modify `third_party/`. Use
+`--keep-artifacts` when the temporary source checkouts and generated
+compositions are needed for inspection. The target wrappers are in
+`configs/designs/ibex_multicomponent_ip/rtl/real_targets/`; they expose the
+same generic beat contract while using TL-UL for RAM, AXI4-Lite for UART/SPI,
+and APB4 for Timer/GPIO. CVA6 uses corresponding 64-bit wrappers: RAM keeps
+both 32-bit lanes in coherent banks, while 32-bit MMIO targets accept one
+aligned full-lane access and return an explicit error for unsupported lane or
+partial-write shapes. The clocked smoke is bounded to 2048 edges (enough for
+CVA6's reset-time I-cache clear), and external IRQ pins are tied off. The
+64-bit TL bridge preserves the +4 high-lane read/write case as a legal 32-bit
+transfer. CV32E40P has no architectural OBI error pin; an error response
+therefore terminates the simulation with `$fatal`, so its matrix evidence
+intentionally covers only the no-error path until a core-specific exception
+bridge is added. The smoke checks shared backend request/response activity,
+not a functional access to every individual peripheral register.
+
+With seed `20260909`, the matrix produced 9/9 successful cases: every case
+passed generic planning, publication, Verilator lint, and the generated smoke
+test. Ibex, CV32E40P, CV32E20, and CVA6 appeared 2, 2, 2, and 3 times. Each
+32-bit real peripheral profile appeared at least twice across compatible CPU
+cases; the report records the exact reuse counts in `matrix_report.json`.
+
 ## Build
 
 Keep the frontend build single-core unless there is enough memory:

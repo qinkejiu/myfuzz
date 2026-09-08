@@ -450,6 +450,179 @@ class TileLinkUlRtlTest(unittest.TestCase):
             )
             self.assertIn("PASS", run_result.stdout)
 
+    def test_wide_bridge_preserves_high_lane_read_and_write(self) -> None:
+        """A 64-bit beat at +4 must become a legal 32-bit TL high-lane access."""
+        iverilog = shutil.which("iverilog")
+        vvp = shutil.which("vvp")
+        if iverilog is None or vvp is None:
+            self.skipTest("Icarus Verilog is not installed")
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary_path = Path(temporary_directory)
+            testbench = temporary_path / "tl_ul_wide_lane_tb.sv"
+            executable = temporary_path / "tl_ul_wide_lane_tb.vvp"
+            testbench.write_text(
+                textwrap.dedent(
+                    """
+                    module tb;
+                        logic clk_i = 1'b0;
+                        logic rst_ni = 1'b0;
+                        logic req_valid_i, req_write_i, req_ready_o;
+                        logic [63:0] req_addr_i, req_wdata_i;
+                        logic [7:0] req_be_i;
+                        logic rsp_valid_o, rsp_ready_i, rsp_error_o;
+                        logic [63:0] rsp_rdata_o;
+                        logic a_valid, a_ready, a_corrupt;
+                        logic [2:0] a_opcode, a_param, a_size;
+                        logic [0:0] a_source;
+                        logic [63:0] a_address, a_data;
+                        logic [7:0] a_mask;
+                        logic d_valid, d_ready, d_denied, d_corrupt;
+                        logic [2:0] d_opcode, d_size;
+                        logic [1:0] d_param;
+                        logic [0:0] d_source, d_sink;
+                        logic [63:0] d_data;
+                        logic target_valid, target_write, target_error;
+                        logic [63:0] target_addr, target_wdata, target_rdata;
+                        logic [7:0] target_be;
+
+                        tl_ul_mmio_bridge #(.ADDRESS_WIDTH(64), .DATA_WIDTH(64)) bridge (
+                            .clk_i, .rst_ni, .req_valid_i, .req_write_i, .req_addr_i,
+                            .req_wdata_i, .req_be_i, .req_ready_o, .rsp_valid_o,
+                            .rsp_ready_i, .rsp_rdata_o, .rsp_error_o, .a_valid_o(a_valid),
+                            .a_ready_i(a_ready), .a_opcode_o(a_opcode), .a_param_o(a_param),
+                            .a_size_o(a_size), .a_source_o(a_source), .a_address_o(a_address),
+                            .a_mask_o(a_mask), .a_data_o(a_data), .a_corrupt_o(a_corrupt),
+                            .d_valid_i(d_valid), .d_ready_o(d_ready), .d_opcode_i(d_opcode),
+                            .d_param_i(d_param), .d_size_i(d_size), .d_source_i(d_source),
+                            .d_sink_i(d_sink), .d_denied_i(d_denied), .d_data_i(d_data),
+                            .d_corrupt_i(d_corrupt)
+                        );
+
+                        tl_ul_mmio_target #(.ADDRESS_WIDTH(64), .DATA_WIDTH(64)) target (
+                            .clk_i, .rst_ni, .a_valid_i(a_valid), .a_ready_o(a_ready),
+                            .a_opcode_i(a_opcode), .a_param_i(a_param), .a_size_i(a_size),
+                            .a_source_i(a_source), .a_address_i(a_address), .a_mask_i(a_mask),
+                            .a_data_i(a_data), .a_corrupt_i(a_corrupt), .d_valid_o(d_valid),
+                            .d_ready_i(d_ready), .d_opcode_o(d_opcode), .d_param_o(d_param),
+                            .d_size_o(d_size), .d_source_o(d_source), .d_sink_o(d_sink),
+                            .d_denied_o(d_denied), .d_data_o(d_data), .d_corrupt_o(d_corrupt),
+                            .valid_o(target_valid), .write_o(target_write), .addr_o(target_addr),
+                            .wdata_o(target_wdata), .be_o(target_be), .rdata_i(target_rdata),
+                            .ready_i(1'b1), .error_i(target_error)
+                        );
+
+                        always #5 clk_i = ~clk_i;
+
+                        task automatic check(input bit condition, input [8*160-1:0] message);
+                            if (!condition) begin
+                                $display("FAIL: %0s", message);
+                                $fatal(1);
+                            end
+                        endtask
+
+                        task automatic tick;
+                            @(posedge clk_i);
+                            #1;
+                        endtask
+
+                        task automatic complete_request;
+                            while (!rsp_valid_o) tick;
+                            check(!rsp_error_o, "wide request should complete without an error");
+                            @(negedge clk_i);
+                            rsp_ready_i = 1'b1;
+                            tick;
+                            rsp_ready_i = 1'b0;
+                        endtask
+
+                        initial begin
+                            req_valid_i = 0; req_write_i = 0; req_addr_i = 0;
+                            req_wdata_i = 0; req_be_i = 0; rsp_ready_i = 0;
+                            target_rdata = 64'h1122_3344_5566_7788; target_error = 0;
+                            tick;
+                            rst_ni = 1;
+
+                            // Read the upper 32-bit lane.  AXI/APB-like callers
+                            // provide no read strobe; the TL bridge derives f0
+                            // from address bit 2 and changes the transfer size to 4 bytes.
+                            @(negedge clk_i);
+                            req_valid_i = 1; req_write_i = 0; req_addr_i = 64'h4; req_be_i = 0;
+                            tick;
+                            check(a_valid && a_size == 3'd2 && a_address == 64'h4 && a_mask == 8'hf0,
+                                  "high-lane read must use a 4-byte TL transfer and f0 mask");
+                            @(negedge clk_i);
+                            req_valid_i = 0;
+                            tick;
+                            check(target_valid && !target_write && target_addr == 64'h4 && target_be == 8'hf0,
+                                  "high-lane read must reach the native target at +4");
+                            complete_request;
+
+                            // The matching high-lane write must preserve data and strobe.
+                            @(negedge clk_i);
+                            req_valid_i = 1; req_write_i = 1; req_addr_i = 64'h4;
+                            req_wdata_i = 64'haabb_ccdd_eeff_0011; req_be_i = 8'hf0;
+                            tick;
+                            check(a_valid && a_size == 3'd2 && a_address == 64'h4 && a_mask == 8'hf0
+                                  && a_data == 64'haabb_ccdd_eeff_0011,
+                                  "high-lane write must preserve size, address, mask and data");
+                            @(negedge clk_i);
+                            req_valid_i = 0;
+                            tick;
+                            check(target_valid && target_write && target_addr == 64'h4
+                                  && target_be == 8'hf0 && target_wdata == 64'haabb_ccdd_eeff_0011,
+                                  "high-lane write must reach the native target at +4");
+                            complete_request;
+
+                            // Native errors still propagate through the bridge.
+                            @(negedge clk_i);
+                            target_error = 1; req_valid_i = 1; req_write_i = 0;
+                            req_addr_i = 64'h4; req_be_i = 0;
+                            tick;
+                            @(negedge clk_i);
+                            req_valid_i = 0;
+                            while (!rsp_valid_o) tick;
+                            check(rsp_error_o && rsp_rdata_o == 0,
+                                  "native high-lane errors must be reported to the caller");
+                            $display("PASS");
+                            $finish;
+                        end
+                    endmodule
+                    """
+                ),
+                encoding="utf-8",
+            )
+            compile_result = subprocess.run(
+                [
+                    iverilog, "-g2012", "-s", "tb", "-o", str(executable),
+                    str(RTL_DIR / "tl_ul_mmio_bridge.sv"),
+                    str(RTL_DIR / "tl_ul_mmio_target.sv"),
+                    str(testbench),
+                ],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(
+                compile_result.returncode,
+                0,
+                msg=compile_result.stdout + compile_result.stderr,
+            )
+            run_result = subprocess.run(
+                [vvp, str(executable)],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=20,
+            )
+            self.assertEqual(
+                run_result.returncode,
+                0,
+                msg=run_result.stdout + run_result.stderr,
+            )
+            self.assertIn("PASS", run_result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -35,7 +35,7 @@ from .endpoint_capabilities import (
 )
 from .ids import canonical_id
 from .input_layout import InputLayout, build_input_layout, input_layout_document
-from .interface_description import InterfaceDescription
+from .interface_description import ElaborationSettings, InterfaceDescription
 from .ir import canonical_ir_document, canonical_ir_hash
 from .processor_boundary import build_processor_boundary
 from .processor_execution import (
@@ -1366,7 +1366,29 @@ def _generic_target_capability(
             top_module=profile.module_name,
             files=profile.source_paths,
         )
-        snapshot = SourceCrawler().crawl(locator, base_dir=root)
+        try:
+            snapshot = SourceCrawler().crawl(locator, base_dir=root)
+        except SourceCrawlError as error:
+            # Real protocol bridges commonly use parameterized packed widths
+            # (for example ``DATA_WIDTH/8``).  The source-only crawler must
+            # remain fail-closed for unresolved component interfaces, but a
+            # parameterized dependency can be proven safely by elaborating the
+            # selected wrapper top.  Retry only for the narrow parser errors
+            # that elaboration resolves; all other source failures propagate.
+            if str(error) not in {
+                "unsupported-port-width",
+                "unsupported-port-type",
+                "unsupported-unpacked-port",
+            }:
+                raise
+            locator = replace(
+                locator,
+                elaboration=ElaborationSettings(
+                    frontend="verilator-json",
+                    warning_policy="recorded-nonfatal",
+                ),
+            )
+            snapshot = SourceCrawler().crawl(locator, base_dir=root)
     except (SourceCrawlError, OSError, ValueError) as error:
         raise AutoCompositionError(f"generic:component:{profile.component_type}:target-binding:source") from error
     ports = [port for port in snapshot.ports if port.module == profile.module_name]

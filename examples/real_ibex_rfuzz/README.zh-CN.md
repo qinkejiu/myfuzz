@@ -235,6 +235,59 @@ revision 并重新验证端口，再由协议 ID/版本选择适配器，最后�
 `rfuzz_input_transport.json` 和 `sources.f` 可直接交给后续 Verilator/RFuzz 测试。只做
 接线检查时可省略 `--constrained` 以及 ISA 参数；调优参数必须和 `--constrained` 一起使用。
 
+### 真实 CPU × 真实外设矩阵
+
+要快速验证 CPU 接入不是 Ibex 特化路径，可运行仓库级矩阵命令：
+
+```bash
+PYTHONPATH=src python3 scripts/run_real_cpu_peripheral_matrix.py \
+  --seed 20260909 \
+  --out-dir examples/real_cpu_peripheral_matrix/results
+```
+
+自动组合和测试的结构是：
+
+```text
+临时 checkout CV32E40P/CV32E20
+  → 读取 CPU interface_description / OBI 字段
+  → ProcessorExecution 选择 OBI 适配器
+  → 归一化为 processor-memory-beat@1
+  → 选择 real_* profile 和地址窗口
+  → target wrapper 内部调用协议桥
+  → 真实 RTL 外设（RAM/UART/SPI/Timer/GPIO）
+  → 生成 top、sources.f、证据 JSON
+  → Verilator lint + 有界时钟 smoke（2048 个边沿）
+```
+
+本轮 CPU 与协议映射如下：
+
+| CPU | 数据宽度 | 组合中使用的真实目标 | 目标内部桥接协议 |
+| --- | ---: | --- | --- |
+| Ibex | 32 | `real_ram/uart/spi/timer/gpio` | TL-UL / AXI4-Lite / APB4 |
+| CV32E40P | 32 | 同上 32 位目标 | TL-UL / AXI4-Lite / APB4 |
+| CV32E20 | 32 | 同上 32 位目标 | TL-UL / AXI4-Lite / APB4 |
+| CVA6 | 64 | `real_ram64/uart64/spi64/timer64/gpio64` | TL-UL / AXI4-Lite / APB4 |
+
+`real_*` wrapper 只负责把通用 beat 字段接到已有真实模块；它不按 CPU 名称猜地址或
+操作类型。32 位 RAM/UART/SPI/Timer/GPIO 在不同 CPU 组合中重复使用，CVA6 使用独立的
+64 位 wrapper，避免静默截断：`real_ram64` 用高低两个一致性 32 位 bank 保留完整
+64 位 beat；64 位 UART/SPI/Timer/GPIO 只接受一个对齐的 32 位 lane，双 lane、未对齐
+访问或不支持的部分写会通过 `error` 返回且不会送入真实外设；TL 桥会把 `+4` 高 lane
+读写归一化为合法的 32 位传输。CV32E40P 上游 OBI 没有架构化 error 输入，因此该
+shell 在有效 error 响应上用 `$fatal` 终止，矩阵只证明无 error 路径，生产接入仍需
+CPU 专用异常桥。矩阵中的 IRQ 外部引脚固定为零，smoke 只检查公共 backend 有请求/响应
+活动，不等同于逐个外设寄存器功能覆盖。
+
+为保证 CPU 先从合法指令存储取指，每个组合都把 RAM 放在第一个地址窗口；随机种子只
+打乱执行顺序，不改变这组候选组合。9 个组合为：Ibex 两组、CV32E40P 两组、CV32E20
+两组，以及 CVA6 三组（每组均为 RAM 加两个不同真实外设）。
+
+固定种子 `20260909` 的结果为 **9/9**：每个组合均通过 plan、publication、Verilator
+lint 和 smoke。Ibex/CV32E40P/CV32E20/CVA6 分别出现 2/2/2/3 次；具体组合、复用计数和
+失败诊断写入 `matrix_report.json` 与 `matrix_report.txt`。需要保留临时上游源码和每个
+组合产物时追加 `--keep-artifacts`；默认运行结束会清理临时 checkout，不会改写
+`third_party/`。
+
 ```bash
 bash examples/real_ibex_rfuzz/commands.sh check
 ```

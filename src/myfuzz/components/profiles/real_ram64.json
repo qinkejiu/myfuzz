@@ -1,0 +1,19 @@
+{
+  "component_type": "real_ram64",
+  "module_name": "real_tl_ram_target64",
+  "protocols": [["processor-memory-beat", "1"]],
+  "address_alignment": 8,
+  "default_size": 65536,
+  "irq_capable": false,
+  "requires": [],
+  "source_status": "implemented",
+  "source_paths": [
+    "configs/designs/ibex_multicomponent_ip/rtl/real_targets/real_tl_ram_target64.sv",
+    "src/myfuzz/protocols/rtl/tl_ul_mmio_bridge.sv",
+    "src/myfuzz/protocols/rtl/tl_ul_mmio_target.sv",
+    "configs/designs/ibex_multicomponent_ip/rtl/ibex_mcip_ram.sv"
+  ],
+  "implemented": true,
+  "parameter_limits": {"WORDS": [16384, 16384]},
+  "protocol_features": {"processor-memory-beat@1": ["reset_flush"]}
+}

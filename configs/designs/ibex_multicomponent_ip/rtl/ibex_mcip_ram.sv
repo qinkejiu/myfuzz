@@ -1,5 +1,6 @@
 module ibex_mcip_ram #(
-    parameter int WORDS = 64
+    parameter int WORDS = 64,
+    parameter bit COHERENT = 1'b0
 ) (
     input  logic        clk_i,
     input  logic        rst_ni,
@@ -32,7 +33,8 @@ module ibex_mcip_ram #(
     end
 
     always_comb begin
-        read_word = mem_q[word_index] ^ {addr_i[15:0], seed_i[15:0]};
+        read_word = COHERENT ? mem_q[word_index] :
+                    (mem_q[word_index] ^ {addr_i[15:0], seed_i[15:0]});
         if (addr_i[1:0] != 2'b00) begin
             read_word = 32'hbad0_0001 ^ addr_i;
         end

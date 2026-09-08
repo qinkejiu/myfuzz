@@ -586,12 +586,29 @@ def load_component_catalog(path: str | Path) -> ComponentCatalog:
 @lru_cache(maxsize=1)
 def load_builtin_component_catalog() -> ComponentCatalog:
     """Return the cached catalog shipped with MyFuzz."""
-    return load_component_catalog(Path(__file__).with_name("profiles"))
+    directory = Path(__file__).with_name("profiles")
+    # Keep the long-standing built-in inventory stable.  Real-RTL matrix
+    # targets are opt-in and loaded through ``load_real_component_catalog`` so
+    # existing consumers do not silently gain a new runtime namespace.
+    sources = tuple(sorted(directory.glob("*.json")))
+    sources = tuple(source for source in sources if not source.name.startswith("real_"))
+    return ComponentCatalog(tuple(_load_profile(source) for source in sources))
+
+
+@lru_cache(maxsize=1)
+def load_real_component_catalog() -> ComponentCatalog:
+    """Return the opt-in source-backed profiles used by the real matrix."""
+    directory = Path(__file__).with_name("profiles")
+    sources = tuple(sorted(directory.glob("real_*.json")))
+    if not sources:
+        raise ComponentDefinitionError(f"real profile directory contains no JSON profiles: {directory}")
+    return ComponentCatalog(tuple(_load_profile(source) for source in sources))
 
 
 __all__ = [
     "ComponentCatalog",
     "ComponentDefinitionError",
     "load_builtin_component_catalog",
+    "load_real_component_catalog",
     "load_component_catalog",
 ]
