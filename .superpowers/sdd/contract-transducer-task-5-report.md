@@ -87,3 +87,93 @@ Final regression: **106 passed in 0.31s**, exit 0. Both diff checks exited 0.
 - The caller schedules fixed header reset/execution cycles; the reference step
   does not autonomously count or inject resets. RTL rendering and Python/RTL
   equivalence are Task 6 work, not claimed by these Python tests.
+
+## Approved review fixes: provenance, complete beats, and header versions
+
+Status: COMPLETE
+
+Fix implementation commit: `b124c1445f5a2d1d25eeca32dc0f12ce33e05063`
+
+This section supersedes the initial report's data-to-instruction cache behavior,
+instruction-slot limitation, and cycle-field descriptions. Changes were limited
+to `contract_transducer.py`, `cycle_input.py`, their two test modules, and this
+report. Existing user changes to `task-2-report.md` were preserved untouched.
+
+Each allocated beat now tracks read-only exposed provenance:
+`instruction_generated`, `data_generated`, or `cpu_written`. A fetch of a
+data-generated beat completes with protocol error and zero data, regardless of
+random-error injection settings. It does not alter cached memory. Successful
+CPU byte writes mark the beat CPU-written; subsequent fetches preserve the CPU's
+actual bytes, including self-modifying code. Existing instruction-generated
+beats remain coherent across instruction/data reads. Test begin clears provenance;
+DUT reset preserves it. Writes with no enabled bytes do not change provenance
+or consume capacity. Partial CPU writes to absent beats preserve written lanes;
+the first subsequent read initializes only missing bytes from raw response data.
+
+Generated instruction beats are now complete: base mode independently repairs
+every 32-bit slot; compressed mode independently repairs every 16-bit slot.
+There is no mixed-slot mode or instruction crossing the end of a generated beat.
+With C and alignment 2, `instruction_compressed` is a dedicated RFuzz mode bit.
+A first fetch at address modulo 4 equal to 2 forces compressed mode, so a
+halfword-aligned boot such as `0x82` starts at an instruction boundary. Cached
+beats remain byte-identical on repeated fetches. Without compressed capability,
+the mode bit is absent and all slots are 32 bits. Explicit illegal-instruction
+test mode remains supported through the existing header flag.
+
+`instruction_payload` now spans the full data width. `instruction_selector`
+selects slot zero; `instruction_selector_1` through the required final index
+select subsequent slots independently. Selector count is data width divided by
+16 when compressed operation is supported, otherwise data width divided by 32.
+Each selector is eight independent bits. Payload bits are partitioned into
+nonoverlapping slots of the selected width. All fields, addressing/slot/provenance
+policies, and the supported header version enter the canonical plan/hash.
+External fields remain separate and sorted.
+
+`cycle_input.TEST_HEADER_SCHEMA_VERSION` is the single supported value,
+`cycle_test.v1`. Both `TestHeader` construction and `ContractRuntime.begin_test`
+enforce it. The latter rechecks even a manually tampered frozen header before
+clearing any test state.
+
+### Additional RED evidence
+
+```sh
+PYTHONPATH=src python3 -m pytest tests/composition/test_protocol_transducer.py tests/composition/test_contract_transducer.py tests/composition/test_cycle_input.py -q
+```
+
+Before implementation: **26 failed, 58 passed**. Failures showed unguarded
+data-generated instruction fetches, illegal upper 64-bit instruction slots,
+missing independent slot selectors/compressed mode, and unsupported header
+versions being accepted. After the fixes: **84 passed**.
+
+Self-review added a zero-byte-enable write regression before changing allocation:
+
+```sh
+PYTHONPATH=src python3 -m pytest tests/composition/test_contract_transducer.py -q --tb=short
+```
+
+RED: **1 failed, 56 passed**; an empty write incorrectly exhausted a one-entry
+store. The fix makes empty writes complete without allocation or mutation.
+
+### Final GREEN evidence and self-review
+
+```sh
+PYTHONPATH=src python3 -m pytest tests/composition/test_protocol_transducer.py tests/composition/test_contract_transducer.py tests/composition/test_constraint_ir.py tests/composition/test_cycle_input.py tests/composition/test_coherent_memory.py tests/isa/test_instruction_transducer.py -q
+git diff --check
+git diff --cached --check
+```
+
+Final result: **135 passed in 0.30s**, including the original 106 regression cases
+with approved changed assertions and 29 additional cases. Both diff checks passed.
+
+Self-review checked every generated 16/32-bit slot with the ISA provider across
+32/64-bit beats, C/non-C contracts, independent selectors and payload slices,
+both raw compressed mode values at boot `0x82`, cache repetition, data conflict
+without mutation, CPU full/partial writes, reset/begin-test provenance lifetime,
+and header rejection without clearing prior contents. Existing protocol timing,
+bounded waiting, capacity, domain, and error regressions remain green.
+
+Remaining boundary: a cached beat is returned verbatim; the model does not
+reinterpret arbitrary later CPU control flow into the middle of an existing
+32-bit instruction. CPU-written contents and explicitly requested illegal
+instruction tests intentionally bypass the generated-legal-content guarantee.
+RTL rendering/equivalence remains Task 6 work. No unresolved Task 5 review issue.
