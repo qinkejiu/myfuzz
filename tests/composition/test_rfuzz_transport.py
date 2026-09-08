@@ -75,6 +75,16 @@ class RfuzzTransportTests(unittest.TestCase):
         self.assertEqual(document["padding_bits"], 51)
         self.assertNotEqual(document["transport_hash"], rfuzz_transport.build_rfuzz_transport(layout(14)).document()["transport_hash"])
 
+    def test_unpack_records_returns_complete_cycles_and_truncated_tail(self):
+        transport = rfuzz_transport.build_rfuzz_transport(layout(13))
+        payload = transport.pack(7) + transport.pack(8) + b"tail"
+
+        records, truncated_bytes = transport.unpack_records(payload)
+
+        self.assertEqual(records, (7, 8))
+        self.assertEqual(truncated_bytes, 4)
+        self.assertEqual(transport.unpack_records(payload, max_records=1), ((7,), 4))
+
     def test_transport_preserves_multi_component_raw_slices(self):
         fields = (LayoutField("a", "peripheral.a", "control", 4, 0, 3, "raw", {}),
                   LayoutField("b", "peripheral.b", "data", 9, 4, 12, "raw", {}))

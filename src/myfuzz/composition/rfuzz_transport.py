@@ -45,6 +45,26 @@ class RfuzzInputTransport:
             raise ValueError("transport record contains nonzero padding")
         return value >> self.padding_bits
 
+    def unpack_records(self, payload: bytes, *, max_records: int | None = None) -> tuple[tuple[int, ...], int]:
+        """Decode complete records and report bytes left after the final record.
+
+        The payload is intentionally not padded.  ``max_records`` limits the
+        decoded prefix while ``truncated_bytes`` still describes the payload's
+        incomplete tail, if any.
+        """
+        if not isinstance(payload, bytes):
+            raise ValueError("transport payload must be bytes")
+        if max_records is not None and (type(max_records) is not int or max_records < 0):
+            raise ValueError("transport max records must be nonnegative")
+        count, truncated_bytes = divmod(len(payload), self.byte_count)
+        if max_records is not None:
+            count = min(count, max_records)
+        records = tuple(
+            self.unpack(payload[index * self.byte_count:(index + 1) * self.byte_count])
+            for index in range(count)
+        )
+        return records, truncated_bytes
+
     def document(self) -> dict[str, object]:
         document = {
             "schema_version": "rfuzz_input_transport.v1",

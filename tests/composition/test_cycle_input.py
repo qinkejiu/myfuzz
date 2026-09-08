@@ -1,0 +1,85 @@
+from dataclasses import replace
+
+import pytest
+
+from myfuzz.composition.cycle_input import (
+    CycleField,
+    CycleInputError,
+    CycleInputLayout,
+    TestHeader,
+    parse_cycle_payload,
+)
+from myfuzz.composition.rfuzz_transport import RfuzzInputTransport
+
+
+def header(layout: CycleInputLayout, *, cycles: int = 2) -> TestHeader:
+    return TestHeader(
+        schema_version="cycle_test.v1",
+        layout_hash=layout.layout_hash,
+        contract_hash="sha256:contract",
+        reset_cycles=1,
+        execution_cycles=cycles,
+        boot_address=0x1000,
+        hart_id=0,
+    )
+
+
+def test_payload_is_split_into_equal_records_without_padding() -> None:
+    layout = CycleInputLayout.build((CycleField("instruction_entropy", 32), CycleField("response", 2)))
+    transport = RfuzzInputTransport(layout.raw_width, layout.layout_hash)
+    records = (transport.pack(1), transport.pack(2))
+
+    case = parse_cycle_payload(b"".join(records) + b"x", layout, header(layout, cycles=3))
+
+    assert case.raw_cycles == (1, 2)
+    assert case.truncated_bytes == 1
+
+
+def test_header_hash_mismatch_is_rejected() -> None:
+    layout = CycleInputLayout.build((CycleField("payload", 7),))
+    transport = RfuzzInputTransport(layout.raw_width, layout.layout_hash)
+    record = transport.pack(3)
+
+    with pytest.raises(CycleInputError, match="layout hash"):
+        parse_cycle_payload(record, layout, replace(header(layout), layout_hash="wrong"))
+
+
+def test_layout_fields_have_contiguous_offsets_and_stable_hash() -> None:
+    layout = CycleInputLayout.build((CycleField("first", 3), CycleField("second", 5)))
+
+    assert layout.raw_width == 8
+    assert [(field.name, field.raw_lo, field.raw_hi) for field in layout.fields] == [
+        ("first", 0, 2),
+        ("second", 3, 7),
+    ]
+    assert layout.layout_hash == CycleInputLayout.build(
+        (CycleField("first", 3), CycleField("second", 5))
+    ).layout_hash
+    assert layout.layout_hash != CycleInputLayout.build(
+        (CycleField("second", 5), CycleField("first", 3))
+    ).layout_hash
+
+
+def test_payload_records_are_capped_at_execution_cycles() -> None:
+    layout = CycleInputLayout.build((CycleField("payload", 9),))
+    transport = RfuzzInputTransport(layout.raw_width, layout.layout_hash)
+    payload = b"".join(transport.pack(value) for value in (4, 5, 6))
+
+    case = parse_cycle_payload(payload, layout, header(layout, cycles=2))
+
+    assert case.raw_cycles == (4, 5)
+    assert case.truncated_bytes == 0
+
+
+def test_invalid_cycle_header_values_are_rejected() -> None:
+    layout = CycleInputLayout.build((CycleField("payload", 1),))
+
+    with pytest.raises(CycleInputError, match="execution cycles"):
+        parse_cycle_payload(b"", layout, replace(header(layout), execution_cycles=-1))
+
+
+def test_layout_rejects_duplicate_or_invalid_fields() -> None:
+    with pytest.raises(CycleInputError, match="duplicate"):
+        CycleInputLayout.build((CycleField("same", 1), CycleField("same", 2)))
+    with pytest.raises(CycleInputError, match="width"):
+        CycleInputLayout.build((CycleField("zero", 0),))
