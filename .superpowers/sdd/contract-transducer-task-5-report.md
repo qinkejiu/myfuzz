@@ -177,3 +177,48 @@ reinterpret arbitrary later CPU control flow into the middle of an existing
 32-bit instruction. CPU-written contents and explicitly requested illegal
 instruction tests intentionally bypass the generated-legal-content guarantee.
 RTL rendering/equivalence remains Task 6 work. No unresolved Task 5 review issue.
+
+## Follow-up: architectural halfword boot with aligned bus requests
+
+Status: COMPLETE
+
+Implementation commit: `5d7adbad5896f82f8dab0e080a36ed547c080fcf`
+
+The previous halfword check used the normalized request address alone. A DUT
+can clear its low address bits before issuing the fetch, losing the architectural
+boot offset. The runtime now also uses its saved test header: on first instruction
+generation, if the aligned requested beat contains `header.boot_address` and
+that boot address is 2 modulo 4, the entire beat uses compressed slots. Thus
+boot `0x82` and bus request `0x80` are handled correctly with raw mode bit zero.
+The plan's hash-bound addressing policy explicitly names both request and boot
+entry offsets.
+
+`begin_test` already saves the validated header, and DUT reset retains it. The
+new tests verify that lifetime and verify a later test with boot `0x80` returns
+to raw-selected base mode. Beats not containing the boot address still obey the
+raw mode selector. Cached repeated reads are unchanged.
+
+RED command:
+
+```sh
+PYTHONPATH=src python3 -m pytest tests/composition/test_contract_transducer.py -q --tb=short
+```
+
+Before the fix: **2 failed, 58 passed**. Both 32-bit and 64-bit beats failed
+per-halfword ISA validation for boot `0x82`, request `0x80`, raw mode zero.
+
+GREEN command:
+
+```sh
+PYTHONPATH=src python3 -m pytest tests/composition/test_protocol_transducer.py tests/composition/test_contract_transducer.py tests/composition/test_constraint_ir.py tests/composition/test_cycle_input.py tests/composition/test_coherent_memory.py tests/isa/test_instruction_transducer.py -q
+git diff --check
+git diff --cached --check
+```
+
+Result: **138 passed in 0.30s**, including the original 135 cases and three new
+cases. Both diff checks passed. Self-review confirms the saved boot offset is
+used only during first instruction generation, preserved through DUT reset,
+replaced at test begin, and scoped to the matching aligned beat. No CPU-name
+conditionals were introduced. Only the Task 5 runtime/test and this report changed;
+user task-2-report and third-party files were untouched. No unresolved follow-up
+issue; RTL equivalence remains separate Task 6 work.
