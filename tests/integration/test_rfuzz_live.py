@@ -372,6 +372,8 @@ sys.exit(0)
             path.write_text(json.dumps(entry))
             result = replay(artifact, corpus)
             self.assertEqual(result["entries"], 1)
+            self.assertEqual(result["replays"][0].get("trace_sha256"),
+                             "sha256:" + hashlib.sha256(bytes(entry["trace_bits"])).hexdigest())
             entry["trace_bits"][0] = 0
             path.write_text(json.dumps(entry))
             with self.assertRaisesRegex(ValueError, "coverage mismatch"):

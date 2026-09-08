@@ -247,3 +247,190 @@ Files changed: the six example/config/docs/result files; `real_cpu_campaign.py`,
 and three integration test modules; this report. The existing
 `test_ibex_protocol_campaign_smoke.py` requires no source change and is included in
 the project regression.
+
+## Independent-review fixes after `8180065`
+
+Both Important findings were valid. The review-fix work followed the
+systematic-debugging and test-driven-development skills: reproduce each missing
+invariant first, change the boundary that owns it, then rerun the actual RTL
+pipeline. Earlier evidence above is retained as historical evidence, not silently
+replaced by the final review-fix measurements below.
+
+### Response ownership across consecutive tests
+
+The original framing fix rejected already-queued duplicates, but a response did
+not identify its request. A child could consume the complete second request and
+then emit a delayed response for the first request. The pre-send stdout check
+cannot distinguish this from legitimate second-test feedback, irrespective of
+read chunk size. The new real-pipe regression controls this ordering by reading
+the second request before releasing the stale frame; it uses no sleep or timing
+window. The old implementation accepted `first=00`, `second=01` instead of
+rejecting the stale response (the second result belongs to a different request).
+
+The generated simulator and Python host now use internal protocol version 2:
+
+```text
+startup:  RFUZZ_READY 2
+request:  <16 lowercase hexadecimal request-id digits> <decimal cycle count>
+          <raw input hex lines>
+response: RFUZZ_COUNTERS <same 16 lowercase hexadecimal request-id digits> <counters> [EXEC ...]
+```
+
+IDs are monotonic nonzero uint64 values across the host simulator object's
+lifetime, including isolated child restarts. They never enter DUT inputs or
+replay identities. The generated testbench rejects nonmonotonic requests; the
+host requires the exact echoed ID before accepting counters or execution metrics,
+closes on mismatch, and refuses uint64 exhaustion instead of wrapping. Ordinary
+diagnostic stdout remains bounded and reported by the existing diagnostic path.
+Versionless/unsupported old simulator binaries fail explicitly with a rebuild
+instruction: accepting their uncorrelated replies would restore the defect.
+Legacy unconstrained designs and execution-monitor mode still work when rebuilt;
+the official client's external shared-memory protocol is unchanged.
+
+An initial decimal-ID implementation exposed a Verilator signed-decimal boundary
+at IDs >= 2^63. Expanded real Icarus/Verilator tests first failed at that boundary,
+then passed after fixed-width hexadecimal encoding. Tests cover reuse, isolation,
+the upper uint64 half and the maximum ID. The intermediate decimal acceptance
+artifacts were preserved at
+`runs/examples/contract-rfuzz-review-decimal-intermediate`; they are not the final
+reference result. The final acceptance below uses hexadecimal protocol version 2.
+
+Exact framing RED:
+
+```bash
+PYTHONPATH=src python3 -m pytest tests/integration/test_rfuzz_simulator.py::SimulatorFramingTests::test_prior_frame_arriving_after_next_request_is_rejected -q --tb=short
+```
+
+Result on old implementation: `1 failed in 0.15s` (`ValueError not raised`).
+
+Exact decimal wide-ID RED:
+
+```bash
+PYTHONPATH=src python3 -m pytest tests/integration/test_rfuzz_simulator.py::ContractSimulatorTests::test_generated_bench_echoes_wide_request_ids_across_reuse_and_isolation -q --tb=short
+```
+
+Result: `2 failed, 1 passed, 2 subtests passed in 6.22s`; both failures were
+Verilator (reuse and isolation).
+
+Exact hexadecimal-protocol GREEN:
+
+```bash
+PYTHONPATH=src python3 -m pytest tests/integration/test_rfuzz_simulator.py::SimulatorFramingTests tests/integration/test_rfuzz_simulator.py::ContractSimulatorTests::test_generated_bench_echoes_wide_request_ids_across_reuse_and_isolation -q --tb=short
+PYTHONPATH=src python3 -m pytest tests/integration/test_rfuzz_simulator.py tests/integration/test_rtl_execution_monitor.py tests/integration/test_rfuzz_live.py -q --tb=short
+```
+
+Results, respectively: `16 passed, 39 subtests passed in 7.85s` and
+`77 passed, 3 skipped, 114 subtests passed in 39.48s`. The latter includes the
+final expanded `2^64-1` real-bench echo and no-wrap assertions, and retained legacy
+execution-monitor coverage.
+
+### Original receipt and retained-trace ownership
+
+`replay_corpus` already compared newly executed counters with the currently read
+corpus trace, but `_verify_replay_identity` did not compare either against the
+original manifest's receipt/trace hashes. It now hashes actual fresh counters and
+requires equality with original `coverage_sha256`, and requires the hash of all
+retained trace bytes (including transport padding) to equal original
+`trace_sha256`. `replay_corpus` returns that hash from the bytes it actually read.
+Missing/null/mismatched original hash values fail with explicit coverage-hash or
+trace-hash errors. This is additional to the original identity, input, padding and
+actual RTL-counter checks, and applies to both immediate and independent replay.
+
+Receipt/trace RED command:
+
+```bash
+PYTHONPATH=src python3 -m pytest tests/examples/test_real_ibex_rfuzz_example.py tests/integration/test_rfuzz_live.py -q -k 'independent_replay_binds or corpus_replay_checks_actual' --tb=short
+```
+
+Before implementation: `6 failed, 39 deselected in 0.58s`. Failures showed
+tampered/missing original hashes and changed fresh counters being accepted, and
+the real RTL replay result lacking the retained trace hash. After the minimal
+fix, the same command returned
+`2 passed, 39 deselected, 4 subtests passed in 0.98s`.
+
+### Final review-fix real acceptance
+
+All commands below exited 0. The actual official client remains
+`runs/rfuzz_client_native_build/target/debug/kfuzz`, version `kfuzz 0.1.0`, SHA-256
+`bbb72e52e60b1380cccd3b8c25febf0b6ccde51b17802d457ffadef43f87747b`.
+The planned `runs/rfuzz_client_native_build/release/rfuzz-client` was absent;
+this parent-approved existing executable was not patched or substituted again.
+
+```bash
+PYTHONPATH=src python3 examples/real_ibex_rfuzz/run_example.py test --input examples/real_ibex_rfuzz/input/ibex-scratch.json --client runs/rfuzz_client_native_build/target/debug/kfuzz --output runs/examples/contract-rfuzz-review-5s --seconds 5
+PYTHONPATH=src python3 examples/real_ibex_rfuzz/run_example.py inspect --output runs/examples/contract-rfuzz-review-5s
+PYTHONPATH=src python3 examples/real_ibex_rfuzz/run_example.py replay --input examples/real_ibex_rfuzz/input/ibex-scratch.json --output runs/examples/contract-rfuzz-review-5s --build-output runs/examples/contract-rfuzz-review-replay
+PYTHONPATH=src python3 examples/real_ibex_rfuzz/run_example.py replay --input examples/real_ibex_rfuzz/input/ibex-scratch.json --output runs/examples/contract-rfuzz-5s --build-output runs/examples/contract-rfuzz-original23-review-replay
+```
+
+Final test/inspect stdout (selected original fields):
+
+```json
+{"status":"passed","tests":124153,"completed_feedback_exchanges":98557,"corpus_entries":23,"replay_entries":23,"duration_seconds":28.802813402002357,"returncode":0,"remaining_segments":[],"execution":{"cycles":9932240,"requests":249246,"completions":248306,"instruction_requests":249246,"instruction_responses":248306,"instruction_initializations":248306,"protocol_errors":0,"transducer_errors":0,"errors":0}}
+```
+
+The new saved report records `requested_duration_seconds=5`,
+`interrupt_elapsed_seconds=5.000014610002836`,
+`drain_seconds=23.80154176299766`, `peak_rss_bytes=108134400`, four retained ordinary
+CSR diagnostics, and `removed_owned_segments=[]`. Thus the existing limitation
+remains: the stop request is at five seconds; the official client finishes its
+already-active batch during bounded drain. No normal long test was terminated.
+
+Each independent rebuild printed `status=passed`, `mode=replay`,
+`replay_entries=23`. The first reproduced the new 23-entry corpus; the second
+reproduced the original pre-fix 23-entry corpus, demonstrating preserved saved
+data compatibility while rebuilding the executable. Both now validate original
+coverage and retained-trace hashes as well as the existing execution identities.
+Composition, layout, constraint/transducer and header hashes match the table
+above unchanged. The executable hashes changed with the internal protocol and
+are recorded, not treated as interchangeable:
+
+| Final artifact | SHA-256 |
+| --- | --- |
+| live simulator | `e65ca99d81acc2ae36906b882944031c33ea3f215f236338807f382b8be256dd` |
+| new corpus independent rebuild | `2292c69e3c61fe160fe5e240ea280ece98be7dcc8e77ad578484e8731347220a` |
+| original corpus independent rebuild | `52d1c7cdbc9ef71c188cdb0ece5b53b820300f75bcaf34af3a7b3a602c3b6cde` |
+
+`expected/bounded-result.json` now references the final review run, measured
+timings and executable identity, and both independent rebuild evidence files.
+The Chinese guides explain the protocol-version rebuild boundary and the two
+original-manifest checks; numeric run-dependent claims remain in the measured
+reference file.
+
+### Review-fix regression and self-review
+
+Required integration/example regression:
+
+```bash
+PYTHONPATH=src python3 -m pytest tests/integration/test_rfuzz_simulator.py tests/integration/test_rfuzz_live.py tests/examples/test_real_ibex_rfuzz_example.py -q --tb=short
+```
+
+Final result: `80 passed, 3 skipped, 82 subtests passed in 49.17s`.
+
+Task 8 focused regression:
+
+```bash
+PYTHONPATH=src python3 -m pytest tests/composition/test_constraint_ir.py tests/composition/test_cycle_input.py tests/isa/test_instruction_transducer.py tests/composition/test_coherent_memory.py tests/composition/test_protocol_transducer.py tests/composition/test_contract_transducer.py tests/composition/test_transducer_rtl.py tests/integration/test_constrained_backend_rtl.py tests/examples/test_real_ibex_rfuzz_example.py -q
+```
+
+Final result: `238 passed, 9 subtests passed in 46.98s`.
+
+Full project regression:
+
+```bash
+PYTHONPATH=src python3 -m pytest tests -q
+```
+
+Final complete output summary:
+`1406 passed, 3 skipped, 1160 subtests passed in 161.61s (0:02:41)`.
+The three skips remain the existing opt-in tests; both real 23-entry rebuilds and
+the official-client live run were separately executed above. `bash -n
+examples/real_ibex_rfuzz/commands.sh` and `git diff --check` completed without
+diagnostics. A separate read-only review of the current changes found no concrete
+remaining issue in either Important finding's scope.
+
+Self-review: no timing workaround, no diagnostic suppression, no changes to
+official client source/IPC, no DUT-internal control, and no unrelated refactor.
+Only the two reviewed integration boundaries, their tests, example documentation,
+measured reference and this append-only report changed. The original limitations
+above still apply; this review fix does not claim 3×300-second or BOOM acceptance.

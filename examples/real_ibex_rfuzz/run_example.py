@@ -2,6 +2,7 @@
 """Compose, test, and inspect the real-Ibex RFuzz example."""
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -150,6 +151,11 @@ def _verify_replay_identity(proof, replay, saved):
     if replay["layout_hash"] != proof["layout_hash"] or replay["constraint_hash"] != proof["constraint_hash"]:
         raise ValueError("replay layout/constraint hash differs from build")
     for fresh, original in zip(replay["replays"], saved["replays"], strict=True):
+        coverage_hash = "sha256:" + hashlib.sha256(bytes(fresh["counters"])).hexdigest()
+        if coverage_hash != original.get("coverage_sha256"):
+            raise ValueError("replay coverage hash differs from saved manifest")
+        if fresh["trace_sha256"] != original.get("trace_sha256"):
+            raise ValueError("replay trace hash differs from saved manifest")
         for key in ("input_sha256", "layout_hash", "constraint_hash", "transducer_hash", "header_hash",
                     "physical_controls_sha256", "simulator_inputs_sha256"):
             if fresh[key] != original[key]:

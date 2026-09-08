@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 import shutil
@@ -176,6 +177,26 @@ class RealIbexRfuzzExampleTests(unittest.TestCase):
         ])
         self.assertEqual(args.command, "replay")
         self.assertEqual(args.build_output, Path("fresh-build"))
+
+    def test_independent_replay_binds_coverage_receipt_and_retained_trace_hashes(self):
+        module = load_module()
+        digest = lambda payload: "sha256:" + hashlib.sha256(bytes(payload)).hexdigest()
+        proof = dict(layout_hash="layout", constraint_hash="contract", transducer_hash="contract",
+                     header_hash="header")
+        identity = proof | dict(input_sha256="input", physical_controls_sha256="controls",
+                                simulator_inputs_sha256="sim-inputs")
+        fresh = identity | {"counters": [1], "trace_sha256": digest([1, 0, 0, 0, 0, 0])}
+        original = identity | {"coverage_sha256": digest([1]), "trace_sha256": fresh["trace_sha256"]}
+        replay = {"entries": 1, "layout_hash": "layout", "constraint_hash": "contract", "replays": [fresh]}
+        saved = {"entries": 1, "replays": [original]}
+        module._verify_replay_identity(proof, replay, saved)
+        for key in ("coverage_sha256", "trace_sha256"):
+            for value in ("sha256:tampered", None):
+                with self.subTest(key=key, value=value), self.assertRaisesRegex(ValueError, "replay .* hash"):
+                    module._verify_replay_identity(proof, replay, saved | {"replays": [original | {key: value}]})
+        changed = fresh | {"counters": [2], "trace_sha256": digest([2, 0, 0, 0, 0, 0])}
+        with self.assertRaisesRegex(ValueError, "replay coverage hash"):
+            module._verify_replay_identity(proof, replay | {"replays": [changed]}, saved)
 
     def test_inspect_rejects_malformed_summary(self):
         module = load_module()

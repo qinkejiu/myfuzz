@@ -476,6 +476,7 @@ def replay_corpus(artifact, corpus_dir):
                 "input_sha256": identity["raw_sha256"],
                 "cycles": len(records),
                 "counters": list(counters),
+                "trace_sha256": _hash_bytes(bytes(expected)),
                 "physical_ports_sha256": _hash_bytes(canonical_bytes(physical)),
                 **identity,
             })

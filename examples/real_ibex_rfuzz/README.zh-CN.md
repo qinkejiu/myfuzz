@@ -253,6 +253,10 @@ jq . runs/examples/contract-rfuzz-5s/live/corpus_manifest.json
 合法的指令编码仍可能访问未实现 CSR 并触发硬件 trap。上游 RTL 的普通 stdout 诊断
 会有界保存到 `simulator_diagnostics`（总行数及最多 32 条样本）；它们不属于覆盖反馈。
 仿真接口只接受明确的完整 `RFUZZ_COUNTERS` 帧，协议错误、超限输出和异常退出仍失败。
+Python 与生成仿真程序使用内部协议 `RFUZZ_READY 2`：每次请求附带单调 64 位编号，
+按固定 16 位小写十六进制编码（例如 `0000000000000001`），
+响应必须回显同一个编号，延迟到下一请求之后的旧帧也会被拒绝。编号不进入 DUT 输入。
+旧版仿真二进制需要重新构建；官方 RFuzz 客户端的共享内存接口保持不变。
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 nice -n15 \
@@ -267,6 +271,8 @@ simulator，再核对保留的 corpus manifest、执行身份和每条语料的 
 包含 raw、layout、contract/transducer、header、固定控制、simulator input 和 binary
 的哈希。独立重建允许 binary hash 随构建路径改变，但必须保持 composition、输入契约、
 测试头、固定控制与输入内容一致，且每条覆盖反馈相同；每份新二进制的身份另行记录。
+实际重放计数器的 SHA-256 必须等于原 manifest 的 `coverage_sha256`；读取到的保留
+trace 全部字节（含传输 padding）的哈希必须等于原 `trace_sha256`，缺失或篡改都会失败。
 
 命令脚本提供对应快捷入口：
 

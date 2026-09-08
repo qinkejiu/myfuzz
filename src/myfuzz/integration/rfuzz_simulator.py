@@ -38,6 +38,8 @@ MAX_IO_BYTES = 8 * 1024 * 1024
 MAX_DIAGNOSTIC_BYTES = 256 * 1024
 MAX_DIAGNOSTIC_LINES = 1024
 MAX_DIAGNOSTIC_LINE_BYTES = 4096
+SIMULATOR_PROTOCOL_VERSION = 2
+MAX_REQUEST_ID = (1 << 64) - 1
 RSS_POLL_SECONDS = 0.1
 
 
@@ -317,16 +319,19 @@ def _bench(ports, clock, reset, polarity, layout, coverage, *, control_bindings=
         "module myfuzz_live_tb;", *declarations, *controls, *test_controls,
         f"reg [{layout.raw_width-1}:0] raw_bits = 0;",
         f"reg [7:0] counters[0:{len(observations)-1}]; integer count, scan, i, j;",
+        "logic [63:0] request_id, last_request_id=0;",
         *inputs, f"generic_composition_top dut({connections});",
         *(f'initial if ({bit} >= $bits(dut.{signal})) $fatal(1,"observation bit out of range");'
           for signal, bit in coverage_signals),
         *monitor_rtl(c, r, active, execution_monitor),
         f"task tick; begin #5; {c}=1; #5; {c}=0; end endtask",
         f"initial begin {c}=0; {r}={1-active};",
-        '$display("RFUZZ_READY"); $fflush();',
+        f'$display("RFUZZ_READY {SIMULATOR_PROTOCOL_VERSION}"); $fflush();',
         "forever begin",
-        'scan=$fscanf(32\'h80000000,"%d",count);',
-        'if (scan != 1) $finish;',
+        'scan=$fscanf(32\'h80000000,"%h %d",request_id,count);',
+        'if (scan == -1) $finish;',
+        'if (scan != 2 || request_id == 0 || request_id <= last_request_id) $fatal(1,"request id");',
+        "last_request_id=request_id;",
         f'if (count < 1 || count > {MAX_CYCLES}) $fatal(1,"cycle count");',
         "raw_bits=0;", *begin_test,
         (f"{r}={active}; repeat ({test_header.reset_cycles}) tick(); {r}={1-active};"
@@ -336,7 +341,7 @@ def _bench(ports, clock, reset, polarity, layout, coverage, *, control_bindings=
         'scan=$fscanf(32\'h80000000,"%h",raw_bits);',
         'if (scan != 1) $fatal(1,"raw sample");',
         "tick();", *sample, "end",
-        '$write("RFUZZ_COUNTERS ");',
+        '$write("RFUZZ_COUNTERS %016h ",request_id);',
         f'for (j=0;j<{len(observations)};j=j+1) $write("%02x",counters[j]);',
         *monitor_output(execution_monitor),
         '$write("\\n"); $fflush();', "end end endmodule\n",
@@ -566,6 +571,9 @@ class RtlSimulator:
     ``last_diagnostics`` preserves non-protocol output from the latest exchange
     as UTF-8 strings (invalid bytes replaced), including when that test fails.
     Limits count original bytes, including newlines, and apply per exchange.
+    Internal protocol v2 correlates every response with its monotonic uint64
+    request id encoded as exactly 16 lowercase hexadecimal digits. Versionless
+    executables must be rebuilt; no fallback is safe.
     """
     def __init__(self, artifact, *, timeout_seconds=5.0):
         if not isinstance(artifact, SimulatorArtifact):
@@ -588,8 +596,8 @@ class RtlSimulator:
         try:
             os.set_blocking(self.process.stdin.fileno(), False)
             os.set_blocking(self.process.stdout.fileno(), False)
-            if self._exchange(b"", 64) != b"RFUZZ_READY":
-                raise ValueError("unexpected simulator startup")
+            if self._exchange(b"", 64) != f"RFUZZ_READY {SIMULATOR_PROTOCOL_VERSION}".encode("ascii"):
+                raise ValueError(f"unsupported simulator protocol; rebuild artifact for version {SIMULATOR_PROTOCOL_VERSION}")
         except BaseException:
             self.close()
             raise
@@ -656,7 +664,7 @@ class RtlSimulator:
                                     reply = bytearray(remaining)
                                     if line.startswith(b"RFUZZ_"):
                                         expected = (line.startswith(b"RFUZZ_COUNTERS ")
-                                                    if payload else line == b"RFUZZ_READY")
+                                                    if payload else line == b"RFUZZ_READY" or line.startswith(b"RFUZZ_READY "))
                                         if pending or not expected or reply:
                                             raise ValueError("unexpected simulator response framing")
                                         if len(line) > max_reply:
@@ -693,25 +701,30 @@ class RtlSimulator:
             raise ValueError("test exceeds header execution cycle limit")
         if len(records) * (self.artifact.layout.raw_width // 4 + 2) > MAX_IO_BYTES:
             raise ValueError("test input exceeds IO bound")
+        if self._executions >= MAX_REQUEST_ID:
+            raise ValueError("simulator request id exhausted")
         if self.artifact.isolate_tests and self._executions:
             self.close()
             self._start()
         self._executions += 1
         samples = [self.artifact.projector.project(self.artifact.transport.unpack(r)) for r in records]
-        payload = (str(len(samples)) + "\n" + "".join(f"{s:x}\n" for s in samples)).encode("ascii")
+        payload = (f"{self._executions:016x} {len(samples)}\n" + "".join(f"{s:x}\n" for s in samples)).encode("ascii")
         try:
             count = len(self.artifact.coverage_ports)
             reply = self._exchange(payload, 2 * count + 256, monitor=monitor)
+            prefix = f"RFUZZ_COUNTERS {self._executions:016x} ".encode("ascii")
+            if not reply.startswith(prefix):
+                raise ValueError("invalid simulator response request id")
+            reply = reply[len(prefix):]
             self.last_execution = {}
             if self.artifact.execution_monitor is not None:
                 reply, separator, metrics = reply.partition(b" EXEC ")
                 if not separator:
                     raise ValueError("missing RTL execution metrics")
                 self.last_execution = validate_execution(parse_metrics(metrics, self.artifact.execution_monitor))
-            prefix = b"RFUZZ_COUNTERS "
-            if not reply.startswith(prefix) or len(reply) != len(prefix) + 2 * count:
+            if len(reply) != 2 * count:
                 raise ValueError("invalid simulator counter response")
-            counters = bytes.fromhex(reply[len(prefix):].decode("ascii"))
+            counters = bytes.fromhex(reply.decode("ascii"))
             if len(counters) != count:
                 raise ValueError("invalid simulator counter length")
             return counters

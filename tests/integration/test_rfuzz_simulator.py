@@ -100,28 +100,34 @@ def make_contract_plan(root, *, external=False, controls=False, instruction_obse
 
 
 class SimulatorFramingTests(unittest.TestCase):
-    def simulator(self, body):
+    def simulator(self, body, *, startup=b"RFUZZ_READY 2\n", isolate_tests=False):
         from myfuzz.composition.runtime_projection import RuntimeProjector
         layout = InputLayout("input_layout.v1", 1,
             (LayoutField("input:data", "input", "data", 1, 0, 0, "bits", {}),), "framing")
         script = (
             "import os, sys, time\n"
-            "os.write(1, b'RFUZZ_READY\\n')\n"
+            f"os.write(1, {startup!r})\n"
+            "def counter(value, response_id=None):\n"
+            "    identity = request_id if response_id is None else response_id\n"
+            "    return f'RFUZZ_COUNTERS {identity:016x} {value}\\n'.encode()\n"
             "execution = 0\n"
-            "for count in sys.stdin:\n"
-            "    for _ in range(int(count)):\n"
+            "for header in sys.stdin:\n"
+            "    identity_text, count_text = header.split()\n"
+            "    request_id, count = int(identity_text, 16), int(count_text)\n"
+            "    for _ in range(count):\n"
             "        sys.stdin.readline()\n"
             "    execution += 1\n" + textwrap.indent(textwrap.dedent(body), "    ")
         )
         artifact = rfuzz_simulator.SimulatorArtifact(layout,
             rfuzz_simulator.build_rfuzz_transport(layout), Path(sys.executable), (("flag", 0),),
-            RuntimeProjector(layout), simulator="verilator", simulator_args=("-u", "-c", script))
+            RuntimeProjector(layout), simulator="verilator", simulator_args=("-u", "-c", script),
+            isolate_tests=isolate_tests)
         return rfuzz_simulator.RtlSimulator(artifact, timeout_seconds=1)
 
     def test_diagnostics_before_counter_frame_are_preserved_across_read_chunking(self):
         for chunk_size in (4096, 7, 1):
             with self.subTest(chunk_size=chunk_size), self.simulator("""
-                os.write(1, b'generic note\\npartial UTF-8: \\xe4\\xb8\\xad\\nRFUZZ_COUNTERS 01\\n')
+                os.write(1, b'generic note\\npartial UTF-8: \\xe4\\xb8\\xad\\n' + counter('01'))
             """) as simulator:
                 read = os.read
                 with patch.object(rfuzz_simulator.os, "read",
@@ -135,7 +141,7 @@ class SimulatorFramingTests(unittest.TestCase):
             time.sleep(.03)
             os.write(1, b' note\\n')
             time.sleep(.03)
-            os.write(1, b'RFUZZ_COUNTERS 02\\n')
+            os.write(1, counter('02'))
         """) as simulator:
             self.assertEqual(b"\2", simulator.run_test((simulator.artifact.transport.pack(0),)))
             self.assertEqual(("first note", "partial note"), simulator.last_diagnostics)
@@ -144,7 +150,7 @@ class SimulatorFramingTests(unittest.TestCase):
         with self.simulator("""
             if execution == 1:
                 os.write(1, (b'normal execution note ' + b'x' * 100 + b'\\n') * 200)
-            os.write(1, b'RFUZZ_COUNTERS 00\\n')
+            os.write(1, counter('00'))
         """) as simulator:
             records = (simulator.artifact.transport.pack(0),)
             self.assertEqual(b"\0", simulator.run_test(records))
@@ -153,7 +159,7 @@ class SimulatorFramingTests(unittest.TestCase):
             self.assertEqual((), simulator.last_diagnostics)
 
     def test_diagnostics_clear_when_test_is_rejected_before_exchange(self):
-        with self.simulator("os.write(1, b'note\\nRFUZZ_COUNTERS 00\\n')") as simulator:
+        with self.simulator("os.write(1, b'note\\n' + counter('00'))") as simulator:
             record = simulator.artifact.transport.pack(0)
             for records in ((), (b"bad",)):
                 self.assertEqual(b"\0", simulator.run_test((record,)))
@@ -176,7 +182,7 @@ class SimulatorFramingTests(unittest.TestCase):
     def test_duplicate_counter_frames_fail_with_whole_or_split_reads(self):
         for chunk_size in (4096, 7):
             with self.subTest(chunk_size=chunk_size), self.simulator("""
-                os.write(1, b'RFUZZ_COUNTERS 00\\nRFUZZ_COUNTERS 01\\n')
+                os.write(1, counter('00') + counter('01'))
             """) as simulator:
                 read = os.read
                 with patch.object(rfuzz_simulator.os, "read",
@@ -187,9 +193,9 @@ class SimulatorFramingTests(unittest.TestCase):
 
     def test_delayed_duplicate_frame_cannot_satisfy_the_next_test(self):
         with self.simulator("""
-            os.write(1, b'RFUZZ_COUNTERS 00\\n')
+            os.write(1, counter('00'))
             time.sleep(.03)
-            os.write(1, b'RFUZZ_COUNTERS 01\\n')
+            os.write(1, counter('01'))
         """) as simulator:
             records = (simulator.artifact.transport.pack(0),)
             self.assertEqual(b"\0", simulator.run_test(records))
@@ -198,11 +204,65 @@ class SimulatorFramingTests(unittest.TestCase):
                 simulator.run_test(records)
             self.assertTrue(simulator.closed)
 
+    def test_prior_frame_arriving_after_next_request_is_rejected(self):
+        # The child reads the complete next request before releasing the old
+        # response. This ordering is deterministic and needs no timing window.
+        with self.simulator("""
+            if execution == 1:
+                previous_id = request_id
+                os.write(1, counter('00'))
+            else:
+                os.write(1, counter('01', previous_id))  # Next test should be 02.
+        """) as simulator:
+            records = (simulator.artifact.transport.pack(0),)
+            self.assertEqual(b"\0", simulator.run_test(records))
+            with self.assertRaisesRegex(ValueError, "request id"):
+                simulator.run_test(records)
+            self.assertTrue(simulator.closed)
+
+    def test_response_request_id_is_required_canonical_and_exact(self):
+        for response in (b"RFUZZ_COUNTERS 00\n", b"RFUZZ_COUNTERS 1\n",
+                         b"RFUZZ_COUNTERS 0000000000000001\n",
+                         b"RFUZZ_COUNTERS 0000000000000000 01\n",
+                         b"RFUZZ_COUNTERS 0000000000000002 01\n",
+                         b"RFUZZ_COUNTERS 10000000000000000 01\n",
+                         b"RFUZZ_COUNTERS 0 01\n", b"RFUZZ_COUNTERS 2 01\n",
+                         b"RFUZZ_COUNTERS 01 01\n", b"RFUZZ_COUNTERS +1 01\n",
+                         b"RFUZZ_COUNTERS -1 01\n", b"RFUZZ_COUNTERS x 01\n",
+                         b"RFUZZ_COUNTERS 18446744073709551616 01\n"):
+            with self.subTest(response=response), self.simulator(f"os.write(1, {response!r})") as simulator:
+                with self.assertRaisesRegex(ValueError, "request id"):
+                    simulator.run_test((simulator.artifact.transport.pack(0),))
+                self.assertTrue(simulator.closed)
+
+    def test_versionless_or_unsupported_simulators_require_rebuilding(self):
+        for startup in (b"RFUZZ_READY\n", b"RFUZZ_READY 1\n", b"RFUZZ_READY 3\n",
+                        b"RFUZZ_READY 02\n", b"RFUZZ_READY 2 extra\n"):
+            with self.subTest(startup=startup), self.assertRaisesRegex(ValueError, "protocol.*rebuild"):
+                with self.simulator("pass", startup=startup):
+                    pass
+
+    def test_request_ids_increase_across_lengths_repeats_and_isolated_children(self):
+        for isolated in (False, True):
+            with self.subTest(isolated=isolated), self.simulator("""
+                os.write(1, f'id={request_id} cycles={count}\\n'.encode() + counter(f'{count:02x}'))
+            """, isolate_tests=isolated) as simulator:
+                for identity, count in enumerate((1, 3, 2, 1), start=1):
+                    self.assertEqual(bytes((count,)),
+                        simulator.run_test((simulator.artifact.transport.pack(0),) * count))
+                    self.assertEqual((f"id={identity} cycles={count}",), simulator.last_diagnostics)
+
+    def test_request_id_exhaustion_does_not_wrap(self):
+        with self.simulator("os.write(1, counter('00'))") as simulator:
+            simulator._executions = (1 << 64) - 1
+            with self.assertRaisesRegex(ValueError, "request id"):
+                simulator.run_test((simulator.artifact.transport.pack(0),))
+
     def test_malformed_and_truncated_protocol_lines_are_not_diagnostics(self):
-        for output in (b"RFUZZ_COUNTERS\nRFUZZ_COUNTERS 00\n",
-                       b"RFUZZ_UNKNOWN 00\nRFUZZ_COUNTERS 00\n",
-                       b"RFUZZ_COUNTERS 0\n", b"RFUZZ_COUNTERS xx\n",
-                       b"RFUZZ_COUNTERS 00"):
+        for output in (b"RFUZZ_COUNTERS\nRFUZZ_COUNTERS 0000000000000001 00\n",
+                       b"RFUZZ_UNKNOWN 00\nRFUZZ_COUNTERS 0000000000000001 00\n",
+                       b"RFUZZ_COUNTERS 0000000000000001 0\n", b"RFUZZ_COUNTERS 0000000000000001 xx\n",
+                       b"RFUZZ_COUNTERS 0000000000000001 00"):
             with self.subTest(output=output), self.simulator(f"os.write(1, {output!r})") as simulator:
                 with self.assertRaises((ValueError, TimeoutError)):
                     simulator.run_test((simulator.artifact.transport.pack(0),))
@@ -245,6 +305,26 @@ class SimulatorFramingTests(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which("iverilog") and shutil.which("vvp") and shutil.which("verilator"), "RTL tools required")
 class ContractSimulatorTests(unittest.TestCase):
+    def test_generated_bench_echoes_wide_request_ids_across_reuse_and_isolation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, names = make_plan(root)
+            for engine in ("icarus", "verilator"):
+                artifact = rfuzz_simulator.build_simulator(plan, root / engine, base_dir=root,
+                    simulator=engine, coverage_ports=((names[-1], 0),))
+                for isolated in (False, True):
+                    with self.subTest(engine=engine, isolated=isolated), rfuzz_simulator.RtlSimulator(
+                            replace(artifact, isolate_tests=isolated)) as simulator:
+                        simulator._executions = (1 << 63) - 2
+                        for index, count in enumerate((1, 3, 2, 1), start=1):
+                            self.assertEqual(b"\0", simulator.run_test((artifact.transport.pack(0),) * count))
+                            self.assertEqual((1 << 63) - 2 + index, simulator._executions)
+                        simulator._executions = (1 << 64) - 2
+                        self.assertEqual(b"\0", simulator.run_test((artifact.transport.pack(0),)))
+                        self.assertEqual((1 << 64) - 1, simulator._executions)
+                        with self.assertRaisesRegex(ValueError, "request id"):
+                            simulator.run_test((artifact.transport.pack(0),))
+
     def test_cycle_external_slices_must_match_declared_physical_bindings(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
