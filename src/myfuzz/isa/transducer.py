@@ -308,7 +308,7 @@ class RiscvInstructionTransducer:
             choices += (None,)
         template = select_balanced(raw_selector, self.selector_width, choices)
         if template is None:
-            return self._illegal_choice(raw_payload)
+            return self._illegal_choice(raw_payload, width)
         return self._repair_template(template, raw_payload)
 
     def repair_for_operation(self, operation: str, raw_payload: int) -> InstructionChoice:
@@ -367,10 +367,15 @@ class RiscvInstructionTransducer:
             raise AssertionError(f"instruction template produced an illegal word: {name}")
         return InstructionChoice(name, template.width, word, free_mask, True)
 
-    def _illegal_choice(self, raw_payload: int) -> InstructionChoice:
+    def _illegal_choice(self, raw_payload: int, width: int) -> InstructionChoice:
         if isinstance(raw_payload, bool) or not isinstance(raw_payload, int) or raw_payload < 0:
             raise ValueError("raw instruction payload must be a nonnegative integer")
-        word_mask = (1 << 32) - 1
+        word_mask = (1 << width) - 1
+        if width == 16:
+            free_mask = 0x7 << 2
+            word = raw_payload & free_mask
+            legal = self.provider.is_legal_word(word, compressed=True)
+            return InstructionChoice("ILLEGAL", 16, word, free_mask, legal)
         repaired_mask = _OPCODE_MASK
         word = ((raw_payload & word_mask) & ~repaired_mask) | 0x4B
         free_mask = word_mask & ~repaired_mask

@@ -5,6 +5,11 @@ import pytest
 from myfuzz.isa import IsaContract, RiscvInstructionTransducer
 
 
+_C_ADDI4SPN_NZUIMM_MASK = (
+    (1 << 12) | (0x3 << 11) | (0xF << 7) | (0x3 << 5)
+)
+
+
 def _compressed_operation(word: int, xlen: int) -> str | None:
     quadrant = word & 0x3
     funct3 = (word >> 13) & 0x7
@@ -219,5 +224,27 @@ def test_explicit_illegal_class_is_one_rejected_32_bit_instruction(
     assert choice.width == 32
     assert choice.word & 0x3 == 0x3
     assert choice.word & 0x7F == 0x4B
+    assert choice.legal == accepted
+    assert not accepted
+
+
+@pytest.mark.parametrize("raw", (0xFFFF, 0x1234_FFFF))
+def test_explicit_16_bit_illegal_class_stays_compressed_and_rejected(
+    raw: int,
+) -> None:
+    tx = RiscvInstructionTransducer(
+        IsaContract(32, ("I", "C"), instruction_alignment=2)
+    )
+
+    choice = tx.repair(255, raw, illegal=True, width=16)
+    accepted = tx.provider.is_legal_word(choice.word, compressed=True)
+
+    assert choice.operation == "ILLEGAL"
+    assert choice.width == 16
+    assert 0 <= choice.word <= 0xFFFF
+    assert choice.word & 0x3 == 0
+    assert (choice.word >> 13) & 0x7 == 0
+    assert choice.word & _C_ADDI4SPN_NZUIMM_MASK == 0
+    assert choice.word & 0x1C == raw & 0x1C
     assert choice.legal == accepted
     assert not accepted
