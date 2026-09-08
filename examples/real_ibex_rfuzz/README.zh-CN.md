@@ -241,7 +241,7 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 nice -n15 \
 ```bash
 PYTHONPATH=src:. python3 examples/real_ibex_rfuzz/run_example.py inspect \
   --output runs/examples/contract-rfuzz-5s
-jq . runs/examples/contract-rfuzz-5s/live/corpus_manifest.json
+python3 -m json.tool runs/examples/contract-rfuzz-5s/live/corpus_manifest.json
 ```
 
 `completed_feedback_exchanges` 只统计完整提交并收到对应回复的共享内存交换。
@@ -286,9 +286,45 @@ bash examples/real_ibex_rfuzz/commands.sh replay \
 
 ## 5. 当前测试结果
 
-机器可读的保留结果位于 [expected/bounded-result.json](expected/bounded-result.json)，
-实际测试数、反馈交换、首次指令初始化、语料、重放和资源清理结果以该文件及其引用的
-运行产物为准。本文不固定这些运行相关数值。
+最终保留运行是 `runs/examples/contract-rfuzz-review-5s`，对应实现提交 `8180065`
+和协议/重放修复 `a89b713`。以下数值来自该目录的 `summary.json`、`live/report.json`
+及语料重放产物；重新运行会产生新的实测结果。
+
+| 实测项目 | 结果 |
+| --- | --- |
+| RTL 测试 / 完成 feedback receipt | 124153 / 98557 |
+| 保存语料 / 同构建重放 | 23 / 23 |
+| instruction request / response / 首次初始化 | 249246 / 248306 / 248306 |
+| protocol / transducer / 总 errors | 0 / 0 / 0 |
+| 客户端退出码 / 遗留共享内存段 | 0 / 0 |
+| 请求停止时长 / 实际发出中断 | 5 秒 / 5.000014610002836 秒 |
+| 排空时长 / 实际总时长 | 23.80154176299766 秒 / 28.802813402002357 秒 |
+| 采样进程组 RSS 峰值 / 普通 RTL 诊断 | 108134400 bytes / 4 行 |
+
+本次 23 条语料的独立重建证据是
+`runs/examples/contract-rfuzz-review-replay/rebuild_replay.json`。较早保存在
+`runs/examples/contract-rfuzz-5s` 的另一份 23 条语料也由新协议二进制成功重放，证据是
+`runs/examples/contract-rfuzz-original23-review-replay/rebuild_replay.json`；这两份重建
+均逐条核对原输入、trace、coverage 和执行身份。旧语料重建不计入本次 live 测试数。
+
+[expected/bounded-result.json](expected/bounded-result.json) 保存完整 composition、
+layout、constraint/transducer、header、二进制、配置文件和证据文件 SHA-256，并列出
+`entry_0001.json` 的代表性 raw/input、coverage、trace 与 replay key；其他条目的
+完整身份在其绑定的 corpus manifest 和 replay 文件中。`replay_key` 包含 binary hash，
+因此独立构建的 key 会改变；原始输入和覆盖反馈仍须相同。证据文件哈希按磁盘全部
+字节计算，不能把重排 JSON 后的文件直接视作同一文件。
+
+只读查看这次保留结果：
+
+```bash
+PYTHONPATH=src python3 examples/real_ibex_rfuzz/run_example.py inspect \
+  --output runs/examples/contract-rfuzz-review-5s
+python3 -m json.tool examples/real_ibex_rfuzz/expected/bounded-result.json
+```
+
+`runs/` 是本地忽略的运行产物，不随 Git 提交分发；在另一机器上需按第 4 节重新构建、
+测试和重放，或先恢复完整证据目录。已有输出目录不能覆盖。全项目接续事项见
+[《项目目标与后续任务交接》](../../项目目标与后续任务交接.md)。
 
 当前反馈类型为 `sampled-dut-signal-bit-events-u8-saturating`：记录所选真实 RTL
 信号位和 backend 事件的采样计数，不能解读为源码行覆盖率或分支覆盖率。只有带来新
