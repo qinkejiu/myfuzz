@@ -133,6 +133,13 @@ class RuntimeProjectionTests(unittest.TestCase):
 
         self.assertTrue(all(provider.is_legal_word(word) for word in projected))
         self.assertGreaterEqual(len(set(projected)), 10)
+        self.assertEqual(
+            projected,
+            tuple(
+                projector.project((selector << 24) | 0x0055_AA00)
+                for selector in range(256)
+            ),
+        )
 
     def test_unbound_dependency_or_unknown_constraint_fails_closed(self):
         base=LayoutField("a","e","data",8,0,7,"bits",{})

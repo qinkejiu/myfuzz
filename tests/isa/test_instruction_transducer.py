@@ -5,6 +5,59 @@ import pytest
 from myfuzz.isa import IsaContract, RiscvInstructionTransducer
 
 
+def _compressed_operation(word: int, xlen: int) -> str | None:
+    quadrant = word & 0x3
+    funct3 = (word >> 13) & 0x7
+    rd = (word >> 7) & 0x1F
+    rs2 = (word >> 2) & 0x1F
+    if quadrant == 0:
+        return {
+            0: "C.ADDI4SPN",
+            2: "C.LW",
+            3: "C.LD" if xlen == 64 else None,
+            6: "C.SW",
+            7: "C.SD" if xlen == 64 else None,
+        }.get(funct3)
+    if quadrant == 1:
+        if funct3 == 0:
+            return "C.ADDI"
+        if funct3 == 1:
+            return "C.JAL" if xlen == 32 else "C.ADDIW"
+        if funct3 == 2:
+            return "C.LI"
+        if funct3 == 3:
+            return "C.ADDI16SP" if rd == 2 else "C.LUI"
+        if funct3 == 4:
+            subform = (word >> 10) & 0x3
+            if subform < 3:
+                return ("C.SRLI", "C.SRAI", "C.ANDI")[subform]
+            operation = (word >> 5) & 0x3
+            if not (word >> 12) & 1:
+                return ("C.SUB", "C.XOR", "C.OR", "C.AND")[operation]
+            if xlen == 64 and operation < 2:
+                return ("C.SUBW", "C.ADDW")[operation]
+            return None
+        return {5: "C.J", 6: "C.BEQZ", 7: "C.BNEZ"}.get(funct3)
+    if quadrant == 2:
+        if funct3 == 0:
+            return "C.SLLI"
+        if funct3 == 2:
+            return "C.LWSP"
+        if funct3 == 3:
+            return "C.LDSP" if xlen == 64 else None
+        if funct3 == 4:
+            if not (word >> 12) & 1:
+                return "C.JR" if rs2 == 0 else "C.MV"
+            if rd == 0:
+                return "C.EBREAK" if rs2 == 0 else None
+            return "C.JALR" if rs2 == 0 else "C.ADD"
+        return {
+            6: "C.SWSP",
+            7: "C.SDSP" if xlen == 64 else None,
+        }.get(funct3)
+    return None
+
+
 def test_rv32im_repair_selects_multiple_legal_operations() -> None:
     tx = RiscvInstructionTransducer(IsaContract(32, ("I", "M")))
     choices = [tx.repair(selector, 0xFEDC_BA98) for selector in range(256)]
@@ -51,6 +104,46 @@ def test_rv32c_selector_range_produces_only_legal_compressed_forms() -> None:
     assert all(
         tx.provider.is_legal_word(item.word, compressed=True) for item in choices
     )
+
+
+@pytest.mark.parametrize(
+    ("operation", "word"),
+    (("C.SRLI", 0x9001), ("C.SRAI", 0x9401), ("C.ANDI", 0x9805)),
+)
+def test_rv64c_repair_preserves_legal_same_operation_bit_12(
+    operation: str, word: int
+) -> None:
+    tx = RiscvInstructionTransducer(
+        IsaContract(64, ("I", "C"), instruction_alignment=2)
+    )
+    assert tx.provider.is_legal_word(word, compressed=True)
+    assert _compressed_operation(word, 64) == operation
+
+    result = tx.repair_for_operation(operation, word)
+
+    assert result.word == word
+    assert result.free_mask & (1 << 12)
+
+
+@pytest.mark.parametrize("xlen", (32, 64))
+def test_every_legal_compressed_operation_is_a_repair_fixed_point(xlen: int) -> None:
+    tx = RiscvInstructionTransducer(
+        IsaContract(xlen, ("I", "M", "C"), instruction_alignment=2)
+    )
+    compressed_operations = {
+        template.name for template in tx.templates if template.width == 16
+    }
+    seen: set[str] = set()
+    for word in range(1 << 16):
+        operation = _compressed_operation(word, xlen)
+        if operation not in compressed_operations:
+            continue
+        if not tx.provider.is_legal_word(word, compressed=True):
+            continue
+        seen.add(operation)
+        assert tx.repair_for_operation(operation, word).word == word
+
+    assert seen == compressed_operations
 
 
 @pytest.mark.parametrize(
@@ -106,3 +199,25 @@ def test_illegal_class_is_disabled_by_default_and_explicit_when_enabled() -> Non
     assert not illegal.legal
     assert illegal.operation == "ILLEGAL"
     assert not tx.provider.is_legal_word(illegal.word)
+
+
+@pytest.mark.parametrize(
+    "contract",
+    (
+        IsaContract(32, ("I",)),
+        IsaContract(32, ("I", "C"), instruction_alignment=2),
+    ),
+)
+def test_explicit_illegal_class_is_one_rejected_32_bit_instruction(
+    contract: IsaContract,
+) -> None:
+    tx = RiscvInstructionTransducer(contract)
+
+    choice = tx.repair(255, 0x4000_4000, illegal=True)
+    accepted = tx.provider.is_legal_word(choice.word)
+
+    assert choice.width == 32
+    assert choice.word & 0x3 == 0x3
+    assert choice.word & 0x7F == 0x4B
+    assert choice.legal == accepted
+    assert not accepted

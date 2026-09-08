@@ -210,10 +210,10 @@ def _c_templates(contract: IsaContract) -> tuple[InstructionTemplate, ...]:
         _compressed_template("C.ADDI16SP", 1, 3, extra_mask=_C_RD_MASK,
                              extra_value=2 << 7),
         _compressed_template("C.LUI", 1, 3),
-        _compressed_template("C.SRLI", 1, 4, extra_mask=0x7 << 10),
-        _compressed_template("C.SRAI", 1, 4, extra_mask=0x7 << 10,
+        _compressed_template("C.SRLI", 1, 4, extra_mask=0x3 << 10),
+        _compressed_template("C.SRAI", 1, 4, extra_mask=0x3 << 10,
                              extra_value=1 << 10),
-        _compressed_template("C.ANDI", 1, 4, extra_mask=(1 << 12) | (0x3 << 10),
+        _compressed_template("C.ANDI", 1, 4, extra_mask=0x3 << 10,
                              extra_value=2 << 10),
         _compressed_template("C.SUB", 1, 4, extra_mask=(1 << 12) | (0x3 << 10) | (0x3 << 5),
                              extra_value=3 << 10),
@@ -242,7 +242,7 @@ def _c_templates(contract: IsaContract) -> tuple[InstructionTemplate, ...]:
         templates.insert(4, _compressed_template("C.JAL", 1, 1))
         # RV32C shift amounts reserve shamt[5].
         for index, template in enumerate(templates):
-            if template.name in {"C.SRLI", "C.SRAI", "C.SLLI"}:
+            if template.name in {"C.SRLI", "C.SRAI", "C.ANDI", "C.SLLI"}:
                 templates[index] = InstructionTemplate(
                     template.name, 16, "C",
                     template.fixed_mask | (1 << 12), template.fixed_value,
@@ -308,7 +308,7 @@ class RiscvInstructionTransducer:
             choices += (None,)
         template = select_balanced(raw_selector, self.selector_width, choices)
         if template is None:
-            return self._illegal_choice(raw_payload, width)
+            return self._illegal_choice(raw_payload)
         return self._repair_template(template, raw_payload)
 
     def repair_for_operation(self, operation: str, raw_payload: int) -> InstructionChoice:
@@ -351,6 +351,11 @@ class RiscvInstructionTransducer:
             if name == "C.SLLI":
                 ensure_nonzero(_C_RD_MASK)
             ensure_nonzero(_C_IMMEDIATE_MASK)
+        elif name == "C.ANDI" and not self.provider.is_legal_word(
+            word, compressed=True
+        ):
+            word &= ~(1 << 6)
+            repaired_mask |= 1 << 6
         elif name in {"C.MV", "C.ADD"}:
             ensure_nonzero(_C_RD_MASK)
             ensure_nonzero(_C_RS2_MASK)
@@ -362,18 +367,15 @@ class RiscvInstructionTransducer:
             raise AssertionError(f"instruction template produced an illegal word: {name}")
         return InstructionChoice(name, template.width, word, free_mask, True)
 
-    def _illegal_choice(self, raw_payload: int, width: int) -> InstructionChoice:
+    def _illegal_choice(self, raw_payload: int) -> InstructionChoice:
         if isinstance(raw_payload, bool) or not isinstance(raw_payload, int) or raw_payload < 0:
             raise ValueError("raw instruction payload must be a nonnegative integer")
-        word_mask = (1 << width) - 1
-        if width == 32:
-            repaired_mask = 0x3
-            word = raw_payload & word_mask & ~repaired_mask
-        else:
-            repaired_mask = _C_FORMAT_MASK
-            word = ((raw_payload & word_mask) & ~repaired_mask) | (1 << 13)
+        word_mask = (1 << 32) - 1
+        repaired_mask = _OPCODE_MASK
+        word = ((raw_payload & word_mask) & ~repaired_mask) | 0x4B
         free_mask = word_mask & ~repaired_mask
-        return InstructionChoice("ILLEGAL", width, word, free_mask, False)
+        legal = self.provider.is_legal_word(word)
+        return InstructionChoice("ILLEGAL", 32, word, free_mask, legal)
 
 
 __all__ = [
