@@ -12,6 +12,7 @@ INPUT_PATH = ROOT / "examples/real_ibex_rfuzz/input/ibex-scratch.json"
 GUIDE_PATH = ROOT / "examples/real_ibex_rfuzz/README.zh-CN.md"
 COMMANDS_PATH = ROOT / "examples/real_ibex_rfuzz/commands.sh"
 EXPECTED_PATH = ROOT / "examples/real_ibex_rfuzz/expected/bounded-result.json"
+OVERVIEW_PATH = ROOT / "examples/real_ibex_rfuzz/系统能力与工作原理.md"
 
 
 def load_module():
@@ -115,6 +116,12 @@ class RealIbexRfuzzExampleTests(unittest.TestCase):
     def test_root_readme_links_chinese_walkthrough(self):
         readme = (ROOT / "README.md").read_text()
         self.assertIn("examples/real_ibex_rfuzz/README.zh-CN.md", readme)
+
+    def test_standalone_system_overview_covers_the_complete_flow(self):
+        self.assertTrue(OVERVIEW_PATH.is_file(), "standalone system overview is missing")
+        overview = OVERVIEW_PATH.read_text()
+        for heading in ("系统目标", "分层架构", "自动组合", "输入约束", "RFuzz 反馈闭环", "语料重放", "当前测试结果", "尚未完成"):
+            self.assertIn(heading, overview)
 
 
 if __name__ == "__main__":
