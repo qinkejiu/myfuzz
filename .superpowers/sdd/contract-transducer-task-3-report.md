@@ -92,3 +92,66 @@ test evidence uses `PYTHONPATH=src python3`.
   derives the selector from the instruction field's high eight bits. The later
   whole-contract transducer should consume the dedicated selector field defined
   by the cycle layout instead of reusing payload bits.
+
+## Fix Review
+
+### Status and commit
+
+- All review Important findings are fixed.
+- Code/test fix commit:
+  `3115f8d3a35db8058e9f0d2a0e75ac2f6b89e3ce`
+  (`fix: preserve compressed entropy and illegal width`).
+
+### RED evidence
+
+After adding the reviewer-provided RV64C examples, a complete compressed
+same-operation fixed-point audit, and the C-aware illegal-category regression:
+
+`PYTHONPATH=src python3 -m pytest tests/isa/test_instruction_transducer.py -q`
+
+failed as expected with `6 failed, 21 passed`:
+
+- `C.SRLI` changed `0x9001` to `0x8005`;
+- `C.SRAI` changed `0x9401` to `0x8405`;
+- `C.ANDI` changed `0x9805` to `0x8805`;
+- the RV64 full-space fixed-point audit failed at `C.SRLI`;
+- both I-only and IC illegal-category cases had low bits `00`, not `11`.
+
+### GREEN evidence
+
+Required review suite:
+
+`PYTHONPATH=src python3 -m pytest tests/isa/test_instruction_transducer.py tests/isa/test_instruction_constraints.py tests/composition/test_runtime_projection.py -q`
+
+Result: `53 passed, 43 subtests passed in 0.28s`.
+
+An additional exhaustive audit enumerated all 65,536 payloads for every
+compressed template and checked provider legality plus reported-free-bit
+preservation:
+
+- RV32: all 26 compressed templates passed;
+- RV64: all 32 compressed templates passed.
+
+### Self-review
+
+- RV64 `C.SRLI`, `C.SRAI`, and `C.ANDI` now leave bit 12 free. RV32 keeps the
+  provider-required bit-12 restrictions. `C.ANDI` applies a one-bit conditional
+  repair only when the provider would otherwise reject the generated RV64 word.
+- Every provider-accepted compressed word that independently decodes to a
+  selected operation is now a fixed point of `repair_for_operation`, for both
+  RV32 and RV64 and for every exposed compressed template.
+- The explicit illegal category always emits a 32-bit-length word using reserved
+  major opcode `0x4B`; `InstructionChoice.legal` is computed by the same provider
+  and is false with both I-only and IC contracts.
+- Runtime projection now has an explicit repeat-evaluation assertion proving the
+  same input produces the same result.
+- `git diff --check` passed, and no Task 2 report or `third_party/` content was
+  changed.
+
+### Remaining concerns
+
+- The existing provider still rejects RV32 `C.ANDI` with bit 12 set, so RV32
+  generation remains conservatively restricted to its accepted subset. RV64
+  legal bit-12 inputs are preserved as required.
+- RuntimeProjector still derives its legacy selector from the payload high byte;
+  the future whole-contract transducer should use the dedicated cycle selector.
