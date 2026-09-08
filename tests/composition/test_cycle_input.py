@@ -123,3 +123,10 @@ def test_parse_rejects_layout_reusing_an_old_hash() -> None:
             reused_hash,
             replace(header(changed), layout_hash=original.layout_hash),
         )
+
+
+@pytest.mark.parametrize("version", ["unknown", "cycle_test.v2", "test_header.v1"])
+def test_header_rejects_unknown_schema_versions(version):
+    layout = CycleInputLayout.build((CycleField("payload", 8),))
+    with pytest.raises(CycleInputError, match="schema version"):
+        replace(header(layout), schema_version=version)

@@ -15,6 +15,7 @@ class CycleInputError(ValueError):
 
 
 _LAYOUT_SCHEMA_VERSION = "cycle_input_layout.v1"
+TEST_HEADER_SCHEMA_VERSION = "cycle_test.v1"
 
 
 def _layout_document(
@@ -85,8 +86,8 @@ class TestHeader:
     illegal_instruction: bool = False
 
     def __post_init__(self) -> None:
-        if not isinstance(self.schema_version, str) or not self.schema_version:
-            raise CycleInputError("header schema version is required")
+        if self.schema_version != TEST_HEADER_SCHEMA_VERSION:
+            raise CycleInputError("unsupported header schema version")
         if not isinstance(self.layout_hash, str) or not self.layout_hash:
             raise CycleInputError("header layout hash is required")
         if not isinstance(self.contract_hash, str) or not self.contract_hash:
@@ -211,5 +212,6 @@ __all__ = [
     "CycleInputLayout",
     "CycleTestCase",
     "TestHeader",
+    "TEST_HEADER_SCHEMA_VERSION",
     "parse_cycle_payload",
 ]

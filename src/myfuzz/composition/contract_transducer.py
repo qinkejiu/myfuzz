@@ -5,11 +5,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, replace
 from typing import TYPE_CHECKING
+from types import MappingProxyType
 
 from myfuzz.contracts import content_hash
 
 from .coherent_memory import CoherentMemoryState
-from .cycle_input import CycleField, CycleInputLayout, TestHeader
+from .cycle_input import CycleField, CycleInputLayout, TestHeader, TEST_HEADER_SCHEMA_VERSION
 from .protocol_transducer import (
     ProcessorBeatInputs, ProcessorBeatRequest, ProcessorBeatTransducer, _unsigned,
 )
@@ -53,6 +54,11 @@ class ContractTransducerPlan:
             "memory_addressing": "aligned_beat_base_byte_enable_lanes",
             "capacity_policy": "error_without_eviction",
             "allow_error_scope": "random_injection_only",
+            "test_header_schema_version": TEST_HEADER_SCHEMA_VERSION,
+            "instruction_addressing_policy": "aligned_beat_uniform_slots_force_compressed_at_halfword_entry",
+            "instruction_slot_policy": "independent_selector_and_payload_per_slot",
+            "memory_provenance_policy": "data_generated_fetch_error_cpu_written_fetch_exact",
+            "zero_byte_enable_policy": "no_write_no_allocation_no_provenance_change",
             "cycle_layout": self.cycle_layout.document(),
         }
 
@@ -108,9 +114,14 @@ def compile_contract_transducer(
     instruction = RiscvInstructionTransducer(normalized_isa)
     ProcessorBeatTransducer(data_width, max_wait_cycles, allow_error=allow_error)
     external_fields = tuple(sorted(external_inputs.items()))
+    compressed = "C" in normalized_isa.extensions and normalized_isa.instruction_alignment == 2
+    selector_count = data_width // (16 if compressed else 32)
     cycle_layout = CycleInputLayout.build([
         CycleField("instruction_selector", instruction.selector_width),
-        CycleField("instruction_payload", 32),
+        *(CycleField(f"instruction_selector_{index}", instruction.selector_width)
+          for index in range(1, selector_count)),
+        CycleField("instruction_payload", data_width),
+        *([CycleField("instruction_compressed", 1)] if compressed else []),
         CycleField("response_choice", 3),
         CycleField("response_data", data_width),
         *(CycleField(f"external.{name}", width) for name, width in external_fields),
@@ -142,12 +153,20 @@ class ContractRuntime:
         )
         self.memory = CoherentMemoryState()
         self._allocated_entries: set[tuple[str, int]] = set()
+        self._memory_provenance: dict[tuple[str, int], str] = {}
         self.instruction = RiscvInstructionTransducer(plan.isa)
         self.header: TestHeader | None = None
+
+    @property
+    def memory_provenance(self) -> Mapping[tuple[str, int], str]:
+        """Read-only provenance of every allocated beat."""
+        return MappingProxyType(self._memory_provenance)
 
     def begin_test(self, header: TestHeader) -> None:
         if not isinstance(header, TestHeader):
             raise ValueError("header must be a TestHeader")
+        if header.schema_version != TEST_HEADER_SCHEMA_VERSION:
+            raise ValueError("unsupported header schema version")
         if header.layout_hash != self.plan.cycle_layout.layout_hash:
             raise ValueError("header layout hash does not match contract")
         if header.contract_hash != self.plan.contract_hash:
@@ -158,6 +177,7 @@ class ContractRuntime:
         self.header = header
         self.memory.reset_test()
         self._allocated_entries.clear()
+        self._memory_provenance.clear()
         self.protocol.reset()
 
     def reset_dut(self) -> None:
@@ -218,6 +238,8 @@ class ContractRuntime:
         # lanes. Low address bits never offset the returned beat or write.
         base = pending.address & ~(width_bytes - 1)
         key = (pending.domain, base)
+        if pending.write and pending.byte_enable == 0:
+            return replace(result, rsp_data=0, response_data_source="write", external_inputs=external)
         if key not in self._allocated_entries:
             if len(self._allocated_entries) >= self.plan.memory_capacity_entries:
                 return replace(
@@ -226,25 +248,44 @@ class ContractRuntime:
                 )
             self._allocated_entries.add(key)
         if pending.write:
+            byte_enable = pending.byte_enable if pending.byte_enable is not None else (1 << width_bytes) - 1
             self.memory.write(
                 pending.domain, base, pending.write_data,
-                pending.byte_enable if pending.byte_enable is not None else (1 << width_bytes) - 1,
+                byte_enable,
                 width_bytes,
             )
+            if byte_enable:
+                self._memory_provenance[key] = "cpu_written"
             return replace(result, rsp_data=0, response_data_source="write", external_inputs=external)
 
+        provenance = self._memory_provenance.get(key)
+        if pending.function == "instruction_memory_master" and provenance == "data_generated":
+            return replace(result, rsp_data=0, rsp_error=True,
+                           response_data_source="provenance_error", external_inputs=external)
+
         def initialize() -> int:
-            if pending.function == "instruction_memory_master":
-                # A beat carries a 32-bit instruction; wider beats retain raw
-                # response data in their remaining bytes.
-                word = self.instruction.repair(
-                    fields["instruction_selector"], fields["instruction_payload"],
-                    illegal=self.header.illegal_instruction,
-                ).word
-                return (fields["response_data"] & ~0xFFFFFFFF) | word
+            if pending.function == "instruction_memory_master" and provenance != "cpu_written":
+                compressed = "instruction_compressed" in fields and (
+                    fields["instruction_compressed"] or pending.address % 4 == 2
+                )
+                slot_width = 16 if compressed else 32
+                word = 0
+                for index in range(self.plan.data_width // slot_width):
+                    selector = "instruction_selector" if index == 0 else f"instruction_selector_{index}"
+                    payload = (fields["instruction_payload"] >> (index * slot_width)) & ((1 << slot_width) - 1)
+                    choice = self.instruction.repair(
+                        fields[selector], payload, width=slot_width,
+                        illegal=self.header.illegal_instruction,
+                    )
+                    word |= choice.word << (index * slot_width)
+                return word
             return fields["response_data"]
 
         value = self.memory.read(pending.domain, base, width_bytes, initialize)
+        if provenance is None:
+            self._memory_provenance[key] = (
+                "instruction_generated" if pending.function == "instruction_memory_master" else "data_generated"
+            )
         return replace(result, rsp_data=value, response_data_source="stored", external_inputs=external)
 
 

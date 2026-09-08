@@ -28,7 +28,7 @@ def plan_for(**kwargs):
 
 
 def header_for(plan, **kwargs):
-    values = dict(schema_version="test_header.v1", layout_hash=plan.cycle_layout.layout_hash,
+    values = dict(schema_version="cycle_test.v1", layout_hash=plan.cycle_layout.layout_hash,
                   contract_hash=plan.contract_hash, reset_cycles=2, execution_cycles=100,
                   boot_address=0x80, hart_id=0)
     values.update(kwargs)
@@ -77,7 +77,9 @@ def test_data_reads_use_raw_response_data_and_shared_domain_preserves_instructio
     new_data = transact(runtime, request(0x90, "data_memory_master"), response_data=0xDEADBEEF)
     assert new_data.response_data == 0xDEADBEEF
     instruction = transact(runtime, request(0x90), instruction_payload=0)
-    assert instruction.response_data == 0xDEADBEEF
+    assert instruction.rsp_error and instruction.response_data == 0
+    assert instruction.response_data_source == "provenance_error"
+    assert transact(runtime, request(0x90, "data_memory_master")).response_data == 0xDEADBEEF
 
 
 def test_data_writes_update_enabled_bytes_only_on_successful_response():
@@ -195,11 +197,12 @@ def test_protocol_error_does_not_consume_capacity():
     assert not transact(runtime, replace(req, address=0x90)).rsp_error
 
 
-def test_64_bit_beats_preserve_upper_raw_response_bits_and_share_bytes():
+def test_64_bit_instruction_beats_fill_both_slots_and_share_bytes():
     runtime = runtime_for(plan_for(data_width=64))
     value = transact(runtime, request(), instruction_payload=0x123400,
                      response_data=0x12345678_DEADBEEF).response_data
-    assert value >> 32 == 0x12345678
+    assert runtime.instruction.provider.is_legal_word(value >> 32)
+    assert runtime.instruction.provider.is_legal_word(value & 0xFFFFFFFF)
     assert transact(runtime, request(0x84, "data_memory_master")).response_data == value
 
 
@@ -251,3 +254,136 @@ def test_runtime_rejects_invalid_request_before_changing_state(req):
     with pytest.raises(ValueError):
         runtime.step(raw(runtime.plan, response_choice=1), req)
     assert runtime.protocol.state.pending is None
+
+
+@pytest.mark.parametrize("data_width", [32, 64])
+@pytest.mark.parametrize("has_c", [False, True])
+@pytest.mark.parametrize("compressed", [False, True])
+def test_full_instruction_beat_has_independently_repaired_legal_slots(data_width, has_c, compressed):
+    isa = IsaContract(32, ("I", "M", "C") if has_c else ("I", "M"),
+                      instruction_alignment=2 if has_c else 4)
+    runtime = runtime_for(plan_for(isa=isa, data_width=data_width))
+    width = 16 if has_c and compressed else 32
+    payload = 0xA55ADEAD1234BCDE & ((1 << data_width) - 1)
+    fields = {"instruction_payload": payload}
+    selectors = (19, 92, 177, 238)
+    for index in range(data_width // (16 if has_c else 32)):
+        fields["instruction_selector" if index == 0 else f"instruction_selector_{index}"] = selectors[index]
+    if has_c:
+        fields["instruction_compressed"] = int(compressed)
+    for field_name in fields:
+        assert field_name in {field.name for field in runtime.plan.cycle_layout.fields}
+    result = transact(runtime, request(), **fields)
+    for index in range(data_width // width):
+        word = (result.response_data >> (index * width)) & ((1 << width) - 1)
+        slot_payload = (payload >> (index * width)) & ((1 << width) - 1)
+        expected = runtime.instruction.repair(selectors[index], slot_payload, width=width).word
+        assert word == expected
+        assert runtime.instruction.provider.is_legal_word(word, compressed=width == 16)
+    assert transact(runtime, request(), instruction_payload=0).response_data == result.response_data
+
+
+@pytest.mark.parametrize("data_width", [32, 64])
+@pytest.mark.parametrize("raw_mode", [0, 1])
+def test_halfword_boot_address_forces_complete_compressed_beat(data_width, raw_mode):
+    runtime = runtime_for(plan_for(data_width=data_width))
+    runtime.begin_test(header_for(runtime.plan, boot_address=0x82))
+    assert "instruction_compressed" in {field.name for field in runtime.plan.cycle_layout.fields}
+    result = transact(runtime, request(0x82), instruction_compressed=raw_mode,
+                      instruction_payload=(1 << data_width) - 1)
+    assert not result.rsp_error
+    for offset in range(0, data_width, 16):
+        assert runtime.instruction.provider.is_legal_word(
+            (result.response_data >> offset) & 0xFFFF, compressed=True)
+    assert transact(runtime, request(0x82), instruction_payload=0).response_data == result.response_data
+
+
+def test_provenance_conflict_error_survives_reset_and_ignores_random_error_disable():
+    runtime = runtime_for(plan_for(allow_error=False))
+    data = request(function="data_memory_master")
+    transact(runtime, data, response_data=0xDEADBEEF)
+    runtime.reset_dut()
+    result = transact(runtime, request())
+    assert result.rsp_error and result.response_data == 0
+    assert runtime.memory_provenance[("main", 0x80)] == "data_generated"
+    assert transact(runtime, data).response_data == 0xDEADBEEF
+    runtime.begin_test(header_for(runtime.plan))
+    assert not runtime.memory_provenance
+    instruction = transact(runtime, request())
+    assert not instruction.rsp_error
+    assert runtime.memory_provenance[("main", 0x80)] == "instruction_generated"
+
+
+@pytest.mark.parametrize("initialize_first", [False, True])
+def test_cpu_written_memory_returns_exact_contents_when_executed(initialize_first):
+    runtime = runtime_for()
+    data = request(function="data_memory_master")
+    if initialize_first:
+        transact(runtime, data, response_data=0xDEADBEEF)
+    transact(runtime, replace(data, write=True, write_data=0x12345678))
+    fetched = transact(runtime, request(), instruction_payload=0)
+    assert not fetched.rsp_error and fetched.response_data == 0x12345678
+    assert runtime.memory_provenance[("main", 0x80)] == "cpu_written"
+
+
+def test_partial_cpu_write_keeps_unwritten_instruction_bytes():
+    runtime = runtime_for()
+    initial = transact(runtime, request()).response_data
+    transact(runtime, request(function="data_memory_master", write=True,
+                              write_data=0xAA00, byte_enable=2))
+    fetched = transact(runtime, request())
+    assert not fetched.rsp_error and fetched.response_data == (initial & ~0xFF00) | 0xAA00
+    assert runtime.memory_provenance[("main", 0x80)] == "cpu_written"
+
+
+def test_zero_lane_write_does_not_bypass_data_provenance_error():
+    runtime = runtime_for()
+    data = request(function="data_memory_master")
+    transact(runtime, data, response_data=0xDEADBEEF)
+    transact(runtime, replace(data, write=True, byte_enable=0))
+    assert transact(runtime, request()).rsp_error
+
+
+def test_zero_lane_write_to_new_address_does_not_allocate_or_consume_capacity():
+    runtime = runtime_for(plan_for(memory_capacity_entries=1))
+    transact(runtime, request(function="data_memory_master", write=True, byte_enable=0))
+    assert not runtime.memory_provenance
+    result = transact(runtime, request(0x90))
+    assert not result.rsp_error
+    assert runtime.memory_provenance == {("main", 0x90): "instruction_generated"}
+
+
+def test_new_partial_cpu_write_never_repairs_written_bytes_on_fetch():
+    runtime = runtime_for()
+    transact(runtime, request(function="data_memory_master", write=True,
+                              write_data=0xAA00, byte_enable=2))
+    first = transact(runtime, request(), response_data=0x12345678)
+    assert not first.rsp_error and first.response_data == 0x1234AA78
+    assert transact(runtime, request(), response_data=0xFFFFFFFF).response_data == 0x1234AA78
+
+
+@pytest.mark.parametrize("version", ["test_header.v1", "cycle_test.v2", "unknown"])
+def test_begin_test_rejects_unsupported_header_version_without_clearing_memory(version):
+    runtime = runtime_for()
+    data = request(function="data_memory_master")
+    transact(runtime, data, response_data=7)
+    header = header_for(runtime.plan)
+    object.__setattr__(header, "schema_version", version)
+    with pytest.raises(ValueError, match="schema version"):
+        runtime.begin_test(header)
+    assert transact(runtime, data, response_data=9).response_data == 7
+
+
+@pytest.mark.parametrize("data_width,has_c,count", [(32, False, 1), (32, True, 2),
+                                                   (64, False, 2), (64, True, 4)])
+def test_slot_selectors_are_separate_declared_hash_bound_fields(data_width, has_c, count):
+    isa = IsaContract(32, ("I", "C") if has_c else ("I",),
+                      instruction_alignment=2 if has_c else 4)
+    plan = plan_for(isa=isa, data_width=data_width, external_inputs={"external_signal": 5})
+    selectors = [field for field in plan.cycle_layout.fields if field.name.startswith("instruction_selector")]
+    assert len(selectors) == count and all(field.width == 8 for field in selectors)
+    fields = {field.name: field for field in plan.cycle_layout.fields}
+    assert fields["instruction_payload"].width == data_width
+    assert ("instruction_compressed" in fields) == has_c
+    assert len(plan.document()["cycle_layout"]["fields"]) == len(fields)
+    assert all(field.raw_hi < fields["external.external_signal"].raw_lo for field in selectors)
