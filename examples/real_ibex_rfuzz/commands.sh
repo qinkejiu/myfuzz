@@ -10,7 +10,7 @@ export PYTHONPATH="src:."
 export JOBS=1
 
 INPUT="examples/real_ibex_rfuzz/input/ibex-scratch.json"
-CLIENT="runs/task14_client_cancel_build/debug/kfuzz"
+CLIENT="runs/rfuzz_client_native_build/target/debug/kfuzz"
 
 case "${1:-help}" in
   check)
@@ -20,30 +20,34 @@ case "${1:-help}" in
     ;;
   compose)
     nice -n15 python3 examples/real_ibex_rfuzz/run_example.py compose \
-      --input "$INPUT" --output "${2:-runs/examples/real-ibex-compose}"
+      --input "$INPUT" --output "${2:-runs/examples/contract-rfuzz-compose}"
     ;;
   test)
     nice -n15 python3 examples/real_ibex_rfuzz/run_example.py test \
       --input "$INPUT" --client "$CLIENT" \
-      --output "${2:-runs/examples/real-ibex-rfuzz-5s}" --seconds "${3:-5}"
+      --output "${2:-runs/examples/contract-rfuzz-5s}" --seconds "${3:-5}"
     ;;
   inspect)
     python3 examples/real_ibex_rfuzz/run_example.py inspect \
-      --output "${2:-runs/examples/real-ibex-rfuzz-5s}"
+      --output "${2:-runs/examples/contract-rfuzz-5s}"
+    ;;
+  replay)
+    nice -n15 python3 examples/real_ibex_rfuzz/run_example.py replay \
+      --input "$INPUT" --output "${2:-runs/examples/contract-rfuzz-5s}" \
+      --build-output "${3:-runs/examples/contract-rfuzz-replay}"
     ;;
   focused-tests)
-    nice -n15 python3 -m unittest -v tests.examples.test_real_ibex_rfuzz_example
+    nice -n15 python3 -m pytest tests/examples/test_real_ibex_rfuzz_example.py -q
     ;;
   full-tests)
-    nice -n15 python3 -m unittest discover -s tests -p 'test_*.py'
+    nice -n15 python3 -m pytest tests -q
     ;;
-  formal-3x300)
-    nice -n15 python3 scripts/run_real_cpu_campaigns.py \
-      --config configs/campaigns/ibex-real-rfuzz.json \
-      --client "$CLIENT" --output "${2:-runs/task15-real-cpu-3x300}" \
-      --seconds 300 --seed 20260908
+  help)
+    echo "usage: $0 {check|compose|test|inspect|focused-tests|full-tests} [output] [seconds]"
+    echo "       $0 replay [existing-test-output] [new-build-output]"
     ;;
-  help|*)
-    echo "usage: $0 {check|compose|test|inspect|focused-tests|full-tests|formal-3x300} [output] [seconds]"
+  *)
+    echo "unknown command: $1" >&2
+    exit 2
     ;;
 esac

@@ -19,7 +19,18 @@
     "obi",
     "1"
   ],
-  "memory_module": "riscv_boot_memory_32",
+  "input_mode": "contract_transducer",
+  "memory_domains": {
+    "instruction_memory_master": "main",
+    "data_memory_master": "main"
+  },
+  "test_header": {
+    "reset_cycles": 2,
+    "execution_cycles": 200,
+    "boot_address": 128,
+    "hart_id": 0,
+    "illegal_instruction": false
+  },
   "reset_vector": 128,
   "probe_cycles": 80,
   "composition_seed": 20260908,
@@ -27,12 +38,13 @@
     "processor.interrupts:software_interrupt",
     "processor.interrupts:timer_interrupt",
     "processor.interrupts:external_interrupt",
-    "processor.interrupts:fast_interrupt"
+    "processor.interrupts:fast_interrupt",
+    "processor.execution_controls:nonmaskable_interrupt",
+    "processor.debug:request"
   ],
   "control_defaults": {
     "boot_address": 128,
     "hart_id": 0,
-    "request": 0,
     "interrupt": 0,
     "fetch_enable": 5,
     "scan_reset": 1,

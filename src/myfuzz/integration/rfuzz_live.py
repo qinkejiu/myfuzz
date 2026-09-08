@@ -19,6 +19,14 @@ def _hash_bytes(data):
     return "sha256:" + hashlib.sha256(data).hexdigest()
 
 
+def _record_simulator_diagnostics(state, simulator):
+    """Retain a bounded stdout sample while counting every captured RTL line."""
+    report = state.setdefault("simulator_diagnostics", {"lines": 0, "sample_limit": 32, "samples": []})
+    lines = getattr(simulator, "last_diagnostics", ())
+    report["lines"] += len(lines)
+    report["samples"].extend(lines[:max(0, report["sample_limit"] - len(report["samples"]))])
+
+
 def _constraint_hash(artifact):
     projector = getattr(artifact, "projector", None)
     value = getattr(projector, "constraint_hash", None)
@@ -338,7 +346,10 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
             def execute(records):
                 nonlocal tests
                 check()
-                counters=simulator.run_test(records, monitor=check)
+                try:
+                    counters=simulator.run_test(records, monitor=check)
+                finally:
+                    _record_simulator_diagnostics(state, simulator)
                 for key, value in getattr(simulator, "last_execution", {}).items():
                     execution_totals[key] = execution_totals.get(key, 0) + value
                 state["execution_totals"] = dict(execution_totals)

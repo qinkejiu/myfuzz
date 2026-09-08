@@ -35,6 +35,9 @@ from .campaign import CampaignOptions, run_supervised_command, read_process_grou
 
 MAX_CYCLES = 65536
 MAX_IO_BYTES = 8 * 1024 * 1024
+MAX_DIAGNOSTIC_BYTES = 256 * 1024
+MAX_DIAGNOSTIC_LINES = 1024
+MAX_DIAGNOSTIC_LINE_BYTES = 4096
 RSS_POLL_SECONDS = 0.1
 
 
@@ -387,6 +390,13 @@ def build_simulator(plan, output_dir, *, base_dir, coverage_ports,
             defaults[role] = value
     elif test_header is not None:
         raise ValueError("test header requires contract transducer")
+    if execution_monitor is not None and execution_monitor.get("mode") == "contract_transducer":
+        if contract_transducer is None:
+            raise ValueError("contract execution monitor requires contract transducer")
+        if execution_monitor["memory_capacity_entries"] != contract_transducer.memory_capacity_entries:
+            raise ValueError("contract execution monitor memory capacity does not match transducer")
+        if len(set(dict(contract_transducer.memory_domains).values())) != 1:
+            raise ValueError("contract execution monitor requires one shared memory domain")
     if isinstance(simulator_args, (str, bytes)) or not isinstance(simulator_args, Sequence):
         raise ValueError("simulator args must be a sequence")
     if any(not isinstance(value, str) or not value for value in simulator_args):
@@ -551,7 +561,12 @@ def build_simulator(plan, output_dir, *, base_dir, coverage_ports,
 
 
 class RtlSimulator:
-    """One private persistent child, with bounded per-test IO and cleanup."""
+    """One private persistent child, with bounded per-test IO and cleanup.
+
+    ``last_diagnostics`` preserves non-protocol output from the latest exchange
+    as UTF-8 strings (invalid bytes replaced), including when that test fails.
+    Limits count original bytes, including newlines, and apply per exchange.
+    """
     def __init__(self, artifact, *, timeout_seconds=5.0):
         if not isinstance(artifact, SimulatorArtifact):
             raise ValueError("simulator artifact required")
@@ -559,6 +574,7 @@ class RtlSimulator:
                 or not 0 < timeout_seconds <= 60):
             raise ValueError("finite simulator deadline required")
         self.artifact, self.timeout_seconds = artifact, timeout_seconds
+        self.last_diagnostics = ()
         self._next_rss_poll = 0.0  # Immediate startup check; shared across tests.
         self._executions = 0
         self._start()
@@ -581,46 +597,94 @@ class RtlSimulator:
     def _exchange(self, payload, max_reply, monitor=None):
         deadline = time.monotonic() + self.timeout_seconds
         pending, reply = memoryview(payload), bytearray()
-        with selectors.DefaultSelector() as selector:
-            selector.register(self.process.stdout, selectors.EVENT_READ)
+        diagnostics, diagnostic_bytes, frame = [], 0, None
+        self.last_diagnostics = ()
+        try:
+            # No output from the previous transaction may satisfy a new test.
             if pending:
-                selector.register(self.process.stdin, selectors.EVENT_WRITE)
-            while True:
-                if monitor is not None:
-                    monitor()
-                now = time.monotonic()
-                if now >= deadline:
-                    raise TimeoutError("simulator IO deadline exceeded")
-                if now >= self._next_rss_poll and self.process.poll() is None:
-                    rss = read_process_group_rss_bytes(self.process.pid)
-                    self._next_rss_poll = time.monotonic() + RSS_POLL_SECONDS
-                    if rss >= 512 * 1024 * 1024:
-                        raise RuntimeError("simulator group RSS soft limit exceeded")
-                for key, _ in selector.select(min(0.02, max(0, deadline - time.monotonic()))):
-                    if key.fileobj is self.process.stdin:
-                        try:
-                            count = os.write(key.fd, pending[:65536])
-                        except BlockingIOError:
-                            continue
-                        pending = pending[count:]
-                        if not pending:
-                            selector.unregister(self.process.stdin)
-                    else:
-                        try:
-                            chunk = os.read(key.fd, 4096)
-                        except BlockingIOError:
-                            continue
-                        if not chunk:
-                            raise RuntimeError("simulator closed output")
-                        reply.extend(chunk)
-                        if len(reply) > max_reply:
-                            raise ValueError("oversized simulator response")
-                        if b"\n" in reply:
-                            if pending or not reply.endswith(b"\n") or reply.count(b"\n") != 1:
-                                raise ValueError("unexpected simulator response framing")
-                            return bytes(reply[:-1])
+                try:
+                    stale = os.read(self.process.stdout.fileno(), 4096)
+                except BlockingIOError:
+                    pass
+                else:
+                    if not stale:
+                        raise RuntimeError("simulator closed output")
+                    raise ValueError("unexpected simulator response framing before test")
+            with selectors.DefaultSelector() as selector:
+                selector.register(self.process.stdout, selectors.EVENT_READ)
+                if pending:
+                    selector.register(self.process.stdin, selectors.EVENT_WRITE)
+                while True:
+                    if monitor is not None:
+                        monitor()
+                    now = time.monotonic()
+                    if now >= deadline:
+                        raise TimeoutError("simulator IO deadline exceeded")
+                    if now >= self._next_rss_poll and self.process.poll() is None:
+                        rss = read_process_group_rss_bytes(self.process.pid)
+                        self._next_rss_poll = time.monotonic() + RSS_POLL_SECONDS
+                        if rss >= 512 * 1024 * 1024:
+                            raise RuntimeError("simulator group RSS soft limit exceeded")
+                    for key, _ in selector.select(min(0.02, max(0, deadline - time.monotonic()))):
+                        if key.fileobj is self.process.stdin:
+                            try:
+                                count = os.write(key.fd, pending[:65536])
+                            except BlockingIOError:
+                                continue
+                            pending = pending[count:]
+                            if not pending:
+                                selector.unregister(self.process.stdin)
+                        else:
+                            # Drain all currently readable chunks before accepting
+                            # a frame, so read chunking cannot hide duplicates.
+                            while True:
+                                try:
+                                    chunk = os.read(key.fd, 4096)
+                                except BlockingIOError:
+                                    if frame is not None:
+                                        if self.process.poll() is not None:
+                                            raise RuntimeError("simulator exited after response")
+                                        return frame
+                                    break
+                                if not chunk:
+                                    raise RuntimeError("simulator closed output")
+                                if frame is not None:
+                                    raise ValueError("unexpected simulator response framing")
+                                reply.extend(chunk)
+                                while b"\n" in reply:
+                                    line, _, remaining = reply.partition(b"\n")
+                                    reply = bytearray(remaining)
+                                    if line.startswith(b"RFUZZ_"):
+                                        expected = (line.startswith(b"RFUZZ_COUNTERS ")
+                                                    if payload else line == b"RFUZZ_READY")
+                                        if pending or not expected or reply:
+                                            raise ValueError("unexpected simulator response framing")
+                                        if len(line) > max_reply:
+                                            raise ValueError("oversized simulator response")
+                                        frame = bytes(line)
+                                    else:
+                                        if (len(line) > MAX_DIAGNOSTIC_LINE_BYTES
+                                                or len(diagnostics) >= MAX_DIAGNOSTIC_LINES
+                                                or diagnostic_bytes + len(line) + 1 > MAX_DIAGNOSTIC_BYTES):
+                                            raise ValueError("simulator diagnostic output limit exceeded")
+                                        diagnostic_bytes += len(line) + 1
+                                        diagnostics.append(line.decode("utf-8", errors="replace"))
+                                if reply.startswith(b"RFUZZ_"):
+                                    if len(reply) > max_reply:
+                                        raise ValueError("oversized simulator response")
+                                elif (len(reply) > MAX_DIAGNOSTIC_LINE_BYTES
+                                      or diagnostic_bytes + len(reply) > MAX_DIAGNOSTIC_BYTES):
+                                    raise ValueError("simulator diagnostic output limit exceeded")
+        finally:
+            if (reply and not reply.startswith(b"RFUZZ_")
+                    and len(reply) <= MAX_DIAGNOSTIC_LINE_BYTES
+                    and len(diagnostics) < MAX_DIAGNOSTIC_LINES
+                    and diagnostic_bytes + len(reply) <= MAX_DIAGNOSTIC_BYTES):
+                diagnostics.append(reply.decode("utf-8", errors="replace"))
+            self.last_diagnostics = tuple(diagnostics)
 
     def run_test(self, records, *, monitor=None):
+        self.last_diagnostics = ()
         if self.closed:
             raise ValueError("simulator is closed")
         if not isinstance(records, (tuple, list)) or not 1 <= len(records) <= MAX_CYCLES:
@@ -643,7 +707,7 @@ class RtlSimulator:
                 reply, separator, metrics = reply.partition(b" EXEC ")
                 if not separator:
                     raise ValueError("missing RTL execution metrics")
-                self.last_execution = validate_execution(parse_metrics(metrics))
+                self.last_execution = validate_execution(parse_metrics(metrics, self.artifact.execution_monitor))
             prefix = b"RFUZZ_COUNTERS "
             if not reply.startswith(prefix) or len(reply) != len(prefix) + 2 * count:
                 raise ValueError("invalid simulator counter response")

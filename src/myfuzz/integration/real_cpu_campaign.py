@@ -8,10 +8,12 @@ import random
 from myfuzz.components.catalog import ComponentCatalog
 from myfuzz.components.model import PeripheralProfile, ParameterSpec
 from myfuzz.composition import GenericCompositionRequest, load_interface_description, plan_generic_composition
+from myfuzz.composition.contract_transducer import compile_contract_transducer
+from myfuzz.composition.cycle_input import TestHeader
 from myfuzz.contracts import canonical_bytes
 from myfuzz.isa.constraints import IsaContract
 from myfuzz.protocols.catalog import load_protocol_catalog
-from .riscv_execution import RiscvExecutionFacts, RiscvExecutionProvenance, build_minimal_boot_image
+from .riscv_execution import RiscvExecutionProvenance
 from .rfuzz_simulator import RtlSimulator, build_simulator
 from .rfuzz_live import run_live, replay_corpus
 
@@ -26,6 +28,8 @@ def publish(path, value):
 
 def build_candidate(root, output, config, personality):
     root, output = Path(root).resolve(), Path(output).resolve()
+    if config.get("input_mode") != "contract_transducer":
+        raise ValueError("real CPU candidates require input_mode=contract_transducer")
     output.mkdir(parents=True, exist_ok=False)
     document = json.loads((root / config["interface"]).read_text())
     for endpoint in document["endpoints"]:
@@ -33,12 +37,6 @@ def build_candidate(root, output, config, personality):
             if f"{endpoint['endpoint_id']}:{field['role']}" in config["randomizable_fields"]:
                 field["randomizable"] = True
     description = load_interface_description(document)
-    memory = PeripheralProfile(
-        "boot-memory", config["memory_module"], (("processor-memory-beat", "1"),),
-        4096, 4096, False, (), "implemented",
-        ("src/myfuzz/integration/rtl/riscv_boot_memory.sv",), True, {},
-        protocol_features={("processor-memory-beat", "1"): ("reset_flush",)},
-    )
     peripheral = PeripheralProfile(
         personality["name"], personality["module"], (("processor-memory-beat", "1"),),
         4096, 4096, False, (), "implemented", (personality["source"],), True, {},
@@ -47,17 +45,11 @@ def build_candidate(root, output, config, personality):
     )
     isa = IsaContract(**{**config["isa_contract"], "extensions": tuple(config["isa_contract"]["extensions"])})
     plan = plan_generic_composition(
-        GenericCompositionRequest(description, (memory.component_type, peripheral.component_type),
+        GenericCompositionRequest(description, (peripheral.component_type,),
                                   isa=isa, seed=config.get("composition_seed", 0)),
-        base_dir=root, component_catalog=ComponentCatalog((memory, peripheral)),
+        base_dir=root, component_catalog=ComponentCatalog((peripheral,)),
         protocol_catalog=load_protocol_catalog(root / "src/myfuzz/protocols/plugins"),
     )
-    regions = plan.ir["address_regions"]
-    memory_component = next(c for c in plan.components if c["module_name"] == config["memory_module"])
-    boot_region = next(r for r in regions if r["component_id"] == memory_component["component_id"])
-    if boot_region["base"] != 0:
-        raise ValueError("boot memory must cover the declared reset vector at address zero")
-    peripheral_region = next(r for r in regions if r["component_id"] != memory_component["component_id"])
     provenance = RiscvExecutionProvenance(
         source_identity=description.source.source_root,
         source_hash="sha256:" + plan.source_evidence_hash.removeprefix("sha256:"),
@@ -65,15 +57,19 @@ def build_candidate(root, output, config, personality):
         interface_identity=config["interface"], interface_hash=digest(document),
         isa=config["isa"], xlen=isa.xlen, reset_vector=config["reset_vector"],
     )
-    facts = RiscvExecutionFacts(
-        isa=config["isa"], xlen=isa.xlen, reset_vector=config["reset_vector"],
-        pass_address=peripheral_region["base"], pass_value=0x600DCAFE,
-        protocol=tuple(config["protocol"]), max_cycles=config["probe_cycles"], provenance=provenance,
-    )
-    boot = build_minimal_boot_image(facts, output / "boot")
-    monitor = {"reset_vector": facts.reset_vector, "first_fetch_data": boot.first_fetch_data,
-               "pass_address": facts.pass_address, "pass_value": facts.pass_value}
     randomizable = frozenset(config["randomizable_fields"])
+    external = {field.field_id: field.width for field in plan.layout.fields
+                if field.field_id in randomizable}
+    if set(external) != randomizable:
+        raise ValueError("randomizable fields must bind declared physical inputs")
+    transducer = compile_contract_transducer(
+        isa=isa, protocol=("processor-memory-beat", "1"), address_width=32, data_width=32,
+        memory_domains=config["memory_domains"], external_inputs=external, allow_error=False,
+    )
+    header = TestHeader(
+        schema_version="cycle_test.v1", layout_hash=transducer.cycle_layout.layout_hash,
+        contract_hash=transducer.contract_hash, **config["test_header"],
+    )
     coverage_inputs = tuple(
         (field.port, bit)
         for field in plan.layout.fields
@@ -87,8 +83,10 @@ def build_candidate(root, output, config, personality):
         coverage_inputs=coverage_inputs,
         coverage_signals=(("backend_target_req_valid", 0), ("backend_target_rsp_valid", 0)),
         randomized_controls=("interrupt",), control_defaults=config["control_defaults"],
-        simulator_args=(f"+riscv_boot_image={boot.memory_hex_path}",),
-        simulator="verilator", isolate_tests=False, execution_monitor=monitor,
+        contract_transducer=transducer, test_header=header,
+        simulator="verilator", isolate_tests=False,
+        execution_monitor={"mode": "contract_transducer",
+                           "memory_capacity_entries": transducer.memory_capacity_entries},
     )
     records = (artifact.transport.pack(0),) * config["probe_cycles"]
     with RtlSimulator(artifact) as simulator:
@@ -97,17 +95,22 @@ def build_candidate(root, output, config, personality):
         second = simulator.run_test(records)
         if first != second or execution != simulator.last_execution:
             raise ValueError("real CPU probe replay mismatch")
-    if not (execution["first_fetch_matched"] and execution["progress_events"] > 1
-            and execution["completions"] > 0 and execution["pass_completions"] > 0
+    if not (execution["instruction_requests"] > 0
+            and execution["instruction_responses"] > 0
+            and execution["instruction_initializations"] >= 2
             and execution["errors"] == 0):
-        raise ValueError(f"real CPU/peripheral execution acceptance failed: {execution}")
+        raise ValueError(f"real CPU contract execution acceptance failed: {execution}")
     proof = {"status": "passed", "cpu_config": config, "peripheral": personality,
-             "facts": asdict(facts), "execution": execution,
+             "provenance": asdict(provenance), "execution": execution,
              "composition_hash": plan.composition_ir_hash, "layout_hash": artifact.layout.layout_hash,
-             "boot_sha256": boot.binary_hash, "coverage": list(first),
-             "progress_kind": "distinct successful memory-read addresses",
-             "pass_kind": "successful peripheral write completion",
-             "replay": "equal in two independent simulator processes"}
+             "constraint_hash": artifact.projector.constraint_hash,
+             "transducer_hash": artifact.transducer_hash, "header_hash": artifact.header_hash,
+             "test_header": asdict(header), "coverage": list(first),
+             "instruction_source": "rfuzz_contract_transducer",
+             "progress_kind": "distinct first-time instruction-address initializations",
+             "peripheral_execution": "fixed targets disabled in contract mode",
+             "probe_input": "zero-valued RFuzz cycle records",
+             "replay": "equal coverage and execution after two test_begin resets"}
     publish(output / "execution.json", proof)
     publish(output / "interface.json", document)
     return artifact, proof
@@ -135,14 +138,14 @@ def run_campaigns(root, output, config_path, client, *, seconds=300, seed=202609
             result = run_live(artifact, client, work / "live", duration_seconds=seconds,
                               seed_cycles=config["probe_cycles"])
             if (result["duration_seconds"] < seconds or result["corpus_entries"] < 2
-                    or result.get("execution_totals", {}).get("pass_completions", 0) < 1):
-                raise ValueError("campaign lacks duration, new corpus, or peripheral progress")
+                    or result.get("execution_totals", {}).get("instruction_initializations", 0) < 2):
+                raise ValueError("campaign lacks duration, new corpus, or instruction progress")
             rebuilt, replay_proof = build_candidate(root, work / "rebuild", config, personality)
             replay = replay_corpus(rebuilt, work / "live/corpus")
             original = result["corpus_manifest"]["replays"]
             for fresh, saved in zip(replay["replays"], original, strict=True):
                 for key in ("input_sha256", "layout_hash", "constraint_hash",
-                            "physical_controls_sha256", "simulator_inputs_sha256"):
+                            "physical_controls_sha256", "simulator_inputs_sha256", "transducer_hash", "header_hash"):
                     if fresh[key] != saved[key]:
                         raise ValueError(f"rebuild identity changed: {key}")
             publish(work / "rebuild_replay.json", replay)

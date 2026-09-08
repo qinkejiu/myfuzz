@@ -10,6 +10,8 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 import shutil
 import tempfile
+import textwrap
+import time
 import unittest
 
 from myfuzz.composition import GenericCompositionRequest, load_interface_description, plan_generic_composition, source_tree_hash
@@ -95,6 +97,150 @@ def make_contract_plan(root, *, external=False, controls=False, instruction_obse
         memory_domains={"instruction_memory_master": "shared", "data_memory_master": "shared"},
         external_inputs=external_inputs, max_wait_cycles=2, allow_error=False, memory_capacity_entries=4)
     return plan, transducer
+
+
+class SimulatorFramingTests(unittest.TestCase):
+    def simulator(self, body):
+        from myfuzz.composition.runtime_projection import RuntimeProjector
+        layout = InputLayout("input_layout.v1", 1,
+            (LayoutField("input:data", "input", "data", 1, 0, 0, "bits", {}),), "framing")
+        script = (
+            "import os, sys, time\n"
+            "os.write(1, b'RFUZZ_READY\\n')\n"
+            "execution = 0\n"
+            "for count in sys.stdin:\n"
+            "    for _ in range(int(count)):\n"
+            "        sys.stdin.readline()\n"
+            "    execution += 1\n" + textwrap.indent(textwrap.dedent(body), "    ")
+        )
+        artifact = rfuzz_simulator.SimulatorArtifact(layout,
+            rfuzz_simulator.build_rfuzz_transport(layout), Path(sys.executable), (("flag", 0),),
+            RuntimeProjector(layout), simulator="verilator", simulator_args=("-u", "-c", script))
+        return rfuzz_simulator.RtlSimulator(artifact, timeout_seconds=1)
+
+    def test_diagnostics_before_counter_frame_are_preserved_across_read_chunking(self):
+        for chunk_size in (4096, 7, 1):
+            with self.subTest(chunk_size=chunk_size), self.simulator("""
+                os.write(1, b'generic note\\npartial UTF-8: \\xe4\\xb8\\xad\\nRFUZZ_COUNTERS 01\\n')
+            """) as simulator:
+                read = os.read
+                with patch.object(rfuzz_simulator.os, "read",
+                                  side_effect=lambda fd, size: read(fd, min(size, chunk_size))):
+                    self.assertEqual(b"\1", simulator.run_test((simulator.artifact.transport.pack(0),)))
+                self.assertEqual(("generic note", "partial UTF-8: 中"), simulator.last_diagnostics)
+
+    def test_diagnostics_and_partial_lines_may_arrive_in_later_chunks(self):
+        with self.simulator("""
+            os.write(1, b'first note\\npartial')
+            time.sleep(.03)
+            os.write(1, b' note\\n')
+            time.sleep(.03)
+            os.write(1, b'RFUZZ_COUNTERS 02\\n')
+        """) as simulator:
+            self.assertEqual(b"\2", simulator.run_test((simulator.artifact.transport.pack(0),)))
+            self.assertEqual(("first note", "partial note"), simulator.last_diagnostics)
+
+    def test_diagnostics_reset_between_tests_and_allow_two_hundred_cpu_notes(self):
+        with self.simulator("""
+            if execution == 1:
+                os.write(1, (b'normal execution note ' + b'x' * 100 + b'\\n') * 200)
+            os.write(1, b'RFUZZ_COUNTERS 00\\n')
+        """) as simulator:
+            records = (simulator.artifact.transport.pack(0),)
+            self.assertEqual(b"\0", simulator.run_test(records))
+            self.assertEqual(200, len(simulator.last_diagnostics))
+            self.assertEqual(b"\0", simulator.run_test(records))
+            self.assertEqual((), simulator.last_diagnostics)
+
+    def test_diagnostics_clear_when_test_is_rejected_before_exchange(self):
+        with self.simulator("os.write(1, b'note\\nRFUZZ_COUNTERS 00\\n')") as simulator:
+            record = simulator.artifact.transport.pack(0)
+            for records in ((), (b"bad",)):
+                self.assertEqual(b"\0", simulator.run_test((record,)))
+                self.assertEqual(("note",), simulator.last_diagnostics)
+                with self.assertRaises(ValueError):
+                    simulator.run_test(records)
+                self.assertEqual((), simulator.last_diagnostics)
+            simulator.artifact = replace(simulator.artifact,
+                test_header=TestHeader("cycle_test.v1", "framing", "contract", 2, 1, 0, 0))
+            simulator.run_test((record,))
+            with self.assertRaisesRegex(ValueError, "header execution"):
+                simulator.run_test((record, record))
+            self.assertEqual((), simulator.last_diagnostics)
+            simulator.run_test((record,))
+            simulator.close()
+            with self.assertRaisesRegex(ValueError, "closed"):
+                simulator.run_test((record,))
+            self.assertEqual((), simulator.last_diagnostics)
+
+    def test_duplicate_counter_frames_fail_with_whole_or_split_reads(self):
+        for chunk_size in (4096, 7):
+            with self.subTest(chunk_size=chunk_size), self.simulator("""
+                os.write(1, b'RFUZZ_COUNTERS 00\\nRFUZZ_COUNTERS 01\\n')
+            """) as simulator:
+                read = os.read
+                with patch.object(rfuzz_simulator.os, "read",
+                                  side_effect=lambda fd, size: read(fd, min(size, chunk_size))):
+                    with self.assertRaisesRegex(ValueError, "framing"):
+                        simulator.run_test((simulator.artifact.transport.pack(0),))
+                self.assertTrue(simulator.closed)
+
+    def test_delayed_duplicate_frame_cannot_satisfy_the_next_test(self):
+        with self.simulator("""
+            os.write(1, b'RFUZZ_COUNTERS 00\\n')
+            time.sleep(.03)
+            os.write(1, b'RFUZZ_COUNTERS 01\\n')
+        """) as simulator:
+            records = (simulator.artifact.transport.pack(0),)
+            self.assertEqual(b"\0", simulator.run_test(records))
+            time.sleep(.06)
+            with self.assertRaisesRegex(ValueError, "framing"):
+                simulator.run_test(records)
+            self.assertTrue(simulator.closed)
+
+    def test_malformed_and_truncated_protocol_lines_are_not_diagnostics(self):
+        for output in (b"RFUZZ_COUNTERS\nRFUZZ_COUNTERS 00\n",
+                       b"RFUZZ_UNKNOWN 00\nRFUZZ_COUNTERS 00\n",
+                       b"RFUZZ_COUNTERS 0\n", b"RFUZZ_COUNTERS xx\n",
+                       b"RFUZZ_COUNTERS 00"):
+            with self.subTest(output=output), self.simulator(f"os.write(1, {output!r})") as simulator:
+                with self.assertRaises((ValueError, TimeoutError)):
+                    simulator.run_test((simulator.artifact.transport.pack(0),))
+                self.assertTrue(simulator.closed)
+
+    def test_diagnostic_spam_has_byte_line_and_unterminated_line_limits(self):
+        cases = (
+            "os.write(1, b'line\\n' * 1025)",
+            "os.write(1, (b'x' * 1023 + b'\\n') * 257)",
+            "os.write(1, b'x' * 4097)",
+        )
+        for body in cases:
+            with self.subTest(body=body), self.simulator(body) as simulator:
+                started = time.monotonic()
+                with self.assertRaisesRegex(ValueError, "diagnostic"):
+                    simulator.run_test((simulator.artifact.transport.pack(0),))
+                self.assertLess(time.monotonic() - started, .8)
+                self.assertTrue(simulator.closed)
+                self.assertLessEqual(len(simulator.last_diagnostics), 1024)
+                self.assertLessEqual(sum(len(line.encode()) + 1 for line in simulator.last_diagnostics), 256 * 1024)
+
+    def test_fatal_or_eof_before_counter_frame_still_fails_and_keeps_diagnostics(self):
+        for exit_code in (0, 7):
+            with self.subTest(exit_code=exit_code), self.simulator(f"""
+                os.write(1, b'generic terminal diagnostic\\n')
+                sys.exit({exit_code})
+            """) as simulator:
+                with self.assertRaisesRegex(RuntimeError, "closed output|exited"):
+                    simulator.run_test((simulator.artifact.transport.pack(0),))
+                self.assertEqual(("generic terminal diagnostic",), simulator.last_diagnostics)
+                self.assertTrue(simulator.closed)
+                self.assertIsNotNone(simulator.process.poll())
+
+    def test_unterminated_diagnostic_is_preserved_when_process_exits(self):
+        with self.simulator("os.write(1, b'terminal detail'); sys.exit(7)") as simulator:
+            with self.assertRaisesRegex(RuntimeError, "closed output"):
+                simulator.run_test((simulator.artifact.transport.pack(0),))
+            self.assertEqual(("terminal detail",), simulator.last_diagnostics)
 
 
 @unittest.skipUnless(shutil.which("iverilog") and shutil.which("vvp") and shutil.which("verilator"), "RTL tools required")

@@ -118,6 +118,18 @@ class LiveTests(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which("iverilog") and shutil.which("vvp"), "Icarus required")
 class LiveFailureTests(unittest.TestCase):
+    def test_simulator_diagnostics_are_counted_with_bounded_retained_samples(self):
+        from myfuzz.integration import rfuzz_live
+        record = getattr(rfuzz_live, "_record_simulator_diagnostics", None)
+        self.assertTrue(callable(record), "live report must retain bounded RTL diagnostics")
+        state = {}
+        simulator = SimpleNamespace(last_diagnostics=tuple(f"RTL diagnostic {i}" for i in range(40)))
+        record(state, simulator)
+        record(state, simulator)
+        self.assertEqual(state["simulator_diagnostics"]["lines"], 80)
+        self.assertEqual(len(state["simulator_diagnostics"]["samples"]), 32)
+        self.assertEqual(state["simulator_diagnostics"]["samples"][0], "RTL diagnostic 0")
+
     def test_replay_identity_is_bound_to_raw_layout_constraints_and_binary(self):
         from myfuzz.integration.rfuzz_live import replay_identity
         with tempfile.TemporaryDirectory() as tmp:

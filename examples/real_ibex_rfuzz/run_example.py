@@ -14,7 +14,7 @@ SCHEMA = "real_ibex_rfuzz_example.v1"
 RESULT_SCHEMA = "real_ibex_rfuzz_example_result.v1"
 EXPECTED_KEYS = frozenset({
     "schema_version", "id", "interface", "isa", "isa_contract", "protocol",
-    "memory_module", "reset_vector", "probe_cycles", "composition_seed",
+    "input_mode", "memory_domains", "test_header", "reset_vector", "probe_cycles", "composition_seed",
     "randomizable_fields", "control_defaults", "personality",
 })
 PERSONALITY_KEYS = frozenset({"name", "module", "source", "mode"})
@@ -79,16 +79,35 @@ def load_example(path, root=ROOT):
     if document["schema_version"] != SCHEMA:
         raise ValueError(f"schema_version must be {SCHEMA}")
 
-    for key in ("id", "interface", "isa", "memory_module"):
+    for key in ("id", "interface", "isa"):
         _string(document[key], key)
     _source_path(root, document["interface"], "interface")
     _object(document["isa_contract"], "isa_contract")
+    if document["input_mode"] != "contract_transducer":
+        raise ValueError("input_mode must be contract_transducer")
+    if document["memory_domains"] != {
+        "instruction_memory_master": "main", "data_memory_master": "main",
+    }:
+        raise ValueError("memory_domains must bind instruction and data memory to main")
+    header = _object(document["test_header"], "test_header")
+    _exact_keys(header, {"reset_cycles", "execution_cycles", "boot_address", "hart_id", "illegal_instruction"},
+                "test_header")
+    for key in ("reset_cycles", "execution_cycles"):
+        _integer(header[key], f"test_header.{key}", positive=True)
+    for key in ("boot_address", "hart_id"):
+        _integer(header[key], f"test_header.{key}")
+        if not 0 <= header[key] < 1 << 32:
+            raise ValueError(f"test_header.{key} must fit an unsigned 32-bit value")
+    if type(header["illegal_instruction"]) is not bool:
+        raise ValueError("test_header.illegal_instruction must be boolean")
     protocol = document["protocol"]
     if not isinstance(protocol, list) or len(protocol) != 2 or not all(isinstance(v, str) and v for v in protocol):
         raise ValueError("protocol must contain two nonempty strings")
     for key in ("reset_vector", "composition_seed"):
         _integer(document[key], key)
     _integer(document["probe_cycles"], "probe_cycles", positive=True)
+    if not document["probe_cycles"] <= header["execution_cycles"] <= 200:
+        raise ValueError("probe_cycles must fit header execution_cycles (at most 200)")
     randomizable = document["randomizable_fields"]
     if not isinstance(randomizable, list) or not randomizable or not all(isinstance(v, str) and v for v in randomizable):
         raise ValueError("randomizable_fields must be a nonempty string array")
@@ -116,6 +135,30 @@ def _prepare_output(output):
     return output
 
 
+def _proof_identity(proof):
+    return {key: proof[key] for key in (
+        "composition_hash", "layout_hash", "constraint_hash", "transducer_hash", "header_hash",
+        "instruction_source",
+    )}
+
+
+def _verify_replay_identity(proof, replay, saved):
+    if replay["entries"] != saved["entries"]:
+        raise ValueError("replay count does not match saved corpus")
+    if proof["constraint_hash"] != proof["transducer_hash"]:
+        raise ValueError("constraint and transducer hashes differ")
+    if replay["layout_hash"] != proof["layout_hash"] or replay["constraint_hash"] != proof["constraint_hash"]:
+        raise ValueError("replay layout/constraint hash differs from build")
+    for fresh, original in zip(replay["replays"], saved["replays"], strict=True):
+        for key in ("input_sha256", "layout_hash", "constraint_hash", "transducer_hash", "header_hash",
+                    "physical_controls_sha256", "simulator_inputs_sha256"):
+            if fresh[key] != original[key]:
+                raise ValueError(f"replay identity changed: {key}")
+        for key in ("layout_hash", "constraint_hash", "transducer_hash", "header_hash"):
+            if fresh[key] != proof[key]:
+                raise ValueError(f"replay identity differs from build: {key}")
+
+
 def compose_example(root, input_path, output):
     root = Path(root).resolve()
     config, personality = load_example(input_path, root)
@@ -128,8 +171,7 @@ def compose_example(root, input_path, output):
         "input": str(Path(input_path).resolve()),
         "output": str(output),
         "execution": proof["execution"],
-        "composition_hash": proof["composition_hash"],
-        "layout_hash": proof["layout_hash"],
+        **_proof_identity(proof),
         "coverage": proof["coverage"],
     }
     _publish(output / "summary.json", summary)
@@ -153,6 +195,18 @@ def test_example(root, input_path, client, output, seconds):
         duration_seconds=seconds, seed_cycles=config["probe_cycles"],
     )
     replay = replay_corpus(artifact, output / "live/corpus")
+    if replay["entries"] != live["corpus_entries"]:
+        raise ValueError("replay count does not match saved corpus")
+    execution = live.get("execution_totals", {})
+    if (live["tests"] <= 0 or live["completed_feedback_exchanges"] <= 0
+            or live["returncode"] != 0 or live["remaining_segments"]
+            or execution.get("instruction_requests", 0) <= 0
+            or execution.get("instruction_responses", 0) <= 0
+            or execution.get("instruction_initializations", 0) < 2
+            or any(execution.get(key) != 0 for key in ("errors", "protocol_errors", "transducer_errors"))):
+        raise ValueError("bounded RFuzz contract execution acceptance failed")
+    _verify_replay_identity(proof, replay, live["corpus_manifest"])
+    _publish(output / "replay.json", replay)
     summary = {
         "schema_version": RESULT_SCHEMA,
         "mode": "test",
@@ -164,15 +218,33 @@ def test_example(root, input_path, client, output, seconds):
         "tests": live["tests"],
         "corpus_entries": live["corpus_entries"],
         "completed_feedback_exchanges": live.get("completed_feedback_exchanges", 0),
-        "execution": live.get("execution_totals", proof["execution"]),
-        "composition_hash": proof["composition_hash"],
-        "layout_hash": live["layout_hash"],
-        "constraint_hash": replay["constraint_hash"],
+        "execution": execution,
+        **_proof_identity(proof),
+        "coverage_kind": live["coverage_kind"],
+        "simulator_diagnostics": live.get("simulator_diagnostics", {}),
         "replay_entries": replay["entries"],
         "remaining_segments": live["remaining_segments"],
     }
     _publish(output / "summary.json", summary)
     return summary
+
+
+def replay_example(root, input_path, output, build_output):
+    """Rebuild the configured RTL and verify all retained corpus observations."""
+    root, output = Path(root).resolve(), Path(output).resolve()
+    summary = inspect_example(output)
+    if summary["mode"] != "test":
+        raise ValueError("replay requires a completed test run")
+    saved = _object(json.loads((output / "live/corpus_manifest.json").read_text()), "corpus manifest")
+    config, personality = load_example(input_path, root)
+    artifact, proof = build_candidate(root, build_output, config, personality)
+    if _proof_identity(proof) != {key: summary[key] for key in _proof_identity(proof)}:
+        raise ValueError("rebuild identity differs from saved run")
+    replay = replay_corpus(artifact, output / "live/corpus")
+    _verify_replay_identity(proof, replay, saved)
+    _publish(Path(build_output).resolve() / "rebuild_replay.json", replay)
+    return {"status": "passed", "mode": "replay", "replay_entries": replay["entries"],
+            "output": str(output), "build_output": str(Path(build_output).resolve()), **_proof_identity(proof)}
 
 
 def inspect_example(output):
@@ -203,6 +275,10 @@ def _parser():
     test.add_argument("--seconds", type=int, default=5)
     inspect = subparsers.add_parser("inspect", help="print a completed example summary")
     inspect.add_argument("--output", type=Path, required=True)
+    replay = subparsers.add_parser("replay", help="rebuild RTL and replay a retained test corpus")
+    replay.add_argument("--input", type=Path, required=True)
+    replay.add_argument("--output", type=Path, required=True)
+    replay.add_argument("--build-output", type=Path, required=True)
     return parser
 
 
@@ -214,6 +290,8 @@ def main(argv=None):
             result = compose_example(ROOT, args.input, args.output)
         elif args.command == "test":
             result = test_example(ROOT, args.input, args.client, args.output, args.seconds)
+        elif args.command == "replay":
+            result = replay_example(ROOT, args.input, args.output, args.build_output)
         else:
             result = inspect_example(args.output)
     except (ValueError, OSError, RuntimeError) as error:
