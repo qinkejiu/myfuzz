@@ -110,8 +110,22 @@ from .constraint_ir import (
     select_balanced,
     slice_bits,
 )
+from .contract_transducer import ContractRuntime, ContractTransducerPlan, compile_contract_transducer
+from .protocol_transducer import (
+    ProcessorBeatInputs,
+    ProcessorBeatRequest,
+    ProcessorBeatTransducer,
+    ProtocolState,
+)
 
 __all__ = [
+    "ContractRuntime",
+    "ContractTransducerPlan",
+    "compile_contract_transducer",
+    "ProcessorBeatInputs",
+    "ProcessorBeatRequest",
+    "ProcessorBeatTransducer",
+    "ProtocolState",
     "AutoCompositionError",
     "AutoCompositionPlan",
     "AutoCompositionRequest",
