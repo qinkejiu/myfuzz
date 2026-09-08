@@ -92,6 +92,24 @@ from .processor_backend import (
 )
 from .registry import ComponentRegistration, ComponentRegistry, default_component_registry
 from .search import CompositionCandidate, compose_topk
+from .constraint_ir import (
+    ConstraintIrError,
+    ConstraintProgram,
+    Expr,
+    bit_and,
+    bit_not,
+    bit_or,
+    canonical_document,
+    concat,
+    const,
+    constraint_program_document,
+    equal,
+    evaluate,
+    mux,
+    ref,
+    select_balanced,
+    slice_bits,
+)
 
 __all__ = [
     "AutoCompositionError",
@@ -176,4 +194,20 @@ __all__ = [
     "write_protocol_composition",
     "write_generic_composition",
     "write_auto_composition_manifest",
+    "ConstraintIrError",
+    "ConstraintProgram",
+    "Expr",
+    "bit_and",
+    "bit_not",
+    "bit_or",
+    "canonical_document",
+    "concat",
+    "const",
+    "constraint_program_document",
+    "equal",
+    "evaluate",
+    "mux",
+    "ref",
+    "select_balanced",
+    "slice_bits",
 ]
