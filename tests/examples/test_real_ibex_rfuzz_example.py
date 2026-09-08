@@ -17,6 +17,7 @@ GUIDE_PATH = ROOT / "examples/real_ibex_rfuzz/README.zh-CN.md"
 COMMANDS_PATH = ROOT / "examples/real_ibex_rfuzz/commands.sh"
 EXPECTED_PATH = ROOT / "examples/real_ibex_rfuzz/expected/bounded-result.json"
 OVERVIEW_PATH = ROOT / "examples/real_ibex_rfuzz/系统能力与工作原理.md"
+HANDOFF_PATH = ROOT / "项目目标与后续任务交接.md"
 
 
 def load_module():
@@ -218,6 +219,12 @@ class RealIbexRfuzzExampleTests(unittest.TestCase):
         for term in ("cycle_test.v1", "instruction_selector", "instruction_payload", "response_choice",
                      "memory_domains", "test_begin", "run_example.py replay"):
             self.assertIn(term, guide)
+
+    def test_handoff_keeps_task14_formal_closure_pending(self):
+        handoff = HANDOFF_PATH.read_text()
+        pending = " ".join(handoff.split("## 6. 未完成项与下一轮顺序", 1)[1].split())
+        self.assertRegex(pending, r"\d+\. Task 14 正式收口仍暂缓、未完成")
+        self.assertIn("当前有界短测证据不自动完成原计划 Task 14 的验收与正式收口", pending)
 
     def test_command_sheet_exists(self):
         self.assertTrue(COMMANDS_PATH.is_file(), "command sheet is missing")

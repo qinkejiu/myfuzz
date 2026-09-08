@@ -177,3 +177,45 @@ Old binaries must rebuild for the internal v2 protocol; saved inputs remain repl
 No unresolved correctness concern was found in this documentation task. Full-branch
 independent review, final controller verification and remote push remain controller
 responsibilities. **No push was performed.**
+
+## Independent-review fix: preserve deferred Task 14 formal closure
+
+Review of `096bd6d` identified one Important documentation omission: the handoff
+retained BOOM and 3×300-second deferrals but omitted the independently deferred
+Task 14 formal closure. The main-workspace baseline explicitly records that user
+decision, and `.superpowers/sdd/progress.md` records Task 14 as bounded preflight
+passed with formal closure skipped. The finding was verified against both sources.
+
+Added a focused assertion in `tests/examples/test_real_ibex_rfuzz_example.py`
+requiring a separate Task 14 item in the unfinished-work section and an explicit
+statement that bounded short evidence does not automatically complete the original
+Task 14 acceptance/formal closure. Then updated the handoff introduction and
+unfinished-work list with that distinction, preserving the other deferrals.
+
+RED and GREEN used the same command:
+
+```bash
+PYTHONPATH=src python3 -m pytest tests/examples/test_real_ibex_rfuzz_example.py -q -k handoff_keeps_task14_formal_closure_pending --tb=short
+```
+
+RED: `1 failed, 21 deselected in 0.15s`. The expected failure was the missing
+numbered `Task 14 正式收口仍暂缓、未完成` item, not a test setup error.
+GREEN after the document-only correction: `1 passed, 21 deselected in 0.10s`.
+
+Related full example verification, including the real-Ibex build/execution test:
+
+```bash
+PYTHONPATH=src python3 -m pytest tests/examples/test_real_ibex_rfuzz_example.py -q
+PYTHONPATH=src python3 examples/real_ibex_rfuzz/run_example.py --help
+git diff --check
+```
+
+Results: `22 passed, 9 subtests passed in 17.26s`; CLI help exited zero and still
+lists compose/test/inspect/replay; whitespace check passed. The project-wide
+1406-test result above belongs to the original Task 9 verification before this
+review fix; the narrowly scoped follow-up reran the affected example suite.
+
+Fix commit scope is exactly the handoff, its focused example-test assertion and
+this appended report. No production code, measured expected values, run artifacts,
+progress ledger, main-workspace handoff, task-2 report or third_party files changed.
+Self-review found no remaining inconsistency for this finding. No push was performed.
