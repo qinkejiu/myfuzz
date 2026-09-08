@@ -83,3 +83,43 @@ def test_layout_rejects_duplicate_or_invalid_fields() -> None:
         CycleInputLayout.build((CycleField("same", 1), CycleField("same", 2)))
     with pytest.raises(CycleInputError, match="width"):
         CycleInputLayout.build((CycleField("zero", 0),))
+
+
+def test_parse_rejects_layout_with_tampered_raw_width() -> None:
+    layout = CycleInputLayout.build((CycleField("payload", 8),))
+    tampered = layout
+    object.__setattr__(tampered, "raw_width", layout.raw_width + 1)
+    transport = RfuzzInputTransport(layout.raw_width, layout.layout_hash)
+
+    with pytest.raises(CycleInputError, match="raw width"):
+        parse_cycle_payload(transport.pack(1), tampered, replace(header(layout)))
+
+
+def test_parse_rejects_layout_with_tampered_field_width_or_offset() -> None:
+    layout = CycleInputLayout.build((CycleField("first", 4), CycleField("second", 4)))
+    width_tampered = layout
+    object.__setattr__(width_tampered.fields[0], "width", 3)
+    offset_tampered = CycleInputLayout.build((CycleField("first", 4), CycleField("second", 4)))
+    object.__setattr__(offset_tampered.fields[1], "raw_lo", 6)
+    transport = RfuzzInputTransport(layout.raw_width, layout.layout_hash)
+    record = transport.pack(1)
+
+    with pytest.raises(CycleInputError, match="field|layout"):
+        parse_cycle_payload(record, width_tampered, replace(header(layout)))
+    with pytest.raises(CycleInputError, match="field|layout"):
+        parse_cycle_payload(record, offset_tampered, replace(header(layout)))
+
+
+def test_parse_rejects_layout_reusing_an_old_hash() -> None:
+    original = CycleInputLayout.build((CycleField("payload", 8),))
+    changed = CycleInputLayout.build((CycleField("payload", 7), CycleField("extra", 1)))
+    reused_hash = changed
+    object.__setattr__(reused_hash, "layout_hash", original.layout_hash)
+    transport = RfuzzInputTransport(changed.raw_width, changed.layout_hash)
+
+    with pytest.raises(CycleInputError, match="layout hash"):
+        parse_cycle_payload(
+            transport.pack(1),
+            reused_hash,
+            replace(header(changed), layout_hash=original.layout_hash),
+        )

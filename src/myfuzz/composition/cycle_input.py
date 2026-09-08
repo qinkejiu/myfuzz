@@ -14,6 +14,63 @@ class CycleInputError(ValueError):
     """Raised when a cycle input layout, header, or payload is invalid."""
 
 
+_LAYOUT_SCHEMA_VERSION = "cycle_input_layout.v1"
+
+
+def _layout_document(
+    schema_version: str,
+    raw_width: int,
+    fields: Sequence[CycleField],
+) -> dict[str, object]:
+    return {
+        "schema_version": schema_version,
+        "raw_width": raw_width,
+        "fields": [
+            {
+                "name": item.name,
+                "width": item.width,
+                "raw_lo": item.raw_lo,
+                "raw_hi": item.raw_hi,
+            }
+            for item in fields
+        ],
+    }
+
+
+def _validate_layout(
+    schema_version: object,
+    raw_width: object,
+    fields: object,
+    layout_hash: object,
+) -> None:
+    if schema_version != _LAYOUT_SCHEMA_VERSION:
+        raise CycleInputError("invalid cycle layout schema version")
+    if type(raw_width) is not int or raw_width <= 0:
+        raise CycleInputError("cycle layout raw width is invalid")
+    if not isinstance(fields, tuple) or not fields:
+        raise CycleInputError("cycle layout fields are invalid")
+    names: set[str] = set()
+    cursor = 0
+    for item in fields:
+        if not isinstance(item, CycleField):
+            raise CycleInputError("cycle layout fields are invalid")
+        if item.name in names:
+            raise CycleInputError("duplicate cycle field name")
+        names.add(item.name)
+        if item.raw_lo != cursor:
+            raise CycleInputError("cycle field offsets are not contiguous")
+        if item.raw_hi != item.raw_lo + item.width - 1:
+            raise CycleInputError("cycle field width does not match offsets")
+        cursor = item.raw_hi + 1
+    if cursor != raw_width:
+        raise CycleInputError("cycle layout raw width does not cover fields")
+    if not isinstance(layout_hash, str) or not layout_hash:
+        raise CycleInputError("cycle layout hash is required")
+    expected_hash = content_hash(_layout_document(schema_version, raw_width, fields))
+    if layout_hash != expected_hash:
+        raise CycleInputError("cycle layout hash does not match canonical layout")
+
+
 @dataclass(frozen=True, slots=True)
 class TestHeader:
     __test__ = False
@@ -50,13 +107,18 @@ class CycleField:
     callers declare only a stable name and width.
     """
 
-    name: str
+    field_id: str
     width: int
     raw_lo: int = field(default=-1, init=False)
     raw_hi: int = field(default=-1, init=False)
 
+    @property
+    def name(self) -> str:
+        """Compatibility alias for the declared field identifier."""
+        return self.field_id
+
     def __post_init__(self) -> None:
-        if not isinstance(self.name, str) or not self.name:
+        if not isinstance(self.field_id, str) or not self.field_id:
             raise CycleInputError("cycle field name is required")
         if type(self.width) is not int or self.width <= 0:
             raise CycleInputError("cycle field width must be positive")
@@ -68,6 +130,18 @@ class CycleInputLayout:
     raw_width: int
     fields: tuple[CycleField, ...]
     layout_hash: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.fields, tuple):
+            try:
+                object.__setattr__(self, "fields", tuple(self.fields))
+            except TypeError as exc:
+                raise CycleInputError("cycle layout fields are invalid") from exc
+        _validate_layout(self.schema_version, self.raw_width, self.fields, self.layout_hash)
+
+    def validate(self) -> None:
+        """Revalidate mutable escape hatches such as ``object.__setattr__``."""
+        _validate_layout(self.schema_version, self.raw_width, self.fields, self.layout_hash)
 
     @classmethod
     def build(cls, fields: Sequence[CycleField]) -> "CycleInputLayout":
@@ -91,37 +165,14 @@ class CycleInputLayout:
             positioned.append(positioned_item)
             offset += item.width
 
-        document = {
-            "schema_version": "cycle_input_layout.v1",
-            "raw_width": offset,
-            "fields": [
-                {
-                    "name": item.name,
-                    "width": item.width,
-                    "raw_lo": item.raw_lo,
-                    "raw_hi": item.raw_hi,
-                }
-                for item in positioned
-            ],
-        }
-        return cls("cycle_input_layout.v1", offset, tuple(positioned), content_hash(document))
+        document = _layout_document(_LAYOUT_SCHEMA_VERSION, offset, tuple(positioned))
+        return cls(_LAYOUT_SCHEMA_VERSION, offset, tuple(positioned), content_hash(document))
 
     def document(self) -> dict[str, object]:
         """Return the canonical, hash-bound layout document."""
-        return {
-            "schema_version": self.schema_version,
-            "raw_width": self.raw_width,
-            "fields": [
-                {
-                    "name": item.name,
-                    "width": item.width,
-                    "raw_lo": item.raw_lo,
-                    "raw_hi": item.raw_hi,
-                }
-                for item in self.fields
-            ],
-            "layout_hash": self.layout_hash,
-        }
+        self.validate()
+        document = _layout_document(self.schema_version, self.raw_width, self.fields)
+        return {**document, "layout_hash": self.layout_hash}
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,6 +194,7 @@ def parse_cycle_payload(
         raise CycleInputError("cycle layout is required")
     if not isinstance(header, TestHeader):
         raise CycleInputError("cycle header is required")
+    layout.validate()
     if header.layout_hash != layout.layout_hash:
         raise CycleInputError("header layout hash does not match cycle layout")
 
