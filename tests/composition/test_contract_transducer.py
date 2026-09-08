@@ -219,6 +219,21 @@ def test_capacity_must_be_positive_integer(capacity):
         plan_for(memory_capacity_entries=capacity)
 
 
+def test_public_capacity_limit_accepts_boundary_and_keeps_default():
+    from myfuzz.composition import contract_transducer
+
+    assert contract_transducer.MAX_MEMORY_CAPACITY_ENTRIES == 4096
+    assert "MAX_MEMORY_CAPACITY_ENTRIES" in contract_transducer.__all__
+    assert plan_for(memory_capacity_entries=4096).memory_capacity_entries == 4096
+    assert plan_for().memory_capacity_entries == 256
+
+
+@pytest.mark.parametrize("capacity", [4097, (1 << 32) + 1])
+def test_capacity_above_shared_rtl_bound_is_rejected(capacity):
+    with pytest.raises(ValueError, match="memory_capacity_entries"):
+        plan_for(memory_capacity_entries=capacity)
+
+
 @pytest.mark.parametrize("changes", [{"protocol": ("OBI", "1")},
                                        {"protocol": ("processor-memory-beat", "2")},
                                        {"address_width": 0}, {"data_width": 24},

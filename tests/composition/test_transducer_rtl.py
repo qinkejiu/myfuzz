@@ -64,3 +64,31 @@ def test_rendering_is_deterministic_and_configuration_is_plan_derived():
 def test_invalid_module_name_is_rejected(name):
     with pytest.raises(ValueError, match="module_name"):
         render_transducer_rtl(plan_for(), module_name=name)
+
+
+@pytest.mark.parametrize("capacity", [True, False, 0, -1, 1.5, 4097, (1 << 32) + 1])
+def test_renderer_revalidates_capacity_in_manually_changed_plan(capacity):
+    plan = replace(plan_for(), memory_capacity_entries=capacity)
+    with pytest.raises(ValueError, match="memory_capacity_entries"):
+        render_transducer_rtl(plan)
+
+
+@pytest.mark.parametrize("capacity", [1, 256, 4096])
+def test_renderer_preserves_supported_capacity_constants_without_truncation(capacity):
+    source = render_transducer_rtl(plan_for(memory_capacity_entries=capacity))
+    assert f"localparam integer MEMORY_CAPACITY = {capacity};" in source
+    assert "integer hit_index, free_index, store_index;" in source
+
+
+@pytest.mark.parametrize("name", ["module", "endmodule", "logic", "always_ff", "assign",
+                                 "always_comb", "interface", "package", "function", "endfunction",
+                                 "input", "output", "wire", "reg", "generate", "endgenerate",
+                                 "assert", "property", "checker", "class", "rand", "nettype"])
+def test_systemverilog_keyword_module_names_are_rejected(name):
+    with pytest.raises(ValueError, match="module_name"):
+        render_transducer_rtl(plan_for(), module_name=name)
+
+
+@pytest.mark.parametrize("name", ["custom_backend", "Module", "logic_core", "assign_1", "_backend$2"])
+def test_nonkeyword_identifiers_remain_compatible(name):
+    assert f"module {name} (" in render_transducer_rtl(plan_for(), module_name=name)

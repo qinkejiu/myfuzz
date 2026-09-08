@@ -200,7 +200,7 @@ def test_error_provenance_partial_and_empty_writes_and_lifetimes(tmp_path, allow
     assert_equivalent(tmp_path, plan, trace)
 
 
-@pytest.mark.parametrize("capacity", [1, 3, 256])
+@pytest.mark.parametrize("capacity", [1, 3, 256, 4096])
 def test_full_capacity_has_no_eviction_or_hash_collisions(tmp_path, capacity):
     plan = plan_for(memory_capacity_entries=capacity, allow_error=False)
     trace = [Cycle(begin=header_for(plan))]

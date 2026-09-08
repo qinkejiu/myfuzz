@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 
 _FUNCTIONS = frozenset(("instruction_memory_master", "data_memory_master"))
+MAX_MEMORY_CAPACITY_ENTRIES = 4096
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,8 +93,9 @@ def compile_contract_transducer(
         raise ValueError("address_width must be between 1 and 64")
     if type(data_width) is not int or data_width not in (32, 64):
         raise ValueError("contract data_width must be 32 or 64")
-    if (type(memory_capacity_entries) is not int or memory_capacity_entries <= 0):
-        raise ValueError("memory_capacity_entries must be positive")
+    if (type(memory_capacity_entries) is not int
+            or not 1 <= memory_capacity_entries <= MAX_MEMORY_CAPACITY_ENTRIES):
+        raise ValueError(f"memory_capacity_entries must be between 1 and {MAX_MEMORY_CAPACITY_ENTRIES}")
     if not isinstance(memory_domains, Mapping) or not memory_domains:
         raise ValueError("memory_domains must explicitly bind memory functions")
     if any(function not in _FUNCTIONS for function in memory_domains):
@@ -293,4 +295,4 @@ class ContractRuntime:
         return replace(result, rsp_data=value, response_data_source="stored", external_inputs=external)
 
 
-__all__ = ["ContractTransducerPlan", "compile_contract_transducer", "ContractRuntime"]
+__all__ = ["MAX_MEMORY_CAPACITY_ENTRIES", "ContractTransducerPlan", "compile_contract_transducer", "ContractRuntime"]
