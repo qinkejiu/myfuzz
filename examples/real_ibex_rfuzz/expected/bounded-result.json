@@ -1,0 +1,21 @@
+{
+  "schema_version": "real_ibex_rfuzz_reference.v1",
+  "evidence_path": "runs/task15-live-preflight-v3",
+  "duration_class": "bounded-5-second-preflight",
+  "status": "passed",
+  "rtl_tests": 15357,
+  "completed_feedback_receipts": 13440,
+  "corpus_entries": 19,
+  "execution_requests": 168927,
+  "execution_completions": 168927,
+  "successful_reads": 153570,
+  "progress_events": 153570,
+  "pass_completions": 15357,
+  "errors": 0,
+  "first_fetch_matched": 15357,
+  "returncode": 0,
+  "remaining_shared_memory_segments": 0,
+  "coverage_kind": "sampled-dut-signal-bit-events-u8-saturating",
+  "formal_3x300_seconds_passed": false,
+  "boom_processor_acceptance_passed": false
+}

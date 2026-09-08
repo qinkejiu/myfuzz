@@ -9,6 +9,9 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = ROOT / "examples/real_ibex_rfuzz/run_example.py"
 INPUT_PATH = ROOT / "examples/real_ibex_rfuzz/input/ibex-scratch.json"
+GUIDE_PATH = ROOT / "examples/real_ibex_rfuzz/README.zh-CN.md"
+COMMANDS_PATH = ROOT / "examples/real_ibex_rfuzz/commands.sh"
+EXPECTED_PATH = ROOT / "examples/real_ibex_rfuzz/expected/bounded-result.json"
 
 
 def load_module():
@@ -91,6 +94,27 @@ class RealIbexRfuzzExampleTests(unittest.TestCase):
             (output / "summary.json").write_text("[]\n")
             with self.assertRaisesRegex(ValueError, "summary must be a JSON object"):
                 module.inspect_example(output)
+
+    def test_chinese_guide_documents_all_commands_and_acceptance_boundary(self):
+        self.assertTrue(GUIDE_PATH.is_file(), "Chinese walkthrough is missing")
+        guide = GUIDE_PATH.read_text()
+        for text in ("run_example.py compose", "run_example.py test", "run_example.py inspect", "5 秒", "3×300 秒"):
+            self.assertIn(text, guide)
+        self.assertIn("不等同", guide)
+
+    def test_command_sheet_exists(self):
+        self.assertTrue(COMMANDS_PATH.is_file(), "command sheet is missing")
+
+    def test_reference_result_is_machine_readable(self):
+        self.assertTrue(EXPECTED_PATH.is_file(), "bounded reference result is missing")
+        result = json.loads(EXPECTED_PATH.read_text())
+        self.assertEqual(result["rtl_tests"], 15357)
+        self.assertFalse(result["formal_3x300_seconds_passed"])
+        self.assertFalse(result["boom_processor_acceptance_passed"])
+
+    def test_root_readme_links_chinese_walkthrough(self):
+        readme = (ROOT / "README.md").read_text()
+        self.assertIn("examples/real_ibex_rfuzz/README.zh-CN.md", readme)
 
 
 if __name__ == "__main__":

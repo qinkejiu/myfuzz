@@ -45,7 +45,10 @@ under `third_party/rfuzz/upstream/...` remains unchanged.
 The processor-composition path discovers CPU-facing buses, maps OBI, AXI4, and
 TL-UL protocol roles into a common execution model, generates the RFuzz input
 transport and monitor, and validates instruction fetch progress against real
-RTL. See [QUICKSTART.md](QUICKSTART.md) for commands and
+RTL. See the
+[真实 Ibex 自动组合与 RFuzz 示例](examples/real_ibex_rfuzz/README.zh-CN.md)
+for a complete Chinese walkthrough with runnable input and commands,
+[QUICKSTART.md](QUICKSTART.md) for the general command summary, and
 [`docs/reports/task16_processor_rfuzz_regression_20260908.md`](docs/reports/task16_processor_rfuzz_regression_20260908.md)
 for the current acceptance evidence.
 
