@@ -48,9 +48,10 @@ test evidence uses `PYTHONPATH=src python3`.
 
    `PYTHONPATH=src python3 -m pytest 'tests/isa/test_instruction_transducer.py::test_compressed_reserved_encodings_are_minimally_repaired[C.ANDI-65535]' -q`
 
-   Failed with `instruction template produced an illegal word: C.ANDI`; bit 12
-   is now fixed because the existing provider treats that combination as
-   reserved.
+   Failed with `instruction template produced an illegal word: C.ANDI`. In the
+   initial Task 3 commit, bit 12 was fixed for both XLENs to satisfy the existing
+   provider. That initial state is superseded below: final RV64 generation
+   preserves legal bit 12, while RV32 remains restricted by the current provider.
 
 ## GREEN evidence
 
@@ -85,9 +86,10 @@ test evidence uses `PYTHONPATH=src python3`.
 
 ## Concerns
 
-- The current provider rejects the negative-immediate (`bit 12 = 1`) C.ANDI
-  space, so the transducer conservatively fixes that bit to zero. Correcting the
-  provider later would recover one additional RFuzz payload bit.
+- In the initial Task 3 commit, the transducer conservatively fixed `C.ANDI`
+  bit 12 for both XLENs because of the provider's accepted subset. The Fix Review
+  below records the final behavior: RV64 preserves legal bit 12; only RV32 keeps
+  the provider-required restriction.
 - `RuntimeProjector` has no dedicated selector field in its legacy layout, so it
   derives the selector from the instruction field's high eight bits. The later
   whole-contract transducer should consume the dedicated selector field defined
@@ -155,3 +157,58 @@ preservation:
   legal bit-12 inputs are preserved as required.
 - RuntimeProjector still derives its legacy selector from the payload high byte;
   the future whole-contract transducer should use the dedicated cycle selector.
+
+## Fix Review: Width-Preserving Illegal Category
+
+### Status and commit
+
+- The remaining review Important is fixed.
+- Code/test fix commit:
+  `bedcbf008fa337af53482b89c82ff6e076c1bf0d`
+  (`fix: preserve explicit illegal instruction width`).
+
+### RED evidence
+
+After adding RV32IC cases for payloads `0xffff` and `0x1234ffff`:
+
+`PYTHONPATH=src python3 -m pytest tests/isa/test_instruction_transducer.py -q`
+
+failed as expected with `2 failed, 27 passed`. Both failures reported
+`InstructionChoice.width == 32` where the requested width was 16, proving the
+illegal branch silently widened compressed requests.
+
+### GREEN evidence
+
+Focused transducer suite:
+
+`PYTHONPATH=src python3 -m pytest tests/isa/test_instruction_transducer.py -q`
+
+Result: `29 passed in 0.24s`.
+
+Required complete review suite:
+
+`PYTHONPATH=src python3 -m pytest tests/isa/test_instruction_transducer.py tests/isa/test_instruction_constraints.py tests/composition/test_runtime_projection.py -q`
+
+Result: `55 passed, 43 subtests passed in 0.26s`.
+
+### Self-review
+
+- A selected 16-bit illegal category now returns a 16-bit choice and truncates
+  oversized payloads before construction.
+- Its encoding fixes compressed funct3/quadrant and all `C.ADDI4SPN` nzuimm bits
+  to zero, retains only `rd'` bits `[4:2]`, and is therefore deterministically
+  rejected by the compressed provider for every retained value.
+- The 32-bit illegal path is unchanged: it keeps 32-bit instruction length and
+  reserved major opcode `0x4B`.
+- Both illegal widths compute `choice.legal` through the corresponding provider
+  path, and tests assert the result is false.
+- The earlier `C.ANDI` narrative now explicitly distinguishes the initial
+  conservative state from the final XLEN-specific behavior.
+- `git diff --check` passed; the Task 2 report and `third_party/` remain untouched.
+
+### Remaining concerns
+
+- The existing provider continues to restrict RV32 `C.ANDI` bit 12; RV64 legal
+  bit-12 inputs remain preserved.
+- RuntimeProjector still derives its legacy selector from the payload high byte;
+  a later whole-contract transducer should consume the dedicated selector field.
