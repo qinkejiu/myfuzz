@@ -120,7 +120,7 @@ class RealIbexRfuzzExampleTests(unittest.TestCase):
     def test_standalone_system_overview_covers_the_complete_flow(self):
         self.assertTrue(OVERVIEW_PATH.is_file(), "standalone system overview is missing")
         overview = OVERVIEW_PATH.read_text()
-        for heading in ("系统目标", "分层架构", "自动组合", "输入约束", "RFuzz 反馈闭环", "语料重放", "当前测试结果", "尚未完成"):
+        for heading in ("系统目标", "分层架构", "自动组合", "输入约束", "RFuzz 反馈闭环", "语料重放", "接入更多 CPU 和外设", "CPU 直接组合条件", "外设直接组合条件", "系统不会自动猜测", "当前测试结果", "尚未完成"):
             self.assertIn(heading, overview)
 
 

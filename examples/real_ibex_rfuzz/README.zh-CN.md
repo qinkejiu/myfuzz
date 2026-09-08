@@ -112,6 +112,155 @@ RFuzz inputs ────►│  Real Ibex   │
               └─────────┘  └──────────────────┘
 ```
 
+### 自动组合的内部调用链
+
+示例命令不会使用预先写好的 Ibex 专用顶层。`run_example.py compose` 最终进入
+`src/myfuzz/integration/real_cpu_campaign.py::build_candidate()`，内部依次执行：
+
+```text
+load_example(input JSON)
+  │
+  ├─ 严格检查 schema、字段类型和仓库内相对路径
+  └─ 生成 production config + peripheral personality
+        │
+        ▼
+load_interface_description(interface JSON)
+  │
+  ├─ 加载 source pin、module、port、endpoint 和 field role
+  └─ 把 randomizable_fields 标记到对应接口字段
+        │
+        ▼
+ComponentCatalog(
+  boot-memory profile,
+  scratch-register profile
+)
+        │
+        ▼
+IsaContract(rv32imc)
+        │
+        ▼
+GenericCompositionRequest(
+  processor interface,
+  requested component types,
+  ISA contract,
+  deterministic seed
+)
+        │
+        ▼
+plan_generic_composition(...)
+  │
+  ├─ build_processor_boundary
+  ├─ resolve protocol adapter
+  ├─ allocate address regions
+  ├─ plan backend routing and arbitration
+  ├─ build constrained RFuzz input layout
+  └─ emit composition IR and generated RTL
+        │
+        ▼
+build_minimal_boot_image(...)
+        │
+        ▼
+build_simulator(..., simulator="verilator")
+        │
+        ▼
+RtlSimulator.run_test(...)
+  ├─ first fetch
+  ├─ address progress
+  ├─ completion
+  ├─ peripheral pass
+  └─ error/replay checks
+```
+
+其中几个关键边界是：
+
+- `load_interface_description` 只接受通过来源和物理端口验证的接口事实。
+- `GenericCompositionRequest` 只声明“需要什么能力”，不声明某个 CPU 名称对应哪个
+  adapter。
+- `plan_generic_composition` 根据协议和 capability 匹配组件，同时生成稳定哈希。
+- `plan.ir["address_regions"]` 是启动 RAM 和外设地址的权威结果；boot image 使用这里
+  分配的外设地址生成 pass 写入指令。
+- `plan.layout.fields` 是可随机化输入的权威集合；只有出现在
+  `randomizable_fields` 中的字段才进入 coverage/input projection。
+- `build_simulator` 消费生成的组合计划和布局，渲染真实顶层并编译，而不是切换到
+  CPU 的行为模型。
+
+### 一个具体的 Ibex 组合示例
+
+本目录的输入文件 `input/ibex-scratch.json` 核心内容如下：
+
+```json
+{
+  "interface": "configs/cpus/ibex/official_core_interface_description.json",
+  "isa": "rv32imc",
+  "isa_contract": {
+    "xlen": 32,
+    "extensions": ["I", "M", "C"],
+    "privilege_modes": ["M"],
+    "instruction_alignment": 2
+  },
+  "protocol": ["obi", "1"],
+  "memory_module": "riscv_boot_memory_32",
+  "reset_vector": 128,
+  "probe_cycles": 80,
+  "composition_seed": 20260908,
+  "randomizable_fields": [
+    "processor.interrupts:software_interrupt",
+    "processor.interrupts:timer_interrupt",
+    "processor.interrupts:external_interrupt",
+    "processor.interrupts:fast_interrupt"
+  ],
+  "personality": {
+    "name": "scratch-registers",
+    "module": "processor_register_target",
+    "source": "src/myfuzz/integration/rtl/processor_register_target.sv",
+    "mode": 0
+  }
+}
+```
+
+完整输入还包含 `control_defaults`，用于固定 boot address、hart ID、fetch enable、
+scan reset、test enable 和完整性相关控制。
+
+执行组合：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 nice -n15 \
+  python3 examples/real_ibex_rfuzz/run_example.py compose \
+  --input examples/real_ibex_rfuzz/input/ibex-scratch.json \
+  --output runs/examples/real-ibex-compose
+```
+
+该输入经过事实匹配后得到如下选择，而不是由命令硬编码：
+
+```text
+processor boundary : Ibex instruction OBI + data OBI
+selected adapter   : obi-to-processor-memory-beat
+boot target        : riscv_boot_memory_32
+peripheral target  : processor_register_target(MODE=0)
+backend policy     : single outstanding, in order, bounded completion
+randomized inputs  : four declared interrupt field groups
+fixed controls     : boot/hart/fetch/reset/integrity controls
+```
+
+一次已验证的组合输出为：
+
+```text
+composition hash   sha256:d7c35e7dcdc0c5b92b90c39a5e411d5fe8791db9a702b9c8ff08ab2c9969c4e6
+layout hash        3ea07faa48b6fa02878bbab3c68d589b72c16dc9d5b829248c3294e305062304
+first fetch match  1
+requests           11
+completions        11
+successful reads   10
+progress events    10
+peripheral pass    1
+protocol errors    0
+```
+
+当替换为其他 CPU 时，接口描述必须完整提供同类语义事实。如果协议仍是当前支持的
+OBI、AXI4 或 TL-UL，现有 adapter 可以直接参与组合；如果是未知协议、缺少字段 role、
+缺少 packed-member elaboration 证据或需要特殊启动序列，系统会失败关闭，需要先补充
+通用协议契约或 adapter，不能只改 CPU 名称。
+
 ## 3. 输入约束如何生效
 
 输入文件的 `randomizable_fields` 只声明四组中断：软件中断、定时器中断、外部
