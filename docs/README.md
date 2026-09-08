@@ -21,6 +21,7 @@ kept in `PROJECT_SUMMARY_AND_ARTIFACT_INDEX_20260615.md`.
 - `research/protocol-research-notes.md`: source-oriented protocol notes used to cross-check the reference contract.
 - `research/component-rfuzz-research-notes.md`: source-oriented CPU/component, dependency graph, RFuzz ABI, and long-run metadata notes.
 - `generic-composition-usage.md`: source-annotated generic composition smoke, synthetic five-peripheral fixture, fail-closed cases, and the low-resource policy boundary.
+- `系统总览与RFuzz约束组合示例_20260909.md`: current Chinese system overview, protocol layers, automatic composition flow, RFuzz constraint semantics, and a complete Ibex RV32IMC input-to-top example.
 
 ## Current Task8 boundary
 
