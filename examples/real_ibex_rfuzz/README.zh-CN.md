@@ -196,6 +196,45 @@ CPU 写入的指令字节按原样返回，不会再次做指令合法化。
 从仓库根目录执行。需要 Python 3、Verilator、C++ 编译器、配置中固定的 Ibex
 源码以及已构建的官方 RFuzz 客户端。
 
+### 通用 CPU 直接接入 CLI
+
+如果只需要生成“接口描述 → 适配器 → 后端/转导器”的组合产物，可以直接使用仓库级
+CLI，不必调用本示例的 Ibex 专用 `run_example.py`。下面的命令使用同一套通用入口；换成
+其他支持的 RISC-V CPU 时，只需替换 `--interface-description`，并保证描述中的协议字段
+和源码证据一致：
+
+```bash
+PYTHONPATH=src python3 scripts/generate_composition.py \
+  --interface-description configs/cpus/ibex/official_core_interface_description.json \
+  --base-dir . \
+  --out-dir runs/examples/generic-ibex-composition \
+  --isa-xlen 32 \
+  --isa-extension I --isa-extension M --isa-extension C \
+  --constrained \
+  --max-wait-cycles 16 \
+  --memory-capacity-entries 256 \
+  --no-allow-error
+```
+
+命令的输入不是 CPU 名字，而是 `interface_description.v1`：它声明源码根、top module、
+时钟/复位，以及 OBI、AXI4、TL-UL 或 `ready-valid-memory@1` 的字段。组合器先固定源码
+revision 并重新验证端口，再由协议 ID/版本选择适配器，最后把端口归一化为
+`processor-memory-beat@1`。`--constrained` 还会编译 ISA 约束和测试内一致内存；
+`--max-wait-cycles`、`--memory-capacity-entries` 和 `--no-allow-error` 分别控制等待上限、
+内存容量和随机错误选择。
+
+分离的 instruction/data endpoint 直接表达请求类别。若 CPU 只有一个统一 memory endpoint，
+描述必须提供源码可追溯的单 bit `instruction_identity` 输出（例如 PicoRV32 的
+`mem_instr`）；系统在请求握手时采样该 bit，绝不根据 CPU 名称或地址猜测类别。使用
+`--constrained` 时缺少该字段会在发布任何文件前以 `missing-instruction-identity` 失败；
+不带约束的模式仍可用于检查协议接线，但不会宣称取指/数据分类已证明。
+
+命令 stdout 是一行 JSON；约束模式会给出 `top_path`、`processor_execution_path` 和
+`contract_transducer_path`。输出目录中的 `generic_composition_top.sv`、
+`processor_execution.v1.json`、`processor_backend.v1.json`、`contract_transducer.json`、
+`rfuzz_input_transport.json` 和 `sources.f` 可直接交给后续 Verilator/RFuzz 测试。只做
+接线检查时可省略 `--constrained` 以及 ISA 参数；调优参数必须和 `--constrained` 一起使用。
+
 ```bash
 bash examples/real_ibex_rfuzz/commands.sh check
 ```

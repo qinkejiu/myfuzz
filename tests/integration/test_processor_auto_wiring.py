@@ -42,6 +42,7 @@ def _fixture(
     root: Path, protocol: tuple[str, str], ordinal: int, *, with_ram: bool = False,
     synchronous_reset: bool = False, flush_contract: bool = True,
     cross_file_types: bool = False, binary_collateral: bool = False,
+    with_identity: bool = True,
 ):
     catalog = load_protocol_catalog(ROOT / "src/myfuzz/protocols/plugins")
     plugin = catalog.require(*protocol)
@@ -87,6 +88,12 @@ def _fixture(
         )
         extensions.append(field)
         fields.append(field)
+
+    if with_identity:
+        fields.append(EndpointFieldFact(
+            "instruction_identity", f"p_{ordinal}_instruction_identity", "output", 1,
+            False, SourceReference("rtl/renamed.sv", 1, 1), ("compiler",),
+        ))
 
     module = f"renamed_execution_source_{ordinal}"
     source_root = root / "source"
@@ -307,6 +314,58 @@ def _split_fixture(root: Path):
         component_catalog=ComponentCatalog(profiles), protocol_catalog=catalog,
     )
     return plan
+
+
+def _unified_ready_valid_fixture(root: Path, *, with_identity: bool = True):
+    catalog = load_protocol_catalog(ROOT / "src/myfuzz/protocols/plugins")
+    source_root = root / "source"
+    source = source_root / "rtl" / "renamed_unified.sv"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        "module renamed_unified(input logic clock_pin, input logic reset_pin, "
+        "output logic mem_valid, input logic mem_ready, output logic [31:0] mem_addr, "
+        "output logic [31:0] mem_wdata, output logic [3:0] mem_wstrb, "
+        "input logic [31:0] mem_rdata, output logic mem_instr); "
+        "always_ff @(posedge clock_pin or negedge reset_pin) if (!reset_pin) begin "
+        "mem_valid <= 1'b0; mem_addr <= '0; mem_wdata <= '0; mem_wstrb <= '0; "
+        "mem_instr <= 1'b0; end else begin mem_valid <= 1'b1; mem_addr <= 32'h80; "
+        "mem_wdata <= '0; mem_wstrb <= '0; mem_instr <= ~mem_instr; end endmodule\n",
+        encoding="utf-8",
+    )
+    fields = [
+        {"role": role, "aliases": [port]} for role, port in (
+            ("valid", "mem_valid"), ("ready", "mem_ready"),
+            ("addr", "mem_addr"), ("wdata", "mem_wdata"),
+            ("wstrb", "mem_wstrb"), ("rdata", "mem_rdata"),
+        )
+    ]
+    if with_identity:
+        fields.append({"role": "instruction_identity", "aliases": ["mem_instr"]})
+    adapter_source = root / "src/myfuzz/protocols/rtl/ready_valid_processor_memory_adapter.sv"
+    adapter_source.parent.mkdir(parents=True)
+    adapter_source.write_bytes(
+        (ROOT / "src/myfuzz/protocols/rtl/ready_valid_processor_memory_adapter.sv").read_bytes()
+    )
+    description = load_interface_description({
+        "schema_version": "interface_description.v1",
+        "source": {
+            "root": "source", "revision": source_tree_hash(source_root, (source,)),
+            "top_module": "renamed_unified", "files": ["rtl/renamed_unified.sv"],
+            "elaboration": {"frontend": "verilator-json"},
+        },
+        "endpoints": [
+            {"endpoint_id": "processor.clock", "function": "clock", "module": "renamed_unified",
+             "fields": [{"role": "clock", "aliases": ["clock_pin"]}]},
+            {"endpoint_id": "processor.reset", "function": "reset", "module": "renamed_unified",
+             "fields": [{"role": "reset", "aliases": ["reset_pin"]}]},
+            {"endpoint_id": "processor.memory", "function": "memory_master", "module": "renamed_unified",
+             "protocol": ["ready-valid-memory", "1"], "fields": fields},
+        ],
+    })
+    return plan_generic_composition(
+        GenericCompositionRequest(description, ()), base_dir=root,
+        protocol_catalog=catalog,
+    )
 
 
 def _run_iverilog(output: Path, testbench: str) -> str:

@@ -1533,6 +1533,7 @@ def _processor_controls(plan: object) -> tuple[str, str, dict[str, str]]:
         raise ValueError("processor composition protocol catalog is missing")
     boundary = build_processor_boundary(
         getattr(plan, "capabilities", ()), protocol_catalog=catalog,
+        require_instruction_identity=False,
     )
     if len(boundary.clock.fields) != 1 or len(boundary.reset.fields) != 1:
         raise ValueError("processor composition control binding is incomplete")
@@ -1756,11 +1757,25 @@ def _validate_processor_transducer(plan: object, contract_transducer: object) ->
         raise ValueError("processor transducer requires a ContractTransducerPlan")
     if getattr(plan, "processor_execution", None) is None:
         raise ValueError("contract transducer requires processor execution")
-    routes = processor_execution_document(plan.processor_execution)["routes"]
+    execution = processor_execution_document(plan.processor_execution)
+    routes = execution["routes"]
     functions = {route["function"] for route in routes}
-    if len(routes) != 2 or functions != {"instruction_memory_master", "data_memory_master"}:
-        raise ValueError("contract transducer requires split memory functions with instruction identity")
-    if set(dict(contract_transducer.memory_domains)) != functions:
+    split = len(routes) == 2 and functions == {
+        "instruction_memory_master", "data_memory_master"
+    }
+    classification = execution.get("classification")
+    unified = (
+        len(routes) == 1
+        and functions <= {"memory_master", "processor_memory_master"}
+        and isinstance(classification, Mapping)
+        and classification.get("mode") == "explicit_signal"
+        and classification.get("field_role") == "instruction_identity"
+        and isinstance(classification.get("physical"), Mapping)
+    )
+    if not (split or unified):
+        raise ValueError("contract transducer requires split memory functions or explicit instruction identity")
+    required_domains = {"instruction_memory_master", "data_memory_master"}
+    if set(dict(contract_transducer.memory_domains)) != required_domains:
         raise ValueError("contract transducer memory functions do not match processor routes")
     if contract_transducer.protocol != ("processor-memory-beat", "1"):
         raise ValueError("contract transducer backend protocol does not match processor routes")
@@ -1806,6 +1821,13 @@ def _render_processor_top(plan: object, backend: object, *, contract_transducer:
         for connection in route["field_connections"]
         for physical in (connection["physical"],)
     )
+    classification = execution.get("classification")
+    if isinstance(classification, Mapping):
+        physical = classification.get("physical")
+        if isinstance(physical, Mapping):
+            port = physical.get("port", physical.get("container_port"))
+            if isinstance(port, str) and port:
+                internal_ports = frozenset((*internal_ports, port))
     source_module, external = _generic_source_top(
         plan, internal_ports=internal_ports,
     )
@@ -2145,9 +2167,18 @@ def _render_processor_top(plan: object, backend: object, *, contract_transducer:
             "      backend_target_req_instruction <= 1'b0;",
             "    end else begin",
         ))
+        classification_signal = None
+        if isinstance(classification, Mapping):
+            physical = classification.get("physical")
+            if isinstance(physical, Mapping):
+                classification_signal = _processor_physical_signal(physical, source_signals)
         for route, wires in zip(routes, route_wires):
-            instruction = int(route["function"] == "instruction_memory_master")
-            lines.append(f"      if ({wires['req_valid']} && {wires['req_ready']}) backend_req_instruction <= 1'b{instruction};")
+            instruction = (
+                classification_signal
+                if classification_signal is not None
+                else ("1'b1" if route["function"] == "instruction_memory_master" else "1'b0")
+            )
+            lines.append(f"      if ({wires['req_valid']} && {wires['req_ready']}) backend_req_instruction <= {instruction};")
         lines.extend((
             "      if (backend_req_valid && backend_req_ready)",
             "        backend_target_req_instruction <= backend_req_instruction;",
@@ -2618,7 +2649,10 @@ def _processor_publication_audit(plan: object) -> dict[str, object]:
     endpoints = annotations.get("endpoints")
     if not isinstance(endpoints, list | tuple):
         raise ValueError("processor composition audit endpoints are incomplete")
-    boundary = build_processor_boundary(getattr(plan, "capabilities", ()), protocol_catalog=catalog)
+    boundary = build_processor_boundary(
+        getattr(plan, "capabilities", ()), protocol_catalog=catalog,
+        require_instruction_identity=False,
+    )
     controls = {}
     for name, binding in (("clock", boundary.clock), ("reset", boundary.reset)):
         field = binding.fields[0]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import io
 import os
 import shutil
 import importlib.util
@@ -11,7 +12,7 @@ import unittest
 from types import SimpleNamespace
 from dataclasses import replace
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 from myfuzz.composition import (
     GenericCompositionRequest,
@@ -651,6 +652,57 @@ class GenericCompositionIntegrationTests(unittest.TestCase):
             self.assertEqual(observed[0].isa.xlen, 64)
             self.assertEqual(observed[0].isa.extensions, ("I", "M"))
             self.assertEqual(observed[0].seed, 23)
+
+    def test_cli_constrained_mode_compiles_contract_and_reports_artifact_paths(self) -> None:
+        script = Path(__file__).resolve().parents[2] / "scripts" / "generate_composition.py"
+        spec = importlib.util.spec_from_file_location("generic_composition_cli_constrained", script)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            interface = root / "interface.json"
+            interface.write_text("{}", encoding="utf-8")
+            args = SimpleNamespace(
+                config=None, frontend=None, top_k=None, protocol_manifest=None,
+                interface_description=Path("interface.json"), base_dir=root,
+                out_dir=Path("out"), component_type=[], protocol_preference=[],
+                isa_xlen=32, isa_extension=["I", "M"], seed=None, root=None,
+                frontend_library=None, constrained=True, max_wait_cycles=23,
+                memory_capacity_entries=17, allow_error=False,
+            )
+            fake_plan = SimpleNamespace(processor_execution=object())
+            execution = {"routes": [{"function": "processor_memory_master", "widths": {"address": 32, "data": 32}}]}
+            contract = object()
+            summary = {
+                "schema_version": "composition_ir.v1", "interface_annotation_hash": "a",
+                "composition_ir_hash": "b", "layout_hash": "c", "top_path": "top",
+                "source_list_path": "sources", "complete": True,
+            }
+            with (
+                patch.object(module, "parse_args", return_value=args),
+                patch.object(
+                    module, "load_interface_description",
+                    return_value=synthetic_description(root, "cli_constrained_cpu", ("clk", "rst", "fuzz", "seen")),
+                ),
+                patch.object(module, "plan_generic_composition", return_value=fake_plan),
+                patch.object(module, "processor_execution_document", return_value=execution, create=True),
+                patch.object(module, "compile_contract_transducer", return_value=contract, create=True) as compile_contract,
+                patch.object(module, "write_generic_composition", return_value=summary) as write,
+                patch.object(sys, "stdout", new=io.StringIO()) as stdout,
+            ):
+                self.assertEqual(module.main(), 0)
+            compile_contract.assert_called_once_with(
+                isa=ANY, protocol=("processor-memory-beat", "1"),
+                address_width=32, data_width=32,
+                memory_domains={"instruction_memory_master": "main", "data_memory_master": "main"},
+                max_wait_cycles=23, allow_error=False, memory_capacity_entries=17,
+            )
+            write.assert_called_once()
+            self.assertIs(write.call_args.kwargs["contract_transducer"], contract)
+            emitted = json.loads(stdout.getvalue())
+            self.assertEqual(emitted["processor_execution_path"], str(root / "out/processor_execution.v1.json"))
+            self.assertEqual(emitted["contract_transducer_path"], str(root / "out/contract_transducer.json"))
 
     def test_cli_rejects_explicit_generic_default_seed_in_protocol_mode(self) -> None:
         script = Path(__file__).resolve().parents[2] / "scripts" / "generate_composition.py"

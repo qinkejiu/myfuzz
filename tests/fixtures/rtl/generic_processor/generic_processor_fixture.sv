@@ -2,6 +2,7 @@ module generic_processor_fixture (
     input  logic        clk_i,
     input  logic        rst_ni,
     input  logic [7:0]  random_i,
+    output logic        instruction_identity_o,
 
     output logic        obi_req_o,
     input  logic        obi_gnt_i,
@@ -114,6 +115,7 @@ module generic_processor_fixture (
 
     assign requesting = !done_o && !waiting_q;
     assign writing = operation_q == 3'd2;
+    assign instruction_identity_o = !writing;
     assign address = operation_q == 3'd0 ? 32'h0 : 32'h4;
 
     assign obi_req_o = requesting;

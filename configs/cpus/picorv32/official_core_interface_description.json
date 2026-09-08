@@ -1,0 +1,44 @@
+{
+  "schema_version": "interface_description.v1",
+  "source": {
+    "root": "third_party/picorv32_upstream_reference",
+    "revision": "git:0000000000000000000000000000000000000000",
+    "top_module": "picorv32",
+    "files": ["picorv32.v"],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "endpoints": [
+    {
+      "endpoint_id": "processor.clock",
+      "function": "clock",
+      "module": "picorv32",
+      "fields": [{"role": "clock", "aliases": ["clk"]}]
+    },
+    {
+      "endpoint_id": "processor.reset",
+      "function": "reset",
+      "module": "picorv32",
+      "fields": [{"role": "reset", "aliases": ["resetn"]}]
+    },
+    {
+      "endpoint_id": "processor.memory.unified",
+      "function": "memory_master",
+      "module": "picorv32",
+      "protocol": ["ready-valid-memory", "1"],
+      "clock": "clk",
+      "reset": "resetn",
+      "fields": [
+        {"role": "valid", "aliases": ["mem_valid"]},
+        {"role": "ready", "aliases": ["mem_ready"]},
+        {"role": "addr", "aliases": ["mem_addr"]},
+        {"role": "wdata", "aliases": ["mem_wdata"]},
+        {"role": "wstrb", "aliases": ["mem_wstrb"]},
+        {"role": "rdata", "aliases": ["mem_rdata"]},
+        {"role": "instruction_identity", "aliases": ["mem_instr"]}
+      ]
+    }
+  ]
+}

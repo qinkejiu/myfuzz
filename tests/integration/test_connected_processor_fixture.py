@@ -73,8 +73,12 @@ def _endpoint_fields(protocol: tuple[str, str], catalog) -> tuple[list[dict[str,
         if policy.role not in roles:
             fields.append((policy.role, policy.direction))
             roles.add(policy.role)
+    fields.append(("instruction_identity", "output"))
     return ([
-        {"role": role, "aliases": [_physical_port(protocol, role, direction)]}
+        {"role": role, "aliases": [
+            "instruction_identity_o" if role == "instruction_identity"
+            else _physical_port(protocol, role, direction)
+        ]}
         for role, direction in fields
     ], { _physical_port(protocol, role, direction) for role, direction in fields if direction == "input" })
 

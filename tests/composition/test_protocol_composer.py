@@ -279,14 +279,33 @@ class ContractCompositionTests(unittest.TestCase):
             self.assertNotIn("assign backend_target_req_ready", top)
             self.assertNotIn("u_processor_backend_arbiter.owner", top)
 
+    def test_constrained_unified_route_uses_explicit_instruction_identity(self):
+        from tests.integration.test_processor_auto_wiring import _unified_ready_valid_fixture
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plan = _unified_ready_valid_fixture(root)
+            output = root / "composition"
+            summary = write_generic_composition(
+                plan, output, base_dir=root, contract_transducer=self._contract()
+            )
+            self.assertTrue(summary["complete"])
+            execution = json.loads(
+                (output / "processor_execution.v1.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(execution["classification"]["mode"], "explicit_signal")
+            self.assertIn("mem_instr", (output / "generic_composition_top.sv").read_text(encoding="utf-8"))
+
     def test_rejects_unified_memory_without_instruction_identity(self):
         from tests.integration.test_processor_auto_wiring import _fixture
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            plan, *_ = _fixture(root, ("obi", "1"), 31)
-            with self.assertRaisesRegex(ValueError, "split|instruction identity"):
-                write_generic_composition(plan, root / "composition", base_dir=root,
-                                          contract_transducer=self._contract())
+            plan, *_ = _fixture(root, ("obi", "1"), 31, with_identity=False)
+            with self.assertRaisesRegex(ValueError, "explicit instruction identity"):
+                write_generic_composition(
+                    plan, root / "composition", base_dir=root,
+                    contract_transducer=self._contract(),
+                )
             self.assertFalse((root / "composition").exists())
 
     def test_publication_binds_effective_backend_watchdog(self):

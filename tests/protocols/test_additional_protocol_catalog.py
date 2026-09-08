@@ -87,6 +87,7 @@ class AdditionalProtocolCatalogTest(unittest.TestCase):
                 ("obi", "1"),
                 ("wishbone", "classic"),
                 ("ready-valid-mmio", "1"),
+                ("ready-valid-memory", "1"),
                 ("processor-memory-beat", "1"),
             },
         )

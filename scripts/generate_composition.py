@@ -17,8 +17,10 @@ if SRC.as_posix() not in sys.path:
 
 from myfuzz.composition import (  # noqa: E402
     GenericCompositionRequest,
+    compile_contract_transducer,
     load_interface_description,
     plan_generic_composition,
+    processor_execution_document,
     write_generic_composition,
     write_protocol_composition,
 )
@@ -73,6 +75,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--isa-extension", action="append", default=[], help="generic ISA extension (repeatable)")
     parser.add_argument("--seed", type=int, default=None, help="generic deterministic seed")
     parser.add_argument(
+        "--constrained", action="store_true",
+        help="compile the ISA/protocol contract transducer for processor execution",
+    )
+    parser.add_argument("--max-wait-cycles", type=int, default=None,
+                        help="bounded processor response wait (default: 16)")
+    parser.add_argument("--memory-capacity-entries", type=int, default=None,
+                        help="maximum coherent memory beats (default: 256)")
+    parser.add_argument(
+        "--allow-error", action=argparse.BooleanOptionalAction, default=None,
+        help="allow contract response/error choices (default: true)",
+    )
+    parser.add_argument(
         "--root",
         type=Path,
         help="repository root used to resolve protocol sources (default: script repository)",
@@ -101,10 +115,18 @@ def _validate_mode_arguments(args: argparse.Namespace) -> None:
         "--isa-xlen": getattr(args, "isa_xlen", None),
         "--isa-extension": getattr(args, "isa_extension", ()),
         "--seed": getattr(args, "seed", None),
+        "--constrained": getattr(args, "constrained", False),
+        "--max-wait-cycles": getattr(args, "max_wait_cycles", None),
+        "--memory-capacity-entries": getattr(args, "memory_capacity_entries", None),
+        "--allow-error": getattr(args, "allow_error", None),
     }
     uses_generic_options = bool(generic_values["--component-type"] or generic_values["--protocol-preference"]
                                 or generic_values["--isa-xlen"] is not None or generic_values["--isa-extension"]
-                                or generic_values["--seed"] is not None)
+                                or generic_values["--seed"] is not None
+                                or generic_values["--constrained"]
+                                or generic_values["--max-wait-cycles"] is not None
+                                or generic_values["--memory-capacity-entries"] is not None
+                                or generic_values["--allow-error"] is not None)
     if protocol_manifest is not None and interface_description is not None:
         raise ValueError("--protocol-manifest cannot be combined with --interface-description")
     if interface_description is not None:
@@ -143,6 +165,15 @@ def _validate_mode_arguments(args: argparse.Namespace) -> None:
         has_extensions = bool(getattr(args, "isa_extension", ()))
         if has_xlen != has_extensions:
             raise ValueError("--isa-xlen and --isa-extension must be provided together")
+        constrained = bool(getattr(args, "constrained", False))
+        tuning = any(
+            getattr(args, name, None) is not None
+            for name in ("max_wait_cycles", "memory_capacity_entries", "allow_error")
+        )
+        if constrained and (not has_xlen or not has_extensions):
+            raise ValueError("--constrained requires --isa-xlen and --isa-extension")
+        if tuning and not constrained:
+            raise ValueError("contract tuning options require --constrained")
 
 
 def _resolve_from_root(root: Path, value: Path) -> Path:
@@ -200,9 +231,51 @@ def main() -> int:
                 load_interface_description(description_path), tuple(args.component_type),
                 tuple(args.protocol_preference), isa=isa, seed=7 if args.seed is None else args.seed,
             ), base_dir=base_dir)
+            contract = None
+            if args.constrained:
+                if isa is None:
+                    raise ValueError("--constrained requires --isa-xlen and --isa-extension")
+                if getattr(plan, "processor_execution", None) is None:
+                    raise ValueError("--constrained requires a processor memory endpoint")
+                execution = processor_execution_document(plan.processor_execution)
+                routes = execution.get("routes")
+                if not isinstance(routes, list | tuple) or not routes:
+                    raise ValueError("--constrained requires processor execution routes")
+                widths = {
+                    (int(route["widths"]["address"]), int(route["widths"]["data"]))
+                    for route in routes
+                }
+                if len(widths) != 1:
+                    raise ValueError("--constrained requires common processor route widths")
+                address_width, data_width = next(iter(widths))
+                contract = compile_contract_transducer(
+                    isa=isa, protocol=("processor-memory-beat", "1"),
+                    address_width=address_width, data_width=data_width,
+                    memory_domains={
+                        "instruction_memory_master": "main",
+                        "data_memory_master": "main",
+                    },
+                    max_wait_cycles=16 if args.max_wait_cycles is None else args.max_wait_cycles,
+                    allow_error=True if args.allow_error is None else args.allow_error,
+                    memory_capacity_entries=(
+                        256 if args.memory_capacity_entries is None
+                        else args.memory_capacity_entries
+                    ),
+                )
             summary = _validate_generic_summary(
-                write_generic_composition(plan, output_path, base_dir=base_dir)
+                write_generic_composition(
+                    plan, output_path, base_dir=base_dir,
+                    contract_transducer=contract,
+                )
             )
+            if getattr(plan, "processor_execution", None) is not None:
+                summary["processor_execution_path"] = (
+                    output_path / "processor_execution.v1.json"
+                ).as_posix()
+            if contract is not None:
+                summary["contract_transducer_path"] = (
+                    output_path / "contract_transducer.json"
+                ).as_posix()
         elif protocol_manifest is not None:
             root_value = ROOT if getattr(args, "root", None) is None else args.root
             root = _resolve_from_root(Path.cwd(), root_value)

@@ -1116,7 +1116,11 @@ def _is_processor_memory_endpoint(
     endpoint: EndpointCapability, *, generic_processor_context: bool,
 ) -> bool:
     return endpoint.function in _PROCESSOR_MEMORY_FUNCTIONS or (
-        endpoint.function == "memory_master" and generic_processor_context
+        endpoint.function == "memory_master"
+        and (
+            generic_processor_context
+            or any(field.role == "instruction_identity" for field in endpoint.fields)
+        )
     )
 
 
@@ -1861,6 +1865,7 @@ def plan_generic_composition(
         )
         processor_boundary = build_processor_boundary(
             capabilities, protocol_catalog=selected_protocol_catalog,
+            require_instruction_identity=False,
         )
         adapter_driven = {
             (memory.endpoint_id, field.role)

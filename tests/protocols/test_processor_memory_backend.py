@@ -114,7 +114,8 @@ class ProcessorMemoryBackendTests(unittest.TestCase):
         }
 
         boundary = build_processor_boundary(
-            normalize_annotations(annotations), protocol_catalog=catalog
+            normalize_annotations(annotations), protocol_catalog=catalog,
+            require_instruction_identity=False,
         )
         self.assertEqual(("processor-memory-beat", "1"), boundary.memories[0].protocol)
         self.assertEqual((), boundary.memories[0].extension_fields)

@@ -1,0 +1,62 @@
+{
+  "schema_version": "interface_description.v1",
+  "source": {
+    "root": "third_party/cv32e40p_upstream_reference",
+    "revision": "git:0000000000000000000000000000000000000000",
+    "top_module": "cv32e40p",
+    "files": ["rtl/cv32e40p_core.sv", "rtl/cv32e40p_controller.sv"],
+    "include_roots": ["rtl/include"],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "endpoints": [
+    {
+      "endpoint_id": "processor.clock",
+      "function": "clock",
+      "module": "cv32e40p",
+      "fields": [{"role": "clock", "aliases": ["clk_i"]}]
+    },
+    {
+      "endpoint_id": "processor.reset",
+      "function": "reset",
+      "module": "cv32e40p",
+      "fields": [{"role": "reset", "aliases": ["rst_ni"]}]
+    },
+    {
+      "endpoint_id": "processor.instruction",
+      "function": "instruction_memory_master",
+      "module": "cv32e40p",
+      "protocol": ["obi", "1"],
+      "clock": "clk_i",
+      "reset": "rst_ni",
+      "fields": [
+        {"role": "req", "aliases": ["instr_req_o"]},
+        {"role": "gnt", "aliases": ["instr_gnt_i"]},
+        {"role": "addr", "aliases": ["instr_addr_o"]},
+        {"role": "rvalid", "aliases": ["instr_rvalid_i"]},
+        {"role": "rdata", "aliases": ["instr_rdata_i"]},
+        {"role": "error", "aliases": ["instr_err_i"]}
+      ]
+    },
+    {
+      "endpoint_id": "processor.data",
+      "function": "data_memory_master",
+      "module": "cv32e40p",
+      "protocol": ["obi", "1"],
+      "clock": "clk_i",
+      "reset": "rst_ni",
+      "fields": [
+        {"role": "req", "aliases": ["data_req_o"]},
+        {"role": "gnt", "aliases": ["data_gnt_i"]},
+        {"role": "addr", "aliases": ["data_addr_o"]},
+        {"role": "we", "aliases": ["data_we_o"]},
+        {"role": "wdata", "aliases": ["data_wdata_o"]},
+        {"role": "rvalid", "aliases": ["data_rvalid_i"]},
+        {"role": "rdata", "aliases": ["data_rdata_i"]},
+        {"role": "error", "aliases": ["data_err_i"]}
+      ]
+    }
+  ]
+}

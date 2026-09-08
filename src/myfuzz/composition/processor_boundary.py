@@ -238,6 +238,7 @@ def _packed_input_coverage(
 
 def _request_classification(
     memories: tuple[ProcessorMemoryBinding, ...],
+    *, require_instruction_identity: bool = True,
 ) -> RequestClassification:
     functions = {memory.function for memory in memories}
     if functions and functions <= {
@@ -256,6 +257,10 @@ def _request_classification(
         field for field in memory.fields if field.role == "instruction_identity"
     ]
     if not identity:
+        if not require_instruction_identity:
+            return RequestClassification(
+                "unclassified_unified", memory.endpoint_id, None, None, 1, 0
+            )
         raise ProcessorBoundaryError("missing-instruction-identity")
     if len(identity) != 1:
         raise ProcessorBoundaryError("duplicate-instruction-identity")
@@ -270,7 +275,8 @@ def _request_classification(
 
 
 def build_processor_boundary(
-    endpoints: Sequence[EndpointCapability], *, protocol_catalog: ProtocolCatalog
+    endpoints: Sequence[EndpointCapability], *, protocol_catalog: ProtocolCatalog,
+    require_instruction_identity: bool = True,
 ) -> ProcessorBoundary:
     """Build a generic processor boundary from source-backed semantic facts."""
     clock = _one_control(endpoints, "clock", "clock")
@@ -300,7 +306,9 @@ def build_processor_boundary(
         (_validate_memory(endpoint, protocol_catalog) for endpoint in memory_endpoints),
         key=lambda item: (item.function, item.endpoint_id),
     ))
-    classification = _request_classification(memories)
+    classification = _request_classification(
+        memories, require_instruction_identity=require_instruction_identity,
+    )
 
     controls: list[ProcessorControlBinding] = []
     for function in sorted(_OPTIONAL_CONTROL_FUNCTIONS):

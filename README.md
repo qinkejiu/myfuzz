@@ -52,6 +52,48 @@ for a complete Chinese walkthrough with runnable input and commands,
 [`docs/reports/task16_processor_rfuzz_regression_20260908.md`](docs/reports/task16_processor_rfuzz_regression_20260908.md)
 for the current acceptance evidence.
 
+### Generic CPU composition CLI
+
+Any source-backed `interface_description.v1` can be composed without naming a
+CPU in the generator. The description supplies the source root, top module,
+clock/reset, and memory endpoint facts; the endpoint protocol selects the
+adapter. For a split instruction/data RISC-V CPU, the standard constrained
+command is:
+
+```bash
+PYTHONPATH=src python3 scripts/generate_composition.py \
+  --interface-description configs/cpus/ibex/official_core_interface_description.json \
+  --base-dir . \
+  --out-dir runs/examples/generic-ibex-composition \
+  --isa-xlen 32 \
+  --isa-extension I --isa-extension M --isa-extension C \
+  --constrained \
+  --max-wait-cycles 16 \
+  --memory-capacity-entries 256 \
+  --no-allow-error
+```
+
+`--constrained` compiles the ISA and `processor-memory-beat@1` contract into
+the RFuzz transducer. `--max-wait-cycles` bounds a stalled response,
+`--memory-capacity-entries` bounds coherent test memory, and
+`--allow-error/--no-allow-error` controls random protocol-error choices. A
+unified CPU endpoint is also accepted when its description contains a
+source-backed one-bit `instruction_identity` output (for example `mem_instr`);
+the generator never guesses instruction/data from a CPU name or address.
+
+The JSON line printed by the command is the machine-readable result. In
+addition to the usual `top_path`, `source_list_path`, and `complete` fields,
+processor plans report `processor_execution_path`; constrained plans also
+report `contract_transducer_path`. The output directory contains
+`generic_composition_top.sv`, `processor_execution.v1.json`,
+`processor_backend.v1.json`, `contract_transducer.json` (constrained mode),
+`rfuzz_input_transport.json`, and `sources.f`.
+
+For an unconstrained wiring-only artifact, omit `--constrained` and the ISA
+flags. Tuning flags require `--constrained`. In constrained mode, missing or
+ambiguous instruction identity is rejected before any output is published;
+unconstrained mode may still be used to inspect a protocol-only route.
+
 ## Build
 
 Keep the frontend build single-core unless there is enough memory:
