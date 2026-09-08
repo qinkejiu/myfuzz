@@ -4,6 +4,11 @@
 源码、OBI 总线、启动内存和寄存器外设，展示从接口事实到自动组合、输入约束、
 Verilator 仿真、官方 RFuzz 客户端、反馈语料和重放验证的完整链路。
 
+从整体上看，这个系统是一个“面向真实 RTL 处理器的自动组合与反馈驱动测试平台”。
+它解决的核心问题是：给定处理器 RTL、接口描述、ISA 约束和外设后，不再为每款 CPU
+手工编写测试顶层，而是自动识别总线、选择协议适配器、分配地址、生成接线，再由
+RFuzz 产生受约束输入并运行真实 RTL。
+
 示例入口是 `run_example.py`，输入是 `input/ibex-scratch.json`。生产逻辑仍位于
 `src/myfuzz/`；示例程序只是调用已有 API，不维护另一份组合器或测试器。
 
@@ -51,6 +56,58 @@ RFuzz 逻辑输入布局 → 物理 DUT 端口
 
 任何接口宽度、方向、协议字段、源码身份、地址范围或连接唯一性不满足契约时，
 组合会失败关闭，不会猜测端口含义或生成“尽量能编译”的接线。
+
+### 系统分层
+
+| 层次 | 主要职责 | 主要产物 |
+| --- | --- | --- |
+| 源码事实层 | 校验源码版本、源码闭包、模块、端口及 packed member 坐标 | source/elaboration evidence |
+| 接口语义层 | 把物理端口标注为 clock、reset、interrupt、memory endpoint 等角色 | interface description |
+| 处理器边界层 | 把不同 CPU 的 instruction/data 总线归一为统一边界 | processor boundary |
+| 协议层 | 根据协议事实选择 OBI、AXI4 或 TL-UL adapter | processor-memory-beat 请求与响应 |
+| 组合层 | 选择组件、分配地址、生成仲裁与唯一驱动接线 | composition IR、SystemVerilog top |
+| 约束层 | 把可随机化逻辑字段映射为有约束的 RFuzz 输入布局 | layout、constraint hash |
+| 执行层 | 编译 Verilator，启动真实 CPU，检查取指、进展和 completion | simulator artifact、execution proof |
+| 反馈层 | 执行官方 RFuzz IPC，保存有反馈增益的输入 | report、feedback receipts、corpus |
+| 重放层 | 对保存语料重新执行并核对完整身份 | corpus manifest、replay evidence |
+
+生产路径不使用 `if cpu == "ibex"` 或 `if cpu == "cva6"` 选择接线。处理器名称可以
+出现在示例配置和报告中，但 adapter 与组件选择只取决于 endpoint protocol、字段
+role、方向、位宽、capability 和 compiler-proven physical port。
+
+### 协议归一化
+
+不同处理器可以暴露不同的总线接口，系统通过 adapter 把它们归一到统一后端：
+
+```text
+Ibex OBI  ─────► OBI adapter  ───┐
+CVA6 AXI4 ─────► AXI4 adapter ───┼──► processor-memory-beat
+TL-UL endpoint ► TL-UL adapter ──┘
+```
+
+统一的 `processor-memory-beat` 后端表示地址、读写类型、写数据、byte enable、返回
+数据、error、request acceptance 和 response completion。当前模型限制为单
+outstanding、按序完成和有界等待，使错误、超时与背压具有明确语义。
+
+本示例自动生成的主要结构是：
+
+```text
+                  ┌──────────────┐
+RFuzz inputs ────►│  Real Ibex   │
+                  └──────┬───────┘
+                         │ OBI
+                  ┌──────▼───────┐
+                  │ OBI Adapter  │
+                  └──────┬───────┘
+                         │ processor-memory-beat
+                  ┌──────▼───────┐
+                  │   Arbiter    │
+                  └───┬──────┬───┘
+                      │      │
+              ┌───────▼─┐  ┌─▼────────────────┐
+              │ Boot RAM│  │ Scratch Registers│
+              └─────────┘  └──────────────────┘
+```
 
 ## 3. 输入约束如何生效
 
@@ -196,7 +253,46 @@ jq . runs/examples/real-ibex-rfuzz-5s/live/corpus_manifest.json
 覆盖类型是 `sampled-dut-signal-bit-events-u8-saturating`，表示显式中断输入位和
 内部 backend request/response 事件的采样计数，不应表述为源码行覆盖率或分支覆盖率。
 
-## 10. 回归和正式长测
+## 10. 新反馈为什么产生新语料
+
+RFuzz 为每次输入得到一组反馈计数，并维护整个运行到目前为止已经观察到的反馈状态。
+如果一个输入使至少一个反馈位置出现此前没有观察过的状态，这个输入就具有反馈增益，
+会被保留到 corpus；没有增益的输入不会保留。
+
+```text
+输入 A → 没有新反馈       → 不保存
+输入 B → 新反馈位置 5     → 保存为语料
+输入 C → 与 B 的反馈相同  → 不保存
+输入 D → 新反馈位置 8     → 保存为语料
+```
+
+因此，“执行一次测试”和“产生一条新语料”不是一回事。15,357 次执行最终只有 19 条
+语料是正常现象，表示绝大多数变异没有扩展已知反馈状态，而这 19 条输入分别贡献了
+可保留的反馈增益。
+
+`completed_feedback_exchanges` 也不等同于进程内部简单地调用过一次 simulator。
+它只统计经过共享内存 FIFO 完整提交，并收到对应回复的交换。只有具有这类 receipt 的
+输入，才能被标记为 `shared_memory_exchange_verified=true`。
+
+## 11. 语料重放和身份一致性
+
+保存语料以后，系统把每条 raw input 重新拆成周期记录，再送入真实 Verilator RTL。
+重放得到的反馈计数必须与保存时一致，否则立即报告 coverage mismatch。
+
+重放同时核对：
+
+- 原始输入 SHA-256；
+- input layout hash；
+- constraint hash；
+- simulator binary SHA-256；
+- 固定物理控制输入 SHA-256；
+- simulator input SHA-256；
+- 由上述身份组成的 replay key。
+
+正式 campaign 还会从保留的源码重新构建一份 simulator，然后用新构建产物重放全部
+语料。这用来排除残留进程状态、临时生成文件或某一次二进制偶然行为对结果的影响。
+
+## 12. 回归和正式长测
 
 只验证示例契约与文档，不启动真实 CPU：
 
@@ -225,7 +321,7 @@ PYTHONPATH=src:. JOBS=1 nice -n15 python3 scripts/run_real_cpu_campaigns.py \
 runner 串行运行 scratch/GPIO/timer 三种不同组合，每组至少 300 秒，并执行独立重建
 和全语料重放。该门槛目前未执行，不能从 5 秒结果推断为通过。
 
-## 11. 常见问题
+## 13. 常见问题
 
 - `output already exists`：为新运行换一个输出目录；不要删除需要保留的旧证据。
 - `interface does not exist`：固定 Ibex checkout 或接口描述不完整。
@@ -238,3 +334,23 @@ runner 串行运行 scratch/GPIO/timer 三种不同组合，每组至少 300 秒
 
 所有详细能力与历史证据见
 `docs/reports/task16_processor_rfuzz_regression_20260908.md`。
+
+## 14. 当前结论
+
+当前已经跑通并验证的主链路是：
+
+```text
+自动组合
+→ OBI 协议适配
+→ 地址分配和 RTL 接线
+→ 输入约束投影
+→ Verilator 编译
+→ 真实 Ibex 启动和执行
+→ 官方 RFuzz 共享内存反馈
+→ 新语料保存
+→ 全语料真实 RTL 重放
+```
+
+尚未完成的是覆盖范围和长时间稳定性门槛：BOOM 真实处理器验收按要求暂缓，GPIO 和
+timer personality 尚未完成本轮真实 CPU 长测，三组各 300 秒的 Task 15 campaign
+尚未执行。因此可以确认系统主链路能够正确运行，但不能据此宣称整个长期验收计划完成。
