@@ -172,3 +172,96 @@ class RuntimeProjectionTests(unittest.TestCase):
         legal_projector = runtime_projection.RuntimeProjector(legal_layout, isa=isa)
         self.assertEqual("legal", legal_projector.instruction_mode)
         self.assertNotEqual(raw_projector.constraint_hash, legal_projector.constraint_hash)
+
+    def test_constraint_hash_binds_complete_isa_contract(self):
+        field = LayoutField(
+            "i", "e", "instruction", 32, 0, 31, "riscv_imc", {},
+        )
+        layout = InputLayout("input_layout.v1", 32, (field,), "isa-bound")
+        contracts = (
+            IsaContract(32, ("I",)),
+            IsaContract(64, ("I",)),
+            IsaContract(32, ("I", "M")),
+            IsaContract(32, ("I",), privilege_modes=("M", "U")),
+            IsaContract(32, ("I",), instruction_alignment=2),
+        )
+        projectors = tuple(
+            runtime_projection.RuntimeProjector(layout, isa=contract)
+            for contract in contracts
+        )
+
+        self.assertEqual(len(contracts), len({item.constraint_hash for item in projectors}))
+        self.assertEqual(
+            {
+                "xlen": 32,
+                "extensions": ["I"],
+                "privilege_modes": ["M"],
+                "instruction_alignment": 4,
+            },
+            projectors[0]._constraint_document["isa_contract"],
+        )
+
+    def test_instruction_randomizable_is_metadata_and_direct_values_are_boolean(self):
+        base = LayoutField("i", "e", "instruction", 32, 0, 31, "riscv_imc", {})
+        layout = InputLayout("input_layout.v1", 32, (base,), "randomizable")
+        isa = IsaContract(32, ("I",))
+        for value in (False, True):
+            with self.subTest(value=value):
+                field = replace(base, constraint={"randomizable": value})
+                projector = runtime_projection.RuntimeProjector(
+                    replace(layout, fields=(field,)), isa=isa,
+                )
+                self.assertTrue(
+                    RiscvInstructionProvider(isa).is_legal_word(projector.project(0))
+                )
+        for value in (0, 1, None, "true"):
+            with self.subTest(value=value), self.assertRaisesRegex(
+                ValueError, "randomizable.*boolean"
+            ):
+                runtime_projection.RuntimeProjector(
+                    replace(layout, fields=(replace(base, constraint={"randomizable": value}),)),
+                    isa=isa,
+                )
+
+    def test_finite_candidates_are_cached_during_initialization(self):
+        fields = (
+            LayoutField("enum", "e", "enum", 8, 0, 7, "bits", {"enum": [1, 3, 7]}),
+            LayoutField(
+                "range-mask", "e", "data", 8, 8, 15, "bits",
+                {"range": [0, 252], "alignment": 4, "mask": 0b10101100},
+            ),
+        )
+        projector = runtime_projection.RuntimeProjector(
+            InputLayout("input_layout.v1", 16, fields, "cached")
+        )
+        enum_candidates = projector._constraint_candidates["enum"]
+        range_mask_candidates = projector._constraint_candidates["range-mask"]
+
+        for raw in range(256):
+            projector.project(raw | (raw << 8))
+
+        self.assertIs(enum_candidates, projector._constraint_candidates["enum"])
+        self.assertIs(
+            range_mask_candidates, projector._constraint_candidates["range-mask"]
+        )
+        self.assertEqual((1, 3, 7), enum_candidates)
+        self.assertTrue(range_mask_candidates)
+
+    def test_inactive_gate_zero_overrides_nonzero_enum(self):
+        fields = (
+            LayoutField("valid", "e", "valid", 1, 0, 0, "bits", {}),
+            LayoutField(
+                "data", "e", "data", 3, 1, 3, "bits",
+                {"enum": [1, 3, 7], "gated_by": "valid"},
+            ),
+        )
+        projector = runtime_projection.RuntimeProjector(
+            InputLayout("input_layout.v1", 4, fields, "gated-enum")
+        )
+
+        self.assertEqual(0, projector.project(0b1110))
+        self.assertEqual(7, projector.project(0b0101) >> 1)
+        self.assertEqual(
+            "inactive_zero_overrides_field_constraints",
+            projector._constraint_document["gating_semantics"],
+        )

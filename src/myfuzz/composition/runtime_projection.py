@@ -1,4 +1,10 @@
-"""Stateless layout constraints for live simulation; protocol FSMs stay in RTL."""
+"""Stateless layout constraints for live simulation; protocol FSMs stay in RTL.
+
+Projection order is mask, finite-value selection or range/alignment mapping,
+instruction legality, inactive-gate zeroing, then raw-layout reconstruction.
+Inactive gate zeroing deliberately overrides field constraints, including enums
+whose declared active values do not contain zero.
+"""
 import hashlib
 from dataclasses import replace
 
@@ -9,7 +15,8 @@ from myfuzz.isa.constraints import IsaContract, RiscvInstructionProvider
 
 
 class RuntimeProjector:
-    def __init__(self, layout: InputLayout, *, isa: IsaContract | None = None):
+    def __init__(self, layout: InputLayout, *, isa: IsaContract | None = None,
+                 require_compiler_provenance: bool = False):
         if not isinstance(layout, InputLayout):
             raise ValueError("runtime projection requires layout")
         # Validate and project the same detached snapshot. Mutable constraint
@@ -28,6 +35,7 @@ class RuntimeProjector:
         layout.to_raw_abi()
         self.layout = layout
         self.provider = RiscvInstructionProvider(isa) if isa is not None else None
+        self._constraint_candidates: dict[str, tuple[int, ...]] = {}
         by_id = {field.field_id: field for field in layout.fields}
         if len(by_id) != len(layout.fields):
             raise ValueError("duplicate runtime field")
@@ -35,15 +43,20 @@ class RuntimeProjector:
             if field.dependency_group is not None:
                 raise ValueError("unbound runtime dependency group")
             if set(field.constraint) - {
-                "range", "alignment", "enum", "mask", "gated_by", "byte_enable_width"
+                "range", "alignment", "enum", "mask", "randomizable", "gated_by", "byte_enable_width"
             }:
                 raise ValueError("unsupported runtime constraint")
             if field.encoding not in {"bits", "raw_instruction", "riscv_imc"}:
                 raise ValueError("unsupported runtime encoding")
+            if require_compiler_provenance and field.member_path and "compiler_elaboration" not in set(field.evidence):
+                raise ValueError("packed runtime binding lacks compiler provenance")
+            if "randomizable" in field.constraint and type(field.constraint["randomizable"]) is not bool:
+                raise ValueError("runtime randomizable must be boolean")
             if field.encoding == "riscv_imc":
                 # Repairing an opcode cannot also promise arbitrary numeric bounds
                 # or zero-on-invalid gating; those require an intersection solver.
-                if field.constraint or field.signed:
+                semantic_constraints = set(field.constraint) - {"randomizable"}
+                if semantic_constraints or field.signed:
                     raise ValueError("unsupported instruction constraint intersection")
                 if self.provider is None or not isa.supports_legal_instruction_validation or field.width not in (16, 32):
                     raise ValueError("missing implemented instruction contract")
@@ -86,6 +99,19 @@ class RuntimeProjector:
                     field_mask = (1 << field.width) - 1
                     if any((value & field_mask) & ~mask for value in enum):
                         raise ValueError("runtime enum/mask conflict")
+                self._constraint_candidates[field.field_id] = tuple(enum)
+            if mask is not None and bounds is not None:
+                span = (bounds[1] - bounds[0]) // alignment
+                if span > 1_000_000:
+                    raise ValueError("runtime range/mask intersection is not bounded")
+                candidates = tuple(
+                    bounds[0] + index * alignment
+                    for index in range(span + 1)
+                    if (((bounds[0] + index * alignment) & ((1 << field.width) - 1)) & ~mask) == 0
+                )
+                if not candidates:
+                    raise ValueError("runtime range/mask conflict")
+                self._constraint_candidates[field.field_id] = candidates
             gate = field.constraint.get("gated_by")
             if gate is not None and (gate not in by_id or by_id[gate].width != 1 or by_id[gate].role != "valid" or by_id[gate].owner != field.owner or field.role == "valid"):
                 raise ValueError("invalid runtime gate")
@@ -141,9 +167,23 @@ class RuntimeProjector:
                 "port_width": field.port_width,
             })
         return {
-            "schema_version": "runtime_constraints.v1",
+            "schema_version": "runtime_constraints.v2",
             "layout_hash": self.layout.layout_hash,
             "instruction_mode": self.instruction_mode,
+            "isa_contract": None if self.provider is None else {
+                "xlen": self.provider.contract.xlen,
+                "extensions": list(self.provider.contract.extensions),
+                "privilege_modes": list(self.provider.contract.privilege_modes),
+                "instruction_alignment": self.provider.contract.instruction_alignment,
+            },
+            "projection_order": [
+                "mask",
+                "finite_selection_or_range_alignment",
+                "instruction_legality",
+                "inactive_gate_zero",
+                "raw_reconstruction",
+            ],
+            "gating_semantics": "inactive_zero_overrides_field_constraints",
             "fields": fields,
         }
 
@@ -202,13 +242,10 @@ class RuntimeProjector:
             alignment = field.constraint.get("alignment", 1)
             bounds = field.constraint.get("range")
             if enum is not None:
-                candidates = tuple(
-                    value for value in enum
-                    if (bounds is None or bounds[0] <= value <= bounds[1])
-                    and value % alignment == 0
-                )
-                if not candidates:
-                    raise ValueError("runtime enum has no legal value")
+                candidates = self._constraint_candidates[field.field_id]
+                value = candidates[source % len(candidates)]
+            elif bounds is not None and source_mask is not None:
+                candidates = self._constraint_candidates[field.field_id]
                 value = candidates[source % len(candidates)]
             else:
                 value = source
