@@ -1154,13 +1154,21 @@ def _processor_source_records(
         for item in declared_files
     )
     for source_file in dict.fromkeys((*source_files, *closure)):
-        text = _generic_source_path(root, source_file).read_text(encoding="utf-8")
-        for name, replacement in sorted(
-            replacements.items(), key=lambda item: (-len(item[0]), item[0])
-        ):
-            text = re.sub(rf"\b{re.escape(name)}\b", replacement, text)
+        path = _generic_source_path(root, source_file)
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            # Include-root closure also binds non-HDL collateral. Its bytes
+            # need provenance, not text normalization or standalone compilation.
+            source_content = {"raw_source_hex": path.read_bytes().hex()}
+        else:
+            for name, replacement in sorted(
+                replacements.items(), key=lambda item: (-len(item[0]), item[0])
+            ):
+                text = re.sub(rf"\b{re.escape(name)}\b", replacement, text)
+            source_content = {"normalized_source": text}
         source_id = canonical_id(
-            "generic-source-content", content_hash({"normalized_source": text}),
+            "generic-source-content", content_hash(source_content),
         )
         by_path[source_file] = source_id
         if source_prefix and source_file.startswith(source_prefix.rstrip("/") + "/"):

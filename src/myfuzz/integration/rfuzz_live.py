@@ -168,6 +168,10 @@ def build_corpus_manifest(artifact, corpus_dir, *, feedback_receipts=None):
             for key in ("raw_sha256", "layout_hash", "constraint_hash", "binary_sha256",
                         "physical_controls_sha256", "simulator_inputs_sha256", "replay_key",
                         "transducer_hash", "header_hash", "implementation_hash"):
+                if getattr(artifact, "transducer_hash", None) is not None and key in ("binary_sha256", "replay_key"):
+                    # replay_corpus already checked the original build binding,
+                    # including its sidecar when this is an independent rebuild.
+                    continue
                 if key in declared and declared[key] != identity.get(key):
                     raise ValueError(f"RFuzz replay identity mismatch: {path.name}")
         receipt = (identity["raw_sha256"], _hash_bytes(bytes(actual["counters"])))
@@ -501,7 +505,12 @@ def replay_corpus(artifact, corpus_dir, *, _capture_receipts=None):
                 for key in ("raw_sha256", "layout_hash", "constraint_hash", "binary_sha256",
                             "physical_controls_sha256", "simulator_inputs_sha256", "replay_key",
                             "transducer_hash", "header_hash", "implementation_hash"):
-                    if key in declared and declared[key] != identity.get(key):
+                    # Inline build-specific bindings belong to the original
+                    # sidecar, not the independently rebuilt executable.
+                    binding = (saved_entries[path.name]
+                               if saved_entries is not None and key in ("binary_sha256", "replay_key")
+                               else identity)
+                    if key in declared and declared[key] != binding.get(key):
                         raise ValueError(f"RFuzz replay identity mismatch: {path.name}")
             width = artifact.transport.byte_count
             records = tuple(payload[i:i+width] for i in range(0, len(payload), width))

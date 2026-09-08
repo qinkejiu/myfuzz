@@ -41,7 +41,7 @@ PROTOCOLS = (("obi", "1"), ("axi4", "1"), ("tl-ul", "1"))
 def _fixture(
     root: Path, protocol: tuple[str, str], ordinal: int, *, with_ram: bool = False,
     synchronous_reset: bool = False, flush_contract: bool = True,
-    cross_file_types: bool = False,
+    cross_file_types: bool = False, binary_collateral: bool = False,
 ):
     catalog = load_protocol_catalog(ROOT / "src/myfuzz/protocols/plugins")
     plugin = catalog.require(*protocol)
@@ -133,6 +133,10 @@ def _fixture(
         ), encoding="utf-8")
         source_files.insert(0, "types.sv")
         closure.extend((header, package))
+        if binary_collateral:
+            collateral = source_root / "include/reference.bin"
+            collateral.write_bytes(b"\x89\xff\x00reference")
+            closure.append(collateral)
     adapter_source = root / adapter.rtl_source
     adapter_source.parent.mkdir(parents=True, exist_ok=True)
     adapter_source.write_bytes((ROOT / adapter.rtl_source).read_bytes())
@@ -327,6 +331,15 @@ def _run_iverilog(output: Path, testbench: str) -> str:
 
 
 class ProcessorAutoWiringIntegrationTests(unittest.TestCase):
+    def test_binary_include_collateral_keeps_provenance_without_compiling_it(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plan, _, _, _ = _fixture(root, ("obi", "1"), 19,
+                                    cross_file_types=True, binary_collateral=True)
+            assert "source/include/reference.bin" not in plan.source_files
+            write_generic_composition(plan, root / "out", base_dir=root)
+            assert "reference.bin" not in (root / "out/sources.f").read_text()
+
     def test_header_change_during_lint_rejects_publication(self) -> None:
         from myfuzz.composition import protocol_composer
 

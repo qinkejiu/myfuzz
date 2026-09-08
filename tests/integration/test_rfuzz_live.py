@@ -489,6 +489,42 @@ class ReplayIdentityTests(unittest.TestCase):
             assert replay["entries"] == 1
             assert replay.get("implementation_hash") == self.artifact.implementation_hash
 
+    def test_saved_manifest_allows_rebuilt_binary_with_inline_identity(self):
+        from myfuzz.integration import rfuzz_live
+        self.artifact.transducer_hash = "sha256:transducer-v1"
+        self.artifact.header_hash = "sha256:header-v1"
+        original = rfuzz_live.replay_identity(self.artifact, self.payload)
+        corpus = self.root / "corpus"
+        corpus.mkdir()
+        entry = corpus / "entry_0000.json"
+        document = {"entry": {"inputs": list(self.payload)},
+                    "trace_bits": [1, 0, 0, 0, 0, 0], "replay_identity": original}
+        entry.write_text(json.dumps(document))
+        (self.root / "corpus_manifest.json").write_text(json.dumps({
+            "entries": 1, "replays": [original | {
+                "file": entry.name,
+                "trace_sha256": rfuzz_live._hash_bytes(bytes(document["trace_bits"])),
+                "coverage_sha256": rfuzz_live._hash_bytes(b"\1"),
+            }],
+        }))
+        self.artifact.executable.write_bytes(b"rebuilt-simulator")
+        for operation in (rfuzz_live.replay_corpus, rfuzz_live.build_corpus_manifest):
+            with self.subTest(operation=operation.__name__):
+                with patch.object(rfuzz_live, "RtlSimulator") as constructor:
+                    simulator = constructor.return_value.__enter__.return_value
+                    simulator.run_test.return_value = b"\1"
+                    result = operation(self.artifact, corpus)
+                    self.assertEqual(1, result["entries"])
+                    self.assertNotEqual(original["binary_sha256"], result["replays"][0]["binary_sha256"])
+                    self.assertEqual(original["implementation_hash"], result["replays"][0]["implementation_hash"])
+        document["replay_identity"] = original | {"binary_sha256": "tampered-inline"}
+        entry.write_text(json.dumps(document))
+        with patch.object(rfuzz_live, "RtlSimulator") as constructor:
+            simulator = constructor.return_value.__enter__.return_value
+            with self.assertRaisesRegex(ValueError, "identity"):
+                rfuzz_live.replay_corpus(self.artifact, corpus)
+            simulator.run_test.assert_not_called()
+
     def test_corpus_rejects_changed_transducer_metadata_before_execution(self):
         from myfuzz.integration import rfuzz_live
         self.artifact.transducer_hash = "sha256:transducer-v1"
