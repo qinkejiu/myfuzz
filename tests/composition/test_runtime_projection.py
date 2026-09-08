@@ -119,6 +119,21 @@ class RuntimeProjectionTests(unittest.TestCase):
                 raw=replace(layout,fields=(replace(field,encoding="raw_instruction"),))
                 self.assertEqual(runtime_projection.project_word(raw,0),0)
 
+    def test_legal_instruction_projection_retains_diverse_rfuzz_operations(self):
+        isa = IsaContract(32, ("I", "M"))
+        field = LayoutField("i", "e", "instruction", 32, 0, 31, "riscv_imc", {})
+        layout = InputLayout("input_layout.v1", 32, (field,), "diverse-instructions")
+        projector = runtime_projection.RuntimeProjector(layout, isa=isa)
+        provider = RiscvInstructionProvider(isa)
+
+        projected = tuple(
+            projector.project((selector << 24) | 0x0055_AA00)
+            for selector in range(256)
+        )
+
+        self.assertTrue(all(provider.is_legal_word(word) for word in projected))
+        self.assertGreaterEqual(len(set(projected)), 10)
+
     def test_unbound_dependency_or_unknown_constraint_fails_closed(self):
         base=LayoutField("a","e","data",8,0,7,"bits",{})
         for field in (replace(base,dependency_group="unbound"),replace(base,constraint={"unknown":1}),
@@ -172,6 +187,17 @@ class RuntimeProjectionTests(unittest.TestCase):
         legal_projector = runtime_projection.RuntimeProjector(legal_layout, isa=isa)
         self.assertEqual("legal", legal_projector.instruction_mode)
         self.assertNotEqual(raw_projector.constraint_hash, legal_projector.constraint_hash)
+
+    def test_raw_instruction_mode_accepts_an_unimplemented_isa_contract(self):
+        field = LayoutField(
+            "i", "e", "instruction", 32, 0, 31, "raw_instruction", {},
+        )
+        layout = InputLayout("input_layout.v1", 32, (field,), "raw-unimplemented-isa")
+        isa = IsaContract(64, ("I", "A"))
+
+        projector = runtime_projection.RuntimeProjector(layout, isa=isa)
+
+        self.assertEqual(projector.project(0x0200_00B3), 0x0200_00B3)
 
     def test_constraint_hash_binds_complete_isa_contract(self):
         field = LayoutField(

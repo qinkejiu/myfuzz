@@ -12,6 +12,7 @@ from myfuzz.contracts import canonical_bytes
 
 from .input_layout import InputLayout
 from myfuzz.isa.constraints import IsaContract, RiscvInstructionProvider
+from myfuzz.isa.transducer import RiscvInstructionTransducer
 
 
 class RuntimeProjector:
@@ -35,6 +36,11 @@ class RuntimeProjector:
         layout.to_raw_abi()
         self.layout = layout
         self.provider = RiscvInstructionProvider(isa) if isa is not None else None
+        self.instruction_transducer = (
+            RiscvInstructionTransducer(isa)
+            if isa is not None and isa.supports_legal_instruction_validation
+            else None
+        )
         self._constraint_candidates: dict[str, tuple[int, ...]] = {}
         by_id = {field.field_id: field for field in layout.fields}
         if len(by_id) != len(layout.fields):
@@ -257,8 +263,14 @@ class RuntimeProjector:
                     lo, hi = bounds
                     value = lo + (((value - lo) // alignment) % ((hi - lo) // alignment + 1)) * alignment
             value &= mask
-            if field.encoding == "riscv_imc" and not self.provider.is_legal_word(value, compressed=field.width == 16):
-                value = 0x0001 if field.width == 16 else 0x00000013  # architectural NOP
+            if field.encoding == "riscv_imc":
+                assert self.instruction_transducer is not None
+                selector = value >> max(0, field.width - self.instruction_transducer.selector_width)
+                value = self.instruction_transducer.repair(
+                    selector,
+                    value,
+                    width=field.width,
+                ).word
             values[field.field_id] = value
         result = 0
         for field in self.layout.fields:
