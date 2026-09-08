@@ -187,3 +187,88 @@ claim is made beyond the listed trace and exhaustive compressed-repair coverage.
 Future wiring must respect the documented pre-edge convention and the reference's
 no-backpressure response contract. Header schema/hash validation remains the host's
 responsibility; this module receives only the validated fixed controls it uses.
+
+## Control-layer review fixes: capacity range and reserved module names
+
+Status: COMPLETE.
+
+Fix implementation commit: `624971d612f945a30e020f9e9f58aeddf774c950`.
+
+This follow-up supersedes the earlier open module-name limitation. It also
+narrows the shared compiler capacity contract to a supported explicit range,
+as requested by the control-layer review. No unrelated source, user
+`task-2-report.md`, or third-party file was modified.
+
+`contract_transducer.py` now defines the public, `__all__`-exported
+`MAX_MEMORY_CAPACITY_ENTRIES = 4096`. Both `compile_contract_transducer` and the
+RTL renderer use this single constant and reject boolean/non-integer, nonpositive,
+and above-limit capacities. The renderer checks again before generating source,
+including when a frozen plan was replaced or tampered with after compilation.
+The default remains 256. This is the only Task 5 production-interface correction
+in this follow-up; valid existing plan documents/hashes and runtime behavior are
+unchanged.
+
+Generated `MEMORY_CAPACITY` and the signed lookup/free/store indices remain
+SystemVerilog `integer` values, whose 32-bit range fully covers every supported
+capacity from 1 through 4096 and index/sentinel value from -1 through 4095. An
+additional public-port Python/Icarus trace fills all 4096 entries, exercises
+overflow reads/writes and an empty write while full, verifies old data survives,
+then checks reset and test-begin capacity lifetimes. This passed in **13.16s**.
+
+The renderer rejects a set of **248 SystemVerilog reserved words**, including
+`module`, `endmodule`, `logic`, `always_ff`, and `assign`. Checking is exact and
+case-sensitive; ordinary names, mixed-case names such as `Module`, keyword
+prefixes, underscores, and identifier dollar characters remain compatible.
+
+### Additional RED/GREEN evidence
+
+Before production changes:
+
+```sh
+PYTHONPATH=src python3 -m pytest tests/composition/test_contract_transducer.py tests/composition/test_transducer_rtl.py -q --tb=short
+```
+
+RED: **32 failed, 77 passed in 0.31s**. Failures showed the missing public bound,
+compiler acceptance of 4097 and `(1 << 32) + 1`, renderer acceptance of seven
+invalid manually changed capacities, and acceptance of 22 representative reserved
+module names. Boundary/default and valid-name compatibility assertions were
+already present in this run.
+
+After implementation:
+
+```sh
+PYTHONPATH=src python3 -m pytest tests/composition/test_contract_transducer.py tests/composition/test_transducer_rtl.py -q
+PYTHONPATH=src python3 -m pytest tests/integration/test_constrained_backend_rtl.py -k 'full_capacity and 4096' -q
+```
+
+GREEN: **109 passed in 0.20s**, then **1 passed, 29 deselected in 13.16s**.
+
+Final full-regression command:
+
+```sh
+PYTHONPATH=src python3 -m pytest tests/composition/test_transducer_rtl.py tests/integration/test_constrained_backend_rtl.py tests/composition/test_protocol_transducer.py tests/composition/test_contract_transducer.py tests/composition/test_constraint_ir.py tests/composition/test_cycle_input.py tests/composition/test_coherent_memory.py tests/isa/test_instruction_transducer.py -q
+git diff --check
+git diff --cached --check
+```
+
+Result: **217 passed in 29.26s**, exit 0, with no skips. This preserves all 176
+previous cases and adds 41 cases: three compiler-boundary cases, 37 renderer
+validation/compatibility cases, and the 4096-entry Icarus trace. The final total
+is 141 Task 5 regression cases plus 76 Task 6 cases. Both diff checks passed.
+Icarus/Yosys versions and invocation arguments are unchanged from the preceding
+sections. The fix implementation commit contains only the five stated
+production/test files; this report is recorded separately to include its hash.
+
+### Follow-up self-review
+
+Checked both validation sites import/use the same public limit, reject booleans
+before integer comparisons, and execute before invalid capacity can become an
+RTL array dimension. Checked the capacity constant and all indices represent the
+entire supported range without truncation. Full-capacity equivalence complements
+the 1/256/4096 source assertions and existing capacity-1/3/256 traces.
+
+Independent read-only review approved the changes with no remaining critical or
+important findings and independently passed all 109 compiler/renderer tests.
+The earlier reserved-name minor issue is resolved. No new concern remains for
+these two review fixes; the previously documented PPA/formal-verification scope
+limits still apply.
