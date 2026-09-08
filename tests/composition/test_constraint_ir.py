@@ -36,6 +36,15 @@ def test_balanced_selection_differs_by_at_most_one_preimage() -> None:
     assert max(counts) - min(counts) <= 1
 
 
+def test_balanced_selection_allows_more_choices_than_raw_domain() -> None:
+    choices = (0, 1, 2)
+    counts = [0] * len(choices)
+    for raw in range(1 << 1):
+        counts[select_balanced(raw, 1, choices)] += 1
+    assert max(counts) - min(counts) <= 1
+    assert [select_balanced(raw, 1, choices) for raw in range(2)] == [0, 1]
+
+
 def test_width_mismatch_and_cycle_fail_closed() -> None:
     with pytest.raises(ConstraintIrError, match="width"):
         bit_and(ref("a", 2), ref("b", 3))
@@ -96,6 +105,18 @@ def test_program_rejects_duplicate_outputs_and_unknown_inputs() -> None:
     with pytest.raises(ConstraintIrError, match="input"):
         evaluate(ref("a", 2), {})
     assert evaluate(ref("a", 2), {"a": 4}) == 0
+
+
+def test_program_rejects_same_ref_name_with_different_width_within_expression() -> None:
+    expression = concat((ref("shared", 1), ref("shared", 2)))
+    with pytest.raises(ConstraintIrError, match="ref.*width"):
+        ConstraintProgram((("result", expression),)).validate()
+
+
+def test_program_rejects_same_ref_name_with_different_width_across_outputs() -> None:
+    program = ConstraintProgram((("one", ref("shared", 1)), ("two", ref("shared", 2))))
+    with pytest.raises(ConstraintIrError, match="ref.*width"):
+        program.validate()
 
 
 def test_selection_rejects_invalid_domain_and_preserves_choice_identity() -> None:

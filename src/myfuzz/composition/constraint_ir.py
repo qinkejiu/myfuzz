@@ -54,6 +54,7 @@ class ConstraintProgram:
         names: set[str] = set()
         visiting: set[int] = set()
         visited: set[int] = set()
+        ref_widths: dict[str, int] = {}
         for output in self.outputs:
             if not isinstance(output, tuple) or len(output) != 2:
                 raise ConstraintIrError("invalid output")
@@ -63,7 +64,7 @@ class ConstraintProgram:
             if name in names:
                 raise ConstraintIrError("duplicate output name")
             names.add(name)
-            _validate_expr(expression, visiting, visited)
+            _validate_expr(expression, visiting, visited, ref_widths)
 
     def document(self) -> dict[str, object]:
         """Return a deterministic JSON-compatible document for this program."""
@@ -101,7 +102,14 @@ class ConstraintProgram:
         return self.document()
 
 
-def _validate_expr(expression: object, visiting: set[int], visited: set[int]) -> None:
+def _validate_expr(
+    expression: object,
+    visiting: set[int],
+    visited: set[int],
+    ref_widths: dict[str, int] | None = None,
+) -> None:
+    if ref_widths is None:
+        ref_widths = {}
     if not isinstance(expression, Expr):
         raise ConstraintIrError("invalid expression")
     identity = id(expression)
@@ -119,35 +127,40 @@ def _validate_expr(expression: object, visiting: set[int], visited: set[int]) ->
     elif op == "ref":
         if len(args) != 1 or not isinstance(args[0], str) or not args[0]:
             raise ConstraintIrError("invalid ref name")
+        name = args[0]
+        previous_width = ref_widths.get(name)
+        if previous_width is not None and previous_width != width:
+            raise ConstraintIrError(f"ref width mismatch: {name}")
+        ref_widths[name] = width
     elif op in ("and", "or"):
         if len(args) != 2 or not all(isinstance(item, Expr) for item in args):
             raise ConstraintIrError(f"{op} width mismatch")
         left, right = args
         if left.width != right.width or left.width != width:
             raise ConstraintIrError(f"{op} width mismatch")
-        _validate_expr(left, visiting, visited)
-        _validate_expr(right, visiting, visited)
+        _validate_expr(left, visiting, visited, ref_widths)
+        _validate_expr(right, visiting, visited, ref_widths)
     elif op == "not":
         if len(args) != 1 or not isinstance(args[0], Expr) or args[0].width != width:
             raise ConstraintIrError("not width mismatch")
-        _validate_expr(args[0], visiting, visited)
+        _validate_expr(args[0], visiting, visited, ref_widths)
     elif op == "eq":
         if len(args) != 2 or not all(isinstance(item, Expr) for item in args):
             raise ConstraintIrError("equal width mismatch")
         left, right = args
         if width != 1 or left.width != right.width:
             raise ConstraintIrError("equal width mismatch")
-        _validate_expr(left, visiting, visited)
-        _validate_expr(right, visiting, visited)
+        _validate_expr(left, visiting, visited, ref_widths)
+        _validate_expr(right, visiting, visited, ref_widths)
     elif op == "mux":
         if len(args) != 3 or not all(isinstance(item, Expr) for item in args):
             raise ConstraintIrError("mux width mismatch")
         select, when_true, when_false = args
         if select.width != 1 or when_true.width != when_false.width or when_true.width != width:
             raise ConstraintIrError("mux width mismatch")
-        _validate_expr(select, visiting, visited)
-        _validate_expr(when_true, visiting, visited)
-        _validate_expr(when_false, visiting, visited)
+        _validate_expr(select, visiting, visited, ref_widths)
+        _validate_expr(when_true, visiting, visited, ref_widths)
+        _validate_expr(when_false, visiting, visited, ref_widths)
     elif op == "slice":
         if len(args) != 3 or not isinstance(args[0], Expr):
             raise ConstraintIrError("slice width mismatch")
@@ -156,14 +169,14 @@ def _validate_expr(expression: object, visiting: set[int], visited: set[int]) ->
             raise ConstraintIrError("slice bounds")
         if width != hi - lo + 1:
             raise ConstraintIrError("slice width mismatch")
-        _validate_expr(source, visiting, visited)
+        _validate_expr(source, visiting, visited, ref_widths)
     elif op == "concat":
         if not args or not all(isinstance(item, Expr) for item in args):
             raise ConstraintIrError("concat width mismatch")
         if width != sum(item.width for item in args):
             raise ConstraintIrError("concat width mismatch")
         for item in args:
-            _validate_expr(item, visiting, visited)
+            _validate_expr(item, visiting, visited, ref_widths)
     else:
         raise ConstraintIrError(f"unknown expression op: {op}")
     visiting.remove(identity)
@@ -260,8 +273,6 @@ def select_balanced(raw: int, raw_width: int, choices: Sequence[Any]) -> Any:
             or isinstance(choices, (str, bytes)) or not choices):
         raise ConstraintIrError("invalid selection")
     domain = 1 << raw_width
-    if len(choices) > domain:
-        raise ConstraintIrError("invalid selection")
     return choices[min(len(choices) - 1, raw * len(choices) // domain)]
 
 
