@@ -78,7 +78,7 @@
                     "required": ["frontend"],
                     "properties": {
                         "frontend": {"const": "verilator-json"},
-                        "warning_policy": {"const": "recorded-nonfatal"},
+                        "warning_policy": {"enum": ["fatal", "recorded-nonfatal"]},
                         "defines": {
                             "type": "array",
                             "items": {

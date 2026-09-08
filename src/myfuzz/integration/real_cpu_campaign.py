@@ -105,6 +105,7 @@ def build_candidate(root, output, config, personality):
              "composition_hash": plan.composition_ir_hash, "layout_hash": artifact.layout.layout_hash,
              "constraint_hash": artifact.projector.constraint_hash,
              "transducer_hash": artifact.transducer_hash, "header_hash": artifact.header_hash,
+             "implementation_hash": artifact.implementation_hash,
              "test_header": asdict(header), "coverage": list(first),
              "instruction_source": "rfuzz_contract_transducer",
              "progress_kind": "distinct first-time instruction-address initializations",
@@ -145,7 +146,7 @@ def run_campaigns(root, output, config_path, client, *, seconds=300, seed=202609
             original = result["corpus_manifest"]["replays"]
             for fresh, saved in zip(replay["replays"], original, strict=True):
                 for key in ("input_sha256", "layout_hash", "constraint_hash",
-                            "physical_controls_sha256", "simulator_inputs_sha256", "transducer_hash", "header_hash"):
+                            "physical_controls_sha256", "simulator_inputs_sha256", "transducer_hash", "header_hash", "implementation_hash"):
                     if fresh[key] != saved[key]:
                         raise ValueError(f"rebuild identity changed: {key}")
             publish(work / "rebuild_replay.json", replay)

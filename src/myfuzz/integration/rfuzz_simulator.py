@@ -18,7 +18,7 @@ import time
 from myfuzz.contracts import canonical_bytes, content_hash
 from myfuzz.composition.contract_transducer import ContractRuntime, ContractTransducerPlan
 from myfuzz.composition.cycle_input import CycleInputLayout, TestHeader, TEST_HEADER_SCHEMA_VERSION
-from myfuzz.composition.auto import _generic_with_reset_contract, _generic_endpoint_reset_contract
+from myfuzz.composition.auto import _generic_with_reset_contract, _generic_endpoint_reset_contract, _generic_source_evidence_hash
 from myfuzz.composition.input_layout import InputLayout, input_layout_document
 from myfuzz.composition.interface_description import interface_description_document
 from myfuzz.composition.protocol_composer import (
@@ -60,6 +60,7 @@ class SimulatorArtifact:
     transducer_hash: str | None = None
     header_hash: str | None = None
     test_header: TestHeader | None = None
+    implementation_hash: str | None = None
 
 
 class CycleIdentityProjector:
@@ -519,6 +520,8 @@ def build_simulator(plan, output_dir, *, base_dir, coverage_ports,
         checkpoint_seconds=1, env={"JOBS": "1", "MAKEFLAGS": "-j1"}))
     if result["status"] != "completed" or result["returncode"] != 0:
         raise ValueError(f"{simulator} build failed; see {log_path}: {result}")
+    if _generic_source_evidence_hash(root, plan.source_files, plan.interface_description.source) != plan.source_evidence_hash:
+        raise ValueError("simulator source evidence changed during compilation")
     (output / "artifact_provenance.json").write_bytes(canonical_bytes({
         "schema_version": "rfuzz_artifact_provenance.v1",
         "interface_description": interface_description_document(plan.interface_description),
@@ -546,6 +549,7 @@ def build_simulator(plan, output_dir, *, base_dir, coverage_ports,
         "isolate_tests": isolate_tests,
         "execution_monitor": execution_monitor,
         **({"transducer_hash": contract_transducer.contract_hash,
+            "implementation_hash": contract_transducer.implementation_hash,
             "transducer_rtl_sha256": "sha256:" + hashlib.sha256((output / "contract_transducer.sv").read_bytes()).hexdigest(),
             "header_hash": header_hash, "test_header": asdict(test_header)}
            if contract_transducer is not None else {}),
@@ -562,6 +566,7 @@ def build_simulator(plan, output_dir, *, base_dir, coverage_ports,
         transducer_hash=contract_transducer.contract_hash if contract_transducer is not None else None,
         header_hash=header_hash,
         test_header=test_header,
+        implementation_hash=contract_transducer.implementation_hash if contract_transducer is not None else None,
     )
 
 

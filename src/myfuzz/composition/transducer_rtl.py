@@ -6,6 +6,8 @@ from functools import lru_cache
 import re
 from typing import TYPE_CHECKING
 
+from myfuzz.contracts import content_hash
+
 from .contract_transducer import ContractTransducerPlan, MAX_MEMORY_CAPACITY_ENTRIES
 
 if TYPE_CHECKING:
@@ -121,7 +123,27 @@ def _instruction_functions(isa) -> str:
     return "".join(functions)
 
 
+def transducer_implementation_hash(plan: ContractTransducerPlan) -> str:
+    """Bind the exact emitted behavior, including compiled ISA repair rules.
+
+    The fixed module identifier, absent self-referential hash banner, and
+    comment/whitespace normalization exclude output paths and diagnostics.
+    Native binaries still have a separate, build-specific identity.
+    """
+    body = _render_transducer_body(plan)
+    semantic = re.sub(r"//[^\n]*|/\*.*?\*/", "", body, flags=re.S)
+    return content_hash({"schema_version": "generated_rtl_tokens.v1",
+                         "rtl": " ".join(semantic.split())})
+
+
 def render_transducer_rtl(plan: ContractTransducerPlan,
+                          module_name: str = "myfuzz_contract_transducer") -> str:
+    body = _render_transducer_body(plan, module_name)
+    return (f"// Contract {plan.contract_hash}\n"
+            f"// Implementation {plan.implementation_hash}\n" + body)
+
+
+def _render_transducer_body(plan: ContractTransducerPlan,
                           module_name: str = "myfuzz_contract_transducer") -> str:
     """Emit synthesizable SystemVerilog for valid normalized contract requests.
 
@@ -180,8 +202,7 @@ def render_transducer_rtl(plan: ContractTransducerPlan,
     end else begin
       {slots[32]}
     end"""
-    return f"""// Contract {plan.contract_hash}
-// Pre-edge outputs; rising edge commits one Python ContractRuntime.step.
+    return f"""// Pre-edge outputs; rising edge commits one Python ContractRuntime.step.
 module {module_name} (
   input logic clock_i,
   input logic reset_i,

@@ -85,6 +85,8 @@ def _simulator_input_document(artifact):
 def replay_identity(artifact, raw_payload):
     if not isinstance(raw_payload, bytes) or not raw_payload:
         raise ValueError("replay raw payload must be nonempty bytes")
+    if getattr(artifact, "transducer_hash", None) is not None and not getattr(artifact, "implementation_hash", None):
+        raise ValueError("replay transducer implementation identity is missing")
     layout = getattr(artifact, "layout", None)
     layout_hash = getattr(layout, "layout_hash", None)
     if not isinstance(layout_hash, str) or not layout_hash:
@@ -103,7 +105,7 @@ def replay_identity(artifact, raw_payload):
         "physical_controls_sha256": physical_controls_hash,
         "simulator_inputs_sha256": simulator_inputs_hash,
     }
-    for key in ("transducer_hash", "header_hash"):
+    for key in ("transducer_hash", "header_hash", "implementation_hash"):
         value = getattr(artifact, key, None)
         if value is not None:
             inputs[key] = value
@@ -114,6 +116,13 @@ def replay_identity(artifact, raw_payload):
         "binary_hash": binary_hash,
         "replay_key": _hash_bytes(canonical_bytes(inputs)),
     }
+
+
+_CONTRACT_REPLAY_KEYS = (
+    "raw_sha256", "layout_hash", "constraint_hash", "transducer_hash",
+    "implementation_hash", "header_hash", "physical_controls_sha256",
+    "simulator_inputs_sha256",
+)
 
 
 def _corpus_document(path, *, byte_count):
@@ -143,7 +152,7 @@ def build_corpus_manifest(artifact, corpus_dir, *, feedback_receipts=None):
     if not paths:
         raise ValueError("empty RFuzz corpus")
     width = artifact.transport.byte_count
-    verified = replay_corpus(artifact, corpus)
+    verified = replay_corpus(artifact, corpus, _capture_receipts=feedback_receipts)
     verified_by_file = {entry["file"]: entry for entry in verified["replays"]}
     replays = []
     for path in paths:
@@ -154,9 +163,11 @@ def build_corpus_manifest(artifact, corpus_dir, *, feedback_receipts=None):
             raise ValueError(f"RFuzz corpus coverage was not verified: {path.name}")
         declared = document.get("replay_identity")
         if isinstance(declared, dict):
+            if getattr(artifact, "transducer_hash", None) is not None and not declared.get("implementation_hash"):
+                raise ValueError(f"RFuzz replay identity mismatch: implementation_hash missing: {path.name}")
             for key in ("raw_sha256", "layout_hash", "constraint_hash", "binary_sha256",
                         "physical_controls_sha256", "simulator_inputs_sha256", "replay_key",
-                        "transducer_hash", "header_hash"):
+                        "transducer_hash", "header_hash", "implementation_hash"):
                 if key in declared and declared[key] != identity.get(key):
                     raise ValueError(f"RFuzz replay identity mismatch: {path.name}")
         receipt = (identity["raw_sha256"], _hash_bytes(bytes(actual["counters"])))
@@ -179,6 +190,7 @@ def build_corpus_manifest(artifact, corpus_dir, *, feedback_receipts=None):
         "coverage_transport": "sysv-shared-memory-rfuzz-coverage-buffer",
         "entries": len(replays),
         "layout_hash": replays[0]["layout_hash"],
+        **{key: replays[0][key] for key in ("transducer_hash", "header_hash", "implementation_hash") if key in replays[0]},
         "constraint_hash": replays[0]["constraint_hash"],
         "binary_sha256": replays[0]["binary_sha256"],
         "physical_controls_sha256": replays[0]["physical_controls_sha256"],
@@ -431,7 +443,7 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
     return result
 
 
-def replay_corpus(artifact, corpus_dir):
+def replay_corpus(artifact, corpus_dir, *, _capture_receipts=None):
     """Compare persisted upstream trace bytes with a fresh real RTL execution.
 
     Upstream config.rs aligns (counter bytes + two cycle-prefix bytes) to eight;
@@ -442,6 +454,20 @@ def replay_corpus(artifact, corpus_dir):
     paths = sorted(Path(corpus_dir).glob("entry_*.json"))
     if not paths:
         raise ValueError("empty RFuzz corpus")
+    constrained = getattr(artifact, "transducer_hash", None) is not None
+    saved_entries = None
+    manifest_path = Path(corpus_dir).parent / "corpus_manifest.json"
+    if constrained and manifest_path.exists():
+        if not manifest_path.is_file():
+            raise ValueError("RFuzz saved corpus manifest is invalid")
+        manifest = json.loads(manifest_path.read_text())
+        if (not isinstance(manifest, dict) or manifest.get("entries") != len(paths)
+                or not isinstance(manifest.get("replays"), list)
+                or len(manifest["replays"]) != len(paths)):
+            raise ValueError("RFuzz saved corpus manifest is invalid")
+        saved_entries = {item.get("file"): item for item in manifest["replays"] if isinstance(item, dict)}
+        if len(saved_entries) != len(paths) or set(saved_entries) != {path.name for path in paths}:
+            raise ValueError("RFuzz saved corpus manifest entries mismatch")
     entries = []
     with RtlSimulator(artifact) as simulator:
         for path in paths:
@@ -456,15 +482,36 @@ def replay_corpus(artifact, corpus_dir):
                 raise ValueError("invalid RFuzz coverage padding")
             identity = replay_identity(artifact, payload)
             declared = document.get("replay_identity")
+            if saved_entries is not None:
+                saved = saved_entries[path.name]
+                # A rebuild has its own binary/replay key. All semantic inputs
+                # and the actual compiled rule identity must still match.
+                for key in _CONTRACT_REPLAY_KEYS:
+                    if not saved.get(key) or saved[key] != identity.get(key):
+                        raise ValueError(f"RFuzz saved corpus identity mismatch: {key}: {path.name}")
+                if saved.get("trace_sha256") != _hash_bytes(bytes(expected)):
+                    raise ValueError(f"RFuzz saved corpus trace identity mismatch: {path.name}")
+            elif constrained and not isinstance(declared, dict) and _capture_receipts is None:
+                raise ValueError(f"RFuzz constrained corpus requires a saved identity manifest: {path.name}")
             if isinstance(declared, dict):
+                if constrained:
+                    for key in _CONTRACT_REPLAY_KEYS:
+                        if not declared.get(key) or declared[key] != identity.get(key):
+                            raise ValueError(f"RFuzz replay identity mismatch: {key}: {path.name}")
                 for key in ("raw_sha256", "layout_hash", "constraint_hash", "binary_sha256",
                             "physical_controls_sha256", "simulator_inputs_sha256", "replay_key",
-                            "transducer_hash", "header_hash"):
+                            "transducer_hash", "header_hash", "implementation_hash"):
                     if key in declared and declared[key] != identity.get(key):
                         raise ValueError(f"RFuzz replay identity mismatch: {path.name}")
             width = artifact.transport.byte_count
             records = tuple(payload[i:i+width] for i in range(0, len(payload), width))
             counters = simulator.run_test(records)
+            if saved_entries is not None and saved_entries[path.name].get("coverage_sha256") != _hash_bytes(counters):
+                raise ValueError(f"RFuzz saved corpus coverage identity mismatch: {path.name}")
+            if _capture_receipts is not None and (
+                identity["raw_sha256"], _hash_bytes(counters)
+            ) not in _capture_receipts:
+                raise ValueError(f"RFuzz corpus lacks completed shared-memory exchange: {path.name}")
             if counters != bytes(expected[:count]):
                 raise ValueError(f"RFuzz corpus coverage mismatch: {path.name}")
             physical = []
@@ -484,6 +531,7 @@ def replay_corpus(artifact, corpus_dir):
         "status": "passed", "entries": len(entries), "replays": entries,
         "layout_hash": artifact.layout.layout_hash,
         "constraint_hash": entries[0]["constraint_hash"],
+        **{key: entries[0][key] for key in ("transducer_hash", "header_hash", "implementation_hash") if key in entries[0]},
         "binary_sha256": entries[0]["binary_sha256"],
         "coverage_kind": artifact.coverage_kind,
         "coverage_transport": "sysv-shared-memory-rfuzz-coverage-buffer",

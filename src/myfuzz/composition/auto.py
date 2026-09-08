@@ -1122,6 +1122,7 @@ def _is_processor_memory_endpoint(
 
 def _processor_source_records(
     root: Path, source_files: tuple[str, ...], annotations: Mapping[str, object],
+    *, source_prefix: str,
 ) -> tuple[dict[str, int], list[int]]:
     """Identify all processor evidence files by normalized content, never path."""
     replacements: dict[str, str] = {}
@@ -1144,10 +1145,15 @@ def _processor_source_records(
                         replacements[port] = f"semantic_port_{function}_{role}"
     by_path: dict[str, int] = {}
     ids: list[int] = []
-    source_prefix = str(annotations.get("source", {}).get("source_root", "")) if isinstance(
-        annotations.get("source"), Mapping
-    ) else ""
-    for source_file in source_files:
+    source = annotations.get("source")
+    declared_files = source.get("files", ()) if isinstance(source, Mapping) else ()
+    # The verified closure includes package/header evidence that must have IDs
+    # without being emitted as independent compilation units in sources.f.
+    closure = tuple(
+        f"{source_prefix}/{item}" if source_prefix else item
+        for item in declared_files
+    )
+    for source_file in dict.fromkeys((*source_files, *closure)):
         text = _generic_source_path(root, source_file).read_text(encoding="utf-8")
         for name, replacement in sorted(
             replacements.items(), key=lambda item: (-len(item[0]), item[0])
@@ -1160,8 +1166,6 @@ def _processor_source_records(
         if source_prefix and source_file.startswith(source_prefix.rstrip("/") + "/"):
             by_path[source_file[len(source_prefix.rstrip("/")) + 1:]] = source_id
         ids.append(source_id)
-    source = annotations.get("source")
-    declared_files = source.get("files", ()) if isinstance(source, Mapping) else ()
     if isinstance(declared_files, (tuple, list)):
         for declared_file in declared_files:
             if not isinstance(declared_file, str):
@@ -1427,7 +1431,9 @@ def _generic_reset_contract(endpoint: EndpointCapability, root: Path) -> dict[st
     if module is None or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_$]*", module):
         raise AutoCompositionError(f"generic:endpoint:{endpoint.endpoint_id}:reset-semantics")
     candidates: set[tuple[str, str]] = set()
-    source_files = {field.source.file for field in endpoint.fields if field.source is not None}
+    # Packed member declarations may live in packages/headers; reset semantics
+    # are established only by the clock/reset pins and their module body.
+    source_files = {clock.source.file, reset.source.file}
     for source_file in source_files:
         path = _generic_source_path(root, source_file)
         text = path.read_text(encoding="utf-8")
@@ -2171,7 +2177,7 @@ def plan_generic_composition(
     stable_processor_mode = processor_execution is not None
     if stable_processor_mode:
         processor_source_ids, stable_source_file_ids = _processor_source_records(
-            root, source_files, annotations,
+            root, source_files, annotations, source_prefix=source_prefix,
         )
         stable_component_records = _generic_ir_evidence(
             component_records, processor_source_ids,
@@ -2239,6 +2245,8 @@ def plan_generic_composition(
         "source_list": {
             "cwd": "output_dir",
             "path_basis": "output-relative",
+            **({"compilation_unit_ids": [processor_source_ids[item] for item in source_files]}
+               if stable_processor_mode else {}),
             "include_root_ids": [
                 canonical_id("generic-include-root", item)
                 for item in source_include_roots

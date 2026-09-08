@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 import json
+import re
 
 import pytest
 
@@ -25,6 +26,47 @@ def plan_for(**kwargs):
     )
     values.update(kwargs)
     return compile_contract_transducer(**values)
+
+
+def test_contract_identity_changes_when_compiled_instruction_logic_changes(monkeypatch):
+    from myfuzz.isa import transducer
+    from myfuzz.composition import transducer_rtl
+
+    original = plan_for()
+    old_hash = original.contract_hash
+    old_header = header_for(original)
+    templates = transducer._i_templates
+
+    def altered_templates(isa):
+        values = list(templates(isa))
+        # A real compiled behavior change: ADDI's slot now encodes SLTI.
+        values[0] = replace(values[0], fixed_value=values[0].fixed_value | 2 << 12)
+        return tuple(values)
+
+    monkeypatch.setattr(transducer, "_i_templates", altered_templates)
+    transducer_rtl._instruction_functions.cache_clear()
+    try:
+        changed = plan_for()
+        assert changed.contract_hash != old_hash
+        with pytest.raises(ValueError, match="contract hash"):
+            ContractRuntime(changed).begin_test(old_header)
+    finally:
+        transducer_rtl._instruction_functions.cache_clear()
+
+
+def test_contract_implementation_identity_binds_generated_rtl_semantics():
+    from myfuzz.composition.transducer_rtl import render_transducer_rtl
+
+    plan = plan_for()
+    document = plan.document()
+    assert document.get("implementation_hash", "").startswith("sha256:")
+    assert plan_for().document()["implementation_hash"] == document["implementation_hash"]
+    rtl = render_transducer_rtl(plan)
+    assert document["implementation_hash"] in rtl
+    semantic = re.sub(r"//[^\n]*|/\*.*?\*/", "", rtl, flags=re.S)
+    assert document["implementation_hash"] == content_hash({
+        "schema_version": "generated_rtl_tokens.v1", "rtl": " ".join(semantic.split()),
+    })
 
 
 def header_for(plan, **kwargs):

@@ -320,12 +320,15 @@ def _declared_files(
                 raise
             raise SourceCrawlError("invalid-filelist") from error
 
+    # Authoritative precedence: locator roots first, then filelist roots in
+    # declaration order, de-duplicated on first occurrence. The final source
+    # list in auto._generic_source_list_metadata uses this same rule.
+    for raw in locator.include_roots:
+        include_root(root, raw)
     for raw in locator.files:
         add_source(raw)
     if locator.filelist is not None:
         expand_filelist(_safe_child(root, locator.filelist), set())
-    for raw in locator.include_roots:
-        include_root(root, raw)
     return (
         tuple(files),
         tuple(include_roots),

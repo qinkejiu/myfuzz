@@ -305,6 +305,29 @@ class SimulatorFramingTests(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which("iverilog") and shutil.which("vvp") and shutil.which("verilator"), "RTL tools required")
 class ContractSimulatorTests(unittest.TestCase):
+    def test_header_change_during_final_compile_rejects_stale_provenance(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, names = make_plan(root)
+            include = root / "source/include"
+            include.mkdir()
+            header = include / "settings.svh"
+            header.write_text("// pinned header\n")
+            description = replace(plan.interface_description, source=replace(
+                plan.interface_description.source, include_roots=("include",)))
+            plan = plan_generic_composition(replace(plan.request, interface_description=description), base_dir=root)
+            execute = rfuzz_simulator.run_supervised_command
+
+            def changed_header(*args, **kwargs):
+                result = execute(*args, **kwargs)
+                header.write_text("// changed during final compilation\n")
+                return result
+
+            with patch.object(rfuzz_simulator, "run_supervised_command", side_effect=changed_header):
+                with self.assertRaisesRegex(ValueError, "source.*changed"):
+                    rfuzz_simulator.build_simulator(plan, root / "runtime", base_dir=root, coverage_ports=((names[-1], 0),))
+            assert not (root / "runtime/artifact_provenance.json").exists()
+
     def test_generated_bench_echoes_wide_request_ids_across_reuse_and_isolation(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -413,11 +436,13 @@ class ContractSimulatorTests(unittest.TestCase):
             self.assertEqual(artifact.projector.project((1 << artifact.layout.raw_width) - 1), (1 << artifact.layout.raw_width) - 1)
             self.assertEqual(artifact.projector.constraint_hash, contract.contract_hash)
             self.assertEqual(artifact.transducer_hash, contract.contract_hash)
+            self.assertEqual(artifact.implementation_hash, contract.implementation_hash)
             self.assertTrue(artifact.header_hash)
             self.assertFalse(any(arg.startswith("+riscv_boot_image=") for arg in artifact.simulator_args))
             provenance = json.loads((root / "runtime/artifact_provenance.json").read_text())
             self.assertEqual(provenance["header_hash"], artifact.header_hash)
             self.assertEqual(provenance["transducer_hash"], artifact.transducer_hash)
+            self.assertEqual(provenance["implementation_hash"], artifact.implementation_hash)
             self.assertEqual(provenance["transducer_rtl_sha256"], "sha256:" + hashlib.sha256((root / "runtime/contract_transducer.sv").read_bytes()).hexdigest())
 
     def test_live_transducer_consumes_equal_width_cycles_and_clears_between_tests(self):

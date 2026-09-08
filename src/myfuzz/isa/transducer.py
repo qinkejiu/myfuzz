@@ -147,13 +147,6 @@ def _i_templates(contract: IsaContract) -> tuple[InstructionTemplate, ...]:
             extra_mask=(0xF << 28) | _RS1_MASK | _RD_MASK,
         ),
     ))
-    templates.extend(
-        _base_template(name, "I", 0x73, funct3)
-        for name, funct3 in (
-            ("CSRRW", 1), ("CSRRS", 2), ("CSRRC", 3),
-            ("CSRRWI", 5), ("CSRRSI", 6), ("CSRRCI", 7),
-        )
-    )
     system_words = [("ECALL", 0x0000_0073), ("EBREAK", 0x0010_0073), ("WFI", 0x1050_0073)]
     if "M" in contract.privilege_modes:
         system_words.append(("MRET", 0x3020_0073))
@@ -242,7 +235,7 @@ def _c_templates(contract: IsaContract) -> tuple[InstructionTemplate, ...]:
         templates.insert(4, _compressed_template("C.JAL", 1, 1))
         # RV32C shift amounts reserve shamt[5].
         for index, template in enumerate(templates):
-            if template.name in {"C.SRLI", "C.SRAI", "C.ANDI", "C.SLLI"}:
+            if template.name in {"C.SRLI", "C.SRAI", "C.SLLI"}:
                 templates[index] = InstructionTemplate(
                     template.name, 16, "C",
                     template.fixed_mask | (1 << 12), template.fixed_value,
@@ -351,11 +344,6 @@ class RiscvInstructionTransducer:
             if name == "C.SLLI":
                 ensure_nonzero(_C_RD_MASK)
             ensure_nonzero(_C_IMMEDIATE_MASK)
-        elif name == "C.ANDI" and not self.provider.is_legal_word(
-            word, compressed=True
-        ):
-            word &= ~(1 << 6)
-            repaired_mask |= 1 << 6
         elif name in {"C.MV", "C.ADD"}:
             ensure_nonzero(_C_RD_MASK)
             ensure_nonzero(_C_RS2_MASK)

@@ -54,6 +54,7 @@ class RealIbexRfuzzExampleTests(unittest.TestCase):
     def test_candidate_uses_rfuzz_instruction_initialization_without_boot_image(self):
         module = load_module()
         config, personality = module.load_example(INPUT_PATH, ROOT)
+        config["test_header"] = {**config["test_header"], "illegal_instruction": True}
         with tempfile.TemporaryDirectory(dir=ROOT) as tmp:
             artifact, proof = module.build_candidate(ROOT, Path(tmp) / "build", config, personality)
             self.assertEqual(proof.get("instruction_source"), "rfuzz_contract_transducer")
@@ -65,10 +66,10 @@ class RealIbexRfuzzExampleTests(unittest.TestCase):
             self.assertGreater(proof["execution"]["instruction_responses"], 0)
             self.assertGreaterEqual(proof["execution"]["instruction_initializations"], 2)
             self.assertEqual(proof["execution"]["errors"], 0)
-            # CSRRW CSR 0 is a legal encoding whose unsupported CSR traps in Ibex.
-            # Upstream emits diagnostic stdout; it must not corrupt protocol frames.
+            # Explicit illegal-class coverage is authorized by this test header.
+            # Upstream diagnostic stdout must not corrupt protocol frames.
             fields = {field.name: field for field in artifact.layout.fields}
-            raw = 174 << fields["instruction_selector"].raw_lo
+            raw = 255 << fields["instruction_selector"].raw_lo
             raw |= 3 << fields["response_choice"].raw_lo
             records = (artifact.transport.pack(raw),) * config["probe_cycles"]
             with RtlSimulator(artifact) as simulator:
@@ -142,6 +143,7 @@ class RealIbexRfuzzExampleTests(unittest.TestCase):
             "layout_hash": "sha256:layout",
             "constraint_hash": "sha256:contract",
             "transducer_hash": "sha256:contract",
+            "implementation_hash": "sha256:implementation",
             "header_hash": "sha256:header",
             "instruction_source": "rfuzz_contract_transducer",
             "coverage": [12, 11],
@@ -182,7 +184,7 @@ class RealIbexRfuzzExampleTests(unittest.TestCase):
     def test_independent_replay_binds_coverage_receipt_and_retained_trace_hashes(self):
         module = load_module()
         digest = lambda payload: "sha256:" + hashlib.sha256(bytes(payload)).hexdigest()
-        proof = dict(layout_hash="layout", constraint_hash="contract", transducer_hash="contract",
+        proof = dict(layout_hash="layout", constraint_hash="contract", transducer_hash="contract", implementation_hash="implementation",
                      header_hash="header")
         identity = proof | dict(input_sha256="input", physical_controls_sha256="controls",
                                 simulator_inputs_sha256="sim-inputs")
@@ -191,6 +193,11 @@ class RealIbexRfuzzExampleTests(unittest.TestCase):
         replay = {"entries": 1, "layout_hash": "layout", "constraint_hash": "contract", "replays": [fresh]}
         saved = {"entries": 1, "replays": [original]}
         module._verify_replay_identity(proof, replay, saved)
+        for value in ("different-implementation", None):
+            with self.assertRaisesRegex(ValueError, "implementation_hash"):
+                module._verify_replay_identity(proof, replay, saved | {
+                    "replays": [original | {"implementation_hash": value}]
+                })
         for key in ("coverage_sha256", "trace_sha256"):
             for value in ("sha256:tampered", None):
                 with self.subTest(key=key, value=value), self.assertRaisesRegex(ValueError, "replay .* hash"):

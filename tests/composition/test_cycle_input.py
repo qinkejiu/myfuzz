@@ -130,3 +130,17 @@ def test_header_rejects_unknown_schema_versions(version):
     layout = CycleInputLayout.build((CycleField("payload", 8),))
     with pytest.raises(CycleInputError, match="schema version"):
         replace(header(layout), schema_version=version)
+
+
+@pytest.mark.parametrize("attribute,value", (("field_id", 3), ("field_id", ""),
+    ("width", True), ("width", 1.0), ("raw_lo", False), ("raw_hi", 0.0)))
+def test_revalidation_rejects_mutated_field_types_with_rehashed_layout(attribute, value):
+    from myfuzz.composition.cycle_input import _layout_document
+    from myfuzz.contracts import content_hash
+
+    layout = CycleInputLayout.build((CycleField("payload", 1),))
+    object.__setattr__(layout.fields[0], attribute, value)
+    object.__setattr__(layout, "layout_hash", content_hash(_layout_document(
+        layout.schema_version, layout.raw_width, layout.fields)))
+    with pytest.raises(CycleInputError, match="field"):
+        layout.validate()

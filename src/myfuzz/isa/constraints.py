@@ -96,10 +96,8 @@ class RiscvInstructionProvider:
                 return True
             if funct3 != 4:
                 return False
-            if not ((value >> 11) & 1):
-                operation = (value >> 10) & 3
-                if operation == 3:
-                    return False
+            operation = (value >> 10) & 3
+            if operation != 3:
                 if operation in (0, 1):  # C.SRLI / C.SRAI
                     return shift != 0 and (self.contract.xlen == 64 or (shift & 0x20) == 0)
                 return True  # C.ANDI
@@ -173,9 +171,7 @@ class RiscvInstructionProvider:
             return funct3 == 0
         if opcode == 0x0F:  # FENCE; Zifencei is not supplied by this provider.
             return funct3 == 0 and rd == 0 and rs1 == 0 and ((value >> 28) & 0xF) == 0
-        if opcode == 0x73:  # SYSTEM/CSR
-            if funct3 in (1, 2, 3, 5, 6, 7):
-                return True
+        if opcode == 0x73:  # SYSTEM; Zicsr is not supplied by this provider.
             if funct3 != 0 or rd != 0 or rs1 != 0:
                 return False
             immediate = (value >> 20) & 0xFFF

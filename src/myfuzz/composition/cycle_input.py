@@ -55,6 +55,9 @@ def _validate_layout(
     for item in fields:
         if not isinstance(item, CycleField):
             raise CycleInputError("cycle layout fields are invalid")
+        item.__post_init__()
+        if type(item.raw_lo) is not int or type(item.raw_hi) is not int:
+            raise CycleInputError("cycle field offsets must be integers")
         if item.name in names:
             raise CycleInputError("duplicate cycle field name")
         names.add(item.name)

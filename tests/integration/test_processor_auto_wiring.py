@@ -3,10 +3,12 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 from dataclasses import replace
 from pathlib import Path
 
@@ -39,6 +41,7 @@ PROTOCOLS = (("obi", "1"), ("axi4", "1"), ("tl-ul", "1"))
 def _fixture(
     root: Path, protocol: tuple[str, str], ordinal: int, *, with_ram: bool = False,
     synchronous_reset: bool = False, flush_contract: bool = True,
+    cross_file_types: bool = False,
 ):
     catalog = load_protocol_catalog(ROOT / "src/myfuzz/protocols/plugins")
     plugin = catalog.require(*protocol)
@@ -112,6 +115,24 @@ def _fixture(
         f"{assignments} endmodule\n",
         encoding="utf-8",
     )
+    source_files = ["rtl/renamed.sv"]
+    closure = [source]
+    if cross_file_types:
+        (source_root / "include").mkdir()
+        header = source_root / "include/response.svh"
+        package = source_root / "types.sv"
+        member_declarations = members.split(";")
+        header.write_text(";".join(member_declarations[:-2]) + ";\n", encoding="utf-8")
+        package.write_text(
+            "package response_types; typedef struct packed {\n"
+            '`include "response.svh"\n'
+            + member_declarations[-2] + ";\n} response_t; endpackage\n", encoding="utf-8",
+        )
+        source.write_text(source.read_text().replace(
+            f"struct packed {{{members}}}", "response_types::response_t"
+        ), encoding="utf-8")
+        source_files.insert(0, "types.sv")
+        closure.extend((header, package))
     adapter_source = root / adapter.rtl_source
     adapter_source.parent.mkdir(parents=True, exist_ok=True)
     adapter_source.write_bytes((ROOT / adapter.rtl_source).read_bytes())
@@ -128,8 +149,9 @@ def _fixture(
     description = load_interface_description({
         "schema_version": "interface_description.v1",
         "source": {
-            "root": "source", "revision": source_tree_hash(source_root, (source,)),
-            "top_module": module, "files": ["rtl/renamed.sv"],
+            "root": "source", "revision": source_tree_hash(source_root, closure),
+            "top_module": module, "files": source_files,
+            **({"include_roots": ["include"]} if cross_file_types else {}),
             "elaboration": {"frontend": "verilator-json"},
         },
         "endpoints": [
@@ -305,6 +327,81 @@ def _run_iverilog(output: Path, testbench: str) -> str:
 
 
 class ProcessorAutoWiringIntegrationTests(unittest.TestCase):
+    def test_header_change_during_lint_rejects_publication(self) -> None:
+        from myfuzz.composition import protocol_composer
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plan, _, _, _ = _fixture(root, ("obi", "1"), 18, cross_file_types=True)
+            header = root / "source/include/response.svh"
+            validate = protocol_composer._validate_generic_top
+
+            def changed_header(*args, **kwargs):
+                validate(*args, **kwargs)
+                header.write_text(header.read_text() + "// changed during lint\n")
+
+            with patch.object(protocol_composer, "_validate_generic_top", side_effect=changed_header):
+                with self.assertRaisesRegex(ValueError, "source.*changed"):
+                    write_generic_composition(plan, root / "out", base_dir=root)
+            assert not (root / "out").exists()
+
+    def test_highest_address_region_renders_and_decodes_in_both_backend_modes(self) -> None:
+        from myfuzz.composition.contract_transducer import compile_contract_transducer
+        from myfuzz.isa import IsaContract
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plan = _split_fixture(root)
+            regions = [dict(item) for item in plan.ir["address_regions"]]
+            regions[-1].update(base=0xFFFFFFFC, size=4, end=1 << 32)
+            backend = build_processor_backend(plan.processor_execution, regions)
+            contract = compile_contract_transducer(
+                isa=IsaContract(32, ("I",)), protocol=("processor-memory-beat", "1"),
+                address_width=32, data_width=32,
+                memory_domains={"instruction_memory_master": "main", "data_memory_master": "main"},
+            )
+            for constrained in (False, True):
+                with self.subTest(constrained=constrained):
+                    rendered = _render_processor_top(plan, backend, contract_transducer=contract if constrained else None)
+                    if constrained:
+                        assert "assign backend_mapped = 1'b1" in rendered
+                        continue
+                    # Compile and evaluate every generated mapping/target-select
+                    # expression that decodes the region at the address ceiling.
+                    expressions = re.findall(r"assign \w+ = ([^;]*32'hfffffffc[^;]*);", rendered)
+                    assert len(expressions) == 4  # two routes, shared backend, target
+                    bench = ["module tb; reg [31:0] addr;"]
+                    for index, expr in enumerate(expressions):
+                        expr = re.sub(r"\b(?:r_[0-9a-f]+_addr|backend_addr|backend_target_addr)\b", "addr", expr)
+                        bench.append(f"wire mapped_{index} = {expr};")
+                    bench.append("initial begin")
+                    for address, expected in ((0xFFFFFFFB, 0), (0xFFFFFFFC, 1), (0xFFFFFFFF, 1)):
+                        bench.append(f"addr=32'h{address:x}; #1;")
+                        for index in range(len(expressions)):
+                            bench.append(f'if (mapped_{index} !== 1\'b{expected}) $fatal(1, "bad ceiling decode");')
+                    bench.append('$display("CEILING_PASS"); $finish; end endmodule')
+                    (root / "sources.f").write_text("")
+                    assert "CEILING_PASS" in _run_iverilog(root, "\n".join(bench))
+
+    def test_packed_package_and_header_members_keep_complete_provenance(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plan, _, _, _ = _fixture(root, ("obi", "1"), 17, cross_file_types=True)
+            fields = [field for endpoint in plan.capabilities for field in endpoint.fields]
+            assert {"types.sv", "include/response.svh"} <= {
+                field.source.file for field in fields if field.member_path
+            }
+            assert "source/response.svh" not in plan.source_files
+            assert plan.source_files[:2] == ("source/types.sv", "source/rtl/renamed.sv")
+            ids = set(plan.ir["source_file_ids"])
+            for endpoint in plan.ir["capabilities"]:
+                for field in endpoint["fields"]:
+                    assert field["source"]["file_id"] in ids
+            write_generic_composition(plan, root / "out", base_dir=root)
+            source_list = (root / "out/sources.f").read_text()
+            assert "response.svh" not in source_list
+            assert source_list.index("types.sv") < source_list.index("rtl/renamed.sv")
+
     def test_direct_backend_flushes_an_accepted_nonresponding_target_before_reuse(self) -> None:
         module = _render_processor_backend_module(32, 32, 4, "asynchronous")
         with tempfile.TemporaryDirectory() as temporary:

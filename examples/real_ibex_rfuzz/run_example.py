@@ -137,13 +137,18 @@ def _prepare_output(output):
 
 
 def _proof_identity(proof):
+    if not proof.get("implementation_hash"):
+        raise ValueError("rebuild implementation_hash is missing")
     return {key: proof[key] for key in (
         "composition_hash", "layout_hash", "constraint_hash", "transducer_hash", "header_hash",
+        "implementation_hash",
         "instruction_source",
     )}
 
 
 def _verify_replay_identity(proof, replay, saved):
+    if not proof.get("implementation_hash"):
+        raise ValueError("replay implementation_hash is missing")
     if replay["entries"] != saved["entries"]:
         raise ValueError("replay count does not match saved corpus")
     if proof["constraint_hash"] != proof["transducer_hash"]:
@@ -157,11 +162,11 @@ def _verify_replay_identity(proof, replay, saved):
         if fresh["trace_sha256"] != original.get("trace_sha256"):
             raise ValueError("replay trace hash differs from saved manifest")
         for key in ("input_sha256", "layout_hash", "constraint_hash", "transducer_hash", "header_hash",
-                    "physical_controls_sha256", "simulator_inputs_sha256"):
-            if fresh[key] != original[key]:
+                    "physical_controls_sha256", "simulator_inputs_sha256", "implementation_hash"):
+            if fresh.get(key) != original.get(key):
                 raise ValueError(f"replay identity changed: {key}")
-        for key in ("layout_hash", "constraint_hash", "transducer_hash", "header_hash"):
-            if fresh[key] != proof[key]:
+        for key in ("layout_hash", "constraint_hash", "transducer_hash", "header_hash", "implementation_hash"):
+            if fresh.get(key) != proof[key]:
                 raise ValueError(f"replay identity differs from build: {key}")
 
 
@@ -244,7 +249,7 @@ def replay_example(root, input_path, output, build_output):
     saved = _object(json.loads((output / "live/corpus_manifest.json").read_text()), "corpus manifest")
     config, personality = load_example(input_path, root)
     artifact, proof = build_candidate(root, build_output, config, personality)
-    if _proof_identity(proof) != {key: summary[key] for key in _proof_identity(proof)}:
+    if _proof_identity(proof) != {key: summary.get(key) for key in _proof_identity(proof)}:
         raise ValueError("rebuild identity differs from saved run")
     replay = replay_corpus(artifact, output / "live/corpus")
     _verify_replay_identity(proof, replay, saved)

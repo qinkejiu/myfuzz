@@ -175,6 +175,16 @@ def valid_interface_document() -> dict[str, object]:
 
 
 class InterfaceContractTests(unittest.TestCase):
+    @unittest.skipIf(Draft202012Validator is None, "optional jsonschema package unavailable")
+    def test_warning_policy_schema_matches_runtime_for_explicit_fatal(self) -> None:
+        schema = json.loads((Path(__file__).resolve().parents[2] / "schemas/interface_description.v1.schema.json").read_text())
+        validator = Draft202012Validator(schema)
+        for policy in ("fatal", "recorded-nonfatal"):
+            document = valid_interface_document()
+            document["source"]["elaboration"] = {"frontend": "verilator-json", "warning_policy": policy}
+            validate_contract(document, "interface_description.v1")
+            assert not list(validator.iter_errors(document))
+
     def test_member_annotation_requires_complete_range_and_compiler_evidence(self) -> None:
         mutations = (
             {"raw_lo": 0, "raw_hi": 0, "container_width": 1},

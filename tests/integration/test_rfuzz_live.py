@@ -398,6 +398,7 @@ class ReplayIdentityTests(unittest.TestCase):
             transport=SimpleNamespace(byte_count=8),
             coverage_ports=(("out", 0),),
             coverage_kind="test",
+            implementation_hash="sha256:implementation-v1",
         )
         self.payload = bytes(8)
 
@@ -406,7 +407,7 @@ class ReplayIdentityTests(unittest.TestCase):
         self.artifact.transducer_hash = "sha256:transducer-v1"
         self.artifact.header_hash = "sha256:header-v1"
         identity = replay_identity(self.artifact, self.payload)
-        for key in ("transducer_hash", "header_hash"):
+        for key in ("transducer_hash", "header_hash", "implementation_hash"):
             with self.subTest(key=key):
                 self.assertEqual(getattr(self.artifact, key), identity.get(key))
                 changed = SimpleNamespace(**vars(self.artifact))
@@ -424,6 +425,69 @@ class ReplayIdentityTests(unittest.TestCase):
         self.assertEqual(legacy, replay_identity(self.artifact, self.payload))
         self.assertNotIn("transducer_hash", legacy)
         self.assertNotIn("header_hash", legacy)
+
+    def test_transducer_replay_rejects_missing_implementation_identity(self):
+        from myfuzz.integration.rfuzz_live import replay_identity
+        self.artifact.transducer_hash = "sha256:transducer-v1"
+        self.artifact.implementation_hash = None
+        with self.assertRaisesRegex(ValueError, "implementation identity"):
+            replay_identity(self.artifact, self.payload)
+
+    def test_saved_transducer_identity_cannot_omit_implementation_binding(self):
+        from myfuzz.integration import rfuzz_live
+        self.artifact.transducer_hash = "sha256:transducer-v1"
+        identity = rfuzz_live.replay_identity(self.artifact, self.payload)
+        identity.pop("implementation_hash")
+        self._write_corpus(identity)
+        with patch.object(rfuzz_live, "RtlSimulator") as constructor:
+            simulator = constructor.return_value.__enter__.return_value
+            simulator.run_test.return_value = b"\1"
+            with self.assertRaisesRegex(ValueError, "implementation"):
+                rfuzz_live.replay_corpus(self.artifact, self.root)
+            simulator.run_test.assert_not_called()
+
+    def test_inline_implementation_hash_alone_is_not_a_replay_identity(self):
+        from myfuzz.integration import rfuzz_live
+        self.artifact.transducer_hash = "sha256:transducer-v1"
+        self._write_corpus({"implementation_hash": self.artifact.implementation_hash})
+        with patch.object(rfuzz_live, "RtlSimulator") as constructor:
+            simulator = constructor.return_value.__enter__.return_value
+            simulator.run_test.return_value = b"\1"
+            with self.assertRaisesRegex(ValueError, "identity"):
+                rfuzz_live.replay_corpus(self.artifact, self.root)
+            simulator.run_test.assert_not_called()
+
+    def test_unannotated_upstream_entries_require_matching_saved_manifest(self):
+        from myfuzz.integration import rfuzz_live
+        self.artifact.transducer_hash = "sha256:transducer-v1"
+        self.artifact.header_hash = "sha256:header-v1"
+        identity = rfuzz_live.replay_identity(self.artifact, self.payload)
+        identity.update(trace_sha256=rfuzz_live._hash_bytes(bytes([1, 0, 0, 0, 0, 0])),
+                        coverage_sha256=rfuzz_live._hash_bytes(b"\1"))
+        corpus = self.root / "corpus"
+        corpus.mkdir()
+        (corpus / "entry_0000.json").write_text(json.dumps({
+            "entry": {"inputs": list(self.payload)}, "trace_bits": [1, 0, 0, 0, 0, 0],
+        }))
+        sidecar = self.root / "corpus_manifest.json"
+        with patch.object(rfuzz_live, "RtlSimulator") as constructor:
+            simulator = constructor.return_value.__enter__.return_value
+            simulator.run_test.return_value = b"\1"
+            for saved in (None, identity | {"implementation_hash": "old-implementation"}):
+                if saved is not None:
+                    sidecar.write_text(json.dumps({"entries": 1, "replays": [
+                        saved | {"file": "entry_0000.json"},
+                    ]}))
+                with self.assertRaisesRegex(ValueError, "identity|manifest"):
+                    rfuzz_live.replay_corpus(self.artifact, corpus)
+                simulator.run_test.assert_not_called()
+            # Independent rebuild binaries can differ while semantics agree.
+            sidecar.write_text(json.dumps({"entries": 1, "replays": [
+                identity | {"file": "entry_0000.json", "binary_sha256": "old-build"},
+            ]}))
+            replay = rfuzz_live.replay_corpus(self.artifact, corpus)
+            assert replay["entries"] == 1
+            assert replay.get("implementation_hash") == self.artifact.implementation_hash
 
     def test_corpus_rejects_changed_transducer_metadata_before_execution(self):
         from myfuzz.integration import rfuzz_live
@@ -461,8 +525,9 @@ class ReplayIdentityTests(unittest.TestCase):
             constructor.return_value.__enter__.return_value.run_test.return_value = b"\1"
             manifest = rfuzz_live.build_corpus_manifest(self.artifact, self.root)
         self.assertEqual(1, manifest["entries"])
-        for key in ("transducer_hash", "header_hash"):
+        for key in ("transducer_hash", "header_hash", "implementation_hash"):
             self.assertEqual(getattr(self.artifact, key), manifest["replays"][0].get(key))
+            self.assertEqual(getattr(self.artifact, key), manifest.get(key))
 
     def _write_corpus(self, identity):
         (self.root / "entry_0000.json").write_text(json.dumps({

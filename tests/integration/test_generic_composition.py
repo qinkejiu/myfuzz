@@ -29,6 +29,35 @@ from tests.composition.test_generic_auto import GenericAutoCompositionTests, syn
 
 class GenericCompositionIntegrationTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which("verilator"), "verilator is not installed")
+    def test_locator_and_filelist_include_precedence_agrees_with_compilation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            (source / "declared").mkdir(parents=True)
+            (source / "listed").mkdir()
+            header = source / "declared/width.svh"
+            other = source / "listed/width.svh"
+            header.write_text("`define PAYLOAD_WIDTH 8\n")
+            other.write_text("`define PAYLOAD_WIDTH 16\n")
+            hdl = source / "top.sv"
+            hdl.write_text('`include "width.svh"\nmodule top(input logic [`PAYLOAD_WIDTH-1:0] value, output logic [`PAYLOAD_WIDTH-1:0] seen); assign seen=value; endmodule\n')
+            filelist = source / "files.f"
+            filelist.write_text("+incdir+listed\ntop.sv\n")
+            description = load_interface_description({
+                "schema_version": "interface_description.v1",
+                "source": {"root": "source", "revision": source_tree_hash(source, (hdl, filelist, header, other)),
+                           "top_module": "top", "filelist": "files.f", "include_roots": ["declared"],
+                           "elaboration": {"frontend": "verilator-json"}},
+                "endpoints": [{"endpoint_id": "control", "function": "control", "module": "top",
+                               "fields": [{"role": "value", "aliases": ["value"]}, {"role": "seen", "aliases": ["seen"]}]}],
+            })
+            plan = plan_generic_composition(GenericCompositionRequest(description, ()), base_dir=root)
+            assert {field.width for endpoint in plan.capabilities for field in endpoint.fields} == {8}
+            write_generic_composition(plan, root / "out", base_dir=root)
+            source_list = (root / "out/sources.f").read_text()
+            assert source_list.index("declared") < source_list.index("listed")
+
+    @unittest.skipUnless(shutil.which("verilator"), "verilator is not installed")
     def test_source_only_packed_containers_compile_and_require_complete_inputs(self) -> None:
         fields = [
             {"role": "lo", "port": "req", "direction": "input", "width": 8, "signed": False,

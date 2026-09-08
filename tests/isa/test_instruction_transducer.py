@@ -151,6 +151,35 @@ def test_every_legal_compressed_operation_is_a_repair_fixed_point(xlen: int) -> 
     assert seen == compressed_operations
 
 
+@pytest.mark.parametrize("xlen", (32, 64))
+@pytest.mark.parametrize("word", (0x9805, 0x9855, 0x987D, 0x8801, 0x887D))
+def test_c_andi_legal_immediates_are_preserved_without_provider_filter(
+    xlen: int, word: int,
+) -> None:
+    # Independent opcode oracle: quadrant 1, funct3=100, bits[11:10]=10.
+    # https://github.com/riscv/riscv-opcodes/blob/master/extensions/rv_c
+    # All six immediate bits (including the sign bit at bit 12) are legal.
+    assert word & 0xEC03 == 0x8801
+    tx = RiscvInstructionTransducer(
+        IsaContract(xlen, ("I", "C"), instruction_alignment=2)
+    )
+    assert tx.provider.is_legal_word(word, compressed=True)
+    choice = tx.repair_for_operation("C.ANDI", word)
+    assert choice.word == word
+    assert choice.free_mask & 0x107C == 0x107C
+
+
+@pytest.mark.parametrize("xlen", (32, 64))
+def test_i_only_never_generates_or_accepts_zicsr_instructions(xlen: int) -> None:
+    tx = RiscvInstructionTransducer(IsaContract(xlen, ("I",)))
+    assert not any(template.name.startswith("CSR") for template in tx.templates)
+    for selector in range(256):
+        word = tx.repair(selector, 0xFFFFFFFF).word
+        assert not (word & 0x7F == 0x73 and (word >> 12) & 7 in (1, 2, 3, 5, 6, 7))
+    for funct3 in (1, 2, 3, 5, 6, 7):
+        assert not tx.provider.is_legal_word(0x30000073 | funct3 << 12)
+
+
 @pytest.mark.parametrize(
     ("operation", "raw"),
     (

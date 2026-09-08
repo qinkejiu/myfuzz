@@ -37,12 +37,20 @@ class ContractTransducerPlan:
     cycle_layout: CycleInputLayout
 
     @property
+    def implementation_hash(self) -> str:
+        from .transducer_rtl import transducer_implementation_hash
+
+        return transducer_implementation_hash(self)
+
+    @property
     def contract_hash(self) -> str:
         return content_hash(self._document())
 
     def _document(self) -> dict[str, object]:
         return {
             "schema_version": "contract_transducer.v1",
+            "implementation_hash": self.implementation_hash,
+            "implementation_identity_policy": "generated_rtl_tokens.v1",
             "isa": asdict(self.isa),
             "protocol": list(self.protocol),
             "address_width": self.address_width,

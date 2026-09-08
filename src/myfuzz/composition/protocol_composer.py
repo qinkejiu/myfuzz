@@ -1892,7 +1892,7 @@ def _render_processor_top(plan: object, backend: object, *, contract_transducer:
         ):
             lines.append("  " + _sv_logic(wires[name], width) + ";")
         terms = [
-            f"({wires['addr']} >= {_sv_literal(address_width, int(region['base']))} && {wires['addr']} < {_sv_literal(address_width, int(region['end']))})"
+            f"({wires['addr']} >= {_sv_literal(address_width, int(region['base']))} && {wires['addr']} <= {_sv_literal(address_width, int(region['end']) - 1)})"
             for region in backend_record["address_decode"]["regions"]
         ]
         mapped = "1'b1" if contract_transducer is not None else (" || ".join(terms) if terms else "1'b0")
@@ -1999,7 +1999,7 @@ def _render_processor_top(plan: object, backend: object, *, contract_transducer:
             ",\n".join(connections), "  );",
         ))
         terms = [
-            f"(backend_addr >= {_sv_literal(address_width, int(region['base']))} && backend_addr < {_sv_literal(address_width, int(region['end']))})"
+            f"(backend_addr >= {_sv_literal(address_width, int(region['base']))} && backend_addr <= {_sv_literal(address_width, int(region['end']) - 1)})"
             for region in backend_record["address_decode"]["regions"]
         ]
         backend_mapped = "backend_mapped"
@@ -2064,7 +2064,7 @@ def _render_processor_top(plan: object, backend: object, *, contract_transducer:
         select = f"{tag}_select"
         lines.extend((
             f"  logic {select};",
-            f"  assign {select} = backend_target_addr >= {_sv_literal(address_width, int(region['base']))} && backend_target_addr < {_sv_literal(address_width, int(region['end']))};",
+            f"  assign {select} = backend_target_addr >= {_sv_literal(address_width, int(region['base']))} && backend_target_addr <= {_sv_literal(address_width, int(region['end']) - 1)};",
         ))
         component_signals: dict[str, str] = {}
         for role, width in (
@@ -2644,7 +2644,7 @@ def write_generic_composition(
     plan: object, output_dir: Path, *, base_dir: Path, contract_transducer: object = None,
 ) -> dict[str, object]:
     """Publish a validated generic composition without risking existing output."""
-    from .auto import GenericCompositionPlan
+    from .auto import GenericCompositionPlan, _generic_source_evidence_hash
     from .rfuzz_transport import RfuzzInputTransport, build_rfuzz_transport
 
     if not isinstance(plan, GenericCompositionPlan) or not plan.complete:
@@ -2748,6 +2748,8 @@ def write_generic_composition(
             define_options=_generic_define_options(plan),
             top_path=stage / "generic_composition_top.sv",
         )
+        if _generic_source_evidence_hash(root, plan.source_files, plan.interface_description.source) != plan.source_evidence_hash:
+            raise ValueError("generic composition source evidence changed before publication")
         if execution_payload is not None:
             current_hashes = _processor_source_hashes(
                 root, tuple(sorted(set((*plan.source_files, *backend_sources)))),
