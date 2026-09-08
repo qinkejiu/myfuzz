@@ -125,3 +125,50 @@ class RuntimeProjectionTests(unittest.TestCase):
                       replace(base,encoding="riscv_imc"),replace(base,constraint={"gated_by":"missing"})):
             with self.subTest(field=field),self.assertRaises(ValueError):
                 runtime_projection.project_word(InputLayout("input_layout.v1",8,(field,),"id"),0)
+
+    def test_enum_and_mask_constraints_are_applied_before_reconstruction(self):
+        fields = (
+            LayoutField("e:enum", "e", "enum", 4, 0, 3, "bits", {"enum": [1, 4, 7]},
+                        port="enum_port"),
+            LayoutField("e:mask", "e", "mask", 4, 4, 7, "bits", {"mask": 0b1010},
+                        port="mask_port"),
+        )
+        projector = runtime_projection.RuntimeProjector(InputLayout("input_layout.v1", 8, fields, "id"))
+
+        self.assertEqual(1, projector.project(0) & 0xF)
+        self.assertEqual(4, projector.project(1) & 0xF)
+        self.assertEqual(7, projector.project(2) & 0xF)
+        self.assertEqual(1, projector.project(3) & 0xF)
+        self.assertEqual(0b1010, (projector.project(0xF0) >> 4) & 0xF)
+
+    def test_byte_enable_constraint_matches_same_owner_data_width(self):
+        valid = LayoutField("e:valid", "e", "valid", 1, 0, 0, "bits", {})
+        data = LayoutField("e:data", "e", "data", 32, 1, 32, "bits", {})
+        byte_enable = LayoutField("e:byte_enable", "e", "byte_enable", 4, 33, 36, "bits",
+                                  {"byte_enable_width": 4})
+        runtime_projection.RuntimeProjector(
+            InputLayout("input_layout.v1", 37, (valid, data, byte_enable), "id")
+        )
+        invalid = replace(byte_enable, width=8, raw_hi=40,
+                          constraint={"byte_enable_width": 8})
+        with self.assertRaisesRegex(ValueError, "byte-enable.*data"):
+            runtime_projection.RuntimeProjector(
+                InputLayout("input_layout.v1", 41, (valid, data, invalid), "id")
+            )
+
+    def test_instruction_mode_and_constraint_hash_are_explicit(self):
+        raw_layout = InputLayout(
+            "input_layout.v1", 32,
+            (LayoutField("e:instruction", "e", "instruction", 32, 0, 31,
+                         "raw_instruction", {}, port="instruction"),),
+            "raw",
+        )
+        raw_projector = runtime_projection.RuntimeProjector(raw_layout)
+        self.assertEqual("raw", raw_projector.instruction_mode)
+        self.assertTrue(raw_projector.constraint_hash.startswith("sha256:"))
+
+        isa = IsaContract(32, ("I",))
+        legal_layout = replace(raw_layout, fields=(replace(raw_layout.fields[0], encoding="riscv_imc"),))
+        legal_projector = runtime_projection.RuntimeProjector(legal_layout, isa=isa)
+        self.assertEqual("legal", legal_projector.instruction_mode)
+        self.assertNotEqual(raw_projector.constraint_hash, legal_projector.constraint_hash)

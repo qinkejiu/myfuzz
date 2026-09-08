@@ -57,6 +57,49 @@ class LiveTests(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which("iverilog") and shutil.which("vvp"), "Icarus required")
 class LiveFailureTests(unittest.TestCase):
+    def test_replay_identity_is_bound_to_raw_layout_constraints_and_binary(self):
+        from myfuzz.integration.rfuzz_live import replay_identity
+        with tempfile.TemporaryDirectory() as tmp:
+            binary = Path(tmp) / "sim.vvp"
+            binary.write_bytes(b"simulator-v1")
+            artifact = SimpleNamespace(
+                layout=SimpleNamespace(layout_hash="sha256:layout"),
+                projector=SimpleNamespace(constraint_hash="sha256:constraints"),
+                executable=binary,
+            )
+            first = replay_identity(artifact, b"raw-input")
+            second = replay_identity(artifact, b"raw-input")
+            changed = replay_identity(artifact, b"other-input")
+            self.assertEqual(first, second)
+            self.assertNotEqual(first["replay_key"], changed["replay_key"])
+            self.assertEqual("sha256:layout", first["layout_hash"])
+            self.assertEqual("sha256:constraints", first["constraint_hash"])
+            self.assertEqual(first["binary_sha256"], first["binary_hash"])
+
+    def test_corpus_manifest_records_wire_inputs_and_actual_feedback_identity(self):
+        from myfuzz.integration.rfuzz_live import build_corpus_manifest
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            binary = root / "sim.vvp"
+            binary.write_bytes(b"simulator-v1")
+            corpus = root / "corpus"
+            corpus.mkdir()
+            (corpus / "entry_0000.json").write_text(json.dumps({
+                "entry": {"inputs": [0, 0, 0, 0, 0, 0, 0, 0]},
+                "trace_bits": [1, 0, 0, 0, 0, 0],
+            }))
+            artifact = SimpleNamespace(
+                layout=SimpleNamespace(layout_hash="sha256:layout"),
+                projector=SimpleNamespace(constraint_hash="sha256:constraints"),
+                executable=binary,
+                transport=SimpleNamespace(byte_count=8),
+            )
+            manifest = build_corpus_manifest(artifact, corpus)
+            self.assertEqual("rfuzz_corpus_manifest.v1", manifest["schema_version"])
+            self.assertEqual(1, manifest["entries"])
+            self.assertIn("replay_key", manifest["replays"][0])
+            self.assertEqual(8, manifest["replays"][0]["input_bytes"])
+
     def test_zero_work_client_is_not_completed(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

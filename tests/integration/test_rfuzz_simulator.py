@@ -29,6 +29,33 @@ def make_plan(root, *, renamed=False):
     return plan_generic_composition(GenericCompositionRequest(description,()),base_dir=root), names
 
 
+def make_control_plan(root):
+    directory = root / "source"
+    directory.mkdir()
+    source = directory / "source.sv"
+    source.write_text(
+        "module arbitrary(input logic clk, input logic rst, input logic [7:0] value, "
+        "input logic enable, input logic [31:0] boot_address, input logic [3:0] hart_id, "
+        "input logic debug_request, input logic [3:0] interrupt, output logic [2:0] flags); "
+        "logic [7:0] state; always_ff @(posedge clk or negedge rst) "
+        "if(!rst) state <= 0; else if(enable) state <= state + value; "
+        "assign flags = state[2:0]; endmodule"
+    )
+    roles = ("clock", "reset", "data", "valid", "boot_address", "hart_id",
+             "debug_request", "interrupt", "status")
+    ports = ("clk", "rst", "value", "enable", "boot_address", "hart_id",
+             "debug_request", "interrupt", "flags")
+    description = load_interface_description({
+        "schema_version": "interface_description.v1",
+        "source": {"root": "source", "revision": source_tree_hash(directory, (source,)),
+                    "top_module": "arbitrary", "files": ["source.sv"]},
+        "endpoints": [{"endpoint_id": "control", "function": "control", "module": "arbitrary",
+                       "fields": [{"role": role, "aliases": [port]}
+                                  for role, port in zip(roles, ports)]}],
+    })
+    return plan_generic_composition(GenericCompositionRequest(description, ()), base_dir=root), ports
+
+
 @unittest.skipUnless(shutil.which("iverilog") and shutil.which("vvp"), "Icarus required")
 class RfuzzSimulatorTests(unittest.TestCase):
     def setUp(self):
@@ -441,3 +468,24 @@ class RfuzzSimulatorTests(unittest.TestCase):
                 with rfuzz_simulator.RtlSimulator(artifact) as simulator:
                     self.assertEqual(simulator.run_test((artifact.transport.pack(raw),)), b"\1")
                     self.assertEqual(simulator.run_test((artifact.transport.pack(0),)), b"\0")
+
+    def test_cpu_control_inputs_are_constant_unless_explicitly_randomized(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, ports = make_control_plan(root)
+            defaults = {"boot_address": 0x80, "hart_id": 0, "debug_request": 0, "interrupt": 0}
+            artifact = rfuzz_simulator.build_simulator(
+                plan, root / "runtime", base_dir=root, coverage_ports=(("flags", 0),),
+                control_defaults=defaults,
+            )
+            self.assertEqual({"data", "valid"}, {field.role for field in artifact.layout.fields})
+            self.assertEqual(tuple(sorted(defaults)), artifact.control_defaults["roles"])
+            self.assertEqual((), artifact.randomized_controls)
+
+            opt_in = rfuzz_simulator.build_simulator(
+                plan, root / "runtime-opt-in", base_dir=root, coverage_ports=(("flags", 0),),
+                control_defaults=defaults, randomized_controls=("interrupt",),
+            )
+            self.assertIn("interrupt", {field.role for field in opt_in.layout.fields})
+            self.assertNotIn("boot_address", {field.role for field in opt_in.layout.fields})
+            self.assertEqual(("interrupt",), opt_in.randomized_controls)

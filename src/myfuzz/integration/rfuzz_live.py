@@ -8,10 +8,120 @@ from pathlib import Path
 import signal
 import subprocess
 import time
+from myfuzz.contracts import canonical_bytes
 from .rfuzz_fifo import FifoEndpoint
 from .rfuzz_shmem import process_pair
 from .rfuzz_simulator import RtlSimulator
 from .campaign import CampaignError, read_process_group_rss_bytes
+
+
+def _hash_bytes(data):
+    return "sha256:" + hashlib.sha256(data).hexdigest()
+
+
+def _constraint_hash(artifact):
+    projector = getattr(artifact, "projector", None)
+    value = getattr(projector, "constraint_hash", None)
+    if isinstance(value, str) and value:
+        return value
+    layout = getattr(artifact, "layout", None)
+    fields = []
+    for field in getattr(layout, "fields", ()):
+        fields.append({
+            "field_id": getattr(field, "field_id", None),
+            "constraint": dict(getattr(field, "constraint", {})),
+            "encoding": getattr(field, "encoding", None),
+        })
+    return _hash_bytes(canonical_bytes({
+        "schema_version": "runtime_constraints.fallback.v1",
+        "layout_hash": getattr(layout, "layout_hash", "unavailable"),
+        "fields": fields,
+    }))
+
+
+def _binary_hash(artifact):
+    executable = getattr(artifact, "executable", None)
+    if executable is None:
+        return "unavailable"
+    path = Path(executable)
+    if not path.is_file():
+        return "unavailable"
+    return _hash_bytes(path.read_bytes())
+
+
+def replay_identity(artifact, raw_payload):
+    if not isinstance(raw_payload, bytes) or not raw_payload:
+        raise ValueError("replay raw payload must be nonempty bytes")
+    layout = getattr(artifact, "layout", None)
+    layout_hash = getattr(layout, "layout_hash", None)
+    if not isinstance(layout_hash, str) or not layout_hash:
+        raise ValueError("replay layout identity is missing")
+    constraint_hash = _constraint_hash(artifact)
+    binary_hash = _binary_hash(artifact)
+    inputs = {
+        "raw_sha256": _hash_bytes(raw_payload),
+        "layout_hash": layout_hash,
+        "constraint_hash": constraint_hash,
+        "binary_sha256": binary_hash,
+    }
+    return {
+        **inputs,
+        "binary_hash": binary_hash,
+        "replay_key": _hash_bytes(canonical_bytes(inputs)),
+    }
+
+
+def _corpus_document(path, *, byte_count):
+    document = json.loads(path.read_text())
+    if not isinstance(document, dict) or not isinstance(document.get("entry"), dict):
+        raise ValueError("invalid RFuzz corpus entry")
+    raw = document["entry"].get("inputs")
+    expected = document.get("trace_bits")
+    if (
+        not isinstance(raw, list)
+        or not isinstance(expected, list)
+        or any(type(value) is not int or not 0 <= value <= 255 for value in raw + expected)
+    ):
+        raise ValueError("invalid RFuzz corpus bytes")
+    if not raw or len(raw) % byte_count or len(raw) // byte_count > 200:
+        raise ValueError("invalid RFuzz corpus input size")
+    return document, bytes(raw), expected
+
+
+def build_corpus_manifest(artifact, corpus_dir):
+    """Index the actual RFuzz-saved wire corpus without synthesizing coverage."""
+    corpus = Path(corpus_dir)
+    paths = sorted(corpus.glob("entry_*.json"))
+    if not paths:
+        raise ValueError("empty RFuzz corpus")
+    width = artifact.transport.byte_count
+    replays = []
+    for path in paths:
+        document, payload, expected = _corpus_document(path, byte_count=width)
+        identity = replay_identity(artifact, payload)
+        declared = document.get("replay_identity")
+        if isinstance(declared, dict):
+            for key in ("raw_sha256", "layout_hash", "constraint_hash", "binary_sha256", "replay_key"):
+                if key in declared and declared[key] != identity[key]:
+                    raise ValueError(f"RFuzz replay identity mismatch: {path.name}")
+        replays.append({
+            "file": path.name,
+            "input_bytes": len(payload),
+            "cycles": len(payload) // width,
+            "input_sha256": identity["raw_sha256"],
+            "trace_sha256": _hash_bytes(bytes(expected)),
+            **identity,
+        })
+    return {
+        "schema_version": "rfuzz_corpus_manifest.v1",
+        "coverage_kind": getattr(artifact, "coverage_kind", "unspecified-rtl-feedback"),
+        "coverage_transport": "sysv-shared-memory-rfuzz-coverage-buffer",
+        "entries": len(replays),
+        "layout_hash": replays[0]["layout_hash"],
+        "constraint_hash": replays[0]["constraint_hash"],
+        "binary_sha256": replays[0]["binary_sha256"],
+        "replays": replays,
+    }
 
 
 def _configuration(artifact):
@@ -79,6 +189,12 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state):
                  client_binary=str(binary), client_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),
                  coverage_kind=artifact.coverage_kind, requested_duration_seconds=duration_seconds,
                  transport=artifact.transport.document(),
+                 constraint_hash=_constraint_hash(artifact),
+                 binary_sha256=_binary_hash(artifact),
+                 instruction_mode=getattr(getattr(artifact, "projector", None), "instruction_mode", "none"),
+                 runtime_controls=getattr(artifact, "control_defaults", None),
+                 randomized_controls=list(getattr(artifact, "randomized_controls", ())),
+                 coverage_transport="sysv-shared-memory-rfuzz-coverage-buffer",
                  memory_scope="runner PID plus owned client and simulator process groups; sampled RSS",
                  soft_rss_bytes=512 * 1024 * 1024, hard_rss_bytes=768 * 1024 * 1024,
                  memory_poll_min_interval_seconds=.1,
@@ -178,6 +294,12 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state):
                     if libc.shmctl(segment,0,None) == 0:
                         removed.append(segment)
                 state.update(returncode=client.returncode, counter_maxima=maxima,
+                             coverage_maxima=maxima,
+                             coverage_feedback={
+                                 "transport": "sysv-shared-memory-rfuzz-coverage-buffer",
+                                 "records": tests,
+                                 "counter_width": 8,
+                             },
                              peak_rss_bytes=peak, duration_seconds=time.monotonic()-started,
                              removed_owned_segments=removed, remaining_segments=_owned_segments(client.pid))
                 state["drain_seconds"] = (state["duration_seconds"] - state["interrupt_elapsed_seconds"]
@@ -195,6 +317,11 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state):
             raise RuntimeError("RFuzz client produced no saved corpus")
         if result["remaining_segments"]:
             raise RuntimeError("RFuzz client left owned shared-memory segments")
+        manifest = build_corpus_manifest(artifact, output / "corpus")
+        manifest_path = output / "corpus_manifest.json"
+        manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n")
+        state["corpus_manifest_sha256"] = _hash_bytes(manifest_path.read_bytes())
+        state["corpus_manifest"] = manifest
     result = {key: value for key, value in state.items() if key != "_output"}
     result["status"] = "completed" if client.returncode == 0 else "failed"
     (output/"report.json").write_text(json.dumps(result,sort_keys=True)+"\n")
@@ -221,22 +348,39 @@ def replay_corpus(artifact, corpus_dir):
             # reserve a separate bounded budget for upstream lineage/statistics.
             if path.stat().st_size > 5 * artifact.transport.byte_count * 200 + 4 * 1024 * 1024:
                 raise ValueError("oversized RFuzz corpus entry")
-            document = json.loads(path.read_text())
-            raw, expected = document["entry"]["inputs"], document["trace_bits"]
-            if (not isinstance(raw, list) or not isinstance(expected, list)
-                    or any(type(v) is not int or not 0 <= v <= 255 for v in raw + expected)):
-                raise ValueError("invalid RFuzz corpus bytes")
+            document, payload, expected = _corpus_document(
+                path, byte_count=artifact.transport.byte_count
+            )
             if len(expected) != padded_count or any(expected[count:]):
                 raise ValueError("invalid RFuzz coverage padding")
             width = artifact.transport.byte_count
-            if not raw or len(raw) % width or len(raw) // width > 200:
-                raise ValueError("invalid RFuzz corpus input size")
-            payload = bytes(raw)
             records = tuple(payload[i:i+width] for i in range(0, len(payload), width))
             counters = simulator.run_test(records)
             if counters != bytes(expected[:count]):
                 raise ValueError(f"RFuzz corpus coverage mismatch: {path.name}")
-            entries.append({"file": path.name, "input_sha256": hashlib.sha256(payload).hexdigest(),
-                            "cycles": len(records), "counters": list(counters)})
-    return {"status": "passed", "entries": len(entries), "replays": entries,
-            "layout_hash": artifact.layout.layout_hash, "coverage_kind": artifact.coverage_kind}
+            identity = replay_identity(artifact, payload)
+            declared = document.get("replay_identity")
+            if isinstance(declared, dict):
+                for key in ("raw_sha256", "layout_hash", "constraint_hash", "binary_sha256", "replay_key"):
+                    if key in declared and declared[key] != identity[key]:
+                        raise ValueError(f"RFuzz replay identity mismatch: {path.name}")
+            physical = []
+            projector = getattr(artifact, "projector", None)
+            if projector is not None and hasattr(projector, "project_ports"):
+                physical = [projector.project_ports(artifact.transport.unpack(record)) for record in records]
+            entries.append({
+                "file": path.name,
+                "input_sha256": identity["raw_sha256"],
+                "cycles": len(records),
+                "counters": list(counters),
+                "physical_ports_sha256": _hash_bytes(canonical_bytes(physical)),
+                **identity,
+            })
+    return {
+        "status": "passed", "entries": len(entries), "replays": entries,
+        "layout_hash": artifact.layout.layout_hash,
+        "constraint_hash": entries[0]["constraint_hash"],
+        "binary_sha256": entries[0]["binary_sha256"],
+        "coverage_kind": artifact.coverage_kind,
+        "coverage_transport": "sysv-shared-memory-rfuzz-coverage-buffer",
+    }

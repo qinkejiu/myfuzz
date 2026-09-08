@@ -1,5 +1,8 @@
 """Stateless layout constraints for live simulation; protocol FSMs stay in RTL."""
+import hashlib
 from dataclasses import replace
+
+from myfuzz.contracts import canonical_bytes
 
 from .input_layout import InputLayout
 from myfuzz.isa.constraints import IsaContract, RiscvInstructionProvider
@@ -9,8 +12,8 @@ class RuntimeProjector:
     def __init__(self, layout: InputLayout, *, isa: IsaContract | None = None):
         if not isinstance(layout, InputLayout):
             raise ValueError("runtime projection requires layout")
-        # Validate and project the same detached snapshot. Range is the only
-        # supported nested constraint; all other validated values are scalars.
+        # Validate and project the same detached snapshot. Mutable constraint
+        # sequences are copied so callers cannot change a running campaign.
         fields = []
         for field in layout.fields:
             if field.width != field.raw_hi - field.raw_lo + 1:
@@ -18,6 +21,8 @@ class RuntimeProjector:
             constraint = dict(field.constraint)
             if isinstance(constraint.get("range"), (list, tuple)):
                 constraint["range"] = tuple(constraint["range"])
+            if isinstance(constraint.get("enum"), (list, tuple)):
+                constraint["enum"] = tuple(constraint["enum"])
             fields.append(replace(field, constraint=constraint))
         layout = replace(layout, fields=tuple(fields))
         layout.to_raw_abi()
@@ -29,7 +34,9 @@ class RuntimeProjector:
         for field in layout.fields:
             if field.dependency_group is not None:
                 raise ValueError("unbound runtime dependency group")
-            if set(field.constraint) - {"range", "alignment", "gated_by", "byte_enable_width"}:
+            if set(field.constraint) - {
+                "range", "alignment", "enum", "mask", "gated_by", "byte_enable_width"
+            }:
                 raise ValueError("unsupported runtime constraint")
             if field.encoding not in {"bits", "raw_instruction", "riscv_imc"}:
                 raise ValueError("unsupported runtime encoding")
@@ -45,6 +52,11 @@ class RuntimeProjector:
             alignment = field.constraint.get("alignment", 1)
             if type(alignment) is not int or alignment < 1 or alignment & (alignment - 1) or alignment > 1 << field.width:
                 raise ValueError("invalid runtime alignment")
+            mask = field.constraint.get("mask")
+            if mask is not None and (
+                type(mask) is not int or mask < 0 or mask >= 1 << field.width
+            ):
+                raise ValueError("invalid runtime mask")
             bounds = field.constraint.get("range")
             if bounds is not None:
                 minimum = -(1 << (field.width - 1)) if field.signed else 0
@@ -53,6 +65,27 @@ class RuntimeProjector:
                     raise ValueError("invalid runtime range")
                 if not minimum <= bounds[0] <= bounds[1] <= maximum or any(v % alignment for v in bounds):
                     raise ValueError("runtime range/alignment conflict")
+            enum = field.constraint.get("enum")
+            if enum is not None:
+                if (
+                    not isinstance(enum, (list, tuple))
+                    or not enum
+                    or any(type(value) is not int for value in enum)
+                    or len(set(enum)) != len(enum)
+                ):
+                    raise ValueError("invalid runtime enum")
+                minimum = -(1 << (field.width - 1)) if field.signed else 0
+                maximum = (1 << (field.width - 1)) - 1 if field.signed else (1 << field.width) - 1
+                if any(value < minimum or value > maximum for value in enum):
+                    raise ValueError("runtime enum outside field width")
+                if any(value % alignment for value in enum):
+                    raise ValueError("runtime enum/alignment conflict")
+                if bounds is not None and any(not bounds[0] <= value <= bounds[1] for value in enum):
+                    raise ValueError("runtime enum/range conflict")
+                if mask is not None:
+                    field_mask = (1 << field.width) - 1
+                    if any((value & field_mask) & ~mask for value in enum):
+                        raise ValueError("runtime enum/mask conflict")
             gate = field.constraint.get("gated_by")
             if gate is not None and (gate not in by_id or by_id[gate].width != 1 or by_id[gate].role != "valid" or by_id[gate].owner != field.owner or field.role == "valid"):
                 raise ValueError("invalid runtime gate")
@@ -61,7 +94,58 @@ class RuntimeProjector:
             be = field.constraint.get("byte_enable_width")
             if be is not None and (type(be) is not int or be != field.width):
                 raise ValueError("invalid byte enable constraint")
+            if field.role == "byte_enable":
+                data = by_id.get(f"{field.owner}:data")
+                if data is None or data.width % 8 or field.width != data.width // 8:
+                    raise ValueError("byte-enable/data width mismatch")
+                if be is not None and be != data.width // 8:
+                    raise ValueError("byte-enable/data width mismatch")
+            elif be is not None:
+                raise ValueError("byte-enable constraint requires byte-enable field")
         self._validate_port_bindings()
+        modes = {
+            "legal" if field.encoding == "riscv_imc" else "raw"
+            for field in layout.fields
+            if field.role == "instruction"
+        }
+        self.instruction_modes = tuple(sorted(modes))
+        self.instruction_mode = (
+            next(iter(self.instruction_modes)) if len(self.instruction_modes) == 1
+            else "mixed" if self.instruction_modes else "none"
+        )
+        self._constraint_document = self._build_constraint_document()
+        self.constraint_hash = "sha256:" + hashlib.sha256(
+            canonical_bytes(self._constraint_document)
+        ).hexdigest()
+
+    def _build_constraint_document(self) -> dict[str, object]:
+        fields = []
+        for field in self.layout.fields:
+            constraint = {
+                key: list(value) if isinstance(value, tuple) else value
+                for key, value in sorted(field.constraint.items())
+            }
+            fields.append({
+                "field_id": field.field_id,
+                "role": field.role,
+                "width": field.width,
+                "raw_lo": field.raw_lo,
+                "raw_hi": field.raw_hi,
+                "encoding": field.encoding,
+                "signed": field.signed,
+                "constraint": constraint,
+                "port": field.port,
+                "member_path": list(field.member_path),
+                "port_raw_lo": field.port_raw_lo,
+                "port_raw_hi": field.port_raw_hi,
+                "port_width": field.port_width,
+            })
+        return {
+            "schema_version": "runtime_constraints.v1",
+            "layout_hash": self.layout.layout_hash,
+            "instruction_mode": self.instruction_mode,
+            "fields": fields,
+        }
 
     def _validate_port_bindings(self) -> None:
         by_port = {}
@@ -109,16 +193,32 @@ class RuntimeProjector:
         values = {}
         for field in self.layout.fields:
             mask = (1 << field.width) - 1
-            value = (raw >> field.raw_lo) & mask
-            if field.signed and value & (1 << (field.width - 1)):
-                value -= 1 << field.width
+            source = (raw >> field.raw_lo) & mask
+            constraint = field.constraint
+            source_mask = constraint.get("mask")
+            if source_mask is not None:
+                source &= source_mask
+            enum = constraint.get("enum")
             alignment = field.constraint.get("alignment", 1)
             bounds = field.constraint.get("range")
-            if bounds is None:
-                value = (value // alignment) * alignment
+            if enum is not None:
+                candidates = tuple(
+                    value for value in enum
+                    if (bounds is None or bounds[0] <= value <= bounds[1])
+                    and value % alignment == 0
+                )
+                if not candidates:
+                    raise ValueError("runtime enum has no legal value")
+                value = candidates[source % len(candidates)]
             else:
-                lo, hi = bounds
-                value = lo + (((value - lo) // alignment) % ((hi - lo) // alignment + 1)) * alignment
+                value = source
+                if field.signed and value & (1 << (field.width - 1)):
+                    value -= 1 << field.width
+                if bounds is None:
+                    value = (value // alignment) * alignment
+                else:
+                    lo, hi = bounds
+                    value = lo + (((value - lo) // alignment) % ((hi - lo) // alignment + 1)) * alignment
             value &= mask
             if field.encoding == "riscv_imc" and not self.provider.is_legal_word(value, compressed=field.width == 16):
                 value = 0x0001 if field.width == 16 else 0x00000013  # architectural NOP

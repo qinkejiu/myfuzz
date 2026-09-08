@@ -4,6 +4,7 @@ Counters count asserted observations after each driven cycle (saturating at
 255). They are deliberately not advertised as RTL branch or toggle coverage.
 """
 from dataclasses import asdict, dataclass, replace
+from collections.abc import Mapping, Sequence
 import hashlib
 import math
 import os
@@ -38,9 +39,103 @@ class SimulatorArtifact:
     coverage_ports: tuple[tuple[str, int], ...]
     projector: RuntimeProjector
     coverage_kind: str = "sampled-output-bit-events-u8-saturating"
+    control_defaults: Mapping[str, object] = None
+    randomized_controls: tuple[str, ...] = ()
 
 
-def _runtime_boundary(plan, base_dir):
+_CONTROL_ROLE_ALIASES = {
+    "boot_address": frozenset(("boot_address", "boot_addr", "reset_vector")),
+    "hart_id": frozenset(("hart_id", "hartid")),
+    "debug_request": frozenset(("debug_request", "debug_req", "debug")),
+    "interrupt": frozenset(("interrupt", "interrupt_request", "irq")),
+}
+_CONTROL_DEFAULTS = {role: 0 for role in _CONTROL_ROLE_ALIASES}
+
+
+def _canonical_control_role(role):
+    for canonical, aliases in _CONTROL_ROLE_ALIASES.items():
+        if role in aliases:
+            return canonical
+    return None
+
+
+def _normalize_control_roles(value):
+    if value is None:
+        return ()
+    if isinstance(value, (str, bytes)) or not isinstance(value, Sequence):
+        raise ValueError("randomized controls must be a sequence")
+    result = []
+    for role in value:
+        if not isinstance(role, str):
+            raise ValueError("randomized control role must be a string")
+        canonical = _canonical_control_role(role)
+        if canonical is None:
+            raise ValueError(f"unsupported randomized control: {role}")
+        if canonical in result:
+            raise ValueError("duplicate randomized control")
+        result.append(canonical)
+    return tuple(sorted(result))
+
+
+def _control_defaults(value):
+    if value is None:
+        return dict(_CONTROL_DEFAULTS)
+    if not isinstance(value, Mapping):
+        raise ValueError("control defaults must be a mapping")
+    result = dict(_CONTROL_DEFAULTS)
+    for role, default in value.items():
+        if not isinstance(role, str):
+            raise ValueError("control default role must be a string")
+        canonical = _canonical_control_role(role)
+        if canonical is None:
+            raise ValueError(f"unsupported control default: {role}")
+        if type(default) is not int or default < 0:
+            raise ValueError("control default must be a nonnegative integer")
+        result[canonical] = default
+    return result
+
+
+def _runtime_control_bindings(plan, ports, layout, randomized_controls, defaults):
+    source_fields = tuple(getattr(getattr(plan, "layout", None), "fields", ()))
+    included = {field.field_id for field in layout.fields}
+    bindings = []
+    present = set()
+    for field in source_fields:
+        canonical = _canonical_control_role(field.role)
+        if canonical is None or field.field_id in included or canonical in randomized_controls:
+            continue
+        present.add(canonical)
+        if field.direction not in ("input", "inout") or field.port not in ports:
+            raise ValueError("invalid runtime control binding")
+        if ports[field.port]["direction"] != "input":
+            raise ValueError("runtime control must drive an input port")
+        value = defaults[canonical]
+        field_mask = (1 << field.width) - 1
+        if value > field_mask:
+            raise ValueError(f"runtime control default exceeds {field.field_id} width")
+        if field.member_path:
+            if any(item is None for item in (field.port_raw_lo, field.port_raw_hi, field.port_width)):
+                raise ValueError("incomplete packed runtime control")
+        elif ports[field.port]["width"] != field.width:
+            raise ValueError("scalar runtime control width mismatch")
+        bindings.append((field, value))
+    requested = set(randomized_controls)
+    if not requested.issubset(present | {
+        _canonical_control_role(field.role)
+        for field in source_fields
+        if _canonical_control_role(field.role) is not None
+    }):
+        raise ValueError("randomized control is not declared")
+    document = {
+        "roles": tuple(sorted(present)),
+        "values": {role: defaults[role] for role in sorted(present)},
+        "policy": "explicit-opt-in; otherwise constant",
+    }
+    return tuple(bindings), document
+
+
+def _runtime_boundary(plan, base_dir, *, randomized_controls=()):
+    randomized_controls = _normalize_control_roles(randomized_controls)
     execution = getattr(plan, "processor_execution", None)
     if execution is None:
         routes = _generic_routes(plan)
@@ -94,12 +189,20 @@ def _runtime_boundary(plan, base_dir):
     wanted = {p for p, r in ports.items() if r["direction"] == "input"} - clocks - resets
     fields, seen, cursor = [], set(), 0
     for field in plan.layout.fields:
-        if field.port not in wanted:
+        role = _canonical_control_role(field.role)
+        if field.port not in wanted or (role is not None and role not in randomized_controls):
             continue
         seen.add(field.port)
         fields.append(replace(field, raw_lo=cursor, raw_hi=cursor + field.width - 1))
         cursor += field.width
-    if seen != wanted or not fields or cursor > 65536:
+    expected = {
+        field.port for field in plan.layout.fields
+        if field.port in wanted and (
+            _canonical_control_role(field.role) is None
+            or _canonical_control_role(field.role) in randomized_controls
+        )
+    }
+    if seen != expected or not fields or cursor > 65536:
         raise ValueError("unbound or oversized runtime input layout")
     provisional = InputLayout("input_layout.v1", cursor, tuple(fields), "pending")
     doc = input_layout_document(provisional)
@@ -111,7 +214,7 @@ def _runtime_boundary(plan, base_dir):
     return ports, clock, reset, next(iter(contracts))[0], layout, projector
 
 
-def _bench(ports, clock, reset, polarity, layout, coverage):
+def _bench(ports, clock, reset, polarity, layout, coverage, *, control_bindings=()):
     names = {p: r["opaque_port"] for p, r in ports.items()}
     declarations = [f"logic [{r['width']-1}:0] {r['opaque_port']};" for r in ports.values()]
     inputs = []
@@ -120,6 +223,12 @@ def _bench(ports, clock, reset, polarity, layout, coverage):
         if field.member_path:
             target += f"[{field.port_raw_hi}:{field.port_raw_lo}]"
         inputs.append(f"assign {target} = raw_bits[{field.raw_hi}:{field.raw_lo}];")
+    controls = []
+    for field, value in control_bindings:
+        target = names[field.port]
+        if field.member_path:
+            target += f"[{field.port_raw_hi}:{field.port_raw_lo}]"
+        controls.append(f"assign {target} = {field.width}'h{value:x};")
     connections = ",".join(f".{n}({n})" for n in names.values())
     active = 0 if polarity == "active_low" else 1
     c, r = names[clock], names[reset]
@@ -128,7 +237,7 @@ def _bench(ports, clock, reset, polarity, layout, coverage):
         sample += [f"if ({names[port]}[{bit}] !== 1'b0 && {names[port]}[{bit}] !== 1'b1) $fatal(1,\"unknown observation\");",
                    f"if ({names[port]}[{bit}] && counters[{i}] != 8'hff) counters[{i}] = counters[{i}] + 1'b1;"]
     return "\n".join([
-        "module myfuzz_live_tb;", *declarations,
+        "module myfuzz_live_tb;", *declarations, *controls,
         f"reg [{layout.raw_width-1}:0] raw_bits = 0;",
         f"reg [7:0] counters[0:{len(coverage)-1}]; integer count, scan, i, j;",
         *inputs, f"generic_composition_top dut({connections});",
@@ -151,13 +260,21 @@ def _bench(ports, clock, reset, polarity, layout, coverage):
     ])
 
 
-def build_simulator(plan, output_dir, *, base_dir, coverage_ports):
+def build_simulator(plan, output_dir, *, base_dir, coverage_ports,
+                    randomized_controls=(), control_defaults=None):
     """Publish into a new directory only; reject unsafe boundaries before build."""
     root, output = Path(base_dir).resolve(), Path(output_dir).absolute()
     if output.exists() or output.is_symlink():
         raise ValueError("simulator output already exists")
     plan = _validate_generic_plan_freshness(plan, root)
-    ports, clock, reset, polarity, layout, projector = _runtime_boundary(plan, root)
+    randomized_controls = _normalize_control_roles(randomized_controls)
+    defaults = _control_defaults(control_defaults)
+    ports, clock, reset, polarity, layout, projector = _runtime_boundary(
+        plan, root, randomized_controls=randomized_controls
+    )
+    control_bindings, control_document = _runtime_control_bindings(
+        plan, ports, layout, randomized_controls, defaults
+    )
     coverage = tuple(coverage_ports)
     if not coverage or len(coverage) > 4096:
         raise ValueError("explicit bounded output-bit observations required")
@@ -171,13 +288,17 @@ def build_simulator(plan, output_dir, *, base_dir, coverage_ports):
     if len(set(coverage)) != len(coverage):
         raise ValueError("duplicate output-bit observation")
     transport = build_rfuzz_transport(layout)
-    bench = _bench(ports, clock, reset, polarity, layout, coverage)
+    bench = _bench(ports, clock, reset, polarity, layout, coverage,
+                   control_bindings=control_bindings)
     output.mkdir(parents=True, exist_ok=False)
     write_generic_composition(plan, output / "composition", base_dir=root)
     (output / "runtime_layout.json").write_bytes(canonical_bytes(input_layout_document(layout)))
     (output / "runtime_transport.json").write_bytes(canonical_bytes(transport.document()))
     (output / "observations.json").write_bytes(canonical_bytes({
-        "kind": "sampled-output-bit-events-u8-saturating", "ports": [list(c) for c in coverage]}))
+        "kind": "sampled-output-bit-events-u8-saturating",
+        "transport": "rfuzz-coverage-buffer",
+        "ports": [list(c) for c in coverage],
+    }))
     bench_path = output / "live_tb.sv"
     bench_path.write_text(bench)
     executable = output / "sim.vvp"
@@ -203,10 +324,18 @@ def build_simulator(plan, output_dir, *, base_dir, coverage_ports):
         "executable_sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
         "layout_hash": layout.layout_hash,
         "transport_hash": transport.document()["transport_hash"],
+        "constraint_hash": projector.constraint_hash,
+        "instruction_mode": projector.instruction_mode,
+        "runtime_controls": {**control_document, "randomized": list(randomized_controls)},
+        "coverage_transport": "sysv-shared-memory-rfuzz-coverage-buffer",
         "coverage_kind": "sampled-output-bit-events-u8-saturating",
         "coverage_ports": [list(c) for c in coverage],
     }))
-    return SimulatorArtifact(layout, transport, executable, coverage, projector)
+    return SimulatorArtifact(
+        layout, transport, executable, coverage, projector,
+        control_defaults=control_document,
+        randomized_controls=randomized_controls,
+    )
 
 
 class RtlSimulator:
