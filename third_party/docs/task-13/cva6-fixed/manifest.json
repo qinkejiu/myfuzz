@@ -1,0 +1,90 @@
+{
+  "schema_version": "task13_execution_evidence.v2",
+  "cpu_status": "accepted",
+  "bounded": true,
+  "revision": {
+    "root": "third_party/cva6_upstream_reference",
+    "git": "2e1336dcff3d1a0b49fbe6282b97802f32ea32af",
+    "nested_pins": [
+      {"path": "core/cache_subsystem/hpdcache", "git": "f404e7ebbda8baa4af3729535f520a6b12a06d03"},
+      {"path": "core/cvfpu", "git": "3eb6afeab2cb33f7d8689222955d0171aeb3a801"},
+      {"path": "core/cvfpu/src/fpu_div_sqrt_mvp", "git": "86e1f558b3c95e91577c41b2fc452c86b04e85ac"}
+    ]
+  },
+  "facts": {
+    "isa": "rv64imafdc",
+    "xlen": 64,
+    "reset_vector": "0x80",
+    "max_cycles": 2000,
+    "pass_address": "0x400",
+    "pass_value": "0x600dcafe"
+  },
+  "image": {
+    "load_base": "0x80",
+    "reset_vector": "0x80",
+    "address_encoding": "verilog-readmemh-address-directive",
+    "first_fetch_address": "0x80",
+    "first_fetch_data": "0x600dd33740000293"
+  },
+  "compiler_boundary": {
+    "protocol": "axi4@1",
+    "noc_req_o_width": 470,
+    "noc_resp_i_width": 210,
+    "generated_part_selects": 45,
+    "verified_against_compiler_evidence": true,
+    "warning_policy": "recorded-nonfatal",
+    "warning_records": 464,
+    "error_records": 0,
+    "strict_zero_error_policy": true,
+    "warning_artifact": "compiler-records.log",
+    "warning_artifact_hash": "sha256:0b9056b35329e323f7749c8ed0fb36410d90c2767b8aca825587a771f176e207"
+  },
+  "event": {
+    "reset_released": true,
+    "successful_fetches": 5,
+    "progress_events": 3,
+    "commit_pcs": ["0x80", "0x84", "0x88", "0x8c"],
+    "backend_completions": 5,
+    "pass_observed": true,
+    "cycles": 318,
+    "exit_reason": "pass",
+    "illegal_or_trap_records": 0
+  },
+  "commands": {
+    "compiler_evidence": "timeout --signal=TERM 90s ../../run_bounded.sh compiler-records nice -n 15 env JOBS=1 verilator --json-only -Wno-fatal --json-only-output compiler-ports.tree.json --json-only-meta-output compiler-ports.meta.json --top-module cva6 -f upstream-only.f",
+    "compile": "timeout --signal=TERM 120s ../../run_bounded.sh compile nice -n 15 env JOBS=1 verilator --binary --timing --top-module tb -Wno-fatal -Wno-PINMISSING -Wno-WIDTH -Wno-UNOPTFLAT -j 1 --Mdir obj_dir -f sources.f task13_tb.sv",
+    "simulation": "timeout --signal=TERM 30s ../../run_bounded.sh simulation nice -n 15 ./obj_dir/Vtb +riscv_boot_image=../boot/boot.hex"
+  },
+  "results": {
+    "compiler_evidence_returncode": 0,
+    "compile_returncode": 0,
+    "simulation_returncode": 0,
+    "compiler_evidence_wall_seconds": 3.778,
+    "compile_wall_seconds": 63.167,
+    "compiler_peak_process_group_rss_kib": 212308,
+    "compile_peak_process_group_rss_kib": 836576,
+    "simulation_peak_process_group_rss_kib": 5996
+  },
+  "hashes": {
+    "config": "sha256:69c0005a719c204abe3fae628968049cf4c921cf1f9b548b98890344bb0cde34",
+    "composition": "sha256:858a8125e141f74ff5fc2aa28d9396d1e7c1299045178c3b91955f8b9c70b3a2",
+    "layout": "sha256:2e26be6176ea3af9e2a9f697ba6873276f391b9c8733e8af9f8039a0e14696f1",
+    "processor_execution": "sha256:6bde5a8b0f618ef6289414e0662c17c587d5905ae18a6f387dc34a7a58a4d234",
+    "generated_top": "sha256:f105cd044ddd5e5848ecb768d64952bbca3808205b9fd16e68fd56f0ad25aacd",
+    "source_list": "sha256:84c5f512f54e524a537112e80f68eee3fec84c139d286ce169887c550a4c9114",
+    "source_crawler_snapshot": "sha256:c5c43bf31209c575fd472111b074077b6a4bc4910c68501f13b66da5a04efe75",
+    "boot_elf": "sha256:ba26337898b8a8ff47e9a2944805da3849c2e9ab8cb13f1340719fc394acf17d",
+    "boot_binary": "sha256:1e518028c66689599b2a7e4e42ff1c1327abec8e9ed29e8de5b177fea600ab07",
+    "boot_hex": "sha256:cca768c2f71d00461ac0896897d15e213185d488136efe0f1fe0016325c144bf"
+  },
+  "tools": {
+    "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)",
+    "lld": "Ubuntu LLD 18.1.3 (compatible with GNU linkers)",
+    "verilator": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "python": "Python 3.12.3"
+  },
+  "validity": {
+    "accepted": true,
+    "reason": "the first completed AXI fetch at reset vector 0x80 matched the linked RV64 boot qword; commits advanced through 0x80, 0x84, 0x88, and 0x8c before the pass store; no illegal/trap record occurred"
+  }
+}

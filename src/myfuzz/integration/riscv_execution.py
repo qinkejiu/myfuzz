@@ -59,6 +59,7 @@ class BootImage:
     isa: str
     xlen: int
     reset_vector: int
+    load_base: int
     elf_path: Path
     binary_path: Path
     memory_hex_path: Path
@@ -129,13 +130,17 @@ def build_minimal_boot_image(facts: RiscvExecutionFacts, output_dir: Path) -> Bo
     payload = binary.read_bytes()
     if not payload:
         raise RiscvExecutionError("boot-binary-empty")
-    memory_hex.write_text("".join(f"{byte:02x}\n" for byte in payload), encoding="ascii")
+    memory_hex.write_text(
+        f"@{facts.reset_vector:08x}\n" + "".join(f"{byte:02x}\n" for byte in payload),
+        encoding="ascii",
+    )
     version = subprocess.run((compiler, "--version"), capture_output=True, text=True, timeout=5, check=False)
     return BootImage(
         isa=facts.isa, xlen=facts.xlen, reset_vector=facts.reset_vector,
+        load_base=facts.reset_vector,
         elf_path=elf, binary_path=binary, memory_hex_path=memory_hex,
         elf_hash=_sha256(elf), binary_hash=_sha256(binary),
-        memory_hex_hash=_sha256(binary), binary_size=len(payload),
+        memory_hex_hash=_sha256(memory_hex), binary_size=len(payload),
         compiler=version.stdout.splitlines()[0] if version.stdout else compiler,
         command=tuple(binary_command),
     )
@@ -210,6 +215,11 @@ def build_run_manifest(
     payload: dict[str, object] = {
         "schema_version": "riscv_execution.v1",
         "facts": {**asdict(facts), "protocol": list(facts.protocol)},
+        "image": {
+            "load_base": facts.reset_vector,
+            "reset_vector": facts.reset_vector,
+            "address_encoding": "verilog-readmemh-address-directive",
+        },
         "revisions": dict(sorted(revisions.items())),
         "nested_pins": dict(sorted(nested_pins.items())),
         "tools": dict(sorted(tools.items())),

@@ -46,10 +46,10 @@ module riscv_boot_memory_32 (
       if (rsp_valid && rsp_ready) rsp_valid <= 1'b0;
       if (req_valid && req_ready) begin
         pending <= 1'b1;
-        error <= addr >= BYTES;
+        error <= addr >= BYTES || addr > BYTES - 4;
         rdata <= '0;
         for (index = 0; index < 4; index = index + 1) begin
-          if (addr + index < BYTES) begin
+          if (addr < BYTES && index < BYTES - addr) begin
             rdata[index*8 +: 8] <= memory[addr + index];
             if (write && be[index])
               memory[addr + index] <= wdata[index*8 +: 8];
@@ -112,10 +112,10 @@ module riscv_boot_memory_64 (
       if (rsp_valid && rsp_ready) rsp_valid <= 1'b0;
       if (req_valid && req_ready) begin
         pending <= 1'b1;
-        error <= addr >= BYTES;
+        error <= addr >= BYTES || addr > BYTES - 8;
         rdata <= '0;
         for (index = 0; index < 8; index = index + 1) begin
-          if (addr + index < BYTES) begin
+          if (addr < BYTES && index < BYTES - addr) begin
             rdata[index*8 +: 8] <= memory[addr + index];
             if (write && be[index])
               memory[addr + index] <= wdata[index*8 +: 8];

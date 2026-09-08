@@ -1,0 +1,10 @@
+{
+  "command": [
+    "/home/qinkejiu/myfuzz/.worktrees/ibex-protocol-longrun/third_party/docs/task-13/ibex-fixed/run/composition/obj_dir/Vtb",
+    "+riscv_boot_image=/home/qinkejiu/myfuzz/.worktrees/ibex-protocol-longrun/third_party/docs/task-13/ibex-fixed/run/boot/boot.hex"
+  ],
+  "cwd": "/home/qinkejiu/myfuzz/.worktrees/ibex-protocol-longrun/third_party/docs/task-13/ibex-fixed/run/composition",
+  "returncode": 0,
+  "stderr": "",
+  "stdout": "BOOT_FETCH addr=00000080 data=40000293\nEXEC reset=1 fetches=5 progress=5 completions=5 pass=1 cycles=40 exit=pass\n- task13_tb.sv:56: Verilog $finish\n- S i m u l a t i o n   R e p o r t: Verilator 5.051 devel\n- Verilator: $finish at 91ps; walltime 0.000 s; speed 816.187 ns/s\n- Verilator: cpu 0.000 s on 1 threads; allocated 6 MB\n"
+}

@@ -1,0 +1,14 @@
+status=accepted
+reset_released=1
+first_fetch_address=0x80
+first_fetch_data=0x40000293
+fetches=5
+progress_events=5
+backend_completions=5
+pass_observed=1
+cycles=40
+exit_reason=pass
+illegal_or_trap_records=0
+compile_returncode=0
+simulation_returncode=0
+peak_process_group_rss_kib=439668

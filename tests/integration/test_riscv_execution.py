@@ -95,10 +95,12 @@ class RiscvExecutionTests(unittest.TestCase):
             self.assertEqual("rv32imc", result.isa)
             self.assertEqual(32, result.xlen)
             self.assertEqual(0x80, result.reset_vector)
+            self.assertEqual(0x80, result.load_base)
             self.assertGreater(result.binary_size, 0)
             self.assertTrue(result.elf_hash.startswith("sha256:"))
             self.assertTrue(result.binary_hash.startswith("sha256:"))
-            self.assertEqual(result.binary_hash, result.memory_hex_hash)
+            self.assertNotEqual(result.binary_hash, result.memory_hex_hash)
+            self.assertEqual("@00000080", result.memory_hex_path.read_text().splitlines()[0])
             self.assertTrue(result.elf_path.is_file())
             self.assertTrue(result.binary_path.is_file())
             self.assertTrue(result.memory_hex_path.is_file())
@@ -142,6 +144,11 @@ class RiscvExecutionTests(unittest.TestCase):
             log_summary={"compile": "pass", "simulate": "pass"},
         )
         self.assertEqual("riscv_execution.v1", manifest["schema_version"])
+        self.assertEqual(
+            {"load_base": 0x80, "reset_vector": 0x80,
+             "address_encoding": "verilog-readmemh-address-directive"},
+            manifest["image"],
+        )
         self.assertTrue(manifest["manifest_hash"].startswith("sha256:"))
         self.assertEqual(31, manifest["metrics"]["cycles"])
 
@@ -275,6 +282,7 @@ endmodule
         with tempfile.TemporaryDirectory(prefix="task13-ibex-", dir=root / "runs") as temporary:
             work = Path(temporary)
             boot = build_minimal_boot_image(facts, work / "boot")
+            first_word = int.from_bytes(boot.binary_path.read_bytes()[:4], "little")
             plan = self.ibex_plan(root)
             output = work / "composition"
             write_generic_composition(plan, output, base_dir=root)
@@ -282,7 +290,7 @@ endmodule
             bench = output / "task13_tb.sv"
             bench.write_text(f"""module tb;
 logic clock=0, reset_n=0; integer cycles=0, fetches=0, progress=0, completions=0;
-logic [31:0] last_fetch=0; logic reset_released=0, pass_seen=0;
+logic [31:0] last_fetch=0; logic reset_released=0, pass_seen=0, first_fetch_checked=0;
 always #1 clock=~clock;
 generic_composition_top dut(
  .{port('processor.clock','clock','clk_i')}(clock),
@@ -323,8 +331,17 @@ always @(posedge clock) if(reset_n) begin
    if(dut.backend_target_write && dut.backend_target_addr == 32'h{facts.pass_address:08x} &&
       dut.backend_target_wdata[31:0] == 32'h{facts.pass_value:08x}) pass_seen <= 1;
  end
- if(dut.backend_target_rsp_valid && dut.backend_target_rsp_ready) completions <= completions + 1;
- if(pass_seen && completions > 0) begin
+ if(dut.backend_target_rsp_valid && dut.backend_target_rsp_ready) begin
+   completions <= completions + 1;
+   if(!first_fetch_checked) begin
+     if(dut.backend_target_addr != 32'h{facts.reset_vector:08x} ||
+        dut.backend_target_rdata[31:0] != 32'h{first_word:08x})
+       $fatal(1,"initial fetch mismatch addr=%h data=%h",dut.backend_target_addr,dut.backend_target_rdata);
+     first_fetch_checked <= 1;
+     $display("BOOT_FETCH addr=%h data=%h",dut.backend_target_addr,dut.backend_target_rdata[31:0]);
+   end
+ end
+ if(pass_seen && completions > 0 && first_fetch_checked) begin
    $display("EXEC reset=%0d fetches=%0d progress=%0d completions=%0d pass=1 cycles=%0d exit=pass", reset_released,fetches,progress,completions,cycles);
    $finish;
  end
@@ -349,6 +366,8 @@ endmodule
                 cwd=output, capture_output=True, text=True, timeout=30, check=False,
             )
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            self.assertNotIn("Illegal instruction", result.stdout + result.stderr)
+            self.assertRegex(result.stdout, rf"BOOT_FETCH addr=0*{facts.reset_vector:x} data={first_word:08x}")
             self.assertRegex(result.stdout, r"EXEC reset=1 fetches=[1-9]\d* progress=[1-9]\d* completions=[1-9]\d* pass=1 cycles=\d+ exit=pass")
 
     def test_cva6_packed_axi_wiring_matches_compiler_evidence_and_warnings(self) -> None:

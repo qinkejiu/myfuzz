@@ -1,0 +1,26 @@
+AXI_AR cycle=268 addr=0000000000000080 len=0 size=3 burst=1
+BACKEND_REQ cycle=270 write=0 addr=0000000000000080 data=0000000000000000 be=ff
+BACKEND_RSP cycle=272 data=600dd33740000293 error=0
+BOOT_FETCH addr=0000000000000080 data=600dd33740000293
+AXI_AR cycle=278 addr=0000000000000080 len=0 size=3 burst=1
+BACKEND_REQ cycle=280 write=0 addr=0000000000000080 data=0000000000000000 be=ff
+COMMIT cycle=280 ack=01 pc0=0000000000000080 pc1=0000000000000000
+BACKEND_RSP cycle=282 data=600dd33740000293 error=0
+AXI_AR cycle=288 addr=0000000000000088 len=0 size=3 burst=1
+BACKEND_REQ cycle=290 write=0 addr=0000000000000088 data=0000000000000000 be=ff
+COMMIT cycle=290 ack=01 pc0=0000000000000084 pc1=0000000000000000
+BACKEND_RSP cycle=292 data=0062a023afe3031b error=0
+AXI_AR cycle=298 addr=0000000000000088 len=0 size=3 burst=1
+BACKEND_REQ cycle=300 write=0 addr=0000000000000088 data=0000000000000000 be=ff
+COMMIT cycle=300 ack=01 pc0=0000000000000088 pc1=0000000000000000
+BACKEND_RSP cycle=302 data=0062a023afe3031b error=0
+AXI_AR cycle=308 addr=0000000000000090 len=0 size=3 burst=1
+BACKEND_REQ cycle=310 write=0 addr=0000000000000090 data=0000000000000000 be=ff
+COMMIT cycle=311 ack=01 pc0=000000000000008c pc1=0000000000000000
+BACKEND_RSP cycle=312 data=000000000000a001 error=0
+BACKEND_REQ cycle=317 write=1 addr=0000000000000400 data=600dcafe600dcafe be=0f
+EXEC reset=1 fetches=5 progress=3 completions=5 pass=1 cycles=318 exit=pass
+- task13_tb.sv:76: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.051 devel
+- Verilator: $finish at 637ns; walltime 0.002 s; speed 268.565 us/s
+- Verilator: cpu 0.002 s on 1 threads; allocated 9 MB

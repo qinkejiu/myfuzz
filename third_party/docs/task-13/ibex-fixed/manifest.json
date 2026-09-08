@@ -1,0 +1,68 @@
+{
+  "schema_version": "task13_execution_evidence.v2",
+  "cpu_status": "accepted",
+  "bounded": true,
+  "revision": {
+    "root": "third_party/rfuzz/upstream/ibex",
+    "git": "34b0705760ef3dfa00e99637432473d2be8f22f3",
+    "nested_pins": []
+  },
+  "facts": {
+    "isa": "rv32imc",
+    "xlen": 32,
+    "reset_vector": "0x80",
+    "max_cycles": 400,
+    "pass_address": "0x400",
+    "pass_value": "0x600dcafe"
+  },
+  "image": {
+    "load_base": "0x80",
+    "reset_vector": "0x80",
+    "address_encoding": "verilog-readmemh-address-directive",
+    "first_fetch_address": "0x80",
+    "first_fetch_data": "0x40000293"
+  },
+  "event": {
+    "reset_released": true,
+    "successful_fetches": 5,
+    "progress_events": 5,
+    "backend_completions": 5,
+    "pass_observed": true,
+    "cycles": 40,
+    "exit_reason": "pass",
+    "illegal_or_trap_records": 0
+  },
+  "commands": {
+    "outer": "timeout --signal=TERM 240s third_party/docs/task-13/ibex-fixed/run_bounded.sh execution nice -n 15 env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 python3 third_party/docs/task-13/ibex-fixed/persistent_test_launcher.py",
+    "compile": "nice -n15 verilator --binary --timing --top-module tb -Wno-fatal -Wno-PINMISSING -Wno-WIDTH -Wno-UNOPTFLAT -j 1 --Mdir obj_dir -f sources.f task13_tb.sv",
+    "simulation": "obj_dir/Vtb +riscv_boot_image=../boot/boot.hex"
+  },
+  "results": {
+    "outer_returncode": 0,
+    "compile_returncode": 0,
+    "simulation_returncode": 0,
+    "compile_wall_seconds": 12.516,
+    "peak_process_group_rss_kib": 439668
+  },
+  "hashes": {
+    "config": "sha256:db181ed864358817a51ede8dc8f43dca7892689ecccc5fcd45ed7a075174b3b2",
+    "composition": "sha256:1341c7429020afb4319b60e15d83390e4ac3b6dbbdb39fab8bf080b85c9045a0",
+    "layout": "sha256:afd63350a53eaee94430da01be30b92ac1583af11a47767fcdee876ec8fe9599",
+    "processor_execution": "sha256:2ea506d2eaa255f4519a7290c61f0d9ffbc4f69ae91cf92bcd28036a002b2948",
+    "generated_top": "sha256:38f0cf739b35a9fbdaa9e3f9c39f98c5fb99be8b01d740bb9fd35098d43f30e2",
+    "source_list": "sha256:53df3b5eb9ee799716c8f517b28db9e3912ac5bcb6d07294a3aeaea6ec2a6873",
+    "boot_elf": "sha256:2416ac77b858e03fa5df1c9cfffc0bbf7e4e0759fdc934e1512adec0bb1a3bc8",
+    "boot_binary": "sha256:96a8e6a369f6f72c82b39af0ef863127690dad30c04ad2f6e2aba92fb3caa9ed",
+    "boot_hex": "sha256:1d53d121b8ce1a32b5f7451c94da6d8f0a497480d402bc1fde50a45c0f65722d"
+  },
+  "tools": {
+    "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)",
+    "lld": "Ubuntu LLD 18.1.3 (compatible with GNU linkers)",
+    "verilator": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "python": "Python 3.12.3"
+  },
+  "validity": {
+    "accepted": true,
+    "reason": "the first completed fetch at reset vector 0x80 matched the linked boot word; reset, fetch, PC progress, backend completions, and pass were observed with no illegal/trap record"
+  }
+}

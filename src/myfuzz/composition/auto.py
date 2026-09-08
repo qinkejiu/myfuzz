@@ -1108,8 +1108,16 @@ def _generic_capability_document(capability: EndpointCapability) -> dict[str, ob
 
 
 _PROCESSOR_MEMORY_FUNCTIONS = frozenset({
-    "memory_master", "processor_memory_master", "instruction_memory_master", "data_memory_master",
+    "processor_memory_master", "instruction_memory_master", "data_memory_master",
 })
+
+
+def _is_processor_memory_endpoint(
+    endpoint: EndpointCapability, *, generic_processor_context: bool,
+) -> bool:
+    return endpoint.function in _PROCESSOR_MEMORY_FUNCTIONS or (
+        endpoint.function == "memory_master" and generic_processor_context
+    )
 
 
 def _processor_source_records(
@@ -1766,8 +1774,14 @@ def plan_generic_composition(
     processor_execution = None
     processor_boundary = None
     processor_backend_source = None
+    generic_processor_context = any(
+        endpoint.function == "boot_control" for endpoint in capabilities
+    )
     processor_candidate = any(
-        endpoint.function in _PROCESSOR_MEMORY_FUNCTIONS for endpoint in capabilities
+        _is_processor_memory_endpoint(
+            endpoint, generic_processor_context=generic_processor_context,
+        )
+        for endpoint in capabilities
     )
     if processor_candidate:
         if selected_protocol_catalog is None:
@@ -1783,7 +1797,10 @@ def plan_generic_composition(
             raise AutoCompositionError("generic:processor-control-fields")
         clock_port, reset_port = clock_endpoint.fields[0].port, reset_endpoint.fields[0].port
         memory_endpoints = [
-            item for item in capabilities if item.function in _PROCESSOR_MEMORY_FUNCTIONS
+            item for item in capabilities
+            if _is_processor_memory_endpoint(
+                item, generic_processor_context=generic_processor_context,
+            )
         ]
         reset_contracts: set[tuple[str, str]] = set()
         associated: dict[str, EndpointCapability] = {}
