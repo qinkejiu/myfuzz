@@ -1,8 +1,10 @@
 # myfuzz
 
-`myfuzz` is a Verilog/SystemVerilog source-level instrumentation and rfuzz
-execution flow. It embeds extracted Verilator frontend code as a project-local
-parser component, then inserts coverage logic into copied RTL source files.
+`myfuzz` provides two related RTL fuzzing paths: Verilog/SystemVerilog
+source-level instrumentation, and protocol-aware processor composition for
+driving real CPU RTL through RFuzz. It embeds extracted Verilator frontend code
+as a project-local parser component and keeps generated artifacts outside the
+upstream RTL source trees.
 
 The active flow does not use `verilator --xml-only`, does not rely on a
 Verilator command-line frontend binary, and does not print an AST back to
@@ -15,6 +17,7 @@ src/myfuzz/        project code: frontend component and Python orchestration
 scripts/           standalone source instrumentation entry points
 configs/designs/   smoke, Ibex, CVA6, XiangShan, and BOOM design configs
 third_party/rfuzz/ rfuzz flow code plus copied Ibex/CVA6 targets
+runs/task*/        regenerable processor-composition and acceptance evidence
 runs/designs/      regenerable run outputs
 artifacts/         preserved complete run artifacts
 ```
@@ -38,6 +41,13 @@ Verilog/SystemVerilog sources
 ports, instances, hierarchy, source files, and branch candidates. The
 instrumenter uses that metadata to edit the copied source tree. Original RTL
 under `third_party/rfuzz/upstream/...` remains unchanged.
+
+The processor-composition path discovers CPU-facing buses, maps OBI, AXI4, and
+TL-UL protocol roles into a common execution model, generates the RFuzz input
+transport and monitor, and validates instruction fetch progress against real
+RTL. See [QUICKSTART.md](QUICKSTART.md) for commands and
+[`docs/reports/task16_processor_rfuzz_regression_20260908.md`](docs/reports/task16_processor_rfuzz_regression_20260908.md)
+for the current acceptance evidence.
 
 ## Build
 
@@ -134,7 +144,7 @@ third_party/rfuzz/rfuzz_flow/tools/verilog_instrumentation/
 configs/designs/{smoke,ibex,cva6,xiangshan,boom}/ runnable configs
 ```
 
-## Checked Results
+## Checked Source-Instrumentation Results
 
 - Smoke enhanced: 20 coverage points, 18 metadata points, harness generation
   passed.
@@ -149,6 +159,21 @@ configs/designs/{smoke,ibex,cva6,xiangshan,boom}/ runnable configs
   3305 branch coverage points and runs through server/fuzzer smoke on `inner70`;
   `ChipTop` has 3139 branch coverage points, 3 fuzzer-visible input fields, and
   a successful 1 second smoke with no crash archives.
+
+These BOOM results belong to the older source-instrumentation flow; they do not
+complete the protocol-aware BOOM processor acceptance task.
+
+## Processor-Composition Acceptance Status
+
+- OBI, AXI4, and TL-UL adapters and executable fixtures are implemented.
+- Bounded real-RTL execution has passed for Ibex and CVA6, including first-fetch
+  matching and forward-progress evidence.
+- The official RFuzz client completed a 5-second Ibex preflight with 15,357 RTL
+  tests, 13,440 completed feedback receipts, and 19 retained corpus entries.
+- BOOM protocol acceptance is deferred by project decision.
+- The three sequential 300-second campaign gate is intentionally not claimed:
+  its runner and configuration are checked in, but that long-duration run has
+  not been executed.
 
 CVA6 instrument runs may print original-design Verilator warnings such as
 `IMPLICITSTATIC` and `SELRANGE`; the instrumentation stage still succeeds.
