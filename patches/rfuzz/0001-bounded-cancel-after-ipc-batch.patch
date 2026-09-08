@@ -1,0 +1,17 @@
+diff --git a/fuzzer/src/main.rs b/fuzzer/src/main.rs
+index 51df6fc..9c5867d 100644
+--- a/fuzzer/src/main.rs
++++ b/fuzzer/src/main.rs
+@@ -232,7 +232,12 @@ fn fuzzer(args: Args, canceled: Arc<AtomicBool>, config: config::Config,
+                             statistics.take_snapshot(), &feedback.data);
+                    }
+                }
++				// A Yield marks a completed shared-memory request/response batch.
++				// Honor SIGINT here so long mutation stages terminate without
++				// dropping an in-flight batch or waiting for the entire stage.
++				if canceled.load(Ordering::SeqCst) { done = true; }
+            }
++			if canceled.load(Ordering::SeqCst) { break; }
+            if new_runs >= max_children { break; }
+        }
+        q.return_test(active_test.id, history);

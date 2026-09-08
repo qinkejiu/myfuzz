@@ -1078,14 +1078,17 @@ class SourceCrawler:
                     container, member = candidates[0]
                     matched_members.add(key)
                     matched_names[container.name] = field.role
-                    fields.append({
+                    field_document = {
                         "role": field.role, "port": container.name,
                         "member_path": list(member.path), "raw_lo": member.raw_lo, "raw_hi": member.raw_hi,
                         "container_width": container.width, "direction": container.direction,
                         "width": member.width, "signed": member.signed,
                         "source": {"file": member.source_file, "line": member.line, "column": member.column},
                         "evidence": ["explicit_member", "compiler_elaboration"], "confidence": "high",
-                    })
+                    }
+                    if field.randomizable:
+                        field_document["randomizable"] = True
+                    fields.append(field_document)
                     continue
                 try:
                     port, evidence = self._field_port(snapshot, endpoint, field, ports)
@@ -1096,8 +1099,7 @@ class SourceCrawler:
                 if port.name in matched_names:
                     raise SourceCrawlError(f"duplicate-port-mapping:{endpoint.endpoint_id}:{port.name}")
                 matched_names[port.name] = field.role
-                fields.append(
-                    {
+                field_document = {
                         "role": field.role,
                         "port": port.name,
                         "direction": port.direction,
@@ -1107,7 +1109,9 @@ class SourceCrawler:
                         "evidence": [evidence, "hdl_declaration"],
                         "confidence": "high" if evidence != "normalized_name" else "low",
                     }
-                )
+                if field.randomizable:
+                    field_document["randomizable"] = True
+                fields.append(field_document)
             related = [observation for observation in snapshot.timing
                        if observation.module in ("", module) and set(observation.fields) & set(matched_names)]
             clocks = sorted({observation.clock for observation in related if observation.clock is not None})

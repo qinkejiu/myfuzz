@@ -224,6 +224,8 @@ def _validate_interface_description(document: Mapping[str, object], schema_id: s
                         _error(schema_id, f"{field_path}.physical.member_path[{path_index}]", "invalid")
             if "required" in field:
                 _boolean(field["required"], schema_id, f"{field_path}.required")
+            if "randomizable" in field:
+                _boolean(field["randomizable"], schema_id, f"{field_path}.randomizable")
 
 
 def _validate_hardware_facts(document: Mapping[str, object], schema_id: str) -> None:
@@ -440,6 +442,8 @@ def _validate_interface_annotations(document: Mapping[str, object], schema_id: s
             enum(field["direction"], f"{field_path}.direction", ("input", "output", "inout"))
             _positive_id(field["width"], schema_id, f"{field_path}.width")
             _boolean(field["signed"], schema_id, f"{field_path}.signed")
+            if "randomizable" in field:
+                _boolean(field["randomizable"], schema_id, f"{field_path}.randomizable")
             location(field["source"], f"{field_path}.source", column=True)
             field_evidence = evidence(field["evidence"], f"{field_path}.evidence", ("explicit_alias", "source_documentation",
                                       "exact_role_label", "normalized_name", "hdl_declaration", "explicit_member", "compiler_elaboration"))

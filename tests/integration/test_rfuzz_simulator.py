@@ -50,7 +50,8 @@ def make_control_plan(root):
         "source": {"root": "source", "revision": source_tree_hash(directory, (source,)),
                     "top_module": "arbitrary", "files": ["source.sv"]},
         "endpoints": [{"endpoint_id": "control", "function": "control", "module": "arbitrary",
-                       "fields": [{"role": role, "aliases": [port]}
+                       "fields": [{"role": role, "aliases": [port],
+                                   **({"randomizable": True} if role == "interrupt" else {})}
                                   for role, port in zip(roles, ports)]}],
     })
     return plan_generic_composition(GenericCompositionRequest(description, ()), base_dir=root), ports
@@ -133,10 +134,10 @@ class RfuzzSimulatorTests(unittest.TestCase):
         )
         packed_random = (
             LayoutField("random:low", "random", "low", 4, 33, 36, "bits", {},
-                        port="random_container", member_path=("low",),
+                        port="random_container", member_path=("low",), evidence=("compiler_elaboration",),
                         port_raw_lo=0, port_raw_hi=3, port_width=8),
             LayoutField("random:high", "random", "high", 4, 37, 40, "bits", {},
-                        port="random_container", member_path=("high",),
+                        port="random_container", member_path=("high",), evidence=("compiler_elaboration",),
                         port_raw_lo=4, port_raw_hi=7, port_width=8),
         )
         scalar_random = LayoutField(
@@ -485,7 +486,23 @@ class RfuzzSimulatorTests(unittest.TestCase):
             opt_in = rfuzz_simulator.build_simulator(
                 plan, root / "runtime-opt-in", base_dir=root, coverage_ports=(("flags", 0),),
                 control_defaults=defaults, randomized_controls=("interrupt",),
+                coverage_inputs=(("interrupt", 0),),
             )
             self.assertIn("interrupt", {field.role for field in opt_in.layout.fields})
             self.assertNotIn("boot_address", {field.role for field in opt_in.layout.fields})
             self.assertEqual(("interrupt",), opt_in.randomized_controls)
+            self.assertEqual(
+                "sampled-dut-signal-bit-events-u8-saturating", opt_in.coverage_kind
+            )
+            raw = 1 << next(
+                field.raw_lo for field in opt_in.layout.fields if field.role == "interrupt"
+            )
+            with rfuzz_simulator.RtlSimulator(opt_in) as simulator:
+                self.assertEqual(simulator.run_test((opt_in.transport.pack(raw),))[-1], 1)
+
+            with self.assertRaisesRegex(ValueError, "randomized runtime input"):
+                rfuzz_simulator.build_simulator(
+                    plan, root / "runtime-fixed-observation", base_dir=root,
+                    coverage_ports=(("flags", 0),), coverage_inputs=(("boot_address", 0),),
+                    control_defaults=defaults,
+                )

@@ -15,21 +15,24 @@ module riscv_boot_memory_32 (
 );
   localparam integer BYTES = 4096;
   logic [7:0] memory [0:4095];
+  logic [7:0] initial_memory [0:4095];
   logic pending;
   integer index;
   integer init_index;
   string image_path;
 
   initial begin
-    for (init_index = 0; init_index < BYTES; init_index = init_index + 1) memory[init_index] = 8'h00;
+    for (init_index = 0; init_index < BYTES; init_index = init_index + 1) initial_memory[init_index] = 8'h00;
     if (!$value$plusargs("riscv_boot_image=%s", image_path))
       $fatal(1, "missing +riscv_boot_image");
-    $readmemh(image_path, memory);
+    $readmemh(image_path, initial_memory);
+    for (init_index = 0; init_index < BYTES; init_index = init_index + 1) memory[init_index] = initial_memory[init_index];
   end
 
   assign req_ready = reset && !pending && !rsp_valid;
   always_ff @(posedge clock or negedge reset) begin
     if (!reset) begin
+      for (init_index = 0; init_index < BYTES; init_index = init_index + 1) memory[init_index] <= initial_memory[init_index];
       pending <= 1'b0;
       rsp_valid <= 1'b0;
       rdata <= '0;
@@ -79,21 +82,24 @@ module riscv_boot_memory_64 (
 );
   localparam integer BYTES = 4096;
   logic [7:0] memory [0:4095];
+  logic [7:0] initial_memory [0:4095];
   logic pending;
   integer index;
   integer init_index;
   string image_path;
 
   initial begin
-    for (init_index = 0; init_index < BYTES; init_index = init_index + 1) memory[init_index] = 8'h00;
+    for (init_index = 0; init_index < BYTES; init_index = init_index + 1) initial_memory[init_index] = 8'h00;
     if (!$value$plusargs("riscv_boot_image=%s", image_path))
       $fatal(1, "missing +riscv_boot_image");
-    $readmemh(image_path, memory);
+    $readmemh(image_path, initial_memory);
+    for (init_index = 0; init_index < BYTES; init_index = init_index + 1) memory[init_index] = initial_memory[init_index];
   end
 
   assign req_ready = reset && !pending && !rsp_valid;
   always_ff @(posedge clock or negedge reset) begin
     if (!reset) begin
+      for (init_index = 0; init_index < BYTES; init_index = init_index + 1) memory[init_index] <= initial_memory[init_index];
       pending <= 1'b0;
       rsp_valid <= 1'b0;
       rdata <= '0;

@@ -73,7 +73,10 @@ class InputLayout:
 
 
 _ROLE_ORDER = {"address": 0, "byte_enable": 1, "ready": 2, "valid": 3, "data": 4, "instruction": 5}
-_CONSTRAINT_KEYS = frozenset(("owner", "endpoint_id", "role", "range", "alignment", "dependency_group", "gated_by"))
+_CONSTRAINT_KEYS = frozenset((
+    "owner", "endpoint_id", "role", "range", "alignment", "enum", "mask",
+    "randomizable", "dependency_group", "gated_by",
+))
 
 
 def _error(message: str) -> None:
@@ -186,6 +189,27 @@ def _alignment(value: object) -> int:
     return value
 
 
+def _enum_values(value: object, *, width: int, signed: bool) -> list[int]:
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)) or not value:
+        _error("invalid enum")
+    values = list(value)
+    if any(isinstance(item, bool) or not isinstance(item, int) for item in values):
+        _error("invalid enum")
+    if len(set(values)) != len(values):
+        _error("duplicate enum value")
+    minimum = -(1 << (width - 1)) if signed else 0
+    maximum = (1 << (width - 1)) - 1 if signed else (1 << width) - 1
+    if any(item < minimum or item > maximum for item in values):
+        _error("enum outside field width")
+    return values
+
+
+def _mask(value: object, *, width: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0 or value >= 1 << width:
+        _error("invalid mask")
+    return value
+
+
 def _instruction_encoding(isa: IsaContract | None) -> str:
     if isa is None or not isa.supports_legal_instruction_validation:
         return "raw_instruction"
@@ -255,6 +279,9 @@ def build_input_layout(annotations: Mapping[str, object], *, component_constrain
             optional = source.get("optional", False)
             if not isinstance(optional, bool):
                 _error("invalid optional flag")
+            randomizable = source.get("randomizable", False)
+            if not isinstance(randomizable, bool):
+                _error("randomizable must be boolean")
             member_value = source.get("member_path")
             if member_value is None:
                 member_path: tuple[str, ...] = ()
@@ -273,7 +300,8 @@ def build_input_layout(annotations: Mapping[str, object], *, component_constrain
                     _error("invalid packed input coordinates")
             candidates.append((owner, role, _width(source.get("width"), f"{owner}:{role}"), signed, optional, is_apb,
                                _name(source.get("port"), "field port missing"), direction, _provenance(source.get("source")),
-                               _evidence(source.get("evidence")), member_path, port_raw_lo, port_raw_hi, port_width))
+                               _evidence(source.get("evidence")), member_path, port_raw_lo, port_raw_hi, port_width,
+                               randomizable))
     if not candidates:
         _error("empty input layout")
     candidates.sort(key=lambda item: (item[0], item[4], _ROLE_ORDER.get(item[1], 100), item[1], item[6]))
@@ -284,13 +312,23 @@ def build_input_layout(annotations: Mapping[str, object], *, component_constrain
     fields: list[LayoutField] = []
     cursor = 0
     for (owner, role, width, signed, _optional, is_apb, port, direction,
-         provenance, evidence, member_path, port_raw_lo, port_raw_hi, port_width) in candidates:
+         provenance, evidence, member_path, port_raw_lo, port_raw_hi, port_width, randomizable) in candidates:
         constraint = dict(records.get((owner, role), {}))
+        if randomizable:
+            if "randomizable" in constraint and constraint["randomizable"] is not True:
+                _error("contradictory randomizable")
+            constraint["randomizable"] = True
         group = constraint.pop("dependency_group", None)
         if group is not None:
             group = _name(group, "invalid dependency_group")
         if "range" in constraint:
             constraint["range"] = _range(constraint["range"], width=width, signed=signed)
+        if "enum" in constraint:
+            constraint["enum"] = _enum_values(constraint["enum"], width=width, signed=signed)
+        if "mask" in constraint:
+            constraint["mask"] = _mask(constraint["mask"], width=width)
+        if "randomizable" in constraint and not isinstance(constraint["randomizable"], bool):
+            _error("randomizable must be boolean")
         default_alignment = 4 if is_apb and role == "address" else None
         alignment_value = constraint.get("alignment", default_alignment)
         if alignment_value is not None:
@@ -298,6 +336,12 @@ def build_input_layout(annotations: Mapping[str, object], *, component_constrain
             constraint["alignment"] = alignment
             if "range" in constraint and (constraint["range"][0] % alignment or constraint["range"][1] % alignment):
                 _error("contradictory address range/alignment")
+            if "enum" in constraint and any(value % alignment for value in constraint["enum"]):
+                _error("enum/alignment conflict")
+        if "range" in constraint and "mask" in constraint:
+            lo, hi = constraint["range"]
+            if constraint["mask"] == 0 and not lo <= 0 <= hi:
+                _error("range/mask conflict")
         if role == "byte_enable":
             data = by_key.get((owner, "data"))
             if data is None or data[0] % 8 or width != data[0] // 8:

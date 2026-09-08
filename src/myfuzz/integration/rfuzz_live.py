@@ -49,6 +49,31 @@ def _binary_hash(artifact):
     return _hash_bytes(path.read_bytes())
 
 
+def _physical_control_document(artifact):
+    defaults = getattr(artifact, "control_defaults", {})
+    randomized = getattr(artifact, "randomized_controls", ())
+    return {
+        "defaults": defaults if isinstance(defaults, dict) else dict(defaults or {}),
+        "randomized": list(randomized),
+        "simulator": getattr(artifact, "simulator", "icarus"),
+        "isolate_tests": getattr(artifact, "isolate_tests", False),
+        "execution_monitor": getattr(artifact, "execution_monitor", None),
+    }
+
+
+def _simulator_input_document(artifact):
+    document = []
+    for argument in getattr(artifact, "simulator_args", ()):
+        if argument.startswith("+riscv_boot_image="):
+            path = Path(argument.split("=", 1)[1]).resolve()
+            if not path.is_file():
+                raise ValueError("simulator boot image is missing")
+            document.append({"name": "riscv_boot_image", "sha256": _hash_bytes(path.read_bytes())})
+        else:
+            document.append({"value": argument})
+    return document
+
+
 def replay_identity(artifact, raw_payload):
     if not isinstance(raw_payload, bytes) or not raw_payload:
         raise ValueError("replay raw payload must be nonempty bytes")
@@ -58,20 +83,31 @@ def replay_identity(artifact, raw_payload):
         raise ValueError("replay layout identity is missing")
     constraint_hash = _constraint_hash(artifact)
     binary_hash = _binary_hash(artifact)
+    physical_controls = _physical_control_document(artifact)
+    physical_controls_hash = _hash_bytes(canonical_bytes(physical_controls))
+    simulator_inputs = _simulator_input_document(artifact)
+    simulator_inputs_hash = _hash_bytes(canonical_bytes(simulator_inputs))
     inputs = {
         "raw_sha256": _hash_bytes(raw_payload),
         "layout_hash": layout_hash,
         "constraint_hash": constraint_hash,
         "binary_sha256": binary_hash,
+        "physical_controls_sha256": physical_controls_hash,
+        "simulator_inputs_sha256": simulator_inputs_hash,
     }
     return {
         **inputs,
+        "physical_controls": physical_controls,
+        "simulator_inputs": simulator_inputs,
         "binary_hash": binary_hash,
         "replay_key": _hash_bytes(canonical_bytes(inputs)),
     }
 
 
 def _corpus_document(path, *, byte_count):
+    max_size = 5 * byte_count * 200 + 4 * 1024 * 1024
+    if path.stat().st_size > max_size:
+        raise ValueError("oversized RFuzz corpus entry")
     document = json.loads(path.read_text())
     if not isinstance(document, dict) or not isinstance(document.get("entry"), dict):
         raise ValueError("invalid RFuzz corpus entry")
@@ -88,28 +124,40 @@ def _corpus_document(path, *, byte_count):
     return document, bytes(raw), expected
 
 
-def build_corpus_manifest(artifact, corpus_dir):
+def build_corpus_manifest(artifact, corpus_dir, *, feedback_receipts=None):
     """Index the actual RFuzz-saved wire corpus without synthesizing coverage."""
     corpus = Path(corpus_dir)
     paths = sorted(corpus.glob("entry_*.json"))
     if not paths:
         raise ValueError("empty RFuzz corpus")
     width = artifact.transport.byte_count
+    verified = replay_corpus(artifact, corpus)
+    verified_by_file = {entry["file"]: entry for entry in verified["replays"]}
     replays = []
     for path in paths:
         document, payload, expected = _corpus_document(path, byte_count=width)
         identity = replay_identity(artifact, payload)
+        actual = verified_by_file.get(path.name)
+        if actual is None or actual.get("input_sha256") != identity["raw_sha256"]:
+            raise ValueError(f"RFuzz corpus coverage was not verified: {path.name}")
         declared = document.get("replay_identity")
         if isinstance(declared, dict):
-            for key in ("raw_sha256", "layout_hash", "constraint_hash", "binary_sha256", "replay_key"):
+            for key in ("raw_sha256", "layout_hash", "constraint_hash", "binary_sha256",
+                        "physical_controls_sha256", "simulator_inputs_sha256", "replay_key"):
                 if key in declared and declared[key] != identity[key]:
                     raise ValueError(f"RFuzz replay identity mismatch: {path.name}")
+        receipt = (identity["raw_sha256"], _hash_bytes(bytes(actual["counters"])))
+        if feedback_receipts is not None and receipt not in feedback_receipts:
+            raise ValueError(f"RFuzz corpus lacks completed shared-memory exchange: {path.name}")
         replays.append({
             "file": path.name,
             "input_bytes": len(payload),
             "cycles": len(payload) // width,
             "input_sha256": identity["raw_sha256"],
             "trace_sha256": _hash_bytes(bytes(expected)),
+            "coverage_sha256": _hash_bytes(bytes(actual["counters"])),
+            "coverage_verified": True,
+            "shared_memory_exchange_verified": feedback_receipts is not None,
             **identity,
         })
     return {
@@ -120,6 +168,9 @@ def build_corpus_manifest(artifact, corpus_dir):
         "layout_hash": replays[0]["layout_hash"],
         "constraint_hash": replays[0]["constraint_hash"],
         "binary_sha256": replays[0]["binary_sha256"],
+        "physical_controls_sha256": replays[0]["physical_controls_sha256"],
+        "simulator_inputs_sha256": replays[0]["simulator_inputs_sha256"],
+        "instruction_mode": getattr(getattr(artifact, "projector", None), "instruction_mode", "none"),
         "replays": replays,
     }
 
@@ -149,7 +200,7 @@ def _owned_segments(pid):
     return result
 
 
-def run_live(artifact, client_binary, output_dir, *, duration_seconds=30):
+def run_live(artifact, client_binary, output_dir, *, duration_seconds=30, seed_cycles=5):
     """Retain a failure report even when startup or an RTL exchange raises."""
     state = {}
     def terminated(signum, frame):
@@ -162,7 +213,7 @@ def run_live(artifact, client_binary, output_dir, *, duration_seconds=30):
     previous_int = signal.signal(signal.SIGINT, terminated)
     try:
         result = _run_live(artifact, client_binary, output_dir,
-                           duration_seconds=duration_seconds, state=state)
+                           duration_seconds=duration_seconds, seed_cycles=seed_cycles, state=state)
         if "termination_signal" in state:
             raise KeyboardInterrupt(state["termination_signal"] + " received during RFuzz run")
         return result
@@ -177,9 +228,11 @@ def run_live(artifact, client_binary, output_dir, *, duration_seconds=30):
         signal.signal(signal.SIGINT, previous_int)
 
 
-def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state):
+def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, seed_cycles=5):
     if type(duration_seconds) not in (int,float) or not math.isfinite(duration_seconds) or not 0 < duration_seconds <= 86400:
         raise ValueError("finite positive live duration required")
+    if type(seed_cycles) is not int or not 1 <= seed_cycles <= 200:
+        raise ValueError("seed cycles must be between 1 and 200")
     binary=Path(client_binary).resolve(strict=True)
     output=Path(output_dir).absolute()
     if output.exists() or output.is_symlink():
@@ -201,17 +254,23 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state):
                  memory_poll_policy="check at FIFO/RTL IO checkpoints; scheduling and encoding can delay sampling")
     if hasattr(artifact, "executable"):
         provenance = artifact.executable.parent / "artifact_provenance.json"
+        if not provenance.is_file():
+            provenance = artifact.executable.parent.parent / "artifact_provenance.json"
         state["artifact_provenance"] = json.loads(provenance.read_text()) if provenance.is_file() else None
         state["simulator_sha256"] = hashlib.sha256(artifact.executable.read_bytes()).hexdigest()
     state["mutation_seed"] = None
     state["mutation_seed_policy"] = "upstream has no global seed option; retain corpus lineage and raw inputs for replay"
     state["mutation_mode"] = "official default deterministic and havoc mutation, JQF level 2"
-    state["initial_seed"] = {"kind": "all-zero", "cycles": 5}
+    state["initial_seed"] = {"kind": "all-zero", "cycles": seed_cycles}
     config=output/"rfuzz.toml"
     config.write_text(_configuration(artifact))
     state["config_sha256"] = hashlib.sha256(config.read_bytes()).hexdigest()
     started=time.monotonic()
     deadline=started+duration_seconds
+    # Upstream completes a full shared-memory batch before honoring SIGINT.
+    # Process-isolated RTL tests need a larger, still bounded drain allowance.
+    drain_limit = 180 if getattr(artifact, "isolate_tests", False) else 60
+    state["drain_limit_seconds"] = drain_limit
     tests=0
     maxima=[0]*len(artifact.coverage_ports)
     peak=0
@@ -219,17 +278,21 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state):
     interrupted=False
     client=None
     removed=[]
+    receipts = set()
+    pending_receipts = []
+    execution_totals = {}
+    next_checkpoint = started
     with FifoEndpoint() as endpoint, RtlSimulator(artifact) as simulator, (output/"client.log").open("wb") as log:
         # The pinned client's prettytable 0.6.7 crashes on this Rust build when
         # -c prints the final table. Omit only that optional presentation step;
         # upstream still saves corpus, statistics and its final raw bitmap.
         try:
             client=subprocess.Popen(("nice","-n15",str(binary),str(config),"-s",endpoint.directory.name,
-                "-o",str(output/"corpus")),stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+                "-o",str(output/"corpus"), "--seed-cycles", str(seed_cycles)),stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
             state.update(status="running", client_pid=client.pid, command=list(client.args),
                          compatibility="omit optional -c prettytable output; mutation mode unchanged")
             def check():
-                nonlocal interrupted, peak, next_memory_check
+                nonlocal interrupted, peak, next_memory_check, next_checkpoint
                 if "termination_signal" in state:
                     raise KeyboardInterrupt(state["termination_signal"] + " received during RFuzz run")
                 now=time.monotonic()
@@ -248,20 +311,37 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state):
                     next_memory_check=now+.1
                     if memory >= 512*1024*1024:
                         raise MemoryError("live aggregate RSS reached soft memory limit")
+                if now >= next_checkpoint:
+                    checkpoint = {
+                        "elapsed_seconds": now-started, "tests": tests,
+                        "counter_maxima": maxima, "peak_rss_bytes": peak,
+                        "corpus_entries": len(tuple((output/"corpus").glob("entry_*.json"))),
+                        "coverage_sha256": _hash_bytes(bytes(maxima)),
+                        "errors": execution_totals.get("errors", 0),
+                        "execution_totals": dict(execution_totals),
+                        "completed_feedback_exchanges": len(receipts),
+                    }
+                    with (output/"checkpoints.jsonl").open("a") as checkpoints:
+                        checkpoints.write(json.dumps(checkpoint, sort_keys=True)+"\n")
+                    next_checkpoint = now+30
                 if now>=deadline and not interrupted and client.poll() is None:
                     client.send_signal(signal.SIGINT)
                     interrupted=True
                     state["interrupt_elapsed_seconds"] = now-started
-                if now>=deadline+60:
+                if now>=deadline+drain_limit:
                     raise TimeoutError("RFuzz client failed to finish after interrupt")
             def execute(records):
                 nonlocal tests
                 check()
                 counters=simulator.run_test(records, monitor=check)
+                for key, value in getattr(simulator, "last_execution", {}).items():
+                    execution_totals[key] = execution_totals.get(key, 0) + value
+                state["execution_totals"] = dict(execution_totals)
                 tests+=1
                 state["tests"] = tests
                 for index,value in enumerate(counters):
                     maxima[index]=max(maxima[index],value)
+                pending_receipts.append((_hash_bytes(b"".join(records)), _hash_bytes(counters)))
                 return counters
             while client.poll() is None:
                 check()
@@ -270,6 +350,10 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state):
                     reply=process_pair(*token,creator_pid=client.pid,
                         input_bytes=artifact.transport.byte_count,counter_count=len(maxima),execute=execute)
                     endpoint.reply(reply)
+                    receipts.update(pending_receipts)
+                    pending_receipts.clear()
+                    if len(receipts) > 250000:
+                        raise RuntimeError("RFuzz feedback receipt bound exceeded")
         finally:
             if client is not None:
                 # The launched client owns a new session. Clean the entire group
@@ -317,11 +401,12 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state):
             raise RuntimeError("RFuzz client produced no saved corpus")
         if result["remaining_segments"]:
             raise RuntimeError("RFuzz client left owned shared-memory segments")
-        manifest = build_corpus_manifest(artifact, output / "corpus")
+        manifest = build_corpus_manifest(artifact, output / "corpus", feedback_receipts=receipts)
         manifest_path = output / "corpus_manifest.json"
         manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n")
         state["corpus_manifest_sha256"] = _hash_bytes(manifest_path.read_bytes())
         state["corpus_manifest"] = manifest
+        state["completed_feedback_exchanges"] = len(receipts)
     result = {key: value for key, value in state.items() if key != "_output"}
     result["status"] = "completed" if client.returncode == 0 else "failed"
     (output/"report.json").write_text(json.dumps(result,sort_keys=True)+"\n")
@@ -361,7 +446,8 @@ def replay_corpus(artifact, corpus_dir):
             identity = replay_identity(artifact, payload)
             declared = document.get("replay_identity")
             if isinstance(declared, dict):
-                for key in ("raw_sha256", "layout_hash", "constraint_hash", "binary_sha256", "replay_key"):
+                for key in ("raw_sha256", "layout_hash", "constraint_hash", "binary_sha256",
+                            "physical_controls_sha256", "simulator_inputs_sha256", "replay_key"):
                     if key in declared and declared[key] != identity[key]:
                         raise ValueError(f"RFuzz replay identity mismatch: {path.name}")
             physical = []

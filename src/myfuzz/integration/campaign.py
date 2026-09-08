@@ -39,8 +39,11 @@ _MAX_STATUS_BYTES = 64 * 1024
 _MAX_JSON_LINE_BYTES = 64 * 1024
 _MAX_METRICS = 1024
 _MAX_DRAIN_BYTES_PER_POLL = 256 * 1024
-_RSS_SNAPSHOT_ATTEMPTS = 3
-_RSS_SNAPSHOT_RETRY_SECONDS = 0.005
+# Verilator and C++ compiler workers can remain visible briefly while their
+# procfs status transitions through exit states. Retry only failed snapshots;
+# successful 100 ms polling remains unchanged and the total grace stays bounded.
+_RSS_SNAPSHOT_ATTEMPTS = 25
+_RSS_SNAPSHOT_RETRY_SECONDS = 0.01
 _METRIC_KEYS = frozenset({"transactions", "protocol", "component", "coverage", "error"})
 
 

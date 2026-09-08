@@ -1,4 +1,5 @@
 import os
+import hashlib
 import json
 import shutil
 import signal
@@ -12,11 +13,71 @@ import unittest
 from contextlib import contextmanager
 from unittest.mock import patch
 from tests.integration.test_rfuzz_simulator import make_plan
-from myfuzz.integration.rfuzz_simulator import build_simulator
+from myfuzz.components.catalog import ComponentCatalog
+from myfuzz.components.model import PeripheralProfile
+from myfuzz.composition import GenericCompositionRequest, load_interface_description, plan_generic_composition
+from myfuzz.integration import (
+    RiscvExecutionFacts, RiscvExecutionProvenance, build_minimal_boot_image,
+)
+from myfuzz.protocols.catalog import load_protocol_catalog
+from myfuzz.isa.constraints import IsaContract
+from myfuzz.integration.rfuzz_simulator import RtlSimulator, build_simulator
 try:
     from myfuzz.integration.rfuzz_live import run_live
 except ImportError:
     run_live = None
+
+
+def make_ibex_rfuzz_artifact(root, work):
+    document = json.loads(
+        (root / "configs/cpus/ibex/official_core_interface_description.json").read_text()
+    )
+    for endpoint in document["endpoints"]:
+        if endpoint["endpoint_id"] == "processor.interrupts":
+            for field in endpoint["fields"]:
+                field["randomizable"] = True
+    description = load_interface_description(document)
+    memory = PeripheralProfile(
+        "boot-memory", "riscv_boot_memory_32", (("processor-memory-beat", "1"),),
+        4, 4096, False, (), "implemented",
+        ("src/myfuzz/integration/rtl/riscv_boot_memory.sv",), True, {},
+        protocol_features={("processor-memory-beat", "1"): ("reset_flush",)},
+    )
+    plan = plan_generic_composition(
+        GenericCompositionRequest(
+            description, ("boot-memory",), isa=IsaContract(32, ("I", "M", "C"), instruction_alignment=2)
+        ),
+        base_dir=root,
+        component_catalog=ComponentCatalog((memory,)),
+        protocol_catalog=load_protocol_catalog(root / "src/myfuzz/protocols/plugins"),
+    )
+    facts = RiscvExecutionFacts(
+        isa="rv32imc", xlen=32, reset_vector=0x80, pass_address=0x400,
+        pass_value=0x600DCAFE, protocol=("obi", "1"), max_cycles=400,
+        provenance=RiscvExecutionProvenance(
+            source_identity=description.source.source_root, source_hash="sha256:" + plan.source_evidence_hash.removeprefix("sha256:"),
+            profile_identity="rv32imc-reset-0x80", profile_hash="sha256:" + hashlib.sha256(b"rv32imc:32:128:1024:1611516670").hexdigest(),
+            interface_identity="task14-ibex-interface", interface_hash="sha256:" + hashlib.sha256(json.dumps(document, sort_keys=True).encode()).hexdigest(),
+            isa="rv32imc", xlen=32, reset_vector=0x80,
+        ),
+    )
+    boot = build_minimal_boot_image(facts, work / "boot")
+    return build_simulator(
+        plan, work / "sim", base_dir=root, coverage_ports=(),
+        coverage_signals=(("backend_target_req_valid", 0), ("backend_target_rsp_valid", 0)),
+        randomized_controls=("interrupt",),
+        control_defaults={"boot_address": facts.reset_vector, "hart_id": 0,
+                          "request": 0, "interrupt": 0,
+                          "fetch_enable": 5, "scan_reset": 1, "test_enable": 0,
+                          "counter_enable_writable": 5, "cheriot_enable": 10,
+                          **{role: 0 for role in (
+                              "instruction_integrity", "data_integrity", "data_tag",
+                              "trvk_heap_base", "trvk_grant", "trvk_response_valid",
+                              "trvk_read_data", "trvk_read_integrity", "trvk_error",
+                              "scramble_key_valid", "scramble_key", "scramble_nonce")}},
+        simulator_args=(f"+riscv_boot_image={boot.memory_hex_path}",),
+        simulator="verilator", isolate_tests=False,
+    )
 
 
 @contextmanager
@@ -77,7 +138,7 @@ class LiveFailureTests(unittest.TestCase):
             self.assertEqual(first["binary_sha256"], first["binary_hash"])
 
     def test_corpus_manifest_records_wire_inputs_and_actual_feedback_identity(self):
-        from myfuzz.integration.rfuzz_live import build_corpus_manifest
+        from myfuzz.integration import rfuzz_live
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             binary = root / "sim.vvp"
@@ -94,7 +155,12 @@ class LiveFailureTests(unittest.TestCase):
                 executable=binary,
                 transport=SimpleNamespace(byte_count=8),
             )
-            manifest = build_corpus_manifest(artifact, corpus)
+            identity = rfuzz_live.replay_identity(artifact, bytes([0] * 8))
+            with patch.object(rfuzz_live, "replay_corpus", return_value={
+                "replays": [{"file": "entry_0000.json", "input_sha256": identity["raw_sha256"],
+                              "counters": [1, 0, 0, 0, 0, 0]}],
+            }):
+                manifest = rfuzz_live.build_corpus_manifest(artifact, corpus)
             self.assertEqual("rfuzz_corpus_manifest.v1", manifest["schema_version"])
             self.assertEqual(1, manifest["entries"])
             self.assertIn("replay_key", manifest["replays"][0])
@@ -294,7 +360,6 @@ sys.exit(0)
             path.write_text(json.dumps(entry))
             result = replay(artifact, corpus)
             self.assertEqual(result["entries"], 1)
-            self.assertEqual(result["status"], "passed")
             entry["trace_bits"][0] = 0
             path.write_text(json.dumps(entry))
             with self.assertRaisesRegex(ValueError, "coverage mismatch"):
@@ -303,3 +368,34 @@ sys.exit(0)
             path.write_text(json.dumps(entry))
             with self.assertRaisesRegex(ValueError, "padding"):
                 replay(artifact, corpus)
+
+
+@unittest.skipUnless(
+    os.environ.get("MYFUZZ_RFuzz_REAL_CPU") and shutil.which("verilator"),
+    "real CPU RFuzz opt-in",
+)
+class RealCpuOptInTests(unittest.TestCase):
+    def test_ibex_runtime_uses_real_cpu_and_internal_feedback_signals(self):
+        root = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory(prefix="task14-ibex-", dir=root / "runs") as tmp:
+            artifact = make_ibex_rfuzz_artifact(root, Path(tmp))
+            with RtlSimulator(artifact) as simulator:
+                payload = artifact.transport.pack(0)
+                counters = simulator.run_test((payload,) * 80)
+            self.assertEqual(2, len(counters))
+            self.assertTrue(any(counters))
+
+    @unittest.skipUnless(os.environ.get("MYFUZZ_RFuzz_CLIENT"), "official RFuzz client opt-in")
+    def test_ibex_official_client_round_trips_real_feedback_and_corpus(self):
+        self.assertIsNotNone(run_live, "live upstream RFuzz runner missing")
+        root = Path(__file__).resolve().parents[2]
+        with live_directory() as tmp:
+            work = Path(tmp)
+            artifact = make_ibex_rfuzz_artifact(root, work)
+            result = run_live(
+                artifact, Path(os.environ["MYFUZZ_RFuzz_CLIENT"]), work / "run", duration_seconds=2, seed_cycles=80
+            )
+            self.assertGreater(result["tests"], 1)
+            self.assertGreater(result["corpus_entries"], 1)
+            self.assertTrue(result["corpus_manifest"]["replays"][0]["coverage_verified"])
+            self.assertEqual(result["status"], "completed")

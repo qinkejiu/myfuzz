@@ -12,6 +12,7 @@ from pathlib import Path
 import selectors
 import signal
 import subprocess
+import sys
 import time
 
 from myfuzz.contracts import canonical_bytes
@@ -24,6 +25,9 @@ from myfuzz.composition.protocol_composer import (
 )
 from myfuzz.composition.rfuzz_transport import build_rfuzz_transport, RfuzzInputTransport
 from myfuzz.composition.runtime_projection import RuntimeProjector
+from .rtl_execution_monitor import (
+    validate_monitor, monitor_rtl, monitor_output, parse_metrics, validate_execution,
+)
 from .campaign import CampaignOptions, run_supervised_command, read_process_group_rss_bytes
 
 MAX_CYCLES = 65536
@@ -41,22 +45,28 @@ class SimulatorArtifact:
     coverage_kind: str = "sampled-output-bit-events-u8-saturating"
     control_defaults: Mapping[str, object] = None
     randomized_controls: tuple[str, ...] = ()
+    simulator_args: tuple[str, ...] = ()
+    simulator: str = "icarus"
+    isolate_tests: bool = False
+    execution_monitor: dict | None = None
 
 
 _CONTROL_ROLE_ALIASES = {
     "boot_address": frozenset(("boot_address", "boot_addr", "reset_vector")),
     "hart_id": frozenset(("hart_id", "hartid")),
     "debug_request": frozenset(("debug_request", "debug_req", "debug")),
-    "interrupt": frozenset(("interrupt", "interrupt_request", "irq")),
+    "interrupt": frozenset(("interrupt", "interrupt_request", "irq", "software_interrupt",
+                             "timer_interrupt", "external_interrupt", "fast_interrupt",
+                             "nonmaskable_interrupt", "non_maskable_interrupt")),
 }
 _CONTROL_DEFAULTS = {role: 0 for role in _CONTROL_ROLE_ALIASES}
 
 
-def _canonical_control_role(role):
+def _canonical_control_role(role, explicit=()):
     for canonical, aliases in _CONTROL_ROLE_ALIASES.items():
         if role in aliases:
             return canonical
-    return None
+    return role if role in explicit else None
 
 
 def _normalize_control_roles(value):
@@ -86,9 +96,9 @@ def _control_defaults(value):
     for role, default in value.items():
         if not isinstance(role, str):
             raise ValueError("control default role must be a string")
-        canonical = _canonical_control_role(role)
-        if canonical is None:
-            raise ValueError(f"unsupported control default: {role}")
+        canonical = _canonical_control_role(role) or role
+        if not role or not role.isidentifier():
+            raise ValueError(f"invalid control default: {role}")
         if type(default) is not int or default < 0:
             raise ValueError("control default must be a nonnegative integer")
         result[canonical] = default
@@ -101,8 +111,8 @@ def _runtime_control_bindings(plan, ports, layout, randomized_controls, defaults
     bindings = []
     present = set()
     for field in source_fields:
-        canonical = _canonical_control_role(field.role)
-        if canonical is None or field.field_id in included or canonical in randomized_controls:
+        canonical = _canonical_control_role(field.role, defaults)
+        if canonical is None or field.field_id in included:
             continue
         present.add(canonical)
         if field.direction not in ("input", "inout") or field.port not in ports:
@@ -119,22 +129,22 @@ def _runtime_control_bindings(plan, ports, layout, randomized_controls, defaults
         elif ports[field.port]["width"] != field.width:
             raise ValueError("scalar runtime control width mismatch")
         bindings.append((field, value))
-    requested = set(randomized_controls)
-    if not requested.issubset(present | {
-        _canonical_control_role(field.role)
-        for field in source_fields
-        if _canonical_control_role(field.role) is not None
-    }):
-        raise ValueError("randomized control is not declared")
+    for role in randomized_controls:
+        if not any(_canonical_control_role(field.role) == role and
+                   field.field_id in included for field in source_fields):
+            raise ValueError(f"randomized control lacks interface opt-in: {role}")
     document = {
         "roles": tuple(sorted(present)),
         "values": {role: defaults[role] for role in sorted(present)},
         "policy": "explicit-opt-in; otherwise constant",
+        "bindings": [{"field_id": f.field_id, "port": f.port, "width": f.width,
+                      "raw_lo": f.port_raw_lo, "raw_hi": f.port_raw_hi, "value": v}
+                     for f, v in bindings],
     }
     return tuple(bindings), document
 
 
-def _runtime_boundary(plan, base_dir, *, randomized_controls=()):
+def _runtime_boundary(plan, base_dir, *, randomized_controls=(), control_defaults=()):
     randomized_controls = _normalize_control_roles(randomized_controls)
     execution = getattr(plan, "processor_execution", None)
     if execution is None:
@@ -189,20 +199,17 @@ def _runtime_boundary(plan, base_dir, *, randomized_controls=()):
     wanted = {p for p, r in ports.items() if r["direction"] == "input"} - clocks - resets
     fields, seen, cursor = [], set(), 0
     for field in plan.layout.fields:
-        role = _canonical_control_role(field.role)
-        if field.port not in wanted or (role is not None and role not in randomized_controls):
+        role = _canonical_control_role(field.role, control_defaults)
+        enabled = role in randomized_controls and field.constraint.get("randomizable") is True
+        if field.port not in wanted or (role is not None and not enabled):
             continue
         seen.add(field.port)
         fields.append(replace(field, raw_lo=cursor, raw_hi=cursor + field.width - 1))
         cursor += field.width
-    expected = {
-        field.port for field in plan.layout.fields
-        if field.port in wanted and (
-            _canonical_control_role(field.role) is None
-            or _canonical_control_role(field.role) in randomized_controls
-        )
-    }
-    if seen != expected or not fields or cursor > 65536:
+    fixed = {field.port for field in plan.layout.fields
+             if _canonical_control_role(field.role, control_defaults) is not None}
+    expected = wanted - fixed
+    if not expected.issubset(seen) or not fields or cursor > 65536:
         raise ValueError("unbound or oversized runtime input layout")
     provisional = InputLayout("input_layout.v1", cursor, tuple(fields), "pending")
     doc = input_layout_document(provisional)
@@ -210,11 +217,15 @@ def _runtime_boundary(plan, base_dir, *, randomized_controls=()):
     for f in doc["fields"]:
         f.pop("provenance", None)
     layout = replace(provisional, layout_hash=hashlib.sha256(canonical_bytes(doc)).hexdigest())
-    projector = RuntimeProjector(layout, isa=plan.request.isa)
+    projector = RuntimeProjector(
+        layout,
+        isa=plan.request.isa,
+        require_compiler_provenance=getattr(plan, "processor_execution", None) is not None,
+    )
     return ports, clock, reset, next(iter(contracts))[0], layout, projector
 
 
-def _bench(ports, clock, reset, polarity, layout, coverage, *, control_bindings=()):
+def _bench(ports, clock, reset, polarity, layout, coverage, *, control_bindings=(), coverage_signals=(), execution_monitor=None):
     names = {p: r["opaque_port"] for p, r in ports.items()}
     declarations = [f"logic [{r['width']-1}:0] {r['opaque_port']};" for r in ports.values()]
     inputs = []
@@ -232,15 +243,22 @@ def _bench(ports, clock, reset, polarity, layout, coverage, *, control_bindings=
     connections = ",".join(f".{n}({n})" for n in names.values())
     active = 0 if polarity == "active_low" else 1
     c, r = names[clock], names[reset]
+    observations = tuple(coverage) + tuple((f"dut.{signal}", bit) for signal, bit in coverage_signals)
+    expressions = tuple(f"{names[port]}[{bit}]" for port, bit in coverage) + tuple(
+        f"((dut.{signal} >> {bit}) & 1'b1)" for signal, bit in coverage_signals
+    )
     sample = []
-    for i, (port, bit) in enumerate(coverage):
-        sample += [f"if ({names[port]}[{bit}] !== 1'b0 && {names[port]}[{bit}] !== 1'b1) $fatal(1,\"unknown observation\");",
-                   f"if ({names[port]}[{bit}] && counters[{i}] != 8'hff) counters[{i}] = counters[{i}] + 1'b1;"]
+    for i, expression in enumerate(expressions):
+        sample += [f"if ({expression} !== 1'b0 && {expression} !== 1'b1) $fatal(1,\"unknown observation\");",
+                   f"if ({expression} && counters[{i}] != 8'hff) counters[{i}] = counters[{i}] + 1'b1;"]
     return "\n".join([
         "module myfuzz_live_tb;", *declarations, *controls,
         f"reg [{layout.raw_width-1}:0] raw_bits = 0;",
-        f"reg [7:0] counters[0:{len(coverage)-1}]; integer count, scan, i, j;",
+        f"reg [7:0] counters[0:{len(observations)-1}]; integer count, scan, i, j;",
         *inputs, f"generic_composition_top dut({connections});",
+        *(f'initial if ({bit} >= $bits(dut.{signal})) $fatal(1,"observation bit out of range");'
+          for signal, bit in coverage_signals),
+        *monitor_rtl(c, r, active, execution_monitor),
         f"task tick; begin #5; {c}=1; #5; {c}=0; end endtask",
         f"initial begin {c}=0; {r}={1-active};",
         '$display("RFUZZ_READY"); $fflush();',
@@ -249,35 +267,54 @@ def _bench(ports, clock, reset, polarity, layout, coverage, *, control_bindings=
         'if (scan != 1) $finish;',
         f'if (count < 1 || count > {MAX_CYCLES}) $fatal(1,"cycle count");',
         f"raw_bits=0; {r}={active}; tick(); tick(); {r}={1-active};",
-        f"for (j=0;j<{len(coverage)};j=j+1) counters[j]=0;",
+        f"for (j=0;j<{len(observations)};j=j+1) counters[j]=0;",
         "for (i=0;i<count;i=i+1) begin",
         'scan=$fscanf(32\'h80000000,"%h",raw_bits);',
         'if (scan != 1) $fatal(1,"raw sample");',
         "tick();", *sample, "end",
         '$write("RFUZZ_COUNTERS ");',
-        f'for (j=0;j<{len(coverage)};j=j+1) $write("%02x",counters[j]);',
+        f'for (j=0;j<{len(observations)};j=j+1) $write("%02x",counters[j]);',
+        *monitor_output(execution_monitor),
         '$write("\\n"); $fflush();', "end end endmodule\n",
     ])
 
 
 def build_simulator(plan, output_dir, *, base_dir, coverage_ports,
-                    randomized_controls=(), control_defaults=None):
+                    coverage_inputs=(),
+                    randomized_controls=(), control_defaults=None, coverage_signals=(),
+                    simulator_args=(), simulator="icarus", isolate_tests=False, execution_monitor=None):
     """Publish into a new directory only; reject unsafe boundaries before build."""
     root, output = Path(base_dir).resolve(), Path(output_dir).absolute()
     if output.exists() or output.is_symlink():
         raise ValueError("simulator output already exists")
+    if simulator not in {"icarus", "verilator"}:
+        raise ValueError("unsupported simulator")
+    if type(isolate_tests) is not bool:
+        raise ValueError("isolate_tests must be boolean")
     plan = _validate_generic_plan_freshness(plan, root)
+    execution_monitor = validate_monitor(execution_monitor)
+    if execution_monitor is not None and getattr(plan, "processor_execution", None) is None:
+        raise ValueError("execution monitor requires generated processor backend")
     randomized_controls = _normalize_control_roles(randomized_controls)
     defaults = _control_defaults(control_defaults)
+    if isinstance(simulator_args, (str, bytes)) or not isinstance(simulator_args, Sequence):
+        raise ValueError("simulator args must be a sequence")
+    if any(not isinstance(value, str) or not value for value in simulator_args):
+        raise ValueError("simulator args must be nonempty strings")
+    simulator_args = tuple(simulator_args)
     ports, clock, reset, polarity, layout, projector = _runtime_boundary(
-        plan, root, randomized_controls=randomized_controls
+        plan, root, randomized_controls=randomized_controls, control_defaults=defaults
     )
     control_bindings, control_document = _runtime_control_bindings(
         plan, ports, layout, randomized_controls, defaults
     )
     coverage = tuple(coverage_ports)
-    if not coverage or len(coverage) > 4096:
+    input_coverage = tuple(coverage_inputs)
+    signals = tuple(coverage_signals)
+    if not coverage and not input_coverage and not signals:
         raise ValueError("explicit bounded output-bit observations required")
+    if len(coverage) + len(input_coverage) + len(signals) > 4096:
+        raise ValueError("too many coverage observations")
     for item in coverage:
         if not isinstance(item, tuple) or len(item) != 2:
             raise ValueError("invalid output-bit observation")
@@ -287,29 +324,79 @@ def build_simulator(plan, output_dir, *, base_dir, coverage_ports,
             raise ValueError("invalid output-bit observation")
     if len(set(coverage)) != len(coverage):
         raise ValueError("duplicate output-bit observation")
+    randomized_input_ports = {
+        field.port for field in layout.fields
+        if field.constraint.get("randomizable") is True
+    }
+    for item in input_coverage:
+        if not isinstance(item, tuple) or len(item) != 2:
+            raise ValueError("invalid randomized runtime input observation")
+        port, bit = item
+        if (not isinstance(port, str) or port not in randomized_input_ports
+                or port not in ports or ports[port]["direction"] != "input"
+                or type(bit) is not int or not 0 <= bit < ports[port]["width"]):
+            raise ValueError("coverage input must be a randomized runtime input")
+    if len(set(input_coverage)) != len(input_coverage):
+        raise ValueError("duplicate randomized runtime input observation")
+    for item in signals:
+        if (not isinstance(item, tuple) or len(item) != 2 or not isinstance(item[0], str)
+                or not item[0].isidentifier() or type(item[1]) is not int or item[1] < 0):
+            raise ValueError("invalid internal coverage observation")
+    if len(set(signals)) != len(signals):
+        raise ValueError("duplicate internal coverage observation")
+    boundary_coverage = coverage + input_coverage
+    observations = boundary_coverage + tuple((f"dut.{signal}", bit) for signal, bit in signals)
+    coverage_kind = (
+        "sampled-dut-signal-bit-events-u8-saturating"
+        if input_coverage else "sampled-output-bit-events-u8-saturating"
+    )
     transport = build_rfuzz_transport(layout)
-    bench = _bench(ports, clock, reset, polarity, layout, coverage,
-                   control_bindings=control_bindings)
+    bench = _bench(ports, clock, reset, polarity, layout, boundary_coverage,
+                   control_bindings=control_bindings, coverage_signals=signals,
+                   execution_monitor=execution_monitor)
     output.mkdir(parents=True, exist_ok=False)
     write_generic_composition(plan, output / "composition", base_dir=root)
     (output / "runtime_layout.json").write_bytes(canonical_bytes(input_layout_document(layout)))
     (output / "runtime_transport.json").write_bytes(canonical_bytes(transport.document()))
     (output / "observations.json").write_bytes(canonical_bytes({
-        "kind": "sampled-output-bit-events-u8-saturating",
+        "kind": coverage_kind,
         "transport": "rfuzz-coverage-buffer",
-        "ports": [list(c) for c in coverage],
+        "ports": [list(c) for c in observations],
+        "randomized_input_ports": [list(c) for c in input_coverage],
+        "internal_signals": [list(c) for c in signals],
     }))
     bench_path = output / "live_tb.sv"
     bench_path.write_text(bench)
-    executable = output / "sim.vvp"
-    command = ("nice", "-n15", "iverilog", "-g2012", "-s", "myfuzz_live_tb", "-o", str(executable),
-               *("-I" + str(p) for p in _generic_include_paths(plan, root)),
-               *_generic_define_options(plan), *(str(root / f) for f in plan.source_files),
-               str(output / "composition/generic_composition_top.sv"), str(bench_path))
-    result = run_supervised_command(CampaignOptions(command=command, output_dir=output / "build",
-        duration_seconds=30, checkpoint_seconds=1, env={"JOBS": "1"}))
+    # Publication adds execution sources (including the shared arbiter) which
+    # are not necessarily members of the original CPU/component source list.
+    published_sources = tuple(
+        str((output / "composition" / line).resolve())
+        for line in (output / "composition/sources.f").read_text().splitlines()
+        if line and not line.startswith(("+", "-"))
+    )
+    sources = (*published_sources, str(bench_path))
+    includes = tuple("-I" + str(p) for p in _generic_include_paths(plan, root))
+    if simulator == "icarus":
+        executable = output / "sim.vvp"
+        command = ("nice", "-n15", "iverilog", "-g2012", "-s", "myfuzz_live_tb",
+                   "-o", str(executable), *includes, *_generic_define_options(plan), *sources)
+    else:
+        executable = output / "obj_dir/Vmyfuzz_live_tb"
+        command = ("nice", "-n15", "verilator", "--binary", "--timing",
+                   "--top-module", "myfuzz_live_tb", "-Wno-fatal", "-j", "1",
+                   "--Mdir", str(output / "obj_dir"),
+                   *includes, *_generic_define_options(plan), *sources)
+    log_path = output / "compiler.log"
+    supervised = (sys.executable, "-c",
+        "import subprocess,sys; "
+        "log=open(sys.argv[1],'wb'); "
+        "result=subprocess.call(sys.argv[2:],stdout=log,stderr=subprocess.STDOUT); "
+        "log.close(); sys.exit(result)", str(log_path), *command)
+    result = run_supervised_command(CampaignOptions(command=supervised, output_dir=output / "build",
+        duration_seconds=120 if simulator == "verilator" else 30,
+        checkpoint_seconds=1, env={"JOBS": "1", "MAKEFLAGS": "-j1"}))
     if result["status"] != "completed" or result["returncode"] != 0:
-        raise ValueError(f"Icarus build failed: {result}")
+        raise ValueError(f"{simulator} build failed; see {log_path}: {result}")
     (output / "artifact_provenance.json").write_bytes(canonical_bytes({
         "schema_version": "rfuzz_artifact_provenance.v1",
         "interface_description": interface_description_document(plan.interface_description),
@@ -328,13 +415,24 @@ def build_simulator(plan, output_dir, *, base_dir, coverage_ports,
         "instruction_mode": projector.instruction_mode,
         "runtime_controls": {**control_document, "randomized": list(randomized_controls)},
         "coverage_transport": "sysv-shared-memory-rfuzz-coverage-buffer",
-        "coverage_kind": "sampled-output-bit-events-u8-saturating",
+        "coverage_kind": coverage_kind,
         "coverage_ports": [list(c) for c in coverage],
+        "coverage_inputs": [list(c) for c in input_coverage],
+        "coverage_signals": [list(c) for c in signals],
+        "simulator_args": list(simulator_args),
+        "simulator": simulator,
+        "isolate_tests": isolate_tests,
+        "execution_monitor": execution_monitor,
     }))
     return SimulatorArtifact(
-        layout, transport, executable, coverage, projector,
+        layout, transport, executable, observations, projector,
+        coverage_kind=coverage_kind,
         control_defaults=control_document,
         randomized_controls=randomized_controls,
+        simulator_args=simulator_args,
+        simulator=simulator,
+        isolate_tests=isolate_tests,
+        execution_monitor=execution_monitor,
     )
 
 
@@ -348,7 +446,13 @@ class RtlSimulator:
             raise ValueError("finite simulator deadline required")
         self.artifact, self.timeout_seconds = artifact, timeout_seconds
         self._next_rss_poll = 0.0  # Immediate startup check; shared across tests.
-        self.process = subprocess.Popen(("nice", "-n15", "vvp", str(artifact.executable)),
+        self._executions = 0
+        self._start()
+
+    def _start(self):
+        artifact = self.artifact
+        runner = ("vvp",) if artifact.simulator == "icarus" else ()
+        self.process = subprocess.Popen(("nice", "-n15", *runner, str(artifact.executable), *artifact.simulator_args),
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
         self.closed = False
         try:
@@ -409,11 +513,21 @@ class RtlSimulator:
             raise ValueError("bounded nonempty sample sequence required")
         if len(records) * (self.artifact.layout.raw_width // 4 + 2) > MAX_IO_BYTES:
             raise ValueError("test input exceeds IO bound")
+        if self.artifact.isolate_tests and self._executions:
+            self.close()
+            self._start()
+        self._executions += 1
         samples = [self.artifact.projector.project(self.artifact.transport.unpack(r)) for r in records]
         payload = (str(len(samples)) + "\n" + "".join(f"{s:x}\n" for s in samples)).encode("ascii")
         try:
             count = len(self.artifact.coverage_ports)
-            reply = self._exchange(payload, 2 * count + 32, monitor=monitor)
+            reply = self._exchange(payload, 2 * count + 256, monitor=monitor)
+            self.last_execution = {}
+            if self.artifact.execution_monitor is not None:
+                reply, separator, metrics = reply.partition(b" EXEC ")
+                if not separator:
+                    raise ValueError("missing RTL execution metrics")
+                self.last_execution = validate_execution(parse_metrics(metrics))
             prefix = b"RFUZZ_COUNTERS "
             if not reply.startswith(prefix) or len(reply) != len(prefix) + 2 * count:
                 raise ValueError("invalid simulator counter response")

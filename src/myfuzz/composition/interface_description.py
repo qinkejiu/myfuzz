@@ -115,10 +115,13 @@ class FieldHint:
     aliases: tuple[str, ...] = ()
     required: bool = True
     physical: PhysicalSelector | None = None
+    randomizable: bool = False
 
     def __post_init__(self) -> None:
         if self.physical is not None and self.aliases:
             raise ValueError("physical-aliases-mutually-exclusive")
+        if not isinstance(self.randomizable, bool):
+            raise ValueError("randomizable must be boolean")
 
 
 @dataclass(frozen=True, slots=True)
@@ -167,6 +170,7 @@ def _field(value: Mapping[str, object]) -> FieldHint:
         aliases=_strings(value.get("aliases", [])),
         required=value.get("required", True),  # type: ignore[arg-type]
         physical=physical,
+        randomizable=value.get("randomizable", False),  # type: ignore[arg-type]
     )
 
 
@@ -231,6 +235,8 @@ def _field_document(field: FieldHint) -> dict[str, object]:
         document["aliases"] = sorted(field.aliases)
     if not field.required:
         document["required"] = False
+    if field.randomizable:
+        document["randomizable"] = True
     if field.physical is not None:
         document["physical"] = {"port": field.physical.port, "member_path": list(field.physical.member_path)}
     return document

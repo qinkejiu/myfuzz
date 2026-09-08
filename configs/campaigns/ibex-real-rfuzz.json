@@ -1,0 +1,65 @@
+{
+  "id": "ibex-rv32imc-real-rfuzz-v1",
+  "interface": "configs/cpus/ibex/official_core_interface_description.json",
+  "isa": "rv32imc",
+  "isa_contract": {
+    "xlen": 32,
+    "extensions": ["I", "M", "C"],
+    "privilege_modes": ["M"],
+    "instruction_alignment": 2
+  },
+  "protocol": ["obi", "1"],
+  "memory_module": "riscv_boot_memory_32",
+  "reset_vector": 128,
+  "probe_cycles": 80,
+  "composition_seed": 20260908,
+  "randomizable_fields": [
+    "processor.interrupts:software_interrupt",
+    "processor.interrupts:timer_interrupt",
+    "processor.interrupts:external_interrupt",
+    "processor.interrupts:fast_interrupt"
+  ],
+  "control_defaults": {
+    "boot_address": 128,
+    "hart_id": 0,
+    "request": 0,
+    "interrupt": 0,
+    "fetch_enable": 5,
+    "scan_reset": 1,
+    "test_enable": 0,
+    "counter_enable_writable": 5,
+    "cheriot_enable": 10,
+    "instruction_integrity": 0,
+    "data_integrity": 0,
+    "data_tag": 0,
+    "trvk_heap_base": 0,
+    "trvk_grant": 0,
+    "trvk_response_valid": 0,
+    "trvk_read_data": 0,
+    "trvk_read_integrity": 0,
+    "trvk_error": 0,
+    "scramble_key_valid": 0,
+    "scramble_key": 0,
+    "scramble_nonce": 0
+  },
+  "peripherals": [
+    {
+      "name": "scratch-registers",
+      "module": "processor_register_target",
+      "source": "src/myfuzz/integration/rtl/processor_register_target.sv",
+      "mode": 0
+    },
+    {
+      "name": "gpio-registers",
+      "module": "processor_register_target",
+      "source": "src/myfuzz/integration/rtl/processor_register_target.sv",
+      "mode": 1
+    },
+    {
+      "name": "timer-registers",
+      "module": "processor_register_target",
+      "source": "src/myfuzz/integration/rtl/processor_register_target.sv",
+      "mode": 2
+    }
+  ]
+}

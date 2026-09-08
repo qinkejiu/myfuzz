@@ -122,6 +122,31 @@ class CampaignSupervisorTests(unittest.TestCase):
             self.assertGreater(result["rss_sample_count"], 0)
             self.assertGreater(result["peak_rss_bytes"], 0)
 
+    def test_short_lived_compiler_member_can_span_several_rss_retries(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            options = self._options(
+                Path(temporary) / "campaign",
+                "import time; time.sleep(0.3)",
+            )
+            original = campaign.read_process_group_rss_bytes
+            calls = 0
+
+            def transient(pgid: int) -> int:
+                nonlocal calls
+                calls += 1
+                if calls <= 5:
+                    raise CampaignError("short-lived compiler changed state")
+                return original(pgid)
+
+            with mock.patch.object(
+                campaign, "read_process_group_rss_bytes", side_effect=transient
+            ):
+                result = campaign.run_supervised_command(options)
+
+            self.assertEqual("completed", result["status"])
+            self.assertEqual(0, result["returncode"])
+            self.assertGreaterEqual(calls, 6)
+
     def test_rss_error_after_crash_cleans_up_remaining_process_group(self) -> None:
         source = """
             import subprocess
