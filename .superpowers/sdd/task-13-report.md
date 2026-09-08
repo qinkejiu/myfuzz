@@ -12,7 +12,7 @@ Task 13 is **INCOMPLETE / BLOCKED** because BOOM has no actual execution evidenc
 
 - Base: `9b2b22091cc2b18863581526f77a31bf72932479`.
 - Existing Task 13 commits: `31b0192` and `bb831af`.
-- Final reset-vector implementation/evidence commit: pending at report-write time.
+- Final reset-vector implementation/evidence commit: `eeb96d2`.
 - Pre-existing `.superpowers/sdd/task-2-report.md` modification was preserved and not staged.
 - Official pinned source checkouts and unrelated untracked outputs were not modified, removed, repinned, downloaded, or staged.
 
