@@ -64,6 +64,18 @@ def _tl_memory() -> ProcessorMemoryBinding:
     )
 
 
+def _ready_valid_memory(*extra: EndpointFieldFact) -> ProcessorMemoryBinding:
+    fields = (
+        _field("valid", "output"), _field("ready", "input"),
+        _field("addr", "output", 32), _field("wdata", "output", 32),
+        _field("wstrb", "output", 4), _field("rdata", "input", 32),
+        *extra,
+    )
+    return ProcessorMemoryBinding(
+        "memory", "memory_master", ("ready-valid-memory", "1"), fields, tuple(extra)
+    )
+
+
 class ProcessorAdapterTests(unittest.TestCase):
     def test_axi_adapter_selection_uses_protocol_and_explicit_extension_policy(self) -> None:
         extras = tuple(
@@ -122,6 +134,16 @@ class ProcessorAdapterTests(unittest.TestCase):
         self.assertEqual(("processor-memory-beat", "1"), adapter.target_protocol)
         self.assertEqual((), adapter.extension_policies)
         self.assertNotIn("boom", repr(adapter).lower())
+
+    def test_ready_valid_memory_adapter_maps_pico_style_fields(self) -> None:
+        adapter = resolve_processor_adapter(_ready_valid_memory())
+        self.assertEqual("ready-valid-to-processor-memory-beat", adapter.adapter_id)
+        self.assertEqual(("processor-memory-beat", "1"), adapter.target_protocol)
+        self.assertIn("partial-write", adapter.features)
+
+    def test_ready_valid_memory_unknown_extension_fails_closed(self) -> None:
+        with self.assertRaisesRegex(ProcessorAdapterError, "unsupported-extension:mystery"):
+            resolve_processor_adapter(_ready_valid_memory(_field("mystery", "output")))
 
     def test_obi_adapter_is_derived_from_read_write_and_optional_signals(self) -> None:
         read_only = resolve_processor_adapter(_obi_memory(_field("error", "input")))

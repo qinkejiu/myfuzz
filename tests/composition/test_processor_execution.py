@@ -14,6 +14,7 @@ from myfuzz.composition.processor_boundary import (
     ProcessorBoundary,
     ProcessorControlBinding,
     ProcessorMemoryBinding,
+    RequestClassification,
 )
 from myfuzz.composition.processor_execution import (
     ProcessorExecutionError,
@@ -107,6 +108,25 @@ def _memory(
     )
 
 
+def _ready_valid_memory() -> tuple[ProcessorMemoryBinding, RequestClassification]:
+    fields = (
+        _field("valid", "output", 1, "mem_valid"),
+        _field("ready", "input", 1, "mem_ready"),
+        _field("addr", "output", 32, "mem_addr"),
+        _field("wdata", "output", 32, "mem_wdata"),
+        _field("wstrb", "output", 4, "mem_wstrb"),
+        _field("rdata", "input", 32, "mem_rdata"),
+        _field("instruction_identity", "output", 1, "mem_instr"),
+    )
+    memory = ProcessorMemoryBinding(
+        "processor.memory.unified", "memory_master", ("ready-valid-memory", "1"),
+        fields, (fields[-1],),
+    )
+    return memory, RequestClassification(
+        "explicit_signal", memory.endpoint_id, "instruction_identity", fields[-1], 1, 0,
+    )
+
+
 def _boundary(memory: ProcessorMemoryBinding, containers=()) -> ProcessorBoundary:
     clock = ProcessorControlBinding("processor.clock", "clock", (_field("clock", "input", 1, "clk"),))
     reset = ProcessorControlBinding("processor.reset", "reset", (_field("reset", "input", 1, "rst_n"),))
@@ -136,8 +156,8 @@ def _generic_processor_plan(
     source.write_text(
         f"module {module}(input logic clk, input logic rst_n, output logic req, "
         "input logic gnt, output logic [31:0] addr, input logic rvalid, "
-        f"input logic [31:0] rdata, input logic error{boot_port}); "
-        f"{behavior} endmodule\n",
+        f"input logic [31:0] rdata, input logic error, output logic mem_instr{boot_port}); "
+        f"{behavior} assign mem_instr = 1'b0; endmodule\n",
         encoding="utf-8",
     )
     adapter_source = root / "src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv"
@@ -155,7 +175,7 @@ def _generic_processor_plan(
          "protocol": ["obi", "1"], "fields": [
              {"role": role, "aliases": [role]}
              for role in ("req", "gnt", "addr", "rvalid", "rdata", "error")
-         ]},
+         ] + [{"role": "instruction_identity", "aliases": ["mem_instr"]}]},
     ]
     if include_reset:
         endpoints.insert(1, {
@@ -259,6 +279,16 @@ class ProcessorExecutionTests(unittest.TestCase):
             selections,
         )
 
+    def test_execution_document_contains_explicit_classification(self) -> None:
+        memory, classification = _ready_valid_memory()
+        plan = build_processor_execution(
+            replace(_boundary(memory), classification=classification),
+            protocol_catalog=self.catalog,
+        )
+        document = processor_execution_document(plan)
+        self.assertEqual("explicit_signal", document["classification"]["mode"])
+        self.assertEqual("instruction_identity", document["classification"]["field_role"])
+
     def test_rejects_invalid_or_ambiguous_execution_facts(self) -> None:
         memory, containers = _memory(("axi4", "1"), packed_inputs=True)
         cases = []
@@ -333,9 +363,9 @@ class ProcessorExecutionTests(unittest.TestCase):
                 source.write_text(
                     f"module {module}(input logic clk, input logic rst_n, output logic req, "
                     "input logic gnt, output logic [31:0] addr, input logic rvalid, "
-                    "input logic [31:0] rdata, input logic error); "
+                    "input logic [31:0] rdata, input logic error, output logic mem_instr); "
                     "always_ff @(posedge clk or negedge rst_n) "
-                    "if (!rst_n) req <= 1'b0; else req <= 1'b1; endmodule\n",
+                    "if (!rst_n) req <= 1'b0; else req <= 1'b1; assign mem_instr = 1'b0; endmodule\n",
                     encoding="utf-8",
                 )
                 adapter_source = root / "src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv"
@@ -361,7 +391,7 @@ class ProcessorExecutionTests(unittest.TestCase):
                          "protocol": ["obi", "1"], "fields": [
                              {"role": role, "aliases": [role]}
                              for role in ("req", "gnt", "addr", "rvalid", "rdata", "error")
-                         ]},
+                         ] + [{"role": "instruction_identity", "aliases": ["mem_instr"]}]},
                     ],
                 })
                 plan = plan_generic_composition(

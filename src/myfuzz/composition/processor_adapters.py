@@ -61,6 +61,8 @@ _OBI_EXTENSION_POLICIES = (
     ExtensionPolicy("error", "input", "propagate-backend-error", width=1),
 )
 
+_READY_VALID_EXTENSION_POLICIES = ()
+
 _ADAPTERS = {
     ("axi4", "1"): ProcessorAdapterDefinition(
         adapter_id="axi4-to-processor-memory-beat",
@@ -124,6 +126,25 @@ _ADAPTERS = {
             ("wdata", "wdata_i", "input"), ("be", "be_i", "input"),
             ("rvalid", "rvalid_o", "output"), ("rdata", "rdata_o", "output"),
             ("error", "error_o", "output"),
+        ),
+    ),
+    ("ready-valid-memory", "1"): ProcessorAdapterDefinition(
+        adapter_id="ready-valid-to-processor-memory-beat",
+        source_protocol=("ready-valid-memory", "1"),
+        target_protocol=("processor-memory-beat", "1"),
+        rtl_module="ready_valid_processor_memory_adapter",
+        rtl_source="src/myfuzz/protocols/rtl/ready_valid_processor_memory_adapter.sv",
+        features=(
+            "single-outstanding", "read-write", "partial-write",
+            "error-response-zero", "bounded-completion",
+        ),
+        extension_policies=_READY_VALID_EXTENSION_POLICIES,
+        reset_polarity="active_low",
+        reset_synchrony="synchronous",
+        source_ports=(
+            ("valid", "valid_i", "input"), ("ready", "ready_o", "output"),
+            ("addr", "addr_i", "input"), ("wdata", "wdata_i", "input"),
+            ("wstrb", "wstrb_i", "input"), ("rdata", "rdata_o", "output"),
         ),
     ),
     ("tl-ul", "1"): ProcessorAdapterDefinition(

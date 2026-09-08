@@ -15,7 +15,11 @@ from .endpoint_capabilities import EndpointFieldFact
 from .ids import canonical_id
 from .input_layout import InputLayout, LayoutField
 from .processor_adapters import ProcessorAdapterError, resolve_processor_adapter
-from .processor_boundary import ProcessorBoundary, ProcessorMemoryBinding
+from .processor_boundary import (
+    ProcessorBoundary,
+    ProcessorMemoryBinding,
+    RequestClassification,
+)
 
 
 class ProcessorExecutionError(ValueError):
@@ -45,6 +49,7 @@ class ProcessorExecutionPlan:
     routes: tuple[ProcessorExecutionRoute, ...]
     adapter_sources: tuple[str, ...]
     execution_hash: str
+    classification: RequestClassification | None = None
 
 
 _WIDTH_ROLES = {
@@ -287,10 +292,30 @@ def _extension_document(policy: object) -> dict[str, object]:
 
 def _route(
     memory: ProcessorMemoryBinding, catalog: ProtocolCatalog,
+    classification: RequestClassification | None = None,
 ) -> ProcessorExecutionRoute:
     _validated_fields(memory, catalog)
+    adapter_memory = memory
+    if (
+        classification is not None
+        and classification.mode == "explicit_signal"
+        and classification.endpoint_id == memory.endpoint_id
+        and classification.field_role is not None
+    ):
+        adapter_fields = tuple(
+            field for field in memory.fields
+            if field.role != classification.field_role
+        )
+        adapter_extensions = tuple(
+            field for field in memory.extension_fields
+            if field.role != classification.field_role
+        )
+        adapter_memory = ProcessorMemoryBinding(
+            memory.endpoint_id, memory.function, memory.protocol,
+            adapter_fields, adapter_extensions,
+        )
     try:
-        adapter = resolve_processor_adapter(memory)
+        adapter = resolve_processor_adapter(adapter_memory)
     except ProcessorAdapterError as error:
         raise ProcessorExecutionError(str(error)) from error
     widths = _derived_widths(memory)
@@ -310,7 +335,7 @@ def _route(
         "signed": field.signed,
         "adapter_port": source_ports[field.role],
         "physical": _physical(field),
-    } for field in sorted(memory.fields, key=lambda item: item.role))
+    } for field in sorted(adapter_memory.fields, key=lambda item: item.role))
     route_key = f"{memory.function}:{memory.protocol[0]}@{memory.protocol[1]}"
     return ProcessorExecutionRoute(
         canonical_id("processor-memory-route", route_key), memory.endpoint_id,
@@ -323,10 +348,33 @@ def _route(
     )
 
 
-def _document(routes: tuple[ProcessorExecutionRoute, ...]) -> dict[str, object]:
+def _classification_document(
+    classification: RequestClassification | None,
+) -> dict[str, object] | None:
+    if classification is None:
+        return None
+    document: dict[str, object] = {
+        "mode": classification.mode,
+        "field_role": classification.field_role,
+        "instruction_value": classification.instruction_value,
+        "data_value": classification.data_value,
+    }
+    if classification.field is not None:
+        document["physical"] = _physical(classification.field)
+        document["width"] = classification.field.width
+        document["direction"] = classification.field.direction
+        document["evidence"] = list(classification.field.evidence)
+    return document
+
+
+def _document(
+    routes: tuple[ProcessorExecutionRoute, ...],
+    classification: RequestClassification | None = None,
+) -> dict[str, object]:
     return {
         "schema_version": "processor_execution.v1",
         "adapter_sources": sorted({route.rtl_source for route in routes}),
+        "classification": _classification_document(classification),
         "routes": [{
             "route_id": route.route_id,
             "function": route.function,
@@ -361,13 +409,14 @@ def build_processor_execution(
     _validate_packed_inputs(boundary)
     _validate_input_ownership(boundary, input_layout)
     routes = tuple(sorted(
-        (_route(memory, protocol_catalog) for memory in boundary.memories),
+        (_route(memory, protocol_catalog, boundary.classification)
+         for memory in boundary.memories),
         key=lambda item: (item.function, item.route_id),
     ))
-    document = _document(routes)
+    document = _document(routes, boundary.classification)
     return ProcessorExecutionPlan(
         routes, tuple(document["adapter_sources"]),
-        content_hash(document),
+        content_hash(document), boundary.classification,
     )
 
 
@@ -375,7 +424,7 @@ def processor_execution_document(plan: ProcessorExecutionPlan) -> dict[str, obje
     """Return the canonical execution record included in composition IR."""
     if not isinstance(plan, ProcessorExecutionPlan):
         raise ProcessorExecutionError("plan:type")
-    document = _document(plan.routes)
+    document = _document(plan.routes, plan.classification)
     document["execution_hash"] = plan.execution_hash
     return document
 
