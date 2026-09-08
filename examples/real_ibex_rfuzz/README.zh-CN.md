@@ -126,7 +126,7 @@ RFuzz transport 使用 64 位倍数的记录长度：
 
 ### 指令 selector 与最小修复
 
-在本例 `illegal_instruction=false` 下，32 位共有 56 个模板，16 位共有 26 个模板。
+在本例 `illegal_instruction=false` 下，32 位共有 50 个模板，16 位共有 26 个模板。
 模板数来自当前 ISA 契约，选择公式为：
 
 ```text
@@ -136,6 +136,8 @@ word = ((payload & ~fixed_mask) | fixed_value) & width_mask
 
 模板固定 opcode、funct 等必须满足的编码位，保留可自由变化的寄存器和立即数位。
 压缩指令还按需修复非零寄存器、非零立即数等保留编码限制。
+`C.ANDI` 的 6 位立即数均自由，包括 bit 12；合法 `0x9805`、`0x9855` 在 RV32/RV64
+下都原样保留。当前公开契约只实现 I/M/C，六种 Zicsr CSR 操作不属于 I 模板。
 
 | 输入 | 选择与修复结果 |
 | --- | --- |
@@ -210,7 +212,7 @@ bash examples/real_ibex_rfuzz/commands.sh check
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 nice -n15 \
   python3 examples/real_ibex_rfuzz/run_example.py compose \
   --input examples/real_ibex_rfuzz/input/ibex-scratch.json \
-  --output runs/examples/contract-rfuzz-compose
+  --output runs/examples/contract-rfuzz-new-compose
 ```
 
 组合命令编译真实 RTL，并两次执行 80 周期的全零 RFuzz 格式记录。由这些记录导出的
@@ -228,7 +230,7 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 nice -n15 \
   python3 examples/real_ibex_rfuzz/run_example.py test \
   --input examples/real_ibex_rfuzz/input/ibex-scratch.json \
   --client runs/rfuzz_client_native_build/target/debug/kfuzz \
-  --output runs/examples/contract-rfuzz-5s \
+  --output runs/examples/contract-rfuzz-new-5s \
   --seconds 5
 ```
 
@@ -240,8 +242,8 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 nice -n15 \
 
 ```bash
 PYTHONPATH=src:. python3 examples/real_ibex_rfuzz/run_example.py inspect \
-  --output runs/examples/contract-rfuzz-5s
-python3 -m json.tool runs/examples/contract-rfuzz-5s/live/corpus_manifest.json
+  --output runs/examples/contract-rfuzz-new-5s
+python3 -m json.tool runs/examples/contract-rfuzz-new-5s/live/corpus_manifest.json
 ```
 
 `completed_feedback_exchanges` 只统计完整提交并收到对应回复的共享内存交换。
@@ -250,7 +252,8 @@ python3 -m json.tool runs/examples/contract-rfuzz-5s/live/corpus_manifest.json
 
 ### 独立重建与语料重放
 
-合法的指令编码仍可能访问未实现 CSR 并触发硬件 trap。上游 RTL 的普通 stdout 诊断
+合法的指令编码仍可能因地址或处理器状态触发硬件 trap；显式 illegal 模式还可测试非法指令。
+上游 RTL 的普通 stdout 诊断
 会有界保存到 `simulator_diagnostics`（总行数及最多 32 条样本）；它们不属于覆盖反馈。
 仿真接口只接受明确的完整 `RFUZZ_COUNTERS` 帧，协议错误、超限输出和异常退出仍失败。
 Python 与生成仿真程序使用内部协议 `RFUZZ_READY 2`：每次请求附带单调 64 位编号，
@@ -262,32 +265,45 @@ Python 与生成仿真程序使用内部协议 `RFUZZ_READY 2`：每次请求附
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 nice -n15 \
   python3 examples/real_ibex_rfuzz/run_example.py replay \
   --input examples/real_ibex_rfuzz/input/ibex-scratch.json \
-  --output runs/examples/contract-rfuzz-5s \
-  --build-output runs/examples/contract-rfuzz-replay
+  --output runs/examples/contract-rfuzz-new-5s \
+  --build-output runs/examples/contract-rfuzz-new-replay
 ```
 
 这里 `--output` 指向保留的测试目录，`--build-output` 必须是新目录。命令独立重建
 simulator，再核对保留的 corpus manifest、执行身份和每条语料的 coverage。语料身份
-包含 raw、layout、contract/transducer、header、固定控制、simulator input 和 binary
+包含 raw、layout、contract/transducer、implementation、header、固定控制、simulator input 和 binary
 的哈希。独立重建允许 binary hash 随构建路径改变，但必须保持 composition、输入契约、
 测试头、固定控制与输入内容一致，且每条覆盖反馈相同；每份新二进制的身份另行记录。
 实际重放计数器的 SHA-256 必须等于原 manifest 的 `coverage_sha256`；读取到的保留
 trace 全部字节（含传输 padding）的哈希必须等于原 `trace_sha256`，缺失或篡改都会失败。
 
+`implementation_hash` 从实际生成 RTL 去除注释、归一化空白后的 token 文本计算，
+包含已编译的 ISA 选择/修复、协议等待和内存逻辑。它不含输出路径、自引用哈希注释或
+native binary 字节，并参与 `contract_hash`；同配置独立构建保持一致，逻辑变化必须改变。
+该身份显式保存在契约、artifact provenance、execution proof、manifest 和 replay 中。
+低层 replay 也读取语料旁的 `corpus_manifest.json`，按完整稳定身份及 raw/trace/coverage
+逐条核对。缺少新实现身份的旧 constrained 语料不能作为当前实现的兼容性证据。
+entry 若也带 inline 身份，其 binary/replay key 必须匹配原 manifest；独立构建不要求
+这些原构建字段等于新二进制身份，但仍必须逐项匹配所有稳定语义身份。
+
 命令脚本提供对应快捷入口：
 
 ```bash
-bash examples/real_ibex_rfuzz/commands.sh compose runs/examples/contract-rfuzz-compose
-bash examples/real_ibex_rfuzz/commands.sh test runs/examples/contract-rfuzz-5s 5
-bash examples/real_ibex_rfuzz/commands.sh inspect runs/examples/contract-rfuzz-5s
+bash examples/real_ibex_rfuzz/commands.sh compose runs/examples/contract-rfuzz-new-compose
+bash examples/real_ibex_rfuzz/commands.sh test runs/examples/contract-rfuzz-new-5s 5
+bash examples/real_ibex_rfuzz/commands.sh inspect runs/examples/contract-rfuzz-new-5s
 bash examples/real_ibex_rfuzz/commands.sh replay \
-  runs/examples/contract-rfuzz-5s runs/examples/contract-rfuzz-replay
+  runs/examples/contract-rfuzz-new-5s runs/examples/contract-rfuzz-new-replay
 ```
+
+以上 `new-*` 是供重新运行使用的新目录示例；如果已存在，须改用另一个新目录。
 
 ## 5. 当前测试结果
 
-最终保留运行是 `runs/examples/contract-rfuzz-review-5s`，对应实现提交 `8180065`
-和协议/重放修复 `a89b713`。以下数值来自该目录的 `summary.json`、`live/report.json`
+最终保留运行是 `runs/examples/contract-rfuzz-final-5s`，对应最终复审修复提交 `6d4ef8a`。
+兼容后续修复 `dba09b1` 处理 inline/manifest 的重复构建身份校验和非 UTF-8 源码闭包
+附件，不改变本例的指令规则、生成 RTL 或契约身份。
+以下数值来自该目录的 `summary.json`、`live/report.json`
 及语料重放产物；重新运行会产生新的实测结果。
 
 | 实测项目 | 结果 |
@@ -297,19 +313,20 @@ bash examples/real_ibex_rfuzz/commands.sh replay \
 | instruction request / response / 首次初始化 | 249246 / 248306 / 248306 |
 | protocol / transducer / 总 errors | 0 / 0 / 0 |
 | 客户端退出码 / 遗留共享内存段 | 0 / 0 |
-| 请求停止时长 / 实际发出中断 | 5 秒 / 5.000014610002836 秒 |
-| 排空时长 / 实际总时长 | 23.80154176299766 秒 / 28.802813402002357 秒 |
-| 采样进程组 RSS 峰值 / 普通 RTL 诊断 | 108134400 bytes / 4 行 |
+| 请求停止时长 / 实际发出中断 | 5 秒 / 5.000071473001299 秒 |
+| 排空时长 / 实际总时长 | 23.32143781099876 秒 / 28.32273579500179 秒 |
+| 采样进程组 RSS 峰值 / 普通 RTL 诊断 | 108556288 bytes / 0 行 |
 
 本次 23 条语料的独立重建证据是
-`runs/examples/contract-rfuzz-review-replay/rebuild_replay.json`。较早保存在
-`runs/examples/contract-rfuzz-5s` 的另一份 23 条语料也由新协议二进制成功重放，证据是
-`runs/examples/contract-rfuzz-original23-review-replay/rebuild_replay.json`；这两份重建
-均逐条核对原输入、trace、coverage 和执行身份。旧语料重建不计入本次 live 测试数。
+`runs/examples/contract-rfuzz-final-replay/rebuild_replay.json`，逐条核对原输入、trace、
+coverage 和执行身份。独立 compose 证据在 `runs/examples/contract-rfuzz-final-compose/`。
+旧 `contract-rfuzz-review-5s` 和 `contract-rfuzz-5s` 的 23 条语料仍保留为历史证据，
+其旧契约缺少实现身份且含错误 ISA 模板，不能重归属到当前实现；此前的旧语料兼容性
+结论仅适用于修复前构建，不计入本次验收。
 
 [expected/bounded-result.json](expected/bounded-result.json) 保存完整 composition、
-layout、constraint/transducer、header、二进制、配置文件和证据文件 SHA-256，并列出
-`entry_0001.json` 的代表性 raw/input、coverage、trace 与 replay key；其他条目的
+layout、constraint/transducer、implementation、header、二进制、配置文件和证据文件 SHA-256，并列出
+`entry_0000.json` 的代表性 raw/input、coverage、trace 与 replay key；其他条目的
 完整身份在其绑定的 corpus manifest 和 replay 文件中。`replay_key` 包含 binary hash，
 因此独立构建的 key 会改变；原始输入和覆盖反馈仍须相同。证据文件哈希按磁盘全部
 字节计算，不能把重排 JSON 后的文件直接视作同一文件。
@@ -318,7 +335,7 @@ layout、constraint/transducer、header、二进制、配置文件和证据文�
 
 ```bash
 PYTHONPATH=src python3 examples/real_ibex_rfuzz/run_example.py inspect \
-  --output runs/examples/contract-rfuzz-review-5s
+  --output runs/examples/contract-rfuzz-final-5s
 python3 -m json.tool examples/real_ibex_rfuzz/expected/bounded-result.json
 ```
 

@@ -219,3 +219,20 @@ Fix commit scope is exactly the handoff, its focused example-test assertion and
 this appended report. No production code, measured expected values, run artifacts,
 progress ledger, main-workspace handoff, task-2 report or third_party files changed.
 Self-review found no remaining inconsistency for this finding. No push was performed.
+
+## Superseding final whole-branch review fix
+
+Commit `6d4ef8a` closes the six later Important findings. Its corrected I/M/C
+rules and generated-RTL implementation identity supersede the old numeric
+identities and saved-corpus compatibility conclusions in this historical report.
+Pre-fix manifests omit the required implementation binding and do not count as
+current replay acceptance.
+
+The current guides and expected reference now describe
+`runs/examples/contract-rfuzz-final-compose`, `contract-rfuzz-final-5s` and
+`contract-rfuzz-final-replay`: fresh real composition/probe, the native client's
+five-second stop request with bounded drain, and 23 independently rebuilt corpus
+replays. Exact current measurements, hashes, final regression and the remaining
+AXI lane-validation Minor are recorded in `.superpowers/sdd/final-fix-report.md`.
+Task 14 formal closure, 3×300 seconds and BOOM remain deferred. Earlier report
+sections remain unchanged as historical evidence; no push was performed.

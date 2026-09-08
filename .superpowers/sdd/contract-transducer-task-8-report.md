@@ -434,3 +434,20 @@ official client source/IPC, no DUT-internal control, and no unrelated refactor.
 Only the two reviewed integration boundaries, their tests, example documentation,
 measured reference and this append-only report changed. The original limitations
 above still apply; this review fix does not claim 3×300-second or BOOM acceptance.
+
+## Superseding final whole-branch review fix
+
+The measurements and saved-corpus compatibility conclusions above are historical
+and apply only to the pre-final-fix implementation. Final review commit `6d4ef8a`
+corrects the C.ANDI encoding and removes Zicsr CSR templates from the I/M/C
+contract (now 50 32-bit plus 26 compressed templates). It also binds the actual
+generated RTL through `implementation_hash`, so old corpus manifests without that
+identity fail closed and must not be relabeled as current-compatible evidence.
+
+The fresh native-client run is `runs/examples/contract-rfuzz-final-5s`, with zero
+ordinary RTL diagnostics and 23 successfully matched same-build replays; its 23
+independent rebuilt replays are in `runs/examples/contract-rfuzz-final-replay`.
+Current measurements and all replacement identities are recorded in
+`examples/real_ibex_rfuzz/expected/bounded-result.json` and
+`.superpowers/sdd/final-fix-report.md`. The final focused Task 8 regression is
+259 passed, 9 subtests passed. No historical artifacts were rewritten.
