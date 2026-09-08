@@ -46,7 +46,7 @@
     "trvk_grant": 0,
     "trvk_response_valid": 0,
     "trvk_read_data": 0,
-    "trvk_identity": 0,
+    "trvk_read_integrity": 0,
     "trvk_error": 0,
     "scramble_key_valid": 0,
     "scramble_key": 0,

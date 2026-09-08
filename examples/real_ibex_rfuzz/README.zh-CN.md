@@ -246,7 +246,8 @@ fixed controls     : boot/hart/fetch/reset/integrity controls
 
 ```text
 composition hash   sha256:d7c35e7dcdc0c5b92b90c39a5e411d5fe8791db9a702b9c8ff08ab2c9969c4e6
-layout hash        3ea07faa48b6fa02878bbab3c68d589b72c16dc9d5b829248c3294e305062304
+layout hash        256f048e229cfcc1c582a861ec14afe29929a2aceb6d77f6741e1769bc44e0f1
+constraint hash    sha256:3ddb7186ce5ce304658fcd263ae30926bf979164116fe5938f6004c55f47c1f3
 first fetch match  1
 requests           11
 completions        11
@@ -280,6 +281,193 @@ RFuzz raw bytes
 不进入可变输入布局。原始 fuzzer 字节不能绕过约束直接覆盖这些控制端口。布局哈希、
 约束哈希、物理控制哈希、仿真输入哈希和二进制哈希都会进入保存/重放证据，用来防止
 配置或构建变化被误认为同一测试。
+
+### RFuzz 输入约束的来源
+
+约束不是在 RFuzz 客户端里临时修改输入，而是在 simulator 建立之前汇总成一个不可变
+的 runtime constraint snapshot。它有四类来源：
+
+1. **接口事实**：端点字段的 `width`、`signed`、方向、物理端口及 packed member
+   坐标决定字段能否进入布局、占多少位以及最后驱动哪里。
+2. **字段约束**：组件或接口可以为 `(owner, role)` 声明 `range`、`alignment`、
+   `enum`、`mask`、`gated_by` 和 `randomizable`。
+3. **字段依赖**：握手 gate、byte enable/data 宽度和需要上游求解的
+   `dependency_group` 描述字段之间的关系。
+4. **ISA 契约**：`IsaContract` 的 XLEN、扩展、特权级和指令对齐决定 instruction
+   字段能否使用合法 RISC-V 编码投影。
+
+```text
+interface fields ─────────────┐
+component_constraints ────────┼─► build_input_layout
+IsaContract ──────────────────┘         │
+                                       ▼
+                              immutable InputLayout
+                              ├─ raw bit ranges
+                              ├─ field constraints
+                              ├─ dependency metadata
+                              ├─ physical bindings
+                              └─ layout_hash
+                                       │
+control_defaults ─────────────┐         ▼
+randomized_controls ──────────┼─► runtime boundary filtering
+field.randomizable ───────────┘         │
+                                       ▼
+                               RuntimeProjector
+                               ├─ constraint validation
+                               ├─ constraint_hash
+                               └─ project/project_ports
+```
+
+### 从接口字段生成 InputLayout
+
+`build_input_layout()` 只收集 DUT 的 `input`/`inout` 字段，并使用
+`owner + role` 作为字段身份。字段按 owner、optional、role 和物理端口稳定排序，然后
+连续分配 RFuzz raw bit 区间：
+
+```text
+LayoutField
+├── field_id       = owner:role
+├── width
+├── raw_lo/raw_hi  = 在 RFuzz 输入 word 中的位置
+├── encoding       = bits / raw_instruction / riscv_imc
+├── constraint
+├── dependency_group
+├── port
+├── signed
+└── member_path + port_raw_lo/raw_hi/port_width
+```
+
+最终布局必须完整使用 raw bits，不能出现 hole、overlap、重复字段或重复物理端口。
+packed 输入还必须满足所有 member slice 无重叠地覆盖完整容器，并具有
+`compiler_elaboration` 证据。
+
+### 支持的字段约束
+
+| 约束 | 语义 | 验证规则 |
+| --- | --- | --- |
+| `range: [lo, hi]` | 把任意 raw value 映射到闭区间 | 边界必须适合字段 signed/width |
+| `alignment: N` | 输出必须按 N 对齐 | N 必须是正的 2 次幂且不超过字段空间 |
+| `enum: [...]` | 输出只能从有限集合中选择 | 非空、无重复、适合位宽，并满足 range/mask/alignment |
+| `mask: M` | 禁止 mask 外的位为 1 | mask 必须非负且适合字段位宽 |
+| `gated_by: owner:valid` | gate 为 0 时本字段强制为 0 | 必须引用同 owner 的 1 位 valid 字段 |
+| `randomizable: true` | 允许字段进入选定的 runtime fuzz 边界 | 必须是布尔值，并同时通过 control policy |
+| `byte_enable_width: N` | byte enable 与同 owner data 建立宽度依赖 | data width 必须可整除 8，N 必须等于 data width/8 |
+
+约束可以组合，但组合必须有非空交集。例如 `range + alignment + mask` 会在构建
+projector 时预计算有限候选集合；候选空间超过 1,000,000 或交集为空会被拒绝。
+
+### 字段依赖怎样处理
+
+当前运行时支持三种已经具体绑定的依赖关系：
+
+1. **Gate 依赖**：`gated_by` 引用同一 owner 的一位 `valid`。先分别约束两个字段，
+   再检查 gate；gate 为 0 时，被依赖字段最终强制归零。`ready` 与同 owner `valid`
+   同时存在时，layout builder 默认建立这个依赖。
+2. **宽度依赖**：`byte_enable` 的位数必须严格等于同 owner `data.width / 8`。例如
+   32 位 data 只能配 4 位 byte enable。
+3. **ISA 依赖**：`riscv_imc` instruction 字段依赖完整 `IsaContract`。16 位指令还
+   要求包含 C 扩展并声明 2 字节对齐。
+
+`dependency_group` 用于声明两个或更多字段属于同一个需要联合求解的关系组。layout
+阶段要求每个 group 至少有两个成员，但当前 `RuntimeProjector` 不会擅自推断组内
+关系；如果一个 `dependency_group` 到运行时仍未被上游求解并消除，会以
+`unbound runtime dependency group` 失败关闭。也就是说，它是“必须在投影前解析”的
+依赖标记，不是当前运行时可以忽略的注释。
+
+### 精确投影顺序
+
+`RuntimeProjector` 把最终顺序固化在 constraint document 的 `projection_order`：
+
+```text
+1. mask
+2. finite_selection_or_range_alignment
+3. instruction_legality
+4. inactive_gate_zero
+5. raw_reconstruction
+```
+
+具体过程是：
+
+1. 从 `raw_lo:raw_hi` 提取字段原始值。
+2. 如果存在 `mask`，先执行 `source &= mask`。
+3. 如果存在 `enum`，用 `source % len(enum)` 选择合法枚举项。
+4. 如果存在 `range + mask`，从预计算的合法交集候选集中取值。
+5. 否则处理 signed，并按 `range/alignment` 做模映射和对齐。
+6. 对 `riscv_imc` 检查指令合法性；非法 32 位指令替换为 `0x00000013`，非法 16 位
+   压缩指令替换为 `0x0001`，两者都是相应宽度的合法 NOP。
+7. 执行 `inactive_gate_zero`。这一步故意晚于 enum/range；gate 为 0 时，0 会覆盖
+   其他字段约束，即使 enum 的活动值列表没有 0。
+8. 执行 `raw_reconstruction`，把每个约束后的字段放回其 layout raw slice。
+9. `project_ports()` 再根据 scalar/packed 物理坐标重建实际 DUT 输入端口。
+
+约束快照记录 `gating_semantics=inactive_zero_overrides_field_constraints`。调用者之后
+修改原始 Python list/dict 不会改变已经运行的 projector。
+
+### 数值示例一：range、alignment、signed 和 gate
+
+假设布局是：
+
+```text
+bit 0       e:valid    width=1
+bits 1..8   e:address  width=8, range=[16,28], alignment=4
+bit 9       e:ready    width=1, gated_by=e:valid
+bits 10..17 e:data     width=8, signed, range=[-8,7]
+```
+
+输入取：`valid=0`、raw address=`255`、raw ready=`1`、raw data=`255`。投影结果为：
+
+```text
+address: 255 → [16,20,24,28] 中的 28
+ready:   1 → 因 valid=0，最终被 gate 强制为 0
+data:    255 → 8 位 signed 的 -1 → raw slice 中为 0xff
+```
+
+### 数值示例二：enum 和 mask
+
+```text
+enum field: width=4, enum=[1,4,7]
+mask field: width=4, mask=0b1010
+raw input : 0xf1
+```
+
+低 4 位原始值是 1，因此枚举选择 `enum[1 % 3] = 4`；高 4 位原始值是 `0xf`，
+mask 后得到 `0xf & 0xa = 0xa`。最终投影 word 是 `0xa4`。
+
+### 真实 Ibex 示例的约束依赖
+
+真实示例的接口描述先包含所有 Ibex 输入。`build_candidate()` 只给配置中的四组中断
+字段添加 `randomizable=true`。`build_simulator()` 同时传入：
+
+```text
+randomized_controls = ("interrupt",)
+control_defaults     = boot/hart/debug/fetch/reset/integrity 等固定值
+```
+
+runtime boundary 同时要求：字段属于 canonical `interrupt` control，并且字段上确实有
+`randomizable=true`，两者缺一不可。修正后的真实 runtime layout 正好是 18 位：
+
+```text
+raw bit 0       → irq_external_i[0]
+raw bits 1..15  → irq_fast_i[14:0]
+raw bit 16      → irq_software_i[0]
+raw bit 17      → irq_timer_i[0]
+```
+
+其他输入通过 `control_defaults` 生成固定 binding，不占用这 18 个 fuzz bits。coverage
+再观察这 18 个输入位以及 backend request/response 两个内部事件，因此当前反馈向量共
+20 个计数器。
+
+可以直接检查运行产物：
+
+```bash
+jq . runs/examples/real-ibex-compose/build/sim/runtime_layout.json
+jq '{layout_hash, constraint_hash, runtime_controls}' \
+  runs/examples/real-ibex-compose/build/sim/artifact_provenance.json
+```
+
+`constraint_hash` 绑定完整 layout、每个字段的约束和物理坐标、精确
+`projection_order`、gating semantics、instruction mode 以及完整 ISA contract。
+保存和重放语料时必须再次匹配该哈希；约束变化后，旧语料不会被误认为同一执行身份。
 
 ## 4. 目录内容
 
@@ -392,14 +580,14 @@ jq . runs/examples/real-ibex-rfuzz-5s/live/corpus_manifest.json
 
 ## 9. 当前简单测试结果
 
-`expected/bounded-result.json` 记录了此前保留的 5 秒真实 Ibex 预检：
+`expected/bounded-result.json` 记录了修正控制约束后重新执行的 5 秒真实 Ibex 预检：
 
-- 15,357 次 RTL 测试；
-- 13,440 个完成的 feedback receipt；
+- 33,657 次 RTL 测试；
+- 27,758 个完成的 feedback receipt；
 - 19 条保存并重放的语料；
-- 168,927 次 request 和 completion；
-- 153,570 次成功读取与地址进展；
-- 15,357 次外设 pass completion；
+- 370,227 次 request 和 completion；
+- 336,570 次成功读取与地址进展；
+- 33,657 次外设 pass completion；
 - 零协议错误、客户端返回码 0、零遗留共享内存。
 
 覆盖类型是 `sampled-dut-signal-bit-events-u8-saturating`，表示显式中断输入位和
@@ -418,7 +606,7 @@ RFuzz 为每次输入得到一组反馈计数，并维护整个运行到目前�
 输入 D → 新反馈位置 8     → 保存为语料
 ```
 
-因此，“执行一次测试”和“产生一条新语料”不是一回事。15,357 次执行最终只有 19 条
+因此，“执行一次测试”和“产生一条新语料”不是一回事。33,657 次执行最终只有 19 条
 语料是正常现象，表示绝大多数变异没有扩展已知反馈状态，而这 19 条输入分别贡献了
 可保留的反馈增益。
 

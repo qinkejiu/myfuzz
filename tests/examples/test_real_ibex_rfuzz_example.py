@@ -39,6 +39,12 @@ class RealIbexRfuzzExampleTests(unittest.TestCase):
         self.assertEqual(personality["name"], "scratch-registers")
         self.assertEqual(personality["mode"], 0)
 
+    def test_example_fixes_every_nonrandomized_execution_control(self):
+        document = json.loads(INPUT_PATH.read_text())
+        controls = document["control_defaults"]
+        self.assertIn("trvk_read_integrity", controls)
+        self.assertNotIn("trvk_identity", controls)
+
     def test_load_example_rejects_unknown_keys(self):
         module = load_module()
         document = json.loads(INPUT_PATH.read_text())
@@ -103,13 +109,18 @@ class RealIbexRfuzzExampleTests(unittest.TestCase):
             self.assertIn(text, guide)
         self.assertIn("不等同", guide)
 
+    def test_chinese_guide_explains_runtime_constraint_dependencies(self):
+        guide = GUIDE_PATH.read_text()
+        for term in ("projection_order", "dependency_group", "gated_by", "byte_enable_width", "inactive_gate_zero", "raw_reconstruction"):
+            self.assertIn(term, guide)
+
     def test_command_sheet_exists(self):
         self.assertTrue(COMMANDS_PATH.is_file(), "command sheet is missing")
 
     def test_reference_result_is_machine_readable(self):
         self.assertTrue(EXPECTED_PATH.is_file(), "bounded reference result is missing")
         result = json.loads(EXPECTED_PATH.read_text())
-        self.assertEqual(result["rtl_tests"], 15357)
+        self.assertEqual(result["rtl_tests"], 33657)
         self.assertFalse(result["formal_3x300_seconds_passed"])
         self.assertFalse(result["boom_processor_acceptance_passed"])
 
