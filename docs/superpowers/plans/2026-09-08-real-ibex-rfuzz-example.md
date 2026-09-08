@@ -32,7 +32,7 @@
 - Consumes: `build_candidate(root, output, config, personality)`, `run_live(artifact, client, output_dir, duration_seconds=..., seed_cycles=...)`, `replay_corpus(artifact, corpus_dir)`.
 - Produces: `load_example(path, root) -> tuple[dict, dict]`, `compose_example(root, input_path, output) -> dict`, `test_example(root, input_path, client, output, seconds) -> dict`, `inspect_example(output) -> dict`.
 
-- [ ] **Step 1: Write failing contract tests**
+- [x] **Step 1: Write failing contract tests**
 
 Test exact schema translation, rejection of unknown keys and bad schema versions,
 positive duration enforcement, missing-client rejection, mocked production call
@@ -46,7 +46,7 @@ self.assertEqual(personality["name"], "scratch-register")
 self.assertEqual(personality["mode"], 0)
 ```
 
-- [ ] **Step 2: Run tests and confirm RED**
+- [x] **Step 2: Run tests and confirm RED**
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest -v \
@@ -55,7 +55,7 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest -v \
 
 Expected: import/input failure because the example files do not exist.
 
-- [ ] **Step 3: Add the real-Ibex input document**
+- [x] **Step 3: Add the real-Ibex input document**
 
 Copy the valid processor values from
 `configs/campaigns/ibex-real-rfuzz.json`, replace the three-element
@@ -77,7 +77,7 @@ The completed document must retain the campaign's exact `id`, `interface`, ISA
 contract, OBI protocol, memory module, reset vector, probe cycles,
 randomizable fields, and control defaults.
 
-- [ ] **Step 4: Implement the thin CLI**
+- [x] **Step 4: Implement the thin CLI**
 
 Find the root with `Path(__file__).resolve().parents[2]`. Validate the exact
 top-level key set, schema, primitive types, personality key set, contained
@@ -94,11 +94,11 @@ shared-memory results. `inspect_example` validates and returns either summary.
 Expose `compose`, `test`, and `inspect` through `argparse`; print indented JSON.
 Convert `ValueError`, `OSError`, and `RuntimeError` into concise parser errors.
 
-- [ ] **Step 5: Run tests and confirm GREEN**
+- [x] **Step 5: Run tests and confirm GREEN**
 
 Run Step 2. Expected: all tests pass without Verilator or RFuzz execution.
 
-- [ ] **Step 6: Commit Task 1**
+- [x] **Step 6: Commit Task 1**
 
 ```bash
 git add examples/real_ibex_rfuzz/run_example.py \
@@ -120,18 +120,18 @@ git commit -m "feat: add runnable real Ibex RFuzz example"
 - Consumes: Task 1 CLI and input.
 - Produces: copyable commands, capability explanation, and historical reference evidence.
 
-- [ ] **Step 1: Add failing documentation consistency tests**
+- [x] **Step 1: Add failing documentation consistency tests**
 
 Parse both JSON documents, run `bash -n commands.sh`, assert every documented
 repository path exists, and require the guide to contain `run_example.py
 compose`, `run_example.py test`, `run_example.py inspect`, `5 秒`, and `3×300
 秒`. Verify the root README links to the guide.
 
-- [ ] **Step 2: Run the focused suite and confirm RED**
+- [x] **Step 2: Run the focused suite and confirm RED**
 
 Run Task 1 Step 2. Expected: missing documentation/artifact failures.
 
-- [ ] **Step 3: Write the Chinese walkthrough**
+- [x] **Step 3: Write the Chinese walkthrough**
 
 Cover system capability and boundaries, automatic-composition data flow,
 fail-closed checks, JSON-to-layout-to-DUT constraint projection, dependency
@@ -140,7 +140,7 @@ commands, the formal long-run command, troubleshooting, process/shared-memory
 cleanup, and a matrix separating implementation, fixture, real CPU, 5-second
 RFuzz evidence, and 300-second acceptance.
 
-- [ ] **Step 4: Add commands and retained result**
+- [x] **Step 4: Add commands and retained result**
 
 Make `commands.sh` use `set -euo pipefail`, derive and enter the repository root,
 export `PYTHONPATH=src:.` and `JOBS=1`, and show compose, 5-second test, inspect,
@@ -152,7 +152,7 @@ completed feedback receipts, 19 corpus entries, 168,927 requests/completions,
 zero errors, return code zero, zero remaining shared-memory segments, and false
 values for formal 3×300 seconds and BOOM acceptance.
 
-- [ ] **Step 5: Link the guide and validate all artifacts**
+- [x] **Step 5: Link the guide and validate all artifacts**
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest -v \
@@ -164,7 +164,7 @@ python3 -m json.tool examples/real_ibex_rfuzz/expected/bounded-result.json >/dev
 
 Expected: every command exits zero.
 
-- [ ] **Step 6: Commit Task 2**
+- [x] **Step 6: Commit Task 2**
 
 ```bash
 git add README.md examples/real_ibex_rfuzz/README.zh-CN.md \
@@ -183,7 +183,7 @@ git commit -m "docs: add real Ibex end-to-end walkthrough"
 - Consumes: complete example directory.
 - Produces: verified commits on the remote feature branch.
 
-- [ ] **Step 1: Verify all command help**
+- [x] **Step 1: Verify all command help**
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 examples/real_ibex_rfuzz/run_example.py --help
@@ -193,7 +193,7 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 examples/real_ibex_rfuzz/run_
 
 Expected: zero exit and documented arguments.
 
-- [ ] **Step 2: Run focused and full regression**
+- [x] **Step 2: Run focused and full regression**
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 nice -n15 python3 -m unittest -v tests.examples.test_real_ibex_rfuzz_example
@@ -203,7 +203,7 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 nice -n15 python3 -m unittest 
 Expected: focused tests pass; full regression ends with `OK` and only known
 opt-in skips.
 
-- [ ] **Step 3: Run real composition**
+- [x] **Step 3: Run real composition**
 
 ```bash
 PYTHONPATH=src:. JOBS=1 nice -n15 python3 examples/real_ibex_rfuzz/run_example.py compose \
@@ -215,7 +215,7 @@ Expected: first fetch matches, progress exceeds one, completions and pass
 completions are positive, and errors are zero. Use a new named output instead
 of deleting retained evidence if the path exists.
 
-- [ ] **Step 4: Run the 5-second official-client example**
+- [x] **Step 4: Run the 5-second official-client example**
 
 ```bash
 PYTHONPATH=src:. JOBS=1 nice -n15 python3 examples/real_ibex_rfuzz/run_example.py test \
@@ -229,7 +229,7 @@ replay, and no remaining owned segments. If the client is absent, report the
 environmental limitation and retain historical evidence without claiming a
 fresh pass.
 
-- [ ] **Step 5: Audit and push**
+- [x] **Step 5: Audit and push**
 
 ```bash
 git diff --check
