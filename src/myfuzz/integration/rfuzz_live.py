@@ -95,6 +95,10 @@ def replay_identity(artifact, raw_payload):
         "physical_controls_sha256": physical_controls_hash,
         "simulator_inputs_sha256": simulator_inputs_hash,
     }
+    for key in ("transducer_hash", "header_hash"):
+        value = getattr(artifact, key, None)
+        if value is not None:
+            inputs[key] = value
     return {
         **inputs,
         "physical_controls": physical_controls,
@@ -143,8 +147,9 @@ def build_corpus_manifest(artifact, corpus_dir, *, feedback_receipts=None):
         declared = document.get("replay_identity")
         if isinstance(declared, dict):
             for key in ("raw_sha256", "layout_hash", "constraint_hash", "binary_sha256",
-                        "physical_controls_sha256", "simulator_inputs_sha256", "replay_key"):
-                if key in declared and declared[key] != identity[key]:
+                        "physical_controls_sha256", "simulator_inputs_sha256", "replay_key",
+                        "transducer_hash", "header_hash"):
+                if key in declared and declared[key] != identity.get(key):
                     raise ValueError(f"RFuzz replay identity mismatch: {path.name}")
         receipt = (identity["raw_sha256"], _hash_bytes(bytes(actual["counters"])))
         if feedback_receipts is not None and receipt not in feedback_receipts:
@@ -438,18 +443,19 @@ def replay_corpus(artifact, corpus_dir):
             )
             if len(expected) != padded_count or any(expected[count:]):
                 raise ValueError("invalid RFuzz coverage padding")
+            identity = replay_identity(artifact, payload)
+            declared = document.get("replay_identity")
+            if isinstance(declared, dict):
+                for key in ("raw_sha256", "layout_hash", "constraint_hash", "binary_sha256",
+                            "physical_controls_sha256", "simulator_inputs_sha256", "replay_key",
+                            "transducer_hash", "header_hash"):
+                    if key in declared and declared[key] != identity.get(key):
+                        raise ValueError(f"RFuzz replay identity mismatch: {path.name}")
             width = artifact.transport.byte_count
             records = tuple(payload[i:i+width] for i in range(0, len(payload), width))
             counters = simulator.run_test(records)
             if counters != bytes(expected[:count]):
                 raise ValueError(f"RFuzz corpus coverage mismatch: {path.name}")
-            identity = replay_identity(artifact, payload)
-            declared = document.get("replay_identity")
-            if isinstance(declared, dict):
-                for key in ("raw_sha256", "layout_hash", "constraint_hash", "binary_sha256",
-                            "physical_controls_sha256", "simulator_inputs_sha256", "replay_key"):
-                    if key in declared and declared[key] != identity[key]:
-                        raise ValueError(f"RFuzz replay identity mismatch: {path.name}")
             physical = []
             projector = getattr(artifact, "projector", None)
             if projector is not None and hasattr(projector, "project_ports"):

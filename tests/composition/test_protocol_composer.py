@@ -9,7 +9,9 @@ import unittest
 from pathlib import Path
 
 from myfuzz.composition.protocol_composer import (
+    _render_processor_top,
     compose_protocol_composition,
+    write_generic_composition,
     write_protocol_composition,
 )
 from myfuzz.composition.protocol_manifest import (
@@ -227,6 +229,100 @@ class ProtocolComposerTests(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "missing-source-list"):
                 compose_protocol_composition(manifest, root / "generated", root=root)
+
+
+@unittest.skipUnless(shutil.which("verilator"), "Verilator required for processor fixture")
+class ContractCompositionTests(unittest.TestCase):
+    def _contract(self, **overrides):
+        from myfuzz.composition.contract_transducer import compile_contract_transducer
+        from myfuzz.isa.constraints import IsaContract
+        options = dict(
+            isa=IsaContract(32, ("I",)), protocol=("processor-memory-beat", "1"),
+            address_width=32, data_width=32,
+            memory_domains={"instruction_memory_master": "shared", "data_memory_master": "shared"},
+            max_wait_cycles=20, memory_capacity_entries=4,
+        )
+        return compile_contract_transducer(**{**options, **overrides})
+
+    def test_publishes_transducer_with_cycle_layout_and_backend_connections(self):
+        from tests.integration.test_processor_auto_wiring import _split_fixture
+        from myfuzz.composition.transducer_rtl import render_transducer_rtl
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plan = _split_fixture(root)
+            contract = self._contract()
+            output = root / "composition"
+            result = write_generic_composition(plan, output, base_dir=root, contract_transducer=contract)
+            self.assertEqual(json.loads(json.dumps(contract.document())),
+                             json.loads((output / "contract_transducer.json").read_text()))
+            self.assertEqual(render_transducer_rtl(contract), (output / "contract_transducer.sv").read_text())
+            self.assertIn("contract_transducer.sv", (output / "sources.f").read_text().splitlines())
+            self.assertEqual(contract.cycle_layout.document(), json.loads((output / "input_layout.json").read_text()))
+            transport = json.loads((output / "rfuzz_input_transport.json").read_text())
+            self.assertEqual(contract.cycle_layout.raw_width, transport["raw_width"])
+            self.assertEqual(contract.cycle_layout.layout_hash, result["layout_hash"])
+            top = (output / "generic_composition_top.sv").read_text()
+            self.assertIn(f"input logic [{contract.cycle_layout.raw_width - 1}:0] rfuzz_cycle_bits", top)
+            self.assertIn("input logic test_begin", top)
+            self.assertIn("input logic [31:0] test_boot_address", top)
+            self.assertIn("input logic test_illegal_instruction", top)
+            self.assertIn("myfuzz_contract_transducer u_contract_transducer", top)
+            self.assertIn(".req_instruction_i(backend_target_req_instruction)", top)
+            self.assertIn("backend_target_req_instruction <= backend_req_instruction", top)
+            self.assertIn(".test_begin_i(test_begin)", top)
+            self.assertIn("!backend_target_flush", top)
+            self.assertIn("assign backend_mapped = 1'b1;", top)
+            self.assertIn(".MAX_WAIT_CYCLES(56)", top)
+            self.assertIn("localparam integer MAX_WAIT_CYCLES = 56;", top)
+            self.assertNotIn("semantic_timeout_target", top)
+            self.assertNotIn("semantic_stateful_target", top)
+            self.assertNotIn("assign backend_target_req_ready", top)
+            self.assertNotIn("u_processor_backend_arbiter.owner", top)
+
+    def test_rejects_unified_memory_without_instruction_identity(self):
+        from tests.integration.test_processor_auto_wiring import _fixture
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plan, *_ = _fixture(root, ("obi", "1"), 31)
+            with self.assertRaisesRegex(ValueError, "split|instruction identity"):
+                write_generic_composition(plan, root / "composition", base_dir=root,
+                                          contract_transducer=self._contract())
+            self.assertFalse((root / "composition").exists())
+
+    def test_publication_binds_effective_backend_watchdog(self):
+        from tests.integration.test_processor_auto_wiring import _split_fixture
+        from myfuzz.contracts import content_hash
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plan = _split_fixture(root)
+            output = root / "composition"
+            summary = write_generic_composition(plan, output, base_dir=root,
+                                                contract_transducer=self._contract())
+            backend = json.loads((output / "processor_backend.v1.json").read_text())
+            self.assertEqual(56, backend["recovery"]["max_wait_cycles"])
+            self.assertEqual(summary["backend_hash"], backend["backend_hash"])
+            self.assertEqual(backend["backend_hash"], content_hash(
+                {key: value for key, value in backend.items() if key != "backend_hash"}
+            ))
+            execution = json.loads((output / "processor_execution.v1.json").read_text())
+            self.assertEqual(backend, execution["backend_route"])
+
+    def test_rejects_contract_width_function_and_watchdog_mismatches(self):
+        from tests.integration.test_processor_auto_wiring import _split_fixture
+        from myfuzz.composition.processor_backend import build_processor_backend
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plan = _split_fixture(root)
+            backend = build_processor_backend(plan.processor_execution, plan.ir["address_regions"])
+            for options, reason in (
+                ({"address_width": 64}, "width"),
+                ({"data_width": 64}, "width"),
+                ({"memory_domains": {"data_memory_master": "shared"}}, "function"),
+                ({"max_wait_cycles": 32760}, "wait bound"),
+            ):
+                with self.subTest(options=options):
+                    with self.assertRaisesRegex(ValueError, reason):
+                        _render_processor_top(plan, backend, contract_transducer=self._contract(**options))
 
 
 if __name__ == "__main__":

@@ -2,6 +2,8 @@
 from pathlib import Path
 from dataclasses import replace
 import os
+import json
+import hashlib
 import signal
 import sys
 from types import SimpleNamespace
@@ -12,6 +14,9 @@ import unittest
 
 from myfuzz.composition import GenericCompositionRequest, load_interface_description, plan_generic_composition, source_tree_hash
 from myfuzz.composition.input_layout import InputLayout, LayoutField
+from myfuzz.composition.contract_transducer import compile_contract_transducer
+from myfuzz.composition.cycle_input import CycleField, CycleInputLayout, TestHeader
+from myfuzz.isa.constraints import IsaContract
 try:
     from myfuzz.integration import rfuzz_simulator
 except ImportError:
@@ -55,6 +60,177 @@ def make_control_plan(root):
                                   for role, port in zip(roles, ports)]}],
     })
     return plan_generic_composition(GenericCompositionRequest(description, ()), base_dir=root), ports
+
+
+def make_contract_plan(root, *, external=False, controls=False, instruction_observation=False):
+    from tests.integration.test_processor_auto_wiring import _split_fixture
+    from myfuzz.composition.interface_description import interface_description_document
+    plan = _split_fixture(root)
+    if external or controls or instruction_observation:
+        source = root / "source/rtl/renamed_split.sv"
+        extra_ports, extra_logic, extra_fields = [], [], []
+        if external:
+            extra_ports += ["input logic [3:0] entropy_pin", "output logic [3:0] observed_entropy"]
+            extra_logic.append("assign observed_entropy=entropy_pin;")
+            extra_fields += [{"role": "data", "aliases": ["entropy_pin"]}, {"role": "status", "aliases": ["observed_entropy"]}]
+        if controls:
+            extra_ports += ["input logic [31:0] boot_pin", "input logic [3:0] hart_pin", "output logic controls_seen"]
+            extra_logic.append("assign controls_seen=(boot_pin==32'h80)&&(hart_pin==3);")
+            extra_fields += [{"role": "boot_address", "aliases": ["boot_pin"]}, {"role": "hart_id", "aliases": ["hart_pin"]},
+                             {"role": "controls_seen", "aliases": ["controls_seen"]}]
+        if instruction_observation:
+            extra_ports.append("output logic [31:0] instruction_word")
+            extra_logic.append("always_ff @(posedge clock_pin or negedge reset_pin) if(!reset_pin) instruction_word<=0; else if(i_response) instruction_word<=i_read_data;")
+            extra_fields.append({"role": "instruction_word", "aliases": ["instruction_word"]})
+        source.write_text(source.read_text().replace("output logic completion_flag,", ", ".join(extra_ports) + ", output logic completion_flag,")
+            .replace("logic i_active, d_active;", " ".join(extra_logic) + " logic i_active, d_active;"))
+        document = interface_description_document(plan.interface_description)
+        document["source"]["revision"] = source_tree_hash(root / "source", (source,))
+        document["endpoints"].append({"endpoint_id": "environment", "function": "control", "module": "renamed_split", "fields": extra_fields})
+        plan = plan_generic_composition(replace(plan.request, interface_description=load_interface_description(document)),
+            base_dir=root, component_catalog=plan.component_catalog, protocol_catalog=plan.protocol_catalog)
+    external_inputs = {field.field_id: field.width for field in plan.layout.fields if field.port == "entropy_pin"}
+    transducer = compile_contract_transducer(isa=IsaContract(32, ("I",)),
+        protocol=("processor-memory-beat", "1"), address_width=32, data_width=32,
+        memory_domains={"instruction_memory_master": "shared", "data_memory_master": "shared"},
+        external_inputs=external_inputs, max_wait_cycles=2, allow_error=False, memory_capacity_entries=4)
+    return plan, transducer
+
+
+@unittest.skipUnless(shutil.which("iverilog") and shutil.which("vvp") and shutil.which("verilator"), "RTL tools required")
+class ContractSimulatorTests(unittest.TestCase):
+    def test_cycle_external_slices_must_match_declared_physical_bindings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, contract = make_contract_plan(root, external=True)
+            changed_width = CycleInputLayout.build([CycleField(field.field_id,
+                1 if field.field_id.startswith("external.") else field.width) for field in contract.cycle_layout.fields])
+            extra_field = CycleInputLayout.build([*contract.cycle_layout.fields, CycleField("external.unbound", 1)])
+            for index, layout in enumerate((changed_width, extra_field)):
+                with self.subTest(index=index), self.assertRaisesRegex(ValueError, "external cycle"):
+                    rfuzz_simulator.build_simulator(plan, root / f"bad-{index}", base_dir=root,
+                        coverage_ports=(("completion_flag", 0),), contract_transducer=replace(contract, cycle_layout=layout))
+                self.assertFalse((root / f"bad-{index}").exists())
+
+    def test_maximal_contract_wait_is_not_cancelled_by_outer_watchdogs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, contract = make_contract_plan(root)
+            contract = replace(contract, max_wait_cycles=20)
+            artifact = rfuzz_simulator.build_simulator(plan, root / "runtime", base_dir=root,
+                coverage_ports=(("completion_flag", 0), ("instruction_errors_ok", 0)), contract_transducer=contract)
+            with rfuzz_simulator.RtlSimulator(artifact) as simulator:
+                counters = simulator.run_test((artifact.transport.pack(0),) * 500)
+            self.assertGreater(counters[0], 0)
+            self.assertLess(counters[1], 150)
+
+    def test_instruction_route_uses_instruction_entropy_and_fixed_header_mode(self):
+        from myfuzz.isa.transducer import RiscvInstructionTransducer
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, contract = make_contract_plan(root, instruction_observation=True)
+            fields = {field.field_id: field for field in contract.cycle_layout.fields}
+            raw = (255 << fields["instruction_selector"].raw_lo) | (0xabcdef00 << fields["instruction_payload"].raw_lo)
+            raw |= 3 << fields["response_choice"].raw_lo
+            for illegal in (False, True):
+                with self.subTest(illegal=illegal):
+                    header = TestHeader("cycle_test.v1", contract.cycle_layout.layout_hash, contract.contract_hash, 2, 150, 0, 0, illegal)
+                    artifact = rfuzz_simulator.build_simulator(plan, root / f"runtime-{illegal}", base_dir=root,
+                        coverage_ports=tuple(("instruction_word", bit) for bit in range(32)), contract_transducer=contract, test_header=header)
+                    with rfuzz_simulator.RtlSimulator(artifact) as simulator:
+                        counters = simulator.run_test((artifact.transport.pack(raw),) * 150)
+                    observed = sum((count > 0) << bit for bit, count in enumerate(counters))
+                    expected = RiscvInstructionTransducer(contract.isa).repair(255, 0xabcdef00, illegal=illegal).word
+                    self.assertEqual(observed, expected)
+
+    def test_header_fixed_controls_reach_physical_cpu_ports(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, contract = make_contract_plan(root, controls=True)
+            header = TestHeader("cycle_test.v1", contract.cycle_layout.layout_hash, contract.contract_hash, 2, 5, 0x80, 3)
+            artifact = rfuzz_simulator.build_simulator(plan, root / "runtime", base_dir=root,
+                coverage_ports=(("controls_seen", 0),), contract_transducer=contract, test_header=header)
+            with rfuzz_simulator.RtlSimulator(artifact) as simulator:
+                self.assertEqual(simulator.run_test((artifact.transport.pack(0),) * 5), bytes((5,)))
+
+    def test_rejects_invalid_header_external_bindings_and_fixed_boot_image(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, contract = make_contract_plan(root, external=True)
+            good = TestHeader("cycle_test.v1", contract.cycle_layout.layout_hash, contract.contract_hash, 2, 150, 0, 0)
+            cases = (
+                ({"test_header": replace(good, layout_hash="wrong")}, "layout hash"),
+                ({"test_header": replace(good, contract_hash="wrong")}, "contract hash"),
+                ({"test_header": replace(good, boot_address=2)}, "instruction alignment"),
+                ({"test_header": replace(good, reset_cycles=0)}, "bounded and positive"),
+                ({"test_header": good, "control_defaults": {"boot_address": 4}}, "conflicts"),
+                ({"randomized_controls": ("hart_id",)}, "must be fixed"),
+                ({"simulator_args": ("+riscv_boot_image=/missing",)}, "fixed boot image"),
+                ({"contract_transducer": replace(contract, external_inputs=())}, "external inputs"),
+            )
+            for index, (kwargs, message) in enumerate(cases):
+                with self.subTest(index=index), self.assertRaisesRegex(ValueError, message):
+                    rfuzz_simulator.build_simulator(plan, root / f"bad-{index}", base_dir=root,
+                        coverage_ports=(("completion_flag", 0),), **{"contract_transducer": contract, **kwargs})
+                self.assertFalse((root / f"bad-{index}").exists())
+
+    def test_publishes_contract_cycle_layout_and_identity_projection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, contract = make_contract_plan(root)
+            artifact = rfuzz_simulator.build_simulator(plan, root / "runtime", base_dir=root,
+                coverage_ports=(("completion_flag", 0),), contract_transducer=contract)
+            self.assertTrue((root / "runtime/contract_transducer.json").is_file())
+            self.assertTrue((root / "runtime/contract_transducer.sv").is_file())
+            self.assertEqual(artifact.layout, contract.cycle_layout)
+            self.assertEqual(artifact.transport.raw_width, contract.cycle_layout.raw_width)
+            self.assertEqual(artifact.projector.project((1 << artifact.layout.raw_width) - 1), (1 << artifact.layout.raw_width) - 1)
+            self.assertEqual(artifact.projector.constraint_hash, contract.contract_hash)
+            self.assertEqual(artifact.transducer_hash, contract.contract_hash)
+            self.assertTrue(artifact.header_hash)
+            self.assertFalse(any(arg.startswith("+riscv_boot_image=") for arg in artifact.simulator_args))
+            provenance = json.loads((root / "runtime/artifact_provenance.json").read_text())
+            self.assertEqual(provenance["header_hash"], artifact.header_hash)
+            self.assertEqual(provenance["transducer_hash"], artifact.transducer_hash)
+            self.assertEqual(provenance["transducer_rtl_sha256"], "sha256:" + hashlib.sha256((root / "runtime/contract_transducer.sv").read_bytes()).hexdigest())
+
+    def test_live_transducer_consumes_equal_width_cycles_and_clears_between_tests(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, contract = make_contract_plan(root, external=True)
+            artifact = rfuzz_simulator.build_simulator(plan, root / "runtime", base_dir=root,
+                coverage_ports=(("completion_flag", 0), ("instruction_errors_ok", 0), ("data_history", 0), ("observed_entropy", 0)),
+                contract_transducer=contract)
+            fields = {field.field_id: field for field in artifact.layout.fields}
+            raw = (3 << fields["response_choice"].raw_lo) | (1 << fields["response_data"].raw_lo)
+            raw |= 1 << fields["external.environment:data"].raw_lo
+            records = (artifact.transport.pack(raw),) * 150
+            with rfuzz_simulator.RtlSimulator(artifact) as simulator:
+                first = simulator.run_test(records)
+                second_raw = raw & ~(1 << fields["response_data"].raw_lo) & ~(1 << fields["external.environment:data"].raw_lo)
+                second = simulator.run_test((artifact.transport.pack(second_raw),) * 150)
+                again = simulator.run_test(records)
+            self.assertGreater(first[0], 0)
+            self.assertLess(first[1], 50)  # Instruction reads complete without target errors.
+            self.assertGreater(first[2], 0)
+            self.assertEqual(first[3], 150)
+            self.assertEqual(second[2:], bytes((0, 0)))
+            self.assertEqual(first, again)
+
+    def test_header_controls_and_cycle_limit_are_fixed_per_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan, contract = make_contract_plan(root)
+            header = TestHeader("cycle_test.v1", contract.cycle_layout.layout_hash, contract.contract_hash, 3, 10, 0, 0)
+            artifact = rfuzz_simulator.build_simulator(plan, root / "runtime", base_dir=root,
+                coverage_ports=(("completion_flag", 0),), contract_transducer=contract, test_header=header)
+            self.assertEqual(artifact.test_header, header)
+            bench = (root / "runtime/live_tb.sv").read_text()
+            self.assertIn("repeat (3) tick();", bench)
+            self.assertLess(bench.index("test_begin=1; tick(); test_begin=0;"), bench.index("repeat (3) tick();"))
+            with rfuzz_simulator.RtlSimulator(artifact) as simulator:
+                with self.assertRaisesRegex(ValueError, "header execution"):
+                    simulator.run_test((artifact.transport.pack(0),) * 11)
 
 
 @unittest.skipUnless(shutil.which("iverilog") and shutil.which("vvp"), "Icarus required")

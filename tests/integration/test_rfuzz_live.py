@@ -370,6 +370,94 @@ sys.exit(0)
                 replay(artifact, corpus)
 
 
+class ReplayIdentityTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        binary = self.root / "sim.vvp"
+        binary.write_bytes(b"simulator-v1")
+        self.artifact = SimpleNamespace(
+            layout=SimpleNamespace(layout_hash="sha256:layout"),
+            projector=SimpleNamespace(constraint_hash="sha256:constraints"),
+            executable=binary,
+            transport=SimpleNamespace(byte_count=8),
+            coverage_ports=(("out", 0),),
+            coverage_kind="test",
+        )
+        self.payload = bytes(8)
+
+    def test_replay_identity_binds_transducer_and_header_hashes(self):
+        from myfuzz.integration.rfuzz_live import replay_identity
+        self.artifact.transducer_hash = "sha256:transducer-v1"
+        self.artifact.header_hash = "sha256:header-v1"
+        identity = replay_identity(self.artifact, self.payload)
+        for key in ("transducer_hash", "header_hash"):
+            with self.subTest(key=key):
+                self.assertEqual(getattr(self.artifact, key), identity.get(key))
+                changed = SimpleNamespace(**vars(self.artifact))
+                setattr(changed, key, "sha256:changed")
+                self.assertNotEqual(
+                    identity["replay_key"],
+                    replay_identity(changed, self.payload)["replay_key"],
+                )
+
+    def test_absent_transducer_metadata_preserves_legacy_identity(self):
+        from myfuzz.integration.rfuzz_live import replay_identity
+        legacy = replay_identity(self.artifact, self.payload)
+        self.artifact.transducer_hash = None
+        self.artifact.header_hash = None
+        self.assertEqual(legacy, replay_identity(self.artifact, self.payload))
+        self.assertNotIn("transducer_hash", legacy)
+        self.assertNotIn("header_hash", legacy)
+
+    def test_corpus_rejects_changed_transducer_metadata_before_execution(self):
+        from myfuzz.integration import rfuzz_live
+        self.artifact.transducer_hash = "sha256:transducer-v1"
+        self.artifact.header_hash = "sha256:header-v1"
+        for operation in (rfuzz_live.replay_corpus, rfuzz_live.build_corpus_manifest):
+            for key in ("transducer_hash", "header_hash"):
+                with self.subTest(operation=operation.__name__, key=key):
+                    self._write_corpus({key: "sha256:other"})
+                    with patch.object(rfuzz_live, "RtlSimulator") as constructor:
+                        simulator = constructor.return_value.__enter__.return_value
+                        simulator.run_test.return_value = b"\1"
+                        with self.assertRaisesRegex(ValueError, "replay identity mismatch"):
+                            operation(self.artifact, self.root)
+                        simulator.run_test.assert_not_called()
+
+    def test_corpus_rejects_saved_transducer_binding_without_artifact_metadata(self):
+        from myfuzz.integration import rfuzz_live
+        for key in ("transducer_hash", "header_hash"):
+            with self.subTest(key=key):
+                self._write_corpus({key: "sha256:saved"})
+                with patch.object(rfuzz_live, "RtlSimulator") as constructor:
+                    simulator = constructor.return_value.__enter__.return_value
+                    simulator.run_test.return_value = b"\1"
+                    with self.assertRaisesRegex(ValueError, "replay identity mismatch"):
+                        rfuzz_live.replay_corpus(self.artifact, self.root)
+                    simulator.run_test.assert_not_called()
+
+    def test_corpus_manifest_retains_transducer_metadata(self):
+        from myfuzz.integration import rfuzz_live
+        self.artifact.transducer_hash = "sha256:transducer-v1"
+        self.artifact.header_hash = "sha256:header-v1"
+        self._write_corpus(rfuzz_live.replay_identity(self.artifact, self.payload))
+        with patch.object(rfuzz_live, "RtlSimulator") as constructor:
+            constructor.return_value.__enter__.return_value.run_test.return_value = b"\1"
+            manifest = rfuzz_live.build_corpus_manifest(self.artifact, self.root)
+        self.assertEqual(1, manifest["entries"])
+        for key in ("transducer_hash", "header_hash"):
+            self.assertEqual(getattr(self.artifact, key), manifest["replays"][0].get(key))
+
+    def _write_corpus(self, identity):
+        (self.root / "entry_0000.json").write_text(json.dumps({
+            "entry": {"inputs": list(self.payload)},
+            "trace_bits": [1, 0, 0, 0, 0, 0],
+            "replay_identity": identity,
+        }))
+
+
 @unittest.skipUnless(
     os.environ.get("MYFUZZ_RFuzz_REAL_CPU") and shutil.which("verilator"),
     "real CPU RFuzz opt-in",

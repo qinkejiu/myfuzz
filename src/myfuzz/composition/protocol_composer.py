@@ -12,7 +12,7 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from myfuzz.contracts import canonical_bytes, content_hash
@@ -1748,7 +1748,39 @@ def _processor_reset_signal(
     return active_high
 
 
-def _render_processor_top(plan: object, backend: object) -> str:
+def _validate_processor_transducer(plan: object, contract_transducer: object) -> int:
+    from .contract_transducer import ContractTransducerPlan
+    from .processor_execution import processor_execution_document
+
+    if not isinstance(contract_transducer, ContractTransducerPlan):
+        raise ValueError("processor transducer requires a ContractTransducerPlan")
+    if getattr(plan, "processor_execution", None) is None:
+        raise ValueError("contract transducer requires processor execution")
+    routes = processor_execution_document(plan.processor_execution)["routes"]
+    functions = {route["function"] for route in routes}
+    if len(routes) != 2 or functions != {"instruction_memory_master", "data_memory_master"}:
+        raise ValueError("contract transducer requires split memory functions with instruction identity")
+    if set(dict(contract_transducer.memory_domains)) != functions:
+        raise ValueError("contract transducer memory functions do not match processor routes")
+    if contract_transducer.protocol != ("processor-memory-beat", "1"):
+        raise ValueError("contract transducer backend protocol does not match processor routes")
+    for route in routes:
+        if (route["widths"]["address"], route["widths"]["data"]) != (
+            contract_transducer.address_width, contract_transducer.data_width,
+        ):
+            raise ValueError("contract transducer width does not match processor routes")
+    contract_transducer.cycle_layout.validate()
+    wait = contract_transducer.max_wait_cycles
+    if type(wait) is not int or wait < 1:
+        raise ValueError("contract transducer wait bound is invalid")
+    watchdog = max(2 * wait + 16, *(int(route["backend_contract"]["capabilities"]["max_wait_cycles"])
+                                  for route in routes))
+    if watchdog > 65_535:
+        raise ValueError("contract transducer outer wait bound exceeds 65535")
+    return watchdog
+
+
+def _render_processor_top(plan: object, backend: object, *, contract_transducer: object = None) -> str:
     from .processor_backend import processor_backend_document
     from .processor_execution import processor_execution_document
 
@@ -1760,6 +1792,9 @@ def _render_processor_top(plan: object, backend: object) -> str:
         raise ValueError("processor composition routing evidence hash is invalid")
     if not routes or len(routes) not in (1, 2):
         raise ValueError("processor composition route topology is invalid")
+    max_wait_cycles = int(backend_record["recovery"]["max_wait_cycles"])
+    if contract_transducer is not None:
+        max_wait_cycles = max(max_wait_cycles, _validate_processor_transducer(plan, contract_transducer))
     _validate_processor_drivers(routes)
     clock_port, reset_port, reset_semantics = _processor_controls(plan)
     all_records = {
@@ -1805,6 +1840,13 @@ def _render_processor_top(plan: object, backend: object) -> str:
         shape = "logic" if width == 1 else f"logic {'signed ' if record['signed'] else ''}[{width - 1}:0]"
         signed = " signed" if record["signed"] and width == 1 else ""
         declarations.append(f"    {record['direction']} {shape}{signed} {record['opaque_port']}")
+    if contract_transducer is not None:
+        declarations.extend((
+            f"    input logic [{contract_transducer.cycle_layout.raw_width - 1}:0] rfuzz_cycle_bits",
+            "    input logic test_begin",
+            f"    input logic [{contract_transducer.address_width - 1}:0] test_boot_address",
+            "    input logic test_illegal_instruction",
+        ))
     lines = [
         "// Generated from source-backed interface annotations. Do not edit.",
         "module generic_composition_top (", ",\n".join(declarations), ");",
@@ -1853,7 +1895,8 @@ def _render_processor_top(plan: object, backend: object) -> str:
             f"({wires['addr']} >= {_sv_literal(address_width, int(region['base']))} && {wires['addr']} < {_sv_literal(address_width, int(region['end']))})"
             for region in backend_record["address_decode"]["regions"]
         ]
-        lines.append(f"  assign {wires['mapped']} = " + (" || ".join(terms) if terms else "1'b0") + ";")
+        mapped = "1'b1" if contract_transducer is not None else (" || ".join(terms) if terms else "1'b0")
+        lines.append(f"  assign {wires['mapped']} = {mapped};")
         adapter_connections = [f"        .clk_i({clock_signal})", f"        .rst_ni({adapter_reset})"]
         for connection in route["field_connections"]:
             physical = connection["physical"]
@@ -1872,6 +1915,8 @@ def _render_processor_top(plan: object, backend: object) -> str:
         for name, value in sorted(parameters.items()):
             if isinstance(value, bool) or not isinstance(value, int):
                 raise ValueError("processor composition adapter parameter is invalid")
+            if contract_transducer is not None and name == "MAX_WAIT_CYCLES":
+                value = max(value, max_wait_cycles)
             parameter_lines.append(f".{_sv_identifier(name, context='processor adapter parameter')}({value})")
         lines.extend((
             f"  {_sv_identifier(route['rtl_module'], context='processor adapter module')} #(\n        " + ",\n        ".join(parameter_lines) + f"\n  ) u_{tag} (",
@@ -1948,7 +1993,7 @@ def _render_processor_top(plan: object, backend: object) -> str:
         lines.extend((
             f"  {_sv_identifier(arbiter['rtl_module'], context='processor arbiter module')} #(\n"
             f"        .ADDRESS_WIDTH({address_width}), .DATA_WIDTH({data_width}),\n"
-            f"        .MAX_WAIT_CYCLES({int(backend_record['recovery']['max_wait_cycles'])}),\n"
+            f"        .MAX_WAIT_CYCLES({max_wait_cycles}),\n"
             f"        .INITIATOR0_READ_ONLY({readonly[0]}), .INITIATOR1_READ_ONLY({readonly[1]})\n"
             "  ) u_processor_backend_arbiter (",
             ",\n".join(connections), "  );",
@@ -1958,7 +2003,8 @@ def _render_processor_top(plan: object, backend: object) -> str:
             for region in backend_record["address_decode"]["regions"]
         ]
         backend_mapped = "backend_mapped"
-        lines.extend(("  logic backend_mapped;", "  assign backend_mapped = " + (" || ".join(terms) if terms else "1'b0") + ";"))
+        mapped = "1'b1" if contract_transducer is not None else (" || ".join(terms) if terms else "1'b0")
+        lines.extend(("  logic backend_mapped;", f"  assign backend_mapped = {mapped};"))
     backend_connections = [
         f"        .clk_i({clock_signal})", f"        .rst_ni({backend_reset})",
         "        .req_valid_i(backend_req_valid)", "        .req_ready_o(backend_req_ready)",
@@ -1992,7 +2038,7 @@ def _render_processor_top(plan: object, backend: object) -> str:
         "        .target_rdata_i(backend_target_rdata)",
         "        .target_error_i(backend_target_error)",
     ))
-    components = getattr(plan, "components", ())
+    components = getattr(plan, "components", ()) if contract_transducer is None else ()
     if not isinstance(components, tuple):
         raise ValueError("processor composition component records are invalid")
     response_terms: list[tuple[str, str, str, str]] = []
@@ -2089,7 +2135,36 @@ def _render_processor_top(plan: object, backend: object) -> str:
             f"({select} && {component_signals['rsp_valid']})", component_signals["rdata"],
             component_signals["error"],
         ))
-    if response_terms:
+    if contract_transducer is not None:
+        lines.extend((
+            "  logic backend_req_instruction;",
+            "  logic backend_target_req_instruction;",
+            f"  always_ff @(posedge {clock_signal} or negedge {backend_reset}) begin",
+            f"    if (!{backend_reset}) begin",
+            "      backend_req_instruction <= 1'b0;",
+            "      backend_target_req_instruction <= 1'b0;",
+            "    end else begin",
+        ))
+        for route, wires in zip(routes, route_wires):
+            instruction = int(route["function"] == "instruction_memory_master")
+            lines.append(f"      if ({wires['req_valid']} && {wires['req_ready']}) backend_req_instruction <= 1'b{instruction};")
+        lines.extend((
+            "      if (backend_req_valid && backend_req_ready)",
+            "        backend_target_req_instruction <= backend_req_instruction;",
+            "    end",
+            "  end",
+            "  myfuzz_contract_transducer u_contract_transducer (",
+            f"    .clock_i({clock_signal}), .reset_i({backend_reset} && !backend_target_flush),",
+            "    .test_begin_i(test_begin), .test_boot_address_i(test_boot_address),",
+            "    .test_illegal_instruction_i(test_illegal_instruction), .rfuzz_cycle_bits(rfuzz_cycle_bits),",
+            "    .req_valid_i(backend_target_req_valid), .req_ready_o(backend_target_req_ready),",
+            "    .req_instruction_i(backend_target_req_instruction), .req_addr_i(backend_target_addr),",
+            "    .req_write_i(backend_target_write), .req_wdata_i(backend_target_wdata), .req_be_i(backend_target_be),",
+            "    .rsp_valid_o(backend_target_rsp_valid), .rsp_data_o(backend_target_rdata),",
+            "    .rsp_error_o(backend_target_error)",
+            "  );",
+        ))
+    elif response_terms:
         lines.append("  assign backend_target_req_ready = " + " || ".join(item[0] for item in response_terms) + ";")
         lines.append("  assign backend_target_rsp_valid = " + " || ".join(item[1] for item in response_terms) + ";")
         lines.append("  assign backend_target_rdata = " + " | ".join(f"({item[1]} ? {item[2]} : '0)" for item in response_terms) + ";")
@@ -2106,7 +2181,7 @@ def _render_processor_top(plan: object, backend: object) -> str:
         ",\n".join(backend_connections), "  );", "endmodule", "",
         _render_processor_backend_module(
             address_width, data_width,
-            int(backend_record["recovery"]["max_wait_cycles"]),
+            max_wait_cycles,
             str(backend_reset_contract["synchrony"]),
         ),
     ))
@@ -2565,10 +2640,12 @@ def _processor_publication_audit(plan: object) -> dict[str, object]:
     }
 
 
-def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path) -> dict[str, object]:
+def write_generic_composition(
+    plan: object, output_dir: Path, *, base_dir: Path, contract_transducer: object = None,
+) -> dict[str, object]:
     """Publish a validated generic composition without risking existing output."""
     from .auto import GenericCompositionPlan
-    from .rfuzz_transport import build_rfuzz_transport
+    from .rfuzz_transport import RfuzzInputTransport, build_rfuzz_transport
 
     if not isinstance(plan, GenericCompositionPlan) or not plan.complete:
         raise ValueError("generic composition plan is incomplete")
@@ -2577,6 +2654,14 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
     if not root.is_dir():
         raise ValueError("generic composition base_dir is missing")
     plan = _validate_generic_plan_freshness(plan, root)
+    transducer_text = None
+    transducer_payload = None
+    transducer_watchdog = None
+    if contract_transducer is not None:
+        from .transducer_rtl import render_transducer_rtl
+        transducer_watchdog = _validate_processor_transducer(plan, contract_transducer)
+        transducer_text = render_transducer_rtl(contract_transducer)
+        transducer_payload = canonical_bytes(contract_transducer.document())
     backend = None
     backend_document = None
     backend_sources: tuple[str, ...] = ()
@@ -2585,6 +2670,11 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
         backend = build_processor_backend(
             plan.processor_execution, getattr(plan, "ir", {}).get("address_regions", ()),
         )
+        if transducer_watchdog is not None:
+            backend = replace(backend, recovery={**backend.recovery, "max_wait_cycles": transducer_watchdog})
+            backend = replace(backend, backend_hash=content_hash({
+                key: value for key, value in processor_backend_document(backend).items() if key != "backend_hash"
+            }))
         backend_document = processor_backend_document(backend)
         backend_sources = backend.rtl_sources
     ordered_sources = tuple(dict.fromkeys((*plan.source_files, *backend_sources)))
@@ -2597,13 +2687,16 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
     if output.exists():
         raise ValueError("generic composition existing output cannot be replaced safely")
     top_text = (
-        _render_processor_top(plan, backend)
+        _render_processor_top(plan, backend, contract_transducer=contract_transducer)
         if backend is not None else _render_generic_top(plan)
     )
     output_parent = output.parent
     output_parent.mkdir(parents=True, exist_ok=True)
     ir_payload = canonical_bytes(_generic_plain(plan.ir))
-    layout_payload = canonical_bytes(_generic_plain(input_layout_document(plan.layout)))
+    layout = plan.layout if contract_transducer is None else contract_transducer.cycle_layout
+    layout_payload = canonical_bytes(
+        _generic_plain(input_layout_document(layout)) if contract_transducer is None else layout.document()
+    )
     execution_payload = None
     backend_payload = None
     if plan.processor_execution is not None:
@@ -2613,7 +2706,11 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
         external_source_hashes = _processor_source_hashes(
             root, tuple(sorted(set((*plan.source_files, *backend_sources)))),
         )
-        source_hashes = [*external_source_hashes, {
+        generated_source_hashes = [] if transducer_text is None else [{
+            "path": "contract_transducer.sv",
+            "content_hash": "sha256:" + hashlib.sha256(transducer_text.encode("utf-8")).hexdigest(),
+        }]
+        source_hashes = [*external_source_hashes, *generated_source_hashes, {
             "path": "generic_composition_top.sv",
             "content_hash": "sha256:" + hashlib.sha256(top_text.encode("utf-8")).hexdigest(),
         }]
@@ -2623,9 +2720,11 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
         execution_document["publication_hash"] = content_hash(execution_document)
         execution_payload = canonical_bytes(execution_document)
         backend_payload = canonical_bytes(backend_document)
-    transport = build_rfuzz_transport(plan.layout)
+    transport = (build_rfuzz_transport(layout) if contract_transducer is None
+                 else RfuzzInputTransport(layout.raw_width, layout.layout_hash))
     transport_document = transport.document()
-    source_list = _generic_source_list(plan, root, output, sources)
+    published_sources = sources if transducer_text is None else (*sources, output / "contract_transducer.sv")
+    source_list = _generic_source_list(plan, root, output, published_sources)
     include_paths = _generic_include_paths(plan, root)
     stage: Path | None = Path(tempfile.mkdtemp(prefix=f".{output.name}.generic-", dir=output_parent))
     try:
@@ -2639,8 +2738,13 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
         (stage / "rfuzz_input_transport.sv").write_text(transport.render_systemverilog(), encoding="utf-8")
         (stage / "generic_composition_top.sv").write_text(top_text, encoding="utf-8")
         (stage / "sources.f").write_text(source_list, encoding="utf-8")
+        lint_sources = sources
+        if transducer_text is not None:
+            (stage / "contract_transducer.sv").write_text(transducer_text, encoding="utf-8")
+            (stage / "contract_transducer.json").write_bytes(transducer_payload)
+            lint_sources = (*sources, stage / "contract_transducer.sv")
         _validate_generic_top(
-            top_text, source_paths=sources, include_paths=include_paths,
+            top_text, source_paths=lint_sources, include_paths=include_paths,
             define_options=_generic_define_options(plan),
             top_path=stage / "generic_composition_top.sv",
         )
@@ -2690,7 +2794,7 @@ def write_generic_composition(plan: object, output_dir: Path, *, base_dir: Path)
         "schema_version": "composition_ir.v1",
         "interface_annotation_hash": plan.interface_annotation_hash,
         "composition_ir_hash": plan.composition_ir_hash,
-        "layout_hash": plan.layout.layout_hash,
+        "layout_hash": layout.layout_hash,
         "transport_hash": transport_document["transport_hash"],
         **({"backend_hash": backend.backend_hash} if backend is not None else {}),
         "top_path": (output / "generic_composition_top.sv").as_posix(),

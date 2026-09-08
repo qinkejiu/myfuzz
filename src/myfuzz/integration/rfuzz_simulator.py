@@ -15,13 +15,16 @@ import subprocess
 import sys
 import time
 
-from myfuzz.contracts import canonical_bytes
+from myfuzz.contracts import canonical_bytes, content_hash
+from myfuzz.composition.contract_transducer import ContractRuntime, ContractTransducerPlan
+from myfuzz.composition.cycle_input import CycleInputLayout, TestHeader, TEST_HEADER_SCHEMA_VERSION
 from myfuzz.composition.auto import _generic_with_reset_contract, _generic_endpoint_reset_contract
 from myfuzz.composition.input_layout import InputLayout, input_layout_document
 from myfuzz.composition.interface_description import interface_description_document
 from myfuzz.composition.protocol_composer import (
     _generic_routes, _generic_port_records, _generic_include_paths,
     _generic_define_options, _validate_generic_plan_freshness, write_generic_composition,
+    _validate_processor_transducer,
 )
 from myfuzz.composition.rfuzz_transport import build_rfuzz_transport, RfuzzInputTransport
 from myfuzz.composition.runtime_projection import RuntimeProjector
@@ -37,11 +40,11 @@ RSS_POLL_SECONDS = 0.1
 
 @dataclass(frozen=True)
 class SimulatorArtifact:
-    layout: InputLayout
+    layout: InputLayout | CycleInputLayout
     transport: RfuzzInputTransport
     executable: Path
     coverage_ports: tuple[tuple[str, int], ...]
-    projector: RuntimeProjector
+    projector: "RuntimeProjector | CycleIdentityProjector"
     coverage_kind: str = "sampled-output-bit-events-u8-saturating"
     control_defaults: Mapping[str, object] = None
     randomized_controls: tuple[str, ...] = ()
@@ -49,6 +52,32 @@ class SimulatorArtifact:
     simulator: str = "icarus"
     isolate_tests: bool = False
     execution_monitor: dict | None = None
+    transducer_hash: str | None = None
+    header_hash: str | None = None
+    test_header: TestHeader | None = None
+
+
+class CycleIdentityProjector:
+    """Keep backend entropy unchanged; expose only proven external bindings."""
+    instruction_mode = "stateful-contract-transducer-rtl"
+
+    def __init__(self, plan, external_fields):
+        self.layout = plan.cycle_layout
+        self.constraint_hash = plan.contract_hash
+        self.external_fields = tuple(external_fields)
+
+    def project(self, raw):
+        if type(raw) is not int or not 0 <= raw < 1 << self.layout.raw_width:
+            raise ValueError("raw sample outside cycle layout")
+        return raw
+
+    def project_ports(self, raw):
+        self.project(raw)
+        values = {}
+        for field in self.external_fields:
+            value = (raw >> field.raw_lo) & ((1 << field.width) - 1)
+            values[field.port] = values.get(field.port, 0) | (value << (field.port_raw_lo or 0))
+        return values
 
 
 _CONTROL_ROLE_ALIASES = {
@@ -144,7 +173,7 @@ def _runtime_control_bindings(plan, ports, layout, randomized_controls, defaults
     return tuple(bindings), document
 
 
-def _runtime_boundary(plan, base_dir, *, randomized_controls=(), control_defaults=()):
+def _runtime_boundary(plan, base_dir, *, randomized_controls=(), control_defaults=(), contract_transducer=None):
     randomized_controls = _normalize_control_roles(randomized_controls)
     execution = getattr(plan, "processor_execution", None)
     if execution is None:
@@ -209,7 +238,7 @@ def _runtime_boundary(plan, base_dir, *, randomized_controls=(), control_default
     fixed = {field.port for field in plan.layout.fields
              if _canonical_control_role(field.role, control_defaults) is not None}
     expected = wanted - fixed
-    if not expected.issubset(seen) or not fields or cursor > 65536:
+    if not expected.issubset(seen) or (not fields and contract_transducer is None) or cursor > 65536:
         raise ValueError("unbound or oversized runtime input layout")
     provisional = InputLayout("input_layout.v1", cursor, tuple(fields), "pending")
     doc = input_layout_document(provisional)
@@ -217,19 +246,41 @@ def _runtime_boundary(plan, base_dir, *, randomized_controls=(), control_default
     for f in doc["fields"]:
         f.pop("provenance", None)
     layout = replace(provisional, layout_hash=hashlib.sha256(canonical_bytes(doc)).hexdigest())
-    projector = RuntimeProjector(
-        layout,
-        isa=plan.request.isa,
-        require_compiler_provenance=getattr(plan, "processor_execution", None) is not None,
-    )
+    if contract_transducer is None:
+        projector = RuntimeProjector(
+            layout, isa=plan.request.isa,
+            require_compiler_provenance=getattr(plan, "processor_execution", None) is not None,
+        )
+    else:
+        declared = dict(contract_transducer.external_inputs)
+        if declared != {field.field_id: field.width for field in fields}:
+            raise ValueError("contract external inputs do not match runtime physical bindings")
+        # Existing physical-binding checks prove packed compiler offsets and
+        # complete, nonoverlapping ranges; no projection is applied to entropy.
+        if fields:
+            RuntimeProjector(layout, require_compiler_provenance=True)
+        for field in fields:
+            if field.encoding != "bits" or set(field.constraint) - {"randomizable"}:
+                raise ValueError("contract external input requires unconstrained bits")
+        cycle_fields = {field.field_id: field for field in contract_transducer.cycle_layout.fields}
+        if {name: field.width for name, field in cycle_fields.items() if name.startswith("external.")} != {
+            f"external.{field.field_id}": field.width for field in fields
+        }:
+            raise ValueError("external cycle slices do not match physical bindings")
+        external_fields = tuple(replace(field,
+            raw_lo=cycle_fields[f"external.{field.field_id}"].raw_lo,
+            raw_hi=cycle_fields[f"external.{field.field_id}"].raw_hi) for field in fields)
+        layout = replace(layout, fields=external_fields)
+        projector = CycleIdentityProjector(contract_transducer, external_fields)
     return ports, clock, reset, next(iter(contracts))[0], layout, projector
 
 
-def _bench(ports, clock, reset, polarity, layout, coverage, *, control_bindings=(), coverage_signals=(), execution_monitor=None):
+def _bench(ports, clock, reset, polarity, layout, coverage, *, control_bindings=(), coverage_signals=(), execution_monitor=None,
+           external_fields=None, test_header=None, address_width=None):
     names = {p: r["opaque_port"] for p, r in ports.items()}
     declarations = [f"logic [{r['width']-1}:0] {r['opaque_port']};" for r in ports.values()]
     inputs = []
-    for field in layout.fields:
+    for field in layout.fields if external_fields is None else external_fields:
         target = names[field.port]
         if field.member_path:
             target += f"[{field.port_raw_hi}:{field.port_raw_lo}]"
@@ -241,6 +292,14 @@ def _bench(ports, clock, reset, polarity, layout, coverage, *, control_bindings=
             target += f"[{field.port_raw_hi}:{field.port_raw_lo}]"
         controls.append(f"assign {target} = {field.width}'h{value:x};")
     connections = ",".join(f".{n}({n})" for n in names.values())
+    test_controls = []
+    begin_test = []
+    if test_header is not None:
+        test_controls = ["reg test_begin = 0;",
+            f"wire [{address_width-1}:0] test_boot_address = {address_width}'h{test_header.boot_address:x};",
+            f"wire test_illegal_instruction = 1'b{int(test_header.illegal_instruction)};"]
+        connections += ",.rfuzz_cycle_bits(raw_bits),.test_begin(test_begin),.test_boot_address(test_boot_address),.test_illegal_instruction(test_illegal_instruction)"
+        begin_test = ["test_begin=1; tick(); test_begin=0;"]
     active = 0 if polarity == "active_low" else 1
     c, r = names[clock], names[reset]
     observations = tuple(coverage) + tuple((f"dut.{signal}", bit) for signal, bit in coverage_signals)
@@ -252,7 +311,7 @@ def _bench(ports, clock, reset, polarity, layout, coverage, *, control_bindings=
         sample += [f"if ({expression} !== 1'b0 && {expression} !== 1'b1) $fatal(1,\"unknown observation\");",
                    f"if ({expression} && counters[{i}] != 8'hff) counters[{i}] = counters[{i}] + 1'b1;"]
     return "\n".join([
-        "module myfuzz_live_tb;", *declarations, *controls,
+        "module myfuzz_live_tb;", *declarations, *controls, *test_controls,
         f"reg [{layout.raw_width-1}:0] raw_bits = 0;",
         f"reg [7:0] counters[0:{len(observations)-1}]; integer count, scan, i, j;",
         *inputs, f"generic_composition_top dut({connections});",
@@ -266,7 +325,9 @@ def _bench(ports, clock, reset, polarity, layout, coverage, *, control_bindings=
         'scan=$fscanf(32\'h80000000,"%d",count);',
         'if (scan != 1) $finish;',
         f'if (count < 1 || count > {MAX_CYCLES}) $fatal(1,"cycle count");',
-        f"raw_bits=0; {r}={active}; tick(); tick(); {r}={1-active};",
+        "raw_bits=0;", *begin_test,
+        (f"{r}={active}; repeat ({test_header.reset_cycles}) tick(); {r}={1-active};"
+         if test_header is not None else f"{r}={active}; tick(); tick(); {r}={1-active};"),
         f"for (j=0;j<{len(observations)};j=j+1) counters[j]=0;",
         "for (i=0;i<count;i=i+1) begin",
         'scan=$fscanf(32\'h80000000,"%h",raw_bits);',
@@ -282,7 +343,8 @@ def _bench(ports, clock, reset, polarity, layout, coverage, *, control_bindings=
 def build_simulator(plan, output_dir, *, base_dir, coverage_ports,
                     coverage_inputs=(),
                     randomized_controls=(), control_defaults=None, coverage_signals=(),
-                    simulator_args=(), simulator="icarus", isolate_tests=False, execution_monitor=None):
+                    simulator_args=(), simulator="icarus", isolate_tests=False, execution_monitor=None,
+                    contract_transducer=None, test_header=None):
     """Publish into a new directory only; reject unsafe boundaries before build."""
     root, output = Path(base_dir).resolve(), Path(output_dir).absolute()
     if output.exists() or output.is_symlink():
@@ -297,13 +359,44 @@ def build_simulator(plan, output_dir, *, base_dir, coverage_ports,
         raise ValueError("execution monitor requires generated processor backend")
     randomized_controls = _normalize_control_roles(randomized_controls)
     defaults = _control_defaults(control_defaults)
+    if contract_transducer is not None:
+        if not isinstance(contract_transducer, ContractTransducerPlan):
+            raise ValueError("contract transducer plan required")
+        if getattr(plan, "processor_execution", None) is None:
+            raise ValueError("contract transducer requires processor execution")
+        _validate_processor_transducer(plan, contract_transducer)
+        contract_transducer.cycle_layout.validate()
+        if contract_transducer.cycle_layout.raw_width > 65536:
+            raise ValueError("oversized contract cycle layout")
+        if test_header is None:
+            test_header = TestHeader(TEST_HEADER_SCHEMA_VERSION,
+                contract_transducer.cycle_layout.layout_hash, contract_transducer.contract_hash,
+                2, MAX_CYCLES, defaults["boot_address"], defaults["hart_id"])
+        ContractRuntime(contract_transducer).begin_test(test_header)
+        if not 1 <= test_header.reset_cycles <= MAX_CYCLES or not 1 <= test_header.execution_cycles <= MAX_CYCLES:
+            raise ValueError("header reset/execution cycles must be bounded and positive")
+        if set(randomized_controls) & {"boot_address", "hart_id"}:
+            raise ValueError("header boot address and hart id must be fixed")
+        for role in ("boot_address", "hart_id"):
+            value = getattr(test_header, role)
+            if control_defaults is not None and any(
+                (_canonical_control_role(key) or key) == role and default != value
+                for key, default in control_defaults.items()
+            ):
+                raise ValueError("header conflicts with fixed runtime control")
+            defaults[role] = value
+    elif test_header is not None:
+        raise ValueError("test header requires contract transducer")
     if isinstance(simulator_args, (str, bytes)) or not isinstance(simulator_args, Sequence):
         raise ValueError("simulator args must be a sequence")
     if any(not isinstance(value, str) or not value for value in simulator_args):
         raise ValueError("simulator args must be nonempty strings")
     simulator_args = tuple(simulator_args)
+    if contract_transducer is not None and any(arg.startswith("+riscv_boot_image=") for arg in simulator_args):
+        raise ValueError("contract transducer does not accept a fixed boot image")
     ports, clock, reset, polarity, layout, projector = _runtime_boundary(
-        plan, root, randomized_controls=randomized_controls, control_defaults=defaults
+        plan, root, randomized_controls=randomized_controls, control_defaults=defaults,
+        contract_transducer=contract_transducer,
     )
     control_bindings, control_document = _runtime_control_bindings(
         plan, ports, layout, randomized_controls, defaults
@@ -328,6 +421,9 @@ def build_simulator(plan, output_dir, *, base_dir, coverage_ports,
         field.port for field in layout.fields
         if field.constraint.get("randomizable") is True
     }
+    external_fields = layout.fields if contract_transducer is not None else None
+    if contract_transducer is not None:
+        layout = contract_transducer.cycle_layout
     for item in input_coverage:
         if not isinstance(item, tuple) or len(item) != 2:
             raise ValueError("invalid randomized runtime input observation")
@@ -350,13 +446,24 @@ def build_simulator(plan, output_dir, *, base_dir, coverage_ports,
         "sampled-dut-signal-bit-events-u8-saturating"
         if input_coverage else "sampled-output-bit-events-u8-saturating"
     )
-    transport = build_rfuzz_transport(layout)
+    transport = (RfuzzInputTransport(layout.raw_width, layout.layout_hash)
+                 if contract_transducer is not None else build_rfuzz_transport(layout))
     bench = _bench(ports, clock, reset, polarity, layout, boundary_coverage,
                    control_bindings=control_bindings, coverage_signals=signals,
-                   execution_monitor=execution_monitor)
+                   execution_monitor=execution_monitor, external_fields=external_fields,
+                   test_header=test_header,
+                   address_width=contract_transducer.address_width if contract_transducer is not None else None)
     output.mkdir(parents=True, exist_ok=False)
-    write_generic_composition(plan, output / "composition", base_dir=root)
-    (output / "runtime_layout.json").write_bytes(canonical_bytes(input_layout_document(layout)))
+    write_generic_composition(plan, output / "composition", base_dir=root,
+        **({"contract_transducer": contract_transducer} if contract_transducer is not None else {}))
+    header_hash = None
+    if contract_transducer is not None:
+        for filename in ("contract_transducer.json", "contract_transducer.sv"):
+            (output / filename).write_bytes((output / "composition" / filename).read_bytes())
+        header_hash = content_hash(asdict(test_header))
+        (output / "test_header.json").write_bytes(canonical_bytes({**asdict(test_header), "header_hash": header_hash}))
+    (output / "runtime_layout.json").write_bytes(canonical_bytes(
+        layout.document() if contract_transducer is not None else input_layout_document(layout)))
     (output / "runtime_transport.json").write_bytes(canonical_bytes(transport.document()))
     (output / "observations.json").write_bytes(canonical_bytes({
         "kind": coverage_kind,
@@ -423,6 +530,10 @@ def build_simulator(plan, output_dir, *, base_dir, coverage_ports,
         "simulator": simulator,
         "isolate_tests": isolate_tests,
         "execution_monitor": execution_monitor,
+        **({"transducer_hash": contract_transducer.contract_hash,
+            "transducer_rtl_sha256": "sha256:" + hashlib.sha256((output / "contract_transducer.sv").read_bytes()).hexdigest(),
+            "header_hash": header_hash, "test_header": asdict(test_header)}
+           if contract_transducer is not None else {}),
     }))
     return SimulatorArtifact(
         layout, transport, executable, observations, projector,
@@ -433,6 +544,9 @@ def build_simulator(plan, output_dir, *, base_dir, coverage_ports,
         simulator=simulator,
         isolate_tests=isolate_tests,
         execution_monitor=execution_monitor,
+        transducer_hash=contract_transducer.contract_hash if contract_transducer is not None else None,
+        header_hash=header_hash,
+        test_header=test_header,
     )
 
 
@@ -511,6 +625,8 @@ class RtlSimulator:
             raise ValueError("simulator is closed")
         if not isinstance(records, (tuple, list)) or not 1 <= len(records) <= MAX_CYCLES:
             raise ValueError("bounded nonempty sample sequence required")
+        if self.artifact.test_header is not None and len(records) > self.artifact.test_header.execution_cycles:
+            raise ValueError("test exceeds header execution cycle limit")
         if len(records) * (self.artifact.layout.raw_width // 4 + 2) > MAX_IO_BYTES:
             raise ValueError("test input exceeds IO bound")
         if self.artifact.isolate_tests and self._executions:
