@@ -6,6 +6,7 @@ module tb;
   integer unsigned fetches = 0;
   integer unsigned progress = 0;
   integer unsigned completions = 0;
+  integer unsigned illegal_or_trap_records = 0;
   logic [63:0] previous_fetch = '1;
   logic pass_seen = 1'b0;
   logic first_fetch_checked = 1'b0;
@@ -72,7 +73,7 @@ module tb;
                dut.u_4fc0e2ef899df534.commit_instr_id_commit[1].pc);
     end
     if (pass_seen && first_fetch_checked && commit_seen) begin
-      $display("EXEC reset=1 fetches=%0d progress=%0d completions=%0d pass=1 cycles=%0d exit=pass", fetches, progress, completions, cycles);
+      $display("EXEC reset=1 fetches=%0d progress=%0d completions=%0d pass=1 cycles=%0d illegal_or_trap_records=%0d exit=pass", fetches, progress, completions, cycles, illegal_or_trap_records);
       $finish;
     end
     if (cycles >= 2000) begin

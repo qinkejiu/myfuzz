@@ -1,0 +1,108 @@
+{
+  "schema_version": "task13_boom_blocker.v1",
+  "checked_on": "2026-09-08",
+  "status": "BLOCKED",
+  "scope": "source-backed-observation-only",
+  "execution": {
+    "attempted": false,
+    "reason": "generated RTL, parameter closure, complete source closure, and the external Chipyard generator toolchain are unavailable"
+  },
+  "revisions": {
+    "boom": {
+      "repository": "third_party/boom_upstream_reference",
+      "revision": "git:58ef2720eae13be26b3008c02b5a74ce29c61c44"
+    },
+    "chipyard": {
+      "repository": "Chipyard dependency declared by BOOM",
+      "revision": "git:4180463d52bc0a6b4c004530601ccdabebf0ab7d",
+      "pin_file": "third_party/boom_upstream_reference/CHIPYARD.hash",
+      "pin_file_sha256": "fb39d763345f02d6c5b4b8f8035a37b2f9ccb591bb49aa25040009d2314acd77",
+      "checkout_present": false
+    }
+  },
+  "source_facts": [
+    {
+      "path": "third_party/boom_upstream_reference/src/main/scala/v4/ifu/icache.scala",
+      "line": 45,
+      "sha256": "e4e0edabc3eb34a3b97d679ca3d2abd37ed78e57764d3933ea66903a8e2e7c79",
+      "observation": "The instruction cache creates a Rocket-Chip TLClientNode, establishing a coherent TileLink client boundary."
+    },
+    {
+      "path": "third_party/boom_upstream_reference/src/main/scala/v4/lsu/mshrs.scala",
+      "line": 61,
+      "sha256": "7e70d1a095f9543ecb20c2983e925205ef473376fe7e6112173d7e8079069fcf",
+      "observation": "The LSU MSHR declares TLBundleA acquire traffic, TLBundleD grants, and TLBundleE finish acknowledgements."
+    },
+    {
+      "path": "third_party/boom_upstream_reference/src/main/scala/v4/lsu/dcache.scala",
+      "line": 147,
+      "sha256": "82d5562b6d6220be5714716c6b935a001ed6fc54747b4fc925603cabbde9aac4",
+      "observation": "The data cache declares TLBundleB probe input and TLBundleC probe/release output, confirming coherence channels beyond TL-UL."
+    },
+    {
+      "path": "third_party/boom_upstream_reference/src/main/scala/v4/lsu/lsu.scala",
+      "line": 95,
+      "sha256": "405dffe86cca0d5632ee75f481b6a64202691e2e169e6a5961363d20ca33a40e",
+      "observation": "The LSU exposes a TLBundleC release path at the processor boundary."
+    }
+  ],
+  "protocol_facts": {
+    "observed_protocol": ["tilelink", "1"],
+    "observed_channels": ["A", "B", "C", "D", "E"],
+    "generic_catalog_available": [
+      ["tl-ul", "1"],
+      ["processor-memory-beat", "1"]
+    ],
+    "generic_catalog_missing": [["tilelink", "1"]],
+    "boundary_conclusion": "The inspected source requires coherent full TileLink A/B/C/D/E semantics; the current generic runtime set only covers TL-UL and beat-level memory adapters."
+  },
+  "tool_availability": {
+    "verilator": {
+      "available": true,
+      "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67"
+    },
+    "iverilog": {
+      "available": true,
+      "version": "Icarus Verilog version 14.0 (devel) (f493076)"
+    },
+    "clang": {
+      "available": true,
+      "version": "Ubuntu clang version 18.1.3 (1ubuntu1)"
+    },
+    "java": {
+      "available": false,
+      "reason": "not installed in the execution environment"
+    },
+    "sbt": {
+      "available": false,
+      "reason": "not installed in the execution environment"
+    },
+    "mill": {
+      "available": false,
+      "reason": "not installed in the execution environment"
+    }
+  },
+  "work_item": {
+    "kind": "generic-protocol-work-item",
+    "protocol": ["tilelink", "1"],
+    "reason": "protocol-capability:tilelink@1",
+    "missing_dependencies": [
+      "generated RTL",
+      "parameter closure",
+      "complete source closure",
+      "Chipyard generator toolchain"
+    ],
+    "requirements": [
+      "source-backed physical boundary facts",
+      "generic adapter to processor-memory-beat@1",
+      "B/C/E coherence semantics",
+      "bounded temporal RTL tests",
+      "real processor execution evidence"
+    ]
+  },
+  "prohibited_actions": [
+    "do not generate or download BOOM in this fix wave",
+    "do not add a BOOM-specific bridge or renderer",
+    "do not treat elaboration or wrapper compilation as BOOM execution evidence"
+  ]
+}

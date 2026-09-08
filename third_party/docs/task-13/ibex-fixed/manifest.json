@@ -13,7 +13,41 @@
     "reset_vector": "0x80",
     "max_cycles": 400,
     "pass_address": "0x400",
-    "pass_value": "0x600dcafe"
+    "pass_value": "0x600dcafe",
+    "provenance": {
+      "source": {
+        "identity": "third_party/rfuzz/upstream/ibex@34b0705760ef3dfa00e99637432473d2be8f22f3",
+        "hash": "sha256:53df3b5eb9ee799716c8f517b28db9e3912ac5bcb6d07294a3aeaea6ec2a6873"
+      },
+      "profile": {
+        "identity": "src/myfuzz/isa/profiles/ibex.json",
+        "hash": "sha256:4559ea1364ea7ef9ba130fa25345170ca41eaa64b31e1d04ed870c97b268fc5a"
+      },
+      "interface": {
+        "identity": "configs/cpus/ibex/official_core_interface_description.json",
+        "hash": "sha256:db181ed864358817a51ede8dc8f43dca7892689ecccc5fcd45ed7a075174b3b2"
+      },
+      "isa": "rv32imc",
+      "xlen": 32,
+      "reset_vector": "0x80"
+    }
+  },
+  "provenance": {
+    "source": {
+      "identity": "third_party/rfuzz/upstream/ibex@34b0705760ef3dfa00e99637432473d2be8f22f3",
+      "hash": "sha256:53df3b5eb9ee799716c8f517b28db9e3912ac5bcb6d07294a3aeaea6ec2a6873"
+    },
+    "profile": {
+      "identity": "src/myfuzz/isa/profiles/ibex.json",
+      "hash": "sha256:4559ea1364ea7ef9ba130fa25345170ca41eaa64b31e1d04ed870c97b268fc5a"
+    },
+    "interface": {
+      "identity": "configs/cpus/ibex/official_core_interface_description.json",
+      "hash": "sha256:db181ed864358817a51ede8dc8f43dca7892689ecccc5fcd45ed7a075174b3b2"
+    },
+    "isa": "rv32imc",
+    "xlen": 32,
+    "reset_vector": "0x80"
   },
   "image": {
     "load_base": "0x80",
@@ -30,6 +64,8 @@
     "pass_observed": true,
     "cycles": 40,
     "exit_reason": "pass",
+    "first_fetch_address": "0x80",
+    "first_fetch_data": "0x40000293",
     "illegal_or_trap_records": 0
   },
   "commands": {
@@ -51,6 +87,8 @@
     "processor_execution": "sha256:2ea506d2eaa255f4519a7290c61f0d9ffbc4f69ae91cf92bcd28036a002b2948",
     "generated_top": "sha256:38f0cf739b35a9fbdaa9e3f9c39f98c5fb99be8b01d740bb9fd35098d43f30e2",
     "source_list": "sha256:53df3b5eb9ee799716c8f517b28db9e3912ac5bcb6d07294a3aeaea6ec2a6873",
+    "profile": "sha256:4559ea1364ea7ef9ba130fa25345170ca41eaa64b31e1d04ed870c97b268fc5a",
+    "interface": "sha256:db181ed864358817a51ede8dc8f43dca7892689ecccc5fcd45ed7a075174b3b2",
     "boot_elf": "sha256:2416ac77b858e03fa5df1c9cfffc0bbf7e4e0759fdc934e1512adec0bb1a3bc8",
     "boot_binary": "sha256:96a8e6a369f6f72c82b39af0ef863127690dad30c04ad2f6e2aba92fb3caa9ed",
     "boot_hex": "sha256:1d53d121b8ce1a32b5f7451c94da6d8f0a497480d402bc1fde50a45c0f65722d"

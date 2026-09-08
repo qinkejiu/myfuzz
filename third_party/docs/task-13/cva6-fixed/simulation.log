@@ -19,7 +19,7 @@ BACKEND_REQ cycle=310 write=0 addr=0000000000000090 data=0000000000000000 be=ff
 COMMIT cycle=311 ack=01 pc0=000000000000008c pc1=0000000000000000
 BACKEND_RSP cycle=312 data=000000000000a001 error=0
 BACKEND_REQ cycle=317 write=1 addr=0000000000000400 data=600dcafe600dcafe be=0f
-EXEC reset=1 fetches=5 progress=3 completions=5 pass=1 cycles=318 exit=pass
+EXEC reset=1 fetches=5 progress=3 completions=5 pass=1 cycles=318 illegal_or_trap_records=0 exit=pass
 - task13_tb.sv:76: Verilog $finish
 - S i m u l a t i o n   R e p o r t: Verilator 5.051 devel
 - Verilator: $finish at 637ns; walltime 0.002 s; speed 268.565 us/s

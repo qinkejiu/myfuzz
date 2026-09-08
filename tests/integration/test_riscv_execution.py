@@ -26,6 +26,7 @@ from myfuzz.integration.riscv_execution import (
     ExecutionEvent,
     RiscvExecutionError,
     RiscvExecutionFacts,
+    RiscvExecutionProvenance,
     build_minimal_boot_image,
     build_protocol_blocker,
     build_run_manifest,
@@ -86,6 +87,18 @@ class RiscvExecutionTests(unittest.TestCase):
             "max_cycles": 400,
         }
         values.update(changes)
+        if "provenance" not in changes:
+            values["provenance"] = RiscvExecutionProvenance(
+                source_identity="fixture-source",
+                source_hash="sha256:" + "1" * 64,
+                profile_identity="fixture-profile",
+                profile_hash="sha256:" + "2" * 64,
+                interface_identity="fixture-interface",
+                interface_hash="sha256:" + "3" * 64,
+                isa=values["isa"],
+                xlen=values["xlen"],
+                reset_vector=values["reset_vector"],
+            )
         return RiscvExecutionFacts(**values)
 
     def test_builds_minimal_boot_from_isa_xlen_and_reset_facts(self) -> None:
@@ -107,50 +120,115 @@ class RiscvExecutionTests(unittest.TestCase):
 
     def test_rejects_incomplete_execution_and_records_complete_manifest(self) -> None:
         facts = self.facts()
-        complete = ExecutionEvent(
-            reset_released=True,
-            successful_fetches=3,
-            progress_events=2,
-            backend_completions=3,
-            pass_observed=True,
-            cycles=31,
-            exit_reason="pass",
-        )
-        verify_execution_events(complete, facts)
-        for field in (
-            "reset_released", "successful_fetches", "progress_events",
-            "backend_completions", "pass_observed",
-        ):
-            broken = complete.__dict__ | {field: False if isinstance(getattr(complete, field), bool) else 0}
-            with self.subTest(field=field), self.assertRaisesRegex(RiscvExecutionError, field):
-                verify_execution_events(ExecutionEvent(**broken), facts)
+        with tempfile.TemporaryDirectory() as temporary:
+            boot = build_minimal_boot_image(facts, Path(temporary))
+            complete = ExecutionEvent(
+                reset_released=True,
+                successful_fetches=3,
+                progress_events=2,
+                backend_completions=3,
+                pass_observed=True,
+                cycles=31,
+                exit_reason="pass",
+                first_fetch_address=facts.reset_vector,
+                first_fetch_data=boot.first_fetch_data,
+                illegal_or_trap_records=0,
+            )
+            verify_execution_events(complete, facts, boot)
+            for field in (
+                "reset_released", "successful_fetches", "progress_events",
+                "backend_completions", "pass_observed",
+            ):
+                broken = complete.__dict__ | {field: False if isinstance(getattr(complete, field), bool) else 0}
+                with self.subTest(field=field), self.assertRaisesRegex(RiscvExecutionError, field):
+                    verify_execution_events(ExecutionEvent(**broken), facts, boot)
 
-        manifest = build_run_manifest(
-            facts=facts,
-            event=complete,
-            revisions={"root": "git:" + "1" * 40},
-            nested_pins={"dep": "git:" + "2" * 40},
-            tools={"compiler": "clang 18", "simulator": "verilator 5"},
-            elaboration={"frontend": "verilator-json", "warning_policy": "fatal"},
-            hashes={
-                "composition": "sha256:" + "3" * 64,
-                "layout": "sha256:" + "4" * 64,
-                "source": "sha256:" + "5" * 64,
-                "binary": "sha256:" + "6" * 64,
-                "config": "sha256:" + "7" * 64,
-            },
-            peak_rss_bytes=1024,
-            warning_summary={"warning_count": 0, "error_count": 0, "classes": {}},
-            log_summary={"compile": "pass", "simulate": "pass"},
-        )
-        self.assertEqual("riscv_execution.v1", manifest["schema_version"])
-        self.assertEqual(
-            {"load_base": 0x80, "reset_vector": 0x80,
-             "address_encoding": "verilog-readmemh-address-directive"},
-            manifest["image"],
-        )
-        self.assertTrue(manifest["manifest_hash"].startswith("sha256:"))
-        self.assertEqual(31, manifest["metrics"]["cycles"])
+            for field, value, error in (
+                ("first_fetch_address", facts.reset_vector + 4, "first_fetch_address"),
+                ("first_fetch_data", boot.first_fetch_data ^ 1, "first_fetch_data"),
+                ("illegal_or_trap_records", 1, "illegal_or_trap_records"),
+            ):
+                broken = complete.__dict__ | {field: value}
+                with self.subTest(field=field), self.assertRaisesRegex(RiscvExecutionError, error):
+                    verify_execution_events(ExecutionEvent(**broken), facts, boot)
+
+            manifest = build_run_manifest(
+                facts=facts,
+                event=complete,
+                boot_image=boot,
+                revisions={"root": "git:" + "1" * 40},
+                nested_pins={"dep": "git:" + "2" * 40},
+                tools={"compiler": "clang 18", "simulator": "verilator 5"},
+                elaboration={"frontend": "verilator-json", "warning_policy": "fatal"},
+                hashes={
+                    "composition": "sha256:" + "4" * 64,
+                    "layout": "sha256:" + "5" * 64,
+                    "source": facts.provenance.source_hash,
+                    "binary": boot.binary_hash,
+                    "config": "sha256:" + "6" * 64,
+                    "profile": facts.provenance.profile_hash,
+                    "interface": facts.provenance.interface_hash,
+                },
+                peak_rss_bytes=1024,
+                warning_summary={"warning_count": 0, "error_count": 0, "classes": {}},
+                log_summary={"compile": "pass", "simulate": "pass"},
+            )
+            self.assertEqual("riscv_execution.v1", manifest["schema_version"])
+            self.assertEqual(
+                {"load_base": 0x80, "reset_vector": 0x80,
+                 "address_encoding": "verilog-readmemh-address-directive",
+                 "first_fetch_address": 0x80,
+                 "first_fetch_data": boot.first_fetch_data},
+                manifest["image"],
+            )
+            self.assertEqual(
+                {"source_identity": "fixture-source", "profile_identity": "fixture-profile",
+                 "interface_identity": "fixture-interface"},
+                {f"{key}_identity": manifest["provenance"][key]["identity"]
+                 for key in ("source", "profile", "interface")},
+            )
+            self.assertTrue(manifest["manifest_hash"].startswith("sha256:"))
+            self.assertEqual(31, manifest["metrics"]["cycles"])
+
+    def test_rejects_provenance_mismatch_in_build_and_manifest(self) -> None:
+        facts = self.facts()
+        with self.assertRaisesRegex(RiscvExecutionError, "provenance:isa-mismatch"):
+            RiscvExecutionFacts(
+                isa=facts.isa, xlen=facts.xlen, reset_vector=facts.reset_vector,
+                pass_address=facts.pass_address, pass_value=facts.pass_value,
+                protocol=facts.protocol, max_cycles=facts.max_cycles,
+                provenance=RiscvExecutionProvenance(
+                    source_identity="fixture-source", source_hash="sha256:" + "1" * 64,
+                    profile_identity="fixture-profile", profile_hash="sha256:" + "2" * 64,
+                    interface_identity="fixture-interface", interface_hash="sha256:" + "3" * 64,
+                    isa="rv64imafdc", xlen=64, reset_vector=facts.reset_vector,
+                ),
+            )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            boot = build_minimal_boot_image(facts, Path(temporary))
+            event = ExecutionEvent(
+                reset_released=True, successful_fetches=1, progress_events=1,
+                backend_completions=1, pass_observed=True, cycles=1,
+                exit_reason="pass", first_fetch_address=facts.reset_vector,
+                first_fetch_data=boot.first_fetch_data, illegal_or_trap_records=0,
+            )
+            hashes = {
+                "composition": "sha256:" + "4" * 64,
+                "layout": "sha256:" + "5" * 64,
+                "source": facts.provenance.source_hash,
+                "binary": boot.binary_hash,
+                "config": "sha256:" + "6" * 64,
+                "profile": "sha256:" + "9" * 64,
+                "interface": facts.provenance.interface_hash,
+            }
+            with self.assertRaisesRegex(RiscvExecutionError, "profile-hash:mismatch"):
+                build_run_manifest(
+                    facts=facts, event=event, boot_image=boot,
+                    revisions={"root": "git:" + "1" * 40}, nested_pins={},
+                    tools={"compiler": "clang 18"}, elaboration={}, hashes=hashes,
+                    peak_rss_bytes=1024, warning_summary={}, log_summary={},
+                )
 
     def test_verifies_exact_repository_pins_and_reports_generic_protocol_gap(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -173,6 +251,36 @@ class RiscvExecutionTests(unittest.TestCase):
         self.assertEqual("protocol-capability:tilelink@1", blocker["reason"])
         self.assertEqual("generic-protocol-work-item", blocker["work_item"]["kind"])
         self.assertNotIn("boom", json.dumps(blocker).lower())
+
+    def test_boom_blocker_manifest_is_source_backed_and_generic(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        document = json.loads(
+            (root / "third_party/docs/task-13/boom-blocker/manifest.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual("task13_boom_blocker.v1", document["schema_version"])
+        self.assertEqual("BLOCKED", document["status"])
+        self.assertEqual(
+            "git:58ef2720eae13be26b3008c02b5a74ce29c61c44",
+            document["revisions"]["boom"]["revision"],
+        )
+        self.assertEqual(
+            "git:4180463d52bc0a6b4c004530601ccdabebf0ab7d",
+            document["revisions"]["chipyard"]["revision"],
+        )
+        self.assertGreaterEqual(len(document["source_facts"]), 3)
+        for fact in document["source_facts"]:
+            self.assertTrue(fact["path"])
+            self.assertGreater(fact["line"], 0)
+            self.assertTrue(fact["observation"])
+            self.assertRegex(fact["sha256"], r"^[0-9a-f]{64}$")
+        self.assertFalse(document["execution"]["attempted"])
+        self.assertFalse(document["tool_availability"]["java"]["available"])
+        self.assertFalse(document["tool_availability"]["sbt"]["available"])
+        self.assertEqual("generic-protocol-work-item", document["work_item"]["kind"])
+        self.assertEqual(["tilelink", "1"], document["work_item"]["protocol"])
+        self.assertIn("B/C/E", " ".join(document["work_item"]["requirements"]))
 
     @unittest.skipUnless(shutil.which("iverilog") and shutil.which("vvp"), "Icarus is required")
     def test_boot_memory_executes_reads_writes_and_completions(self) -> None:
@@ -290,7 +398,8 @@ endmodule
             bench = output / "task13_tb.sv"
             bench.write_text(f"""module tb;
 logic clock=0, reset_n=0; integer cycles=0, fetches=0, progress=0, completions=0;
-logic [31:0] last_fetch=0; logic reset_released=0, pass_seen=0, first_fetch_checked=0;
+logic [31:0] last_fetch=0; integer illegal_or_trap_records=0;
+logic reset_released=0, pass_seen=0, first_fetch_checked=0;
 always #1 clock=~clock;
 generic_composition_top dut(
  .{port('processor.clock','clock','clk_i')}(clock),
@@ -342,7 +451,7 @@ always @(posedge clock) if(reset_n) begin
    end
  end
  if(pass_seen && completions > 0 && first_fetch_checked) begin
-   $display("EXEC reset=%0d fetches=%0d progress=%0d completions=%0d pass=1 cycles=%0d exit=pass", reset_released,fetches,progress,completions,cycles);
+   $display("EXEC reset=%0d fetches=%0d progress=%0d completions=%0d pass=1 cycles=%0d illegal_or_trap_records=%0d exit=pass", reset_released,fetches,progress,completions,cycles,illegal_or_trap_records);
    $finish;
  end
  if(cycles >= {facts.max_cycles}) begin
@@ -368,7 +477,7 @@ endmodule
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
             self.assertNotIn("Illegal instruction", result.stdout + result.stderr)
             self.assertRegex(result.stdout, rf"BOOT_FETCH addr=0*{facts.reset_vector:x} data={first_word:08x}")
-            self.assertRegex(result.stdout, r"EXEC reset=1 fetches=[1-9]\d* progress=[1-9]\d* completions=[1-9]\d* pass=1 cycles=\d+ exit=pass")
+            self.assertRegex(result.stdout, r"EXEC reset=1 fetches=[1-9]\d* progress=[1-9]\d* completions=[1-9]\d* pass=1 cycles=\d+ illegal_or_trap_records=0 exit=pass")
 
     def test_cva6_packed_axi_wiring_matches_compiler_evidence_and_warnings(self) -> None:
         root = Path(__file__).resolve().parents[2]

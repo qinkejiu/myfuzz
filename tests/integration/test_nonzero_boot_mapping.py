@@ -9,7 +9,11 @@ import tempfile
 import textwrap
 import unittest
 
-from myfuzz.integration.riscv_execution import RiscvExecutionFacts, build_minimal_boot_image
+from myfuzz.integration.riscv_execution import (
+    RiscvExecutionFacts,
+    RiscvExecutionProvenance,
+    build_minimal_boot_image,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -35,6 +39,12 @@ class NonzeroBootMappingTests(unittest.TestCase):
                         pass_address=0x400, pass_value=0x600DCAFE,
                         protocol=("obi", "1") if width == 32 else ("axi4", "1"),
                         max_cycles=400,
+                        provenance=RiscvExecutionProvenance(
+                            source_identity="fixture-source", source_hash="sha256:" + "1" * 64,
+                            profile_identity="fixture-profile", profile_hash="sha256:" + "2" * 64,
+                            interface_identity="fixture-interface", interface_hash="sha256:" + "3" * 64,
+                            isa=isa, xlen=width, reset_vector=0x80,
+                        ),
                     ), root / f"rv{width}")
                     self.assertEqual(0x80, image.load_base)
                     self.assertEqual(0x80, image.reset_vector)
@@ -64,10 +74,34 @@ class NonzeroBootMappingTests(unittest.TestCase):
                               tick();
                             end
                           endtask
+                          task write_full(input [{width-1}:0] address,
+                                          input [{width-1}:0] value);
+                            begin
+                              addr=address; wdata=value; be='1; write=1; req_valid=1; tick();
+                              req_valid=0; write=0;
+                              while (!rsp_valid) tick();
+                              if (error) $fatal(1,"valid write errored at %h",address);
+                              tick();
+                            end
+                          endtask
+                          task expect_error(input write_value, input [{width-1}:0] address,
+                                            input [{width-1}:0] value);
+                            begin
+                              addr=address; wdata=value; be='1; write=write_value; req_valid=1; tick();
+                              req_valid=0; write=0;
+                              while (!rsp_valid) tick();
+                              if (!error) $fatal(1,"crossing request accepted at %h",address);
+                              tick();
+                            end
+                          endtask
                           initial begin
                             tick(); reset=1; tick();
                             read_check({width}'h0, {width}'h0);
                             read_check({width}'h80, {width}'h{expected:0{width//4}x});
+                            write_full({width}'d{4092 if width == 32 else 4088}, {width}'h{0x11223344 if width == 32 else 0x0807060504030201:0{width//4}x});
+                            expect_error(1, {width}'d{4094 if width == 32 else 4090}, {width}'h{0xaabbccdd if width == 32 else 0xaaaaaaaaaaaaaaaa:0{width//4}x});
+                            expect_error(0, {width}'d{4094 if width == 32 else 4090}, '0);
+                            read_check({width}'d{4092 if width == 32 else 4088}, {width}'h{0x11223344 if width == 32 else 0x0807060504030201:0{width//4}x});
                             $display("PASS width={width} load_base=00000080 data=%h",rdata);
                             $finish;
                           end

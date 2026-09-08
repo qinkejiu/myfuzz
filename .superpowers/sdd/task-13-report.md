@@ -190,3 +190,99 @@ Task 13 remains blocked until actual BOOM execution evidence exists.
 - Binary-build warning counts are context-specific and are not substituted for the official 464-record compiler artifact.
 - Uninitialized optional CVA6 submodules shown by `git submodule status` are outside the selected source closure; the three declared required nested pins are present and exact.
 - Overall Task 13 is intentionally not claimed complete because BOOM is blocked.
+
+## Review fix wave: acceptance, provenance, RAM atomicity, and blocker evidence
+
+### Acceptance/provenance/RAM RED
+
+Command:
+
+```text
+timeout --signal=TERM 120s env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 python3 -m unittest tests.integration.test_nonzero_boot_mapping tests.integration.test_riscv_execution -v
+```
+
+Exact result before production changes:
+
+```text
+exit_code=1
+ImportError: cannot import name 'RiscvExecutionProvenance' from 'myfuzz.integration.riscv_execution'
+Ran 2 tests in 0.000s
+FAILED (errors=2)
+```
+
+This RED was caused by the missing required provenance API, not by a test typo. The same test-only change also required first-fetch identity/data and `illegal_or_trap_records`, added pass-after-fault rejection cases, and added request-wide 32-bit/64-bit RAM boundary read/write cases.
+
+### Acceptance/provenance/RAM GREEN
+
+Command:
+
+```text
+timeout --signal=TERM 180s env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 python3 -m unittest tests.integration.test_nonzero_boot_mapping tests.integration.test_riscv_execution -v
+```
+
+Exact final result:
+
+```text
+Ran 11 tests in 30.584s
+
+OK
+```
+
+The 11 tests include real generated Ibex execution, first-fetch reset-vector and boot-byte matching, nonzero provenance mismatch rejection, explicit zero illegal/trap telemetry, the BOOM blocker fixture, and atomic crossing read/write checks for both RAM widths.
+
+### BOOM blocker manifest RED/GREEN
+
+RED command:
+
+```text
+env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_riscv_execution.RiscvExecutionTests.test_boom_blocker_manifest_is_source_backed_and_generic -v
+```
+
+RED result:
+
+```text
+FileNotFoundError: [Errno 2] No such file or directory: '/home/qinkejiu/myfuzz/.worktrees/ibex-protocol-longrun/third_party/docs/task-13/boom-blocker/manifest.json'
+Ran 1 test in 0.001s
+FAILED (errors=1)
+```
+
+GREEN result with the same command:
+
+```text
+test_boom_blocker_manifest_is_source_backed_and_generic (...) ... ok
+Ran 1 test in 0.000s
+
+OK
+```
+
+The durable artifact is `third_party/docs/task-13/boom-blocker/manifest.json`. It records BOOM `58ef2720eae13be26b3008c02b5a74ce29c61c44`, Chipyard `4180463d52bc0a6b4c004530601ccdabebf0ab7d`, hashed source observations for coherent TileLink A/B/C/D/E, unavailable Java/SBT generator tools, and the generic `tilelink@1` protocol work-item reason. No BOOM generation/download or BOOM-specific bridge/renderer was performed.
+
+### RAM Verilator warning evidence
+
+Commands:
+
+```text
+verilator --lint-only -Wno-fatal --top-module riscv_boot_memory_32 src/myfuzz/integration/rtl/riscv_boot_memory.sv
+verilator --lint-only -Wno-fatal --top-module riscv_boot_memory_64 src/myfuzz/integration/rtl/riscv_boot_memory.sv
+```
+
+Both exited 0 with no warnings. The reported `MULTIDRIVEN` warning and the 64-bit width diagnostics were eliminated by separating initialization state from clocked state and using a bounded 12-bit array index.
+
+### Task 9-12 scoped regression
+
+Command:
+
+```text
+timeout --signal=TERM 120s nice -n 15 env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 python3 -m pytest -q tests/composition/test_processor_execution.py tests/composition/test_processor_backend.py tests/protocols/test_processor_memory_arbiter_rtl.py tests/integration/test_processor_auto_wiring.py tests/integration/test_connected_processor_fixture.py
+```
+
+Exact result:
+
+```text
+.....................                                [100%]
+21 passed, 20 subtests passed in 9.30s
+```
+
+### Remaining status
+
+Task 13 remains **INCOMPLETE / BLOCKED** only because the BOOM sample still has no real CPU execution evidence. The blocker is now durable and source-backed; the required next work is CPU-independent coherent `tilelink@1` support, including compiler boundary extraction, B/C/E semantics, generic adapter/backend support, and bounded protocol tests before BOOM execution can be attempted.

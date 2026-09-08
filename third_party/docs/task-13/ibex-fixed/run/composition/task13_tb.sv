@@ -1,6 +1,7 @@
 module tb;
 logic clock=0, reset_n=0; integer cycles=0, fetches=0, progress=0, completions=0;
-logic [31:0] last_fetch=0; logic reset_released=0, pass_seen=0, first_fetch_checked=0;
+logic [31:0] last_fetch=0; integer illegal_or_trap_records=0;
+logic reset_released=0, pass_seen=0, first_fetch_checked=0;
 always #1 clock=~clock;
 generic_composition_top dut(
  .p_76a7e203dba8986e(clock),
@@ -52,7 +53,7 @@ always @(posedge clock) if(reset_n) begin
    end
  end
  if(pass_seen && completions > 0 && first_fetch_checked) begin
-   $display("EXEC reset=%0d fetches=%0d progress=%0d completions=%0d pass=1 cycles=%0d exit=pass", reset_released,fetches,progress,completions,cycles);
+   $display("EXEC reset=%0d fetches=%0d progress=%0d completions=%0d pass=1 cycles=%0d illegal_or_trap_records=%0d exit=pass", reset_released,fetches,progress,completions,cycles,illegal_or_trap_records);
    $finish;
  end
  if(cycles >= 400) begin

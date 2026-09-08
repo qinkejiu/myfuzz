@@ -17,7 +17,41 @@
     "reset_vector": "0x80",
     "max_cycles": 2000,
     "pass_address": "0x400",
-    "pass_value": "0x600dcafe"
+    "pass_value": "0x600dcafe",
+    "provenance": {
+      "source": {
+        "identity": "third_party/cva6_upstream_reference@2e1336dcff3d1a0b49fbe6282b97802f32ea32af",
+        "hash": "sha256:84c5f512f54e524a537112e80f68eee3fec84c139d286ce169887c550a4c9114"
+      },
+      "profile": {
+        "identity": "src/myfuzz/isa/profiles/cva6.json",
+        "hash": "sha256:306a06f1b0ecb775c3f7ccad4f4d894ef5d28f8f4902ff70b5183f2382ce96cf"
+      },
+      "interface": {
+        "identity": "configs/cpus/cva6/official_core_interface_description.json",
+        "hash": "sha256:69c0005a719c204abe3fae628968049cf4c921cf1f9b548b98890344bb0cde34"
+      },
+      "isa": "rv64imafdc",
+      "xlen": 64,
+      "reset_vector": "0x80"
+    }
+  },
+  "provenance": {
+    "source": {
+      "identity": "third_party/cva6_upstream_reference@2e1336dcff3d1a0b49fbe6282b97802f32ea32af",
+      "hash": "sha256:84c5f512f54e524a537112e80f68eee3fec84c139d286ce169887c550a4c9114"
+    },
+    "profile": {
+      "identity": "src/myfuzz/isa/profiles/cva6.json",
+      "hash": "sha256:306a06f1b0ecb775c3f7ccad4f4d894ef5d28f8f4902ff70b5183f2382ce96cf"
+    },
+    "interface": {
+      "identity": "configs/cpus/cva6/official_core_interface_description.json",
+      "hash": "sha256:69c0005a719c204abe3fae628968049cf4c921cf1f9b548b98890344bb0cde34"
+    },
+    "isa": "rv64imafdc",
+    "xlen": 64,
+    "reset_vector": "0x80"
   },
   "image": {
     "load_base": "0x80",
@@ -48,6 +82,8 @@
     "pass_observed": true,
     "cycles": 318,
     "exit_reason": "pass",
+    "first_fetch_address": "0x80",
+    "first_fetch_data": "0x600dd33740000293",
     "illegal_or_trap_records": 0
   },
   "commands": {
@@ -73,6 +109,8 @@
     "generated_top": "sha256:f105cd044ddd5e5848ecb768d64952bbca3808205b9fd16e68fd56f0ad25aacd",
     "source_list": "sha256:84c5f512f54e524a537112e80f68eee3fec84c139d286ce169887c550a4c9114",
     "source_crawler_snapshot": "sha256:c5c43bf31209c575fd472111b074077b6a4bc4910c68501f13b66da5a04efe75",
+    "profile": "sha256:306a06f1b0ecb775c3f7ccad4f4d894ef5d28f8f4902ff70b5183f2382ce96cf",
+    "interface": "sha256:69c0005a719c204abe3fae628968049cf4c921cf1f9b548b98890344bb0cde34",
     "boot_elf": "sha256:ba26337898b8a8ff47e9a2944805da3849c2e9ab8cb13f1340719fc394acf17d",
     "boot_binary": "sha256:1e518028c66689599b2a7e4e42ff1c1327abec8e9ed29e8de5b177fea600ab07",
     "boot_hex": "sha256:cca768c2f71d00461ac0896897d15e213185d488136efe0f1fe0016325c144bf"
