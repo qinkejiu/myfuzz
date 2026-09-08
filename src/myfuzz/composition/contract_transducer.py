@@ -55,7 +55,7 @@ class ContractTransducerPlan:
             "capacity_policy": "error_without_eviction",
             "allow_error_scope": "random_injection_only",
             "test_header_schema_version": TEST_HEADER_SCHEMA_VERSION,
-            "instruction_addressing_policy": "aligned_beat_uniform_slots_force_compressed_at_halfword_entry",
+            "instruction_addressing_policy": "aligned_beat_uniform_slots_force_compressed_at_halfword_request_or_boot_entry",
             "instruction_slot_policy": "independent_selector_and_payload_per_slot",
             "memory_provenance_policy": "data_generated_fetch_error_cpu_written_fetch_exact",
             "zero_byte_enable_policy": "no_write_no_allocation_no_provenance_change",
@@ -265,8 +265,12 @@ class ContractRuntime:
 
         def initialize() -> int:
             if pending.function == "instruction_memory_master" and provenance != "cpu_written":
+                # The DUT may align its request before exposing it on the bus.
+                # The saved test header retains the architectural entry offset.
+                boot_base = self.header.boot_address & ~(width_bytes - 1)
+                halfword_boot = base == boot_base and self.header.boot_address % 4 == 2
                 compressed = "instruction_compressed" in fields and (
-                    fields["instruction_compressed"] or pending.address % 4 == 2
+                    fields["instruction_compressed"] or pending.address % 4 == 2 or halfword_boot
                 )
                 slot_width = 16 if compressed else 32
                 word = 0

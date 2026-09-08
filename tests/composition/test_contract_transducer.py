@@ -298,6 +298,34 @@ def test_halfword_boot_address_forces_complete_compressed_beat(data_width, raw_m
     assert transact(runtime, request(0x82), instruction_payload=0).response_data == result.response_data
 
 
+@pytest.mark.parametrize("data_width", [32, 64])
+def test_aligned_fetch_for_halfword_boot_uses_compressed_slots_through_reset(data_width):
+    runtime = runtime_for(plan_for(data_width=data_width))
+    runtime.begin_test(header_for(runtime.plan, boot_address=0x82))
+    runtime.reset_dut()
+    first = transact(runtime, request(0x80), instruction_compressed=0,
+                     instruction_payload=(1 << data_width) - 1)
+    assert not first.rsp_error
+    for offset in range(0, data_width, 16):
+        assert runtime.instruction.provider.is_legal_word(
+            (first.response_data >> offset) & 0xFFFF, compressed=True)
+    assert transact(runtime, request(0x80), instruction_payload=0).response_data == first.response_data
+    runtime.begin_test(header_for(runtime.plan, boot_address=0x80))
+    base = transact(runtime, request(0x80), instruction_compressed=0,
+                    instruction_payload=(1 << data_width) - 1)
+    for offset in range(0, data_width, 32):
+        assert runtime.instruction.provider.is_legal_word(
+            (base.response_data >> offset) & 0xFFFFFFFF)
+
+
+def test_halfword_boot_rule_applies_only_to_the_beat_containing_boot_address():
+    runtime = runtime_for()
+    runtime.begin_test(header_for(runtime.plan, boot_address=0x82))
+    unrelated = transact(runtime, request(0x90), instruction_compressed=0,
+                         instruction_payload=0xFFFFFFFF)
+    assert runtime.instruction.provider.is_legal_word(unrelated.response_data)
+
+
 def test_provenance_conflict_error_survives_reset_and_ignores_random_error_disable():
     runtime = runtime_for(plan_for(allow_error=False))
     data = request(function="data_memory_master")
