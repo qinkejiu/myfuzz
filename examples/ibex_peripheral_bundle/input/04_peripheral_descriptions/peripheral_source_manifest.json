@@ -1,0 +1,59 @@
+{
+  "schema_version": "ibex_real_peripheral_sources.v1",
+  "peripherals": {
+    "real_ram": {
+      "module": "real_tl_ram_target",
+      "native_protocol": "TL-UL",
+      "sources": [
+        "configs/designs/ibex_multicomponent_ip/rtl/real_targets/real_tl_ram_target.sv",
+        "src/myfuzz/protocols/rtl/tl_ul_mmio_bridge.sv",
+        "src/myfuzz/protocols/rtl/tl_ul_mmio_target.sv",
+        "configs/designs/ibex_multicomponent_ip/rtl/ibex_mcip_ram.sv"
+      ]
+    },
+    "real_uart": {
+      "module": "real_axi_uart_target",
+      "native_protocol": "AXI4-Lite",
+      "sources": [
+        "configs/designs/ibex_multicomponent_ip/rtl/real_targets/real_axi_uart_target.sv",
+        "configs/designs/ibex_multicomponent_ip/rtl/real_targets/real_32bit_mmio_guard.sv",
+        "src/myfuzz/protocols/rtl/axi4_lite_mmio_bridge.sv",
+        "src/myfuzz/protocols/rtl/axi4_lite_mmio_target.sv",
+        "configs/designs/ibex_multicomponent_ip/rtl/ibex_mcip_uart.sv"
+      ]
+    },
+    "real_spi": {
+      "module": "real_axi_spi_target",
+      "native_protocol": "AXI4-Lite",
+      "sources": [
+        "configs/designs/ibex_multicomponent_ip/rtl/real_targets/real_axi_spi_target.sv",
+        "configs/designs/ibex_multicomponent_ip/rtl/real_targets/real_32bit_mmio_guard.sv",
+        "src/myfuzz/protocols/rtl/axi4_lite_mmio_bridge.sv",
+        "src/myfuzz/protocols/rtl/axi4_lite_mmio_target.sv",
+        "configs/designs/ibex_multicomponent_ip/rtl/ibex_mcip_spi.sv"
+      ]
+    },
+    "real_timer": {
+      "module": "real_apb_timer_target",
+      "native_protocol": "APB4",
+      "sources": [
+        "configs/designs/ibex_multicomponent_ip/rtl/real_targets/real_apb_timer_target.sv",
+        "configs/designs/ibex_multicomponent_ip/rtl/real_targets/real_32bit_mmio_guard.sv",
+        "src/myfuzz/protocols/rtl/apb4_mmio_bridge.sv",
+        "src/myfuzz/protocols/rtl/apb4_mmio_target.sv",
+        "configs/designs/ibex_multicomponent_ip/rtl/ibex_mcip_timer.sv"
+      ]
+    },
+    "real_gpio": {
+      "module": "real_apb_gpio_target",
+      "native_protocol": "APB4",
+      "sources": [
+        "configs/designs/ibex_multicomponent_ip/rtl/real_targets/real_apb_gpio_target.sv",
+        "configs/designs/ibex_multicomponent_ip/rtl/real_targets/real_32bit_mmio_guard.sv",
+        "src/myfuzz/protocols/rtl/apb4_mmio_bridge.sv",
+        "src/myfuzz/protocols/rtl/apb4_mmio_target.sv",
+        "configs/designs/ibex_multicomponent_ip/rtl/ibex_mcip_gpio.sv"
+      ]
+    }
+  }
+}

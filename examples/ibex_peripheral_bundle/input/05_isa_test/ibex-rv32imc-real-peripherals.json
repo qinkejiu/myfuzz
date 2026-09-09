@@ -1,0 +1,46 @@
+{
+  "schema_version": "ibex_peripheral_bundle_input.v1",
+  "name": "Ibex RV32IMC with five real peripheral targets",
+  "cpu_interface": "../01_cpu_interface/official_core_interface_description.json",
+  "hdl_source_manifest": "../02_hdl_source/source_manifest.json",
+  "protocol_rules": [
+    "../03_protocol_rules/obi.json",
+    "../03_protocol_rules/processor_memory_beat.json",
+    "../03_protocol_rules/tl_ul.json",
+    "../03_protocol_rules/axi4_lite.json",
+    "../03_protocol_rules/apb4.json"
+  ],
+  "peripheral_descriptions": [
+    "../04_peripheral_descriptions/real_ram.json",
+    "../04_peripheral_descriptions/real_uart.json",
+    "../04_peripheral_descriptions/real_spi.json",
+    "../04_peripheral_descriptions/real_timer.json",
+    "../04_peripheral_descriptions/real_gpio.json"
+  ],
+  "isa": {
+    "xlen": 32,
+    "extensions": ["I", "M", "C"],
+    "instruction_alignment": 2
+  },
+  "memory": {
+    "instruction_master": "main",
+    "data_master": "main"
+  },
+  "test": {
+    "mode": "real_cpu_peripheral_smoke",
+    "boot_address": 128,
+    "reset_cycles": 2,
+    "smoke_cycles": 2048,
+    "allow_error": false,
+    "max_wait_cycles": 16,
+    "memory_capacity_entries": 256
+  },
+  "components": [
+    "real_ram",
+    "real_uart",
+    "real_spi",
+    "real_timer",
+    "real_gpio"
+  ],
+  "output_directory": "../../output"
+}

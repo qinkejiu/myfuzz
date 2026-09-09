@@ -1,0 +1,21 @@
+{
+  "schema_version": "ibex_source_manifest.v1",
+  "source_root": "third_party/rfuzz/upstream/ibex",
+  "revision": "git:34b0705760ef3dfa00e99637432473d2be8f22f3",
+  "top_module": "ibex_top",
+  "hdl_file_count": 43,
+  "interface_description": "../01_cpu_interface/official_core_interface_description.json",
+  "include_roots": [
+    "vendor/lowrisc_ip/ip/prim/rtl",
+    "vendor/lowrisc_ip/ip/prim_generic/rtl",
+    "vendor/lowrisc_ip/dv/sv/dv_utils",
+    "vendor/pulp_common_cells/rtl"
+  ],
+  "elaboration_defines": {
+    "PMPEnable": "0",
+    "RV32E": "0",
+    "ICache": "0",
+    "SecureIbex": "0"
+  },
+  "notes": "完整的 43 个 Ibex HDL 文件由 CPU 接口说明文件列出；组合器会从仓库源码根目录重新读取并计算来源校验值，不在此目录复制 59 MB 的上游源码。"
+}
