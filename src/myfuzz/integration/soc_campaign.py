@@ -539,6 +539,12 @@ def run_soc_campaign(
     artifact = None
     try:
         build_hook = builder or config.get("build") or config.get("build_artifact")
+        if build_hook is None and config.get("artifact") is None:
+            # Production default: a real campaign renders its cell and compiles
+            # the source-backed artifact.  Tests may still inject a hook, name
+            # one in the config, or pass a prebuilt artifact explicitly.
+            from .soc_builder import build_soc_campaign_artifact
+            build_hook = build_soc_campaign_artifact
         if build_hook is None:
             artifact = config.get("artifact")
         elif callable(build_hook):

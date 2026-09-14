@@ -118,6 +118,9 @@ def _task_config(root: Path, task: Mapping[str, object], *, matrix_path: Path,
         ])
     result: dict[str, object] = {
         "config_id": task["task_id"], "cell_id": task["cell_id"],
+        # The campaign builder is config-driven: it re-reads this exact cell
+        # config (and its base profile) to plan, render and compile the cell.
+        "cell_config": cell_path.relative_to(root).as_posix(),
         "cpu": cell.get("cpu", task["cpu"]),
         "families": cell.get("families", [task["family"]]),
         "peripherals": cell.get("peripherals", []),
