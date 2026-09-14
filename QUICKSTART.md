@@ -233,6 +233,19 @@ MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest tests.integration.test_soc_
 MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest tests.integration.test_soc_real_ibex -v
 MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest tests.integration.test_soc_real_cva6 -v
 
+# P12 runtime half: eight cells x three modes with a real CPU and real peripherals
+MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest \
+  tests.integration.test_soc_matrix_runtime.SocMatrixRuntimeTests
+
+# P13: instrument the eight cells and require a real CPU/IP branch point to reach
+# RFuzz over IPC (short runs; this proves feedback, not coverage)
+MYFUZZ_SOC_REAL=1 MYFUZZ_RFuzz_CLIENT=runs/rfuzz_client_native_build/target/debug/kfuzz \
+  PYTHONPATH=src python3 -m unittest tests.integration.test_soc_coverage_run
+
+# P14: official RFuzz closed loop with retained receipts, corpus and rebuild replay
+MYFUZZ_SOC_REAL=1 MYFUZZ_RFuzz_CLIENT=runs/rfuzz_client_native_build/target/debug/kfuzz \
+  PYTHONPATH=src python3 -m unittest tests.integration.test_soc_rfuzz_build
+
 # P12/P14/P15: plan the 24 main + 8 bias-off tasks without running them
 PYTHONPATH=src nice -n15 python3 scripts/run_soc_campaigns.py \
   --matrix configs/soc/matrix.json --output runs/soc-acceptance/preflight \
@@ -243,3 +256,7 @@ A real campaign additionally needs `MYFUZZ_SOC_REAL=1` and an executable
 official RFuzz client in `MYFUZZ_RFuzz_CLIENT`. The 300-second-per-task budget
 of at least 160 effective minutes has deliberately not been run in this round
 and must not be inferred from the preflight.
+
+The measured results of the commands above are recorded in
+[docs/reports/soc-acceptance-20260915.md](docs/reports/soc-acceptance-20260915.md),
+including why the project is **not** marked complete.

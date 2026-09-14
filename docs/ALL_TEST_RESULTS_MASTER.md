@@ -1541,3 +1541,34 @@ runs/ibex_protocol_campaign_soak_final_20260906/checkpoint.json
 未执行、因此不作任何完成声明：八格 × 三模式的运行时矩阵与逐格真实 RFuzz 短 campaign（正在收口）、八格插桩覆盖率运行、以及每任务 300 秒、总计不少于 160 分钟有效时间的正式长测（本轮明确不做）。
 
 可恢复隔离：第二批审计 3467 条，隔离 198 个可重建缓存到 `runs/quarantine/P16-batch2/`，实际删除为零，隔离后审计 eligible 为 0。
+
+## 2026-09-15 续（CVA6 fabric 修复与 P13 插桩覆盖收口）
+
+| 任务 | 命令 | 结果 |
+|---|---|---|
+| 全量回归 | `PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py'` | **1604 tests OK**（skipped=28） |
+| P12 运行时矩阵 | `MYFUZZ_SOC_REAL=1 ... tests.integration.test_soc_matrix_runtime.SocMatrixRuntimeTests` | **8 tests OK / 72.2 s**；八格 × 三模式 **24/24 status=OK** |
+| P13 插桩覆盖 | `MYFUZZ_SOC_REAL=1 MYFUZZ_RFuzz_CLIENT=... tests.integration.test_soc_coverage_run` | **4 tests OK / 1155 s**；八格均有 cpu+ip 真实点经 IPC 进入 RFuzz |
+| P14 RFuzz 闭环 | `MYFUZZ_SOC_REAL=1 MYFUZZ_RFuzz_CLIENT=... tests.integration.test_soc_rfuzz_build` | **15 tests OK / 118 s** |
+| 真实 CPU 验收 | `MYFUZZ_SOC_REAL=1 ... test_soc_real_ibex test_soc_real_cva6` | **18 tests OK / 33.5 s** |
+| 渲染 + elaboration | `MYFUZZ_SOC_REAL=1 ... test_soc_renderer_cells` | **10 tests OK** |
+| 组合套件 | `python3 -m unittest discover -s tests/composition` | 522 tests OK |
+| 协议套件 | `python3 -m unittest discover -s tests/protocols` | 124 tests OK |
+| 集成套件 | `python3 -m unittest discover -s tests/integration` | 657 tests OK（skipped=24） |
+| P12/P14/P15 preflight | `nice -n15 python3 scripts/run_soc_campaigns.py ... --preflight-only` | tasks_planned=32（24 主 + 8 bias-off）、unsupported=[] |
+| CVA6 短 campaign + 重建重放 | `run_soc_campaign(..., rebuilder=build_soc_campaign_artifact)`，15 s | `completed_with_client_termination`；20643 tests / 13656 receipts；128 计数器中 21 个非零（ip 18 / cpu 3）；`replay.status=passed` |
+
+四项根因更正（均由实测定位，写入执行进度与验收报告）：CVA6 取指失败是
+`soc_cva6_beat_core` 未把保持寄存器的载荷接到 `target_rdata`/`target_error`，
+不是 burst/入口偏移；AXI 适配器对读一律请求 `FULL_BE`，把合法的 4 字节读放大成
+跨寄存器访问；`soc_router` 用 `addr + 最高 lane` 判越界，容器内偏移被算两次；
+生成的 RV64 boot 程序用符号扩展的 `lw` 与零扩展常量比较，凡 bit31 置位的探针都误报
+mismatch。另外 `scripts/source_branch_instrumenter.py` 的 `DEFAULT_EXCLUDES` 按绝对
+路径分量匹配，工程位于 `build/` 下时会静默丢掉所有 include 文件；单语句 runtime
+body（zipcpu 风格 `always @(posedge clk) if (...) begin ... end`）此前被静默跳过，
+现在由 `runtime.single_statement` 计量并在关闭时计入
+`runtime_single_statement_body_not_enabled`。
+
+仍未执行、因此不作任何完成声明：每任务 300 秒、总计不少于 160 分钟有效时间的正式
+长测（P15，本轮明确不做），以及八格逐任务的 campaign 重建重放（当前两款 CPU 各有
+一格的闭环证据）。验收判定见 `docs/reports/soc-acceptance-20260915.md`。

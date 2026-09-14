@@ -1,6 +1,9 @@
 # 自动组合 SoC 与 RFuzz 输入约束：当前项目目标
 
 日期：2026-09-14。状态：目标与实施基线；本文件不代表新目标已经实现。
+2026-09-15 复核：P12 运行时矩阵、P13 插桩覆盖与 P14 官方闭环已按本文件门槛取得实测证据，
+但 P15 的 300 秒/任务长测未执行，因此按 §5 仍**未**标记完成；实测命令与判定见
+[验收报告](reports/soc-acceptance-20260915.md)。
 
 实际开发目录为 `/home/qinkejiu/myfuzz/.worktrees/ibex-protocol-longrun`，核对基线为 `029840a`。
 本文件和 [实施计划](superpowers/plans/2026-09-14-soc-composition-and-fuzz.md) 是新工作的入口。

@@ -1,9 +1,12 @@
 # Docs
 
-## 当前入口（2026-09-14）
+## 当前入口（2026-09-15）
 
 - [项目目标](PROJECT_GOALS.md)：两层架构、输入约束、两 CPU × 三系列与混合协议验收。
 - [实施计划](superpowers/plans/2026-09-14-soc-composition-and-fuzz.md)：P0–P16 的文件、接口、步骤与门槛。
+- [验收报告 2026-09-15](reports/soc-acceptance-20260915.md)：实测命令与结果、八格 × 三模式矩阵、
+  P13 插桩覆盖、两款 CPU 的 RFuzz 闭环、P16 复查清单与**未完成判定**。
+- [执行进度](reports/soc-execution-progress-20260914.md)：逐轮执行记录，含根因更正与限制。
 - [整理台账](REPOSITORY_ORGANIZATION.md)：实际工作区、代码职责、历史文件和可恢复清理。
 
 新测试结果继续追加 `ALL_TEST_RESULTS_MASTER.md`。下列文档保留为历史参考，
