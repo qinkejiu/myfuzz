@@ -111,3 +111,16 @@ ibex 与 cva6 仍为 `elaboration_unverified`：真正实核属于 P10/P11，本
 - **同名 package 冲突**：CVA6 的 HPDcache fork 与 OpenTitan 都声明 `prim_secded_pkg`；Verilator 5.051 在 HPDcache 定义获胜时会内部报错退出。渲染器现在选择"其定义提供了编译集中所有被引用的 `P::symbol`"的那一份，把决定记在 `real_elaboration.package_collisions`，无法唯一确定时失败关闭。
 - **待办**：cell → plan/stimulus 的构建器目前只存在于 `tests/integration/test_soc_renderer_cells.py` 的脚手架里，需迁入生产规划路径；多窗口内存后端（I/D 别名共享同一物理内存）仍以 `memory-alias-unsupported` 失败关闭，属 P4 后续；wrapper 的机器可读标记应迁入 P1 source-lock 记录。
 - **仍未执行**：八格 × 三模式运行时矩阵、逐格真实 RFuzz 短 campaign、八格插桩覆盖率运行。
+
+## 2026-09-14 21:06 P14 官方 RFuzz 闭环打通（提交 `586bcde`）
+
+`run_soc_campaign` 之前**没有默认 builder**，只接受注入的 `build` 回调或现成 artifact，所以真实 campaign 必然以 `phase=build / "source-backed simulator artifact was not built"` 失败；而 `tests/integration/test_soc_rfuzz_live.py` 每个用例都注入 mock，真实路径从未被执行。
+
+新增 `src/myfuzz/integration/soc_builder.py`：`build_soc_campaign_artifact(config, build_dir)` 渲染 cell → 生成固定的 RFuzz 输入传输 → 用 Verilator 编译成说 FIFO/共享内存协议的二进制 → 返回带传输文档、输入布局、覆盖点与可执行文件溯源信息的 artifact；Verilator、closure 文件或客户端缺失时失败关闭，绝不以行为级模拟器代替。campaign 现在默认使用它（`soc_campaign.py` +6 行、`run_soc_campaigns.py` +3 行）。
+
+对着真实官方客户端（`runs/rfuzz_client_native_build/target/debug/kfuzz`）实测：`tests/integration/test_soc_rfuzz_build.py` **6 tests OK / 117 s**——真实 campaign 保留 FIFO reply receipts、语料与输入传输身份；重新构建的二进制重放保留语料并复现记录的覆盖身份；渲染源码含真实 CPU 与外设 closure；同配置渲染与传输身份确定；零输入 probe 不能被声明为 campaign。既有 campaign 契约测试保持通过。
+
+### 当前在制（未提交，属于 P12 运行时矩阵）
+
+`src/myfuzz/integration/soc_matrix_smoke.py`（约 95 KB）与 `tests/integration/test_soc_matrix_runtime.py`：八格 × 三模式运行时 smoke，从地址图生成 boot 程序、通用 testbench、`verilator --binary --timing` 构建与运行。**尚未验证通过，也未提交**；接手时先跑
+`MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest tests.integration.test_soc_matrix_runtime -v`。
