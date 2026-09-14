@@ -1,0 +1,390 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "soc_plan.v1",
+  "title": "MyFuzz bound SoC plan",
+  "description": "A validated soc_spec.v1 bound to instances, adapters, nets (one driver each with uniqueness evidence), the decoded address map, reset distribution, clock domains, per-target capability evidence and the stimulus modes. Frozen by task P3.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "spec_id",
+    "spec_hash",
+    "processor_execution",
+    "instances",
+    "adapters",
+    "nets",
+    "net_drivers",
+    "address_map",
+    "target_capabilities",
+    "reset",
+    "clock_domains",
+    "stimulus",
+    "assumptions",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "soc_plan.v1"
+    },
+    "spec_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "spec_hash": {
+      "$ref": "#/$defs/hash"
+    },
+    "processor_execution": {
+      "type": "object",
+      "required": ["schema_version", "routes", "bindings"],
+      "properties": {
+        "schema_version": {"const": "processor_execution.v1"},
+        "execution_hash": {
+          "oneOf": [
+            {"$ref": "#/$defs/hash"},
+            {"type": "null"}
+          ]
+        },
+        "adapter_sources": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "routes": {
+          "type": "array",
+          "items": {"type": "object"}
+        },
+        "bindings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source_id", "kind", "status"],
+            "properties": {
+              "source_id": {"type": "string", "minLength": 1},
+              "kind": {"enum": ["cpu_instruction", "cpu_data", "cpu_unified"]},
+              "status": {"enum": ["bound", "unbound"]}
+            }
+          }
+        }
+      }
+    },
+    "instances": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["component_id", "instance_id", "top_module", "parameters"],
+        "properties": {
+          "component_id": {"type": "string", "minLength": 1},
+          "instance_id": {"type": "string", "minLength": 1},
+          "top_module": {"type": "string", "minLength": 1},
+          "parameters": {"type": "object"}
+        }
+      }
+    },
+    "adapters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["adapter_id", "source_id", "target_id", "module"],
+        "properties": {
+          "adapter_id": {"type": "string", "minLength": 1},
+          "source_id": {"type": "string", "minLength": 1},
+          "target_id": {"type": "string", "minLength": 1},
+          "module": {"type": "string", "minLength": 1},
+          "rtl_source": {
+            "oneOf": [
+              {"type": "string", "minLength": 1},
+              {"type": "null"}
+            ]
+          },
+          "role": {"const": "initiator_to_target"}
+        }
+      }
+    },
+    "nets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["net_id", "kind", "driver"],
+        "properties": {
+          "net_id": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["master_ingress", "target_request", "interrupt", "clock", "reset"]},
+          "driver": {"type": "object"},
+          "sink": {"type": "object"}
+        }
+      }
+    },
+    "net_drivers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["net_id", "driver", "driver_count", "evidence"],
+        "properties": {
+          "net_id": {"type": "string", "minLength": 1},
+          "driver": {"type": "object"},
+          "driver_count": {"const": 1},
+          "evidence": {
+            "type": "object",
+            "required": ["unique", "observed_drivers", "rules"],
+            "properties": {
+              "unique": {"const": true},
+              "observed_drivers": {"const": 1},
+              "rules": {
+                "type": "array",
+                "minItems": 1,
+                "items": {"type": "string", "minLength": 1}
+              }
+            }
+          }
+        }
+      }
+    },
+    "address_map": {
+      "type": "object",
+      "required": ["windows", "memory_regions", "unmapped"],
+      "properties": {
+        "windows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["target_id", "window", "byte_enable"],
+            "properties": {
+              "target_id": {"type": "string", "minLength": 1},
+              "window": {"$ref": "#/$defs/window"},
+              "byte_enable": {"type": "boolean"}
+            }
+          }
+        },
+        "memory_regions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "region_id",
+              "component_id",
+              "base",
+              "size",
+              "permissions",
+              "physical_memory_id",
+              "initialization_policy"
+            ],
+            "properties": {
+              "region_id": {"type": "string", "minLength": 1},
+              "component_id": {"type": "string", "minLength": 1},
+              "base": {"type": "integer", "minimum": 0},
+              "size": {"type": "integer", "minimum": 1},
+              "permissions": {"$ref": "#/$defs/permissions"},
+              "physical_memory_id": {"type": "string", "minLength": 1},
+              "initialization_policy": {
+                "enum": ["on_demand", "preload", "rom", "alias", "none"]
+              }
+            }
+          }
+        },
+        "unmapped": {
+          "type": "object",
+          "required": ["behavior", "response", "side_effects"],
+          "properties": {
+            "behavior": {"const": "error"},
+            "response": {"type": "string", "minLength": 1},
+            "side_effects": {"const": "none"}
+          }
+        }
+      }
+    },
+    "target_capabilities": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["capabilities", "evidence"],
+        "properties": {
+          "capabilities": {"type": "object"},
+          "evidence": {"type": "object"},
+          "adapter": {
+            "type": "object",
+            "required": ["module"],
+            "properties": {
+              "module": {
+                "oneOf": [
+                  {"type": "string", "minLength": 1},
+                  {"type": "object"}
+                ]
+              },
+              "source": {
+                "oneOf": [
+                  {"type": "string", "minLength": 1},
+                  {"type": "null"}
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "reset": {
+      "type": "object",
+      "required": ["cpu_reset", "test_reset", "distribution"],
+      "properties": {
+        "cpu_reset": {
+          "type": "object",
+          "required": ["name", "domain", "sinks"],
+          "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "domain": {"type": "string", "minLength": 1},
+            "sinks": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        "test_reset": {
+          "type": "object",
+          "required": ["name", "domain", "sinks", "clears"],
+          "properties": {
+            "name": {"const": "test_reset"},
+            "domain": {"type": "string", "minLength": 1},
+            "sinks": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"type": "string", "minLength": 1}
+            },
+            "clears": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"type": "string", "minLength": 1}
+            },
+            "independent_of_cpu_reset": {"const": true}
+          }
+        },
+        "distribution": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["reset", "domain", "sink", "role"],
+            "properties": {
+              "reset": {"type": "string", "minLength": 1},
+              "domain": {"type": "string", "minLength": 1},
+              "sink": {"type": "string", "minLength": 1},
+              "role": {"enum": ["cpu", "test"]}
+            }
+          }
+        },
+        "semantics": {
+          "type": "object",
+          "required": ["mode_selected_at"],
+          "properties": {
+            "mode_selected_at": {"const": "test_begin"}
+          }
+        }
+      }
+    },
+    "clock_domains": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "frequency_hz"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "frequency_hz": {"type": "number", "exclusiveMinimum": 0},
+          "single_runtime_clock": {"type": "boolean"}
+        }
+      }
+    },
+    "stimulus": {
+      "type": "object",
+      "required": ["mode_selection", "selected_mode", "available_modes", "modes"],
+      "properties": {
+        "mode_selection": {"const": "test_begin"},
+        "selected_mode": {
+          "enum": [null, "cpu_only", "mmio_only", "mixed"]
+        },
+        "available_modes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/mode"}
+        },
+        "modes": {
+          "type": "object",
+          "required": ["cpu_only", "mmio_only", "mixed"],
+          "properties": {
+            "cpu_only": {"$ref": "#/$defs/mode_plan"},
+            "mmio_only": {"$ref": "#/$defs/mode_plan"},
+            "mixed": {"$ref": "#/$defs/mode_plan"}
+          }
+        }
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["assumption_id", "statement", "provenance"]
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "minLength": 1}
+    }
+  },
+  "$defs": {
+    "hash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "mode": {
+      "enum": ["cpu_only", "mmio_only", "mixed"]
+    },
+    "window": {
+      "type": "object",
+      "required": ["base", "size"],
+      "properties": {
+        "base": {"type": "integer", "minimum": 0},
+        "size": {"type": "integer", "minimum": 1}
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "required": ["read", "write", "execute"],
+      "properties": {
+        "read": {"type": "boolean"},
+        "write": {"type": "boolean"},
+        "execute": {"type": "boolean"}
+      }
+    },
+    "mode_plan": {
+      "type": "object",
+      "required": ["mode", "cpu_reset", "peripheral_reset", "test_reset", "participants"],
+      "properties": {
+        "mode": {"$ref": "#/$defs/mode"},
+        "available": {"type": "boolean"},
+        "cpu_reset": {
+          "type": "object",
+          "required": ["held_in_reset_whole_test", "released_at"],
+          "properties": {
+            "held_in_reset_whole_test": {"type": "boolean"},
+            "released_at": {"const": "test_begin"}
+          }
+        },
+        "peripheral_reset": {
+          "type": "object",
+          "required": ["held_in_reset_whole_test"],
+          "properties": {
+            "held_in_reset_whole_test": {"const": false}
+          }
+        },
+        "test_reset": {
+          "type": "object",
+          "required": ["asserted_at", "clears"],
+          "properties": {
+            "asserted_at": {"type": "array", "minItems": 1},
+            "clears": {"type": "array", "minItems": 1},
+            "separate_from_cpu_reset": {"const": true}
+          }
+        },
+        "participants": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

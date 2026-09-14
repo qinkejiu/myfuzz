@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "soc_stimulus.v1",
+  "title": "MyFuzz SoC stimulus contract",
+  "description": "Raw fuzz input layout, rule classes, consumption rules and reset semantics for exactly one stimulus mode. The mode is selected at test_begin only. Frozen by task P3; tasks P7-P9 consume it.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "plan_hash",
+    "mode",
+    "mode_selection",
+    "raw_layout",
+    "rule_classes",
+    "consumption",
+    "reset_semantics",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "soc_stimulus.v1"
+    },
+    "plan_hash": {
+      "$ref": "#/$defs/hash"
+    },
+    "mode": {
+      "$ref": "#/$defs/mode"
+    },
+    "mode_selection": {
+      "type": "object",
+      "required": ["selected_at"],
+      "properties": {
+        "selected_at": {"const": "test_begin"},
+        "source": {"type": "string", "minLength": 1}
+      }
+    },
+    "raw_layout": {
+      "type": "object",
+      "required": ["version", "total_bits", "segments"],
+      "properties": {
+        "version": {"type": "string", "minLength": 1},
+        "total_bits": {"type": "integer", "minimum": 1},
+        "segments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/segment"}
+        }
+      }
+    },
+    "rule_classes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["rule_id", "class", "category", "enabled"],
+        "properties": {
+          "rule_id": {"type": "string", "minLength": 1},
+          "class": {
+            "description": "Rule class, for example protocol_base, isa_legal, mmio_reachability_bias or event_rate.",
+            "type": "string",
+            "minLength": 1
+          },
+          "category": {"enum": ["constraint", "bias"]},
+          "enabled": {"type": "boolean"}
+        }
+      }
+    },
+    "consumption": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["segment_id", "driver", "latch_policy", "busy_policy", "max_pending"],
+        "properties": {
+          "segment_id": {"$ref": "#/$defs/segment_id"},
+          "driver": {"type": "string", "minLength": 1},
+          "latch_policy": {"const": "latch_until_completion"},
+          "busy_policy": {"const": "deterministic_drop_counted"},
+          "max_pending": {"const": 1}
+        }
+      }
+    },
+    "reset_semantics": {
+      "type": "object",
+      "required": ["mode", "cpu_reset", "peripheral_reset", "test_reset"],
+      "properties": {
+        "mode": {"$ref": "#/$defs/mode"},
+        "cpu_reset": {
+          "type": "object",
+          "required": ["held_in_reset_whole_test", "released_at"],
+          "properties": {
+            "held_in_reset_whole_test": {"type": "boolean"},
+            "released_at": {"const": "test_begin"}
+          }
+        },
+        "peripheral_reset": {
+          "type": "object",
+          "required": ["held_in_reset_whole_test", "released_at"],
+          "properties": {
+            "held_in_reset_whole_test": {"const": false},
+            "released_at": {"const": "test_begin"}
+          }
+        },
+        "test_reset": {
+          "type": "object",
+          "required": ["asserted_at", "clears"],
+          "properties": {
+            "asserted_at": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"type": "string", "minLength": 1}
+            },
+            "clears": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"type": "string", "minLength": 1}
+            },
+            "separate_from_cpu_reset": {"const": true}
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "minLength": 1}
+    }
+  },
+  "$defs": {
+    "hash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "mode": {
+      "enum": ["cpu_only", "mmio_only", "mixed"]
+    },
+    "segment_id": {
+      "enum": ["instruction", "mmio", "environment"]
+    },
+    "field": {
+      "type": "object",
+      "required": ["name", "lsb", "width", "role", "padding"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "lsb": {"type": "integer", "minimum": 0},
+        "width": {"type": "integer", "minimum": 1},
+        "role": {"type": "string", "minLength": 1},
+        "padding": {"type": "boolean"}
+      }
+    },
+    "segment": {
+      "type": "object",
+      "required": ["segment_id", "base_bit", "bit_width", "fields"],
+      "properties": {
+        "segment_id": {"$ref": "#/$defs/segment_id"},
+        "base_bit": {"type": "integer", "minimum": 0},
+        "bit_width": {"type": "integer", "minimum": 1},
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/field"}
+        }
+      }
+    }
+  }
+}

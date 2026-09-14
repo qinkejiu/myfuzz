@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "soc_spec.v1",
+  "title": "MyFuzz generated SoC specification",
+  "description": "Source facts plus explicit semantics for one generated SoC. Frozen by task P3; downstream tasks P4-P12 consume it unchanged.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "spec_id",
+    "components",
+    "memory_regions",
+    "masters",
+    "targets",
+    "interrupt_routes",
+    "environment_links",
+    "resources",
+    "assumptions",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "soc_spec.v1"
+    },
+    "spec_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "test_modes": {
+      "description": "Optional pin of the stimulus modes this SoC is used in. When present every master whose kind is used in such a mode must declare it.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/mode"
+      }
+    },
+    "source_locks": {
+      "description": "Optional lock ids (or the configs/soc/sources.lock.json document) used to check components[].source_lock.",
+      "type": ["array", "object"]
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/component"
+      }
+    },
+    "memory_regions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/memory_region"
+      }
+    },
+    "masters": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/master"
+      }
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/target"
+      }
+    },
+    "interrupt_routes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/interrupt_route"
+      }
+    },
+    "environment_links": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/environment_link"
+      }
+    },
+    "resources": {
+      "$ref": "#/$defs/resources"
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/assumption"
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "$defs": {
+    "mode": {
+      "enum": ["cpu_only", "mmio_only", "mixed"]
+    },
+    "protocol": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9._-]*$"
+        },
+        {
+          "type": "string",
+          "pattern": "^(?:[0-9]+(?:\\.[0-9]+)*|classic)$"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "permissions": {
+      "type": "object",
+      "required": ["read", "write", "execute"],
+      "properties": {
+        "read": {"type": "boolean"},
+        "write": {"type": "boolean"},
+        "execute": {"type": "boolean"}
+      }
+    },
+    "window": {
+      "type": "object",
+      "required": ["base", "size"],
+      "properties": {
+        "base": {"type": "integer", "minimum": 0},
+        "size": {"type": "integer", "minimum": 1}
+      }
+    },
+    "instance": {
+      "type": "object",
+      "required": ["instance_id", "parameters"],
+      "properties": {
+        "instance_id": {"type": "string", "minLength": 1},
+        "parameters": {"type": "object"}
+      }
+    },
+    "component": {
+      "type": "object",
+      "required": [
+        "component_id",
+        "kind",
+        "source_lock",
+        "top_module",
+        "clock_domain",
+        "reset_domain",
+        "instances",
+        "capability_evidence"
+      ],
+      "properties": {
+        "component_id": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["cpu", "peripheral", "memory", "clock_reset"]},
+        "source_lock": {"type": "string", "minLength": 1},
+        "top_module": {"type": "string", "minLength": 1},
+        "clock_domain": {"type": "string", "minLength": 1},
+        "reset_domain": {"type": "string", "minLength": 1},
+        "instances": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/instance"}
+        },
+        "capability_evidence": {"type": "object"}
+      }
+    },
+    "memory_region": {
+      "type": "object",
+      "required": [
+        "region_id",
+        "component_id",
+        "base",
+        "size",
+        "permissions",
+        "physical_memory_id",
+        "initialization_policy"
+      ],
+      "properties": {
+        "region_id": {"type": "string", "minLength": 1},
+        "component_id": {"type": "string", "minLength": 1},
+        "base": {"type": "integer", "minimum": 0},
+        "size": {"type": "integer", "minimum": 1},
+        "permissions": {"$ref": "#/$defs/permissions"},
+        "physical_memory_id": {"type": "string", "minLength": 1},
+        "initialization_policy": {
+          "enum": ["on_demand", "preload", "rom", "alias", "none"]
+        }
+      }
+    },
+    "master": {
+      "type": "object",
+      "required": [
+        "source_id",
+        "kind",
+        "component_id",
+        "port",
+        "protocol",
+        "data_width",
+        "address_width",
+        "test_modes"
+      ],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["cpu_instruction", "cpu_data", "cpu_unified", "fuzz_mmio"]},
+        "component_id": {"type": "string", "minLength": 1},
+        "port": {"type": "string", "minLength": 1},
+        "protocol": {"$ref": "#/$defs/protocol"},
+        "data_width": {"type": "integer", "minimum": 1},
+        "address_width": {"type": "integer", "minimum": 1},
+        "test_modes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/mode"}
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "required": [
+        "target_id",
+        "component_id",
+        "port",
+        "protocol",
+        "window",
+        "request_sources",
+        "response_owner",
+        "byte_enable"
+      ],
+      "properties": {
+        "target_id": {"type": "string", "minLength": 1},
+        "component_id": {"type": "string", "minLength": 1},
+        "port": {"type": "string", "minLength": 1},
+        "protocol": {"$ref": "#/$defs/protocol"},
+        "window": {"$ref": "#/$defs/window"},
+        "request_sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "response_owner": {"type": "string", "minLength": 1},
+        "byte_enable": {"type": "boolean"}
+      }
+    },
+    "interrupt_route": {
+      "type": "object",
+      "required": ["route_id", "source", "sink", "mask_ack"],
+      "properties": {
+        "route_id": {"type": "string", "minLength": 1},
+        "source": {
+          "type": "object",
+          "required": ["component_id", "signal", "trigger"],
+          "properties": {
+            "component_id": {"type": "string", "minLength": 1},
+            "signal": {"type": "string", "minLength": 1},
+            "trigger": {"enum": ["level", "edge"]}
+          }
+        },
+        "sink": {
+          "type": "object",
+          "required": ["master_id", "irq"],
+          "properties": {
+            "master_id": {"type": "string", "minLength": 1},
+            "irq": {"type": "integer", "minimum": 0}
+          }
+        },
+        "mask_ack": {
+          "type": "object",
+          "required": ["register", "semantics"],
+          "properties": {
+            "register": {"type": "string", "minLength": 1},
+            "semantics": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    },
+    "environment_link": {
+      "type": "object",
+      "required": ["link_id", "component_id", "protocol", "parameters"],
+      "properties": {
+        "link_id": {"type": "string", "minLength": 1},
+        "component_id": {"type": "string", "minLength": 1},
+        "protocol": {"$ref": "#/$defs/protocol"},
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "clock_domain": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "required": ["clock_domains", "resets", "clock_adapters", "limits"],
+      "properties": {
+        "clock_domains": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "frequency_hz"],
+            "properties": {
+              "name": {"type": "string", "minLength": 1},
+              "frequency_hz": {"type": "number", "exclusiveMinimum": 0}
+            }
+          }
+        },
+        "resets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "domain", "polarity", "synchronous"],
+            "properties": {
+              "name": {"type": "string", "minLength": 1},
+              "domain": {"type": "string", "minLength": 1},
+              "polarity": {"enum": ["active_low", "active_high"]},
+              "synchronous": {"type": "boolean"}
+            }
+          }
+        },
+        "clock_adapters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["adapter_id", "link_id"],
+            "properties": {
+              "adapter_id": {"type": "string", "minLength": 1},
+              "link_id": {
+                "description": "Names the crossing: a target_id, an interrupt route_id or an environment link_id.",
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "limits": {
+          "type": "object",
+          "required": ["build_timeout_s", "run_timeout_s", "rss_limit_mb", "cycles_per_sample"],
+          "properties": {
+            "build_timeout_s": {"type": "number", "exclusiveMinimum": 0},
+            "run_timeout_s": {"type": "number", "exclusiveMinimum": 0},
+            "rss_limit_mb": {"type": "number", "exclusiveMinimum": 0},
+            "cycles_per_sample": {"type": "number", "exclusiveMinimum": 0}
+          }
+        }
+      }
+    },
+    "assumption": {
+      "type": "object",
+      "required": ["assumption_id", "statement", "provenance"],
+      "properties": {
+        "assumption_id": {"type": "string", "minLength": 1},
+        "statement": {"type": "string", "minLength": 1},
+        "provenance": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}
