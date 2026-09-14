@@ -1,0 +1,14 @@
+{
+  "schema_version": "soc_matrix_cell.v1",
+  "cell_id": "ibex-opentitan",
+  "cpu": "ibex",
+  "families": ["opentitan"],
+  "peripherals": ["opentitan_uart", "opentitan_gpio"],
+  "distinct_ip_count": 2,
+  "modes": ["cpu_only", "mmio_only", "mixed"],
+  "base_profile": "configs/soc/ibex-pulp.json",
+  "source_locks": ["ibex", "opentitan_uart", "opentitan_gpio"],
+  "acceptance": {"requires_real_cpu": true, "requires_real_peripherals": true, "requires_runtime": true},
+  "runtime_status": "preflight_only",
+  "provenance": "configs/soc/families/opentitan.json"
+}

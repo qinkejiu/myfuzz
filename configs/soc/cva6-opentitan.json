@@ -1,0 +1,14 @@
+{
+  "schema_version": "soc_matrix_cell.v1",
+  "cell_id": "cva6-opentitan",
+  "cpu": "cva6",
+  "families": ["opentitan"],
+  "peripherals": ["opentitan_uart", "opentitan_gpio"],
+  "distinct_ip_count": 2,
+  "modes": ["cpu_only", "mmio_only", "mixed"],
+  "base_profile": "configs/soc/cva6-pulp.json",
+  "source_locks": ["cva6", "opentitan_uart", "opentitan_gpio"],
+  "acceptance": {"requires_real_cpu": true, "requires_real_peripherals": true, "requires_runtime": true},
+  "runtime_status": "preflight_only",
+  "provenance": "configs/soc/families/opentitan.json"
+}

@@ -1,0 +1,30 @@
+{
+  "schema_version": "soc_matrix.v1",
+  "matrix_id": "two-cpu-three-family-v1",
+  "cpus": ["ibex", "cva6"],
+  "families": ["opentitan", "pulp", "zipcpu"],
+  "modes": ["cpu_only", "mmio_only", "mixed"],
+  "cells": [
+    {"cell_id": "ibex-opentitan", "config": "configs/soc/ibex-opentitan.json", "cpu": "ibex", "family": "opentitan", "distinct_ip_count": 2},
+    {"cell_id": "ibex-pulp", "config": "configs/soc/ibex-pulp.json", "cpu": "ibex", "family": "pulp", "distinct_ip_count": 2},
+    {"cell_id": "ibex-zipcpu", "config": "configs/soc/ibex-zipcpu.json", "cpu": "ibex", "family": "zipcpu", "distinct_ip_count": 2},
+    {"cell_id": "cva6-opentitan", "config": "configs/soc/cva6-opentitan.json", "cpu": "cva6", "family": "opentitan", "distinct_ip_count": 2},
+    {"cell_id": "cva6-pulp", "config": "configs/soc/cva6-pulp.json", "cpu": "cva6", "family": "pulp", "distinct_ip_count": 2},
+    {"cell_id": "cva6-zipcpu", "config": "configs/soc/cva6-zipcpu.json", "cpu": "cva6", "family": "zipcpu", "distinct_ip_count": 2},
+    {"cell_id": "ibex-mixed", "config": "configs/soc/ibex-mixed.json", "cpu": "ibex", "family": "mixed", "distinct_ip_count": 3},
+    {"cell_id": "cva6-mixed", "config": "configs/soc/cva6-mixed.json", "cpu": "cva6", "family": "mixed", "distinct_ip_count": 3}
+  ],
+  "acceptance": {
+    "requires_real": true,
+    "requires_three_modes": true,
+    "requires_two_distinct_ips_per_family_cell": true,
+    "requires_one_ip_per_family_in_mixed": true,
+    "runtime_status": "preflight_only",
+    "environment": "MYFUZZ_SOC_REAL=1"
+  },
+  "provenance": {
+    "families": "configs/soc/families",
+    "sources": "configs/soc/sources.lock.json",
+    "plan": "docs/superpowers/plans/2026-09-14-soc-composition-and-fuzz.md#P12"
+  }
+}

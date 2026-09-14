@@ -1,0 +1,14 @@
+{
+  "schema_version": "soc_matrix_cell.v1",
+  "cell_id": "ibex-mixed",
+  "cpu": "ibex",
+  "families": ["opentitan", "pulp", "zipcpu"],
+  "peripherals": ["opentitan_uart", "pulp_spi", "zipcpu_timer"],
+  "distinct_ip_count": 3,
+  "modes": ["cpu_only", "mmio_only", "mixed"],
+  "base_profile": "configs/soc/ibex-pulp.json",
+  "source_locks": ["ibex", "opentitan_uart", "pulp_spi", "zipcpu_timer"],
+  "acceptance": {"requires_real_cpu": true, "requires_real_peripherals": true, "requires_runtime": true},
+  "runtime_status": "preflight_only",
+  "provenance": "configs/soc/families/opentitan.json + configs/soc/families/pulp.json + configs/soc/families/zipcpu.json"
+}

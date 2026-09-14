@@ -1,27 +1,37 @@
 {
   "schema_version": "soc_render_config.v1",
-  "config_id": "ibex-pulp",
-  "cell_id": "ibex-pulp",
+  "config_id": "cva6-pulp",
+  "cell_id": "cva6-pulp",
   "families": ["pulp"],
   "distinct_ip_count": 2,
-  "source_locks": ["ibex", "pulp_gpio", "pulp_spi"],
+  "source_locks": ["cva6", "pulp_gpio", "pulp_spi"],
   "status": "source_locked_render_profile",
   "cpu": {
-    "id": "ibex",
-    "source_lock": "ibex",
-    "top_module": "ibex_top",
-    "interface": "configs/cpus/ibex/official_core_interface_description.json",
-    "protocol": ["obi", "1"],
-    "xlen": 32,
-    "extensions": ["I", "M", "C"],
+    "id": "cva6",
+    "source_lock": "cva6",
+    "top_module": "cva6",
+    "interface": "configs/cpus/cva6/official_core_interface_description.json",
+    "protocol": ["axi4", "1"],
+    "xlen": 64,
+    "extensions": ["I", "M", "A", "F", "D", "C"],
+    "privilege": ["M", "S", "U"],
     "parameters": {
-      "PMPEnable": 0,
-      "RV32E": 0,
-      "ICache": 0,
-      "SecureIbex": 0
+      "TARGET_CFG": "cv64a6_imafdc_sv39",
+      "CVA6CfgMmuOn": 1,
+      "CVA6CfgCacheEn": 1,
+      "CVA6CfgFpuEn": 1
     },
-    "reset_vector": 65536,
-    "source_provenance": "configs/soc/sources.lock.json#/components/ibex"
+    "reset_vector": 2147483648,
+    "memory_boundary": {
+      "container_request": "noc_req_o",
+      "container_response": "noc_resp_i",
+      "data_width": 64,
+      "address_width": 64,
+      "packed_members_compiler_proven": true,
+      "burst_policy": "reject_non_single_beat",
+      "fetch_burst_required": false
+    },
+    "source_provenance": "configs/cpus/cva6/official_core_interface_description.json#/source"
   },
   "peripherals": [
     {
@@ -32,7 +42,8 @@
       "protocol": ["apb", "3"],
       "target_id": "gpio0_win",
       "window": {"base": 1073741824, "size": 4096},
-      "parameters": {"APB_ADDR_WIDTH": 12, "PAD_NUM": 32, "NBIT_PADCFG": 4},
+      "data_width": 32,
+      "width_conversion": {"spanning_write": "reject", "spanning_read": "reject"},
       "closure": "configs/soc/closures/pulp_gpio.json",
       "runtime_status": "runtime_unverified"
     },
@@ -44,7 +55,8 @@
       "protocol": ["apb", "3"],
       "target_id": "spi0_win",
       "window": {"base": 1073745920, "size": 4096},
-      "parameters": {"APB_ADDR_WIDTH": 12, "BUFFER_DEPTH": 10},
+      "data_width": 32,
+      "width_conversion": {"spanning_write": "reject", "spanning_read": "reject"},
       "closure": "configs/soc/closures/pulp_spi.json",
       "runtime_status": "runtime_unverified"
     }
@@ -52,16 +64,16 @@
   "memory_regions": [
     {
       "region_id": "rom0",
-      "base": 65536,
-      "size": 32768,
+      "base": 2147483648,
+      "size": 65536,
       "physical_memory_id": "boot_rom",
       "permissions": {"read": true, "write": false, "execute": true},
       "initialization_policy": "preload"
     },
     {
       "region_id": "ram0",
-      "base": 2147483648,
-      "size": 65536,
+      "base": 2147549184,
+      "size": 131072,
       "physical_memory_id": "main_ram",
       "permissions": {"read": true, "write": true, "execute": true},
       "initialization_policy": "on_demand"
@@ -85,23 +97,22 @@
     {
       "route_id": "gpio0_irq",
       "source": {"component_id": "pulp_gpio", "signal": "interrupt", "trigger": "edge"},
-      "sink": {"master_id": "cpu_data", "irq": 3},
+      "sink": {"master_id": "cpu_unified", "irq": 3},
       "mask_ack": {"register": "gpio0.intstatus", "semantics": "read-to-clear"}
     },
     {
       "route_id": "spi0_irq",
       "source": {"component_id": "pulp_spi", "signal": "events_o", "trigger": "edge"},
-      "sink": {"master_id": "cpu_data", "irq": 4},
+      "sink": {"master_id": "cpu_unified", "irq": 4},
       "mask_ack": {"register": "spi0.intcfg", "semantics": "explicit-complete"}
     }
   ],
   "modes": ["cpu_only", "mmio_only", "mixed"],
   "harness": {
     "raw_input": "soc_stimulus.v1",
-    "environment_driver": "environment_pins",
     "synthetic_master": "fuzz_mmio_master",
     "irq_router": "soc_irq_router",
-    "boot_program": "soc_boot.S",
+    "wide_mmio_policy": "reject_unsupported_crossing",
     "replay_identity": ["source_lock", "plan_hash", "layout_hash", "render_hash", "tool"]
   },
   "acceptance": {
@@ -110,14 +121,14 @@
     "requires_elaboration": true,
     "requires_runtime": true,
     "required_observations": [
-      "gpio_output_state", "spi_miso_bits", "real_irq", "cpu_mmio_transaction",
-      "fuzz_mmio_transaction", "source_target_transaction_identity"
+      "high_lane_mmio", "low_lane_mmio", "burst_rejection_without_side_effect",
+      "real_irq", "cpu_to_peripheral_transaction", "rebuild_replay"
     ],
     "environment": "MYFUZZ_SOC_REAL=1"
   },
   "provenance": {
     "sources": "configs/soc/sources.lock.json",
     "closures": "configs/soc/closures",
-    "plan": "docs/superpowers/plans/2026-09-14-soc-composition-and-fuzz.md#P10"
+    "plan": "docs/superpowers/plans/2026-09-14-soc-composition-and-fuzz.md#P11"
   }
 }

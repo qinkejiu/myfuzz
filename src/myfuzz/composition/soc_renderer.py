@@ -13,6 +13,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from myfuzz.contracts import canonical_bytes, content_hash
+from myfuzz.integration.soc_coverage import build_coverage_universe
 
 from .soc_contracts import SocContractError, soc_plan_hash, validate_soc_plan, validate_soc_stimulus
 
@@ -260,6 +261,13 @@ def render_soc(plan: Mapping[str, object], stimulus: Mapping[str, object]) -> di
     contract = _environment_contract(stimulus)
     sources = _source_records(plan)
     top = _render_top(plan, stimulus, contract)
+    # The renderer carries the coverage boundary even when no backend report
+    # is available yet.  An empty universe is intentional: source-instrumented
+    # RTL points are populated by the campaign build, while input samples are
+    # never promoted to branch evidence here.
+    coverage = build_coverage_universe([], instances=[
+        item for item in plan.get("instances", []) if isinstance(item, Mapping)
+    ])
     manifest: dict[str, object] = {
         "schema_version": RENDER_SCHEMA,
         "plan_hash": stimulus["plan_hash"],
@@ -280,6 +288,14 @@ def render_soc(plan: Mapping[str, object], stimulus: Mapping[str, object]) -> di
             "fuzz_spi_peer", "soc_irq_router",
         ],
         "unique_driver_policy": "one declared driver per net; elaboration required",
+        "coverage": {
+            "schema_version": coverage["schema_version"],
+            "backend": coverage["backend"],
+            "universe_hash": coverage["universe_hash"],
+            "categories": coverage["categories"],
+            "branch_feedback_is_rtl_only": coverage["branch_feedback_is_rtl_only"],
+            "instrumentation_required": True,
+        },
     }
     manifest["render_hash"] = content_hash(manifest)
     manifest_text = json.dumps(_plain(manifest), sort_keys=True, indent=2) + "\n"
