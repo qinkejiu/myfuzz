@@ -284,15 +284,60 @@ def _validate_memory_regions(document: Mapping[str, object], components: Mapping
         if _overlaps(previous["base"], previous["size"], current["base"], current["size"]):
             _error("overlapping-memory-regions",
                    f"{previous['region_id']}+{current['region_id']}")
-    physical: dict[str, tuple] = {}
+    # One region per physical memory is the primary: it carries the real
+    # initialization policy and defines the byte range that memory occupies.
+    # Every other region sharing the physical id must be declared an alias, must
+    # lie inside the primary, and may differ in permissions - an execute-only
+    # instruction view and a read/write data view of the same RAM is exactly what
+    # this contract exists for - but it may not invent a second primary, may not
+    # alias nothing, may not reach outside the memory, and may not make a ROM
+    # writable.
+    primaries: dict[str, dict] = {}
     for record in records:
-        signature = (record["size"], tuple(sorted(record["permissions"].items())),
-                     record["initialization_policy"])
-        previous = physical.get(record["physical_memory_id"])
-        if previous is not None and previous != signature:
+        if record["base"] + record["size"] > 1 << 64:
+            _error("address-out-of-range", f"memory_regions/{record['region_id']}")
+        if record["initialization_policy"] == "alias":
+            continue
+        primary = primaries.get(record["physical_memory_id"])
+        if primary is None:
+            primaries[record["physical_memory_id"]] = record
+            continue
+        # A second view that is not declared an alias must be byte-for-byte the
+        # same memory: same extent, same permissions, same initialization. Any
+        # difference is a genuine conflict rather than a second view.
+        if (record["size"] != primary["size"]
+                or record["permissions"] != primary["permissions"]
+                or record["initialization_policy"] != primary["initialization_policy"]):
             _error("conflicting-physical-memory", record["physical_memory_id"])
-        physical[record["physical_memory_id"]] = signature
+    for record in records:
+        if record["initialization_policy"] != "alias":
+            continue
+        primary = primaries.get(record["physical_memory_id"])
+        if primary is None:
+            # "alias" must alias something; otherwise the enum hides a region
+            # whose initialization nobody ever declared.
+            _error("alias-without-primary", record["region_id"])
+        if record["size"] > primary["size"]:
+            _error("alias-larger-than-physical-memory", record["region_id"])
+        if primary["initialization_policy"] == "rom" and record["permissions"]["write"]:
+            _error("writable-rom", f"memory_regions/{record['region_id']}")
     return records
+
+
+def _check_address_reach(masters: Sequence[dict], regions: Sequence[dict],
+                         targets: Sequence[dict]) -> None:
+    """Every region and window must be reachable by the widest declared master.
+
+    A master narrower than an address it must drive would silently truncate the
+    address, so the plan's address map has to fit the largest declared width.
+    """
+    limit = 1 << max(master["address_width"] for master in masters)
+    for region in regions:
+        if region["base"] + region["size"] > limit:
+            _error("address-exceeds-master-width", f"memory_regions/{region['region_id']}")
+    for target in targets:
+        if target["base"] + target["size"] > limit:
+            _error("address-exceeds-master-width", f"targets/{target['target_id']}")
 
 
 def _validate_masters(document: Mapping[str, object], components: Mapping[str, dict]) -> list[dict]:
@@ -315,6 +360,8 @@ def _validate_masters(document: Mapping[str, object], components: Mapping[str, d
         _integer(record["data_width"], _child(pointer, "data_width"), minimum=1)
         _integer(record["address_width"], _child(pointer, "address_width"), minimum=1)
         modes = _text_list(record["test_modes"], _child(pointer, "test_modes"), nonempty=True)
+        if len(set(modes)) != len(modes):
+            _error("duplicate-mode", _child(pointer, "test_modes"))
         for mode_index, mode in enumerate(modes):
             mode_pointer = _child(_child(pointer, "test_modes"), mode_index)
             _enum(mode, mode_pointer, SOC_MODES)
@@ -354,12 +401,18 @@ def _validate_targets(document: Mapping[str, object], components: Mapping[str, d
         port = _string(record["port"], _child(pointer, "port"))
         protocol = _protocol(record["protocol"], _child(pointer, "protocol"))
         base, size = _window(record["window"], _child(pointer, "window"))
+        if base + size > 1 << 64:
+            _error("address-out-of-range", _child(pointer, "window"))
         if target_id in seen_targets:
             _error("duplicate-target-id", target_id)
         seen_targets.add(target_id)
         request_sources = _array(record["request_sources"], _child(pointer, "request_sources"))
         if not request_sources:
             _error("missing-target-requester", target_id)
+        if len(set(request_sources)) != len(request_sources):
+            # A duplicated requester would be counted twice by every arbitration
+            # and adapter derivation downstream.
+            _error("duplicate-target-requester", target_id)
         for source_index, source in enumerate(request_sources):
             source_pointer = _child(_child(pointer, "request_sources"), source_index)
             name = _string(source, source_pointer)
@@ -612,9 +665,18 @@ def validate_soc_spec(spec: dict, *, test_modes: object = None, source_lock_ids:
     _enum(document["schema_version"], "schema_version", (SOC_SPEC_SCHEMA,))
     _string(document["spec_id"], "spec_id")
     components = _validate_components(document)
-    _validate_memory_regions(document, components)
+    if not components:
+        # A SoC with no components, no master or no target cannot be built, and
+        # accepting it here only moves the failure into an opaque later stage.
+        _error("empty-collection", "components")
+    regions = _validate_memory_regions(document, components)
     masters = _validate_masters(document, components)
+    if not masters:
+        _error("empty-collection", "masters")
     targets = _validate_targets(document, components, masters)
+    if not targets:
+        _error("empty-collection", "targets")
+    _check_address_reach(masters, regions, targets)
     routes = _validate_interrupt_routes(document, components, masters)
     links = _validate_environment_links(document, components)
     link_ids = {target["target_id"] for target in targets}

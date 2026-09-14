@@ -596,6 +596,94 @@ class SocSpecValidationTests(unittest.TestCase):
         alias["permissions"] = {"read": True, "write": False, "execute": False}
         self.reject("conflicting-physical-memory", self.spec)
 
+
+    def test_instruction_and_data_alias_may_differ_in_permissions(self) -> None:
+        # The plan's headline alias case: one RAM with an execute-only
+        # instruction view and a read/write data view sharing a physical id.
+        alias = {
+            "region_id": "ram0_ifetch",
+            "component_id": "ram",
+            "base": 0x80020000,
+            "size": 0x10000,
+            "permissions": {"read": True, "write": False, "execute": True},
+            "physical_memory_id": "sram0",
+            "initialization_policy": "alias",
+        }
+        self.spec["memory_regions"].append(alias)
+        self.assertIsNone(validate_soc_spec(self.spec))
+        # A sub-window view of the same physical memory is legal too.
+        alias["region_id"] = "ram0_ifetch_small"
+        alias["base"] = 0x80040000
+        alias["size"] = 0x4000
+        self.assertIsNone(validate_soc_spec(self.spec))
+
+    def test_alias_must_alias_a_declared_primary(self) -> None:
+        self.spec["memory_regions"].append({
+            "region_id": "orphan_alias",
+            "component_id": "ram",
+            "base": 0x90000000,
+            "size": 0x1000,
+            "permissions": {"read": True, "write": False, "execute": False},
+            "physical_memory_id": "nobody_declares_this",
+            "initialization_policy": "alias",
+        })
+        self.reject("alias-without-primary")
+
+    def test_alias_may_not_be_larger_than_its_primary(self) -> None:
+        self.spec["memory_regions"].append({
+            "region_id": "ram0_ifetch",
+            "component_id": "ram",
+            "base": 0x80020000,
+            "size": 0x20000,
+            "permissions": {"read": True, "write": False, "execute": True},
+            "physical_memory_id": "sram0",
+            "initialization_policy": "alias",
+        })
+        self.reject("alias-larger-than-physical-memory")
+
+    def test_rom_alias_cannot_grant_write(self) -> None:
+        self.spec["memory_regions"].append({
+            "region_id": "rom0_data",
+            "component_id": "rom",
+            "base": 0x20000000,
+            "size": 0x8000,
+            "permissions": {"read": True, "write": True, "execute": False},
+            "physical_memory_id": "bootrom0",
+            "initialization_policy": "alias",
+        })
+        self.reject("writable-rom")
+
+    def test_empty_collections_are_rejected(self) -> None:
+        for field in ("components", "masters", "targets"):
+            with self.subTest(field=field):
+                spec = spec_fixture()
+                spec[field] = []
+                with self.assertRaises(SocContractError) as raised:
+                    validate_soc_spec(spec)
+                self.assertEqual("empty-collection", raised.exception.reason)
+
+    def test_address_map_must_fit_the_widest_master(self) -> None:
+        for master in self.spec["masters"]:
+            master["address_width"] = 16
+        self.reject("address-exceeds-master-width")
+
+    def test_region_beyond_64_bits_is_rejected(self) -> None:
+        self.spec["memory_regions"][0]["base"] = (1 << 64) - 0x100
+        self.spec["memory_regions"][0]["size"] = 0x10000
+        self.reject("address-out-of-range")
+
+    def test_window_beyond_64_bits_is_rejected(self) -> None:
+        self.spec["targets"][2]["window"] = {"base": (1 << 64) - 8, "size": 16}
+        self.reject("address-out-of-range")
+
+    def test_duplicate_target_requester_is_rejected(self) -> None:
+        self.spec["targets"][0]["request_sources"] = ["cpu_data", "fuzz_mmio", "fuzz_mmio"]
+        self.reject("duplicate-target-requester")
+
+    def test_duplicate_test_modes_are_rejected(self) -> None:
+        self.spec["masters"][0]["test_modes"] = ["cpu_only", "mixed", "cpu_only"]
+        self.reject("duplicate-mode")
+
     def test_writable_rom_rejected(self) -> None:
         self.spec["memory_regions"][1]["permissions"]["write"] = True
         error = self.reject("writable-rom")
