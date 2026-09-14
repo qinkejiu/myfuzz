@@ -19,6 +19,7 @@ _RTL_SOURCES = (
     "src/myfuzz/protocols/rtl/soc_arbiter.sv",
     "src/myfuzz/protocols/rtl/soc_router.sv",
     "src/myfuzz/protocols/rtl/mmio_width_adapter.sv",
+    "src/myfuzz/protocols/rtl/beat_address_narrow.sv",
 )
 _SOURCE_ORDER = {"cpu_instruction": 0, "cpu_data": 1, "cpu_unified": 2, "fuzz_mmio": 3}
 
@@ -216,6 +217,48 @@ def build_soc_fabric(spec: Mapping[str, object], processor_execution: Mapping[st
                            "RESET_CLEARS_TARGETS": int(reset_scope_verified)},
         })
 
+    # A target whose own adapter can only accept a bounded address needs the
+    # fabric to narrow the beat address once, in front of that target.  This is
+    # the structural answer to "the CPU is wider than the peripheral": the
+    # narrowing is admissible exactly when the target's whole decode window fits
+    # the narrower width, because that is what makes the truncation lossless.  A
+    # window that does not fit is rejected here instead of being truncated, and
+    # the stage itself refuses out-of-window addresses before narrowing them.
+    address_narrowers: list[dict[str, object]] = []
+    for index, backing in enumerate(unique_backings):
+        associated = [row for row in window_rows if row["target_index"] == index]
+        declared = [targets_by_id[str(row["target_id"])].get("fabric_address_width")
+                    for row in associated]
+        if all(value is None for value in declared):
+            continue
+        if any(value != declared[0] for value in declared[1:]):
+            raise SocFabricError("fabric-address-width-mismatch")
+        narrow_width = _integer(declared[0], "fabric-address-width")
+        if narrow_width > address_width:
+            raise SocFabricError("fabric-address-width")
+        if narrow_width == address_width:
+            continue
+        if backing[0] != "target" or len(associated) != 1:
+            # Only a real peripheral with a single decode window is narrowed:
+            # a memory backing is modelled at the fabric width and an aliased
+            # window would need one proof per window.
+            raise SocFabricError("address-narrowing-unsupported")
+        target_width = _integer(targets_by_id[str(associated[0]["target_id"])].get("data_width"),
+                                "target-width")
+        base = int(associated[0]["base"])
+        size = int(associated[0]["size"])
+        if base + size > (1 << narrow_width):
+            raise SocFabricError(f"address-narrowing-window:{associated[0]['target_id']}")
+        address_narrowers.append({
+            "target_index": index, "module": "beat_address_narrow",
+            "source": _RTL_SOURCES[3],
+            "parameters": {"ADDRESS_WIDTH": address_width,
+                           "NARROW_ADDRESS_WIDTH": narrow_width,
+                           "DATA_WIDTH": target_width,
+                           "WINDOW_BASE": base, "WINDOW_SIZE": size,
+                           "RESET_CLEARS_TARGETS": int(reset_scope_verified)},
+        })
+
     sources = [{"index": index, "source_id": item["source_id"], "kind": item.get("kind"),
                 "ingress_protocol": ["processor-memory-beat", "1"],
                 "instruction": item.get("kind") == "cpu_instruction"}
@@ -223,8 +266,14 @@ def build_soc_fabric(spec: Mapping[str, object], processor_execution: Mapping[st
     limits = resources.get("limits", {}) if isinstance(resources, Mapping) else {}
     configured_wait = limits.get("max_wait_cycles", backend["recovery"]["max_wait_cycles"])
     configured_wait = _integer(configured_wait, "max-wait-cycles")
-    used_sources = list(_RTL_SOURCES[:2]) + ([_RTL_SOURCES[2]] if width_adapters else [])
-    used_modules = ["soc_arbiter", "soc_router"] + (["mmio_width_adapter"] if width_adapters else [])
+    used_sources = list(_RTL_SOURCES[:2])
+    used_modules = ["soc_arbiter", "soc_router"]
+    if width_adapters:
+        used_sources.append(_RTL_SOURCES[2])
+        used_modules.append("mmio_width_adapter")
+    if address_narrowers:
+        used_sources.append(_RTL_SOURCES[3])
+        used_modules.append("beat_address_narrow")
     packed_source_mask = sum(
         int(row["allowed_source_mask"]) << (index * len(sources))
         for index, row in enumerate(window_rows)
@@ -240,6 +289,7 @@ def build_soc_fabric(spec: Mapping[str, object], processor_execution: Mapping[st
                     for index, key in enumerate(unique_backings)],
         "decode": {"windows": window_rows, "unmapped": {"completion": "error", "side_effect": False}},
         "width_adapters": width_adapters,
+        "address_narrowers": address_narrowers,
         "rtl": {"modules": used_modules,
                 "sources": used_sources,
                 "parameters": {"NUM_SOURCES": len(sources), "NUM_TARGETS": len(unique_backings),

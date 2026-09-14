@@ -7,13 +7,14 @@ import unittest
 from myfuzz.composition.soc_fabric import SocFabricError, build_soc_fabric
 
 
-def route(route_id: int, function: str, width: int, read_only: bool = False) -> dict:
+def route(route_id: int, function: str, width: int, read_only: bool = False,
+          address_width: int = 32) -> dict:
     return {
         "route_id": route_id,
         "function": function,
         "target_protocol": ["processor-memory-beat", "1"],
         "parameters": {"READ_ONLY": int(read_only)},
-        "widths": {"address": 32, "data": width},
+        "widths": {"address": address_width, "data": width},
         "backend_contract": {
             "mode": "single_outstanding_request_response",
             "protocol": ["processor-memory-beat", "1"],
@@ -22,10 +23,11 @@ def route(route_id: int, function: str, width: int, read_only: bool = False) -> 
     }
 
 
-def execution(width: int = 32, unified: bool = False) -> dict:
-    routes = ([route(7, "processor_memory_master", width)] if unified else [
-        route(8, "instruction_memory_master", width, True),
-        route(4, "data_memory_master", width),
+def execution(width: int = 32, unified: bool = False, address_width: int = 32) -> dict:
+    routes = ([route(7, "processor_memory_master", width, address_width=address_width)]
+              if unified else [
+        route(8, "instruction_memory_master", width, True, address_width),
+        route(4, "data_memory_master", width, address_width=address_width),
     ])
     return {
         "schema_version": "processor_execution.v1",
@@ -34,17 +36,18 @@ def execution(width: int = 32, unified: bool = False) -> dict:
     }
 
 
-def spec(width: int = 32, unified: bool = False) -> dict:
+def spec(width: int = 32, unified: bool = False, address_width: int = 32) -> dict:
     cpu = ([{"source_id": "cpu", "kind": "cpu_unified", "data_width": width,
-             "address_width": 32, "protocol": ["axi4", "1"]}]
+             "address_width": address_width, "protocol": ["axi4", "1"]}]
            if unified else [
                {"source_id": "ifetch", "kind": "cpu_instruction", "data_width": width,
-                "address_width": 32, "protocol": ["obi", "1"]},
+                "address_width": address_width, "protocol": ["obi", "1"]},
                {"source_id": "data", "kind": "cpu_data", "data_width": width,
-                "address_width": 32, "protocol": ["obi", "1"]},
+                "address_width": address_width, "protocol": ["obi", "1"]},
            ])
     masters = cpu + [{"source_id": "fuzz", "kind": "fuzz_mmio", "data_width": width,
-                      "address_width": 32, "protocol": ["processor-memory-beat", "1"]}]
+                      "address_width": address_width,
+                      "protocol": ["processor-memory-beat", "1"]}]
     all_sources = [m["source_id"] for m in masters]
     return {
         "masters": masters,
@@ -160,6 +163,77 @@ class SocFabricPlanTests(unittest.TestCase):
         masks = [w["allowed_source_mask"] for w in plan["decode"]["windows"]]
         expected_packed = sum(mask << (index * 3) for index, mask in enumerate(masks))
         self.assertEqual(expected_packed, plan["rtl"]["parameters"]["WINDOW_SOURCE_MASK"])
+
+    def _wide(self, **target_changes) -> tuple[dict, dict]:
+        wide = spec(64, unified=True, address_width=64)
+        wide["targets"][0]["width_conversion"] = {"spanning_write": "reject",
+                                                 "spanning_read": "reject"}
+        wide["targets"][0].update(target_changes)
+        return wide, execution(64, unified=True, address_width=64)
+
+    def test_a_target_with_a_bounded_adapter_address_gets_a_narrower(self) -> None:
+        wide, wide_execution = self._wide(fabric_address_width=32)
+        plan = build_soc_fabric(wide, wide_execution)
+        self.assertEqual(1, len(plan["address_narrowers"]))
+        narrower = plan["address_narrowers"][0]
+        self.assertEqual("beat_address_narrow", narrower["module"])
+        self.assertEqual("src/myfuzz/protocols/rtl/beat_address_narrow.sv", narrower["source"])
+        self.assertEqual(
+            {"ADDRESS_WIDTH": 64, "NARROW_ADDRESS_WIDTH": 32, "DATA_WIDTH": 32,
+             "WINDOW_BASE": 0x4000, "WINDOW_SIZE": 0x100, "RESET_CLEARS_TARGETS": 0},
+            narrower["parameters"])
+        uart = next(w for w in plan["decode"]["windows"] if w["window_id"] == "uart")
+        self.assertEqual(uart["target_index"], narrower["target_index"])
+        self.assertIn("beat_address_narrow", plan["rtl"]["modules"])
+        self.assertIn("src/myfuzz/protocols/rtl/beat_address_narrow.sv",
+                      plan["rtl"]["sources"])
+
+    def test_a_fabric_at_the_target_width_needs_no_narrower(self) -> None:
+        same, same_execution = self._wide(fabric_address_width=64)
+        plan = build_soc_fabric(same, same_execution)
+        self.assertEqual([], plan["address_narrowers"])
+        self.assertNotIn("beat_address_narrow", plan["rtl"]["modules"])
+
+    def test_a_window_the_narrower_cannot_cover_is_rejected(self) -> None:
+        above = spec(64, unified=True, address_width=64)
+        above["targets"][0]["fabric_address_width"] = 32
+        above["targets"][0]["window"] = {"base": 0x1_0000_0000, "size": 0x100}
+        above["targets"][1]["fabric_address_width"] = 32
+        above["targets"][1]["window"] = {"base": 0x1_0000_1000, "size": 0x100}
+        _, wide_execution = self._wide()
+        with self.assertRaisesRegex(SocFabricError, "address-narrowing-window"):
+            build_soc_fabric(above, wide_execution)
+
+    def test_narrowing_a_memory_backing_or_an_alias_is_rejected(self) -> None:
+        # Both windows of one aliased backing must agree, and a memory backing
+        # is modelled at the fabric width: neither may be narrowed.
+        aliased = spec(64, unified=True, address_width=64)
+        aliased["targets"][1]["fabric_address_width"] = 32
+        aliased["targets"][2]["fabric_address_width"] = 32
+        single = spec(64, unified=True, address_width=64)
+        single["targets"] = single["targets"][1:2]
+        single["targets"][0]["fabric_address_width"] = 32
+        _, wide_execution = self._wide()
+        for name, candidate in (("aliased-memory-backing", aliased),
+                                ("single-memory-backing", single)):
+            with self.subTest(case=name), \
+                    self.assertRaisesRegex(SocFabricError, "address-narrowing-unsupported"):
+                build_soc_fabric(candidate, wide_execution)
+
+    def test_an_inconsistent_narrow_width_across_aliases_is_rejected(self) -> None:
+        inconsistent = spec(64, unified=True, address_width=64)
+        inconsistent["targets"][1]["fabric_address_width"] = 32
+        _, wide_execution = self._wide()
+        with self.assertRaisesRegex(SocFabricError, "fabric-address-width-mismatch"):
+            build_soc_fabric(inconsistent, wide_execution)
+
+    def test_an_invalid_declared_narrow_width_is_rejected(self) -> None:
+        for declared, expected in ((0, "fabric-address-width"),
+                                   (128, "fabric-address-width")):
+            wide, wide_execution = self._wide(fabric_address_width=declared)
+            with self.subTest(declared=declared), \
+                    self.assertRaisesRegex(SocFabricError, expected):
+                build_soc_fabric(wide, wide_execution)
 
 
 if __name__ == "__main__":
