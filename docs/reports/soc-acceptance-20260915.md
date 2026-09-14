@@ -96,6 +96,29 @@ PYTHONPATH=src nice -n15 python3 scripts/run_soc_campaigns.py \
 The preflight plans 32 tasks and reports `effective_budget_seconds: 0` because
 it runs nothing; it is not a substitute for P15.
 
+### A note on verifying the commits from scratch
+
+`third_party/` holds the pinned upstream checkouts and is **not** committed, so a
+clean `git archive HEAD` checkout cannot run the tests that read those sources.
+Verifying the committed tree therefore used a detached worktree at HEAD with the
+pinned checkouts symlinked in, and the result is worth stating precisely:
+
+* `tests/protocols` passes at HEAD (123 tests OK); it reads files and tolerates
+  the symlinked checkouts.
+* `tests/composition` passes in the working tree (522 OK) and no composition test
+  reads any file the parallel workstream has modified, so that result transfers
+  to HEAD unchanged.
+* Anything that re-derives a source root refuses a symlink outright
+  (`cva6-source-root:symlink`), which is a deliberate fail-closed property of the
+  code: the CVA6 closure revalidation fails from the symlinked worktree for that
+  reason alone. Full from-scratch verification of those paths would need the
+  pinned checkouts materialised inside the checkout rather than linked.
+
+So the strongest statement this round can make is: the working tree equals HEAD
+except for the six files listed in §9, the full regression passes on that tree
+(1604 OK), and the committed test modules that the workstream's edits shadow were
+re-run at HEAD under `tests/protocols`.
+
 ## 4. Eight cells x three modes (P12 runtime half)
 
 `runs/soc-matrix-runtime/<cell>/<mode>/observations.json`, 24 runs, all
