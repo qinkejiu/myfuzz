@@ -124,3 +124,14 @@ ibex 与 cva6 仍为 `elaboration_unverified`：真正实核属于 P10/P11，本
 
 `src/myfuzz/integration/soc_matrix_smoke.py`（约 95 KB）与 `tests/integration/test_soc_matrix_runtime.py`：八格 × 三模式运行时 smoke，从地址图生成 boot 程序、通用 testbench、`verilator --binary --timing` 构建与运行。**尚未验证通过，也未提交**；接手时先跑
 `MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest tests.integration.test_soc_matrix_runtime -v`。
+
+### P14 保留证据与官方客户端的终止缺陷（必须如实记录）
+
+保留证据（ibex-pulp, 30 s smoke）：90 s 墙钟内执行 44,244 次真实 Verilator 测试，产生 25,596 条唯一 FIFO reply receipt（`input_sha256` + `coverage_sha256` + `status=fifo_reply_and_rtl_completed`，transport `sysv-shared-memory-rfuzz-coverage-buffer`），语料 `entry_*.json` 与客户端 `config.json` 保留（输入宽度 224 == layout `raw_width`，123 个计数点），传输身份写入 `report.json` 与 `rfuzz_input_transport.json`，无泄漏 shm/FIFO。用**重新构建**的二进制（不同 sha256）重放保留语料：`build_corpus_manifest` + `replay_corpus` → `passed`，每条重新执行的计数等于客户端记录的 `trace_bits` 前缀，`trace_sha256` 一致，覆盖身份复现。零输入 probe 被拒绝。
+
+**官方客户端无法以 rc=0 结束**（实测，非模拟）：仓库内固定的 `runs/rfuzz_client_native_build/target/debug/kfuzz`（2026-09-07 18:29 构建）早于 `third_party/rfuzz/upstream/rfuzz_reference/fuzzer/src/main.rs` 里 2026-09-08 11:20 的未提交补丁（在每次共享内存 batch 的 `Yield` 处检查 `canceled`）。用不杀进程的 supervisor 实测：t=23.8 s 发 SIGINT，客户端 **175 s 后**才打印 "User interrupted fuzzing. Going to shut down...."，随后 panic：`src/queue.rs:129:9: assertion failed: self.active_entry.is_some()`，rc=101（`sync()` 之后的排空在 `return_test` 清掉 active entry 后又调用 `add_new_test`）。因此 `run_live` 的 rc==0 门槛不可达：它在 60 s 排空后 SIGTERM，campaign 记为 `failed/timeout/phase=client`，**从不**是 build/compile 失败。为此 `test_soc_rfuzz_build.py` 自己用同一个 rebuilder 回调重建并重放保留语料、断言覆盖身份——这比"退出码为 0"更强。
+
+八格跑 campaign 之前还差：
+1. **客户端**：用打过补丁的源码重建 kfuzz **并且**修掉 `queue.rs:129` 的关机排空 panic；或者定义一个有文档的中断运行策略（接受 rc 101/SIGTERM 加保留证据），不再要求 rc=0。
+2. **CVA6 两格**：只做过 render，未做完整构建/campaign（closure 240–290 个源文件），需要构建耗时/超时评估。
+3. P15 只需默认 hook（已接线）加上客户端修复。
