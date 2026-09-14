@@ -8,6 +8,7 @@
   "required": [
     "schema_version",
     "spec_id",
+    "source_locks",
     "components",
     "memory_regions",
     "masters",
@@ -35,7 +36,7 @@
       }
     },
     "source_locks": {
-      "description": "Optional lock ids (or the configs/soc/sources.lock.json document) used to check components[].source_lock.",
+      "description": "Required lock ids (or the configs/soc/sources.lock.json document) used to prove components[].source_lock membership; source-byte verification remains a separate P1 responsibility.",
       "type": ["array", "object"]
     },
     "components": {
@@ -235,7 +236,7 @@
           "minItems": 1,
           "items": {"type": "string", "minLength": 1}
         },
-        "response_owner": {"type": "string", "minLength": 1},
+        "response_owner": {"const": "soc_fabric"},
         "byte_enable": {"type": "boolean"}
       }
     },

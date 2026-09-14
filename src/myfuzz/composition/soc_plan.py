@@ -167,9 +167,19 @@ def _build_cpu_boundary(spec: Mapping[str, object], execution: Mapping[str, obje
             continue
         functions = _CPU_ROUTE_FUNCTIONS[master["kind"]]
         matches = [route for route in routes if route["function"] in functions]
-        if matches:
-            route = matches[0]
-            bindings.append({
+        if not matches:
+            _error("missing-cpu-route", master["source_id"])
+        if len(matches) != 1:
+            _error("ambiguous-cpu-route", master["source_id"])
+        route = matches[0]
+        widths = route.get("widths")
+        if (list(route.get("source_protocol", [])) != list(master["protocol"])
+                or not isinstance(widths, Mapping)
+                or widths.get("address") != master["address_width"]
+                or widths.get("data") != master["data_width"]
+                or route.get("target_protocol") != ["processor-memory-beat", "1"]):
+            _error("cpu-route-mismatch", master["source_id"])
+        bindings.append({
                 "source_id": master["source_id"],
                 "kind": master["kind"],
                 "function": route["function"],
@@ -180,20 +190,7 @@ def _build_cpu_boundary(spec: Mapping[str, object], execution: Mapping[str, obje
                 "reset_contract": _deep(route.get("reset_contract", {})),
                 "backend_contract": _deep(route.get("backend_contract", {})),
                 "status": "bound",
-            })
-        else:
-            bindings.append({
-                "source_id": master["source_id"],
-                "kind": master["kind"],
-                "function": None,
-                "route_id": None,
-                "adapter_id": None,
-                "rtl_module": None,
-                "rtl_source": None,
-                "reset_contract": {},
-                "backend_contract": {},
-                "status": "unbound",
-            })
+        })
     return {
         "schema_version": execution.get("schema_version"),
         "execution_hash": execution.get("execution_hash"),
@@ -296,7 +293,8 @@ def _build_nets(spec: Mapping[str, object]) -> tuple[list[dict], list[dict]]:
             "protocol": list(target["protocol"]),
             "window": {"base": target["window"]["base"], "size": target["window"]["size"]},
             "request_sources": sorted(target["request_sources"]),
-            "response_owner": target["response_owner"],
+            "response_driver": {"role": "target", "target_id": target["target_id"]},
+            "response_routing": "accepted_source",
         }
         if len(owner_counts[key]) != 1:
             _error("duplicate-response-driver", f"{target['component_id']}/{target['port']}")
@@ -417,7 +415,8 @@ def _build_reset(spec: Mapping[str, object], instances: Sequence[Mapping[str, ob
     test_resets = [reset for reset in resets if reset["domain"] == test_domain]
 
     cpu_sinks = sorted(instance["instance_id"] for instance in instances
-                       if by_id[instance["component_id"]]["reset_domain"] == cpu_domain)
+                       if instance["component_id"] in cpu_components
+                       and by_id[instance["component_id"]]["kind"] == "cpu")
     test_sinks = sorted(instance["instance_id"] for instance in instances)
     distribution: list[dict] = []
     for instance in sorted(instances, key=lambda item: item["instance_id"]):
@@ -577,7 +576,8 @@ def build_soc_plan(spec: dict, processor_execution: dict, target_contracts: list
                 "size": target["window"]["size"],
                 "byte_enable": target["byte_enable"],
                 "request_sources": sorted(target["request_sources"]),
-                "response_owner": target["response_owner"],
+                "response_driver": {"role": "target", "target_id": target["target_id"]},
+                "response_routing": "accepted_source",
             } for target in sorted(spec["targets"], key=lambda item: item["target_id"])],
             "memory_regions": [{
                 "region_id": region["region_id"],

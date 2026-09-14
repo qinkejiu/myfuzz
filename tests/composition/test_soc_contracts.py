@@ -76,6 +76,7 @@ def spec_fixture() -> dict:
     return {
         "schema_version": "soc_spec.v1",
         "spec_id": "ibex-opentitan-smoke",
+        "source_locks": list(LOCK_IDS),
         "components": [
             {
                 "component_id": "cpu",
@@ -194,7 +195,7 @@ def spec_fixture() -> dict:
                 "protocol": ["ready-valid-memory", "1"],
                 "window": {"base": 0x80000000, "size": 0x10000},
                 "request_sources": ["cpu_data", "fuzz_mmio"],
-                "response_owner": "cpu_data",
+                "response_owner": "soc_fabric",
                 "byte_enable": True,
             },
             {
@@ -204,7 +205,7 @@ def spec_fixture() -> dict:
                 "protocol": ["ready-valid-memory", "1"],
                 "window": {"base": 0x00010000, "size": 0x8000},
                 "request_sources": ["cpu_ifetch"],
-                "response_owner": "cpu_ifetch",
+                "response_owner": "soc_fabric",
                 "byte_enable": False,
             },
             {
@@ -214,7 +215,7 @@ def spec_fixture() -> dict:
                 "protocol": ["tl-ul", "1"],
                 "window": {"base": 0x40000000, "size": 0x1000},
                 "request_sources": ["cpu_data", "fuzz_mmio"],
-                "response_owner": "cpu_data",
+                "response_owner": "soc_fabric",
                 "byte_enable": True,
             },
         ],
@@ -327,7 +328,7 @@ def processor_execution_fixture() -> dict:
                 "rtl_module": "obi_to_beat",
                 "rtl_source": "protocols/rtl/obi_to_beat.sv",
                 "parameters": {"ADDR_WIDTH": 32},
-                "widths": {"addr": 32, "data": 32},
+                "widths": {"address": 32, "data": 32},
                 "field_connections": [],
                 "extension_policies": [],
                 "reset_contract": {"polarity": "active_low", "synchrony": "sync"},
@@ -342,7 +343,7 @@ def processor_execution_fixture() -> dict:
                 "rtl_module": "obi_to_beat",
                 "rtl_source": "protocols/rtl/obi_to_beat.sv",
                 "parameters": {"ADDR_WIDTH": 32},
-                "widths": {"addr": 32, "data": 32},
+                "widths": {"address": 32, "data": 32},
                 "field_connections": [],
                 "extension_policies": [],
                 "reset_contract": {"polarity": "active_low", "synchrony": "sync"},
@@ -448,14 +449,38 @@ def stimulus_fixture(plan: dict, mode: str = "mixed") -> dict:
     }
 
 
-def permuted(value):
-    """Deep copy with every list reversed and every object key reordered."""
+UNORDERED_PATHS = {
+    ("source_locks",), ("components",), ("components", "*", "instances"),
+    ("source_locks", "components"),
+    ("memory_regions",), ("masters",), ("masters", "*", "test_modes"), ("targets",),
+    ("targets", "*", "request_sources"), ("interrupt_routes",), ("environment_links",),
+    ("resources", "clock_domains"), ("resources", "resets"), ("resources", "clock_adapters"),
+    ("assumptions",), ("test_modes",), ("processor_execution", "adapter_sources"),
+    ("processor_execution", "routes"), ("processor_execution", "bindings"), ("instances",),
+    ("adapters",), ("nets",), ("net_drivers",), ("address_map", "windows"),
+    ("address_map", "memory_regions"), ("reset", "cpu_reset", "resource_resets"),
+    ("reset", "cpu_reset", "sinks"), ("reset", "cpu_reset", "held_in_reset_modes"),
+    ("reset", "test_reset", "resource_resets"), ("reset", "test_reset", "sinks"),
+    ("reset", "test_reset", "clears"), ("reset", "test_reset", "asserted_at"),
+    ("reset", "distribution"), ("reset", "semantics", "cpu_reset_hold_modes"),
+    ("clock_domains",), ("clock_domains", "*", "components"),
+    ("clock_domains", "*", "instances"), ("clock_domains", "*", "crossing_adapters"),
+    ("stimulus", "available_modes"), ("stimulus", "modes", "*", "participants"),
+    ("stimulus", "modes", "*", "test_reset", "clears"),
+    ("stimulus", "modes", "*", "test_reset", "asserted_at"),
+}
+
+
+def permuted(value, path=()):
+    """Deep copy with only schema-declared unordered collections reversed."""
     if isinstance(value, dict):
         items = list(value.items())
         items.reverse()
-        return {key: permuted(item) for key, item in items}
+        return {key: permuted(item, path + (key,)) for key, item in items}
     if isinstance(value, list):
-        return [permuted(item) for item in reversed(value)]
+        schema_path = tuple("*" if str(token).isdigit() else token for token in path)
+        items = reversed(value) if schema_path in UNORDERED_PATHS else value
+        return [permuted(item, path + (str(index),)) for index, item in enumerate(items)]
     return copy.deepcopy(value)
 
 
@@ -620,7 +645,7 @@ class SocSpecValidationTests(unittest.TestCase):
                 "byte_enable": True,
             }
         )
-        self.reject("duplicate-response-driver")
+        self.reject("invalid-response-owner")
 
     def test_cross_clock_without_adapter_rejected(self) -> None:
         self.spec["components"][3]["clock_domain"] = "periph"
@@ -849,7 +874,8 @@ class SocPlanTests(unittest.TestCase):
         uart_net = next(net for net in plan["nets"] if net["net_id"] == "target:uart0_win")
         self.assertEqual(sorted(uart_net["request_sources"]), ["cpu_data", "fuzz_mmio"])
         self.assertEqual(uart_net["driver"]["role"], "fabric")
-        self.assertEqual(uart_net["response_owner"], "cpu_data")
+        self.assertEqual(uart_net["response_driver"], {"role": "target", "target_id": "uart0_win"})
+        self.assertEqual(uart_net["response_routing"], "accepted_source")
 
     def test_plan_keeps_cpu_and_test_reset_separate(self) -> None:
         plan = self.build()

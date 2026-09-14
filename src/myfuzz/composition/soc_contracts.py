@@ -19,15 +19,10 @@ parseable "<reason>:<json-pointer>" prefix.
 
 Hash policy
 -----------
-soc_spec_hash and soc_plan_hash treat every JSON array as an unordered multiset
-(sorted by canonical encoding) and every object as a key-sorted mapping, then
-reuse myfuzz.contracts.content_hash.  Permuting any list or reordering any
-object key therefore cannot change a digest, while changing a protocol tuple,
-an address, a permission, an initialization policy or a master/target binding
-does.  "protocol" is the ordered pair [name, version]; validation pins that
-order (a version is numeric or "classic" and never looks like a protocol name),
-so multiset normalisation cannot merge two documents that mean different
-things.
+soc_spec_hash and soc_plan_hash sort only schema collections declared
+unordered (components, routes, nets, and similar identity-keyed sets). Ordered
+arrays such as protocol tuples and typed parameter arrays retain their order.
+Object key order never affects the digest.
 """
 from __future__ import annotations
 
@@ -370,7 +365,7 @@ def _validate_targets(document: Mapping[str, object], components: Mapping[str, d
             if name not in source_ids:
                 _error("unknown-source-id", name)
         response_owner = _string(record["response_owner"], _child(pointer, "response_owner"))
-        if response_owner not in request_sources:
+        if response_owner != "soc_fabric":
             _error("invalid-response-owner", target_id)
         byte_enable = _boolean(record["byte_enable"], _child(pointer, "byte_enable"))
         owner_key = (component_id, port)
@@ -630,11 +625,15 @@ def validate_soc_spec(spec: dict, *, test_modes: object = None, source_lock_ids:
 
     _check_cross_clock(components, masters, targets, routes, links, resources["clock_adapters"])
 
-    locks = _lock_ids(source_lock_ids if source_lock_ids is not None else document.get("source_locks"))
-    if locks is not None:
-        known = set(locks)
-        for index, value in enumerate(_array(document["components"], "components")):
-            record = _object(value, _child("components", index))
+    embedded_locks = _lock_ids(document.get("source_locks"))
+    if embedded_locks is None:
+        _error("missing-source-locks", "source_locks")
+    lock_sets = [(set(embedded_locks), "source_locks")]
+    if source_lock_ids is not None:
+        lock_sets.append((set(_lock_ids(source_lock_ids) or ()), "source_lock_ids"))
+    for index, value in enumerate(_array(document["components"], "components")):
+        record = _object(value, _child("components", index))
+        for known, _origin in lock_sets:
             if record["source_lock"] not in known:
                 _error("unknown-source-lock", _child(_child("components", index), "source_lock"))
 
@@ -657,7 +656,20 @@ def validate_soc_plan(plan: dict) -> None:
     _enum(document["schema_version"], "schema_version", (SOC_PLAN_SCHEMA,))
     _string(document["spec_id"], "spec_id")
     _hash_string(document["spec_hash"], "spec_hash")
-    _object(document["processor_execution"], "processor_execution")
+    processor = _object(document["processor_execution"], "processor_execution")
+    _require(processor, "processor_execution", ("routes", "bindings"))
+    bindings = _array(processor["bindings"], "processor_execution/bindings")
+    binding_sources: set[str] = set()
+    for index, value in enumerate(bindings):
+        pointer = _child("processor_execution/bindings", index)
+        binding = _object(value, pointer)
+        _require(binding, pointer, ("source_id", "kind", "status", "route_id"))
+        source_id = _string(binding["source_id"], _child(pointer, "source_id"))
+        if binding.get("status") != "bound" or binding.get("route_id") is None:
+            _error("unbound-cpu-route", source_id)
+        if source_id in binding_sources:
+            _error("ambiguous-cpu-route", source_id)
+        binding_sources.add(source_id)
 
     instances = _array(document["instances"], "instances")
     seen_instances: set[str] = set()
@@ -674,28 +686,72 @@ def validate_soc_plan(plan: dict) -> None:
         seen_instances.add(instance_id)
 
     adapters = _array(document["adapters"], "adapters")
+    ingress_sources = {
+        str(net["driver"]["source_id"])
+        for net in _array(document["nets"], "nets")
+        if isinstance(net, Mapping) and net.get("kind") == "master_ingress"
+        and isinstance(net.get("driver"), Mapping) and "source_id" in net["driver"]
+    }
+    cpu_ingress_sources = {
+        str(net["driver"]["source_id"])
+        for net in _array(document["nets"], "nets")
+        if isinstance(net, Mapping) and net.get("kind") == "master_ingress"
+        and isinstance(net.get("driver"), Mapping)
+        and net["driver"].get("kind") in CPU_MASTER_KINDS
+    }
+    if binding_sources != cpu_ingress_sources:
+        _error("cpu-binding-mismatch", "processor_execution/bindings")
+    address_map = _object(document["address_map"], "address_map")
+    windows = _array(address_map.get("windows"), "address_map/windows")
+    plan_targets = {
+        str(window["target_id"]) for window in windows
+        if isinstance(window, Mapping) and "target_id" in window
+    }
     seen_adapters: set[str] = set()
     for index, value in enumerate(adapters):
         pointer = _child("adapters", index)
         record = _object(value, pointer)
         _require(record, pointer, ("adapter_id", "source_id", "target_id", "module"))
         adapter_id = _string(record["adapter_id"], _child(pointer, "adapter_id"))
-        _string(record["source_id"], _child(pointer, "source_id"))
-        _string(record["target_id"], _child(pointer, "target_id"))
+        source_id = _string(record["source_id"], _child(pointer, "source_id"))
+        target_id = _string(record["target_id"], _child(pointer, "target_id"))
+        if source_id not in ingress_sources:
+            _error("unknown-plan-source", source_id)
+        if target_id not in plan_targets:
+            _error("unknown-plan-target", target_id)
         _string(record["module"], _child(pointer, "module"))
         if adapter_id in seen_adapters:
             _error("duplicate-adapter-id", adapter_id)
         seen_adapters.add(adapter_id)
+    expected_adapter_pairs = {
+        (str(source_id), str(window["target_id"]))
+        for window in windows if isinstance(window, Mapping)
+        for source_id in window.get("request_sources", [])
+    }
+    actual_adapter_pairs = {(str(item["source_id"]), str(item["target_id"])) for item in adapters}
+    if expected_adapter_pairs != actual_adapter_pairs:
+        _error("adapter-binding-mismatch", "adapters")
 
     nets = _array(document["nets"], "nets")
     net_ids: list[str] = []
+    target_nets: list[Mapping[str, object]] = []
     for index, value in enumerate(nets):
         pointer = _child("nets", index)
         record = _object(value, pointer)
         _require(record, pointer, ("net_id", "kind", "driver"))
         net_ids.append(_string(record["net_id"], _child(pointer, "net_id")))
-        _string(record["kind"], _child(pointer, "kind"))
+        kind = _string(record["kind"], _child(pointer, "kind"))
         _object(record["driver"], _child(pointer, "driver"))
+        if kind == "target_request":
+            _require(record, pointer, ("sink", "response_driver", "response_routing"))
+            sink = _object(record["sink"], _child(pointer, "sink"))
+            target_id = _string(sink.get("target_id"), _child(_child(pointer, "sink"), "target_id"))
+            response_driver = _object(record["response_driver"], _child(pointer, "response_driver"))
+            if response_driver != {"role": "target", "target_id": target_id}:
+                _error("response-driver-mismatch", _child(pointer, "response_driver"))
+            if record["response_routing"] != "accepted_source":
+                _error("response-routing-mismatch", _child(pointer, "response_routing"))
+            target_nets.append(record)
     if len(net_ids) != len(set(net_ids)):
         _error("duplicate-net-id", "nets")
 
@@ -717,26 +773,53 @@ def validate_soc_plan(plan: dict) -> None:
         _text_list(evidence["rules"], _child(_child(pointer, "evidence"), "rules"), nonempty=True)
         if count != 1 or observed != 1 or not unique:
             _error("net-driver-mismatch", net_id)
+        matching = next((net for net in nets if net["net_id"] == net_id), None)
+        if matching is None or record["driver"] != matching["driver"]:
+            _error("net-driver-mismatch", net_id)
     if sorted(driver_ids) != sorted(net_ids) or len(driver_ids) != len(set(driver_ids)):
         missing = sorted(set(net_ids).symmetric_difference(driver_ids))
         _error("net-driver-mismatch", ",".join(missing) if missing else "net_drivers")
 
-    address_map = _object(document["address_map"], "address_map")
     _require(address_map, "address_map", ("windows", "memory_regions", "unmapped"))
-    windows = _array(address_map["windows"], "address_map/windows")
     seen_targets: set[str] = set()
     laid_out: list[tuple[int, int, str]] = []
     for index, value in enumerate(windows):
         pointer = _child("address_map/windows", index)
         record = _object(value, pointer)
-        _require(record, pointer, ("target_id", "window", "byte_enable"))
+        _require(record, pointer, ("target_id", "window", "byte_enable", "response_driver",
+                                   "response_routing"))
         target_id = _string(record["target_id"], _child(pointer, "target_id"))
         if target_id in seen_targets:
             _error("duplicate-window", target_id)
         seen_targets.add(target_id)
         base, size = _window(record["window"], _child(pointer, "window"))
         _boolean(record["byte_enable"], _child(pointer, "byte_enable"))
+        response_driver = _object(record["response_driver"], _child(pointer, "response_driver"))
+        if response_driver != {"role": "target", "target_id": target_id}:
+            _error("response-driver-mismatch", _child(pointer, "response_driver"))
+        if record["response_routing"] != "accepted_source":
+            _error("response-routing-mismatch", _child(pointer, "response_routing"))
         laid_out.append((base, size, target_id))
+    if len(target_nets) != len(windows):
+        _error("target-net-mismatch", "nets")
+    nets_by_target: dict[str, list[Mapping[str, object]]] = {}
+    for net in target_nets:
+        sink = net["sink"]
+        nets_by_target.setdefault(str(sink["target_id"]), []).append(net)
+    for window in windows:
+        target_id = str(window["target_id"])
+        matches = nets_by_target.get(target_id, [])
+        if len(matches) != 1:
+            _error("target-net-mismatch", target_id)
+        net = matches[0]
+        sink = net["sink"]
+        expected_driver = {"role": "fabric", "instance": "soc_fabric", "kind": "decoder"}
+        if (net["net_id"] != f"target:{target_id}"
+                or sink.get("component_id") != window.get("component_id")
+                or sink.get("port") != window.get("port")
+                or net["driver"] != expected_driver
+                or sorted(net.get("request_sources", [])) != sorted(window.get("request_sources", []))):
+            _error("target-net-mismatch", target_id)
     ordered = sorted(laid_out)
     for index, (base, size, target_id) in enumerate(ordered):
         for other_base, other_size, other_id in ordered[index + 1:]:
@@ -757,6 +840,8 @@ def validate_soc_plan(plan: dict) -> None:
         _error("invalid-field", "address_map/unmapped/behavior")
 
     capabilities = _object(document["target_capabilities"], "target_capabilities")
+    if set(map(str, capabilities)) != plan_targets:
+        _error("target-capability-mismatch", "target_capabilities")
     for target_id, value in capabilities.items():
         pointer = _child("target_capabilities", target_id)
         record = _object(value, pointer)
@@ -765,7 +850,7 @@ def validate_soc_plan(plan: dict) -> None:
         _object(record["evidence"], _child(pointer, "evidence"))
 
     reset = _object(document["reset"], "reset")
-    _require(reset, "reset", ("cpu_reset", "test_reset"))
+    _require(reset, "reset", ("cpu_reset", "test_reset", "distribution"))
     cpu_reset = _object(reset["cpu_reset"], "reset/cpu_reset")
     test_reset = _object(reset["test_reset"], "reset/test_reset")
     _require(cpu_reset, "reset/cpu_reset", ("name", "domain", "sinks"))
@@ -776,9 +861,21 @@ def validate_soc_plan(plan: dict) -> None:
     _string(test_reset["domain"], "reset/test_reset/domain")
     if cpu_reset["name"] == test_reset["name"]:
         _error("reset-not-separated", str(cpu_reset["name"]))
-    _text_list(cpu_reset["sinks"], "reset/cpu_reset/sinks", nonempty=True)
-    _text_list(test_reset["sinks"], "reset/test_reset/sinks", nonempty=True)
+    cpu_sinks = set(_text_list(cpu_reset["sinks"], "reset/cpu_reset/sinks", nonempty=True))
+    instance_kinds = {str(item["instance_id"]): item.get("kind") for item in instances}
+    if not cpu_sinks <= set(instance_kinds) or any(instance_kinds[sink] != "cpu" for sink in cpu_sinks):
+        _error("invalid-reset-owner", "reset/cpu_reset/sinks")
+    test_sinks = set(_text_list(test_reset["sinks"], "reset/test_reset/sinks", nonempty=True))
+    if test_sinks != set(instance_kinds):
+        _error("invalid-reset-owner", "reset/test_reset/sinks")
     _text_list(test_reset["clears"], "reset/test_reset/clears", nonempty=True)
+    distribution = _array(reset.get("distribution"), "reset/distribution")
+    cpu_distributed = {str(item.get("sink")) for item in distribution
+                       if isinstance(item, Mapping) and item.get("role") == "cpu"}
+    test_distributed = {str(item.get("sink")) for item in distribution
+                        if isinstance(item, Mapping) and item.get("role") == "test"}
+    if cpu_distributed != cpu_sinks or test_distributed != test_sinks:
+        _error("invalid-reset-owner", "reset/distribution")
 
     for index, value in enumerate(_array(document["clock_domains"], "clock_domains")):
         pointer = _child("clock_domains", index)
@@ -958,13 +1055,36 @@ def validate_soc_stimulus(stimulus: dict) -> None:
 # --------------------------------------------------------------------------
 
 
-def _unordered(value: object) -> object:
-    """Normalise JSON so that list order and object key order never matter."""
+_UNORDERED_COLLECTION_PATHS = frozenset({
+    ("source_locks",), ("components",), ("components", "*", "instances"),
+    ("source_locks", "components"),
+    ("memory_regions",), ("masters",), ("masters", "*", "test_modes"), ("targets",),
+    ("targets", "*", "request_sources"), ("interrupt_routes",), ("environment_links",),
+    ("resources", "clock_domains"), ("resources", "resets"), ("resources", "clock_adapters"),
+    ("assumptions",), ("test_modes",), ("processor_execution", "adapter_sources"),
+    ("processor_execution", "routes"), ("processor_execution", "bindings"), ("instances",),
+    ("adapters",), ("nets",), ("net_drivers",), ("address_map", "windows"),
+    ("address_map", "memory_regions"), ("reset", "cpu_reset", "resource_resets"),
+    ("reset", "cpu_reset", "sinks"), ("reset", "cpu_reset", "held_in_reset_modes"),
+    ("reset", "test_reset", "resource_resets"), ("reset", "test_reset", "sinks"),
+    ("reset", "test_reset", "clears"), ("reset", "test_reset", "asserted_at"),
+    ("reset", "distribution"), ("reset", "semantics", "cpu_reset_hold_modes"),
+    ("clock_domains",), ("clock_domains", "*", "components"),
+    ("clock_domains", "*", "instances"), ("clock_domains", "*", "crossing_adapters"),
+    ("stimulus", "available_modes"), ("stimulus", "modes", "*", "participants"),
+    ("stimulus", "modes", "*", "test_reset", "clears"),
+    ("stimulus", "modes", "*", "test_reset", "asserted_at"),
+})
+
+
+def _unordered(value: object, path: tuple[str, ...] = ()) -> object:
+    """Canonicalise only collections whose schema declares order irrelevant."""
     if isinstance(value, Mapping):
-        return {str(key): _unordered(item) for key, item in value.items()}
+        return {str(key): _unordered(item, path + (str(key),)) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
-        items = [_unordered(item) for item in value]
-        return sorted(items, key=canonical_bytes)
+        items = [_unordered(item, path + (str(index),)) for index, item in enumerate(value)]
+        schema_path = tuple("*" if token.isdigit() else token for token in path)
+        return sorted(items, key=canonical_bytes) if schema_path in _UNORDERED_COLLECTION_PATHS else items
     return value
 
 

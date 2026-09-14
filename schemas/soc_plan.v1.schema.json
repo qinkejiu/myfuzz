@@ -60,7 +60,7 @@
             "properties": {
               "source_id": {"type": "string", "minLength": 1},
               "kind": {"enum": ["cpu_instruction", "cpu_data", "cpu_unified"]},
-              "status": {"enum": ["bound", "unbound"]}
+              "status": {"const": "bound"}
             }
           }
         }
@@ -70,10 +70,11 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["component_id", "instance_id", "top_module", "parameters"],
+        "required": ["component_id", "instance_id", "kind", "top_module", "parameters"],
         "properties": {
           "component_id": {"type": "string", "minLength": 1},
           "instance_id": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["cpu", "peripheral", "memory", "clock_reset"]},
           "top_module": {"type": "string", "minLength": 1},
           "parameters": {"type": "object"}
         }
@@ -104,11 +105,17 @@
       "items": {
         "type": "object",
         "required": ["net_id", "kind", "driver"],
+        "allOf": [{
+          "if": {"properties": {"kind": {"const": "target_request"}}, "required": ["kind"]},
+          "then": {"required": ["sink", "response_driver", "response_routing"]}
+        }],
         "properties": {
           "net_id": {"type": "string", "minLength": 1},
           "kind": {"enum": ["master_ingress", "target_request", "interrupt", "clock", "reset"]},
           "driver": {"type": "object"},
-          "sink": {"type": "object"}
+          "sink": {"type": "object"},
+          "response_driver": {"$ref": "#/$defs/response_driver"},
+          "response_routing": {"const": "accepted_source"}
         }
       }
     },
@@ -145,11 +152,13 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["target_id", "window", "byte_enable"],
+            "required": ["target_id", "window", "byte_enable", "response_driver", "response_routing"],
             "properties": {
               "target_id": {"type": "string", "minLength": 1},
               "window": {"$ref": "#/$defs/window"},
-              "byte_enable": {"type": "boolean"}
+              "byte_enable": {"type": "boolean"},
+              "response_driver": {"$ref": "#/$defs/response_driver"},
+              "response_routing": {"const": "accepted_source"}
             }
           }
         },
@@ -326,6 +335,14 @@
     }
   },
   "$defs": {
+    "response_driver": {
+      "type": "object",
+      "required": ["role", "target_id"],
+      "properties": {
+        "role": {"const": "target"},
+        "target_id": {"type": "string", "minLength": 1}
+      }
+    },
     "hash": {
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
