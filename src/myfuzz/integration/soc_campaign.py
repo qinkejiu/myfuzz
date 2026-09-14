@@ -153,6 +153,9 @@ def _normalise_config(config: Mapping[str, object]) -> dict[str, object]:
         raise ValueError("mutation_mode:official-rfuzz-required")
     if config.get("zero_input_probe") is True or config.get("probe_only") is True:
         raise ValueError("zero-input-probe-cannot-substitute-for-rfuzz")
+    seed_cycles = _nonnegative_int(config.get("seed_cycles"), "seed_cycles", default=5)
+    if not 1 <= seed_cycles <= 200:
+        raise ValueError("seed_cycles:positive-bounded-required")
     return {
         "config_id": config_id,
         "cell_id": _string(config.get("cell_id"), "cell_id", default=config_id),
@@ -166,7 +169,7 @@ def _normalise_config(config: Mapping[str, object]) -> dict[str, object]:
         "mutation_mode": mutation_mode,
         "source_paths": _source_paths(config),
         "client_binary": config.get("client_binary", config.get("client")),
-        "seed_cycles": _nonnegative_int(config.get("seed_cycles"), "seed_cycles", default=5),
+        "seed_cycles": seed_cycles,
         "reset_contract": config.get("reset_contract", {}),
         "source_target_transactions": config.get("source_target_transactions"),
         "coverage_universe": config.get("coverage_universe"),
