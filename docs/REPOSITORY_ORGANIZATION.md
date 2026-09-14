@@ -81,4 +81,33 @@
 
 上述三批问题全部修复。加固要点：工具自有的每条写入路径都经过逐层 symlink 检查并使用临时文件 + `os.replace` 原子替换；`restore` 只在移动成功后改状态，并对"已回到原位但清单未更新"做对账，`rollback-failed` 与崩溃残留都仍可恢复；引用扫描改为遍历全部 tracked/untracked 文件（二进制探测 + 32 MiB 上限，不再依赖扩展名白名单），目录引用改为整 token 匹配，工具自身产物用 schema 加条目结构双重判定；审计结论在真正移动前再取一次，逐文件移动时重新解析并重新哈希。
 
-定向测试 `tests/test_repository_audit.py` 由 9 个增至 41 个，覆盖上述全部拒绝与恢复路径。
+定向测试 `tests/test_repository_audit.py` 由 9 个增至 52 个，覆盖上述全部拒绝与恢复路径。
+
+## P16 第二批可恢复整理（2026-09-14）
+
+按 P0 的同一口径再次只读审计并处理可证明可重建、未被引用的缓存：
+
+| 阶段 | 清单 | 结果 |
+|---|---|---|
+| 第二批审计 | 3467 条（3269 keep / 198 eligible） | 见 `runs/repository-audit/P16-batch2/` |
+| 批次 `P16-batch2` | 隔离 198 | 198 `moved` |
+| 隔离后审计 | 3269 条，eligible 为 0 | `runs/repository-audit/P16-batch2-post/inventory.json` |
+
+隔离总账（全部可逐条恢复，实际删除数量为零）：
+
+| 批次 | 条目 | 状态 |
+|---|---|---|
+| `P0-20260914-roundtrip-evidence` | 203 | 往返验证后已全部 `restored` |
+| `P0-20260914-applied` | 203 | `moved` |
+| `P0-20260914-applied-2` | 98 | `moved` |
+| `P0-20260914-applied-3` | 109 | `moved` |
+| `P16-batch2` | 198 | `moved` |
+| `orphaned-drafts-20260914` | 1 | `moved`（见下） |
+
+恢复方式：`PYTHONPATH=src python3 scripts/audit_repository.py --restore runs/quarantine/<批次>/manifest.json`。
+
+批次写入约定：`--quarantine-list` 写到批次目录之外（例如 `runs/repository-audit/selections/<name>.json`），再由 `--apply <selection> --batch <name>` 生成该批次的 `inventory.json`、`quarantine-candidates.json` 与 manifest；工具自有的写入路径受保护，不会覆盖已存在的批次产物或隔离清单。
+
+### 孤儿草稿隔离
+
+`tests/protocols/test_soc_environment_rtl.py`：未跟踪草稿（16:40 写入），针对一套提交版 RTL 从未有过的参数名与端口名（`CLOCKS_PER_BIT`/`DATA_BITS`/`MSB_FIRST`/`ID_WIDTH`/`SOURCE_PRIORITY`、无前缀端口）。同一覆盖已由跟踪且通过的 `tests/integration/test_soc_interactions.py`（真实 Icarus 仿真，三个 peer 模块 + 交互监控）提供。已按"精确清单 + 可恢复隔离"移入 `runs/quarantine/orphaned-drafts-20260914/`，manifest 记录原路径、sha256、大小、理由与恢复方式，未删除。移动后 `tests/protocols` 由 118 tests / 3 failures 变为 115 tests OK。

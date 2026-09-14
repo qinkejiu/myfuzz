@@ -269,3 +269,51 @@ complete the protocol-aware BOOM processor acceptance task.
 
 CVA6 instrument runs may print original-design Verilator warnings such as
 `IMPLICITSTATIC` and `SELRANGE`; the instrumentation stage still succeeds.
+
+### SoC composition pipeline acceptance status
+
+The P0-P16 work tracked by
+[docs/PROJECT_GOALS.md](docs/PROJECT_GOALS.md) and the
+[implementation plan](docs/superpowers/plans/2026-09-14-soc-composition-and-fuzz.md)
+adds a separate pipeline; it does not inherit the acceptance above.
+
+Implemented and committed:
+
+| Task | Commit | What it delivers |
+|---|---|---|
+| P0 | `da3b150`, `f0fcd41`, `43ee22b` | read-only repository inventory and recoverable quarantine, 52 tests |
+| P1 | `dbb6ab7`, `8dc1097` | pinned CPU/peripheral sources, per-IP elaboration closures, hardened verifier |
+| P2 | `5e62059`, `1c4f25e` | generic planner / processor renderer extraction with forwarding |
+| P3 | `9f7f7af`, `07339c0` | `soc_spec.v1` / `soc_plan.v1` / `soc_stimulus.v1` contracts |
+| P4-P9 | `8731bcc`…`fb05923` | memory/MMIO coexistence, target adapters, arbitration, stimulus, instruction supply, environment/IRQ |
+| P10-P12 | `36ef27d`…`a50cfc7` | renderer, CVA6 source closure, eight-cell matrix |
+
+Reproducible commands and their verified results:
+
+```text
+PYTHONPATH=src python3 scripts/verify_soc_sources.py --elaborate
+  -> 7 peripherals elaboration_verified, all commands replayed, read set == closure
+
+MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest tests.integration.test_soc_renderer_cells
+  -> 7 tests OK: all eight cells render from real source-backed closures and elaborate
+
+MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest tests.integration.test_soc_real_ibex
+  -> 10 tests OK, including the real SOC_IBEX_PULP_REAL_OK simulation
+
+MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest tests.integration.test_soc_real_cva6
+  -> 8 tests OK, including the real CVA6 runtime smoke through packed AXI
+
+PYTHONPATH=src nice -n15 python3 scripts/run_soc_campaigns.py \
+  --matrix configs/soc/matrix.json --output runs/soc-acceptance/preflight \
+  --seconds 300 --seed 20260914 --preflight-only
+  -> 32 tasks planned (24 main + 8 bias-off), unsupported = []
+```
+
+Not yet claimed, and therefore not part of any completion statement:
+
+- the eight-cell x three-mode runtime matrix and the per-cell short RFuzz
+  campaigns on the new harness (P12/P14) are still being closed;
+- real instrumented CPU/IP coverage fed back through IPC for all eight cells
+  (P13) has a validated contract and fidelity rules but no full run yet;
+- the 300-second-per-task campaign budget of at least 160 effective minutes is
+  deliberately out of scope for this round and is NOT claimed.
