@@ -190,8 +190,26 @@ if (GEN_INTEGRITY != 0 && ADDRESS_WIDTH > 32)
 CVA6 是 RV64，其 beat 侧地址宽度大于 32；而 OpenTitan TL-UL 目标的命令 integrity 只覆盖最多 32 位地址，
 适配器于是失败关闭——这是**正确行为**，缺的是结构层的地址收窄：64 位 CPU 访问 32 位 TL-UL 目标时，
 必须在目标适配器之前把地址收窄到目标窗口的 32 位（类似已有的 `mmio_width_adapter` 对数据所做的处理），
-而不是放宽这条检查或让 integrity 覆盖不存在的位。修复点是 soc_fabric/soc_renderer 在 TL-UL 目标前插入
-地址收窄级，并用目标窗口范围证明收窄无损；不要改 `beat_to_tlul.sv` 的这条断言。
+而不是放宽这条检查或让 integrity 覆盖不存在的位。
+
+**该修复已由并行工作流实现并验证有效**（`9934643` "prove lossless address narrowing in front of bounded targets"、
+`804fd13` "plan an address narrower for a target with a bounded adapter"）。复验：
+
+```text
+MYFUZZ_SOC_REAL=1 ... test_cell_cva6_opentitan
+  修复前：%Error beat_to_tlul.sv:124 $fatal，t=0 中止
+  修复后：不再触发该守卫，改为 status=TIMEOUT cycles=200000 cpu_tx=4 cpu_done=4
+          window_done_cpu=0 cpu_flag=0x00000000（与 cva6-pulp / cva6-zipcpu 完全同一症状）
+```
+
+因此**问题 A 已关闭**；CVA6 四个格现在只剩**同一个运行时缺口（问题 B）**：pinned CVA6 只发出恰好
+两次 2-beat line fill（cpu_tx=cpu_done=4），此后不再发起请求，npc 停在 `0x80000010`，尽管 fabric
+已返回正确数据。同一 core+镜像在 P11 的手写 wrapper 里能跑通（`test_soc_real_cva6` 通过），
+所以这是**通用 fabric/beat-core 集成缺口**，不是源码或镜像问题。另有 cva6-zipcpu 的 mmio_only
+单独问题 C（64 位格里 `beat_to_wishbone` 解析出 WB_FLAVOUR=1，而 pinned wbuart 需要 CYC 跨注册 ACK 保持）。
+
+未闭环清单因此收敛为：**B（CVA6 取指在通用 fabric 上停住，影响 4 格 × cpu_only/mixed）**、
+**C（cva6-zipcpu mmio_only 的 Wishbone flavour）**、P13 插桩覆盖运行、P16 收口。
 
 ## 2026-09-14 21:25 P14 中断运行策略收口（未提交）
 
