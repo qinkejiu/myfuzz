@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import selectors
 import signal
+import shutil
 import subprocess
 import sys
 import time
@@ -41,6 +42,65 @@ MAX_DIAGNOSTIC_LINE_BYTES = 4096
 SIMULATOR_PROTOCOL_VERSION = 2
 MAX_REQUEST_ID = (1 << 64) - 1
 RSS_POLL_SECONDS = 0.1
+
+
+def real_soc_opt_in(environment: Mapping[str, str] | None = None) -> bool:
+    """Return whether the opt-in real-SoC acceptance path is requested."""
+    values = os.environ if environment is None else environment
+    return values.get("MYFUZZ_SOC_REAL", "") == "1"
+
+
+def probe_soc_dependencies(root: Path, *, source_paths: Sequence[str] = (),
+                           simulator: str = "verilator", require_real: bool | None = None) -> dict:
+    """Check real CPU/IP prerequisites without silently changing test mode.
+
+    By default the probe is observational and returns a machine-readable
+    report.  When ``MYFUZZ_SOC_REAL=1`` (or ``require_real=True``) is set, a
+    missing source/tool raises instead of becoming a skip; this is the boundary
+    used by formal acceptance tests.
+    """
+    root = Path(root).resolve()
+    if simulator not in {"verilator", "icarus"}:
+        raise ValueError("unsupported SoC simulator")
+    if require_real is None:
+        require_real = real_soc_opt_in()
+    if type(require_real) is not bool:
+        raise ValueError("require_real must be boolean")
+    paths = tuple(source_paths) or (
+        "third_party/rfuzz/upstream/ibex/rtl/ibex_top.sv",
+        "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv",
+        "third_party/soc-pulp-apb-spi/apb_spi_master.sv",
+        "configs/soc/sources.lock.json",
+    )
+    missing: list[str] = []
+    checked: list[str] = []
+    for value in paths:
+        if not isinstance(value, str) or not value or value.startswith("/"):
+            raise ValueError("SoC dependency paths must be nonempty relative strings")
+        parts = value.split("/")
+        if any(part in {"", ".", ".."} for part in parts):
+            raise ValueError("SoC dependency path escapes the repository")
+        checked.append(value)
+        if not (root / value).is_file():
+            missing.append(value)
+    tool = shutil.which(simulator)
+    if tool is None:
+        missing.append(f"tool:{simulator}")
+    report = {
+        "schema_version": "soc_dependency_probe.v1",
+        "root": str(root),
+        "simulator": simulator,
+        "simulator_path": tool,
+        "opt_in": bool(require_real),
+        "checked": checked,
+        "missing": missing,
+        "ready": not missing,
+        "status": "ready" if not missing else "missing",
+        "policy": "missing dependencies fail when real acceptance is opt-in; otherwise report only",
+    }
+    if require_real and missing:
+        raise RuntimeError("real SoC dependencies missing: " + ", ".join(missing))
+    return report
 
 
 @dataclass(frozen=True)
