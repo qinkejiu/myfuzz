@@ -1,4 +1,8 @@
-module riscv_boot_memory_32 (
+module riscv_boot_memory_32 #(
+    parameter integer BASE_ADDR = 0,
+    parameter integer BYTES = 4096,
+    parameter integer LOAD_IMAGE = 1
+) (
     input logic clock,
     input logic reset,
     input logic flush,
@@ -13,9 +17,8 @@ module riscv_boot_memory_32 (
     output logic [31:0] rdata,
     output logic error
 );
-  localparam integer BYTES = 4096;
-  logic [7:0] memory [0:4095];
-  logic [7:0] initial_memory [0:4095];
+  logic [7:0] memory [0:BYTES-1];
+  logic [7:0] initial_memory [0:BYTES-1];
   logic pending;
   integer index;
   integer init_index;
@@ -23,9 +26,11 @@ module riscv_boot_memory_32 (
 
   initial begin
     for (init_index = 0; init_index < BYTES; init_index = init_index + 1) initial_memory[init_index] = 8'h00;
-    if (!$value$plusargs("riscv_boot_image=%s", image_path))
-      $fatal(1, "missing +riscv_boot_image");
-    $readmemh(image_path, initial_memory);
+    if (LOAD_IMAGE != 0) begin
+      if (!$value$plusargs("riscv_boot_image=%s", image_path))
+        $fatal(1, "missing +riscv_boot_image");
+      $readmemh(image_path, initial_memory);
+    end
     for (init_index = 0; init_index < BYTES; init_index = init_index + 1) memory[init_index] = initial_memory[init_index];
   end
 
@@ -47,11 +52,11 @@ module riscv_boot_memory_32 (
       if (req_valid && req_ready) begin
         pending <= 1'b1;
         rdata <= '0;
-        if (addr <= 32'd4092) begin
+        if ((addr >= BASE_ADDR) && (addr - BASE_ADDR <= BYTES - 4)) begin
           error <= 1'b0;
           for (index = 0; index < 4; index = index + 1) begin
-            rdata[index*8 +: 8] <= memory[addr[11:0] + index[11:0]];
-            if (write && be[index]) memory[addr[11:0] + index[11:0]] <= wdata[index*8 +: 8];
+            rdata[index*8 +: 8] <= memory[(addr - BASE_ADDR) + index];
+            if (write && be[index]) memory[(addr - BASE_ADDR) + index] <= wdata[index*8 +: 8];
           end
         end else begin
           error <= 1'b1;
@@ -65,7 +70,11 @@ module riscv_boot_memory_32 (
   end
 endmodule
 
-module riscv_boot_memory_64 (
+module riscv_boot_memory_64 #(
+    parameter longint BASE_ADDR = 0,
+    parameter integer BYTES = 4096,
+    parameter integer LOAD_IMAGE = 1
+) (
     input logic clock,
     input logic reset,
     input logic flush,
@@ -80,9 +89,8 @@ module riscv_boot_memory_64 (
     output logic [63:0] rdata,
     output logic error
 );
-  localparam integer BYTES = 4096;
-  logic [7:0] memory [0:4095];
-  logic [7:0] initial_memory [0:4095];
+  logic [7:0] memory [0:BYTES-1];
+  logic [7:0] initial_memory [0:BYTES-1];
   logic pending;
   integer index;
   integer init_index;
@@ -90,9 +98,11 @@ module riscv_boot_memory_64 (
 
   initial begin
     for (init_index = 0; init_index < BYTES; init_index = init_index + 1) initial_memory[init_index] = 8'h00;
-    if (!$value$plusargs("riscv_boot_image=%s", image_path))
-      $fatal(1, "missing +riscv_boot_image");
-    $readmemh(image_path, initial_memory);
+    if (LOAD_IMAGE != 0) begin
+      if (!$value$plusargs("riscv_boot_image=%s", image_path))
+        $fatal(1, "missing +riscv_boot_image");
+      $readmemh(image_path, initial_memory);
+    end
     for (init_index = 0; init_index < BYTES; init_index = init_index + 1) memory[init_index] = initial_memory[init_index];
   end
 
@@ -114,11 +124,11 @@ module riscv_boot_memory_64 (
       if (req_valid && req_ready) begin
         pending <= 1'b1;
         rdata <= '0;
-        if (addr <= 64'd4088) begin
+        if ((addr >= BASE_ADDR) && (addr - BASE_ADDR <= BYTES - 8)) begin
           error <= 1'b0;
           for (index = 0; index < 8; index = index + 1) begin
-            rdata[index*8 +: 8] <= memory[addr[11:0] + index[11:0]];
-            if (write && be[index]) memory[addr[11:0] + index[11:0]] <= wdata[index*8 +: 8];
+            rdata[index*8 +: 8] <= memory[(addr - BASE_ADDR) + index];
+            if (write && be[index]) memory[(addr - BASE_ADDR) + index] <= wdata[index*8 +: 8];
           end
         end else begin
           error <= 1'b1;

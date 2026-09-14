@@ -24,11 +24,80 @@ _RTL_SOURCES = (
     "src/myfuzz/protocols/rtl/fuzz_uart_peer.sv",
     "src/myfuzz/protocols/rtl/fuzz_spi_peer.sv",
     "src/myfuzz/protocols/rtl/soc_irq_router.sv",
+    "src/myfuzz/protocols/rtl/soc_arbiter.sv",
+    "src/myfuzz/protocols/rtl/soc_router.sv",
+    "src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv",
+    "src/myfuzz/protocols/rtl/processor_memory_arbiter.sv",
+    "src/myfuzz/protocols/rtl/processor_memory_backend.sv",
+    "src/myfuzz/protocols/rtl/processor_apb_bridge.sv",
+    "src/myfuzz/integration/rtl/riscv_boot_memory.sv",
+    "src/myfuzz/composition/rtl/soc_ibex_pulp_core.sv",
 )
 _SOURCE_BACKED_CLOSURE = (
     "third_party/rfuzz/upstream/ibex/sources.f",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_top.sv",
     "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv",
     "third_party/soc-pulp-apb-spi/apb_spi_master.sv",
+    "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv",
+    # The APB SPI checkout records these as symlinks to the sibling AXI SPI
+    # closure.  Keep the resolved source identities explicit so a clean
+    # checkout does not silently omit the real controller/FIFO RTL.
+    "third_party/soc-pulp-axi-spi/spi_master_clkgen.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_controller.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_fifo.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_rx.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_tx.sv",
+)
+_IBEX_SOURCE_FILES = (
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_util_pkg.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_count_pkg.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim_generic/rtl/prim_ram_1p_pkg.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_pkg.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_cheriot_pkg.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_cheriot_ex.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_alu.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_branch_predict.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_compressed_decoder.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_cs_registers.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_csr.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_counter.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_decoder.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_ex_block.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_fetch_fifo.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_id_stage.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_if_stage.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_load_store_unit.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_multdiv_fast.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_multdiv_slow.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_prefetch_buffer.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_pmp.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_wb_stage.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_dummy_instr.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_register_file_ff.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_trvk.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_lockstep.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_icache.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_core.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_top.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_assert.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_cipher_pkg.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_lfsr.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_mubi_pkg.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_mubi4_dec.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_pkg.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim_generic/rtl/prim_buf.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim_generic/rtl/prim_clock_gating.sv",
+)
+_REAL_INCLUDE_DIRS = (
+    "+incdir+third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl",
+    "+incdir+third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim_generic/rtl",
+    "+incdir+third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/dv/sv/dv_utils",
+    "+incdir+third_party/rfuzz/upstream/ibex/vendor/pulp_common_cells/rtl",
 )
 
 
@@ -93,6 +162,8 @@ def _source_records(plan: Mapping[str, object]) -> list[dict[str, object]]:
         add(source, role="generated_harness")
     for source in _SOURCE_BACKED_CLOSURE:
         add(source, role="source_backed_closure")
+    for source in _IBEX_SOURCE_FILES:
+        add(source, role="source_backed_cpu_closure", source_lock="ibex")
 
     # The plan binds source-lock ids on instances.  Preserve those ids even
     # when their concrete checkout is resolved by the campaign runner.
@@ -184,10 +255,30 @@ module myfuzz_soc_top #(
   input logic [7:0] gpio_in_i,
   input logic irq_claim_i,
   input logic irq_complete_i,
+  input logic stim_offer_i,
+  input logic [{selector_width-1}:0] stim_target_selector_i,
+  input logic [ADDRESS_WIDTH-1:0] stim_offset_i,
+  input logic stim_write_i,
+  input logic [DATA_WIDTH-1:0] stim_wdata_i,
+  input logic [DATA_WIDTH/8-1:0] stim_be_i,
   output logic uart_rx_o,
   output logic spi_miso_o,
   output logic irq_o,
-  output logic [31:0] env_drop_count_o
+  output logic [31:0] env_drop_count_o,
+  output logic cpu_irq_o,
+  output logic [31:0] gpio_out_o,
+  output logic [31:0] gpio_dir_o,
+  output logic gpio_irq_o,
+  output logic spi_clk_o,
+  output logic spi_cs0_o,
+  output logic spi_sdo0_o,
+  output logic cpu_mmio_transaction_o,
+  output logic fuzz_mmio_transaction_o,
+  output logic [31:0] cpu_transaction_count_o,
+  output logic [31:0] fuzz_transaction_count_o,
+  output logic [31:0] cpu_completion_count_o,
+  output logic [31:0] fuzz_completion_count_o,
+  output logic fabric_protocol_error_o
 );
   logic uart_ready, uart_busy;
   logic spi_ready, spi_busy;
@@ -222,18 +313,46 @@ module myfuzz_soc_top #(
   assign env_drop_count_o = uart_drop + spi_drop;
 
 `ifdef MYFUZZ_ENABLE_REAL_IBEX
-  // The real campaign compiles the pinned Ibex closure and supplies the
-  // compiler-proven boundary wrapper.  Keeping the binding behind an explicit
-  // define prevents a preflight-only elaboration from silently using a fake
-  // CPU while still making the source-backed instance visible to the build.
-  ibex_top u_ibex_source_backed (.*);
+  // The real campaign compiles the pinned Ibex closure and the real PULP
+  // closures.  The explicit define is the opt-in boundary; preflight builds
+  // below still elaborate without any CPU model or constant response path.
+  logic [2:0] real_stim_target_selector_i;
+  assign real_stim_target_selector_i = stim_target_selector_i;
+  soc_ibex_pulp_core u_ibex_pulp_core (
+    .clk_i(clk_i), .reset_i(reset_i), .stim_offer_i(stim_offer_i),
+    .stim_target_selector_i(real_stim_target_selector_i), .stim_offset_i(stim_offset_i),
+    .stim_write_i(stim_write_i), .stim_wdata_i(stim_wdata_i), .stim_be_i(stim_be_i),
+    .gpio_in_i(gpio_in_i), .spi_sck_i(spi_sck_i), .spi_cs_i(spi_cs_i),
+    .irq_claim_i(irq_claim_i), .irq_complete_i(irq_complete_i),
+    .gpio_out_o(gpio_out_o), .gpio_dir_o(gpio_dir_o), .gpio_irq_o(gpio_irq_o),
+    .spi_clk_o(spi_clk_o), .spi_cs0_o(spi_cs0_o), .spi_sdo0_o(spi_sdo0_o),
+    .cpu_irq_o(cpu_irq_o), .cpu_mmio_transaction_o(cpu_mmio_transaction_o),
+    .fuzz_mmio_transaction_o(fuzz_mmio_transaction_o),
+    .cpu_transaction_count_o(cpu_transaction_count_o),
+    .fuzz_transaction_count_o(fuzz_transaction_count_o),
+    .cpu_completion_count_o(cpu_completion_count_o),
+    .fuzz_completion_count_o(fuzz_completion_count_o),
+    .fabric_protocol_error_o(fabric_protocol_error_o)
+  );
+`else
+  assign cpu_irq_o = 1'b0;
+  assign gpio_out_o = '0;
+  assign gpio_dir_o = '0;
+  assign gpio_irq_o = 1'b0;
+  assign spi_clk_o = 1'b0;
+  assign spi_cs0_o = 1'b1;
+  assign spi_sdo0_o = 1'b0;
+  assign cpu_mmio_transaction_o = 1'b0;
+  assign fuzz_mmio_transaction_o = 1'b0;
+  assign cpu_transaction_count_o = '0;
+  assign fuzz_transaction_count_o = '0;
+  assign cpu_completion_count_o = '0;
+  assign fuzz_completion_count_o = '0;
+  assign fabric_protocol_error_o = 1'b0;
 `endif
 
-  // The synthetic MMIO requester is structurally present and is connected to
-  // the shared beat fabric in the full campaign wrapper.  It is disabled in
-  // this preflight top so no constant response can masquerade as CPU traffic.
-  // Real Ibex, register file, RAM/ROM, target adapters and PULP IP are listed
-  // in sources.f and bound by the campaign-specific wrapper.
+  // The real branch is intentionally fail-closed: no behavioural CPU or
+  // peripheral response is present in this generated preflight source.
 endmodule
 '''
 
@@ -283,9 +402,24 @@ def render_soc(plan: Mapping[str, object], stimulus: Mapping[str, object]) -> di
             "gpio": "source_bound_pending_elaboration",
             "spi": "source_bound_pending_elaboration",
         },
+        "real_elaboration": {
+            "runtime_top": "soc_ibex_pulp_core",
+            "wrapper_top": "myfuzz_soc_top",
+            "defines": ["MYFUZZ_ENABLE_REAL_IBEX"],
+            "include_dirs": [entry.removeprefix("+incdir+") for entry in _REAL_INCLUDE_DIRS],
+            # Keep package/dependency order: Ibex's package declarations must
+            # precede the modules that import them.  dict.fromkeys gives a
+            # deterministic ordered de-duplication without alphabetizing the
+            # elaboration-sensitive closure.
+            "source_files": list(dict.fromkeys(
+                (*_IBEX_SOURCE_FILES, *_SOURCE_BACKED_CLOSURE, *_RTL_SOURCES)
+            )),
+            "elaboration_status": "source_bound",
+            "runtime_status": "runtime_unverified",
+        },
         "generated_modules": [
-            "myfuzz_soc_top", "fuzz_mmio_master", "fuzz_uart_peer",
-            "fuzz_spi_peer", "soc_irq_router",
+            "myfuzz_soc_top", "soc_ibex_pulp_core", "fuzz_mmio_master",
+            "fuzz_uart_peer", "fuzz_spi_peer", "soc_irq_router",
         ],
         "unique_driver_policy": "one declared driver per net; elaboration required",
         "coverage": {
@@ -300,7 +434,12 @@ def render_soc(plan: Mapping[str, object], stimulus: Mapping[str, object]) -> di
     manifest["render_hash"] = content_hash(manifest)
     manifest_text = json.dumps(_plain(manifest), sort_keys=True, indent=2) + "\n"
     parameters = _window_parameters(plan)
-    sources_text = "\n".join((*_RTL_SOURCES, *_SOURCE_BACKED_CLOSURE)) + "\n"
+    # Emit a flat, cwd-independent file list.  The APB-SPI checkout contains
+    # broken portability symlinks in minimal exports, so the resolved sibling
+    # AXI-SPI helper paths above are listed explicitly rather than relying on
+    # a simulator to follow a missing nested file list.
+    sources_text = "\n".join((*_REAL_INCLUDE_DIRS, *_IBEX_SOURCE_FILES,
+                               *_RTL_SOURCES, *_SOURCE_BACKED_CLOSURE[2:])) + "\n"
     boot = (
         "/* Minimal deterministic boot/ISR acceptance image (RV32I).\n"
         " * The campaign replaces this text with a compiled image only after\n"

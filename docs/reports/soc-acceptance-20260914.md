@@ -45,6 +45,27 @@ segment, corpus, or replay claim. A real run requires an explicit
 `MYFUZZ_SOC_REAL=1` and an executable path in `MYFUZZ_RFuzz_CLIENT` (or the
 per-campaign config), and uses `soc_result.v1` to retain failure evidence.
 
+## Newly reproduced real Ibex/PULP smoke
+
+The source-backed PULP wrapper was rebuilt after the latest bridge and renderer
+changes with Verilator 5.051, then run with a compiled RV32I boot image.  The
+image performs a real Ibex store to the PULP GPIO `PADOUT` register; five beats
+from `fuzz_mmio_master` traverse the shared arbiter/router and APB bridges,
+including a real SPI configuration/TX sequence.  The testbench observes both
+CS0 selection and generated-clock transitions:
+
+```text
+SOC_IBEX_PULP_REAL_OK cpu_tx=115 fuzz_tx=5 gpio=000000a5
+```
+
+The opt-in generated-top closure also elaborates with
+`MYFUZZ_ENABLE_REAL_IBEX`; its manifest now records the ordered Ibex/PULP
+source files, include directories and runtime top while keeping
+`runtime_status=runtime_unverified` until the official RFuzz campaign and
+replay are complete.  The opt-in unittest now rebuilds and runs the smoke from
+that manifest closure; a focused APB3 bridge test additionally proves a partial
+write is completed as an error with zero APB side effect.
+
 ## Current acceptance boundary
 
 The following evidence is still missing and therefore the project is not
@@ -56,9 +77,9 @@ marked globally complete:
   required three-mode runtime matrix or the 300-second-per-task campaigns.
 - No retained corpus has yet been rebuilt with an independently compiled
   binary and replayed for all eight cells.
-- The renderer manifest deliberately reports CPU/IP status as
-  `source_bound_pending_elaboration`; the generated default top is a bounded
-  structural/preflight harness, not a claim of a completed Ibex/CVA6 runtime.
+- The renderer manifest still reports CPU/IP runtime as
+  `runtime_unverified`; the generated real top now has a source-backed
+  elaboration closure, but that smoke is not an official RFuzz campaign.
 - P13 provides the instance-mapped, RTL-only coverage contract and rejects
   sampled input as branch feedback; a full eight-cell instrumented coverage
   run is still outstanding.
