@@ -82,10 +82,10 @@
         }
       ],
       "lint_probe": {
-        "status": "parent_reported_probe_only",
+        "status": "run",
         "warning_count": 2,
-        "persistent_evidence": null,
-        "tool_version": null
+        "persistent_evidence": "runs/soc-source-elaboration/pulp/pulp_gpio.elaborate.log",
+        "tool_version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67"
       },
       "gaps": [
         "Compiler-backed packed coordinates and resolved widths",
@@ -189,10 +189,10 @@
         }
       ],
       "lint_probe": {
-        "status": "parent_reported_probe_only",
-        "warning_count": 9,
-        "persistent_evidence": null,
-        "tool_version": null
+        "status": "run",
+        "warning_count": 10,
+        "persistent_evidence": "runs/soc-source-elaboration/pulp/pulp_spi.elaborate.log",
+        "tool_version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67"
       },
       "gaps": [
         "Compiler-backed packed coordinates and resolved widths",

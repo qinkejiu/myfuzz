@@ -1616,17 +1616,17 @@
         {
           "name": "APB_ADDR_WIDTH",
           "type": "integer",
-          "value": 12
-        },
-        {
-          "name": "PAD_NUM",
-          "type": "integer",
-          "value": 32
+          "value": "12"
         },
         {
           "name": "NBIT_PADCFG",
           "type": "integer",
-          "value": 4
+          "value": "4"
+        },
+        {
+          "name": "PAD_NUM",
+          "type": "integer",
+          "value": "32"
         }
       ],
       "generator": {
@@ -1699,14 +1699,14 @@
       "defines": [],
       "typed_parameters": [
         {
-          "name": "BUFFER_DEPTH",
-          "type": "integer",
-          "value": 10
-        },
-        {
           "name": "APB_ADDR_WIDTH",
           "type": "integer",
-          "value": 12
+          "value": "12"
+        },
+        {
+          "name": "BUFFER_DEPTH",
+          "type": "integer",
+          "value": "10"
         }
       ],
       "generator": {
@@ -1727,7 +1727,7 @@
           "frontend": "verilator-lint"
         },
         "evidence": "configs/soc/closures/pulp_spi.json",
-        "evidence_sha256": "753461c7591995328ce9740f26af687b4b60beec74a49777a56c765776f094b7",
+        "evidence_sha256": "c575700a1cc1c25a73a56b50545d4483f44f6e0cadaa535a7b847ac541b92a30",
         "closure_files": 7,
         "lint": {
           "errors": 0,
@@ -1875,19 +1875,19 @@
       "defines": [],
       "typed_parameters": [
         {
+          "name": "HARDWARE_FLOW_CONTROL_PRESENT",
+          "type": "integer",
+          "value": "1"
+        },
+        {
           "name": "INITIAL_SETUP",
           "type": "integer",
-          "value": 25
+          "value": "25"
         },
         {
           "name": "LGFLEN",
           "type": "integer",
-          "value": 4
-        },
-        {
-          "name": "HARDWARE_FLOW_CONTROL_PRESENT",
-          "type": "integer",
-          "value": 1
+          "value": "4"
         }
       ],
       "generator": {
@@ -1951,17 +1951,17 @@
         {
           "name": "BW",
           "type": "integer",
-          "value": 32
-        },
-        {
-          "name": "VW",
-          "type": "integer",
-          "value": 31
+          "value": "32"
         },
         {
           "name": "RELOADABLE",
           "type": "integer",
-          "value": 1
+          "value": "1"
+        },
+        {
+          "name": "VW",
+          "type": "integer",
+          "value": "31"
         }
       ],
       "generator": {
@@ -2061,7 +2061,33 @@
       "elaboration_status": "elaboration_verified",
       "runtime_status": "runtime_unverified",
       "defines": [],
-      "typed_parameters": [],
+      "typed_parameters": [
+        {
+          "name": "AlertAsyncOn",
+          "type": "string",
+          "value": "1'b1"
+        },
+        {
+          "name": "AlertSkewCycles",
+          "type": "integer",
+          "value": "1"
+        },
+        {
+          "name": "EnableRacl",
+          "type": "string",
+          "value": "1'b0"
+        },
+        {
+          "name": "RaclErrorRsp",
+          "type": "string",
+          "value": "1'b0"
+        },
+        {
+          "name": "RaclPolicySelVec",
+          "type": "string",
+          "value": "'{13{1'b0}}"
+        }
+      ],
       "generator": {
         "status": "pending_input_closure_and_reproduction",
         "tool_version": null,
@@ -2094,6 +2120,13 @@
         },
         "capability_findings": 16,
         "unsupported": 5
+      },
+      "generated_constants": {
+        "uart_reg_pkg::BlockAw": "6",
+        "uart_reg_pkg::NumAlerts": "1",
+        "uart_reg_pkg::NumRegs": "13",
+        "uart_reg_pkg::RxFifoDepth": "64",
+        "uart_reg_pkg::TxFifoDepth": "32"
       }
     },
     {
@@ -2154,7 +2187,43 @@
       "elaboration_status": "elaboration_verified",
       "runtime_status": "runtime_unverified",
       "defines": [],
-      "typed_parameters": [],
+      "typed_parameters": [
+        {
+          "name": "AlertAsyncOn",
+          "type": "string",
+          "value": "1'b1"
+        },
+        {
+          "name": "AlertSkewCycles",
+          "type": "integer",
+          "value": "1"
+        },
+        {
+          "name": "EnableRacl",
+          "type": "string",
+          "value": "1'b0"
+        },
+        {
+          "name": "GpioAsHwStrapsEn",
+          "type": "string",
+          "value": "1'b1"
+        },
+        {
+          "name": "GpioAsyncOn",
+          "type": "string",
+          "value": "1'b1"
+        },
+        {
+          "name": "RaclErrorRsp",
+          "type": "string",
+          "value": "1'b1"
+        },
+        {
+          "name": "RaclPolicySelVec",
+          "type": "string",
+          "value": "'{18{1'b0}}"
+        }
+      ],
       "generator": {
         "status": "pending_input_closure_and_reproduction",
         "tool_version": null,
@@ -2187,6 +2256,13 @@
         },
         "capability_findings": 16,
         "unsupported": 5
+      },
+      "generated_constants": {
+        "gpio_reg_pkg::BlockAw": "7",
+        "gpio_reg_pkg::NumAlerts": "1",
+        "gpio_reg_pkg::NumIOs": "32",
+        "gpio_reg_pkg::NumInpPeriodCounters": "0",
+        "gpio_reg_pkg::NumRegs": "18"
       }
     }
   ]

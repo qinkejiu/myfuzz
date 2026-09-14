@@ -6,7 +6,7 @@
       "id": "opentitan_uart",
       "top_module": "uart",
       "source_lock": "opentitan_uart",
-      "source_status": "source_pending",
+      "source_status": "source_verified",
       "elaboration_status": "elaboration_verified",
       "runtime_status": "runtime_unverified",
       "protocol": "TL-UL with integrity, alert and RACL",
@@ -90,10 +90,10 @@
         }
       ],
       "lint_probe": {
-        "status": "not_run",
-        "warning_count": null,
-        "persistent_evidence": null,
-        "tool_version": null
+        "status": "run",
+        "warning_count": 4,
+        "persistent_evidence": "runs/soc-source-elaboration/opentitan/uart_final.log",
+        "tool_version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67"
       },
       "gaps": [
         "Compiler-backed packed coordinates and resolved widths",
@@ -105,7 +105,7 @@
       "id": "opentitan_gpio",
       "top_module": "gpio",
       "source_lock": "opentitan_gpio",
-      "source_status": "source_pending",
+      "source_status": "source_verified",
       "elaboration_status": "elaboration_verified",
       "runtime_status": "runtime_unverified",
       "protocol": "TL-UL with integrity, alert and RACL",
@@ -175,10 +175,10 @@
         }
       ],
       "lint_probe": {
-        "status": "not_run",
-        "warning_count": null,
-        "persistent_evidence": null,
-        "tool_version": null
+        "status": "run",
+        "warning_count": 1,
+        "persistent_evidence": "runs/soc-source-elaboration/opentitan/gpio_final.log",
+        "tool_version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67"
       },
       "gaps": [
         "Compiler-backed packed coordinates and resolved widths",

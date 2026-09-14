@@ -273,10 +273,107 @@ class SourceLockTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "empty-elaboration-closure"):
             self.verify()
 
+
+    def test_duplicate_closure_entries_are_rejected(self):
+        evidence = self.enable_elaboration()
+        closure = json.loads(evidence.read_text())
+        closure['closure_files'].append(dict(closure['closure_files'][0]))
+        self.record['elaboration']['closure_files'] = 2
+        self.rewrite_closure(evidence, closure)
+        with self.assertRaisesRegex(ValueError, 'duplicate-closure-entry'):
+            self.verify()
+
+    def test_closure_top_must_match_the_declared_source_top(self):
+        self.enable_elaboration()
+        self.record['source']['top_module'] = 'other_top'
+        with self.assertRaisesRegex(ValueError, 'elaboration-source-top-mismatch'):
+            self.verify()
+
+    def test_closure_root_must_be_a_declared_dependency(self):
+        outside = self.base / 'other'
+        outside.mkdir()
+        (outside / 'extra.sv').write_text('module extra; endmodule\n')
+        evidence = self.enable_elaboration(closure_files=[{
+            'root': 'other', 'path': 'extra.sv',
+            'sha256': hashlib.sha256((outside / 'extra.sv').read_bytes()).hexdigest()}])
+        self.record['elaboration']['closure_files'] = 1
+        document = {'components': [
+            self.record,
+            {'id': 'unrelated', 'source': {'root': 'other', 'revision': 'git:' + 'a' * 40}},
+        ]}
+        owners = self.verifier.document_owners(document, self.base)
+        allowed = self.verifier.document_roots(document)
+        with self.assertRaisesRegex(ValueError, 'undeclared-closure-root'):
+            self.verifier.verify_record(self.record, self.base, owners=owners,
+                                        allowed_roots=allowed['fixture'])
+        self.assertTrue(evidence.exists())
+
+    def test_lock_parameters_must_match_the_elaborated_parameters(self):
+        self.record['typed_parameters'] = [{'name': 'WIDTH', 'type': 'integer', 'value': '99'}]
+        self.enable_elaboration(parameters=[{'name': 'WIDTH', 'value': '32'}])
+        with self.assertRaisesRegex(ValueError, 'elaboration-parameter-mismatch'):
+            self.verify()
+
+    def test_declared_parameter_must_appear_in_the_closure(self):
+        self.record['typed_parameters'] = [{'name': 'EXTRA', 'type': 'integer', 'value': '1'}]
+        self.enable_elaboration()
+        with self.assertRaisesRegex(ValueError, 'lock-parameter-not-elaborated'):
+            self.verify()
+
+    def test_include_root_outside_the_pinned_sources_is_rejected(self):
+        (self.base / 'evil').mkdir()
+        (self.base / 'evil' / 'prim_assert.sv').write_text('// poisoned header\n')
+        self.enable_elaboration(command=[
+            'verilator', '--lint-only', '--top-module', 'top', '-Ievil', 'repo/top.sv'])
+        with self.assertRaisesRegex(ValueError, 'include-root-outside-pinned-sources'):
+            self.verify()
+
+    def test_repeated_top_module_option_is_rejected(self):
+        self.enable_elaboration(command=[
+            'verilator', '--lint-only', '--top-module', 'top',
+            '--top-module', 'other', 'repo/top.sv'])
+        with self.assertRaisesRegex(ValueError, 'elaboration-command-top-count'):
+            self.verify()
+
+    def test_evidence_must_be_under_version_control(self):
+        self.enable_elaboration()
+        for args in (('init', '-q'), ('config', 'user.email', 't@example.invalid'),
+                     ('config', 'user.name', 'P1 test')):
+            subprocess.run(['git', '-C', str(self.base), *args], check=True, capture_output=True)
+        with self.assertRaisesRegex(ValueError, 'untracked-elaboration-evidence'):
+            self.verify()
+        subprocess.run(['git', '-C', str(self.base), 'add', 'closure.json'], check=True)
+        subprocess.run(['git', '-C', str(self.base), 'commit', '-qm', 'evidence'],
+                       check=True, capture_output=True)
+        self.assertEqual('source_verified', self.verify()['source_status'])
+
+    def test_real_lock_binds_parameters_and_roots_to_the_closures(self):
+        document = json.loads((ROOT / "configs/soc/sources.lock.json").read_text())
+        records = {record["id"]: record for record in document["components"]}
+        for identifier, record in records.items():
+            closure_path = ROOT / ("configs/soc/closures/%s.json" % identifier)
+            if not closure_path.exists():
+                continue
+            closure = json.loads(closure_path.read_text())
+            declared = {item["name"]: str(item["value"])
+                        for item in record.get("typed_parameters", [])}
+            constants = {str(key): str(value)
+                         for key, value in (record.get("generated_constants") or {}).items()}
+            for item in closure["parameters"]:
+                name = str(item["name"])
+                if "::" in name:
+                    self.assertEqual(constants.get(name), str(item["value"]), name)
+                else:
+                    self.assertEqual(declared.get(name), str(item["value"]), name)
+            allowed = self.verifier.document_roots(document)[identifier]
+            for item in closure["closure_files"]:
+                self.assertIn(item["root"], allowed, identifier)
+
     def test_real_lock_verifies_every_component_offline(self):
         document = json.loads((ROOT / "configs/soc/sources.lock.json").read_text())
         self.verifier.validate_document(document)
         owners = self.verifier.document_owners(document, ROOT)
+        allowed = self.verifier.document_roots(document)
         records = {record["id"]: record for record in document["components"]}
         for component in ("opentitan_uart", "opentitan_gpio", "pulp_gpio", "pulp_spi",
                           "pulp_spi_dependencies", "zipcpu_uart", "zipcpu_timer"):
@@ -292,7 +389,8 @@ class SourceLockTests(unittest.TestCase):
                 self.assertIn(record["elaboration_status"],
                               {"elaboration_verified", "elaboration_unverified"})
                 self.assertEqual("source_verified", record["source_status"])
-                self.verifier.verify_record(record, ROOT, owners=owners)
+                self.verifier.verify_record(record, ROOT, owners=owners,
+                                            allowed_roots=allowed[record["id"]])
 
     def test_real_lock_records_the_three_families_and_two_cpus(self):
         document = json.loads((ROOT / "configs/soc/sources.lock.json").read_text())

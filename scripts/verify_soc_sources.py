@@ -21,6 +21,7 @@ import json
 from pathlib import Path
 import re
 import subprocess
+import tempfile
 
 from myfuzz.composition.interface_description import RepositoryPin, SourceLocator
 from myfuzz.composition.source_crawler import (
@@ -81,7 +82,73 @@ def document_owners(document, base_dir):
     return owners
 
 
-def verify_elaboration(record, base_dir, owners):
+def document_roots(document):
+    """Map each component id to the roots its elaboration may legitimately use.
+
+    A closure may span its own root, its own nested repository pins, and the
+    roots of components it declares as dependencies - nothing else, so a
+    closure can no longer borrow a file from an unrelated upstream tree.
+    """
+    by_id = {record["id"]: record for record in document.get("components", [])}
+    allowed = {}
+    for identifier, record in by_id.items():
+        source = record.get("source", {})
+        roots = set()
+        if "root" in source:
+            roots.add(source["root"])
+        for pin in source.get("repositories", []):
+            roots.add(pin["path"])
+        for dependency in record.get("dependencies", []):
+            other = by_id.get(dependency, {}).get("source", {})
+            if "root" in other:
+                roots.add(other["root"])
+            for pin in other.get("repositories", []):
+                roots.add(pin["path"])
+        allowed[identifier] = roots
+    return allowed
+
+
+def _is_git_worktree(base):
+    return subprocess.run(["git", "-C", str(base), "rev-parse", "--git-dir"],
+                          capture_output=True, check=False).returncode == 0
+
+
+def _is_tracked(base, path):
+    return subprocess.run(
+        ["git", "-C", str(base), "ls-files", "--error-unmatch", "--", str(path)],
+        capture_output=True, check=False).returncode == 0
+
+
+def _command_options(command):
+    """Collect -I/-y/-f include options and every -G/-D define from an argv."""
+    include_dirs, include_files, defines, parameter_tokens = [], [], [], []
+    index = 0
+    while index < len(command):
+        token = command[index]
+        if token in ("-I", "-y", "-f") and index + 1 < len(command):
+            value = command[index + 1]
+            index += 2
+            (include_dirs if token == "-I" else include_dirs if token == "-y"
+             else include_files).append(value)
+            continue
+        if token.startswith("-I") and len(token) > 2:
+            include_dirs.append(token[2:])
+        elif token.startswith("-y") and len(token) > 2:
+            include_dirs.append(token[2:])
+        elif token.startswith("+incdir+"):
+            include_dirs.extend(part for part in token[len("+incdir+"):].split("+") if part)
+        elif token.startswith("-D") and len(token) > 2:
+            defines.append(token[2:])
+        elif token.startswith("-G") and len(token) > 2:
+            parameter_tokens.append(token[2:])
+        elif token == "-G" and index + 1 < len(command):
+            parameter_tokens.append(command[index + 1])
+            index += 1
+        index += 1
+    return include_dirs, include_files, defines, parameter_tokens
+
+
+def verify_elaboration(record, base_dir, owners, allowed_roots=None):
     """Re-derive the elaboration claim from the pinned evidence document."""
     status = record["elaboration_status"]
     block = record.get("elaboration")
@@ -116,6 +183,10 @@ def verify_elaboration(record, base_dir, owners):
         raise ValueError("unsupported-verification-claim")
     if closure.get("top_module") != block["top_module"]:
         raise ValueError("elaboration-top-mismatch")
+    if record["source"].get("top_module") != block["top_module"]:
+        # The elaboration must be about the component's declared top, not some
+        # other module that happens to live in the same checkout.
+        raise ValueError("elaboration-source-top-mismatch:" + record["id"])
     if closure.get("tool") != block["tool"]:
         raise ValueError("elaboration-tool-mismatch")
 
@@ -131,14 +202,79 @@ def verify_elaboration(record, base_dir, owners):
         raise ValueError("empty-elaboration-closure")
     if not isinstance(block["closure_files"], int) or block["closure_files"] != len(files):
         raise ValueError("elaboration-closure-count-mismatch")
+    entries = set()
+    for item in files:
+        if not isinstance(item, dict):
+            raise ValueError("invalid-closure-entry")
+        key = (_declared_relative(item.get("root")), _declared_relative(item.get("path")))
+        if key in entries:
+            # Duplicates would inflate the recorded count without pinning more.
+            raise ValueError("duplicate-closure-entry:" + key[1])
+        entries.add(key)
+    allowed = allowed_roots if allowed_roots is not None else (
+        {record["source"]["root"]}
+        | {pin["path"] for pin in record["source"].get("repositories", [])})
 
     command = closure.get("command")
     if not isinstance(command, list) or not command or not all(isinstance(t, str) for t in command):
         raise ValueError("missing-elaboration-command")
-    if "--top-module" not in command:
-        raise ValueError("missing-elaboration-command-top")
-    if command[command.index("--top-module") + 1] != closure["top_module"]:
+    tops = [index for index, token in enumerate(command) if token == "--top-module"]
+    if len(tops) != 1:
+        # A second --top-module silently changes what the tool elaborates.
+        raise ValueError("elaboration-command-top-count:%d" % len(tops))
+    if command[tops[0] + 1] != closure["top_module"]:
         raise ValueError("elaboration-command-top-mismatch")
+
+    # Parameters must agree three ways: what the closure records, what the lock
+    # declares and what the command actually passes. A lying value in any of
+    # them means the elaboration proves a different configuration.
+    declared = {str(item.get("name")): str(item.get("value"))
+                for item in record.get("typed_parameters", [])}
+    constants = {str(key): str(value)
+                 for key, value in (record.get("generated_constants") or {}).items()}
+    listed = {}
+    for item in closure.get("parameters", []):
+        if not isinstance(item, dict) or "name" not in item or "value" not in item:
+            raise ValueError("invalid-elaboration-parameter")
+        name, value = str(item["name"]), str(item["value"])
+        listed[name] = value
+        if "::" in name:
+            # Generated-package constants are reported separately from the
+            # module's typed parameters, but they must still be pinned.
+            if constants.get(name) != value:
+                raise ValueError("generated-constant-mismatch:" + name)
+        elif name not in declared:
+            raise ValueError("undeclared-elaboration-parameter:" + name)
+        elif declared[name] != value:
+            raise ValueError("elaboration-parameter-mismatch:" + name)
+    for name, value in declared.items():
+        if listed.get(name) != value:
+            raise ValueError("lock-parameter-not-elaborated:" + name)
+    include_dirs, include_files, defines, parameter_tokens = _command_options(command)
+    for token in parameter_tokens:
+        name, _, value = token.partition("=")
+        if listed.get(name) != value:
+            raise ValueError("command-parameter-mismatch:" + name)
+    for token in defines:
+        name = token.partition("=")[0]
+        if not any(str(item).partition("=")[0] == name for item in closure.get("defines", [])):
+            raise ValueError("undeclared-elaboration-define:" + name)
+
+    # Include and filelist options must stay inside the pinned closure roots:
+    # an extra -I pointing elsewhere can silently override a pinned header.
+    for value in include_dirs:
+        directory = _safe_child(base, _declared_relative(value))
+        if not directory.is_dir():
+            raise ValueError("include-root-missing:" + value)
+        if not any(_safe_child(base, root) in directory.parents or
+                   _safe_child(base, root) == directory for root in allowed):
+            raise ValueError("include-root-outside-pinned-sources:" + value)
+    for value in include_files:
+        target = _safe_child(base, _declared_relative(value))
+        if not target.is_file():
+            raise ValueError("filelist-missing:" + value)
+        if target.relative_to(base).as_posix() not in {path for _, path in entries}:
+            raise ValueError("filelist-not-in-closure:" + value)
 
     labelled = set()
     roots = set()
@@ -153,6 +289,8 @@ def verify_elaboration(record, base_dir, owners):
         revision = owners.get(root_relative)
         if not isinstance(revision, str) or not revision.startswith("git:"):
             raise ValueError("unpinned-closure-root:" + root_relative)
+        if root_relative not in allowed:
+            raise ValueError("undeclared-closure-root:" + root_relative)
         root = _safe_child(base, root_relative)
         path = _safe_child(root, relative)
         content = path.read_bytes()
@@ -168,12 +306,17 @@ def verify_elaboration(record, base_dir, owners):
         roots.add(root_relative)
 
     for token in command:
-        if token.startswith("-"):
+        if token.startswith("-") or token.startswith("+") or "=" in token:
             continue
-        candidate = (base / token)
+        candidate = base / token
         if candidate.is_file() and base in candidate.resolve().parents:
             if candidate.resolve().relative_to(base).as_posix() not in labelled:
                 raise ValueError("command-file-not-in-closure:" + token)
+
+    if _is_git_worktree(base) and not _is_tracked(base, block["evidence"]):
+        # Untracked evidence is not durable: it can be edited with no trace in
+        # any commit, so the claim would not be reviewable after the fact.
+        raise ValueError("untracked-elaboration-evidence:" + block["evidence"])
 
     return {
         "elaboration_status": status,
@@ -186,20 +329,70 @@ def verify_elaboration(record, base_dir, owners):
 
 
 def replay_elaboration(record, base_dir):
-    """Run the recorded command verbatim and require a clean elaboration."""
+    """Re-run the recorded command and require it to read exactly the closure.
+
+    Replay alone is not proof: a command naming no sources, or an extra include
+    directory, still exits zero. Verilator is asked for its own dependency list
+    and the set of files it actually read must equal the pinned closure.
+    """
+    base = Path(base_dir).resolve()
     block = record.get("elaboration")
-    evidence = _safe_child(Path(base_dir).resolve(), _declared_relative(block["evidence"]))
+    evidence = _safe_child(base, _declared_relative(block["evidence"]))
     closure = json.loads(evidence.read_text())
-    result = subprocess.run(closure["command"], cwd=str(Path(base_dir).resolve()),
-                            capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        raise ValueError("elaboration-replay-failed:" + record["id"])
-    if "%Error" in result.stderr + result.stdout:
-        raise ValueError("elaboration-replay-errors:" + record["id"])
-    return {"replayed": True, "returncode": result.returncode}
+    command = list(closure["command"])
+
+    version = subprocess.run([command[0], "--version"], capture_output=True, text=True,
+                             check=False)
+    if version.returncode != 0 or version.stdout.strip() != closure["tool"]["version"]:
+        raise ValueError("elaboration-tool-version-mismatch:" + record["id"])
+
+    with tempfile.TemporaryDirectory() as directory:
+        argv = []
+        index = 0
+        while index < len(command):
+            token = command[index]
+            if token == "--MMD":
+                index += 1
+                continue
+            if token == "--Mdir":
+                index += 2
+                continue
+            if token.startswith("--Mdir"):
+                index += 1
+                continue
+            argv.append(token)
+            index += 1
+        argv += ["--MMD", "--Mdir", directory]
+        result = subprocess.run(argv, cwd=str(base), capture_output=True, text=True,
+                                check=False)
+        if result.returncode != 0:
+            raise ValueError("elaboration-replay-failed:" + record["id"])
+        if "%Error" in result.stderr + result.stdout:
+            raise ValueError("elaboration-replay-errors:" + record["id"])
+        reports = sorted(Path(directory).glob("*.d"))
+        if len(reports) != 1:
+            raise ValueError("elaboration-replay-no-dependency-report:" + record["id"])
+        text = reports[0].read_text().replace("\\\n", " ")
+        _, _, dependencies = text.partition(":")
+        read = set()
+        for token in dependencies.split():
+            read.add((base / token.replace("\\ ", " ")).resolve())
+
+    pinned = set()
+    for item in closure["closure_files"]:
+        pinned.add(_safe_child(_safe_child(base, item["root"]), item["path"]))
+    missing = sorted(path.relative_to(base).as_posix() for path in pinned - read)
+    extra = sorted(path.relative_to(base).as_posix() for path in read - pinned
+                   if base in path.parents)
+    if missing:
+        raise ValueError("closure-file-not-read:" + missing[0])
+    if extra:
+        raise ValueError("unrecorded-file-read:" + extra[0])
+    return {"replayed": True, "returncode": result.returncode,
+            "read_set_matches_closure": True}
 
 
-def verify_record(record, base_dir, owners=None, replay=False):
+def verify_record(record, base_dir, owners=None, replay=False, allowed_roots=None):
     for field in ("id", "source", "artifacts", "selected_content_hash", "closure_status", "source_status", "elaboration_status", "runtime_status"):
         if field not in record:
             raise ValueError("missing-lock-field:" + field)
@@ -212,7 +405,9 @@ def verify_record(record, base_dir, owners=None, replay=False):
         raise ValueError("unsupported-verification-claim")
     if owners is None:
         owners = document_owners({"components": [record]}, base_dir)
-    elaboration = verify_elaboration(record, base_dir, owners)
+    if allowed_roots is None:
+        allowed_roots = document_roots({"components": [record]}).get(record["id"], set())
+    elaboration = verify_elaboration(record, base_dir, owners, allowed_roots)
     if "interface_description" in record:
         interface = _safe_child(Path(base_dir).resolve(), record["interface_description"])
         if hashlib.sha256(interface.read_bytes()).hexdigest() != record.get("interface_description_sha256"):
@@ -290,11 +485,14 @@ def main():
     document = json.loads((args.base_dir / args.lock).read_text())
     validate_document(document)
     owners = document_owners(document, args.base_dir)
+    allowed = document_roots(document)
     results = []
     failed = False
     for record in document["components"]:
         try:
-            results.append(verify_record(record, args.base_dir, owners=owners, replay=args.elaborate))
+            results.append(verify_record(record, args.base_dir, owners=owners,
+                                         replay=args.elaborate,
+                                         allowed_roots=allowed[record["id"]]))
         except (ValueError, OSError, KeyError) as error:
             failed = True
             results.append({"id": record.get("id"), "source_status": "source_failed", "error": str(error)})
