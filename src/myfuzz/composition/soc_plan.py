@@ -40,6 +40,7 @@ from .soc_contracts import (
     validate_soc_spec,
 )
 from .soc_fabric import SocFabricError, build_soc_fabric
+from .target_adapters import build_target_record, resolve_address_narrowing
 
 PROCESSOR_EXECUTION_SCHEMA = "processor_execution.v1"
 FABRIC_INSTANCE = "soc_fabric"
@@ -598,6 +599,11 @@ def build_soc_plan(spec: dict, processor_execution: dict, target_contracts: list
 
     cpu_boundary = _build_cpu_boundary(spec, execution)
     fabric_spec = _deep(spec)
+    # The fabric address width is the validated CPU master width; the fabric
+    # builder re-checks that every master agrees with the backend.
+    fabric_widths = {int(master["address_width"]) for master in fabric_spec["masters"]
+                     if master["kind"] in CPU_MASTER_KINDS}
+    fabric_address_width = fabric_widths.pop() if len(fabric_widths) == 1 else 0
     effective_widths: dict[str, tuple[int, str]] = {}
     for target in fabric_spec["targets"]:
         contract = contracts[target["target_id"]]
@@ -617,6 +623,19 @@ def build_soc_plan(spec: dict, processor_execution: dict, target_contracts: list
             "write": bool(contract["capabilities"].get("write")),
             "execute": False,
         }
+        # A target whose adapter can only accept a bounded address needs a
+        # structural narrowing stage; the resolver owns that rule and planning
+        # only carries the resulting width into the fabric spec.  A target the
+        # resolver rejects carries no width and is rejected fail-closed by the
+        # renderer, naming the cell and the peripheral.
+        if fabric_address_width:
+            narrowing = resolve_address_narrowing(
+                {"protocol": "processor-memory-beat", "version": "1",
+                 "address_width": fabric_address_width, "data_width": effective_width},
+                build_target_record(contract, target, effective_width),
+            )
+            if narrowing is not None:
+                target["fabric_address_width"] = int(narrowing["downstream_address_width"])
     # Wait limits remain an external runtime concern.  Fabric construction is
     # canonicalized to the validated CPU backend capability, not an unrelated
     # caller resource hint that the plan validator cannot independently prove.

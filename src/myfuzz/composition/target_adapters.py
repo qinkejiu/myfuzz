@@ -24,6 +24,8 @@ from typing import Any
 
 __all__ = [
     "TargetAdapterError",
+    "build_target_record",
+    "resolve_address_narrowing",
     "resolve_target_adapter",
 ]
 
@@ -506,12 +508,25 @@ def _resolve_tlul(
         )
     base, size = _window(target, component)
     _window_alignment(base, size, data_width, component)
+    # The generated command integrity is the inv-64/57 SEC-DED code over
+    # {instr_type, opcode, mask, address}, so it covers at most 32 address bits.
+    # A wider beat address cannot be encoded at all: the caller must place a
+    # structural narrowing stage in front of this adapter, and that stage is
+    # only admissible when the target's whole decode window fits 32 bits.
+    upstream_address_width = int(backend["address_width"])
+    narrows = generate_integrity and upstream_address_width > 32
+    if narrows and base + size > (1 << 32):
+        raise _capability_error(
+            "address-window", component,
+            f"base=0x{base:x}:size=0x{size:x}:integrity-address-width=32",
+        )
+    adapter_address_width = 32 if narrows else upstream_address_width
     return {
         "adapter_id": "beat-to-tlul",
         "rtl_module": "beat_to_tlul",
         "rtl_source": "src/myfuzz/protocols/rtl/beat_to_tlul.sv",
         "parameters": [
-            _parameter("ADDRESS_WIDTH", int(backend["address_width"])),
+            _parameter("ADDRESS_WIDTH", adapter_address_width),
             _parameter("DATA_WIDTH", data_width),
             _parameter("SIZE_WIDTH", size_width),
             _parameter("SOURCE_WIDTH", source_width),
@@ -550,6 +565,16 @@ def _resolve_tlul(
             )
         ],
         "error_source": "target_pin" if has_error else "none",
+        # Only a TL-UL target with generated integrity needs a narrowed address.
+        # The record states the requirement and the window it is proven against
+        # so the fabric planner and the renderer can insert the stage without
+        # re-deriving the integrity rule.
+        "address_narrowing": {
+            "required": bool(narrows),
+            "upstream_address_width": upstream_address_width,
+            "downstream_address_width": adapter_address_width,
+            "window": {"base": base, "size": size},
+        },
         "unsupported": []
         if generate_integrity
         else [
@@ -837,3 +862,51 @@ def resolve_target_adapter(backend: dict, target: dict) -> dict:
     }
     result.update(resolved)
     return result
+
+
+def build_target_record(contract: dict, target: dict, data_width: object) -> dict:
+    """Build the resolver's target record from a validated contract and target.
+
+    Shared by the planner and by the plan validator's independent
+    reconstruction, so both derive the narrowing width from the same recorded
+    capability facts instead of from each other's output.
+    """
+    protocol = list(target["protocol"])
+    record = {
+        "component_id": target["component_id"],
+        "target_id": target["target_id"],
+        "protocol": protocol,
+        "data_width": data_width,
+        "window": dict(target["window"]),
+        "capabilities": dict(contract["capabilities"]),
+        "evidence": dict(contract.get("evidence") or {}),
+    }
+    if len(protocol) > 1:
+        record["version"] = protocol[1]
+    return record
+
+
+def resolve_address_narrowing(backend: dict, target: dict) -> dict | None:
+    """Return the address-narrowing requirement of one target, or None.
+
+    A target adapter may only accept a bounded address: a TL-UL target with
+    generated command integrity covers at most 32 address bits, so a wider beat
+    address is not encodable at all.  Callers must then place a structural
+    narrowing stage in front of that adapter, proved by the target window.
+
+    Returns the adapter's address_narrowing record when a narrowing is required,
+    and None both when the adapter accepts the full fabric address width and
+    when the target cannot be resolved at all.  An unresolvable target is not
+    hidden here: the renderer resolves it again and rejects it fail-closed
+    naming the cell and the peripheral.
+    """
+    if not isinstance(backend, dict) or not isinstance(target, dict):
+        raise TypeError("backend and target must be dicts")
+    try:
+        resolved = resolve_target_adapter(backend, target)
+    except (TargetAdapterError, ValueError):
+        return None
+    narrowing = resolved.get("address_narrowing")
+    if not isinstance(narrowing, dict) or not narrowing.get("required"):
+        return None
+    return dict(narrowing)

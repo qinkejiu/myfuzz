@@ -1052,10 +1052,12 @@ def validate_soc_plan(plan: dict) -> None:
             "address_width": net["address_width"],
         })
     canonical_targets = []
+    canonical_widths = {int(master["address_width"]) for master in canonical_masters}
+    canonical_address_width = canonical_widths.pop() if len(canonical_widths) == 1 else 0
     for window in windows:
         target_id = str(window["target_id"])
         capability = target_capability_records[target_id]
-        canonical_targets.append({
+        entry = {
             "target_id": target_id, "component_id": window["component_id"],
             "window": {"base": window["base"], "size": window["size"]},
             "request_sources": list(window["request_sources"]),
@@ -1064,7 +1066,27 @@ def validate_soc_plan(plan: dict) -> None:
             "permissions": {"read": bool(capability["capabilities"].get("read")),
                             "write": bool(capability["capabilities"].get("write")),
                             "execute": False},
-        })
+        }
+        # Re-derive the narrowing width from the recorded capability facts, the
+        # same way the planner did, rather than trusting a field the plan wrote.
+        if canonical_address_width:
+            from .target_adapters import build_target_record, resolve_address_narrowing
+
+            narrowing = resolve_address_narrowing(
+                {"protocol": "processor-memory-beat", "version": "1",
+                 "address_width": canonical_address_width,
+                 "data_width": capability["data_width"]},
+                build_target_record(
+                    {"capabilities": capability["capabilities"],
+                     "evidence": capability.get("evidence", {})},
+                    {"component_id": window["component_id"], "target_id": target_id,
+                     "protocol": list(capability["protocol"]),
+                     "window": {"base": window["base"], "size": window["size"]}},
+                    capability["data_width"]),
+            )
+            if narrowing is not None:
+                entry["fabric_address_width"] = int(narrowing["downstream_address_width"])
+        canonical_targets.append(entry)
     canonical_spec = {
         "masters": canonical_masters,
         "memory_regions": copy.deepcopy(memory_regions),

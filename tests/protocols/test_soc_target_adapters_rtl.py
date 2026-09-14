@@ -362,6 +362,45 @@ class TargetAdapterResolutionTests(unittest.TestCase):
                 "required", result["capability_evidence"]["integrity"]["value"]
             )
 
+    def test_a_wide_beat_address_requires_a_narrowing_stage(self) -> None:
+        for component, closure in (
+            ("opentitan_uart", "opentitan_uart.json"),
+            ("opentitan_gpio", "opentitan_gpio.json"),
+        ):
+            with self.subTest(component=component):
+                target = _opentitan_target(component, closure)
+                wide = resolve_target_adapter(
+                    _beat_backend(address_width=64, data_width=32), target
+                )
+                # The integrity code covers at most 32 address bits, so the
+                # adapter is configured at 32 and declares the stage it needs.
+                self.assertEqual(32, _parameters(wide)["ADDRESS_WIDTH"])
+                self.assertEqual(
+                    {"required": True, "upstream_address_width": 64,
+                     "downstream_address_width": 32,
+                     "window": {"base": target["window"]["base"],
+                                "size": target["window"]["size"]}},
+                    wide["address_narrowing"])
+                narrow = resolve_target_adapter(_beat_backend(), target)
+                self.assertEqual(32, _parameters(narrow)["ADDRESS_WIDTH"])
+                self.assertFalse(narrow["address_narrowing"]["required"])
+
+    def test_a_window_above_the_integrity_range_is_rejected(self) -> None:
+        target = _opentitan_target("opentitan_uart", "opentitan_uart.json")
+        target["window"] = {"base": 0x1_0000_0000, "size": 0x1000}
+        with self.assertRaises(ValueError) as caught:
+            resolve_target_adapter(_beat_backend(address_width=64, data_width=32), target)
+        text = str(caught.exception)
+        self.assertIn("unsupported-target-capability:address-window:opentitan_uart", text)
+        self.assertIn("integrity-address-width=32", text)
+
+    def test_a_target_without_integrity_keeps_the_full_address_width(self) -> None:
+        target = _opentitan_target("opentitan_uart", "opentitan_uart.json")
+        target["capabilities"]["integrity"] = "none"
+        wide = resolve_target_adapter(_beat_backend(address_width=64, data_width=32), target)
+        self.assertEqual(64, _parameters(wide)["ADDRESS_WIDTH"])
+        self.assertFalse(wide["address_narrowing"]["required"])
+
     def test_resolves_zipcpu_uart_registered_ack_configuration(self) -> None:
         result = resolve_target_adapter(_beat_backend(), _zipcpu_uart_target())
         self.assertEqual("beat_to_wishbone", result["rtl_module"])

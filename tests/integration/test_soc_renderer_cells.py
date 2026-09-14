@@ -632,6 +632,120 @@ class SocRendererCellTests(unittest.TestCase):
                                   "regression_stub"):
                     self.assertNotIn(forbidden, rendered["soc_top.sv"])
 
+    def test_a_wide_cpu_narrows_the_address_in_front_of_a_tlul_target(self):
+        """A 64-bit CPU reaches a TL-UL target through the proved narrowing stage."""
+        for cell in self.cells:
+            with self.subTest(cell=cell["cell_id"]):
+                plan, stimulus, config = self.documents(cell)
+                fabric = plan["fabric"]
+                wide = int(fabric["rtl"]["parameters"]["ADDRESS_WIDTH"]) > 32
+                tlul = [name for name, entry in plan["target_capabilities"].items()
+                        if entry["protocol"][0] == "tl-ul"]
+                rendered = render_soc(plan, stimulus)
+                if not (wide and tlul):
+                    self.assertEqual([], fabric["address_narrowers"])
+                    self.assertNotIn("beat_address_narrow", rendered["soc_top.sv"])
+                    continue
+                self.assertEqual(len(tlul), len(fabric["address_narrowers"]))
+                self.assertIn("beat_address_narrow", rendered["soc_sources.f"])
+                self.assertIn("beat_address_narrow", rendered["soc_top.sv"])
+                for entry in fabric["address_narrowers"]:
+                    self.assertEqual(32, entry["parameters"]["NARROW_ADDRESS_WIDTH"])
+                    self.assertEqual(64, entry["parameters"]["ADDRESS_WIDTH"])
+                    # The stage is configured at the target's own window, which
+                    # is the proof that narrowing it is lossless.
+                    window = next(row for row in fabric["decode"]["windows"]
+                                  if int(row["target_index"]) == int(entry["target_index"]))
+                    self.assertEqual(int(window["base"]), entry["parameters"]["WINDOW_BASE"])
+                    self.assertEqual(int(window["size"]), entry["parameters"]["WINDOW_SIZE"])
+                # The TL-UL adapter is driven at the narrowed width, and the
+                # narrowing stage sits between it and the fabric.
+                manifest = json.loads(rendered["soc_manifest.json"])
+                for name, record in manifest["peripherals"].items():
+                    if record["protocol"][0] != "tl-ul":
+                        self.assertIsNone(record["address_narrower"])
+                        continue
+                    self.assertEqual(32, record["adapter_parameters"]["ADDRESS_WIDTH"])
+                    self.assertEqual("beat_address_narrow",
+                                     record["address_narrower"]["module"])
+                    self.assertIn("beat_address_narrow",
+                                  record["address_narrower"]["source"])
+
+    def test_a_plan_without_the_proved_narrowing_stage_fails_closed(self):
+        """Removing or altering the planned stage is rejected, never rendered."""
+        for cell in self.cells:
+            plan, stimulus, config = self.documents(cell)
+            if not plan["fabric"]["address_narrowers"]:
+                continue
+            for case, mutate in (
+                ("missing", lambda fabric: fabric.__setitem__("address_narrowers", [])),
+                ("mismatched-window",
+                 lambda fabric: fabric["address_narrowers"][0]["parameters"].__setitem__(
+                     "WINDOW_SIZE", 0x2000)),
+                ("not-narrower",
+                 lambda fabric: fabric["address_narrowers"][0]["parameters"].__setitem__(
+                     "NARROW_ADDRESS_WIDTH", 64)),
+            ):
+                with self.subTest(cell=cell["cell_id"], case=case):
+                    broken = copy.deepcopy(plan)
+                    mutate(broken["fabric"])
+                    with self.assertRaises(SocRenderError) as caught:
+                        render_soc(broken, stimulus)
+                    # The plan validator re-derives the stage from the recorded
+                    # capability facts, so it already rejects the forgery.
+                    self.assertIn("fabric", str(caught.exception))
+
+    def test_the_renderer_itself_rejects_an_inconsistent_narrower(self):
+        """The renderer checks the stage directly, not only via plan validation."""
+        from myfuzz.composition.soc_renderer import _checked_address_narrower
+
+        checked = 0
+        for cell in self.cells:
+            plan, _stimulus, _config = self.documents(cell)
+            fabric = plan["fabric"]
+            if not fabric["address_narrowers"]:
+                continue
+            address_width = int(fabric["rtl"]["parameters"]["ADDRESS_WIDTH"])
+            for entry in fabric["address_narrowers"]:
+                index = int(entry["target_index"])
+                row = next(row for row in fabric["decode"]["windows"]
+                           if int(row["target_index"]) == index)
+                capability = plan["target_capabilities"][row["target_id"]]
+                target_width = int(capability["data_width"])
+                adapter = resolve_target_adapter(
+                    {"protocol": "processor-memory-beat", "version": "1",
+                     "address_width": address_width, "data_width": target_width},
+                    {"component_id": capability["component_id"],
+                     "target_id": row["target_id"],
+                     "protocol": list(capability["protocol"]),
+                     "version": capability["protocol"][1],
+                     "data_width": target_width,
+                     "window": {"base": row["base"], "size": row["size"]},
+                     "capabilities": dict(capability["capabilities"]),
+                     "evidence": dict(capability["evidence"])})
+                component = str(capability["component_id"])
+                checked += 1
+                self.assertIs(
+                    entry,
+                    _checked_address_narrower(cell["cell_id"], component, fabric, index,
+                                              adapter, address_width, target_width, row))
+                for case, broken_fabric in (
+                    ("missing", {**fabric, "address_narrowers": []}),
+                    ("mismatched-window",
+                     {**fabric, "address_narrowers": [
+                         {**entry, "parameters": {**entry["parameters"], "WINDOW_BASE": 0}}]}),
+                    ("not-narrower",
+                     {**fabric, "address_narrowers": [
+                         {**entry, "parameters": {**entry["parameters"],
+                                                  "NARROW_ADDRESS_WIDTH": address_width}}]}),
+                ):
+                    with self.subTest(cell=cell["cell_id"], case=case), \
+                            self.assertRaises(SocRenderError) as caught:
+                        _checked_address_narrower(cell["cell_id"], component, broken_fabric, index,
+                                                  adapter, address_width, target_width, row)
+                    self.assertIn(component, str(caught.exception))
+        self.assertGreater(checked, 0, "no cell needed narrowing")
+
     def test_cell_render_is_byte_identical_across_runs(self):
         for cell in self.cells:
             with self.subTest(cell=cell["cell_id"]):

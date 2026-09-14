@@ -901,6 +901,8 @@ def _cell_records(plan: Mapping[str, object], stimulus: Mapping[str, object],
                               if int(entry["target_index"]) == index), None)
         if data_width != target_width and width_adapter is None:
             raise SocRenderError(f"{cell}:{component_id}:width-adapter-missing")
+        address_narrower = _checked_address_narrower(
+            cell, component_id, fabric, index, adapter, address_width, target_width, row)
         record = {
             "id": component_id,
             "instance_id": str(instance["instance_id"]),
@@ -914,6 +916,7 @@ def _cell_records(plan: Mapping[str, object], stimulus: Mapping[str, object],
             "adapter": adapter,
             "wrapper": wrapper,
             "width_adapter": width_adapter,
+            "address_narrower": address_narrower,
             "closure": closure_path,
             "closure_document": closure,
             "parameters": record_parameters,
@@ -1045,6 +1048,44 @@ def _runtime_status(cell: str, source_lock: str) -> str:
     """The source lock's runtime status for a component this cell renders."""
     record = _lock_component(cell, source_lock)
     return str(record.get("runtime_status", "runtime_unverified"))
+
+
+def _checked_address_narrower(cell: str, component_id: str, fabric: Mapping[str, object],
+                              index: int, adapter: Mapping[str, object], address_width: int,
+                              target_width: int, row: Mapping[str, object]) -> dict | None:
+    """Return the planned narrowing stage for one target, or None.
+
+    The adapter decides whether a narrowing is needed (it knows the integrity
+    rule); the fabric plan provides the stage.  The two must agree exactly, and
+    the planned window must be the target's own decode window, because that
+    window is the whole reason the truncation is lossless.
+    """
+    narrowing = adapter.get("address_narrowing")
+    narrowing = narrowing if isinstance(narrowing, Mapping) else {}
+    planned = next((entry for entry in fabric.get("address_narrowers", [])
+                    if int(entry["target_index"]) == index), None)
+    if not narrowing.get("required"):
+        if planned is not None:
+            raise SocRenderError(f"{cell}:{component_id}:unexpected-address-narrower")
+        return None
+    if planned is None:
+        raise SocRenderError(f"{cell}:{component_id}:address-narrower-missing")
+    parameters = {str(entry["name"]): int(entry["value"]) for entry in adapter["parameters"]}
+    expected = {
+        "ADDRESS_WIDTH": address_width,
+        "NARROW_ADDRESS_WIDTH": parameters["ADDRESS_WIDTH"],
+        "DATA_WIDTH": target_width,
+        "WINDOW_BASE": int(row["base"]),
+        "WINDOW_SIZE": int(row["size"]),
+    }
+    actual = {str(name): int(value) for name, value in planned["parameters"].items()}
+    if any(actual.get(name) != value for name, value in expected.items()):
+        raise SocRenderError(
+            f"{cell}:{component_id}:address-narrower-mismatch:"
+            f"{sorted(expected.items())}!={sorted(actual.items())}")
+    if actual["NARROW_ADDRESS_WIDTH"] >= actual["ADDRESS_WIDTH"]:
+        raise SocRenderError(f"{cell}:{component_id}:address-narrower-not-narrower")
+    return planned
 
 
 
@@ -1213,6 +1254,15 @@ def _cell_top(records: Mapping[str, object], cell: str) -> str:
         add(f"  logic [3:0] {identifier}_beat_be;")
         add(f"  logic {identifier}_beat_rsp_valid, {identifier}_beat_rsp_ready, "
             f"{identifier}_beat_error;")
+        if record["address_narrower"] is not None:
+            narrow_width = int(record["address_narrower"]["parameters"]["NARROW_ADDRESS_WIDTH"])
+            add(f"  logic {identifier}_narrow_req_valid, {identifier}_narrow_req_ready, "
+                f"{identifier}_narrow_write;")
+            add(f"  logic [{narrow_width - 1}:0] {identifier}_narrow_addr;")
+            add(f"  logic [31:0] {identifier}_narrow_wdata, {identifier}_narrow_rdata;")
+            add(f"  logic [3:0] {identifier}_narrow_be;")
+            add(f"  logic {identifier}_narrow_rsp_valid, {identifier}_narrow_rsp_ready, "
+                f"{identifier}_narrow_error;")
         widths = _target_net_widths(record["adapter"])
         for port in record["adapter"]["target_side_ports"]:
             name = str(port["port"])
@@ -1444,19 +1494,50 @@ def _cell_top(records: Mapping[str, object], cell: str) -> str:
             add(f"  assign {identifier}_beat_rsp_ready = t_rsp_ready[{index}];")
             add(f"  assign t_rdata[{index}] = {identifier}_beat_rdata;")
             add(f"  assign t_error[{index}] = {identifier}_beat_error;")
+        if record["address_narrower"] is not None:
+            # The target's own adapter can only accept a bounded address, so the
+            # address is narrowed once, here, against the target window.  The
+            # downstream signals become the target adapter's beat side.
+            narrower = record["address_narrower"]
+            add("")
+            add(f"  // Address narrowing for {identifier}: the target window is the proof.")
+            add(f"  {narrower['module']} #("
+                + ", ".join(f".{name}({_sv_literal(value)})"
+                            for name, value in sorted(narrower["parameters"].items())))
+            add(f"  ) u_{identifier}_narrow (")
+            add("    .clk(clk_i), .reset(reset_i),")
+            add(f"    .req_valid({identifier}_beat_req_valid), "
+                f".req_ready({identifier}_beat_req_ready),")
+            add(f"    .write({identifier}_beat_write), .addr({identifier}_beat_addr), "
+                f".wdata({identifier}_beat_wdata), .be({identifier}_beat_be),")
+            add(f"    .rsp_valid({identifier}_beat_rsp_valid), "
+                f".rsp_ready({identifier}_beat_rsp_ready),")
+            add(f"    .rdata({identifier}_beat_rdata), .error({identifier}_beat_error),")
+            add(f"    .p_req_valid({identifier}_narrow_req_valid), "
+                f".p_req_ready({identifier}_narrow_req_ready),")
+            add(f"    .p_write({identifier}_narrow_write), .p_addr({identifier}_narrow_addr), "
+                f".p_wdata({identifier}_narrow_wdata), .p_be({identifier}_narrow_be),")
+            add(f"    .p_rsp_valid({identifier}_narrow_rsp_valid), "
+                f".p_rsp_ready({identifier}_narrow_rsp_ready),")
+            add(f"    .p_rdata({identifier}_narrow_rdata), .p_error({identifier}_narrow_error),")
+            add("    .stale_pending()")
+            add("  );")
+        target_side = "narrow" if record["address_narrower"] is not None else "beat"
         add("")
         add(f"  {adapter['rtl_module']} #("
             + ", ".join(f".{entry['name']}({_sv_literal(entry['value'])})"
                         for entry in adapter["parameters"]))
         add(f"  ) u_{identifier}_adapter (")
         add("    .clk(clk_i), .reset(reset_i),")
-        add(f"    .req_valid({identifier}_beat_req_valid), "
-            f".req_ready({identifier}_beat_req_ready), .write({identifier}_beat_write),")
-        add(f"    .addr({identifier}_beat_addr), .wdata({identifier}_beat_wdata), "
-            f".be({identifier}_beat_be),")
-        add(f"    .rsp_valid({identifier}_beat_rsp_valid), "
-            f".rsp_ready({identifier}_beat_rsp_ready),")
-        add(f"    .rdata({identifier}_beat_rdata), .error({identifier}_beat_error),")
+        add(f"    .req_valid({identifier}_{target_side}_req_valid), "
+            f".req_ready({identifier}_{target_side}_req_ready), "
+            f".write({identifier}_{target_side}_write),")
+        add(f"    .addr({identifier}_{target_side}_addr), "
+            f".wdata({identifier}_{target_side}_wdata), .be({identifier}_{target_side}_be),")
+        add(f"    .rsp_valid({identifier}_{target_side}_rsp_valid), "
+            f".rsp_ready({identifier}_{target_side}_rsp_ready),")
+        add(f"    .rdata({identifier}_{target_side}_rdata), "
+            f".error({identifier}_{target_side}_error),")
         for position, port in enumerate(adapter["target_side_ports"]):
             name = str(port["port"])
             comma = "," if position + 1 < len(adapter["target_side_ports"]) else ""
@@ -1629,6 +1710,9 @@ def _cell_source_records(plan: Mapping[str, object], records: Mapping[str, objec
         add(record["wrapper"]["source"], "source_backed_peripheral_wrapper", record["source_lock"])
         if record["width_adapter"] is not None:
             add(record["width_adapter"]["source"], "fabric_width_adapter", record["source_lock"])
+        if record["address_narrower"] is not None:
+            add(record["address_narrower"]["source"], "fabric_address_narrower",
+                record["source_lock"])
     for record in records["memory"]:
         add(MEMORY_MODEL, "memory_model")
     for peer in records["peers"]:
@@ -1701,6 +1785,8 @@ def _cell_document(plan: Mapping[str, object], stimulus: Mapping[str, object],
         peripheral_block = list(closure_files)
         if record["width_adapter"] is not None:
             peripheral_block.append(str(record["width_adapter"]["source"]))
+        if record["address_narrower"] is not None:
+            peripheral_block.append(str(record["address_narrower"]["source"]))
         peripheral_block += [str(record["adapter"]["rtl_source"]), str(record["wrapper"]["source"])]
         blocks.append((f"peripheral:{record['id']}", peripheral_block))
     blocks.append(("memory", [MEMORY_MODEL]))
@@ -1735,6 +1821,10 @@ def _cell_document(plan: Mapping[str, object], stimulus: Mapping[str, object],
             "width_adapter": (None if record["width_adapter"] is None
                               else {"module": record["width_adapter"]["module"],
                                     "source": record["width_adapter"]["source"]}),
+            "address_narrower": (None if record["address_narrower"] is None
+                                 else {"module": record["address_narrower"]["module"],
+                                       "source": record["address_narrower"]["source"],
+                                       "parameters": dict(record["address_narrower"]["parameters"])}),
             "wrapper_module": record["wrapper"]["module"],
             "wrapper_source": record["wrapper"]["source"],
             "wrapper_parameters": dict(record["parameters"]),
