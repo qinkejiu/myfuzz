@@ -67,6 +67,20 @@ that manifest closure; a focused APB3 bridge test additionally proves a partial
 write is completed as an error with zero APB side effect and that a target which
 never raises `PREADY` is bounded to an error response.
 
+## Newly reproduced CVA6 source closure
+
+The pinned CVA6 checkout is now flattened from its authoritative
+`core/Flist.cva6` with the declared `TARGET_CFG=cv64a6_imafdc_sv39` and all
+three nested gitlink revisions checked against both their worktrees and parent
+trees. The closure contains 225 ordered source files, deduplicated include
+directories, and the configuration package before `cva6.sv`; Verilator
+elaborated 231 modules. With
+`MYFUZZ_SOC_REAL=1`, Verilator 5.051 lint/elaboration of top `cva6` completed
+with exit code 0. This proves the pinned CPU source boundary, not a live
+CVA6-to-PULP runtime: the profile still records `runtime_status=runtime_unverified`
+until a boot image, real packed AXI path, IRQ chain, and RFuzz replay are
+executed.
+
 ## Current acceptance boundary
 
 The following evidence is still missing and therefore the project is not
@@ -74,6 +88,8 @@ marked globally complete:
 
 - Ibex and CVA6 have not each completed a real client-driven SoC fuzz run with
   source-backed CPU and peripheral internals observed through IPC.
+- CVA6 has source-bound elaboration evidence, but no runtime execution evidence
+  yet for the generic 64-bit fabric, high/low MMIO lanes, or PULP IRQ path.
 - The six single-family cells and two mixed cells have not completed the
   required three-mode runtime matrix or the 300-second-per-task campaigns.
 - No retained corpus has yet been rebuilt with an independently compiled

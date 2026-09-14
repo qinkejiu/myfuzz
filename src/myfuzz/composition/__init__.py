@@ -112,6 +112,7 @@ from .constraint_ir import (
     slice_bits,
 )
 from .contract_transducer import ContractRuntime, ContractTransducerPlan, compile_contract_transducer
+from .cva6_source_closure import Cva6SourceClosureError, resolve_cva6_source_closure
 from .protocol_transducer import (
     ProcessorBeatInputs,
     ProcessorBeatRequest,
@@ -123,6 +124,8 @@ __all__ = [
     "ContractRuntime",
     "ContractTransducerPlan",
     "compile_contract_transducer",
+    "Cva6SourceClosureError",
+    "resolve_cva6_source_closure",
     "ProcessorBeatInputs",
     "ProcessorBeatRequest",
     "ProcessorBeatTransducer",
