@@ -38,7 +38,7 @@ class ProcessorApbBridgeRtlTests(unittest.TestCase):
               logic pwrite, psel, penable, pready = 1'b1, pslverr = 1'b0;
               integer apb_transfers = 0;
 
-              processor_apb_bridge #(.ALLOW_PARTIAL_WRITE(0)) dut (
+              processor_apb_bridge dut (
                 .clk_i(clk), .rst_ni(!reset), .req_valid_i(req_valid), .req_ready_o(req_ready),
                 .req_write_i(req_write), .req_addr_i(req_addr), .req_wdata_i(req_wdata),
                 .req_be_i(req_be), .rsp_valid_o(rsp_valid), .rsp_ready_i(rsp_ready),
@@ -64,9 +64,21 @@ class ProcessorApbBridgeRtlTests(unittest.TestCase):
                 check(psel && penable && pwrite && pwdata == 32'hCAFE_BABE,
                       "full write holds APB access fields");
                 tick();
-                check(rsp_valid && !rsp_error && rsp_rdata == 32'h1234_5678,
+                check(rsp_valid && !rsp_error && rsp_rdata == 0,
                       "full write returns target response");
                 check(apb_transfers == 1, "full write has one APB transfer");
+                tick();
+
+                // A target that never raises PREADY must not pin the bridge
+                // (and therefore the shared fabric) forever.
+                pready = 1'b0; req_write = 1'b0; req_be = 4'hf;
+                req_valid = 1'b1; tick(); req_valid = 1'b0;
+                tick(); repeat (16) tick();
+                check(rsp_valid && rsp_error && rsp_rdata == 0,
+                      "APB wait timeout returns a beat error");
+                check(!psel && !penable && apb_transfers == 1,
+                      "APB timeout deasserts the target without a transfer");
+                pready = 1'b1; tick();
                 $display("PASS"); $finish;
               end
             endmodule

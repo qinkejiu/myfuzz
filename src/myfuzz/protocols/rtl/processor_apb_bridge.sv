@@ -4,7 +4,7 @@
 module processor_apb_bridge #(
     parameter integer ADDRESS_WIDTH = 32,
     parameter integer APB_ADDR_WIDTH = 12,
-    parameter integer ALLOW_PARTIAL_WRITE = 0
+    parameter integer MAX_WAIT_CYCLES = 16
 ) (
     input logic clk_i,
     input logic rst_ni,
@@ -32,9 +32,18 @@ module processor_apb_bridge #(
   logic write_q;
   logic [APB_ADDR_WIDTH-1:0] addr_q;
   logic [31:0] wdata_q;
-  logic [3:0] be_q;
   logic [31:0] rdata_q;
   logic error_q;
+  localparam integer WAIT_COUNTER_WIDTH =
+      (MAX_WAIT_CYCLES <= 1) ? 1 : $clog2(MAX_WAIT_CYCLES);
+  localparam logic [WAIT_COUNTER_WIDTH-1:0] WAIT_TIMEOUT_VALUE =
+      WAIT_COUNTER_WIDTH'(MAX_WAIT_CYCLES - 1);
+  logic [WAIT_COUNTER_WIDTH-1:0] wait_count_q;
+
+  initial begin
+    if (ADDRESS_WIDTH < 1 || APB_ADDR_WIDTH < 1 || MAX_WAIT_CYCLES < 1)
+      $fatal(1, "invalid processor APB bridge parameters");
+  end
 
   assign req_ready_o = rst_ni && state_q == IDLE;
   assign rsp_valid_o = state_q == RESPOND;
@@ -52,14 +61,15 @@ module processor_apb_bridge #(
       write_q <= 1'b0;
       addr_q <= '0;
       wdata_q <= '0;
-      be_q <= '0;
       rdata_q <= '0;
       error_q <= 1'b0;
+      wait_count_q <= '0;
     end else begin
       case (state_q)
         IDLE: begin
+          wait_count_q <= '0;
           if (req_valid_i && req_ready_o) begin
-            if (req_write_i && !ALLOW_PARTIAL_WRITE && req_be_i != 4'hf) begin
+            if (req_write_i && req_be_i != 4'hf) begin
               // APB3 has no byte strobe.  Refuse a partial side-effecting
               // write instead of silently turning it into a full write.
               write_q <= 1'b0;
@@ -73,31 +83,41 @@ module processor_apb_bridge #(
               // avoid an out-of-range part-select when ADDRESS_WIDTH is
               // narrower than APB_ADDR_WIDTH.
               addr_q <= req_addr_i;
-              // When a target explicitly permits partial writes, disabled
-              // lanes are driven as zero because this APB3 bridge has no
-              // PSTRB output.  The default PULP APB3 profile rejects them.
-              wdata_q <= {
-                req_be_i[3] ? req_wdata_i[31:24] : 8'h00,
-                req_be_i[2] ? req_wdata_i[23:16] : 8'h00,
-                req_be_i[1] ? req_wdata_i[15:8] : 8'h00,
-                req_be_i[0] ? req_wdata_i[7:0] : 8'h00
-              };
-              be_q <= req_be_i;
+              wdata_q <= req_wdata_i;
               rdata_q <= '0;
               error_q <= 1'b0;
+              wait_count_q <= '0;
               state_q <= SETUP;
             end
           end
         end
-        SETUP: state_q <= ACCESS;
+        SETUP: begin
+          wait_count_q <= '0;
+          state_q <= ACCESS;
+        end
         ACCESS: begin
           if (pready_i) begin
-            rdata_q <= prdata_i;
+            rdata_q <= write_q ? '0 : prdata_i;
             error_q <= pslverr_i;
+            wait_count_q <= '0;
             state_q <= RESPOND;
+          end else if (wait_count_q == WAIT_TIMEOUT_VALUE) begin
+            // APB has no cancellation handshake.  After the bounded access
+            // window, deassert PSEL/PENABLE and complete the beat as an error;
+            // this prevents an unresponsive target from occupying the shared
+            // SoC fabric forever.
+            rdata_q <= '0;
+            error_q <= 1'b1;
+            wait_count_q <= '0;
+            state_q <= RESPOND;
+          end else begin
+            wait_count_q <= wait_count_q + 1'b1;
           end
         end
-        RESPOND: if (rsp_ready_i) state_q <= IDLE;
+        RESPOND: begin
+          wait_count_q <= '0;
+          if (rsp_ready_i) state_q <= IDLE;
+        end
         default: state_q <= IDLE;
       endcase
     end

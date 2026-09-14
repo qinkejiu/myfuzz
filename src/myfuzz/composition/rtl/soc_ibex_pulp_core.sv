@@ -353,7 +353,7 @@ module soc_ibex_pulp_core (
   logic [7:0] gpio_in_sync;
   logic [7:0][3:0] gpio_padcfg;
 
-  processor_apb_bridge #(.ALLOW_PARTIAL_WRITE(0)) u_gpio_bridge (
+  processor_apb_bridge u_gpio_bridge (
       .clk_i(clk_i), .rst_ni(reset_n), .req_valid_i(target_req_valid[2]),
       .req_ready_o(target_req_ready[2]), .req_write_i(target_write[2]),
       .req_addr_i(target_addr[2]), .req_wdata_i(target_wdata[2]), .req_be_i(target_be[2]),
@@ -382,7 +382,7 @@ module soc_ibex_pulp_core (
   logic spi_clk, spi_csn0, spi_sdo0;
   logic spi_sdo1, spi_sdo2, spi_sdo3;
   logic spi_mode;
-  processor_apb_bridge #(.ALLOW_PARTIAL_WRITE(0)) u_spi_bridge (
+  processor_apb_bridge u_spi_bridge (
       .clk_i(clk_i), .rst_ni(reset_n), .req_valid_i(target_req_valid[3]),
       .req_ready_o(target_req_ready[3]), .req_write_i(target_write[3]),
       .req_addr_i(target_addr[3]), .req_wdata_i(target_wdata[3]), .req_be_i(target_be[3]),
