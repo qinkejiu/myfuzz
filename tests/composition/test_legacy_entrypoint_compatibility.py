@@ -25,17 +25,28 @@ from pathlib import Path
 import tempfile
 import unittest
 
+from unittest.mock import patch
+
 from myfuzz.composition import auto as legacy_auto
 from myfuzz.composition import generic_planner
 from myfuzz.composition import processor_renderer
 from myfuzz.composition import protocol_composer
+from myfuzz.composition.processor_backend import build_processor_backend
+import tests.integration.test_processor_auto_wiring as wiring
 from tests.integration.test_processor_auto_wiring import PROTOCOLS, _fixture
 
 
-# sha256 of the canonical JSON manifest produced by /tmp-equivalent run of this
-# matrix against the pre-refactor checkout (git HEAD 323561f) and against the
-# split tree; both were e63647ef81401f24720bd077e184cc569998ea6d5c69d21bd71697b95de03b09.
-GOLDEN_MATRIX_DIGEST = "e63647ef81401f24720bd077e184cc569998ea6d5c69d21bd71697b95de03b09"
+# sha256 of the canonical JSON manifest this module renders from the fixture
+# matrix. It started as the value produced by both the pre-refactor checkout
+# (git 323561f) and the split tree, e63647ef81401f24720bd077e184cc569998ea6d5c69d21bd71697b95de03b09,
+# which is the recorded proof that the split changed nothing.
+#
+# It is re-baselined ONLY when a later task deliberately changes what the
+# renderer emits; P4 (constrained memory beside real MMIO targets) added the
+# memory/MMIO coexistence rendering, so the current value is recorded here.
+# Never re-baseline it to make an unexpected failure disappear - investigate
+# first, and never touch it just to green a refactor.
+GOLDEN_MATRIX_DIGEST = "9cbed41bd0482eb152e8275d4f8fedf0c04e5001988f69a0dfcf0ae3a25085d2"
 CASES = (
     ("plain", {}),
     ("ram", {"with_ram": True}),
@@ -100,24 +111,32 @@ RENDERER_NAMES = (
 )
 
 
-def _matrix_manifest(plan, write, root: Path) -> dict:
-    """Render the fixture matrix and return relative path -> content hash."""
+def _matrix_manifest(planner, write, root: Path) -> dict:
+    """Render the fixture matrix through the given planner and writer.
+
+    The planner is injected by patching the name the fixture helper resolves at
+    call time. Without that indirection the argument would be ignored and the
+    legacy-versus-extracted comparison below could never fail.
+    """
     manifest = {}
-    for protocol in PROTOCOLS:
-        for index, (label, kwargs) in enumerate(CASES):
-            case_root = root / ("%s-%s-%s" % (protocol[0], protocol[1], label))
-            case_root.mkdir(parents=True)
-            fixture, _, _, _ = _fixture(case_root, protocol, index, **kwargs)
-            prefix = "%s/%s" % (protocol[0], label)
-            manifest[prefix + "/ir"] = fixture.composition_ir_hash
-            manifest[prefix + "/annotations"] = fixture.interface_annotation_hash
-            manifest[prefix + "/evidence"] = fixture.source_evidence_hash
-            output = case_root / "out"
-            write(fixture, output, base_dir=case_root)
-            for path in sorted(output.rglob("*")):
-                if path.is_file():
-                    manifest[prefix + "/" + path.relative_to(output).as_posix()] = hashlib.sha256(
-                        path.read_bytes()).hexdigest()
+    with patch.object(wiring, "plan_generic_composition", planner):
+        for protocol in PROTOCOLS:
+            for index, (label, kwargs) in enumerate(CASES):
+                case_root = root / ("%s-%s-%s" % (protocol[0], protocol[1], label))
+                case_root.mkdir(parents=True)
+                fixture, _, _, _ = _fixture(case_root, protocol, index, **kwargs)
+                self_check = fixture.composition_ir_hash
+                assert self_check, "planner produced no plan"
+                prefix = "%s/%s" % (protocol[0], label)
+                manifest[prefix + "/ir"] = fixture.composition_ir_hash
+                manifest[prefix + "/annotations"] = fixture.interface_annotation_hash
+                manifest[prefix + "/evidence"] = fixture.source_evidence_hash
+                output = case_root / "out"
+                write(fixture, output, base_dir=case_root)
+                for path in sorted(output.rglob("*")):
+                    if path.is_file():
+                        manifest[prefix + "/" + path.relative_to(output).as_posix()] = (
+                            hashlib.sha256(path.read_bytes()).hexdigest())
     return manifest
 
 
@@ -160,6 +179,43 @@ class LegacyEntrypointCompatibilityTests(unittest.TestCase):
         self.assertEqual(set(legacy), set(extracted))
         self.assertEqual(legacy, extracted)
         self.assertTrue(any(key.endswith("sources.f") for key in legacy))
+
+    def test_the_injected_planner_is_actually_used(self) -> None:
+        # Guards the guard: if _matrix_manifest ever stops threading its planner
+        # argument, this test fails instead of silently comparing nothing.
+        def exploding(*args, **kwargs):
+            raise RuntimeError("planner was invoked")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaises(RuntimeError):
+                _matrix_manifest(exploding, protocol_composer.write_generic_composition,
+                                 Path(temporary))
+
+    def test_processor_renderer_agrees_through_both_modules(self) -> None:
+        # The processor renderer is reached through protocol_composer by every
+        # caller; comparing it with the extracted module keeps the forwarding
+        # honest for the rendered text and for the error paths alike.
+        cases = [(32, 32, 4, "asynchronous"), (32, 32, 1, "synchronous"),
+                 (64, 32, 65535, "asynchronous")]
+        for arguments in cases:
+            with self.subTest(arguments=arguments):
+                self.assertEqual(protocol_composer._render_processor_backend_module(*arguments),
+                                 processor_renderer._render_processor_backend_module(*arguments))
+        for bad in [(32, 32, 0, "synchronous"), (32, 32, 4, "sideways")]:
+            with self.subTest(bad=bad):
+                with self.assertRaises(ValueError) as forwarded:
+                    protocol_composer._render_processor_backend_module(*bad)
+                with self.assertRaises(ValueError) as extracted:
+                    processor_renderer._render_processor_backend_module(*bad)
+                self.assertEqual(str(forwarded.exception), str(extracted.exception))
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plan, _, _, _ = _fixture(root, ("obi", "1"), 41, with_ram=True)
+            regions = [dict(item) for item in plan.ir["address_regions"]]
+            backend = build_processor_backend(plan.processor_execution, regions)
+            self.assertEqual(protocol_composer._render_processor_top(plan, backend),
+                             processor_renderer._render_processor_top(plan, backend))
 
     def test_matrix_digest_matches_the_pre_refactor_checkout(self) -> None:
         self.assertNotEqual(GOLDEN_MATRIX_DIGEST, "PENDING",
