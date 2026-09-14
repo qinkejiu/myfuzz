@@ -304,6 +304,28 @@ class RiscvInstructionTransducer:
             return self._illegal_choice(raw_payload, width)
         return self._repair_template(template, raw_payload)
 
+    def repair_payload(
+        self,
+        raw_payload: int,
+        *,
+        width: int = 32,
+        illegal: bool = False,
+    ) -> InstructionChoice:
+        """Repair a raw instruction payload using its deterministic selector.
+
+        The high selector bits are part of the same corpus word as the
+        instruction payload.  Keeping this derivation here prevents individual
+        runtime and SoC stimulus layers from choosing different selector slices.
+        """
+        if isinstance(raw_payload, bool) or not isinstance(raw_payload, int) or raw_payload < 0:
+            raise ValueError("raw instruction payload must be a nonnegative integer")
+        if width not in (16, 32):
+            raise ValueError("instruction width must be 16 or 32")
+        selector = (raw_payload >> max(0, width - self.selector_width)) & (
+            (1 << self.selector_width) - 1
+        )
+        return self.repair(selector, raw_payload, illegal=illegal, width=width)
+
     def repair_for_operation(self, operation: str, raw_payload: int) -> InstructionChoice:
         template = self._by_name.get(operation)
         if template is None:

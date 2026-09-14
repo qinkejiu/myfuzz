@@ -265,11 +265,8 @@ class RuntimeProjector:
             value &= mask
             if field.encoding == "riscv_imc":
                 assert self.instruction_transducer is not None
-                selector = value >> max(0, field.width - self.instruction_transducer.selector_width)
-                value = self.instruction_transducer.repair(
-                    selector,
-                    value,
-                    width=field.width,
+                value = self.instruction_transducer.repair_payload(
+                    value, width=field.width
                 ).word
             values[field.field_id] = value
         result = 0
@@ -293,6 +290,15 @@ class RuntimeProjector:
             else:
                 ports[field.port] = value
         return ports
+
+    def project_instruction(self, raw_payload: int, *, width: int = 32,
+                            illegal: bool = False) -> int:
+        """Project one standalone instruction payload under the ISA contract."""
+        if self.instruction_transducer is None:
+            raise ValueError("missing implemented instruction contract")
+        return self.instruction_transducer.repair_payload(
+            raw_payload, width=width, illegal=illegal
+        ).word
 
 
 def project_word(layout: InputLayout, raw: int, *, isa: IsaContract | None = None) -> int:
