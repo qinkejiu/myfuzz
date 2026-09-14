@@ -207,3 +207,39 @@ Run the complete Python regression suite with:
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 nice -n15 \
   python3 -m unittest discover -s tests -p 'test_*.py'
 ```
+
+## 10. SoC Composition And Real RFuzz Pipeline
+
+The P0-P16 work in
+[docs/PROJECT_GOALS.md](docs/PROJECT_GOALS.md) is a separate pipeline driven by
+`configs/soc/`. Its reproducible commands are:
+
+```bash
+# P1: re-derive every pinned source and elaboration closure, then replay the
+# seven recorded Verilator commands and require the read set to equal the closure
+PYTHONPATH=src python3 scripts/verify_soc_sources.py --elaborate
+
+# P0: read-only inventory of the worktree, and recoverable quarantine
+PYTHONPATH=src python3 scripts/audit_repository.py --output runs/repository-audit/now/inventory.json
+PYTHONPATH=src python3 scripts/audit_repository.py --restore runs/quarantine/<batch>/manifest.json
+
+# P3/P6: the versioned contracts and the SoC fabric plan
+PYTHONPATH=src python3 -m unittest tests.composition.test_soc_contracts tests.composition.test_soc_fabric_plan -v
+
+# P10-P12: render all eight cells from real source-backed closures and elaborate
+MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest tests.integration.test_soc_renderer_cells -v
+
+# P10/P11: the real CPU acceptances (no skips when the flag is set)
+MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest tests.integration.test_soc_real_ibex -v
+MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest tests.integration.test_soc_real_cva6 -v
+
+# P12/P14/P15: plan the 24 main + 8 bias-off tasks without running them
+PYTHONPATH=src nice -n15 python3 scripts/run_soc_campaigns.py \
+  --matrix configs/soc/matrix.json --output runs/soc-acceptance/preflight \
+  --seconds 300 --seed 20260914 --preflight-only
+```
+
+A real campaign additionally needs `MYFUZZ_SOC_REAL=1` and an executable
+official RFuzz client in `MYFUZZ_RFuzz_CLIENT`. The 300-second-per-task budget
+of at least 160 effective minutes has deliberately not been run in this round
+and must not be inferred from the preflight.
