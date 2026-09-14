@@ -1260,6 +1260,8 @@ _UNORDERED_COLLECTION_PATHS = frozenset({
     ("reset", "distribution"), ("reset", "semantics", "cpu_reset_hold_modes"),
     ("clock_domains",), ("clock_domains", "*", "components"),
     ("clock_domains", "*", "instances"), ("clock_domains", "*", "crossing_adapters"),
+    ("environment_links",), ("interrupt_routes",),
+    ("environment_contract", "links"), ("environment_contract", "interrupt_routes"),
     ("stimulus", "available_modes"), ("stimulus", "modes", "*", "participants"),
     ("stimulus", "modes", "*", "test_reset", "clears"),
     ("stimulus", "modes", "*", "test_reset", "asserted_at"),

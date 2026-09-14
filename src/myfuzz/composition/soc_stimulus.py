@@ -119,6 +119,7 @@ def compile_soc_stimulus(plan: dict, policy: dict) -> dict:
         "environment": (False, None),
     }
     layout = _build_layout(facts, masks)
+    environment_contract = _environment_contract(plan)
     strategy = _build_address_strategy(
         facts,
         selection["address_strategy"],
@@ -132,12 +133,13 @@ def compile_soc_stimulus(plan: dict, policy: dict) -> dict:
         "raw_layout": layout,
         "mode_masking": _mode_masking(selection["mode"], masks),
         "address_strategy": strategy,
-        "drivers": _build_drivers(facts),
+        "drivers": _build_drivers(facts, environment_contract),
         "consumption": _consumption(),
         "error_recording": _error_recording(facts),
         "rule_classes": _rule_classes(selection),
         "reset_semantics": _reset_semantics(plan, selection["mode"]),
         "cpu_isolation": _cpu_isolation(),
+        "environment_contract": environment_contract,
         "rtl_projection": _rtl_projection(facts, strategy),
         "provenance": {
             "plan": "soc_plan.v1",
@@ -298,6 +300,53 @@ def _declared_capabilities(plan: Mapping[str, object]) -> dict:
         target_id: copy.deepcopy(record.get("capabilities", {}))
         for target_id, record in plan["target_capabilities"].items()  # type: ignore[index]
     }
+
+
+def _environment_contract(plan: Mapping[str, object]) -> dict:
+    """Return the plan-owned external-pin and IRQ contract verbatim.
+
+    P9 inputs are constrained by declared links/routes.  This helper only
+    copies those records and adds the fixed driver ownership metadata; it never
+    turns a component name or an arbitrary signal name into a pin mapping.
+    """
+    raw = plan.get("environment_contract")
+    if isinstance(raw, Mapping):
+        contract = copy.deepcopy(dict(raw))
+    else:
+        links = plan.get("environment_links", [])
+        routes = plan.get("interrupt_routes", [])
+        contract = {
+            "schema_version": "soc_environment_contract.v1",
+            "links": copy.deepcopy(links) if isinstance(links, list) else [],
+            "interrupt_routes": copy.deepcopy(routes) if isinstance(routes, list) else [],
+            "environment_driver": {
+                "driver_id": "environment_pins",
+                "ownership": "external_pins_only",
+                "accepts_only_declared_links": True,
+                "max_pending": 1,
+            },
+            "irq_router": {
+                "module": "soc_irq_router",
+                "capture": "per_source_pending",
+                "claim": "priority_ordered",
+                "completion": "explicit_complete",
+                "simultaneous_sources": "retained_independently",
+            },
+            "provenance": {
+                "links": "soc_plan.v1#/environment_links",
+                "interrupt_routes": "soc_plan.v1#/interrupt_routes",
+            },
+        }
+    for field in ("links", "interrupt_routes"):
+        values = contract.get(field)
+        if not isinstance(values, list):
+            raise SocStimulusError(f"invalid-environment-contract:{field}")
+        contract[field] = sorted(
+            (copy.deepcopy(value) for value in values),
+            key=lambda value: str(value.get("link_id", value.get("route_id", "")))
+            if isinstance(value, Mapping) else "",
+        )
+    return contract
 
 
 def _plan_facts(plan: Mapping[str, object]) -> dict:
@@ -855,7 +904,15 @@ def _build_address_strategy(
 # ---------------------------------------------------------------------------
 
 
-def _build_drivers(facts: Mapping[str, object]) -> list:
+def _build_drivers(facts: Mapping[str, object], environment_contract: Mapping[str, object] | None = None) -> list:
+    environment_contract = environment_contract or {
+        "links": [],
+        "interrupt_routes": [],
+    }
+    links = environment_contract.get("links", [])
+    routes = environment_contract.get("interrupt_routes", [])
+    link_ids = [str(link.get("link_id")) for link in links if isinstance(link, Mapping)]
+    route_ids = [str(route.get("route_id")) for route in routes if isinstance(route, Mapping)]
     return [
         {
             "driver_id": "instruction_init",
@@ -959,9 +1016,16 @@ def _build_drivers(facts: Mapping[str, object]) -> list:
         {
             "driver_id": "environment_pins",
             "segment_id": "environment",
-            "status": "planned:P9",
-            "module": None,
-            "rtl_source": None,
+            "status": "implemented",
+            "module": "environment_pins",
+            "rtl_source": "src/myfuzz/protocols/rtl/fuzz_uart_peer.sv + fuzz_spi_peer.sv",
+            "rtl_sources": [
+                "src/myfuzz/protocols/rtl/fuzz_uart_peer.sv",
+                "src/myfuzz/protocols/rtl/fuzz_spi_peer.sv",
+            ],
+            "contract": "soc_plan.v1#/environment_contract",
+            "declared_links": sorted(link_ids),
+            "declared_interrupt_routes": sorted(route_ids),
             "accept_condition": "env_offer && state == idle",
             "latch_policy": "latch_until_completion",
             "busy_policy": {

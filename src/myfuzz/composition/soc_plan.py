@@ -498,6 +498,46 @@ def _build_reset(spec: Mapping[str, object], instances: Sequence[Mapping[str, ob
     }
 
 
+def _build_environment_contract(spec: Mapping[str, object]) -> dict:
+    """Carry the explicit pin and IRQ contracts into the bound plan.
+
+    The planner does not infer a pin from a component or signal name.  Keeping
+    the validated records verbatim gives the environment driver and renderer a
+    single source of truth for protocol parameters, trigger mode and mask/ack
+    semantics.
+    """
+    links = sorted(
+        (_deep(link) for link in spec["environment_links"]),
+        key=lambda item: item["link_id"],
+    )
+    routes = sorted(
+        (_deep(route) for route in spec["interrupt_routes"]),
+        key=lambda item: item["route_id"],
+    )
+    return {
+        "schema_version": "soc_environment_contract.v1",
+        "links": links,
+        "interrupt_routes": routes,
+        "environment_driver": {
+            "driver_id": "environment_pins",
+            "ownership": "external_pins_only",
+            "accepts_only_declared_links": True,
+            "max_pending": 1,
+        },
+        "irq_router": {
+            "module": "soc_irq_router",
+            "capture": "per_source_pending",
+            "claim": "priority_ordered",
+            "completion": "explicit_complete",
+            "simultaneous_sources": "retained_independently",
+        },
+        "provenance": {
+            "links": "soc_spec.v1#/environment_links",
+            "interrupt_routes": "soc_spec.v1#/interrupt_routes",
+        },
+    }
+
+
 def _build_stimulus(spec: Mapping[str, object], test_mode: str | None) -> dict:
     pinned = spec.get("test_modes")
     available = list(pinned) if pinned else list(SOC_MODES)
@@ -695,6 +735,11 @@ def build_soc_plan(spec: dict, processor_execution: dict, target_contracts: list
         },
         "target_capabilities": target_capabilities,
         "reset": _build_reset(spec, instances),
+        # Keep the validated environment/IRQ ownership visible to downstream
+        # stimulus and rendering stages; no pin or source is inferred here.
+        "environment_links": _deep(spec["environment_links"]),
+        "interrupt_routes": _deep(spec["interrupt_routes"]),
+        "environment_contract": _build_environment_contract(spec),
         "clock_domains": [{
             "name": domain["name"],
             "canonical_id": canonical_id("soc-clock-domain", domain["name"]),
