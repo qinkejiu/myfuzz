@@ -149,6 +149,35 @@ ibex 与 cva6 仍为 `elaboration_unverified`：真正实核属于 P10/P11，本
 - 未开始：P13 的八格插桩覆盖运行（契约与保真规则已齐备并有 7 tests OK）；P16 的收口（全量回归、最终审查、验收判定）。
 - 按用户要求不做：P15 的 4 小时长测。
 
+### P12 运行时矩阵实测结果（提交 `9009e40` 之后的第一次真跑）
+
+`MYFUZZ_SOC_REAL=1 python3 -m unittest tests.integration.test_soc_matrix_runtime.SocMatrixRuntimeTests`：8 tests / 51 s，**Ibex 四格 × 三模式全部通过**，四个 CVA6 格的 cpu_only 全部失败（4 errors）。
+
+通过的 Ibex 证据示例（真实仿真输出）：
+
+```text
+MYFUZZ_SOC_MATRIX_RUN cell=ibex-zipcpu mode=mixed status=OK cycles=280 cpu_tx=30 cpu_done=29
+  fuzz_tx=3 fuzz_done=3 fuzz_dropped=0 window_error=0 irq=1 cpu_irq=1
+  cpu_flag=0xf00d0001 window_rdata_cpu=0x...19 window_rdata_fuzz=0x...19 side_effect=0x...19
+```
+
+12 次运行（4 格 × 3 模式）全部在预算内，构建总计 39.1 s，缓存命中的 cpu_only 仅 0.1 s。
+
+CVA6 失败分两类，必须区别对待：
+
+1. **TL-UL 适配器触发 `$stop`**：`cva6-opentitan/cpu_only` 与 `cva6-mixed/cpu_only` 报
+   `%Error: src/myfuzz/protocols/rtl/beat_to_tlul.sv:124: Verilog $stop`，测试台没有打印任何观测行。
+   即 CVA6 的 beat 请求走进了 `beat_to_tlul` 的显式失败分支（该文件第 124 行），需要查明是参数、
+   对齐、位宽还是 integrity 路径。
+2. **取指未到达程序**：`cva6-pulp/cpu_only` 与 `cva6-zipcpu/cpu_only` 周期预算耗尽，
+   "the real CPU never reached the generated program (program entry 0x80000080 at reset vector 0x80000000)"，
+   只看到 cpu transactions=4 completions=4、窗口事务 0、标志 0x00000000。这正是 PROJECT_GOALS 第 4 节
+   警告的 CVA6 取指 burst/入口偏移问题，需要按 P11 的要求补通用协议支持或换用已证明合法的 CPU 配置，
+   不能用连续 DECERR 冒充执行。
+
+因此 **八格三模式运行时矩阵尚未通过**：12/24 通过（全部是 Ibex），CVA6 的 12 次需要先解决上述两类问题。
+在此之前不得声称 P12 完成。
+
 ## 2026-09-14 21:25 P14 中断运行策略收口（未提交）
 
 21:06 记录的“官方客户端无法 rc=0”缺陷不再作为八格 campaign 的硬门槛：本轮不修改第三方源码，而是在 campaign 层定义并实现有文档的中断运行策略 `interrupted-run-policy.v1`。
