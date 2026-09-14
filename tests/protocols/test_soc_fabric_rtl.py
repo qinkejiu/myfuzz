@@ -164,6 +164,7 @@ _FABRIC_TEMPLATE = """\
   logic [31:0] rsp_data [0:NUM_SOURCES-1];
   logic rsp_error [0:NUM_SOURCES-1];
   logic quiet_violation;
+  logic [31:0] alias_word;
   integer rsp_delay;
   logic hold_ready;
 
@@ -189,8 +190,10 @@ _FABRIC_TEMPLATE = """\
       .SOURCE_ID_WIDTH(2), .TRANSACTION_ID_WIDTH(8), .TARGET_ID_WIDTH(2),
       .MAX_WINDOWS(@MAX_WINDOWS@), .NUM_WINDOWS(@NUM_WINDOWS@),
       .WINDOW_BASE(@WINDOW_BASE@), .WINDOW_SIZE(@WINDOW_SIZE@),
+      .WINDOW_TARGET_BASE(@WINDOW_TARGET_BASE@),
       .WINDOW_TARGET(@WINDOW_TARGET@), .WINDOW_EXECUTABLE(@WINDOW_EXECUTABLE@),
-      .WINDOW_READABLE(@WINDOW_READABLE@), .WINDOW_WRITABLE(@WINDOW_WRITABLE@)
+      .WINDOW_READABLE(@WINDOW_READABLE@), .WINDOW_WRITABLE(@WINDOW_WRITABLE@),
+      .NUM_SOURCES(NUM_SOURCES), .WINDOW_SOURCE_MASK(@WINDOW_SOURCE_MASK@)
   ) u_router (
       .clk(clk), .reset(reset),
       .req_valid(req_valid), .req_ready(req_ready), .write(write), .addr(addr),
@@ -210,7 +213,8 @@ _FABRIC_TEMPLATE = """\
     t_error = '0;
     for (int unsigned t = 0; t < NUM_TARGETS; t++) begin
       t_req_ready[t] = !tgt_busy[t] && !hold_ready && !target_reset;
-      t_rdata[t] = (tgt_addr[t] ^ 32'hA5A5_0000) + t;
+      t_rdata[t] = ((t == 0) && (tgt_addr[t] == 32'h8000_0080))
+                   ? alias_word : (tgt_addr[t] ^ 32'hA5A5_0000) + t;
     end
   end
 
@@ -230,6 +234,8 @@ _FABRIC_TEMPLATE = """\
           tgt_delay[t] <= rsp_delay[7:0];
           tgt_selects[t] = tgt_selects[t] + 1;
           if (t_write[t]) tgt_writes[t] = tgt_writes[t] + 1;
+          if (t_write[t] && (t == 0) && (t_addr[t] == 32'h8000_0080))
+            alias_word <= t_wdata[t];
         end
         if (tgt_busy[t] && !t_rsp_valid[t]) begin
           if (tgt_delay[t] == 8'h0) t_rsp_valid[t] <= 1'b1;
@@ -296,6 +302,7 @@ _FABRIC_TEMPLATE = """\
     target_reset = 1'b1;
     tgt_busy = '0; tgt_addr = '0; tgt_wdata = '0; tgt_be = '0;
     tgt_write = '0; tgt_delay = '0; t_rsp_valid = '0;
+    alias_word = 32'h0;
     clear_counters();
     tick(); tick();
     target_reset = 1'b0;
@@ -317,6 +324,8 @@ def _fabric_tb(
     executable: list[int] | None = None,
     readable: list[int] | None = None,
     writable: list[int] | None = None,
+    source_masks: list[int] | None = None,
+    target_bases: list[int] | None = None,
     max_windows: int = 4,
 ) -> str:
     count = len(windows)
@@ -324,16 +333,20 @@ def _fabric_tb(
     executable = executable if executable is not None else [0] * count
     readable = readable if readable is not None else [1] * count
     writable = writable if writable is not None else [1] * count
+    source_masks = source_masks if source_masks is not None else [0b111] * count
+    target_bases = target_bases if target_bases is not None else [w[0] for w in windows]
     body = _FABRIC_TEMPLATE
     replacements = {
         "@MAX_WINDOWS@": str(max_windows),
         "@NUM_WINDOWS@": str(count),
         "@WINDOW_BASE@": _hex_vector([w[0] for w in windows], 32, max_windows),
         "@WINDOW_SIZE@": _hex_vector([w[1] for w in windows], 32, max_windows),
+        "@WINDOW_TARGET_BASE@": _hex_vector(target_bases, 32, max_windows),
         "@WINDOW_TARGET@": _hex_vector([w[2] for w in windows], 2, max_windows),
         "@WINDOW_EXECUTABLE@": _bit_vector(executable, max_windows),
         "@WINDOW_READABLE@": _bit_vector(readable, max_windows),
         "@WINDOW_WRITABLE@": _bit_vector(writable, max_windows),
+        "@WINDOW_SOURCE_MASK@": _hex_vector(source_masks, 3, max_windows),
         "@PROGRAM@": textwrap.indent(textwrap.dedent(program), "    "),
     }
     for marker, value in replacements.items():
@@ -913,6 +926,52 @@ _WIDTH_PERMISSIVE_PROGRAM = """\
 
 
 class SocFabricRtlTests(unittest.TestCase):
+    def test_memory_alias_write_is_visible_through_second_window(self) -> None:
+        program = """
+            s_rsp_ready = 3'b111; s_instr = '0; s_be[0] = 4'hf;
+            s_write[0] = 1; s_wdata[0] = 32'hcafe_babe;
+            s_addr[0] = 32'h1000_0080; s_req_valid = 3'b001;
+            i = 0; while (rsp_count[0] == 0 && i < 50) begin tick(); i++; end
+            check(!rsp_error[0] && rec_addr[0] == 32'h8000_0080,
+                  "alias A write translated to physical target address");
+            tick(); s_req_valid = 0; tick();
+            s_write[0] = 0; s_addr[0] = 32'h2000_0080; s_req_valid = 3'b001;
+            i = 0; while (rsp_count[0] == 1 && i < 50) begin tick(); i++; end
+            check(rsp_count[0] == 2 && !rsp_error[0] && rsp_data[0] == 32'hcafe_babe,
+                  "alias B read observes alias A write");
+            check(rec_addr[1] == 32'h8000_0080 && rec_target[0] == rec_target[1],
+                  "both aliases translate to the same target byte address");
+            $display("PASS"); $finish;
+        """
+        _compile_and_run(self, _fabric_tb(
+            program, windows=[(0x1000_0000, 0x1000, 0), (0x2000_0000, 0x1000, 0)],
+            target_bases=[0x8000_0000, 0x8000_0000]), [ARBITER, ROUTER])
+
+    def test_window_source_mask_denies_without_strobe_and_allows_owner(self) -> None:
+        program = """
+            s_rsp_ready = 3'b111; s_write = '0; s_instr = '0;
+            s_be[1] = 4'hf; s_addr[1] = 32'h1000_0010; s_req_valid = 3'b010;
+            i = 0;
+            while (!s_rsp_valid[1] && i < 50) begin tick(); i++; end
+            check(s_rsp_valid[1] && s_error[1], "denied source receives owned error completion");
+            check(rec_count == 0 && sel_strobes == 0, "denied source produced no target strobe");
+            tick(); s_req_valid = 0; tick();
+
+            s_be[0] = 4'hf; s_addr[0] = 32'h1000_0010; s_req_valid = 3'b001;
+            i = 0;
+            while (rsp_count[0] == 0 && i < 50) begin tick(); i++; end
+            check(rsp_count[0] == 1 && !rsp_error[0], "allowed source completes normally");
+            check(rec_count == 1 && rec_source[0] == 0 && rec_target[0] == 0,
+                  "allowed source owns the target completion");
+            $display("PASS"); $finish;
+        """
+        _compile_and_run(
+            self,
+            _fabric_tb(program, windows=WINDOWS_THREE_TARGETS,
+                       source_masks=[0b001, 0b111, 0b111]),
+            [ARBITER, ROUTER],
+        )
+
     def test_default_parameters_elaborate(self) -> None:
         body = (
             "module tb;\n"

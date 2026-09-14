@@ -39,6 +39,7 @@ from .soc_contracts import (
     validate_soc_plan,
     validate_soc_spec,
 )
+from .soc_fabric import SocFabricError, build_soc_fabric
 
 PROCESSOR_EXECUTION_SCHEMA = "processor_execution.v1"
 FABRIC_INSTANCE = "soc_fabric"
@@ -116,6 +117,35 @@ def _adapter_module(contract: Mapping[str, object], target_id: str, source: Mapp
     if source_path is not None and (not isinstance(source_path, str) or not source_path):
         _error("invalid-target-contract", f"{target_id}:adapter_source")
     return module, source_path
+
+
+def _fabric_adapter_module(contract: Mapping[str, object], target_id: str) -> tuple[str, str | None]:
+    """Resolve the one adapter downstream of the normalized beat fabric."""
+    modules = contract.get("adapter_modules")
+    if isinstance(modules, Mapping):
+        module = modules.get("processor-memory-beat@1")
+        if not isinstance(module, str) or not module:
+            _error("missing-fabric-adapter-module", target_id)
+    else:
+        module = contract.get("adapter_module")
+        if not isinstance(module, str) or not module:
+            _error("missing-fabric-adapter-module", target_id)
+    source = contract.get("adapter_source")
+    return module, source if isinstance(source, str) else None
+
+
+def _width_conversion(value: object, target_id: str) -> dict[str, str]:
+    if value is None:
+        value = {}
+    if not isinstance(value, Mapping) or set(value) - {"spanning_write", "spanning_read"}:
+        _error("invalid-width-conversion", target_id)
+    write = value.get("spanning_write", "reject")
+    read = value.get("spanning_read", "reject")
+    if write not in ("reject", "split_side_effect_free"):
+        _error("invalid-width-conversion", f"{target_id}:spanning_write")
+    if read not in ("reject", "assemble_side_effect_free"):
+        _error("invalid-width-conversion", f"{target_id}:spanning_read")
+    return {"spanning_write": write, "spanning_read": read}
 
 
 def _validate_processor_execution(execution: object) -> Mapping[str, object]:
@@ -526,6 +556,38 @@ def build_soc_plan(spec: dict, processor_execution: dict, target_contracts: list
             _error("missing-target-contract", target["target_id"])
         _validate_contract(contract, target)
 
+    cpu_boundary = _build_cpu_boundary(spec, execution)
+    fabric_spec = _deep(spec)
+    effective_widths: dict[str, tuple[int, str]] = {}
+    for target in fabric_spec["targets"]:
+        contract = contracts[target["target_id"]]
+        capability_width = contract["capabilities"].get("data_width")
+        declared_width = target.get("data_width")
+        if declared_width is None and capability_width is None:
+            _error("missing-target-capability", f"{target['target_id']}:data_width")
+        if declared_width is not None and capability_width is not None and declared_width != capability_width:
+            _error("target-contract-mismatch", f"{target['target_id']}:data_width")
+        effective_width = declared_width if declared_width is not None else capability_width
+        provenance = "soc_spec.targets" if declared_width is not None else "target_contracts.capabilities"
+        target["data_width"] = effective_width
+        target["width_conversion"] = _width_conversion(target.get("width_conversion"), target["target_id"])
+        effective_widths[target["target_id"]] = (effective_width, provenance)
+        target["permissions"] = {
+            "read": bool(contract["capabilities"].get("read")),
+            "write": bool(contract["capabilities"].get("write")),
+            "execute": False,
+        }
+    # Wait limits remain an external runtime concern.  Fabric construction is
+    # canonicalized to the validated CPU backend capability, not an unrelated
+    # caller resource hint that the plan validator cannot independently prove.
+    if isinstance(fabric_spec.get("resources"), Mapping):
+        fabric_spec["resources"] = dict(fabric_spec["resources"])
+        fabric_spec["resources"]["limits"] = {}
+    try:
+        fabric = build_soc_fabric(fabric_spec, execution)
+    except SocFabricError as error:
+        _error("invalid-soc-fabric", str(error))
+
     instances = _build_instances(spec)
     adapters = _build_adapters(spec, contracts)
     nets, drivers = _build_nets(spec)
@@ -542,23 +604,58 @@ def build_soc_plan(spec: dict, processor_execution: dict, target_contracts: list
             "module": single[0] if len(single) == 1 else modules,
             "source": contract.get("adapter_source"),
         }
+        fabric_module, fabric_source = _fabric_adapter_module(contract, target["target_id"])
         target_capabilities[target["target_id"]] = {
             "component_id": target["component_id"],
             "port": target["port"],
             "protocol": list(target["protocol"]),
             "byte_enable": target["byte_enable"],
+            "data_width": effective_widths[target["target_id"]][0],
+            "data_width_provenance": effective_widths[target["target_id"]][1],
+            "declared_data_width": target.get("data_width"),
+            "capability_data_width": contract["capabilities"].get("data_width"),
+            "width_conversion": _width_conversion(target.get("width_conversion"), target["target_id"]),
             "adapter": adapter,
+            "fabric_adapter": {"module": fabric_module, "source": fabric_source},
             "capabilities": _deep(contract["capabilities"]),
             "evidence": _deep(contract.get("evidence", {})),
             "provenance": {"source": "target_contracts", "target_id": target["target_id"]},
         }
+
+    downstream_adapters = []
+    for physical in fabric["targets"]:
+        windows_for_target = [window for window in fabric["decode"]["windows"]
+                              if window["target_index"] == physical["index"]]
+        modules = [_fabric_adapter_module(contracts[window["target_id"]], window["target_id"])[0]
+                   for window in windows_for_target]
+        if not modules or any(module != modules[0] for module in modules[1:]):
+            _error("shared-target-adapter-mismatch", physical["backing_id"])
+        downstream_adapters.append({
+            "target_index": physical["index"],
+            "target_ids": sorted(window["target_id"] for window in windows_for_target),
+            "module": modules[0],
+            "role": "shared_fabric_to_target",
+        })
+    fabric["downstream_adapters"] = downstream_adapters
+    fabric["network"] = {
+        "ingress_nets": [f"ingress:{source['source_id']}" for source in fabric["sources"]],
+        "target_nets": [f"target:{target_id}" for adapter in downstream_adapters
+                        for target_id in adapter["target_ids"]],
+    }
+    fabric["source_manifest"] = sorted(set(
+        list(fabric["rtl"]["sources"])
+        + list(execution.get("adapter_sources", []))
+        + [str(value["adapter"]["source"]) for value in target_capabilities.values()
+           if value["adapter"]["source"]]
+    ))
 
     spec_hash = soc_spec_hash(spec)
     plan = {
         "schema_version": SOC_PLAN_SCHEMA,
         "spec_id": spec["spec_id"],
         "spec_hash": spec_hash,
-        "processor_execution": _build_cpu_boundary(spec, execution),
+        "processor_execution": cpu_boundary,
+        "fabric": fabric,
         "instances": instances,
         "adapters": adapters,
         "nets": nets,
@@ -576,6 +673,7 @@ def build_soc_plan(spec: dict, processor_execution: dict, target_contracts: list
                 "size": target["window"]["size"],
                 "byte_enable": target["byte_enable"],
                 "request_sources": sorted(target["request_sources"]),
+                "width_conversion": _width_conversion(target.get("width_conversion"), target["target_id"]),
                 "response_driver": {"role": "target", "target_id": target["target_id"]},
                 "response_routing": "accepted_source",
             } for target in sorted(spec["targets"], key=lambda item: item["target_id"])],

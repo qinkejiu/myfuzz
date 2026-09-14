@@ -10,6 +10,7 @@
     "spec_id",
     "spec_hash",
     "processor_execution",
+    "fabric",
     "instances",
     "adapters",
     "nets",
@@ -64,6 +65,22 @@
             }
           }
         }
+      }
+    },
+    "fabric": {
+      "type": "object",
+      "required": ["schema_version", "sources", "targets", "decode", "rtl", "watchdog", "reset_recovery", "downstream_adapters", "network", "source_manifest"],
+      "properties": {
+        "schema_version": {"const": "soc_fabric.v1"},
+        "sources": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+        "targets": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+        "decode": {"type": "object"},
+        "rtl": {"type": "object"},
+        "watchdog": {"type": "object"},
+        "reset_recovery": {"type": "object"},
+        "downstream_adapters": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+        "network": {"type": "object"},
+        "source_manifest": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
       }
     },
     "instances": {
@@ -152,11 +169,12 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["target_id", "window", "byte_enable", "response_driver", "response_routing"],
+            "required": ["target_id", "window", "byte_enable", "width_conversion", "response_driver", "response_routing"],
             "properties": {
               "target_id": {"type": "string", "minLength": 1},
               "window": {"$ref": "#/$defs/window"},
               "byte_enable": {"type": "boolean"},
+              "width_conversion": {"$ref": "#/$defs/width_conversion"},
               "response_driver": {"$ref": "#/$defs/response_driver"},
               "response_routing": {"const": "accepted_source"}
             }
@@ -203,10 +221,16 @@
       "type": "object",
       "additionalProperties": {
         "type": "object",
-        "required": ["capabilities", "evidence"],
+        "required": ["capabilities", "evidence", "data_width", "data_width_provenance", "declared_data_width", "capability_data_width", "width_conversion", "fabric_adapter"],
         "properties": {
           "capabilities": {"type": "object"},
           "evidence": {"type": "object"},
+          "data_width": {"enum": [32, 64]},
+          "data_width_provenance": {"enum": ["soc_spec.targets", "target_contracts.capabilities"]},
+          "declared_data_width": {"oneOf": [{"enum": [32, 64]}, {"type": "null"}]},
+          "capability_data_width": {"oneOf": [{"enum": [32, 64]}, {"type": "null"}]},
+          "width_conversion": {"$ref": "#/$defs/width_conversion"},
+          "fabric_adapter": {"type": "object", "required": ["module", "source"]},
           "adapter": {
             "type": "object",
             "required": ["module"],
@@ -365,6 +389,15 @@
         "read": {"type": "boolean"},
         "write": {"type": "boolean"},
         "execute": {"type": "boolean"}
+      }
+    },
+    "width_conversion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spanning_write", "spanning_read"],
+      "properties": {
+        "spanning_write": {"enum": ["reject", "split_side_effect_free"]},
+        "spanning_read": {"enum": ["reject", "assemble_side_effect_free"]}
       }
     },
     "mode_plan": {

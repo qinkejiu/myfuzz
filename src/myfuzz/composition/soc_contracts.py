@@ -26,6 +26,7 @@ Object key order never affects the digest.
 """
 from __future__ import annotations
 
+import copy
 import re
 from collections.abc import Mapping, Sequence
 
@@ -650,7 +651,7 @@ def validate_soc_plan(plan: dict) -> None:
     """Validate a soc_plan.v1 document or raise SocContractError."""
     document = _object(plan, "")
     _require(document, "", ("schema_version", "spec_id", "spec_hash", "processor_execution",
-                            "instances", "adapters", "nets", "net_drivers", "address_map",
+                            "fabric", "instances", "adapters", "nets", "net_drivers", "address_map",
                             "target_capabilities", "reset", "clock_domains", "stimulus",
                             "assumptions", "provenance"))
     _enum(document["schema_version"], "schema_version", (SOC_PLAN_SCHEMA,))
@@ -701,12 +702,92 @@ def validate_soc_plan(plan: dict) -> None:
     }
     if binding_sources != cpu_ingress_sources:
         _error("cpu-binding-mismatch", "processor_execution/bindings")
+    fabric = _object(document["fabric"], "fabric")
+    _require(fabric, "fabric", ("schema_version", "sources", "targets", "decode", "rtl",
+                                "watchdog", "reset_recovery", "downstream_adapters",
+                                "network", "source_manifest"))
+    if fabric["schema_version"] != "soc_fabric.v1":
+        _error("invalid-field", "fabric/schema_version")
+    fabric_sources = _array(fabric["sources"], "fabric/sources")
+    if [item.get("index") for item in fabric_sources] != list(range(len(fabric_sources))):
+        _error("fabric-source-index-mismatch", "fabric/sources")
+    if {str(item.get("source_id")) for item in fabric_sources} != ingress_sources:
+        _error("fabric-source-mismatch", "fabric/sources")
+    ingress_widths = {int(net["data_width"]) for net in document["nets"]
+                      if isinstance(net, Mapping) and net.get("kind") == "master_ingress"}
+    if len(ingress_widths) != 1:
+        _error("fabric-width-mismatch", "fabric/sources")
     address_map = _object(document["address_map"], "address_map")
     windows = _array(address_map.get("windows"), "address_map/windows")
     plan_targets = {
         str(window["target_id"]) for window in windows
         if isinstance(window, Mapping) and "target_id" in window
     }
+    fabric_decode = _object(fabric["decode"], "fabric/decode")
+    fabric_windows = _array(fabric_decode.get("windows"), "fabric/decode/windows")
+    if {str(item.get("target_id")) for item in fabric_windows} != plan_targets:
+        _error("fabric-window-mismatch", "fabric/decode/windows")
+    source_index = {str(item["source_id"]): int(item["index"]) for item in fabric_sources}
+    address_windows_by_target = {str(item["target_id"]): item for item in windows}
+    for item in fabric_windows:
+        target_id = str(item.get("target_id"))
+        canonical = address_windows_by_target[target_id]
+        expected_mask = sum(1 << source_index[str(source)]
+                            for source in canonical.get("request_sources", []))
+        if (item.get("base") != canonical.get("base")
+                or item.get("size") != canonical.get("size")
+                or item.get("allowed_source_mask") != expected_mask):
+            _error("fabric-window-mismatch", target_id)
+    rtl = _object(fabric["rtl"], "fabric/rtl")
+    parameters = _object(rtl.get("parameters"), "fabric/rtl/parameters")
+    packed_mask = sum(int(item["allowed_source_mask"]) << (index * len(fabric_sources))
+                      for index, item in enumerate(fabric_windows))
+    if (parameters.get("NUM_SOURCES") != len(fabric_sources)
+            or parameters.get("NUM_WINDOWS") != len(fabric_windows)
+            or parameters.get("WINDOW_SOURCE_MASK") != packed_mask
+            or parameters.get("DATA_WIDTH") != next(iter(ingress_widths))
+            or parameters.get("RESET_CLEARS_TARGETS") != 0):
+        _error("fabric-parameter-mismatch", "fabric/rtl/parameters")
+    downstream = _array(fabric["downstream_adapters"], "fabric/downstream_adapters")
+    fabric_targets = _array(fabric["targets"], "fabric/targets")
+    if len(downstream) != len(fabric_targets):
+        _error("fabric-adapter-mismatch", "fabric/downstream_adapters")
+    target_capability_records = _object(document["target_capabilities"], "target_capabilities")
+    if set(map(str, target_capability_records)) != plan_targets:
+        _error("target-capability-mismatch", "target_capabilities")
+    expected_downstream = []
+    for physical in fabric_targets:
+        target_index = physical.get("index")
+        target_ids = sorted(str(window["target_id"]) for window in fabric_windows
+                            if window.get("target_index") == target_index)
+        modules = []
+        for target_id in target_ids:
+            capability_record = _object(target_capability_records[target_id],
+                                        f"target_capabilities/{target_id}")
+            adapter_record = _object(capability_record.get("fabric_adapter"),
+                                     f"target_capabilities/{target_id}/fabric_adapter")
+            modules.append(adapter_record.get("module"))
+        if not modules or any(module != modules[0] or not isinstance(module, str) for module in modules):
+            _error("fabric-adapter-mismatch", str(target_index))
+        expected_downstream.append({"target_index": target_index, "target_ids": target_ids,
+                                    "module": modules[0], "role": "shared_fabric_to_target"})
+    if downstream != expected_downstream:
+        _error("fabric-adapter-mismatch", "fabric/downstream_adapters")
+    network = _object(fabric["network"], "fabric/network")
+    if (sorted(network.get("ingress_nets", [])) != sorted(f"ingress:{source}" for source in ingress_sources)
+            or sorted(network.get("target_nets", [])) != sorted(f"target:{target}" for target in plan_targets)):
+        _error("fabric-network-mismatch", "fabric/network")
+    manifest = _text_list(fabric["source_manifest"], "fabric/source_manifest", nonempty=True)
+    expected_manifest = set(rtl.get("sources", []))
+    expected_manifest.update(processor.get("adapter_sources", []))
+    for target_id, value in target_capability_records.items():
+        capability_record = _object(value, f"target_capabilities/{target_id}")
+        adapter_record = _object(capability_record.get("fabric_adapter"),
+                                 f"target_capabilities/{target_id}/fabric_adapter")
+        if adapter_record.get("source"):
+            expected_manifest.add(adapter_record["source"])
+    if manifest != sorted(expected_manifest):
+        _error("fabric-source-manifest-mismatch", "fabric/source_manifest")
     seen_adapters: set[str] = set()
     for index, value in enumerate(adapters):
         pointer = _child("adapters", index)
@@ -845,9 +926,117 @@ def validate_soc_plan(plan: dict) -> None:
     for target_id, value in capabilities.items():
         pointer = _child("target_capabilities", target_id)
         record = _object(value, pointer)
-        _require(record, pointer, ("capabilities", "evidence"))
+        _require(record, pointer, ("capabilities", "evidence", "data_width",
+                                   "data_width_provenance", "declared_data_width",
+                                   "capability_data_width", "width_conversion"))
         _object(record["capabilities"], _child(pointer, "capabilities"))
         _object(record["evidence"], _child(pointer, "evidence"))
+        data_width = record.get("data_width")
+        if isinstance(data_width, bool) or data_width not in (32, 64):
+            _error("target-capability-mismatch", f"{target_id}:data_width")
+        declared_width = record["declared_data_width"]
+        capability_width = record["capability_data_width"]
+        if capability_width != record["capabilities"].get("data_width"):
+            _error("target-capability-mismatch", f"{target_id}:capability_data_width")
+        for label, width in (("declared", declared_width), ("capability", capability_width)):
+            if width is not None and (isinstance(width, bool) or width not in (32, 64)):
+                _error("target-capability-mismatch", f"{target_id}:{label}_data_width")
+        if declared_width is not None and capability_width is not None and declared_width != capability_width:
+            _error("target-capability-mismatch", f"{target_id}:data_width")
+        expected_provenance = ("soc_spec.targets" if declared_width is not None
+                               else "target_contracts.capabilities")
+        expected_width = declared_width if declared_width is not None else capability_width
+        if record["data_width_provenance"] != expected_provenance or data_width != expected_width:
+            _error("target-width-provenance-mismatch", target_id)
+        policy = _object(record["width_conversion"], f"{pointer}/width_conversion")
+        if set(policy) != {"spanning_write", "spanning_read"}:
+            _error("target-width-policy-mismatch", target_id)
+        if (policy["spanning_write"] not in ("reject", "split_side_effect_free")
+                or policy["spanning_read"] not in ("reject", "assemble_side_effect_free")):
+            _error("target-width-policy-mismatch", target_id)
+        address_policy = address_windows_by_target[target_id].get("width_conversion")
+        if address_policy != policy:
+            _error("target-width-policy-mismatch", target_id)
+    memory_regions = list(_array(address_map["memory_regions"], "address_map/memory_regions"))
+    for item in fabric_windows:
+        target_id = str(item["target_id"])
+        matching_region = next((region for region in memory_regions
+                                if region.get("component_id") == address_windows_by_target[target_id].get("component_id")
+                                and region.get("base") == item.get("base")
+                                and region.get("size") == item.get("size")), None)
+        expected_permissions = (matching_region.get("permissions") if matching_region else {
+            "read": bool(capabilities[target_id]["capabilities"].get("read")),
+            "write": bool(capabilities[target_id]["capabilities"].get("write")),
+            "execute": False,
+        })
+        if item.get("permissions") != expected_permissions:
+            _error("fabric-permission-mismatch", target_id)
+
+    # Reconstruct the complete helper document from independent canonical plan
+    # facts.  This closes gaps where a self-consistent forged target index,
+    # translation base, width-adapter policy, or packed parameter could pass a
+    # collection of selective checks.
+    from .soc_fabric import SocFabricError, build_soc_fabric
+
+    canonical_masters = []
+    for net in nets:
+        if net.get("kind") != "master_ingress":
+            continue
+        driver = net["driver"]
+        canonical_masters.append({
+            "source_id": driver["source_id"], "kind": driver["kind"],
+            "component_id": driver.get("component_id"), "port": driver.get("port"),
+            "protocol": list(net["protocol"]), "data_width": net["data_width"],
+            "address_width": net["address_width"],
+        })
+    canonical_targets = []
+    for window in windows:
+        target_id = str(window["target_id"])
+        capability = target_capability_records[target_id]
+        canonical_targets.append({
+            "target_id": target_id, "component_id": window["component_id"],
+            "window": {"base": window["base"], "size": window["size"]},
+            "request_sources": list(window["request_sources"]),
+            "data_width": capability["data_width"],
+            "width_conversion": copy.deepcopy(capability.get("width_conversion", {})),
+            "permissions": {"read": bool(capability["capabilities"].get("read")),
+                            "write": bool(capability["capabilities"].get("write")),
+                            "execute": False},
+        })
+    canonical_spec = {
+        "masters": canonical_masters,
+        "memory_regions": copy.deepcopy(memory_regions),
+        "targets": canonical_targets,
+        "resources": {"limits": {}},
+    }
+    try:
+        expected_fabric = build_soc_fabric(canonical_spec, processor)
+    except (SocFabricError, ValueError) as error:
+        _error("fabric-reconstruction-failed", str(error))
+    expected_downstream = []
+    for physical in expected_fabric["targets"]:
+        target_ids = sorted(window["target_id"] for window in expected_fabric["decode"]["windows"]
+                            if window["target_index"] == physical["index"])
+        modules = [target_capability_records[target_id]["fabric_adapter"]["module"]
+                   for target_id in target_ids]
+        if not modules or any(module != modules[0] for module in modules[1:]):
+            _error("fabric-adapter-mismatch", str(physical["index"]))
+        expected_downstream.append({"target_index": physical["index"], "target_ids": target_ids,
+                                    "module": modules[0], "role": "shared_fabric_to_target"})
+    expected_fabric["downstream_adapters"] = expected_downstream
+    expected_fabric["network"] = {
+        "ingress_nets": [f"ingress:{source['source_id']}" for source in expected_fabric["sources"]],
+        "target_nets": [f"target:{target_id}" for adapter in expected_downstream
+                        for target_id in adapter["target_ids"]],
+    }
+    expected_sources = set(expected_fabric["rtl"]["sources"])
+    expected_sources.update(processor.get("adapter_sources", []))
+    expected_sources.update(record["fabric_adapter"].get("source")
+                            for record in target_capability_records.values()
+                            if record["fabric_adapter"].get("source"))
+    expected_fabric["source_manifest"] = sorted(expected_sources)
+    if fabric != expected_fabric:
+        _error("fabric-reconstruction-mismatch", "fabric")
 
     reset = _object(document["reset"], "reset")
     _require(reset, "reset", ("cpu_reset", "test_reset", "distribution"))

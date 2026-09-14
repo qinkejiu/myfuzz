@@ -42,16 +42,20 @@ module soc_router #(
     parameter integer ADDRESS_WIDTH = 32,
     parameter integer DATA_WIDTH = 32,
     parameter integer SOURCE_ID_WIDTH = 1,
+    parameter integer NUM_SOURCES = (1 << SOURCE_ID_WIDTH),
     parameter integer TRANSACTION_ID_WIDTH = 8,
     parameter integer TARGET_ID_WIDTH = (NUM_TARGETS <= 1) ? 1 : $clog2(NUM_TARGETS),
     parameter integer MAX_WINDOWS = 8,
     parameter integer NUM_WINDOWS = 1,
     parameter logic [MAX_WINDOWS*ADDRESS_WIDTH-1:0] WINDOW_BASE = {(MAX_WINDOWS*ADDRESS_WIDTH){1'b0}},
+    parameter logic [MAX_WINDOWS*ADDRESS_WIDTH-1:0] WINDOW_TARGET_BASE = WINDOW_BASE,
     parameter logic [MAX_WINDOWS*ADDRESS_WIDTH-1:0] WINDOW_SIZE = {(MAX_WINDOWS*ADDRESS_WIDTH){1'b0}},
     parameter logic [MAX_WINDOWS*TARGET_ID_WIDTH-1:0] WINDOW_TARGET = {(MAX_WINDOWS*TARGET_ID_WIDTH){1'b0}},
     parameter logic [MAX_WINDOWS-1:0] WINDOW_EXECUTABLE = {(MAX_WINDOWS){1'b0}},
     parameter logic [MAX_WINDOWS-1:0] WINDOW_READABLE = {(MAX_WINDOWS){1'b1}},
-    parameter logic [MAX_WINDOWS-1:0] WINDOW_WRITABLE = {(MAX_WINDOWS){1'b1}}
+    parameter logic [MAX_WINDOWS-1:0] WINDOW_WRITABLE = {(MAX_WINDOWS){1'b1}},
+    parameter logic [MAX_WINDOWS*NUM_SOURCES-1:0] WINDOW_SOURCE_MASK =
+        {(MAX_WINDOWS*NUM_SOURCES){1'b1}}
 ) (
     input  logic clk,
     input  logic reset,
@@ -96,6 +100,8 @@ module soc_router #(
             $fatal(1, "invalid soc_router window count");
         if (TARGET_ID_WIDTH < 1 || NUM_TARGETS > (1 << TARGET_ID_WIDTH))
             $fatal(1, "TARGET_ID_WIDTH cannot index NUM_TARGETS");
+        if (NUM_SOURCES < 1 || NUM_SOURCES > (1 << SOURCE_ID_WIDTH))
+            $fatal(1, "SOURCE_ID_WIDTH cannot index NUM_SOURCES");
     end
 
     typedef enum logic [2:0] {IDLE, SELECT, WAIT_RSP, RESPOND} state_t;
@@ -112,6 +118,7 @@ module soc_router #(
     logic [SOURCE_ID_WIDTH-1:0] source_q;
     logic [TRANSACTION_ID_WIDTH-1:0] txid_q;
     logic [TARGET_ID_WIDTH-1:0] target_q, decode_target;
+    logic [ADDRESS_WIDTH-1:0] decode_target_addr;
     logic decode_hit, decode_error;
     logic [ADDRESS_WIDTH:0] access_last;
     logic [TARGET_ID_WIDTH-1:0] stale_target_q = '0;
@@ -128,6 +135,7 @@ module soc_router #(
     always_comb begin
         decode_hit = 1'b0;
         decode_target = '0;
+        decode_target_addr = addr;
         decode_error = 1'b1;
         access_last = '0;
         if (be != '0) begin
@@ -138,18 +146,27 @@ module soc_router #(
             access_last = {1'b0, addr} + {1'b0, last_offset};
             for (int unsigned w = 0; w < NUM_WINDOWS; w++) begin
                 logic [ADDRESS_WIDTH-1:0] window_base, window_size;
+                logic [ADDRESS_WIDTH-1:0] window_target_base;
                 window_base = WINDOW_BASE[w*ADDRESS_WIDTH +: ADDRESS_WIDTH];
                 window_size = WINDOW_SIZE[w*ADDRESS_WIDTH +: ADDRESS_WIDTH];
+                window_target_base = WINDOW_TARGET_BASE[w*ADDRESS_WIDTH +: ADDRESS_WIDTH];
                 if (!decode_hit && (addr >= window_base) &&
                     (addr < (window_base + window_size))) begin
                     decode_hit = 1'b1;
                     decode_target = WINDOW_TARGET[w*TARGET_ID_WIDTH +: TARGET_ID_WIDTH];
+                    decode_target_addr = addr - window_base + window_target_base;
                     decode_error = 1'b0;
                     if (access_last > ({1'b0, window_base} + {1'b0, window_size} - 1'b1))
                         decode_error = 1'b1;
                     if (write && !WINDOW_WRITABLE[w]) decode_error = 1'b1;
                     if (!write && !WINDOW_READABLE[w]) decode_error = 1'b1;
                     if (instr && !WINDOW_EXECUTABLE[w]) decode_error = 1'b1;
+                    // Check the numeric bound before using source_id as a
+                    // packed-vector index.  Encodings above NUM_SOURCES are
+                    // denied even when SOURCE_ID_WIDTH has spare values.
+                    if (source_id >= NUM_SOURCES) decode_error = 1'b1;
+                    else if (!WINDOW_SOURCE_MASK[w*NUM_SOURCES + source_id])
+                        decode_error = 1'b1;
                 end
             end
         end
@@ -215,7 +232,7 @@ module soc_router #(
             case (state_q)
                 IDLE: begin
                     if (req_valid && req_ready) begin
-                        addr_q <= addr;
+                        addr_q <= decode_target_addr;
                         write_q <= write;
                         wdata_q <= wdata;
                         be_q <= be;
