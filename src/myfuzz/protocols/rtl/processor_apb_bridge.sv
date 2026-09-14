@@ -68,7 +68,11 @@ module processor_apb_bridge #(
               state_q <= RESPOND;
             end else begin
               write_q <= req_write_i;
-              addr_q <= req_addr_i[APB_ADDR_WIDTH-1:0];
+              // Assignment sizing performs the explicit low-bit truncation
+              // (or zero extension) for unusual parameter combinations too;
+              // avoid an out-of-range part-select when ADDRESS_WIDTH is
+              // narrower than APB_ADDR_WIDTH.
+              addr_q <= req_addr_i;
               // When a target explicitly permits partial writes, disabled
               // lanes are driven as zero because this APB3 bridge has no
               // PSTRB output.  The default PULP APB3 profile rejects them.
