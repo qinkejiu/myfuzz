@@ -1515,3 +1515,29 @@ runs/ibex_protocol_campaign_soak_final_20260906/checkpoint.json
 结果：`status=completed`，实际运行约 `59.776 s`，`60` 个检查点，`5` 次迭代，`5` 次事务，`0` errors，`0` 条非法指标行，峰值 RSS `12,689,408` bytes（约 `12.1 MiB`）。协议事务为 APB4 `2`、AXI4-Lite `2`、TileLink-UL `1`。
 
 有效性边界：这是同一 supervisor/资源约束下的确定性本地 producer smoke，不代表真实 RTL 编译、Verilator 覆盖率或 RFuzz CPU fuzzing 结果。当前工作区缺少 `third_party/rfuzz/upstream/ibex/sources.f`，真实 campaign 以 `dependency-unavailable` 安全退出。
+
+## SoC 自动组合流水线（P0–P16）实测记录（2026-09-14）
+
+下面每个数字都是本工作区实际执行的结果，命令与结果一一对应；未执行的项明确标注为未执行。
+
+| 范围 | 命令 | 结果 |
+|---|---|---|
+| P0 审计/隔离 | `python3 -m unittest tests.test_repository_audit` | 52 tests OK |
+| P1 来源锁 | `python3 -m unittest tests.integration.test_soc_source_locks` | 36 tests OK |
+| P1 重放 | `python3 scripts/verify_soc_sources.py --elaborate` | exit 0；7 个外设命令重放，Verilator 实际读到的文件集 == closure |
+| P2 兼容门 | `python3 -m unittest tests.composition.test_legacy_entrypoint_compatibility` | 6 tests OK |
+| P3 契约 | `python3 -m unittest tests.composition.test_soc_contracts` | 74 tests OK |
+| P4 内存/MMIO | `python3 -m unittest tests.integration.test_memory_mmio_coexistence` | 33 tests OK |
+| P5 目标适配 | `python3 -m unittest tests.protocols.test_soc_target_adapters_rtl` | 20 tests OK |
+| P6 fabric RTL | `python3 -m unittest tests.protocols.test_soc_fabric_rtl` | 11 tests OK（隐藏 soc_arbiter.sv 会使 9/11 失败，证明非空跑） |
+| P10/P11/P12 渲染 | `MYFUZZ_SOC_REAL=1 python3 -m unittest tests.integration.test_soc_renderer_cells` | 7 tests OK；八格全部从真实 closure 渲染并 Verilator elaboration |
+| P10 真实 Ibex | `MYFUZZ_SOC_REAL=1 python3 -m unittest tests.integration.test_soc_real_ibex` | 10 tests OK |
+| P11 真实 CVA6 | `MYFUZZ_SOC_REAL=1 python3 -m unittest tests.integration.test_soc_real_cva6` | 8 tests OK |
+| P12/P14 preflight | `nice -n15 python3 scripts/run_soc_campaigns.py --matrix configs/soc/matrix.json --output runs/soc-acceptance/preflight --seconds 300 --seed 20260914 --preflight-only` | tasks_planned=32（24 主 + 8 bias-off）、unsupported=[] |
+| 组合套件 | `python3 -m unittest discover -s tests/composition` | 516 tests OK |
+| 协议套件 | `python3 -m unittest discover -s tests/protocols` | 115 tests OK |
+| SoC 集成套件 | `test_soc_interactions/test_soc_coverage/test_soc_campaign_matrix/test_soc_rfuzz_live/test_soc_matrix` | 27 tests OK |
+
+未执行、因此不作任何完成声明：八格 × 三模式的运行时矩阵与逐格真实 RFuzz 短 campaign（正在收口）、八格插桩覆盖率运行、以及每任务 300 秒、总计不少于 160 分钟有效时间的正式长测（本轮明确不做）。
+
+可恢复隔离：第二批审计 3467 条，隔离 198 个可重建缓存到 `runs/quarantine/P16-batch2/`，实际删除为零，隔离后审计 eligible 为 0。
