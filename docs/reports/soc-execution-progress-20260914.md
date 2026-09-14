@@ -253,3 +253,131 @@ MYFUZZ_SOC_REAL=1 ... test_cell_cva6_opentitan
 1. `scripts/run_soc_campaigns.py` 第 220 行的完成判定仍只接受 `status == "completed"`；要报告八格完成，需要把 `completed_with_client_termination` 加入白名单（该脚本不在本任务允许修改的文件列表内，未改）。
 2. 矩阵生产路径不传 `rebuilder`，所以 `run_soc_campaign` 的中断 replay 记为 `not-requested`；P15 的独立 `--rebuild-replay` 仍需接线，或让矩阵传入 production rebuilder。
 3. CVA6 两格（closure 240–290 文件）仍未做完整构建与 campaign。
+
+## 2026-09-14 23:30 问题 B/C 关闭：八格运行时矩阵 24/24（提交 `9934643`…`cadfc9a`）
+
+本节由继续执行的工作流补充，不改动上面的历史记录。起点 `3a1f87a`，工作区同 `.worktrees/ibex-protocol-longrun`。
+注意：本节之前有并行工作流的提交 `32ff1c9`（同一分支、同一作者），执行期间分支被并发推进，双方互不覆盖对方文件。
+
+### 问题 B 的真实根因（原诊断有误）
+
+上面 `32ff1c9` 段的判断是"两次 2-beat line fill 后停住、npc 停在 `0x80000010`，属通用 fabric/beat-core 集成缺口"，
+方向正确但根因不是 burst 或入口偏移。实测（`runs/trace-cva6/`，对生成的 cell 加探针重建）：
+
+```text
+t=266 AR addr=80000000 len=1          # CVA6 的 2-beat 取指
+t=275 CPU_RSP rdata=000000000800006f  # fabric 正确返回入口跳转指令
+t=277 ADAPTER_RSP_LATCH rdata=0       # 适配器锁存到的是 0，不是 0x0800006f
+```
+
+`soc_cva6_beat_core.sv` 用 `rsp_hold_valid` 驱动 `target_rsp_valid`，却没有把 `rsp_hold_data`/`rsp_hold_error`
+接到 `target_rdata`/`target_error`：**保持寄存器的载荷被丢在地上**，AXI 适配器每次读都拿到 0。核心因此永远
+看不到入口 `jal`。修复后（`30b3c22`）同一次 trace 在 t=294 出现 `AR addr=80000080`，核心进入程序入口。
+
+同一提交还修掉两个独立缺陷：生成的 boot 程序用 `lw` 读探针再与 `li32` 常量比较，RV64 上 `lw` 符号扩展而
+`li32` 零扩展，凡 bit31 置位的探针值都误报 mismatch（cva6-opentitan 的 `0xc0de0003`、cva6-mixed 的
+`0xa5a50001`）；测试台把"读回值"记成最后一次窗口事务的数据，而 CVA6 会延迟存储，最后一次可能是紧随其后的写。
+
+### 问题 C 及两处结构缺陷
+
+`cadfc9a` 修掉两处：
+
+* `axi4_processor_memory_adapter` 对所有读都请求 `FULL_BE`，于是 4 字节对齐但非 8 字节对齐的合法读
+  （`0x4000000c`）被放大成跨越两个外设寄存器的 8 字节访问，64→32 位宽适配器按设计拒绝。读的字节使能改为
+  由 `ARADDR`/`ARSIZE` 推导，与写侧取 `WSTRB` 对称。同文件还带入并行工作流的 2-beat 读支持：CVA6 的取指是
+  合法 `ARLEN=1` INCR 读，在 `3a1f87a` 上会被 DECERR，任何 CVA6 格都无法取指。
+* `soc_router` 用 `access_last = addr + 最高 lane` 判定越界，但 `be` 是 `DATA_WIDTH/8` 对齐 beat 容器内的
+  lane 序号，而 `addr` 是未对齐字节地址，容器内偏移被算了两次；64 位 beat 上 `window_base+0xc` 的 4 字节写
+  被算成 `0xc+7` 并当作越窗拒绝，cva6-zipcpu 因此写不到 UART TXREG。现在按容器基址计算。同文件还带入并行
+  工作流的 `CAPTURE_RSP` 状态。
+
+问题 C（cva6-zipcpu 的 Wishbone flavour）在上述修复后不再出现：该格三模式全部通过。
+
+### 实测：八格 × 三模式 24/24
+
+```text
+MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest tests.integration.test_soc_matrix_runtime.SocMatrixRuntimeTests
+Ran 8 tests in 72.214s
+OK
+MYFUZZ_SOC_MATRIX_TIMING runs=24 wall_s=72.2 build_s=0.6 simulation_s=0.4 budget_s=7200 within_budget=True
+```
+
+24 次运行全部 `status=OK`，每次都有真实 CPU 事务、真实外设副作用与 `cpu_flag=0xf00d0001`；四个 CVA6 格的
+`window_error=0`。修复前为 12/24（全部 Ibex）。`cva6-opentitan` / `cva6-mixed` 通过即证明 TL-UL 地址收窄级
+在运行时被真正走到（CVA6 的 MMIO 读经收窄级到达 OpenTitan 并读回 `0xc0de0003`）。
+
+### 任务 1（TL-UL 地址收窄）交付内容
+
+`9934643` 新增 `beat_address_narrow.sv`：窗口必须整体落在窄地址范围内（否则 elaboration 失败）、窗口判定在
+宽地址上进行（低 bits 会别名进窗的宽地址被本地拒绝，不发下游请求）、窗口内地址按窄宽度转发绝对地址；
+`804fd13` 让 fabric 规划器按目标声明的适配器地址宽度生成 `address_narrowers`；`e0f9acb` 让 TL-UL 解析器声明
+该需求（窗口不落在 32 位内时以 `address-window` 失败关闭）并让渲染器在目标适配器前实例化该级。
+`beat_to_tlul.sv:124` 的断言未改动。
+
+### P13 状态：契约层已就绪，八格插桩覆盖运行**未完成**
+
+已核实的可行性证据（本机实测，非模拟）：
+
+```text
+runs/p13-probe/probe.py ibex-pulp
+  staged=62 files, instrumented=63 files, points=1994 in 1.1s
+  coverage port: __vi_coverage   top: myfuzz_soc_top
+  coverage_by_kind: {'if.true': 859, 'if.false': 299, 'case.item': 716, 'case.default': 120}
+  44 个模块含真实点，含 ibex_decoder 329、ibex_cs_registers 178、apb_gpio 127、ibex_alu 120
+  顶层聚合向量宽度 3791（12 个实例传播）
+```
+
+即 `scripts/source_branch_instrumenter.py` 能处理真实 cell 闭包并产出真实 CPU/IP 分支点，
+`soc_coverage.py` 的 universe/保真规则与 7 项测试已通过。**尚未完成**的是把该向量接进 RFuzz IPC 并按格验证：
+
+1. 插桩清单目前只给 `coverage_width`/`instance_count`，没有"顶层 bit 区间 ↔ (模块, 点, 实例)"的映射，
+   需要让 instrumenter（或 SoC 侧）输出该映射，才能满足"同名模块两个实例可区分"。
+2. `soc_builder.py` 当前的覆盖种类是 `sampled-output-bit-events-u8-saturating`（采样输出位事件），
+   P13 明确禁止把它当作 branch；需要把覆盖缓冲的输入换成插桩后的 RTL 分支向量。
+3. 逐格构建插桩版本并跑一次真实运行，验证每格至少一个真实 CPU/IP 点命中且经 IPC 进入反馈。
+
+因此 P13 **不成立**，不得声称完成。
+
+### P16 回归与验收判定
+
+```text
+PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py'
+Ran 1586 tests in 205.100s
+OK (skipped=24)
+
+MYFUZZ_SOC_REAL=1 ... tests.integration.test_soc_real_ibex tests.integration.test_soc_real_cva6
+Ran 18 tests in 33.512s
+OK
+
+MYFUZZ_SOC_REAL=1 MYFUZZ_RFuzz_CLIENT=runs/rfuzz_client_native_build/target/debug/kfuzz \
+  ... tests.integration.test_soc_rfuzz_build
+Ran 15 tests in 111.123s
+OK
+```
+
+`git archive HEAD` 到干净目录复跑 `test_soc_fabric_rtl` + `test_legacy_entrypoint_compatibility`：27 tests OK，
+确认提交自洽。
+
+**验收判定：未完成。** P12 的运行时半已关闭（24/24），但 P13 未完成、P15 按用户要求不做。
+
+### 顺带发现：P2 金标准摘要早在 `3a1f87a` 就是坏的
+
+`test_legacy_entrypoint_compatibility.test_matrix_digest_matches_the_pre_refactor_checkout` 的
+`GOLDEN_MATRIX_DIGEST`（记录值 `9cbed41b…`）**在干净的 `git archive 3a1f87a` 上就不成立**：HEAD 自身算出
+`e63647ef…`，即文件注释里记录的、P4 之前的原始值。该摘要的清单除 fixture 渲染产物外，还按字节哈希
+include root 下的每个文件（含 `src/myfuzz/protocols/rtl`），所以协议 RTL 的任何真实改动都会移动它。
+本轮新增 `beat_address_narrow.sv` 并修了两处 fabric RTL，属应当重定基线的改动；已按该测试自己的规则重定基线
+为 `2f4353a8…`，并在注释里记录旧值、HEAD 上已失效的事实与重定基线的原因。
+
+### 仍未提交的并行工作流改动（本次未触碰）
+
+`configs/soc/cva6-pulp.json`、`docs/reports/soc-acceptance-20260914.md`、
+`docs/系统总览与RFuzz约束组合示例_20260909.md`、`tests/integration/test_soc_real_cva6.py`、
+`tests/protocols/test_axi4_processor_memory_adapter_rtl.py`、`.superpowers/sdd/task-2-report.md`，
+以及未跟踪的 `tests/fixtures/soc_cva6_pulp_boot.hex`、`tests/fixtures/soc_ibex_pulp_loop.hex`、
+`tests/integration/rtl/soc_cva6_pulp_tb.sv`。
+
+### 临时证据（`runs/` 已被忽略，未提交）
+
+`runs/trace-cva6/trace_build.py`（对任一 cell 重建带探针的 SoC 并打印 AXI/beat/fabric 轨迹）、
+`runs/trace-cva6/full*.log`、`runs/p13-probe/probe.py`。
