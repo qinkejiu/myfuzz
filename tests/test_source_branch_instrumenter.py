@@ -166,11 +166,11 @@ module top(input wire clk, input wire sel_a, input wire sel_b,
 endmodule
 """
 
-    def _instrument(self, root: Path) -> tuple[dict, Path]:
+    def _instrument(self, root: Path, top_source: str | None = None) -> tuple[dict, Path]:
         project = root / "project"
         project.mkdir(parents=True, exist_ok=True)
         (project / "leaf.sv").write_text(self.LEAF, encoding="utf-8")
-        (project / "top.sv").write_text(self.TOP, encoding="utf-8")
+        (project / "top.sv").write_text(top_source or self.TOP, encoding="utf-8")
         (project / "sources.f").write_text("leaf.sv\ntop.sv\n", encoding="utf-8")
         manifest = instrument_project(
             project, root / "instrumented",
@@ -264,6 +264,70 @@ endmodule
                              "the driven instance's true arm is recorded")
             self.assertEqual(0, (vector >> by_key[("top/u_b", "true")]) & 1,
                              "the sibling instance's true arm stays clear")
+
+
+    @unittest.skipUnless(shutil.which("iverilog") and shutil.which("vvp"),
+                         "iverilog is required for the instance-mapping simulation")
+    def test_same_name_siblings_keep_distinct_paths_and_bits(self) -> None:
+        """A generate array reuses one instance name for several real leaves."""
+        top = """\
+module top(input wire clk, input wire a, input wire b,
+           output wire qa, output wire qb);
+  generate
+    if (1) begin : gen_a
+      leaf u_leaf(.clk(clk), .sel(a), .q(qa));
+    end
+    if (1) begin : gen_b
+      leaf u_leaf(.clk(clk), .sel(b), .q(qb));
+    end
+  endgenerate
+endmodule
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest, instrumented = self._instrument(root, top)
+            bits = manifest["coverage_bits"]
+            self.assertEqual(4, manifest["coverage_vector_width"])
+            self.assertEqual({"top/u_leaf#0", "top/u_leaf#1"},
+                             {item["instance_path"] for item in bits})
+            self.assertEqual(4, len({item["bit"] for item in bits}))
+            by_key = {(item["instance_path"], item["subtype"]): int(item["bit"])
+                      for item in bits}
+            width = int(manifest["coverage_vector_width"])
+            bench = root / "tb.sv"
+            bench.write_text(textwrap.dedent("""\
+                module tb;
+                  reg clk = 1'b0; reg a = 1'b1; reg b = 1'b0;
+                  wire qa, qb;
+                  wire [%d:0] cov;
+                  top dut(.clk(clk), .a(a), .b(b), .qa(qa), .qb(qb),
+                          .__vi_coverage(cov));
+                  integer i;
+                  initial begin
+                    for (i = 0; i < 4; i = i + 1) begin
+                      #5 clk = 1'b1; #5 clk = 1'b0;
+                    end
+                    $display("COV %%b", cov);
+                    $finish;
+                  end
+                endmodule
+                """ % (width - 1)), encoding="utf-8")
+            sources = sorted(str(path) for path in instrumented.rglob("*.sv"))
+            output = root / "tb.vvp"
+            compiled = subprocess.run(
+                ["iverilog", "-g2012", "-s", "tb", "-o", str(output), *sources,
+                 str(bench)], text=True, capture_output=True, timeout=120,
+            )
+            self.assertEqual(0, compiled.returncode, compiled.stderr)
+            result = subprocess.run(["vvp", str(output)], text=True,
+                                    capture_output=True, timeout=120)
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            match = [line for line in result.stdout.splitlines() if line.startswith("COV ")]
+            self.assertEqual(1, len(match), result.stdout)
+            vector = int(match[0].split()[1], 2)
+            self.assertEqual(1, (vector >> by_key[("top/u_leaf#0", "true")]) & 1)
+            self.assertEqual(0, (vector >> by_key[("top/u_leaf#1", "true")]) & 1,
+                             "the second sibling keeps its own bit clear")
 
 
 if __name__ == "__main__":

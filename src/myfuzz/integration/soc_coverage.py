@@ -225,8 +225,143 @@ build_soc_coverage_universe = build_coverage_universe
 map_rtl_coverage = observe_rtl_coverage
 
 
+#: Modules the SoC renderer generates itself: bus adapters and the arbiter and
+#: router between the CPU and the targets.  Their points are fabric, not IP.
+FABRIC_MODULES = frozenset({
+    "soc_arbiter", "soc_router", "mmio_width_adapter", "beat_address_narrow",
+    "beat_to_apb", "beat_to_tlul", "beat_to_wishbone", "soc_irq_router",
+})
+#: The generated RAM/ROM models.
+MODEL_MODULES = frozenset({"riscv_boot_memory_32", "riscv_boot_memory_64"})
+#: The generated harness itself: top level, synthetic initiator, pin peers.
+HARNESS_MODULES = frozenset({
+    "myfuzz_soc_top", "fuzz_mmio_master", "fuzz_uart_peer", "fuzz_spi_peer",
+})
+
+#: Normal boot should raise CPU and real-IP coverage first, so those points are
+#: the ones worth spending a bounded observation budget on.
+CATEGORY_PRIORITY = ("cpu", "ip", "fabric", "model", "harness")
+
+
+def instance_root(instance_path: str) -> str:
+    """Return the top-level instance name under the rendered SoC top."""
+    segments = [segment for segment in str(instance_path).split("/") if segment]
+    if len(segments) >= 2:
+        return segments[1]
+    return segments[0] if segments else ""
+
+
+def coverage_category(instance_path: str, module: str, *, cpu_instance: str = "u_cpu",
+                      ip_instances: Sequence[str] = ()) -> str:
+    """Classify one instrumented point by the subtree it lives in.
+
+    The rendered top instantiates the CPU wrapper, each real peripheral wrapper,
+    each memory model and the fabric as separate top-level instances, so the
+    second path segment is the authoritative discriminator.  Classifying by
+    module name alone would call a peripheral's own submodules fabric.
+    """
+    root = instance_root(instance_path)
+    if root and root == cpu_instance:
+        return "cpu"
+    if root and root in set(ip_instances):
+        return "ip"
+    if root.startswith("u_mem"):
+        return "model"
+    if module in FABRIC_MODULES:
+        return "fabric"
+    if module in MODEL_MODULES:
+        return "model"
+    if module in HARNESS_MODULES:
+        return "harness"
+    return "harness"
+
+
+def universe_from_instance_bits(bits: Iterable[Mapping[str, object]], *,
+                                cpu_instance: str = "u_cpu",
+                                ip_instances: Sequence[str] = ()) -> dict[str, object]:
+    """Build a branch universe from the instrumenter's instance-mapped bits.
+
+    Every point keeps its own instance path, so two instances of one module stay
+    distinguishable in feedback.  Only bits that describe real RTL branches are
+    accepted; the sampled input/output counters the campaign used before are not
+    branch evidence and are deliberately not representable here.
+    """
+    points: list[dict[str, object]] = []
+    for entry in bits:
+        instance = _text(entry.get("instance_path"), "bit:instance_path")
+        module = _text(entry.get("module"), "bit:module")
+        signal = _text(entry.get("signal"), "bit:signal")
+        raw_kind = str(entry.get("kind", "if"))
+        if raw_kind not in {"if", "case", "branch"}:
+            raise SocCoverageError(f"bit:kind:{raw_kind}")
+        points.append({
+            "point_id": f"{instance}:{signal}",
+            "instance_id": instance,
+            "module": module,
+            "category": coverage_category(instance, module, cpu_instance=cpu_instance,
+                                          ip_instances=ip_instances),
+            "kind": "branch",
+            "source": _text(entry.get("file"), "bit:file"),
+            "line": entry.get("line", 1),
+            "column": entry.get("column", 1) or 1,
+            "branch": str(entry.get("subtype", "")),
+        })
+    return build_coverage_universe(points)
+
+
+def coverage_observation_plan(universe: Mapping[str, object],
+                              bits: Iterable[Mapping[str, object]], limit: int) -> dict[str, object]:
+    """Choose which RTL bits the harness observes within a bounded counter budget.
+
+    A generated harness exposes a fixed number of counters, while an
+    instrumented cell can carry thousands of points.  The selection is
+    deterministic and prioritises CPU and real-IP points, and it reports how
+    many points were left unobserved instead of implying full coverage.
+    """
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+        raise SocCoverageError("observation-limit")
+    by_point = {str(item["point_id"]): item for item in universe.get("points", [])
+                if isinstance(item, Mapping)}
+    if not by_point:
+        raise SocCoverageError("universe:points")
+    candidates: list[tuple[int, int, str]] = []
+    for entry in bits:
+        instance = str(entry.get("instance_path", ""))
+        point_id = f"{instance}:{entry.get('signal')}"
+        point = by_point.get(point_id)
+        if point is None:
+            raise SocCoverageError(f"observation-bit:unknown:{point_id}")
+        category = str(point.get("category"))
+        rank = CATEGORY_PRIORITY.index(category) if category in CATEGORY_PRIORITY else len(CATEGORY_PRIORITY)
+        bit = entry.get("bit")
+        if isinstance(bit, bool) or not isinstance(bit, int):
+            raise SocCoverageError("observation-bit:index")
+        candidates.append((rank, bit, point_id))
+    candidates.sort()
+    selected = candidates[:limit]
+    observed = [{"bit": bit, "point_id": point_id, "category": str(by_point[point_id]["category"]),
+                 "instance_id": str(by_point[point_id]["instance_id"]),
+                 "module": str(by_point[point_id]["module"])}
+                for _rank, bit, point_id in selected]
+    counts: dict[str, int] = {}
+    for _rank, _bit, point_id in selected:
+        category = str(by_point[point_id]["category"])
+        counts[category] = counts.get(category, 0) + 1
+    return {
+        "observed": observed,
+        "observed_count": len(observed),
+        "unobserved_count": len(candidates) - len(observed),
+        "observed_by_category": dict(sorted(counts.items())),
+        "category_priority": list(CATEGORY_PRIORITY),
+        "limit": limit,
+    }
+
+
 __all__ = [
-    "CATEGORIES", "COVERAGE_SCHEMA", "CoveragePoint", "SocCoverageError",
-    "build_coverage_universe", "build_soc_coverage_universe", "coverage_delta",
-    "coverage_feedback_document", "map_rtl_coverage", "observe_rtl_coverage",
+    "CATEGORIES", "CATEGORY_PRIORITY", "COVERAGE_SCHEMA", "CoveragePoint",
+    "FABRIC_MODULES", "HARNESS_MODULES", "MODEL_MODULES", "SocCoverageError",
+    "build_coverage_universe", "build_soc_coverage_universe", "coverage_category",
+    "coverage_delta", "coverage_feedback_document", "coverage_observation_plan",
+    "instance_root", "map_rtl_coverage", "observe_rtl_coverage",
+    "universe_from_instance_bits",
 ]

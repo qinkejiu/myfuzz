@@ -2446,12 +2446,32 @@ def flatten_instance_coverage(
         plan = module_map.get(module)
         if plan is None or module not in active_modules:
             return
-        terms: list[tuple[str, object, int]] = [
-            ("point", point, 1) for point in plan.points
+        # A generate array reuses one instance name for several real leaves.
+        # Those siblings get their own wire range but would otherwise share an
+        # instance path, which would collapse two different bits onto one point
+        # identity.  The ordinal follows the connection order so it matches the
+        # order the wiring was emitted in, not this walk's order.
+        name_counts: dict[str, int] = {}
+        for conn in plan.child_connections:
+            name_counts[conn.instance.name] = name_counts.get(conn.instance.name, 0) + 1
+        seen_names: dict[str, int] = {}
+        labels: list[str] = []
+        for conn in plan.child_connections:
+            name = conn.instance.name
+            if name_counts.get(name, 0) > 1:
+                ordinal = seen_names.get(name, 0)
+                seen_names[name] = ordinal + 1
+                name = f"{name}#{ordinal}"
+            labels.append(name)
+        terms: list[tuple[str, object, int, str]] = [
+            ("point", point, 1, "") for point in plan.points
         ]
-        terms.extend(("child", conn, conn.width) for conn in plan.child_connections)
+        terms.extend(
+            ("child", conn, conn.width, labels[index])
+            for index, conn in enumerate(plan.child_connections)
+        )
         offset = 0
-        for kind, payload, width in reversed(terms):
+        for kind, payload, width, label in reversed(terms):
             low = base + offset
             offset += width
             if kind == "point":
@@ -2471,7 +2491,7 @@ def flatten_instance_coverage(
                 connection = payload
                 walk(
                     connection.instance.child,
-                    f"{path}/{connection.instance.name}",
+                    f"{path}/{label}",
                     low,
                     ancestors + (module,),
                 )
