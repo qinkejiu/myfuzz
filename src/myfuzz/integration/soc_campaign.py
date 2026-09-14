@@ -389,6 +389,18 @@ def _transactions_document(config: Mapping[str, object], run_result: Mapping[str
                 "source": {"transactions": totals.get("source_transactions", 0)},
                 "target": {"transactions": totals.get("target_transactions", 0)},
             }
+        elif isinstance(totals, Mapping) and any(
+                key in totals for key in ("requests", "completions")):
+            # The generic RTL monitor observes the CPU/fabric boundary.  Keep
+            # this separate from per-target counts: it is source/target
+            # transaction evidence, not a claim that every peripheral saw a
+            # transaction.
+            observed = {
+                "source": {"backend_requests": totals.get("requests", 0)},
+                "target": {"backend_completions": totals.get("completions", 0)},
+                "all": dict(totals),
+                "observation_boundary": "cpu-backend-fabric",
+            }
     declared = config.get("source_target_transactions")
     if isinstance(observed, Mapping):
         return {"status": "observed", "source": _plain(observed.get("source", {})),
