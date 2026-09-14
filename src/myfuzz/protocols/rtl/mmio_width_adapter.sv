@@ -39,6 +39,8 @@
 // response can never be attributed to a later transaction.
 
 module mmio_width_adapter #(
+    // Valid only for a full-test reset shared with all downstream state.
+    parameter bit RESET_CLEARS_TARGETS = 1'b0,
     parameter integer ADDRESS_WIDTH = 32,
     parameter integer DATA_WIDTH = 64,
     parameter integer PERIPHERAL_DATA_WIDTH = 32,
@@ -167,7 +169,8 @@ module mmio_width_adapter #(
             phase_q <= 1'b0;
             // The peripheral already accepted a request, so a late response
             // may still arrive; drain it before accepting anything new.
-            if (state_q == WAIT_RSP) stale_q <= 1'b1;
+            if (RESET_CLEARS_TARGETS) stale_q <= 1'b0;
+            else if (state_q == WAIT_RSP) stale_q <= 1'b1;
         end else begin
             if (stale_q && p_rsp_valid) stale_q <= 1'b0;
             case (state_q)

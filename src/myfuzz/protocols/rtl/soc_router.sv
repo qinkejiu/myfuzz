@@ -35,6 +35,9 @@
 // reusing the identity (a timeout cannot safely cancel a real side effect).
 
 module soc_router #(
+    // Set only when reset also resets every downstream target and adapter.
+    // A local reset must retain quarantine for any possible late response.
+    parameter bit RESET_CLEARS_TARGETS = 1'b0,
     parameter integer NUM_TARGETS = 2,
     parameter integer ADDRESS_WIDTH = 32,
     parameter integer DATA_WIDTH = 32,
@@ -200,7 +203,10 @@ module soc_router #(
             // still arrive.  Remember the target and refuse new transactions
             // until that response has been drained.  stale_q is deliberately
             // not cleared here so it survives a multi-cycle reset.
-            if (state_q == WAIT_RSP) begin
+            if (RESET_CLEARS_TARGETS) begin
+                stale_q <= 1'b0;
+                stale_target_q <= '0;
+            end else if (state_q == WAIT_RSP) begin
                 stale_q <= 1'b1;
                 stale_target_q <= target_q;
             end

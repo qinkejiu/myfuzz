@@ -1001,6 +1001,50 @@ class SocFabricRtlTests(unittest.TestCase):
             [WIDTH_ADAPTER],
         )
 
+    def test_full_test_reset_discards_router_pending_target(self) -> None:
+        program = """
+            s_req_valid = 3'b001; s_be[0] = 4'hf;
+            s_addr[0] = 32'h1000_0010; rsp_delay = 50;
+            i = 0;
+            while (tgt_selects[0] == 0 && i < 20) begin tick(); i++; end
+            check(tgt_selects[0] == 1, "a real target request preceded full reset");
+            reset = 1; target_reset = 1; s_req_valid = 0;
+            tick(); tick();
+            reset = 0; target_reset = 0;
+            tick();
+            check(req_ready && !stale_pending, "full reset clears pending target state");
+            rsp_delay = 0; s_rsp_ready = '1; s_req_valid = 3'b001;
+            i = 0;
+            while (rsp_count[0] == 0 && i < 30) begin tick(); i++; end
+            check(rsp_count[0] == 1 && !rsp_error[0], "next test receives its own response");
+            $display("PASS"); $finish;
+        """
+        bench = _fabric_tb(program, windows=WINDOWS_THREE_TARGETS).replace(
+            "soc_router #(", "soc_router #(.RESET_CLEARS_TARGETS(1'b1),")
+        _compile_and_run(self, bench, [ARBITER, ROUTER])
+
+    def test_full_test_reset_discards_width_adapter_pending_target(self) -> None:
+        program = """
+            p_delay_max = 50;
+            req_valid = 1; addr = 32'h100; be = 8'h0f;
+            tick(); req_valid = 0;
+            i = 0;
+            while (!p_busy && i < 20) begin tick(); i++; end
+            check(p_busy, "a real peripheral request preceded full reset");
+            reset = 1; target_reset = 1;
+            tick(); tick();
+            reset = 0; target_reset = 0;
+            tick();
+            check(req_ready && !stale_pending, "full reset clears pending peripheral state");
+            p_delay_max = 0;
+            beat_access(0, 32'h100, 0, 8'h0f);
+            check(!last_error && p_accesses == 2, "next test completes a fresh peripheral request");
+            $display("PASS"); $finish;
+        """
+        bench = _width_tb(program, allow_split=False, allow_read=False).replace(
+            "mmio_width_adapter #(", "mmio_width_adapter #(.RESET_CLEARS_TARGETS(1'b1),")
+        _compile_and_run(self, bench, [WIDTH_ADAPTER])
+
 
 if __name__ == "__main__":
     unittest.main()
