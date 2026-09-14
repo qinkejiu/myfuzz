@@ -32,6 +32,16 @@ Verilator 5.051 与 Icarus Verilog 在用户本地工具目录可用；主机约
 ibex 与 cva6 仍为 `elaboration_unverified`：真正实核属于 P10/P11，本轮不提前声明。
 六个外设的 runtime 一律 `runtime_unverified`，未跑过仿真。
 
+## 已提交任务
+
+| 任务 | 提交 | 内容 |
+|---|---|---|
+| P0 | `da3b150` | 仓库审计与可恢复隔离工具、41 个定向测试、处置台账 |
+| P1 | `dbb6ab7` | 两款 CPU 与三系列六个真实外设的来源 pin 与 elaboration closure |
+| P2 | `5e62059` | 抽取 generic_planner / processor_renderer，旧入口保持转发 |
+
+三次提交都在提交前用 `git archive HEAD` 到干净目录复跑定向测试确认自洽（P0 41 tests、P2 4 tests）。
+
 ## 保护范围
 
 用户修改的 `.superpowers/sdd/task-2-report.md` 和中文系统总览保持原状。

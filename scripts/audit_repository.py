@@ -50,7 +50,8 @@ BATCH_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")
 # leave a stored file that must remain recoverable.
 RECOVERABLE_STATUSES = ("moved", "planned", "rollback-failed")
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
-CACHE_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_./+@-]*\.py[co]")
+_OWN_ARTIFACT_MARKER = re.compile(
+    r'"schema_version"\s*:\s*"repository_(?:audit|quarantine|quarantine_selection)\.v1"')
 
 # Directories whose contents are compiled-code caches. Only files below one of
 # these directories, with one of the cache suffixes, can ever be eligible.
@@ -208,24 +209,19 @@ def _pyc_unusable_reason(root: Path, relative: str):
 def _is_own_artifact(path: Path, text: str) -> bool:
     """True only for one of this tool's own JSON documents.
 
-    The check is deliberately narrow: the document must parse, be an object,
-    carry one of our schema version strings and have the entry list that only
-    our own inventories, selections and manifests have. A legal repository file
-    must never be able to crash the scan or hide a reference by accident.
+    Only the head of the file is examined: parsing arbitrary repository JSON is
+    what previously let a legal file (a huge integer literal, thousands of
+    nested arrays) crash the whole audit, and a very large inventory would have
+    been truncated past the read cap. The marker must be our exact schema
+    literal and the entry-list key must be present, so a note that merely
+    quotes the schema name does not hide a reference.
     """
     if path.suffix != ".json":
         return False
-    try:
-        document = json.loads(text)
-    except (json.JSONDecodeError, RecursionError):
+    head = text[:BINARY_PROBE_BYTES]
+    if not _OWN_ARTIFACT_MARKER.search(head):
         return False
-    if not isinstance(document, dict):
-        return False
-    version = document.get("schema_version")
-    if not isinstance(version, str) or version not in OWN_ARTIFACT_SCHEMAS:
-        return False
-    entries = document.get("entries")
-    return isinstance(entries, (list, dict))
+    return '"entries"' in head or '"quarantine_candidates"' in head
 
 
 def _reference_index(root: Path, candidates, scan) -> set:
@@ -260,9 +256,15 @@ def _reference_index(root: Path, candidates, scan) -> set:
                 referenced.add(normalized)
             elif "/" not in normalized:
                 referenced.update(by_name.get(normalized, ()))
-        # Only a whole path token counts as a directory reference, so a script
-        # that merely mentions the word __pycache__ cannot pin every candidate.
-        referenced |= (parents & tokens)
+        # A whole path token counts as a directory reference. Trailing slashes
+        # and leading "./" are stripped first, otherwise "rm -rf src/__pycache__/"
+        # would not pin the cache it names. Matching a bare cache directory name
+        # against a root-level candidate is deliberately kept: it over-protects,
+        # which is the safe direction for a tool that moves files.
+        for token in tokens:
+            normalized = token.strip("./").rstrip("/")
+            if normalized in parents:
+                referenced.add(normalized)
     return referenced
 
 
@@ -440,7 +442,10 @@ def _atomic_write(target: Path, text: str) -> None:
             os.fsync(handle.fileno())
         os.replace(temporary, target)
     except OSError:
-        temporary.unlink(missing_ok=True)
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass
         raise
 
 
@@ -477,7 +482,10 @@ def quarantine(root: Path, selection, batch, selection_source=None) -> Path:
     if len({item["path"] for item in validated}) != len(validated):
         raise AuditError("duplicate-selection-path")
 
-    manifest = _safe_output_path(root, _batch_relative(batch, "manifest.json"))
+    try:
+        manifest = _safe_output_path(root, _batch_relative(batch, "manifest.json"))
+    except OSError as error:
+        raise AuditError("quarantine-failed:" + str(error)) from error
     if manifest.exists() or manifest.is_symlink():
         raise AuditError("batch-already-exists:" + batch)
     files_relative = _batch_relative(batch, "files")
@@ -534,9 +542,15 @@ def quarantine(root: Path, selection, batch, selection_source=None) -> Path:
                 shutil.move(str(_contained(root, record["stored_path"])), str(root / record["path"]))
             except (OSError, AuditError):
                 record["status"] = "rollback-failed"
-        _atomic_write(manifest, _manifest_text(batch, root, manifest, records, 2))
+        try:
+            _atomic_write(manifest, _manifest_text(batch, root, manifest, records, 2))
+        except (OSError, AuditError):
+            pass
         raise AuditError("quarantine-failed:" + str(error)) from error
-    _atomic_write(manifest, _manifest_text(batch, root, manifest, records, 2))
+    try:
+        _atomic_write(manifest, _manifest_text(batch, root, manifest, records, 2))
+    except OSError as error:
+        raise AuditError("quarantine-failed:" + str(error)) from error
     return manifest
 
 
@@ -545,9 +559,11 @@ def restore(root: Path, manifest: Path) -> None:
     root = Path(root).resolve()
     manifest = Path(manifest)
     try:
-        document = json.loads(manifest.read_text())
-    except (OSError, json.JSONDecodeError) as error:
+        document = json.loads(manifest.read_bytes().decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
         raise AuditError("unreadable-manifest") from error
+    if not isinstance(document, dict):
+        raise AuditError("invalid-manifest-document")
     if document.get("schema_version") != QUARANTINE_SCHEMA_VERSION:
         raise AuditError("invalid-manifest-schema")
     batch = document.get("batch")
@@ -577,11 +593,20 @@ def restore(root: Path, manifest: Path) -> None:
         stored = _contained(root, expected)
         destination = _contained(root, relative)
         if stored.is_symlink() or not stored.is_file():
-            if destination.exists():
+            if destination.exists() and not destination.is_symlink():
                 # A crash between a move and the manifest rewrite, or a failed
                 # rollback, can leave the file already back at its destination.
-                entry["status"] = "restored"
-                continue
+                # Only bytes that still match the recorded hash may be called
+                # restored; anything else is a real conflict, not a recovery.
+                try:
+                    unchanged = hashlib.sha256(
+                        destination.read_bytes()).hexdigest() == digest
+                except OSError:
+                    unchanged = False
+                if unchanged:
+                    entry["status"] = "restored"
+                    continue
+                raise AuditError("destination-content-mismatch:" + relative)
             if entry.get("status") in ("planned", "rollback-failed"):
                 # Never left the tree, so there is nothing to restore.
                 entry["status"] = "not-moved"
@@ -622,6 +647,22 @@ def restore(root: Path, manifest: Path) -> None:
         raise AuditError("restore-failed:" + str(error)) from error
 
 
+def _write_user_file(path: Path, text: str) -> None:
+    """Write a caller-supplied output path without following a symlink."""
+    path = Path(path)
+    if path.is_symlink():
+        raise AuditError("symlink-component:" + str(path))
+    if path.exists():
+        raise AuditError("refusing-to-overwrite:" + str(path))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(text)
+
+
+def _protected_tool_paths(root: Path):
+    return (root / QUARANTINE_DIRNAME, root / AUDIT_DIRNAME)
+
+
 def _write_new(root: Path, relative: str, payload) -> None:
     target = _safe_output_path(root, relative)
     if target.exists() or target.is_symlink():
@@ -659,23 +700,36 @@ def main(argv=None) -> int:
         if args.batch is not None and args.apply is None:
             print(json.dumps({"error": "--batch requires --apply"}))
             return 1
+        if args.batch is not None and not BATCH_PATTERN.fullmatch(str(args.batch)):
+            print(json.dumps({"error": "invalid-batch-name"}))
+            return 1
+        root = Path(args.root).resolve()
         outputs = [p for p in (args.output, args.quarantine_list) if p is not None]
         if len({Path(p).resolve() for p in outputs}) != len(outputs):
             print(json.dumps({"error": "output-paths-must-differ"}))
             return 1
         for target in outputs:
-            if Path(target).exists():
+            resolved = Path(target).resolve()
+            if any(resolved == guard or guard in resolved.parents
+                   for guard in _protected_tool_paths(root)):
+                # Writing the inventory over a manifest or a stored batch would
+                # destroy the only record needed to restore the quarantined files.
+                print(json.dumps({"error": "output-path-inside-tool-state",
+                                  "path": str(target)}))
+                return 1
+            if Path(target).is_symlink() or Path(target).exists():
                 print(json.dumps({"error": "refusing-to-overwrite", "path": str(target)}))
                 return 1
-        root = Path(args.root).resolve()
         report = audit(root)
         selection = {"schema_version": SELECTION_SCHEMA_VERSION,
                      "entries": report["quarantine_candidates"]}
         if args.quarantine_list is not None:
-            args.quarantine_list.parent.mkdir(parents=True, exist_ok=True)
-            args.quarantine_list.write_text(json.dumps(selection, indent=2) + "\n")
+            _write_user_file(args.quarantine_list, json.dumps(selection, indent=2) + "\n")
         if args.apply is not None:
-            payload = json.loads(Path(args.apply).read_text())
+            try:
+                payload = json.loads(Path(args.apply).read_bytes().decode("utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+                raise AuditError("unreadable-selection") from error
             entries = payload["entries"] if isinstance(payload, dict) else payload
             if args.batch is not None:
                 # Resolve the batch artifact paths before moving anything, so an
@@ -689,21 +743,28 @@ def main(argv=None) -> int:
             manifest = quarantine(root, entries, args.batch, selection_source=args.apply)
             # Record the batch only once the move actually succeeded, so a
             # rejected selection does not burn the batch name.
+            warning = None
             if args.batch is not None:
-                _write_new(root, AUDIT_DIRNAME + "/" + args.batch + "/inventory.json", report)
-                _write_new(root, AUDIT_DIRNAME + "/" + args.batch + "/quarantine-candidates.json",
-                           selection)
+                try:
+                    _write_new(root, AUDIT_DIRNAME + "/" + args.batch + "/inventory.json", report)
+                    _write_new(root, AUDIT_DIRNAME + "/" + args.batch
+                               + "/quarantine-candidates.json", selection)
+                except (AuditError, OSError) as error:
+                    # The move already happened and its manifest exists, so the
+                    # command succeeded; only the bookkeeping write failed.
+                    warning = "batch-bookkeeping-failed:" + str(error)
             if args.output is not None:
-                args.output.parent.mkdir(parents=True, exist_ok=True)
-                args.output.write_text(json.dumps(report, indent=2) + "\n")
-            print(json.dumps({"manifest": str(manifest)}))
+                _write_user_file(args.output, json.dumps(report, indent=2) + "\n")
+            result = {"manifest": str(manifest)}
+            if warning is not None:
+                result["warning"] = warning
+            print(json.dumps(result))
             return 0
         if args.output is not None:
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(json.dumps(report, indent=2) + "\n")
+            _write_user_file(args.output, json.dumps(report, indent=2) + "\n")
         print(json.dumps(report["summary"], sort_keys=True))
         return 0
-    except (AuditError, OSError, KeyError, json.JSONDecodeError) as error:
+    except (AuditError, OSError, KeyError, TypeError, ValueError, UnicodeDecodeError) as error:
         print(json.dumps({"error": str(error)}))
         return 1
 

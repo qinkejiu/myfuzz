@@ -548,3 +548,110 @@ class RepositoryAuditTests(unittest.TestCase):
         self.assertEqual(json.loads(output.read_text())['schema_version'],
                          'repository_audit.v1')
 
+    def test_batch_name_is_validated_before_any_path_is_built(self):
+        self.module()
+        selection = self.root / 'sel-escape.json'
+        subprocess.run(['python3', str(SCRIPT), '--root', str(self.root),
+                        '--quarantine-list', str(selection)], check=True, capture_output=True)
+        result = subprocess.run(['python3', str(SCRIPT), '--root', str(self.root),
+                                 '--apply', str(selection), '--batch', '../../../evil'],
+                                capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('invalid-batch-name', result.stdout)
+        self.assertFalse((Path(self.temp.name) / 'evil').exists())
+        self.assertFalse((Path(self.temp.name) / 'evil' / 'inventory.json').exists())
+        self.assertTrue(self.cache.exists())
+
+    def test_restore_refuses_to_call_foreign_destination_bytes_restored(self):
+        api = self.module()
+        manifest = api.quarantine(self.root, self.selection(), 'foreign')
+        document = json.loads(manifest.read_text())
+        (self.root / document['entries'][0]['stored_path']).unlink()
+        self.cache.write_bytes(b'foreign bytes')
+        with self.assertRaises(ValueError):
+            api.restore(self.root, manifest)
+        self.assertEqual(self.cache.read_bytes(), b'foreign bytes')
+        self.assertEqual(json.loads(manifest.read_text())['entries'][0]['status'], 'moved')
+
+    def test_directory_references_with_trailing_slash_or_dot_slash_are_detected(self):
+        for content in ('rm -rf src/__pycache__/\n', 'rm -rf ./src/__pycache__\n'):
+            with self.subTest(content=content):
+                api = self.module()
+                self.write('cleanup.sh', content)
+                self.assertEqual(api.audit(self.root)['entries'][self.relative]['action'],
+                                 'keep')
+                (self.root / 'cleanup.sh').unlink()
+
+    def test_quarantine_wraps_a_failing_manifest_write(self):
+        api = self.module()
+        with patch.object(api.os, 'replace', side_effect=OSError('simulated rename failure')):
+            with self.assertRaises(ValueError) as caught:
+                api.quarantine(self.root, self.selection(), 'writefail')
+        self.assertIn('quarantine-failed', str(caught.exception))
+        self.assertTrue(self.cache.exists())
+
+    def test_user_output_paths_reject_symlinks_and_tool_state(self):
+        self.module()
+        manifest = self.root / 'runs/quarantine/protect/manifest.json'
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text('{"schema_version": "repository_quarantine.v1", "entries": []}')
+        protected = subprocess.run(['python3', str(SCRIPT), '--root', str(self.root),
+                                    '--output', str(manifest)], capture_output=True, text=True)
+        self.assertNotEqual(protected.returncode, 0)
+        self.assertIn('output-path-inside-tool-state', protected.stdout)
+        self.assertEqual(json.loads(manifest.read_text())['schema_version'],
+                         'repository_quarantine.v1')
+        outside = Path(self.temp.name) / 'linked.json'
+        link = self.root / 'link-out.json'
+        link.symlink_to(outside)
+        linked = subprocess.run(['python3', str(SCRIPT), '--root', str(self.root),
+                                 '--quarantine-list', str(link)], capture_output=True, text=True)
+        self.assertNotEqual(linked.returncode, 0)
+        self.assertFalse(outside.exists())
+
+    def test_restore_rejects_malformed_manifests_without_a_traceback(self):
+        self.module()
+        for payload in ('[]', 'null', '123', '"hello"', 'not json at all'):
+            with self.subTest(payload=payload):
+                manifest = self.root / 'broken.json'
+                manifest.write_text(payload)
+                result = subprocess.run(['python3', str(SCRIPT), '--root', str(self.root),
+                                         '--restore', str(manifest)],
+                                        capture_output=True, text=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn('Traceback', result.stderr)
+                self.assertTrue(result.stdout.strip().startswith('{'))
+
+    def test_unreadable_selection_is_reported_not_traced(self):
+        self.module()
+        selection = self.root / 'binary-selection.json'
+        selection.write_bytes(b'\xff\xfe\x00\x01 not utf-8')
+        result = subprocess.run(['python3', str(SCRIPT), '--root', str(self.root),
+                                 '--apply', str(selection), '--batch', 'binary'],
+                                capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn('Traceback', result.stderr)
+        self.assertIn('unreadable-selection', result.stdout)
+
+    def test_giant_integer_json_cannot_crash_the_audit(self):
+        api = self.module()
+        self.write('huge.json', '{"n": ' + '9' * 5000 + ', "note": "' + self.relative + '"}')
+        self.assertEqual(api.audit(self.root)['entries'][self.relative]['action'], 'keep')
+
+    def test_own_artifact_is_recognised_from_its_head_alone(self):
+        api = self.module()
+        self.write('runs/repository-audit/big/inventory.json',
+                   '{"schema_version": "repository_audit.v1", "entries": ['
+                   + '0' * 20000 + ' this is not valid json')
+        self.assertEqual(api.audit(self.root)['entries'][self.relative]['action'], 'eligible')
+
+    def test_bookkeeping_failure_after_a_completed_move_is_a_warning(self):
+        api = self.module()
+        selection = self.root / 'sel-warning.json'
+        selection.write_text(json.dumps({'entries': self.selection()}))
+        with patch.object(api, '_write_new', side_effect=api.AuditError('disk full')):
+            code = api.main(['--root', str(self.root), '--apply', str(selection),
+                             '--batch', 'warned'])
+        self.assertEqual(code, 0)
+        self.assertTrue((self.root / 'runs/quarantine/warned/manifest.json').exists())
+
