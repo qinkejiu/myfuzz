@@ -1,5 +1,14 @@
 # myfuzz
 
+当前目标（2026-09-14）：自动组合真实 Ibex/CVA6 与 OpenTitan、PULP、ZipCPU
+三系列 MMIO 外设，通过生成的 harness 执行受约束指令、独立 MMIO 和混合激励。
+总线、RAM/ROM 由系统提供模型，真实外设响应与 IRQ 保留在 SoC 中。
+新目标尚未完成，下面的历史流程和执行示例不能代替新矩阵验收。
+
+- [项目目标与验收矩阵](docs/PROJECT_GOALS.md)
+- [分阶段实施计划](docs/superpowers/plans/2026-09-14-soc-composition-and-fuzz.md)
+- [代码与文件整理台账](docs/REPOSITORY_ORGANIZATION.md)
+
 `myfuzz` provides two related RTL fuzzing paths: Verilog/SystemVerilog
 source-level instrumentation, and protocol-aware processor composition for
 driving real CPU RTL through RFuzz. It embeds extracted Verilator frontend code
