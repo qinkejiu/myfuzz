@@ -64,7 +64,8 @@ source files, include directories and runtime top while keeping
 `runtime_status=runtime_unverified` until the official RFuzz campaign and
 replay are complete.  The opt-in unittest now rebuilds and runs the smoke from
 that manifest closure; a focused APB3 bridge test additionally proves a partial
-write is completed as an error with zero APB side effect.
+write is completed as an error with zero APB side effect and that a target which
+never raises `PREADY` is bounded to an error response.
 
 ## Current acceptance boundary
 
