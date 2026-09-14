@@ -309,6 +309,10 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
     removed=[]
     receipts = set()
     pending_receipts = []
+    # Keep a bounded, replayable receipt sample in addition to the set used
+    # for corpus verification. Each row is the completed FIFO reply identity
+    # (raw input hash plus actual RTL coverage hash).
+    receipt_records = []
     execution_totals = {}
     next_checkpoint = started
     with FifoEndpoint() as endpoint, RtlSimulator(artifact) as simulator, (output/"client.log").open("wb") as log:
@@ -383,6 +387,14 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
                         input_bytes=artifact.transport.byte_count,counter_count=len(maxima),execute=execute)
                     endpoint.reply(reply)
                     receipts.update(pending_receipts)
+                    for raw_hash, coverage_hash in pending_receipts:
+                        if len(receipt_records) < 4096:
+                            receipt_records.append({
+                                "input_sha256": raw_hash,
+                                "coverage_sha256": coverage_hash,
+                                "status": "fifo_reply_and_rtl_completed",
+                                "transport": "sysv-shared-memory-rfuzz-coverage-buffer",
+                            })
                     pending_receipts.clear()
                     if len(receipts) > 250000:
                         raise RuntimeError("RFuzz feedback receipt bound exceeded")
@@ -416,6 +428,13 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
                                  "records": tests,
                                  "counter_width": 8,
                              },
+                             fifo_reply_receipts=receipt_records,
+                             fifo_reply_receipt_count=len(receipt_records),
+                             actual_rtl_execution={
+                                 "tests": tests,
+                                 "execution_totals": dict(execution_totals),
+                                 "coverage_records": len(receipts),
+                             },
                              peak_rss_bytes=peak, duration_seconds=time.monotonic()-started,
                              removed_owned_segments=removed, remaining_segments=_owned_segments(client.pid))
                 state["drain_seconds"] = (state["duration_seconds"] - state["interrupt_elapsed_seconds"]
@@ -425,6 +444,13 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
         "peak_rss_bytes":peak,"corpus_entries":len(tuple((output/"corpus").glob("entry_*.json"))),
         "remaining_segments":_owned_segments(client.pid),"removed_owned_segments":removed,
         "layout_hash":artifact.layout.layout_hash,"client_binary":str(binary)}
+    result["fifo_reply_receipts"] = list(receipt_records)
+    result["fifo_reply_receipt_count"] = len(receipt_records)
+    result["actual_rtl_execution"] = {
+        "tests": tests,
+        "execution_totals": dict(execution_totals),
+        "coverage_records": len(receipts),
+    }
     state.update(result)
     if client.returncode == 0:
         if not tests:
