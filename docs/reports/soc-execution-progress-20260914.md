@@ -178,6 +178,21 @@ CVA6 失败分两类，必须区别对待：
 因此 **八格三模式运行时矩阵尚未通过**：12/24 通过（全部是 Ibex），CVA6 的 12 次需要先解决上述两类问题。
 在此之前不得声称 P12 完成。
 
+#### 第一类失败的定位（`beat_to_tlul.sv:124`）
+
+该行是适配器的**地址宽度**守卫，不是数据通路 bug：
+
+```systemverilog
+if (GEN_INTEGRITY != 0 && ADDRESS_WIDTH > 32)
+    $fatal(1, "beat_to_tlul: command integrity covers at most 32 address bits");
+```
+
+CVA6 是 RV64，其 beat 侧地址宽度大于 32；而 OpenTitan TL-UL 目标的命令 integrity 只覆盖最多 32 位地址，
+适配器于是失败关闭——这是**正确行为**，缺的是结构层的地址收窄：64 位 CPU 访问 32 位 TL-UL 目标时，
+必须在目标适配器之前把地址收窄到目标窗口的 32 位（类似已有的 `mmio_width_adapter` 对数据所做的处理），
+而不是放宽这条检查或让 integrity 覆盖不存在的位。修复点是 soc_fabric/soc_renderer 在 TL-UL 目标前插入
+地址收窄级，并用目标窗口范围证明收窄无损；不要改 `beat_to_tlul.sv` 的这条断言。
+
 ## 2026-09-14 21:25 P14 中断运行策略收口（未提交）
 
 21:06 记录的“官方客户端无法 rc=0”缺陷不再作为八格 campaign 的硬门槛：本轮不修改第三方源码，而是在 campaign 层定义并实现有文档的中断运行策略 `interrupted-run-policy.v1`。
