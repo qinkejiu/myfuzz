@@ -55,6 +55,10 @@ from myfuzz.composition.soc_stimulus import compile_soc_stimulus
 from myfuzz.composition.target_adapters import resolve_target_adapter
 
 from .campaign import CampaignOptions, run_supervised_command
+from .soc_coverage import (
+    coverage_observation_plan,
+    universe_from_instance_bits,
+)
 from .riscv_execution import (
     RiscvExecutionFacts,
     RiscvExecutionProvenance,
@@ -73,6 +77,10 @@ CLOSURE_DIR = "configs/soc/closures"
 SOURCES_LOCK = "configs/soc/sources.lock.json"
 COUNTER_LIMIT = 128
 COUNTER_BITS_PER_PORT = 16
+#: The instrumenter's hierarchical coverage output port on the rendered top.
+COVERAGE_SIGNAL = "__vi_coverage"
+#: Real RTL branch feedback, not sampled event counters.
+COVERAGE_KIND = "source-instrumented-rtl-branch-u8-saturating"
 PROBE_TIMEOUT_SECONDS = 60
 BUILD_TIMEOUT_SECONDS = 600
 #: CPUs whose first fetch is not at the reset vector itself.  Ibex documents
@@ -800,8 +808,12 @@ def build_soc_campaign_artifact(config, build_dir):
     (build / "input_layout.json").write_bytes(
         canonical_bytes(input_layout_document(layout)))
 
-    coverage_ports = _coverage_ports(ports, cell_id)
     source_closure = _source_closure(manifest, root, cell_id)
+    instrumentation = _instrument_coverage(
+        build, root, cell_id, source_closure, rendered, top_name, top_module, manifest)
+    coverage_ports = tuple(
+        (COVERAGE_SIGNAL, int(item["bit"]))
+        for item in instrumentation["plan"]["observed"])
     simulator_args = ()
     boot_document = None
     preloaded = [region for region in plan["address_map"]["memory_regions"]
@@ -823,10 +835,16 @@ def build_soc_campaign_artifact(config, build_dir):
             preloaded)
 
     (build / "live_tb.sv").write_text(
-        _testbench(layout, mapping, ports, top_module, coverage_ports),
+        _testbench(layout, mapping, ports, top_module, coverage_ports,
+                   coverage_width=instrumentation["vector_width"]),
         encoding="utf-8")
+    (build / "soc_coverage_universe.json").write_bytes(
+        canonical_bytes(instrumentation["universe"]))
+    (build / "soc_coverage_plan.json").write_bytes(
+        canonical_bytes(instrumentation["plan"]))
 
-    command = _compile_command(verilator, build, source_closure, root, top_name)
+    command = _compile_command(verilator, build, source_closure, root, top_name,
+                               flist=instrumentation["flist"])
     result = run_supervised_command(CampaignOptions(
         command=command, output_dir=build / "build",
         duration_seconds=BUILD_TIMEOUT_SECONDS, checkpoint_seconds=1,
@@ -849,7 +867,7 @@ def build_soc_campaign_artifact(config, build_dir):
         "layout_hash": layout.layout_hash,
         "plan_hash": stimulus["plan_hash"],
     })
-    coverage_kind = "sampled-output-bit-events-u8-saturating"
+    coverage_kind = COVERAGE_KIND
     document = {
         "schema_version": BUILD_SCHEMA,
         "cell_id": cell_id,
@@ -890,6 +908,17 @@ def build_soc_campaign_artifact(config, build_dir):
             "transport": "sysv-shared-memory-rfuzz-coverage-buffer",
             "counter_count": len(coverage_ports),
             "observations": [list(item) for item in coverage_ports],
+            "signal": COVERAGE_SIGNAL,
+            "vector_width": instrumentation["vector_width"],
+            "branch_point_count": instrumentation["point_count"],
+            "universe_hash": instrumentation["universe"]["universe_hash"],
+            "universe_categories": {
+                name: len(ids) for name, ids in
+                instrumentation["universe"]["categories"].items()},
+            "observed_by_category": instrumentation["plan"]["observed_by_category"],
+            "unobserved_branch_points": instrumentation["plan"]["unobserved_count"],
+            "universe_document": "soc_coverage_universe.json",
+            "observation_plan": "soc_coverage_plan.json",
         },
         "sources": {
             "runtime_top": source_closure["runtime_top"],
@@ -897,6 +926,9 @@ def build_soc_campaign_artifact(config, build_dir):
             "defines": list(source_closure["defines"]),
             "include_dirs": list(source_closure["include_dirs"]),
             "source_count": len(source_closure["source_files"]),
+            "instrumented_flist": instrumentation["flist"],
+            "instrumented_flist_sha256": _file_hash(Path(instrumentation["flist"])),
+            "instrumented_root": instrumentation["instrumented_root"],
             "source_files": [{"path": item, "sha256": _file_hash(root / item)}
                              for item in source_closure["source_files"]],
         },
@@ -1128,8 +1160,73 @@ def _input_layout(stimulus, ports, cell_id):
     return layout, {"mapped": mapped, "unmapped": unmapped, "bindings": bindings}
 
 
+def _instrument_coverage(build, root, cell_id, closure, rendered, top_name,
+                         top_module, manifest):
+    """Branch-instrument the cell closure and plan the observed coverage bits.
+
+    P13 feedback has to be real RTL branch evidence.  A sampled input or output
+    bit is an event, not a branch, so a closure that cannot be instrumented
+    fails closed here instead of relabelling samples as branch coverage.
+    """
+    try:
+        from scripts.source_branch_instrumenter import instrument_project
+    except ImportError as error:  # pragma: no cover - packaging failure
+        raise SocBuildError(
+            "%s:coverage-instrumenter-unavailable:%s" % (cell_id, error)) from error
+    area = build / "instrumentation"
+    project = area / "project"
+    if project.exists():
+        shutil.rmtree(project)
+    project.mkdir(parents=True)
+    for item in closure["source_files"]:
+        target = project / item
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(root / item, target)
+    # Include roots must exist in the staging tree: the instrumenter copies them
+    # into its output and rewrites the flist's +incdir+ lines onto that copy.
+    for item in closure["include_dirs"]:
+        source = root / item
+        if source.is_dir():
+            shutil.copytree(source, project / item, dirs_exist_ok=True)
+    (project / top_name).write_text(rendered[top_name], encoding="utf-8")
+    flist = project / "sources.f"
+    flist.write_text("\n".join([
+        *["+incdir+" + item for item in closure["include_dirs"]],
+        *closure["source_files"],
+        top_name,
+    ]) + "\n", encoding="utf-8")
+    try:
+        result = instrument_project(project, area / "instrumented", flist=flist,
+                                    top_module=top_module, force=True)
+    except (ValueError, SystemExit) as error:
+        raise SocBuildError(
+            "%s:coverage-instrumentation-failed:%s" % (cell_id, error)) from error
+    bits = result.get("coverage_bits") or []
+    if not bits:
+        raise SocBuildError(
+            "%s:coverage-instrumentation-found-no-branch-points" % cell_id)
+    if not result.get("instrumented_flist"):
+        raise SocBuildError("%s:coverage-instrumentation-has-no-flist" % cell_id)
+    universe = universe_from_instance_bits(
+        bits, cpu_instance="u_cpu",
+        ip_instances=["u_%s" % name for name in manifest.get("peripherals", {})])
+    plan_document = coverage_observation_plan(universe, bits, COUNTER_LIMIT)
+    observed = plan_document["observed_by_category"]
+    if int(observed.get("cpu", 0)) + int(observed.get("ip", 0)) == 0:
+        raise SocBuildError(
+            "%s:coverage-instrumentation-observed-no-cpu-or-ip-point:%s"
+            % (cell_id, sorted(observed)))
+    return {
+        "universe": universe,
+        "plan": plan_document,
+        "flist": str(result["instrumented_flist"]),
+        "vector_width": int(result["coverage_vector_width"]),
+        "point_count": int(result["coverage_point_count"]),
+        "instrumented_root": str(area / "instrumented"),
+    }
+
+
 def _coverage_ports(ports, cell_id):
-    """Bounded output-bit observations in declaration order."""
     observations = []
     for port in ports:
         if port["direction"] != "output":
@@ -1274,7 +1371,8 @@ def _clock_and_reset(ports, cell_id):
     return clock, reset, ("1'b0" if active_low else "1'b1"), ("1'b1" if active_low else "1'b0")
 
 
-def _testbench(layout, mapping, ports, top_module, coverage_ports):
+def _testbench(layout, mapping, ports, top_module, coverage_ports,
+               coverage_width=None):
     """Generate the persistent harness that speaks simulator protocol 2."""
     clock, reset, reset_active, reset_inactive = _clock_and_reset(ports, top_module)
     driven = {}
@@ -1282,11 +1380,14 @@ def _testbench(layout, mapping, ports, top_module, coverage_ports):
         if field.port:
             driven[field.port] = (field.raw_lo, field.raw_hi)
     widths = {port["name"]: port["width"] for port in ports}
+    if coverage_width is not None:
+        widths[COVERAGE_SIGNAL] = int(coverage_width)
     lines = []
     add = lines.append
     add("// Generated by myfuzz.integration.soc_builder (%s)." % BUILD_SCHEMA)
     add("// Persistent RFuzz harness: one raw %d-bit stimulus sample per cycle," % layout.raw_width)
-    add("// %d saturating 8-bit output-bit event counters." % len(coverage_ports))
+    add("// %d saturating 8-bit counters over instrumented RTL branch points."
+        % len(coverage_ports))
     add("module myfuzz_live_tb;")
     add("  localparam integer RAW_WIDTH = %d;" % layout.raw_width)
     add("  localparam integer COUNTER_COUNT = %d;" % len(coverage_ports))
@@ -1368,17 +1469,25 @@ def _testbench(layout, mapping, ports, top_module, coverage_ports):
     return "\n".join(lines) + "\n"
 
 
-def _compile_command(verilator, build, closure, root, top_name):
+def _compile_command(verilator, build, closure, root, top_name, flist=None):
     warnings = ("-Wno-fatal", "-Wno-PINMISSING", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
                 "-Wno-MULTIDRIVEN", "-Wno-UNSIGNED", "-Wno-CASEINCOMPLETE", "-Wno-LATCH",
                 "-Wno-UNOPTFLAT")
+    if flist is not None:
+        # The instrumented flist already carries the mapped +incdir+ roots and
+        # the instrumented copy of the rendered top, which has the coverage port.
+        sources = ("-f", str(flist))
+    else:
+        sources = (
+            *("-I" + str((root / item).resolve()) for item in closure["include_dirs"]),
+            *[str((root / item).resolve()) for item in closure["source_files"]],
+            str(build / top_name))
     command = ("nice", "-n15", str(verilator), "--binary", "--timing",
                "--top-module", "myfuzz_live_tb", "-j", "1",
                "--Mdir", str(build / "obj_dir"), *warnings,
                *("-D" + item for item in closure["defines"]),
-               *("-I" + str((root / item).resolve()) for item in closure["include_dirs"]),
-               *[str((root / item).resolve()) for item in closure["source_files"]],
-               str(build / top_name), str(build / "rfuzz_input_transport.sv"),
+               *sources,
+               str(build / "rfuzz_input_transport.sv"),
                str(build / "live_tb.sv"))
     log_path = build / "compiler.log"
     return (sys.executable, "-c",

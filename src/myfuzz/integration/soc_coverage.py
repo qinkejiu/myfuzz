@@ -337,14 +337,32 @@ def coverage_observation_plan(universe: Mapping[str, object],
         if isinstance(bit, bool) or not isinstance(bit, int):
             raise SocCoverageError("observation-bit:index")
         candidates.append((rank, bit, point_id))
-    candidates.sort()
-    selected = candidates[:limit]
+    # Interleave CPU and real-IP points one for one before anything else: a CPU
+    # subtree holds most of the points in a real cell, so ranking alone would
+    # spend the whole counter budget inside the CPU and never observe the
+    # peripherals the cell was built around.
+    primary = ("cpu", "ip")
+    queues = {name: [item for item in candidates if CATEGORY_PRIORITY[item[0]] == name]
+              for name in primary}
+    for queue in queues.values():
+        queue.sort()
+    chosen: list[tuple[int, int, str]] = []
+    while len(chosen) < limit and any(queues.values()):
+        for name in primary:
+            if len(chosen) >= limit:
+                break
+            if queues[name]:
+                chosen.append(queues[name].pop(0))
+    if len(chosen) < limit:
+        rest = sorted(item for item in candidates if item not in chosen)
+        chosen.extend(rest[:limit - len(chosen)])
+    chosen.sort(key=lambda item: item[1])
     observed = [{"bit": bit, "point_id": point_id, "category": str(by_point[point_id]["category"]),
                  "instance_id": str(by_point[point_id]["instance_id"]),
                  "module": str(by_point[point_id]["module"])}
-                for _rank, bit, point_id in selected]
+                for _rank, bit, point_id in chosen]
     counts: dict[str, int] = {}
-    for _rank, _bit, point_id in selected:
+    for _rank, _bit, point_id in chosen:
         category = str(by_point[point_id]["category"])
         counts[category] = counts.get(category, 0) + 1
     return {

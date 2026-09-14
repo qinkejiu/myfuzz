@@ -2644,8 +2644,10 @@ def discover_hdl_files(project_root: Path, out_dir: Path) -> list[Path]:
             continue
         if path.suffix.lower() not in HDL_SUFFIXES:
             continue
-        parts = set(path.parts)
-        if parts & DEFAULT_EXCLUDES:
+        # Match only components below the scanned root: keying on the absolute
+        # path would silently drop every file of a project that happens to be
+        # checked out under a directory named 'build' or 'obj_dir'.
+        if set(path.relative_to(project_root).parts) & DEFAULT_EXCLUDES:
             continue
         try:
             if path.resolve().is_relative_to(out_resolved):
@@ -2720,7 +2722,7 @@ def build_flist_path_mapping(
         for source in sorted(include_dir.rglob("*")):
             if not source.is_file():
                 continue
-            if set(source.parts) & DEFAULT_EXCLUDES:
+            if set(source.relative_to(include_dir).parts) & DEFAULT_EXCLUDES:
                 continue
             mapping.include_file_destinations.append((source.resolve(), rel / source.relative_to(include_dir)))
     return mapping
@@ -2862,8 +2864,7 @@ def copy_include_dirs(
         for src in incdir.rglob("*"):
             if not src.is_file():
                 continue
-            parts = set(src.parts)
-            if parts & DEFAULT_EXCLUDES:
+            if set(src.relative_to(incdir).parts) & DEFAULT_EXCLUDES:
                 continue
             dst = out_dir / destination_rel / src.relative_to(incdir)
             dst.parent.mkdir(parents=True, exist_ok=True)
