@@ -216,6 +216,18 @@ class StaticSettings:
 
 
 @dataclass(frozen=True)
+class RuntimeSettings:
+    """Procedural-region discovery.
+
+    ``single_statement`` measures a runtime body that is not a begin/end block.
+    Terse Verilog-2001 writes ``always @(posedge clk) if (...) begin ... end``,
+    which otherwise yields no points at all for that whole block.
+    """
+
+    single_statement: bool = False
+
+
+@dataclass(frozen=True)
 class HierarchySettings:
     propagate_to_top: bool = True
 
@@ -228,6 +240,7 @@ class InstrumentationSettings:
     expression: ExpressionSettings = field(default_factory=ExpressionSettings)
     assertion: AssertionSettings = field(default_factory=AssertionSettings)
     static: StaticSettings = field(default_factory=StaticSettings)
+    runtime: RuntimeSettings = field(default_factory=RuntimeSettings)
     hierarchy: HierarchySettings = field(default_factory=HierarchySettings)
 
     @classmethod
@@ -242,6 +255,7 @@ class InstrumentationSettings:
         expression = data.get("expression", {}) if isinstance(data.get("expression", {}), dict) else {}
         assertion = data.get("assertion", {}) if isinstance(data.get("assertion", {}), dict) else {}
         static = data.get("static", {}) if isinstance(data.get("static", {}), dict) else {}
+        runtime_setting = data.get("runtime", {}) if isinstance(data.get("runtime", {}), dict) else {}
         hierarchy = data.get("hierarchy", {}) if isinstance(data.get("hierarchy", {}), dict) else {}
         return cls(
             branch=BranchSettings(
@@ -273,6 +287,8 @@ class InstrumentationSettings:
                 neutralize_side_effects=bool(assertion.get("neutralize_side_effects", False)),
             ),
             static=StaticSettings(generate=bool(static.get("generate", True))),
+            runtime=RuntimeSettings(
+                single_statement=bool(runtime_setting.get("single_statement", False))),
             hierarchy=HierarchySettings(propagate_to_top=bool(hierarchy.get("propagate_to_top", True))),
         )
 
@@ -305,6 +321,9 @@ class InstrumentationSettings:
                 "metadata": self.assertion.metadata,
                 "fail_on_side_effect": self.assertion.fail_on_side_effect,
                 "neutralize_side_effects": self.assertion.neutralize_side_effects,
+            },
+            "runtime": {
+                "single_statement": self.runtime.single_statement,
             },
             "static": {
                 "generate": self.static.generate,
@@ -864,6 +883,59 @@ def find_statement_end(masked: str, start: int, limit: int) -> int | None:
     return None
 
 
+def find_enclosed_statement_end(masked: str, start: int, limit: int) -> int | None:
+    """End offset (exclusive) of one procedural statement.
+
+    Handles the compound forms a single-statement runtime body can be written
+    with: begin/end blocks, case/endcase, and the control statements that carry
+    a body (if/else and the loops).  Anything it cannot measure returns None so
+    the caller skips the region instead of guessing a bound.
+    """
+    pos = skip_ws(masked, start, limit)
+    if pos >= limit:
+        return None
+    if is_begin_at(masked, pos):
+        end = find_matching_begin(masked, pos, limit)
+        return None if end is None else end + len("end")
+    tok = next_token(masked, pos, limit)
+    if tok is None:
+        return None
+    if tok.text in ("case", "casez", "casex"):
+        end = find_matching_case(masked, pos, limit)
+        return None if end is None else end + len("endcase")
+    if tok.text in ("unique", "unique0", "priority"):
+        return find_enclosed_statement_end(masked, tok.end, limit)
+    if tok.text == "if":
+        return _control_statement_end(masked, tok, limit, with_else=True)
+    if tok.text in ("for", "foreach", "while", "repeat"):
+        return _control_statement_end(masked, tok, limit, with_else=False)
+    if tok.text in ("forever",):
+        return find_enclosed_statement_end(masked, tok.end, limit)
+    if tok.text == "fork":
+        # fork/join regions are not instrumented; refuse rather than guess.
+        return None
+    semi = find_statement_end(masked, pos, limit)
+    return None if semi is None else semi + 1
+
+
+def _control_statement_end(masked: str, tok: Token, limit: int,
+                           *, with_else: bool) -> int | None:
+    """End of a control statement: its parenthesised head then its body."""
+    open_pos = skip_ws(masked, tok.end, limit)
+    if open_pos >= limit or masked[open_pos] != "(":
+        return None
+    close = find_matching_pair(masked, open_pos, "(", ")")
+    if close is None:
+        return None
+    body_end = find_enclosed_statement_end(masked, close + 1, limit)
+    if body_end is None or not with_else:
+        return body_end
+    following = next_token(masked, body_end, limit)
+    if following is not None and following.text == "else":
+        return find_enclosed_statement_end(masked, following.end, limit)
+    return body_end
+
+
 def port_list_is_named(masked: str, open_pos: int, close_pos: int) -> bool:
     pos = skip_ws(masked, open_pos + 1, close_pos)
     return pos < close_pos and masked[pos] == "."
@@ -1066,17 +1138,53 @@ def collect_frontend_instances(
     return instances, skipped
 
 
-def collect_runtime_ranges(masked: str, module: ModuleRegion) -> list[RuntimeRange]:
+def collect_runtime_ranges(
+    masked: str,
+    module: ModuleRegion,
+    *,
+    allow_single_statement: bool = False,
+    skipped: dict[str, int] | None = None,
+) -> list[RuntimeRange]:
+    """Procedural regions inside one module.
+
+    A runtime word whose body is not a begin/end block used to be dropped
+    without a trace.  Terse Verilog-2001 code writes ``always @(posedge clk)
+    if (...) begin ... end``, so that silently produced zero points for whole
+    peripheral families.  With ``allow_single_statement`` the enclosing
+    statement is measured instead, which needs no source rewrite: the range only
+    bounds where instrumentation may apply, and the statement inside it is
+    instrumented exactly like any other.
+    """
     ranges: list[RuntimeRange] = []
+
+    def note(reason: str) -> None:
+        if skipped is not None:
+            skipped[reason] = skipped.get(reason, 0) + 1
+
     runtime_words = {"always", "always_comb", "always_ff", "always_latch", "initial", "final"}
     for tok in iter_tokens(masked, module.header_end, module.end):
         if tok.text in runtime_words:
             body_pos = runtime_body_start(masked, tok, module.end)
-            if body_pos is None or not is_begin_at(masked, body_pos):
+            if body_pos is None:
+                note("runtime_body_not_found")
                 continue
-            end = find_matching_begin(masked, body_pos, module.end)
-            if end is not None:
+            if is_begin_at(masked, body_pos):
+                end = find_matching_begin(masked, body_pos, module.end)
+                if end is None:
+                    note("runtime_begin_unmatched")
+                    continue
                 ranges.append(RuntimeRange(tok.start, end + len("end"), tok.text, body_pos))
+                continue
+            if not allow_single_statement:
+                # Counted rather than silent: a caller can now tell that a whole
+                # procedural block was left uninstrumented for this reason.
+                note("runtime_single_statement_body_not_enabled")
+                continue
+            end = find_enclosed_statement_end(masked, body_pos, module.end)
+            if end is None:
+                note("runtime_single_statement_unsupported")
+                continue
+            ranges.append(RuntimeRange(tok.start, end, tok.text, body_pos))
         elif tok.text == "function":
             end = find_matching_end_word(masked, tok.end, module.end, "endfunction")
             if end is not None:
@@ -1769,10 +1877,13 @@ def rewrite_module(
 ) -> RewriteResult:
     if settings is None:
         settings = InstrumentationSettings()
-    runtime_ranges = collect_runtime_ranges(masked, module)
+    skipped: dict[str, int] = {}
+    runtime_ranges = collect_runtime_ranges(
+        masked, module,
+        allow_single_statement=settings.runtime.single_statement,
+        skipped=skipped)
     insertions: list[Insertion] = []
     points: list[CoveragePoint] = []
-    skipped: dict[str, int] = {}
     metadata: list[MetadataPoint] = collect_static_metadata(text, masked, path, module, runtime_ranges, settings)
     local_index = 0
 

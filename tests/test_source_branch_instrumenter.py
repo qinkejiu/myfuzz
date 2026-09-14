@@ -330,5 +330,107 @@ endmodule
                              "the second sibling keeps its own bit clear")
 
 
+class SourceBranchInstrumenterRuntimeBodyTest(unittest.TestCase):
+    """A runtime body that is not begin/end must never vanish silently.
+
+    Terse Verilog-2001 writes ``always @(posedge clk) if (...) begin ... end``.
+    The whole block used to be dropped with no counter at all, which showed up
+    as a whole peripheral family contributing zero branch points.
+    """
+
+    LEAF = """\
+module leaf(input wire clk, input wire sel, output reg q);
+  always @(posedge clk)
+  if (sel)
+  begin
+    q <= 1'b1;
+  end
+  else
+  begin
+    q <= 1'b0;
+  end
+endmodule
+"""
+
+    TOP = """\
+module top(input wire clk, input wire sel, output wire q);
+  leaf u_leaf(.clk(clk), .sel(sel), .q(q));
+endmodule
+"""
+
+    def _instrument(self, root: Path, settings=None) -> dict:
+        project = root / "project"
+        project.mkdir(parents=True, exist_ok=True)
+        (project / "leaf.sv").write_text(self.LEAF, encoding="utf-8")
+        (project / "top.sv").write_text(self.TOP, encoding="utf-8")
+        (project / "sources.f").write_text("leaf.sv\ntop.sv\n", encoding="utf-8")
+        return instrument_project(
+            project, root / "instrumented", flist=project / "sources.f",
+            top_module="top", force=True, settings=settings,
+        )
+
+    def test_a_single_statement_runtime_body_is_reported_not_silent(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = self._instrument(Path(directory))
+            self.assertEqual(0, manifest["coverage_point_count"])
+            self.assertEqual(
+                1, manifest["skipped"].get("runtime_single_statement_body_not_enabled"),
+                "an uninstrumented procedural block must be counted, not dropped")
+
+    def test_enabling_the_setting_instruments_the_block(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = self._instrument(
+                Path(directory), settings={"runtime": {"single_statement": True}})
+            self.assertGreater(manifest["coverage_point_count"], 0)
+            self.assertNotIn("runtime_single_statement_body_not_enabled",
+                             manifest["skipped"])
+            self.assertEqual({"leaf"}, {item["module"] for item in manifest["coverage_bits"]})
+
+    @unittest.skipUnless(shutil.which("iverilog") and shutil.which("vvp"),
+                         "iverilog is required for the runtime-body simulation")
+    def test_the_instrumented_block_still_simulates(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = self._instrument(
+                root, settings={"runtime": {"single_statement": True}})
+            by_key = {(item["instance_path"], item["subtype"]): int(item["bit"])
+                      for item in manifest["coverage_bits"]}
+            width = int(manifest["coverage_vector_width"])
+            bench = root / "tb.sv"
+            bench.write_text(textwrap.dedent("""\
+                module tb;
+                  reg clk = 1'b0; reg sel = 1'b1;
+                  wire q;
+                  wire [%d:0] cov;
+                  top dut(.clk(clk), .sel(sel), .q(q), .__vi_coverage(cov));
+                  integer i;
+                  initial begin
+                    for (i = 0; i < 4; i = i + 1) begin
+                      #5 clk = 1'b1; #5 clk = 1'b0;
+                    end
+                    if (q !== 1'b1) begin $display("FAIL: q not set"); $fatal(1); end
+                    $display("COV %%b", cov);
+                    $finish;
+                  end
+                endmodule
+                """ % (width - 1)), encoding="utf-8")
+            sources = sorted(str(path) for path in (root / "instrumented").rglob("*.sv"))
+            output = root / "tb.vvp"
+            compiled = subprocess.run(
+                ["iverilog", "-g2012", "-s", "tb", "-o", str(output), *sources,
+                 str(bench)], text=True, capture_output=True, timeout=120,
+            )
+            self.assertEqual(0, compiled.returncode, compiled.stderr)
+            result = subprocess.run(["vvp", str(output)], text=True,
+                                    capture_output=True, timeout=120)
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            match = [line for line in result.stdout.splitlines() if line.startswith("COV ")]
+            self.assertEqual(1, len(match), result.stdout)
+            vector = int(match[0].split()[1], 2)
+            self.assertEqual(1, (vector >> by_key[("top/u_leaf", "true")]) & 1)
+            self.assertEqual(0, (vector >> by_key[("top/u_leaf", "false")]) & 1,
+                             "the untaken arm stays clear")
+
+
 if __name__ == "__main__":
     unittest.main()

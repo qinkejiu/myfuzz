@@ -54,7 +54,7 @@ from myfuzz.composition.soc_renderer import render_soc
 from myfuzz.composition.soc_stimulus import compile_soc_stimulus
 from myfuzz.composition.target_adapters import resolve_target_adapter
 
-from .campaign import CampaignOptions, run_supervised_command
+from .campaign import CampaignLimits, CampaignOptions, run_supervised_command
 from .soc_coverage import (
     coverage_observation_plan,
     universe_from_instance_bits,
@@ -76,6 +76,12 @@ BUILD_SCHEMA = "soc_campaign_build.v1"
 CLOSURE_DIR = "configs/soc/closures"
 SOURCES_LOCK = "configs/soc/sources.lock.json"
 COUNTER_LIMIT = 128
+#: A branch-instrumented cell is a much larger design than the bare render, so
+#: the build phase gets an explicit, documented budget instead of the 512 MiB
+#: campaign default that terminates a CVA6+OpenTitan compile.  The simulator
+#: itself keeps the conservative default.
+BUILD_MEMORY_LIMITS = CampaignLimits(soft_memory_bytes=3 * 1024 * 1024 * 1024,
+                                     hard_memory_bytes=4 * 1024 * 1024 * 1024)
 COUNTER_BITS_PER_PORT = 16
 #: The instrumenter's hierarchical coverage output port on the rendered top.
 COVERAGE_SIGNAL = "__vi_coverage"
@@ -848,6 +854,7 @@ def build_soc_campaign_artifact(config, build_dir):
     result = run_supervised_command(CampaignOptions(
         command=command, output_dir=build / "build",
         duration_seconds=BUILD_TIMEOUT_SECONDS, checkpoint_seconds=1,
+        limits=BUILD_MEMORY_LIMITS,
         env={"JOBS": "1", "MAKEFLAGS": "-j1"}))
     log_path = build / "compiler.log"
     if result.get("status") != "completed" or result.get("returncode") != 0:
@@ -1196,8 +1203,13 @@ def _instrument_coverage(build, root, cell_id, closure, rendered, top_name,
         top_name,
     ]) + "\n", encoding="utf-8")
     try:
-        result = instrument_project(project, area / "instrumented", flist=flist,
-                                    top_module=top_module, force=True)
+        result = instrument_project(
+            project, area / "instrumented", flist=flist,
+            top_module=top_module, force=True,
+            # Terse Verilog-2001 writes 'always @(posedge clk) if (...) begin'
+            # with a single-statement body; without this the whole block is
+            # uninstrumented and a peripheral family yields no IP points.
+            settings={"runtime": {"single_statement": True}})
     except (ValueError, SystemExit) as error:
         raise SocBuildError(
             "%s:coverage-instrumentation-failed:%s" % (cell_id, error)) from error
