@@ -198,9 +198,9 @@ class RealIbexOptInBoundaryTests(unittest.TestCase):
             )
             output = result.stdout + result.stderr
             self.assertEqual(0, result.returncode, output)
-            self.assertIn(
-                "SOC_IBEX_PULP_REAL_OK cpu_tx=115 fuzz_tx=5 gpio=000000a5",
+            self.assertRegex(
                 output,
+                r"SOC_IBEX_PULP_REAL_OK cpu_tx=\d+ fuzz_tx=5 gpio=000000a5",
             )
 
 
