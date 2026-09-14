@@ -96,6 +96,14 @@ _KNOWN_CAPABILITIES: dict[str, frozenset[str]] = {
     ),
 }
 
+# Target contracts also carry SoC-level facts.  The target-side adapter does
+# not consume these fields, but it must preserve them in its result so a later
+# fabric/IRQ/runtime stage cannot mistake an omitted fact for a false one.
+# This is an explicit allow-list: arbitrary capability keys still fail closed.
+_UNCONSUMED_CAPABILITIES = frozenset(
+    {"read", "write", "max_wait_cycles", "max_outstanding", "alert"}
+)
+
 _WISHBONE_FLAVOURS = {
     "classic": 0,
     "registered-ack": 1,
@@ -130,6 +138,24 @@ def _field(status: str, detail: str) -> dict[str, str]:
 def _normalise_protocol(raw: Any) -> tuple[str, str | None]:
     text = str(raw).strip().lower().replace("_", "-")
     return _PROTOCOL_ALIASES.get(text, text), _IMPLIED_VERSIONS.get(text)
+
+
+def _canonical_capability(name: Any) -> str:
+    return str(name).strip().lower().replace("-", "_")
+
+
+def _edit_distance(left: str, right: str) -> int:
+    """Levenshtein distance, small inputs only."""
+    if abs(len(left) - len(right)) > 1:
+        return 2
+    previous = list(range(len(right) + 1))
+    for i, lchar in enumerate(left, start=1):
+        current = [i]
+        for j, rchar in enumerate(right, start=1):
+            current.append(min(previous[j] + 1, current[j - 1] + 1,
+                               previous[j - 1] + (lchar != rchar)))
+        previous = current
+    return previous[-1]
 
 
 def _component_id(target: dict) -> str:
@@ -710,8 +736,14 @@ def resolve_target_adapter(backend: dict, target: dict) -> dict:
     if not isinstance(target, dict):
         raise TypeError("target must be a dict")
 
-    backend_protocol, _ = _normalise_protocol(backend.get("protocol", ""))
-    backend_version = str(backend.get("version", "")).strip()
+    raw_backend = backend.get("protocol", "")
+    paired_version: str | None = None
+    if isinstance(raw_backend, (list, tuple)) and len(raw_backend) == 2:
+        # soc_plan masters carry their protocol as a (protocol, version) pair,
+        # the same shape the target contracts use, so accept it here too.
+        raw_backend, paired_version = raw_backend[0], str(raw_backend[1])
+    backend_protocol, _ = _normalise_protocol(raw_backend)
+    backend_version = str(backend.get("version", "")).strip() or (paired_version or "")
     if backend_protocol != "processor-memory-beat" or backend_version != "1":
         raise TargetAdapterError(
             "unsupported-initiator-protocol:"
@@ -756,7 +788,22 @@ def resolve_target_adapter(backend: dict, target: dict) -> dict:
     capabilities = target.get("capabilities") or {}
     if not isinstance(capabilities, dict):
         raise _capability_error("capabilities", component, "expected-object")
-    unknown = sorted(set(capabilities) - _KNOWN_CAPABILITIES[protocol])
+    # A plan legitimately records a small, explicit set of SoC-level facts
+    # this adapter does not consume (for example alert or access policy);
+    # preserve those facts, but reject every other key rather than silently
+    # accepting a misspelled or unsupported capability.
+    known = _KNOWN_CAPABILITIES[protocol]
+    unconsumed = {
+        name: capabilities[name]
+        for name in sorted(set(capabilities) & _UNCONSUMED_CAPABILITIES)
+    }
+    unknown = sorted(set(capabilities) - known - _UNCONSUMED_CAPABILITIES)
+    similar = [name for name in unknown
+               if any(_edit_distance(_canonical_capability(name),
+                                     _canonical_capability(item)) <= 1
+                       for item in (known | _UNCONSUMED_CAPABILITIES))]
+    if similar:
+        raise _capability_error("unknown-similar", component, similar[0])
     if unknown:
         raise _capability_error("unknown", component, unknown[0])
     evidence = _evidence_map(target)
@@ -780,6 +827,7 @@ def resolve_target_adapter(backend: dict, target: dict) -> dict:
         "direction": "beat-initiator-to-peripheral-target",
         "initiator_protocol": {"protocol": "processor-memory-beat", "version": "1"},
         "target_protocol": {"protocol": protocol, "version": version},
+        "unconsumed_capabilities": unconsumed,
         "component_id": component,
         "clock": "clk",
         "reset": {"port": "reset", "polarity": "active_high", "synchrony": "synchronous"},

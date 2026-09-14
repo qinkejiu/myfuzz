@@ -578,6 +578,24 @@ class TargetAdapterResolutionTests(unittest.TestCase):
             str(caught.exception),
         )
 
+    def test_preserves_known_soc_capabilities_not_consumed_by_adapter(self) -> None:
+        target = _opentitan_target("opentitan_uart", "opentitan_uart.json")
+        target["capabilities"].update({
+            "read": True,
+            "write": True,
+            "max_wait_cycles": 16,
+            "alert": False,
+        })
+        target["evidence"].extend(
+            _evidence(name, "soc_contract", "configs/soc/closures/opentitan_uart.json")
+            for name in ("read", "write", "max_wait_cycles", "alert")
+        )
+        result = resolve_target_adapter(_beat_backend(), target)
+        self.assertEqual(
+            {"read": True, "write": True, "max_wait_cycles": 16, "alert": False},
+            result["unconsumed_capabilities"],
+        )
+
 
 # ---------------------------------------------------------------------------
 # APB adapter
