@@ -135,3 +135,59 @@ ibex 与 cva6 仍为 `elaboration_unverified`：真正实核属于 P10/P11，本
 1. **客户端**：用打过补丁的源码重建 kfuzz **并且**修掉 `queue.rs:129` 的关机排空 panic；或者定义一个有文档的中断运行策略（接受 rc 101/SIGTERM 加保留证据），不再要求 rc=0。
 2. **CVA6 两格**：只做过 render，未做完整构建/campaign（closure 240–290 个源文件），需要构建耗时/超时评估。
 3. P15 只需默认 hook（已接线）加上客户端修复。
+
+### 21:26 更新：中断运行策略已实现（提交 `e95ec33`）
+
+上一段列的第 1 项已按"有文档的中断运行策略"解决：客户端被我们的有界排空终止、但运行保留了正面证据（至少一条 FIFO reply receipt、非空语料、已记录的输入传输身份）时，campaign 现在记为**可区分的中断终态**并记录确切的客户端终止原因，且重建重放步骤仍然执行并留证；没有 receipt 或没有语料的运行仍然是失败；零输入 probe 不可达该状态；build/compile/transport 失败永不被它掩盖。
+`tests/integration/test_soc_rfuzz_build.py` 由 6 增至 **15 tests OK / 118 s**，既有 campaign 契约测试保持 9 tests OK。
+
+### 交接状态（截至 `e95ec33`）
+
+- 已完成并验证：P0、P1、P2、P3、P4、P5、P6、P7、P8、P9、P10、P11、P12（渲染半）、P14。
+- **唯一在制**：P12 运行时半 —— `src/myfuzz/integration/soc_matrix_smoke.py`（100,519 字节）与 `tests/integration/test_soc_matrix_runtime.py`（19,340 字节），**未提交、未验证通过**。接手先跑：
+  `MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest tests.integration.test_soc_matrix_runtime -v`
+- 未开始：P13 的八格插桩覆盖运行（契约与保真规则已齐备并有 7 tests OK）；P16 的收口（全量回归、最终审查、验收判定）。
+- 按用户要求不做：P15 的 4 小时长测。
+
+## 2026-09-14 21:25 P14 中断运行策略收口（未提交）
+
+21:06 记录的“官方客户端无法 rc=0”缺陷不再作为八格 campaign 的硬门槛：本轮不修改第三方源码，而是在 campaign 层定义并实现有文档的中断运行策略 `interrupted-run-policy.v1`。
+
+### 新终态与规则
+
+`src/myfuzz/integration/soc_campaign.py`：
+
+- 新终态 `completed_with_client_termination`（`final_status=passed_with_client_termination`），与 `completed` / `incomplete-evidence` / `failed` 区分。
+- 规则：失败必须发生在 `client` 阶段，且客户端确实由**我们的有界排空**结束（deadline SIGINT 已发出，随后 drain 超时，或客户端在 drain 期间被信号终止/自行非零退出），并且保留证据满足：
+  1. ≥1 条 FIFO reply receipt；
+  2. 非空 corpus；
+  3. 已记录 input transport identity；
+  4. cleanup clean 且无证据错误。
+- 三档终止原因：`bounded-drain-timeout`（drain 超时）、`bounded-drain-client-signal`（drain 后客户端被信号终止，rc<0）、`bounded-drain-client-exit`（drain 后客户端自行非零退出，例如 queue.rs panic rc=101）。
+- 报告新增 `client_termination`：kind/trigger、SIGINT 发出时刻、drain 时限与实际 drain 秒数、客户端自身 exit status（如 `terminated-by-signal:SIGTERM`、`exited-101`）、`client.log` 末尾 ≤20 行；`terminal_state_policy` 记录策略全文。
+- 保留证据不变：receipt 样本（≤4096）与 receipt 总数、corpus、input transport 文档；中断路径现在同样用原 artifact 真实重放保留 corpus 生成 `live/corpus_manifest.json`，receipt 样本不完整时明确记录 `corpus_receipt_binding` 不声称逐条绑定。
+- replay 不再被跳过：中断但成立的 campaign 仍用 fresh builder 重建二进制并重放保留 corpus、校验覆盖身份，写入 `replay.status=passed`。
+- 失败关闭：策略只在 client 阶段包裹 runner，build/compile/transport 失败不可达；未发出 deadline SIGINT 的自发崩溃仍 failed；无 receipt / 无 corpus / 泄漏 shm / 畸形 receipt 仍 failed；零输入 probe 在创建任何输出目录前被拒绝。
+
+### 实测
+
+| 命令 | 结果 |
+|---|---|
+| `MYFUZZ_SOC_REAL=1 MYFUZZ_RFuzz_CLIENT=runs/rfuzz_client_native_build/target/debug/kfuzz PYTHONPATH=src python3 -m unittest tests.integration.test_soc_rfuzz_build -v` | **15 tests OK / 118.0 s**（原 6 条真实测试 + 新增 1 条真实中断态测试 + 8 条快速策略契约测试） |
+| `PYTHONPATH=src python3 -m unittest tests.integration.test_soc_rfuzz_live tests.integration.test_soc_campaign_matrix -v` | **9 tests OK / 0.185 s** |
+
+固定客户端真实 campaign（ibex-pulp/mixed，30 s，证据目录 `runs/p14-policy-pinned-20260914-211705/`）：`status=completed_with_client_termination`，`final_status=passed_with_client_termination`，kind `bounded-drain-timeout`，SIGINT @30.0 s、drain limit 60 s、drain 60.0 s，客户端 rc=-15（`terminated-by-signal:SIGTERM`），22,655 条 receipt（样本 4096），41,992 次真实 RTL test，corpus 2 条且 manifest `verified`，`replay=passed/2`，cleanup clean，`errors=[]`。同一次运行在旧 rc==0 门槛下只会记为 `failed/timeout/phase=client`。
+
+### 重建客户端（third_party 未改动）
+
+用 `runs/rfuzz_client_native_build/rustup` 的 1.85.1 与 `cargo/registry` 缓存**离线**重建带 SIGINT-at-Yield 补丁的参考源：`RUSTUP_HOME=... CARGO_HOME=... cargo build --offline --locked --jobs 1 --manifest-path third_party/.../fuzzer/Cargo.toml --target-dir runs/rfuzz_client_native_build/target-rebuilt`，21.6 s 完成，无网络、无 `third_party` 写入（源码与 `Cargo.lock` mtime 未变）。产物 `target-rebuilt/debug/kfuzz` sha256 `a8229ef5…`（固定客户端 `bbb72e52…`）；日志 `runs/rfuzz_client_native_build/rebuild_patched.log`。
+
+- 同配置 30 s campaign（`runs/p14-policy-rebuilt-20260914-211705/`）：客户端在 SIGINT 后 35.4 s 打印 "User interrupted fuzzing. Going to shut down...." 并 **rc=0** 退出，campaign `status=completed`；20,039 receipt / 31,897 test / corpus 2 / replay passed。
+- 第二组 seed 777（`runs/p14-policy-rebuilt-seed777-20260914-212107/`）：结果逐项相同（上游无全局 seed，变异确定），再次 rc=0。结论：重建客户端比固定客户端**明显更可终止**（固定客户端必须 drain 60 s 后 SIGTERM，实测约 175 s 时还会 panic）。
+- 仍未修复：`queue.rs:129` 的 `assert!`（不允许改 third_party）。它只在 `return_test` 清空 active entry 后 `sync()` 排空仍取到 interesting feedback 时触发；两次重建客户端 campaign 均未触发。该 rc=101 分支已由 `bounded-drain-client-exit` 策略与契约测试覆盖。
+
+### 八格 campaign 仍差什么
+
+1. `scripts/run_soc_campaigns.py` 第 220 行的完成判定仍只接受 `status == "completed"`；要报告八格完成，需要把 `completed_with_client_termination` 加入白名单（该脚本不在本任务允许修改的文件列表内，未改）。
+2. 矩阵生产路径不传 `rebuilder`，所以 `run_soc_campaign` 的中断 replay 记为 `not-requested`；P15 的独立 `--rebuild-replay` 仍需接线，或让矩阵传入 production rebuilder。
+3. CVA6 两格（closure 240–290 文件）仍未做完整构建与 campaign。
