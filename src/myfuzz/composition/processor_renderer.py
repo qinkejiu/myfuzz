@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from myfuzz.contracts import content_hash
+from .contract_transducer import plan_memory_windows
 from .ids import canonical_id
 
 
@@ -402,6 +403,7 @@ def _validate_processor_transducer(plan: object, contract_transducer: object) ->
         ):
             raise ValueError("contract transducer width does not match processor routes")
     contract_transducer.cycle_layout.validate()
+    plan_memory_windows(contract_transducer)
     wait = contract_transducer.max_wait_cycles
     if type(wait) is not int or wait < 1:
         raise ValueError("contract transducer wait bound is invalid")
@@ -427,6 +429,41 @@ def _render_processor_top(plan: object, backend: object, *, contract_transducer:
     max_wait_cycles = int(backend_record["recovery"]["max_wait_cycles"])
     if contract_transducer is not None:
         max_wait_cycles = max(max_wait_cycles, _validate_processor_transducer(plan, contract_transducer))
+    # Declared-window mode: the constrained memory target owns exactly the
+    # windows it was given, real component instances keep their decode paths,
+    # and no address is mapped just because a transducer exists.
+    declared_windows = (
+        contract_transducer is not None
+        and contract_transducer.memory_mode == "declared_windows"
+    )
+    windows = (plan_memory_windows(contract_transducer) if declared_windows else ())
+    byte_count = int(contract_transducer.data_width) // 8 if contract_transducer is not None else 0
+    if declared_windows:
+        for base, size, _ in windows:
+            for region in backend_record["address_decode"]["regions"]:
+                if base < int(region["end"]) and int(region["base"]) < base + size:
+                    raise ValueError(
+                        "contract memory window overlaps a component address region"
+                    )
+    routing_address_width = int(backend_record["routing"]["address_width"])
+
+    def mapped_expression(address: str, terms: list[str]) -> str:
+        """Decode exactly the declared regions and owned windows.
+
+        The legacy contract mode intentionally maps the whole address space;
+        declared-window mode must never do that, or an MMIO address could fall
+        back to silent memory behaviour.
+        """
+        if contract_transducer is not None and not declared_windows:
+            return "1'b1"
+        aligned = f"({address} & {_sv_literal(routing_address_width, -byte_count & ((1 << routing_address_width) - 1))})"
+        combined = [*terms, *(
+            f"({aligned} >= {_sv_literal(routing_address_width, base)} && "
+            f"{aligned} <= {_sv_literal(routing_address_width, base + size - byte_count)})"
+            for base, size, _ in windows
+        )]
+        return " || ".join(combined) if combined else "1'b0"
+
     _validate_processor_drivers(routes)
     clock_port, reset_port, reset_semantics = _processor_controls(plan)
     all_records = {
@@ -534,8 +571,7 @@ def _render_processor_top(plan: object, backend: object, *, contract_transducer:
             f"({wires['addr']} >= {_sv_literal(address_width, int(region['base']))} && {wires['addr']} <= {_sv_literal(address_width, int(region['end']) - 1)})"
             for region in backend_record["address_decode"]["regions"]
         ]
-        mapped = "1'b1" if contract_transducer is not None else (" || ".join(terms) if terms else "1'b0")
-        lines.append(f"  assign {wires['mapped']} = {mapped};")
+        lines.append(f"  assign {wires['mapped']} = {mapped_expression(wires['addr'], terms)};")
         adapter_connections = [f"        .clk_i({clock_signal})", f"        .rst_ni({adapter_reset})"]
         for connection in route["field_connections"]:
             physical = connection["physical"]
@@ -642,8 +678,8 @@ def _render_processor_top(plan: object, backend: object, *, contract_transducer:
             for region in backend_record["address_decode"]["regions"]
         ]
         backend_mapped = "backend_mapped"
-        mapped = "1'b1" if contract_transducer is not None else (" || ".join(terms) if terms else "1'b0")
-        lines.extend(("  logic backend_mapped;", f"  assign backend_mapped = {mapped};"))
+        lines.extend(("  logic backend_mapped;",
+                      f"  assign backend_mapped = {mapped_expression('backend_addr', terms)};"))
     backend_connections = [
         f"        .clk_i({clock_signal})", f"        .rst_ni({backend_reset})",
         "        .req_valid_i(backend_req_valid)", "        .req_ready_o(backend_req_ready)",
@@ -677,7 +713,8 @@ def _render_processor_top(plan: object, backend: object, *, contract_transducer:
         "        .target_rdata_i(backend_target_rdata)",
         "        .target_error_i(backend_target_error)",
     ))
-    components = getattr(plan, "components", ()) if contract_transducer is None else ()
+    components = (getattr(plan, "components", ())
+                  if contract_transducer is None or declared_windows else ())
     if not isinstance(components, tuple):
         raise ValueError("processor composition component records are invalid")
     response_terms: list[tuple[str, str, str, str]] = []
@@ -801,17 +838,61 @@ def _render_processor_top(plan: object, backend: object, *, contract_transducer:
             "        backend_target_req_instruction <= backend_req_instruction;",
             "    end",
             "  end",
+        ))
+        if declared_windows:
+            aligned_target_addr = (
+                f"(backend_target_addr & {_sv_literal(routing_address_width, -byte_count & ((1 << routing_address_width) - 1))})"
+            )
+            window_select = " || ".join(
+                f"({aligned_target_addr} >= {_sv_literal(routing_address_width, base)} && "
+                f"{aligned_target_addr} <= {_sv_literal(routing_address_width, base + size - byte_count)})"
+                for base, size, _ in windows
+            ) or "1'b0"
+            lines.extend((
+                "  logic backend_target_memory_select;",
+                f"  assign backend_target_memory_select = {window_select};",
+                "  logic transducer_req_ready, transducer_rsp_valid;",
+                f"  logic [{int(contract_transducer.data_width) - 1}:0] transducer_rdata;",
+                "  logic transducer_error;",
+            ))
+            request_connection = (
+                "    .req_valid_i(backend_target_req_valid && backend_target_memory_select), "
+                ".req_ready_o(transducer_req_ready),"
+            )
+            response_connections = (
+                "    .rsp_valid_o(transducer_rsp_valid), .rsp_data_o(transducer_rdata),",
+                "    .rsp_error_o(transducer_error)",
+            )
+        else:
+            request_connection = ("    .req_valid_i(backend_target_req_valid), "
+                                  ".req_ready_o(backend_target_req_ready),")
+            response_connections = (
+                "    .rsp_valid_o(backend_target_rsp_valid), .rsp_data_o(backend_target_rdata),",
+                "    .rsp_error_o(backend_target_error)",
+            )
+        lines.extend((
             "  myfuzz_contract_transducer u_contract_transducer (",
             f"    .clock_i({clock_signal}), .reset_i({backend_reset} && !backend_target_flush),",
             "    .test_begin_i(test_begin), .test_boot_address_i(test_boot_address),",
             "    .test_illegal_instruction_i(test_illegal_instruction), .rfuzz_cycle_bits(rfuzz_cycle_bits),",
-            "    .req_valid_i(backend_target_req_valid), .req_ready_o(backend_target_req_ready),",
+            request_connection,
             "    .req_instruction_i(backend_target_req_instruction), .req_addr_i(backend_target_addr),",
             "    .req_write_i(backend_target_write), .req_wdata_i(backend_target_wdata), .req_be_i(backend_target_be),",
-            "    .rsp_valid_o(backend_target_rsp_valid), .rsp_data_o(backend_target_rdata),",
-            "    .rsp_error_o(backend_target_error)",
+            *response_connections,
             "  );",
         ))
+        if declared_windows:
+            # One target port shared by the constrained memory target and the
+            # real components: each side drives completion only for its own
+            # addresses, so the CPU always observes exactly one owner.
+            mux = [("transducer_req_ready", "transducer_rsp_valid",
+                    "transducer_rdata", "transducer_error"), *response_terms]
+            lines.append("  assign backend_target_req_ready = " + " || ".join(item[0] for item in mux) + ";")
+            lines.append("  assign backend_target_rsp_valid = " + " || ".join(item[1] for item in mux) + ";")
+            lines.append("  assign backend_target_rdata = " + " | ".join(
+                f"({item[1]} ? {item[2]} : '0)" for item in mux) + ";")
+            lines.append("  assign backend_target_error = " + " || ".join(
+                f"({item[1]} && {item[3]})" for item in mux) + ";")
     elif response_terms:
         lines.append("  assign backend_target_req_ready = " + " || ".join(item[0] for item in response_terms) + ";")
         lines.append("  assign backend_target_rsp_valid = " + " || ".join(item[1] for item in response_terms) + ";")

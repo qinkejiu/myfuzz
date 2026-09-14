@@ -68,6 +68,27 @@ class CoherentMemoryState:
         """Seed every byte in a span without invoking an initializer."""
         self.write(domain, address, value, (1 << width_bytes) - 1, width_bytes)
 
+    def is_initialized(self, domain: Hashable, address: int, width_bytes: int) -> bool:
+        """Report whether every byte of a span already holds test state."""
+        self._validate_span(domain, address, width_bytes)
+        return all(
+            (domain, address + index) in self._bytes for index in range(width_bytes)
+        )
+
+    def bytes_at(self, domain: Hashable, address: int, width_bytes: int) -> bytes:
+        """Return the exact physical bytes of an initialized span.
+
+        This is the byte-level reference view that generated RTL is compared
+        against, so an uninitialized span is a programming error rather than
+        an implicit zero read.
+        """
+        self._validate_span(domain, address, width_bytes)
+        if not self.is_initialized(domain, address, width_bytes):
+            raise ValueError("span is not initialized")
+        return bytes(
+            self._bytes[(domain, address + index)] for index in range(width_bytes)
+        )
+
     def reset_test(self) -> None:
         """Discard all state accumulated for the current test."""
         self._bytes.clear()

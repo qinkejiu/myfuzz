@@ -1,4 +1,10 @@
-"""Render a contract-derived, single-outstanding coherent memory backend."""
+"""Render a contract-derived, single-outstanding coherent memory backend.
+
+Two ownership modes exist.  The historical address_space mode answers every
+address and is kept byte-identical for replay.  The declared_windows mode owns
+only its declared, beat-aligned windows so it can coexist with real MMIO
+targets in one generated top.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +14,10 @@ from typing import TYPE_CHECKING
 
 from myfuzz.contracts import content_hash
 
-from .contract_transducer import ContractTransducerPlan, MAX_MEMORY_CAPACITY_ENTRIES
+from .contract_transducer import (
+    ContractTransducerPlan, MAX_MEMORY_CAPACITY_ENTRIES, plan_memory_image_beats,
+    plan_memory_windows,
+)
 
 if TYPE_CHECKING:
     from myfuzz.isa.transducer import InstructionTemplate, RiscvInstructionTransducer
@@ -162,6 +171,12 @@ def _render_transducer_body(plan: ContractTransducerPlan,
     matching ProcessorBeatTransducer.step. Cycle entropy must remain stable
     through that edge. The accepting cycle cannot also respond. External input
     fields belong to the composition caller and are never consumed here.
+
+    In declared_windows mode the store owns only the plan's beat-aligned
+    windows: requests outside them are never accepted or answered, writes to a
+    read-only window complete with an error and no side effect, initialisation
+    entropy is latched at the accepted access so stalls cannot resample it, and
+    reset_i clears only protocol state. Memory is cleared by test_begin_i.
     """
     if not isinstance(plan, ContractTransducerPlan):
         raise ValueError("plan must be a ContractTransducerPlan")
@@ -186,22 +201,140 @@ def _render_transducer_body(plan: ContractTransducerPlan,
             wires.append(f"  wire [{field.width-1}:0] rfuzz_{field.name} = "
                          f"rfuzz_cycle_bits[{field.raw_hi}:{field.raw_lo}];")
     compressed = "instruction_compressed" in fields
-    slots = {}
-    for width in ((32, 16) if compressed else (32,)):
-        assignments = []
-        for index in range(dw // width):
-            selector = "instruction_selector" if index == 0 else f"instruction_selector_{index}"
-            assignments.append(f"instruction_data[{index*width} +: {width}] = repair_{width}("
-                               f"rfuzz_{selector}, rfuzz_instruction_payload[{index*width} +: {width}], illegal_q);")
-        slots[width] = "\n      ".join(assignments)
-    instruction_data = slots[32]
-    if compressed:
-        instruction_data = f"""if (rfuzz_instruction_compressed || (pending_addr_q % 4 == 2) ||
-        ((pending_base == (boot_address_q & ADDRESS_MASK)) && (boot_address_q % 4 == 2))) begin
+
+    def slots_for(target: str) -> dict[int, str]:
+        slots = {}
+        for width in ((32, 16) if compressed else (32,)):
+            assignments = []
+            for index in range(dw // width):
+                selector = "instruction_selector" if index == 0 else f"instruction_selector_{index}"
+                assignments.append(f"{target}[{index*width} +: {width}] = repair_{width}("
+                                   f"rfuzz_{selector}, rfuzz_instruction_payload[{index*width} +: {width}], illegal_q);")
+            slots[width] = "\n      ".join(assignments)
+        return slots
+
+    def compressed_mux(slots: dict[int, str], address_term: str, base_term: str) -> str:
+        return f"""if (rfuzz_instruction_compressed || ({address_term}) ||
+        (({base_term} == (boot_address_q & ADDRESS_MASK)) && (boot_address_q % 4 == 2))) begin
       {slots[16]}
     end else begin
       {slots[32]}
     end"""
+
+    slots = slots_for("instruction_data")
+    instruction_data = slots[32]
+    if compressed:
+        instruction_data = compressed_mux(slots, "pending_addr_q % 4 == 2", "pending_base")
+    # Declared-window mode latches the initialisation entropy at the accepted
+    # access, so the mux is evaluated for the request address as well.
+    declared = plan.memory_mode != "address_space"
+    windows = plan_memory_windows(plan)
+    physical_ids = {identifier: index for index, identifier in enumerate(sorted(
+        {window.physical_memory_id for window in windows}
+    ))}
+    accept_declarations = ""
+    accept_data_block = ""
+    if declared:
+        accept_slots = slots_for("accept_instruction_data")
+        accept_data = accept_slots[32]
+        if compressed:
+            accept_data = compressed_mux(
+                accept_slots, "req_addr_i % 4 == 2", "(req_addr_i & ADDRESS_MASK)",
+            )
+        accept_declarations = (
+            f"  logic [{dw-1}:0] accept_instruction_data, accept_instruction_data_q, "
+            "accept_response_data_q;\n"
+        )
+        accept_data_block = f"""  always @* begin
+    {accept_data}
+  end
+
+"""
+
+    def window_chain(address: str, *, writable: bool) -> str:
+        terms = []
+        for window in windows:
+            base, size, permission = window
+            if writable and permission != "read_write":
+                continue
+            terms.append(f"({address} >= {_literal(aw, base)} && "
+                         f"{address} <= {_literal(aw, base + size - byte_count)})")
+        return " || ".join(terms) if terms else "1'b0"
+
+    request_base = "(req_addr_i & ADDRESS_MASK)"
+    window_declarations = ""
+    if declared:
+        physical_width = max(1, (len(physical_ids) - 1).bit_length())
+        physical_chain = " : ".join(
+            f"(pending_base >= {_literal(aw, window.base)} && "
+            f"pending_base <= {_literal(aw, window.base + window.size - byte_count)}) ? "
+            f"{_literal(physical_width, physical_ids[window.physical_memory_id])}"
+            for window in windows
+        ) + f" : {_literal(physical_width, 0)}"
+        offset_chain = " : ".join(
+            f"(pending_base >= {_literal(aw, window.base)} && "
+            f"pending_base <= {_literal(aw, window.base + window.size - byte_count)}) ? "
+            f"(pending_base - {_literal(aw, window.base)})"
+            for window in windows
+        ) + " : '0"
+        initialized_chain = " || ".join(
+            f"(pending_base >= {_literal(aw, window.base)} && "
+            f"pending_base <= {_literal(aw, window.base + window.size - byte_count)})"
+            for window in windows
+            if window.initialization_policy in {"preload", "rom"}
+        ) or "1'b0"
+        window_declarations = "\n".join((
+            f"  wire req_owned = {window_chain(request_base, writable=False)};",
+            f"  wire pending_owned = {window_chain('pending_base', writable=False)};",
+            f"  wire [{physical_width-1}:0] pending_physical_id = {physical_chain};",
+            f"  wire [{aw-1}:0] pending_physical_offset = {offset_chain};",
+            f"  wire pending_has_image_policy = {initialized_chain};",
+            *((f"  wire req_writable = {window_chain(request_base, writable=True)};",
+               f"  wire pending_writable = {window_chain('pending_base', writable=True)};")
+              if any(window.permissions == "read_write" for window in windows) else ()),
+        )) + "\n"
+    else:
+        physical_width = 1
+    accept_clear = ("      accept_instruction_data_q <= '0;\n"
+                    "      accept_response_data_q <= '0;\n") if declared else ""
+    accept_latch = ("        accept_instruction_data_q <= accept_instruction_data;\n"
+                    "        accept_response_data_q <= rfuzz_response_data;\n") if declared else ""
+    accept_wait_gate = " && req_owned" if declared else ""
+    request_owned_term = "req_owned && " if declared else ""
+    response_term = ("pending_owned && (rfuzz_response_choice[1] || wait_q == MAX_WAIT_MINUS_ONE)"
+                     if declared else "rfuzz_response_choice[1] || wait_q == MAX_WAIT_MINUS_ONE")
+    rom_write_branch = ""
+    if declared:
+        rom_write_branch = ("        end else if (pending_write_q && !pending_writable) begin\n"
+                            "          // A read-only window rejects the write and keeps its bytes.\n"
+                            "          rsp_error_o = 1'b1;\n")
+    instruction_entropy = "accept_instruction_data_q" if declared else "instruction_data"
+    response_entropy = "accept_response_data_q" if declared else "rfuzz_response_data"
+    image_initialization = "pending_has_image_policy ? '0 : " if declared else ""
+    cpu_written_initialization = (
+        "store_provenance == CPU_WRITTEN && !pending_has_image_policy"
+        if declared else "store_provenance == CPU_WRITTEN"
+    )
+    initial_provenance = (
+        "pending_has_image_policy ? PRELOADED : "
+        "(pending_instruction_q ? INSTRUCTION_GENERATED : DATA_GENERATED)"
+        if declared else
+        "pending_instruction_q ? INSTRUCTION_GENERATED : DATA_GENERATED"
+    )
+    preload_beats = plan_memory_image_beats(plan)
+    preload_assignments = ""
+    if declared and preload_beats:
+        assignments = []
+        for index, (identifier, offset, value, byte_enable) in enumerate(preload_beats):
+            assignments.extend((
+                f"      memory_valid_q[{index}] <= 1'b1;",
+                f"      memory_tag_q[{index}] <= {_literal(aw, offset)};",
+                f"      memory_domain_q[{index}] <= {_literal(physical_width, physical_ids[identifier])};",
+                f"      memory_data_q[{index}] <= {_literal(dw, value)};",
+                f"      memory_bytes_q[{index}] <= {_literal(byte_count, byte_enable)};",
+                f"      memory_provenance_q[{index}] <= PRELOADED;",
+            ))
+        preload_assignments = "\n" + "\n".join(assignments)
     return f"""// Pre-edge outputs; rising edge commits one Python ContractRuntime.step.
 module {module_name} (
   input logic clock_i,
@@ -230,6 +363,7 @@ module {module_name} (
   localparam logic [1:0] INSTRUCTION_GENERATED = 2'd0;
   localparam logic [1:0] DATA_GENERATED = 2'd1;
   localparam logic [1:0] CPU_WRITTEN = 2'd2;
+  localparam logic [1:0] PRELOADED = 2'd3;
   localparam logic [{aw-1}:0] ADDRESS_MASK = {_literal(aw, address_mask)};
 {chr(10).join(wires)}
 
@@ -240,16 +374,16 @@ module {module_name} (
   logic [{wait_width-1}:0] wait_q, accept_wait_q;
   logic illegal_q;
   wire [{aw-1}:0] pending_base = pending_addr_q & ADDRESS_MASK;
-
+{window_declarations}
   // Full tags and first-free allocation preserve arbitrary-address capacity.
   // Per-byte validity preserves partial CPU writes before the first read.
   logic memory_valid_q [0:MEMORY_CAPACITY-1];
   logic [{aw-1}:0] memory_tag_q [0:MEMORY_CAPACITY-1];
-  logic memory_domain_q [0:MEMORY_CAPACITY-1];
+  logic [{physical_width-1}:0] memory_domain_q [0:MEMORY_CAPACITY-1];
   logic [{dw-1}:0] memory_data_q [0:MEMORY_CAPACITY-1];
   logic [BYTE_COUNT-1:0] memory_bytes_q [0:MEMORY_CAPACITY-1];
   logic [1:0] memory_provenance_q [0:MEMORY_CAPACITY-1];
-
+{accept_declarations}
   integer hit_index, free_index, store_index;
   integer lookup_index, lane_index, clear_index;
   logic store_enable;
@@ -261,13 +395,13 @@ module {module_name} (
     {instruction_data}
   end
 
-  always @* begin
+{accept_data_block}  always @* begin
     hit_index = -1;
     free_index = -1;
     for (lookup_index = 0; lookup_index < MEMORY_CAPACITY; lookup_index = lookup_index + 1) begin
       if (memory_valid_q[lookup_index]) begin
-        if (memory_tag_q[lookup_index] == pending_base &&
-            memory_domain_q[lookup_index] == pending_domain_q)
+        if (memory_tag_q[lookup_index] == {"pending_physical_offset" if declared else "pending_base"} &&
+            memory_domain_q[lookup_index] == {"pending_physical_id" if declared else "pending_domain_q"})
           hit_index = lookup_index;
       end else if (free_index == -1) free_index = lookup_index;
     end
@@ -282,18 +416,19 @@ module {module_name} (
     store_index = hit_index == -1 ? free_index : hit_index;
     store_data = '0;
     store_bytes = '0;
-    store_provenance = pending_instruction_q ? INSTRUCTION_GENERATED : DATA_GENERATED;
-    initial_data = pending_instruction_q ? instruction_data : rfuzz_response_data;
+    store_provenance = {initial_provenance};
+    initial_data = {image_initialization}(pending_instruction_q ? {instruction_entropy} : {response_entropy});
     if (hit_index != -1) begin
       store_data = memory_data_q[hit_index];
       store_bytes = memory_bytes_q[hit_index];
       store_provenance = memory_provenance_q[hit_index];
-      if (store_provenance == CPU_WRITTEN) initial_data = rfuzz_response_data;
+      if ({cpu_written_initialization})
+        initial_data = {response_entropy};
     end
     if (reset_i && !test_begin_i) begin
       if (!pending_q) begin
-        req_ready_o = req_valid_i && (rfuzz_response_choice[0] || accept_wait_q == MAX_WAIT_MINUS_ONE);
-      end else if (rfuzz_response_choice[1] || wait_q == MAX_WAIT_MINUS_ONE) begin
+        req_ready_o = req_valid_i && {request_owned_term}(rfuzz_response_choice[0] || accept_wait_q == MAX_WAIT_MINUS_ONE);
+      end else if ({response_term}) begin
         rsp_valid_o = 1'b1;
         if (ALLOW_ERROR && rfuzz_response_choice[2]) begin
           rsp_error_o = 1'b1;
@@ -301,7 +436,7 @@ module {module_name} (
         end else if (pending_write_q && pending_be_q == 0) begin
           // Empty writes neither allocate nor change provenance, even when full.
           rsp_data_o = '0;
-        end else if (store_index == -1) begin
+{rom_write_branch}        end else if (store_index == -1) begin
           rsp_error_o = 1'b1;
         end else if (!pending_write_q && pending_instruction_q &&
                      hit_index != -1 && store_provenance == DATA_GENERATED) begin
@@ -336,10 +471,11 @@ module {module_name} (
       illegal_q <= test_illegal_instruction_i;
       for (clear_index = 0; clear_index < MEMORY_CAPACITY; clear_index = clear_index + 1)
         memory_valid_q[clear_index] <= 1'b0;
+{preload_assignments}
     end else if (store_enable) begin
       memory_valid_q[store_index] <= 1'b1;
-      memory_tag_q[store_index] <= pending_base;
-      memory_domain_q[store_index] <= pending_domain_q;
+      memory_tag_q[store_index] <= {"pending_physical_offset" if declared else "pending_base"};
+      memory_domain_q[store_index] <= {"pending_physical_id" if declared else "pending_domain_q"};
       memory_data_q[store_index] <= store_data;
       memory_bytes_q[store_index] <= store_bytes;
       memory_provenance_q[store_index] <= store_provenance;
@@ -351,11 +487,11 @@ module {module_name} (
       pending_q <= 1'b0;
       wait_q <= '0;
       accept_wait_q <= '0;
-    end else if (test_begin_i) begin
+{accept_clear}    end else if (test_begin_i) begin
       pending_q <= 1'b0;
       wait_q <= '0;
       accept_wait_q <= '0;
-    end else if (pending_q) begin
+{accept_clear}    end else if (pending_q) begin
       accept_wait_q <= '0;
       if (rsp_valid_o) begin
         pending_q <= 1'b0;
@@ -371,8 +507,8 @@ module {module_name} (
         pending_write_q <= req_write_i;
         pending_wdata_q <= req_wdata_i;
         pending_be_q <= req_be_i;
-        accept_wait_q <= '0;
-      end else if (req_valid_i) accept_wait_q <= accept_wait_q + 1'b1;
+{accept_latch}        accept_wait_q <= '0;
+      end else if (req_valid_i{accept_wait_gate}) accept_wait_q <= accept_wait_q + 1'b1;
       else accept_wait_q <= '0;
     end
   end
