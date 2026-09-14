@@ -17,8 +17,11 @@ import json
 import os
 from pathlib import Path
 import shutil
+import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from myfuzz.contracts import canonical_bytes, content_hash
 from myfuzz.integration.rfuzz_live import build_corpus_manifest, replay_corpus
@@ -27,7 +30,10 @@ from myfuzz.integration.soc_campaign import run_soc_campaign
 
 
 ROOT = Path(__file__).resolve().parents[2]
-CLIENT = ROOT / "runs/rfuzz_client_native_build/target/debug/kfuzz"
+# The pinned client is the default; MYFUZZ_RFuzz_CLIENT lets the same real
+# suite be pointed at an independently rebuilt client for comparison.
+_DEFAULT_CLIENT = ROOT / "runs/rfuzz_client_native_build/target/debug/kfuzz"
+CLIENT = Path(os.environ.get("MYFUZZ_RFuzz_CLIENT") or _DEFAULT_CLIENT)
 CELL_CONFIG = "configs/soc/ibex-pulp.json"
 DURATION_SECONDS = 30
 REAL_CLOSURE = (
@@ -112,22 +118,26 @@ class SocRfuzzBuildTests(unittest.TestCase):
         cls.build = _read_json(cls.output / "build/artifact_provenance.json")
         cls.live = _read_json(cls.output / "live/report.json")
         cls.corpus = cls.output / "live" / "corpus"
+        manifest_path = cls.output / "live/corpus_manifest.json"
+        cls.corpus_manifest = _read_json(manifest_path) if manifest_path.is_file() else None
         replay_document = (cls.result.get("replay") or {}).get("document")
         if replay_document is None:
-            # The pinned client is killed after its bounded interrupt drain, so
-            # run_soc_campaign cannot run its own replay step: rebuild and
-            # replay the retained corpus here instead of weakening the check.
+            # The campaign could not run its own replay step (for example the
+            # runner was interrupted before the replay wiring existed): rebuild
+            # and replay the retained corpus here instead of weakening the
+            # check.  The interrupted-run policy now performs this step inside
+            # run_soc_campaign, so this is a fallback, not the expected path.
             cls.rebuilt = build_soc_campaign_artifact(
                 cls.config, cls.output / "rebuild-test")
             cls.rebuild_document = _read_json(
                 cls.output / "rebuild-test/artifact_provenance.json")
-            cls.corpus_manifest = build_corpus_manifest(cls.rebuilt, cls.corpus)
+            if cls.corpus_manifest is None:
+                cls.corpus_manifest = build_corpus_manifest(cls.rebuilt, cls.corpus)
             cls.replay = replay_corpus(cls.rebuilt, cls.corpus)
         else:
             cls.rebuild_document = _read_json(
                 cls.output / "rebuild/artifact_provenance.json")
             cls.rebuilt = None
-            cls.corpus_manifest = None
             cls.replay = replay_document
 
     # -- build ------------------------------------------------------------
@@ -202,10 +212,11 @@ class SocRfuzzBuildTests(unittest.TestCase):
                           or error.get("phase") in {"build", "compile"}]
         self.assertEqual([], compile_errors,
                          "campaign failed while building/compiling: %s" % compile_errors)
-        self.assertIn(result["status"], {"completed", "incomplete-evidence", "failed"})
+        self.assertIn(result["status"], {"completed", "completed_with_client_termination",
+                                         "incomplete-evidence", "failed"})
         if result["status"] == "failed":
-            # The pinned client predates the local SIGINT-at-Yield patch, so the
-            # run ends in a bounded-drain termination, never a build failure.
+            # A run without the interrupted-run evidence is still a plain
+            # failure: never a build failure, and classified as timeout/client.
             categories = {error.get("category") for error in report["errors"]}
             self.assertTrue(categories & {"timeout", "client"},
                             "unexpected campaign failure category: %s" % categories)
@@ -242,6 +253,37 @@ class SocRfuzzBuildTests(unittest.TestCase):
                          len(stored["coverage"]))
         self.assertFalse(live.get("remaining_segments"),
                          "the campaign leaked owned shared-memory segments")
+
+    def test_interrupted_run_records_termination_and_evidence(self):
+        result, report = self.result, _read_json(self.output / "report.json")
+        if result["status"] == "completed":
+            # A client that really exits rc=0 keeps the pre-existing completed
+            # state; the interrupted policy is exercised by the pinned client
+            # (see the fast contract tests in this module).
+            self.assertEqual("not-applicable",
+                             report["client_termination"]["status"])
+            return
+        self.assertEqual("completed_with_client_termination", result["status"])
+        termination = report["client_termination"]
+        self.assertEqual("bounded-drain-termination", termination["status"])
+        self.assertIn(termination["kind"],
+                      {"bounded-drain-timeout", "bounded-drain-client-signal",
+                       "bounded-drain-client-exit"})
+        self.assertIn(termination["trigger"], {"timeout", "signal", "client-exit"})
+        self.assertTrue(termination["policy"]["applied"])
+        self.assertEqual([], termination["policy"]["missing"])
+        self.assertIsInstance(termination["client_returncode"], int)
+        self.assertTrue(termination["client_exit"])
+        self.assertTrue(termination["client_stderr_tail"],
+                        "the client's own stderr tail must be retained")
+        # The blocked-drain termination must not be recorded as a build error.
+        self.assertEqual([], [error for error in report["errors"]
+                              if error.get("category") == "compile"])
+        self.assertTrue(report["fifo_reply_receipts"])
+        self.assertGreaterEqual(report["corpus"]["entries"], 1)
+        self.assertEqual("observed", report["input_transport"]["status"])
+        self.assertEqual("passed", report["replay"]["status"])
+        self.assertGreaterEqual(report["replay"]["entries"], 1)
 
     def test_replay_reproduces_the_recorded_coverage_identity(self):
         replay = self.replay
@@ -294,6 +336,262 @@ class SocRfuzzBuildTests(unittest.TestCase):
         self.assertFalse((Path(self.temporary.name) / "probe-only").exists())
         self.assertEqual("official_rfuzz", self.result["mutation"]["mode"])
         self.assertFalse(self.result["mutation"]["zero_input_probe"])
+
+
+# ---------------------------------------------------------------------------
+# Interrupted-run policy contract tests (fast, injectable, no real client).
+#
+# The official pinned client cannot exit rc=0: it predates the SIGINT-at-Yield
+# patch and panics in queue.rs after the post-sync() drain.  These tests pin the
+# policy contract without launching anything real; the opt-in class above proves
+# the same policy on the real retained evidence.
+# ---------------------------------------------------------------------------
+
+POLICY_STATUS = "completed_with_client_termination"
+POLICY_FINAL_STATUS = "passed_with_client_termination"
+_CLIENT_STDERR = (
+    "fuzzing a maximum of 1000000 queue entries\n"
+    "User interrupted fuzzing. Going to shut down....\n"
+    "thread 'main' panicked at src/queue.rs:129:9:\n"
+    "assertion failed: self.active_entry.is_some()\n"
+)
+_POLICY_RECEIPT = {
+    "input_sha256": "sha256:" + "11" * 32,
+    "coverage_sha256": "sha256:" + "22" * 32,
+    "status": "fifo_reply_and_rtl_completed",
+    "transport": "sysv-shared-memory-rfuzz-coverage-buffer",
+}
+
+
+class _PolicyTransport:
+    def document(self):
+        return {"schema_version": "rfuzz_input_transport.v1", "byte_count": 8,
+                "raw_width": 64, "transport_hash": "sha256:policy-transport"}
+
+
+def policy_config(**overrides):
+    value = {
+        "config_id": "ibex-pulp/interrupted-policy",
+        "cell_id": "ibex-pulp",
+        "cpu": "ibex",
+        "families": ["pulp"],
+        "peripherals": ["pulp_gpio"],
+        "source_paths": ["configs/soc/sources.lock.json"],
+        "simulator": "icarus",
+        "client_binary": sys.executable,
+        "duration_seconds": 5,
+        "seed": 3,
+        "seed_cycles": 2,
+        "reset_contract": {"driver": True, "memory": True, "cpu": True,
+                           "peripherals": True, "irq": True, "coverage": True},
+    }
+    value.update(overrides)
+    return value
+
+
+def _write_interrupted_live(live_dir, *, receipts=True, corpus=True, returncode=-15,
+                            interrupt=True):
+    live = Path(live_dir)
+    (live / "corpus").mkdir(parents=True, exist_ok=True)
+    if corpus:
+        (live / "corpus/entry_0000.json").write_text(
+            json.dumps({"entry": {"inputs": [0] * 8}, "trace_bits": [0] * 8}),
+            encoding="utf-8")
+    document = {
+        "status": "failed",
+        "returncode": returncode,
+        "tests": 3,
+        "fifo_reply_receipts": [_POLICY_RECEIPT] if receipts else [],
+        "fifo_reply_receipt_count": 1 if receipts else 0,
+        "actual_rtl_execution": {"tests": 3, "coverage_records": 1 if receipts else 0,
+                                 "execution_totals": {"source_transactions": 3,
+                                                      "target_transactions": 3}},
+        "execution_totals": {"source_transactions": 3, "target_transactions": 3},
+        "corpus_entries": 1 if corpus else 0,
+        "remaining_segments": [],
+        "removed_owned_segments": [7],
+        "duration_seconds": 42.0,
+        "drain_limit_seconds": 60,
+    }
+    if interrupt:
+        document.update(interrupt_elapsed_seconds=5.0, drain_seconds=37.0)
+    (live / "report.json").write_text(json.dumps(document), encoding="utf-8")
+    (live / "client.log").write_text(_CLIENT_STDERR, encoding="utf-8")
+
+
+def interrupted_runner(*, receipts=True, corpus=True, returncode=-15,
+                       interrupt=True, error="timeout"):
+    """Simulate the runner's failure after it already retained live evidence."""
+    def runner(config, artifact, client, live_dir):
+        _write_interrupted_live(live_dir, receipts=receipts, corpus=corpus,
+                                returncode=returncode, interrupt=interrupt)
+        if error == "timeout":
+            raise TimeoutError("RFuzz client failed to finish after interrupt")
+        if error == "client-exit":
+            raise RuntimeError("RFuzz client exited %d; see client.log" % returncode)
+        raise RuntimeError("RFuzz client exited 101; see client.log")
+    return runner
+
+
+class SocRfuzzInterruptedRunPolicyTests(unittest.TestCase):
+    @staticmethod
+    def _ready_probe(*args, **kwargs):
+        return {"schema_version": "soc_dependency_probe.v1", "ready": True,
+                "status": "ready", "missing": [], "simulator_path": "/tool"}
+
+    def _campaign(self, temporary, *, runner, rebuilder=None):
+        built = SimpleNamespace(transport=_PolicyTransport())
+        replayed = {}
+
+        def default_rebuilder(config, replay_dir):
+            replayed["replay_dir"] = Path(replay_dir)
+            return "freshly-rebuilt-artifact"
+
+        def default_replay(artifact, corpus_dir):
+            replayed["artifact"] = artifact
+            replayed["corpus_dir"] = Path(corpus_dir)
+            return {"status": "passed", "entries": 1,
+                    "replays": [{"file": "entry_0000.json", "counters": [0] * 8}]}
+
+        def fake_manifest(artifact, corpus_dir, **kwargs):
+            replayed["manifest_artifact"] = artifact
+            return {"schema_version": "rfuzz_corpus_manifest.v1", "entries": 1,
+                    "replays": [{"file": "entry_0000.json",
+                                 "coverage_verified": True}]}
+
+        run_dir = Path(temporary) / "run"
+        with patch("myfuzz.integration.soc_campaign.probe_soc_dependencies",
+                   side_effect=self._ready_probe),                 patch("myfuzz.integration.soc_campaign.build_corpus_manifest",
+                      side_effect=fake_manifest, create=True),                 patch("myfuzz.integration.soc_campaign.replay_corpus",
+                      side_effect=default_replay):
+            result = run_soc_campaign(
+                policy_config(), run_dir, root=ROOT,
+                environment={"MYFUZZ_SOC_REAL": "1"},
+                builder=lambda *_: built,
+                runner=runner,
+                rebuilder=rebuilder or default_rebuilder,
+            )
+        return result, _read_json(run_dir / "report.json"), replayed, run_dir
+
+    def test_bounded_drain_termination_with_evidence_is_a_distinct_state(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            result, report, replayed, run_dir = self._campaign(
+                temporary, runner=interrupted_runner())
+        self.assertEqual(POLICY_STATUS, result["status"])
+        self.assertEqual(POLICY_FINAL_STATUS, result["final_status"])
+        self.assertEqual(POLICY_STATUS, report["status"])
+        termination = report["client_termination"]
+        self.assertEqual("bounded-drain-termination", termination["status"])
+        self.assertEqual("bounded-drain-timeout", termination["kind"])
+        self.assertEqual("timeout", termination["trigger"])
+        self.assertTrue(termination["policy"]["applied"])
+        self.assertEqual([], termination["policy"]["missing"])
+        self.assertEqual(-15, termination["client_returncode"])
+        self.assertEqual("terminated-by-signal:SIGTERM", termination["client_exit"])
+        self.assertIn("queue.rs:129",
+                      "\n".join(termination["client_stderr_tail"]))
+        # The retained evidence stays in the report.
+        self.assertEqual([_POLICY_RECEIPT], report["fifo_reply_receipts"])
+        self.assertEqual(1, report["corpus"]["entries"])
+        self.assertEqual("observed", report["input_transport"]["status"])
+        # The replay step still ran, against a freshly rebuilt artifact.
+        self.assertEqual("freshly-rebuilt-artifact", replayed["artifact"])
+        self.assertEqual(run_dir / "live/corpus", replayed["corpus_dir"])
+        self.assertEqual("passed", report["replay"]["status"])
+        # The termination is not a build/compile failure.
+        self.assertEqual([], report["errors"])
+
+    def test_interrupted_run_without_receipts_is_still_a_failure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            result, report, replayed, _ = self._campaign(
+                temporary, runner=interrupted_runner(receipts=False))
+        self.assertEqual("failed", result["status"])
+        self.assertEqual("failed", result["final_status"])
+        termination = report["client_termination"]
+        self.assertEqual("bounded-drain-termination", termination["status"])
+        self.assertFalse(termination["policy"]["applied"])
+        self.assertIn("fifo_reply_receipt", termination["policy"]["missing"])
+        categories = {error["category"] for error in report["errors"]}
+        self.assertTrue(categories & {"timeout", "client"}, categories)
+        self.assertNotIn("artifact", replayed)
+
+    def test_interrupted_run_without_corpus_is_still_a_failure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            result, report, replayed, _ = self._campaign(
+                temporary, runner=interrupted_runner(corpus=False))
+        self.assertEqual("failed", result["status"])
+        self.assertIn("retained_corpus",
+                      report["client_termination"]["policy"]["missing"])
+        self.assertNotIn("artifact", replayed)
+
+    def test_client_panic_during_the_bounded_drain_is_the_same_distinct_state(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            result, report, _, _ = self._campaign(
+                temporary, runner=interrupted_runner(returncode=101,
+                                                     error="client-exit"))
+        self.assertEqual(POLICY_STATUS, result["status"])
+        termination = report["client_termination"]
+        self.assertEqual("bounded-drain-client-exit", termination["kind"])
+        self.assertEqual("client-exit", termination["trigger"])
+        self.assertEqual(101, termination["client_returncode"])
+        self.assertEqual("exited-101", termination["client_exit"])
+
+    def test_spontaneous_client_crash_with_evidence_is_not_masked(self):
+        # No deadline SIGINT was ever sent, so this is a plain client failure
+        # even though the run happened to retain receipts and a corpus.
+        with tempfile.TemporaryDirectory() as temporary:
+            result, report, replayed, _ = self._campaign(
+                temporary, runner=interrupted_runner(interrupt=False,
+                                                     error="spontaneous"))
+        self.assertEqual("failed", result["status"])
+        self.assertEqual("failed", result["final_status"])
+        self.assertEqual("not-applicable", report["client_termination"]["status"])
+        categories = {error["category"] for error in report["errors"]}
+        self.assertTrue(categories & {"client", "timeout"}, categories)
+        self.assertNotIn("artifact", replayed)
+
+    def test_missing_input_transport_is_a_build_failure_not_an_interrupted_run(self):
+        built = SimpleNamespace(transport=SimpleNamespace(document=lambda: None))
+        ran = []
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch("myfuzz.integration.soc_campaign.probe_soc_dependencies",
+                       side_effect=self._ready_probe):
+                result = run_soc_campaign(
+                    policy_config(), Path(temporary) / "run", root=ROOT,
+                    environment={"MYFUZZ_SOC_REAL": "1"},
+                    builder=lambda *_: built,
+                    runner=lambda *_: ran.append(True),
+                )
+        self.assertEqual("failed", result["status"])
+        self.assertEqual("compile", result["errors"][0]["category"])
+        self.assertEqual("build", result["errors"][0]["phase"])
+        self.assertEqual([], ran)
+
+    def test_compile_failure_is_never_masked_by_the_termination_policy(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch("myfuzz.integration.soc_campaign.probe_soc_dependencies",
+                       side_effect=self._ready_probe):
+                result = run_soc_campaign(
+                    policy_config(), Path(temporary) / "run", root=ROOT,
+                    environment={"MYFUZZ_SOC_REAL": "1"},
+                    builder=lambda *_: (_ for _ in ()).throw(
+                        RuntimeError("compiler failed")),
+                )
+        self.assertEqual("failed", result["status"])
+        self.assertEqual("compile", result["errors"][0]["category"])
+        self.assertEqual("not-applicable", result["client_termination"]["status"])
+
+    def test_zero_input_probe_cannot_reach_the_interrupted_state(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            probe = Path(temporary) / "probe"
+            with self.assertRaisesRegex(ValueError, "zero-input-probe"):
+                run_soc_campaign(policy_config(zero_input_probe=True), probe,
+                                 root=ROOT, environment={"MYFUZZ_SOC_REAL": "1"})
+            with self.assertRaisesRegex(ValueError, "zero-input-probe"):
+                run_soc_campaign(policy_config(probe_only=True),
+                                 Path(temporary) / "probe-only", root=ROOT,
+                                 environment={"MYFUZZ_SOC_REAL": "1"})
+            self.assertFalse(probe.exists())
 
 
 if __name__ == "__main__":

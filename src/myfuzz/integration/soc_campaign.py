@@ -10,25 +10,84 @@ fails.
 This is intentionally usable in preflight mode without a client binary.  A
 real mutation campaign never silently falls back to a Python or all-zero probe;
 it requires ``MYFUZZ_SOC_REAL=1`` and an explicit official RFuzz client.
+
+Interrupted-run policy (interrupted-run-policy.v1)
+--------------------------------------------------
+The pinned official client predates the local SIGINT-at-Yield patch and cannot
+exit rc=0: it drains for minutes after SIGINT and then panics in queue.rs.  A
+campaign whose client was ended by *our* bounded drain is therefore classified
+as the distinguishable terminal state completed_with_client_termination instead
+of a plain failure, but only when the run retained positive evidence:
+
+* at least one FIFO reply receipt (real shared-memory request/response),
+* a non-empty retained corpus, and
+* a recorded RFuzz input transport identity,
+
+plus a clean owned-process-group/shared-memory cleanup and no evidence error.
+The report keeps the retained evidence and the exact termination reason: the
+bounded-drain kind, the deadline SIGINT time, the supervisor signal (if any),
+the client's own exit status and its stderr tail.
+
+The policy is fail-closed in every other direction.  It is only reachable from
+the client phase, so a build/compile/transport failure can never be masked; it
+requires the deadline SIGINT to have been sent, so a spontaneous client crash
+stays a failure; it requires receipts, a corpus and the transport identity, so a
+zero-input probe (already rejected before any output directory exists) or an
+empty run can never reach it.  The replay step still runs for an accepted
+interrupted run: the retained corpus is rebuilt with a fresh binary and its
+coverage identity is verified.
 """
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
+import hashlib
 import inspect
 import json
 import math
 import os
 from pathlib import Path
+import signal
 
 from myfuzz.contracts import content_hash
 
-from .rfuzz_live import replay_corpus, run_live
+from .rfuzz_live import build_corpus_manifest, replay_corpus, run_live
 from .rfuzz_simulator import probe_soc_dependencies, real_soc_opt_in
 
 
 SOC_RESULT_SCHEMA = "soc_result.v1"
 _MODES = frozenset({"cpu_only", "mmio_only", "mixed"})
 _RECEIPT_LIMIT = 4096
+
+#: Distinguishable terminal state for a run ended by our own bounded drain.
+CLIENT_TERMINATED_STATUS = "completed_with_client_termination"
+CLIENT_TERMINATED_FINAL_STATUS = "passed_with_client_termination"
+_STDERR_TAIL_LINES = 20
+_STDERR_TAIL_CHARS = 8192
+
+INTERRUPTED_RUN_POLICY = {
+    "name": "interrupted-run-policy.v1",
+    "terminal_state": CLIENT_TERMINATED_STATUS,
+    "final_status": CLIENT_TERMINATED_FINAL_STATUS,
+    "evidence_rule": (
+        "at least one FIFO reply receipt AND a non-empty corpus AND a recorded "
+        "input transport identity AND clean cleanup AND no evidence error"),
+    "termination_sources": [
+        "bounded-drain-timeout: the deadline SIGINT was sent and the drain limit expired",
+        "bounded-drain-client-signal: the client exited with a negative status after the deadline SIGINT (our drain signal)",
+        "bounded-drain-client-exit: the client exited non-zero on its own after the deadline SIGINT (for example the queue.rs panic)",
+    ],
+    "still_failure": [
+        "build/compile/transport failure (the client phase is never reached)",
+        "client failure before the deadline SIGINT (spontaneous crash or startup failure)",
+        "termination without a FIFO reply receipt, a retained corpus or the input transport identity",
+        "leaked owned shared-memory segments or malformed receipt evidence",
+        "a signal delivered to the harness itself, which stays an operator abort",
+        "zero-input probe (rejected before any output directory is created)",
+    ],
+    "replay": (
+        "an accepted interrupted run still rebuilds the retained corpus with a "
+        "fresh binary and verifies the coverage identity"),
+}
 
 
 class SocCampaignError(RuntimeError):
@@ -363,6 +422,171 @@ def _receipt_document(value: object) -> tuple[list[dict[str, object]], list[dict
     return rows, errors
 
 
+def _live_report(live_dir: Path) -> dict[str, object] | None:
+    """Read the runner-owned live report retained before it raised."""
+    path = Path(live_dir) / "report.json"
+    if not path.is_file():
+        return None
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return document if isinstance(document, dict) else None
+
+
+def _client_exit_description(returncode: object) -> str:
+    if returncode is None:
+        return "not-reaped"
+    if isinstance(returncode, bool) or not isinstance(returncode, int):
+        return "unknown"
+    if returncode < 0:
+        try:
+            return "terminated-by-signal:" + signal.Signals(-returncode).name
+        except ValueError:
+            return "terminated-by-signal:%d" % returncode
+    return "exited-%d" % returncode
+
+
+def _stderr_tail(live_dir: Path) -> list[str]:
+    """Retain a bounded tail of the client's own stdout/stderr log."""
+    path = Path(live_dir) / "client.log"
+    if not path.is_file():
+        return []
+    try:
+        data = path.read_bytes()[-_STDERR_TAIL_CHARS:]
+    except OSError:
+        return []
+    text = data.decode("utf-8", "replace")
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    return [line[:512] for line in lines[-_STDERR_TAIL_LINES:]]
+
+
+def _client_termination_document(
+    error: BaseException, live: object, live_dir: Path,
+) -> dict[str, object] | None:
+    """Record the exact reason our bounded drain ended the client.
+
+    The deadline SIGINT is what makes the termination ours.  Without it the
+    client failed on its own, which must stay a plain failure; a signal
+    delivered to the harness itself also stays an operator abort.
+    """
+    if not isinstance(live, Mapping):
+        return None
+    interrupted_at = live.get("interrupt_elapsed_seconds")
+    returncode = live.get("returncode")
+    if interrupted_at is None:
+        return None
+    if isinstance(error, TimeoutError):
+        kind, trigger = "bounded-drain-timeout", "timeout"
+    elif (isinstance(error, RuntimeError)
+          and str(error).startswith("RFuzz client exited")
+          and isinstance(returncode, int) and not isinstance(returncode, bool)
+          and returncode != 0):
+        if returncode < 0:
+            kind, trigger = "bounded-drain-client-signal", "signal"
+        else:
+            kind, trigger = "bounded-drain-client-exit", "client-exit"
+    else:
+        return None
+    supervisor_signal = live.get("termination_signal")
+    return {
+        "status": "bounded-drain-termination",
+        "kind": kind,
+        "trigger": trigger,
+        "supervisor_signal": (supervisor_signal
+                              if isinstance(supervisor_signal, str) else None),
+        "client_returncode": returncode if isinstance(returncode, int) else None,
+        "client_exit": _client_exit_description(returncode),
+        "bounded_drain": {
+            "sent_sigint_after_seconds": interrupted_at,
+            "drain_limit_seconds": live.get("drain_limit_seconds"),
+            "drain_seconds": live.get("drain_seconds"),
+        },
+        "client_stderr_tail": _stderr_tail(live_dir),
+        "client_log": str(Path(live_dir) / "client.log"),
+        "error": {"type": type(error).__name__, "message": str(error)[:4096]},
+    }
+
+
+def _recover_terminated_client_run(
+    error: BaseException, artifact: object, live_dir: Path,
+    report: dict[str, object],
+) -> tuple[dict[str, object], dict[str, object]] | None:
+    """Recover retained evidence for a bounded-drain client termination.
+
+    Returns ``(live_result, termination)`` only when the failure was caused by
+    our bounded drain and the run retained at least one FIFO reply receipt, a
+    non-empty corpus and the input transport identity.  Otherwise the caller
+    re-raises the original error: an unevidenced termination stays a failure.
+    """
+    if report.get("mutation", {}).get("zero_input_probe") is not False:
+        return None
+    live = _live_report(live_dir)
+    termination = _client_termination_document(error, live, live_dir)
+    if termination is None:
+        return None
+    receipts, receipt_errors = _receipt_document(live.get("fifo_reply_receipts"))
+    corpus_dir = Path(live_dir) / "corpus"
+    corpus_entries = (len(tuple(corpus_dir.glob("entry_*.json")))
+                      if corpus_dir.is_dir() else 0)
+    missing: list[str] = []
+    if not receipts:
+        missing.append("fifo_reply_receipt")
+    if corpus_entries < 1:
+        missing.append("retained_corpus")
+    if report.get("input_transport", {}).get("status") != "observed":
+        missing.append("input_transport_identity")
+    if receipt_errors:
+        missing.append("malformed_fifo_receipt")
+    termination["retained_evidence"] = {
+        "fifo_reply_receipts": len(receipts),
+        "fifo_reply_receipt_count": live.get("fifo_reply_receipt_count"),
+        "corpus_entries": corpus_entries,
+        "input_transport_status": report.get("input_transport", {}).get("status"),
+        "input_transport_hash": report.get("input_transport", {}).get("transport_hash"),
+    }
+    termination["policy"] = {
+        "name": INTERRUPTED_RUN_POLICY["name"],
+        "applied": not missing,
+        "evidence_rule": INTERRUPTED_RUN_POLICY["evidence_rule"],
+        "missing": missing,
+        "zero_input_probe": False,
+        "phases_allowed": ["client"],
+    }
+    report["client_termination"] = termination
+    if missing:
+        return None
+    result = dict(live)
+    result["corpus_manifest"] = None
+    result["corpus_manifest_error"] = None
+    try:
+        # The live report only samples the receipt identities (bounded), so a
+        # per-entry receipt binding is claimed only when the sample is complete.
+        retained_count = live.get("fifo_reply_receipt_count")
+        complete_sample = (isinstance(retained_count, int)
+                           and not isinstance(retained_count, bool)
+                           and retained_count == len(receipts))
+        if complete_sample:
+            feedback = {(row["input_sha256"], row["coverage_sha256"])
+                        for row in receipts}
+            manifest = build_corpus_manifest(artifact, corpus_dir,
+                                             feedback_receipts=feedback)
+            termination["corpus_receipt_binding"] = "complete-receipt-sample"
+        else:
+            manifest = build_corpus_manifest(artifact, corpus_dir)
+            termination["corpus_receipt_binding"] = (
+                "receipt-sample-bounded; per-entry receipt binding not claimed")
+        manifest_path = Path(live_dir) / "corpus_manifest.json"
+        manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n")
+        result["corpus_manifest"] = manifest
+        result["corpus_manifest_sha256"] = (
+            "sha256:" + hashlib.sha256(manifest_path.read_bytes()).hexdigest())
+    except Exception as manifest_error:  # auxiliary evidence, never the run gate
+        result["corpus_manifest_error"] = "%s: %s" % (
+            type(manifest_error).__name__, manifest_error)
+    return result, termination
+
+
 def _execution_document(run_result: Mapping[str, object]) -> dict[str, object]:
     execution = run_result.get("actual_rtl_execution")
     if not isinstance(execution, Mapping):
@@ -465,6 +689,12 @@ def _base_report(normal: Mapping[str, object], preflight: Mapping[str, object],
         "replay": {"status": "not-requested"},
         "cleanup": {"status": "not-started"},
         "input_transport": {"status": "not-observed"},
+        "client_termination": {
+            "status": "not-applicable",
+            "policy": {"name": INTERRUPTED_RUN_POLICY["name"], "applied": False,
+                       "evidence_rule": INTERRUPTED_RUN_POLICY["evidence_rule"]},
+        },
+        "terminal_state_policy": _plain(INTERRUPTED_RUN_POLICY),
     }
 
 
@@ -537,6 +767,7 @@ def run_soc_campaign(
     live_dir = output / "live"
     phase = "build"
     artifact = None
+    client_termination: dict[str, object] | None = None
     try:
         build_hook = builder or config.get("build") or config.get("build_artifact")
         if build_hook is None and config.get("artifact") is None:
@@ -560,18 +791,29 @@ def run_soc_campaign(
             "status": "observed", "document": transport, "transport_hash": _hash(transport),
         }
         phase = "client"
-        if runner is None:
-            run_result = run_live(
-                artifact, client, live_dir,
-                duration_seconds=normal["duration_seconds"],
-                seed_cycles=max(1, normal["seed_cycles"]),
-            )
-        else:
-            run_result = _call_forms(
-                runner,
-                ((config, artifact, client, live_dir),
-                 (artifact, client, live_dir), (artifact, live_dir), (artifact,)),
-            )
+        try:
+            if runner is None:
+                run_result = run_live(
+                    artifact, client, live_dir,
+                    duration_seconds=normal["duration_seconds"],
+                    seed_cycles=max(1, normal["seed_cycles"]),
+                )
+            else:
+                run_result = _call_forms(
+                    runner,
+                    ((config, artifact, client, live_dir),
+                     (artifact, client, live_dir), (artifact, live_dir), (artifact,)),
+                )
+        except BaseException as client_error:
+            # Interrupted-run policy: our bounded drain may end a client that
+            # already produced real receipts and a corpus.  Recover that
+            # evidence and fall through to the replay/classification step;
+            # anything else keeps failing exactly as before.
+            recovered = _recover_terminated_client_run(
+                client_error, artifact, live_dir, report)
+            if recovered is None:
+                raise
+            run_result, client_termination = recovered
         if not isinstance(run_result, Mapping):
             raise SocCampaignError("RFuzz runner did not return a mapping")
         receipts, receipt_errors = _receipt_document(run_result.get("fifo_reply_receipts"))
@@ -580,6 +822,8 @@ def run_soc_campaign(
         report["rtl_execution"] = _execution_document(run_result)
         report["source_target_transactions"] = _transactions_document(normal, run_result)
         report["corpus"] = _corpus_document(live_dir, run_result)
+        if run_result.get("corpus_manifest_error"):
+            report["corpus"]["manifest_error"] = run_result["corpus_manifest_error"]
         report["cleanup"] = {
             "status": "clean" if not run_result.get("remaining_segments") else "leaked-shmem",
             "remaining_segments": _plain(run_result.get("remaining_segments", [])),
@@ -600,16 +844,46 @@ def run_soc_campaign(
         else:
             report["replay"] = {"status": "not-requested"}
         actual = report["rtl_execution"]
-        complete = (
-            run_result.get("returncode", 0) == 0
-            and int(actual.get("tests", 0)) > 0
-            and int(report["corpus"].get("entries", 0)) > 0
-            and bool(receipts)
-            and report["cleanup"].get("status") == "clean"
-            and not report["errors"]
-        )
-        report.update(status="completed" if complete else "incomplete-evidence",
-                      final_status="passed" if complete else "failed-acceptance")
+        evidence_missing: list[str] = []
+        if not receipts:
+            evidence_missing.append("fifo_reply_receipt")
+        if int(report["corpus"].get("entries", 0)) < 1:
+            evidence_missing.append("retained_corpus")
+        if report["input_transport"].get("status") != "observed":
+            evidence_missing.append("input_transport_identity")
+        if report["cleanup"].get("status") != "clean":
+            evidence_missing.append("clean_cleanup")
+        if receipt_errors:
+            evidence_missing.append("malformed_fifo_receipt")
+        if client_termination is not None:
+            policy = client_termination.setdefault("policy", {})
+            policy["missing"] = sorted(set(policy.get("missing", []))
+                                       | set(evidence_missing))
+            policy["applied"] = not policy["missing"] and not report["errors"]
+            if policy["applied"]:
+                report.update(status=CLIENT_TERMINATED_STATUS,
+                              final_status=CLIENT_TERMINATED_FINAL_STATUS)
+            else:
+                report.update(status="failed", final_status="failed")
+                report["errors"].append({
+                    "category": "client",
+                    "phase": "client",
+                    "type": "SocCampaignError",
+                    "message": ("interrupted-run policy not applied; missing evidence: "
+                                + ", ".join(policy["missing"])
+                                if policy["missing"] else
+                                ("interrupted-run policy not applied; evidence errors "
+                                 "or a non-clean cleanup were recorded")),
+                })
+        else:
+            complete = (
+                run_result.get("returncode", 0) == 0
+                and int(actual.get("tests", 0)) > 0
+                and not evidence_missing
+                and not report["errors"]
+            )
+            report.update(status="completed" if complete else "incomplete-evidence",
+                          final_status="passed" if complete else "failed-acceptance")
     except BaseException as error:
         report["errors"].append(_error_record(error, phase))
         report["cleanup"] = {
@@ -623,6 +897,7 @@ def run_soc_campaign(
 
 
 __all__ = [
-    "SOC_RESULT_SCHEMA", "SocCampaignError", "SocCampaignProtocolError",
+    "SOC_RESULT_SCHEMA", "CLIENT_TERMINATED_STATUS", "CLIENT_TERMINATED_FINAL_STATUS",
+    "INTERRUPTED_RUN_POLICY", "SocCampaignError", "SocCampaignProtocolError",
     "SocCampaignSoftwareTrap", "preflight_soc_campaign", "run_soc_campaign",
 ]
