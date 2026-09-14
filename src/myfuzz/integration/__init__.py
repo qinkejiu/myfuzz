@@ -45,6 +45,23 @@ from .riscv_execution import (
     verify_execution_events,
     verify_repository_pins,
 )
+from .soc_campaign import (
+    SOC_RESULT_SCHEMA,
+    SocCampaignError,
+    SocCampaignProtocolError,
+    SocCampaignSoftwareTrap,
+    preflight_soc_campaign,
+    run_soc_campaign,
+)
+from .soc_coverage import (
+    COVERAGE_SCHEMA,
+    CoveragePoint,
+    SocCoverageError,
+    build_coverage_universe,
+    coverage_delta,
+    coverage_feedback_document,
+    observe_rtl_coverage,
+)
 
 __all__ = [
     "BuildJobResult",
@@ -85,4 +102,17 @@ __all__ = [
     "semantic_projection",
     "verify_execution_events",
     "verify_repository_pins",
+    "SOC_RESULT_SCHEMA",
+    "SocCampaignError",
+    "SocCampaignProtocolError",
+    "SocCampaignSoftwareTrap",
+    "preflight_soc_campaign",
+    "run_soc_campaign",
+    "COVERAGE_SCHEMA",
+    "CoveragePoint",
+    "SocCoverageError",
+    "build_coverage_universe",
+    "coverage_delta",
+    "coverage_feedback_document",
+    "observe_rtl_coverage",
 ]
