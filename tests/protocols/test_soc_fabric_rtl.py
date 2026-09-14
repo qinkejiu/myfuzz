@@ -22,6 +22,7 @@ RTL = ROOT / "src/myfuzz/protocols/rtl"
 ARBITER = RTL / "soc_arbiter.sv"
 ROUTER = RTL / "soc_router.sv"
 WIDTH_ADAPTER = RTL / "mmio_width_adapter.sv"
+NARROWER = RTL / "beat_address_narrow.sv"
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +85,36 @@ def _compile_and_run(
         test.assertNotEqual(0, result.returncode, result.stdout + result.stderr)
         test.assertNotIn("PASS", result.stdout)
     return result
+
+
+def _expect_rejected(test: unittest.TestCase, body: str, sources: list[Path | str]) -> None:
+    """Assert a configuration is refused, by the compiler or by the elaboration guard.
+
+    A parameter that cannot even declare its ports (a zero-width address) is
+    rejected by the compiler before any check can run; every other unprovable
+    configuration compiles and is then refused by the module's own guard.
+    """
+    iverilog, vvp = _require_tools(test)
+    with tempfile.TemporaryDirectory() as directory:
+        output = Path(directory) / "tb.vvp"
+        bench = Path(directory) / "tb.sv"
+        bench.write_text(textwrap.dedent(body), encoding="utf-8")
+        compiled = subprocess.run(
+            [iverilog, "-g2012", "-s", "tb", "-o", str(output)]
+            + [str(source) for source in sources]
+            + [str(bench)],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            timeout=60,
+        )
+        if compiled.returncode != 0:
+            return
+        result = subprocess.run(
+            [vvp, str(output)], cwd=ROOT, text=True, capture_output=True, timeout=60
+        )
+    test.assertNotEqual(0, result.returncode, result.stdout + result.stderr)
+    test.assertNotIn("PASS", result.stdout)
 
 
 # ---------------------------------------------------------------------------
@@ -477,6 +508,125 @@ def _width_tb(program: str, *, allow_split: bool, allow_read: bool) -> str:
     body = _WIDTH_TEMPLATE
     body = body.replace("@SPLIT@", "1'b1" if allow_split else "1'b0")
     body = body.replace("@ASSEMBLE@", "1'b1" if allow_read else "1'b0")
+    body = body.replace("@PROGRAM@", textwrap.indent(textwrap.dedent(program), "    "))
+    return _HEADER + body
+
+
+_NARROW_TEMPLATE = """\
+  logic req_valid, req_ready, write, rsp_valid, rsp_ready, error;
+  logic [63:0] addr;
+  logic [31:0] wdata, rdata;
+  logic [3:0] be;
+  logic p_req_valid, p_req_ready, p_write, p_rsp_valid, p_rsp_ready, p_error;
+  logic [31:0] p_addr, p_wdata, p_rdata;
+  logic [3:0] p_be;
+  logic stale_pending;
+
+  logic [31:0] preg [0:7];
+  integer p_accesses, p_writes, p_reads;
+  logic [31:0] last_addr, last_wdata;
+  logic [31:0] last_rdata;
+  logic [3:0] last_be;
+  logic last_error;
+  logic p_busy, p_inject_error;
+  logic [7:0] p_delay, p_delay_max;
+
+  beat_address_narrow #(
+      .RESET_CLEARS_TARGETS(@CLEARS@),
+      .ADDRESS_WIDTH(64), .NARROW_ADDRESS_WIDTH(32), .DATA_WIDTH(32),
+      .WINDOW_BASE(64'h4000_0000), .WINDOW_SIZE(4096)
+  ) dut (
+      .clk(clk), .reset(reset),
+      .req_valid(req_valid), .req_ready(req_ready), .write(write), .addr(addr),
+      .wdata(wdata), .be(be),
+      .rsp_valid(rsp_valid), .rsp_ready(rsp_ready), .rdata(rdata), .error(error),
+      .p_req_valid(p_req_valid), .p_req_ready(p_req_ready), .p_write(p_write),
+      .p_addr(p_addr), .p_wdata(p_wdata), .p_be(p_be),
+      .p_rsp_valid(p_rsp_valid), .p_rsp_ready(p_rsp_ready), .p_rdata(p_rdata),
+      .p_error(p_error), .stale_pending(stale_pending)
+  );
+
+  always_comb begin
+    p_req_ready = !p_busy;
+    p_rdata = preg[p_addr[4:2]];
+    p_error = p_inject_error;
+  end
+
+  always @(posedge clk) begin
+    if (target_reset) begin
+      p_busy <= 1'b0;
+      p_rsp_valid <= 1'b0;
+      p_delay <= 8'h0;
+    end else begin
+      if (p_req_valid && p_req_ready) begin
+        p_busy <= 1'b1;
+        p_delay <= p_delay_max;
+        p_accesses = p_accesses + 1;
+        last_addr = p_addr;
+        last_wdata = p_wdata;
+        last_be = p_be;
+        if (p_write) begin
+          p_writes = p_writes + 1;
+          preg[p_addr[4:2]] = p_wdata;
+        end else begin
+          p_reads = p_reads + 1;
+        end
+      end
+      if (p_busy && !p_rsp_valid) begin
+        if (p_delay == 8'h0) p_rsp_valid <= 1'b1;
+        else p_delay <= p_delay - 8'h1;
+      end
+      if (p_rsp_valid && p_rsp_ready) begin
+        p_rsp_valid <= 1'b0;
+        p_busy <= 1'b0;
+      end
+    end
+  end
+
+  task narrow_access(input bit wr, input [63:0] a, input [31:0] d, input [3:0] b);
+    begin
+      addr = a; wdata = d; be = b; write = wr; req_valid = 1'b1;
+      #1;
+      check(req_ready, "the narrowing stage accepted the beat request");
+      tick();
+      req_valid = 1'b0;
+      i = 0;
+      while (!rsp_valid && (i < 100)) begin tick(); i = i + 1; end
+      check(rsp_valid, "the narrowing stage returned a response");
+      last_rdata = rdata;
+      last_error = error;
+      tick();
+      check(req_ready, "the narrowing stage returned to idle");
+    end
+  endtask
+
+  initial begin
+    req_valid = 1'b0; write = 1'b0; addr = 64'h0; wdata = 32'h0; be = 4'h0;
+    rsp_ready = 1'b1;
+    p_delay_max = 8'h1;
+    p_accesses = 0; p_writes = 0; p_reads = 0;
+    p_inject_error = 1'b0;
+    last_addr = 32'h0; last_wdata = 32'h0; last_be = 4'h0;
+    last_rdata = 32'h0; last_error = 1'b0;
+    for (int unsigned r = 0; r < 8; r++) preg[r] = 32'h0;
+    reset = 1'b1;
+    target_reset = 1'b1;
+    tick(); tick();
+    reset = 1'b0;
+    target_reset = 1'b0;
+    preg[0] = 32'h1111_1111;
+    preg[1] = 32'h2222_2222;
+    @PROGRAM@
+    $display("FAIL: test program finished without PASS");
+    $fatal(1);
+  end
+endmodule
+"""
+
+
+def _narrow_tb(program: str, *, clears_targets: bool = False) -> str:
+    body = _NARROW_TEMPLATE
+    body = body.replace("@CLEARS@", "1'b1" if clears_targets else "1'b0")
     body = body.replace("@PROGRAM@", textwrap.indent(textwrap.dedent(program), "    "))
     return _HEADER + body
 
@@ -921,6 +1071,110 @@ _WIDTH_PERMISSIVE_PROGRAM = """\
 
 
 # ---------------------------------------------------------------------------
+# address narrowing: a 64-bit beat address in front of a 32-bit-only target
+# ---------------------------------------------------------------------------
+
+_NARROW_PROGRAM = """\
+    narrow_access(1'b0, 64'h0000_0000_4000_0000, 32'h0, 4'hF);
+    check(!last_error, "an in-window read at the window base completes without error");
+    check(p_reads == 1 && last_addr == 32'h4000_0000,
+          "the window base reached the target as its own absolute address");
+    check(last_rdata === 32'h1111_1111, "target read data is forwarded to the beat side");
+
+    narrow_access(1'b0, 64'h0000_0000_4000_0FFC, 32'h0, 4'hF);
+    check(!last_error, "an in-window read at the last word of the window completes");
+    check(p_reads == 2 && last_addr == 32'h4000_0FFC,
+          "the last window word is narrowed losslessly to its absolute address");
+
+    narrow_access(1'b1, 64'h0000_0000_4000_0004, 32'hDEAD_BEEF, 4'b0010);
+    check(!last_error, "an in-window write completes without error");
+    check(p_writes == 1 && last_addr == 32'h4000_0004 && last_be == 4'b0010,
+          "the write reached the window address with its byte enables unchanged");
+    check(last_wdata === 32'hDEAD_BEEF, "the write data is forwarded unchanged");
+
+    k = p_accesses;
+    narrow_access(1'b0, 64'h0000_0001_4000_0000, 32'h0, 4'hF);
+    check(last_error, "a wide address whose low bits alias into the window is rejected");
+    check(p_accesses == k, "the aliasing address issued no target request at all");
+
+    k = p_accesses;
+    narrow_access(1'b1, 64'h0000_0002_4000_0004, 32'h0BAD_F00D, 4'hF);
+    check(last_error, "an aliasing write is rejected");
+    check(p_accesses == k && p_writes == 1, "the aliasing write issued no target write");
+
+    k = p_accesses;
+    narrow_access(1'b0, 64'h0000_0000_4000_1000, 32'h0, 4'hF);
+    check(last_error, "the first address past the window is rejected");
+    check(p_accesses == k, "the address past the window issued no target request");
+
+    k = p_accesses;
+    narrow_access(1'b0, 64'h0000_0000_3FFF_FFFC, 32'h0, 4'hF);
+    check(last_error, "the last address below the window is rejected");
+    check(p_accesses == k, "the address below the window issued no target request");
+
+    p_inject_error = 1'b1;
+    narrow_access(1'b0, 64'h0000_0000_4000_0008, 32'h0, 4'hF);
+    check(last_error, "a target error response is forwarded on the beat side");
+    p_inject_error = 1'b0;
+
+    narrow_access(1'b0, 64'h0000_0000_4000_0008, 32'h0, 4'hF);
+    check(!last_error, "the stage recovers after an errored transaction");
+    check(p_reads == 4, "the accepted accesses are exactly the in-window ones");
+    $display("PASS");
+    $finish;
+"""
+
+_NARROW_RESET_PROGRAM = """\
+    p_delay_max = 8'h8;
+    req_valid = 1'b1; write = 1'b0; addr = 64'h0000_0000_4000_0020; be = 4'hF;
+    #1;
+    check(req_ready, "the narrowing stage accepted the slow read");
+    tick();
+    req_valid = 1'b0;
+    i = 0;
+    while (!p_busy && (i < 20)) begin tick(); i = i + 1; end
+    check(p_busy, "the target is busy with the slow read");
+
+    reset = 1'b1;
+    tick(); tick();
+    reset = 1'b0;
+    tick();
+    check(stale_pending, "reset while a target access was in flight is tracked");
+    check(!rsp_valid, "no response is forwarded after reset");
+    i = 0;
+    while (stale_pending && (i < 100)) begin tick(); i = i + 1; end
+    check(!stale_pending, "the late target response was drained");
+    check(!rsp_valid, "the late target response was not forwarded");
+    check(p_reads == 1, "reset did not add or duplicate target accesses");
+
+    p_delay_max = 8'h0;
+    narrow_access(1'b0, 64'h0000_0000_4000_0000, 32'h0, 4'hF);
+    check(!last_error, "a fresh request completes after the drain");
+    $display("PASS");
+    $finish;
+"""
+
+_NARROW_FULL_RESET_PROGRAM = """\
+    p_delay_max = 8'h50;
+    req_valid = 1'b1; write = 1'b0; addr = 64'h0000_0000_4000_0020; be = 4'hF;
+    tick(); req_valid = 1'b0;
+    i = 0;
+    while (!p_busy && (i < 20)) begin tick(); i = i + 1; end
+    check(p_busy, "a real target request preceded full reset");
+    reset = 1'b1; target_reset = 1'b1;
+    tick(); tick();
+    reset = 1'b0; target_reset = 1'b0;
+    tick();
+    check(req_ready && !stale_pending, "full reset clears pending target state");
+    p_delay_max = 8'h0;
+    narrow_access(1'b0, 64'h0000_0000_4000_0000, 32'h0, 4'hF);
+    check(!last_error && p_reads == 2, "the next test completes a fresh target request");
+    $display("PASS");
+    $finish;
+"""
+
+
+# ---------------------------------------------------------------------------
 # tests
 # ---------------------------------------------------------------------------
 
@@ -1103,6 +1357,76 @@ class SocFabricRtlTests(unittest.TestCase):
         bench = _width_tb(program, allow_split=False, allow_read=False).replace(
             "mmio_width_adapter #(", "mmio_width_adapter #(.RESET_CLEARS_TARGETS(1'b1),")
         _compile_and_run(self, bench, [WIDTH_ADAPTER])
+
+    def test_narrowing_elaborates_only_with_a_window_that_provably_fits(self) -> None:
+        body = (
+            "module tb;\n"
+            "  logic clk = 1'b0;\n"
+            "  logic reset = 1'b1;\n"
+            "  always #5 clk = ~clk;\n"
+            "  beat_address_narrow #(.ADDRESS_WIDTH(64), .NARROW_ADDRESS_WIDTH(32),\n"
+            "      .DATA_WIDTH(32), .WINDOW_BASE(64'h4000_0000), .WINDOW_SIZE(4096))\n"
+            "    u_narrow (.clk(clk), .reset(reset));\n"
+            "  initial begin #10; $display(\"PASS\"); $finish; end\n"
+            "endmodule\n"
+        )
+        _compile_and_run(self, body, [NARROWER])
+
+    def test_narrowing_refuses_a_window_it_cannot_prove_lossless(self) -> None:
+        for name, parameters in (
+            ("window-above-the-narrow-range",
+             ".WINDOW_BASE(64'h1_0000_0000), .WINDOW_SIZE(4096)"),
+            ("window-wraps-the-source-width",
+             ".WINDOW_BASE(64'hFFFF_FFFF_FFFF_F800), .WINDOW_SIZE(4096)"),
+            ("no-window-declared",
+             ".WINDOW_BASE(64'h4000_0000), .WINDOW_SIZE(0)"),
+            ("narrow-width-not-narrower",
+             ".WINDOW_BASE(64'h4000_0000), .WINDOW_SIZE(4096), .NARROW_ADDRESS_WIDTH(64)"),
+            ("misaligned-window-base",
+             ".WINDOW_BASE(64'h4000_0002), .WINDOW_SIZE(4096)"),
+            ("window-size-not-a-data-multiple",
+             ".WINDOW_BASE(64'h4000_0000), .WINDOW_SIZE(4095)"),
+        ):
+            with self.subTest(case=name):
+                body = (
+                    "module tb;\n"
+                    "  logic clk = 1'b0;\n"
+                    "  logic reset = 1'b1;\n"
+                    "  always #5 clk = ~clk;\n"
+                    "  beat_address_narrow #(.ADDRESS_WIDTH(64), .NARROW_ADDRESS_WIDTH(32),\n"
+                    f"      .DATA_WIDTH(32), {parameters})\n"
+                    "    u_narrow (.clk(clk), .reset(reset));\n"
+                    "  initial begin #10; $display(\"PASS\"); $finish; end\n"
+                    "endmodule\n"
+                )
+                _compile_and_run(self, body, [NARROWER], expect_success=False)
+
+    def test_narrowing_rejects_a_degenerate_narrow_width(self) -> None:
+        body = (
+            "module tb;\n"
+            "  logic clk = 1'b0;\n"
+            "  logic reset = 1'b1;\n"
+            "  always #5 clk = ~clk;\n"
+            "  beat_address_narrow #(.ADDRESS_WIDTH(64), .NARROW_ADDRESS_WIDTH(0),\n"
+            "      .DATA_WIDTH(32), .WINDOW_BASE(64'h4000_0000), .WINDOW_SIZE(4096))\n"
+            "    u_narrow (.clk(clk), .reset(reset));\n"
+            "  initial begin #10; $display(\"PASS\"); $finish; end\n"
+            "endmodule\n"
+        )
+        _expect_rejected(self, body, [NARROWER])
+
+    def test_address_narrowing_is_lossless_and_never_aliases(self) -> None:
+        _compile_and_run(self, _narrow_tb(_NARROW_PROGRAM), [NARROWER])
+
+    def test_address_narrowing_discards_a_late_response_after_reset(self) -> None:
+        _compile_and_run(self, _narrow_tb(_NARROW_RESET_PROGRAM), [NARROWER])
+
+    def test_full_test_reset_discards_narrower_pending_target(self) -> None:
+        _compile_and_run(
+            self,
+            _narrow_tb(_NARROW_FULL_RESET_PROGRAM, clears_targets=True),
+            [NARROWER],
+        )
 
 
 if __name__ == "__main__":
