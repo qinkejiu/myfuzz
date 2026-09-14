@@ -62,6 +62,13 @@ class SocCoverageTests(unittest.TestCase):
         with self.assertRaisesRegex(SocCoverageError, "unknown"):
             observe_rtl_coverage(self.universe, ["not-a-point"])
 
+    def test_flat_backend_manifest_preserves_instance_mappings(self):
+        universe = build_coverage_universe({"points": [{
+            "point_id": "gpio_b:b1", "instance_id": "gpio_b", "module": "apb_gpio",
+            "category": "ip", "kind": "branch", "source": "gpio.sv", "line": 13,
+        }]})
+        self.assertEqual(["gpio_b:b1"], universe["branch_points"])
+
 
 if __name__ == "__main__":
     unittest.main()

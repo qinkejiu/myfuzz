@@ -19,9 +19,8 @@ import json
 import math
 import os
 from pathlib import Path
-from typing import Any
 
-from myfuzz.contracts import canonical_bytes, content_hash
+from myfuzz.contracts import content_hash
 
 from .rfuzz_live import replay_corpus, run_live
 from .rfuzz_simulator import probe_soc_dependencies, real_soc_opt_in
@@ -265,22 +264,28 @@ def preflight_soc_campaign(
     }
 
 
-def _call_hook(hook: Callable[..., object], *args: object) -> object:
-    """Call a test/build hook with its declared arity, without masking errors."""
+def _call_forms(hook: Callable[..., object], forms: Sequence[tuple[object, ...]]) -> object:
+    """Invoke a hook using an explicitly supported positional form.
+
+    Build hooks commonly accept ``(config, directory)`` while small tests and
+    adapters often accept only ``(directory,)``.  Selecting among declared
+    forms avoids passing a config object into an artifact-only hook and avoids
+    catching a ``TypeError`` raised inside the hook itself.
+    """
     try:
         signature = inspect.signature(hook)
     except (TypeError, ValueError):
-        return hook(*args)
-    positional = [item for item in signature.parameters.values()
-                  if item.kind in (item.POSITIONAL_ONLY, item.POSITIONAL_OR_KEYWORD)]
-    variadic = any(item.kind == item.VAR_POSITIONAL for item in signature.parameters.values())
-    if variadic:
-        return hook(*args)
+        return hook(*forms[0])
+    parameters = tuple(signature.parameters.values())
+    if any(item.kind == item.VAR_POSITIONAL for item in parameters):
+        return hook(*forms[0])
+    positional = tuple(item for item in parameters
+                       if item.kind in (item.POSITIONAL_ONLY, item.POSITIONAL_OR_KEYWORD))
     required = sum(item.default is item.empty for item in positional)
-    count = min(len(args), len(positional))
-    if required > count:
-        raise TypeError("campaign hook has incompatible signature")
-    return hook(*args[:count])
+    for form in forms:
+        if required <= len(form) <= len(positional):
+            return hook(*form)
+    raise TypeError("campaign hook has incompatible signature")
 
 
 def _error_category(error: BaseException, phase: str) -> str:
@@ -522,7 +527,7 @@ def run_soc_campaign(
         if build_hook is None:
             artifact = config.get("artifact")
         elif callable(build_hook):
-            artifact = _call_hook(build_hook, config, build_dir)
+            artifact = _call_forms(build_hook, ((config, build_dir), (build_dir,), (config,), ()))
         else:
             raise ValueError("build hook must be callable")
         if artifact is None:
@@ -541,7 +546,11 @@ def run_soc_campaign(
                 seed_cycles=max(1, normal["seed_cycles"]),
             )
         else:
-            run_result = _call_hook(runner, config, artifact, client, live_dir)
+            run_result = _call_forms(
+                runner,
+                ((config, artifact, client, live_dir),
+                 (artifact, client, live_dir), (artifact, live_dir), (artifact,)),
+            )
         if not isinstance(run_result, Mapping):
             raise SocCampaignError("RFuzz runner did not return a mapping")
         receipts, receipt_errors = _receipt_document(run_result.get("fifo_reply_receipts"))
@@ -561,7 +570,7 @@ def run_soc_campaign(
         if rebuilder is not None or callable(config.get("rebuild")):
             replay_builder = rebuilder or config.get("rebuild")
             replay_dir = output / "rebuild"
-            rebuilt = _call_hook(replay_builder, config, replay_dir)
+            rebuilt = _call_forms(replay_builder, ((config, replay_dir), (replay_dir,), (config,), ()))
             replay = replay_corpus(rebuilt, live_dir / "corpus")
             report["replay"] = {
                 "status": "passed", "entries": replay.get("entries", 0),

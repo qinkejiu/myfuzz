@@ -102,6 +102,16 @@ def _point(value: CoveragePoint | Mapping[str, object], *, instance_id: str | No
 
 
 def _manifest_points(source: Mapping[str, object]) -> list[CoveragePoint]:
+    # A backend may publish a flat ``points``/``coverage_points`` array (the
+    # renderer does not require a module hierarchy).  Preserve those exact
+    # instance mappings rather than interpreting each point as a module.
+    flat = source.get("points")
+    if flat is None:
+        flat = source.get("coverage_points")
+    if isinstance(flat, Sequence) and not isinstance(flat, (str, bytes)) and any(
+            isinstance(item, Mapping) and ("point_id" in item or "id" in item)
+            for item in flat):
+        return [_point(item) for item in flat if isinstance(item, Mapping)]
     points: list[CoveragePoint] = []
     for module in source.get("modules", source.get("coverage_points", source.get("points", []))):
         if not isinstance(module, Mapping):
