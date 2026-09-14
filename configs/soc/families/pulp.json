@@ -1,0 +1,204 @@
+{
+  "schema_version": "soc_family.v1",
+  "family": "pulp",
+  "peripherals": [
+    {
+      "id": "pulp_gpio",
+      "top_module": "apb_gpio",
+      "source_lock": "pulp_gpio",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "protocol": "APB3-like; no PSTRB",
+      "physical_interface": {
+        "status": "elaborated_from_pinned_closure",
+        "input": [
+          "HCLK",
+          "HRESETn",
+          "PADDR",
+          "PWDATA",
+          "PWRITE",
+          "PSEL",
+          "PENABLE",
+          "dft_cg_enable_i",
+          "gpio_in"
+        ],
+        "output": [
+          "PRDATA",
+          "PREADY",
+          "PSLVERR",
+          "gpio_in_sync",
+          "gpio_out",
+          "gpio_dir",
+          "gpio_padcfg",
+          "interrupt"
+        ],
+        "provenance": {
+          "component": "pulp_gpio",
+          "path": "rtl/apb_gpio.sv",
+          "sha256": "1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef"
+        }
+      },
+      "register_semantics": {
+        "description": "GPIO input synchronization, direction/output and interrupt registers; interrupt trigger configuration requires behavioral proof.",
+        "provenance": {
+          "component": "pulp_gpio",
+          "path": "rtl/apb_gpio.sv",
+          "sha256": "1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef"
+        }
+      },
+      "clock_policy": "Single runtime clock; reset polarity and legal same-domain configuration require explicit contract.",
+      "capabilities": [
+        {
+          "function": "GPIO input synchronization, direction/output and interrupt registers; interrupt trigger configuration requires behavioral proof.",
+          "input": [
+            "HCLK",
+            "HRESETn",
+            "PADDR",
+            "PWDATA",
+            "PWRITE",
+            "PSEL",
+            "PENABLE",
+            "dft_cg_enable_i",
+            "gpio_in"
+          ],
+          "output": [
+            "PRDATA",
+            "PREADY",
+            "PSLVERR",
+            "gpio_in_sync",
+            "gpio_out",
+            "gpio_dir",
+            "gpio_padcfg",
+            "interrupt"
+          ],
+          "provenance": {
+            "component": "pulp_gpio",
+            "path": "rtl/apb_gpio.sv",
+            "sha256": "1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef"
+          },
+          "status": "source_declared",
+          "runtime_status": "runtime_unverified"
+        }
+      ],
+      "lint_probe": {
+        "status": "parent_reported_probe_only",
+        "warning_count": 2,
+        "persistent_evidence": null,
+        "tool_version": null
+      },
+      "gaps": [
+        "Compiler-backed packed coordinates and resolved widths",
+        "Bus mask/address/error boundary proof",
+        "IRQ trigger/clear and external protocol runtime proof"
+      ]
+    },
+    {
+      "id": "pulp_spi",
+      "top_module": "apb_spi_master",
+      "source_lock": "pulp_spi",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "protocol": "APB3-like; no PSTRB",
+      "physical_interface": {
+        "status": "elaborated_from_pinned_closure",
+        "input": [
+          "HCLK",
+          "HRESETn",
+          "PADDR",
+          "PWDATA",
+          "PWRITE",
+          "PSEL",
+          "PENABLE",
+          "spi_sdi0",
+          "spi_sdi1",
+          "spi_sdi2",
+          "spi_sdi3"
+        ],
+        "output": [
+          "PRDATA",
+          "PREADY",
+          "PSLVERR",
+          "events_o",
+          "spi_clk",
+          "spi_csn0",
+          "spi_csn1",
+          "spi_csn2",
+          "spi_csn3",
+          "spi_mode",
+          "spi_sdo0",
+          "spi_sdo1",
+          "spi_sdo2",
+          "spi_sdo3"
+        ],
+        "provenance": {
+          "component": "pulp_spi",
+          "path": "apb_spi_master.sv",
+          "sha256": "dfc82b0f3c91ba44d986288e1884b1eede0aad6ed8c5b09179a629344d547d0e"
+        }
+      },
+      "register_semantics": {
+        "description": "APB command/status and serial transfer; event pulse/level and byte-write handling need proof. Five shared modules come from pinned axi-spi regular files.",
+        "provenance": {
+          "component": "pulp_spi",
+          "path": "spi_master_apb_if.sv",
+          "sha256": "a9a32da6cc07768cab293c48989599e36b2000bb572191667960aa1423fc790a"
+        }
+      },
+      "clock_policy": "Single runtime clock; reset polarity and legal same-domain configuration require explicit contract.",
+      "capabilities": [
+        {
+          "function": "APB command/status and serial transfer; event pulse/level and byte-write handling need proof. Five shared modules come from pinned axi-spi regular files.",
+          "input": [
+            "HCLK",
+            "HRESETn",
+            "PADDR",
+            "PWDATA",
+            "PWRITE",
+            "PSEL",
+            "PENABLE",
+            "spi_sdi0",
+            "spi_sdi1",
+            "spi_sdi2",
+            "spi_sdi3"
+          ],
+          "output": [
+            "PRDATA",
+            "PREADY",
+            "PSLVERR",
+            "events_o",
+            "spi_clk",
+            "spi_csn0",
+            "spi_csn1",
+            "spi_csn2",
+            "spi_csn3",
+            "spi_mode",
+            "spi_sdo0",
+            "spi_sdo1",
+            "spi_sdo2",
+            "spi_sdo3"
+          ],
+          "provenance": {
+            "component": "pulp_spi",
+            "path": "apb_spi_master.sv",
+            "sha256": "dfc82b0f3c91ba44d986288e1884b1eede0aad6ed8c5b09179a629344d547d0e"
+          },
+          "status": "source_declared",
+          "runtime_status": "runtime_unverified"
+        }
+      ],
+      "lint_probe": {
+        "status": "parent_reported_probe_only",
+        "warning_count": 9,
+        "persistent_evidence": null,
+        "tool_version": null
+      },
+      "gaps": [
+        "Compiler-backed packed coordinates and resolved widths",
+        "Bus mask/address/error boundary proof",
+        "IRQ trigger/clear and external protocol runtime proof"
+      ]
+    }
+  ]
+}

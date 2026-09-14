@@ -1,0 +1,190 @@
+{
+  "schema_version": "soc_family.v1",
+  "family": "opentitan",
+  "peripherals": [
+    {
+      "id": "opentitan_uart",
+      "top_module": "uart",
+      "source_lock": "opentitan_uart",
+      "source_status": "source_pending",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "protocol": "TL-UL with integrity, alert and RACL",
+      "physical_interface": {
+        "status": "elaborated_from_pinned_closure",
+        "input": [
+          "clk_i",
+          "rst_ni",
+          "tl_i",
+          "alert_rx_i",
+          "racl_policies_i",
+          "cio_rx_i"
+        ],
+        "output": [
+          "tl_o",
+          "alert_tx_o",
+          "racl_error_o",
+          "lsio_trigger_o",
+          "cio_tx_o",
+          "cio_tx_en_o",
+          "intr_tx_watermark_o",
+          "intr_tx_empty_o",
+          "intr_rx_watermark_o",
+          "intr_tx_done_o",
+          "intr_rx_overflow_o",
+          "intr_rx_frame_err_o",
+          "intr_rx_break_err_o",
+          "intr_rx_timeout_o",
+          "intr_rx_parity_err_o"
+        ],
+        "provenance": {
+          "component": "opentitan_uart",
+          "path": "hw/ip/uart/rtl/uart.sv",
+          "sha256": "b2ea9b88abb25f8a7cdbe317dfc91e6b2b456647781d2bdc33ef384c526412a5"
+        }
+      },
+      "register_semantics": {
+        "description": "UART serial input/output, FIFO and interrupts. TL integrity/alert/RACL policies and full generated closure pending.",
+        "provenance": {
+          "component": "opentitan_uart",
+          "path": "hw/ip/uart/rtl/uart.sv",
+          "sha256": "b2ea9b88abb25f8a7cdbe317dfc91e6b2b456647781d2bdc33ef384c526412a5"
+        }
+      },
+      "clock_policy": "Single runtime clock; reset polarity and legal same-domain configuration require explicit contract.",
+      "capabilities": [
+        {
+          "function": "UART serial input/output, FIFO and interrupts. TL integrity/alert/RACL policies and full generated closure pending.",
+          "input": [
+            "clk_i",
+            "rst_ni",
+            "tl_i",
+            "alert_rx_i",
+            "racl_policies_i",
+            "cio_rx_i"
+          ],
+          "output": [
+            "tl_o",
+            "alert_tx_o",
+            "racl_error_o",
+            "lsio_trigger_o",
+            "cio_tx_o",
+            "cio_tx_en_o",
+            "intr_tx_watermark_o",
+            "intr_tx_empty_o",
+            "intr_rx_watermark_o",
+            "intr_tx_done_o",
+            "intr_rx_overflow_o",
+            "intr_rx_frame_err_o",
+            "intr_rx_break_err_o",
+            "intr_rx_timeout_o",
+            "intr_rx_parity_err_o"
+          ],
+          "provenance": {
+            "component": "opentitan_uart",
+            "path": "hw/ip/uart/rtl/uart.sv",
+            "sha256": "b2ea9b88abb25f8a7cdbe317dfc91e6b2b456647781d2bdc33ef384c526412a5"
+          },
+          "status": "source_declared",
+          "runtime_status": "runtime_unverified"
+        }
+      ],
+      "lint_probe": {
+        "status": "not_run",
+        "warning_count": null,
+        "persistent_evidence": null,
+        "tool_version": null
+      },
+      "gaps": [
+        "Compiler-backed packed coordinates and resolved widths",
+        "Bus mask/address/error boundary proof",
+        "IRQ trigger/clear and external protocol runtime proof"
+      ]
+    },
+    {
+      "id": "opentitan_gpio",
+      "top_module": "gpio",
+      "source_lock": "opentitan_gpio",
+      "source_status": "source_pending",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "protocol": "TL-UL with integrity, alert and RACL",
+      "physical_interface": {
+        "status": "elaborated_from_pinned_closure",
+        "input": [
+          "clk_i",
+          "rst_ni",
+          "strap_en_i",
+          "tl_i",
+          "alert_rx_i",
+          "racl_policies_i",
+          "cio_gpio_i"
+        ],
+        "output": [
+          "sampled_straps_o",
+          "tl_o",
+          "intr_gpio_o",
+          "alert_tx_o",
+          "racl_error_o",
+          "cio_gpio_o",
+          "cio_gpio_en_o"
+        ],
+        "provenance": {
+          "component": "opentitan_gpio",
+          "path": "hw/top_earlgrey/ip_autogen/gpio/rtl/gpio.sv",
+          "sha256": "14539279738748ab142248552aa978883ea08d063ba3690a03a1ed6d9c5990b9"
+        }
+      },
+      "register_semantics": {
+        "description": "Earlgrey generated GPIO variant; strap sampling, GPIO and interrupt registers. Generation and TL integrity/alert/RACL closure pending.",
+        "provenance": {
+          "component": "opentitan_gpio",
+          "path": "hw/top_earlgrey/ip_autogen/gpio/rtl/gpio.sv",
+          "sha256": "14539279738748ab142248552aa978883ea08d063ba3690a03a1ed6d9c5990b9"
+        }
+      },
+      "clock_policy": "Single runtime clock; reset polarity and legal same-domain configuration require explicit contract.",
+      "capabilities": [
+        {
+          "function": "Earlgrey generated GPIO variant; strap sampling, GPIO and interrupt registers. Generation and TL integrity/alert/RACL closure pending.",
+          "input": [
+            "clk_i",
+            "rst_ni",
+            "strap_en_i",
+            "tl_i",
+            "alert_rx_i",
+            "racl_policies_i",
+            "cio_gpio_i"
+          ],
+          "output": [
+            "sampled_straps_o",
+            "tl_o",
+            "intr_gpio_o",
+            "alert_tx_o",
+            "racl_error_o",
+            "cio_gpio_o",
+            "cio_gpio_en_o"
+          ],
+          "provenance": {
+            "component": "opentitan_gpio",
+            "path": "hw/top_earlgrey/ip_autogen/gpio/rtl/gpio.sv",
+            "sha256": "14539279738748ab142248552aa978883ea08d063ba3690a03a1ed6d9c5990b9"
+          },
+          "status": "source_declared",
+          "runtime_status": "runtime_unverified"
+        }
+      ],
+      "lint_probe": {
+        "status": "not_run",
+        "warning_count": null,
+        "persistent_evidence": null,
+        "tool_version": null
+      },
+      "gaps": [
+        "Compiler-backed packed coordinates and resolved widths",
+        "Bus mask/address/error boundary proof",
+        "IRQ trigger/clear and external protocol runtime proof"
+      ]
+    }
+  ]
+}

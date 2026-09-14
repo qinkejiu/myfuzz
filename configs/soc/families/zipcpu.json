@@ -1,0 +1,182 @@
+{
+  "schema_version": "soc_family.v1",
+  "family": "zipcpu",
+  "peripherals": [
+    {
+      "id": "zipcpu_uart",
+      "top_module": "wbuart",
+      "source_lock": "zipcpu_uart",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "protocol": "Wishbone subset",
+      "physical_interface": {
+        "status": "elaborated_from_pinned_closure",
+        "input": [
+          "i_clk",
+          "i_reset",
+          "i_wb_cyc",
+          "i_wb_stb",
+          "i_wb_we",
+          "i_wb_addr",
+          "i_wb_data",
+          "i_wb_sel",
+          "i_uart_rx",
+          "i_cts_n"
+        ],
+        "output": [
+          "o_wb_stall",
+          "o_wb_ack",
+          "o_wb_data",
+          "o_uart_tx",
+          "o_rts_n",
+          "o_uart_rx_int",
+          "o_uart_tx_int",
+          "o_uart_rxfifo_int",
+          "o_uart_txfifo_int"
+        ],
+        "provenance": {
+          "component": "zipcpu_uart",
+          "path": "rtl/wbuart.v",
+          "sha256": "9733247cdf577e41f317109b08d973f7b0a061e6566d9afdbdb915d778db1ce9"
+        }
+      },
+      "register_semantics": {
+        "description": "UART FIFO/control accesses, receive/transmit and flow control; byte select and IRQ threshold behavior require proof.",
+        "provenance": {
+          "component": "zipcpu_uart",
+          "path": "rtl/wbuart.v",
+          "sha256": "9733247cdf577e41f317109b08d973f7b0a061e6566d9afdbdb915d778db1ce9"
+        }
+      },
+      "clock_policy": "Single runtime clock; reset polarity and legal same-domain configuration require explicit contract.",
+      "capabilities": [
+        {
+          "function": "UART FIFO/control accesses, receive/transmit and flow control; byte select and IRQ threshold behavior require proof.",
+          "input": [
+            "i_clk",
+            "i_reset",
+            "i_wb_cyc",
+            "i_wb_stb",
+            "i_wb_we",
+            "i_wb_addr",
+            "i_wb_data",
+            "i_wb_sel",
+            "i_uart_rx",
+            "i_cts_n"
+          ],
+          "output": [
+            "o_wb_stall",
+            "o_wb_ack",
+            "o_wb_data",
+            "o_uart_tx",
+            "o_rts_n",
+            "o_uart_rx_int",
+            "o_uart_tx_int",
+            "o_uart_rxfifo_int",
+            "o_uart_txfifo_int"
+          ],
+          "provenance": {
+            "component": "zipcpu_uart",
+            "path": "rtl/wbuart.v",
+            "sha256": "9733247cdf577e41f317109b08d973f7b0a061e6566d9afdbdb915d778db1ce9"
+          },
+          "status": "source_declared",
+          "runtime_status": "runtime_unverified"
+        }
+      ],
+      "lint_probe": {
+        "status": "parent_reported_probe_only",
+        "warning_count": 0,
+        "persistent_evidence": null,
+        "tool_version": null
+      },
+      "gaps": [
+        "Compiler-backed packed coordinates and resolved widths",
+        "Bus mask/address/error boundary proof",
+        "IRQ trigger/clear and external protocol runtime proof"
+      ]
+    },
+    {
+      "id": "zipcpu_timer",
+      "top_module": "ziptimer",
+      "source_lock": "zipcpu_timer",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "protocol": "Wishbone single-register subset; no address port",
+      "physical_interface": {
+        "status": "elaborated_from_pinned_closure",
+        "input": [
+          "i_clk",
+          "i_reset",
+          "i_ce",
+          "i_wb_cyc",
+          "i_wb_stb",
+          "i_wb_we",
+          "i_wb_data",
+          "i_wb_sel"
+        ],
+        "output": [
+          "o_wb_stall",
+          "o_wb_ack",
+          "o_wb_data",
+          "o_int"
+        ],
+        "provenance": {
+          "component": "zipcpu_timer",
+          "path": "rtl/peripherals/ziptimer.v",
+          "sha256": "52c184e1267e93cf247971b2fed92209cfa18da4f7839f08f5b4aa0f67ef5df5"
+        }
+      },
+      "register_semantics": {
+        "description": "Countdown/reload register; zero write stops timer. Adapter must decode the single register upstream; byte-select and interrupt pulse behavior need proof.",
+        "provenance": {
+          "component": "zipcpu_timer",
+          "path": "rtl/peripherals/ziptimer.v",
+          "sha256": "52c184e1267e93cf247971b2fed92209cfa18da4f7839f08f5b4aa0f67ef5df5"
+        }
+      },
+      "clock_policy": "Single runtime clock; reset polarity and legal same-domain configuration require explicit contract.",
+      "capabilities": [
+        {
+          "function": "Countdown/reload register; zero write stops timer. Adapter must decode the single register upstream; byte-select and interrupt pulse behavior need proof.",
+          "input": [
+            "i_clk",
+            "i_reset",
+            "i_ce",
+            "i_wb_cyc",
+            "i_wb_stb",
+            "i_wb_we",
+            "i_wb_data",
+            "i_wb_sel"
+          ],
+          "output": [
+            "o_wb_stall",
+            "o_wb_ack",
+            "o_wb_data",
+            "o_int"
+          ],
+          "provenance": {
+            "component": "zipcpu_timer",
+            "path": "rtl/peripherals/ziptimer.v",
+            "sha256": "52c184e1267e93cf247971b2fed92209cfa18da4f7839f08f5b4aa0f67ef5df5"
+          },
+          "status": "source_declared",
+          "runtime_status": "runtime_unverified"
+        }
+      ],
+      "lint_probe": {
+        "status": "parent_reported_probe_only",
+        "warning_count": 0,
+        "persistent_evidence": null,
+        "tool_version": null
+      },
+      "gaps": [
+        "Compiler-backed packed coordinates and resolved widths",
+        "Bus mask/address/error boundary proof",
+        "IRQ trigger/clear and external protocol runtime proof"
+      ]
+    }
+  ]
+}

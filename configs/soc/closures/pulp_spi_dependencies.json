@@ -1,0 +1,174 @@
+{
+  "schema_version": "soc_elaboration_closure.v1",
+  "component": "pulp_spi_dependencies",
+  "root": "third_party/soc-pulp-axi-spi",
+  "top_module": "spi_master_controller",
+  "tool": {
+    "name": "verilator",
+    "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "frontend": "verilator-lint"
+  },
+  "command": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "spi_master_controller",
+    "third_party/soc-pulp-axi-spi/spi_master_clkgen.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_controller.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_rx.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_tx.sv"
+  ],
+  "include_roots": [],
+  "defines": [],
+  "parameters": [],
+  "closure_files": [
+    {
+      "root": "third_party/soc-pulp-axi-spi",
+      "path": "spi_master_clkgen.sv",
+      "sha256": "dbfc81a8afe1c05a4372cf7e46f1217f6b57d56c8927bf25ee5f427761b15332"
+    },
+    {
+      "root": "third_party/soc-pulp-axi-spi",
+      "path": "spi_master_controller.sv",
+      "sha256": "0ba0d90e99949939b3815ed2e69a9f95b980114ec554baca14083ab54496db76"
+    },
+    {
+      "root": "third_party/soc-pulp-axi-spi",
+      "path": "spi_master_rx.sv",
+      "sha256": "1290e4beaa7d4b588da9cf84da47b39923010bcfdb355641509ee90295d8ca5f"
+    },
+    {
+      "root": "third_party/soc-pulp-axi-spi",
+      "path": "spi_master_tx.sv",
+      "sha256": "ee9a7d305bc7bb574ece02dbd6dc8a3f0403729d336bd7431689da47a08558f6"
+    }
+  ],
+  "status": "elaboration_verified",
+  "lint": {
+    "errors": 0,
+    "warnings": 5,
+    "exit_code": 0,
+    "log": "runs/soc-source-elaboration/pulp/pulp_spi_dependencies.elaborate.log"
+  },
+  "capability_findings": [
+    {
+      "topic": "closure_scope",
+      "port_or_field": "n/a",
+      "observed": "spi_master_controller instantiates only spi_master_clkgen, spi_master_tx and spi_master_rx; spi_master_fifo is not reachable from this top. The locked file list also contains spi_master_fifo.sv (src_files.yml:7), but adding it to the command line neither adds a module instance nor changes the warning count (5 in both cases), so the minimal closure for this top is 4 files.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/src_files.yml:1-10",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "module_role",
+      "port_or_field": "full port list",
+      "observed": "This top is the reusable SPI engine core: raw control inputs (spi_clk_div/valid, spi_rd/wr/qrd/qwr, spi_cmd, spi_addr, lengths, dummy counts, csreg), a 7-bit state output spi_status, an eot pulse, and the SPI pins. It contains no APB slave interface and no FIFO - those live in pulp_spi's apb_spi_master.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:15-56",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "spi_pin_protocol",
+      "port_or_field": "spi_sdo0/spi_sdi1/spi_sdi0/spi_sdo1..3",
+      "observed": "Single-line mode drives MOSI on spi_sdo0 with the MSB first (tx: `assign sdo0 = en_quad_in ? data_int[28] : data_int[31];` shift `{data_int[30:0],1'b0}`) and samples MISO on spi_sdi1 (rx: `{data_int[30:0],sdi1}`). spi_sdi0 is the MOSI-side loopback pin; sdi2/sdi3 and sdo1..3 are only used in quad modes where sdo0..3 carry data_int[28..31].",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_tx.sv:42",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "spi_clock_timing",
+      "port_or_field": "spi_clk/spi_rise/spi_fall",
+      "observed": "SCK comes from spi_master_clkgen: toggles every clk_div+1 HCLK cycles, resets/idles low, stops only while low when en=0; spi_rise marks the 0->1 toggle and spi_fall the 1->0 toggle. The controller wires tx_edge=spi_fall and rx_edge=spi_rise, i.e. CPOL=0/CPHA=0 (SPI mode 0) with the leading rising edge as the sampling edge.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:115",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "cpol_cpha_configurability",
+      "port_or_field": "spi_mode",
+      "observed": "Timing is hardwired to mode 0; no CPOL/CPHA/polarity/phase port or register exists in the repo. spi_mode reports the line width only: SPI_STD=2'b00, SPI_QUAD_TX=2'b01, SPI_QUAD_RX=2'b10, latched into the spi_mode register on every clock.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:11-13",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "chip_select_behavior",
+      "port_or_field": "spi_csn0..3",
+      "observed": "spi_csn[i] = ~spi_csreg[i] | spi_cs with spi_cs held 0 for the whole transfer and 1 only in IDLE, so all selected CS lines assert together at transfer start and release at end-of-transfer; csreg is not decoded, so multiple CS can assert simultaneously and per-byte CS framing is impossible.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:555-558",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "software_reset_input",
+      "port_or_field": "spi_swrst",
+      "observed": "Declared as an input but never referenced (`//FIXME Not used at all`); the only occurrence in the file is the port declaration, so this top has no working software reset.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:31",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "dead_signal_do_tx",
+      "port_or_field": "do_tx",
+      "observed": "do_tx is declared `//FIXME NOT USED at all!!` and is only ever assigned (in reset and in the state register block); it is never read, so it has no effect on behaviour.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:77",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "unreachable_mode_state",
+      "port_or_field": "state/spi_status[3]",
+      "observed": "The FSM enum includes MODE and a MODE case arm exists, but no assignment `state_next = MODE` occurs anywhere, so the MODE state is unreachable and its status bit spi_status[3] can never assert. The reachable states are IDLE, CMD, ADDR, DUMMY, DATA_TX, DATA_RX and WAIT_EDGE.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:94",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "end_of_transfer",
+      "port_or_field": "eot",
+      "observed": "eot is a registered-decoded one-cycle pulse asserted when the FSM leaves DUMMY, DATA_TX or WAIT_EDGE back to IDLE; it is a pulse, not a level, and lasts exactly one HCLK cycle.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:455",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "status_word",
+      "port_or_field": "spi_status[6:0]",
+      "observed": "spi_status is a one-hot state indicator: bit0 IDLE, bit1 CMD, bit2 ADDR, bit3 MODE (unreachable), bit4 DUMMY, bit5 DATA_TX, bit6 DATA_RX; FIFO occupancy is not part of this word (it is combined with the FIFO counts inside apb_spi_master).",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:212",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "clock_and_reset",
+      "port_or_field": "clk/rstn",
+      "observed": "Single clock, asynchronous active-low reset on posedge clk/negedge rstn for the FSM, counters and mode register; no CDC and no gated-clock input.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:518-527",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "elaboration_closure",
+      "port_or_field": "n/a",
+      "observed": "Verilator elaborates spi_master_controller from 4 files (5 module instances) with exit 0 and 5 warnings (3x WIDTHEXPAND at controller:222/232/301, 2x CASEINCOMPLETE at controller:156/209). Dropping any of the four files fails (MODMISSING or top-module-not-found) and re-running in a tree containing only those files reproduces exit 0 with the same count.",
+      "evidence_path": "runs/soc-source-elaboration/pulp/pulp_spi_dependencies.elaborate.log",
+      "provenance": "elaboration"
+    }
+  ],
+  "unsupported": [
+    {
+      "topic": "apb_interface",
+      "reason": "This top has no APB slave ports; APB register semantics are only available through pulp_spi (spi_master_apb_if + apb_spi_master).",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:15-56"
+    },
+    {
+      "topic": "software_reset",
+      "reason": "spi_swrst is declared but unused, so this top cannot be reset from software; only its consumers can clear their own state.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:31"
+    },
+    {
+      "topic": "mode_state_observability",
+      "reason": "The MODE state is unreachable, so spi_status[3] is a permanent zero and cannot be used as a state indication.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:94"
+    },
+    {
+      "topic": "spi_cpol_cpha_config",
+      "reason": "CPOL/CPHA are hardwired to mode 0 via tx_edge=spi_fall / rx_edge=spi_rise; no mode selection exists.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:115"
+    },
+    {
+      "topic": "fifo_ownership",
+      "reason": "spi_master_fifo.sv is listed in the upstream src_files.yml but is not reachable from this top; FIFO behaviour must be elaborated under pulp_spi (or with spi_master_fifo as its own top), not here.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/src_files.yml:7"
+    }
+  ]
+}

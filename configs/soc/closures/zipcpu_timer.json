@@ -1,0 +1,162 @@
+{
+  "schema_version": "soc_elaboration_closure.v1",
+  "component": "zipcpu_timer",
+  "root": "third_party/soc-zipcpu",
+  "top_module": "ziptimer",
+  "tool": {
+    "name": "verilator",
+    "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "frontend": "verilator-lint"
+  },
+  "command": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "ziptimer",
+    "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v"
+  ],
+  "include_roots": [],
+  "defines": [],
+  "parameters": [
+    {
+      "name": "BW",
+      "value": "32"
+    },
+    {
+      "name": "VW",
+      "value": "31"
+    },
+    {
+      "name": "RELOADABLE",
+      "value": "1"
+    }
+  ],
+  "closure_files": [
+    {
+      "root": "third_party/soc-zipcpu",
+      "path": "rtl/peripherals/ziptimer.v",
+      "sha256": "52c184e1267e93cf247971b2fed92209cfa18da4f7839f08f5b4aa0f67ef5df5"
+    }
+  ],
+  "status": "elaboration_verified",
+  "lint": {
+    "errors": 0,
+    "warnings": 0,
+    "exit_code": 0,
+    "log": "runs/soc-source-elaboration/zipcpu/ziptimer-lint.log"
+  },
+  "capability_findings": [
+    {
+      "topic": "wishbone_subset",
+      "port_or_field": "i_wb_stb/o_wb_stall/o_wb_ack/o_wb_data",
+      "observed": "Classic-style single-register slave with a registered single-cycle ACK and no pipeline tracking. o_wb_stall is tied to 1'b0 and o_wb_ack is a registered copy of STB, so the slave accepts/accepts-and-completes one access per clock with a fixed one-clock response latency. There is no outstanding-transaction state, no burst support, and no error/retry response; the port list has no i_wb_addr, no i_wb_cti/i_wb_bte and no o_wb_err/o_wb_rty. A master that holds STB until ACK (classic hold) writes the register on every cycle and receives repeated ACKs; the adapter must pulse STB for exactly one cycle per transaction.",
+      "evidence_path": "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v:106,210-214",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "cyc_stb_semantics",
+      "port_or_field": "i_wb_cyc",
+      "observed": "CYC is completely ignored by the synthesizable logic: its only occurrence outside the port declaration is the 'unused' reduction wire. Writes are qualified by wb_write = STB && WE only, and o_wb_ack <= !i_reset && i_wb_stb is not gated by CYC. Therefore an access with STB high and CYC low still writes the timer and still receives ACK. CYC only appears in the FORMAL-only section as an assumption (assume(i_wb_cyc) when i_wb_stb), i.e. upstream intends CYC to be asserted but the RTL does not enforce or use it. The SoC adapter must drive well-formed CYC and must not rely on the IP to reject malformed cycles.",
+      "evidence_path": "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v:82,106,212,231,265-267",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "stall_ack_timing",
+      "port_or_field": "o_wb_stall/o_wb_ack/o_wb_data",
+      "observed": "Exact timing: a request applied in cycle T updates state at the edge into T+1 (if WE) and produces o_wb_ack in cycle T+1 (o_wb_ack <= !i_reset && i_wb_stb), one ACK per STB cycle. o_wb_stall is the constant 1'b0, so the master is never told to wait and cannot be back-pressured. o_wb_data is combinational {auto_reload, r_value} and therefore already valid in the ACK cycle; it does not depend on the address or on WE. Reset suppresses ACK (the !i_reset term).",
+      "evidence_path": "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v:210-214,218-223",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "address_unit_and_single_register_window",
+      "port_or_field": "i_wb_addr (absent)",
+      "observed": "The IP has no address input at all: the elaborated top port list contains no i_wb_addr, so the module consumes zero address bits. Every transaction that selects the IP targets the one countdown/reload register; there is no sub-address decode and no aliasing rule inside the IP. The 32-bit SoC window (base/size) and any out-of-window rejection must therefore be supplied entirely by the SoC address decoder; the IP cannot distinguish offset 0 from any other offset.",
+      "evidence_path": "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v:78-92; runs/soc-source-elaboration/zipcpu/ziptimer-elaborated-ports.txt",
+      "provenance": "elaboration"
+    },
+    {
+      "topic": "byte_enable_and_partial_writes",
+      "port_or_field": "i_wb_sel[3:0]",
+      "observed": "PARTIAL WRITES ARE NOT SUPPORTED. i_wb_sel is present on the port but is not implemented: its only use in synthesizable RTL is the 'unused' reduction wire (assign unused = &{1'b0, i_wb_cyc, i_wb_data, i_wb_sel}). Every write takes the full VW-bit word directly from i_wb_data with no lane masking: r_value <= i_wb_data[VW-1:0], r_interval_count <= i_wb_data[VW-1:0], r_running <= |i_wb_data[VW-1:0], r_auto_reload <= i_wb_data[BW-1] && |i_wb_data[VW-1:0], r_zero <= (i_wb_data[VW-1:0]==0). No read-modify-write is performed. A byte/halfword write therefore stores whatever the master drives on the unselected lanes, which can silently clear or corrupt the other bytes (and can stop the timer or disable auto-reload). The target adapter must reject sub-word writes or guarantee full-word data; it must not synthesize a read-modify-write on this register.",
+      "evidence_path": "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v:115,136-137,149-150,169-170,185-186,226-234",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "write_semantics",
+      "port_or_field": "i_wb_stb/i_wb_we/i_wb_data",
+      "observed": "One combined control+value register. wb_write = STB && WE updates, on the same clock: r_value (low VW bits), r_interval_count, r_running (running iff the written value is non-zero -> writing zero stops the timer), r_auto_reload (bit BW-1 of the written word, i.e. bit 31 for BW=32, AND the written value is non-zero) and r_zero. The write also forces o_int low. Reads (WE=0) have no side effect. The bit-31 auto-reload flag is meaningful only when RELOADABLE=1.",
+      "evidence_path": "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v:106,110-117,132-150,163-177,180-193,200-206",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "read_data_layout",
+      "port_or_field": "o_wb_data[BW-1:0]",
+      "observed": "Combinational read value: for BW=32, VW=31 it is {auto_reload, r_value} = bit 31 auto-reload flag, bits [30:0] current count (the GEN_TRIM branch for VW<BW-1 inserts zero padding between the flag and the value). Read/write layouts are symmetric for the locked parameters, so the value read back is the value written (minus the countdown since the write) plus the auto-reload flag.",
+      "evidence_path": "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v:216-224,356-358",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "irq_form",
+      "port_or_field": "o_int",
+      "observed": "Registered one-cycle pulse, not a held level and not sticky: o_int <= 1'b0 on reset, on any write, or when i_ce is low; otherwise o_int <= (r_value == 1'b1). It asserts one clock after the count value equals 1, i.e. on the clock the timer transitions to zero, and deasserts on the following clock. There is no interrupt-enable, pending or acknowledge/clear register, and the pulse can be suppressed by a write in the same window. The SoC IRQ router must capture this pulse (latch/edge-detect) or it will be lost; it must not expect a level-hold from the IP.",
+      "evidence_path": "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v:196-206,336-344",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "clock_enable",
+      "port_or_field": "i_ce",
+      "observed": "i_ce is a separate clock-enable input, not part of Wishbone. It gates the countdown (r_value decrement / auto-reload), the r_zero update and the o_int pulse; when i_ce is low the timer holds and o_int is forced low. Writes happen regardless of i_ce (wb_write has priority over the i_ce branches in r_value, r_zero and o_int). A target adapter that wants continuous counting must tie i_ce high.",
+      "evidence_path": "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v:80,169-177,182-193,200-206",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "reset",
+      "port_or_field": "i_reset",
+      "observed": "Synchronous, active-high reset sampled on posedge i_clk; it takes priority over writes and counting in every always block. Reset state: r_running=0, r_auto_reload=0, r_interval_count=0, r_value=0, r_zero=1, o_int=0, o_wb_ack=0. A write in the same cycle as reset is ignored and no ACK is returned. Reset is a single-clock-domain level; the IP has no asynchronous reset pin.",
+      "evidence_path": "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v:111-117,132-137,146-150,166-170,182-186,200-203,210-213",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "elaborated_ports",
+      "port_or_field": "ziptimer top port list",
+      "observed": "Elaboration with the pinned file resolves 11 ports: i_clk, i_reset, i_ce, i_wb_cyc, i_wb_stb, i_wb_we, i_wb_data[31:0], i_wb_sel[3:0]; o_wb_stall, o_wb_ack, o_wb_data[31:0], o_int. There is no i_wb_addr, no o_wb_err/o_wb_rty and no burst/CTI signals; i_wb_sel is 4 bits wide (BW/8). The module instantiates no submodule, so the closure is a single file.",
+      "evidence_path": "runs/soc-source-elaboration/zipcpu/ziptimer-elaborated-ports.txt; third_party/soc-zipcpu/rtl/peripherals/ziptimer.v:78-92",
+      "provenance": "elaboration"
+    },
+    {
+      "topic": "parameters",
+      "port_or_field": "BW/VW/RELOADABLE",
+      "observed": "RTL defaults BW=32, VW=(BW-1)=31, RELOADABLE=1 are identical to the typed_parameters recorded for zipcpu_timer in configs/soc/sources.lock.json, so the recorded command elaborates the locked configuration with no -G override and zero warnings. RELOADABLE=0 would compile the NO_AUTO_RELOAD generate branch (auto_reload constant 0, interval_count 0) without changing the register map. An explicit -GBW=16 probe confirmed overrides reach elaboration (i_wb_data/o_wb_data become 16 bits); parameters are recorded from RTL defaults.",
+      "evidence_path": "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v:73-77,122-160; runs/soc-source-elaboration/zipcpu/parameters-probe.log",
+      "provenance": "rtl_read"
+    }
+  ],
+  "unsupported": [
+    {
+      "topic": "partial_write",
+      "reason": "i_wb_sel is not implemented (only referenced by the unused reduction wire). Every write stores the full VW-bit i_wb_data word with no byte masking and no read-modify-write, so a partial (byte/halfword) write has undefined-by-contract effects on the unselected bytes and can stop the timer or clear auto-reload. Sub-word writes must be rejected by the adapter or converted to full-word writes with data supplied by the requester, never by an automatic RMW.",
+      "evidence_path": "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v:169-170,226-234"
+    },
+    {
+      "topic": "addressed_register_file",
+      "reason": "No address port exists; the IP consumes zero address bits and cannot decode offsets or reject out-of-window accesses. The single-register window (base and size) must be defined by the SoC plan and enforced by the fabric, not by the IP.",
+      "evidence_path": "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v:78-92"
+    },
+    {
+      "topic": "wishbone_error_retry_and_burst",
+      "reason": "No o_wb_err/o_wb_rty and no i_wb_cti/i_wb_bte: the IP always ACKs any STB (regardless of CYC or address) and supports only single 32-bit transfers. Error responses for unmapped or illegal accesses must be generated by the SoC fabric.",
+      "evidence_path": "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v:78-92,210-214"
+    },
+    {
+      "topic": "level_or_sticky_interrupt",
+      "reason": "o_int is a single-cycle registered pulse (r_value==1 with i_ce), cleared by reset, by any write, or while i_ce is low, and there is no pending/ack/clear register. A consumer requiring a held or sticky interrupt level must add capture logic outside the IP; the pulse can be lost if not sampled in the same clock domain.",
+      "evidence_path": "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v:200-206"
+    },
+    {
+      "topic": "backpressure_or_acceptance_reporting",
+      "reason": "o_wb_stall is constant 0 and the slave keeps no outstanding-request state, so it can never indicate that a request was not accepted. Any flow control must be implemented by the adapter (one STB pulse per transaction, wait for the registered ACK) or by the shared SoC arbiter.",
+      "evidence_path": "third_party/soc-zipcpu/rtl/peripherals/ziptimer.v:210-214"
+    }
+  ]
+}

@@ -1,0 +1,187 @@
+{
+  "schema_version": "soc_elaboration_closure.v1",
+  "component": "zipcpu_uart",
+  "root": "third_party/soc-zipcpu-wbuart",
+  "top_module": "wbuart",
+  "tool": {
+    "name": "verilator",
+    "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "frontend": "verilator-lint"
+  },
+  "command": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "wbuart",
+    "third_party/soc-zipcpu-wbuart/rtl/wbuart.v",
+    "third_party/soc-zipcpu-wbuart/rtl/ufifo.v",
+    "third_party/soc-zipcpu-wbuart/rtl/rxuart.v",
+    "third_party/soc-zipcpu-wbuart/rtl/txuart.v"
+  ],
+  "include_roots": [],
+  "defines": [],
+  "parameters": [
+    {
+      "name": "INITIAL_SETUP",
+      "value": "25"
+    },
+    {
+      "name": "LGFLEN",
+      "value": "4"
+    },
+    {
+      "name": "HARDWARE_FLOW_CONTROL_PRESENT",
+      "value": "1"
+    }
+  ],
+  "closure_files": [
+    {
+      "root": "third_party/soc-zipcpu-wbuart",
+      "path": "rtl/wbuart.v",
+      "sha256": "9733247cdf577e41f317109b08d973f7b0a061e6566d9afdbdb915d778db1ce9"
+    },
+    {
+      "root": "third_party/soc-zipcpu-wbuart",
+      "path": "rtl/ufifo.v",
+      "sha256": "83c8894d6b36cebd33ade16d117a0eb6f7dc183e84eb17818edda48330cf0af5"
+    },
+    {
+      "root": "third_party/soc-zipcpu-wbuart",
+      "path": "rtl/rxuart.v",
+      "sha256": "6d7764726b82bf6daa3272f54d1a4e8496baba5501fdadc8095acdef68c27bbd"
+    },
+    {
+      "root": "third_party/soc-zipcpu-wbuart",
+      "path": "rtl/txuart.v",
+      "sha256": "740162a836b695b4cda844c557a6aa94d02c8a0386f4d40d59c77ebf2f850cba"
+    }
+  ],
+  "status": "elaboration_verified",
+  "lint": {
+    "errors": 0,
+    "warnings": 0,
+    "exit_code": 0,
+    "log": "runs/soc-source-elaboration/zipcpu/wbuart-lint.log"
+  },
+  "capability_findings": [
+    {
+      "topic": "wishbone_subset",
+      "port_or_field": "i_wb_stb/o_wb_stall/o_wb_ack",
+      "observed": "Pipelined-style response, classic-incompatible strobe hold: o_wb_stall is tied to 1'b0 (the slave always accepts) and o_wb_ack is a registered, fixed-latency response (two clocks after STB). STB alone triggers every register action, and the acknowledgement is not tied to STB being deasserted. A classic-mode master that holds STB until it sees ACK repeats the addressed action on every cycle STB is high and receives one ACK per cycle, i.e. duplicate side effects. The target adapter must pulse STB for exactly one cycle per transaction and hold CYC until the delayed ACK.",
+      "evidence_path": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:495,502,526",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "cyc_stb_semantics",
+      "port_or_field": "i_wb_cyc",
+      "observed": "CYC is used only in the ACK gate (o_wb_ack <= !i_reset && r_wb_ack && i_wb_cyc). It qualifies no register action: writes/reads are qualified by STB (+address+WE+sel) alone. Consequently a transaction whose CYC is low still performs its side effect but never receives ACK. To get ACK for a request applied in cycle T, CYC must be high in cycle T+1 (one cycle after the STB pulse), independent of CYC in cycle T.",
+      "evidence_path": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:61,125,495,502",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "stall_ack_timing",
+      "port_or_field": "o_wb_ack/o_wb_data",
+      "observed": "Exact timing: r_wb_ack <= !i_reset && i_wb_stb (registered), o_wb_ack <= !i_reset && r_wb_ack && i_wb_cyc, so a request in cycle T yields ACK in cycle T+2. o_wb_data is registered from the delayed address r_wb_addr (i_wb_addr registered at line 488) and is valid in the same cycle as ACK. Back-to-back STB cycles are accepted and produce back-to-back ACKs (one per request). ACK neither requires nor is suppressed by STB remaining asserted.",
+      "evidence_path": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:488,495,502,511-517",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "address_unit",
+      "port_or_field": "i_wb_addr[1:0]",
+      "observed": "Word-addressed 4-register window; exactly 2 address bits are consumed (word index, no byte-offset bits): UART_SETUP=2'b00, UART_FIFO=2'b01, UART_RXREG=2'b10, UART_TXREG=2'b11. The elaborated port is 2 bits wide (VL_IN8(&i_wb_addr,1,0)), so no higher address bits exist on the IP. There is no single-register aliasing: all four words are decoded and distinct.",
+      "evidence_path": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:63,79-82,125,488",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "byte_enable_setup_register",
+      "port_or_field": "i_wb_sel[3:0] @ UART_SETUP (2'b00)",
+      "observed": "Genuine per-byte write mask on the setup register: sel[0] writes uart_setup[7:0], sel[1] writes [15:8], sel[2] writes [23:16], sel[3] writes {i_wb_data[30] || !HARDWARE_FLOW_CONTROL_PRESENT, i_wb_data[29:24]}. Bit 31 is not implemented (reads return {1'b0, uart_setup}). So partial writes are supported here, with byte 3's bit 30 forced to 1 when HARDWARE_FLOW_CONTROL_PRESENT=0; a write with all sel bits low changes nothing.",
+      "evidence_path": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:125-137,513",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "byte_enable_fifo_register",
+      "port_or_field": "i_wb_sel[3:0] @ UART_FIFO (2'b01)",
+      "observed": "Read-only status register: reads return {txf_status, rxf_status}. There is no write path for address 2'b01 at all, so writes (with any i_wb_sel) have no side effect. Byte enables are irrelevant on this register.",
+      "evidence_path": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:479,514",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "byte_enable_rx_register",
+      "port_or_field": "i_wb_sel[3:0] @ UART_RXREG (2'b10)",
+      "observed": "Read has a side effect: a read pops one byte from the RX FIFO (rxf_wb_read registered from STB && addr==RXREG && !WE; byte enables do not gate it). On writes only sel[1] has any effect and only on control bits, not on data: sel[1] gates clearing the latched parity/framing error flags from i_wb_data[9]/[10] and gating rx_uart_reset from i_wb_data[12]. sel[0], sel[2], sel[3] have no write effect on this register. Note rx_uart_reset is also forced by any UART_SETUP write.",
+      "evidence_path": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:238,256-266,284-293",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "byte_enable_tx_register",
+      "port_or_field": "i_wb_sel[3:0] @ UART_TXREG (2'b11)",
+      "observed": "Write data path needs sel[0]: txf_wb_write = STB && addr==TXREG && WE && sel[0] pushes i_wb_data[7:0] into the TX FIFO. sel[1] gates two control bits and nothing else: break from i_wb_data[9] and tx_uart_reset from i_wb_data[12]. sel[2] and sel[3] are unused. A write with sel[0]=0 never enqueues a byte even though the IP accepts and ACKs the transaction.",
+      "evidence_path": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:327-333,381-390,404-411,438-440",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "read_side_effects",
+      "port_or_field": "UART_RXREG read",
+      "observed": "Reading UART_RXREG advances (pops) the RX FIFO one entry; reading UART_FIFO and UART_SETUP is side-effect free; reading UART_TXREG has no side effect (write-only advancement). This means a read of the RX register is a non-idempotent MMIO access and must not be replayed speculatively.",
+      "evidence_path": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:236-239,446-461",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "irq_form",
+      "port_or_field": "o_uart_rx_int/o_uart_rxfifo_int/o_uart_tx_int/o_uart_txfifo_int",
+      "observed": "Four combinational, level-sensitive interrupts wired directly to FIFO status bits: o_uart_rx_int = rxf_status[0] (RX FIFO readable, i.e. non-empty), o_uart_rxfifo_int = rxf_status[1] (RX FIFO at least half full), o_uart_tx_int = txf_status[0] (TX FIFO writable / not full), o_uart_txfifo_int = txf_status[1] (TX FIFO less than half full). They are not edge-detected or latched; the level changes only when FIFO fill changes (read RX / write TX). ufifo status layout: [15:12]=LGFLEN, [11:2]=fill (RX: items stored, TX: empty slots), [1]=half-full flag, [0]=can read (RX) / can write (TX).",
+      "evidence_path": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:207,212,365,369; third_party/soc-zipcpu-wbuart/rtl/ufifo.v:281-303",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "reset_and_clock",
+      "port_or_field": "i_clk/i_reset",
+      "observed": "Single clock i_clk with synchronous, active-high reset used directly in the always blocks of wbuart, ufifo, rxuart and txuart (all state is reset on the posedge when i_reset is high). Reset is a level, held for at least one clock; rx_uart_reset/tx_uart_reset add derived one-cycle resets on UART_SETUP writes and on control bits. The RX FIFO reset is (i_reset || rx_break || rx_uart_reset); the TX FIFO reset is (tx_break || tx_uart_reset), i.e. the TX FIFO is cleared by the derived tx_uart_reset pulse rather than by i_reset directly. ACK is suppressed while i_reset is high.",
+      "evidence_path": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:121-137,198,282-293,351,404-411,495,502",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "elaborated_ports",
+      "port_or_field": "wbuart top port list",
+      "observed": "Elaboration with the pinned files resolves 19 ports: i_clk, i_reset, i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr[1:0], i_wb_data[31:0], i_wb_sel[3:0], i_uart_rx, i_cts_n; o_wb_stall, o_wb_ack, o_wb_data[31:0], o_uart_tx, o_rts_n, o_uart_rx_int, o_uart_tx_int, o_uart_rxfifo_int, o_uart_txfifo_int. There is no o_wb_err, o_wb_rty, i_wb_cti/i_wb_bte or any burst/error signal. wbuart instantiates rxuart, two ufifo instances and txuart when USE_LITE_UART is undefined (it is not defined by the pinned sources); rxuart/txuart/ufifo instantiate no further module.",
+      "evidence_path": "runs/soc-source-elaboration/zipcpu/wbuart-elaborated-ports.txt; third_party/soc-zipcpu-wbuart/rtl/wbuart.v:153-173,192-204,345-357,415-442",
+      "provenance": "elaboration"
+    },
+    {
+      "topic": "parameters",
+      "port_or_field": "INITIAL_SETUP/LGFLEN/HARDWARE_FLOW_CONTROL_PRESENT",
+      "observed": "The RTL defaults are INITIAL_SETUP=31'd25, LGFLEN=4'h4, HARDWARE_FLOW_CONTROL_PRESENT=1'b1, identical to the typed_parameters recorded for zipcpu_uart in configs/soc/sources.lock.json; the recorded command therefore elaborates the locked configuration with no -G override and produces zero warnings. LCLLGFLEN is a localparam that clamps LGFLEN into [2,10] for the RX FIFO only (the TX FIFO receives LGFLEN unclamped). Explicit -G probes with the same values and with a distinctive value confirm the override path reaches elaboration; parameters were recorded from RTL defaults rather than asserted on the command line.",
+      "evidence_path": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:48-55,194,347; runs/soc-source-elaboration/zipcpu/parameters-probe.log",
+      "provenance": "rtl_read"
+    }
+  ],
+  "unsupported": [
+    {
+      "topic": "wishbone_classic_stb_hold",
+      "reason": "STALL is tied low and register actions are qualified by STB alone, so a master that follows classic behaviour by holding STB until ACK would repeat the action (e.g. push the same TX byte into the FIFO multiple times) and receive an ACK per cycle. Single-cycle STB pulses must be generated by the target adapter; the IP cannot distinguish 'one request held' from 'N requests'.",
+      "evidence_path": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:330-332,495,526"
+    },
+    {
+      "topic": "write_to_fifo_register",
+      "reason": "Address UART_FIFO (2'b01) has no write path: writes with any i_wb_sel are accepted/ACKed but have no effect. Only reads return the combined FIFO status.",
+      "evidence_path": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:479,514"
+    },
+    {
+      "topic": "generic_byte_masked_word_write",
+      "reason": "There is no register with a general 32-bit byte-masked write. i_wb_sel is used per register as either a per-byte mask (UART_SETUP), a control-bit qualifier (UART_RXREG/UART_TXREG, only lane 1) or not at all (UART_FIFO); TX data accepts only byte lane 0. A generic byte-enable adapter must not assume uniform masking.",
+      "evidence_path": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:127-136,262,288,331,387,408"
+    },
+    {
+      "topic": "wishbone_error_retry_and_burst",
+      "reason": "No o_wb_err, o_wb_rty, i_wb_cti or i_wb_bte exist; every accepted request eventually yields ACK only. Unmapped addresses cannot be reported by this IP, so decode errors must be generated by the SoC fabric.",
+      "evidence_path": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:57-76"
+    },
+    {
+      "topic": "multi_byte_tx_write",
+      "reason": "A UART_TXREG write enqueues exactly one byte (i_wb_data[7:0], gated by sel[0]); byte lanes 1-3 never enqueue data. Writing a 32-bit word expecting four bytes is not supported.",
+      "evidence_path": "third_party/soc-zipcpu-wbuart/rtl/wbuart.v:327-333"
+    }
+  ]
+}

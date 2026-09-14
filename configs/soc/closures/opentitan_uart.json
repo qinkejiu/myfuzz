@@ -1,0 +1,509 @@
+{
+  "schema_version": "soc_elaboration_closure.v1",
+  "component": "opentitan_uart",
+  "root": "third_party/soc-opentitan",
+  "top_module": "uart",
+  "tool": {
+    "name": "verilator",
+    "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "frontend": "verilator-lint"
+  },
+  "command": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "uart",
+    "-Ithird_party/soc-opentitan/hw/ip/prim/rtl",
+    "-Ithird_party/soc-opentitan/hw/ip/prim_generic/rtl",
+    "-Ithird_party/soc-opentitan/hw/ip/tlul/rtl",
+    "-Ithird_party/soc-opentitan/hw/top_earlgrey/rtl",
+    "-Ithird_party/soc-opentitan/hw/top_earlgrey/rtl/autogen",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_alert_pkg.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_count_pkg.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_mubi_pkg.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_secded_pkg.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_subreg_pkg.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_util_pkg.sv",
+    "third_party/soc-opentitan/hw/ip/uart/rtl/uart_reg_pkg.sv",
+    "third_party/soc-opentitan/hw/top_earlgrey/rtl/top_pkg.sv",
+    "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_pkg.sv",
+    "third_party/soc-opentitan/hw/top_earlgrey/rtl/autogen/top_racl_pkg.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_alert_sender.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_count.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_diff_decode.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_fifo_sync.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_fifo_sync_cnt.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_intr_hw.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_onehot_check.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_onehot_enc.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_reg_we_check.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_sec_anchor_buf.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_sec_anchor_flop.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_subreg.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_subreg_arb.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_subreg_ext.sv",
+    "third_party/soc-opentitan/hw/ip/prim_generic/rtl/prim_buf.sv",
+    "third_party/soc-opentitan/hw/ip/prim_generic/rtl/prim_flop.sv",
+    "third_party/soc-opentitan/hw/ip/prim_generic/rtl/prim_flop_2sync.sv",
+    "third_party/soc-opentitan/hw/ip/prim_generic/rtl/prim_xnor2.sv",
+    "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_adapter_reg.sv",
+    "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_cmd_intg_chk.sv",
+    "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_data_integ_dec.sv",
+    "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_data_integ_enc.sv",
+    "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_err.sv",
+    "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_rsp_intg_gen.sv",
+    "third_party/soc-opentitan/hw/ip/uart/rtl/uart.sv",
+    "third_party/soc-opentitan/hw/ip/uart/rtl/uart_core.sv",
+    "third_party/soc-opentitan/hw/ip/uart/rtl/uart_reg_top.sv",
+    "third_party/soc-opentitan/hw/ip/uart/rtl/uart_rx.sv",
+    "third_party/soc-opentitan/hw/ip/uart/rtl/uart_tx.sv",
+    "--MMD",
+    "--Mdir",
+    "runs/soc-source-elaboration/opentitan/obj_uart_final"
+  ],
+  "include_roots": [
+    "hw/ip/prim/rtl",
+    "hw/ip/prim_generic/rtl",
+    "hw/ip/tlul/rtl",
+    "hw/top_earlgrey/rtl",
+    "hw/top_earlgrey/rtl/autogen"
+  ],
+  "defines": [],
+  "parameters": [
+    {
+      "name": "AlertAsyncOn",
+      "value": "1'b1"
+    },
+    {
+      "name": "AlertSkewCycles",
+      "value": "1"
+    },
+    {
+      "name": "EnableRacl",
+      "value": "1'b0"
+    },
+    {
+      "name": "RaclErrorRsp",
+      "value": "1'b0"
+    },
+    {
+      "name": "RaclPolicySelVec",
+      "value": "'{13{1'b0}}"
+    },
+    {
+      "name": "uart_reg_pkg::NumAlerts",
+      "value": "1"
+    },
+    {
+      "name": "uart_reg_pkg::NumRegs",
+      "value": "13"
+    },
+    {
+      "name": "uart_reg_pkg::BlockAw",
+      "value": "6"
+    },
+    {
+      "name": "uart_reg_pkg::RxFifoDepth",
+      "value": "64"
+    },
+    {
+      "name": "uart_reg_pkg::TxFifoDepth",
+      "value": "32"
+    }
+  ],
+  "closure_files": [
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_alert_pkg.sv",
+      "sha256": "32d9e1647d61bab570c41c5d61b7464c29925c9d38f03d0648b626e8ce42c1f4"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_alert_sender.sv",
+      "sha256": "288561001fd344dffb0d935cf85de264ca16e1296f1f30fdc8386659a9683b98"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_assert.sv",
+      "sha256": "d717d5dbcba3b5aa8a731ef9f8af18b036b49edef282f0a43a51f5ad2dd9bb40"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_assert_dummy_macros.svh",
+      "sha256": "cac4a930105da662547de873f0b80246074fb22df9a398663e1c8ac3e7998218"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_assert_sec_cm.svh",
+      "sha256": "25db89fe5f250c1bcbd808d0b4808206b9e85ac337b26e4ebb23f2ad569e1a13"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_count.sv",
+      "sha256": "b48580aefff674a48a674489c9b21a98d5399ca5b4c7623f3a7c907a75d8f0cb"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_count_pkg.sv",
+      "sha256": "8e465ed25b7d59f29faf0f315243a774cf0e50d178ec2068d8c71983cb2f18df"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_diff_decode.sv",
+      "sha256": "e3ed6f83329589eed061c893d8b9ad1e00e975e23e9347ed31f68b50f0822d6d"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_fifo_assert.svh",
+      "sha256": "4d695096c6582de1e723474e06ca002d3aa2cc87f85e9ffd25bb8c8275ff6118"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_fifo_sync.sv",
+      "sha256": "2655befe56a70ee672c2f1259a82ef2beb2adf429ed0405bcf26bea7c4de3630"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_fifo_sync_cnt.sv",
+      "sha256": "33b87939c31a6d71ccd2fe005e5a5dcaaeb343990f9425568cb8686def9f4fb7"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_flop_macros.sv",
+      "sha256": "2e8e6c2ee484899ae5d0020eaf0c9732c31537c60c30cb2a0a0acd2e92baee03"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_intr_hw.sv",
+      "sha256": "2fb312f9db786982dd4c2bb656f9ba7862637b045dd704ea128a4ce6a4a1f8bc"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_mubi_pkg.sv",
+      "sha256": "11a2f1a16ddaf750d859c95e07fc48c54743fe6ad3b5c5eabe2e14a51d9fb1af"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_onehot_check.sv",
+      "sha256": "97aefa2e7ebd26e12ea9fc691908a62315e2135bdbb127f3c3d640eeb15096ca"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_onehot_enc.sv",
+      "sha256": "e9a65c74e4478063ea00fc3d80eaff214fdbacfe07e91f13f28ceb725e5ad362"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_reg_we_check.sv",
+      "sha256": "0f38519d831f24bb9a1afc1041f6840eb42187a958788a5256aa0c698819af4a"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_sec_anchor_buf.sv",
+      "sha256": "073be7f3daa8a738add627e1055704cc94d82cfb8ff11f6952c644abde20c702"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_sec_anchor_flop.sv",
+      "sha256": "7bb3cb240164715f3956831e35e95f1a3e7e901deae02cc1297669318986d7bf"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+      "sha256": "f07f26fd2375952e4ec7cfc1641cebcea373a8030d82dd5977a76f81c430cb12"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+      "sha256": "4588fda3fd5ebdd711c98f6900caaaaddddf1257337c5b931ca86de7fb0ef8ff"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+      "sha256": "e598eef60254ac4a0e6899f6d1e4af5ae5bbd2ac22395ac53ee925296bc8a826"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+      "sha256": "74b3b327047b90682468614708bb4b1104b1f069c0dc3189e2b078622ac566b8"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_secded_pkg.sv",
+      "sha256": "bcbd03333a30e7a1cb01195d1c40c7d0e736f91d9f73c2347ef5b0bd9dc3c82b"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_subreg.sv",
+      "sha256": "25fb080996e7a9f1a8db6b827d57926850324e254c2758a921f4d67d13445992"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_subreg_arb.sv",
+      "sha256": "16530c91931e97b25e33334bfc5942fd254324189115f942585f26f56d8ae758"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_subreg_ext.sv",
+      "sha256": "dc22ea14c164661970db2a76060fc54cbbe1d432534eaadce0caa8a3a2935ce5"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_subreg_pkg.sv",
+      "sha256": "a38c3243535348fb4b0e5d233c0baa89eea3588b976d8bb050c7de4a2fd09bf0"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_util_pkg.sv",
+      "sha256": "f71235ef5b92eaa3d2ed5c676f76108082df93b8aae8f9baa816584d1d285208"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim_generic/rtl/prim_buf.sv",
+      "sha256": "9b00bd8ac203169268262ac9337076781fa962b19beed36f28dde54e360aaaf5"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim_generic/rtl/prim_flop.sv",
+      "sha256": "6645d657b107b024f9211d3a0134890d1e20146f68ba1772bf62575f7b4e5549"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim_generic/rtl/prim_flop_2sync.sv",
+      "sha256": "5780aef67607c161eb8a4b3326757af5b416eb5337aef0afc457fdebf2891c53"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim_generic/rtl/prim_xnor2.sv",
+      "sha256": "ebdd3179c32a81303227775e3e6ef0afdf8959efebf7a6892d122d4bc6a776c7"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/tlul/rtl/tlul_adapter_reg.sv",
+      "sha256": "6993b14697bc826c619793697ffaea382d4bba3775c23af3add25ad3914ef531"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/tlul/rtl/tlul_cmd_intg_chk.sv",
+      "sha256": "1b56b9fca7e0b8643110622f6e9d5e6d8bb263bec923a5836748ba3b6f7f76ad"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/tlul/rtl/tlul_data_integ_dec.sv",
+      "sha256": "0df25d94c03bef617e6ef309375c2d40cbc27719a0696fb1119ca53c3a68d2cb"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/tlul/rtl/tlul_data_integ_enc.sv",
+      "sha256": "28567bc5483eddcf20b51890bc82497f32728b6a46b134a43c01f7180a14c7a9"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/tlul/rtl/tlul_err.sv",
+      "sha256": "850cefc36e1a5c6f78161b8bf04786dc72138336a48edaf5ca92242690294462"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/tlul/rtl/tlul_pkg.sv",
+      "sha256": "c8b95a4457bc594031d6b28dec6ba58af44c94ba74580bcdc3ebe5549797040a"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/tlul/rtl/tlul_rsp_intg_gen.sv",
+      "sha256": "673bce2f23ef8e60f95f96f14bb3a71de6e88d788e12f0b3e89bc7125ed7e145"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/uart/rtl/uart.sv",
+      "sha256": "b2ea9b88abb25f8a7cdbe317dfc91e6b2b456647781d2bdc33ef384c526412a5"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/uart/rtl/uart_core.sv",
+      "sha256": "4df7acad038cdb06f81e4b7681ddf3b0bc091eb38dae63c385812f980c47d0be"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/uart/rtl/uart_reg_pkg.sv",
+      "sha256": "106f8da3d41f8cfe585a58e91c251e23e76c81d25956cb751f61644023dfa01b"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/uart/rtl/uart_reg_top.sv",
+      "sha256": "8c40c957fbd7c1155f58d2c7696340b7ea6b82c2b0626ec684463f991538ae27"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/uart/rtl/uart_rx.sv",
+      "sha256": "08a72a3f045562eee419f42fe2abb4f68f3282b90bb0a6e268872fd39748782b"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/uart/rtl/uart_tx.sv",
+      "sha256": "1cd4f59b8a58bb8e99c2a24081aae093f6528ac1887abb7cb5f31b911f949241"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/top_earlgrey/rtl/autogen/top_racl_pkg.sv",
+      "sha256": "fd932f944025a1ab8f064fc03afeaafdae4fce3f3c69d40083b3ef206bebaf7f"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/top_earlgrey/rtl/top_pkg.sv",
+      "sha256": "5f8a0e366b9e6f300dc58552e693342173b4e0a716221b583a2a55550785b55f"
+    }
+  ],
+  "status": "elaboration_verified",
+  "lint": {
+    "errors": 0,
+    "warnings": 4,
+    "exit_code": 0,
+    "log": "runs/soc-source-elaboration/opentitan/uart_final.log"
+  },
+  "capability_findings": [
+    {
+      "topic": "tlul_protocol_version",
+      "port_or_field": "tl_i / tl_o",
+      "observed": "TL-UL (TileLink Uncached Lightweight), the OpenTitan bus spec variant of TileLink. The spec states it follows the TileLink 1.7-draft document (1.7.1 referenced in the same README) with lowRISC user extensions, one request and one response per cycle and no burst transactions.",
+      "evidence_path": "third_party/soc-opentitan/hw/ip/tlul/README.md:18-19,28-31,45-47,57-63",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "tlul_channel_structure",
+      "port_or_field": "tlul_pkg::tl_h2d_t / tlul_pkg::tl_d2h_t",
+      "observed": "A channel: a_valid, a_opcode[2:0], a_param[2:0], a_size[TL_SZW-1:0], a_source[TL_AIW-1:0], a_address[TL_AW-1:0], a_mask[TL_DBW-1:0], a_data[TL_DW-1:0], a_user (tl_a_user_t) and d_ready. D channel: d_valid, d_opcode[2:0], d_param[2:0], d_size, d_source, d_sink[TL_DIW-1:0], d_data, d_user (tl_d_user_t), d_error and a_ready. This is the same struct pair used by the uart/gpio top ports.",
+      "evidence_path": "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_pkg.sv:67-120",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "tlul_widths",
+      "port_or_field": "top_pkg TL_AW/TL_DW/TL_DBW/TL_SZW/TL_AIW/TL_DIW/TL_AUW",
+      "observed": "TL_AW=32, TL_DW=32, TL_DBW=4, TL_SZW=clog2(clog2(TL_DBW)+1)=2, TL_AIW=8 (a_source/d_source), TL_DIW=1 (d_sink), TL_AUW=23 (a_user). These are the elaborated values; a_size therefore encodes 1/2/4-byte transfers and a_source is an 8-bit ID.",
+      "evidence_path": "third_party/soc-opentitan/hw/top_earlgrey/rtl/top_pkg.sv:8-15",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "tlul_opcodes",
+      "port_or_field": "a_opcode / d_opcode",
+      "observed": "a_opcode legal set is PutFullData=3'h0, PutPartialData=3'h1, Get=3'h4 (no other opcodes). d_opcode is AccessAck=3'h0 for writes and AccessAckData=3'h1 for reads; the adapter returns AccessAckData for a Get regardless of error.",
+      "evidence_path": "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_pkg.sv:16-25; third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_adapter_reg.sv:184",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "tlul_user_field",
+      "port_or_field": "a_user / d_user",
+      "observed": "tl_a_user_t = {rsvd[RsvdWidth-1:0], instr_type (mubi4), cmd_intg[6:0], data_intg[6:0]} with RsvdWidth = TL_AUW-4-7-7 = 5 bits; TL_A_USER_DEFAULT sets instr_type=MuBi4False and both integrity fields to all ones. RACL role and CTN UID are carried in a_user.rsvd and extracted with top_racl_pkg::tlul_extract_racl_role_bits / tlul_extract_ctn_uid_bits. tl_d_user_t = {rsp_intg[6:0], data_intg[6:0]}.",
+      "evidence_path": "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_pkg.sv:36-58,97-105",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "integrity_check_path",
+      "port_or_field": "intg_err_o -> alerts[0]",
+      "observed": "The generated reg_top instantiates tlul_cmd_intg_chk directly on tl_i. That checker recomputes inv-64/57 SEC-DED over {a_address, a_opcode, a_mask, a_user.instr_type} and inv-39/32 over a_data, and pulses err_o = a_valid & (|err | |data_err). The reg_top latches it (err_q) and drives intg_err_o = err_q | intg_err | reg_we_err, where reg_we_err is a prim_reg_we_check one-hot check of the register write enables. intg_err_o is wired to alerts[0] (and to no other alert). NOTE: the reg_top's own tlul_adapter_reg keeps CmdIntgCheck=0 (default) and its intg_error_o port is left unconnected, so the integrity error does not travel through the adapter's internal checker; it comes from the separately instantiated checker.",
+      "evidence_path": "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_cmd_intg_chk.sv:22-44; third_party/soc-opentitan/hw/ip/uart/rtl/uart_reg_top.sv:57-87; third_party/soc-opentitan/hw/top_earlgrey/ip_autogen/gpio/rtl/gpio_reg_top.sv:57-87; third_party/soc-opentitan/hw/ip/uart/rtl/uart.sv:71; third_party/soc-opentitan/hw/top_earlgrey/ip_autogen/gpio/rtl/gpio.sv:238",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "d_error_production",
+      "port_or_field": "tl_o.d_error / tl_o.d_data",
+      "observed": "reg_error = addrmiss | wr_err | intg_err is passed to the adapter as error_i; the adapter registers d_error = error_i | err_internal at a_ack and forces d_data to all ones for every write and for any errored read, so an errored read never returns register contents. err_internal = addr_align_err | tl_err | instr_error | intg_error where tl_err is the protocol checker (opcode not in the legal set, a_size>2, size/address misalignment, a_mask outside the addressed lanes, PutFullData mask not covering the size, invalid instr_type mubi, instruction-fetch write) and addr_align_err flags a write with a_address[1:0]!=0. addrmiss = (reg_re||reg_we) ? ~|addr_hit : 0; wr_err flags a sub-word write whose byte enables are not permitted by the per-register PERMIT mask. Reads of unmapped offsets inside the window return the default case value '1.",
+      "evidence_path": "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_adapter_reg.sv:216-241,277-303; third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_err.sv:23-97",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "response_integrity",
+      "port_or_field": "tl_o.d_user",
+      "observed": "The reg_top generates both response integrity fields with tlul_rsp_intg_gen(EnableRspIntgGen=1, EnableDataIntgGen=1): rsp_intg is inv-64/57 SEC-DED over {d_opcode, d_size, d_error} and data_intg is inv-39/32 over d_data. The adapter's own data-integrity generator is disabled (EnableDataIntgGen(0)) and d_sink is tied to 0.",
+      "evidence_path": "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_rsp_intg_gen.sv:36-63",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "alert_handshake",
+      "port_or_field": "alert_tx_o / alert_rx_i",
+      "observed": "One prim_alert_sender per alert, instantiated with AsyncOn=AlertAsyncOn[i], SkewCycles=AlertSkewCycles and IsFatal=1'b1; alert_req_i is the register-integrity error (alerts[0]) and alert_test_i is driven from the ALERT_TEST register bits as (alert_test.q & alert_test.qe). alert_ack_o and alert_state_o are left unconnected. alert_tx_t = {alert_p, alert_n}; alert_rx_t = {ping_p, ping_n, ack_p, ack_n}. The sender implements a 4-phase differential handshake FSM (Idle -> AlertHsPhase1 -> AlertHsPhase2 -> Pause0 -> Pause1), asserting alert_p/n and waiting for the receiver's ack_level; IsFatal=1 latches the request until reset so the handshake is re-issued indefinitely.",
+      "evidence_path": "third_party/soc-opentitan/hw/ip/prim/rtl/prim_alert_sender.sv:132-150,167-187,195-250",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "alert_configuration",
+      "port_or_field": "AlertAsyncOn / AlertSkewCycles / NumAlerts",
+      "observed": "NumAlerts=1 from the generated reg_pkg, so alert_tx_o and alert_rx_i are 1-element arrays and the generate loop creates exactly one sender. AlertAsyncOn defaults to all ones (asynchronous handshake, CDC-safe) and AlertSkewCycles to 1, matching top_pkg::AlertSkewCycles=1; these are the values used by the earlgrey top instance as well.",
+      "evidence_path": "third_party/soc-opentitan/hw/top_earlgrey/rtl/top_pkg.sv:18",
+      "provenance": "source_declared"
+    },
+    {
+      "topic": "interrupt_form_and_driving_registers",
+      "port_or_field": "intr_tx_watermark_o..intr_rx_parity_err_o (9 outputs) / INTR_STATE, INTR_ENABLE, INTR_TEST",
+      "observed": "All 9 UART interrupts are active-high LEVEL outputs: prim_intr_hw is used with the default FlopOutput=1, so intr_o <= (status & INTR_ENABLE) is registered and stays asserted while the enabled status is set - none of them is a one-cycle event pulse. 3 interrupts use IntrT=Status (tx_watermark, tx_empty, rx_watermark): their INTR_STATE bit is RO and follows the live hardware condition. The other 6 use IntrT=Event (tx_done, rx_overflow, rx_frame_err, rx_break_err, rx_timeout, rx_parity_err): INTR_STATE is W1C and stays set until software writes 1, which is what drives the level output. INTR_TEST can force any of the 9. INTR_STATE bit map: 0 tx_watermark, 1 rx_watermark, 2 tx_done, 3 rx_overflow, 4 rx_frame_err, 5 rx_break_err, 6 rx_timeout, 7 rx_parity_err, 8 tx_empty. Offsets: INTR_STATE 0x00, INTR_ENABLE 0x04, INTR_TEST 0x08, ALERT_TEST 0x0c, CTRL 0x10, STATUS 0x14, RDATA 0x18, WDATA 0x1c, FIFO_CTRL 0x20, FIFO_STATUS 0x24, OVRD 0x28, VAL 0x2c, TIMEOUT_CTRL 0x30.",
+      "evidence_path": "third_party/soc-opentitan/hw/ip/uart/rtl/uart_core.sv:402-519; third_party/soc-opentitan/hw/ip/prim/rtl/prim_intr_hw.sv:62-102; third_party/soc-opentitan/hw/ip/uart/rtl/uart_reg_pkg.sv:351-363",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "interrupt_events",
+      "port_or_field": "event_* signals feeding prim_intr_hw",
+      "observed": "Event sources are computed from the real datapath: rx_overflow = rx_fifo_wvalid & ~rx_fifo_wready; rx_frame_err / rx_parity_err come from uart_rx; rx_timeout = (rx_timeout_count_q == TIMEOUT_CTRL.val) & TIMEOUT_CTRL.en; rx_break_err from the break detector; tx_done = ~tx_fifo_rvalid & ~tx_uart_idle_q & tx_uart_idle; tx_empty = tx FIFO depth 0; tx_watermark/rx_watermark from the FIFO levels compared with the power-of-two thresholds derived from FIFO_CTRL.txilvl/rxilvl.",
+      "evidence_path": "third_party/soc-opentitan/hw/ip/uart/rtl/uart_core.sv:314-400",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "cio_pins",
+      "port_or_field": "cio_rx_i / cio_tx_o / cio_tx_en_o",
+      "observed": "cio_tx_en_o is hardwired to 1'b1 (and asserted by ASSERT(TxEnIsOne_A)), so the TX pad output is always enabled. cio_tx_o is the registered uart_core output tx_out_q: it is overwritten by OVRD.TXEN/TXVAL when OVRD.TXEN is set, forced high during sys_loopback (CTRL.SLPBK) and driven from the RX line during line_loopback (CTRL.LLPBK). cio_rx_i is synchronized by prim_flop_2sync (ResetValue=1) and, when CTRL.NF is set, passed through a 3-sample majority filter before uart_rx. The IP contains no tristate/pad primitive - it exposes separate digital pad signals.",
+      "evidence_path": "third_party/soc-opentitan/hw/ip/uart/rtl/uart.sv:36-39,119-124; third_party/soc-opentitan/hw/ip/uart/rtl/uart_core.sv:217-266",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "racl_enforcement",
+      "port_or_field": "racl_policies_i / racl_error_o / EnableRacl / RaclErrorRsp",
+      "observed": "With the recorded default EnableRacl=0 the per-register RACL hit logic is replaced by racl_addr_hit_read = racl_addr_hit_write = addr_hit, so racl_error_o.valid is 0 for every access and RACL can neither block a write nor produce an error; racl_error_o.request_address/racl_role/ctn_uid/read_access/overflow are still driven (racl_role = '0). With EnableRacl=1 the reg_top extracts the role from a_user.rsvd, one-hot encodes it, ANDs each register's RaclPolicySelVec-selected read_perm/write_perm against the role vector, gates every register write enable with racl_addr_hit_write, asserts racl_error_o.valid on a policy miss for a hit address, and (because uart's RaclErrorRsp default is EnableRacl, i.e. 1 when RACL is on) folds racl_error_o.valid into the adapter error_i so the denied access returns tl_o.d_error = 1.",
+      "evidence_path": "third_party/soc-opentitan/hw/ip/uart/rtl/uart_reg_top.sv:124,1581-1643",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "address_window_and_alias",
+      "port_or_field": "tl_i.a_address -> reg_addr",
+      "observed": "BlockAw=6 gives a 64-byte register window (last register TIMEOUT_CTRL at 0x30). tlul_adapter_reg is instantiated with RegAw=6 and addr_o = {a_address[5:2], 2'b00}: only address bits [5:2] are decoded inside the IP and all higher address bits are ignored, so the IP itself does not detect aliasing every 64 bytes - window decoding belongs to the surrounding fabric. Reads are always returned word-aligned regardless of a_size (the register read data path is not shifted by a_size/address).",
+      "evidence_path": "third_party/soc-opentitan/hw/ip/uart/rtl/uart_reg_top.sv:34,102-106; third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_adapter_reg.sv:163-167",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "elaboration_parameters_and_why",
+      "port_or_field": "uart module parameters",
+      "observed": "Elaborated with the module's own defaults: AlertAsyncOn=1'b1 ({NumAlerts{1'b1}}), AlertSkewCycles=1, EnableRacl=1'b0, RaclErrorRsp=EnableRacl=1'b0, RaclPolicySelVec='{NumRegs{1'b0}}. Reason: these are exactly the values selected by the pinned earlgrey integration for u_uart0, which overrides only AlertAsyncOn (alert_handler_reg_pkg::AsyncOn[0], all-ones by default) and AlertSkewCycles (top_pkg::AlertSkewCycles = 1) and leaves the three RACL parameters at their defaults. NumAlerts=1, NumRegs=13 and BlockAw=6 come from the pinned generated uart_reg_pkg.",
+      "evidence_path": "third_party/soc-opentitan/hw/ip/uart/rtl/uart.sv:11-17; third_party/soc-opentitan/hw/top_earlgrey/rtl/autogen/earlgrey_pd_main.sv:1082-1085; third_party/soc-opentitan/hw/top_earlgrey/ip_autogen/alert_handler/rtl/alert_handler_reg_pkg.sv:83-84",
+      "provenance": "source_declared"
+    }
+  ],
+  "unsupported": [
+    {
+      "topic": "generator_reproduction (regtool/topgen)",
+      "reason": "sources.lock.json records the generator as regtool/topgen with status pending_input_closure_and_reproduction and tool_version null. regtool/topgen was not executed in this task; the checked-in generated files hw/ip/uart/rtl/uart_reg_pkg.sv and uart_reg_top.sv are used and sha256-pinned, so the register map is verified against the pinned bytes but not reproduced from hw/ip/uart/data/uart.hjson.",
+      "evidence_path": "configs/soc/sources.lock.json (component opentitan_uart, field generator); third_party/soc-opentitan/hw/ip/uart/rtl/uart_reg_top.sv:5"
+    },
+    {
+      "topic": "alert_handshake_peer",
+      "reason": "Only prim_alert_sender is instantiated inside this closure; no prim_alert_receiver / alert_handler peer is included, so alert_ack_o and alert_state_o are unconnected and the 4-phase differential handshake cannot complete. alert_tx_o/alert_rx_o behaviour is elaborated but not exercised, and alert escalation to an alert handler is outside this closure.",
+      "evidence_path": "third_party/soc-opentitan/hw/ip/uart/rtl/uart.sv:102-117"
+    },
+    {
+      "topic": "racl_enforcement_not_active_in_recorded_command",
+      "reason": "The recorded command elaborates the module defaults (EnableRacl=0, RaclErrorRsp=0, RaclPolicySelVec all zero), i.e. RACL is present as ports/parameters but enforces nothing. The EnableRacl=1 configuration was separately elaborated (exit 0, identical closure file set, log runs/soc-source-elaboration/opentitan/uart_racl_enabled.log) but no behaviour has been simulated, so RACL policy semantics remain runtime-unverified.",
+      "evidence_path": "third_party/soc-opentitan/hw/ip/uart/rtl/uart_reg_top.sv:1581-1643"
+    },
+    {
+      "topic": "NumAlerts>1 configuration",
+      "reason": "NumAlerts is fixed at 1 by the pinned generated uart_reg_pkg; the generate loop indexes alert_rx_i[i]/alert_tx_o[i] but drives alert_req_i from alerts[0] for every index, so a multi-alert configuration is not supported by this closure and was not elaborated.",
+      "evidence_path": "third_party/soc-opentitan/hw/ip/uart/rtl/uart.sv:102-117"
+    },
+    {
+      "topic": "cio pad electrical behaviour",
+      "reason": "The closure contains only the digital IP top: there is no pad/tristate primitive (prim_pad_wrapper) in the closure, so cio_* drive strength, pull-up, slew and the physical inout merge are outside it. For gpio the inout is exposed as separate cio_gpio_i/cio_gpio_o/cio_gpio_en_o ports.",
+      "evidence_path": "third_party/soc-opentitan/hw/ip/uart/rtl/uart.sv:36-39"
+    }
+  ]
+}

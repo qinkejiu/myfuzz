@@ -1,0 +1,239 @@
+{
+  "schema_version": "soc_elaboration_closure.v1",
+  "component": "pulp_spi",
+  "root": "third_party/soc-pulp-apb-spi",
+  "top_module": "apb_spi_master",
+  "tool": {
+    "name": "verilator",
+    "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "frontend": "verilator-lint"
+  },
+  "command": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "apb_spi_master",
+    "-GBUFFER_DEPTH=10",
+    "-GAPB_ADDR_WIDTH=12",
+    "third_party/soc-pulp-apb-spi/apb_spi_master.sv",
+    "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_clkgen.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_controller.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_fifo.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_rx.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_tx.sv"
+  ],
+  "include_roots": [],
+  "defines": [],
+  "parameters": [
+    {
+      "name": "BUFFER_DEPTH",
+      "value": "10"
+    },
+    {
+      "name": "APB_ADDR_WIDTH",
+      "value": "12"
+    }
+  ],
+  "closure_files": [
+    {
+      "root": "third_party/soc-pulp-apb-spi",
+      "path": "apb_spi_master.sv",
+      "sha256": "dfc82b0f3c91ba44d986288e1884b1eede0aad6ed8c5b09179a629344d547d0e"
+    },
+    {
+      "root": "third_party/soc-pulp-apb-spi",
+      "path": "spi_master_apb_if.sv",
+      "sha256": "a9a32da6cc07768cab293c48989599e36b2000bb572191667960aa1423fc790a"
+    },
+    {
+      "root": "third_party/soc-pulp-axi-spi",
+      "path": "spi_master_clkgen.sv",
+      "sha256": "dbfc81a8afe1c05a4372cf7e46f1217f6b57d56c8927bf25ee5f427761b15332"
+    },
+    {
+      "root": "third_party/soc-pulp-axi-spi",
+      "path": "spi_master_controller.sv",
+      "sha256": "0ba0d90e99949939b3815ed2e69a9f95b980114ec554baca14083ab54496db76"
+    },
+    {
+      "root": "third_party/soc-pulp-axi-spi",
+      "path": "spi_master_fifo.sv",
+      "sha256": "226f53f2e78a82eb9859149a505c287daa8cfd54f55c51b6c1cfa2cd90a38555"
+    },
+    {
+      "root": "third_party/soc-pulp-axi-spi",
+      "path": "spi_master_rx.sv",
+      "sha256": "1290e4beaa7d4b588da9cf84da47b39923010bcfdb355641509ee90295d8ca5f"
+    },
+    {
+      "root": "third_party/soc-pulp-axi-spi",
+      "path": "spi_master_tx.sv",
+      "sha256": "ee9a7d305bc7bb574ece02dbd6dc8a3f0403729d336bd7431689da47a08558f6"
+    }
+  ],
+  "status": "elaboration_verified",
+  "lint": {
+    "errors": 0,
+    "warnings": 10,
+    "exit_code": 0,
+    "log": "runs/soc-source-elaboration/pulp/pulp_spi.elaborate.log"
+  },
+  "capability_findings": [
+    {
+      "topic": "apb_version",
+      "port_or_field": "PADDR/PWDATA/PWRITE/PSEL/PENABLE/PRDATA/PREADY/PSLVERR",
+      "observed": "APB3-class signal set only. apb_spi_master exposes exactly the APB3 subset (apb_spi_master.sv:21-28) and spi_master_apb_if (spi_master_apb_if.sv:33-40) has the same ports; no PSTRB/PPROT/PWAKEUP/PUSER/PWUSER/PRUSER/PZERO appears anywhere in either file.",
+      "evidence_path": "third_party/soc-pulp-apb-spi/apb_spi_master.sv:21-28",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "byte_strobes",
+      "port_or_field": "PSTRB (absent)",
+      "observed": "Register writes occur only for PSEL && PENABLE && PWRITE and each case arm writes a whole field from PWDATA; the TX-FIFO push takes all 32 bits of PWDATA. There is no byte-enable input, so a partial write cannot be expressed and would have to be a full-word write.",
+      "evidence_path": "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv:110",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "pready_handling",
+      "port_or_field": "PREADY",
+      "observed": "Hardwired constant: `assign PREADY = 1'b1;` - no wait states are possible; FIFO full cannot stall an APB access.",
+      "evidence_path": "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv:80",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "pslverr_handling",
+      "port_or_field": "PSLVERR",
+      "observed": "Hardwired constant: `assign PSLVERR = 1'b0;` - no APB error response is ever generated; a write to an undefined offset is silently dropped and a read of an undefined offset returns 0 via the read-mux default.",
+      "evidence_path": "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv:79",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "address_decode",
+      "port_or_field": "PADDR[5:2]",
+      "observed": "write_address and read_address are both PADDR[5:2], i.e. 16 word slots in a 64-byte window; the register map is 0x00 STATUS, 0x04 CLKDIV, 0x08 SPICMD, 0x0C SPIADR, 0x10 SPILEN, 0x14 SPIDUM, 0x18 TXFIFO, 0x20 RXFIFO, 0x24 INTCFG, 0x28 INTSTA. APB_ADDR_WIDTH only sets the port width; higher address bits are ignored (aliasing).",
+      "evidence_path": "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv:76-77",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "read_data_not_gated_by_select",
+      "port_or_field": "PRDATA",
+      "observed": "The read mux is a case on read_address only and is not gated by PSEL/PENABLE (spi_master_apb_if.sv:183-213). PRDATA is therefore a pure function of PADDR[5:2] and can be non-zero outside a valid APB access phase; an adapter must only sample it while the transfer is active.",
+      "evidence_path": "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv:185",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "interrupt_and_intsta",
+      "port_or_field": "events_o[0]/REG_INTSTA(0x28)",
+      "observed": "events_o[0] is a one-cycle pulse generated by the TX/RX threshold state machines (s_int_tx|s_int_rx); events_o[1] is a one-cycle end-of-transfer pulse from s_eot. REG_INTSTA (0x28) has NO read-mux case item, so reading it returns 0, while that same read asserts spi_int_rd_sta and resets the interrupt state machine to the active state. There is no readable per-source interrupt status word.",
+      "evidence_path": "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv:82",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "fifo_data_paths",
+      "port_or_field": "REG_TXFIFO(0x18)/REG_RXFIFO(0x20)",
+      "observed": "A write to 0x18 pushes PWDATA into the 32-bit TX FIFO (spi_data_tx_valid), and a read of 0x20 returns and pops the 32-bit RX FIFO (spi_data_rx_ready). Both FIFOs are BUFFER_DEPTH=10 deep and are the only data path to/from the SPI engine.",
+      "evidence_path": "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv:215-217",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "spi_pin_protocol",
+      "port_or_field": "spi_sdo0/spi_sdi1/spi_sdi0/spi_sdo1..3",
+      "observed": "In the default single-line mode MOSI is spi_sdo0 (tx: data_int[31], MSB first) and MISO is spi_sdi1 (rx shifts in sdi1). spi_sdi0 is the MOSI-side loopback; sdi2/sdi3 and sdo1..3 are only used in the quad modes, where sdo0..3 drive data_int[28..31] and sdi0..3 are sampled together.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_rx.sv:84",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "spi_clock_timing",
+      "port_or_field": "spi_clk/spi_rise/spi_fall",
+      "observed": "SCK is generated from HCLK by spi_master_clkgen: it toggles when the counter reaches clk_div (period 2*(clk_div+1) HCLK cycles), is reset/idle low and only stops while low when en=0; spi_rise is asserted on the 0->1 toggle and spi_fall on the 1->0 toggle. The controller shifts TX data on spi_fall (tx_edge) and samples RX data on spi_rise (rx_edge), i.e. CPOL=0/CPHA=0 (SPI mode 0): the leading edge is rising and is the sampling edge.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_clkgen.sv:40-47",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "cpol_cpha_configurability",
+      "port_or_field": "spi_mode",
+      "observed": "No CPOL/CPHA/polarity/phase register, port or signal exists in either PULP repo (case-insensitive search finds no match); the timing is hardwired to mode 0. The spi_mode output is the line-width mode, not polarity/phase: SPI_STD=2'b00, SPI_QUAD_TX=2'b01, SPI_QUAD_RX=2'b10.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:11-13",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "chip_select_behavior",
+      "port_or_field": "spi_csn0..3/spi_csreg",
+      "observed": "spi_csn[i] = ~spi_csreg[i] | spi_cs; spi_cs is 0 for the whole transfer (IDLE only sets it 1), so all selected CS lines assert at transfer start and release together when the FSM returns to IDLE. spi_csreg is loaded from PWDATA[11:8] on a REG_STATUS write and is not decoded, so several CS lines can be asserted simultaneously and there is no per-frame or per-byte CS control.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:555-558",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "software_reset_scope",
+      "port_or_field": "spi_swrst",
+      "observed": "spi_swrst (PWDATA[4] on a REG_STATUS write) only drives clr_i of the two FIFOs (apb_spi_master.sv:300 and :322). spi_master_controller declares spi_swrst but never references it (`//FIXME Not used at all`), so software reset does not reset the SPI FSM, bit counters or clock generator.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:31",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "transfer_framing",
+      "port_or_field": "spi_cmd_len/spi_addr_len/spi_data_len/spi_dummy_rd/spi_dummy_wr",
+      "observed": "A transfer is: command bits from spi_cmd (spi_cmd_len), address bits from spi_addr (spi_addr_len), optional dummy bits (spi_dummy_rd for reads / spi_dummy_wr for writes), then data. spi_data_len is a BIT count (counter_tx/counter_rx are loaded with spi_data_len) and TX/RX assemble 32-bit words at counter[4:0]==31 boundaries.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:273",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "clock_and_reset",
+      "port_or_field": "HCLK/HRESETn/spi_clk",
+      "observed": "Single HCLK domain with asynchronous active-low reset; SCK is generated logic (an output of the clkgen), not a clock input, and all SPI pins are in the HCLK domain.",
+      "evidence_path": "third_party/soc-pulp-apb-spi/apb_spi_master.sv:119-121",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "elaboration_closure",
+      "port_or_field": "n/a",
+      "observed": "Closure equals the apb_spi_master entry of the repo filelist: the two apb-spi files plus the five shared spi_master_* files pinned by pulp_spi_dependencies/axi-spi. Verilator elaborates 8 module instances with BUFFER_DEPTH=10/APB_ADDR_WIDTH=12, exit 0 with 10 warnings. Dropping any of the seven files fails (MODMISSING naming the exact instantiation site); re-running in a tree containing only those files reproduces exit 0 with the same warning count.",
+      "evidence_path": "runs/soc-source-elaboration/pulp/pulp_spi.elaborate.log",
+      "provenance": "elaboration"
+    }
+  ],
+  "unsupported": [
+    {
+      "topic": "apb4_byte_strobes",
+      "reason": "No PSTRB input and no per-byte write enable; all APB writes are full 32-bit words, so byte/partial register writes cannot be expressed.",
+      "evidence_path": "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv:33-40"
+    },
+    {
+      "topic": "apb4_protection_and_error_signalling",
+      "reason": "No PPROT/PWAKEUP/PUSER/PWUSER/PRUSER ports and PSLVERR is tied 0, so no APB protection or error response can be driven or observed.",
+      "evidence_path": "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv:79"
+    },
+    {
+      "topic": "apb_wait_states",
+      "reason": "PREADY is tied to 1'b1, so the peripheral can never stall an APB access (e.g. when a FIFO is full the write is simply accepted/dropped by the FIFO logic with no backpressure).",
+      "evidence_path": "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv:80"
+    },
+    {
+      "topic": "spi_cpol_cpha_config",
+      "reason": "SPI mode is hardwired to CPOL=0/CPHA=0; there is no polarity/phase register or port, so modes 1/2/3 cannot be configured or tested.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:115"
+    },
+    {
+      "topic": "interrupt_status_readback",
+      "reason": "REG_INTSTA (0x28) reads return 0 because the read mux has no case item for it, even though the read acknowledges the interrupt pulse; there is no readable per-source interrupt status.",
+      "evidence_path": "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv:210-211"
+    },
+    {
+      "topic": "software_reset_of_spi_controller",
+      "reason": "spi_swrst is not connected to the controller FSM: it only clears the FIFOs, so a software reset cannot abort or restart an in-flight transfer.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:31"
+    },
+    {
+      "topic": "chip_select_decode",
+      "reason": "spi_csn[i] is driven directly from spi_csreg bits without decoding and is asserted for the entire transfer, so simultaneous CS assertion is possible and per-byte CS framing is impossible.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_controller.sv:555-558"
+    },
+    {
+      "topic": "external_spi_clock_domain",
+      "reason": "SCK is generated from HCLK and is not a clock input; an externally clocked SPI slave/master configuration is not supported by this RTL.",
+      "evidence_path": "third_party/soc-pulp-axi-spi/spi_master_clkgen.sv:11-21"
+    }
+  ]
+}

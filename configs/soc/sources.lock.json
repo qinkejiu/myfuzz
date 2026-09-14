@@ -1,0 +1,2193 @@
+{
+  "schema_version": "soc_sources.v1",
+  "scope": "Selected upstream bytes and licenses; not elaboration or runtime proof.",
+  "verification_command": "PYTHONPATH=src python3 scripts/verify_soc_sources.py",
+  "exit_codes": {
+    "0": "all selected records source_verified",
+    "1": "validation failure",
+    "2": "selected bytes valid but pending closure exists"
+  },
+  "components": [
+    {
+      "id": "ibex",
+      "source": {
+        "root": "third_party/rfuzz/upstream/ibex",
+        "revision": "git:34b0705760ef3dfa00e99637432473d2be8f22f3",
+        "top_module": "ibex_top",
+        "files": [
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_util_pkg.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_count_pkg.sv",
+          "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_ram_1p_pkg.sv",
+          "rtl/ibex_pkg.sv",
+          "rtl/ibex_cheriot_pkg.sv",
+          "rtl/ibex_cheriot_ex.sv",
+          "rtl/ibex_alu.sv",
+          "rtl/ibex_branch_predict.sv",
+          "rtl/ibex_compressed_decoder.sv",
+          "rtl/ibex_controller.sv",
+          "rtl/ibex_cs_registers.sv",
+          "rtl/ibex_csr.sv",
+          "rtl/ibex_counter.sv",
+          "rtl/ibex_decoder.sv",
+          "rtl/ibex_ex_block.sv",
+          "rtl/ibex_fetch_fifo.sv",
+          "rtl/ibex_id_stage.sv",
+          "rtl/ibex_if_stage.sv",
+          "rtl/ibex_load_store_unit.sv",
+          "rtl/ibex_multdiv_fast.sv",
+          "rtl/ibex_multdiv_slow.sv",
+          "rtl/ibex_prefetch_buffer.sv",
+          "rtl/ibex_pmp.sv",
+          "rtl/ibex_wb_stage.sv",
+          "rtl/ibex_dummy_instr.sv",
+          "rtl/ibex_register_file_ff.sv",
+          "rtl/ibex_trvk.sv",
+          "rtl/ibex_lockstep.sv",
+          "rtl/ibex_icache.sv",
+          "rtl/ibex_core.sv",
+          "rtl/ibex_top.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_assert.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_cipher_pkg.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_lfsr.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_mubi_pkg.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_mubi4_dec.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_pkg.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+          "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_buf.sv",
+          "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_clock_gating.sv"
+        ],
+        "include_roots": [
+          "vendor/lowrisc_ip/ip/prim/rtl",
+          "vendor/lowrisc_ip/ip/prim_generic/rtl",
+          "vendor/lowrisc_ip/dv/sv/dv_utils",
+          "vendor/pulp_common_cells/rtl"
+        ],
+        "elaboration": {
+          "frontend": "verilator-json",
+          "parameters": [
+            {
+              "name": "PMPEnable",
+              "value": "0"
+            },
+            {
+              "name": "RV32E",
+              "value": "0"
+            },
+            {
+              "name": "ICache",
+              "value": "0"
+            },
+            {
+              "name": "SecureIbex",
+              "value": "0"
+            }
+          ],
+          "warning_policy": "recorded-nonfatal"
+        }
+      },
+      "artifacts": [
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "kind": "license"
+        },
+        {
+          "path": "rtl/ibex_alu.sv",
+          "sha256": "06ce1c3ce30807f715478cf9e3bc279cac1c1cc2fb95d289516169fadcf7b7dc",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_branch_predict.sv",
+          "sha256": "78d4120eac2606e34b9338581eac55e3ba3b48c718799a46a887ac9efab2240e",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_cheriot_ex.sv",
+          "sha256": "9784c9376f8343cf8d435fe4b7ee9eeda02b15df6a5bc1dc6ef6fb1bddb1cba9",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_cheriot_pkg.sv",
+          "sha256": "d8b5b51ce99129ebd0c6436689cd85883760ca98f15f45c8a18b977549d007c4",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_compressed_decoder.sv",
+          "sha256": "bea22598e9e5f734ace93826eafd01914d2b63565ee0b7e8c8deff25369fbfbd",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_controller.sv",
+          "sha256": "bc3211faf87435b07922e3e61646ef83247ab86c5938d4cd2e108802a4357860",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_core.sv",
+          "sha256": "88b8bf3907472f1d413380f62234a7fbf53cb1de392a6660e6ef2d684a2416fd",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_counter.sv",
+          "sha256": "0e953e2e05b5070833029d0f6fed6d3a48fbd3c02dc05785962fb0d451425d8e",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_cs_registers.sv",
+          "sha256": "898d036f141bdf742c0c772a5493b4bccc9636ffd7c57d3cc37011d233954548",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_csr.sv",
+          "sha256": "6533fffc57e233b3961ebd94722a14a1a4320771ce4a76e69481bf2deb1d8514",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_decoder.sv",
+          "sha256": "842b520e4a942b6a27f3c44f7e8784e4a8dd40d7531a0ec3dd338f624be18217",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_dummy_instr.sv",
+          "sha256": "8899ec7fcd6df73d7ea96ad25e73f664ee2ae2a95b2186a36a7ab885e16e292e",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_ex_block.sv",
+          "sha256": "6451d5cd6af214b5fbb70f7499f898de981188cd7a25bf49247c0819b907c90b",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_fetch_fifo.sv",
+          "sha256": "3e0b48b771055ea50356cdff418decae16e7d9586a7f953e6799112b238bb63c",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_icache.sv",
+          "sha256": "7b250650b7cdc056976f13bfa070b6d05eb5febe2e311a7cfa684de1711b91f9",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_id_stage.sv",
+          "sha256": "02b40e46ef92df59a9e1d7b80a8d51a366ece0e8e599ca0744fcdf403ccd3aa8",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_if_stage.sv",
+          "sha256": "8b99f212f06aa942e53e8a768863587ffdc29176f5a486c6e273262311c9f6ae",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_load_store_unit.sv",
+          "sha256": "86e156efaf7ac46a351a405d9d2046b7d2e6a60bd206411ef9ae474666338b35",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_lockstep.sv",
+          "sha256": "ee0fb3df1a86ecb66554a214efae0a7971aa1d5c545b9f7592ca86b780163341",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_multdiv_fast.sv",
+          "sha256": "c86ca819b58b8ce2fc4ff5db887346bcd622b868fb7815fa07dd77119c68c04a",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_multdiv_slow.sv",
+          "sha256": "88b7392d3e2cd1f67f2c39b7425075030c78646cba2409356d6cfce262a46db6",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_pkg.sv",
+          "sha256": "d9bfed30b16dd77981f1850a8daf56fec5ce14043789b4a0a4506c833e9a7d5a",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_pmp.sv",
+          "sha256": "a564fb312d5337b0875d16f434e8b69348e12c2560548fad93f9270f9c4b9176",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_prefetch_buffer.sv",
+          "sha256": "988ca05039f033c0eef9feffba996771c3449f255c64d7d78de04e1984249ccc",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_register_file_ff.sv",
+          "sha256": "cb758da72120fa1ab7c3837408ef10ab96375edf727f6400d606ff5850e68a93",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_top.sv",
+          "sha256": "0db761a029b18d17271200a7ffe438c856db53423efa25912ba7ce60948cdfc5",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_trvk.sv",
+          "sha256": "5a1c0d84473121bbb705ddc096499de76de84eb70c20e37a72ef3237361aca49",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_wb_stage.sv",
+          "sha256": "872d8df3b3f3fd9ba781eabd3897bd3b74d2b3af2d2898ab5799371d05b04e8a",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_assert.sv",
+          "sha256": "d717d5dbcba3b5aa8a731ef9f8af18b036b49edef282f0a43a51f5ad2dd9bb40",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_cipher_pkg.sv",
+          "sha256": "9cd66bdbc64020e3fe1f14a5baee30a93609b7887a9d21df7991929087b0973f",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_count_pkg.sv",
+          "sha256": "8e465ed25b7d59f29faf0f315243a774cf0e50d178ec2068d8c71983cb2f18df",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_lfsr.sv",
+          "sha256": "c61632878728613ba0403f2d068c03a5103165663b58d8dd50892ef032dec916",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_mubi4_dec.sv",
+          "sha256": "b33530adf41b05849d06424a40db5536dfb5ffd441752bf49af03ad3d7b5f48e",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_mubi_pkg.sv",
+          "sha256": "11a2f1a16ddaf750d859c95e07fc48c54743fe6ad3b5c5eabe2e14a51d9fb1af",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+          "sha256": "f07f26fd2375952e4ec7cfc1641cebcea373a8030d82dd5977a76f81c430cb12",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+          "sha256": "4588fda3fd5ebdd711c98f6900caaaaddddf1257337c5b931ca86de7fb0ef8ff",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+          "sha256": "e598eef60254ac4a0e6899f6d1e4af5ae5bbd2ac22395ac53ee925296bc8a826",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+          "sha256": "74b3b327047b90682468614708bb4b1104b1f069c0dc3189e2b078622ac566b8",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_pkg.sv",
+          "sha256": "bcbd03333a30e7a1cb01195d1c40c7d0e736f91d9f73c2347ef5b0bd9dc3c82b",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_util_pkg.sv",
+          "sha256": "f71235ef5b92eaa3d2ed5c676f76108082df93b8aae8f9baa816584d1d285208",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_buf.sv",
+          "sha256": "9b00bd8ac203169268262ac9337076781fa962b19beed36f28dde54e360aaaf5",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_clock_gating.sv",
+          "sha256": "b2474320674e645d423f32ba1ce60b25509042d40c2de8fe28dcb7760a8fa882",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_ram_1p_pkg.sv",
+          "sha256": "f51c6a588ec476b5cb2e95d9e8d19a67551732e9661a0c0933c6fccee8e92722",
+          "kind": "source"
+        }
+      ],
+      "selected_content_hash": "sha256:f9c48430be4904095cd1cb069de7ddd9bad82667683b3876e2f43d79895b66a8",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_unverified",
+      "runtime_status": "runtime_unverified",
+      "defines": [],
+      "typed_parameters": [
+        {
+          "name": "PMPEnable",
+          "type": "integer",
+          "value": 0
+        },
+        {
+          "name": "RV32E",
+          "type": "integer",
+          "value": 0
+        },
+        {
+          "name": "ICache",
+          "type": "integer",
+          "value": 0
+        },
+        {
+          "name": "SecureIbex",
+          "type": "integer",
+          "value": 0
+        }
+      ],
+      "generator": {
+        "status": "not_invoked",
+        "tool_version": null,
+        "name": "none for selected checked-in files"
+      },
+      "dependencies": [],
+      "interface_description": "configs/cpus/ibex/official_core_interface_description.json",
+      "interface_description_sha256": "db181ed864358817a51ede8dc8f43dca7892689ecccc5fcd45ed7a075174b3b2",
+      "closure_note": "Explicit source/filelist selection pinned; transitive include/module closure and physical types still require parent elaboration."
+    },
+    {
+      "id": "cva6",
+      "source": {
+        "root": "third_party/cva6_upstream_reference",
+        "revision": "git:2e1336dcff3d1a0b49fbe6282b97802f32ea32af",
+        "top_module": "cva6",
+        "filelist": "core/Flist.cva6",
+        "filelist_variables": [
+          {
+            "name": "CVA6_REPO_DIR",
+            "value": "."
+          },
+          {
+            "name": "HPDCACHE_DIR",
+            "value": "core/cache_subsystem/hpdcache"
+          },
+          {
+            "name": "TARGET_CFG",
+            "value": "cv64a6_imafdc_sv39"
+          }
+        ],
+        "repositories": [
+          {
+            "path": "core/cache_subsystem/hpdcache",
+            "revision": "git:f404e7ebbda8baa4af3729535f520a6b12a06d03"
+          },
+          {
+            "path": "core/cvfpu",
+            "revision": "git:3eb6afeab2cb33f7d8689222955d0171aeb3a801"
+          },
+          {
+            "path": "core/cvfpu/src/fpu_div_sqrt_mvp",
+            "revision": "git:86e1f558b3c95e91577c41b2fc452c86b04e85ac"
+          }
+        ],
+        "elaboration": {
+          "frontend": "verilator-json",
+          "warning_policy": "recorded-nonfatal"
+        }
+      },
+      "artifacts": [
+        {
+          "path": "LICENSE",
+          "sha256": "b41106a9d0de1cf6ab4ea56bedf677503085c0570248f37fe2cdf657a5e72601",
+          "kind": "license"
+        },
+        {
+          "path": "common/local/util/instr_tracer.sv",
+          "sha256": "357620ef11eb1b96cab3b801909ade204677f53caf546f979dc2d649a80d21ac",
+          "kind": "source"
+        },
+        {
+          "path": "common/local/util/sram.sv",
+          "sha256": "3350a570916eb2170edf374d6611de21eb320e979e7f50b3797fa5f76f7b2f16",
+          "kind": "source"
+        },
+        {
+          "path": "common/local/util/sram_cache.sv",
+          "sha256": "08f855e6fc7b6f79971bc51724d10ccbbd7641cc9a4c63ef61c0f287e97fc962",
+          "kind": "source"
+        },
+        {
+          "path": "common/local/util/tc_sram_wrapper.sv",
+          "sha256": "9aa0ccac1617b8d2a13edd050999f18869738898f72c653d0c9edba6090eb6b8",
+          "kind": "source"
+        },
+        {
+          "path": "common/local/util/tc_sram_wrapper_cache_techno.sv",
+          "sha256": "c10b2faf922c2d7c49a52f93087bb545077d9c82399c985c2bfdaead0a03b220",
+          "kind": "source"
+        },
+        {
+          "path": "core/Flist.cva6",
+          "sha256": "4d3462801bd6212fc0f93aad9dec84981333c0ad97f45fa95533ee6c3a6b6f2a",
+          "kind": "source"
+        },
+        {
+          "path": "core/acc_dispatcher.sv",
+          "sha256": "3bb09e7dc4be73e397eeb59a90be25e2354576787b56d19f74b9a9c89dedcbc8",
+          "kind": "source"
+        },
+        {
+          "path": "core/aes.sv",
+          "sha256": "cf35c20c69e37bdbc54ae9cb5b2c9e59445fa20e8abc54b7cf3a9f914ff16f9a",
+          "kind": "source"
+        },
+        {
+          "path": "core/alu.sv",
+          "sha256": "49ba35e04bf1e8cecf8fdf6378a585bad4c0f914291dc4941e0d58dfda834f6a",
+          "kind": "source"
+        },
+        {
+          "path": "core/alu_wrapper.sv",
+          "sha256": "b2de99f62b1d6bda465c4354ba9f88be9c6e0908d524fffb45ab5d8ccdc7a22c",
+          "kind": "source"
+        },
+        {
+          "path": "core/amo_buffer.sv",
+          "sha256": "af1fd888b4d9151b7edf0632934e140bb0a6b0dd92b3d03d1f607f63ce3351f7",
+          "kind": "source"
+        },
+        {
+          "path": "core/ariane_regfile_ff.sv",
+          "sha256": "e8b86693adf85bcdbfb40b650698fc38f675d840213be55eff1468bff273e95f",
+          "kind": "source"
+        },
+        {
+          "path": "core/ariane_regfile_fpga.sv",
+          "sha256": "8032c173aeceb7e62675db1132baede2f7b8f0696137f38da3739eb122901557",
+          "kind": "source"
+        },
+        {
+          "path": "core/axi_shim.sv",
+          "sha256": "337d3dd8921aac6beec87f323f3459efdc6917245f5977a2a78b172b0f1d2fbc",
+          "kind": "source"
+        },
+        {
+          "path": "core/branch_unit.sv",
+          "sha256": "39c5c4fad84091c91da5f391e8b6354244823b9ccd4aeec0371415c8d4862bea",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/axi_adapter.sv",
+          "sha256": "58e6a85435b4b4ea1090fee3067cd26f6cfaec1389e58d17dc7e823c69043389",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/cache_ctrl.sv",
+          "sha256": "85f79f86158cb1c1e591dd14c30d87916282593eb185eaa24642b5dbed60c3b6",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/cva6_hpdcache_if_adapter.sv",
+          "sha256": "2a73f0d536f9b52d80ca3dbe9213fe408fa559207ea40382f98f21a50bd3af32",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/cva6_hpdcache_subsystem.sv",
+          "sha256": "460981ffe77fc496dfccfe8bf3cda7e82b127d64a5e715fe1156e3bb44d98309",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/cva6_hpdcache_subsystem_axi_arbiter.sv",
+          "sha256": "1b6b1b7ebd594cd5e5d49405adb490f5e22178231c421f918661a980cf790b9b",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/cva6_hpdcache_wrapper.sv",
+          "sha256": "8092ed052b8c097e2f3969ae2c43205989666f2495f7c678d2749e5db25872c0",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/cva6_icache.sv",
+          "sha256": "272c06abf1f37a3f3a7d18d6c29a08df0a493631e330aefb4c677357a4d901c3",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/cva6_icache_axi_wrapper.sv",
+          "sha256": "ba84da3c3fd16241671fc37fdea23e9177d04ac291758d2fab29b71446c221da",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/hpdcache.Flist",
+          "sha256": "84481434fa419d175fbd1d92c0421279fcec34c0ce6232f4fbb08e61d0c38317",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_1hot_to_binary.sv",
+          "sha256": "614752a4144b15b38fe08f79f6a30fb4a77e67db15daeed0c439af4025de6c8f",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_data_downsize.sv",
+          "sha256": "ff676d8d9ecc9fbf0c8dbce795a799a11c25b163f5efbd494a15680e3558231c",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_data_resize.sv",
+          "sha256": "0571f7068cef28d54d684d5faed566d09830b96686874f377545dfb48f1f7966",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_data_upsize.sv",
+          "sha256": "3945c19d53c4209df848f6185be651d46e0ebaf4f8b6e70a39c2fe43f2f10452",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_decoder.sv",
+          "sha256": "1513c572bc8b2c7ab01b737b761c640bbf04dc1fdc6c710f8e485b804763ed54",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_demux.sv",
+          "sha256": "c0faf549360c31318832fc98abb41c3654d8aba2360aa7e98b60b61a24d1eb6d",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_fifo_reg.sv",
+          "sha256": "36081c55fb66cc1f5505c8e66788a71a729d41228f6e7f90d4729f82878cd4d5",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_fifo_reg_initialized.sv",
+          "sha256": "5f219742699e569b8d741d6f1c0dc0b8f4f0aee6f0ead7e597299045dfc825b1",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_fxarb.sv",
+          "sha256": "873d1c3f00b4036c4441ffa3ccd42a7995865f64ca8b0eaa2e22cab45533ac49",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_lfsr.sv",
+          "sha256": "487a72a672dab3fc3b16eaaf08f7f64a856a29c663c7983fa16cabe17ce8d265",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_mux.sv",
+          "sha256": "b32dd4327b73885ea8cd6802e02f5d72f073d83f02eb883bbadb850690ea67a1",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_prio_1hot_encoder.sv",
+          "sha256": "70db16e1076aa0584dcea79e96aac84fbeac73c36a2a907b0309d94959b74f55",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_prio_bin_encoder.sv",
+          "sha256": "8bbf61e8f9d9ff13982a38684aeb3e16c337983ec7a5209f02e6dfa932463657",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_regbank_wbyteenable_1rw.sv",
+          "sha256": "475ece0e8ac1a7c4dd633a67de52d0ef315ea66f2679ab08f1f9c6a844202801",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_regbank_wmask_1rw.sv",
+          "sha256": "76ad2f03fa85088868dfcad32df7578879ad6c2fada27bda5bf719106301e3da",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_rrarb.sv",
+          "sha256": "2b3c6497fcbb636a8d0ef378609db4924574ce0cd2a3958a2709c1a7aff3cf8d",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_sram.sv",
+          "sha256": "941cdde519394aafb1d147ec3e592d18177a6eea431731ad51457f0d66c35250",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_sram_wbyteenable.sv",
+          "sha256": "f99bafaae1d8bd9410998bb39ee389d33fbdc78fdaa32e1b5ac75e2ba317d9f3",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_sram_wmask.sv",
+          "sha256": "627ce1eb5f94da2872f8be597c613c902655d306cfe8b8ba003258860bb5e54a",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_sync_buffer.sv",
+          "sha256": "4f8e44eb05307acc9982e2797e454314e76ff4fc3cebaef372f587b07dcd1b14",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/macros/behav/hpdcache_sram_1rw.sv",
+          "sha256": "271bc9139cc9d51b6a1247cb6507a51e095e918e9c331dc7c468a563c2fd0f5e",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/macros/behav/hpdcache_sram_ecc_1rw.sv",
+          "sha256": "9dabd7ed2448fa3555f066e2d4079e2d9e4588a5135a5d8ba8568c6a328ec2f3",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/macros/behav/hpdcache_sram_wbyteenable_1rw.sv",
+          "sha256": "1a955e41c2476e1c105b467a96e69ddc378df0b65f432c3c717741a7650bdc01",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/macros/behav/hpdcache_sram_wbyteenable_ecc_1rw.sv",
+          "sha256": "d7e728c8f8345f7546043d1f88bc7a4ce4260390be927c85edecf67e3c3ce186",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/macros/behav/hpdcache_sram_wmask_1rw.sv",
+          "sha256": "56597669e2f67879ab88941ad0358400c2e45de76c8f5e85b4350a864da7bc9d",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/common/macros/behav/hpdcache_sram_wmask_ecc_1rw.sv",
+          "sha256": "e55be4d6b6c53073f35b62d5324b151fddf79af0a317ab6e14d45702b317c629",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hpdcache.sv",
+          "sha256": "35d9b2dca6415fca40050bc6fec3d4823701111fb2104db3cd79775268c53b47",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hpdcache_amo.sv",
+          "sha256": "1a0bf5cb2d12f65ce79b7da1173321d8119c744ddd5df09d33dd78317a80bc2f",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hpdcache_cbuf.sv",
+          "sha256": "c1e25c23a5da9268609a25067d22c9df99e5d51f73763d99a793e17a2c60cb3c",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hpdcache_cmo.sv",
+          "sha256": "65dbff93791ef9425531ad31408a5943407edf4a61020756b9c8b7784da4fd9e",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hpdcache_core_arbiter.sv",
+          "sha256": "5d895629db5a75ae8ce76385641e7ead0053d6ebd031b896e378a945b8cad4ea",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hpdcache_ctrl.sv",
+          "sha256": "1e73a4bd6dabe4c6fcc8663819a9f6072e46f03181000961ba7d2ca85210c1a3",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hpdcache_ctrl_pe.sv",
+          "sha256": "a2dc2bc28900d9f9285286fbd1a8ee8d716853d975c7131121e4de8fcbd877f8",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hpdcache_flush.sv",
+          "sha256": "ff1cf8c71c820c694976205a688994f582637142ac25e846d14e39e63d3888e2",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hpdcache_memctrl.sv",
+          "sha256": "b1edc2a9a55691ef559e0489447a9bf4f49cff91f794d5518a989d0b5c61e5ef",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hpdcache_miss_handler.sv",
+          "sha256": "ac26528a861d1e237a56e9add5bf77c37c84db2f179e78118832926c8d9e54f0",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hpdcache_mshr.sv",
+          "sha256": "fb01c23a96bc2d913e6e12a2b662265796363d6c8bd95b3e64f7f6171f936f68",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hpdcache_pkg.sv",
+          "sha256": "14761c94905390d548215dc19aed3f80332dbaa7e617fef4c700f47a3dd8bdbf",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hpdcache_rtab.sv",
+          "sha256": "5a61d9aade361532b4df8463172d536aeee887d7f0c349ed0ddafa3e25c2169c",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hpdcache_uncached.sv",
+          "sha256": "afe48f13f234b03631702f06d21facbd908f957d94ed84672c9bfad964ae6f07",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hpdcache_victim_plru.sv",
+          "sha256": "2ed614f12e28894d90a6ed7f356c30a16e1131c8928b93dfbf0f2862129ae2c6",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hpdcache_victim_random.sv",
+          "sha256": "919698df94c00c07fd941bc2464516c4bc7d1fc13d64c66f00f657deadb4a8c0",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hpdcache_victim_sel.sv",
+          "sha256": "d5d326dcecd67259c848d8c7d39fa29f249bcd2ba9ec3700906a06b8eef8d3f8",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hpdcache_wbuf.sv",
+          "sha256": "134fefdfd7f7846896ed814a4710859b0b9bc884cf498079a4a93c3ea939e21c",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hwpf_stride/hwpf_stride.sv",
+          "sha256": "ccd89b1bf08c77726d984d513f3d41a6798ffacf98e374545fb01b7995e7d787",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hwpf_stride/hwpf_stride_arb.sv",
+          "sha256": "ff5e13b0f5df4e94075ddfe34b8c47b747e91c18ea647db1448d9a2a4003d046",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hwpf_stride/hwpf_stride_pkg.sv",
+          "sha256": "d35f97634b014c9723ef165e84188eac0be60e1a6b676ae3847b0c5c7fb8c427",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/hwpf_stride/hwpf_stride_wrapper.sv",
+          "sha256": "d1432b1f200626bfbf7cb710ec3b06e9c24444e29ac76d9bddb168f667f434e6",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/utils/ecc/prim_secded_36_29_dec.sv",
+          "sha256": "0c3fb5221a5bcb645e3ca23a552136c14257e29fdf3b2cc2344576b49825b78b",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/utils/ecc/prim_secded_36_29_enc.sv",
+          "sha256": "4e2053fad666e029ec99e19395a89d6828e0d86db385767418fbb6dbe44ecca0",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/utils/ecc/prim_secded_39_32_dec.sv",
+          "sha256": "13cbe5fdac6efeba3e92cbddc5c77efa68477996c616984d87f7abe438c2c61e",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/utils/ecc/prim_secded_39_32_enc.sv",
+          "sha256": "31b80e9aefe5cc6df99fe7134a39c417809536b29de6892e6382a9ec3374b4c7",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/utils/ecc/prim_secded_55_48_dec.sv",
+          "sha256": "388aef13f5c3da74332130fc78dcef9466a997e504ca04b1117b65961fef6f76",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/utils/ecc/prim_secded_55_48_enc.sv",
+          "sha256": "b1eb2f2ad4936f7c28b8952c8139b3d0fd48ec7ea2546afe9774d3a543bdcfc1",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/utils/ecc/prim_secded_72_64_dec.sv",
+          "sha256": "b706646195e58396cff43b5256f25a474a180ea18eb483499cb85c649f5ee532",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/utils/ecc/prim_secded_72_64_enc.sv",
+          "sha256": "71c2c5924cf277fd978ab40ccc5eec939f609894ddf8adb3f81144baaa774755",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/utils/ecc/prim_secded_pkg.sv",
+          "sha256": "5ec03842914cd31acbfbfa1526dbc1b64f4296521ab04308553d6f6350ec8e0c",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/utils/hpdcache_mem_req_read_arbiter.sv",
+          "sha256": "7f37b2fb12fa9216b36d1a959619aada6b2e09810a3c9784d55a82d0a71412fc",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/utils/hpdcache_mem_req_write_arbiter.sv",
+          "sha256": "91763bf92a12126d953141eda1706589c83869db232c02e83f70b6acbe324bbb",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/utils/hpdcache_mem_resp_demux.sv",
+          "sha256": "df921af34241cea3884ec81f05e1bc2db470c98f5a72b686eba312e883d0b4ee",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/utils/hpdcache_mem_to_axi_read.sv",
+          "sha256": "b83579bbf51c1a5d9ce80b8bd7a99151a54e3076504263329b0a2d32c19f6004",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/rtl/src/utils/hpdcache_mem_to_axi_write.sv",
+          "sha256": "eed309d22eaf8d8c5b40a5c8b41bda6c9a70bae34f6f23aa86942240570a92ad",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/miss_handler.sv",
+          "sha256": "941a51abdab9c350a73d769267bc68815c70f4351a9171bc28235069a17e3e7b",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/std_cache_subsystem.sv",
+          "sha256": "34c92d72a45cf415a3598e1dae3d2dde9d1146c6e5d93668036a4f24f4e5a406",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/std_nbdcache.sv",
+          "sha256": "628a504680fe0cd9530a7873b32c04b4c55dcd292c4d75239407eb6b780aafc0",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/tag_cmp.sv",
+          "sha256": "5f9f6f5e1e3576c4f033105129b33733f789b845866ca8dadb2b481c01ba2e20",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/wt_axi_adapter.sv",
+          "sha256": "460bc984bbd4d741527d807c598f536dc438e73f8a2b9a79ffec6040cac90d32",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/wt_cache_subsystem.sv",
+          "sha256": "0c5ff2e60296add490d12a18f54b3ee423ee22cebc3494d41b4a8f0b9ae5a37e",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/wt_dcache.sv",
+          "sha256": "698f119f0d598f7ad09e450930b369ab01073b3de16a6ab13018639b95357608",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/wt_dcache_ctrl.sv",
+          "sha256": "809b413b7899629a5c716d5ca4199f03f07ae17e263175cafacfdd74df39da5c",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/wt_dcache_mem.sv",
+          "sha256": "18c4b7105801f9edfaba6dd87b9999a106e820ca9717d4404376bbb409a2ce2f",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/wt_dcache_missunit.sv",
+          "sha256": "22ce8304cb6c4987a614fdee8f192c28c18d9c50c70d217d01eb59dfe62e434e",
+          "kind": "source"
+        },
+        {
+          "path": "core/cache_subsystem/wt_dcache_wbuffer.sv",
+          "sha256": "4565fbe5f043c8ee1a52254e7f4b4ff7152aa81f2d8e68b6cc9211e5581f1cf8",
+          "kind": "source"
+        },
+        {
+          "path": "core/commit_stage.sv",
+          "sha256": "7bb90c8f04dd669a2df888ad8dfabcf924815c88ed7a67a18eda3fb2a2361f7a",
+          "kind": "source"
+        },
+        {
+          "path": "core/compressed_decoder.sv",
+          "sha256": "8fcbc36f099de87018068fc788fc488712ba3db2fb7b7f6a9715bd46919c0c62",
+          "kind": "source"
+        },
+        {
+          "path": "core/controller.sv",
+          "sha256": "ab22c8b7dae0c31e9c55cd524b5a804929d63a2c3b496b14d38aef4fa51373e3",
+          "kind": "source"
+        },
+        {
+          "path": "core/csr_buffer.sv",
+          "sha256": "abc337764a461e1772f72290a80bdc9fcdeab8676145e458faad80944a29f6f1",
+          "kind": "source"
+        },
+        {
+          "path": "core/csr_regfile.sv",
+          "sha256": "1d6a3c7de6fd3848dc3676dc5fa5a1d9685a95c37b27620b38aa225eb2345fe5",
+          "kind": "source"
+        },
+        {
+          "path": "core/cva6.sv",
+          "sha256": "a06f296f9cfd551ec50fbdfbf3c3ddc5d1e14461dd705692bcc5e2c85b147c2c",
+          "kind": "source"
+        },
+        {
+          "path": "core/cva6_accel_first_pass_decoder_stub.sv",
+          "sha256": "77aa80671e09f200b25c5dcc2e65b3da4e50c413e9e3f4d74f56d8acf875da70",
+          "kind": "source"
+        },
+        {
+          "path": "core/cva6_fifo_v3.sv",
+          "sha256": "f61e13a52583cc8e1a5a6d46910bed6247cf0dd8b52aa39b4fd683729e3faa68",
+          "kind": "source"
+        },
+        {
+          "path": "core/cva6_mmu/cva6_mmu.sv",
+          "sha256": "ce8b1ba2e9d08ccdb409404f6cf1af620999cb14d5393946caa31afd6c3efe0a",
+          "kind": "source"
+        },
+        {
+          "path": "core/cva6_mmu/cva6_ptw.sv",
+          "sha256": "dfeb7de806b406858dceed8e4362d8742e6b599fafd38ee852af94b7fd094d9f",
+          "kind": "source"
+        },
+        {
+          "path": "core/cva6_mmu/cva6_shared_tlb.sv",
+          "sha256": "3ac49fb19105e711fe25a83a730657a23df1ddde1a30b4d2e75212140adb73a4",
+          "kind": "source"
+        },
+        {
+          "path": "core/cva6_mmu/cva6_tlb.sv",
+          "sha256": "2390206bffb5d5b40193a8482ab71b849347866c08e716c3b4dd9c39da2ffe52",
+          "kind": "source"
+        },
+        {
+          "path": "core/cva6_rvfi_probes.sv",
+          "sha256": "c30feb6835dc2bb03b788d090a1aeebc4c8427813b6e52f56f8457efb80c7960",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpnew_cast_multi.sv",
+          "sha256": "abb8e0420facb0d1b1da4b70c060f71101e3140a6f9d9ad30264abe3b6388286",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpnew_classifier.sv",
+          "sha256": "cfff43772aea7d918cb0ab3c2e0e996ea34b8740d8edb43f359582ce9978546f",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpnew_divsqrt_multi.sv",
+          "sha256": "dd0d071b72ec93c7878ec70f2c83c2dd09e35389c565fb47b6f3bcb2844e125f",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpnew_divsqrt_th_32.sv",
+          "sha256": "5840f2e0cbd371391569e60803257950ef8f7f2e0e5c803e9855815d8dd18330",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpnew_divsqrt_th_64_multi.sv",
+          "sha256": "677569f16bb18f8f0394e1e35fbf73215c62ab6134d82e0850b6d7605efe8523",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpnew_fma.sv",
+          "sha256": "fa01fd6f8934056da2de855e3f53aa802006834d8ff1467899f8af67400e8845",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpnew_fma_multi.sv",
+          "sha256": "9db2d3d22b1501173c979eccdbebd88ab3763dec02d6a3808d014f00b48cd2bb",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpnew_noncomp.sv",
+          "sha256": "56e0656f0960bebfed806bbb268a014904e2e9e17690d6905fc32b1935657021",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpnew_opgroup_block.sv",
+          "sha256": "6bfd0c2e3852eb08df61816a943d347bd2333356d0a66bd07c0967426a817f3b",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpnew_opgroup_fmt_slice.sv",
+          "sha256": "31b13abcca4255d7dca72c0a1323926607c34cd3a0da284f9ddb550b04a6c23a",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpnew_opgroup_multifmt_slice.sv",
+          "sha256": "febc65223fa993f1ae4d86ef061319d5fa22096afdd756c78dcf4966234b1aeb",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpnew_pkg.sv",
+          "sha256": "2abe80eb1ef173f4d2dacd68b29a11d3038b86dbd682f2fdff0203df11a2b9af",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpnew_rounding.sv",
+          "sha256": "67d0a15d9e418159eea18a4b521e5d30a563f251e058049041cb2a0cbb0327bd",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpnew_top.sv",
+          "sha256": "cb83bf8f674f0d87934cbf3b07e4a2cd4e26ca057647c94968b71de28af7fb68",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpu_div_sqrt_mvp/hdl/control_mvp.sv",
+          "sha256": "728111abd5a87e9f11e773dfbbb9ab8c7020b3423c896b569a55b865428fc216",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpu_div_sqrt_mvp/hdl/defs_div_sqrt_mvp.sv",
+          "sha256": "14814817e16137d2ac1d4f0960dd47d7ce9b3bc289e02d4e041ac4c1da93c08f",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpu_div_sqrt_mvp/hdl/div_sqrt_top_mvp.sv",
+          "sha256": "2abf0597d491fa7efc108d47dee6ea824017ac52e6361fda1aaeee50a3690367",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpu_div_sqrt_mvp/hdl/iteration_div_sqrt_mvp.sv",
+          "sha256": "3cbdd9c9cf821570611729691956c40a5e3307feca4004cd3aa5f757e034a742",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpu_div_sqrt_mvp/hdl/norm_div_sqrt_mvp.sv",
+          "sha256": "b96f2bebe6a2feb2af7e9b937cf980e6681f907c8da9bd7ecf569f15e73cfddf",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpu_div_sqrt_mvp/hdl/nrbd_nrsc_mvp.sv",
+          "sha256": "2e405102c7704302823b9f44a51fecac89662ce0224cc902745f4f047ab08ef2",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/src/fpu_div_sqrt_mvp/hdl/preprocess_mvp.sv",
+          "sha256": "923b6f553151d4a803fe4450e8c439ea20059e9937f173c0207eeadfbcae9bab",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_ctrl.v",
+          "sha256": "52e386bf4399a5e599bfc31ac8b924d337cda9e1cb4ff2a042554315efe2aa54",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_double.v",
+          "sha256": "14901bd729d40dfb13c6e6130390c17786f54dc388c5fb325289c811660e3748",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_ff1.v",
+          "sha256": "5df80c7b5f91aec33893fe8fe1a05cdd11cfe2c92518226933cd6fcbbbc58c1b",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_pack.v",
+          "sha256": "df94dc248d8e3e4976cfdad861640abd344a1b9bcafa166eba4901c827bc13da",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_prepare.v",
+          "sha256": "e7b24e037e5ad78ec0f7201de5f4593c4edfa4384c9646391878887d67d0474f",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_round.v",
+          "sha256": "9e3ba6079023f087b67ba18a20b31bf7a80784f8da9803a7903b0deb71cdb522",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_scalar_dp.v",
+          "sha256": "f97cf092cf63c8f11638b344530d27767e569b447ca26460408c08add1d50e2d",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_srt.v",
+          "sha256": "1d090b2332afe2a651eeef99977ccd16bfba164c009ac42166eb2bb4ec3dc837",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_srt_radix16_bound_table.v",
+          "sha256": "dd3fe6708001b89cf78d52db5d81085e05bc4bd0e1b60ea3f269c60094193fdb",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_srt_radix16_with_sqrt.v",
+          "sha256": "685b6469e6c307cb46eb21c05047388565d0c08caf528922dea64e98ec9655e6",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_top.v",
+          "sha256": "9b773bd65c105afc8a057f658da2e4ca10454e2bbc9eb7aabd3a00b19dae69a3",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/clk/rtl/gated_clk_cell.v",
+          "sha256": "22a4a5f41c7733bd4935adc8a036870a110a8e2f2a70f1f3cf64476b7a49eb9e",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_ctrl.v",
+          "sha256": "082c8019b9191c700eeef514e1879b808f77acb85c825f0706f121151821b827",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_ff1.v",
+          "sha256": "1338016c22e25d93288bc7ade14c07a9f21d29c3d1541863787cc6ce96d4e49c",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_pack_single.v",
+          "sha256": "e30b8a6d666bcce6d1fc2922c939aabb138a5ace4471c7f17c165ae7c89e67ec",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_prepare.v",
+          "sha256": "18cc2887533030d2049a518c0ad6b7afce03485d239bf6444b2e2a1f4c185339",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_round_single.v",
+          "sha256": "ba09bdc5e5b1bdfec7698f1bfdc6473bef5e7bdc2dfce884d9bc0dcb24855f1a",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_special.v",
+          "sha256": "dc74933f7b288a66240d1bbc7a6b8838d1bb819f9b08802d27b5846f64187ee3",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_srt_single.v",
+          "sha256": "a336b8c70e5afc188122ededfa90b1d1390a2cdb974c8a1633a5f8861062c89b",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_top.v",
+          "sha256": "029a9a42c1a82501ce5a4cb546b399f5de922b0be7b8ce3bd9cee370ca90dbe8",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fpu/rtl/pa_fpu_dp.v",
+          "sha256": "904561370d3130ca05d5a57a153b153af1b342c8bb8f9cd872e27c3975dfa4c8",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fpu/rtl/pa_fpu_frbus.v",
+          "sha256": "d347df146bae61e7b098d1d680baf06f0dc4f76779d39023708b49ba86832605",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fpu/rtl/pa_fpu_src_type.v",
+          "sha256": "2f31dbe04cb7f151a76eca5c698eddae8eaa773bf94f8906582762cd146cd4a7",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvxif_compressed_if_driver.sv",
+          "sha256": "e5dd565b9a6fcf95129182075d481771c5dc4ae45e5fb760476b50e9fcc5f318",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvxif_example/compressed_instr_decoder.sv",
+          "sha256": "b7a5bfdc09a732770691e350c4efc154a402b3823578134b23c1cd3ad5e14375",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvxif_example/copro_alu.sv",
+          "sha256": "a6ffa7e2e0778bf1bc1b0609a1880ae9afcf8976d101c03ddb62a97ec00c1768",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvxif_example/cvxif_example_coprocessor.sv",
+          "sha256": "aa3f44d9e7da0c71ff8b2e940cf7f9b4475d6b2fd49f298cf63c0009af21a9b7",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvxif_example/include/cvxif_instr_pkg.sv",
+          "sha256": "a498af9cdfc4ef0238f2cfbf5d24579ee5e9126443917675f5d5ccb8e022bee3",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvxif_example/instr_decoder.sv",
+          "sha256": "6116f241a09a0494600319f33f41ea61e545c92e4ad729ced4e5c9c39337f3ca",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvxif_fu.sv",
+          "sha256": "6bf9957ce56e7ff5f5250258f486989754fe5b1979d49b08260b56c2e099152e",
+          "kind": "source"
+        },
+        {
+          "path": "core/cvxif_issue_register_commit_if_driver.sv",
+          "sha256": "79577da9e81421b986255b84f5249979c5b1f3218d83ed761b564dd5821ad553",
+          "kind": "source"
+        },
+        {
+          "path": "core/decoder.sv",
+          "sha256": "51b32709bf0a8e46f311bd82fea2cc1edd05f16d33aa3dad681d22f77cd929c3",
+          "kind": "source"
+        },
+        {
+          "path": "core/ex_stage.sv",
+          "sha256": "49f72879415b965687b7201996eba884dc2690e96081a2bdabdcbeaa00a08091",
+          "kind": "source"
+        },
+        {
+          "path": "core/fpu_wrap.sv",
+          "sha256": "84eba4a8bdd846d474a4e5db61bd8f4951cb63f7b22a3640b80036adb1a1fa10",
+          "kind": "source"
+        },
+        {
+          "path": "core/frontend/bht.sv",
+          "sha256": "a80924695e868d5ae1d96874af8a3accd82d14b522d1fef1c39cc059744879e0",
+          "kind": "source"
+        },
+        {
+          "path": "core/frontend/bht2lvl.sv",
+          "sha256": "5232af87ba785a78b454c0572ec610984b9d37b45ae39c1972d53a1491d86a22",
+          "kind": "source"
+        },
+        {
+          "path": "core/frontend/btb.sv",
+          "sha256": "6848d908494a9686389aba7ac02b30ec36bb8a2b4bee90dfd0590772305d6e69",
+          "kind": "source"
+        },
+        {
+          "path": "core/frontend/frontend.sv",
+          "sha256": "10a3a3cbcb75ab9a70167f9ea1cdbfbe7c942fae2eab17663fb23396ee880515",
+          "kind": "source"
+        },
+        {
+          "path": "core/frontend/instr_queue.sv",
+          "sha256": "f43b24576db6e6e0da59e31c6dd90e5cf54de12a4bf7a3316b7405618e1b45e5",
+          "kind": "source"
+        },
+        {
+          "path": "core/frontend/instr_scan.sv",
+          "sha256": "434748f17f877cc4c45750edcd46757e73c2bdbc17c3901b0bc3200262b5e3d0",
+          "kind": "source"
+        },
+        {
+          "path": "core/frontend/ras.sv",
+          "sha256": "27d447b38c9ac3b8523c15c2e20545f0992b3361633f1897e23acff169bd8cf4",
+          "kind": "source"
+        },
+        {
+          "path": "core/id_stage.sv",
+          "sha256": "2c6bdf3d746093c95d719d4ccb79cc2a966e8c05724d25853bdabca933740863",
+          "kind": "source"
+        },
+        {
+          "path": "core/include/aes_pkg.sv",
+          "sha256": "1d72543cbb7e82d5d9a7124172a01f639adc6a775d5e7d8c47decc792f0c4f63",
+          "kind": "source"
+        },
+        {
+          "path": "core/include/ariane_pkg.sv",
+          "sha256": "f492b1dda7044c4d202df1a1e4609a53fbecc94ad3f08b5d6d9a150b4569d2d7",
+          "kind": "source"
+        },
+        {
+          "path": "core/include/build_config_pkg.sv",
+          "sha256": "15dcfdd9b8e0c14ffb4ebb04aa85f259dac607b5816233dbdf9ff2e1b52cc2bc",
+          "kind": "source"
+        },
+        {
+          "path": "core/include/config_pkg.sv",
+          "sha256": "f6f193daa7dfe1161689f651d6aa6e2b1fdec6560fc83c1313385e944ce4c97c",
+          "kind": "source"
+        },
+        {
+          "path": "core/include/cv64a6_imafdc_sv39_config_pkg.sv",
+          "sha256": "5d0ca10eac2368a5c1276f8b6a893d699bc37a89d3d197d9c439a0ef7a228e8f",
+          "kind": "source"
+        },
+        {
+          "path": "core/include/dummy_l15_pkg.sv",
+          "sha256": "8b4e869af23f7fd69652ceaaa8e770a07da261c9102e26ab2bf314cd6dc57811",
+          "kind": "source"
+        },
+        {
+          "path": "core/include/instr_tracer_pkg.sv",
+          "sha256": "3f34a7641475f7ee7cbbebe5a1aaae61917518328cb425551c43e0bec05b195a",
+          "kind": "source"
+        },
+        {
+          "path": "core/include/riscv_pkg.sv",
+          "sha256": "225881e0df4c08d0d9768999408c7c93186a59270955a391bccd63f34b95777a",
+          "kind": "source"
+        },
+        {
+          "path": "core/include/std_cache_pkg.sv",
+          "sha256": "a0e01186dfdb63a059fbc7ffcc7bde10322f337c39c05bd0a17ad67995ba668f",
+          "kind": "source"
+        },
+        {
+          "path": "core/include/triggers_pkg.sv",
+          "sha256": "a4c09c9522e0e34200f32e1ce92c1eea0de5ae49f4dcf248793cb711f6c1c830",
+          "kind": "source"
+        },
+        {
+          "path": "core/include/wt_cache_pkg.sv",
+          "sha256": "8ffd0b9fd1ba2c0adfc49263f6970f47ede65901da84c46322459208a765e3f4",
+          "kind": "source"
+        },
+        {
+          "path": "core/instr_realign.sv",
+          "sha256": "3ad0190ed64c81d1ecaaf6c9b3641f6ee9b0ebc17db9af7eca33316da2768f05",
+          "kind": "source"
+        },
+        {
+          "path": "core/issue_read_operands.sv",
+          "sha256": "fb4732b4761b73ecdf9aa52c1af6927ac60c9a791d33575a592383c9fe3d1ed8",
+          "kind": "source"
+        },
+        {
+          "path": "core/issue_stage.sv",
+          "sha256": "5d5fd9c1c3e0b7fbc43c907b716de7091a74197110de935b3f0fdc1b07e36618",
+          "kind": "source"
+        },
+        {
+          "path": "core/load_store_unit.sv",
+          "sha256": "ce091f34f60e489a79d335548355e7d69e7dcd3982f8ece835ce9df2baf72a78",
+          "kind": "source"
+        },
+        {
+          "path": "core/load_unit.sv",
+          "sha256": "33eac31ac3d488a308b8a688188a559a41f3efe2c5b8b00bed3a72c9d90e82e7",
+          "kind": "source"
+        },
+        {
+          "path": "core/lsu_bypass.sv",
+          "sha256": "e5405f82d34ff052e6d17846f88600258a2c13a6668196d8f6c6230a18ec8316",
+          "kind": "source"
+        },
+        {
+          "path": "core/macro_decoder.sv",
+          "sha256": "75db5256f71531e318df3cc0edcb69a291f5c76abd232c4dc7bcb8d4e4bc1e07",
+          "kind": "source"
+        },
+        {
+          "path": "core/mult.sv",
+          "sha256": "e6660a01fc56369e2e1ad96ff89fa1fcafde795d398eaf5c812d7e9afd84ec59",
+          "kind": "source"
+        },
+        {
+          "path": "core/multiplier.sv",
+          "sha256": "eb546d486c0515fc2057d694e924c3575a649cc0beb9362a31498a22134eccf9",
+          "kind": "source"
+        },
+        {
+          "path": "core/perf_counters.sv",
+          "sha256": "4f381974ded0277f663c2991bcddb93a2a9c5de43b3847686607f293a5bc0fd8",
+          "kind": "source"
+        },
+        {
+          "path": "core/pmp/src/pmp.sv",
+          "sha256": "9c2dce5d4bd2390a617882c282080dbf191c54f016b36b5e719672382c15c7b6",
+          "kind": "source"
+        },
+        {
+          "path": "core/pmp/src/pmp_data_if.sv",
+          "sha256": "6c61e6022c150d2446d60f0aa8936361f45543b41428ca4c149cae586deee589",
+          "kind": "source"
+        },
+        {
+          "path": "core/pmp/src/pmp_entry.sv",
+          "sha256": "d460cad15eafe78c9c1de689238ec4579279ef28c556d8ac231715afff84c702",
+          "kind": "source"
+        },
+        {
+          "path": "core/raw_checker.sv",
+          "sha256": "758273502e408f962340ca7a8ec1c35f1a9285ae88946f38300166b2756fa59c",
+          "kind": "source"
+        },
+        {
+          "path": "core/scoreboard.sv",
+          "sha256": "dd816cdefd64817737e11ed79dbf91ce0d9d7361c08806a5f7f4883468791022",
+          "kind": "source"
+        },
+        {
+          "path": "core/serdiv.sv",
+          "sha256": "7b4d4b0be7512ec025fd3f4cec4e140e2f4466115237dd244fabc6b2095425f6",
+          "kind": "source"
+        },
+        {
+          "path": "core/store_buffer.sv",
+          "sha256": "523de0930e91e54e7a69e1301eca34d8aeb6ef368b523054be66d7b80205b946",
+          "kind": "source"
+        },
+        {
+          "path": "core/store_unit.sv",
+          "sha256": "a846efab0c86729e956a59f84e225f45c873fe33830767ae2cac4f5baea5d93f",
+          "kind": "source"
+        },
+        {
+          "path": "core/trigger_module.sv",
+          "sha256": "5d04504ac55ee435d3740b913332cd04aa9f6f17724ef887652a37b58047f766",
+          "kind": "source"
+        },
+        {
+          "path": "core/zcmt_decoder.sv",
+          "sha256": "ff7a3debc5981f8a4df280a6a5efa9a5f8ae249815ac6b8b68db3f59693f865e",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/axi/src/axi_pkg.sv",
+          "sha256": "76b3797792ee5b95ab5937f3d457b48852e5c427de48298dafbdde43d0916ac2",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/common_cells/src/cf_math_pkg.sv",
+          "sha256": "afc32fcae21f6cbb834c5ee602a1aaee1b518fc436a86d4fe1b97942473d35c8",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/common_cells/src/counter.sv",
+          "sha256": "b7a9b5fc11ce4def51133f27ec0470a18ae7c8c6b1161f21c948ae848b693f58",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/common_cells/src/delta_counter.sv",
+          "sha256": "698851a015f2b093d5688faa02ae60f0b3ed4324a7584846a99726e1c93732f7",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/common_cells/src/exp_backoff.sv",
+          "sha256": "fb3bff5787bf454bae844982f946bbd693aff49abe8ac4c85099742c272b8238",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/common_cells/src/fifo_v3.sv",
+          "sha256": "08cc968a5b26b5a68ad2c548755e6b3b0d07a7ad75a3f11e92bc1bab71eeb7c6",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/common_cells/src/lfsr.sv",
+          "sha256": "91f6c37be706ca7648cb66635e3f46a210e517f7addb8569ec28e4738599f7d7",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/common_cells/src/lfsr_8bit.sv",
+          "sha256": "b6caa6223650523ccf68435e0718fdd2c6942cca031a445cd427f749ad416e06",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/common_cells/src/lzc.sv",
+          "sha256": "c47046cab67cd9e9ff46f9b2a4c055f301eabd0f135d76d96639eb41c9fa3609",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/common_cells/src/popcount.sv",
+          "sha256": "e01dc8c6b0e36bbea5229f12686fbc97ee251133cf9b7bbcf5d91c084aff6822",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/common_cells/src/rr_arb_tree.sv",
+          "sha256": "c7361280318a605131345932ab3325bc53f8fc76e67c5579b991b96a5b4ffeed",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/common_cells/src/shift_reg.sv",
+          "sha256": "73fd475108016aa3ff5f940324e6bbf627a13bb8404e285b86876d3e948ff622",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/common_cells/src/stream_arbiter.sv",
+          "sha256": "727cfd2af43220b85c91f4098f9372d10aca1a0115cd614fe98a8730fb5bb1f8",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/common_cells/src/stream_arbiter_flushable.sv",
+          "sha256": "8a6ffd292fde633bcfba55ca5a0e89f367aa65406978d5947914979b6096a6d4",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/common_cells/src/stream_demux.sv",
+          "sha256": "210695a35a6107e1c6ec74e15ca535d57a766be1f81d1aa060787e79699443a2",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/common_cells/src/stream_mux.sv",
+          "sha256": "1bbc1d41d72532dd0b89053d0ea6a31054a65c5f25323bf0f0fc1df7df57491f",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/common_cells/src/unread.sv",
+          "sha256": "430bd1218854da3032104f5da6fd4bd6cc5b4c9569b85bfea8e805f9ebfc8cf7",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/fpga-support/rtl/AsyncDpRam.sv",
+          "sha256": "d9ab2572fdfdfa95d89bc4ee6909a2151e5fd26e3ea9218700bdb2b244e5c638",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/fpga-support/rtl/AsyncThreePortRam.sv",
+          "sha256": "ace7a0258a6e959befa75c456374bc14e7edd5a4b9109ff0aeaeac6be81de7c0",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/fpga-support/rtl/SyncDpRam.sv",
+          "sha256": "0d2d43ccae9e1b4097ad9051f17d2e9ae56e5faf1c99f3d37ad7d1cdd8a093ed",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/fpga-support/rtl/SyncDpRam_ind_r_w.sv",
+          "sha256": "ec83e7c003bf460b88c85102ea8cc4b14a86e8cbff8921a5a6fa2e619ba0a96f",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/fpga-support/rtl/SyncThreePortRam.sv",
+          "sha256": "ac6e0347e778d4d207a254a8f4ccdab69eb1e8cf4f74203986a086b898546222",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp-platform/tech_cells_generic/src/rtl/tc_sram.sv",
+          "sha256": "32e9cb89cf89902e9fa566a66f931f6fe00a616cd426ba440b1e634d0caeb607",
+          "kind": "source"
+        },
+        {
+          "path": "LICENSE.Berkeley",
+          "sha256": "54c5a8c0be80052cb17867634ec02ec06700b7bb4517ae189cc780aba2cc7c9c",
+          "kind": "license"
+        },
+        {
+          "path": "LICENSE.SiFive",
+          "sha256": "63b453c2c3f5e5d31007f55eaacc2b72e8b7a40e6ab33eae6972ba010fa7acc4",
+          "kind": "license"
+        },
+        {
+          "path": "core/cache_subsystem/hpdcache/LICENSE",
+          "sha256": "1d68cafdab055a08e37a71019958aa6836e67512afb1399fbd668e6708f8ad72",
+          "kind": "license"
+        },
+        {
+          "path": "core/cvfpu/LICENSE.apache",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "kind": "license"
+        },
+        {
+          "path": "core/cvfpu/LICENSE.solderpad",
+          "sha256": "93b73d82e2a9049adbee0a6c4c3327fdcaa5acdb2217e669e196bb3c60c2b0e1",
+          "kind": "license"
+        },
+        {
+          "path": "core/cvfpu/src/fpu_div_sqrt_mvp/LICENSE",
+          "sha256": "6527a46225891b976fa94f634f6ee0cd22e1c7129d6f11c5c98c997627625fc7",
+          "kind": "license"
+        }
+      ],
+      "selected_content_hash": "sha256:4d1def9f37a9046d2fbf3d1d7c7363231858e173d5ba33bb5af496f5eb195d9e",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_unverified",
+      "runtime_status": "runtime_unverified",
+      "defines": [],
+      "typed_parameters": [],
+      "generator": {
+        "status": "not_invoked",
+        "tool_version": null,
+        "name": "none for selected checked-in files"
+      },
+      "dependencies": [],
+      "interface_description": "configs/cpus/cva6/official_core_interface_description.json",
+      "interface_description_sha256": "69c0005a719c204abe3fae628968049cf4c921cf1f9b548b98890344bb0cde34",
+      "closure_note": "Explicit source/filelist selection pinned; transitive include/module closure and physical types still require parent elaboration."
+    },
+    {
+      "id": "pulp_gpio",
+      "source": {
+        "root": "third_party/soc-pulp-apb-gpio",
+        "revision": "git:f82caeb7f7d89427f05e9af5ed31e0675efe0d83",
+        "top_module": "apb_gpio",
+        "files": [
+          "rtl/apb_gpio.sv"
+        ],
+        "include_roots": [],
+        "repositories": []
+      },
+      "artifacts": [
+        {
+          "path": "Bender.yml",
+          "sha256": "daf613df168fe9ef65a58919acc1537e42e266c1b520eb861f1b67f485d53b04",
+          "kind": "provenance"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "8632e4ec6001a712686e34f7955879a65d249b43b95b253f29a348f32804487a",
+          "kind": "license"
+        },
+        {
+          "path": "rtl/apb_gpio.sv",
+          "sha256": "1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef",
+          "kind": "source"
+        }
+      ],
+      "selected_content_hash": "sha256:7622917c85229ee645c720309c308a6506c2c547081f8c899d4e9338b4f5c7a9",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "defines": [],
+      "typed_parameters": [
+        {
+          "name": "APB_ADDR_WIDTH",
+          "type": "integer",
+          "value": 12
+        },
+        {
+          "name": "PAD_NUM",
+          "type": "integer",
+          "value": 32
+        },
+        {
+          "name": "NBIT_PADCFG",
+          "type": "integer",
+          "value": 4
+        }
+      ],
+      "generator": {
+        "status": "not_invoked",
+        "tool_version": null,
+        "name": "none for selected checked-in files"
+      },
+      "dependencies": [],
+      "closure_note": "Elaboration closure explicitly selected and hash-pinned in configs/soc/closures/pulp_gpio.json; every file Verilator reads for the top is recorded with its sha256. Explicit source/filelist selection pinned; transitive include/module closure and physical types still require parent elaboration.",
+      "elaboration": {
+        "status": "elaboration_verified",
+        "top_module": "apb_gpio",
+        "tool": {
+          "name": "verilator",
+          "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "frontend": "verilator-lint"
+        },
+        "evidence": "configs/soc/closures/pulp_gpio.json",
+        "evidence_sha256": "1a37ff739ae34b7ff16866186c09bf235d3654220e38a15077b93495ae9787e7",
+        "closure_files": 1,
+        "lint": {
+          "errors": 0,
+          "warnings": 2,
+          "exit_code": 0
+        },
+        "capability_findings": 12,
+        "unsupported": 7
+      }
+    },
+    {
+      "id": "pulp_spi",
+      "source": {
+        "root": "third_party/soc-pulp-apb-spi",
+        "revision": "git:3fce81084b15870f4bd9da7806cf950774f9672e",
+        "top_module": "apb_spi_master",
+        "files": [
+          "apb_spi_master.sv",
+          "spi_master_apb_if.sv"
+        ],
+        "include_roots": [],
+        "repositories": []
+      },
+      "artifacts": [
+        {
+          "path": "LICENSE",
+          "sha256": "b41106a9d0de1cf6ab4ea56bedf677503085c0570248f37fe2cdf657a5e72601",
+          "kind": "license"
+        },
+        {
+          "path": "apb_spi_master.sv",
+          "sha256": "dfc82b0f3c91ba44d986288e1884b1eede0aad6ed8c5b09179a629344d547d0e",
+          "kind": "source"
+        },
+        {
+          "path": "spi_master_apb_if.sv",
+          "sha256": "a9a32da6cc07768cab293c48989599e36b2000bb572191667960aa1423fc790a",
+          "kind": "source"
+        },
+        {
+          "path": "src_files.yml",
+          "sha256": "55fcb0adf75e3835b4d1a00fcb136b24ea194b0e38ea8409f1445f72b48c1433",
+          "kind": "provenance"
+        }
+      ],
+      "selected_content_hash": "sha256:4e4179730dd875bc66396b973ddf98ecf6bedf5c13e241a4e4140bf002667929",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "defines": [],
+      "typed_parameters": [
+        {
+          "name": "BUFFER_DEPTH",
+          "type": "integer",
+          "value": 10
+        },
+        {
+          "name": "APB_ADDR_WIDTH",
+          "type": "integer",
+          "value": 12
+        }
+      ],
+      "generator": {
+        "status": "not_invoked",
+        "tool_version": null,
+        "name": "none for selected checked-in files"
+      },
+      "dependencies": [
+        "pulp_spi_dependencies"
+      ],
+      "closure_note": "Elaboration closure explicitly selected and hash-pinned in configs/soc/closures/pulp_spi.json; every file Verilator reads for the top is recorded with its sha256. Explicit source/filelist selection pinned; transitive include/module closure and physical types still require parent elaboration.",
+      "elaboration": {
+        "status": "elaboration_verified",
+        "top_module": "apb_spi_master",
+        "tool": {
+          "name": "verilator",
+          "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "frontend": "verilator-lint"
+        },
+        "evidence": "configs/soc/closures/pulp_spi.json",
+        "evidence_sha256": "753461c7591995328ce9740f26af687b4b60beec74a49777a56c765776f094b7",
+        "closure_files": 7,
+        "lint": {
+          "errors": 0,
+          "warnings": 10,
+          "exit_code": 0
+        },
+        "capability_findings": 16,
+        "unsupported": 8
+      }
+    },
+    {
+      "id": "pulp_spi_dependencies",
+      "source": {
+        "root": "third_party/soc-pulp-axi-spi",
+        "revision": "git:ee219078353a76e468674c25675f5b7fe5f51127",
+        "top_module": "spi_master_controller",
+        "files": [
+          "spi_master_clkgen.sv",
+          "spi_master_controller.sv",
+          "spi_master_fifo.sv",
+          "spi_master_rx.sv",
+          "spi_master_tx.sv"
+        ],
+        "include_roots": [],
+        "repositories": []
+      },
+      "artifacts": [
+        {
+          "path": "LICENSE",
+          "sha256": "b41106a9d0de1cf6ab4ea56bedf677503085c0570248f37fe2cdf657a5e72601",
+          "kind": "license"
+        },
+        {
+          "path": "spi_master_clkgen.sv",
+          "sha256": "dbfc81a8afe1c05a4372cf7e46f1217f6b57d56c8927bf25ee5f427761b15332",
+          "kind": "source"
+        },
+        {
+          "path": "spi_master_controller.sv",
+          "sha256": "0ba0d90e99949939b3815ed2e69a9f95b980114ec554baca14083ab54496db76",
+          "kind": "source"
+        },
+        {
+          "path": "spi_master_fifo.sv",
+          "sha256": "226f53f2e78a82eb9859149a505c287daa8cfd54f55c51b6c1cfa2cd90a38555",
+          "kind": "source"
+        },
+        {
+          "path": "spi_master_rx.sv",
+          "sha256": "1290e4beaa7d4b588da9cf84da47b39923010bcfdb355641509ee90295d8ca5f",
+          "kind": "source"
+        },
+        {
+          "path": "spi_master_tx.sv",
+          "sha256": "ee9a7d305bc7bb574ece02dbd6dc8a3f0403729d336bd7431689da47a08558f6",
+          "kind": "source"
+        }
+      ],
+      "selected_content_hash": "sha256:90935e7e6ad612ce30f6f246abd05501e8276b3d51cbfe537d1d6dbd725c5e58",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "defines": [],
+      "typed_parameters": [],
+      "generator": {
+        "status": "not_invoked",
+        "tool_version": null,
+        "name": "none for selected checked-in files"
+      },
+      "dependencies": [],
+      "closure_note": "Elaboration closure explicitly selected and hash-pinned in configs/soc/closures/pulp_spi_dependencies.json; every file Verilator reads for the top is recorded with its sha256. Explicit source/filelist selection pinned; transitive include/module closure and physical types still require parent elaboration.",
+      "elaboration": {
+        "status": "elaboration_verified",
+        "top_module": "spi_master_controller",
+        "tool": {
+          "name": "verilator",
+          "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "frontend": "verilator-lint"
+        },
+        "evidence": "configs/soc/closures/pulp_spi_dependencies.json",
+        "evidence_sha256": "ed8da79c2005ebd3459b8f361543f6c460f53f2081aceb149b7066350d3ec2f3",
+        "closure_files": 4,
+        "lint": {
+          "errors": 0,
+          "warnings": 5,
+          "exit_code": 0
+        },
+        "capability_findings": 13,
+        "unsupported": 5
+      }
+    },
+    {
+      "id": "zipcpu_uart",
+      "source": {
+        "root": "third_party/soc-zipcpu-wbuart",
+        "revision": "git:f43a6b83c3a70fb2ac0696a45c5545b233fb860b",
+        "top_module": "wbuart",
+        "files": [
+          "rtl/wbuart.v",
+          "rtl/ufifo.v",
+          "rtl/rxuart.v",
+          "rtl/txuart.v"
+        ],
+        "include_roots": [],
+        "repositories": []
+      },
+      "artifacts": [
+        {
+          "path": "LICENSE",
+          "sha256": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2",
+          "kind": "license"
+        },
+        {
+          "path": "README.md",
+          "sha256": "02a026e32c4b402739e0383c0578533ee2a73e6ce2d3a5c9b48724810765bcf1",
+          "kind": "provenance"
+        },
+        {
+          "path": "rtl/rxuart.v",
+          "sha256": "6d7764726b82bf6daa3272f54d1a4e8496baba5501fdadc8095acdef68c27bbd",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/txuart.v",
+          "sha256": "740162a836b695b4cda844c557a6aa94d02c8a0386f4d40d59c77ebf2f850cba",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ufifo.v",
+          "sha256": "83c8894d6b36cebd33ade16d117a0eb6f7dc183e84eb17818edda48330cf0af5",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/wbuart.v",
+          "sha256": "9733247cdf577e41f317109b08d973f7b0a061e6566d9afdbdb915d778db1ce9",
+          "kind": "source"
+        }
+      ],
+      "selected_content_hash": "sha256:18dd1f25df9731d9333beb508978ceb3dcd4e0c6a06583cc1d743f483cd64343",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "defines": [],
+      "typed_parameters": [
+        {
+          "name": "INITIAL_SETUP",
+          "type": "integer",
+          "value": 25
+        },
+        {
+          "name": "LGFLEN",
+          "type": "integer",
+          "value": 4
+        },
+        {
+          "name": "HARDWARE_FLOW_CONTROL_PRESENT",
+          "type": "integer",
+          "value": 1
+        }
+      ],
+      "generator": {
+        "status": "not_invoked",
+        "tool_version": null,
+        "name": "none for selected checked-in files"
+      },
+      "dependencies": [],
+      "closure_note": "Elaboration closure explicitly selected and hash-pinned in configs/soc/closures/zipcpu_uart.json; every file Verilator reads for the top is recorded with its sha256. Explicit source/filelist selection pinned; transitive include/module closure and physical types still require parent elaboration.",
+      "elaboration": {
+        "status": "elaboration_verified",
+        "top_module": "wbuart",
+        "tool": {
+          "name": "verilator",
+          "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "frontend": "verilator-lint"
+        },
+        "evidence": "configs/soc/closures/zipcpu_uart.json",
+        "evidence_sha256": "6cf19d922f2d08d24c26c874043dc43234861a0743d3448635d06e515c0ea610",
+        "closure_files": 4,
+        "lint": {
+          "errors": 0,
+          "warnings": 0,
+          "exit_code": 0
+        },
+        "capability_findings": 13,
+        "unsupported": 5
+      }
+    },
+    {
+      "id": "zipcpu_timer",
+      "source": {
+        "root": "third_party/soc-zipcpu",
+        "revision": "git:42606d2d6ef55df313772232977621b2d72f0159",
+        "top_module": "ziptimer",
+        "files": [
+          "rtl/peripherals/ziptimer.v"
+        ],
+        "include_roots": [],
+        "repositories": []
+      },
+      "artifacts": [
+        {
+          "path": "doc/src/gpl-3.0.tex",
+          "sha256": "4e6c3af9bf75ed66080c9a46aafe9842c8c9a572d8612871d4c5ad5e790e7f3c",
+          "kind": "license"
+        },
+        {
+          "path": "rtl/peripherals/ziptimer.v",
+          "sha256": "52c184e1267e93cf247971b2fed92209cfa18da4f7839f08f5b4aa0f67ef5df5",
+          "kind": "source"
+        }
+      ],
+      "selected_content_hash": "sha256:e913ba8c15f1c0f83ac5323a325db2ad70a187d37ec38d8d20c6dbfb5af6046e",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "defines": [],
+      "typed_parameters": [
+        {
+          "name": "BW",
+          "type": "integer",
+          "value": 32
+        },
+        {
+          "name": "VW",
+          "type": "integer",
+          "value": 31
+        },
+        {
+          "name": "RELOADABLE",
+          "type": "integer",
+          "value": 1
+        }
+      ],
+      "generator": {
+        "status": "not_invoked",
+        "tool_version": null,
+        "name": "none for selected checked-in files"
+      },
+      "dependencies": [],
+      "closure_note": "Elaboration closure explicitly selected and hash-pinned in configs/soc/closures/zipcpu_timer.json; every file Verilator reads for the top is recorded with its sha256. Explicit source/filelist selection pinned; transitive include/module closure and physical types still require parent elaboration.",
+      "elaboration": {
+        "status": "elaboration_verified",
+        "top_module": "ziptimer",
+        "tool": {
+          "name": "verilator",
+          "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "frontend": "verilator-lint"
+        },
+        "evidence": "configs/soc/closures/zipcpu_timer.json",
+        "evidence_sha256": "4690d5992de352092de98371e31ca2df676cb22872557f0e0dab94e44c5169bd",
+        "closure_files": 1,
+        "lint": {
+          "errors": 0,
+          "warnings": 0,
+          "exit_code": 0
+        },
+        "capability_findings": 12,
+        "unsupported": 5
+      }
+    },
+    {
+      "id": "opentitan_uart",
+      "source": {
+        "root": "third_party/soc-opentitan",
+        "revision": "git:fca045df919a26c47e71616b9dac917b1ea4fd07",
+        "top_module": "uart",
+        "files": [
+          "hw/ip/uart/rtl/uart.sv",
+          "hw/ip/uart/rtl/uart_core.sv",
+          "hw/ip/uart/rtl/uart_reg_pkg.sv",
+          "hw/ip/uart/rtl/uart_reg_top.sv",
+          "hw/ip/uart/rtl/uart_rx.sv",
+          "hw/ip/uart/rtl/uart_tx.sv"
+        ],
+        "include_roots": [],
+        "repositories": []
+      },
+      "artifacts": [
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "kind": "license"
+        },
+        {
+          "path": "hw/ip/uart/data/uart.hjson",
+          "sha256": "4960f3f5bac47c62cccaf928dafc1c6c3dc0cf823da6cdf07b46b51e413394bc",
+          "kind": "provenance"
+        },
+        {
+          "path": "hw/ip/uart/rtl/uart.sv",
+          "sha256": "b2ea9b88abb25f8a7cdbe317dfc91e6b2b456647781d2bdc33ef384c526412a5",
+          "kind": "source"
+        },
+        {
+          "path": "hw/ip/uart/rtl/uart_core.sv",
+          "sha256": "4df7acad038cdb06f81e4b7681ddf3b0bc091eb38dae63c385812f980c47d0be",
+          "kind": "source"
+        },
+        {
+          "path": "hw/ip/uart/rtl/uart_reg_pkg.sv",
+          "sha256": "106f8da3d41f8cfe585a58e91c251e23e76c81d25956cb751f61644023dfa01b",
+          "kind": "source"
+        },
+        {
+          "path": "hw/ip/uart/rtl/uart_reg_top.sv",
+          "sha256": "8c40c957fbd7c1155f58d2c7696340b7ea6b82c2b0626ec684463f991538ae27",
+          "kind": "source"
+        },
+        {
+          "path": "hw/ip/uart/rtl/uart_rx.sv",
+          "sha256": "08a72a3f045562eee419f42fe2abb4f68f3282b90bb0a6e268872fd39748782b",
+          "kind": "source"
+        },
+        {
+          "path": "hw/ip/uart/rtl/uart_tx.sv",
+          "sha256": "1cd4f59b8a58bb8e99c2a24081aae093f6528ac1887abb7cb5f31b911f949241",
+          "kind": "source"
+        },
+        {
+          "path": "hw/ip/uart/uart.core",
+          "sha256": "648a036b0f29ff72abfae93ce4edefd6820bf4d7835ff63555c710ce2bbddb04",
+          "kind": "provenance"
+        }
+      ],
+      "selected_content_hash": "sha256:57f93972cd4907c07ac6983b504dbf3b025dfa4913ee83f7eebfefc972ae0322",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "defines": [],
+      "typed_parameters": [],
+      "generator": {
+        "status": "pending_input_closure_and_reproduction",
+        "tool_version": null,
+        "input_artifacts": [
+          "hw/ip/uart/data/uart.hjson"
+        ],
+        "output_artifacts": [
+          "hw/ip/uart/rtl/uart_reg_pkg.sv",
+          "hw/ip/uart/rtl/uart_reg_top.sv"
+        ],
+        "name": "regtool/topgen"
+      },
+      "dependencies": [],
+      "closure_note": "Elaboration closure explicitly selected and hash-pinned in configs/soc/closures/opentitan_uart.json; every file Verilator reads for the top is recorded with its sha256. Pending TL-UL/prim/RACL packages, generated inputs, includes, primitive implementations and tool closure. Selected local IP RTL only.",
+      "elaboration": {
+        "status": "elaboration_verified",
+        "top_module": "uart",
+        "tool": {
+          "name": "verilator",
+          "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "frontend": "verilator-lint"
+        },
+        "evidence": "configs/soc/closures/opentitan_uart.json",
+        "evidence_sha256": "2afee024052ad76b68ae6ae9250ec62aea670cd91b99dc1baeb90a1266944e2a",
+        "closure_files": 48,
+        "lint": {
+          "errors": 0,
+          "warnings": 4,
+          "exit_code": 0
+        },
+        "capability_findings": 16,
+        "unsupported": 5
+      }
+    },
+    {
+      "id": "opentitan_gpio",
+      "source": {
+        "root": "third_party/soc-opentitan",
+        "revision": "git:fca045df919a26c47e71616b9dac917b1ea4fd07",
+        "top_module": "gpio",
+        "files": [
+          "hw/top_earlgrey/ip_autogen/gpio/rtl/gpio.sv",
+          "hw/top_earlgrey/ip_autogen/gpio/rtl/gpio_pkg.sv",
+          "hw/top_earlgrey/ip_autogen/gpio/rtl/gpio_reg_pkg.sv",
+          "hw/top_earlgrey/ip_autogen/gpio/rtl/gpio_reg_top.sv"
+        ],
+        "include_roots": [],
+        "repositories": []
+      },
+      "artifacts": [
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "kind": "license"
+        },
+        {
+          "path": "hw/top_earlgrey/ip_autogen/gpio/data/gpio.hjson",
+          "sha256": "a56638c3a89c434570a483e485e7409e0bff38870303a4f9e78352b1a568f09a",
+          "kind": "provenance"
+        },
+        {
+          "path": "hw/top_earlgrey/ip_autogen/gpio/gpio.core",
+          "sha256": "45ddb9f6937bc5a8f23d27c35a55c4b9f7613fa4225e3ab1c79ba79c2d627466",
+          "kind": "provenance"
+        },
+        {
+          "path": "hw/top_earlgrey/ip_autogen/gpio/rtl/gpio.sv",
+          "sha256": "14539279738748ab142248552aa978883ea08d063ba3690a03a1ed6d9c5990b9",
+          "kind": "source"
+        },
+        {
+          "path": "hw/top_earlgrey/ip_autogen/gpio/rtl/gpio_pkg.sv",
+          "sha256": "d6f0de9c7a51ce4e9ad4f2a9c07f02b9a02325ef76c5526ff97afd599a622ccf",
+          "kind": "source"
+        },
+        {
+          "path": "hw/top_earlgrey/ip_autogen/gpio/rtl/gpio_reg_pkg.sv",
+          "sha256": "eb1e2a0d7af135f22f72c45df6cafc42327213c9b8d52fb7f72e683dd3512bdc",
+          "kind": "source"
+        },
+        {
+          "path": "hw/top_earlgrey/ip_autogen/gpio/rtl/gpio_reg_top.sv",
+          "sha256": "1da28b2ed10ca9a6620688ab37573aed21a0b7bba913718e5b809c3aaa660672",
+          "kind": "source"
+        }
+      ],
+      "selected_content_hash": "sha256:c591b48bc0ac2176c7df7a03430e73802667f95981716a0ee040064cf6dfaaec",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "defines": [],
+      "typed_parameters": [],
+      "generator": {
+        "status": "pending_input_closure_and_reproduction",
+        "tool_version": null,
+        "input_artifacts": [
+          "hw/top_earlgrey/ip_autogen/gpio/data/gpio.hjson"
+        ],
+        "output_artifacts": [
+          "hw/top_earlgrey/ip_autogen/gpio/rtl/gpio_reg_pkg.sv",
+          "hw/top_earlgrey/ip_autogen/gpio/rtl/gpio_reg_top.sv"
+        ],
+        "name": "regtool/topgen"
+      },
+      "dependencies": [],
+      "closure_note": "Elaboration closure explicitly selected and hash-pinned in configs/soc/closures/opentitan_gpio.json; every file Verilator reads for the top is recorded with its sha256. Pending TL-UL/prim/RACL packages, generated inputs, includes, primitive implementations and tool closure. Selected local IP RTL only.",
+      "elaboration": {
+        "status": "elaboration_verified",
+        "top_module": "gpio",
+        "tool": {
+          "name": "verilator",
+          "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "frontend": "verilator-lint"
+        },
+        "evidence": "configs/soc/closures/opentitan_gpio.json",
+        "evidence_sha256": "c5357ee7d8ef0d5f345d0151e8bf630d3cd39b9f444bcaf381aa14a08bc1bd7a",
+        "closure_files": 42,
+        "lint": {
+          "errors": 0,
+          "warnings": 1,
+          "exit_code": 0
+        },
+        "capability_findings": 16,
+        "unsupported": 5
+      }
+    }
+  ]
+}
