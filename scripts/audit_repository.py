@@ -660,7 +660,13 @@ def _write_user_file(path: Path, text: str) -> None:
 
 
 def _protected_tool_paths(root: Path):
-    return (root / QUARANTINE_DIRNAME, root / AUDIT_DIRNAME)
+    """Only the quarantine store is protected, not the audit output directory.
+
+    Writing an inventory under runs/repository-audit/<batch>/ is the documented
+    workflow, but writing one over a manifest or a stored batch would destroy
+    the only record needed to restore the quarantined files.
+    """
+    return (root / QUARANTINE_DIRNAME,)
 
 
 def _write_new(root: Path, relative: str, payload) -> None:

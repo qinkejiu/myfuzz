@@ -609,6 +609,24 @@ class RepositoryAuditTests(unittest.TestCase):
         self.assertNotEqual(linked.returncode, 0)
         self.assertFalse(outside.exists())
 
+    def test_the_documented_audit_output_directory_is_writable(self):
+        # Regression: the tool-state guard must protect the quarantine store
+        # (where writing an inventory over a manifest would destroy the only
+        # restore record) without also blocking the documented
+        # runs/repository-audit/<batch>/ destination for its own artifacts.
+        self.module()
+        inventory = self.root / 'runs/repository-audit/batch-one/inventory.json'
+        candidates = self.root / 'runs/repository-audit/batch-one/quarantine-candidates.json'
+        result = subprocess.run(['python3', str(SCRIPT), '--root', str(self.root),
+                                 '--output', str(inventory),
+                                 '--quarantine-list', str(candidates)],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(json.loads(inventory.read_text())['schema_version'],
+                         'repository_audit.v1')
+        self.assertEqual(json.loads(candidates.read_text())['schema_version'],
+                         'repository_quarantine_selection.v1')
+
     def test_restore_rejects_malformed_manifests_without_a_traceback(self):
         self.module()
         for payload in ('[]', 'null', '123', '"hello"', 'not json at all'):
