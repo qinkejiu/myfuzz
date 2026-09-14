@@ -2417,11 +2417,76 @@ def make_hierarchy_body_insertion(
     return Insertion(plan.region.header_end, "\n".join(lines), 1)
 
 
+def flatten_instance_coverage(
+    module_map: dict[str, "ModulePlan"],
+    active_modules: set[str],
+    top_modules: list[str],
+) -> list[dict[str, object]]:
+    """Flatten each top module's coverage vector into instance-mapped bits.
+
+    ``make_hierarchy_body_insertion`` concatenates a module's own point signals
+    with one wire per instrumented child, in ``plan.points`` then
+    ``plan.child_connections`` order.  A SystemVerilog concatenation puts its
+    first term in the most significant bits, so a term's range is fixed by the
+    widths of the terms that follow it and offsets accumulate from the least
+    significant bit upwards.
+
+    Reproducing that order here turns the flat vector into
+    ``top bit -> (instance path, module, source, line, branch)`` entries.  The
+    instance path is what keeps two instances of one module distinguishable in
+    feedback; the RTL itself is not changed by this.
+    """
+    entries: list[dict[str, object]] = []
+
+    def walk(module: str, path: str, base: int, ancestors: tuple[str, ...]) -> None:
+        if module in ancestors:
+            # Verilog forbids recursive instantiation; this only keeps the walk
+            # finite if a malformed tree ever reaches it.
+            return
+        plan = module_map.get(module)
+        if plan is None or module not in active_modules:
+            return
+        terms: list[tuple[str, object, int]] = [
+            ("point", point, 1) for point in plan.points
+        ]
+        terms.extend(("child", conn, conn.width) for conn in plan.child_connections)
+        offset = 0
+        for kind, payload, width in reversed(terms):
+            low = base + offset
+            offset += width
+            if kind == "point":
+                point = payload
+                entries.append({
+                    "bit": low,
+                    "instance_path": path,
+                    "module": module,
+                    "file": point.file,
+                    "line": point.line,
+                    "column": point.column,
+                    "kind": point.kind,
+                    "subtype": point.subtype,
+                    "signal": point.signal,
+                })
+            else:
+                connection = payload
+                walk(
+                    connection.instance.child,
+                    f"{path}/{connection.instance.name}",
+                    low,
+                    ancestors + (module,),
+                )
+
+    for top in top_modules:
+        walk(top, top, 0, ())
+    entries.sort(key=lambda item: (int(item["bit"]), str(item["instance_path"])))
+    return entries
+
+
 def add_hierarchy_insertions(
     file_plans: list[FilePlan],
     top_module: str | None,
     coverage_port: str,
-) -> tuple[list[str], set[str], list[dict[str, object]], dict[str, int]]:
+) -> tuple[list[str], set[str], list[dict[str, object]], dict[str, int], dict[str, "ModulePlan"]]:
     module_map, roots, active_modules, skipped = collect_hierarchy(file_plans, top_module)
     widths = compute_coverage_widths(module_map, active_modules)
     for plan in module_map.values():
@@ -2457,7 +2522,7 @@ def add_hierarchy_insertions(
                 "frontend_matched": plan.frontend is not None,
             }
         )
-    return roots, active_modules, module_summary, skipped
+    return roots, active_modules, module_summary, skipped, module_map
 
 
 def expand_path(raw: str, base: Path) -> Path:
@@ -2885,10 +2950,12 @@ def instrument_project(
         )
         file_plans.append(file_plan)
 
+    coverage_bits: list[dict[str, object]] = []
     if resolved_settings.hierarchy.propagate_to_top:
-        top_modules, active_modules, module_coverage, hierarchy_skipped = add_hierarchy_insertions(
-            file_plans, top_module, coverage_port
+        top_modules, active_modules, module_coverage, hierarchy_skipped, module_map = (
+            add_hierarchy_insertions(file_plans, top_module, coverage_port)
         )
+        coverage_bits = flatten_instance_coverage(module_map, active_modules, top_modules)
     else:
         top_modules = [item.strip() for item in top_module.split(",") if item.strip()] if top_module else []
         active_modules = {module_plan.region.name for file_plan in file_plans for module_plan in file_plan.modules}
@@ -3000,6 +3067,10 @@ def instrument_project(
         "source_map": source_map,
         "include_dir_map": include_dir_map,
         "coverage": [point.__dict__ for point in points],
+        "coverage_bits": coverage_bits,
+        "coverage_vector_width": (
+            max((int(item["bit"]) for item in coverage_bits), default=-1) + 1
+        ),
         "metadata": [point.__dict__ for point in metadata],
         "module_coverage": module_coverage,
         "skipped": skipped,
