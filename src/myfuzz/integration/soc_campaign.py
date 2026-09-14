@@ -607,9 +607,9 @@ def run_soc_campaign(
     except BaseException as error:
         report["errors"].append(_error_record(error, phase))
         report["cleanup"] = {
-            "status": "runner-owned-cleanup-attempted",
-            "process_group_owned_by_runner": True,
-            "fifo_owned_by_runner": True,
+            "status": ("runner-owned-cleanup-attempted" if phase == "client" else "not-started"),
+            "process_group_owned_by_runner": phase == "client",
+            "fifo_owned_by_runner": phase == "client",
         }
         report.update(status="failed", final_status="failed")
     _write_report(report_path, report)
