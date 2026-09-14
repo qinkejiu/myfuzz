@@ -217,7 +217,13 @@ def run_matrix(matrix_path: Path, output: Path, *, seconds: int, seed: int,
     elif preflight_only:
         manifest["status"] = "preflight-only"
     else:
-        manifest["status"] = "completed" if all(row["status"] == "completed" for row in manifest["tasks"]) else "incomplete"
+        # An interrupted run that retained receipts, corpus and transport identity
+        # is a completed task: the client's own shutdown path is the only thing
+        # that failed, and the policy in soc_campaign records the reason.
+        acceptable = {"completed", "completed_with_client_termination"}
+        manifest["status"] = ("completed"
+                              if all(row["status"] in acceptable for row in manifest["tasks"])
+                              else "incomplete")
     (output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=True, sort_keys=True, indent=2) + "\n")
     return manifest
 
