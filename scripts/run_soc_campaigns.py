@@ -163,10 +163,12 @@ def _replay_probe(path: Path | None) -> dict[str, object]:
             document = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return {"status": "invalid", "path": str(path)}
-        return {"status": "available", "path": str(path),
-                "schema_version": document.get("schema_version") if isinstance(document, Mapping) else None}
-    return {"status": "available", "path": str(path),
-            "manifest": (path / "manifest.json").is_file()}
+        return {"status": "available-not-executed", "path": str(path),
+                "schema_version": document.get("schema_version") if isinstance(document, Mapping) else None,
+                "execution": "rebuild/replay is a separate real-run step"}
+    return {"status": "available-not-executed", "path": str(path),
+            "manifest": (path / "manifest.json").is_file(),
+            "execution": "rebuild/replay is a separate real-run step"}
 
 
 def run_matrix(matrix_path: Path, output: Path, *, seconds: int, seed: int,

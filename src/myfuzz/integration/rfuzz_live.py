@@ -429,7 +429,8 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
                                  "counter_width": 8,
                              },
                              fifo_reply_receipts=receipt_records,
-                             fifo_reply_receipt_count=len(receipt_records),
+                             fifo_reply_receipt_count=len(receipts),
+                             fifo_reply_receipt_sample_limit=4096,
                              actual_rtl_execution={
                                  "tests": tests,
                                  "execution_totals": dict(execution_totals),
@@ -445,7 +446,8 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
         "remaining_segments":_owned_segments(client.pid),"removed_owned_segments":removed,
         "layout_hash":artifact.layout.layout_hash,"client_binary":str(binary)}
     result["fifo_reply_receipts"] = list(receipt_records)
-    result["fifo_reply_receipt_count"] = len(receipt_records)
+    result["fifo_reply_receipt_count"] = len(receipts)
+    result["fifo_reply_receipt_sample_limit"] = 4096
     result["actual_rtl_execution"] = {
         "tests": tests,
         "execution_totals": dict(execution_totals),
