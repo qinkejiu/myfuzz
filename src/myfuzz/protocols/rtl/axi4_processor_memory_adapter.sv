@@ -83,6 +83,21 @@ module axi4_processor_memory_adapter #(
     localparam logic [2:0] MAX_TRANSFER_SIZE = 3'($clog2(DATA_WIDTH / 8));
     localparam logic [(DATA_WIDTH/8)-1:0] FULL_BE = {(DATA_WIDTH/8){1'b1}};
 
+    // AXI carries a read's byte lanes in ARADDR/ARSIZE, exactly as a write
+    // carries them in WSTRB.  Requesting the full data width for every read
+    // instead turns a legal 4-byte read at an address that is 4-byte but not
+    // 8-byte aligned into an 8-byte access spanning two peripheral registers,
+    // which the 64-to-32 width adapter then refuses.  ARSIZE above
+    // MAX_TRANSFER_SIZE is rejected by ar_bad, so the shift stays in range.
+    function automatic logic [(DATA_WIDTH/8)-1:0] read_be_from_axi(
+        input logic [2:0] size, input logic [2:0] offset);
+        logic [15:0] bytes;
+        begin
+            bytes = (16'd1 << (16'd1 << size)) - 16'd1;
+            read_be_from_axi = bytes[(DATA_WIDTH/8)-1:0] << offset;
+        end
+    endfunction
+
     typedef enum logic [3:0] {
         IDLE,
         WRITE_COLLECT,
@@ -102,11 +117,12 @@ module axi4_processor_memory_adapter #(
     logic [ID_WIDTH-1:0] write_id_q, read_id_q;
     logic [ADDRESS_WIDTH-1:0] write_addr_q, read_addr_q;
     logic [DATA_WIDTH-1:0] write_data_q, read_data_q;
-    logic [(DATA_WIDTH/8)-1:0] write_be_q;
+    logic [(DATA_WIDTH/8)-1:0] write_be_q, read_be_q;
     logic [1:0] write_resp_q, read_resp_q;
     logic [7:0] write_len_q, write_beats_left_q, read_beats_left_q;
     logic atomic_read_error_q, atomic_compare_q;
     logic atomic_r_pending_q, atomic_b_pending_q;
+    logic read_bad_q;
 
     wire collecting_write = (state_q == IDLE) || (state_q == WRITE_COLLECT);
     wire aw_take = awvalid_i && awready_o;
@@ -115,7 +131,13 @@ module axi4_processor_memory_adapter #(
     wire aw_bad = (awlen_i != 8'd0) || (awsize_i > MAX_TRANSFER_SIZE) ||
                   ((awburst_i != 2'b00) && (awburst_i != 2'b01)) ||
                   awlock_i || (awatop_i != 6'd0);
-    wire ar_bad = (arlen_i != 8'd0) || (arsize_i > MAX_TRANSFER_SIZE) ||
+    // CVA6 instruction line fills use a legal two-beat incrementing read
+    // (ARBURST=INCR, ARLEN=1). The backend remains single-beat;
+    // READ_AXI_RESPONSE sequences the second beat after the first response.
+    // Longer or non-incrementing bursts stay fail-closed.
+    wire ar_bad = (arlen_i > 8'd1) ||
+                  ((arlen_i != 8'd0) && (arburst_i != 2'b01)) ||
+                  (arsize_i > MAX_TRANSFER_SIZE) ||
                   ((arburst_i != 2'b00) && (arburst_i != 2'b01)) || arlock_i;
     wire completed_write = (aw_captured_q || aw_take) && (w_captured_q || w_take);
     wire completed_write_bad = aw_bad_q || w_bad_q ||
@@ -162,7 +184,7 @@ module axi4_processor_memory_adapter #(
                         (state_q == READ_REQUEST) ? read_addr_q : '0;
     assign req_wdata_o = (state_q == WRITE_REQUEST) ? write_data_q : '0;
     assign req_be_o = (state_q == WRITE_REQUEST) ? write_be_q :
-                      (state_q == READ_REQUEST) ? FULL_BE : '0;
+                      (state_q == READ_REQUEST) ? read_be_q : '0;
     assign rsp_ready_o = (state_q == WRITE_RESPONSE) || (state_q == READ_RESPONSE);
 
     // cache/prot/qos/region/user are explicitly accepted metadata with no
@@ -186,6 +208,7 @@ module axi4_processor_memory_adapter #(
             write_data_q <= '0;
             read_data_q <= '0;
             write_be_q <= '0;
+            read_be_q <= '0;
             write_resp_q <= AXI_OKAY;
             read_resp_q <= AXI_OKAY;
             write_len_q <= '0;
@@ -193,6 +216,7 @@ module axi4_processor_memory_adapter #(
             read_beats_left_q <= '0;
             atomic_read_error_q <= 1'b0;
             atomic_compare_q <= 1'b0;
+            read_bad_q <= 1'b0;
             atomic_r_pending_q <= 1'b0;
             atomic_b_pending_q <= 1'b0;
         end else begin
@@ -246,12 +270,17 @@ module axi4_processor_memory_adapter #(
                         read_id_q <= arid_i;
                         read_addr_q <= araddr_i;
                         read_data_q <= '0;
+                        read_be_q <= read_be_from_axi(arsize_i, araddr_i[2:0]);
+                        read_bad_q <= ar_bad;
                         if (ar_bad) begin
                             read_resp_q <= AXI_DECERR;
                             read_beats_left_q <= arlen_i;
                             state_q <= READ_AXI_RESPONSE;
                         end else begin
-                            read_beats_left_q <= 8'd0;
+                            // ARLEN is transfers-minus-one; retain it so a
+                            // legal two-beat CVA6 line fill issues the next
+                            // single-beat backend read after the first R.
+                            read_beats_left_q <= arlen_i;
                             state_q <= READ_REQUEST;
                         end
                     end
@@ -300,9 +329,20 @@ module axi4_processor_memory_adapter #(
                     if (rvalid_o && rready_i) begin
                         if (read_beats_left_q != 8'd0) begin
                             read_beats_left_q <= read_beats_left_q - 1'b1;
+                            if (read_bad_q) begin
+                                // A rejected burst still returns one
+                                // deterministic DECERR per declared beat,
+                                // without touching the backend.
+                                read_data_q <= '0;
+                                read_resp_q <= AXI_DECERR;
+                            end else begin
+                                read_addr_q <= read_addr_q + (DATA_WIDTH / 8);
+                                state_q <= READ_REQUEST;
+                            end
                         end else begin
                             read_data_q <= '0;
                             read_resp_q <= AXI_OKAY;
+                            read_bad_q <= 1'b0;
                             state_q <= IDLE;
                         end
                     end
@@ -334,6 +374,7 @@ module axi4_processor_memory_adapter #(
                     w_bad_q <= 1'b0;
                     atomic_read_error_q <= 1'b0;
                     atomic_compare_q <= 1'b0;
+                    read_bad_q <= 1'b0;
                     atomic_r_pending_q <= 1'b0;
                     atomic_b_pending_q <= 1'b0;
                     write_resp_q <= AXI_DECERR;

@@ -92,6 +92,9 @@ module soc_router #(
     output logic                                stale_pending
 );
     localparam integer BE_WIDTH = DATA_WIDTH / 8;
+    //: Byte lanes of one beat container: the low bits of the address that the
+    //: beat's byte enables are relative to.
+    localparam logic [ADDRESS_WIDTH-1:0] BEAT_LANE_MASK = ADDRESS_WIDTH'(BE_WIDTH - 1);
 
     initial begin
         if (NUM_TARGETS < 1 || ADDRESS_WIDTH < 1 || DATA_WIDTH < 8 || DATA_WIDTH % 8 != 0)
@@ -104,7 +107,7 @@ module soc_router #(
             $fatal(1, "SOURCE_ID_WIDTH cannot index NUM_SOURCES");
     end
 
-    typedef enum logic [2:0] {IDLE, SELECT, WAIT_RSP, RESPOND} state_t;
+    typedef enum logic [2:0] {IDLE, SELECT, WAIT_RSP, CAPTURE_RSP, RESPOND} state_t;
     // Explicit initial values: the drain flag must never start as X, otherwise
     // the first reset edge (when state_q is still X) would leave req_ready
     // undefined.
@@ -140,10 +143,18 @@ module soc_router #(
         access_last = '0;
         if (be != '0) begin
             logic [ADDRESS_WIDTH-1:0] last_offset;
+            logic [ADDRESS_WIDTH-1:0] beat_base;
             last_offset = '0;
             for (int unsigned b = 0; b < BE_WIDTH; b++)
                 if (be[b]) last_offset = b[ADDRESS_WIDTH-1:0];
-            access_last = {1'b0, addr} + {1'b0, last_offset};
+            // be is a lane index inside the DATA_WIDTH/8-byte aligned beat
+            // container, exactly like AXI WSTRB, while addr is the unaligned
+            // byte address.  Adding the lane index to addr directly would count
+            // the intra-beat offset twice and reject a legal access whose top
+            // lane sits inside the window (for example a 4-byte write at
+            // window_base+0xc on a 64-bit beat).
+            beat_base = addr & ~BEAT_LANE_MASK;
+            access_last = {1'b0, beat_base} + {1'b0, last_offset};
             for (int unsigned w = 0; w < NUM_WINDOWS; w++) begin
                 logic [ADDRESS_WIDTH-1:0] window_base, window_size;
                 logic [ADDRESS_WIDTH-1:0] window_target_base;
@@ -189,7 +200,7 @@ module soc_router #(
                 t_wdata[target_q] = wdata_q;
                 t_be[target_q] = be_q;
                 t_rsp_ready[target_q] = 1'b1;
-            end else if (state_q == WAIT_RSP) begin
+            end else if (state_q == CAPTURE_RSP) begin
                 t_rsp_ready[target_q] = 1'b1;
             end else if (stale_q) begin
                 t_rsp_ready[stale_target_q] = 1'b1;
@@ -258,6 +269,16 @@ module soc_router #(
                     end
                 end
                 WAIT_RSP: begin
+                    if (t_rsp_valid[target_q]) begin
+                        // Do not sample a target's data on the same edge on
+                        // which a clocked target raises RSP_VALID.  Holding
+                        // READY low for one capture cycle keeps the response
+                        // payload stable and prevents an NBA race from
+                        // attributing stale data to the completion.
+                        state_q <= CAPTURE_RSP;
+                    end
+                end
+                CAPTURE_RSP: begin
                     if (t_rsp_valid[target_q]) begin
                         rdata_q <= t_rdata[target_q];
                         error_q <= t_error[target_q];

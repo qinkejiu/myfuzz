@@ -140,7 +140,10 @@ WINDOWS_THREE_TARGETS = [
 
 # window 0 is executable and tiny (for out-of-range/cross-region checks)
 WINDOWS_TIGHT = [
-    (0x1000_0000, 0x100, 0),
+    # The first window deliberately ends on a byte boundary that is not a whole
+    # beat container (0xFC with 4-byte lanes), so a container-aligned access can
+    # genuinely straddle the end of the window.
+    (0x1000_0000, 0xFC, 0),
     (0x2000_0000, 0x1000, 1),
     (0x3000_0000, 0x1000, 2),
 ]
@@ -777,7 +780,10 @@ _ERRORS_PROGRAM = """\
     check(sel_strobes == 0, "unmapped address asserted no target select strobe");
     tick();
 
-    s_addr[0] = 32'h1000_00FD;
+    // A 4-byte container starting at 0xFC runs to 0xFF and crosses the window
+    // end at 0xFC: the byte enables are lanes of that container, exactly as AXI
+    // WSTRB and mmio_width_adapter define them, so its top lane is out of window.
+    s_addr[0] = 32'h1000_00FC;
     i = 0;
     while (!s_rsp_valid[0] && (i < 100)) begin tick(); i = i + 1; end
     check(s_rsp_valid[0] && s_error[0], "cross-region access returns an error response");
@@ -785,11 +791,11 @@ _ERRORS_PROGRAM = """\
     check(sel_strobes == 0, "cross-region access asserted no target select strobe");
     tick();
 
-    s_addr[0] = 32'h1000_00FC;
+    s_addr[0] = 32'h1000_00F8;
     i = 0;
     while (!s_rsp_valid[0] && (i < 100)) begin tick(); i = i + 1; end
     check(s_rsp_valid[0] && !s_error[0], "the last in-window word still completes normally");
-    check(rec_count == 1 && rec_target[0] == 0 && rec_addr[0] == 32'h1000_00FC,
+    check(rec_count == 1 && rec_target[0] == 0 && rec_addr[0] == 32'h1000_00F8,
           "in-window access reached target 0 with the right address");
     tick();
     s_req_valid = 3'b000;

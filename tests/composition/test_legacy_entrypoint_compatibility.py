@@ -46,7 +46,25 @@ from tests.integration.test_processor_auto_wiring import PROTOCOLS, _fixture
 # memory/MMIO coexistence rendering, so the current value is recorded here.
 # Never re-baseline it to make an unexpected failure disappear - investigate
 # first, and never touch it just to green a refactor.
-GOLDEN_MATRIX_DIGEST = "9cbed41bd0482eb152e8275d4f8fedf0c04e5001988f69a0dfcf0ae3a25085d2"
+#
+# Re-baselined again by the SoC CVA6 work.  The manifest covers the fixtures'
+# rendered output plus a byte hash of every file under the declared include
+# roots, which includes src/myfuzz/protocols/rtl, so real RTL work in that
+# directory moves it.  Two things changed it this round:
+#
+#   * the previous value, 9cbed41b..., did not reproduce from a clean
+#     `git archive 3a1f87a` checkout, which computed
+#     e63647ef81401f24720bd077e184cc569998ea6d5c69d21bd71697b95de03b09 - the
+#     original pre-refactor value recorded above.  The gate was already stale
+#     before this round; it was not green at HEAD.
+#   * this round adds src/myfuzz/protocols/rtl/beat_address_narrow.sv and fixes
+#     the AXI read byte enables and the router's beat-container bound, which are
+#     deliberate source changes in the hashed tree.
+#
+# The fixtures' rendered IR and SystemVerilog are unaffected by those RTL
+# changes; only the hashed source tree moves, which is what the re-baseline
+# records.
+GOLDEN_MATRIX_DIGEST = "2f4353a8a1eeb5060b54628deb897bbc4a2657accbf704ec0d2baaeb429e0a28"
 CASES = (
     ("plain", {}),
     ("ram", {"with_ram": True}),
