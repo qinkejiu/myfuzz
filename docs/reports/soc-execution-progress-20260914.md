@@ -99,3 +99,15 @@ ibex 与 cva6 仍为 `elaboration_unverified`：真正实核属于 P10/P11，本
 ### 可恢复隔离
 
 `tests/protocols/test_soc_environment_rtl.py`（未跟踪草稿，16:40 写入，针对一套提交版 RTL 从未有过的参数名/端口名；同一覆盖已由跟踪且通过的 `tests/integration/test_soc_interactions.py` 提供）已移入 `runs/quarantine/orphaned-drafts-20260914/`，带 manifest（原路径、sha256、理由、恢复方式），未删除。移动后 protocols 套件由 118 tests / 3 failures 变为 115 tests OK。
+
+## 2026-09-14 20:55 渲染器三系列化完成（提交 `649f4eb`）
+
+`render_soc` 现在有两条路径：plan 的 provenance 记录 `render_config` 时走通用路径——CPU closure 取自 `configs/soc/sources.lock.json`（CVA6 用扁平化 filelist closure），每个外设的 closure 文件/include/defines/parameters 取自 `configs/soc/closures/<source_lock>.json`（**elaboration 顺序必须取自 closure 记录的 proven verilator command，而不是字母序的 closure_files**，后者还含仅 include 的 `.svh`），目标适配器由 `resolve_target_adapter` 解析，fabric 取自 plan 自己的 fabric 文档，environment peer 只用于 uart-serial/spi-miso 链接，IRQ router 仅在存在 route 时实例化；缺 closure/wrapper/协议无法解析/与配置不一致都会以 `SocRenderError` 指名 cell 与外设失败关闭。没有 `render_config` 的 plan 保持冻结的 P10 路径，五份基线产物 hash 逐字未变。
+
+八格全部渲染并 elaboration 通过（每格 59–291 个 manifest 源文件），每格实例化正确协议适配器，两个 mixed 格同时实例化三种适配器。
+
+### 结构性发现与后续项
+
+- **同名 package 冲突**：CVA6 的 HPDcache fork 与 OpenTitan 都声明 `prim_secded_pkg`；Verilator 5.051 在 HPDcache 定义获胜时会内部报错退出。渲染器现在选择"其定义提供了编译集中所有被引用的 `P::symbol`"的那一份，把决定记在 `real_elaboration.package_collisions`，无法唯一确定时失败关闭。
+- **待办**：cell → plan/stimulus 的构建器目前只存在于 `tests/integration/test_soc_renderer_cells.py` 的脚手架里，需迁入生产规划路径；多窗口内存后端（I/D 别名共享同一物理内存）仍以 `memory-alias-unsupported` 失败关闭，属 P4 后续；wrapper 的机器可读标记应迁入 P1 source-lock 记录。
+- **仍未执行**：八格 × 三模式运行时矩阵、逐格真实 RFuzz 短 campaign、八格插桩覆盖率运行。
