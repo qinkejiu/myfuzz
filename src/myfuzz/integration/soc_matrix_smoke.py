@@ -1240,6 +1240,13 @@ def _build_program(documents: dict) -> dict:
         else:
             asm.comment("read 0x%08x -> x13 (real IP register)" % op["offset"])
             asm.lw(13, 10, op["offset"])
+            if xlen == 64:
+                # lw sign-extends on RV64, while li32 materialises the expected
+                # value zero-extended.  Without this the comparison fails for
+                # every probe value whose bit 31 is set, and the run reports a
+                # mismatch even though the real IP returned the right word.
+                asm.slli(13, 13, 32)
+                asm.srli(13, 13, 32)
     expected = target["readback_expected"]
     if expected is not None:
         asm.comment("completion flag: 0x%08x match / 0x%08x mismatch"
@@ -1628,6 +1635,10 @@ def build_testbench(documents: dict, top_text: str, *,
     add("                    ((fabric_addr_w - WINDOW_BASE[ADDRESS_WIDTH-1:0]) <")
     add("                     WINDOW_SIZE[ADDRESS_WIDTH-1:0]);")
     add("  logic window_req_hit;")
+    # The recorded read-back is the register READ, not whatever window
+    # transaction happened to finish last: CVA6 defers its stores, so its last
+    # window transaction can be the write that follows the read.
+    add("  logic window_req_write;")
     add("  logic [31:0] window_done_cpu, window_done_fuzz;")
     add("  logic [63:0] window_rdata_cpu, window_rdata_fuzz;")
     add("  logic [7:0] window_src_cpu, window_src_fuzz;")
@@ -1636,6 +1647,7 @@ def build_testbench(documents: dict, top_text: str, *,
     add("  always_ff @(posedge clk_i or posedge reset_i) begin")
     add("    if (reset_i) begin")
     add("      window_req_hit <= 1'b0;")
+    add("      window_req_write <= 1'b0;")
     add("      window_done_cpu <= 32'd0;")
     add("      window_done_fuzz <= 32'd0;")
     add("      window_rdata_cpu <= 64'd0;")
@@ -1647,6 +1659,7 @@ def build_testbench(documents: dict, top_text: str, *,
     add("    end else begin")
     add("      if (dut.fabric_req_valid && dut.fabric_req_ready) begin")
     add("        window_req_hit <= window_hit;")
+    add("        window_req_write <= dut.fabric_write;")
     add("        if (window_hit) window_last_addr <= dut.fabric_addr;")
     add("      end")
     add("      if (dut.fabric_rsp_valid && dut.fabric_rsp_ready && window_req_hit")
@@ -1656,12 +1669,12 @@ def build_testbench(documents: dict, top_text: str, *,
     add("        if ((dut.fabric_rsp_source_id >= CPU_SOURCE_LO[7:0]) &&")
     add("            (dut.fabric_rsp_source_id <= CPU_SOURCE_HI[7:0])) begin")
     add("          window_done_cpu <= window_done_cpu + 32'd1;")
-    add("          window_rdata_cpu <= dut.fabric_rdata;")
+    add("          if (!window_req_write) window_rdata_cpu <= dut.fabric_rdata;")
     add("          window_src_cpu <= dut.fabric_rsp_source_id;")
     add("        end else if ((dut.fabric_rsp_source_id >= FUZZ_SOURCE_LO[7:0]) &&")
     add("                     (dut.fabric_rsp_source_id <= FUZZ_SOURCE_HI[7:0])) begin")
     add("          window_done_fuzz <= window_done_fuzz + 32'd1;")
-    add("          window_rdata_fuzz <= dut.fabric_rdata;")
+    add("          if (!window_req_write) window_rdata_fuzz <= dut.fabric_rdata;")
     add("          window_src_fuzz <= dut.fabric_rsp_source_id;")
     add("        end else begin")
     add('          print_line("FAIL");')

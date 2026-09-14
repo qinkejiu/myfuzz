@@ -142,8 +142,13 @@ module soc_cva6_beat_core #(
   assign unified_be_o = target_be;
   assign target_req_ready = unified_req_ready_i;
   // The backend consumes the held response; the fabric may only present a new
-  // response while no hold is pending.
+  // response while no hold is pending.  The held payload must be forwarded with
+  // the held valid: driving target_rsp_valid from rsp_hold_valid while leaving
+  // target_rdata/target_error undriven hands the AXI adapter a response with no
+  // data, and the core then never executes the instruction it fetched.
   assign target_rsp_valid = rsp_hold_valid;
+  assign target_rdata = rsp_hold_data;
+  assign target_error = rsp_hold_error;
   assign unified_rsp_ready_o = !rsp_hold_valid;
   assign flush_o = reset_i | target_flush;
 
