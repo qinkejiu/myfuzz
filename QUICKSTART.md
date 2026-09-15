@@ -223,8 +223,23 @@ MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest \
   tests.integration.test_soc_real_picorv32
 ```
 
-These benches need `third_party/picorv32_upstream_reference`, which is not part
-of this repository, hence the opt-in flag. They compare every retired
+Wishbone also has a second, unrelated master: a real ZipCPU core from
+`third_party/soc-zipcpu`, which executes a seven-instruction program
+(`LDI/STO/LOD/ADD/STO/HALT`) and must leave `0xbeef` at `0x200` and
+`0xbeef + 1` at `0x204` in RAM before the bus goes quiet:
+
+```bash
+MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest \
+  tests.integration.test_soc_real_zipcpu
+```
+
+ZipCPU's in-tree assembler does not build with a modern toolchain, so its image
+is produced by a Python encoder ported from `zopcodes.cpp` plus `idecode.v`;
+that pair, not `sw/zasm/zparser.cpp`, is the encoding authority.
+
+These benches need `third_party/picorv32_upstream_reference` and
+`third_party/soc-zipcpu`, which are not part of this repository, hence the
+opt-in flag. They compare every retired
 instruction against the committed boot image rather than only checking side
 effects, and they are what exposed the empty-select read refusal that the unit
 benches had encoded as correct. The evidence, the accounting and the limits of

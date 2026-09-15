@@ -1587,6 +1587,9 @@ body（zipcpu 风格 `always @(posedge clk) if (...) begin ... end`）此前被�
 | 真实 PicoRV32 × AXI4-Lite | `MYFUZZ_SOC_REAL=1 ... tests.integration.test_soc_real_picorv32` | **OK**：`retired=18 stores=7 loads=2 responses=28 ram_writes=7 ram_reads=21 cycles=218 data=5a5a5a5a` |
 | 真实 PicoRV32 × Wishbone | 同上 | **OK**：`retired=18 stores=7 loads=2 acks=56 ram_writes=7 ram_reads=21 cycles=246 data=5a5a5a5a` |
 | 镜像可复现性 | 同套件内常驻测试 | 用 clang 的 riscv32 target 重新汇编 `tests/fixtures/soc_picorv32_boot.S`，与提交的 `.hex` 不一致即失败 |
+| 真实 ZipCPU × Wishbone | `MYFUZZ_SOC_REAL=1 ... tests.integration.test_soc_real_zipcpu` | **15 tests OK**；`SOC_ZIPCPU_WISHBONE_REAL_OK stores=2 data=0000beef0000bef0 cycles=125 reads=9 quiet=64` |
+| ZipCPU 负向对照 | 同一台子，独立复跑 | 改 ADD 立即数 → `TIMEOUT ... ram[00000204]=0000bef1 (want 0000bef0)` rc=1；`HALT`→`BREAK` → `o_break at cycle 61` rc=1；预置期望数据 → 反空洞 `$fatal` rc=1 |
+| ZipCPU 两处更正 | 读 RTL 复核 | 编码权威是 `zopcodes.cpp` 表 + `idecode.v`（`zparser.h:100` 自注 `5'h1011x`，与 `idecode.v:206` 的 `0b1100` 不符）；`ADDRESS_WIDTH` 必须为 30（`zipcore.v:134` 取 `RESET_ADDRESS[AW+1:2]`，AW=32 越界成 X 并打死 PC） |
 | 协议套件 | `python3 -m unittest discover -s tests/protocols` | **140 tests OK** |
 | 组合套件 | `python3 -m unittest discover -s tests/composition` | **526 tests OK** |
 | 集成套件 | `python3 -m unittest discover -s tests/integration` | **681 tests OK**（skipped=30） |

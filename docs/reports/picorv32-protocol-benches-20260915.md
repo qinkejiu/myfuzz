@@ -1,11 +1,14 @@
-# Real PicoRV32 benches for the Wishbone and AXI4-Lite CPU-side adapters
+# Real-CPU benches for the Wishbone and AXI4-Lite CPU-side adapters
 
 Worktree: `.worktrees/ibex-protocol-longrun`
 Commits: `3be112f` (adapters + unit benches), `5454d7d` (empty-select read fix),
-`ac2c188` + the follow-up hardening commit (real-CPU benches)
+`ac2c188` + `de032fd` (real PicoRV32 benches, hardened), `59bbba9` (real ZipCPU
+bench)
 
 This report covers the two initiator protocols added next to `axi4@1`, `obi@1`,
-`tl-ul@1` and `ready-valid-memory@1`, and the real-CPU evidence that they work.
+`tl-ul@1` and `ready-valid-memory@1`, and the real-CPU evidence that they work:
+PicoRV32 drives both protocols (AXI4-Lite and classic Wishbone) and ZipCPU, an
+unrelated core, drives Wishbone as a second master (section 9).
 It records what was measured, what the measurement rules out, which checks were
 shown to be able to fail, and what is still **not** proven.
 
@@ -165,7 +168,8 @@ benches compile with `-DRISCV_FORMAL` because that is what makes PicoRV32
 publish the RVFI retirement trace the evidence depends on.
 
 Suite results for this change set: protocols **140 OK**, composition **526 OK**,
-integration **681 OK (skipped=30)**.
+integration **696 OK (skipped=32)** including the ZipCPU module, and the full
+regression **1658 OK (skipped=32)**.
 
 ## 8. What this does not prove
 
@@ -174,29 +178,80 @@ integration **681 OK (skipped=30)**.
   around a real CPU in a rendered SoC top has **not** been extended, so no
   eight-cell matrix row or campaign run uses them yet. The evidence here stops
   at the adapter boundary, which the benches drive with a real core.
-* **ZipCPU as a Wishbone master.** The original pairing was Wishbone × ZipCPU.
-  ZipCPU's in-tree assembler does not build with a modern toolchain
-  (`zparser.h`'s `ZIPREG` enum collides with the `ZIP_SP`/`ZIP_CC`/`ZIP_PC`
-  macros from `zopcodes.h`, and `zdump.cpp` calls a nonexistent
-  `zipi_to_string`), so a ZipCPU program image cannot be produced
-  reproducibly from that checkout. PicoRV32 — which has both an AXI4-Lite and a
-  Wishbone wrapper — carries the runtime evidence instead. Status of the
-  ZipCPU attempt: see section 8.1.
+* **ZipCPU as a Wishbone master.** Done, and reported in section 8.1: a real
+  ZipCPU executes a real program through the same frozen adapter. The one thing
+  that is still true is that ZipCPU's in-tree assembler and disassembler do not
+  build with a modern toolchain, so the image is produced by a Python encoder
+  ported from `zopcodes.cpp` plus `idecode.v` rather than by `zasm`.
 * **RFuzz feedback.** These two protocols have no coverage-feedback campaign;
   the counters, transport and instrumentation limits documented in
   `docs/reports/soc-acceptance-20260915.md` are unchanged.
 * **Silicon.** Instruction-level RVFI evidence in simulation is not a statement
   about hardware.
 
-### 8.1 ZipCPU attempt
+### 8.1 ZipCPU as a second Wishbone master
 
-ZipCPU hardware RTL is present at `third_party/soc-zipcpu/rtl/core/zipwb.v` and
-would have been usable as a classic Wishbone master (`o_wb_gbl_cyc/stb`,
-`o_wb_lcl_cyc/stb`, `o_wb_we`, `o_wb_addr` as a word address, `o_wb_sel`,
-`i_wb_stall/ack/data/err`). The blocker is purely tooling: the vendored
-`sw/zasm` assembler and `zdump` disassembler both fail to compile, so an image
-would have to be produced by porting the opcode builders from
-`zparser.h`/`zparser.cpp` into Python and validating the result by execution.
-That attempt is tracked separately; until it lands, the Wishbone protocol's
-runtime evidence is the PicoRV32 one above, and no ZipCPU-as-master claim is
-made.
+`tests/integration/rtl/soc_zipcpu_wishbone_tb.sv`, with the image built by
+`tests/integration/zipcpu_boot_image.py`:
+
+```
+SOC_ZIPCPU_WISHBONE_REAL_OK stores=2 data=0000beef0000bef0 cycles=125 reads=9 quiet=64
+SOC_ZIPCPU_WISHBONE_TRACE store[0] addr=00000200 data=0000beef be=1111
+SOC_ZIPCPU_WISHBONE_TRACE store[1] addr=00000204 data=0000bef0 be=1111
+SOC_ZIPCPU_WISHBONE_TRACE read[0..8] addr=00000100 ... 00000110 00000200 00000114 00000118 0000011c
+```
+
+The program is seven ZipCPU instructions at `0x100`: `LDI 0x200,R1`,
+`LDI 0xbeef,R2`, `STO R2,0(R1)`, `LOD 0(R1),R3`, `ADD 1,R3`, `STO R3,4(R1)`,
+`HALT`. The fetch stream walks `0x100…0x11c` in order with exactly one data read
+at `0x200` interleaved, which is the load.
+
+Why the evidence holds up:
+
+* the pass criterion is `ram[0x200] == 0xbeef` **and**
+  `ram[0x204] == 0xbef0` **and** exactly two accepted writes **and** at least one
+  read **and** 64 consecutive cycles with no bus request. The second word is
+  `first + 1`, so it cannot exist unless the core fetched, decoded, **loaded**,
+  ran the ALU and stored again — a CPU that merely fetched something cannot
+  produce it;
+* the RAM is zero-initialised and only the backend target handshake writes it,
+  and the bench `$fatal`s if the image preloads either expected word, so the
+  result cannot come from the fixture;
+* quiescence is what shows the `HALT` really halted the core rather than the
+  testbench merely looking at the right moment;
+* the image path is checked against the expected program words at `0x100`, so a
+  truncated or wrong image fails at load time.
+
+Negative controls, all re-run independently for this report (each exits
+non-zero with no `OK` line): corrupting the `ADD` immediate so the second store
+would be `0xbef1` gives
+`SOC_ZIPCPU_WISHBONE_TIMEOUT ... ram[00000204]=0000bef1 (want 0000bef0)`;
+replacing `HALT` with `BREAK` gives `ZipCPU asserted o_break at cycle 61`;
+preloading an expected store word gives `boot image preloads the expected store
+results; the pass check would be vacuous`; pointing the plusarg at a missing
+file fails at load. (With no plusarg at all the bench falls back to the
+committed fixture by design, which is why "no plusarg" is not itself a failure
+control.)
+
+Two corrections came out of this bench and were verified here against the RTL:
+
+1. **`sw/zasm/zparser.cpp` is not the encoding authority.** Its own header warns
+   it is out of date, and it is: `op_ldi` emits op field `0b1011x`
+   (`zparser.h:100` comments `ZIPO_LDI, ZIPO_LDIn // 5'h1011x`), while
+   `idecode.v:206` decodes `LDI` from `w_cis_op[4:1] == 4'hc`, i.e. `0b1100`;
+   `op_break`'s word decodes as `LDIn` in the RTL. The encoder therefore follows
+   `zopcodes.cpp`'s disassembler table together with `idecode.v`, two sources
+   that agree with each other and with execution.
+2. **`ADDRESS_WIDTH` must be 30, not 32.** `zipcore.v:134` computes
+   `RESET_BUS_ADDRESS = RESET_ADDRESS[AW+1:2]`, so `AW=32` selects bits
+   `[33:2]` of a 32-bit parameter; the out-of-range bits come back `X`, the `X`
+   reaches the program counter, and the core dies on its first fetch. With
+   `AW=30` the select is `[31:2]` and `{o_wb_addr, 2'b00}` is exactly the 32-bit
+   byte address the adapter wants. This is a ZipCPU RTL property; the adapter
+   and backend are not involved.
+
+ZipCPU is configured with `OPT_LGICACHE=0`, `OPT_LGDCACHE=0` (so every fetch,
+load and store is a visible bus transfer), `OPT_SIM=1`, `OPT_START_HALTED=1`
+(released by dropping `i_halt`) and `OPT_PIPELINED=0`, which matches the
+adapter's documented single-outstanding classic contract. The test module
+reports 15 tests OK with `MYFUZZ_SOC_REAL=1` and 15 OK (2 skipped) without it.
