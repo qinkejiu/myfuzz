@@ -120,6 +120,7 @@ module axi4_processor_memory_adapter #(
     logic [(DATA_WIDTH/8)-1:0] write_be_q, read_be_q;
     logic [1:0] write_resp_q, read_resp_q;
     logic [7:0] write_len_q, write_beats_left_q, read_beats_left_q;
+    logic [2:0] read_size_q;
     logic atomic_read_error_q, atomic_compare_q;
     logic atomic_r_pending_q, atomic_b_pending_q;
     logic read_bad_q;
@@ -154,6 +155,8 @@ module axi4_processor_memory_adapter #(
     wire atomic_r_done = !atomic_r_pending_q ||
                          (rready_i && (read_beats_left_q == 8'd0));
     wire atomic_b_done = !atomic_b_pending_q || bready_i;
+    wire [ADDRESS_WIDTH-1:0] read_stride = ADDRESS_WIDTH'(1) << read_size_q;
+    wire [ADDRESS_WIDTH-1:0] read_next_addr = read_addr_q + read_stride;
 
     assign awready_o = rst_ni && collecting_write && !aw_captured_q;
     assign wready_o = rst_ni && ((collecting_write && !w_captured_q) ||
@@ -214,6 +217,7 @@ module axi4_processor_memory_adapter #(
             write_len_q <= '0;
             write_beats_left_q <= '0;
             read_beats_left_q <= '0;
+            read_size_q <= '0;
             atomic_read_error_q <= 1'b0;
             atomic_compare_q <= 1'b0;
             read_bad_q <= 1'b0;
@@ -271,6 +275,7 @@ module axi4_processor_memory_adapter #(
                         read_addr_q <= araddr_i;
                         read_data_q <= '0;
                         read_be_q <= read_be_from_axi(arsize_i, araddr_i[2:0]);
+                        read_size_q <= arsize_i;
                         read_bad_q <= ar_bad;
                         if (ar_bad) begin
                             read_resp_q <= AXI_DECERR;
@@ -336,7 +341,9 @@ module axi4_processor_memory_adapter #(
                                 read_data_q <= '0;
                                 read_resp_q <= AXI_DECERR;
                             end else begin
-                                read_addr_q <= read_addr_q + (DATA_WIDTH / 8);
+                                read_addr_q <= read_next_addr;
+                                read_be_q <= read_be_from_axi(
+                                    read_size_q, read_next_addr[2:0]);
                                 state_q <= READ_REQUEST;
                             end
                         end else begin
