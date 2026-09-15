@@ -47,6 +47,20 @@ class _Transport:
                 "transport_hash": "sha256:test-transport"}
 
 
+def _corpus_manifest():
+    return {
+        "schema_version": "rfuzz_corpus_manifest.v1",
+        "coverage_transport": "sysv-shared-memory-rfuzz-coverage-buffer",
+        "entries": 1,
+        "replays": [{
+            "file": "entry_0000.json",
+            "input_sha256": "sha256:input",
+            "coverage_sha256": "sha256:coverage",
+            "coverage_verified": True,
+        }],
+    }
+
+
 class SocRfuzzCampaignTests(unittest.TestCase):
     @staticmethod
     def _ready_probe(*args, **kwargs):
@@ -84,10 +98,7 @@ class SocRfuzzCampaignTests(unittest.TestCase):
                 "tests": 2,
                 "duration_seconds": 1.0,
                 "corpus_entries": 1,
-                "corpus_manifest": {
-                    "schema_version": "rfuzz_corpus_manifest.v1",
-                    "entries": 1,
-                },
+                "corpus_manifest": _corpus_manifest(),
                 "fifo_reply_receipts": [{
                     "input_sha256": "sha256:input",
                     "coverage_sha256": "sha256:coverage",
@@ -132,10 +143,7 @@ class SocRfuzzCampaignTests(unittest.TestCase):
                 "tests": 2,
                 "duration_seconds": 1.0,
                 "corpus_entries": 1,
-                "corpus_manifest": {
-                    "schema_version": "rfuzz_corpus_manifest.v1",
-                    "entries": 1,
-                },
+                "corpus_manifest": _corpus_manifest(),
                 "fifo_reply_receipts": [{
                     "input_sha256": "sha256:input",
                     "coverage_sha256": "sha256:coverage",
@@ -157,20 +165,26 @@ class SocRfuzzCampaignTests(unittest.TestCase):
                 "remaining_segments": [],
             }
 
-        cases = {
-            "requested_fuzz_duration": lambda row: row.update(duration_seconds=0.1),
-            "rtl_coverage": lambda row: row["actual_rtl_execution"].update(
+        cases = [
+            ("requested_fuzz_duration", lambda row: row.update(duration_seconds=0.1)),
+            ("rtl_coverage", lambda row: row["actual_rtl_execution"].update(
                 coverage_records=0),
-            "source_transactions": lambda row: row["source_target_transactions"].update(
+            ),
+            ("source_transactions", lambda row: row["source_target_transactions"].update(
                 source={}),
-            "target_transactions": lambda row: row["source_target_transactions"].update(
+            ),
+            ("target_transactions", lambda row: row["source_target_transactions"].update(
                 target={}),
-            "verified_corpus": lambda row: row.update(corpus_manifest=None),
-            "completed_fifo_receipt": lambda row: row["fifo_reply_receipts"][0].update(
+            ),
+            ("verified_corpus", lambda row: row.update(corpus_manifest=None)),
+            ("verified_corpus", lambda row: row.update(corpus_manifest={"entries": 1})),
+            ("clean_cleanup", lambda row: row.pop("remaining_segments")),
+            ("completed_fifo_receipt", lambda row: row["fifo_reply_receipts"][0].update(
                 status="failed"),
-        }
+            ),
+        ]
 
-        for expected_gap, mutate in cases.items():
+        for expected_gap, mutate in cases:
             with self.subTest(expected_gap=expected_gap), tempfile.TemporaryDirectory() as temporary:
                 row = complete_result()
                 mutate(row)
@@ -193,15 +207,59 @@ class SocRfuzzCampaignTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temporary:
             row = complete_result()
+            builds = []
+
+            def builder(_config, build_dir):
+                builds.append(Path(build_dir))
+                return artifact
+
             with patch("myfuzz.integration.soc_campaign.probe_soc_dependencies",
-                       side_effect=self._ready_probe):
+                       side_effect=self._ready_probe), patch(
+                           "myfuzz.integration.soc_campaign.replay_corpus",
+                           return_value={"status": "passed", "entries": 1}):
                 result = run_soc_campaign(
                     _config(), Path(temporary) / "run", root=ROOT,
                     environment={"MYFUZZ_SOC_REAL": "1"},
-                    builder=lambda *_: artifact, runner=lambda *_: row,
+                    builder=builder, runner=lambda *_: row,
                 )
+            self.assertEqual("completed", result["status"])
+            self.assertEqual(2, len(builds))
+            self.assertEqual("rebuild", builds[1].name)
+
+        for missing in ("returncode",):
+            with self.subTest(missing=missing), tempfile.TemporaryDirectory() as temporary:
+                row = complete_result()
+                row.pop(missing)
+                with patch("myfuzz.integration.soc_campaign.probe_soc_dependencies",
+                           side_effect=self._ready_probe), patch(
+                               "myfuzz.integration.soc_campaign.replay_corpus",
+                               return_value={"status": "passed", "entries": 1}):
+                    result = run_soc_campaign(
+                        _config(), Path(temporary) / "run", root=ROOT,
+                        environment={"MYFUZZ_SOC_REAL": "1"},
+                        builder=lambda *_: artifact, runner=lambda *_: row,
+                        rebuilder=lambda *_: artifact,
+                    )
+                self.assertEqual("incomplete-evidence", result["status"])
+
+        with tempfile.TemporaryDirectory() as temporary:
+            row = complete_result()
+            row.pop("source_target_transactions")
+            with patch("myfuzz.integration.soc_campaign.probe_soc_dependencies",
+                       side_effect=self._ready_probe), patch(
+                           "myfuzz.integration.soc_campaign.replay_corpus",
+                           return_value={"status": "passed", "entries": 1}):
+                result = run_soc_campaign(
+                    _config(source_target_transactions={
+                        "source": {"declared": 9}, "target": {"declared": 9},
+                    }), Path(temporary) / "run", root=ROOT,
+                    environment={"MYFUZZ_SOC_REAL": "1"},
+                    builder=lambda *_: artifact, runner=lambda *_: row,
+                    rebuilder=lambda *_: artifact,
+                )
+            self.assertEqual("declared-not-observed",
+                             result["source_target_transactions"]["status"])
             self.assertEqual("incomplete-evidence", result["status"])
-            self.assertIn("rebuild_replay", result["evidence_missing"])
 
     def test_compile_failure_is_persisted_and_classified(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -468,11 +468,15 @@ def _campaign_evidence_gaps(
             execution.get("coverage_records", 0)):
         gaps.append("rtl_coverage")
     transactions = report.get("source_target_transactions", {})
-    if not isinstance(transactions, Mapping) or not _positive_count(
-            transactions.get("source", {})):
+    if (not isinstance(transactions, Mapping)
+            or transactions.get("status") != "observed"
+            or not _positive_count(
+                transactions.get("source", {}))):
         gaps.append("source_transactions")
-    if not isinstance(transactions, Mapping) or not _positive_count(
-            transactions.get("target", {})):
+    if (not isinstance(transactions, Mapping)
+            or transactions.get("status") != "observed"
+            or not _positive_count(
+                transactions.get("target", {}))):
         gaps.append("target_transactions")
     corpus = report.get("corpus", {})
     if (not isinstance(corpus, Mapping) or corpus.get("status") != "verified"
@@ -708,6 +712,27 @@ def _transactions_document(config: Mapping[str, object], run_result: Mapping[str
     return {"status": "not-reported", "source": {}, "target": {}, "all": {}}
 
 
+def _valid_corpus_manifest(manifest: object) -> bool:
+    if not isinstance(manifest, Mapping):
+        return False
+    entries = manifest.get("entries")
+    replays = manifest.get("replays")
+    if (manifest.get("schema_version") != "rfuzz_corpus_manifest.v1"
+            or manifest.get("coverage_transport")
+            != "sysv-shared-memory-rfuzz-coverage-buffer"
+            or isinstance(entries, bool) or not isinstance(entries, int) or entries < 1
+            or not isinstance(replays, list) or len(replays) != entries):
+        return False
+    return all(
+        isinstance(item, Mapping)
+        and item.get("coverage_verified") is True
+        and isinstance(item.get("file"), str) and bool(item["file"])
+        and isinstance(item.get("input_sha256"), str) and bool(item["input_sha256"])
+        and isinstance(item.get("coverage_sha256"), str) and bool(item["coverage_sha256"])
+        for item in replays
+    )
+
+
 def _corpus_document(live_dir: Path, run_result: Mapping[str, object]) -> dict[str, object]:
     manifest = run_result.get("corpus_manifest")
     manifest_path = live_dir / "corpus_manifest.json"
@@ -717,7 +742,7 @@ def _corpus_document(live_dir: Path, run_result: Mapping[str, object]) -> dict[s
         except (OSError, ValueError):
             manifest = None
     entries = run_result.get("corpus_entries", 0)
-    if isinstance(manifest, Mapping):
+    if _valid_corpus_manifest(manifest):
         entries = manifest.get("entries", entries)
         return {
             "status": "verified",
@@ -893,16 +918,22 @@ def run_soc_campaign(
         report["corpus"] = _corpus_document(live_dir, run_result)
         if run_result.get("corpus_manifest_error"):
             report["corpus"]["manifest_error"] = run_result["corpus_manifest_error"]
+        remaining = run_result.get("remaining_segments")
+        cleanup_is_explicitly_clean = (
+            isinstance(remaining, Sequence)
+            and not isinstance(remaining, (str, bytes))
+            and len(remaining) == 0
+        )
         report["cleanup"] = {
-            "status": "clean" if not run_result.get("remaining_segments") else "leaked-shmem",
-            "remaining_segments": _plain(run_result.get("remaining_segments", [])),
+            "status": "clean" if cleanup_is_explicitly_clean else "leaked-or-unreported-shmem",
+            "remaining_segments": _plain(remaining),
             "removed_segments": _plain(run_result.get("removed_owned_segments", [])),
             "process_group_owned_by_runner": True,
             "fifo_owned_by_runner": True,
         }
         report["client_result"] = _plain(dict(run_result))
-        if rebuilder is not None or callable(config.get("rebuild")):
-            replay_builder = rebuilder or config.get("rebuild")
+        replay_builder = rebuilder or config.get("rebuild") or build_hook
+        if callable(replay_builder):
             replay_dir = output / "rebuild"
             rebuilt = _call_forms(replay_builder, ((config, replay_dir), (replay_dir,), (config,), ()))
             replay = replay_corpus(rebuilt, live_dir / "corpus")
@@ -942,7 +973,8 @@ def run_soc_campaign(
                 })
         else:
             complete = (
-                run_result.get("returncode", 0) == 0
+                type(run_result.get("returncode")) is int
+                and run_result["returncode"] == 0
                 and int(actual.get("tests", 0)) > 0
                 and not evidence_missing
                 and not report["errors"]

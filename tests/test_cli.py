@@ -11,10 +11,21 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from myfuzz.__main__ import ROOT, main
+from myfuzz.__main__ import CHECK_MODULES, ROOT, main
 
 
 class MyfuzzCliTests(unittest.TestCase):
+    def test_check_includes_campaign_build_and_interrupt_policy(self):
+        self.assertIn("tests.integration.test_soc_rfuzz_build", CHECK_MODULES)
+
+    def test_check_never_inherits_real_campaign_opt_in(self):
+        with patch.dict(os.environ, {"MYFUZZ_SOC_REAL": "1"}), patch(
+                "myfuzz.__main__.subprocess.run",
+                return_value=subprocess.CompletedProcess([], 0)) as run:
+            status = main(["check"])
+        self.assertEqual(0, status)
+        self.assertNotIn("MYFUZZ_SOC_REAL", run.call_args.kwargs["env"])
+
     def test_top_level_help_lists_three_commands(self):
         process = subprocess.run(
             [sys.executable, "-m", "myfuzz", "--help"],

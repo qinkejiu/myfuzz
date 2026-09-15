@@ -455,8 +455,12 @@ class SocRfuzzInterruptedRunPolicyTests(unittest.TestCase):
 
         def fake_manifest(artifact, corpus_dir, **kwargs):
             replayed["manifest_artifact"] = artifact
-            return {"schema_version": "rfuzz_corpus_manifest.v1", "entries": 1,
+            return {"schema_version": "rfuzz_corpus_manifest.v1",
+                    "coverage_transport": "sysv-shared-memory-rfuzz-coverage-buffer",
+                    "entries": 1,
                     "replays": [{"file": "entry_0000.json",
+                                 "input_sha256": _POLICY_RECEIPT["input_sha256"],
+                                 "coverage_sha256": _POLICY_RECEIPT["coverage_sha256"],
                                  "coverage_verified": True}]}
 
         run_dir = Path(temporary) / "run"

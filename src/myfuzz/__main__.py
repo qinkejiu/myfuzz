@@ -23,6 +23,7 @@ DEFAULT_SECONDS = 300
 DEFAULT_SEED = 20260914
 CHECK_MODULES = (
     "tests.integration.test_soc_rfuzz_live",
+    "tests.integration.test_soc_rfuzz_build",
     "tests.integration.test_soc_campaign_matrix",
     "tests.protocols.test_soc_fabric_rtl",
     "tests.protocols.test_axi4_processor_memory_adapter_rtl",
@@ -51,6 +52,7 @@ def _parser() -> argparse.ArgumentParser:
 
 def _check() -> int:
     environment = dict(os.environ)
+    environment.pop("MYFUZZ_SOC_REAL", None)
     previous = environment.get("PYTHONPATH")
     environment["PYTHONPATH"] = str(SRC) + (os.pathsep + previous if previous else "")
     return subprocess.run(
