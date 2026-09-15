@@ -1584,12 +1584,16 @@ body（zipcpu 风格 `always @(posedge clk) if (...) begin ... end`）此前被�
 | 新增注册项 | `src/myfuzz/composition/processor_adapters.py` | `wishbone@classic` → `wishbone_processor_memory_adapter`（10 个 CPU 侧端口）；`axi4-lite@1` → `axi4_lite_processor_memory_adapter`（19 个） |
 | 适配器单元台 | `python3 -m unittest tests.protocols.test_wishbone_and_axi4_lite_processor_memory_adapters_rtl` | **14 tests OK** |
 | 注册/派生解析 | `python3 -m unittest tests.composition.test_processor_adapters` | **14 tests OK**（READ_ONLY/HAS_SEL 派生、fail-closed、lite-only 通道拒绝 burst/ID） |
-| 真实 PicoRV32 × AXI4-Lite | `MYFUZZ_SOC_REAL=1 ... tests.integration.test_soc_real_picorv32` | **OK**：`retired=17 stores=7 loads=2 responses=27 ram_writes=7 ram_reads=20 cycles=210 data=5a5a5a5a` |
-| 真实 PicoRV32 × Wishbone | 同上 | **OK**：`retired=17 stores=7 loads=2 acks=54 ram_writes=7 ram_reads=20 cycles=237 data=5a5a5a5a` |
+| 真实 PicoRV32 × AXI4-Lite | `MYFUZZ_SOC_REAL=1 ... tests.integration.test_soc_real_picorv32` | **OK**：`retired=18 stores=7 loads=2 responses=28 ram_writes=7 ram_reads=21 cycles=218 data=5a5a5a5a` |
+| 真实 PicoRV32 × Wishbone | 同上 | **OK**：`retired=18 stores=7 loads=2 acks=56 ram_writes=7 ram_reads=21 cycles=246 data=5a5a5a5a` |
 | 镜像可复现性 | 同套件内常驻测试 | 用 clang 的 riscv32 target 重新汇编 `tests/fixtures/soc_picorv32_boot.S`，与提交的 `.hex` 不一致即失败 |
 | 协议套件 | `python3 -m unittest discover -s tests/protocols` | **140 tests OK** |
 | 组合套件 | `python3 -m unittest discover -s tests/composition` | **526 tests OK** |
 | 集成套件 | `python3 -m unittest discover -s tests/integration` | **681 tests OK**（skipped=30） |
+
+四个变异对照（在临时副本里故意破坏，仓库文件不动）证明这些断言具备失败能力：两个适配器
+分别忽略 SEL/WSTRB 一律发全 lane 写 → 被"byte store must not widen"抓住；退休比较器换成
+错误期望指令 → 立即报 `SOC_CPU_RVFI_INSN_MISMATCH`；RAM 少计写次数 → 被写次数对账抓住。
 
 两个真实 CPU 台子用**同一颗核、同一份镜像、同一个 beat RAM 模型**跑两遍，唯一变量是
 适配器前面的主端协议，因此两轮之间的差异只能来自协议适配。证据是指令级的而不是

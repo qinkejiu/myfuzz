@@ -49,18 +49,24 @@ RVFI_CHECKER = ROOT / "tests/integration/rtl/soc_cpu_rvfi_checker.sv"
 # encodings were checked by hand against the RV32I specification, and the
 # benches check them again from the other side: every word the CPU retires is
 # compared with this image, so a wrong word here cannot pass unnoticed.
+#
+# t2 holds 0xdeadbea5 on purpose.  Its upper bytes are non-zero, so the byte and
+# halfword stores of t2 must leave 0x000000a5 and 0x0000bea5 behind: an adapter
+# that widened either store into a four-byte store would leave 0xdeadbea5 and
+# fail.  A store value with zero upper bytes would have made that check vacuous.
 PROGRAM = (
     (0x10000293, "addi t0, x0, 0x100     # data base"),
     (0x5a5a6337, "lui  t1, 0x5a5a6"),
     (0xa5a30313, "addi t1, t1, -0x5a6    # t1 = 0x5a5a5a5a"),
     (0x0062a023, "sw   t1, 0(t0)         # 0x100 full word"),
-    (0x0a500393, "addi t2, x0, 0xa5"),
+    (0xdeadc3b7, "lui  t2, 0xdeadc"),
+    (0xea538393, "addi t2, t2, -0x15b    # t2 = 0xdeadbea5"),
     (0x0072a223, "sw   t2, 4(t0)         # 0x104 full word"),
-    (0x00728423, "sb   t2, 8(t0)         # 0x108 one byte"),
-    (0x00729623, "sh   t2, 12(t0)        # 0x10c halfword"),
+    (0x00728423, "sb   t2, 8(t0)         # 0x108 one byte: 0x000000a5"),
+    (0x00729623, "sh   t2, 12(t0)        # 0x10c halfword: 0x0000bea5"),
     (0x0002ae03, "lw   t3, 0(t0)         # read back"),
     (0x01c2a823, "sw   t3, 16(t0)        # 0x110 load-back"),
-    (0x00c29e83, "lh   t4, 12(t0)        # read back the halfword"),
+    (0x00c29e83, "lh   t4, 12(t0)        # signed read back: 0xffffbea5"),
     (0x01d2aa23, "sw   t4, 20(t0)        # 0x114 load-back"),
     (0x00001f37, "lui  t5, 0x1"),
     (0xff0f0f13, "addi t5, t5, -0x10     # t5 = 0xff0"),
@@ -95,11 +101,13 @@ PROGRAM_LOADS = 2
 MARKER_WORD = 0x0FF0 // 4
 DATA_WORDS = {
     0x100 // 4: 0x5A5A5A5A,
-    0x104 // 4: 0x000000A5,
+    0x104 // 4: 0xDEADBEA5,
+    # The byte and halfword stores must land in their own lanes only; a widened
+    # store would leave 0xdeadbea5 in these two words.
     0x108 // 4: 0x000000A5,
-    0x10C // 4: 0x000000A5,
+    0x10C // 4: 0x0000BEA5,
     0x110 // 4: 0x5A5A5A5A,
-    0x114 // 4: 0x000000A5,
+    0x114 // 4: 0xFFFFBEA5,   # signed halfword load of 0xbea5
     MARKER_WORD: 0x00000001,
 }
 

@@ -30,7 +30,7 @@
 module soc_picorv32_wishbone_tb;
     localparam integer MEM_WORDS      = 2048;
     localparam integer PROGRAM_WORDS  = 64;
-    localparam integer PROGRAM_LENGTH = 17;      // instructions in soc_picorv32_boot.hex
+    localparam integer PROGRAM_LENGTH = 18;      // instructions in soc_picorv32_boot.hex
     localparam integer CYCLE_LIMIT    = 200000;
     localparam integer MARKER_WORD    = 1020;    // 0x0ff0 / 4
 
@@ -234,11 +234,11 @@ module soc_picorv32_wishbone_tb;
                     $fatal(1, "soc_picorv32_wishbone_tb: write accounting");
                 end
                 check_word(64,  32'h5a5a5a5a, "full-word store at 0x100");
-                check_word(65,  32'h000000a5, "full-word store at 0x104");
+                check_word(65,  32'hdeadbea5, "full-word store at 0x104");
                 check_word(66,  32'h000000a5, "byte store at 0x108 must not widen to a word");
-                check_word(67,  32'h000000a5, "halfword store at 0x10c must not widen to a word");
+                check_word(67,  32'h0000bea5, "halfword store at 0x10c must not widen to a word");
                 check_word(68,  32'h5a5a5a5a, "load-back store at 0x110");
-                check_word(69,  32'h000000a5, "halfword load-back store at 0x114");
+                check_word(69,  32'hffffbea5, "signed halfword load-back store at 0x114");
                 check_word(MARKER_WORD, 32'h00000001, "completion marker at 0xff0");
                 $display("SOC_PICORV32_WISHBONE_REAL_OK retired=%0d stores=%0d loads=%0d acks=%0d ram_writes=%0d ram_reads=%0d cycles=%0d data=%08x",
                          rvfi_retired, rvfi_stores, rvfi_loads, acks,
