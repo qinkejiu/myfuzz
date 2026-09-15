@@ -9,7 +9,7 @@ bypassed by this convenience CLI.
 from __future__ import annotations
 
 import argparse
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 import json
 import os
 from pathlib import Path
@@ -43,7 +43,25 @@ def _load_json(path: Path) -> dict[str, object]:
     return value
 
 
-def load_matrix(path: Path) -> dict[str, object]:
+def _config_cpu(config: Mapping[str, object]) -> object:
+    cpu = config.get("cpu")
+    return cpu.get("id") if isinstance(cpu, Mapping) else cpu
+
+
+def _peripheral_ids(config: Mapping[str, object]) -> list[str]:
+    peripherals = config.get("peripherals")
+    if not isinstance(peripherals, list):
+        raise ValueError("cell config peripherals must be an array")
+    result: list[str] = []
+    for item in peripherals:
+        value = item.get("id") if isinstance(item, Mapping) else item
+        if not isinstance(value, str) or not value:
+            raise ValueError("cell config peripheral id is malformed")
+        result.append(value)
+    return result
+
+
+def load_matrix(path: Path, *, root: Path = ROOT) -> dict[str, object]:
     document = _load_json(Path(path).resolve())
     if document.get("schema_version") != MATRIX_SCHEMA:
         raise ValueError("matrix schema_version mismatch")
@@ -54,11 +72,15 @@ def load_matrix(path: Path) -> dict[str, object]:
     if (not isinstance(cells, list) or not isinstance(cpus, list) or not isinstance(families, list)
             or not isinstance(modes, list) or tuple(modes) != MODES):
         raise ValueError("matrix cpus/families/cells/modes are malformed")
-    if set(cpus) != {"ibex", "cva6"} or set(families) != {"opentitan", "pulp", "zipcpu"}:
+    if cpus.count("ibex") != 1 or cpus.count("cva6") != 1 or len(cpus) != 2:
+        raise ValueError("matrix must contain the two CPUs exactly once")
+    if (set(families) != {"opentitan", "pulp", "zipcpu"}
+            or len(families) != 3):
         raise ValueError("matrix must contain the two CPUs and three families")
     if len(cells) != 8:
         raise ValueError("matrix must contain exactly eight cells")
     ids: set[str] = set()
+    pairs: set[tuple[str, str]] = set()
     for cell in cells:
         if not isinstance(cell, Mapping):
             raise ValueError("matrix cell must be an object")
@@ -74,6 +96,46 @@ def load_matrix(path: Path) -> dict[str, object]:
             raise ValueError(f"matrix cell family is not declared: {cell_id}")
         if cell.get("distinct_ip_count") not in (2, 3):
             raise ValueError(f"matrix cell distinct_ip_count is invalid: {cell_id}")
+        pairs.add((str(cell["cpu"]), str(cell["family"])))
+    required = {(cpu, family) for cpu in ("ibex", "cva6")
+                for family in ("opentitan", "pulp", "zipcpu")}
+    mixed = {("ibex", "mixed"), ("cva6", "mixed")}
+    if pairs != required | mixed:
+        raise ValueError("matrix must contain six CPU/family cells and one mixed cell per CPU")
+
+    root = Path(root).resolve()
+    family_members: dict[str, set[str]] = {}
+    for family in families:
+        family_doc = _load_json(root / f"configs/soc/families/{family}.json")
+        family_members[str(family)] = set(_peripheral_ids(family_doc))
+    for cell in cells:
+        cell_id = str(cell["cell_id"])
+        config_path = (root / str(cell["config"])).resolve()
+        try:
+            config_path.relative_to(root)
+        except ValueError as error:
+            raise ValueError(f"matrix cell config escapes root: {cell_id}") from error
+        config = _load_json(config_path)
+        if config.get("cell_id", config.get("config_id")) != cell_id:
+            raise ValueError(f"matrix cell config id mismatch: {cell_id}")
+        if _config_cpu(config) != cell["cpu"]:
+            raise ValueError(f"matrix cell config CPU mismatch: {cell_id}")
+        config_families = config.get("families")
+        expected_families = ([cell["family"]] if cell["family"] != "mixed"
+                             else list(families))
+        if (not isinstance(config_families, list)
+                or set(config_families) != set(expected_families)
+                or len(config_families) != len(expected_families)):
+            raise ValueError(f"matrix cell config family mismatch: {cell_id}")
+        peripherals = _peripheral_ids(config)
+        if len(peripherals) != len(set(peripherals)):
+            raise ValueError(f"matrix cell peripherals must be distinct: {cell_id}")
+        if len(peripherals) != cell["distinct_ip_count"]:
+            raise ValueError(f"matrix cell distinct_ip_count mismatch: {cell_id}")
+        represented = {family for family, members in family_members.items()
+                       if any(item in members for item in peripherals)}
+        if represented != set(expected_families):
+            raise ValueError(f"matrix cell peripheral families mismatch: {cell_id}")
     return document
 
 
@@ -174,11 +236,96 @@ def _replay_probe(path: Path | None) -> dict[str, object]:
             "execution": "rebuild/replay is a separate real-run step"}
 
 
+def rebuild_replay_matrix(
+    existing: Path, output: Path, *, matrix_path: Path,
+    root: Path = ROOT,
+    builder: Callable[..., object] | None = None,
+    replayer: Callable[[object, Path], Mapping[str, object]] | None = None,
+) -> dict[str, object]:
+    """Rebuild and replay every retained task in an existing matrix run."""
+    existing = Path(existing).resolve()
+    source_manifest = _load_json(existing / "manifest.json")
+    if source_manifest.get("schema_version") != RESULT_SCHEMA:
+        raise ValueError("rebuild/replay matrix schema_version mismatch")
+    source_tasks = source_manifest.get("tasks")
+    if not isinstance(source_tasks, list):
+        raise ValueError("rebuild/replay matrix tasks are malformed")
+
+    matrix_path = Path(matrix_path).resolve()
+    matrix = load_matrix(matrix_path, root=root)
+    seed = source_manifest.get("seed", 0)
+    seconds = source_manifest.get("seconds_per_task", 300)
+    tasks = plan_matrix_tasks(matrix, seconds=seconds, seed=seed)
+    expected_ids = {task["task_id"] for task in tasks}
+    source_ids = {row.get("task_id") for row in source_tasks if isinstance(row, Mapping)}
+    if source_ids != expected_ids:
+        raise ValueError("rebuild/replay task set does not match the matrix")
+
+    output = Path(output).resolve()
+    if output.exists() or output.is_symlink():
+        raise ValueError("rebuild/replay output must be new")
+    output.mkdir(parents=True)
+    if builder is None:
+        from myfuzz.integration.soc_builder import build_soc_campaign_artifact
+        builder = build_soc_campaign_artifact
+    if replayer is None:
+        from myfuzz.integration.rfuzz_live import replay_corpus
+        replayer = replay_corpus
+
+    result: dict[str, object] = {
+        "schema_version": RESULT_SCHEMA,
+        "status": "running",
+        "matrix": str(matrix_path),
+        "seed": seed,
+        "seconds_per_task": seconds,
+        "main_tasks": 24,
+        "bias_off_tasks": 8,
+        "tasks_planned": len(tasks),
+        "effective_budget_seconds": 0,
+        "rebuild_replay": {"status": "running", "source": str(existing)},
+        "tasks": [],
+        "unsupported": [],
+    }
+    for task in tasks:
+        task_id = str(task["task_id"])
+        task_name = task_id.replace("/", "__")
+        corpus = existing / task_name / "live/corpus"
+        row: dict[str, object] = {**task, "status": "failed"}
+        try:
+            if not corpus.is_dir() or not any(corpus.glob("entry_*.json")):
+                raise ValueError("retained corpus is missing or empty")
+            config = _task_config(root, task, matrix_path=matrix_path, client=None)
+            artifact = builder(config, output / task_name / "build")
+            replay = replayer(artifact, corpus)
+            if (not isinstance(replay, Mapping) or replay.get("status") != "passed"
+                    or not isinstance(replay.get("entries"), int)
+                    or replay["entries"] < 1):
+                raise ValueError("rebuild/replay did not verify a retained entry")
+            row.update(status="passed", replay=dict(replay))
+        except (OSError, TypeError, ValueError, RuntimeError) as error:
+            row["error"] = f"{type(error).__name__}: {error}"[:4096]
+        result["tasks"].append(row)
+    complete = len(result["tasks"]) == 32 and all(
+        row.get("status") == "passed" for row in result["tasks"])
+    result["status"] = "completed" if complete else "incomplete"
+    result["rebuild_replay"] = {
+        "status": "passed" if complete else "failed",
+        "source": str(existing),
+        "tasks_passed": sum(row.get("status") == "passed" for row in result["tasks"]),
+    }
+    (output / "manifest.json").write_text(
+        json.dumps(result, ensure_ascii=True, sort_keys=True, indent=2) + "\n")
+    return result
+
+
 def run_matrix(matrix_path: Path, output: Path, *, seconds: int, seed: int,
                preflight_only: bool, rebuild_replay: Path | None = None,
                root: Path = ROOT) -> dict[str, object]:
+    if rebuild_replay is not None:
+        return rebuild_replay_matrix(
+            rebuild_replay, output, matrix_path=matrix_path, root=root)
     matrix_path = Path(matrix_path).resolve()
-    matrix = load_matrix(matrix_path)
+    matrix = load_matrix(matrix_path, root=root)
     if not preflight_only and seconds < 300:
         raise ValueError("real matrix campaigns require at least 300 seconds per task")
     tasks = plan_matrix_tasks(matrix, seconds=seconds, seed=seed)
@@ -192,7 +339,7 @@ def run_matrix(matrix_path: Path, output: Path, *, seconds: int, seed: int,
         "status": "preflight-only" if preflight_only else "running",
         "matrix": str(matrix_path), "seed": seed, "seconds_per_task": seconds,
         "main_tasks": 24, "bias_off_tasks": 8, "tasks_planned": len(tasks),
-        "effective_budget_seconds": 0 if preflight_only else seconds * len(tasks),
+        "effective_budget_seconds": 0,
         "rebuild_replay": _replay_probe(rebuild_replay),
         "tasks": [], "unsupported": [],
     }
@@ -209,6 +356,19 @@ def run_matrix(matrix_path: Path, output: Path, *, seconds: int, seed: int,
                                           preflight_only=False)
             row = {**task, "status": row_result.get("status"), "result": row_result,
                    "source_lock_evidence": evidence}
+            measured = row_result.get("effective_fuzz_seconds", 0)
+            replay = row_result.get("replay", {})
+            accepted = (
+                row["status"] in {"completed", "completed_with_client_termination"}
+                and isinstance(measured, (int, float)) and not isinstance(measured, bool)
+                and measured >= task["seconds"]
+                and isinstance(replay, Mapping) and replay.get("status") == "passed"
+                and isinstance(replay.get("entries"), int) and replay["entries"] > 0
+            )
+            row["acceptance_complete"] = accepted
+            row["effective_fuzz_seconds"] = measured if accepted else 0
+            if accepted:
+                manifest["effective_budget_seconds"] += measured
         if row["status"] == "unsupported":
             manifest["unsupported"].append(task["task_id"])
         manifest["tasks"].append(row)
@@ -222,7 +382,9 @@ def run_matrix(matrix_path: Path, output: Path, *, seconds: int, seed: int,
         # that failed, and the policy in soc_campaign records the reason.
         acceptable = {"completed", "completed_with_client_termination"}
         manifest["status"] = ("completed"
-                              if all(row["status"] in acceptable for row in manifest["tasks"])
+                              if all(row["status"] in acceptable
+                                     and row.get("acceptance_complete") is True
+                                     for row in manifest["tasks"])
                               else "incomplete")
     (output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=True, sort_keys=True, indent=2) + "\n")
     return manifest
