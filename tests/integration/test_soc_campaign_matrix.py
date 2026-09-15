@@ -85,13 +85,14 @@ class SocCampaignMatrixTests(unittest.TestCase):
             "replay": {"status": "not-requested", "entries": 0},
         }
         with tempfile.TemporaryDirectory() as temporary, patch(
-                "scripts.run_soc_campaigns.run_soc_campaign", return_value=short):
+                "scripts.run_soc_campaigns.run_soc_campaign", return_value=short) as campaign:
             result = run_matrix(
                 MATRIX, Path(temporary) / "out", seconds=300, seed=1,
                 preflight_only=False, root=ROOT,
             )
         self.assertEqual("incomplete", result["status"])
         self.assertEqual(0, result["effective_budget_seconds"])
+        self.assertTrue(callable(campaign.call_args.kwargs["rebuilder"]))
 
     def test_rebuild_replay_executes_every_retained_task(self):
         matrix = load_matrix(MATRIX)
@@ -123,6 +124,31 @@ class SocCampaignMatrixTests(unittest.TestCase):
         self.assertEqual("completed", result["status"])
         self.assertEqual(32, len(calls))
         self.assertTrue(all(row["status"] == "passed" for row in result["tasks"]))
+
+    def test_rebuild_replay_records_unexpected_task_failures(self):
+        tasks = plan_matrix_tasks(load_matrix(MATRIX), seconds=300, seed=11)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            existing = root / "existing"
+            existing.mkdir()
+            (existing / "manifest.json").write_text(json.dumps({
+                "schema_version": "soc_campaign_matrix_result.v1",
+                "tasks": tasks,
+            }), encoding="utf-8")
+            for task in tasks:
+                corpus = existing / task["task_id"].replace("/", "__") / "live/corpus"
+                corpus.mkdir(parents=True)
+                (corpus / "entry_0000.json").write_text("{}", encoding="utf-8")
+
+            result = rebuild_replay_matrix(
+                existing, root / "replayed", matrix_path=MATRIX, root=ROOT,
+                builder=lambda _config, _build_dir: object(),
+                replayer=lambda _artifact, _corpus: (_ for _ in ()).throw(LookupError("boom")),
+            )
+
+        self.assertEqual("incomplete", result["status"])
+        self.assertEqual(32, len(result["tasks"]))
+        self.assertTrue(all(row["status"] == "failed" for row in result["tasks"]))
 
     def test_cli_reports_task_plan(self):
         with tempfile.TemporaryDirectory() as temporary:

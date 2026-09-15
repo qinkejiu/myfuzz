@@ -302,7 +302,7 @@ def rebuild_replay_matrix(
                     or replay["entries"] < 1):
                 raise ValueError("rebuild/replay did not verify a retained entry")
             row.update(status="passed", replay=dict(replay))
-        except (OSError, TypeError, ValueError, RuntimeError) as error:
+        except Exception as error:
             row["error"] = f"{type(error).__name__}: {error}"[:4096]
         result["tasks"].append(row)
     complete = len(result["tasks"]) == 32 and all(
@@ -343,6 +343,10 @@ def run_matrix(matrix_path: Path, output: Path, *, seconds: int, seed: int,
         "rebuild_replay": _replay_probe(rebuild_replay),
         "tasks": [], "unsupported": [],
     }
+    campaign_rebuilder: Callable[..., object] | None = None
+    if not preflight_only:
+        from myfuzz.integration.soc_builder import build_soc_campaign_artifact
+        campaign_rebuilder = build_soc_campaign_artifact
     for task in tasks:
         task_config = _task_config(root, task, matrix_path=matrix_path, client=client)
         evidence = _source_lock_evidence(root, task_config)
@@ -353,7 +357,8 @@ def run_matrix(matrix_path: Path, output: Path, *, seconds: int, seed: int,
                    "preflight": preflight, "source_lock_evidence": evidence}
         else:
             row_result = run_soc_campaign(task_config, task_dir, root=root, environment=os.environ,
-                                          preflight_only=False)
+                                          preflight_only=False,
+                                          rebuilder=campaign_rebuilder)
             row = {**task, "status": row_result.get("status"), "result": row_result,
                    "source_lock_evidence": evidence}
             measured = row_result.get("effective_fuzz_seconds", 0)
