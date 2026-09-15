@@ -76,6 +76,37 @@ def _ready_valid_memory(*extra: EndpointFieldFact) -> ProcessorMemoryBinding:
     )
 
 
+def _wishbone_memory(*optional: EndpointFieldFact) -> ProcessorMemoryBinding:
+    """A Wishbone classic master: the required channels plus optional we/dat_w/sel."""
+    fields = (
+        _field("cyc", "output"), _field("stb", "output"),
+        _field("adr", "output", 32), _field("stall", "input"),
+        _field("ack", "input"), _field("err", "input"),
+        _field("dat_r", "input", 32), *optional,
+    )
+    extensions = tuple(field for field in optional if field.role in {"sel"})
+    return ProcessorMemoryBinding(
+        "memory", "memory_master", ("wishbone", "classic"), fields, extensions
+    )
+
+
+def _axi4_lite_memory(*optional: EndpointFieldFact) -> ProcessorMemoryBinding:
+    """An AXI4-Lite master: five channels, one beat, no bursts and no IDs."""
+    fields = (
+        _field("awvalid", "output"), _field("awready", "input"),
+        _field("wvalid", "output"), _field("wready", "input"),
+        _field("bvalid", "input"), _field("bready", "output"),
+        _field("arvalid", "output"), _field("arready", "input"),
+        _field("rvalid", "input"), _field("rready", "output"),
+        *optional,
+    )
+    extensions = tuple(field for field in optional
+                      if field.role in {"awprot", "arprot"})
+    return ProcessorMemoryBinding(
+        "memory", "memory_master", ("axi4-lite", "1"), fields, extensions
+    )
+
+
 class ProcessorAdapterTests(unittest.TestCase):
     def test_axi_adapter_selection_uses_protocol_and_explicit_extension_policy(self) -> None:
         extras = tuple(
@@ -214,6 +245,67 @@ class ProcessorAdapterTests(unittest.TestCase):
         for field in catalog.require("processor-memory-beat", "1").fields:
             suffix = "_o" if field.direction == "host_to_device" else "_i"
             self.assertIn(field.field_id + suffix, rtl)
+
+    def test_wishbone_adapter_is_derived_from_select_and_write_presence(self) -> None:
+        read_only = resolve_processor_adapter(_wishbone_memory())
+        read_write = resolve_processor_adapter(_wishbone_memory(
+            _field("we", "output"), _field("dat_w", "output", 32),
+            _field("sel", "output", 4),
+        ))
+
+        self.assertEqual("wishbone-to-processor-memory-beat", read_only.adapter_id)
+        self.assertEqual("wishbone_processor_memory_adapter", read_only.rtl_module)
+        self.assertEqual("src/myfuzz/protocols/rtl/wishbone_processor_memory_adapter.sv",
+                         read_only.rtl_source)
+        self.assertEqual(("processor-memory-beat", "1"), read_only.target_protocol)
+        self.assertEqual((("READ_ONLY", 1), ("HAS_SEL", 0)),
+                         read_only.parameter_values)
+        self.assertEqual((("READ_ONLY", 0), ("HAS_SEL", 1)),
+                         read_write.parameter_values)
+        self.assertIn("partial-write-when-select-present", read_write.features)
+        self.assertIn("error-response", read_write.features)
+        self.assertNotIn("zipcpu", repr(read_write).lower())
+
+    def test_wishbone_declared_fields_fail_closed(self) -> None:
+        with self.assertRaisesRegex(ProcessorAdapterError, "unsupported-extension:mystery"):
+            resolve_processor_adapter(_wishbone_memory(_field("mystery", "output")))
+        # ACK is driven by the adapter, so a CPU cannot declare it as an output.
+        with self.assertRaisesRegex(ProcessorAdapterError, "adapter-source-direction:ack"):
+            resolve_processor_adapter(_wishbone_memory(_field("ack", "output")))
+        # SEL is the byte enable of the declared write data.
+        with self.assertRaisesRegex(ProcessorAdapterError, "extension-width:sel"):
+            resolve_processor_adapter(_wishbone_memory(
+                _field("we", "output"), _field("dat_w", "output", 32),
+                _field("sel", "output", 3),
+            ))
+
+    def test_axi4_lite_adapter_publishes_only_the_lite_channels(self) -> None:
+        adapter = resolve_processor_adapter(_axi4_lite_memory(
+            _field("awprot", "output", 3), _field("arprot", "output", 3),
+        ))
+
+        self.assertEqual("axi4-lite-to-processor-memory-beat", adapter.adapter_id)
+        self.assertEqual("axi4_lite_processor_memory_adapter", adapter.rtl_module)
+        self.assertEqual(
+            "src/myfuzz/protocols/rtl/axi4_lite_processor_memory_adapter.sv",
+            adapter.rtl_source)
+        self.assertEqual(("processor-memory-beat", "1"), adapter.target_protocol)
+        self.assertEqual((), adapter.parameter_values)
+        policies = {policy.role: policy.action for policy in adapter.extension_policies}
+        self.assertEqual({"awprot": "accept-ignore", "arprot": "accept-ignore"}, policies)
+        self.assertIn("no-bursts", adapter.features)
+        self.assertIn("no-ids", adapter.features)
+        self.assertNotIn("picorv32", repr(adapter).lower())
+
+    def test_axi4_lite_does_not_claim_full_axi4_channels(self) -> None:
+        # AWLEN belongs to AXI4, not to the Lite channel set: accepting it here
+        # would let a full AXI4 CPU claim a boundary that cannot carry bursts.
+        with self.assertRaisesRegex(ProcessorAdapterError, "unsupported-extension:awlen"):
+            resolve_processor_adapter(_axi4_lite_memory(_field("awlen", "output", 8)))
+        with self.assertRaisesRegex(ProcessorAdapterError, "extension-width:awprot"):
+            resolve_processor_adapter(_axi4_lite_memory(_field("awprot", "output", 2)))
+        with self.assertRaisesRegex(ProcessorAdapterError, "unsupported-extension:awid"):
+            resolve_processor_adapter(_axi4_lite_memory(_field("awid", "output", 4)))
 
 
 if __name__ == "__main__":

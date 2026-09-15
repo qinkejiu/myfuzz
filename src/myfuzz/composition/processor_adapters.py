@@ -63,6 +63,21 @@ _OBI_EXTENSION_POLICIES = (
 
 _READY_VALID_EXTENSION_POLICIES = ()
 
+# Wishbone SEL is the byte enable, exactly as OBI's BE is: a master that has it
+# passes it through, and a master that does not is projected onto a full byte
+# enable rather than having a transfer size invented for it.
+_WISHBONE_EXTENSION_POLICIES = (
+    ExtensionPolicy("sel", "output", "pass-byte-enable", width_of="dat_w",
+                    width_divisor=8),
+)
+
+# AXI4-Lite protection bits carry no information the beat backend can use, and
+# the AXI4 adapter applies the same accept-and-ignore policy to its sidebands.
+_AXI4_LITE_EXTENSION_POLICIES = tuple(sorted((
+    ExtensionPolicy("awprot", "output", "accept-ignore", width=3),
+    ExtensionPolicy("arprot", "output", "accept-ignore", width=3),
+), key=lambda item: item.role))
+
 _ADAPTERS = {
     ("axi4", "1"): ProcessorAdapterDefinition(
         adapter_id="axi4-to-processor-memory-beat",
@@ -173,6 +188,61 @@ _ADAPTERS = {
             ("d_data", "d_data_o", "output"), ("d_corrupt", "d_corrupt_o", "output"),
         ),
     ),
+    ("wishbone", "classic"): ProcessorAdapterDefinition(
+        adapter_id="wishbone-to-processor-memory-beat",
+        source_protocol=("wishbone", "classic"),
+        target_protocol=("processor-memory-beat", "1"),
+        rtl_module="wishbone_processor_memory_adapter",
+        rtl_source="src/myfuzz/protocols/rtl/wishbone_processor_memory_adapter.sv",
+        features=(
+            "single-outstanding",
+            "single-beat",
+            "cycle-strobe-held-until-completion",
+            "partial-write-when-select-present",
+            "error-response",
+        ),
+        extension_policies=_WISHBONE_EXTENSION_POLICIES,
+        reset_polarity="active_low",
+        reset_synchrony="synchronous",
+        source_ports=(
+            ("cyc", "cyc_i", "input"), ("stb", "stb_i", "input"),
+            ("we", "we_i", "input"), ("adr", "adr_i", "input"),
+            ("dat_w", "dat_w_i", "input"), ("sel", "sel_i", "input"),
+            ("stall", "stall_o", "output"), ("ack", "ack_o", "output"),
+            ("err", "err_o", "output"), ("dat_r", "dat_r_o", "output"),
+        ),
+    ),
+    ("axi4-lite", "1"): ProcessorAdapterDefinition(
+        adapter_id="axi4-lite-to-processor-memory-beat",
+        source_protocol=("axi4-lite", "1"),
+        target_protocol=("processor-memory-beat", "1"),
+        rtl_module="axi4_lite_processor_memory_adapter",
+        rtl_source="src/myfuzz/protocols/rtl/axi4_lite_processor_memory_adapter.sv",
+        features=(
+            "single-outstanding",
+            "single-beat",
+            "independent-write-channels",
+            "byte-enable",
+            "error-response",
+            "no-bursts",
+            "no-ids",
+        ),
+        extension_policies=_AXI4_LITE_EXTENSION_POLICIES,
+        reset_polarity="active_low",
+        reset_synchrony="synchronous",
+        source_ports=(
+            ("awaddr", "awaddr_i", "input"), ("awprot", "awprot_i", "input"),
+            ("awvalid", "awvalid_i", "input"), ("awready", "awready_o", "output"),
+            ("wdata", "wdata_i", "input"), ("wstrb", "wstrb_i", "input"),
+            ("wvalid", "wvalid_i", "input"), ("wready", "wready_o", "output"),
+            ("bresp", "bresp_o", "output"), ("bvalid", "bvalid_o", "output"),
+            ("bready", "bready_i", "input"), ("araddr", "araddr_i", "input"),
+            ("arprot", "arprot_i", "input"), ("arvalid", "arvalid_i", "input"),
+            ("arready", "arready_o", "output"), ("rdata", "rdata_o", "output"),
+            ("rresp", "rresp_o", "output"), ("rvalid", "rvalid_o", "output"),
+            ("rready", "rready_i", "input"),
+        ),
+    ),
 }
 
 
@@ -193,8 +263,8 @@ def resolve_processor_adapter(
     protocol_roles = set(source_ports) - set(policies)
     seen: set[str] = set()
     field_roles = {field.role for field in memory.fields}
+    has_we = "we" in field_roles
     if memory.protocol == ("obi", "1"):
-        has_we = "we" in field_roles
         has_wdata = "wdata" in field_roles
         if has_we != has_wdata:
             raise ProcessorAdapterError("obi-write-fields")
@@ -241,6 +311,11 @@ def resolve_processor_adapter(
             ("READ_ONLY", int(not has_we)),
             ("HAS_BE", int("be" in seen)),
             ("HAS_ERROR", 1),
+        ))
+    if memory.protocol == ("wishbone", "classic"):
+        return replace(adapter, parameter_values=(
+            ("READ_ONLY", int(not has_we)),
+            ("HAS_SEL", int("sel" in seen)),
         ))
     return adapter
 
