@@ -1572,3 +1572,38 @@ body（zipcpu 风格 `always @(posedge clk) if (...) begin ... end`）此前被�
 仍未执行、因此不作任何完成声明：每任务 300 秒、总计不少于 160 分钟有效时间的正式
 长测（P15，本轮明确不做），以及八格逐任务的 campaign 重建重放（当前两款 CPU 各有
 一格的闭环证据）。验收判定见 `docs/reports/soc-acceptance-20260915.md`。
+
+## 2026-09-15 续（新增 Wishbone / AXI4-Lite 两个 CPU 侧协议 + 真实 PicoRV32 实测）
+
+在 `axi4@1`、`obi@1`、`tl-ul@1`、`ready-valid-memory@1` 之外，CPU 侧注册表新增两个
+广泛使用的主端协议；两者都只做单笔未完成（single-outstanding）、每次总线事务恰好
+一笔 beat，因此不需要重排或 ID 记账：
+
+| 任务 | 命令 | 结果 |
+|---|---|---|
+| 新增注册项 | `src/myfuzz/composition/processor_adapters.py` | `wishbone@classic` → `wishbone_processor_memory_adapter`（10 个 CPU 侧端口）；`axi4-lite@1` → `axi4_lite_processor_memory_adapter`（19 个） |
+| 适配器单元台 | `python3 -m unittest tests.protocols.test_wishbone_and_axi4_lite_processor_memory_adapters_rtl` | **14 tests OK** |
+| 注册/派生解析 | `python3 -m unittest tests.composition.test_processor_adapters` | **14 tests OK**（READ_ONLY/HAS_SEL 派生、fail-closed、lite-only 通道拒绝 burst/ID） |
+| 真实 PicoRV32 × AXI4-Lite | `MYFUZZ_SOC_REAL=1 ... tests.integration.test_soc_real_picorv32` | **OK**：`retired=17 stores=7 loads=2 responses=27 ram_writes=7 ram_reads=20 cycles=210 data=5a5a5a5a` |
+| 真实 PicoRV32 × Wishbone | 同上 | **OK**：`retired=17 stores=7 loads=2 acks=54 ram_writes=7 ram_reads=20 cycles=237 data=5a5a5a5a` |
+| 镜像可复现性 | 同套件内常驻测试 | 用 clang 的 riscv32 target 重新汇编 `tests/fixtures/soc_picorv32_boot.S`，与提交的 `.hex` 不一致即失败 |
+| 协议套件 | `python3 -m unittest discover -s tests/protocols` | **140 tests OK** |
+| 组合套件 | `python3 -m unittest discover -s tests/composition` | **526 tests OK** |
+| 集成套件 | `python3 -m unittest discover -s tests/integration` | **681 tests OK**（skipped=30） |
+
+两个真实 CPU 台子用**同一颗核、同一份镜像、同一个 beat RAM 模型**跑两遍，唯一变量是
+适配器前面的主端协议，因此两轮之间的差异只能来自协议适配。证据是指令级的而不是
+"没崩"：经 RVFI 把每条退休指令与镜像逐字、逐 PC 比对；byte/halfword 存储按整字检查
+（把 1 字节存储放大成 4 字节会污染高 lane 而失败）；落进 RAM 的写次数必须等于 CPU 自己
+报告的 retirement 存储数（既不凭空产生也不丢失写）。
+
+本轮由真实 CPU 定位到一个适配器缺陷：PicoRV32 的 Wishbone 主端把 `wbm_sel_o` 直接接
+写选通，**读操作的 SEL 恒为 0**，而适配器把 `SEL == 0` 一律当拒绝、不发请求直接回 ERR，
+于是真实 CPU 的第一笔取指就被拒；单元台当时把这条规则当成正确行为写进了断言。现改为
+只拒绝"未选任何字节的写"，空的读按全 lane 读发出。修复见 `5454d7d`。
+
+未做、因此不作声明：这两个协议的渲染器（structural adaptation）接线尚未实现——本轮按
+用户选择只做"适配器 + 测试"的最小可验证版；也没有为它们建立 RFuzz 覆盖率反馈
+campaign。Wishbone × ZipCPU 这一组的工具链障碍（其仓内汇编器与反汇编器在现代
+toolchain 下均无法构建）与改用 PicoRV32 的理由，记录在
+`docs/reports/picorv32-protocol-benches-20260915.md`。

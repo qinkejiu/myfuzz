@@ -201,6 +201,36 @@ campaigns sequentially. A 5-second real-Ibex preflight has passed; the full
 three-by-300-second gate has not yet been run and must not be inferred from the
 preflight result. BOOM processor acceptance is currently deferred.
 
+### Two more initiator protocols: classic Wishbone and AXI4-Lite
+
+Besides OBI, AXI4, TL-UL and ready-valid-memory, the CPU-side registry now
+carries `wishbone@classic` (`wishbone_processor_memory_adapter`) and
+`axi4-lite@1` (`axi4_lite_processor_memory_adapter`). Both are single-
+outstanding masters that terminate exactly one beat per bus transaction. Run
+their behavioural benches with:
+
+```bash
+PYTHONPATH=src python3 -m unittest \
+  tests.protocols.test_wishbone_and_axi4_lite_processor_memory_adapters_rtl
+```
+
+Each protocol also has a real-CPU runtime bench that puts actual PicoRV32 RTL
+behind the adapter, once as `picorv32_axi` and once as `picorv32_wb`, with the
+same assembled program and the same beat RAM model:
+
+```bash
+MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest \
+  tests.integration.test_soc_real_picorv32
+```
+
+These benches need `third_party/picorv32_upstream_reference`, which is not part
+of this repository, hence the opt-in flag. They compare every retired
+instruction against the committed boot image rather than only checking side
+effects, and they are what exposed the empty-select read refusal that the unit
+benches had encoded as correct. The evidence, the accounting and the limits of
+what these runs prove are recorded in
+[`docs/reports/picorv32-protocol-benches-20260915.md`](docs/reports/picorv32-protocol-benches-20260915.md).
+
 Run the complete Python regression suite with:
 
 ```bash
