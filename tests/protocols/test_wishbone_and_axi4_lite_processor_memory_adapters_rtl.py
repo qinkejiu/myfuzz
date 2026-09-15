@@ -183,7 +183,7 @@ class WishboneProcessorMemoryAdapterRtlTests(unittest.TestCase):
     """
         _run(self, self._tb(program), [WISHBONE])
 
-    def test_a_transfer_with_no_byte_selected_is_refused_without_a_request(self) -> None:
+    def test_an_empty_select_write_is_refused_without_a_request(self) -> None:
         program = """\
       reset_dut();
       cyc_i = 1'b1; stb_i = 1'b1; we_i = 1'b1; adr_i = 32'h500; sel_i = 4'h0;
@@ -194,14 +194,26 @@ class WishboneProcessorMemoryAdapterRtlTests(unittest.TestCase):
       check(err_o && !ack_o, "an empty-select write terminates with ERR");
       @(negedge clk_i); stb_i = 1'b0; cyc_i = 1'b0; tick();
       check(!err_o, "the refusal cleared");
+    """
+        _run(self, self._tb(program), [WISHBONE])
 
-      // A read with no byte selected has no defined size either.
+    def test_an_empty_select_read_is_issued_as_a_full_lane_read(self) -> None:
+        """SEL is a write-side byte lane: real masters leave it at zero on reads.
+
+        PicoRV32's Wishbone master drives SEL straight from its write strobe, so
+        every read it performs presents SEL == 0.  Refusing those reads would
+        break a real CPU, so the adapter issues them with a full byte enable
+        instead of inventing a failure.
+        """
+        program = """\
+      reset_dut();
       cyc_i = 1'b1; stb_i = 1'b1; we_i = 1'b0; adr_i = 32'h504; sel_i = 4'h0;
       #1;
-      check(!req_valid_o, "an empty-select read issues no backend request");
-      tick();
-      check(err_o, "an empty-select read terminates with ERR");
-      @(negedge clk_i); stb_i = 1'b0; cyc_i = 1'b0; tick();
+      check(req_valid_o && !req_write_o, "an empty-select read issues a read request");
+      check(req_be_o == 4'hF, "an empty-select read is widened to a full byte enable");
+      check(req_addr_o == 32'h504, "the read address passed through");
+      check(!err_o, "an empty-select read is not refused");
+      check(!ack_o, "no termination before the backend answers");
     """
         _run(self, self._tb(program), [WISHBONE])
 

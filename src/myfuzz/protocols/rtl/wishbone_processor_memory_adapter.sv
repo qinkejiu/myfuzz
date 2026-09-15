@@ -32,9 +32,14 @@
 //     reporting success instead would be silently wrong.
 //
 // FAIL-CLOSED CASES (beat error response, zero backend requests)
-//   * a transfer with no byte selected (SEL == 0 and HAS_SEL == 1) has no
-//     defined transfer size in Wishbone, so it is refused instead of being
-//     guessed or pushed downstream as a zero-mask access;
+//   * a *write* transfer with no byte selected (SEL == 0 and HAS_SEL == 1) has
+//     no defined transfer size in Wishbone, so it is refused instead of being
+//     guessed or pushed downstream as a zero-mask write.  A *read* that leaves
+//     SEL at zero is NOT refused: SEL is a write-side byte lane in classic
+//     Wishbone, and real masters leave it at zero on reads (PicoRV32's Wishbone
+//     master drives SEL straight from its write strobe, which is zero for
+//     reads).  Such a read is issued as a full-lane read, which is the defined
+//     answer to "this master expressed no lane preference";
 //   * any write when READ_ONLY = 1 is refused rather than silently dropped,
 //     because this boundary exists to carry the CPU's writes to the fabric.
 //
@@ -89,6 +94,7 @@ module wishbone_processor_memory_adapter #(
     logic transfer;
     logic write_transfer;
     logic [(DATA_WIDTH/8)-1:0] transfer_sel;
+    logic [(DATA_WIDTH/8)-1:0] request_be;
     logic refused_read_only;
     logic refused_empty_select;
 
@@ -98,9 +104,10 @@ module wishbone_processor_memory_adapter #(
     assign transfer = cyc_i && stb_i;
     assign write_transfer = transfer && (READ_ONLY == 0) && we_i;
     assign transfer_sel = (HAS_SEL != 0) ? sel_i : FULL_SEL;
-    // Nothing selected means no defined transfer, and this boundary must not
-    // silently drop an access the CPU believes it performed.
-    assign refused_empty_select = transfer && (HAS_SEL != 0) && (transfer_sel == '0);
+    // An empty select is only a refusal for a write; see the FAIL-CLOSED note
+    // above.  A read that leaves SEL at zero is issued as a full-lane read.
+    assign refused_empty_select = transfer && (HAS_SEL != 0) && we_i &&
+                                  (transfer_sel == '0);
     assign refused_read_only = transfer && (READ_ONLY != 0) && we_i;
     // The adapter's request handshake for this transfer.
     assign req_valid_o = rst_ni && (state_q == IDLE) && transfer &&
@@ -108,7 +115,9 @@ module wishbone_processor_memory_adapter #(
     assign req_write_o = write_transfer;
     assign req_addr_o = req_valid_o ? adr_i : '0;
     assign req_wdata_o = req_valid_o ? dat_w_i : '0;
-    assign req_be_o = req_valid_o ? transfer_sel : '0;
+    assign request_be = (write_transfer || (transfer_sel != '0)) ? transfer_sel
+                                                                 : FULL_SEL;
+    assign req_be_o = req_valid_o ? request_be : '0;
     // Hold the master until the backend has taken the request.  A refused
     // transfer is never stalled: it terminates with ERR in the same cycle.
     assign stall_o = rst_ni && (state_q == IDLE) && req_valid_o && !req_ready_i;
