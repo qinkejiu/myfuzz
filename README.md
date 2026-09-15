@@ -157,6 +157,18 @@ src/myfuzz/frontend/build/libmyfuzz_frontend.so
 
 ## Run
 
+### CLI
+
+```bash
+PYTHONPATH=src python3 -m myfuzz check
+PYTHONPATH=src python3 -m myfuzz preflight --output runs/preflight
+MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m myfuzz run \
+  --client runs/rfuzz_client_native_build/target/debug/kfuzz \
+  --output runs/soc-acceptance/run-1
+```
+
+Use `python3 -m myfuzz <command> --help` for the few optional arguments.
+
 Smoke harness check:
 
 ```bash

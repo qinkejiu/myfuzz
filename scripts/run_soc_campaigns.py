@@ -320,7 +320,7 @@ def rebuild_replay_matrix(
 
 def run_matrix(matrix_path: Path, output: Path, *, seconds: int, seed: int,
                preflight_only: bool, rebuild_replay: Path | None = None,
-               root: Path = ROOT) -> dict[str, object]:
+               root: Path = ROOT, client: str | None = None) -> dict[str, object]:
     if rebuild_replay is not None:
         return rebuild_replay_matrix(
             rebuild_replay, output, matrix_path=matrix_path, root=root)
@@ -333,7 +333,7 @@ def run_matrix(matrix_path: Path, output: Path, *, seconds: int, seed: int,
     if output.exists() or output.is_symlink():
         raise ValueError("matrix output must be new")
     output.mkdir(parents=True)
-    client = os.environ.get("MYFUZZ_RFuzz_CLIENT")
+    client = client or os.environ.get("MYFUZZ_RFuzz_CLIENT")
     manifest: dict[str, object] = {
         "schema_version": RESULT_SCHEMA,
         "status": "preflight-only" if preflight_only else "running",
@@ -396,6 +396,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--seconds", type=int, default=300)
     parser.add_argument("--seed", type=int, default=20260914)
+    parser.add_argument("--client")
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--rebuild-replay", type=Path)
     return parser.parse_args(argv)
@@ -404,7 +405,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     manifest = run_matrix(args.matrix, args.output, seconds=args.seconds, seed=args.seed,
-                          preflight_only=args.preflight_only, rebuild_replay=args.rebuild_replay)
+                          preflight_only=args.preflight_only, rebuild_replay=args.rebuild_replay,
+                          client=args.client)
     print(json.dumps({key: manifest[key] for key in (
         "schema_version", "status", "tasks_planned", "main_tasks", "bias_off_tasks",
         "unsupported", "effective_budget_seconds", "rebuild_replay")},
