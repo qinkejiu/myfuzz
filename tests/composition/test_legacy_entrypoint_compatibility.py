@@ -64,7 +64,10 @@ from tests.integration.test_processor_auto_wiring import PROTOCOLS, _fixture
 # The fixtures' rendered IR and SystemVerilog are unaffected by those RTL
 # changes; only the hashed source tree moves, which is what the re-baseline
 # records.
-GOLDEN_MATRIX_DIGEST = "2f4353a8a1eeb5060b54628deb897bbc4a2657accbf704ec0d2baaeb429e0a28"
+# Re-baselined for the router capture-reset quarantine and AXI narrow-burst
+# stride fixes.  Both deliberately change files under the hashed RTL tree;
+# the legacy-versus-extracted artifact comparison above remains unchanged.
+GOLDEN_MATRIX_DIGEST = "359a2d29dffc7b14e5f94a46405482f233a3290edd8e08aa790557f281a93cec"
 CASES = (
     ("plain", {}),
     ("ram", {"with_ram": True}),
