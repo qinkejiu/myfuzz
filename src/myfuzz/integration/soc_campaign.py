@@ -411,15 +411,84 @@ def _receipt_document(value: object) -> tuple[list[dict[str, object]], list[dict
         if not isinstance(raw, str) or not raw or not isinstance(coverage, str) or not coverage:
             errors.append({"category": "evidence", "message": f"receipt {index} lacks input/coverage identity"})
             continue
+        if item.get("status") != "fifo_reply_and_rtl_completed":
+            errors.append({"category": "evidence", "message": f"receipt {index} is not a completed FIFO/RTL exchange"})
+            continue
+        if item.get("transport") != "sysv-shared-memory-rfuzz-coverage-buffer":
+            errors.append({"category": "evidence", "message": f"receipt {index} has the wrong transport"})
+            continue
         rows.append({
             "input_sha256": raw,
             "coverage_sha256": coverage,
-            "status": str(item.get("status", "completed")),
-            "transport": str(item.get("transport", "unknown")),
+            "status": item["status"],
+            "transport": item["transport"],
         })
         if len(rows) >= _RECEIPT_LIMIT:
             break
     return rows, errors
+
+
+def _positive_count(value: object) -> bool:
+    """Return true when a nested evidence document contains a positive count."""
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, (int, float)):
+        return math.isfinite(value) and value > 0
+    if isinstance(value, Mapping):
+        return any(_positive_count(item) for item in value.values())
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        return any(_positive_count(item) for item in value)
+    return False
+
+
+def _measured_fuzz_seconds(run_result: Mapping[str, object]) -> float:
+    """Measure fuzz time before client drain, falling back to total run time."""
+    value = run_result.get("interrupt_elapsed_seconds",
+                           run_result.get("duration_seconds", 0))
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return 0.0
+    return float(value) if math.isfinite(value) and value >= 0 else 0.0
+
+
+def _campaign_evidence_gaps(
+    normal: Mapping[str, object], report: Mapping[str, object],
+    run_result: Mapping[str, object], receipt_errors: Sequence[object],
+) -> list[str]:
+    """List every unmet acceptance fact; callers use one gate for all exits."""
+    gaps: list[str] = []
+    receipts = report.get("fifo_reply_receipts", [])
+    if not receipts:
+        gaps.extend(("fifo_reply_receipt", "completed_fifo_receipt"))
+    if receipt_errors:
+        gaps.append("malformed_fifo_receipt")
+    if _measured_fuzz_seconds(run_result) < float(normal["duration_seconds"]):
+        gaps.append("requested_fuzz_duration")
+    execution = report.get("rtl_execution", {})
+    if not isinstance(execution, Mapping) or not _positive_count(
+            execution.get("coverage_records", 0)):
+        gaps.append("rtl_coverage")
+    transactions = report.get("source_target_transactions", {})
+    if not isinstance(transactions, Mapping) or not _positive_count(
+            transactions.get("source", {})):
+        gaps.append("source_transactions")
+    if not isinstance(transactions, Mapping) or not _positive_count(
+            transactions.get("target", {})):
+        gaps.append("target_transactions")
+    corpus = report.get("corpus", {})
+    if (not isinstance(corpus, Mapping) or corpus.get("status") != "verified"
+            or not _positive_count(corpus.get("entries", 0))):
+        gaps.append("verified_corpus")
+    transport = report.get("input_transport", {})
+    if not isinstance(transport, Mapping) or transport.get("status") != "observed":
+        gaps.append("input_transport_identity")
+    cleanup = report.get("cleanup", {})
+    if not isinstance(cleanup, Mapping) or cleanup.get("status") != "clean":
+        gaps.append("clean_cleanup")
+    replay = report.get("replay", {})
+    if (not isinstance(replay, Mapping) or replay.get("status") != "passed"
+            or not _positive_count(replay.get("entries", 0))):
+        gaps.append("rebuild_replay")
+    return sorted(set(gaps))
 
 
 def _live_report(live_dir: Path) -> dict[str, object] | None:
@@ -837,24 +906,20 @@ def run_soc_campaign(
             replay_dir = output / "rebuild"
             rebuilt = _call_forms(replay_builder, ((config, replay_dir), (replay_dir,), (config,), ()))
             replay = replay_corpus(rebuilt, live_dir / "corpus")
+            if not isinstance(replay, Mapping):
+                raise SocCampaignError("corpus replay did not return a mapping")
             report["replay"] = {
-                "status": "passed", "entries": replay.get("entries", 0),
+                "status": replay.get("status", "failed"),
+                "entries": replay.get("entries", 0),
                 "document": _plain(replay),
             }
         else:
             report["replay"] = {"status": "not-requested"}
         actual = report["rtl_execution"]
-        evidence_missing: list[str] = []
-        if not receipts:
-            evidence_missing.append("fifo_reply_receipt")
-        if int(report["corpus"].get("entries", 0)) < 1:
-            evidence_missing.append("retained_corpus")
-        if report["input_transport"].get("status") != "observed":
-            evidence_missing.append("input_transport_identity")
-        if report["cleanup"].get("status") != "clean":
-            evidence_missing.append("clean_cleanup")
-        if receipt_errors:
-            evidence_missing.append("malformed_fifo_receipt")
+        report["effective_fuzz_seconds"] = _measured_fuzz_seconds(run_result)
+        evidence_missing = _campaign_evidence_gaps(
+            normal, report, run_result, receipt_errors)
+        report["evidence_missing"] = evidence_missing
         if client_termination is not None:
             policy = client_termination.setdefault("policy", {})
             policy["missing"] = sorted(set(policy.get("missing", []))
