@@ -958,6 +958,42 @@ _LATE_RESPONSE_PROGRAM = """\
     $finish;
 """
 
+_CAPTURE_RESET_PROGRAM = """\
+    s_rsp_ready = 3'b111;
+    s_write = 3'b000;
+    s_instr = 3'b000;
+    s_be[0] = 4'hF;
+    s_addr[0] = 32'h1000_0010;
+    s_req_valid = 3'b001;
+    rsp_delay = 0;
+
+    i = 0;
+    while ((tgt_selects[0] == 0) && (i < 100)) begin tick(); i = i + 1; end
+    check(tgt_selects[0] == 1, "the target accepted the request");
+    s_req_valid = 3'b000;
+    i = 0;
+    while (!(t_rsp_valid[0] && !t_rsp_ready[0]) && (i < 100)) begin
+      tick(); i = i + 1;
+    end
+    check(t_rsp_valid[0] && !t_rsp_ready[0], "response is pending in WAIT_RSP");
+    tick();
+    check(t_rsp_valid[0] && t_rsp_ready[0], "router entered CAPTURE_RSP");
+
+    reset = 1'b1;
+    tick();
+    reset = 1'b0;
+    #1;
+    check(stale_pending && !req_ready,
+          "reset during CAPTURE_RSP quarantines the abandoned response");
+    check(t_rsp_valid[0] && t_rsp_ready[0],
+          "the quarantined response is ready to be drained");
+    tick();
+    check(!stale_pending && !t_rsp_valid[0], "the abandoned response was drained");
+    check(rsp_count[0] == 0, "the abandoned response never reached the source");
+    $display("PASS");
+    $finish;
+"""
+
 _WIDTH_STRICT_PROGRAM = """\
     beat_access(1'b0, 32'h100, 64'h0, 8'h0F);
     check(!last_error, "32-bit low lane read completes without error");
@@ -1303,6 +1339,13 @@ class SocFabricRtlTests(unittest.TestCase):
         _compile_and_run(
             self,
             _fabric_tb(_LATE_RESPONSE_PROGRAM, windows=WINDOWS_THREE_TARGETS),
+            [ARBITER, ROUTER],
+        )
+
+    def test_reset_during_capture_quarantines_old_response(self) -> None:
+        _compile_and_run(
+            self,
+            _fabric_tb(_CAPTURE_RESET_PROGRAM, windows=WINDOWS_THREE_TARGETS),
             [ARBITER, ROUTER],
         )
 

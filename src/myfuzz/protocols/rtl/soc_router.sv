@@ -234,7 +234,7 @@ module soc_router #(
             if (RESET_CLEARS_TARGETS) begin
                 stale_q <= 1'b0;
                 stale_target_q <= '0;
-            end else if (state_q == WAIT_RSP) begin
+            end else if ((state_q == WAIT_RSP) || (state_q == CAPTURE_RSP)) begin
                 stale_q <= 1'b1;
                 stale_target_q <= target_q;
             end
