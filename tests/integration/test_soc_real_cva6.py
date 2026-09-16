@@ -1,4 +1,4 @@
-"""CVA6 source-bound boundary checks; runtime remains unverified and opt-in."""
+"""CVA6 source-bound boundary and opt-in runtime acceptance checks."""
 from __future__ import annotations
 
 import json
@@ -18,17 +18,38 @@ from myfuzz.composition.cva6_source_closure import (
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / "configs/soc/cva6-pulp.json"
 INTERFACE = ROOT / "configs/cpus/cva6/official_core_interface_description.json"
+CVA6_RUNTIME_SOURCES = (
+    "src/myfuzz/composition/rtl/soc_cva6_pulp_core.sv",
+    "src/myfuzz/protocols/rtl/axi4_processor_memory_adapter.sv",
+    "src/myfuzz/protocols/rtl/processor_memory_backend.sv",
+    "src/myfuzz/protocols/rtl/soc_arbiter.sv",
+    "src/myfuzz/protocols/rtl/soc_router.sv",
+    "src/myfuzz/protocols/rtl/mmio_width_adapter.sv",
+    "src/myfuzz/protocols/rtl/processor_apb_bridge.sv",
+    "src/myfuzz/integration/rtl/riscv_boot_memory.sv",
+    "third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv",
+    "third_party/soc-pulp-apb-spi/apb_spi_master.sv",
+    "third_party/soc-pulp-apb-spi/spi_master_apb_if.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_clkgen.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_controller.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_fifo.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_rx.sv",
+    "third_party/soc-pulp-axi-spi/spi_master_tx.sv",
+)
 
 
 class Cva6BoundaryTests(unittest.TestCase):
-    def test_profile_is_rv64_axi4_and_rejects_unproven_fetch_bursts(self):
+    def test_profile_is_rv64_axi4_and_declares_supported_fetch_bursts(self):
         profile = json.loads(CONFIG.read_text(encoding="utf-8"))
         self.assertEqual(profile["cpu"]["xlen"], 64)
         self.assertEqual(profile["cpu"]["protocol"], ["axi4", "1"])
         self.assertEqual(profile["cpu"]["memory_boundary"]["container_request"], "noc_req_o")
         self.assertTrue(profile["cpu"]["memory_boundary"]["packed_members_compiler_proven"])
-        self.assertEqual(profile["cpu"]["memory_boundary"]["burst_policy"], "reject_non_single_beat")
-        self.assertFalse(profile["cpu"]["memory_boundary"]["fetch_burst_required"])
+        self.assertEqual(profile["cpu"]["memory_boundary"]["burst_policy"],
+                         "support_two_beat_reads")
+        self.assertTrue(profile["cpu"]["memory_boundary"]["fetch_burst_required"])
+        self.assertEqual(profile["cpu"]["memory_boundary"]["max_read_beats"], 2)
+        self.assertEqual(profile["cpu"]["memory_boundary"]["max_write_beats"], 1)
 
     def test_official_interface_keeps_all_packed_axi_fields_on_declared_containers(self):
         document = json.loads(INTERFACE.read_text(encoding="utf-8"))
@@ -160,6 +181,64 @@ class RealCva6OptInTests(unittest.TestCase):
                 command, cwd=ROOT, text=True, capture_output=True, timeout=180,
             )
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_source_bound_cva6_pulp_runtime_smoke(self):
+        """Run the pinned CVA6 through the real generic fabric and PULP GPIO."""
+        verilator = shutil.which("verilator")
+        self.assertIsNotNone(verilator, "Verilator is required for CVA6 runtime")
+        closure = resolve_cva6_source_closure(ROOT)
+        closure_sources = [ROOT / item for item in closure["source_files"]]
+        runtime_sources = [ROOT / item for item in CVA6_RUNTIME_SOURCES]
+        testbench = ROOT / "tests/integration/rtl/soc_cva6_pulp_tb.sv"
+        boot_image = ROOT / "tests/fixtures/soc_cva6_pulp_boot.hex"
+        self.assertTrue(all(path.is_file() for path in closure_sources),
+                        "CVA6 closure contains a missing source")
+        self.assertTrue(all(path.is_file() for path in runtime_sources),
+                        "CVA6 runtime closure contains a missing source")
+        self.assertTrue(testbench.is_file())
+        self.assertTrue(boot_image.is_file())
+        include_dirs = [ROOT / item for item in closure["include_dirs"]]
+        include_dirs.extend([
+            ROOT / "third_party/soc-pulp-apb-gpio/rtl",
+            ROOT / "third_party/soc-pulp-apb-spi",
+            ROOT / "third_party/soc-pulp-axi-spi",
+            ROOT / "src/myfuzz/composition/rtl",
+            ROOT / "src/myfuzz/protocols/rtl",
+            ROOT / "src/myfuzz/integration/rtl",
+        ])
+        warnings = [
+            "-Wno-fatal", "-Wno-DECLFILENAME", "-Wno-UNUSED",
+            "-Wno-UNOPTFLAT", "-Wno-IMPLICIT", "-Wno-PINMISSING",
+            "-Wno-CASEWITHX", "-Wno-WIDTH",
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            obj_dir = Path(directory) / "obj_dir"
+            command = [
+                str(verilator), "--binary", "--timing", "--language", "1800-2012",
+                "--top-module", "soc_cva6_pulp_tb", "-j", "2",
+                "--Mdir", str(obj_dir), *warnings,
+            ]
+            command.extend("-I" + str(path) for path in include_dirs)
+            command.extend(str(path) for path in closure_sources)
+            command.extend(str(path) for path in runtime_sources)
+            command.append(str(testbench))
+            compiled = subprocess.run(
+                command, cwd=ROOT, text=True, capture_output=True, timeout=240,
+            )
+            self.assertEqual(0, compiled.returncode,
+                             compiled.stdout + compiled.stderr)
+            binary = obj_dir / "Vsoc_cva6_pulp_tb"
+            self.assertTrue(binary.is_file(), "Verilator did not emit CVA6 smoke binary")
+            result = subprocess.run(
+                [str(binary), "+riscv_boot_image=" + str(boot_image)],
+                cwd=ROOT, text=True, capture_output=True, timeout=30,
+            )
+            output = result.stdout + result.stderr
+            self.assertEqual(0, result.returncode, output)
+            self.assertRegex(
+                output,
+                r"SOC_CVA6_PULP_REAL_OK cpu_tx=\d+ cpu_done=\d+ gpio=000000a5",
+            )
 
 
 if __name__ == "__main__":
