@@ -30,6 +30,7 @@ class RfuzzExecution:
     max_cycles: int | None = None
     server_artifact_id: str | None = None
     hard_memory_bytes: int | None = None
+    server_input_identity: str | None = None
 
     def __post_init__(self) -> None:
         path = self.design_config_path
@@ -51,6 +52,10 @@ class RfuzzExecution:
             r"sha256:[0-9a-f]{64}", self.server_artifact_id
         ) is None:
             raise ValueError("server_artifact_id must be a canonical SHA-256 content hash")
+        if self.server_input_identity is not None and re.fullmatch(
+            r"sha256:[0-9a-f]{64}", self.server_input_identity
+        ) is None:
+            raise ValueError("server_input_identity must be a canonical SHA-256 content hash")
         if self.hard_memory_bytes is not None and (
             isinstance(self.hard_memory_bytes, bool)
             or not isinstance(self.hard_memory_bytes, int)
@@ -211,6 +216,7 @@ class _PlannerConfig:
     budgets: tuple[_Budget, ...]
     mutation: tuple[tuple[str, int | bool | str], ...]
     runtime_policy: RuntimePolicy
+    native_input_identity: str | None = None
 
     @property
     def candidate_harness(self) -> str:
@@ -376,6 +382,12 @@ def _parse_config(config: object) -> _PlannerConfig:
     target_id = _string(target.get("target_id"), "target.target_id")
     config_path_value = document.get("config_path", "")
     config_path = "" if config_path_value == "" else _string(config_path_value, "config_path")
+    native_input_value = document.get("native_rfuzz_input_identity")
+    native_input_identity = (
+        None
+        if native_input_value is None
+        else _canonical_hash(native_input_value, "native_rfuzz_input_identity")
+    )
     design_config_path = _repository_relative_path(
         document.get("design_config_path"),
         "design_config_path",
@@ -456,6 +468,7 @@ def _parse_config(config: object) -> _PlannerConfig:
         budgets,
         mutation,
         runtime_policy,
+        native_input_identity,
     )
 
 
@@ -647,6 +660,7 @@ def _execution_document(execution: RfuzzExecution) -> dict[str, object]:
         "worker_count": execution.worker_count,
         "candidate_mode": execution.candidate_mode,
         "server_artifact_id": execution.server_artifact_id,
+        "server_input_identity": execution.server_input_identity,
         "seed": execution.seed,
         "fuzz_seconds": execution.fuzz_seconds,
         "max_cycles": execution.max_cycles,
@@ -726,6 +740,7 @@ def _make_job(
         worker_count=1,
         candidate_mode=_HARNESS_MODES[harness],
         server_artifact_id=build_job.artifact_id,
+        server_input_identity=config.native_input_identity,
         seed=seed,
         fuzz_seconds=budget.value if budget.kind == "seconds" else None,
         max_cycles=budget.value if budget.kind == "cycles" else None,
@@ -814,6 +829,7 @@ def _make_build_jobs(
                 "harness_content_hash": content,
                 "harness_abi_hash": abi,
                 "projection_plan_hash": projection,
+                "native_rfuzz_input_identity": config.native_input_identity,
             }
             artifact_id = content_hash(artifact_document)
             requested_mib = _requested_mib(candidate.estimated_rss_bytes)
@@ -824,6 +840,7 @@ def _make_build_jobs(
                 candidate_mode=_HARNESS_MODES[harness],
                 server_artifact_id=artifact_id,
                 hard_memory_bytes=config.runtime_policy.hard_memory_bytes,
+                server_input_identity=config.native_input_identity,
             )
             identity = {
                 "kind": JobKind.BUILD.value,

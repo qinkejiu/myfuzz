@@ -254,6 +254,18 @@ class ExperimentPlannerTest(unittest.TestCase):
                 )
                 self.assertNotEqual(baseline.plan_hash, current.plan_hash)
 
+    def test_native_rfuzz_input_identity_is_part_of_artifact_identity(self) -> None:
+        config, manifest = self.static_inputs()
+        config["native_rfuzz_input_identity"] = "sha256:" + "1" * 64
+        first = plan_experiment(config, [manifest])
+        config["native_rfuzz_input_identity"] = "sha256:" + "2" * 64
+        second = plan_experiment(config, [manifest])
+        self.assertNotEqual(first.build_jobs[0].artifact_id, second.build_jobs[0].artifact_id)
+        self.assertEqual(
+            "sha256:" + "2" * 64,
+            second.build_jobs[0].execution.server_input_identity,
+        )
+
     def test_static_planning_requires_a_manifest_record_with_artifact_hashes(self) -> None:
         config, manifest = self.static_inputs()
 

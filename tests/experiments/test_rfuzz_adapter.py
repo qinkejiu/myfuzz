@@ -28,6 +28,7 @@ def job(
     candidate_mode: str = "candidate_depaware",
     harness: str = "candidate-depaware",
     artifact_id: str | None = None,
+    input_identity: str | None = None,
     build_job_id: str = "",
 ) -> ExperimentJob:
     execution = RfuzzExecution(
@@ -36,6 +37,7 @@ def job(
         worker_count=1,
         candidate_mode=candidate_mode,
         server_artifact_id=artifact_id,
+        server_input_identity=input_identity,
         seed=19,
         fuzz_seconds=budget_value if budget_kind == "seconds" else None,
         max_cycles=budget_value if budget_kind == "cycles" else None,
@@ -171,6 +173,21 @@ class RfuzzAdapterTest(unittest.TestCase):
                     command[command.index("--candidate-mode") + 1],
                 )
 
+    def test_planned_commands_forward_native_rfuzz_input_identity(self) -> None:
+        config = json.loads((ROOT / "configs/experiments/rvx.json").read_text(encoding="utf-8"))
+        config["native_rfuzz_input_identity"] = "sha256:" + "9" * 64
+        manifest = json.loads(
+            (ROOT / "tests/fixtures/contracts/candidate_manifest.v1.valid.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        plan = plan_experiment(config, [manifest])
+        command = RfuzzAdapter(ROOT).command(plan.build_jobs[0])
+        self.assertEqual(
+            "sha256:" + "9" * 64,
+            command[command.index("--server-input-identity") + 1],
+        )
+
     def test_planned_build_and_fuzz_commands_forward_matrix_hard_memory(self) -> None:
         plan = static_plan()
 
@@ -265,6 +282,7 @@ class RfuzzAdapterTest(unittest.TestCase):
                 "third_party/rfuzz/rfuzz_flow/verilator/top.cpp",
                 "third_party/rfuzz/rfuzz_flow/verilator/fpga_queue.cpp",
                 "third_party/rfuzz/rfuzz_flow/verilator/fpga_queue.hpp",
+                "third_party/rfuzz/rfuzz_flow/verilator/fuzzer.hpp",
                 "third_party/rfuzz/rfuzz_flow/fuzzer/target/release/kfuzz",
             ),
             availability.missing_paths,
@@ -290,9 +308,24 @@ class RfuzzAdapterTest(unittest.TestCase):
                 "third_party/rfuzz/rfuzz_flow/verilator/top.cpp",
                 "third_party/rfuzz/rfuzz_flow/verilator/fpga_queue.cpp",
                 "third_party/rfuzz/rfuzz_flow/verilator/fpga_queue.hpp",
+                "third_party/rfuzz/rfuzz_flow/verilator/fuzzer.hpp",
             ),
             availability.missing_paths,
         )
+
+    def test_availability_rejects_symlinked_fixed_inputs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            root = Path(directory).resolve()
+            external = Path(outside) / "top.cpp"
+            external.write_text("// external\n", encoding="utf-8")
+            target = root / "third_party/rfuzz/rfuzz_flow/verilator/top.cpp"
+            target.parent.mkdir(parents=True)
+            target.symlink_to(external)
+
+            availability = RfuzzAdapter(root).availability()
+
+        self.assertFalse(availability.available)
+        self.assertIn("third_party/rfuzz/rfuzz_flow/verilator/top.cpp", availability.missing_paths)
 
 
 if __name__ == "__main__":

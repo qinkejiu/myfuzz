@@ -11,6 +11,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 TARGET = ROOT / "configs" / "designs" / "ibex_opentitan_real_ip"
 PREPARE_SCRIPT = TARGET / "scripts" / "prepare_sources.py"
+PILOT_SCRIPT = ROOT / "scripts" / "runs" / "run_ibex_opentitan_real_ip_pilot.py"
 EXPECTED_OPENTITAN_REVISION = "13a8919bceac625dbd1b6ad804e62f9bdeadee86"
 
 
@@ -18,6 +19,15 @@ def load_prepare_module():
     spec = importlib.util.spec_from_file_location("ibex_ot_prepare_sources", PREPARE_SCRIPT)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"cannot load {PREPARE_SCRIPT}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_pilot_module():
+    spec = importlib.util.spec_from_file_location("ibex_ot_pilot", PILOT_SCRIPT)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load {PILOT_SCRIPT}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -151,6 +161,23 @@ class IbexOpenTitanRealIpTargetTest(unittest.TestCase):
 
             result = parse_flist(outer, project)
             self.assertEqual(set(result.files), {top.resolve(), child.resolve()})
+
+    def test_pilot_rejects_different_coverage_universes(self) -> None:
+        pilot = load_pilot_module()
+        with self.assertRaisesRegex(RuntimeError, "coverage universe"):
+            pilot.validate_pair(
+                {"coverage_width": 10, "coverage_identity": "a"},
+                {"coverage_width": 10, "coverage_identity": "b"},
+            )
+
+    def test_pilot_summary_names_real_opentitan_revision(self) -> None:
+        pilot = load_pilot_module()
+        result = {"coverage_width": 10, "coverage_identity": "same"}
+        summary = pilot.build_summary(result, result)
+        self.assertEqual(summary["target"], "ibex_opentitan_real_ip")
+        self.assertEqual(
+            summary["opentitan_revision"], EXPECTED_OPENTITAN_REVISION
+        )
 
 
 if __name__ == "__main__":

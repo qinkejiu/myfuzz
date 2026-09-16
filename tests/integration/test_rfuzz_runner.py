@@ -200,6 +200,172 @@ class InstrumentationCoverageTest(unittest.TestCase):
             os.mkfifo(endpoint / "rx.fifo")
             self.assertTrue(run_design_flow.rfuzz_fifos_ready(fpga, ("0",)))
 
+    def test_original_rfuzz_endpoints_use_unique_fixed_parent_and_cleanup_exact_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = {"out_dir": root / "out", "server": root / "servers" / "artifact"}
+            ids = run_design_flow.original_rfuzz_server_ids(paths, 2, attempt=3, pid=41)
+            self.assertEqual(2, len(ids))
+            self.assertRegex(ids[0], r"^myfuzz-[0-9a-f]{12}-41-3-0$")
+            self.assertRegex(ids[1], r"^myfuzz-[0-9a-f]{12}-41-3-1$")
+            fifo_root = root / "fpga"
+            for server_id in ids:
+                endpoint = fifo_root / server_id
+                endpoint.mkdir(parents=True)
+                os.mkfifo(endpoint / "tx.fifo")
+                os.mkfifo(endpoint / "rx.fifo")
+            self.assertTrue(run_design_flow.rfuzz_fifos_ready(fifo_root, ids))
+            self.assertTrue(run_design_flow.cleanup_original_rfuzz_endpoints(fifo_root, ids))
+            self.assertFalse(fifo_root.exists())
+
+    def test_original_rfuzz_fuzzer_rejects_multiple_server_ids(self) -> None:
+        with self.assertRaisesRegex(ValueError, "exactly one server"):
+            run_design_flow.fuzz_server_count({"fuzz": {"server_count": 2}})
+
+    def test_original_rfuzz_fuzzer_requires_a_strict_single_server_integer(self) -> None:
+        for value in (True, 1.5, "1"):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "exactly one server"):
+                run_design_flow.fuzz_server_count({"fuzz": {"server_count": value}})
+
+    def test_write_json_rejects_existing_symlink_destination(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            root = Path(directory)
+            target = root / "result.json"
+            target.symlink_to(Path(outside) / "outside.json")
+            with self.assertRaisesRegex(ValueError, "output file"):
+                run_design_flow.write_json(target, {"safe": True})
+
+    def test_max_runs_is_a_valid_fuzz_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = {"out_dir": root / "out", "queue": root / "out" / "queue"}
+            paths["out_dir"].mkdir(parents=True)
+            with patch.object(run_design_flow, "build_fuzzer", return_value=root / "kfuzz"), patch.object(
+                run_design_flow,
+                "run_fuzz_attempt",
+                return_value=("ok", 0, -15, None, True, 1024, False),
+            ):
+                result = run_design_flow.stage_fuzz(
+                    root,
+                    {"fuzz": {"max_runs": 1}},
+                    root / "config.json",
+                    paths,
+                    None,
+                )
+        self.assertEqual(0, result["crash_restart_count"])
+
+    def test_queue_entry_sort_key_uses_numeric_entry_id(self) -> None:
+        entries = [Path("entry_10000.json"), Path("entry_9999.json")]
+        self.assertEqual(entries[0], max(entries, key=run_design_flow._queue_entry_sort_key))
+
+    def test_reproduce_script_uses_artifact_server_and_supported_input_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            crash = root / "crash"
+            crash.mkdir()
+            script_path = crash / "reproduce.sh"
+            run_design_flow.write_reproduce_script(
+                script_path,
+                root,
+                root / "config.json",
+                crash / "crash_input.json",
+                server_path=root / "out" / "server_artifacts" / ("a" * 64) / "server" / "server",
+                fuzzer_path=root / "third_party" / "rfuzz" / "upstream" / "target" / "release" / "kfuzz",
+                queue_snapshot=crash / "queue_snapshot",
+                server_id="myfuzz-aaaaaaaaaaaa-1-1-0",
+            )
+            script = script_path.read_text(encoding="utf-8")
+        self.assertIn("--input-directory", script)
+        self.assertNotIn("--replay-input", script)
+        self.assertNotIn("rm -rf", script)
+        self.assertIn("server_artifacts", script)
+
+    def test_vendor_latest_counts_accept_integral_json_floats_only(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            queue = Path(directory)
+            (queue / "latest.json").write_text(
+                json.dumps({
+                    "tests_per_second": {"global_numerator": 100212.0},
+                    "cycles_per_second": {"global_numerator": 352288.0},
+                }),
+                encoding="utf-8",
+            )
+            self.assertEqual((100212, 352288), run_design_flow._vendor_latest_counts(queue))
+            (queue / "latest.json").write_text(
+                json.dumps({
+                    "tests_per_second": {"global_numerator": 100212.5},
+                    "cycles_per_second": {"global_numerator": 352288.0},
+                }),
+                encoding="utf-8",
+            )
+            self.assertIsNone(run_design_flow._vendor_latest_counts(queue))
+
+    def test_seeded_fuzzing_requires_the_explicit_campaign_seed_fuzzer(self) -> None:
+        with self.assertRaisesRegex(ValueError, "campaign-seed"):
+            run_design_flow._validate_vendored_fuzz_config({"seed": 19}, Path("kfuzz"))
+
+        seeded = run_design_flow.seeded_fuzzer_path(Path("/repo"))
+        run_design_flow._validate_vendored_fuzz_config(
+            {"seed": 19, "fuzzer_path": seeded.relative_to(Path("/repo")).as_posix()},
+            seeded,
+        )
+
+    def test_stage_fuzz_does_not_count_infrastructure_failure_as_dut_crash(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = {"out_dir": root / "out", "queue": root / "out" / "queue"}
+            paths["out_dir"].mkdir()
+            with patch.object(run_design_flow, "build_fuzzer", return_value=root / "kfuzz"), patch.object(
+                run_design_flow,
+                "run_fuzz_attempt",
+                return_value=("infra", 17, -15, None, False, 1024, False),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "infrastructure"):
+                    run_design_flow.stage_fuzz(
+                        root,
+                        {"fuzz": {"max_cycles": 1}},
+                        root / "config.json",
+                        paths,
+                        None,
+                    )
+
+    def test_stage_fuzz_checks_endpoint_cleanup_under_runtime_lock(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fpga_root = root / "fpga"
+            fpga_root.mkdir()
+            paths = {"out_dir": root / "out", "queue": root / "out" / "queue"}
+            paths["out_dir"].mkdir()
+            runtime = patch.object(run_design_flow, "_original_rfuzz_runtime")
+            runtime_context = runtime.start()
+            runtime_context.return_value.__enter__.return_value = fpga_root
+            runtime_context.return_value.__exit__.return_value = False
+            try:
+                with patch.object(
+                    run_design_flow,
+                    "cleanup_original_rfuzz_endpoints",
+                    side_effect=AssertionError("cleanup must remain inside the runtime lock"),
+                ), patch.object(
+                    run_design_flow,
+                    "build_fuzzer",
+                    return_value=root / "kfuzz",
+                ), patch.object(
+                    run_design_flow,
+                    "run_fuzz_attempt",
+                    return_value=("ok", 0, 0, None),
+                ):
+                    result = run_design_flow.stage_fuzz(
+                        root,
+                        {"fuzz": {"max_cycles": 1}},
+                        root / "config.json",
+                        paths,
+                        None,
+                    )
+            finally:
+                runtime.stop()
+
+        self.assertTrue(result["fifo_cleanup_succeeded"])
+
     def test_stage_fuzz_retains_observed_crash_restart_count(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -372,6 +538,13 @@ class InstrumentationCoverageTest(unittest.TestCase):
                 "harness": root / "harness",
                 "server": root / "server",
             }
+            paths["instrumented"].mkdir()
+            (paths["instrumented"] / "top.sv").write_text(
+                "module top; output wire __vi_coverage; endmodule\n",
+                encoding="utf-8",
+            )
+            (paths["instrumented"] / "sources.f").write_text("top.sv\n", encoding="utf-8")
+            (paths["instrumented"] / "instrumentation.json").write_text("{}\n", encoding="utf-8")
             observed = {
                 "returncode": -15,
                 "peak_rss_bytes": 4096,
@@ -423,6 +596,7 @@ class RfuzzExperimentRunnerTest(unittest.TestCase):
         (verilator / "top.cpp").write_text("// fixture\n", encoding="utf-8")
         (verilator / "fpga_queue.cpp").write_text("// fixture\n", encoding="utf-8")
         (verilator / "fpga_queue.hpp").write_text("// fixture\n", encoding="utf-8")
+        (verilator / "fuzzer.hpp").write_text("// fixture\n", encoding="utf-8")
 
     def _fixture(
         self,
@@ -651,6 +825,9 @@ class RfuzzExperimentRunnerTest(unittest.TestCase):
                 "coverage": [{
                     "module": "top", "kind": "branch", "file": "top.sv", "line": 1,
                 }],
+                "module_coverage": [{
+                    "module": "top", "active": True, "coverage_width": 1,
+                }],
             }), encoding="utf-8")
             runner = RfuzzExperimentRunner(root, root / "runs" / "results")
             with patch("myfuzz.integration.rfuzz_runner.subprocess.run") as execute:
@@ -739,6 +916,9 @@ class RfuzzExperimentRunnerTest(unittest.TestCase):
                     "module": "top", "signal": "safe", "kind": "branch",
                     "file": "top.sv", "line": 1,
                 }],
+                "module_coverage": [{
+                    "module": "top", "active": True, "coverage_width": 1,
+                }],
             }
             instrumentation_path.write_text(
                 json.dumps(safe_document), encoding="utf-8"
@@ -751,6 +931,9 @@ class RfuzzExperimentRunnerTest(unittest.TestCase):
                 "coverage": [{
                     "module": "top", "signal": "outside", "kind": "branch",
                     "file": "outside.sv", "line": 1,
+                }],
+                "module_coverage": [{
+                    "module": "top", "active": True, "coverage_width": 1,
                 }],
             }), encoding="utf-8")
             saved = instrumented.with_name("instrumented-saved")

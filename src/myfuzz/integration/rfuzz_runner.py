@@ -6,6 +6,7 @@ import copy
 import json
 import math
 import os
+import re
 import secrets
 import stat
 import subprocess
@@ -30,6 +31,7 @@ _BUILD_KEYS = frozenset((
     "kind", "artifact_id", "server_path", "server_exists",
     "peak_rss_bytes", "resource_terminated",
 ))
+_BUILD_OPTIONAL_KEYS = frozenset(("input_identity", "verilator_version"))
 _FUZZ_KEYS = frozenset((
     "kind", "job_id", "artifact_id", "elapsed_seconds", "tests_executed", "cycles_executed",
     "coverage_point_count", "covered_point_ids", "peak_rss_bytes",
@@ -166,10 +168,16 @@ def _atomic_json_at(directory: int, name: str, document: object) -> None:
             pass
 
 
-def _closed_object(value: object, keys: frozenset[str], label: str) -> Mapping[str, object]:
+def _closed_object(
+    value: object,
+    keys: frozenset[str],
+    label: str,
+    *,
+    optional_keys: frozenset[str] = frozenset(),
+) -> Mapping[str, object]:
     if not isinstance(value, Mapping) or any(not isinstance(key, str) for key in value):
         raise ValueError(f"{label} must be an object")
-    if set(value) != keys:
+    if not set(value).issubset(keys | optional_keys) or not keys.issubset(value):
         raise ValueError(f"{label} fields do not match the published result schema")
     return value
 
@@ -269,7 +277,9 @@ class RfuzzExperimentRunner:
     def _build_result(
         self, job: ExperimentBuildJob, attempt: int, value: object
     ) -> BuildJobResult | ResourceCheckpointEvent:
-        document = _closed_object(value, _BUILD_KEYS, "build result")
+        document = _closed_object(
+            value, _BUILD_KEYS, "build result", optional_keys=_BUILD_OPTIONAL_KEYS
+        )
         if document["kind"] != "build":
             raise ValueError("build result kind must be build")
         if document["artifact_id"] != job.artifact_id:
@@ -277,6 +287,19 @@ class RfuzzExperimentRunner:
         peak = _uint(document["peak_rss_bytes"], "peak_rss_bytes", positive=True)
         if not isinstance(document["resource_terminated"], bool):
             raise ValueError("resource_terminated must be a boolean")
+        input_identity = document.get("input_identity")
+        if input_identity is not None and (
+            not isinstance(input_identity, str)
+            or re.fullmatch(r"sha256:[0-9a-f]{64}", input_identity) is None
+        ):
+            raise ValueError("build result input_identity must be a canonical SHA-256 content hash")
+        expected_identity = job.execution.server_input_identity
+        if not document["resource_terminated"] and expected_identity is not None:
+            if input_identity != expected_identity:
+                raise ValueError("build result input_identity does not match the job")
+        version = document.get("verilator_version")
+        if version is not None and (not isinstance(version, str) or not version):
+            raise ValueError("build result verilator_version must be a non-empty string")
         if document["resource_terminated"]:
             return ResourceCheckpointEvent(
                 job.job_id,
@@ -287,7 +310,12 @@ class RfuzzExperimentRunner:
             )
         if document["server_exists"] is not True:
             raise ValueError("build result did not observe the server artifact")
-        if not self._repository_file(document["server_path"], "server_path").is_file():
+        server_path = self._repository_file(document["server_path"], "server_path")
+        try:
+            metadata = server_path.lstat()
+        except OSError as error:
+            raise ValueError("build result server_path does not exist") from error
+        if server_path.is_symlink() or not stat.S_ISREG(metadata.st_mode):
             raise ValueError("build result server_path does not exist")
         return BuildJobResult(job.job_id, attempt, job.artifact_id)
 
