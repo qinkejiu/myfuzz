@@ -1,0 +1,39 @@
+{
+  "name": "ibex_opentitan_real_ip_baseline_direct_slice",
+  "description": "Ibex with official OpenTitan UART, GPIO, and RV timer using direct fixed-slice external inputs.",
+  "top": "ibex_opentitan_real_ip_top",
+  "project_root": ".",
+  "flist": "configs/designs/ibex_opentitan_real_ip/rtl/sources.f",
+  "out_dir": "runs/designs/ibex_opentitan_real_ip_baseline_direct_slice",
+  "coverage_port": "__vi_coverage",
+  "signal_prefix": "__vi_branch_cov",
+  "instrumentation": {
+    "coverage_port": "__vi_coverage",
+    "signal_prefix": "__vi_branch_cov",
+    "branch": {"if": true, "case": true},
+    "statement": {"block_enter": false},
+    "loop": {"body": false},
+    "hierarchy": {"propagate_to_top": true}
+  },
+  "harness": {
+    "manual_harness": "configs/designs/ibex_opentitan_real_ip/harness/ibex_ot_baseline_direct_slice_harness.sv",
+    "manual_harness_module": "ibex_ot_baseline_direct_slice_harness"
+  },
+  "server": {
+    "extra_verilator_sources": [
+      "configs/designs/ibex_opentitan_real_ip/harness/ibex_ot_baseline_direct_slice_harness.sv"
+    ]
+  },
+  "verilator_args": [
+    "-DSYNTHESIS",
+    "-Wno-WIDTHEXPAND",
+    "-Wno-WIDTHTRUNC",
+    "-Wno-MULTIDRIVEN",
+    "-Wno-PINMISSING"
+  ],
+  "baseline_policy": {
+    "input_mapping": "fixed_slice",
+    "dependency_projection": false,
+    "dut_feedback": false
+  }
+}

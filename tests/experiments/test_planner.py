@@ -6,12 +6,20 @@ import json
 import os
 import tempfile
 import unittest
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, replace
 from pathlib import Path
 from unittest.mock import patch
 
 from myfuzz.contracts import ContractError, canonical_bytes
-from myfuzz.experiments import ExperimentPlanError, Job, JobKind, plan_experiment, run_job
+from myfuzz.experiments import (
+    CandidatePairIdentity,
+    ExperimentPlanError,
+    Job,
+    JobKind,
+    plan_experiment,
+    resolve_build_prerequisite,
+    run_job,
+)
 from myfuzz.experiments import planner as planner_module
 
 
@@ -38,6 +46,23 @@ class ExperimentPlannerTest(unittest.TestCase):
         self.rvx = load_json(CONFIGS / "rvx.json")
         self.ibex = load_json(CONFIGS / "ibex_opentitan.json")
         self.manifest = candidate_manifest()
+
+    def static_inputs(self) -> tuple[dict[str, object], dict[str, object]]:
+        config = copy.deepcopy(self.rvx)
+        config["harness_groups"] = [
+            "flat-direct",
+            "candidate-direct",
+            "candidate-static",
+        ]
+        config["coverage"]["comparisons"][0]["right_harness"] = "candidate-static"
+        manifest = copy.deepcopy(self.manifest)
+        manifest["harnesses"]["candidate-static"] = {
+            "raw_width": 1,
+            "content_hash": "sha256:" + "a" * 64,
+            "abi_hash": "sha256:" + "b" * 64,
+            "projection_plan_hash": "sha256:" + "c" * 64,
+        }
+        return config, manifest
 
     def test_checked_in_configs_declare_the_bounded_experiment_contract(self) -> None:
         required_budgets = (
@@ -115,7 +140,15 @@ class ExperimentPlannerTest(unittest.TestCase):
         self.assertEqual(1, len(plan.fairness.candidate_pair_identities))
         identity = plan.fairness.candidate_pair_identities[0]
         self.assertEqual(self.manifest["candidate_id"], identity.candidate_id)
+        self.assertEqual("candidate-depaware", identity.candidate_harness)
         self.assertEqual(identity.direct, identity.depaware)
+        compatible_identity = CandidatePairIdentity(
+            candidate_id=identity.candidate_id,
+            candidate_harness="candidate-depaware",
+            direct=identity.direct,
+            candidate=identity.candidate,
+        )
+        self.assertEqual(compatible_identity.depaware, compatible_identity.candidate)
         self.assertEqual(plan.jobs[1].raw_width, identity.direct.raw_width)
         self.assertEqual(
             plan.jobs[1].instrumented_rtl_hash,
@@ -136,6 +169,241 @@ class ExperimentPlannerTest(unittest.TestCase):
         with self.assertRaises(FrozenInstanceError):
             plan.plan_hash = "changed"
 
+    def test_static_candidate_is_planned_with_its_own_artifact_identity(self) -> None:
+        config, manifest = self.static_inputs()
+
+        plan = plan_experiment(config, [manifest])
+
+        self.assertEqual(
+            {"flat-direct", "candidate-direct", "candidate-static"},
+            {job.harness for job in plan.jobs},
+        )
+        static_jobs = [job for job in plan.jobs if job.harness == "candidate-static"]
+        self.assertTrue(static_jobs)
+        self.assertEqual({"candidate_static"}, {job.execution.candidate_mode for job in static_jobs})
+        self.assertEqual({"sha256:" + "a" * 64}, {job.harness_content_hash for job in static_jobs})
+        self.assertEqual({"sha256:" + "c" * 64}, {job.projection_plan_hash for job in static_jobs})
+        self.assertEqual(
+            plan.fairness.candidate_pair_identities[0].direct,
+            plan.fairness.candidate_pair_identities[0].candidate,
+        )
+        self.assertEqual(
+            "candidate-static",
+            plan.fairness.candidate_pair_identities[0].candidate_harness,
+        )
+        with self.assertRaises(AttributeError):
+            _ = plan.fairness.candidate_pair_identities[0].depaware
+
+        for seed in (1, 7, 19):
+            for budget in (("cycles", 1_000), ("seconds", 300), ("seconds", 3_600)):
+                pair = {
+                    job.harness: job
+                    for job in plan.jobs
+                    if job.seed == seed
+                    and (job.budget_kind, job.budget_value) == budget
+                    and job.harness != "flat-direct"
+                }
+                direct = pair["candidate-direct"]
+                static = pair["candidate-static"]
+                self.assertEqual(direct.raw_width, static.raw_width)
+                self.assertEqual(direct.instrumented_rtl_hash, static.instrumented_rtl_hash)
+                self.assertEqual(direct.coverage_universe, static.coverage_universe)
+                self.assertEqual(direct.coverage_metadata_hash, static.coverage_metadata_hash)
+                self.assertEqual(direct.mutation, static.mutation)
+                self.assertEqual(direct.seed, static.seed)
+                self.assertEqual(direct.budget_name, static.budget_name)
+                self.assertEqual(direct.budget_kind, static.budget_kind)
+                self.assertEqual(direct.budget_value, static.budget_value)
+
+        builds = {job.job_id: job for job in plan.build_jobs}
+        direct_ids = {job.build_job_id for job in plan.jobs if job.harness == "candidate-direct"}
+        static_ids = {job.build_job_id for job in plan.jobs if job.harness == "candidate-static"}
+        self.assertEqual(1, len(direct_ids))
+        self.assertEqual(1, len(static_ids))
+        self.assertTrue(direct_ids.isdisjoint(static_ids))
+        self.assertEqual({"candidate-direct"}, {builds[value].harness for value in direct_ids})
+        self.assertEqual({"candidate-static"}, {builds[value].harness for value in static_ids})
+        self.assertEqual(3, len(plan.build_jobs))
+        for fuzz_job in plan.jobs:
+            build = builds[fuzz_job.build_job_id]
+            self.assertEqual(fuzz_job.harness, build.harness)
+            self.assertEqual(fuzz_job.execution.candidate_mode, build.execution.candidate_mode)
+            self.assertEqual(build.artifact_id, fuzz_job.execution.server_artifact_id)
+            self.assertEqual(build, resolve_build_prerequisite(plan, fuzz_job))
+
+    def test_static_content_and_projection_change_artifact_and_build_identity(self) -> None:
+        config, manifest = self.static_inputs()
+        baseline = plan_experiment(config, [manifest])
+        baseline_static = next(job for job in baseline.build_jobs if job.harness == "candidate-static")
+
+        for field, marker in (
+            ("content_hash", "d"),
+            ("abi_hash", "e"),
+            ("projection_plan_hash", "f"),
+        ):
+            changed = copy.deepcopy(manifest)
+            changed["harnesses"]["candidate-static"][field] = "sha256:" + marker * 64
+            current = plan_experiment(config, [changed])
+            current_static = next(job for job in current.build_jobs if job.harness == "candidate-static")
+            with self.subTest(field=field):
+                self.assertNotEqual(baseline_static.artifact_id, current_static.artifact_id)
+                self.assertNotEqual(baseline_static.job_id, current_static.job_id)
+                self.assertNotEqual(
+                    {job.candidate_hash for job in baseline.execution_jobs},
+                    {job.candidate_hash for job in current.execution_jobs},
+                )
+                self.assertNotEqual(baseline.plan_hash, current.plan_hash)
+
+    def test_native_rfuzz_input_identity_is_part_of_artifact_identity(self) -> None:
+        config, manifest = self.static_inputs()
+        config["native_rfuzz_input_identity"] = "sha256:" + "1" * 64
+        first = plan_experiment(config, [manifest])
+        config["native_rfuzz_input_identity"] = "sha256:" + "2" * 64
+        second = plan_experiment(config, [manifest])
+        self.assertNotEqual(first.build_jobs[0].artifact_id, second.build_jobs[0].artifact_id)
+        self.assertEqual(
+            "sha256:" + "2" * 64,
+            second.build_jobs[0].execution.server_input_identity,
+        )
+
+    def test_static_planning_requires_a_manifest_record_with_artifact_hashes(self) -> None:
+        config, manifest = self.static_inputs()
+
+        missing_record = copy.deepcopy(manifest)
+        del missing_record["harnesses"]["candidate-static"]
+        with self.assertRaisesRegex(ExperimentPlanError, "candidate-static harness record"):
+            plan_experiment(config, [missing_record])
+
+        for field in ("content_hash", "abi_hash"):
+            missing_hash = copy.deepcopy(manifest)
+            del missing_hash["harnesses"]["candidate-static"][field]
+            with self.subTest(field=field), self.assertRaisesRegex(
+                ExperimentPlanError,
+                rf"candidate-static.{field}",
+            ):
+                plan_experiment(config, [missing_hash])
+
+        for field in ("content_hash", "abi_hash", "projection_plan_hash"):
+            malformed_hash = copy.deepcopy(manifest)
+            malformed_hash["harnesses"]["candidate-static"][field] = "not-a-hash"
+            with self.subTest(malformed=field), self.assertRaisesRegex(
+                ContractError,
+                rf"candidate_manifest\.v1:harnesses:candidate-static:{field}:invalid-hash",
+            ):
+                plan_experiment(config, [malformed_hash])
+
+    def test_build_prerequisite_resolution_fails_closed(self) -> None:
+        plan = plan_experiment(self.rvx, [self.manifest])
+        fuzz_job = next(job for job in plan.jobs if job.harness == "candidate-direct")
+        build = resolve_build_prerequisite(plan, fuzz_job)
+
+        legacy = replace(fuzz_job, build_job_id="")
+        self.assertEqual(build, resolve_build_prerequisite(plan, legacy))
+
+        legacy_build = replace(
+            build,
+            harness="",
+            artifact_id="",
+            execution=replace(
+                build.execution,
+                candidate_mode=None,
+                server_artifact_id=None,
+            ),
+        )
+        legacy_fuzz = replace(
+            fuzz_job,
+            build_job_id="",
+            execution=replace(fuzz_job.execution, server_artifact_id=None),
+        )
+        legacy_plan = replace(plan, build_jobs=(legacy_build,))
+        self.assertEqual(
+            legacy_build,
+            resolve_build_prerequisite(legacy_plan, legacy_fuzz),
+        )
+
+        duplicate = replace(build, job_id="build-duplicate")
+        ambiguous = replace(plan, build_jobs=plan.build_jobs + (duplicate,))
+        with self.assertRaisesRegex(ExperimentPlanError, "resolve exactly once"):
+            resolve_build_prerequisite(ambiguous, legacy)
+
+        with self.assertRaisesRegex(ExperimentPlanError, "resolve exactly once"):
+            resolve_build_prerequisite(plan, replace(fuzz_job, build_job_id="build-missing"))
+
+        wrong_harness = next(job for job in plan.build_jobs if job.harness == "flat-direct")
+        with self.assertRaisesRegex(ExperimentPlanError, "harness does not match"):
+            resolve_build_prerequisite(plan, replace(fuzz_job, build_job_id=wrong_harness.job_id))
+
+        with self.assertRaisesRegex(ExperimentPlanError, "harness_content_hash does not match"):
+            resolve_build_prerequisite(
+                plan,
+                replace(fuzz_job, harness_content_hash="sha256:" + "f" * 64),
+            )
+
+        mismatched_execution = replace(
+            fuzz_job.execution,
+            server_artifact_id="sha256:" + "f" * 64,
+        )
+        with self.assertRaisesRegex(ExperimentPlanError, "server artifact ID does not match"):
+            resolve_build_prerequisite(plan, replace(fuzz_job, execution=mismatched_execution))
+
+        mismatched_mode = replace(fuzz_job.execution, candidate_mode="candidate_static")
+        with self.assertRaisesRegex(ExperimentPlanError, "candidate mode does not match"):
+            resolve_build_prerequisite(plan, replace(fuzz_job, execution=mismatched_mode))
+
+        mismatched_build_execution = replace(
+            build.execution,
+            server_artifact_id="sha256:" + "f" * 64,
+        )
+        mismatched_build = replace(build, execution=mismatched_build_execution)
+        mismatched_plan = replace(
+            plan,
+            build_jobs=tuple(
+                mismatched_build if item.job_id == build.job_id else item
+                for item in plan.build_jobs
+            ),
+        )
+        with self.assertRaisesRegex(ExperimentPlanError, "build execution server artifact ID"):
+            resolve_build_prerequisite(mismatched_plan, fuzz_job)
+
+    def test_explicit_build_prerequisite_cannot_rebind_across_candidates(self) -> None:
+        plan = plan_experiment(
+            self.rvx,
+            [candidate_manifest("candidate-a"), candidate_manifest("candidate-b")],
+        )
+        fuzz_a = next(
+            job
+            for job in plan.jobs
+            if job.candidate_id == "candidate-a" and job.harness == "candidate-direct"
+        )
+        build_b = next(
+            job
+            for job in plan.build_jobs
+            if job.candidate_id == "candidate-b" and job.harness == fuzz_a.harness
+        )
+        rebound = replace(
+            fuzz_a,
+            build_job_id=build_b.job_id,
+            execution=replace(
+                fuzz_a.execution,
+                server_artifact_id=build_b.artifact_id,
+            ),
+        )
+
+        with self.assertRaisesRegex(ExperimentPlanError, "candidate_hash does not match"):
+            resolve_build_prerequisite(plan, rebound)
+
+        forged_candidate_identity = replace(
+            rebound,
+            candidate_hash=build_b.candidate_hash,
+            build_cache_key=build_b.build_cache_key,
+        )
+        with self.assertRaisesRegex(ExperimentPlanError, "candidate_id does not match"):
+            resolve_build_prerequisite(plan, forged_candidate_identity)
+
+        wrong_target = replace(fuzz_a, target_id="different-target")
+        with self.assertRaisesRegex(ExperimentPlanError, "target_id does not match"):
+            resolve_build_prerequisite(plan, wrong_target)
+
     def test_jobs_are_directly_runnable_by_b7_and_build_prerequisites_are_exposed(self) -> None:
         measured = copy.deepcopy(self.manifest)
         measured["resources"]["peak_rss_bytes"] = 1024 * 1024
@@ -143,12 +411,13 @@ class ExperimentPlannerTest(unittest.TestCase):
 
         self.assertEqual(27, len(plan.jobs))
         self.assertTrue(all(isinstance(job, Job) and job.kind is JobKind.FUZZ for job in plan.jobs))
-        self.assertEqual(1, len(plan.build_jobs))
+        self.assertEqual(3, len(plan.build_jobs))
         self.assertTrue(all(isinstance(job, Job) and job.kind is JobKind.BUILD for job in plan.build_jobs))
         self.assertTrue(all(job.gate_name == "build" and job.worker_limit == 1 for job in plan.build_jobs))
         self.assertTrue(all(job.execution.stage == "server" for job in plan.build_jobs))
         self.assertTrue(all(job.execution.worker_count == 1 for job in plan.build_jobs))
         self.assertTrue(all(job.execution.stage == "fuzz" for job in plan.jobs))
+        self.assertTrue(all(job.build_job_id for job in plan.jobs))
         self.assertEqual(
             {self.rvx["design_config_path"]},
             {job.execution.design_config_path for job in plan.execution_jobs},
@@ -406,6 +675,24 @@ class ExperimentPlannerTest(unittest.TestCase):
 
         with self.assertRaises(ContractError):
             plan_experiment(self.rvx, [invalid])
+
+    def test_manifest_contract_rejects_malformed_harness_identity_hashes(self) -> None:
+        malformed_values = (
+            ("flat-direct", "content_hash", "not-a-hash"),
+            ("candidate-direct", "abi_hash", "also-not-a-hash"),
+            ("candidate-depaware", "projection_plan_hash", "sha256:short"),
+            ("flat-direct", "content_hash", None),
+            ("candidate-direct", "abi_hash", None),
+            ("candidate-depaware", "projection_plan_hash", None),
+        )
+        for harness, field, value in malformed_values:
+            invalid = copy.deepcopy(self.manifest)
+            invalid["harnesses"][harness] = {field: value}
+            with self.subTest(harness=harness, field=field, value=value), self.assertRaisesRegex(
+                ContractError,
+                rf"candidate_manifest\.v1:harnesses:{harness}:{field}:invalid-hash",
+            ):
+                plan_experiment(self.rvx, [invalid])
 
     def test_duplicate_candidate_ids_are_rejected(self) -> None:
         with self.assertRaisesRegex(ExperimentPlanError, "candidate IDs must be unique"):

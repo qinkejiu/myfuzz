@@ -22,6 +22,8 @@ from .abi import RawBitAbi
 from .depaware import build_depaware
 from .direct import HarnessArtifact, build_direct
 from .projection import CanonicalByteEnable, ProjectionPlan, build_projection_plan
+from .static_policy import StaticPolicyParameters, compile_static_policy
+from .static_projection import build_static_harness
 
 
 def _object(value: object, label: str) -> Mapping[str, object]:
@@ -1208,13 +1210,16 @@ class HarnessBundle:
     composition_ir_hash: str = field(compare=False)
     input_manifest_hash: str = field(compare=False)
     build_cache_key: str
+    candidate_static: HarnessArtifact | None = None
 
     def manifest_fragment(self) -> dict[str, object]:
-        artifacts = (
+        artifacts = [
             ("flat-direct", self.flat_direct),
             ("candidate-direct", self.candidate_direct),
             ("candidate-depaware", self.candidate_depaware),
-        )
+        ]
+        if self.candidate_static is not None:
+            artifacts.append(("candidate-static", self.candidate_static))
         graph_document = _graph_document(self.dependency_graph)
         harnesses = {name: artifact.manifest_fragment() for name, artifact in artifacts}
         return {
@@ -1282,7 +1287,7 @@ def _atomic_write(path: Path, text: str) -> None:
 
 
 def write_harness_bundle(bundle: HarnessBundle, output_dir: Path) -> dict[str, Path]:
-    """Atomically materialize the five canonical bundle files."""
+    """Atomically materialize five files, plus candidate-static when requested."""
     if not isinstance(bundle, HarnessBundle):
         raise TypeError("bundle must be a HarnessBundle")
     if not isinstance(output_dir, Path):
@@ -1293,18 +1298,23 @@ def write_harness_bundle(bundle: HarnessBundle, output_dir: Path) -> dict[str, P
         "candidate-direct.sv": bundle.candidate_direct.source_text,
         "candidate-depaware.sv": bundle.candidate_depaware.source_text,
     }
+    if bundle.candidate_static is not None:
+        sources["candidate-static.sv"] = bundle.candidate_static.source_text
     graph_document = _graph_document(bundle.dependency_graph)
     fragment = bundle.manifest_fragment()
-    for name in ("flat-direct", "candidate-direct", "candidate-depaware"):
+    for name in fragment["harnesses"]:
         fragment["harnesses"][name]["source"] = f"{name}.sv"
     fragment["dependency_graph"]["source"] = "dependency_graph.v1.json"
-    fragment["files"] = {
+    files = {
         "flat-direct": "flat-direct.sv",
         "candidate-direct": "candidate-direct.sv",
         "candidate-depaware": "candidate-depaware.sv",
         "dependency_graph": "dependency_graph.v1.json",
         "manifest_fragment": "harness_manifest_fragment.json",
     }
+    if bundle.candidate_static is not None:
+        files["candidate-static"] = "candidate-static.sv"
+    fragment["files"] = files
     json_documents = {
         "dependency_graph.v1.json": graph_document,
         "harness_manifest_fragment.json": fragment,
@@ -1314,6 +1324,8 @@ def write_harness_bundle(bundle: HarnessBundle, output_dir: Path) -> dict[str, P
     for filename, document in json_documents.items():
         text = json.dumps(document, sort_keys=True, indent=2, ensure_ascii=True) + "\n"
         _atomic_write(output_dir / filename, text)
+    if bundle.candidate_static is None:
+        (output_dir / "candidate-static.sv").unlink(missing_ok=True)
     filenames = tuple((*sources, *json_documents))
     return {filename: output_dir / filename for filename in filenames}
 
@@ -1325,8 +1337,12 @@ def compile_harness_bundle(
     protocols: Mapping[str, ProtocolPlugin],
     *,
     active_view: ActiveDependencyView | None = None,
+    static_declarations: Mapping[str, object] | None = None,
+    static_parameters: StaticPolicyParameters | None = None,
 ) -> HarnessBundle:
-    """Compile three distinct harness modes after strict runtime compatibility checks."""
+    """Compile direct, dependency-aware, and static harness modes after validation."""
+    if (static_declarations is None) != (static_parameters is None):
+        raise ValueError("static declarations and parameters must be provided together")
     validate_contract(hdl_facts, "hdl_facts.v2")
     validate_contract(composition_ir, "composition_ir.v1")
     validate_contract(candidate_manifest, "candidate_manifest.v1")
@@ -1390,11 +1406,28 @@ def compile_harness_bundle(
         active_view,
     )
     candidate_depaware = build_depaware(harness_manifest, plan)
+    candidate_static = None
+    if static_declarations is not None and static_parameters is not None:
+        static_plan = compile_static_policy(
+            candidate_direct.abi,
+            static_declarations,
+            static_parameters,
+        )
+        candidate_static = build_static_harness(harness_manifest, static_plan)
     if not (
         candidate_direct.raw_width == candidate_depaware.raw_width
         and candidate_direct.top_content_hash == candidate_depaware.top_content_hash
         and candidate_direct.coverage_universe_id
         == candidate_depaware.coverage_universe_id
+        and (
+            candidate_static is None
+            or (
+                candidate_direct.raw_width == candidate_static.raw_width
+                and candidate_direct.abi.abi_hash == candidate_static.abi.abi_hash
+                and candidate_direct.candidate_id == candidate_static.candidate_id
+                and candidate_direct.coverage_universe_id == candidate_static.coverage_universe_id
+            )
+        )
     ):
         raise ValueError("candidate harness identity is not shared across the comparison pair")
     return HarnessBundle(
@@ -1419,4 +1452,5 @@ def compile_harness_bundle(
             manifest.get("build_cache_key"),
             "candidate_manifest.build_cache_key",
         ),
+        candidate_static=candidate_static,
     )

@@ -1,0 +1,31 @@
+{
+  "name": "ibex_opentitan_real_ip_static_projection",
+  "description": "Real Ibex and OpenTitan common-IP target with global static semantic projection.",
+  "top": "ibex_opentitan_real_ip_top",
+  "project_root": ".",
+  "flist": "configs/designs/ibex_opentitan_real_ip/rtl/sources.f",
+  "out_dir": "runs/designs/ibex_opentitan_real_ip_static_projection",
+  "coverage_port": "__vi_coverage",
+  "signal_prefix": "__vi_branch_cov",
+  "instrumentation": {
+    "coverage_port": "__vi_coverage",
+    "signal_prefix": "__vi_branch_cov",
+    "branch": {"if": true, "case": true},
+    "statement": {"block_enter": false},
+    "loop": {"body": false},
+    "hierarchy": {"propagate_to_top": true}
+  },
+  "candidate_manifest": "configs/designs/ibex_opentitan_real_ip/static_projection/candidate_manifest.json",
+  "portfolio": "static_projection.PORTFOLIO",
+  "static_projection": {
+    "declarations": {
+      "legal_set": [{"action_id": 1, "destination_id": 5, "values": [0, 1]}],
+      "rarity_fold": [
+        {"action_id": 2, "destination_id": 6, "fold_bits": [0]},
+        {"action_id": 3, "destination_id": 7, "fold_bits": [1]},
+        {"action_id": 4, "destination_id": 8, "fold_bits": [2]}
+      ]
+    }
+  },
+  "verilator_args": ["-DSYNTHESIS", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC", "-Wno-CASEINCOMPLETE"]
+}

@@ -38,7 +38,7 @@ class LowResourceSmokeCliTests(unittest.TestCase):
 
             self.assertEqual(0, completed.returncode, completed.stderr)
             self.assertIn("profile=conservative", completed.stdout)
-            self.assertIn("build_jobs=1", completed.stdout)
+            self.assertIn("build_jobs=3", completed.stdout)
             self.assertIn("fuzz_jobs=3", completed.stdout)
             document = json.loads(report.read_text(encoding="utf-8"))
             self.assertEqual("experiment_report.v1", document["report"]["schema_version"])

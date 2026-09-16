@@ -8,6 +8,7 @@ from .experiment_matrix import (
     ResourceCheckpointEvent,
     ResourceTerminatedError,
     RunnerResult,
+    matrix_promotion_pairs,
     run_experiment_matrix,
 )
 from .pipeline import GenerationRequest, RuntimeRequest, run_candidate_pipeline
@@ -20,6 +21,7 @@ from .campaign import (
     read_rss_bytes,
     run_supervised_command,
 )
+from .rfuzz_runner import RfuzzExperimentRunner
 from .reference_adapter import (
     GeneratorCommand,
     GeneratorFlag,
@@ -83,6 +85,7 @@ __all__ = [
     "RiscvExecutionError",
     "RiscvExecutionFacts",
     "RiscvExecutionProvenance",
+    "RfuzzExperimentRunner",
     "ResourceCheckpointEvent",
     "ResourceTerminatedError",
     "RunnerResult",
@@ -92,6 +95,7 @@ __all__ = [
     "build_minimal_boot_image",
     "build_protocol_blocker",
     "build_run_manifest",
+    "matrix_promotion_pairs",
     "run_candidate_pipeline",
     "run_experiment_matrix",
     "run_low_resource_smoke",

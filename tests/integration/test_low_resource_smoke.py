@@ -42,7 +42,7 @@ class LowResourceSmokeTests(unittest.TestCase):
             self.assertEqual("passed", result["status"])
             self.assertEqual("conservative", result["profile"])
             self.assertEqual(1, result["candidate_count"])
-            self.assertEqual(1, result["build_jobs"])
+            self.assertEqual(3, result["build_jobs"])
             self.assertEqual(3, result["fuzz_jobs"])
             self.assertEqual(
                 [{"protocol_id": "ready-valid-mmio", "version": "1"}],

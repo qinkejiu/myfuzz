@@ -1,0 +1,26 @@
+{
+  "name": "rvx_multicomponent_depaware_projection",
+  "description": "Pinned upstream RVX CPU and submodules with dependency-aware time-varying external events.",
+  "top": "rvx",
+  "project_root": ".",
+  "flist": "configs/designs/rvx_multicomponent/rtl/sources.f",
+  "out_dir": "runs/designs/rvx_multicomponent_depaware_projection",
+  "coverage_port": "__vi_coverage",
+  "signal_prefix": "__vi_branch_cov",
+  "instrumentation": {
+    "coverage_port": "__vi_coverage",
+    "signal_prefix": "__vi_branch_cov",
+    "branch": {"if": true, "case": true},
+    "statement": {"block_enter": false},
+    "loop": {"body": false},
+    "hierarchy": {"propagate_to_top": true}
+  },
+  "harness": {
+    "manual_harness": "configs/designs/rvx_multicomponent/harness/rvx_depaware_projection_harness.sv",
+    "manual_harness_module": "rvx_depaware_projection_harness"
+  },
+  "server": {
+    "extra_verilator_sources": ["configs/designs/rvx_multicomponent/harness/rvx_depaware_projection_harness.sv"]
+  },
+  "verilator_args": ["-DSYNTHESIS", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC", "-Wno-CASEINCOMPLETE"]
+}

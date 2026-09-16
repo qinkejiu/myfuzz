@@ -107,6 +107,9 @@ class CandidateRuntimePipelineTest(unittest.TestCase):
         self.assertIsNotNone(bundle.candidate_depaware.projection_plan)
         self.assertNotEqual(bundle.candidate_direct.source_text, bundle.candidate_depaware.source_text)
         self.assertRegex(bundle.dependency_graph_hash, r"^sha256:[0-9a-f]{64}$")
+        for record in runtime.manifest_fragment["harnesses"].values():
+            self.assertRegex(record["content_hash"], r"^sha256:[0-9a-f]{64}$")
+            self.assertRegex(record["abi_hash"], r"^sha256:[0-9a-f]{64}$")
 
         plan = runtime.experiment_plan
         self.assertEqual(27, len(plan.jobs))

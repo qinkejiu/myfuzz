@@ -5,18 +5,23 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import io
 import json
 import re
 from pathlib import Path
 
+GENERATED_TIMESTAMP = "1970-01-01T00:00:00+00:00"
+
 
 try:
     from myfuzz.harness.abi import manifest_ports, selected_ports
+    from myfuzz.original_rfuzz import write_text_file
 except ModuleNotFoundError:  # direct script execution without PYTHONPATH=src
     import sys
 
     sys.path.insert(0, Path(__file__).resolve().parents[2].as_posix())
     from myfuzz.harness.abi import manifest_ports, selected_ports
+    from myfuzz.original_rfuzz import write_text_file
 
 
 def quote(value: str) -> str:
@@ -35,10 +40,55 @@ def find_top_module(frontend: dict, top: str) -> dict:
 
 
 def coverage_width(instrumentation: dict, top: str) -> int:
-    for item in instrumentation.get("module_coverage", []):
-        if item.get("module") == top and item.get("active"):
-            return int(item.get("coverage_width", 0))
-    return int(instrumentation.get("coverage_point_count", 0))
+    records = instrumentation.get("module_coverage")
+    if not isinstance(records, list):
+        raise ValueError("selected top coverage width requires module_coverage evidence")
+    selected = [
+        item
+        for item in records
+        if isinstance(item, dict) and item.get("module") == top and item.get("active") is True
+    ]
+    if len(selected) != 1:
+        raise ValueError(
+            f"selected top coverage width requires exactly one active module_coverage record for {top}"
+        )
+    width = selected[0].get("coverage_width")
+    if isinstance(width, bool) or not isinstance(width, int) or width <= 0:
+        raise ValueError("selected top coverage width must be a positive integer")
+    return width
+
+
+def coverage_records(instrumentation: dict, top: str) -> list[dict]:
+    """Return the exact logical records represented by the selected top port."""
+    coverage_port = instrumentation.get("coverage_port")
+    if not isinstance(coverage_port, str) or not coverage_port:
+        raise ValueError("instrumentation coverage_port is required")
+    points = instrumentation.get("coverage")
+    count = instrumentation.get("coverage_point_count")
+    if not isinstance(points, list):
+        raise ValueError("instrumentation coverage must be an array")
+    if isinstance(count, bool) or not isinstance(count, int) or count != len(points):
+        raise ValueError("coverage_point_count does not match coverage records")
+    for index, point in enumerate(points):
+        if not isinstance(point, dict):
+            raise ValueError(f"instrumentation coverage[{index}] must be an object")
+    width = coverage_width(instrumentation, top)
+    if width < 0:
+        raise ValueError("selected top coverage width must be non-negative")
+    records = [dict(point) for point in points[:width]]
+    for index in range(len(records), width):
+        records.append(
+            {
+                "file": "",
+                "module": top,
+                "signal": f"{coverage_port}[{index}]",
+                "kind": "unknown",
+                "subtype": "padding",
+                "line": 0,
+                "column": 0,
+            }
+        )
+    return records
 
 
 def strip_sv_comments(text: str) -> str:
@@ -179,34 +229,23 @@ def write_toml(
     candidate_manifest: dict | None = None,
 ) -> None:
     module = find_top_module(frontend, top)
-    manifest_by_name = validate_frontend_candidate_join(module, top, candidate_manifest)
     coverage_port = instrumentation["coverage_port"]
-    top_cov_width = coverage_width(instrumentation, top)
-    points = list(instrumentation.get("coverage", []))
-    if top_cov_width > len(points):
-        for index in range(len(points), top_cov_width):
-            points.append(
-                {
-                    "file": "",
-                    "module": top,
-                    "signal": f"{coverage_port}[{index}]",
-                    "kind": "unknown",
-                    "subtype": "padding",
-                    "line": 0,
-                    "column": 0,
-                }
-            )
-    elif top_cov_width < len(points):
-        points = points[:top_cov_width]
+    if candidate_manifest is None:
+        points = coverage_records(instrumentation, top)
+        top_cov_width = coverage_width(instrumentation, top)
+        manifest_by_name = validate_frontend_candidate_join(module, top, candidate_manifest)
+    else:
+        manifest_by_name = validate_frontend_candidate_join(module, top, candidate_manifest)
+        top_cov_width = coverage_width(instrumentation, top)
+        points = coverage_records(instrumentation, top)
 
-    timestamp = dt.datetime.now().astimezone().isoformat(timespec="seconds")
-    with out_path.open("w") as out:
+    with io.StringIO() as out:
         out.write("# Generated from myfuzz frontend and source instrumentation metadata.\n")
         out.write("[general]\n")
         out.write(f"filename = {quote(top)}\n")
         out.write('instrumented = "sources.f"\n')
         out.write(f"top = {quote(top)}\n")
-        out.write(f"timestamp = {timestamp}\n\n")
+        out.write(f"timestamp = {GENERATED_TIMESTAMP}\n\n")
 
         manual_input = manual_harness_input(harness_config, root)
         if manual_input is not None:
@@ -257,6 +296,7 @@ def write_toml(
             if bool(point.get("fail", False)):
                 out.write("fail = true\n")
             out.write("\n")
+        write_text_file(out_path, out.getvalue())
 
 
 def generate_toml(

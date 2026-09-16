@@ -115,7 +115,7 @@ def _make_runner(recorded_jobs: list[Job]):
     def runner(job: Job) -> BuildJobResult | FuzzJobResult:
         recorded_jobs.append(job)
         if job.kind is JobKind.BUILD:
-            return BuildJobResult(job.job_id, 1)
+            return BuildJobResult(job.job_id, 1, getattr(job, "artifact_id", ""))
         if not isinstance(job, ExperimentJob) or job.kind is not JobKind.FUZZ:
             raise TypeError("low-resource smoke received an unsupported job")
         sample = {

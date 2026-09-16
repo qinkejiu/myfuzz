@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
@@ -27,6 +28,9 @@ class RfuzzExecution:
     seed: int | None = None
     fuzz_seconds: int | None = None
     max_cycles: int | None = None
+    server_artifact_id: str | None = None
+    hard_memory_bytes: int | None = None
+    server_input_identity: str | None = None
 
     def __post_init__(self) -> None:
         path = self.design_config_path
@@ -37,11 +41,31 @@ class RfuzzExecution:
             raise ValueError(f"unsupported RFuzz execution stage: {self.stage}")
         if self.worker_count != 1:
             raise ValueError("RFuzz execution worker_count must be 1")
+        if self.candidate_mode is not None and self.candidate_mode not in {
+            "flat_direct",
+            "candidate_direct",
+            "candidate_depaware",
+            "candidate_static",
+        }:
+            raise ValueError("RFuzz execution requires a supported candidate_mode")
+        if self.server_artifact_id is not None and re.fullmatch(
+            r"sha256:[0-9a-f]{64}", self.server_artifact_id
+        ) is None:
+            raise ValueError("server_artifact_id must be a canonical SHA-256 content hash")
+        if self.server_input_identity is not None and re.fullmatch(
+            r"sha256:[0-9a-f]{64}", self.server_input_identity
+        ) is None:
+            raise ValueError("server_input_identity must be a canonical SHA-256 content hash")
+        if self.hard_memory_bytes is not None and (
+            isinstance(self.hard_memory_bytes, bool)
+            or not isinstance(self.hard_memory_bytes, int)
+            or self.hard_memory_bytes <= 0
+        ):
+            raise ValueError("hard_memory_bytes must be a positive integer")
         if self.stage == "server":
             if any(
                 value is not None
                 for value in (
-                    self.candidate_mode,
                     self.seed,
                     self.fuzz_seconds,
                     self.max_cycles,
@@ -49,11 +73,7 @@ class RfuzzExecution:
             ):
                 raise ValueError("server execution cannot declare fuzz parameters")
             return
-        if self.candidate_mode not in {
-            "flat_direct",
-            "candidate_direct",
-            "candidate_depaware",
-        }:
+        if self.candidate_mode is None:
             raise ValueError("fuzz execution requires a supported candidate_mode")
         if isinstance(self.seed, bool) or not isinstance(self.seed, int) or self.seed < 0:
             raise ValueError("fuzz execution seed must be a non-negative integer")
@@ -75,6 +95,13 @@ class ExperimentBuildJob(Job):
     """One executable RFuzz server-build prerequisite."""
 
     execution: RfuzzExecution
+    target_id: str = ""
+    candidate_id: str = ""
+    harness: str = ""
+    artifact_id: str = ""
+    harness_content_hash: str | None = None
+    harness_abi_hash: str | None = None
+    projection_plan_hash: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +117,7 @@ class ExperimentJob(Job):
     estimated_rss_bytes: int
     priority: int
     execution: RfuzzExecution
+    build_job_id: str = ""
     budget_name: str = ""
     raw_width: int = 0
     instrumented_rtl_hash: str = ""
@@ -113,11 +141,19 @@ class HarnessIdentity:
 
 @dataclass(frozen=True, slots=True)
 class CandidatePairIdentity:
-    """Auditable direct and dependency-aware identities for one candidate."""
+    """Auditable identities for one configured candidate harness pair."""
 
     candidate_id: str
+    candidate_harness: str
     direct: HarnessIdentity
-    depaware: HarnessIdentity
+    candidate: HarnessIdentity
+
+    @property
+    def depaware(self) -> HarnessIdentity:
+        """Return the legacy dependency-aware identity when that pair is configured."""
+        if self.candidate_harness != "candidate-depaware":
+            raise AttributeError("depaware is only available for candidate-depaware plans")
+        return self.candidate
 
 
 @dataclass(frozen=True, slots=True)
@@ -173,11 +209,18 @@ class _PlannerConfig:
     target_id: str
     config_path: str
     design_config_path: str
+    harness_groups: tuple[str, ...]
+    comparison_pair: tuple[str, str]
     candidate_count: int
     seeds: tuple[int, ...]
     budgets: tuple[_Budget, ...]
     mutation: tuple[tuple[str, int | bool | str], ...]
     runtime_policy: RuntimePolicy
+    native_input_identity: str | None = None
+
+    @property
+    def candidate_harness(self) -> str:
+        return self.comparison_pair[1]
 
 
 @dataclass(frozen=True, slots=True)
@@ -196,8 +239,14 @@ class _Candidate:
     harness_semantics: tuple[tuple[str, str | None, str | None, str | None], ...]
 
 
-_HARNESS_GROUPS = ("flat-direct", "candidate-direct", "candidate-depaware")
-_CANDIDATE_GROUPS = ("candidate-direct", "candidate-depaware")
+_BASE_HARNESS_GROUPS = ("flat-direct", "candidate-direct")
+_CANDIDATE_HARNESSES = frozenset(("candidate-depaware", "candidate-static"))
+_HARNESS_MODES = {
+    "flat-direct": "flat_direct",
+    "candidate-direct": "candidate_direct",
+    "candidate-depaware": "candidate_depaware",
+    "candidate-static": "candidate_static",
+}
 _BUDGET_KINDS = frozenset(("cycles", "seconds"))
 _COVERAGE_MEASURES = frozenset(("percentage", "covered-count", "shared-stable-source-id"))
 _MIB_BYTES = 1024 * 1024
@@ -219,6 +268,13 @@ def _string(value: object, label: str) -> str:
     if not isinstance(value, str) or not value:
         raise ExperimentPlanError(f"{label} must be a non-empty string")
     return value
+
+
+def _canonical_hash(value: object, label: str) -> str:
+    digest = _string(value, label)
+    if re.fullmatch(r"sha256:[0-9a-f]{64}", digest) is None:
+        raise ExperimentPlanError(f"{label} must be a canonical SHA-256 content hash")
+    return digest
 
 
 def _repository_relative_path(value: object, label: str) -> str:
@@ -273,14 +329,19 @@ def _parse_budgets(value: object) -> tuple[_Budget, ...]:
     return tuple(sorted(budgets, key=lambda budget: (budget.name, budget.kind, budget.value)))
 
 
-def _validate_coverage(value: object, harness_groups: tuple[str, ...]) -> None:
+def _validate_coverage(
+    value: object,
+    harness_groups: tuple[str, ...],
+) -> tuple[str, str]:
     coverage = _object(value, "coverage")
     _string(coverage.get("metric"), "coverage.metric")
     scopes = {
         "flat-direct": "flat",
         "candidate-direct": "candidate",
         "candidate-depaware": "candidate",
+        "candidate-static": "candidate",
     }
+    candidate_harnesses: list[str] = []
     for index, item in enumerate(_array(coverage.get("comparisons"), "coverage.comparisons")):
         comparison = _object(item, f"coverage.comparisons[{index}]")
         left = _string(comparison.get("left_harness"), f"coverage.comparisons[{index}].left_harness")
@@ -292,6 +353,13 @@ def _validate_coverage(value: object, harness_groups: tuple[str, ...]) -> None:
             raise ExperimentPlanError(f"unsupported coverage comparison measure: {measure}")
         if measure == "percentage" and scopes[left] != scopes[right]:
             raise ExperimentPlanError("cannot compare coverage percentages across distinct universes")
+        if left == "candidate-direct" and right in _CANDIDATE_HARNESSES:
+            candidate_harnesses.append(right)
+    if len(candidate_harnesses) != 1:
+        raise ExperimentPlanError(
+            "coverage must declare exactly one candidate-direct comparison"
+        )
+    return "candidate-direct", candidate_harnesses[0]
 
 
 def _validate_reference(value: object) -> None:
@@ -314,6 +382,12 @@ def _parse_config(config: object) -> _PlannerConfig:
     target_id = _string(target.get("target_id"), "target.target_id")
     config_path_value = document.get("config_path", "")
     config_path = "" if config_path_value == "" else _string(config_path_value, "config_path")
+    native_input_value = document.get("native_rfuzz_input_identity")
+    native_input_identity = (
+        None
+        if native_input_value is None
+        else _canonical_hash(native_input_value, "native_rfuzz_input_identity")
+    )
     design_config_path = _repository_relative_path(
         document.get("design_config_path"),
         "design_config_path",
@@ -324,7 +398,12 @@ def _parse_config(config: object) -> _PlannerConfig:
     declared_groups = tuple(
         _string(item, "harness_groups") for item in _array(document.get("harness_groups"), "harness_groups")
     )
-    if len(declared_groups) != len(_HARNESS_GROUPS) or set(declared_groups) != set(_HARNESS_GROUPS):
+    if (
+        len(declared_groups) != 3
+        or len(set(declared_groups)) != 3
+        or not set(_BASE_HARNESS_GROUPS).issubset(declared_groups)
+        or len(set(declared_groups) & _CANDIDATE_HARNESSES) != 1
+    ):
         raise ExperimentPlanError("harness_groups must declare each supported group once")
 
     candidate_pair = _object(document.get("candidate_pair"), "candidate_pair")
@@ -336,7 +415,11 @@ def _parse_config(config: object) -> _PlannerConfig:
 
     budgets = _parse_budgets(document.get("budgets"))
     mutation = _parse_mutation(document.get("mutation"))
-    _validate_coverage(document.get("coverage"), declared_groups)
+    comparison_pair = _validate_coverage(document.get("coverage"), declared_groups)
+    _, candidate_harness = comparison_pair
+    if candidate_harness not in declared_groups:
+        raise ExperimentPlanError("coverage candidate comparison references an undeclared harness")
+    harness_groups = (*_BASE_HARNESS_GROUPS, candidate_harness)
 
     build_concurrency = _positive_int(document.get("build_concurrency"), "build_concurrency")
     if build_concurrency != 1:
@@ -378,11 +461,14 @@ def _parse_config(config: object) -> _PlannerConfig:
         target_id,
         config_path,
         design_config_path,
+        harness_groups,
+        comparison_pair,
         candidate_count,
         seeds,
         budgets,
         mutation,
         runtime_policy,
+        native_input_identity,
     )
 
 
@@ -454,7 +540,7 @@ def _optional_harness_hash(
     harness: str,
 ) -> str | None:
     value = record.get(key)
-    return None if value is None else _string(value, f"harnesses.{harness}.{key}")
+    return None if value is None else _canonical_hash(value, f"harnesses.{harness}.{key}")
 
 
 def _estimated_rss(manifest: Mapping[str, object], fallback: int) -> int:
@@ -471,34 +557,42 @@ def _parse_candidate(manifest: Mapping[str, object], config: _PlannerConfig) -> 
     top_hash = _string(top.get("content_hash"), "manifest.top.content_hash")
 
     direct_record = _harness_record(manifest, "candidate-direct")
-    depaware_record = _harness_record(manifest, "candidate-depaware")
+    candidate_record = _harness_record(manifest, config.candidate_harness)
+    if config.candidate_harness == "candidate-static":
+        harnesses = _object(manifest.get("harnesses"), "manifest.harnesses")
+        static_record = harnesses.get("candidate-static")
+        if not isinstance(static_record, Mapping):
+            raise ExperimentPlanError("candidate-static harness record must be an object")
+        candidate_record = static_record
+        for field in ("content_hash", "abi_hash"):
+            _canonical_hash(candidate_record.get(field), f"candidate-static.{field}")
     flat_record = _harness_record(manifest, "flat-direct")
     harness_records = {
         "flat-direct": flat_record,
         "candidate-direct": direct_record,
-        "candidate-depaware": depaware_record,
+        config.candidate_harness: candidate_record,
     }
     fallback_width = _fallback_raw_width(manifest)
     direct_width = _raw_width(direct_record, fallback_width, "candidate-direct")
-    depaware_width = _raw_width(depaware_record, fallback_width, "candidate-depaware")
-    if direct_width != depaware_width:
+    candidate_width = _raw_width(candidate_record, fallback_width, config.candidate_harness)
+    if direct_width != candidate_width:
         raise ExperimentPlanError("candidate pair raw width must be equal")
 
     direct_rtl = _instrumented_rtl(direct_record, top_hash)
-    depaware_rtl = _instrumented_rtl(depaware_record, top_hash)
-    if direct_rtl != depaware_rtl:
+    candidate_rtl = _instrumented_rtl(candidate_record, top_hash)
+    if direct_rtl != candidate_rtl:
         raise ExperimentPlanError("candidate pair instrumented RTL must be shared")
 
     coverage_metadata_hash = _coverage_metadata_hash(manifest)
     direct_universe = _universe_from_record(direct_record) or coverage_metadata_hash
-    depaware_universe = _universe_from_record(depaware_record) or coverage_metadata_hash
-    if direct_universe != depaware_universe:
+    candidate_universe = _universe_from_record(candidate_record) or coverage_metadata_hash
+    if direct_universe != candidate_universe:
         raise ExperimentPlanError("candidate pair coverage universe must be shared")
     direct_metadata = _record_metadata_hash(direct_record, "candidate-direct")
-    depaware_metadata = _record_metadata_hash(depaware_record, "candidate-depaware")
+    candidate_metadata = _record_metadata_hash(candidate_record, config.candidate_harness)
     if any(
         value is not None and value != coverage_metadata_hash
-        for value in (direct_metadata, depaware_metadata)
+        for value in (direct_metadata, candidate_metadata)
     ):
         raise ExperimentPlanError("candidate pair coverage metadata must be shared")
 
@@ -546,6 +640,16 @@ def _base_job_document(job: Job) -> dict[str, object]:
     }
     if isinstance(job, (ExperimentBuildJob, ExperimentJob)):
         document["execution"] = _execution_document(job.execution)
+    if isinstance(job, ExperimentBuildJob):
+        document.update({
+            "target_id": job.target_id,
+            "candidate_id": job.candidate_id,
+            "harness": job.harness,
+            "artifact_id": job.artifact_id,
+            "harness_content_hash": job.harness_content_hash,
+            "harness_abi_hash": job.harness_abi_hash,
+            "projection_plan_hash": job.projection_plan_hash,
+        })
     return document
 
 
@@ -555,9 +659,12 @@ def _execution_document(execution: RfuzzExecution) -> dict[str, object]:
         "stage": execution.stage,
         "worker_count": execution.worker_count,
         "candidate_mode": execution.candidate_mode,
+        "server_artifact_id": execution.server_artifact_id,
+        "server_input_identity": execution.server_input_identity,
         "seed": execution.seed,
         "fuzz_seconds": execution.fuzz_seconds,
         "max_cycles": execution.max_cycles,
+        "hard_memory_bytes": execution.hard_memory_bytes,
     }
 
 
@@ -567,6 +674,7 @@ def _job_document(job: ExperimentJob) -> dict[str, object]:
         "target_id": job.target_id,
         "candidate_id": job.candidate_id,
         "harness": job.harness,
+        "build_job_id": job.build_job_id,
         "budget_name": job.budget_name,
         "budget_kind": job.budget_kind,
         "budget_value": job.budget_value,
@@ -612,6 +720,7 @@ def _make_job(
     priority: int,
     worker_limit: int,
     slot_index: int,
+    build_job: ExperimentBuildJob,
 ) -> ExperimentJob:
     is_flat = harness == "flat-direct"
     raw_width = candidate.flat_raw_width if is_flat else candidate.candidate_raw_width
@@ -625,25 +734,24 @@ def _make_job(
     }[harness]
     requested_mib = _requested_mib(candidate.estimated_rss_bytes)
     gate_name = f"fuzz-slot-{slot_index % worker_limit}"
-    modes = {
-        "flat-direct": "flat_direct",
-        "candidate-direct": "candidate_direct",
-        "candidate-depaware": "candidate_depaware",
-    }
     execution = RfuzzExecution(
         design_config_path=config.design_config_path,
         stage="fuzz",
         worker_count=1,
-        candidate_mode=modes[harness],
+        candidate_mode=_HARNESS_MODES[harness],
+        server_artifact_id=build_job.artifact_id,
+        server_input_identity=config.native_input_identity,
         seed=seed,
         fuzz_seconds=budget.value if budget.kind == "seconds" else None,
         max_cycles=budget.value if budget.kind == "cycles" else None,
+        hard_memory_bytes=config.runtime_policy.hard_memory_bytes,
     )
     identity = {
         "target_id": config.target_id,
         "candidate_id": candidate.candidate_id,
         "candidate_hash": candidate.candidate_hash,
         "harness": harness,
+        "build_job_id": build_job.job_id,
         "seed": seed,
         "budget_name": budget.name,
         "budget_kind": budget.kind,
@@ -686,6 +794,7 @@ def _make_job(
         estimated_rss_bytes=candidate.estimated_rss_bytes,
         priority=priority,
         execution=execution,
+        build_job_id=build_job.job_id,
         budget_name=budget.name,
         raw_width=raw_width,
         instrumented_rtl_hash=rtl_hash,
@@ -702,54 +811,122 @@ def _make_build_jobs(
     candidates: tuple[_Candidate, ...],
     config: _PlannerConfig,
 ) -> tuple[ExperimentBuildJob, ...]:
-    build_records: dict[str, tuple[str, int]] = {}
+    build_records: dict[tuple[str, str], ExperimentBuildJob] = {}
     for candidate in candidates:
-        previous = build_records.get(candidate.build_cache_key)
-        if previous is None:
-            build_records[candidate.build_cache_key] = (
-                candidate.candidate_hash,
-                candidate.estimated_rss_bytes,
-            )
-        else:
-            build_records[candidate.build_cache_key] = (
-                min(previous[0], candidate.candidate_hash),
-                max(previous[1], candidate.estimated_rss_bytes),
-            )
-
-    jobs: list[ExperimentBuildJob] = []
-    for cache_key, (candidate_hash, estimated_rss_bytes) in sorted(build_records.items()):
-        requested_mib = _requested_mib(estimated_rss_bytes)
-        execution = RfuzzExecution(
-            design_config_path=config.design_config_path,
-            stage="server",
-            worker_count=1,
-        )
-        identity = {
-            "kind": JobKind.BUILD.value,
-            "gate_name": "build",
-            "requested_mib": requested_mib,
-            "seed": 0,
-            "candidate_hash": candidate_hash,
-            "build_cache_key": cache_key,
-            "worker_limit": 1,
-            "execution": _execution_document(execution),
+        semantics = {
+            harness: (content, abi, projection)
+            for harness, content, abi, projection in candidate.harness_semantics
         }
-        token = content_hash(identity).removeprefix("sha256:")
-        jobs.append(
-            ExperimentBuildJob(
+        for harness in config.harness_groups:
+            content, abi, projection = semantics[harness]
+            artifact_document = {
+                "target_id": config.target_id,
+                "candidate_id": candidate.candidate_id,
+                "candidate_hash": candidate.candidate_hash,
+                "build_cache_key": candidate.build_cache_key,
+                "harness": harness,
+                "candidate_mode": _HARNESS_MODES[harness],
+                "harness_content_hash": content,
+                "harness_abi_hash": abi,
+                "projection_plan_hash": projection,
+                "native_rfuzz_input_identity": config.native_input_identity,
+            }
+            artifact_id = content_hash(artifact_document)
+            requested_mib = _requested_mib(candidate.estimated_rss_bytes)
+            execution = RfuzzExecution(
+                design_config_path=config.design_config_path,
+                stage="server",
+                worker_count=1,
+                candidate_mode=_HARNESS_MODES[harness],
+                server_artifact_id=artifact_id,
+                hard_memory_bytes=config.runtime_policy.hard_memory_bytes,
+                server_input_identity=config.native_input_identity,
+            )
+            identity = {
+                "kind": JobKind.BUILD.value,
+                "gate_name": "build",
+                "requested_mib": requested_mib,
+                "seed": 0,
+                "candidate_hash": candidate.candidate_hash,
+                "build_cache_key": candidate.build_cache_key,
+                "worker_limit": 1,
+                "artifact_id": artifact_id,
+                "execution": _execution_document(execution),
+            }
+            token = content_hash(identity).removeprefix("sha256:")
+            job = ExperimentBuildJob(
                 job_id=f"build-{token}",
                 kind=JobKind.BUILD,
                 gate_name="build",
                 owner=f"job-{token}",
                 requested_mib=requested_mib,
                 seed=0,
-                candidate_hash=candidate_hash,
-                build_cache_key=cache_key,
+                candidate_hash=candidate.candidate_hash,
+                build_cache_key=candidate.build_cache_key,
                 worker_limit=1,
                 execution=execution,
+                target_id=config.target_id,
+                candidate_id=candidate.candidate_id,
+                harness=harness,
+                artifact_id=artifact_id,
+                harness_content_hash=content,
+                harness_abi_hash=abi,
+                projection_plan_hash=projection,
             )
+            key = (candidate.candidate_id, harness)
+            previous = build_records.get(key)
+            if previous is not None and previous.artifact_id != artifact_id:
+                raise ExperimentPlanError(
+                    "duplicate candidate harness has conflicting artifact identities"
+                )
+            build_records[key] = job
+    return tuple(build_records[key] for key in sorted(build_records))
+
+
+def resolve_build_prerequisite(
+    plan: ExperimentPlan,
+    fuzz_job: ExperimentJob,
+) -> ExperimentBuildJob:
+    """Resolve and validate the single server build required by a fuzz job."""
+    if fuzz_job.build_job_id:
+        matches = tuple(job for job in plan.build_jobs if job.job_id == fuzz_job.build_job_id)
+    else:
+        matches = tuple(
+            job
+            for job in plan.build_jobs
+            if job.candidate_hash == fuzz_job.candidate_hash
+            and job.build_cache_key == fuzz_job.build_cache_key
+            and (not job.harness or job.harness == fuzz_job.harness)
         )
-    return tuple(jobs)
+    if len(matches) != 1:
+        raise ExperimentPlanError("fuzz build prerequisite must resolve exactly once")
+    build = matches[0]
+    for field in ("candidate_hash", "build_cache_key"):
+        if getattr(build, field) != getattr(fuzz_job, field):
+            raise ExperimentPlanError(f"fuzz build prerequisite {field} does not match")
+    for field in ("candidate_id", "target_id"):
+        if getattr(build, field) and getattr(build, field) != getattr(fuzz_job, field):
+            raise ExperimentPlanError(f"fuzz build prerequisite {field} does not match")
+    if build.harness and build.harness != fuzz_job.harness:
+        raise ExperimentPlanError("fuzz build prerequisite harness does not match")
+    if build.harness:
+        expected_mode = _HARNESS_MODES.get(build.harness)
+        if (
+            expected_mode is None
+            or build.execution.candidate_mode != expected_mode
+            or fuzz_job.execution.candidate_mode != expected_mode
+        ):
+            raise ExperimentPlanError("fuzz build prerequisite candidate mode does not match")
+    for field in ("harness_content_hash", "harness_abi_hash", "projection_plan_hash"):
+        if getattr(build, field) != getattr(fuzz_job, field):
+            raise ExperimentPlanError(f"fuzz build prerequisite {field} does not match")
+    if build.artifact_id and build.execution.server_artifact_id != build.artifact_id:
+        raise ExperimentPlanError(
+            "fuzz build prerequisite build execution server artifact ID does not match"
+        )
+    if build.artifact_id != (fuzz_job.execution.server_artifact_id or ""):
+        raise ExperimentPlanError("fuzz execution server artifact ID does not match")
+    return build
 
 
 def _harness_identity(jobs: tuple[ExperimentJob, ...]) -> HarnessIdentity:
@@ -767,7 +944,11 @@ def _harness_identity(jobs: tuple[ExperimentJob, ...]) -> HarnessIdentity:
     return next(iter(identities))
 
 
-def _audit_fairness(jobs: tuple[ExperimentJob, ...]) -> FairnessAudit:
+def _audit_fairness(
+    jobs: tuple[ExperimentJob, ...],
+    comparison_pair: tuple[str, str],
+) -> FairnessAudit:
+    direct_harness, candidate_harness = comparison_pair
     candidate_ids = sorted({job.candidate_id for job in jobs})
     equal_budget = True
     equal_seeds = True
@@ -777,27 +958,36 @@ def _audit_fairness(jobs: tuple[ExperimentJob, ...]) -> FairnessAudit:
     shared_metadata = True
     identities: list[CandidatePairIdentity] = []
     for candidate_id in candidate_ids:
-        direct = tuple(job for job in jobs if job.candidate_id == candidate_id and job.harness == _CANDIDATE_GROUPS[0])
-        depaware = tuple(job for job in jobs if job.candidate_id == candidate_id and job.harness == _CANDIDATE_GROUPS[1])
-        equal_budget &= bool(direct) and bool(depaware) and {
+        direct = tuple(
+            job
+            for job in jobs
+            if job.candidate_id == candidate_id and job.harness == direct_harness
+        )
+        candidate = tuple(
+            job
+            for job in jobs
+            if job.candidate_id == candidate_id and job.harness == candidate_harness
+        )
+        equal_budget &= bool(direct) and bool(candidate) and {
             (job.seed, job.budget_name, job.budget_kind, job.budget_value) for job in direct
-        } == {(job.seed, job.budget_name, job.budget_kind, job.budget_value) for job in depaware}
-        equal_seeds &= {job.seed for job in direct} == {job.seed for job in depaware}
-        equal_width &= {job.raw_width for job in direct} == {job.raw_width for job in depaware}
+        } == {(job.seed, job.budget_name, job.budget_kind, job.budget_value) for job in candidate}
+        equal_seeds &= {job.seed for job in direct} == {job.seed for job in candidate}
+        equal_width &= {job.raw_width for job in direct} == {job.raw_width for job in candidate}
         shared_rtl &= {job.instrumented_rtl_hash for job in direct} == {
-            job.instrumented_rtl_hash for job in depaware
+            job.instrumented_rtl_hash for job in candidate
         }
         shared_universe &= {job.coverage_universe for job in direct} == {
-            job.coverage_universe for job in depaware
+            job.coverage_universe for job in candidate
         }
         shared_metadata &= {job.coverage_metadata_hash for job in direct} == {
-            job.coverage_metadata_hash for job in depaware
+            job.coverage_metadata_hash for job in candidate
         }
         identities.append(
             CandidatePairIdentity(
                 candidate_id=candidate_id,
+                candidate_harness=candidate_harness,
                 direct=_harness_identity(direct),
-                depaware=_harness_identity(depaware),
+                candidate=_harness_identity(candidate),
             )
         )
     return FairnessAudit(
@@ -813,8 +1003,8 @@ def _audit_fairness(jobs: tuple[ExperimentJob, ...]) -> FairnessAudit:
 
 def _require_fairness(audit: FairnessAudit) -> None:
     checks = (
-        (audit.candidate_pair_has_equal_budget, "candidate pair budget must be equal"),
         (audit.candidate_pair_has_equal_seeds, "candidate pair seeds must be equal"),
+        (audit.candidate_pair_has_equal_budget, "candidate pair budget must be equal"),
         (audit.candidate_pair_has_equal_raw_width, "candidate pair raw width must be equal"),
         (audit.shared_instrumented_rtl, "candidate pair instrumented RTL must be shared"),
         (audit.shared_coverage_universe, "candidate pair coverage universe must be shared"),
@@ -823,6 +1013,34 @@ def _require_fairness(audit: FairnessAudit) -> None:
     for passed, message in checks:
         if not passed:
             raise ExperimentPlanError(message)
+
+
+def validate_candidate_pair_fairness(
+    jobs: tuple[ExperimentJob, ...],
+    comparison_pair: tuple[str, str],
+) -> FairnessAudit:
+    """Recompute and require the frozen candidate-pair fairness contract."""
+    audit = _audit_fairness(jobs, comparison_pair)
+    _require_fairness(audit)
+    direct_harness, candidate_harness = comparison_pair
+    for candidate_id in sorted({job.candidate_id for job in jobs}):
+        mutations_by_cell = {
+            harness: {
+                (
+                    job.seed,
+                    job.budget_name,
+                    job.budget_kind,
+                    job.budget_value,
+                    job.mutation,
+                )
+                for job in jobs
+                if job.candidate_id == candidate_id and job.harness == harness
+            }
+            for harness in comparison_pair
+        }
+        if mutations_by_cell[direct_harness] != mutations_by_cell[candidate_harness]:
+            raise ExperimentPlanError("candidate pair mutation must be equal")
+    return audit
 
 
 def _run_blocks(
@@ -841,7 +1059,8 @@ def _run_blocks(
                 digest = hashlib.sha256(
                     canonical_bytes({"seed": seed, "candidate_id": candidate.candidate_id})
                 ).digest()
-                pair = _CANDIDATE_GROUPS if digest[0] & 1 == 0 else tuple(reversed(_CANDIDATE_GROUPS))
+                candidate_pair = config.comparison_pair
+                pair = candidate_pair if digest[0] & 1 == 0 else tuple(reversed(candidate_pair))
                 blocks.append(
                     (
                         by_key[(candidate.candidate_id, budget.name, seed, "flat-direct")],
@@ -871,6 +1090,9 @@ def plan_experiment(config: object, candidate_manifests: Sequence[object]) -> Ex
     ):
         raise ExperimentPlanError("measured peak_rss_bytes cannot fit soft memory policy")
     build_jobs = _make_build_jobs(selected, parsed_config)
+    builds_by_candidate_harness = {
+        (job.candidate_id, job.harness): job for job in build_jobs
+    }
     largest_rss_bytes = max(candidate.estimated_rss_bytes for candidate in selected)
     worker_limit = max(1, parsed_config.runtime_policy.soft_memory_bytes // largest_rss_bytes)
 
@@ -879,7 +1101,7 @@ def plan_experiment(config: object, candidate_manifests: Sequence[object]) -> Ex
         for budget_index, budget in enumerate(parsed_config.budgets):
             priority = len(parsed_config.budgets) - budget_index
             for seed in parsed_config.seeds:
-                for harness in _HARNESS_GROUPS:
+                for harness in parsed_config.harness_groups:
                     jobs.append(
                         _make_job(
                             parsed_config,
@@ -890,11 +1112,24 @@ def plan_experiment(config: object, candidate_manifests: Sequence[object]) -> Ex
                             priority,
                             worker_limit,
                             len(jobs),
+                            builds_by_candidate_harness[(candidate.candidate_id, harness)],
                         )
                     )
     frozen_jobs = tuple(jobs)
-    fairness = _audit_fairness(frozen_jobs)
-    _require_fairness(fairness)
+    prerequisite_plan = ExperimentPlan(
+        jobs=frozen_jobs,
+        build_jobs=build_jobs,
+        run_blocks=(),
+        fairness=FairnessAudit(False, False, False, False, False),
+        runtime_policy=parsed_config.runtime_policy,
+        plan_hash="",
+    )
+    for fuzz_job in frozen_jobs:
+        resolve_build_prerequisite(prerequisite_plan, fuzz_job)
+    fairness = validate_candidate_pair_fairness(
+        frozen_jobs,
+        parsed_config.comparison_pair,
+    )
     run_blocks = _run_blocks(frozen_jobs, parsed_config, selected)
     plan_document = {
         "build_jobs": [_base_job_document(job) for job in build_jobs],
@@ -910,17 +1145,18 @@ def plan_experiment(config: object, candidate_manifests: Sequence[object]) -> Ex
             "candidate_pair_identities": [
                 {
                     "candidate_id": identity.candidate_id,
+                    "candidate_harness": identity.candidate_harness,
                     "direct": {
                         "raw_width": identity.direct.raw_width,
                         "instrumented_rtl_hash": identity.direct.instrumented_rtl_hash,
                         "coverage_universe": identity.direct.coverage_universe,
                         "coverage_metadata_hash": identity.direct.coverage_metadata_hash,
                     },
-                    "depaware": {
-                        "raw_width": identity.depaware.raw_width,
-                        "instrumented_rtl_hash": identity.depaware.instrumented_rtl_hash,
-                        "coverage_universe": identity.depaware.coverage_universe,
-                        "coverage_metadata_hash": identity.depaware.coverage_metadata_hash,
+                    "candidate": {
+                        "raw_width": identity.candidate.raw_width,
+                        "instrumented_rtl_hash": identity.candidate.instrumented_rtl_hash,
+                        "coverage_universe": identity.candidate.coverage_universe,
+                        "coverage_metadata_hash": identity.candidate.coverage_metadata_hash,
                     },
                 }
                 for identity in fairness.candidate_pair_identities

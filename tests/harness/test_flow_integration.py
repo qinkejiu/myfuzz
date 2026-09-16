@@ -4,6 +4,7 @@ import copy
 import contextlib
 import io
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -31,7 +32,7 @@ def candidate_manifest() -> dict[str, object]:
         "top": {"module": "generated_top"},
         "top_port_abi": [
             {"port_id": 1, "emitted_name": "wire_17", "direction": "input", "width": 1, "semantic_role": "clock", "active_level": 1, "fuzzable": False},
-            {"port_id": 2, "emitted_name": "data_3", "direction": "input", "width": 1, "semantic_role": "reset", "active_level": 0, "synchronous": False, "reset_value": 0, "fuzzable": False},
+            {"port_id": 2, "emitted_name": "data_3", "direction": "input", "width": 1, "semantic_role": "reset", "active_level": 0, "synchronous": False, "io_meta_reset": True, "reset_value": 0, "fuzzable": False},
             {"port_id": 3, "emitted_name": "payload_opaque", "direction": "input", "width": 8, "semantic_role": "data", "fuzzable": True},
             {"port_id": 4, "emitted_name": "result_opaque", "direction": "output", "width": 1, "semantic_role": "response", "fuzzable": False},
         ],
@@ -62,6 +63,15 @@ def instrumentation_manifest() -> dict[str, object]:
         "coverage_port": "__vi_coverage",
         "coverage_point_count": 1,
         "coverage": [{"module": "generated_top", "signal": "branch_0", "kind": "branch", "subtype": "hit", "file": "top.sv", "line": 1, "column": 1}],
+        "module_coverage": [
+            {
+                "module": "generated_top",
+                "active": True,
+                "coverage_width": 1,
+                "local_points": 1,
+                "propagated_child_count": 0,
+            }
+        ],
     }
 
 
@@ -83,6 +93,25 @@ def manual_harness_source(
 
 
 class FlowIntegrationTest(unittest.TestCase):
+    def test_default_server_verilator_uses_the_bundled_rfuzz_toolchain(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            expected = (
+                ROOT
+                / "third_party/rfuzz/upstream/.tools/apt-root/usr/bin/verilator"
+            ).as_posix()
+            self.assertEqual(expected, run_design_flow.default_server_verilator(ROOT))
+
+    def test_probe_rejects_an_incompatible_verilator_version(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            executable = Path(directory) / "verilator"
+            executable.write_text(
+                "#!/bin/sh\nprintf '%s\\n' 'Verilator 5.051 devel'\n",
+                encoding="utf-8",
+            )
+            executable.chmod(0o755)
+            with self.assertRaisesRegex(ValueError, "requires Verilator 5.020"):
+                run_design_flow.probe_verilator_version(executable.as_posix(), Path(directory))
+
     def test_opaque_control_names_are_selected_only_by_manifest_roles(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "flow.toml"
@@ -97,6 +126,19 @@ class FlowIntegrationTest(unittest.TestCase):
         self.assertIn('name = "payload_opaque"', text)
         self.assertNotIn('name = "wire_17"', text)
         self.assertNotIn('name = "data_3"', text)
+
+    def test_selected_top_coverage_width_cannot_fall_back_to_global_point_count(self) -> None:
+        instrumentation = instrumentation_manifest()
+        instrumentation["module_coverage"] = []
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "selected top coverage width"):
+                write_toml(
+                    frontend_manifest(),
+                    instrumentation,
+                    "generated_top",
+                    Path(directory) / "flow.toml",
+                    candidate_manifest=candidate_manifest(),
+                )
 
     def test_missing_control_declaration_and_reset_metadata_fail(self) -> None:
         missing = candidate_manifest()
@@ -136,6 +178,179 @@ class FlowIntegrationTest(unittest.TestCase):
         self.assertEqual("candidate_direct", run_design_flow.select_candidate_mode(None, {}))
         self.assertEqual("flat_direct", run_design_flow.select_candidate_mode(None, {"candidate_mode": "flat_direct"}))
         self.assertEqual("candidate_depaware", run_design_flow.select_candidate_mode("candidate_depaware", {"candidate_mode": "flat_direct"}))
+
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_design_flow.py",
+                "--config",
+                "config.json",
+                "--candidate-mode",
+                "candidate_static",
+            ],
+        ):
+            static_args = run_design_flow.parse_args()
+        self.assertEqual("candidate_static", static_args.candidate_mode)
+
+        artifact_id = "sha256:" + "a" * 64
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_design_flow.py",
+                "--config",
+                "config.json",
+                "--server-artifact-id",
+                artifact_id,
+            ],
+        ):
+            artifact_args = run_design_flow.parse_args()
+        self.assertEqual(artifact_id, artifact_args.server_artifact_id)
+
+    def test_artifact_flow_paths_require_canonical_sha256_and_isolate_server_outputs(self) -> None:
+        out_dir = Path("flow")
+        paths = {
+            "out_dir": out_dir,
+            "instrumented": out_dir / "instrumented",
+            "toml": out_dir / "instrumented" / "generated_top.toml",
+            "harness": out_dir / "harness",
+            "server": out_dir / "server",
+            "queue": out_dir / "queue",
+        }
+
+        self.assertIs(paths, run_design_flow.artifact_flow_paths(paths, None))
+        for artifact_id in (
+            "a" * 64,
+            "sha256:" + "A" * 64,
+            "sha256:" + "a" * 63,
+            "sha256:" + "a" * 65,
+        ):
+            with self.subTest(artifact_id=artifact_id):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "server artifact ID must be a canonical SHA-256 identity",
+                ):
+                    run_design_flow.artifact_flow_paths(paths, artifact_id)
+
+        suffix = "a" * 64
+        selected = run_design_flow.artifact_flow_paths(paths, f"sha256:{suffix}")
+        artifact_root = out_dir / "server_artifacts" / suffix
+        self.assertEqual(
+            artifact_root / "instrumented" / "generated_top.toml",
+            selected["toml"],
+        )
+        self.assertEqual(artifact_root / "harness", selected["harness"])
+        self.assertEqual(artifact_root / "server", selected["server"])
+        self.assertEqual(artifact_root / "queue", selected["queue"])
+        self.assertEqual(paths["instrumented"], selected["instrumented"])
+
+    def test_artifact_server_regenerates_toml_and_harness_before_building(self) -> None:
+        artifact_id = "sha256:" + "b" * 64
+        with tempfile.TemporaryDirectory() as directory:
+            execution_root = Path(directory)
+            out_dir = execution_root / "out"
+            (out_dir / "instrumented").mkdir(parents=True)
+            (out_dir / "frontend.json").write_text(json.dumps(frontend_manifest()))
+            (out_dir / "instrumented" / "instrumentation.json").write_text(
+                json.dumps(instrumentation_manifest())
+            )
+            (execution_root / "candidate.json").write_text(json.dumps(candidate_manifest()))
+            (execution_root / "config.json").write_text(
+                json.dumps(
+                    {
+                        "top": "generated_top",
+                        "out_dir": "out",
+                        "project_root": ".",
+                        "flist": "sources.f",
+                        "candidate_manifest": "candidate.json",
+                    }
+                )
+            )
+            calls: list[tuple[str, dict[str, Path]]] = []
+
+            def record(name):
+                def stage(*args):
+                    calls.append((name, args[2]))
+                return stage
+
+            with (
+                patch.object(run_design_flow, "repo_root", return_value=execution_root),
+                patch.object(run_design_flow, "default_frontend_library", return_value=execution_root / "frontend.so"),
+                patch.object(run_design_flow, "default_server_verilator", return_value="verilator"),
+                patch.object(run_design_flow, "stage_toml", side_effect=record("toml")),
+                patch.object(run_design_flow, "stage_harness", side_effect=record("harness")),
+                patch.object(run_design_flow, "stage_server", side_effect=record("server")),
+                patch.object(
+                    sys,
+                    "argv",
+                    [
+                        "run_design_flow.py",
+                        "--config",
+                        "config.json",
+                        "--stage",
+                        "server",
+                        "--server-artifact-id",
+                        artifact_id,
+                    ],
+                ),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(0, run_design_flow.main())
+
+        self.assertEqual(["toml", "harness", "server"], [name for name, _ in calls])
+        selected = calls[0][1]
+        artifact_root = out_dir / "server_artifacts" / ("b" * 64)
+        self.assertEqual(artifact_root / "server", selected["server"])
+        self.assertEqual(out_dir / "instrumented", selected["instrumented"])
+        self.assertTrue(all(paths is selected for _, paths in calls))
+
+    def test_artifact_fuzz_reuses_selected_server_without_rebuilding(self) -> None:
+        artifact_id = "sha256:" + "c" * 64
+        with tempfile.TemporaryDirectory() as directory:
+            execution_root = Path(directory)
+            (execution_root / "config.json").write_text(
+                json.dumps(
+                    {
+                        "top": "generated_top",
+                        "out_dir": "out",
+                        "project_root": ".",
+                        "flist": "sources.f",
+                    }
+                )
+            )
+            with (
+                patch.object(run_design_flow, "repo_root", return_value=execution_root),
+                patch.object(run_design_flow, "default_frontend_library", return_value=execution_root / "frontend.so"),
+                patch.object(run_design_flow, "default_server_verilator", return_value="verilator"),
+                patch.object(run_design_flow, "stage_toml") as toml_stage,
+                patch.object(run_design_flow, "stage_harness") as harness_stage,
+                patch.object(run_design_flow, "stage_server") as server_stage,
+                patch.object(run_design_flow, "stage_fuzz") as fuzz_stage,
+                patch.object(
+                    sys,
+                    "argv",
+                    [
+                        "run_design_flow.py",
+                        "--config",
+                        "config.json",
+                        "--stage",
+                        "fuzz",
+                        "--server-artifact-id",
+                        artifact_id,
+                    ],
+                ),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(0, run_design_flow.main())
+
+        toml_stage.assert_not_called()
+        harness_stage.assert_not_called()
+        server_stage.assert_not_called()
+        selected = fuzz_stage.call_args.args[3]
+        artifact_root = execution_root / "out" / "server_artifacts" / ("c" * 64)
+        self.assertEqual(artifact_root / "server", selected["server"])
+        self.assertEqual(artifact_root / "queue", selected["queue"])
 
     def test_flow_cli_accepts_adapter_seed_and_cycle_bounds(self) -> None:
         argv = [
@@ -233,53 +448,98 @@ class FlowIntegrationTest(unittest.TestCase):
         self.assertIsNone(attempt.call_args.args[5])
 
     def test_stage_harness_materializes_all_modes_and_propagates_abi(self) -> None:
-        captured: dict[str, dict] = {}
-
-        def generate_harness_files(conf, ports, top, out_dir, harness_cfg):
-            del conf, ports, top
-            captured[harness_cfg["candidate_mode"]] = dict(harness_cfg)
-            augmented = Path(out_dir) / f"{harness_cfg['candidate_mode']}.rfuzz.toml"
-            augmented.write_text("[general]\n")
-            return Path(harness_cfg["manual_harness"]), augmented
-
-        api = (
-            generate_harness_files,
-            lambda path: {"source": str(path)},
-            lambda frontend, top: frontend["modules"][0]["ports"],
-            lambda *args: None,
-        )
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            instrumented = root / "instrumented"
+            instrumented.mkdir()
+            (instrumented / "top.sv").write_text(
+                "module generated_top; output wire __vi_coverage; endmodule\n",
+                encoding="utf-8",
+            )
+            (instrumented / "sources.f").write_text("top.sv\n", encoding="utf-8")
+            artifacts = {}
+            harness_dirs = {}
+            for mode in ("flat_direct", "candidate_direct", "candidate_depaware"):
+                paths = {
+                    "harness": root / "harness" / mode,
+                    "toml": root / f"{mode}.toml",
+                    "instrumented": root / "instrumented",
+                }
+                paths["toml"].write_text("[general]\n")
+                artifacts[mode] = run_design_flow.stage_harness(
+                    root,
+                    {"top": "generated_top"},
+                    paths,
+                    "verilator",
+                    frontend_manifest(),
+                    instrumentation_manifest(),
+                    candidate_manifest(),
+                    mode,
+                )
+                harness_dirs[mode] = paths["harness"]
+
+            for mode, artifact in artifacts.items():
+                harness = harness_dirs[mode]
+                source = harness / f"{mode}.sv"
+                abi = harness / f"{mode}.abi.json"
+                fragment = json.loads(abi.read_text())
+                self.assertEqual(artifact.source_text, source.read_text())
+                self.assertEqual(mode, fragment["mode"])
+                self.assertEqual(f"sha256:{artifact.abi.abi_hash}", fragment["abi_hash"])
+                self.assertEqual(artifact.raw_width, fragment["raw_width"])
+                self.assertIn("candidate.dut.__vi_coverage", (harness / "original_rfuzz_wrapper.sv").read_text())
+                self.assertTrue((harness / "generated_top.rfuzz.toml").is_file())
+            self.assertEqual({8}, {artifact.raw_width for artifact in artifacts.values()})
+
+    def test_stage_harness_materializes_static_projection_from_typed_config(self) -> None:
+        config = {
+            "top": "generated_top",
+            "harness": {"validate": False},
+            "static_projection": {
+                "declarations": {
+                    "mask_align": [
+                        {"action_id": 20, "destination_id": 3, "alignment": 2}
+                    ]
+                },
+                "parameters": {
+                    "direct_ratio": 1,
+                    "event_rarity": 4,
+                    "legal_set_strength": 2,
+                    "mutual_exclusion": "none",
+                },
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            instrumented = root / "instrumented"
+            instrumented.mkdir()
+            (instrumented / "top.sv").write_text(
+                "module generated_top; output wire __vi_coverage; endmodule\n",
+                encoding="utf-8",
+            )
+            (instrumented / "sources.f").write_text("top.sv\n", encoding="utf-8")
             paths = {
                 "harness": root / "harness",
                 "toml": root / "input.toml",
                 "instrumented": root / "instrumented",
             }
             paths["toml"].write_text("[general]\n")
-            artifacts = {}
-            with patch.object(run_design_flow, "rfuzz_harness_api", return_value=api):
-                for mode in ("flat_direct", "candidate_direct", "candidate_depaware"):
-                    artifacts[mode] = run_design_flow.stage_harness(
-                        root,
-                        {"top": "generated_top", "harness": {"validate": False}},
-                        paths,
-                        "verilator",
-                        frontend_manifest(),
-                        candidate_manifest(),
-                        mode,
-                    )
+            artifact = run_design_flow.stage_harness(
+                root,
+                config,
+                paths,
+                "verilator",
+                frontend_manifest(),
+                instrumentation_manifest(),
+                candidate_manifest(),
+                "candidate_static",
+            )
 
-            for mode, artifact in artifacts.items():
-                source = paths["harness"] / f"{mode}.sv"
-                abi = paths["harness"] / f"{mode}.abi.json"
-                fragment = json.loads(abi.read_text())
-                self.assertEqual(artifact.source_text, source.read_text())
-                self.assertEqual(mode, fragment["mode"])
-                self.assertEqual(artifact.abi.abi_hash, fragment["abi_hash"])
-                self.assertEqual(artifact.raw_width, fragment["raw_width"])
-                self.assertEqual(source.resolve().as_posix(), captured[mode]["manual_harness"])
-                self.assertEqual(abi.resolve().as_posix(), captured[mode]["raw_abi_manifest"])
-            self.assertEqual({8}, {artifact.raw_width for artifact in artifacts.values()})
+            fragment = json.loads(
+                (paths["harness"] / "candidate_static.abi.json").read_text()
+            )
+        self.assertEqual("candidate_static", artifact.mode)
+        self.assertEqual(artifact.manifest_fragment()["projection_plan_hash"], fragment["projection_plan_hash"])
 
     def test_toml_stage_uses_materialized_raw_abi_input(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -610,34 +870,24 @@ class FlowIntegrationTest(unittest.TestCase):
         manifest["schema_version"] = "candidate_manifest.v2"
         with tempfile.TemporaryDirectory() as directory:
             paths = {"harness": Path(directory) / "harness", "toml": Path(directory) / "x.toml"}
-            with patch.object(run_design_flow, "rfuzz_harness_api", side_effect=AssertionError("rfuzz should not load")):
-                with self.assertRaisesRegex(ValueError, "schema_version"):
-                    run_design_flow.stage_harness(
-                        Path(directory),
-                        {"top": "generated_top"},
-                        paths,
-                        "verilator",
-                        frontend_manifest(),
-                        manifest,
-                        "candidate_direct",
-                    )
+            with self.assertRaisesRegex(ValueError, "schema_version"):
+                run_design_flow.stage_harness(
+                    Path(directory), {"top": "generated_top"}, paths, "verilator",
+                    frontend_manifest(), instrumentation_manifest(), manifest,
+                    "candidate_direct",
+                )
 
     def test_stage_harness_rejects_candidate_mapping_mismatch_before_materialization(self) -> None:
         manifest = candidate_manifest()
         manifest["top_port_abi"][2]["width"] = 7
         with tempfile.TemporaryDirectory() as directory:
             paths = {"harness": Path(directory) / "harness", "toml": Path(directory) / "x.toml"}
-            with patch.object(run_design_flow, "rfuzz_harness_api", side_effect=AssertionError("rfuzz should not load")):
-                with self.assertRaisesRegex(ValueError, "mapping mismatch"):
-                    run_design_flow.stage_harness(
-                        Path(directory),
-                        {"top": "generated_top"},
-                        paths,
-                        "verilator",
-                        frontend_manifest(),
-                        manifest,
-                        "candidate_direct",
-                    )
+            with self.assertRaisesRegex(ValueError, "mapping mismatch"):
+                run_design_flow.stage_harness(
+                    Path(directory), {"top": "generated_top"}, paths, "verilator",
+                    frontend_manifest(), instrumentation_manifest(), manifest,
+                    "candidate_direct",
+                )
             self.assertFalse(paths["harness"].exists())
 
     def test_stage_harness_rejects_candidate_top_mismatch_before_materialization(self) -> None:
@@ -645,17 +895,12 @@ class FlowIntegrationTest(unittest.TestCase):
         manifest["top"]["module"] = "other_top"
         with tempfile.TemporaryDirectory() as directory:
             paths = {"harness": Path(directory) / "harness", "toml": Path(directory) / "x.toml"}
-            with patch.object(run_design_flow, "rfuzz_harness_api", side_effect=AssertionError("rfuzz should not load")):
-                with self.assertRaisesRegex(ValueError, "selected frontend module"):
-                    run_design_flow.stage_harness(
-                        Path(directory),
-                        {"top": "generated_top"},
-                        paths,
-                        "verilator",
-                        frontend_manifest(),
-                        manifest,
-                        "candidate_direct",
-                    )
+            with self.assertRaisesRegex(ValueError, "selected frontend module"):
+                run_design_flow.stage_harness(
+                    Path(directory), {"top": "generated_top"}, paths, "verilator",
+                    frontend_manifest(), instrumentation_manifest(), manifest,
+                    "candidate_direct",
+                )
             self.assertFalse(paths["harness"].exists())
 
     def test_flow_has_no_identifier_role_tables(self) -> None:

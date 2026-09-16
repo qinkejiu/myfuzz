@@ -18,6 +18,7 @@ from myfuzz.harness import (
 from myfuzz.harness.abi import content_hash as abi_content_hash
 from myfuzz.harness import compiler as compiler_module
 from myfuzz.harness.compiler import _compiled_protocols
+from myfuzz.harness.static_policy import StaticPolicyParameters
 from myfuzz.protocols import load_builtin_protocol
 from tests.runtime_fixtures import load_runtime_documents
 
@@ -670,6 +671,7 @@ class HarnessCompilerTest(unittest.TestCase):
         bundle = compile_harness_bundle(facts, composition, manifest, protocols())
 
         self.assertEqual(18, bundle.candidate_direct.raw_width)
+        self.assertIsNone(bundle.candidate_static)
         self.assertEqual(bundle.candidate_direct.raw_width, bundle.candidate_depaware.raw_width)
         self.assertIn("flat_runtime_top", bundle.flat_direct.source_text)
         self.assertNotIn("candidate_runtime_top", bundle.flat_direct.source_text)
@@ -737,6 +739,55 @@ class HarnessCompilerTest(unittest.TestCase):
             fragment["harnesses"]["flat-direct"]["instrumented_rtl_hash"],
             fragment["harnesses"]["candidate-direct"]["instrumented_rtl_hash"],
         )
+
+    def test_compiles_static_projection_with_direct_identity(self) -> None:
+        facts, composition, manifest = load_runtime_documents()
+        bundle = compile_harness_bundle(
+            facts,
+            composition,
+            manifest,
+            protocols(),
+            static_declarations={
+                "legal_set": [
+                    {"action_id": 1, "destination_id": 10, "values": [0, 1, 2, 3]}
+                ]
+            },
+            static_parameters=StaticPolicyParameters(2, 4, 2, "one_hot"),
+        )
+
+        self.assertIsNotNone(bundle.candidate_static)
+        self.assertEqual("candidate_static", bundle.candidate_static.mode)
+        self.assertEqual(bundle.candidate_direct.raw_width, bundle.candidate_static.raw_width)
+        self.assertEqual(bundle.candidate_direct.abi.abi_hash, bundle.candidate_static.abi.abi_hash)
+        self.assertEqual(bundle.candidate_direct.candidate_id, bundle.candidate_static.candidate_id)
+        self.assertEqual(
+            bundle.candidate_direct.coverage_universe_id,
+            bundle.candidate_static.coverage_universe_id,
+        )
+        self.assertNotIn("always_ff", bundle.candidate_static.source_text)
+        static_fragment = bundle.manifest_fragment()["harnesses"]["candidate-static"]
+        self.assertEqual(
+            f"sha256:{bundle.candidate_static.policy_plan_hash}",
+            static_fragment["projection_plan_hash"],
+        )
+
+    def test_static_projection_requires_declarations_and_parameters_together(self) -> None:
+        facts, composition, manifest = load_runtime_documents()
+        for options in (
+            {"static_declarations": {}},
+            {"static_parameters": StaticPolicyParameters(2, 4, 2, "one_hot")},
+        ):
+            with self.subTest(options=tuple(options)), self.assertRaisesRegex(
+                ValueError,
+                "static declarations and parameters must be provided together",
+            ):
+                compile_harness_bundle(
+                    facts,
+                    composition,
+                    manifest,
+                    protocols(),
+                    **options,
+                )
 
     def test_active_view_changes_priority_without_changing_raw_geometry(self) -> None:
         facts, composition, manifest = load_runtime_documents()
@@ -841,6 +892,32 @@ class HarnessCompilerTest(unittest.TestCase):
                 self.assertEqual(artifact.content_hash, abi_content_hash({"source_text": source}))
                 self.assertEqual(f"{name}.sv", fragment["harnesses"][name]["source"])
             self.assertNotIn(directory, json.dumps(fragment, sort_keys=True))
+
+    def test_rewrite_removes_static_artifact_absent_from_new_bundle(self) -> None:
+        facts, composition, manifest = load_runtime_documents()
+        static_bundle = compile_harness_bundle(
+            facts,
+            composition,
+            manifest,
+            protocols(),
+            static_declarations={
+                "legal_set": [
+                    {"action_id": 1, "destination_id": 10, "values": [0, 1]},
+                ],
+            },
+            static_parameters=StaticPolicyParameters(2, 4, 2, "none"),
+        )
+        direct_bundle = compile_harness_bundle(facts, composition, manifest, protocols())
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "bundle"
+            write_harness_bundle(static_bundle, output)
+            self.assertTrue((output / "candidate-static.sv").exists())
+
+            paths = write_harness_bundle(direct_bundle, output)
+
+            self.assertFalse((output / "candidate-static.sv").exists())
+            self.assertEqual(set(paths), {path.name for path in output.iterdir()})
 
     def test_rejects_missing_baseline_and_incomplete_runtime_evidence(self) -> None:
         facts, composition, manifest = load_runtime_documents()

@@ -29,6 +29,7 @@ from .planner import (
     RuntimePolicy,
     RfuzzExecution,
     plan_experiment,
+    resolve_build_prerequisite,
 )
 from .pipeline import PreparedCandidateRuntime, prepare_candidate_runtime
 from .report import ReportError, build_report
@@ -40,6 +41,16 @@ from .resource_policy import (
     apply_resource_profile,
 )
 from .scheduler import plan_jobs
+from .static_portfolio import (
+    PORTFOLIO,
+    PromotionDecision,
+    ScreenDecision,
+    compile_portfolio,
+    freeze_policy,
+    promote,
+    screen,
+    screened_policy_ids,
+)
 
 __all__ = [
     "AddressConstraints",
@@ -62,7 +73,9 @@ __all__ = [
     "JobKind",
     "HarnessIdentity",
     "Port",
+    "PORTFOLIO",
     "PreparedCandidateRuntime",
+    "PromotionDecision",
     "ProtocolEndpoint",
     "ReportError",
     "ResourceProfile",
@@ -71,17 +84,24 @@ __all__ = [
     "RfuzzAvailability",
     "RfuzzExecution",
     "RuntimePolicy",
+    "ScreenDecision",
     "SourceList",
     "SourceCapability",
     "claim_job",
     "apply_resource_profile",
+    "compile_portfolio",
     "build_report",
     "load_experiment_config",
     "load_experiment_configs",
     "preflight_experiment_sources",
     "plan_jobs",
     "plan_experiment",
+    "resolve_build_prerequisite",
     "prepare_candidate_runtime",
     "release_job",
     "run_job",
+    "freeze_policy",
+    "promote",
+    "screen",
+    "screened_policy_ids",
 ]

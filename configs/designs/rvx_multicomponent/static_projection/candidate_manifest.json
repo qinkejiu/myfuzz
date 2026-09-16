@@ -1,0 +1,65 @@
+{
+  "schema_version": "candidate_manifest.v1",
+  "lifecycle": "top_validated",
+  "candidate_id": "rvx-multicomponent-static",
+  "composition_ir_hash": "sha256:b03fbb2e5f37ba843c60600ee9b873aeff55ed209f21e390a4e9896c986ec5b2",
+  "combinational_design": false,
+  "top": {
+    "module": "rvx",
+    "source": "external_designs/rvx/hardware/rvx.v",
+    "content_hash": "sha256:f5d902384e97c662ac55224631f1a33e03c42a387ff67efcc8c36e8954098ffd"
+  },
+  "flat_baseline": {
+    "schema_version": "candidate_manifest.v1",
+    "candidate_id": "rvx-multicomponent-flat",
+    "combinational_design": false,
+    "top": {
+      "module": "rvx",
+      "source": "external_designs/rvx/hardware/rvx.v",
+      "content_hash": "sha256:f5d902384e97c662ac55224631f1a33e03c42a387ff67efcc8c36e8954098ffd"
+    },
+    "top_port_abi": [],
+    "coverage_universe": [
+      {
+        "point_id": 1,
+        "stable_source_id": "sha256:f5d902384e97c662ac55224631f1a33e03c42a387ff67efcc8c36e8954098ffd",
+        "component_id": 1,
+        "component_role": "rvx-multicomponent",
+        "source": {"file_id": 1, "line": 1, "column": 0}
+      }
+    ]
+  },
+  "harnesses": {"flat-direct": [], "candidate-direct": [], "candidate-depaware": []},
+  "top_port_abi": [
+    {"port_id": 1, "emitted_name": "clock", "direction": "input", "width": 1, "semantic_role": "clock", "active_level": 1, "fuzzable": false, "fuzz_disposition": "control"},
+    {"port_id": 2, "emitted_name": "reset", "direction": "input", "width": 1, "semantic_role": "reset", "active_level": 1, "synchronous": true, "io_meta_reset": true, "reset_value": 1, "fuzzable": false, "fuzz_disposition": "control"},
+    {"port_id": 3, "emitted_name": "halt", "direction": "input", "width": 1, "semantic_role": "event", "fuzzable": true, "fuzz_disposition": "fuzz"},
+    {"port_id": 4, "emitted_name": "uart_rx", "direction": "input", "width": 1, "semantic_role": "event", "fuzzable": true, "fuzz_disposition": "fuzz"},
+    {"port_id": 5, "emitted_name": "uart_tx", "direction": "output", "width": 1, "semantic_role": "observe", "fuzzable": false, "fuzz_disposition": "observe"},
+    {"port_id": 6, "emitted_name": "gpio_input", "direction": "input", "width": 1, "semantic_role": "protocol", "fuzzable": true, "fuzz_disposition": "fuzz"},
+    {"port_id": 7, "emitted_name": "gpio_oe", "direction": "output", "width": 1, "semantic_role": "observe", "fuzzable": false, "fuzz_disposition": "observe"},
+    {"port_id": 8, "emitted_name": "gpio_output", "direction": "output", "width": 1, "semantic_role": "observe", "fuzzable": false, "fuzz_disposition": "observe"},
+    {"port_id": 9, "emitted_name": "sclk", "direction": "output", "width": 1, "semantic_role": "observe", "fuzzable": false, "fuzz_disposition": "observe"},
+    {"port_id": 10, "emitted_name": "pico", "direction": "output", "width": 1, "semantic_role": "observe", "fuzzable": false, "fuzz_disposition": "observe"},
+    {"port_id": 11, "emitted_name": "poci", "direction": "input", "width": 1, "semantic_role": "event", "fuzzable": true, "fuzz_disposition": "fuzz"},
+    {"port_id": 12, "emitted_name": "cs", "direction": "output", "width": 1, "semantic_role": "observe", "fuzzable": false, "fuzz_disposition": "observe"}
+  ],
+  "address_map": [],
+  "raw_bit_mappings": {"flat-direct": [], "candidate-direct": [], "candidate-depaware": []},
+  "validation": {"status": "valid", "parse": "passed", "elaboration": "passed", "link": "passed", "width": "passed", "compile": "pending", "smoke": "pending"},
+  "coverage_universe": [
+    {
+      "point_id": 1,
+      "stable_source_id": "sha256:f5d902384e97c662ac55224631f1a33e03c42a387ff67efcc8c36e8954098ffd",
+      "component_id": 1,
+      "component_role": "rvx-multicomponent",
+      "source": {"file_id": 1, "line": 1, "column": 0}
+    }
+  ],
+  "source_map": [],
+  "build_cache_key": "sha256:2dde6bdef8afd175775ac1a8edd2d281a7e1a2e66699bc5d1be215634e55c515",
+  "resources": {"peak_rss_bytes": 1000000000},
+  "diagnostics": {"errors": [], "warnings": []},
+  "evidence": [],
+  "assumptions": []
+}

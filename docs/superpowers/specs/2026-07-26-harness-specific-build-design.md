@@ -1,0 +1,195 @@
+# Harness-Specific Build Prerequisites Design
+
+## Context
+
+The static projection campaign compares `candidate-direct` and
+`candidate-static` harnesses for the same target, seed, mutation settings, and
+budget. These harnesses compile different RTL, so they cannot truthfully share
+one server build merely because they belong to the same candidate design.
+
+The current experiment planner deduplicates server builds by the candidate
+build-cache key. A later fuzz job identifies its harness, but has no explicit
+reference to the server build that implements that harness. Extending the
+campaign runner around this ambiguity would make artifact provenance and
+paired fairness unverifiable.
+
+## Decision
+
+Server build prerequisites are harness-specific. The existing experiment
+planner remains the owner of build planning, and the existing experiment
+matrix remains the owner of build-before-fuzz execution. No campaign-local
+scheduler, lease manager, parser, or report aggregator is introduced.
+
+Each build job identifies:
+
+- the candidate design and its existing source/build-cache identity;
+- the harness group and execution mode;
+- the generated harness artifact identity, including the static source hash
+  and projection-plan hash when the mode is `candidate-static`; and
+- a stable build prerequisite ID derived from those identities.
+
+Each fuzz job carries the exact build prerequisite ID it consumes. Planning
+fails when that reference is missing, points to a build for another candidate
+or harness, or disagrees with the fuzz job's declared artifact hashes.
+
+## Planning Model
+
+The planner treats `candidate-static` as a first-class candidate harness. It is
+not an alias for `candidate-depaware`, and it does not inherit dependency-aware
+runtime behavior.
+
+Build deduplication uses the effective server identity rather than only the
+candidate identity. Conceptually, the key is:
+
+```text
+(candidate build identity, harness mode, harness artifact identity)
+```
+
+Two fuzz jobs may reuse one build only when this complete key is equal. Jobs
+with different seeds or budgets normally reuse a build; direct and static jobs
+do not. If two static policies produce different generated source or projection
+plans, they also do not reuse a build.
+
+The build prerequisite ID is stable for equal normalized inputs and contains
+no output path, process ID, timestamp, or display-only name. The planner emits
+build jobs in deterministic order and emits each required build exactly once.
+
+## Execution Contract
+
+`run_experiment_matrix` executes the planned build jobs before their dependent
+fuzz jobs, using its current scheduling and result collection path. Before a
+fuzz job is dispatched, the matrix verifies that its referenced build:
+
+- completed successfully;
+- produced the expected server artifact;
+- matches the candidate, harness mode, and artifact identities recorded by the
+  fuzz job; and
+- has not been substituted by a build with the same filesystem location but a
+  different identity.
+
+The runner receives the selected build prerequisite through the existing job
+boundary. It materializes or selects that build's server for the fuzz job; it
+does not rebuild the server during the fuzz stage.
+
+Build failure invalidates all dependent fuzz jobs. A missing, duplicate, or
+ambiguous prerequisite is a planning/execution error, not a skipped comparison.
+
+## Static Harness Boundary
+
+The public harness and design-flow interfaces accept `candidate-static`.
+Static generation consumes only the normalized manifest semantics and the
+globally selected portfolio policy. The generated bundle supplies declarations,
+global parameters, source content hash, ABI hash, and projection-plan hash to
+the planner.
+
+Target configuration may declare ABI, protocol bindings, address regions,
+legal sets, semantic roles, and artifact paths. It may not override policy
+parameters. Both training targets use the same portfolio and selected global
+policy.
+
+## Fairness And Reporting
+
+Training comparisons are explicit pairs between `candidate-direct` and one
+named candidate harness, initially `candidate-static`. Pair validation retains
+the existing equality requirements for coverage identity, raw width, mutation
+settings, seed, and budget. It additionally requires each side's build
+prerequisite and artifact hashes to be internally consistent.
+
+Reports label the candidate harness dynamically instead of assuming
+`candidate-depaware`. Static comparisons record the projection-plan hash and
+the static-only coverage point IDs alongside the existing overlap and
+candidate-only/baseline-only evidence.
+
+No comparison is accepted when either prerequisite failed, the expected
+coverage universe is empty, the run exits early or abnormally, zero tests were
+executed, artifact hashes disagree, or FIFO cleanup is incomplete.
+
+## Compatibility
+
+Existing flat-direct, candidate-direct, and candidate-depaware experiments keep
+their behavior. Existing callers that do not provide an explicit prerequisite
+may be normalized by the planner only when exactly one compatible build can be
+derived without ambiguity. Serialized job data gains a schema-compatible
+optional field during loading, but newly planned fuzz jobs always contain an
+explicit prerequisite ID.
+
+This compatibility path must fail closed if more than one server build could
+satisfy a legacy fuzz job.
+
+## Verification
+
+Focused tests must prove:
+
+- direct and static fuzz jobs reference distinct builds;
+- equal seeds/budgets reuse the correct harness-specific build;
+- different static source or projection-plan hashes force distinct builds;
+- missing, cross-harness, failed, and hash-inconsistent prerequisites fail;
+- planner output and prerequisite IDs are deterministic;
+- legacy single-build cases remain valid and ambiguous legacy cases fail;
+- `candidate-static` flows through the public harness and design-flow APIs;
+- reports compare direct against a dynamic candidate label and retain static
+  provenance; and
+- the campaign continues to use `run_experiment_matrix` for every stage.
+
+The existing full unit suite and real sequential server build/handshake smoke
+remain required before the campaign is considered integrated.
+
+## Concrete Execution Boundary
+
+The command-only `RfuzzAdapter` is insufficient for the required real smoke
+and campaign. The concrete runner is therefore part of the existing design
+flow boundary, not the campaign:
+
+- `run_design_flow` remains the sole owner of RFuzz process lifecycle, FIFO
+  handshake and cleanup, queue/statistics interpretation, and successful-run
+  result materialization;
+- an integration-layer runner executes the adapter's deterministic commands
+  and converts the design-flow result document into the matrix's existing
+  `BuildJobResult` and `FuzzJobResult` types; and
+- the campaign only supplies this runner to `run_experiment_matrix`. It does
+  not inspect RFuzz logs, queue entries, bitmaps, processes, or FIFOs itself.
+
+The design flow writes one atomic, closed-world result document when an
+explicit result path is supplied. A build result attests to the planned
+artifact ID and an existing server binary. A fuzz result records elapsed
+time, tests and cycles, covered point IDs, peak RSS, server/fuzzer return
+codes, handshake success, FIFO cleanup, and an observed failure or resource
+termination classification. Malformed, incomplete, stale, or
+identity-mismatched result documents fail closed. The design flow samples the
+complete server/fuzzer process trees and enforces the matrix hard-memory limit;
+only an observed hard-limit termination may become a resource checkpoint.
+
+Coverage point IDs are joined by position between the instrumenter's ordered
+coverage metadata and RFuzz's ordered bitmap. Repository manifests provide
+the target ABI and semantic declarations; before planning a real matrix, the
+same design flow refreshes frontend/instrumentation output and derives the
+runtime coverage universe from that output. Point `i` in RFuzz maps to the
+positive manifest point ID `i + 1`. The stable source identity is a canonical
+hash of the corresponding instrumentation record. The direct and static
+harnesses consume the same derived universe, and any width disagreement
+invalidates the run.
+
+Three alternatives were considered. Parsing RFuzz output in the campaign was
+rejected because it creates the prohibited second parser. Requiring callers
+to inject an unpublished external runner was rejected because the specified
+CLI smoke could never execute. Treating checked-in placeholder coverage
+records as empirical truth was rejected because schema validity does not
+establish instrumentation identity or coverage width.
+
+Internal harness code may retain its historical bare 64-hex digests. Values
+crossing into `candidate_manifest.v1` are normalized exactly once at the
+manifest-fragment boundary to canonical `sha256:<64 hex>` form; digest bytes
+must not be recomputed or changed.
+
+`run_experiment_matrix` and `experiments.jobs.run_job` remain the only memory
+gate lease boundary. A campaign command must not wrap the matrix in an outer
+`build` claim because the file lease is intentionally non-reentrant and the
+matrix build would wait on its own parent process.
+
+RFuzz direct/static execution has no runtime source for projection generation,
+correction, protocol generation, no-progress, candidate generation, or
+candidate validation counters. For this campaign those sample fields are
+defined as not applicable and encoded as zero (or an empty counter map). They
+are presentation-only fields and must not participate in screening or
+promotion. Coverage, throughput, RSS, handshake, cleanup, return codes, and
+failure/resource classifications must always come from observed execution.

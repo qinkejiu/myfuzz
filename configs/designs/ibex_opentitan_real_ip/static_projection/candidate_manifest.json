@@ -1,0 +1,67 @@
+{
+  "schema_version": "candidate_manifest.v1",
+  "lifecycle": "top_validated",
+  "candidate_id": "ibex-opentitan-real-ip-static",
+  "composition_ir_hash": "sha256:bcef4d9e22031c68c248335568787372b3cca9bcb96ccded87e09cb4459c12d7",
+  "combinational_design": false,
+  "top": {
+    "module": "ibex_opentitan_real_ip_top",
+    "source": "configs/designs/ibex_opentitan_real_ip/rtl/ibex_opentitan_real_ip_top.sv",
+    "content_hash": "sha256:e7247936317fe2ea6a443f0301866caee0f6f6470dd61083660bb1af3aa9526e"
+  },
+  "flat_baseline": {
+    "schema_version": "candidate_manifest.v1",
+    "candidate_id": "ibex-opentitan-real-ip-flat",
+    "combinational_design": false,
+    "top": {
+      "module": "ibex_opentitan_real_ip_top",
+      "source": "configs/designs/ibex_opentitan_real_ip/rtl/ibex_opentitan_real_ip_top.sv",
+      "content_hash": "sha256:e7247936317fe2ea6a443f0301866caee0f6f6470dd61083660bb1af3aa9526e"
+    },
+    "top_port_abi": [],
+    "coverage_universe": [
+      {
+        "point_id": 1,
+        "stable_source_id": "sha256:e7247936317fe2ea6a443f0301866caee0f6f6470dd61083660bb1af3aa9526e",
+        "component_id": 1,
+        "component_role": "ibex-opentitan-real-ip",
+        "source": {"file_id": 1, "line": 1, "column": 0}
+      }
+    ]
+  },
+  "harnesses": {"flat-direct": [], "candidate-direct": [], "candidate-depaware": []},
+  "top_port_abi": [
+    {"port_id": 1, "emitted_name": "clk_i", "direction": "input", "width": 1, "semantic_role": "clock", "active_level": 1, "fuzzable": false, "fuzz_disposition": "control"},
+    {"port_id": 2, "emitted_name": "rst_ni", "direction": "input", "width": 1, "semantic_role": "reset", "active_level": 0, "synchronous": false, "io_meta_reset": true, "reset_value": 0, "fuzzable": false, "fuzz_disposition": "control"},
+    {"port_id": 3, "emitted_name": "uart_rx_i", "direction": "input", "width": 1, "semantic_role": "protocol", "fuzzable": true, "fuzz_disposition": "fuzz"},
+    {"port_id": 4, "emitted_name": "gpio_i", "direction": "input", "width": 32, "semantic_role": "protocol", "fuzzable": true, "fuzz_disposition": "fuzz"},
+    {"port_id": 5, "emitted_name": "strap_en_i", "direction": "input", "width": 1, "semantic_role": "event", "fuzzable": true, "fuzz_disposition": "fuzz"},
+    {"port_id": 6, "emitted_name": "debug_req_i", "direction": "input", "width": 1, "semantic_role": "event", "fuzzable": true, "fuzz_disposition": "fuzz"},
+    {"port_id": 7, "emitted_name": "irq_software_i", "direction": "input", "width": 1, "semantic_role": "event", "fuzzable": true, "fuzz_disposition": "fuzz"},
+    {"port_id": 8, "emitted_name": "irq_external_i", "direction": "input", "width": 1, "semantic_role": "event", "fuzzable": true, "fuzz_disposition": "fuzz"},
+    {"port_id": 9, "emitted_name": "uart_tx_o", "direction": "output", "width": 1, "semantic_role": "observe", "fuzzable": false, "fuzz_disposition": "observe"},
+    {"port_id": 10, "emitted_name": "uart_tx_en_o", "direction": "output", "width": 1, "semantic_role": "observe", "fuzzable": false, "fuzz_disposition": "observe"},
+    {"port_id": 11, "emitted_name": "gpio_o", "direction": "output", "width": 32, "semantic_role": "observe", "fuzzable": false, "fuzz_disposition": "observe"},
+    {"port_id": 12, "emitted_name": "gpio_oe_o", "direction": "output", "width": 32, "semantic_role": "observe", "fuzzable": false, "fuzz_disposition": "observe"},
+    {"port_id": 13, "emitted_name": "timer_irq_o", "direction": "output", "width": 1, "semantic_role": "observe", "fuzzable": false, "fuzz_disposition": "observe"},
+    {"port_id": 14, "emitted_name": "core_instr_addr_o", "direction": "output", "width": 32, "semantic_role": "observe", "fuzzable": false, "fuzz_disposition": "observe"}
+  ],
+  "address_map": [],
+  "raw_bit_mappings": {"flat-direct": [], "candidate-direct": [], "candidate-depaware": []},
+  "validation": {"status": "valid", "parse": "passed", "elaboration": "passed", "link": "passed", "width": "passed", "compile": "pending", "smoke": "pending"},
+  "coverage_universe": [
+    {
+      "point_id": 1,
+      "stable_source_id": "sha256:e7247936317fe2ea6a443f0301866caee0f6f6470dd61083660bb1af3aa9526e",
+      "component_id": 1,
+      "component_role": "ibex-opentitan-real-ip",
+      "source": {"file_id": 1, "line": 1, "column": 0}
+    }
+  ],
+  "source_map": [],
+  "build_cache_key": "sha256:1b302617f1ffe52a74cfe036538667822ad462ee357008ce90363bff4b54ce40",
+  "resources": {"peak_rss_bytes": 3000000000},
+  "diagnostics": {"errors": [], "warnings": []},
+  "evidence": [],
+  "assumptions": []
+}

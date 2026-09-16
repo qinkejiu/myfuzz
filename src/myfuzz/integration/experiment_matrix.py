@@ -20,16 +20,20 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 import random
+import re
 import secrets
 import stat
 from typing import Protocol, TypeAlias
 
+from myfuzz.contracts import content_hash
 from myfuzz.experiments import (
     ExperimentJob,
+    ExperimentPlanError,
     Job,
     JobKind,
     build_report,
     plan_experiment,
+    resolve_build_prerequisite,
     run_job,
 )
 
@@ -48,6 +52,7 @@ class BuildJobResult:
 
     job_id: str
     attempt: int
+    artifact_id: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,7 +91,10 @@ class ExperimentRunner(Protocol):
 _MAX_RETRIES = 16
 _MAX_REPORT_BYTES = 64 * 1024 * 1024
 _TOP_LEVEL_KEYS = frozenset(
-    ("planner_config", "candidate_manifests", "execution", "reference_summary")
+    (
+        "planner_config", "candidate_manifests", "execution", "reference_summary",
+        "pair_metadata",
+    )
 )
 _EXECUTION_KEYS = frozenset(
     ("interleaving_seed", "max_resource_retries", "job_timeout_seconds")
@@ -98,6 +106,14 @@ class _ExecutionConfig:
     interleaving_seed: int
     max_resource_retries: int
     job_timeout_seconds: float
+
+
+@dataclass(frozen=True, slots=True)
+class _PairMetadata:
+    policy_id: str
+    plan_hash: str
+    projection_plan_hash: str
+    parameters: Mapping[str, object]
 
 
 @dataclass(slots=True)
@@ -151,7 +167,10 @@ def _bounded_nonnegative_int(value: object, label: str, maximum: int) -> int:
 
 def _parse_config(
     value: object,
-) -> tuple[Mapping[str, object], tuple[object, ...], _ExecutionConfig, object | None]:
+) -> tuple[
+    Mapping[str, object], tuple[object, ...], _ExecutionConfig,
+    object | None, _PairMetadata | None,
+]:
     document = _object(value, "config")
     _strict_keys(
         document,
@@ -187,7 +206,149 @@ def _parse_config(
             "execution.job_timeout_seconds must be finite and non-negative"
         )
     reference = copy.deepcopy(document.get("reference_summary"))
-    return planner_config, manifests, _ExecutionConfig(seed, retries, float(timeout)), reference
+    pair_metadata = None
+    if "pair_metadata" in document:
+        metadata = _object(document["pair_metadata"], "pair_metadata")
+        metadata_keys = frozenset((
+            "policy_id", "plan_hash", "projection_plan_hash", "parameters",
+        ))
+        _strict_keys(metadata, metadata_keys, metadata_keys, "pair_metadata")
+        policy_id = metadata["policy_id"]
+        plan_hash = metadata["plan_hash"]
+        projection_plan_hash = metadata["projection_plan_hash"]
+        parameters = _object(metadata["parameters"], "pair_metadata.parameters")
+        parameter_keys = frozenset((
+            "direct_ratio", "event_rarity", "legal_set_strength", "mutual_exclusion",
+        ))
+        _strict_keys(parameters, parameter_keys, parameter_keys, "pair_metadata.parameters")
+        expected_plan_hash = content_hash(parameters)
+        expected_policy_id = (
+            "policy-" + expected_plan_hash.removeprefix("sha256:")[:16]
+        )
+        if policy_id != expected_policy_id:
+            raise ExperimentMatrixError(
+                "pair_metadata.policy_id does not match pair_metadata.parameters"
+            )
+        if plan_hash != expected_plan_hash:
+            raise ExperimentMatrixError(
+                "pair_metadata.plan_hash does not match pair_metadata.parameters"
+            )
+        if not isinstance(projection_plan_hash, str) or re.fullmatch(
+            r"sha256:[0-9a-f]{64}", projection_plan_hash
+        ) is None:
+            raise ExperimentMatrixError(
+                "pair_metadata.projection_plan_hash must be canonical SHA-256"
+            )
+        pair_metadata = _PairMetadata(
+            policy_id,
+            plan_hash,
+            projection_plan_hash,
+            copy.deepcopy(dict(parameters)),
+        )
+    return (
+        planner_config, manifests, _ExecutionConfig(seed, retries, float(timeout)),
+        reference, pair_metadata,
+    )
+
+
+def _promotion_pairs(
+    plan: object,
+    samples_by_job: Mapping[str, tuple[dict[str, object], ...]],
+    metadata: _PairMetadata,
+) -> list[dict[str, object]]:
+    jobs = {job.job_id: job for job in plan.jobs}
+    pairs: list[dict[str, object]] = []
+
+    def summary(job: ExperimentJob) -> dict[str, object]:
+        samples = samples_by_job[job.job_id]
+        sample = max(samples, key=lambda item: (item["elapsed_seconds"], item["sequence"]))
+        elapsed = sample["elapsed_seconds"]
+        tests = sample["tests_executed"]
+        if (
+            isinstance(elapsed, bool) or not isinstance(elapsed, (int, float))
+            or elapsed <= 0 or not math.isfinite(float(elapsed))
+        ):
+            raise ExperimentMatrixError("pair evidence elapsed_seconds must be positive")
+        if isinstance(tests, bool) or not isinstance(tests, int) or tests < 0:
+            raise ExperimentMatrixError("pair evidence tests_executed must be non-negative")
+        expected_artifact = job.execution.server_artifact_id
+        if sample.get("artifact_id") != expected_artifact:
+            raise ExperimentMatrixError("pair evidence artifact_id does not match planned job")
+        for field in ("handshake_succeeded", "fifo_cleanup_succeeded"):
+            if sample.get(field) is not True:
+                raise ExperimentMatrixError(f"pair evidence {field} must be true")
+        for field in ("server_returncode", "fuzzer_returncode", "crash_restart_count"):
+            value = sample.get(field)
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise ExperimentMatrixError(f"pair evidence {field} must be an integer")
+        failures = copy.deepcopy(dict(_object(
+            sample.get("failure_reasons"), "pair evidence failure_reasons"
+        )))
+        return {
+            "covered": len(sample["covered_point_ids"]),
+            "tests_per_second": tests / float(elapsed),
+            "failure_reasons": failures,
+            "artifact_id": expected_artifact,
+            "server_returncode": sample["server_returncode"],
+            "fuzzer_returncode": sample["fuzzer_returncode"],
+            "handshake_succeeded": True,
+            "fifo_cleanup_succeeded": True,
+            "crash_restart_count": sample["crash_restart_count"],
+        }
+
+    for block in plan.run_blocks:
+        block_jobs = [jobs[job_id] for job_id in block]
+        direct_jobs = [job for job in block_jobs if job.harness == "candidate-direct"]
+        candidate_jobs = [job for job in block_jobs if job.harness == "candidate-static"]
+        if len(direct_jobs) != 1 or len(candidate_jobs) != 1:
+            raise ExperimentMatrixError(
+                "pair_metadata requires one candidate-direct/candidate-static pair"
+            )
+        direct = direct_jobs[0]
+        candidate = candidate_jobs[0]
+        expected_candidate_id = f"{direct.target_id}-{metadata.policy_id}"
+        if (
+            direct.candidate_id != expected_candidate_id
+            or candidate.candidate_id != expected_candidate_id
+        ):
+            raise ExperimentMatrixError(
+                "pair_metadata.policy_id does not match planned candidate identity"
+            )
+        if candidate.projection_plan_hash != metadata.projection_plan_hash:
+            raise ExperimentMatrixError(
+                "pair_metadata.projection_plan_hash does not match planned candidate-static projection"
+            )
+        if candidate.target_id != direct.target_id or candidate.seed != direct.seed:
+            raise ExperimentMatrixError("planned promotion pair identity is inconsistent")
+        pairs.append({
+            "policy_id": metadata.policy_id,
+            "plan_hash": metadata.plan_hash,
+            "projection_plan_hash": candidate.projection_plan_hash,
+            "parameters": copy.deepcopy(dict(metadata.parameters)),
+            "target_id": direct.target_id,
+            "seed": direct.seed,
+            "baseline": summary(direct),
+            "candidate": summary(candidate),
+        })
+    return sorted(pairs, key=lambda pair: (pair["target_id"], pair["seed"]))
+
+
+def matrix_promotion_pairs(results: object) -> tuple[dict[str, object], ...]:
+    """Collect only matrix-published per-seed promotion evidence."""
+    wrappers = _array(results, "matrix results")
+    pairs: list[dict[str, object]] = []
+    for index, value in enumerate(wrappers):
+        wrapper = _object(value, f"matrix results[{index}]")
+        published = _array(
+            wrapper.get("promotion_pairs"),
+            f"matrix results[{index}].promotion_pairs",
+        )
+        for pair_index, pair in enumerate(published):
+            pairs.append(copy.deepcopy(dict(_object(
+                pair,
+                f"matrix results[{index}].promotion_pairs[{pair_index}]",
+            ))))
+    return tuple(pairs)
 
 
 def _open_report_destination(report_path: Path) -> _ReportDestination:
@@ -304,6 +465,10 @@ def _validated_result(
             raise ExperimentMatrixError("BuildJobResult job_id does not match job")
         if _positive_attempt(result.attempt, "BuildJobResult.attempt") != expected_attempt:
             raise ExperimentMatrixError("BuildJobResult attempt does not match current attempt")
+        if result.artifact_id != getattr(job, "artifact_id", ""):
+            raise ExperimentMatrixError(
+                "BuildJobResult artifact_id does not match planned build artifact_id"
+            )
         return result
     if isinstance(result, FuzzJobResult):
         if not isinstance(job, ExperimentJob) or job.kind is not JobKind.FUZZ:
@@ -354,11 +519,16 @@ def _validated_result(
             dict(_object(result.checkpoint, "ResourceCheckpointEvent.checkpoint"))
         )
         if isinstance(job, ExperimentJob):
-            samples, sample_peak = _sample_identity(job, result.samples, resource_event=True)
-            if sample_peak != observed:
-                raise ExperimentMatrixError(
-                    "ResourceCheckpointEvent observed_peak_rss_bytes must equal sample peak_rss_bytes"
+            if result.samples:
+                samples, sample_peak = _sample_identity(
+                    job, result.samples, resource_event=True
                 )
+                if sample_peak != observed:
+                    raise ExperimentMatrixError(
+                        "ResourceCheckpointEvent observed_peak_rss_bytes must equal sample peak_rss_bytes"
+                    )
+            else:
+                samples = ()
         else:
             if result.samples:
                 raise ExperimentMatrixError("build resource events cannot contain fuzz samples")
@@ -406,6 +576,33 @@ def _persist_checkpoint(
             "checkpoint": copy.deepcopy(dict(event.checkpoint)),
         }
     )
+
+
+def _is_legacy_build_prerequisite(job: Job) -> bool:
+    return (
+        getattr(job, "target_id", "") == ""
+        and getattr(job, "candidate_id", "") == ""
+        and getattr(job, "harness", "") == ""
+        and getattr(job, "artifact_id", "") == ""
+        and getattr(job, "harness_content_hash", None) is None
+        and getattr(job, "harness_abi_hash", None) is None
+        and getattr(job, "projection_plan_hash", None) is None
+        and getattr(getattr(job, "execution", None), "candidate_mode", None) is None
+        and getattr(getattr(job, "execution", None), "server_artifact_id", None) is None
+    )
+
+
+def _require_completed_build_prerequisite(
+    job: ExperimentJob,
+    prerequisites: Mapping[str, Job],
+    completed_builds: set[str],
+) -> Job:
+    required = prerequisites[job.job_id]
+    if required.job_id not in completed_builds:
+        raise ExperimentMatrixError(
+            f"fuzz build prerequisite did not complete: {required.job_id}"
+        )
+    return required
 
 
 def _write_all(descriptor: int, payload: bytes) -> None:
@@ -632,11 +829,25 @@ def _run_experiment_matrix(
     runner: Callable[[Job], object],
     destination: _ReportDestination,
 ) -> dict[str, object]:
-    planner_config, manifests, execution, reference_summary = _parse_config(config)
+    planner_config, manifests, execution, reference_summary, pair_metadata = _parse_config(config)
     plan = plan_experiment(planner_config, manifests)
+    try:
+        prerequisites = {}
+        for job in plan.jobs:
+            required = resolve_build_prerequisite(plan, job)
+            if not job.build_job_id and not _is_legacy_build_prerequisite(required):
+                raise ExperimentPlanError(
+                    "harness-specific fuzz build prerequisite is missing build_job_id"
+                )
+            prerequisites[job.job_id] = required
+    except ExperimentPlanError as error:
+        raise ExperimentMatrixError(str(error)) from error
+    completed_builds: set[str] = set()
 
-    fuzz_order = list(plan.jobs)
-    random.Random(execution.interleaving_seed).shuffle(fuzz_order)
+    jobs_by_id = {job.job_id: job for job in plan.jobs}
+    run_blocks = list(plan.run_blocks)
+    random.Random(execution.interleaving_seed).shuffle(run_blocks)
+    fuzz_order = [jobs_by_id[job_id] for block in run_blocks for job_id in block]
     execution_order: list[str] = []
     attempts: defaultdict[str, int] = defaultdict(int)
     checkpoints: list[dict[str, object]] = []
@@ -662,6 +873,7 @@ def _run_experiment_matrix(
         while True:
             result = execute(build_job)
             if isinstance(result, BuildJobResult):
+                completed_builds.add(build_job.job_id)
                 break
             if not isinstance(result, ResourceCheckpointEvent):
                 raise ExperimentMatrixError("build jobs must return BuildJobResult")
@@ -696,15 +908,22 @@ def _run_experiment_matrix(
         if attempts[job.job_id] <= execution.max_resource_retries:
             retry_queue.append((job, result, stable_order[job.job_id]))
         else:
+            if not result.samples:
+                raise ResourceTerminatedError(
+                    "fuzz job remained resource_terminated without authoritative "
+                    f"samples: {job.job_id}"
+                )
             samples_by_job[job.job_id] = tuple(dict(sample) for sample in result.samples)
             resource_terminated.add(job.job_id)
 
     for job in fuzz_order:
+        _require_completed_build_prerequisite(job, prerequisites, completed_builds)
         accept_fuzz_result(job, execute(job))
 
     while retry_queue:
         retry_queue.sort(key=lambda item: (item[0].priority, item[2], item[0].job_id))
         job, _previous_event, order_index = retry_queue.pop(0)
+        _require_completed_build_prerequisite(job, prerequisites, completed_builds)
         result = execute(job)
         if isinstance(result, ResourceCheckpointEvent):
             _persist_checkpoint(
@@ -717,6 +936,11 @@ def _run_experiment_matrix(
             if attempts[job.job_id] <= execution.max_resource_retries:
                 retry_queue.append((job, result, order_index))
             else:
+                if not result.samples:
+                    raise ResourceTerminatedError(
+                        "fuzz job remained resource_terminated without authoritative "
+                        f"samples: {job.job_id}"
+                    )
                 samples_by_job[job.job_id] = tuple(
                     dict(sample) for sample in result.samples
                 )
@@ -758,6 +982,10 @@ def _run_experiment_matrix(
             "resource_terminated_job_ids": sorted(resource_terminated),
         },
     }
+    if pair_metadata is not None:
+        wrapper["promotion_pairs"] = _promotion_pairs(
+            plan, samples_by_job, pair_metadata
+        )
     _atomic_write_report(destination, wrapper)
     return copy.deepcopy(wrapper)
 
@@ -770,5 +998,6 @@ __all__ = [
     "ResourceCheckpointEvent",
     "ResourceTerminatedError",
     "RunnerResult",
+    "matrix_promotion_pairs",
     "run_experiment_matrix",
 ]
