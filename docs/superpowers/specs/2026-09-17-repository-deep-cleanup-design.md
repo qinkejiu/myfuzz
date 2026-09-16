@@ -61,19 +61,24 @@ An archive manifest will record the source worktree or original path for moved S
 ## Worktree Removal Flow
 
 1. Record each worktree's path, branch, commit, dirty state, and disk usage.
-2. Run focused tests for the preserved Ibex files.
-3. Commit only the six listed test/configuration files on the Ibex branch.
-4. Move untracked SDD records from the root and harness worktree into the central archive and write the manifest.
-5. Move root presentation, handover, utility, and workbench files into the target layout.
-6. Confirm that no meaningful untracked test file remains in any removable worktree.
-7. Remove the three merged worktrees. Regenerable `third_party/` trees and caches are deleted with them.
-8. Retain all branch references; do not delete feature branches as part of folder cleanup.
+2. Run the complete test suite once to establish a pre-cleanup baseline.
+3. Run focused tests for the preserved Ibex files.
+4. Commit only the six listed test/configuration files on the Ibex branch.
+5. Move untracked SDD records from the root and harness worktree into the central archive and write the manifest.
+6. Move root presentation, handover, utility, and workbench files into the target layout.
+7. Confirm that no meaningful untracked test file remains in any removable worktree.
+8. Remove exactly one merged worktree. Regenerable `third_party/` trees and caches inside that worktree are deleted with it.
+9. Immediately run the complete test suite from the retained root workspace. Do not remove another worktree unless the suite passes.
+10. Repeat steps 8 and 9 separately for each remaining merged worktree.
+11. Run the complete test suite once more after all organization and deletion work is complete.
+12. Retain all branch references; do not delete feature branches as part of folder cleanup.
 
 ## Safety and Failure Handling
 
 - Never use a broad path, glob, workspace root, or home directory as a deletion target.
 - Verify each worktree path through `git worktree list` immediately before removal.
 - If a focused test fails, preserve the test changes but label the WIP commit and final report with the failing command; do not claim the test is passing.
+- If a complete post-deletion test run fails, stop immediately, keep all remaining worktrees, and diagnose the failure before any further deletion.
 - If unexpected source or test files appear, stop removal of that worktree until they are classified.
 - File moves must preserve existing content byte-for-byte; duplicate names must not be overwritten.
 
@@ -82,6 +87,7 @@ An archive manifest will record the source worktree or original path for moved S
 Completion requires all of the following evidence:
 
 - focused test results for the preserved Ibex test set;
+- complete-suite results for the baseline, after each individual worktree removal, and after final cleanup;
 - a Git commit containing exactly the six intended test/configuration paths;
 - the retained Ibex branch resolving to that commit;
 - `git worktree list` no longer showing the three removed worktrees;
