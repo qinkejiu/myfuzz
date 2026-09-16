@@ -4,7 +4,7 @@
 
 **Goal:** Preserve test-relevant Ibex work, organize loose project artifacts, and remove three merged worktrees while proving system integrity after every deletion.
 
-**Architecture:** Git is the recovery mechanism for executable test assets: the six approved test/configuration files are committed on `feature/ibex-protocol-longrun` before its worktree is removed. Non-executable review records and presentation assets move into explicit archive/deliverable directories. Each destructive worktree removal is an isolated transaction followed immediately by the complete Python test suite; a failure stops the sequence.
+**Architecture:** Git is the recovery mechanism for executable test assets: the six approved test/configuration files are committed on `feature/ibex-protocol-longrun` before its worktree is removed. Non-executable review records and presentation assets move into explicit archive/deliverable directories. A temporary `main` worktree provides a stable full-system test checkout. Each destructive target-worktree removal is an isolated transaction followed immediately by the complete Python test suite in that checkout; a failure stops the sequence.
 
 **Tech Stack:** Git worktrees, Bash filesystem tools, Python/pytest, Icarus Verilog, Verilator, Markdown manifests.
 
@@ -13,7 +13,7 @@
 - Preserve only the six approved Ibex test/configuration paths in the WIP commit.
 - Do not modify or commit the existing root edits to `README.md` or `.superpowers/sdd/task-A5-report.md`.
 - Do not archive `runs/`, `third_party/`, simulator output, bytecode, caches, or `trace_hart_0.dasm`.
-- Remove one worktree at a time and run `pytest -q` immediately afterward.
+- Remove one target worktree at a time and immediately run `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -t . -p 'test_*.py' -q` from `.worktrees/cleanup-main-verification`.
 - If any post-deletion complete test run fails, stop before removing another worktree.
 - Keep all feature branch references.
 - Use only exact verified worktree paths for destructive operations.
@@ -68,13 +68,15 @@ Expected: four readable size lines, retained for the final before/after comparis
 
 - [ ] **Step 4: Run the complete baseline suite**
 
-Run:
+Create the ignored verification worktree if it does not exist, then run the suite there:
 
 ```bash
-pytest -q
+git check-ignore -q .worktrees
+git worktree add /home/qinkejiu/myfuzz/.worktrees/cleanup-main-verification main
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -t . -p 'test_*.py' -q
 ```
 
-Expected: exit status `0`, with no failed or errored tests. If it fails, stop the cleanup before any removal.
+Expected: the worktree checks out `main`; the test command exits `0` with no failed or errored tests. If it fails, stop the cleanup before any removal.
 
 ### Task 2: Validate and preserve the Ibex test work
 
@@ -248,7 +250,8 @@ Run:
 ```bash
 find deliverables docs/handover scripts/maintenance archive/development/sdd archive/presentations -maxdepth 4 -type f -print
 git status --short
-pytest -q
+cd .worktrees/cleanup-main-verification
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -t . -p 'test_*.py' -q
 ```
 
 Expected: all moved files are visible, the pre-existing root modifications remain, and pytest exits `0`. Stop before deletion if it does not.
@@ -290,7 +293,8 @@ Expected: the exact directory and its worktree registry entry disappear; the bra
 Run:
 
 ```bash
-pytest -q
+cd /home/qinkejiu/myfuzz/.worktrees/cleanup-main-verification
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -t . -p 'test_*.py' -q
 ```
 
 Expected: exit status `0`. If it fails, stop; do not remove either remaining worktree.
@@ -332,7 +336,8 @@ Expected: the exact directory and registry entry disappear; the branch ref remai
 Run:
 
 ```bash
-pytest -q
+cd /home/qinkejiu/myfuzz/.worktrees/cleanup-main-verification
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -t . -p 'test_*.py' -q
 ```
 
 Expected: exit status `0`. If it fails, stop; do not remove the Ibex worktree.
@@ -374,7 +379,8 @@ Expected: the exact directory and registry entry disappear; `feature/ibex-protoc
 Run:
 
 ```bash
-pytest -q
+cd /home/qinkejiu/myfuzz/.worktrees/cleanup-main-verification
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -t . -p 'test_*.py' -q
 ```
 
 Expected: exit status `0`. If it fails, stop and report the failure without claiming cleanup success.
@@ -394,7 +400,8 @@ Expected: exit status `0`. If it fails, stop and report the failure without clai
 Run:
 
 ```bash
-pytest -q
+cd /home/qinkejiu/myfuzz/.worktrees/cleanup-main-verification
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -t . -p 'test_*.py' -q
 ```
 
 Expected: exit status `0`, with no failed or errored tests.
@@ -439,3 +446,14 @@ Expected: the three removed worktree directories no longer contribute disk usage
 Report the focused test results, each complete-suite result in deletion order, preserved Ibex commit hash, retained branches, removed paths, moved artifact destinations, and before/after disk measurements.
 
 Expected: the report distinguishes passing, skipped, and failing tests and does not claim success for any command that returned nonzero.
+
+- [ ] **Step 6: Remove the temporary verification worktree**
+
+Run from the repository root only after all final evidence has been captured:
+
+```bash
+git worktree remove /home/qinkejiu/myfuzz/.worktrees/cleanup-main-verification
+git worktree list --porcelain
+```
+
+Expected: only the retained root worktree remains registered. The verified `main` branch and all feature branch refs remain unchanged.
