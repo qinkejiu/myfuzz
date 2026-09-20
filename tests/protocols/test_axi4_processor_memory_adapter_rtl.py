@@ -196,6 +196,174 @@ class Axi4ProcessorMemoryAdapterRtlTests(unittest.TestCase):
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
             self.assertIn("PASS", result.stdout)
 
+    def test_legal_two_beat_read_sequences_backend_addresses_and_rlast(self) -> None:
+        iverilog, vvp = shutil.which("iverilog"), shutil.which("vvp")
+        if not iverilog or not vvp:
+            self.skipTest("Icarus Verilog is not installed")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            tb = root / "tb.sv"
+            output = root / "tb.vvp"
+            tb.write_text(textwrap.dedent("""
+                module tb;
+                  logic clk_i=0, rst_ni=0;
+                  logic [0:0] awid_i; logic [31:0] awaddr_i; logic [7:0] awlen_i;
+                  logic [2:0] awsize_i; logic [1:0] awburst_i; logic awlock_i;
+                  logic [3:0] awcache_i; logic [2:0] awprot_i; logic [3:0] awqos_i, awregion_i;
+                  logic [5:0] awatop_i; logic awuser_i, awvalid_i, awready_o;
+                  logic [31:0] wdata_i; logic [3:0] wstrb_i; logic wlast_i;
+                  logic wuser_i, wvalid_i, wready_o;
+                  logic [0:0] bid_o; logic [1:0] bresp_o; logic buser_o;
+                  logic bvalid_o, bready_i;
+                  logic [0:0] arid_i; logic [31:0] araddr_i; logic [7:0] arlen_i;
+                  logic [2:0] arsize_i; logic [1:0] arburst_i; logic arlock_i;
+                  logic [3:0] arcache_i; logic [2:0] arprot_i; logic [3:0] arqos_i, arregion_i;
+                  logic aruser_i, arvalid_i, arready_o;
+                  logic [0:0] rid_o; logic [31:0] rdata_o; logic [1:0] rresp_o;
+                  logic rlast_o; logic ruser_o, rvalid_o, rready_i;
+                  logic req_valid_o, req_ready_i, req_write_o;
+                  logic [31:0] req_addr_o, req_wdata_o; logic [3:0] req_be_o;
+                  logic rsp_valid_i, rsp_ready_o; logic [31:0] rsp_rdata_i; logic rsp_error_i;
+
+                  axi4_processor_memory_adapter #(.ADDRESS_WIDTH(32), .DATA_WIDTH(32),
+                    .ID_WIDTH(1), .USER_WIDTH(1)) dut (.*);
+                  always #5 clk_i=~clk_i;
+                  task tick; @(posedge clk_i); #1; endtask
+                  task check(input bit ok, input [8*100-1:0] msg);
+                    if (!ok) begin $display("FAIL: %0s", msg); $fatal(1); end
+                  endtask
+                  task defaults;
+                    begin
+                      awid_i=0; awaddr_i=0; awlen_i=0; awsize_i=2; awburst_i=1; awlock_i=0;
+                      awcache_i=0; awprot_i=0; awqos_i=0; awregion_i=0; awatop_i=0;
+                      awuser_i=0; awvalid_i=0; wdata_i=0; wstrb_i=0; wlast_i=1;
+                      wuser_i=0; wvalid_i=0; bready_i=0;
+                      arid_i=0; araddr_i=0; arlen_i=0; arsize_i=2; arburst_i=1; arlock_i=0;
+                      arcache_i=0; arprot_i=0; arqos_i=0; arregion_i=0; aruser_i=0;
+                      arvalid_i=0; rready_i=0; req_ready_i=0; rsp_valid_i=0;
+                      rsp_rdata_i=0; rsp_error_i=0;
+                    end
+                  endtask
+                  initial begin
+                    defaults(); tick(); rst_ni=1; @(negedge clk_i);
+                    arid_i=1; araddr_i=32'h00000100; arlen_i=1; arvalid_i=1; tick();
+                    check(req_valid_o && !req_write_o && req_addr_o==32'h00000100 &&
+                          req_be_o==4'hf, "first two-beat read reaches backend");
+                    @(negedge clk_i); arvalid_i=0; req_ready_i=1; tick();
+                    check(!req_valid_o && rsp_ready_o, "first read beat waits for response");
+                    @(negedge clk_i); req_ready_i=0; rsp_valid_i=1;
+                    rsp_rdata_i=32'h11223344; tick();
+                    check(rvalid_o && !rlast_o && rdata_o==32'h11223344,
+                          "first beat is held without RLAST");
+                    @(negedge clk_i); rsp_valid_i=0; rready_i=1; tick();
+                    check(req_valid_o && req_addr_o==32'h00000104 && !rvalid_o,
+                          "handshaking first beat issues incremented second request");
+                    @(negedge clk_i); req_ready_i=1; tick();
+                    check(!req_valid_o && rsp_ready_o, "second read beat waits for response");
+                    @(negedge clk_i); req_ready_i=0; rsp_valid_i=1;
+                    rsp_rdata_i=32'h55667788; tick();
+                    check(rvalid_o && rlast_o && rdata_o==32'h55667788,
+                          "second beat carries RLAST and its data");
+                    @(negedge clk_i); rsp_valid_i=0; tick();
+                    check(!rvalid_o && arready_o, "two-beat read returns adapter to idle");
+                    // A fixed-address two-beat burst is not silently treated
+                    // as incrementing; it is rejected without a backend beat.
+                    @(negedge clk_i); araddr_i=32'h00000200; arlen_i=1;
+                    arburst_i=0; arvalid_i=1; tick();
+                    check(rvalid_o && !rlast_o && rresp_o==2'b11 && !req_valid_o,
+                          "fixed two-beat burst is fail-closed");
+                    @(negedge clk_i); arvalid_i=0; tick();
+                    check(rvalid_o && rlast_o && rresp_o==2'b11,
+                          "rejected fixed burst returns its final DECERR beat");
+                    @(negedge clk_i); tick();
+                    check(!rvalid_o && arready_o, "rejected fixed burst drains cleanly");
+                    $display("PASS"); $finish;
+                  end
+                endmodule
+            """), encoding="utf-8")
+            compiled = subprocess.run(
+                [iverilog, "-g2012", "-s", "tb", "-o", str(output), str(RTL), str(tb)],
+                cwd=ROOT, text=True, capture_output=True, timeout=20,
+            )
+            self.assertEqual(0, compiled.returncode, compiled.stderr)
+            result = subprocess.run(
+                [vvp, str(output)], cwd=ROOT, text=True, capture_output=True, timeout=20,
+            )
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            self.assertIn("PASS", result.stdout)
+
+    def test_narrow_two_beat_read_uses_arsize_stride(self) -> None:
+        iverilog, vvp = shutil.which("iverilog"), shutil.which("vvp")
+        if not iverilog or not vvp:
+            self.skipTest("Icarus Verilog is not installed")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            tb = root / "tb.sv"
+            output = root / "tb.vvp"
+            tb.write_text(textwrap.dedent("""
+                module tb;
+                  logic clk_i=0, rst_ni=0;
+                  logic [0:0] awid_i; logic [31:0] awaddr_i; logic [7:0] awlen_i;
+                  logic [2:0] awsize_i; logic [1:0] awburst_i; logic awlock_i;
+                  logic [3:0] awcache_i; logic [2:0] awprot_i; logic [3:0] awqos_i, awregion_i;
+                  logic [5:0] awatop_i; logic awuser_i, awvalid_i, awready_o;
+                  logic [63:0] wdata_i; logic [7:0] wstrb_i; logic wlast_i;
+                  logic wuser_i, wvalid_i, wready_o;
+                  logic [0:0] bid_o; logic [1:0] bresp_o; logic buser_o;
+                  logic bvalid_o, bready_i;
+                  logic [0:0] arid_i; logic [31:0] araddr_i; logic [7:0] arlen_i;
+                  logic [2:0] arsize_i; logic [1:0] arburst_i; logic arlock_i;
+                  logic [3:0] arcache_i; logic [2:0] arprot_i; logic [3:0] arqos_i, arregion_i;
+                  logic aruser_i, arvalid_i, arready_o;
+                  logic [0:0] rid_o; logic [63:0] rdata_o; logic [1:0] rresp_o;
+                  logic rlast_o; logic ruser_o, rvalid_o, rready_i;
+                  logic req_valid_o, req_ready_i, req_write_o;
+                  logic [31:0] req_addr_o; logic [63:0] req_wdata_o; logic [7:0] req_be_o;
+                  logic rsp_valid_i, rsp_ready_o; logic [63:0] rsp_rdata_i; logic rsp_error_i;
+
+                  axi4_processor_memory_adapter #(.ADDRESS_WIDTH(32), .DATA_WIDTH(64),
+                    .ID_WIDTH(1), .USER_WIDTH(1)) dut (.*);
+                  always #5 clk_i=~clk_i;
+                  task tick; @(posedge clk_i); #1; endtask
+                  task check(input bit ok, input [8*100-1:0] msg);
+                    if (!ok) begin $display("FAIL: %0s", msg); $fatal(1); end
+                  endtask
+                  initial begin
+                    awid_i=0; awaddr_i=0; awlen_i=0; awsize_i=3; awburst_i=1; awlock_i=0;
+                    awcache_i=0; awprot_i=0; awqos_i=0; awregion_i=0; awatop_i=0;
+                    awuser_i=0; awvalid_i=0; wdata_i=0; wstrb_i=0; wlast_i=1;
+                    wuser_i=0; wvalid_i=0; bready_i=0;
+                    arid_i=0; araddr_i=0; arlen_i=0; arsize_i=2; arburst_i=1; arlock_i=0;
+                    arcache_i=0; arprot_i=0; arqos_i=0; arregion_i=0; aruser_i=0;
+                    arvalid_i=0; rready_i=0; req_ready_i=0; rsp_valid_i=0;
+                    rsp_rdata_i=0; rsp_error_i=0;
+                    tick(); rst_ni=1; @(negedge clk_i);
+                    araddr_i=32'h00000100; arlen_i=1; arvalid_i=1; tick();
+                    check(req_valid_o && req_addr_o==32'h00000100 && req_be_o==8'h0f,
+                          "first narrow read uses the low lanes");
+                    @(negedge clk_i); arvalid_i=0; req_ready_i=1; tick();
+                    @(negedge clk_i); req_ready_i=0; rsp_valid_i=1;
+                    rsp_rdata_i=64'h0000000011223344; tick();
+                    check(rvalid_o && !rlast_o, "first narrow beat is returned");
+                    @(negedge clk_i); rsp_valid_i=0; rready_i=1; tick();
+                    check(req_valid_o && req_addr_o==32'h00000104,
+                          "narrow INCR advances by ARSIZE, not the bus width");
+                    check(req_be_o==8'hf0, "second narrow read uses the high lanes");
+                    $display("PASS"); $finish;
+                  end
+                endmodule
+            """), encoding="utf-8")
+            compiled = subprocess.run(
+                [iverilog, "-g2012", "-s", "tb", "-o", str(output), str(RTL), str(tb)],
+                cwd=ROOT, text=True, capture_output=True, timeout=20,
+            )
+            self.assertEqual(0, compiled.returncode, compiled.stderr)
+            result = subprocess.run(
+                [vvp, str(output)], cwd=ROOT, text=True, capture_output=True, timeout=20,
+            )
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            self.assertIn("PASS", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

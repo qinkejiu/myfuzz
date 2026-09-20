@@ -28,8 +28,10 @@
       "data_width": 64,
       "address_width": 64,
       "packed_members_compiler_proven": true,
-      "burst_policy": "reject_non_single_beat",
-      "fetch_burst_required": false
+      "burst_policy": "support_two_beat_reads",
+      "fetch_burst_required": true,
+      "max_read_beats": 2,
+      "max_write_beats": 1
     },
     "source_provenance": "configs/cpus/cva6/official_core_interface_description.json#/source"
   },
