@@ -9,6 +9,7 @@ import hashlib
 import re
 import shutil
 import subprocess
+import tempfile
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -82,12 +83,19 @@ def run_isolation(fixture: IsolationFixture, *, baseline_source: Path,
         raise OSError("isolation-tool-missing")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    def execute(side: str, source: Path) -> dict[str, object]:
+    # Read every compiler input once.  The evidence hashes below therefore name
+    # precisely the bytes consumed by both independent compiler invocations,
+    # rather than mutable caller paths.
+    fixture_bytes = Path(fixture.testbench).read_bytes()
+    baseline_bytes = Path(baseline_source).read_bytes()
+    mutant_bytes = Path(mutant_source).read_bytes()
+
+    def execute(side: str, source: Path, testbench: Path) -> dict[str, object]:
         executable = output_dir / f"isolation-{side}"
         try:
             compile_result = subprocess.run(
                 [iverilog, "-g2012", "-s", fixture.top_module, "-o", str(executable),
-                 str(fixture.testbench), str(source)],
+                 str(testbench), str(source)],
                 shell=False, capture_output=True, text=True, check=False,
                 timeout=timeout_seconds)
         except subprocess.TimeoutExpired as error:
@@ -106,8 +114,21 @@ def run_isolation(fixture: IsolationFixture, *, baseline_source: Path,
                 "compile_returncode": compile_result.returncode,
                 "run_returncode": run_result.returncode}
 
-    return {"baseline": execute("baseline", Path(baseline_source)),
-            "mutant": execute("mutant", Path(mutant_source))}
+    with tempfile.TemporaryDirectory(prefix="isolation-input-", dir=output_dir) as temporary:
+        snapshot_dir = Path(temporary)
+        fixture_snapshot = snapshot_dir / ("fixture" + Path(fixture.testbench).suffix)
+        baseline_snapshot = snapshot_dir / ("baseline-source" + Path(baseline_source).suffix)
+        mutant_snapshot = snapshot_dir / ("mutant-source" + Path(mutant_source).suffix)
+        fixture_snapshot.write_bytes(fixture_bytes)
+        baseline_snapshot.write_bytes(baseline_bytes)
+        mutant_snapshot.write_bytes(mutant_bytes)
+        return {
+            "baseline": execute("baseline", baseline_snapshot, fixture_snapshot),
+            "mutant": execute("mutant", mutant_snapshot, fixture_snapshot),
+            "fixture_hash": "sha256:" + hashlib.sha256(fixture_bytes).hexdigest(),
+            "baseline_source_hash": "sha256:" + hashlib.sha256(baseline_bytes).hexdigest(),
+            "mutant_source_hash": "sha256:" + hashlib.sha256(mutant_bytes).hexdigest(),
+        }
 
 
 def _source_bytes(build: RuntimeBuild, base_dir: Path) -> tuple[dict[str, str], tuple[str, ...]]:
@@ -398,9 +419,8 @@ def confirm_component_offline(
     fixture_path = fixture_path if fixture_path.is_absolute() else base_dir / fixture_path
     if not fixture_path.is_file():
         return OfflineConfirmation(UNDIAGNOSED, "isolation-fixture-missing", evidence)
-    fixture_hash = file_hash(fixture_path)
-    evidence = {**evidence, "fixture_hash": fixture_hash,
-                "fixture_top_module": fixture.top_module, "fixture_marker": fixture.marker}
+    evidence = {**evidence, "fixture_top_module": fixture.top_module,
+                "fixture_marker": fixture.marker}
     expected_byte = _single_byte(criterion.get("expected"))
     observed_byte = _single_byte(criterion.get("observed"))
     if expected_byte is None or observed_byte is None or expected_byte == observed_byte:
@@ -419,7 +439,19 @@ def confirm_component_offline(
                                    {**evidence, "isolation_error": str(error)})
     except ValueError as error:
         return OfflineConfirmation(COMPONENT_CANDIDATE, str(error), evidence)
-    evidence = {**evidence, "isolation": isolation}
+    snapshot_fixture_hash = isolation.get("fixture_hash") if isinstance(isolation, Mapping) else None
+    if not isinstance(snapshot_fixture_hash, str) or not snapshot_fixture_hash.startswith("sha256:"):
+        return OfflineConfirmation(UNDIAGNOSED, "isolation-result-invalid", evidence)
+    snapshot_baseline_hash = isolation.get("baseline_source_hash") if isinstance(isolation, Mapping) else None
+    snapshot_mutant_hash = isolation.get("mutant_source_hash") if isinstance(isolation, Mapping) else None
+    if not isinstance(snapshot_baseline_hash, str) or not isinstance(snapshot_mutant_hash, str):
+        return OfflineConfirmation(UNDIAGNOSED, "isolation-result-invalid", evidence)
+    evidence = {**evidence, "fixture_hash": snapshot_fixture_hash,
+                "isolation_baseline_source_hash": snapshot_baseline_hash,
+                "isolation_mutant_source_hash": snapshot_mutant_hash,
+                "isolation": isolation}
+    if snapshot_baseline_hash != removed[0] or snapshot_mutant_hash != added[0]:
+        return OfflineConfirmation(COMPONENT_CANDIDATE, "isolation-source-hash-drift", evidence)
     try:
         baseline_observation = isolation["baseline"]["observation"]
         mutant_observation = isolation["mutant"]["observation"]
@@ -430,7 +462,7 @@ def confirm_component_offline(
     except (KeyError, TypeError):
         return OfflineConfirmation(UNDIAGNOSED, "isolation-result-invalid", evidence)
     if type(baseline_bits) is not int or type(mutant_bits) is not int or \
-            baseline_bits <= 0 or mutant_bits <= 0:
+            baseline_bits != 8 or mutant_bits != 8:
         return OfflineConfirmation(COMPONENT_CANDIDATE, "isolation-bits-invalid", evidence)
     if baseline_mosi != expected_byte:
         return OfflineConfirmation(COMPONENT_CANDIDATE, "isolation-baseline-observation", evidence)

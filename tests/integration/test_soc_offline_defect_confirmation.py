@@ -4,6 +4,7 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -325,6 +326,8 @@ class OfflineBuildBindingTests(unittest.TestCase):
             fixture_path = root / "fixture.sv"
             fixture_path.write_text("module tb; endmodule\n", encoding="utf-8")
             fixture_hash = _hash(fixture_path)
+            replacement_fixture_hash = "sha256:" + hashlib.sha256(
+                b"module tb; // replacement\nendmodule\n").hexdigest()
             baseline_top_hash = _hash(baseline.top_path)
             mutant_top_hash = _hash(mutant.top_path)
             baseline_top_text = baseline.top_path.read_text(encoding="utf-8")
@@ -344,19 +347,45 @@ class OfflineBuildBindingTests(unittest.TestCase):
                                                             "expected": {"mosi": [3], "miso": [0]},
                                                             "observed": {"mosi": [2], "miso": [0]}},)})
             audit = {"summary": {"status": "pass", "passed": 2, "failed": 0}}
+            def isolated(bits: int, baseline_mosi: int, mutant_mosi: int) -> dict[str, object]:
+                return {"fixture_hash": fixture_hash,
+                        "baseline_source_hash": baseline.source_hashes[baseline.sources[0]],
+                        "mutant_source_hash": mutant.source_hashes[mutant.sources[0]],
+                        "baseline": {"observation": {"bits": bits, "mosi": baseline_mosi}},
+                        "mutant": {"observation": {"bits": bits, "mosi": mutant_mosi}}}
             with patch("myfuzz.composition.soc_offline_defect_confirmation.replay_package",
                        return_value=ReplayResult(status="agreement", reason="same")) as replay, \
                  patch("myfuzz.composition.soc_offline_defect_confirmation.run_sample",
-                       side_effect=(baseline_result, mutant_result,
-                                    baseline_result, mutant_result)) as rerun, \
+                       side_effect=(baseline_result, mutant_result) * 5) as rerun, \
                  patch("myfuzz.composition.soc_offline_defect_confirmation.audit_structure",
-                       side_effect=(audit, audit, audit, audit)) as structural, \
+                       side_effect=(audit, audit) * 5) as structural, \
                  patch("myfuzz.composition.soc_offline_defect_confirmation.run_isolation",
-                       return_value={"baseline": {"observation": {"bits": 8, "mosi": 3}},
-                                     "mutant": {"observation": {"bits": 8, "mosi": 2}}}) as isolation:
+                       side_effect=(
+                           isolated(8, 3, 2), isolated(7, 3, 2), isolated(9, 3, 2),
+                           isolated(8, 2, 2),
+                           {**isolated(8, 3, 2), "fixture_hash": replacement_fixture_hash},
+                       )) as isolation:
                 plan = object()
                 include_roots = ("include-a", "include-b")
                 confirmation = confirm_component_offline(
+                    package, plan=plan, baseline=baseline, mutant=mutant,
+                    fixture=IsolationFixture(fixture_path, "tb", "OBS", "component"),
+                    criterion=self._criterion(), base_dir=root, include_roots=include_roots,
+                    timeout_seconds=17,
+                )
+                seven_bits = confirm_component_offline(
+                    package, plan=plan, baseline=baseline, mutant=mutant,
+                    fixture=IsolationFixture(fixture_path, "tb", "OBS", "component"),
+                    criterion=self._criterion(), base_dir=root, include_roots=include_roots,
+                    timeout_seconds=17,
+                )
+                nine_bits = confirm_component_offline(
+                    package, plan=plan, baseline=baseline, mutant=mutant,
+                    fixture=IsolationFixture(fixture_path, "tb", "OBS", "component"),
+                    criterion=self._criterion(), base_dir=root, include_roots=include_roots,
+                    timeout_seconds=17,
+                )
+                wrong_both_sides = confirm_component_offline(
                     package, plan=plan, baseline=baseline, mutant=mutant,
                     fixture=IsolationFixture(fixture_path, "tb", "OBS", "component"),
                     criterion=self._criterion(), base_dir=root, include_roots=include_roots,
@@ -371,9 +400,12 @@ class OfflineBuildBindingTests(unittest.TestCase):
                 )
         self.assertEqual("component_confirmed", confirmation.status)
         self.assertEqual("offline-isolation-confirmed", confirmation.reason)
-        self.assertEqual(4, rerun.call_count)
-        self.assertEqual(4, structural.call_count)
-        self.assertEqual(2, replay.call_count)
+        self.assertEqual("isolation-bits-invalid", seven_bits.reason)
+        self.assertEqual("isolation-bits-invalid", nine_bits.reason)
+        self.assertEqual("isolation-baseline-observation", wrong_both_sides.reason)
+        self.assertEqual(10, rerun.call_count)
+        self.assertEqual(10, structural.call_count)
+        self.assertEqual(5, replay.call_count)
         self.assertEqual(((baseline, package.sample()), {"timeout_seconds": 17}), rerun.call_args_list[0])
         self.assertEqual(((mutant, package.sample()), {"timeout_seconds": 17}), rerun.call_args_list[1])
         self.assertEqual(((plan,), {"top_text": baseline_top_text,
@@ -386,7 +418,7 @@ class OfflineBuildBindingTests(unittest.TestCase):
         self.assertEqual(mutant_top_hash, confirmation.evidence["mutant_top_hash"])
         self.assertEqual(fixture_hash, confirmation.evidence["fixture_hash"])
         self.assertNotEqual(fixture_hash, changed_confirmation.evidence["fixture_hash"])
-        self.assertEqual(2, isolation.call_count)
+        self.assertEqual(5, isolation.call_count)
         self.assertEqual(((IsolationFixture(fixture_path, "tb", "OBS", "component"),), {
             "baseline_source": root / baseline.sources[0], "mutant_source": root / mutant.sources[0],
             "output_dir": baseline.output_dir / "offline-isolation", "timeout_seconds": 17}),
@@ -422,6 +454,56 @@ class OfflineBuildBindingTests(unittest.TestCase):
         self.assertEqual("offline-rerun-tool-failure", confirmation.reason)
         self.assertEqual({"type": "TimeoutError", "detail": "simulator host detail"},
                          confirmation.evidence["offline_rerun_error"])
+
+    def test_isolation_runner_compiles_immutable_input_snapshots(self) -> None:
+        """Both compiler invocations must consume the bytes named by evidence."""
+        from myfuzz.composition.soc_offline_defect_confirmation import (
+            IsolationFixture, run_isolation,
+        )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            bench = root / "fixture.sv"
+            baseline = root / "baseline.sv"
+            mutant = root / "mutant.sv"
+            original_fixture = b"original fixture\n"
+            original_baseline = b"original baseline\n"
+            original_mutant = b"original mutant\n"
+            bench.write_bytes(original_fixture)
+            baseline.write_bytes(original_baseline)
+            mutant.write_bytes(original_mutant)
+            compiler_inputs: list[tuple[bytes, bytes]] = []
+
+            def fake_run(argv, **_kwargs):
+                if argv[0] == "/tools/iverilog":
+                    compiler_inputs.append((Path(argv[-2]).read_bytes(), Path(argv[-1]).read_bytes()))
+                    if len(compiler_inputs) == 1:
+                        bench.write_bytes(b"replaced fixture\n")
+                        mutant.write_bytes(b"replaced mutant\n")
+                    return subprocess.CompletedProcess(argv, 0, "", "")
+                output = "MYFUZZ_FIXTURE bits=8 mosi=" + ("3" if "baseline" in argv[1] else "2")
+                return subprocess.CompletedProcess(argv, 0, output, "")
+
+            with patch("myfuzz.composition.soc_offline_defect_confirmation.shutil.which",
+                       side_effect=("/tools/iverilog", "/tools/vvp")), \
+                 patch("myfuzz.composition.soc_offline_defect_confirmation.subprocess.run",
+                       side_effect=fake_run):
+                result = run_isolation(
+                    IsolationFixture(bench, "fixture_tb", "MYFUZZ_FIXTURE", "component"),
+                    baseline_source=baseline, mutant_source=mutant,
+                    output_dir=root / "output", timeout_seconds=10)
+        self.assertEqual([(original_fixture, original_baseline),
+                          (original_fixture, original_mutant)], compiler_inputs)
+        self.assertEqual("sha256:" + hashlib.sha256(original_fixture).hexdigest(),
+                         result["fixture_hash"])
+
+    def test_isolation_observation_rejects_malformed_numeric_fields(self) -> None:
+        from myfuzz.composition.soc_offline_defect_confirmation import _isolation_observation
+
+        for line in ("OBS bits=8 mosi=wat", "OBS bits=eight mosi=3"):
+            with self.subTest(line=line):
+                with self.assertRaisesRegex(ValueError, "isolation-baseline-marker-malformed"):
+                    _isolation_observation(line, "OBS", "baseline")
 
 
 @unittest.skipUnless(shutil.which("iverilog") and shutil.which("vvp"),
