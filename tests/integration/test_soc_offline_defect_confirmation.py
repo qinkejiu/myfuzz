@@ -400,6 +400,14 @@ class OfflineBuildBindingTests(unittest.TestCase):
                 )
         self.assertEqual("component_confirmed", confirmation.status)
         self.assertEqual("offline-isolation-confirmed", confirmation.reason)
+        self.assertEqual(self._criterion(), confirmation.evidence["criterion"])
+        for side in ("baseline", "mutant"):
+            self.assertIn(side + "_build_hashes", confirmation.evidence)
+            hashes = confirmation.evidence[side + "_build_hashes"]
+            self.assertEqual({"top", "testbench", "boot_image", "executable"}, set(hashes))
+            self.assertTrue(all(value.startswith("sha256:") or value == "none"
+                                for value in hashes.values()))
+            self.assertIn(side + "_source_hashes", confirmation.evidence)
         self.assertEqual("isolation-bits-invalid", seven_bits.reason)
         self.assertEqual("isolation-bits-invalid", nine_bits.reason)
         self.assertEqual("isolation-baseline-observation", wrong_both_sides.reason)

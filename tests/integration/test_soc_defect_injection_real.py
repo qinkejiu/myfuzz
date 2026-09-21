@@ -16,6 +16,7 @@ from myfuzz.composition.soc_boot_program import ProgramRequest, build_boot_progr
 from myfuzz.composition.soc_composition import build_composition
 from myfuzz.composition.soc_offline_defect_confirmation import (
     IsolationFixture, confirm_component_offline,
+    record_offline_confirmation, validate_offline_confirmation,
 )
 from myfuzz.composition.soc_failure_evidence import (
     COMPONENT_CANDIDATE, build_evidence_package, classify_boundary,
@@ -181,6 +182,15 @@ class SpiDefectInjectionRealTests(unittest.TestCase):
             timeout_seconds=1800)
         self.assertEqual("component_confirmed", confirmation.status, confirmation.reason)
         self.assertEqual("offline-isolation-confirmed", confirmation.reason)
+        saved = record_offline_confirmation(package, confirmation)
+        report = saved.attribution["offline_confirmation"]
+        self.assertEqual("component_confirmed", report["status"])
+        for key in ("baseline_build_hashes", "mutant_build_hashes",
+                    "baseline_structure_audit", "mutant_structure_audit",
+                    "mutant_replay", "isolation", "fixture_hash", "criterion"):
+            self.assertEqual(confirmation.evidence[key], report["evidence"][key])
+        self.assertEqual((COMPONENT_CANDIDATE, "record-integrity-only"),
+                         validate_offline_confirmation(saved))
 
 
 if __name__ == "__main__":

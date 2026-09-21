@@ -10,10 +10,13 @@ import re
 import shutil
 import subprocess
 import tempfile
+from copy import deepcopy
 from collections import Counter
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
+
+from myfuzz.contracts import canonical_bytes
 
 from .soc_composition import CompositionPlan
 from .soc_failure_evidence import (
@@ -44,6 +47,39 @@ class OfflineConfirmation:
     status: str
     reason: str
     evidence: Mapping[str, object]
+
+
+def record_offline_confirmation(package: EvidencePackage,
+                                result: OfflineConfirmation) -> EvidencePackage:
+    """Snapshot a verifier result, without authenticating its Python origin.
+
+    Confirmation remains conditional on the trusted specification and fixture.
+    A constructed/deserialized result has no special authority; validating this
+    record checks only integrity. Fresh proof requires rerunning the verifier.
+    """
+    report = {"schema_version": "soc_offline_confirmation.v1",
+              "validation_scope": "record-integrity-only",
+              "status": result.status, "reason": result.reason,
+              "evidence": deepcopy(dict(result.evidence))}
+    report["report_hash"] = "sha256:" + hashlib.sha256(canonical_bytes(report)).hexdigest()
+    return replace(package, attribution={**dict(package.attribution),
+                                         "offline_confirmation": report})
+
+
+def validate_offline_confirmation(package: EvidencePackage) -> tuple[str, str]:
+    """Check serialized record integrity; never certify an external execution."""
+    report = package.attribution.get("offline_confirmation")
+    if not isinstance(report, Mapping):
+        return UNDIAGNOSED, "confirmation-record-missing"
+    payload = {key: value for key, value in report.items() if key != "report_hash"}
+    if report.get("report_hash") != "sha256:" + hashlib.sha256(canonical_bytes(payload)).hexdigest():
+        return UNDIAGNOSED, "confirmation-record-hash-mismatch"
+    if report.get("schema_version") != "soc_offline_confirmation.v1" or \
+            report.get("validation_scope") != "record-integrity-only" or \
+            not isinstance(report.get("evidence"), Mapping):
+        return UNDIAGNOSED, "confirmation-record-schema-mismatch"
+    boundary, _ = classify_boundary(package)
+    return boundary, "record-integrity-only"
 
 
 def file_hash(path: Path) -> str:
@@ -168,6 +204,12 @@ def build_differential(baseline: RuntimeBuild, mutant: RuntimeBuild, *,
         "mutant_source_hashes": mutant_sources,
         "baseline_source_drift": baseline_drift,
         "mutant_source_drift": mutant_drift,
+        **{side + "_build_hashes": {
+            "top": file_hash(build.top_path),
+            "testbench": file_hash(build.testbench_path),
+            "boot_image": _boot_hash(build),
+            "executable": file_hash(build.executable),
+        } for side, build in (("baseline", baseline), ("mutant", mutant))},
     }
 
 
@@ -387,10 +429,10 @@ def confirm_component_offline(
         if not isinstance(audit, Mapping) or _audit_summary(audit).get("status") not in (PASS, FAIL):
             return OfflineConfirmation(UNDIAGNOSED, f"{side}-structure-audit-invalid",
                                        differential)
-    evidence = _fresh_evidence(
+    evidence = {**differential, "criterion": deepcopy(dict(criterion)), **_fresh_evidence(
         baseline=baseline, mutant=mutant, baseline_result=baseline_result,
         mutant_result=mutant_result, replay=replay, baseline_audit=baseline_audit,
-        mutant_audit=mutant_audit)
+        mutant_audit=mutant_audit)}
     if getattr(replay, "status", None) != REPLAY_AGREEMENT:
         return OfflineConfirmation(COMPONENT_CANDIDATE, "replay-not-agreement", evidence)
     if _audit_summary(baseline_audit).get("status") == FAIL:
@@ -472,4 +514,5 @@ def confirm_component_offline(
 
 
 __all__ = ["IsolationFixture", "OfflineConfirmation", "build_differential",
-           "confirm_component_offline", "file_hash", "run_isolation", "spi_wire_verdict"]
+           "confirm_component_offline", "file_hash", "run_isolation", "spi_wire_verdict",
+           "record_offline_confirmation", "validate_offline_confirmation"]
