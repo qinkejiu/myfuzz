@@ -1,13 +1,14 @@
-"""Fresh-file binding for the offline SoC defect-confirmation workflow.
+"""Fresh-run offline SoC component-defect confirmation.
 
-This first slice only establishes that an offline confirmation is looking at
-the intended pair of builds.  Execution, replay, structure audit and the
-isolated fixture are added by subsequent slices; a successfully bound pair is
-therefore still a component candidate here.
+The verifier binds build files by content, re-runs the SoCs, and recompiles a
+declarative standalone fixture before upgrading the known component fault.
 """
 from __future__ import annotations
 
 import hashlib
+import re
+import shutil
+import subprocess
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -47,6 +48,66 @@ class OfflineConfirmation:
 def file_hash(path: Path) -> str:
     """Return the SHA-256 identity of the bytes currently stored at *path*."""
     return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _isolation_observation(stdout: str, marker: str, side: str) -> dict[str, int]:
+    """Extract the one bounded fixture observation from a simulator transcript."""
+    lines = [line for line in stdout.splitlines() if line.startswith(marker)]
+    if not lines:
+        raise ValueError(f"isolation-{side}-marker-missing")
+    if len(lines) != 1:
+        raise ValueError(f"isolation-{side}-marker-duplicate")
+    fields: dict[str, str] = {}
+    for part in lines[0][len(marker):].strip().split():
+        if "=" not in part:
+            raise ValueError(f"isolation-{side}-marker-malformed")
+        key, value = part.split("=", 1)
+        if key in fields:
+            raise ValueError(f"isolation-{side}-marker-malformed")
+        fields[key] = value
+    bits, mosi = fields.get("bits"), fields.get("mosi")
+    if (bits is None or mosi is None or not re.fullmatch(r"[0-9]+", bits)
+            or not re.fullmatch(r"(?:0[xX])?[0-9a-fA-F]+", mosi)):
+        raise ValueError(f"isolation-{side}-marker-malformed")
+    return {"bits": int(bits, 10), "mosi": int(mosi, 16)}
+
+
+def run_isolation(fixture: IsolationFixture, *, baseline_source: Path,
+                  mutant_source: Path, output_dir: Path,
+                  timeout_seconds: int) -> Mapping[str, object]:
+    """Compile and execute the declarative APB fixture against both RTL versions."""
+    iverilog = shutil.which("iverilog")
+    vvp = shutil.which("vvp")
+    if not iverilog or not vvp:
+        raise OSError("isolation-tool-missing")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    def execute(side: str, source: Path) -> dict[str, object]:
+        executable = output_dir / f"isolation-{side}"
+        try:
+            compile_result = subprocess.run(
+                [iverilog, "-g2012", "-s", fixture.top_module, "-o", str(executable),
+                 str(fixture.testbench), str(source)],
+                shell=False, capture_output=True, text=True, check=False,
+                timeout=timeout_seconds)
+        except subprocess.TimeoutExpired as error:
+            raise TimeoutError(f"isolation-{side}-timeout") from error
+        if compile_result.returncode:
+            raise ValueError(f"isolation-{side}-compile-failed")
+        try:
+            run_result = subprocess.run(
+                [vvp, str(executable)], shell=False, capture_output=True, text=True,
+                check=False, timeout=timeout_seconds)
+        except subprocess.TimeoutExpired as error:
+            raise TimeoutError(f"isolation-{side}-timeout") from error
+        if run_result.returncode:
+            raise ValueError(f"isolation-{side}-run-failed")
+        return {"observation": _isolation_observation(run_result.stdout, fixture.marker, side),
+                "compile_returncode": compile_result.returncode,
+                "run_returncode": run_result.returncode}
+
+    return {"baseline": execute("baseline", Path(baseline_source)),
+            "mutant": execute("mutant", Path(mutant_source))}
 
 
 def _source_bytes(build: RuntimeBuild, base_dir: Path) -> tuple[dict[str, str], tuple[str, ...]]:
@@ -213,18 +274,37 @@ def _tool_failure_evidence(differential: Mapping[str, object], error: Exception)
         "type": type(error).__name__, "detail": str(error)}}
 
 
+def _changed_source(build: RuntimeBuild, source_hash: str, source_name: str,
+                    base_dir: Path) -> Path:
+    """Find the one component file by its freshly verified bytes, not a caller path."""
+    matches = [str(name) for name, digest in build.source_hashes.items()
+               if digest == source_hash and source_name in Path(str(name)).stem]
+    if len(matches) != 1:
+        raise ValueError("isolation-source-not-unique")
+    path = Path(matches[0])
+    resolved = path if path.is_absolute() else base_dir / path
+    if not resolved.is_file():
+        raise ValueError("isolation-source-missing")
+    if file_hash(resolved) != source_hash:
+        raise ValueError("isolation-source-hash-drift")
+    return resolved
+
+
+def _single_byte(value: object) -> int | None:
+    """Bridge the one-byte isolation fixture to the one-byte wire-oracle list."""
+    if isinstance(value, list) and len(value) == 1 and type(value[0]) is int:
+        value = value[0]
+    if type(value) is int and 0 <= value <= 0xff:
+        return value
+    return None
+
+
 def confirm_component_offline(
         package: EvidencePackage, *, plan: CompositionPlan, baseline: RuntimeBuild,
         mutant: RuntimeBuild, fixture: IsolationFixture, criterion: Mapping[str, object],
         base_dir: Path, include_roots: Sequence[str] = (), timeout_seconds: int = 600,
 ) -> OfflineConfirmation:
-    """Bind an offline confirmation request to actual build files.
-
-    The isolated fixture is deliberately not executed here: Task 3 adds that
-    independent APB experiment.  This slice re-runs both SoCs, audits their
-    current generated top-levels, and applies only the accepted SPI wire gate.
-    """
-    del fixture
+    """Confirm only a fresh SoC and standalone-fixture reproduction."""
     boundary, reason = classify_boundary(package)
     if boundary != COMPONENT_CANDIDATE:
         return OfflineConfirmation(boundary, reason, {})
@@ -314,8 +394,50 @@ def confirm_component_offline(
     anomaly = package.anomaly if isinstance(package.anomaly, Mapping) else {}
     if mutant_observed != anomaly.get("observed"):
         return OfflineConfirmation(COMPONENT_CANDIDATE, "mutant-spi-observed", evidence)
-    return OfflineConfirmation(COMPONENT_CANDIDATE, "offline-rerun-complete", evidence)
+    fixture_path = Path(fixture.testbench)
+    fixture_path = fixture_path if fixture_path.is_absolute() else base_dir / fixture_path
+    if not fixture_path.is_file():
+        return OfflineConfirmation(UNDIAGNOSED, "isolation-fixture-missing", evidence)
+    fixture_hash = file_hash(fixture_path)
+    evidence = {**evidence, "fixture_hash": fixture_hash,
+                "fixture_top_module": fixture.top_module, "fixture_marker": fixture.marker}
+    expected_byte = _single_byte(criterion.get("expected"))
+    observed_byte = _single_byte(criterion.get("observed"))
+    if expected_byte is None or observed_byte is None or expected_byte == observed_byte:
+        return OfflineConfirmation(COMPONENT_CANDIDATE, "isolation-criterion-not-single-byte", evidence)
+    try:
+        baseline_source = _changed_source(baseline, removed[0], fixture.source_name, base_dir)
+        mutant_source = _changed_source(mutant, added[0], fixture.source_name, base_dir)
+        isolation = run_isolation(
+            IsolationFixture(fixture_path, fixture.top_module, fixture.marker, fixture.source_name),
+            baseline_source=baseline_source, mutant_source=mutant_source,
+            output_dir=baseline.output_dir / "offline-isolation", timeout_seconds=timeout_seconds)
+    except TimeoutError as error:
+        return OfflineConfirmation(UNDIAGNOSED, str(error), evidence)
+    except OSError as error:
+        return OfflineConfirmation(UNDIAGNOSED, "isolation-tool-failure",
+                                   {**evidence, "isolation_error": str(error)})
+    except ValueError as error:
+        return OfflineConfirmation(COMPONENT_CANDIDATE, str(error), evidence)
+    evidence = {**evidence, "isolation": isolation}
+    try:
+        baseline_observation = isolation["baseline"]["observation"]
+        mutant_observation = isolation["mutant"]["observation"]
+        baseline_mosi = baseline_observation["mosi"]
+        mutant_mosi = mutant_observation["mosi"]
+        baseline_bits = baseline_observation["bits"]
+        mutant_bits = mutant_observation["bits"]
+    except (KeyError, TypeError):
+        return OfflineConfirmation(UNDIAGNOSED, "isolation-result-invalid", evidence)
+    if type(baseline_bits) is not int or type(mutant_bits) is not int or \
+            baseline_bits <= 0 or mutant_bits <= 0:
+        return OfflineConfirmation(COMPONENT_CANDIDATE, "isolation-bits-invalid", evidence)
+    if baseline_mosi != expected_byte:
+        return OfflineConfirmation(COMPONENT_CANDIDATE, "isolation-baseline-observation", evidence)
+    if mutant_mosi != observed_byte:
+        return OfflineConfirmation(COMPONENT_CANDIDATE, "isolation-mutant-observation", evidence)
+    return OfflineConfirmation("component_confirmed", "offline-isolation-confirmed", evidence)
 
 
 __all__ = ["IsolationFixture", "OfflineConfirmation", "build_differential",
-           "confirm_component_offline", "file_hash", "spi_wire_verdict"]
+           "confirm_component_offline", "file_hash", "run_isolation", "spi_wire_verdict"]

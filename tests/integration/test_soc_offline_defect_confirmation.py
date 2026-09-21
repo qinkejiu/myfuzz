@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -321,6 +322,9 @@ class OfflineBuildBindingTests(unittest.TestCase):
             root = Path(temporary)
             baseline = self._build(root, "baseline", component=b"baseline")
             mutant = self._build(root, "mutant", component=b"mutant")
+            fixture_path = root / "fixture.sv"
+            fixture_path.write_text("module tb; endmodule\n", encoding="utf-8")
+            fixture_hash = _hash(fixture_path)
             baseline_top_hash = _hash(baseline.top_path)
             mutant_top_hash = _hash(mutant.top_path)
             baseline_top_text = baseline.top_path.read_text(encoding="utf-8")
@@ -343,22 +347,33 @@ class OfflineBuildBindingTests(unittest.TestCase):
             with patch("myfuzz.composition.soc_offline_defect_confirmation.replay_package",
                        return_value=ReplayResult(status="agreement", reason="same")) as replay, \
                  patch("myfuzz.composition.soc_offline_defect_confirmation.run_sample",
-                       side_effect=(baseline_result, mutant_result)) as rerun, \
+                       side_effect=(baseline_result, mutant_result,
+                                    baseline_result, mutant_result)) as rerun, \
                  patch("myfuzz.composition.soc_offline_defect_confirmation.audit_structure",
-                       side_effect=(audit, audit)) as structural:
+                       side_effect=(audit, audit, audit, audit)) as structural, \
+                 patch("myfuzz.composition.soc_offline_defect_confirmation.run_isolation",
+                       return_value={"baseline": {"observation": {"bits": 8, "mosi": 3}},
+                                     "mutant": {"observation": {"bits": 8, "mosi": 2}}}) as isolation:
                 plan = object()
                 include_roots = ("include-a", "include-b")
                 confirmation = confirm_component_offline(
                     package, plan=plan, baseline=baseline, mutant=mutant,
-                    fixture=IsolationFixture(Path("fixture.sv"), "tb", "OBS", "component.sv"),
+                    fixture=IsolationFixture(fixture_path, "tb", "OBS", "component"),
                     criterion=self._criterion(), base_dir=root, include_roots=include_roots,
                     timeout_seconds=17,
                 )
-        self.assertEqual(COMPONENT_CANDIDATE, confirmation.status)
-        self.assertEqual("offline-rerun-complete", confirmation.reason)
-        self.assertEqual(2, rerun.call_count)
-        self.assertEqual(2, structural.call_count)
-        replay.assert_called_once_with(package, mutant, timeout_seconds=17)
+                fixture_path.write_text("module tb; // replacement\nendmodule\n", encoding="utf-8")
+                changed_confirmation = confirm_component_offline(
+                    package, plan=plan, baseline=baseline, mutant=mutant,
+                    fixture=IsolationFixture(fixture_path, "tb", "OBS", "component"),
+                    criterion=self._criterion(), base_dir=root, include_roots=include_roots,
+                    timeout_seconds=17,
+                )
+        self.assertEqual("component_confirmed", confirmation.status)
+        self.assertEqual("offline-isolation-confirmed", confirmation.reason)
+        self.assertEqual(4, rerun.call_count)
+        self.assertEqual(4, structural.call_count)
+        self.assertEqual(2, replay.call_count)
         self.assertEqual(((baseline, package.sample()), {"timeout_seconds": 17}), rerun.call_args_list[0])
         self.assertEqual(((mutant, package.sample()), {"timeout_seconds": 17}), rerun.call_args_list[1])
         self.assertEqual(((plan,), {"top_text": baseline_top_text,
@@ -369,6 +384,13 @@ class OfflineBuildBindingTests(unittest.TestCase):
                                     "include_roots": include_roots}), structural.call_args_list[1])
         self.assertEqual(baseline_top_hash, confirmation.evidence["baseline_top_hash"])
         self.assertEqual(mutant_top_hash, confirmation.evidence["mutant_top_hash"])
+        self.assertEqual(fixture_hash, confirmation.evidence["fixture_hash"])
+        self.assertNotEqual(fixture_hash, changed_confirmation.evidence["fixture_hash"])
+        self.assertEqual(2, isolation.call_count)
+        self.assertEqual(((IsolationFixture(fixture_path, "tb", "OBS", "component"),), {
+            "baseline_source": root / baseline.sources[0], "mutant_source": root / mutant.sources[0],
+            "output_dir": baseline.output_dir / "offline-isolation", "timeout_seconds": 17}),
+            isolation.call_args_list[0])
 
     def test_spi_wire_verdict_requires_one_independent_check(self) -> None:
         from myfuzz.composition.soc_offline_defect_confirmation import spi_wire_verdict
@@ -400,6 +422,63 @@ class OfflineBuildBindingTests(unittest.TestCase):
         self.assertEqual("offline-rerun-tool-failure", confirmation.reason)
         self.assertEqual({"type": "TimeoutError", "detail": "simulator host detail"},
                          confirmation.evidence["offline_rerun_error"])
+
+
+@unittest.skipUnless(shutil.which("iverilog") and shutil.which("vvp"),
+                     "Icarus Verilog and vvp are required")
+class IsolationFixtureTests(unittest.TestCase):
+    def _fixture_files(self, root: Path, *, baseline_value: int = 3,
+                       mutant_value: int = 2, marker: str = "MYFUZZ_FIXTURE"):
+        bench = root / "fixture.sv"
+        baseline = root / "component-baseline.sv"
+        mutant = root / "component-mutant.sv"
+        bench.write_text(
+            "module fixture_tb; integer value; initial begin value = component_value(); "
+            f'$display("{marker} bits=8 mosi=%0h", value); $finish; end endmodule\n',
+            encoding="utf-8")
+        baseline.write_text(f"function integer component_value; component_value = {baseline_value}; endfunction\n",
+                            encoding="utf-8")
+        mutant.write_text(f"function integer component_value; component_value = {mutant_value}; endfunction\n",
+                          encoding="utf-8")
+        return bench, baseline, mutant
+
+    def test_runner_recompiles_sources_and_parses_one_marker(self) -> None:
+        from myfuzz.composition.soc_offline_defect_confirmation import (
+            IsolationFixture, run_isolation,
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            bench, baseline, mutant = self._fixture_files(root)
+            result = run_isolation(
+                IsolationFixture(bench, "fixture_tb", "MYFUZZ_FIXTURE", "component"),
+                baseline_source=baseline, mutant_source=mutant, output_dir=root / "output",
+                timeout_seconds=10)
+        self.assertEqual({"bits": 8, "mosi": 3}, result["baseline"]["observation"])
+        self.assertEqual({"bits": 8, "mosi": 2}, result["mutant"]["observation"])
+
+    def test_runner_rejects_missing_or_duplicate_marker_compile_failure_and_timeout(self) -> None:
+        from myfuzz.composition.soc_offline_defect_confirmation import (
+            IsolationFixture, run_isolation,
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            bench, baseline, mutant = self._fixture_files(root)
+            fixture = IsolationFixture(bench, "fixture_tb", "MYFUZZ_FIXTURE", "component")
+            for name, text, expected in (
+                ("missing", "module fixture_tb; initial begin $finish; end endmodule\n", "marker-missing"),
+                ("duplicate", "module fixture_tb; initial begin $display(\"MYFUZZ_FIXTURE bits=8 mosi=3\"); $display(\"MYFUZZ_FIXTURE bits=8 mosi=3\"); $finish; end endmodule\n", "marker-duplicate"),
+                ("compile", "not valid verilog", "compile-failed"),
+            ):
+                bench.write_text(text, encoding="utf-8")
+                with self.subTest(name=name):
+                    with self.assertRaisesRegex(ValueError, expected):
+                        run_isolation(fixture, baseline_source=baseline, mutant_source=mutant,
+                                      output_dir=root / name, timeout_seconds=10)
+            bench.write_text("module fixture_tb; initial begin #100; $finish; end endmodule\n",
+                            encoding="utf-8")
+            with self.assertRaisesRegex(TimeoutError, "isolation-baseline-timeout"):
+                run_isolation(fixture, baseline_source=baseline, mutant_source=mutant,
+                              output_dir=root / "timeout", timeout_seconds=0.001)
 
 
 if __name__ == "__main__":
