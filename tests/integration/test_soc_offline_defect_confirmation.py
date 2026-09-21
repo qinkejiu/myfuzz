@@ -117,7 +117,7 @@ class OfflineBuildBindingTests(unittest.TestCase):
         self.assertEqual(1, len(differential["removed_source_hashes"]))
         self.assertEqual(1, len(differential["added_source_hashes"]))
 
-    def test_mismatched_mutant_top_hash_does_not_confirm(self) -> None:
+    def test_mismatched_mutant_top_hash_is_undiagnosed_with_exact_reason(self) -> None:
         from myfuzz.composition.soc_offline_defect_confirmation import (
             IsolationFixture, confirm_component_offline,
         )
@@ -129,16 +129,20 @@ class OfflineBuildBindingTests(unittest.TestCase):
             package = self._candidate(mutant)
             identity = dict(package.identity)
             identity["rendered_top_hash"] = "sha256:" + "f" * 64
+            expected_reason = (
+                "mutant-identity:rendered_top_hash:saved=sha256:" + "f" * 64
+                + ":build=" + _hash(mutant.top_path)
+            )
             confirmation = confirm_component_offline(
                 dataclasses.replace(package, identity=identity),
                 plan=object(), baseline=baseline, mutant=mutant,
                 fixture=IsolationFixture(Path("fixture.sv"), "tb", "OBS", "component.sv"),
                 criterion=self._criterion(), base_dir=root,
             )
-        self.assertNotEqual("component_confirmed", confirmation.status)
-        self.assertIn("rendered_top_hash", confirmation.reason)
+        self.assertEqual("undiagnosed", confirmation.status)
+        self.assertEqual(expected_reason, confirmation.reason)
 
-    def test_two_changed_sources_do_not_confirm(self) -> None:
+    def test_two_changed_sources_remain_component_candidates_with_exact_reason(self) -> None:
         from myfuzz.composition.soc_offline_defect_confirmation import (
             IsolationFixture, confirm_component_offline,
         )
@@ -152,8 +156,83 @@ class OfflineBuildBindingTests(unittest.TestCase):
                 fixture=IsolationFixture(Path("fixture.sv"), "tb", "OBS", "component.sv"),
                 criterion=self._criterion(), base_dir=root,
             )
-        self.assertNotEqual("component_confirmed", confirmation.status)
-        self.assertIn("source", confirmation.reason)
+        self.assertEqual(COMPONENT_CANDIDATE, confirmation.status)
+        self.assertEqual("source-differential-not-single", confirmation.reason)
+
+    def test_forged_runtime_raw_width_is_undiagnosed(self) -> None:
+        from myfuzz.composition.soc_offline_defect_confirmation import (
+            IsolationFixture, confirm_component_offline,
+        )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            baseline = self._build(root, "baseline", component=b"baseline")
+            mutant = self._build(root, "mutant", component=b"mutant")
+            package = self._candidate(mutant)
+            identity = dict(package.identity)
+            runtime = dict(identity["runtime"])
+            runtime["raw_width"] = mutant.raw_width + 1
+            identity["runtime"] = runtime
+            confirmation = confirm_component_offline(
+                dataclasses.replace(package, identity=identity), plan=object(),
+                baseline=baseline, mutant=mutant,
+                fixture=IsolationFixture(Path("fixture.sv"), "tb", "OBS", "component.sv"),
+                criterion=self._criterion(), base_dir=root,
+            )
+        self.assertEqual("undiagnosed", confirmation.status)
+        self.assertEqual(
+            f"mutant-identity:runtime.raw_width:saved={mutant.raw_width + 1}:"
+            f"build={mutant.raw_width}",
+            confirmation.reason,
+        )
+
+    def test_forged_runtime_source_hashes_are_undiagnosed(self) -> None:
+        from myfuzz.composition.soc_offline_defect_confirmation import (
+            IsolationFixture, confirm_component_offline,
+        )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            baseline = self._build(root, "baseline", component=b"baseline")
+            mutant = self._build(root, "mutant", component=b"mutant")
+            package = self._candidate(mutant)
+            identity = dict(package.identity)
+            runtime = dict(identity["runtime"])
+            hashes = dict(runtime["source_hashes"])
+            hashes[mutant.sources[0]] = "sha256:" + "f" * 64
+            runtime["source_hashes"] = hashes
+            identity["runtime"] = runtime
+            confirmation = confirm_component_offline(
+                dataclasses.replace(package, identity=identity), plan=object(),
+                baseline=baseline, mutant=mutant,
+                fixture=IsolationFixture(Path("fixture.sv"), "tb", "OBS", "component.sv"),
+                criterion=self._criterion(), base_dir=root,
+            )
+        self.assertEqual("undiagnosed", confirmation.status)
+        self.assertEqual("mutant-identity:runtime.source_hashes:mismatch", confirmation.reason)
+
+    def test_missing_runtime_source_identity_is_undiagnosed(self) -> None:
+        from myfuzz.composition.soc_offline_defect_confirmation import (
+            IsolationFixture, confirm_component_offline,
+        )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            baseline = self._build(root, "baseline", component=b"baseline")
+            mutant = self._build(root, "mutant", component=b"mutant")
+            package = self._candidate(mutant)
+            identity = dict(package.identity)
+            runtime = dict(identity["runtime"])
+            del runtime["source_hashes"]
+            identity["runtime"] = runtime
+            confirmation = confirm_component_offline(
+                dataclasses.replace(package, identity=identity), plan=object(),
+                baseline=baseline, mutant=mutant,
+                fixture=IsolationFixture(Path("fixture.sv"), "tb", "OBS", "component.sv"),
+                criterion=self._criterion(), base_dir=root,
+            )
+        self.assertEqual("undiagnosed", confirmation.status)
+        self.assertEqual("mutant-identity:runtime.source_hashes:missing", confirmation.reason)
 
 
 if __name__ == "__main__":

@@ -106,6 +106,35 @@ def _same_build_abi(baseline: RuntimeBuild, mutant: RuntimeBuild) -> str | None:
     return None
 
 
+def _runtime_identity_problem(package: EvidencePackage, mutant: RuntimeBuild) -> str | None:
+    """Return the first absent, malformed, or stale runtime binding field."""
+    identity = package.identity if isinstance(package.identity, Mapping) else {}
+    runtime = identity.get("runtime")
+    if not isinstance(runtime, Mapping):
+        return "runtime:missing" if runtime is None else "runtime:malformed"
+
+    saved_width = runtime.get("raw_width")
+    if saved_width is None:
+        return "runtime.raw_width:missing"
+    if type(saved_width) is not int:
+        return "runtime.raw_width:malformed"
+    if saved_width != mutant.raw_width:
+        return f"runtime.raw_width:saved={saved_width}:build={mutant.raw_width}"
+
+    saved_hashes = runtime.get("source_hashes")
+    if saved_hashes is None:
+        return "runtime.source_hashes:missing"
+    if not isinstance(saved_hashes, Mapping):
+        return "runtime.source_hashes:malformed"
+    saved = {str(name): value for name, value in saved_hashes.items()}
+    expected = {str(name): value for name, value in mutant.source_hashes.items()}
+    if (any(not isinstance(value, str) or not value.startswith("sha256:")
+            or len(value) != len("sha256:") + 64 for value in saved.values())
+            or saved != expected):
+        return "runtime.source_hashes:mismatch"
+    return None
+
+
 def _criterion_problem(package: EvidencePackage, criterion: Mapping[str, object]) -> str | None:
     if not isinstance(criterion, Mapping) or not criterion.get("independent_of_profile"):
         return "independent-criterion-missing"
@@ -141,6 +170,9 @@ def confirm_component_offline(
     mismatches = identity_mismatches(package, mutant)
     if mismatches:
         return OfflineConfirmation(UNDIAGNOSED, "mutant-identity:" + mismatches[0], {})
+    runtime_problem = _runtime_identity_problem(package, mutant)
+    if runtime_problem is not None:
+        return OfflineConfirmation(UNDIAGNOSED, "mutant-identity:" + runtime_problem, {})
     abi_problem = _same_build_abi(baseline, mutant)
     if abi_problem is not None:
         return OfflineConfirmation(UNDIAGNOSED, "build-identity:" + abi_problem, {})
