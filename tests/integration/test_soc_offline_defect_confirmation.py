@@ -27,7 +27,7 @@ def _hash(path: Path) -> str:
 class OfflineBuildBindingTests(unittest.TestCase):
     def _criterion(self) -> dict[str, object]:
         text = "independent SPI wire-level requirement"
-        return {"criterion_id": "criterion-1", "expected": 3, "observed": 2,
+        return {"criterion_id": "criterion-1", "expected": [3], "observed": [2],
                 "independent_of_profile": True, "specification_text": text,
                 "specification_hash": "sha256:" +
                 hashlib.sha256(text.encode("utf-8")).hexdigest()}
@@ -75,7 +75,9 @@ class OfflineBuildBindingTests(unittest.TestCase):
                         "executable_hash": _hash(mutant.executable),
                         "source_hashes": dict(mutant.source_hashes)})
         identity["runtime"] = runtime
-        return dataclasses.replace(package, identity=identity)
+        anomaly = dict(package.anomaly)
+        anomaly.update({"expected": [3], "observed": [2]})
+        return dataclasses.replace(package, identity=identity, anomaly=anomaly)
 
     def test_non_candidate_is_returned_unchanged(self) -> None:
         from myfuzz.composition.soc_offline_defect_confirmation import (
@@ -255,8 +257,9 @@ class OfflineBuildBindingTests(unittest.TestCase):
                 requests=({"cycle": 0, "addr": 0x1008, "write": 1, "wdata": 3,
                            "be": 15, "source": 0},), requests_truncated=truncated,
                 peer_oracle={"checks": ({"check_id": "spi-transfer-wire",
-                                          "status": wire_status, "expected": 3,
-                                          "observed": observed},)},
+                                          "status": wire_status,
+                                          "expected": {"mosi": [3], "miso": [0]},
+                                          "observed": {"mosi": observed, "miso": [0]}},)},
             )
 
         with tempfile.TemporaryDirectory() as temporary:
@@ -270,26 +273,26 @@ class OfflineBuildBindingTests(unittest.TestCase):
 
             cases = (
                 ("replay-divergence", ReplayResult(status="divergence", reason="changed"),
-                 result(wire_status="pass", observed=3), result(wire_status="mismatch", observed=2),
+                 result(wire_status="pass", observed=[3]), result(wire_status="mismatch", observed=[2]),
                  audit_pass, audit_pass, "replay-not-agreement"),
-                ("audit-failure", agreement, result(wire_status="pass", observed=3),
-                 result(wire_status="mismatch", observed=2),
+                ("audit-failure", agreement, result(wire_status="pass", observed=[3]),
+                 result(wire_status="mismatch", observed=[2]),
                  {"summary": {"status": "fail", "passed": 1, "failed": 1}}, audit_pass,
                  "baseline-structure-audit-failed"),
-                ("audit-invalid", agreement, result(wire_status="pass", observed=3),
-                 result(wire_status="mismatch", observed=2), {}, audit_pass,
+                ("audit-invalid", agreement, result(wire_status="pass", observed=[3]),
+                 result(wire_status="mismatch", observed=[2]), {}, audit_pass,
                  "baseline-structure-audit-invalid"),
-                ("baseline-spi-mismatch", agreement, result(wire_status="mismatch", observed=3),
-                 result(wire_status="mismatch", observed=2), audit_pass, audit_pass,
+                ("baseline-spi-mismatch", agreement, result(wire_status="mismatch", observed=[3]),
+                 result(wire_status="mismatch", observed=[2]), audit_pass, audit_pass,
                  "baseline-spi-wire:mismatch"),
-                ("mutant-spi-pass", agreement, result(wire_status="pass", observed=3),
-                 result(wire_status="pass", observed=2), audit_pass, audit_pass,
+                ("mutant-spi-pass", agreement, result(wire_status="pass", observed=[3]),
+                 result(wire_status="pass", observed=[2]), audit_pass, audit_pass,
                  "mutant-spi-wire:pass"),
-                ("truncated", agreement, result(wire_status="pass", observed=3, truncated=True),
-                 result(wire_status="mismatch", observed=2), audit_pass, audit_pass,
+                ("truncated", agreement, result(wire_status="pass", observed=[3], truncated=True),
+                 result(wire_status="mismatch", observed=[2]), audit_pass, audit_pass,
                  "baseline-run-incomplete"),
-                ("wrong-mosi", agreement, result(wire_status="pass", observed=3),
-                 result(wire_status="mismatch", observed=1), audit_pass, audit_pass,
+                ("wrong-mosi", agreement, result(wire_status="pass", observed=[3]),
+                 result(wire_status="mismatch", observed=[1]), audit_pass, audit_pass,
                  "mutant-spi-observed"),
             )
             for name, replay, baseline_result, mutant_result, baseline_audit, mutant_audit, reason in cases:
@@ -320,6 +323,8 @@ class OfflineBuildBindingTests(unittest.TestCase):
             mutant = self._build(root, "mutant", component=b"mutant")
             baseline_top_hash = _hash(baseline.top_path)
             mutant_top_hash = _hash(mutant.top_path)
+            baseline_top_text = baseline.top_path.read_text(encoding="utf-8")
+            mutant_top_text = mutant.top_path.read_text(encoding="utf-8")
             package = self._candidate(mutant)
             baseline_result = RunResult(1, 4, "OK", {}, {}, (), (), "", "",
                 peer_applied=({"cycle": 0, "instance": "spi0", "slot": "spi.arm_byte", "value": 3},),
@@ -327,27 +332,41 @@ class OfflineBuildBindingTests(unittest.TestCase):
                 peer_wire_status=({"instance_id": "spi0", "count": 1, "truncated": False},),
                 requests=({"cycle": 0, "addr": 0x1008, "write": 1, "wdata": 3, "be": 15, "source": 0},),
                 peer_oracle={"checks": ({"check_id": "spi-transfer-wire", "status": "pass",
-                                          "expected": 3, "observed": 3},)})
+                                          "expected": {"mosi": [3], "miso": [0]},
+                                          "observed": {"mosi": [3], "miso": [0]}},)})
             mutant_result = dataclasses.replace(
                 baseline_result, peer_oracle={"checks": ({"check_id": "spi-transfer-wire",
-                                                            "status": "mismatch", "expected": 3,
-                                                            "observed": 2},)})
+                                                            "status": "mismatch",
+                                                            "expected": {"mosi": [3], "miso": [0]},
+                                                            "observed": {"mosi": [2], "miso": [0]}},)})
             audit = {"summary": {"status": "pass", "passed": 2, "failed": 0}}
             with patch("myfuzz.composition.soc_offline_defect_confirmation.replay_package",
-                       return_value=ReplayResult(status="agreement", reason="same")), \
+                       return_value=ReplayResult(status="agreement", reason="same")) as replay, \
                  patch("myfuzz.composition.soc_offline_defect_confirmation.run_sample",
                        side_effect=(baseline_result, mutant_result)) as rerun, \
                  patch("myfuzz.composition.soc_offline_defect_confirmation.audit_structure",
                        side_effect=(audit, audit)) as structural:
+                plan = object()
+                include_roots = ("include-a", "include-b")
                 confirmation = confirm_component_offline(
-                    package, plan=object(), baseline=baseline, mutant=mutant,
+                    package, plan=plan, baseline=baseline, mutant=mutant,
                     fixture=IsolationFixture(Path("fixture.sv"), "tb", "OBS", "component.sv"),
-                    criterion=self._criterion(), base_dir=root,
+                    criterion=self._criterion(), base_dir=root, include_roots=include_roots,
+                    timeout_seconds=17,
                 )
         self.assertEqual(COMPONENT_CANDIDATE, confirmation.status)
         self.assertEqual("offline-rerun-complete", confirmation.reason)
         self.assertEqual(2, rerun.call_count)
         self.assertEqual(2, structural.call_count)
+        replay.assert_called_once_with(package, mutant, timeout_seconds=17)
+        self.assertEqual(((baseline, package.sample()), {"timeout_seconds": 17}), rerun.call_args_list[0])
+        self.assertEqual(((mutant, package.sample()), {"timeout_seconds": 17}), rerun.call_args_list[1])
+        self.assertEqual(((plan,), {"top_text": baseline_top_text,
+                                    "source_files": baseline.sources, "base_dir": root,
+                                    "include_roots": include_roots}), structural.call_args_list[0])
+        self.assertEqual(((plan,), {"top_text": mutant_top_text,
+                                    "source_files": mutant.sources, "base_dir": root,
+                                    "include_roots": include_roots}), structural.call_args_list[1])
         self.assertEqual(baseline_top_hash, confirmation.evidence["baseline_top_hash"])
         self.assertEqual(mutant_top_hash, confirmation.evidence["mutant_top_hash"])
 
@@ -355,11 +374,32 @@ class OfflineBuildBindingTests(unittest.TestCase):
         from myfuzz.composition.soc_offline_defect_confirmation import spi_wire_verdict
         clean = RunResult(1, 1, "OK", {}, {}, (), (), "", "",
                           peer_oracle={"checks": ({"check_id": "spi-transfer-wire",
-                                                    "status": "pass", "expected": 1,
-                                                    "observed": 1},)})
-        self.assertEqual(("pass", 1, 1), spi_wire_verdict(clean))
+                                                    "status": "pass",
+                                                    "expected": {"mosi": [1], "miso": [0]},
+                                                    "observed": {"mosi": [1], "miso": [0]}},)})
+        self.assertEqual(("pass", [1], [1]), spi_wire_verdict(clean))
         self.assertEqual(("not_assessed", None, None),
                          spi_wire_verdict(dataclasses.replace(clean, peer_oracle={"checks": ()})))
+
+    def test_tool_failure_has_stable_reason_and_keeps_details_in_evidence(self) -> None:
+        from myfuzz.composition.soc_offline_defect_confirmation import (
+            IsolationFixture, confirm_component_offline,
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            baseline = self._build(root, "baseline", component=b"baseline")
+            mutant = self._build(root, "mutant", component=b"mutant")
+            with patch("myfuzz.composition.soc_offline_defect_confirmation.replay_package",
+                       side_effect=TimeoutError("simulator host detail")):
+                confirmation = confirm_component_offline(
+                    self._candidate(mutant), plan=object(), baseline=baseline, mutant=mutant,
+                    fixture=IsolationFixture(Path("fixture.sv"), "tb", "OBS", "component.sv"),
+                    criterion=self._criterion(), base_dir=root,
+                )
+        self.assertEqual("undiagnosed", confirmation.status)
+        self.assertEqual("offline-rerun-tool-failure", confirmation.reason)
+        self.assertEqual({"type": "TimeoutError", "detail": "simulator host detail"},
+                         confirmation.evidence["offline_rerun_error"])
 
 
 if __name__ == "__main__":

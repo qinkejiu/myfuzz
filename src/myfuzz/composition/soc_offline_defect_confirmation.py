@@ -157,13 +157,21 @@ def _criterion_problem(package: EvidencePackage, criterion: Mapping[str, object]
 
 
 def spi_wire_verdict(result: RunResult) -> tuple[str, object, object]:
-    """Read the independent SPI wire check without consulting peer counters."""
+    """Read MOSI verdicts from the independent SPI wire-check schema."""
     checks = (result.peer_oracle or {}).get("checks", ())
     matches = [item for item in checks if item.get("check_id") == "spi-transfer-wire"]
     if len(matches) != 1:
         return "not_assessed", None, None
     check = matches[0]
-    return str(check.get("status")), check.get("expected"), check.get("observed")
+    expected = check.get("expected")
+    observed = check.get("observed")
+    if (not isinstance(expected, Mapping) or not isinstance(observed, Mapping)
+            or not isinstance(expected.get("mosi"), list)
+            or not isinstance(observed.get("mosi"), list)
+            or not isinstance(expected.get("miso"), list)
+            or not isinstance(observed.get("miso"), list)):
+        return "not_assessed", None, None
+    return str(check.get("status")), expected["mosi"], observed["mosi"]
 
 
 def _run_problem(result: object, side: str) -> tuple[str, str] | None:
@@ -197,6 +205,12 @@ def _fresh_evidence(*, baseline: RuntimeBuild, mutant: RuntimeBuild,
         "baseline_structure_audit": _audit_summary(baseline_audit),
         "mutant_structure_audit": _audit_summary(mutant_audit),
     }
+
+
+def _tool_failure_evidence(differential: Mapping[str, object], error: Exception) -> dict[str, object]:
+    """Preserve diagnostics as evidence without making a reason environment-dependent."""
+    return {**differential, "offline_rerun_error": {
+        "type": type(error).__name__, "detail": str(error)}}
 
 
 def confirm_component_offline(
@@ -259,8 +273,8 @@ def confirm_component_offline(
             plan, top_text=mutant.top_path.read_text(encoding="utf-8"),
             source_files=mutant.sources, base_dir=base_dir, include_roots=include_roots)
     except (OSError, ValueError, TimeoutError) as error:
-        return OfflineConfirmation(UNDIAGNOSED, "offline-rerun-tool-failure:" + str(error),
-                                   differential)
+        return OfflineConfirmation(UNDIAGNOSED, "offline-rerun-tool-failure",
+                                   _tool_failure_evidence(differential, error))
 
     baseline_problem = _run_problem(baseline_result, "baseline")
     if baseline_problem is not None:
