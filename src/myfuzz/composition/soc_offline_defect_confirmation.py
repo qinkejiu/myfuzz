@@ -16,13 +16,17 @@ from pathlib import Path
 from .soc_composition import CompositionPlan
 from .soc_failure_evidence import (
     COMPONENT_CANDIDATE,
+    COMPOSITION_DEFECT,
+    REPLAY_AGREEMENT,
     UNDIAGNOSED,
     EvidencePackage,
     classify_boundary,
     identity_mismatches,
+    replay_package,
     recorded_build_identity,
 )
-from .soc_runtime import RuntimeBuild
+from .soc_runtime import RunResult, RuntimeBuild, run_sample
+from .soc_structure_audit import FAIL, PASS, audit_structure
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,6 +156,49 @@ def _criterion_problem(package: EvidencePackage, criterion: Mapping[str, object]
     return None
 
 
+def spi_wire_verdict(result: RunResult) -> tuple[str, object, object]:
+    """Read the independent SPI wire check without consulting peer counters."""
+    checks = (result.peer_oracle or {}).get("checks", ())
+    matches = [item for item in checks if item.get("check_id") == "spi-transfer-wire"]
+    if len(matches) != 1:
+        return "not_assessed", None, None
+    check = matches[0]
+    return str(check.get("status")), check.get("expected"), check.get("observed")
+
+
+def _run_problem(result: object, side: str) -> tuple[str, str] | None:
+    """Classify invalid reruns without treating an unavailable tool as evidence."""
+    if not isinstance(result, RunResult):
+        return UNDIAGNOSED, f"{side}-rerun-result-invalid"
+    if result.status != "OK":
+        return UNDIAGNOSED, f"{side}-rerun-failed:{result.status}"
+    if result.requests_truncated or any(bool(item.get("truncated"))
+                                        for item in result.peer_wire_status):
+        return COMPONENT_CANDIDATE, f"{side}-run-incomplete"
+    return None
+
+
+def _audit_summary(audit: Mapping[str, object]) -> Mapping[str, object]:
+    summary = audit.get("summary")
+    return dict(summary) if isinstance(summary, Mapping) else {}
+
+
+def _fresh_evidence(*, baseline: RuntimeBuild, mutant: RuntimeBuild,
+                    baseline_result: RunResult, mutant_result: RunResult,
+                    replay: object, baseline_audit: Mapping[str, object],
+                    mutant_audit: Mapping[str, object]) -> dict[str, object]:
+    """Keep compact, freshly-derived records instead of caller-provided verdicts."""
+    return {
+        "baseline_top_hash": file_hash(baseline.top_path),
+        "mutant_top_hash": file_hash(mutant.top_path),
+        "baseline_run": baseline_result.document(),
+        "mutant_run": mutant_result.document(),
+        "mutant_replay": replay.document() if hasattr(replay, "document") else {},
+        "baseline_structure_audit": _audit_summary(baseline_audit),
+        "mutant_structure_audit": _audit_summary(mutant_audit),
+    }
+
+
 def confirm_component_offline(
         package: EvidencePackage, *, plan: CompositionPlan, baseline: RuntimeBuild,
         mutant: RuntimeBuild, fixture: IsolationFixture, criterion: Mapping[str, object],
@@ -159,10 +206,11 @@ def confirm_component_offline(
 ) -> OfflineConfirmation:
     """Bind an offline confirmation request to actual build files.
 
-    ``plan``, ``fixture``, include roots and timeout deliberately remain part of
-    the stable entry-point now; later phases consume them to re-run the builds.
+    The isolated fixture is deliberately not executed here: Task 3 adds that
+    independent APB experiment.  This slice re-runs both SoCs, audits their
+    current generated top-levels, and applies only the accepted SPI wire gate.
     """
-    del plan, fixture, include_roots, timeout_seconds
+    del fixture
     boundary, reason = classify_boundary(package)
     if boundary != COMPONENT_CANDIDATE:
         return OfflineConfirmation(boundary, reason, {})
@@ -198,8 +246,62 @@ def confirm_component_offline(
     criterion_problem = _criterion_problem(package, criterion)
     if criterion_problem is not None:
         return OfflineConfirmation(COMPONENT_CANDIDATE, criterion_problem, differential)
-    return OfflineConfirmation(COMPONENT_CANDIDATE, "build-binding-complete", differential)
+    if len(package.samples) != 1 or len(package.results) != 1:
+        return OfflineConfirmation(COMPONENT_CANDIDATE, "offline-evidence-count", differential)
+    try:
+        replay = replay_package(package, mutant, timeout_seconds=timeout_seconds)
+        baseline_result = run_sample(baseline, package.sample(), timeout_seconds=timeout_seconds)
+        mutant_result = run_sample(mutant, package.sample(), timeout_seconds=timeout_seconds)
+        baseline_audit = audit_structure(
+            plan, top_text=baseline.top_path.read_text(encoding="utf-8"),
+            source_files=baseline.sources, base_dir=base_dir, include_roots=include_roots)
+        mutant_audit = audit_structure(
+            plan, top_text=mutant.top_path.read_text(encoding="utf-8"),
+            source_files=mutant.sources, base_dir=base_dir, include_roots=include_roots)
+    except (OSError, ValueError, TimeoutError) as error:
+        return OfflineConfirmation(UNDIAGNOSED, "offline-rerun-tool-failure:" + str(error),
+                                   differential)
+
+    baseline_problem = _run_problem(baseline_result, "baseline")
+    if baseline_problem is not None:
+        return OfflineConfirmation(*baseline_problem, differential)
+    mutant_problem = _run_problem(mutant_result, "mutant")
+    if mutant_problem is not None:
+        return OfflineConfirmation(*mutant_problem, differential)
+    for side, audit in (("baseline", baseline_audit), ("mutant", mutant_audit)):
+        if not isinstance(audit, Mapping) or _audit_summary(audit).get("status") not in (PASS, FAIL):
+            return OfflineConfirmation(UNDIAGNOSED, f"{side}-structure-audit-invalid",
+                                       differential)
+    evidence = _fresh_evidence(
+        baseline=baseline, mutant=mutant, baseline_result=baseline_result,
+        mutant_result=mutant_result, replay=replay, baseline_audit=baseline_audit,
+        mutant_audit=mutant_audit)
+    if getattr(replay, "status", None) != REPLAY_AGREEMENT:
+        return OfflineConfirmation(COMPONENT_CANDIDATE, "replay-not-agreement", evidence)
+    if _audit_summary(baseline_audit).get("status") == FAIL:
+        return OfflineConfirmation(COMPOSITION_DEFECT, "baseline-structure-audit-failed", evidence)
+    if _audit_summary(mutant_audit).get("status") == FAIL:
+        return OfflineConfirmation(COMPOSITION_DEFECT, "mutant-structure-audit-failed", evidence)
+    if baseline_result.requests != mutant_result.requests or \
+            baseline_result.peer_applied != mutant_result.peer_applied:
+        return OfflineConfirmation(COMPONENT_CANDIDATE, "cpu-peer-records-differ", evidence)
+    baseline_status, baseline_expected, baseline_observed = spi_wire_verdict(baseline_result)
+    mutant_status, mutant_expected, mutant_observed = spi_wire_verdict(mutant_result)
+    if baseline_status != "pass":
+        return OfflineConfirmation(COMPONENT_CANDIDATE,
+                                   "baseline-spi-wire:" + baseline_status, evidence)
+    if mutant_status != "mismatch":
+        return OfflineConfirmation(COMPONENT_CANDIDATE,
+                                   "mutant-spi-wire:" + mutant_status, evidence)
+    if baseline_expected != criterion.get("expected") or \
+            baseline_observed != criterion.get("expected") or \
+            mutant_expected != criterion.get("expected"):
+        return OfflineConfirmation(COMPONENT_CANDIDATE, "spi-criterion-observation", evidence)
+    anomaly = package.anomaly if isinstance(package.anomaly, Mapping) else {}
+    if mutant_observed != anomaly.get("observed"):
+        return OfflineConfirmation(COMPONENT_CANDIDATE, "mutant-spi-observed", evidence)
+    return OfflineConfirmation(COMPONENT_CANDIDATE, "offline-rerun-complete", evidence)
 
 
 __all__ = ["IsolationFixture", "OfflineConfirmation", "build_differential",
-           "confirm_component_offline", "file_hash"]
+           "confirm_component_offline", "file_hash", "spi_wire_verdict"]
