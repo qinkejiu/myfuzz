@@ -14,7 +14,12 @@ class ProtocolCompilationError(ProtocolDefinitionError):
 
 
 def _width(expression: str, parameters: Mapping[str, object]) -> int:
-    names: dict[str, int] = {}
+    # A plugin may declare a width in terms of the TL-UL parameter set instead of
+    # a literal; those names and their pinned defaults are declared once in
+    # myfuzz.protocols.widths, and a caller-supplied parameter still wins.
+    from .widths import PROTOCOL_WIDTH_PARAMETER_DEFAULTS
+
+    names: dict[str, int] = dict(PROTOCOL_WIDTH_PARAMETER_DEFAULTS)
     for name, value in parameters.items():
         if not isinstance(name, str) or isinstance(value, bool) or not isinstance(value, int) or value <= 0:
             raise ProtocolCompilationError("width parameters must be positive integer declarations")

@@ -565,6 +565,70 @@ class ReplayIdentityTests(unittest.TestCase):
             self.assertEqual(getattr(self.artifact, key), manifest["replays"][0].get(key))
             self.assertEqual(getattr(self.artifact, key), manifest.get(key))
 
+    def test_peer_event_evidence_is_required_and_checked_during_corpus_replay(self):
+        from myfuzz.composition.input_layout import InputLayout, LayoutField
+        from myfuzz.composition.soc_peer_replay import decode_peer_raw_events, peer_event_hash
+        from myfuzz.composition.rfuzz_transport import build_rfuzz_transport
+        from myfuzz.integration import rfuzz_live
+
+        layout = InputLayout("input_layout.v1", 9, (
+            LayoutField("peer:valid", "soc_peer", "uart.tx_byte:valid", 1, 0, 0,
+                        "bits", {}, port="uart0__valid"),
+            LayoutField("peer:data", "soc_peer", "uart.tx_byte:data", 8, 1, 8,
+                        "bits", {}, port="uart0__data"),
+        ), "sha256:peer-layout")
+        slots = ({"index": 0, "instance_id": "uart0", "peer_id": "uart",
+                  "peer_source": "src/myfuzz/protocols/rtl/soc_uart_peer.sv",
+                  "peer_module": "soc_uart_peer", "peer_protocol": ["uart", "1"],
+                  "slot": "uart.tx_byte", "kind": "pulse_byte", "width": 8,
+                  "minimum_gap_cycles": 2,
+                  "signals": (
+                      {"peer_port": "tx_request_valid_i", "top_port": "uart0__valid",
+                       "source": "pulse", "width": 1, "raw_lo": 0},
+                      {"peer_port": "tx_request_data_i", "top_port": "uart0__data",
+                       "source": "payload", "width": 8, "raw_lo": 1},
+                  )},)
+        artifact = SimpleNamespace(
+            layout=layout, projector=SimpleNamespace(constraint_hash="sha256:constraints"),
+            executable=self.artifact.executable, transport=build_rfuzz_transport(layout),
+            coverage_ports=(("out", 0),), coverage_kind="test", peer_slots=slots,
+        )
+        raw = (0xA5 << 1) | 1
+        payload = artifact.transport.pack(raw)
+        events = decode_peer_raw_events((raw,), layout, slots)
+        corpus = self.root / "peer-corpus"
+        corpus.mkdir()
+        document = {"entry": {"inputs": list(payload)},
+                    "trace_bits": [1, 0, 0, 0, 0, 0],
+                    "replay_identity": rfuzz_live.replay_identity(artifact, payload),
+                    "peer_events": list(events),
+                    "peer_event_hash": peer_event_hash(events)}
+        (corpus / "entry_0000.json").write_text(json.dumps(document))
+        with patch.object(rfuzz_live, "RtlSimulator") as constructor:
+            simulator = constructor.return_value.__enter__.return_value
+            simulator.run_test.return_value = b"\1"
+            simulator.last_peer_events = events
+            result = rfuzz_live.replay_corpus(artifact, corpus)
+        self.assertEqual(peer_event_hash(events), result["replays"][0]["peer_event_hash"])
+
+        document["peer_events"][0]["payload"] = 0x5A
+        (corpus / "entry_0000.json").write_text(json.dumps(document))
+        with patch.object(rfuzz_live, "RtlSimulator") as constructor:
+            simulator = constructor.return_value.__enter__.return_value
+            simulator.run_test.return_value = b"\1"
+            simulator.last_peer_events = events
+            with self.assertRaisesRegex(ValueError, "peer event"):
+                rfuzz_live.replay_corpus(artifact, corpus)
+
+        document.pop("peer_events")
+        document.pop("peer_event_hash")
+        (corpus / "entry_0000.json").write_text(json.dumps(document))
+        with patch.object(rfuzz_live, "RtlSimulator") as constructor:
+            simulator = constructor.return_value.__enter__.return_value
+            with self.assertRaisesRegex(ValueError, "peer event evidence"):
+                rfuzz_live.replay_corpus(artifact, corpus)
+            simulator.run_test.assert_not_called()
+
     def _write_corpus(self, identity):
         (self.root / "entry_0000.json").write_text(json.dumps({
             "entry": {"inputs": list(self.payload)},

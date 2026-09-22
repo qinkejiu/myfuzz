@@ -1,0 +1,20 @@
+{
+  "schema_version": "composition_request.v1",
+  "request_id": "novacore-original-pulp-gpio",
+  "description": "First-time input CPU plus existing original PULP GPIO: APB3 MMIO and exported pins; pulse IRQ only observed, not converted into a level interrupt.",
+  "cpu": {"instance_id": "cpu0", "profile": "examples/soc_generation/profiles/novacore.json", "parameters": {}},
+  "peripherals": [{"instance_id": "gpio0", "profile": "configs/peripherals/pulp_gpio/component_profile.json", "parameters": {}}],
+  "memory": [
+    {"region_id": "rom0", "base": 65536, "size": 32768,
+      "permissions": {"read": true, "write": false, "execute": true},
+      "physical_memory_id": "boot_rom", "initialization_policy": "rom"},
+    {"region_id": "ram0", "base": 2147483648, "size": 65536,
+      "permissions": {"read": true, "write": true, "execute": true},
+      "physical_memory_id": "main_ram", "initialization_policy": "on_demand"}
+  ],
+  "address_policy": {"mmio_base": 1073741824, "mmio_limit": 1048576, "alignment": 4096},
+  "clock": {"domain": "core", "frequency_hz": 50000000},
+  "reset": {"domain": "sys_rst", "polarity": "active_low", "synchronous": false},
+  "test_modes": ["cpu_only"],
+  "provenance": {"purpose": "original RTL profile composition acceptance; pulse IRQ coverage explicitly excluded"}
+}

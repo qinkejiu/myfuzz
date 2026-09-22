@@ -1,0 +1,77 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "zipcpu_timer",
+  "kind": "peripheral",
+  "description": "Original pinned ZipCPU ziptimer: a single 32-bit countdown/reload register behind a word-addressed Wishbone slave with a registered one-clock ACK, no address input, no byte-enable implementation and no error response. Its interrupt is a registered one-cycle pulse, so it is exported for observation instead of being attached to the level-only interrupt controller.",
+  "source": {
+    "root": "third_party/soc-zipcpu",
+    "revision": "git:42606d2d6ef55df313772232977621b2d72f0159",
+    "top_module": "ziptimer",
+    "files": [
+      "rtl/peripherals/ziptimer.v"
+    ],
+    "include_roots": [],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {"name": "BW", "value": "32"},
+        {"name": "VW", "value": "31"},
+        {"name": "RELOADABLE", "value": "1"}
+      ],
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [{"port": "i_clk", "domain": "core", "frequency_hz": 50000000}],
+  "resets": [{"port": "i_reset", "domain": "sys_rst", "polarity": "active_high", "synchronous": true,
+    "release": "Synchronous, active-high reset sampled on posedge i_clk; it has priority over writes and counting in every always block (ziptimer.v:111-117,132-137,146-150,166-170,182-186,200-203,210-213) and the IP has no asynchronous reset pin. Reset state: r_running=0, r_auto_reload=0, r_interval_count=0, r_value=0, r_zero=1, o_int=0, o_wb_ack=0. A write applied in the same cycle as reset is ignored and no ACK is returned, so the fabric must hold reset for at least one i_clk cycle and release it synchronously."}],
+  "endpoints": [
+    {"endpoint_id": "timer.bus", "function": "mmio_slave", "protocol": ["wishbone", "classic"], "fields": [
+      {"role": "cyc", "aliases": ["i_wb_cyc"]},
+      {"role": "stb", "aliases": ["i_wb_stb"]},
+      {"role": "we", "aliases": ["i_wb_we"]},
+      {"role": "dat_w", "aliases": ["i_wb_data"]},
+      {"role": "sel", "aliases": ["i_wb_sel"]},
+      {"role": "ack", "aliases": ["o_wb_ack"]},
+      {"role": "stall", "aliases": ["o_wb_stall"]},
+      {"role": "dat_r", "aliases": ["o_wb_data"]}
+    ]}
+  ],
+  "capabilities": {"data_width": 32, "read": true, "write": true,
+    "byte_enable": false, "partial_write": false, "has_error": false, "has_address_port": false,
+    "address_units": "word", "sel_implemented": false,
+    "wishbone_flavour": "registered-ack-cyc-ignored", "ack_requires_cyc": false,
+    "max_wait_cycles": 16, "max_outstanding": 1},
+  "address": {"window_size": 4, "alignment": 4, "registers": [
+    {"name": "COUNT", "offset": 0, "width": 32, "access": "rw", "side_effect": "write_stops_or_starts_countdown"}
+  ]},
+  "interrupts": [],
+  "port_actions": [
+    {"port": "i_ce", "action": "constant", "value": 1,
+      "reason": "i_ce is a separate clock-enable input, not part of Wishbone: it gates the countdown, the r_zero update and the o_int pulse, and forces o_int low while it is low (ziptimer.v:80,169-177,182-193,200-206). The composition has no independent enable source, so it is held high to let the timer count continuously; the held-low behaviour is therefore not exercised in the generated SoC (recorded as a coverage loss, not hidden). Writes are unaffected by i_ce (wb_write has priority in r_value, r_zero and o_int)."},
+    {"port": "o_int", "action": "observe",
+      "reason": "Registered one-cycle pulse, not a held level: `o_int <= 1'b0` on reset, on any write and when i_ce is low, otherwise `o_int <= (r_value == 1'b1)` (ziptimer.v:196-206). It asserts one clock after the count value equals 1 and deasserts on the following clock; there is no interrupt-enable, pending or acknowledge register and a write in the same window suppresses the pulse. This project's interrupt controller admits level sources only, so the profile declares no interrupt_source endpoint and exports the pulse for observation instead of inventing a level hold the RTL does not have."}
+  ],
+  "evidence": {
+    "semantics": [
+      "One combined control+value register and no sub-address decode: the elaborated top has no i_wb_addr at all (port list: i_clk, i_reset, i_ce, i_wb_cyc, i_wb_stb, i_wb_we, i_wb_data[31:0], i_wb_sel[3:0], o_wb_stall, o_wb_ack, o_wb_data[31:0], o_int), so the module consumes zero address bits and the declared 4-byte window is the whole decode; the IP cannot distinguish offset 0 from any other offset and any out-of-window rejection belongs to the SoC decoder.",
+      "Write semantics: `wb_write = i_wb_stb && i_wb_we` (ziptimer.v:106) updates, on the same clock, r_value (low VW=31 bits), r_interval_count, r_running (running iff the written value is non-zero, so writing zero stops the timer), r_auto_reload (bit BW-1=31 of the written word AND the written value non-zero) and r_zero (ziptimer.v:132-150,163-177,180-193). The same write forces o_int low (ziptimer.v:200-206). Reads (WE=0) have no side effect.",
+      "Read data layout: the read value is combinational `{auto_reload, r_value}` for BW=32/VW=31 (ziptimer.v:216-224), i.e. bit 31 is the auto-reload flag and bits [30:0] the current count; read and write layouts are symmetric for the locked parameters.",
+      "Partial writes are NOT supported even though the port exists: i_wb_sel[3:0] is declared but its only use in the synthesizable RTL is the unused reduction wire (ziptimer.v:115), and every write stores the full VW-bit word from i_wb_data with no lane masking (r_value <= i_wb_data[VW-1:0], ziptimer.v:136-137,149-150). A byte or halfword write would store whatever the master drives on the unselected lanes and could silently stop the timer or clear the auto-reload flag, so byte_enable=false/sel_implemented=false/partial_write=false and sub-word writes must be rejected by the target adapter rather than turned into a read-modify-write.",
+      "Response timing and CYC: o_wb_stall is the constant 1'b0 (`assign o_wb_stall = 1'b0;`, ziptimer.v:218-219) and o_wb_ack is a registered copy of STB (`o_wb_ack <= !i_reset && i_wb_stb`, ziptimer.v:210-214), so one request strobed in cycle T completes with ACK in T+1. CYC is completely ignored by the synthesizable logic - its only other occurrence is the unused reduction wire (ziptimer.v:106,115) - so an access with STB high and CYC low still writes the timer and still receives ACK. That is exactly the recorded 'registered-ack-cyc-ignored' flavour: a one-cycle STB pulse, CYC driven well-formed but not required for ACK.",
+      "No error or retry response exists: the elaborated port list has no o_wb_err/o_wb_rty, no i_wb_cti/i_wb_bte and no burst support, so has_error is false and the fabric owns any decode error on this target.",
+      "Reset and clock: a single i_clk domain with a synchronous active-high i_reset (see resets.release); the IP instantiates no submodule and contains no CDC.",
+      "Each declared capability and the construct it was read from: data_width=32 is the elaborated width of i_wb_data/o_wb_data (ziptimer.v:83-84,89); read=true and write=true are the combinational read value `{auto_reload, r_value}` (ziptimer.v:216-224) and the `wb_write = i_wb_stb && i_wb_we` update path (ziptimer.v:106,132-150); byte_enable=false, sel_implemented=false and partial_write=false because i_wb_sel is declared but only appears in the unused reduction wire and every write stores the full VW-bit word without lane masking (ziptimer.v:115,136-137); has_error=false because the elaborated port list has no o_wb_err/o_wb_rty and no retry/termination signal; has_address_port=false because the IP has no address input at all (ziptimer.v:78-92), so address_units=\"word\" is the adapter's address accounting convention for the single 32-bit register, not an RTL-decoded fact; wishbone_flavour=\"registered-ack-cyc-ignored\" with ack_requires_cyc=false is the recorded behaviour `o_wb_ack <= !i_reset && i_wb_stb` with CYC unused by the synthesizable logic (ziptimer.v:106,115,210-214) and `assign o_wb_stall = 1'b0` (ziptimer.v:218-219); max_wait_cycles=16 is the SoC's declared patience bound, far inside the fixed one-clock response latency of this slave; max_outstanding=1 is the single-outstanding contract of the beat initiator and of resolve_target_adapter's parameter_values, not an RTL concurrency claim about ziptimer."
+    ],
+    "verified": [
+      "The 12 declared ports, their directions and their widths are the elaborated port facts of the pinned closure configs/soc/closures/zipcpu_timer.json with the recorded parameters BW=32, VW=31, RELOADABLE=1, which are also the RTL defaults (ziptimer.v:73-77) and identical to the typed_parameters recorded for zipcpu_timer in configs/soc/sources.lock.json; elaboration of that closure exits 0 with zero warnings. Note: the recorded closure finding 'elaborated_ports' says '11 ports' but then lists twelve names and cites an evidence file that is not present in runs/; the module header (ziptimer.v:78-92) and the verilator-json port list both give twelve, so twelve is what this profile binds.",
+      "Every declared capability is carried by the semantics entries above; the wishbone target resolver consumes exactly data_width/byte_enable/partial_write/has_error/has_address_port/address_units/sel_implemented/wishbone_flavour/ack_requires_cyc for this protocol."
+    ],
+    "unknown": [
+      "This profile cannot be elaborated by the composition frontend in this environment. `ziptimer` is Verilog-2001 with implicitly typed ports, and two independent limitations of src/myfuzz/composition/source_elaboration.py reject it: (1) `_Reader.physical_type` requires every type node's compiler location to be a declared source file, while Verilator locates the implicit default type in <verilator-root>/share/verilator/include/verilated_std.sv:53 - `elaborate_profile` therefore fails with 'elaboration-evidence-error:zipcpu_timer:compiler location has no source mapping'; (2) `extract_physical_ports` keeps only ports with `varType == \"PORT\"`, and Verilator reports `input wire`/`output wire` ports as `varType == \"WIRE\"`, so even when the first error is bypassed with --no-std-package only the two `output reg` ports survive and the other ten are silently dropped. Nothing in this profile was therefore confirmed by elaborate_profile/bind_profile; the port facts above were verified against the same verilator-json output with --no-std-package plus the recorded closure finding.",
+      "The IRQ is a one-cycle pulse that the level-only controller of this project cannot consume (see port_actions.o_int); whether an external environment latches it is outside this profile.",
+      "i_ce is held constant 1, so the timer-hold behaviour (i_ce low) is not exercised by the generated SoC.",
+      "The IP has no address input, so the whole 4-byte window decodes to the single register; the profile records address_units=\"word\" as the adapter's address accounting convention for that single 32-bit word, not as an RTL-decoded fact (there are no address bits to decode).",
+      "Only the pinned parameterization BW=32/VW=31/RELOADABLE=1 is exercised by this profile acceptance; RELOADABLE=0 compiles a different generate branch and is not claimed."
+    ]
+  }
+}

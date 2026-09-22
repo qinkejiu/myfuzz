@@ -32,7 +32,7 @@ document stays the source of truth.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 import copy
 import hashlib
 import json
@@ -53,8 +53,13 @@ from myfuzz.composition.soc_plan import build_soc_plan
 from myfuzz.composition.soc_renderer import render_soc
 from myfuzz.composition.soc_stimulus import compile_soc_stimulus
 from myfuzz.composition.target_adapters import resolve_target_adapter
+from myfuzz.composition.soc_peer_replay import (
+    PeerRawReplayError,
+    decode_peer_raw_events,
+)
 
 from .campaign import CampaignLimits, CampaignOptions, run_supervised_command
+from .rtl_execution_monitor import monitor_output, monitor_rtl
 from .soc_coverage import (
     coverage_observation_plan,
     universe_from_instance_bits,
@@ -69,6 +74,11 @@ from .rfuzz_simulator import (
     SIMULATOR_PROTOCOL_VERSION,
     SimulatorArtifact,
 )
+from .rfuzz_toolchain import (
+    RfuzzToolchainError,
+    resolve_rfuzz_verilator_toolchain,
+)
+from myfuzz.rfuzz_compat import resolve_rfuzz_verilator, validate_rfuzz_verilator_version
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -243,6 +253,12 @@ PERIPHERAL_FACTS = {
     },
 }
 
+#: The execution monitor every profile artifact carries: the generated fabric's
+#: own request/completion handshake is the source/target transaction evidence a
+#: campaign report has to publish, and it is the same boundary for a fresh build
+#: and for a cache hit.
+PROFILE_FABRIC_MONITOR = {"mode": "profile_fabric"}
+
 _TOP_MODULE_RE = re.compile(r"^module\s+([A-Za-z_]\w*)\b", re.MULTILINE)
 _PORT_RE = re.compile(
     r"\b(input|output|inout)\s+(?:wire|logic|reg)?\s*(\[[^\]]*\])?\s*([A-Za-z_]\w*)"
@@ -261,10 +277,132 @@ class SocCampaignArtifact(SimulatorArtifact):
 
     build_document: Mapping[str, object] = None
     rendered_files: tuple[tuple[str, str], ...] = ()
+    #: The projection arms this artifact can execute: one projector per arm of
+    #: the three-arm comparison over this exact build (direct input, constrained
+    #: baseline, dependency repair).  Empty when the build does not declare them.
+    projection_arms: Mapping[str, object] = field(default_factory=dict)
+
+
+def _provisional_record_width(plan, image) -> int:
+    """The width of the raw record a candidate program will be projected from.
+
+    The combined ABI places the image segment, then the synthetic master's
+    stimulus and the attached peers' request fields; the concrete layout is built
+    later, but its width is already determined by the plan and the image plan.  A
+    declared program owns only its own image bits, so it has to be told this
+    width or it would refuse a record that legally carries those later bits.
+    """
+    from myfuzz.composition.soc_image import _stimulus_reserved_bits
+
+    width = int(image.raw_width)
+    if plan.synthetic:
+        width = max(width, int(plan.raw_layout.get("raw_width", 0))
+                    + _stimulus_reserved_bits(plan))
+    for peer in plan.peers:
+        for slot in peer.slots:
+            for signal in slot.signals:
+                width += int(signal.width)
+    return width
+
+
+def build_projection_arms(*, layout, constraint_hash, special_width, policy, image,
+                          image_address_policy="repair",
+                          candidate_program=None, peer_slots=()) -> dict[str, object]:
+    """The three input-projection arms over one compiled profile artifact.
+
+    Every arm shares the layout, the executable and the coverage instrumentation;
+    only the projection differs, which is what makes the comparison a comparison
+    of projection policies rather than of builds.  When the plan declares several
+    candidate slots, the dependency-repair arm places and checks them through the
+    declared candidate program (:mod:`myfuzz.composition.soc_candidate_program`)
+    instead of the single-candidate legacy path.
+    """
+    if image_address_policy not in ("repair", "strict"):
+        raise SocBuildError("profile-image-address-policy-invalid")
+    return {
+        "direct_input": SocRawProjector(layout, constraint_hash),
+        "constrained_baseline": ProfileCampaignProjector(
+            layout, constraint_hash, special_width, policy=policy, image_plan=None,
+            peer_slots=peer_slots),
+        "dependency_repair": ProfileCampaignProjector(
+            layout, constraint_hash, special_width, policy=policy, image_plan=image,
+            image_address_policy=image_address_policy,
+            candidate_program=candidate_program, peer_slots=peer_slots),
+    }
+
+
+def _peer_projection_slots(plan, layout, *, base_dir=None):
+    """Return the peer slot ABI records used by projection and replay.
+
+    The renderer and layout are the source of the actual top-level port names;
+    the peer plan supplies only the timing contract.  Keeping the two records
+    joined here prevents a model slot from silently validating a different raw
+    field after a layout change.  ``pulse_ports`` is retained for the existing
+    spacing checker; ``signals`` carries the complete raw offsets so a campaign
+    can save a semantic event trace beside its raw corpus.
+    """
+    if not plan.peers:
+        return ()
+    fields = {field.port: field for field in layout.fields if field.owner == "soc_peer"}
+    records = []
+    for peer in plan.peers:
+        peer_source_hash = None
+        if base_dir is not None:
+            source_path = Path(base_dir) / str(peer.source)
+            if source_path.is_file():
+                peer_source_hash = _file_hash(source_path)
+        for slot in peer.slots:
+            pulse_ports = []
+            signals = []
+            for signal in slot.signals:
+                field = fields.get(signal.top_port)
+                if field is None:
+                    raise SocBuildError(
+                        f"peer-layout-field-missing:{peer.instance_id}:{slot.slot}:{signal.top_port}")
+                if field.width != signal.width:
+                    raise SocBuildError(
+                        f"peer-layout-width-mismatch:{peer.instance_id}:{slot.slot}:"
+                        f"{signal.top_port}:{field.width}!={signal.width}")
+                signals.append({
+                    "peer_port": signal.peer_port,
+                    "top_port": signal.top_port,
+                    "source": signal.source,
+                    "width": int(signal.width),
+                    "raw_lo": int(field.raw_lo),
+                    "raw_hi": int(field.raw_hi),
+                })
+                if signal.source == "pulse":
+                    pulse_ports.append(signal.top_port)
+            records.append({
+                "index": len(records),
+                "instance_id": peer.instance_id,
+                "peer_id": peer.peer_id,
+                "peer_source": peer.source,
+                "peer_source_hash": peer_source_hash,
+                "peer_module": peer.module,
+                "peer_protocol": list(peer.protocol),
+                "slot": slot.slot,
+                "kind": slot.kind,
+                "width": int(slot.width),
+                "minimum_gap_cycles": int(slot.minimum_gap_cycles),
+                "pulse_ports": tuple(pulse_ports),
+                "signals": tuple(signals),
+            })
+    records.sort(key=lambda item: (str(item["instance_id"]), str(item["slot"])))
+    for index, item in enumerate(records):
+        item["index"] = index
+    return tuple(records)
 
 
 class SocRawProjector:
-    """Identity projection: one RFuzz record *is* one raw stimulus sample."""
+    """Identity projection: one RFuzz record *is* one raw stimulus sample.
+
+    ``project_records`` is the record-level entry point every arm shares: the
+    three-arm comparison hands the same raw sequence to each arm, so an arm that
+    only implemented the per-word ``project`` would be executed through a
+    different code path from the other two.  The identity arm's record
+    projection is the identity on every word.
+    """
 
     instruction_mode = "soc-raw-stimulus-abi"
 
@@ -276,6 +414,10 @@ class SocRawProjector:
         if type(raw) is not int or not 0 <= raw < 1 << self.layout.raw_width:
             raise ValueError("raw sample outside the compiled stimulus layout")
         return raw
+
+    def project_records(self, raw_values):
+        """Project a whole raw sequence; the identity arm returns it unchanged."""
+        return [self.project(raw) for raw in raw_values]
 
 
 def _require_mapping(value, label):
@@ -747,6 +889,646 @@ def _target_contracts(cell, records, cpu, cell_id):
     return contracts
 
 
+def load_profile_campaign_request(config, root):
+    """Read profile inputs without invoking elaboration or the legacy registry.
+
+    The declared drive profile is admitted only when ``input_constraints``
+    declares it, and the requested mode must be one of that profile's own legacy
+    modes: the bus owner, the CPU reset hold and the mode are one declaration, so
+    a mismatched pair is refused before anything is built.  An unknown profile
+    name is still a build error, never a fallback to the CPU-owned default.
+    """
+    from myfuzz.composition.component_profile import (
+        load_component_profile, load_composition_request,
+    )
+    from myfuzz.composition.input_constraints import DRIVE_PROFILES
+    drive_profile = config.get("drive_profile", "cpu_execute")
+    if not isinstance(drive_profile, str) or drive_profile not in DRIVE_PROFILES:
+        raise SocBuildError(f"profile-drive-unsupported:{drive_profile}")
+    legacy_modes = tuple(str(item) for item in DRIVE_PROFILES[drive_profile]["legacy_modes"])
+    mode = config.get("mode", legacy_modes[0])
+    if mode not in legacy_modes:
+        raise SocBuildError(f"profile-drive-mode-mismatch:{drive_profile}:{mode}")
+    paths = config.get("component_profiles")
+    if not isinstance(paths, (list, tuple)) or not paths:
+        raise SocBuildError("profile-inputs-required: component_profiles")
+    profiles = {}
+    for value in paths:
+        path = Path(value)
+        path = path if path.is_absolute() else root / path
+        profile = load_component_profile(path)
+        profiles[str(value)] = profile
+        profiles[str(path)] = profile
+        if path.is_relative_to(root):
+            profiles[str(path.relative_to(root))] = profile
+        profiles[profile.component_id] = profile
+    request = config["composition_request"]
+    if isinstance(request, (str, Path)):
+        path = Path(request)
+        request = path if path.is_absolute() else root / path
+    return load_composition_request(request, profiles=profiles)
+
+
+class ProfileCampaignProjector(SocRawProjector):
+    """Project special inputs and bounded pre-reset memory overlays."""
+    instruction_mode = "profile-pre-reset-single-code-data-image"
+
+    def __init__(self, layout, constraint_hash, special_width, *, policy, image_plan=None,
+                 image_address_policy="repair", candidate_program=None, peer_slots=()):
+        super().__init__(layout, constraint_hash)
+        self.special_width = special_width
+        self.policy = policy
+        self.image_plan = image_plan
+        if image_address_policy not in ("repair", "strict"):
+            raise SocBuildError("profile-image-address-policy-invalid")
+        self.image_address_policy = image_address_policy
+        if candidate_program is not None and image_plan is None:
+            raise SocBuildError("profile-candidate-program-without-an-image-plan")
+        self.candidate_program = candidate_program
+        if not isinstance(peer_slots, Sequence) or isinstance(peer_slots, (str, bytes)):
+            raise SocBuildError("profile-peer-slots-invalid")
+        self.peer_slots = tuple(dict(item) for item in peer_slots)
+        self._runtime_external_mask = 0
+        for field in getattr(layout, "fields", ()):
+            if str(getattr(field, "owner", "")) not in {"soc_peer", "soc_stimulus"}:
+                continue
+            self._runtime_external_mask |= ((1 << int(field.width)) - 1) << int(field.raw_lo)
+        for item in self.peer_slots:
+            if (not isinstance(item.get("instance_id"), str)
+                    or not isinstance(item.get("slot"), str)
+                    or isinstance(item.get("minimum_gap_cycles"), bool)
+                    or not isinstance(item.get("minimum_gap_cycles"), int)
+                    or item["minimum_gap_cycles"] < 0
+                    or not isinstance(item.get("pulse_ports"), Sequence)
+                    or isinstance(item.get("pulse_ports"), (str, bytes))):
+                raise SocBuildError("profile-peer-slot-contract-invalid")
+            signals = item.get("signals", ())
+            if (isinstance(signals, (str, bytes))
+                    or not isinstance(signals, Sequence)
+                    or (not item["pulse_ports"] and not signals)):
+                raise SocBuildError("profile-peer-slot-contract-invalid")
+        #: The record of the last repaired test (its placements, dependency
+        #: edges, bounded unknowns and counters), so a campaign run can publish
+        #: what the projection really did instead of only its counters.
+        self.last_repaired_test = None
+        #: Semantic peer events decoded from the last projected sequence.  The
+        #: raw ABI remains the source of truth; this is replay evidence only.
+        self.last_peer_events = ()
+        self.repair_counts = {"address_repair": 0}
+
+    def project(self, raw):
+        super().project(raw)
+        # The constraint-only arm has no image plan, but the combined profile
+        # ABI may still carry synthetic-master and peer fields above the
+        # profile-owned prefix.  Only image-owned bits are dynamic-image input;
+        # environment-owned runtime fields must remain usable in this arm.
+        if self.image_plan is None:
+            high = raw & ~((1 << self.special_width) - 1)
+            if high & ~self._runtime_external_mask:
+                raise SocBuildError("profile-dynamic-image-loading-unsupported")
+        from myfuzz.composition.input_constraints import project_sample_values
+        # The combined image segment is not part of this projection's write
+        # authority. A policy targeting it must fail the special-width bound.
+        if self.special_width:
+            mask = (1 << self.special_width) - 1
+            raw = (raw & ~mask) | project_sample_values(
+                self.policy, raw & mask, raw_width=self.special_width)
+        if self.image_plan is not None:
+            image = self.image_plan
+            def value(name):
+                field = image.segment(name)
+                return (raw >> field.raw_lo) & ((1 << (field.raw_hi-field.raw_lo+1))-1)
+            if self.image_address_policy == "repair":
+                for prefix, base, size in (("init", image.base, image.size),
+                                           ("data", image.data_base, image.data_size)):
+                    if not value(prefix + "_offer"):
+                        continue
+                    old = value(prefix + "_address")
+                    first = (base + 3) & ~3
+                    slots = (base + size - first) // 4
+                    if slots < 1:
+                        raise SocBuildError("profile-image-no-full-word-slot")
+                    legal = base <= old and old + 4 <= base + size
+                    if prefix == "init":
+                        legal = legal and old % 4 == 0
+                    if not legal:
+                        address = first + ((old // 4) % slots) * 4
+                        lo = image.segment(prefix + "_address").raw_lo
+                        raw = (raw & ~(0xffffffff << lo)) | (address << lo)
+                        self.repair_counts["address_repair"] += 1
+            if value("init_offer"):
+                # A declared instruction candidate is one full 32-bit word, so a
+                # byte enable narrower than the full word cannot be honoured: an
+                # instruction is fetched as a word and a half-written word is not
+                # a program.  The image projection has authority over the
+                # *candidate* fields -- they are environment input that the CPU
+                # has not been released against -- so it repairs the enable to the
+                # full word and records the repair, exactly as it already repairs
+                # a misplaced address.  Refusing here made every real RFuzz
+                # campaign fail on its first corpus entry, because the mutator
+                # legitimately explores byte enables.
+                enable = value("init_be")
+                if enable != 15:
+                    field = image.segment("init_be")
+                    raw = (raw & ~(0xF << field.raw_lo)) | (0xF << field.raw_lo)
+                    self.repair_counts["byte_enable_repair"] = \
+                        self.repair_counts.get("byte_enable_repair", 0) + 1
+                    value = lambda name, _raw=raw: (  # noqa: E731 - re-read the field
+                        (_raw >> image.segment(name).raw_lo)
+                        & ((1 << (image.segment(name).raw_hi
+                                  - image.segment(name).raw_lo + 1)) - 1))
+                if value("init_address") % 4:
+                    # The address repair above already moved a misplaced address
+                    # onto a full-word slot; an unaligned one that survived it can
+                    # only mean the repair was not applicable, and silently
+                    # rounding it here would place the candidate somewhere the
+                    # caller never asked for.
+                    raise SocBuildError("profile-image-full-aligned-instruction-required")
+            # The combined RFuzz word may carry synthetic-master or peer input
+            # bits beyond the image plan. Image materialisation owns only its
+            # declared segment; mask the combined word before passing it to the
+            # image layer so external requests cannot be mistaken for image
+            # overflow or alter the frozen boot state.
+            materialized = image.materialize(raw & ((1 << image.raw_width) - 1))
+            if value("init_offer"):
+                corrected = materialized.initialization_records[0]["corrected_candidate"]
+                if corrected["width"] != 32:
+                    raise SocBuildError("profile-compressed-image-unsupported")
+                field = image.segment("init_data")
+                raw = (raw & ~(0xffffffff << field.raw_lo)) | (int(corrected["data"]) << field.raw_lo)
+        return raw
+
+    def project_records(self, raw_values):
+        values = tuple(raw_values)
+        if self.candidate_program is not None:
+            return self._project_declared_program(values)
+        if self.image_plan is not None:
+            for name in ("init_offer", "data_offer"):
+                lo = self.image_plan.segment(name).raw_lo
+                if sum((raw >> lo) & 1 for raw in values) > 1:
+                    raise SocBuildError("multiple-image-candidates-unsupported")
+        projected = [self.project(raw) for raw in values]
+        self._validate_peer_spacing(projected)
+        if self.image_plan is not None:
+            image_width = self.image_plan.raw_width
+            self.image_plan.materialize_many(
+                [raw & ((1 << image_width) - 1) for raw in projected])
+        return projected
+
+    def _validate_peer_spacing(self, values):
+        """Decode peer events and reject requests closer than the model accepts."""
+        if not self.peer_slots:
+            self.last_peer_events = ()
+            return
+        try:
+            self.last_peer_events = decode_peer_raw_events(
+                values, self.layout, self.peer_slots, validate_spacing=True)
+        except PeerRawReplayError as error:
+            raise SocBuildError(str(error)) from error
+
+    def _project_declared_program(self, values):
+        """Place a whole test through the plan's declared candidate program.
+
+        The declaration is the plan's; the repairer is the lifetime of one test,
+        so a raw word may not change a slot the test already committed.  Every
+        repair, dependency edge and bounded unknown is recorded and the counters
+        are folded into this projector's own repair counts.
+        """
+        from myfuzz.composition.soc_candidate_program import CandidateProgramError
+        try:
+            repaired = self.candidate_program.repairer().repair_test(values)
+        except CandidateProgramError as error:
+            # A refusal is a named capability gap of the declared program, so it
+            # reaches the caller as a build error with the exact reason.
+            raise SocBuildError(str(error)) from error
+        for name, value in repaired.counters.items():
+            if type(value) is int:
+                self.repair_counts[name] = self.repair_counts.get(name, 0) + value
+        self.last_repaired_test = repaired
+        request = list(repaired.request)
+        self._validate_peer_spacing(request)
+        return request
+
+
+def _write_candidate_program_image(directory: Path, program) -> Path:
+    """Stage the declared candidate program's static image as a `$readmemh` file.
+
+    It is written beside the (not yet created) build directory and copied into it
+    as ``boot_image.hex`` like any other fixed image, so the cache key and the
+    published artifact see the same file.
+    """
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / "candidate_program.hex"
+    path.write_text("".join(f"{byte:02x}\n" for byte in program.static_image()),
+                    encoding="utf-8")
+    return path
+
+
+def _build_profile_campaign_artifact(config, build_dir):
+    """Compose profile RTL and publish the same protocol-2 artifact as the matrix path."""
+    from myfuzz.composition.soc_composition import build_composition, composition_document
+    from myfuzz.composition.soc_profile_renderer import render_composition, source_list
+    from myfuzz.composition.input_constraints import compile_input_constraints, input_constraint_document
+    from myfuzz.composition.soc_image import build_image_plan, combined_input_layout
+    from myfuzz.composition.soc_candidate_program import (
+        CandidateProgramError, CandidateProgramPolicy, build_candidate_program)
+
+    root = Path(config.get("root") or ROOT).resolve()
+    request = load_profile_campaign_request(config, root)
+    build = Path(build_dir).absolute()
+    if build.exists() or build.is_symlink():
+        raise SocBuildError("campaign build directory must be new")
+    try:
+        injected_env = config.get("environment")
+        if injected_env is not None and not isinstance(injected_env, Mapping):
+            raise ValueError("rfuzz-verilator-environment-invalid")
+        toolchain = resolve_rfuzz_verilator_toolchain(
+            root, config, environment=(None if injected_env is None else dict(injected_env)))
+    except RfuzzToolchainError as error:
+        raise SocBuildError(str(error)) from error
+    except (OSError, TypeError, ValueError) as error:
+        raise SocBuildError(f"rfuzz-verilator-unavailable: {error}") from error
+    tool_identity = dict(toolchain["verilator"])
+    tool = str(tool_identity["path"])
+    tool_version = str(tool_identity["version"])
+    tool_env = dict(toolchain["environment"])
+    drive_profile = str(config.get("drive_profile", "cpu_execute"))
+    plan = build_composition(request, base_dir=root, drive_profile=drive_profile)
+    policy = compile_input_constraints(plan, drive_profile=drive_profile)
+    instruction_candidates = config.get("instruction_candidates", 1)
+    data_candidates = config.get("data_candidates", 1)
+    for value, label in ((instruction_candidates, "instruction_candidates"),
+                         (data_candidates, "data_candidates")):
+        if type(value) is not int or isinstance(value, bool) or value < 1:
+            raise SocBuildError("profile-candidate-count-invalid:" + label)
+    candidate_program = None
+    candidate_image = build_image_plan(
+        plan, instruction_candidates=instruction_candidates,
+        data_candidates=data_candidates)
+    if instruction_candidates > 1 or data_candidates > 1:
+        # Several candidates per test only mean something inside a declared
+        # program: the plan's own slot addresses, the generated prologue and the
+        # dependency policy are what a test composes.
+        try:
+            candidate_program = build_candidate_program(
+                plan, instruction_candidates=instruction_candidates,
+                data_candidates=data_candidates,
+                policy=CandidateProgramPolicy(**dict(config.get("candidate_policy") or {})),
+                # The record this program will be projected from is the combined
+                # ABI, which is wider than the image segment whenever the
+                # composition appends a peer's request fields or a synthetic
+                # master's stimulus.  Without this the program refuses a legal
+                # record that carries those bits.
+                raw_width=int(_provisional_record_width(plan, candidate_image)))
+        except CandidateProgramError as error:
+            raise SocBuildError(str(error)) from error
+        image = candidate_program.image
+    else:
+        image = build_image_plan(plan)
+    address_policy = config.get("image_address_policy", "repair")
+    if address_policy not in ("repair", "strict"):
+        raise SocBuildError("profile-image-address-policy-invalid")
+    image_targets = {}
+    for kind, base, size in (("instruction", image.base, image.size),
+                             ("data", image.data_base, image.data_size)):
+        matches = [int(target["index"]) for target in plan.plan["fabric"]["targets"]
+                   if target.get("backing_kind") == "memory"
+                   for row in plan.plan["fabric"]["decode"]["windows"]
+                   if int(row["target_index"]) == int(target["index"])
+                   and int(row["base"]) == base and int(row["size"]) == size]
+        if len(matches) != 1:
+            raise SocBuildError("profile-image-memory-target-ambiguous:" + kind)
+        image_targets[kind] = (matches[0], base, size)
+    rendered = render_composition(plan)
+    top_name, top_module = "myfuzz_soc_top.sv", "myfuzz_soc_top"
+    # The generated profile header uses numeric widths, but the shared parser
+    # still requires the legacy parameter document for symbolic expressions.
+    rendered["soc_parameters.json"] = json.dumps(plan.plan["fabric"]["rtl"]["parameters"])
+    ports = _parse_ports(rendered[top_name], rendered, request.request_id)
+    special_width = int(plan.raw_layout["raw_width"])
+    layout = combined_input_layout(plan, image)
+    peer_slots = _peer_projection_slots(plan, layout, base_dir=root)
+    fields = layout.fields
+    transport = build_rfuzz_transport(layout)
+    driven = {field.port for field in fields if field.port}
+    required = {p["name"]: p["width"] for p in ports
+                if p["direction"] == "input" and p["name"] not in driven | {"clk_i", "rst_ni"}}
+    defaults = config.get("external_input_defaults", {})
+    if not isinstance(defaults, Mapping) or set(defaults) != set(required):
+        raise SocBuildError("profile-external-defaults-required:" + ",".join(sorted(required)))
+    for name, width in required.items():
+        if type(defaults[name]) is not int or not 0 <= defaults[name] < 1 << width:
+            raise SocBuildError("profile-external-default-invalid:" + name)
+    if candidate_program is not None:
+        # The fixed image is the declared program's static part (entry trampoline
+        # plus generated prologue); a test overlays its slots on top of it.  An
+        # explicit boot_image that disagrees is refused rather than preferred.
+        generated = _write_candidate_program_image(build.parent, candidate_program)
+        declared = config.get("boot_image")
+        if declared is not None:
+            declared_path = Path(declared)
+            declared_path = declared_path if declared_path.is_absolute() \
+                else root / declared_path
+            if not declared_path.is_file():
+                raise SocBuildError("profile-boot-image-missing")
+            if _file_hash(declared_path) != _file_hash(generated):
+                raise SocBuildError(
+                    "profile-boot-image-does-not-match-candidate-program:"
+                    + _file_hash(declared_path) + "!=" + _file_hash(generated))
+        boot = generated
+    else:
+        boot = config.get("boot_image")
+        if boot is None:
+            raise SocBuildError("profile-boot-image-required: fixed image must be explicit")
+        boot = Path(boot)
+        boot = boot if boot.is_absolute() else root / boot
+        if not boot.is_file():
+            raise SocBuildError("profile-boot-image-missing")
+    records = source_list(plan)
+    closure = {"source_files": [], "include_dirs": [], "defines": []}
+    for item in records:
+        path = (root / item["path"]).resolve()
+        if not path.is_relative_to(root):
+            raise SocBuildError("profile-source-outside-root-unsupported:" + str(path))
+        key = "include_dirs" if item["role"] == "include_root" else "source_files"
+        relative = str(path.relative_to(root))
+        if relative not in closure[key]:
+            closure[key].append(relative)
+    for instance in plan.instances:
+        options = instance.profile.source.elaboration
+        if options is not None:
+            for name, value in options.defines:
+                define = f"{name}={value}"
+                if define not in closure["defines"]:
+                    closure["defines"].append(define)
+
+    # A profile build is expensive (coverage instrumentation plus Verilator),
+    # while a new RFuzz sample must never invalidate the RTL artifact.  The
+    # optional cache is content-addressed by the complete generated ABI and
+    # source closure.  It is deliberately opt-in so existing callers that
+    # expect a private build directory retain their old behaviour.
+    cache_root = toolchain.get("build_cache_dir")
+    cache_entry = None
+    cache_key = ""
+    if cache_root is not None:
+        if not isinstance(cache_root, (str, Path)):
+            raise SocBuildError("profile-build-cache-dir-invalid")
+        cache_root = Path(cache_root)
+        cache_root = cache_root if cache_root.is_absolute() else root / cache_root
+        cache_root = cache_root.resolve()
+        if cache_root == build or build.is_relative_to(cache_root) \
+                or cache_root.is_relative_to(build):
+            raise SocBuildError("profile-build-cache-overlaps-build-directory")
+        cache_key = content_hash({
+            "schema_version": "soc_profile_build_cache.v1",
+            "generator_schema": BUILD_SCHEMA,
+            "composition_hash": plan.plan_hash,
+            "layout_hash": layout.layout_hash,
+            "policy_hash": policy.policy_hash,
+            "image_hash": image.image_hash,
+            "candidate_program_hash": (None if candidate_program is None else
+                                       content_hash(candidate_program.document())),
+            "image_address_policy": address_policy,
+            "boot_image": _file_hash(boot),
+            "external_input_defaults": dict(defaults),
+            "closure": closure,
+            "verilator": tool_identity,
+        })
+        cache_entry = cache_root / cache_key
+        cached_provenance = cache_entry / "artifact_provenance.json"
+        if (cache_entry.is_dir() and not cache_entry.is_symlink()
+                and cached_provenance.is_file()):
+            try:
+                cached_document = _read_json(cached_provenance, "cached-artifact-provenance")
+                cached_audit = _read_json(
+                    cache_entry / "soc_structure_audit.json", "cached-structure-audit")
+                cached_ports = tuple(
+                    (str(item[0]), int(item[1]))
+                    for item in cached_document.get("coverage_ports", [])
+                    if isinstance(item, (list, tuple)) and len(item) == 2)
+                valid_cache = (
+                    cached_document.get("composition_hash") == plan.plan_hash
+                    and cached_document.get("layout_hash") == layout.layout_hash
+                    and cached_document.get("policy_hash") == policy.policy_hash
+                    and cached_document.get("image_hash") == image.image_hash
+                    and cached_document.get("tool_identity") == tool_identity
+                    and cached_ports
+                    and isinstance(cached_document.get("structure_audit"), Mapping)
+                    and cached_document["structure_audit"].get("status") == "pass"
+                    and isinstance(cached_audit.get("summary"), Mapping)
+                    and cached_audit["summary"].get("status") == "pass"
+                    and cached_document["structure_audit"].get("hash")
+                        == content_hash(cached_audit)
+                    and (cache_entry / "obj_dir" / "Vmyfuzz_live_tb").is_file())
+            except (OSError, TypeError, ValueError, KeyError, SocBuildError):
+                valid_cache = False
+            if valid_cache:
+                shutil.copytree(cache_entry, build)
+                executable = build / "obj_dir" / "Vmyfuzz_live_tb"
+                simulator_args = (f"+riscv_boot_image={build / 'boot_image.hex'}",)
+                if _file_hash(executable) != cached_document.get("executable_sha256"):
+                    raise SocBuildError("profile-build-cache-executable-drift")
+                _probe_executable(executable, simulator_args, request.request_id)
+                cached_document["cache_hit"] = True
+                cached_document["cache_key"] = cache_key
+                cached_document["cache_source"] = str(cache_entry)
+                cached_document["peer_event_mode"] = (
+                    "raw-abi-derived-v1" if peer_slots else None)
+                cached_document["peer_event_slots"] = [dict(item) for item in peer_slots]
+                cached_document["build_hash"] = content_hash(cached_document)
+                (build / "artifact_provenance.json").write_bytes(
+                    canonical_bytes(cached_document))
+                constraint_hash = str(cached_document["constraint_hash"])
+                arms = build_projection_arms(
+                    layout=layout, constraint_hash=constraint_hash,
+                    special_width=special_width, policy=policy, image=image,
+                    image_address_policy=address_policy,
+                    candidate_program=candidate_program,
+                    peer_slots=peer_slots)
+                return SocCampaignArtifact(
+                    # The monitor is part of the published artifact, not of the
+                    # compile: a cache hit has to carry the same transaction
+                    # evidence a fresh build would, or a cached campaign would
+                    # silently report fewer facts than an uncached one.
+                    execution_monitor=dict(PROFILE_FABRIC_MONITOR),
+                    layout=layout, transport=transport, executable=executable,
+                    coverage_ports=cached_ports, projector=arms["dependency_repair"],
+                    coverage_kind=COVERAGE_KIND,
+                    simulator="verilator", simulator_args=simulator_args,
+                    isolate_tests=True, build_document=cached_document,
+                    projection_arms=arms, peer_slots=peer_slots)
+    # Re-elaborate the generated top before compiling it.  This is deliberately
+    # independent of the renderer bookkeeping: the audit reads the published
+    # source closure and verifies the actual netlist against the plan.  A
+    # structural failure is a build failure, never a later DUT anomaly.
+    from myfuzz.composition.soc_structure_audit import audit_structure
+    audit_sources = [str(item["path"]) for item in records
+                     if item.get("role") != "include_root"]
+    audit_include_roots = [str(item["path"]) for item in records
+                           if item.get("role") == "include_root"]
+    try:
+        structure_audit = audit_structure(
+            plan, top_text=rendered[top_name], source_files=audit_sources,
+            base_dir=root, include_roots=audit_include_roots)
+    except Exception as error:
+        raise SocBuildError(f"profile-structure-audit-failed: {error}") from error
+    summary = structure_audit.get("summary")
+    if not isinstance(summary, Mapping) or summary.get("status") != "pass":
+        raise SocBuildError("profile-structure-audit-failed: generated netlist does not match plan")
+
+    build.mkdir(parents=True)
+    for name, text in rendered.items():
+        (build / name).write_text(text, encoding="utf-8")
+    shutil.copyfile(boot, build / "boot_image.hex")
+    simulator_args = (f"+riscv_boot_image={build / 'boot_image.hex'}",)
+    cpu = next(instance for instance in plan.instances if instance.kind == "cpu")
+    instrumentation = _instrument_coverage(
+        build, root, request.request_id, closure, rendered, top_name, top_module,
+        {"peripherals": {i.instance_id: {} for i in plan.instances if i.kind != "cpu"}},
+        cpu_instance="u_" + cpu.instance_id)
+    coverage_ports = tuple((COVERAGE_SIGNAL, int(item["bit"]))
+                           for item in instrumentation["plan"]["observed"])
+    (build / "rfuzz_input_transport.sv").write_text(transport.render_systemverilog())
+    (build / "live_tb.sv").write_text(_testbench(
+        layout, {"unmapped": [field.field_id for field in fields if not field.port]},
+        ports, top_module, coverage_ports,
+        coverage_width=instrumentation["vector_width"], input_defaults=defaults,
+        image_plan=image, image_targets=image_targets,
+        execution_monitor=dict(PROFILE_FABRIC_MONITOR)))
+    documents = {"soc_composition.json": composition_document(plan),
+                 **({} if candidate_program is None else {
+                     "candidate_program.json": candidate_program.document()}),
+                 "input_layout.json": input_layout_document(layout),
+                 "input_policy.json": input_constraint_document(policy),
+                 "image_plan.json": image.document(),
+                 "rfuzz_input_transport.json": transport.document(),
+                 "soc_structure_audit.json": structure_audit,
+                 "soc_coverage_universe.json": instrumentation["universe"],
+                 "soc_coverage_plan.json": instrumentation["plan"]}
+    for name, value in documents.items():
+        (build / name).write_bytes(canonical_bytes(value))
+    command = _compile_command(tool, build, closure, root, top_name,
+                               flist=instrumentation["flist"])
+    result = run_supervised_command(CampaignOptions(
+        command=command, output_dir=build / "build", duration_seconds=BUILD_TIMEOUT_SECONDS,
+        checkpoint_seconds=1, limits=BUILD_MEMORY_LIMITS,
+        env={**tool_env, "JOBS": "1", "MAKEFLAGS": "-j1"}))
+    if result.get("status") != "completed" or result.get("returncode") != 0:
+        raise SocBuildError(f"profile-verilator-build-failed: see {build / 'compiler.log'}")
+    executable = build / "obj_dir" / "Vmyfuzz_live_tb"
+    _probe_executable(executable, simulator_args, request.request_id)
+    constraint_hash = content_hash({"policy_hash": policy.policy_hash,
+                                    "layout_hash": layout.layout_hash,
+                                    "image_plan_hash": image.image_hash,
+                                    "image_address_policy": address_policy,
+                                    "fixed_image": _file_hash(build / "boot_image.hex"),
+                                    "external_defaults": dict(defaults)})
+    # A declared candidate program really places several image candidates per
+    # test and really repairs their declared dependencies, so those two
+    # capability gaps close exactly when the plan declares one; the legacy
+    # single-candidate path keeps both declared as gaps.
+    unsupported = ["multi_candidate_images", "compressed_instruction_images",
+                   "external_protocol_peers", "general_dependency_repair"]
+    if plan.peers:
+        # Peer request fields are now part of the combined layout and are wired
+        # by the persistent harness through the same raw word. Event-plan
+        # validation/replay remains a separate runtime capability, but the
+        # generated profile artifact no longer drops peer requests at idle.
+        unsupported.remove("external_protocol_peers")
+    if candidate_program is not None:
+        unsupported = [name for name in unsupported
+                       if name not in ("multi_candidate_images",
+                                       "general_dependency_repair")]
+    if not plan.synthetic:
+        unsupported += ["bfm_isolated", "contention"]
+    document = {"schema_version": BUILD_SCHEMA, "composition_hash": plan.plan_hash,
+                "layout_hash": layout.layout_hash, "policy_hash": policy.policy_hash,
+                "constraint_hash": constraint_hash,
+                "policy_scope": "finite special-input projection; generated RTL temporal drivers; single instruction ISA repair and bounded data initialization",
+                "candidate_program": (None if candidate_program is None else {
+                    "schema_version": "soc_candidate_program.v1",
+                    "instruction_candidates": candidate_program.slots.instruction_count,
+                    "data_candidates": candidate_program.slots.data_count,
+                    "program_base": candidate_program.program_base,
+                    "program_size": candidate_program.program_size,
+                    "prologue_words": len(candidate_program.prologue_words),
+                    "register_bindings": {
+                        name: int(binding["value"]) for name, binding
+                        in candidate_program.register_bindings.items()},
+                    "policy": candidate_program.policy.document(),
+                    "document_hash": content_hash(candidate_program.document()),
+                    "image_loading": "each declared slot is overlaid into the memory "
+                                     "model's initial_memory while the CPU is held in "
+                                     "reset; the static image carries the entry trampoline "
+                                     "and the generated prologue",
+                }),
+                "image_loading": "buffer test records; overlay environment initial_memory; reset copies test-local image to memory before CPU release; process isolation restores fixed base between tests; no runtime image writes",
+                "image_address_policy": address_policy,
+                "image_address_repair": "deterministic declared-window word-slot mapping; projector.repair_counts[address_repair]",
+                "image_hash": image.image_hash, "drive_profile": drive_profile,
+                "mode": str(plan.stimulus.get("mode", "cpu_only")),
+                "synthetic_master": (dict(plan.synthetic) if plan.synthetic else None),
+                "peer_inputs": [
+                    {"field_id": field.field_id, "port": field.port,
+                     "width": field.width, "raw_lo": field.raw_lo,
+                     "raw_hi": field.raw_hi, "role": field.role,
+                     "minimum_gap_cycles": (
+                         field.provenance.get("minimum_gap_cycles")
+                         if isinstance(field.provenance, Mapping) else None)}
+                    for field in fields if field.owner == "soc_peer"],
+                "peer_input_mode": ("per-cycle-raw-fields" if plan.peers else None),
+                "peer_event_mode": ("raw-abi-derived-v1" if plan.peers else None),
+                "peer_event_slots": [dict(item) for item in peer_slots],
+                "coverage_kind": COVERAGE_KIND,
+                "structure_audit": {
+                    "schema_version": structure_audit.get("schema_version"),
+                    "status": summary["status"],
+                    "summary": dict(summary),
+                    "document": "soc_structure_audit.json",
+                    "hash": content_hash(structure_audit),
+                },
+                "external_input_defaults": dict(defaults),
+                "sources": {
+                    "runtime_top": top_name,
+                    "harness_top": "myfuzz_live_tb",
+                    "defines": list(closure["defines"]),
+                    "include_dirs": list(closure["include_dirs"]),
+                    "source_count": len(closure["source_files"]),
+                    "source_files": [
+                        {"path": item, "sha256": _file_hash(root / item)}
+                        for item in closure["source_files"]
+                    ],
+                },
+                "unsupported_capabilities": unsupported,
+                "boot_image_sha256": _file_hash(build / "boot_image.hex"),
+                "test_isolation": "restart process: source instrumentation contains sticky branch hits",
+                "executable_sha256": _file_hash(executable),
+                "tool": {"simulator_protocol_version": SIMULATOR_PROTOCOL_VERSION,
+                         "verilator": tool_version},
+                "tool_identity": tool_identity,
+                "coverage_ports": [[name, bit] for name, bit in coverage_ports],
+                "cache_hit": False,
+                "cache_key": cache_key}
+    document["build_hash"] = content_hash(document)
+    (build / "artifact_provenance.json").write_bytes(canonical_bytes(document))
+    if cache_entry is not None:
+        cache_entry.parent.mkdir(parents=True, exist_ok=True)
+        if not cache_entry.exists():
+            shutil.copytree(build, cache_entry)
+    arms = build_projection_arms(
+        layout=layout, constraint_hash=constraint_hash, special_width=special_width,
+        policy=policy, image=image, image_address_policy=address_policy,
+        candidate_program=candidate_program,
+        peer_slots=peer_slots)
+    return SocCampaignArtifact(
+        execution_monitor=dict(PROFILE_FABRIC_MONITOR),
+        layout=layout, transport=transport, executable=executable,
+        coverage_ports=coverage_ports, projector=arms["dependency_repair"],
+        coverage_kind=COVERAGE_KIND, simulator="verilator", simulator_args=simulator_args,
+        isolate_tests=True, build_document=document, projection_arms=arms,
+        peer_slots=peer_slots)
+
+
 def build_soc_campaign_artifact(config, build_dir):
     """Render, generate the RFuzz transport and compile one real SoC cell.
 
@@ -755,6 +1537,8 @@ def build_soc_campaign_artifact(config, build_dir):
     full 'soc_campaign_build.v1' provenance document.
     """
     config = _require_mapping(config, "config")
+    if "composition_request" in config:
+        return _build_profile_campaign_artifact(config, build_dir)
     build = Path(build_dir).absolute()
     if build.exists() or build.is_symlink():
         raise SocBuildError("campaign build directory must be new")
@@ -765,10 +1549,13 @@ def build_soc_campaign_artifact(config, build_dir):
         raise SocBuildError("campaign seed must be a nonnegative integer")
     bias_off = config.get("bias_off") is True
 
-    verilator = shutil.which(str(config.get("verilator") or "verilator"))
-    if verilator is None:
-        raise SocBuildError(
-            "verilator-missing: a real campaign build requires Verilator on PATH")
+    try:
+        requested_verilator = config.get("verilator", "bundled")
+        verilator = (resolve_rfuzz_verilator(root)
+                     if requested_verilator == "bundled" else str(Path(requested_verilator)))
+        validate_rfuzz_verilator_version(_tool_version(verilator))
+    except (OSError, ValueError, TypeError) as error:
+        raise SocBuildError(f"rfuzz-verilator-unavailable: {error}") from error
 
     cell_path, cell = _cell_config(config, root, build)
     cell_id = str(cell.get("cell_id") or config.get("cell_id") or config.get("config_id"))
@@ -1168,7 +1955,7 @@ def _input_layout(stimulus, ports, cell_id):
 
 
 def _instrument_coverage(build, root, cell_id, closure, rendered, top_name,
-                         top_module, manifest):
+                         top_module, manifest, *, cpu_instance="u_cpu"):
     """Branch-instrument the cell closure and plan the observed coverage bits.
 
     P13 feedback has to be real RTL branch evidence.  A sampled input or output
@@ -1220,7 +2007,7 @@ def _instrument_coverage(build, root, cell_id, closure, rendered, top_name,
     if not result.get("instrumented_flist"):
         raise SocBuildError("%s:coverage-instrumentation-has-no-flist" % cell_id)
     universe = universe_from_instance_bits(
-        bits, cpu_instance="u_cpu",
+        bits, cpu_instance=cpu_instance,
         ip_instances=["u_%s" % name for name in manifest.get("peripherals", {})])
     plan_document = coverage_observation_plan(universe, bits, COUNTER_LIMIT)
     observed = plan_document["observed_by_category"]
@@ -1384,7 +2171,8 @@ def _clock_and_reset(ports, cell_id):
 
 
 def _testbench(layout, mapping, ports, top_module, coverage_ports,
-               coverage_width=None):
+               coverage_width=None, input_defaults=None, image_plan=None,
+               image_targets=None, execution_monitor=None):
     """Generate the persistent harness that speaks simulator protocol 2."""
     clock, reset, reset_active, reset_inactive = _clock_and_reset(ports, top_module)
     driven = {}
@@ -1409,6 +2197,11 @@ def _testbench(layout, mapping, ports, top_module, coverage_ports,
     add("  logic [7:0] counters [0:COUNTER_COUNT-1];")
     add("  logic [COUNTER_COUNT*8-1:0] counter_bits = '0;")
     add("  integer count, scan, i, j;")
+    if image_plan is not None:
+        add("  logic [RAW_WIDTH-1:0] sample_words [0:%d];" % (MAX_CYCLES-1))
+        add("  logic [31:0] image_address, image_value, image_readback;")
+        add("  logic [3:0] image_be;")
+        add("  integer image_lane;")
     add("  logic [63:0] request_id, last_request_id = 64'd0;")
     for port in ports:
         name = port["name"]
@@ -1423,8 +2216,9 @@ def _testbench(layout, mapping, ports, top_module, coverage_ports,
         elif name in driven:
             add("  wire %s%s;" % (packed, name))
         else:
-            idle = _IDLE_INPUTS.get(name, 0)
-            add("  logic %s%s = %s;" % (packed, name, "1'b1" if idle else "'0"))
+            idle = (input_defaults[name] if input_defaults is not None and name in input_defaults
+                    else _IDLE_INPUTS.get(name, 0))
+            add("  logic %s%s = %d'd%d;" % (packed, name, width, idle))
     add("  %s dut(" % top_module)
     connections = [".%s(clk)" % clock, ".%s(reset)" % reset]
     connections.extend(".%s(%s)" % (port["name"], port["name"])
@@ -1440,25 +2234,80 @@ def _testbench(layout, mapping, ports, top_module, coverage_ports,
     for label in sorted(mapping["unmapped"]):
         add("  // raw field %s has no matching harness input port and stays unmapped." % label)
     add("  task tick; begin #5 clk=1'b1; #5 clk=1'b0; end endtask")
+    # The harness drives the DUT through its own ``clk``/``reset`` nets, so the
+    # monitor samples those; ``clock``/``reset`` are the *DUT port* names and do
+    # not exist in this module's scope.
+    for statement in monitor_rtl("clk", "reset", reset_active, execution_monitor):
+        for line in statement.splitlines():
+            add(line)
     add("  initial begin")
     add("    clk=1'b0; reset=%s;" % reset_inactive)
     add('    $display("RFUZZ_READY %d"); $fflush();' % SIMULATOR_PROTOCOL_VERSION)
-    add("    forever begin")
+    # The request loop is a while loop, not ``forever``: the publication probe
+    # starts this binary with no input at all and needs only the readiness line,
+    # so end of stream has to leave the loop.  A ``forever`` kept running after
+    # the ``$finish`` in its body (the clock generator never stops), which made
+    # every probe hang instead of exiting.
+    add("    scan=1;")
+    add("    while (scan > 0) begin")
     add('      scan=$fscanf(32\'h80000000,"%h %d",request_id,count);')
-    add("      if (scan == -1) $finish;")
-    add('      if (scan != 2 || request_id == 0 || request_id <= last_request_id) $fatal(1,"request id");')
-    add("      last_request_id=request_id;")
+    add("      if (scan <= 0) begin")
+    add('        $display("RFUZZ_DONE no-request scan=%0d", scan); $fflush();')
+    add("      end else begin")
+    add('        if (request_id == 0 || request_id <= last_request_id) $fatal(1,"request id");')
+    add("        last_request_id=request_id;")
     add('      if (count < 1 || count > %d) $fatal(1,"cycle count");' % MAX_CYCLES)
     add("      raw_bits='0;")
     # Two reset clocks clear the CPU, fabric, IRQ and coverage state at every
     # sample boundary.  The pinned memory models rewrite their whole array on
     # each clock while reset is asserted, so a longer hold multiplies the
     # per-sample cost without adding reset coverage.
-    add("      reset=%s; repeat (2) tick(); reset=%s;" % (reset_active, reset_inactive))
+    if image_plan is None:
+        add("      reset=%s; repeat (2) tick(); reset=%s;" % (reset_active, reset_inactive))
+    else:
+        add("      for (i=0;i<count;i=i+1) begin")
+        add('        scan=$fscanf(32\'h80000000,"%h",sample_words[i]);')
+        add('        if (scan != 1) $fatal(1,"raw sample");')
+        add("      end")
+        add("      reset=%s; repeat (2) tick();" % reset_active)
+        add("      for (i=0;i<count;i=i+1) begin")
+        def segment(name):
+            field = image_plan.segment(name)
+            return "sample_words[i][%d:%d]" % (field.raw_hi, field.raw_lo)
+        for slot in image_plan.candidates.slots():
+            kind = slot.kind
+            prefix = slot.prefix
+            value_name = "data" if kind == "instruction" else "value"
+            target, base, size = image_targets[kind]
+            memory = "dut.u_mem_%d.memory" % target
+            add("        if (%s) begin" % segment(prefix + "_offer"))
+            add("          image_address=%s; image_value=%s; image_be=%s;" %
+                (segment(prefix + "_address"), segment(prefix + "_" + value_name),
+                 segment(prefix + "_be")))
+            add("          image_readback='0;")
+            add("          for (image_lane=0;image_lane<4;image_lane=image_lane+1) begin")
+            add("            if (image_be[image_lane]) begin")
+            add('              if ({1\'b0,image_address}+image_lane < 33\'d%d || {1\'b0,image_address}+image_lane >= 33\'d%d) $fatal(1,"image address");' % (base, base+size))
+            add("              dut.u_mem_%d.initial_memory[image_address-32'd%d+image_lane]=image_value[image_lane*8+:8];" % (target, base))
+            add("            end")
+            add("          end")
+            add("          repeat (1) tick(); // restore candidate image while CPU is held in reset")
+            add("          for (image_lane=0;image_lane<4;image_lane=image_lane+1) begin")
+            add("            if (image_be[image_lane]) image_readback[image_lane*8+:8]=%s[image_address-32'd%d+image_lane];" % (memory, base))
+            add("          end")
+            # The slot name is appended so every declared slot reports which
+            # one it overlaid; the legacy two-slot line keeps its exact shape.
+            add('          $display("MYFUZZ_IMAGE kind=%s addr=%%08h value=%%08h reset=%%0b slot=%s",image_address,image_readback,reset);' % (kind, prefix))
+            add("        end")
+        add("      end")
+        add("      reset=%s;" % reset_inactive)
     add("      for (j=0;j<COUNTER_COUNT;j=j+1) counters[j]=8'h00;")
     add("      for (i=0;i<count;i=i+1) begin")
-    add('        scan=$fscanf(32\'h80000000,"%h",raw_bits);')
-    add('        if (scan != 1) $fatal(1,"raw sample");')
+    if image_plan is None:
+        add('        scan=$fscanf(32\'h80000000,"%h",raw_bits);')
+        add('        if (scan != 1) $fatal(1,"raw sample");')
+    else:
+        add("        raw_bits=sample_words[i];")
     add("        tick();")
     for index, (name, bit) in enumerate(coverage_ports):
         expression = ("dut.%s" % name if widths[name] == 1
@@ -1473,9 +2322,13 @@ def _testbench(layout, mapping, ports, top_module, coverage_ports,
     # $write formatting call per counter, which otherwise dominates runtime.
     add("      counter_bits='0;")
     add("      for (j=0;j<COUNTER_COUNT;j=j+1) counter_bits=(counter_bits<<8)|{56'd0,counters[j]};")
-    add('      $write("RFUZZ_COUNTERS %016h %h\\n",request_id,counter_bits);')
+    add('      $write("RFUZZ_COUNTERS %016h %h",request_id,counter_bits);')
+    for statement in monitor_output(execution_monitor):
+        add("      " + statement)
+    add('      $write("\\n");')
     add("      $fflush();")
-    add("    end")
+    add("      end")          # close the "scan > 0" branch opened above
+    add("    end")            # close the while loop
     add("  end")
     add("endmodule")
     return "\n".join(lines) + "\n"

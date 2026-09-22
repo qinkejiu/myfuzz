@@ -63,6 +63,22 @@ _OBI_EXTENSION_POLICIES = (
 
 _READY_VALID_EXTENSION_POLICIES = ()
 
+# TL-UL user/integrity sidebands are optional in the generic processor
+# contract.  They are protocol fields when a component declares them, but a
+# legacy endpoint may omit them entirely.  The resolver adds their adapter
+# ports only for the endpoint that actually declares the field; this keeps the
+# published source-port map backward compatible for the minimal TL-UL fixture.
+_TL_UL_EXTENSION_POLICIES = (
+    ExtensionPolicy("a_user", "output", "pass-through"),
+    ExtensionPolicy("d_user", "input", "pass-through"),
+    ExtensionPolicy("d_error", "input", "propagate-backend-error", width=1),
+)
+_TL_UL_OPTIONAL_PORTS = {
+    "a_user": ("a_user_i", "input"),
+    "d_user": ("d_user_o", "output"),
+    "d_error": ("d_error_o", "output"),
+}
+
 # Wishbone SEL is the byte enable, exactly as OBI's BE is: a master that has it
 # passes it through, and a master that does not is projected onto a full byte
 # enable rather than having a transfer size invented for it.
@@ -172,6 +188,9 @@ _ADAPTERS = {
             "single-outstanding", "get", "put-full", "put-partial",
             "source-roundtrip", "denied-corrupt-error", "partial-write",
         ),
+        # Optional user/integrity fields are added per binding by
+        # ``resolve_processor_adapter``; the minimal TL-UL endpoint keeps the
+        # historical empty extension-policy contract.
         extension_policies=(),
         reset_polarity="active_low",
         reset_synchrony="synchronous",
@@ -256,9 +275,23 @@ def resolve_processor_adapter(
         raise ProcessorAdapterError(
             f"unsupported-processor-adapter:{memory.protocol[0]}@{memory.protocol[1]}"
         ) from error
-    policies = {item.role: item for item in adapter.extension_policies}
-    source_ports = {role: (port, direction) for role, port, direction in adapter.source_ports}
-    if len(source_ports) != len(adapter.source_ports):
+    optional_tl_roles = {
+        field.role for field in memory.fields if field.role in _TL_UL_OPTIONAL_PORTS
+    } if memory.protocol == ("tl-ul", "1") else set()
+    effective_policies = (adapter.extension_policies if memory.protocol != ("tl-ul", "1")
+                          else tuple(item for item in _TL_UL_EXTENSION_POLICIES
+                                     if item.role in optional_tl_roles))
+    policies = {item.role: item for item in effective_policies}
+    source_port_records = list(adapter.source_ports)
+    if memory.protocol == ("tl-ul", "1"):
+        declared_roles = {field.role for field in memory.fields}
+        source_port_records.extend(
+            (role, port, direction)
+            for role, (port, direction) in _TL_UL_OPTIONAL_PORTS.items()
+            if role in declared_roles
+        )
+    source_ports = {role: (port, direction) for role, port, direction in source_port_records}
+    if len(source_ports) != len(source_port_records):
         raise ProcessorAdapterError(f"adapter-source-port-duplicate:{adapter.adapter_id}")
     protocol_roles = set(source_ports) - set(policies)
     seen: set[str] = set()
@@ -317,6 +350,18 @@ def resolve_processor_adapter(
             ("READ_ONLY", int(not has_we)),
             ("HAS_SEL", int("sel" in seen)),
         ))
+    if memory.protocol == ("tl-ul", "1") and len(source_port_records) != len(adapter.source_ports):
+        # Keep the historical module's port list intact for legacy benches
+        # that instantiate it with ``.*``.  Endpoints that actually declare
+        # TL-UL sidebands use the explicit wrapper in the same RTL source;
+        # this makes the optional contract real without breaking the minimal
+        # adapter ABI.
+        return replace(
+            adapter,
+            rtl_module="tl_ul_processor_memory_adapter_sideband",
+            source_ports=tuple(source_port_records),
+            extension_policies=effective_policies,
+        )
     return adapter
 
 

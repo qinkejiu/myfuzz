@@ -1,0 +1,31 @@
+{
+  "boot_image": "configs/soc/arms-boot.hex",
+  "component_profiles": [
+    "examples/soc_generation/profiles/novacore.json",
+    "examples/soc_generation/profiles/novauart.json",
+    "examples/soc_generation/profiles/novagpio.json"
+  ],
+  "composition_request": "examples/soc_generation/request.json",
+  "config_id": "novacore-arms",
+  "corpus_cycles": 4,
+  "corpus_entries": 12,
+  "drive_profile": "cpu_execute",
+  "duration_seconds": 120,
+  "external_input_defaults": {
+    "gpio0__gpio_in_i": 0,
+    "uart0__uart_rx_i": 0,
+    "uart1__uart_rx_i": 0
+  },
+  "mode": "cpu_only",
+  "reset_contract": {
+    "coverage": true,
+    "cpu": true,
+    "driver": true,
+    "irq": true,
+    "memory": true,
+    "peripherals": true
+  },
+  "seed": 7,
+  "seed_cycles": 3,
+  "simulator": "verilator"
+}

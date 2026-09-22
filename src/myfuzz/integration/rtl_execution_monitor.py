@@ -8,6 +8,13 @@ METRICS = ("cycles", "requests", "successful_reads", "progress_events",
 CONTRACT_METRICS = ("cycles", "requests", "completions", "instruction_requests",
                     "instruction_responses", "instruction_initializations",
                     "protocol_errors", "transducer_errors", "errors")
+#: The generated profile SoC's own fabric boundary.  A transaction on the
+#: *source* side is a request the fabric accepted from a declared source; a
+#: *target* side transaction is a completion the fabric returned to one.  They
+#: are counted from the fabric's handshake signals, which the rendered top
+#: exports under exactly these names, so the numbers describe what the SoC did
+#: rather than what any component reported about itself.
+PROFILE_FABRIC_METRICS = ("cycles", "source_transactions", "target_transactions")
 
 
 def validate_monitor(value):
@@ -19,6 +26,13 @@ def validate_monitor(value):
         capacity = value["memory_capacity_entries"]
         if type(capacity) is not int or not 1 <= capacity <= MAX_MEMORY_CAPACITY_ENTRIES:
             raise ValueError("invalid contract execution monitor memory capacity")
+        return dict(value)
+    if isinstance(value, dict) and value.get("mode") == "profile_fabric":
+        # No caller-supplied facts: the boundary is the generated fabric's own
+        # handshake, and the port names come from the renderer, not from a
+        # configuration that could disagree with the netlist.
+        if set(value) != {"mode"}:
+            raise ValueError("profile fabric monitor takes no additional facts")
         return dict(value)
     keys = {"reset_vector", "first_fetch_data", "pass_address", "pass_value"}
     if not isinstance(value, dict) or set(value) != keys:
@@ -118,12 +132,32 @@ end
 """,)
 
 
+def _profile_fabric_monitor_rtl(clock, reset, active):
+    """Count the generated fabric's accepted requests and returned completions."""
+    return (f"""
+integer exec_cycles=0, exec_source_transactions=0, exec_target_transactions=0;
+always @(posedge {clock}) begin
+  if ({reset} == {active}) begin
+    exec_cycles=0; exec_source_transactions=0; exec_target_transactions=0;
+  end else begin
+    exec_cycles=exec_cycles+1;
+    if (dut.fabric_req_valid && dut.fabric_req_ready)
+      exec_source_transactions=exec_source_transactions+1;
+    if (dut.fabric_rsp_valid && dut.fabric_rsp_ready)
+      exec_target_transactions=exec_target_transactions+1;
+  end
+end
+""",)
+
+
 def monitor_rtl(clock, reset, active, facts):
     if facts is None:
         return ()
     facts = validate_monitor(facts)
     if facts.get("mode") == "contract_transducer":
         return _contract_monitor_rtl(clock, reset, active, facts)
+    if facts.get("mode") == "profile_fabric":
+        return _profile_fabric_monitor_rtl(clock, reset, active)
     return (f"""
 integer exec_cycles=0, exec_requests=0, exec_successful_reads=0;
 integer exec_progress_events=0, exec_completions=0, exec_pass_completions=0;
@@ -171,18 +205,28 @@ end
 """,)
 
 
+def _metric_names(facts) -> tuple[str, ...]:
+    """The metric tuple a mode emits, in order."""
+    mode = (facts or {}).get("mode")
+    if mode == "contract_transducer":
+        return CONTRACT_METRICS
+    if mode == "profile_fabric":
+        return PROFILE_FABRIC_METRICS
+    return METRICS
+
+
 def monitor_output(facts):
     if facts is None:
         return ()
     facts = validate_monitor(facts)
-    names = CONTRACT_METRICS if facts.get("mode") == "contract_transducer" else METRICS
+    names = _metric_names(facts)
     return ('$write(" EXEC ' + ','.join('%0d' for _ in names) + '",'
             + ','.join('exec_' + key for key in names) + ');',)
 
 
 def parse_metrics(payload, facts=None):
     facts = validate_monitor(facts)
-    names = CONTRACT_METRICS if facts and facts.get("mode") == "contract_transducer" else METRICS
+    names = _metric_names(facts)
     values = payload.decode("ascii").split(",")
     if len(values) != len(names) or any(not v.isdecimal() for v in values):
         raise ValueError("invalid RTL execution metrics")
@@ -198,10 +242,20 @@ def validate_execution(metrics):
     A bounded contract test may stop before its first request or with a single
     unfinished request. Campaign/probe progress is validated by its caller.
     """
-    if not isinstance(metrics, dict) or set(metrics) not in (set(METRICS), set(CONTRACT_METRICS)):
+    if not isinstance(metrics, dict) or set(metrics) not in (
+            set(METRICS), set(CONTRACT_METRICS), set(PROFILE_FABRIC_METRICS)):
         raise ValueError("execution acceptance failed: incomplete metrics")
     if any(type(value) is not int or value < 0 for value in metrics.values()):
         raise ValueError("execution acceptance failed: invalid metric")
+    if set(metrics) == set(PROFILE_FABRIC_METRICS):
+        # The fabric boundary has no fixed program to accept: a bounded run may
+        # legitimately observe no completion at all, and it may observe source
+        # requests that have not completed yet.  The only structural facts are
+        # that the counters are non-negative (checked above) and that the run
+        # lasted at least one cycle.
+        if metrics["cycles"] < 1:
+            raise ValueError(f"execution acceptance failed: {metrics}")
+        return dict(metrics)
     if set(metrics) == set(CONTRACT_METRICS):
         outstanding = metrics["requests"] - metrics["completions"]
         instruction_outstanding = metrics["instruction_requests"] - metrics["instruction_responses"]

@@ -35,9 +35,21 @@ module riscv_boot_memory_32 #(
   end
 
   assign req_ready = reset && !pending && !rsp_valid;
+  // Every write to ``memory`` is a *non-delayed* assignment.  The pinned RFuzz
+  // tool refuses a delayed array assignment inside a for loop (BLKLOOPINIT:
+  // "non-delayed is ok"), and both the reset reload and the byte-enable write
+  // below are array assignments in a loop, so a clocked non-blocking form does
+  // not elaborate under it at all.  ``memory`` has exactly one writer -- this
+  // always_ff -- and each of these loops writes each element once, so the
+  // blocking form has the same effect at the same edge.
+  task automatic reload_memory();
+    for (init_index = 0; init_index < BYTES; init_index = init_index + 1)
+      memory[init_index] = initial_memory[init_index];
+  endtask
+
   always_ff @(posedge clock or negedge reset) begin
     if (!reset) begin
-      for (init_index = 0; init_index < BYTES; init_index = init_index + 1) memory[init_index] <= initial_memory[init_index];
+      reload_memory();
       pending <= 1'b0;
       rsp_valid <= 1'b0;
       rdata <= '0;
@@ -56,7 +68,7 @@ module riscv_boot_memory_32 #(
           error <= 1'b0;
           for (index = 0; index < 4; index = index + 1) begin
             rdata[index*8 +: 8] <= memory[(addr - BASE_ADDR) + index];
-            if (write && be[index]) memory[(addr - BASE_ADDR) + index] <= wdata[index*8 +: 8];
+            if (write && be[index]) memory[(addr - BASE_ADDR) + index] = wdata[index*8 +: 8];
           end
         end else begin
           error <= 1'b1;
@@ -107,9 +119,21 @@ module riscv_boot_memory_64 #(
   end
 
   assign req_ready = reset && !pending && !rsp_valid;
+  // Every write to ``memory`` is a *non-delayed* assignment.  The pinned RFuzz
+  // tool refuses a delayed array assignment inside a for loop (BLKLOOPINIT:
+  // "non-delayed is ok"), and both the reset reload and the byte-enable write
+  // below are array assignments in a loop, so a clocked non-blocking form does
+  // not elaborate under it at all.  ``memory`` has exactly one writer -- this
+  // always_ff -- and each of these loops writes each element once, so the
+  // blocking form has the same effect at the same edge.
+  task automatic reload_memory();
+    for (init_index = 0; init_index < BYTES; init_index = init_index + 1)
+      memory[init_index] = initial_memory[init_index];
+  endtask
+
   always_ff @(posedge clock or negedge reset) begin
     if (!reset) begin
-      for (init_index = 0; init_index < BYTES; init_index = init_index + 1) memory[init_index] <= initial_memory[init_index];
+      reload_memory();
       pending <= 1'b0;
       rsp_valid <= 1'b0;
       rdata <= '0;
@@ -128,7 +152,7 @@ module riscv_boot_memory_64 #(
           error <= 1'b0;
           for (index = 0; index < 8; index = index + 1) begin
             rdata[index*8 +: 8] <= memory[(addr - BASE_ADDR) + index];
-            if (write && be[index]) memory[(addr - BASE_ADDR) + index] <= wdata[index*8 +: 8];
+            if (write && be[index]) memory[(addr - BASE_ADDR) + index] = wdata[index*8 +: 8];
           end
         end else begin
           error <= 1'b1;

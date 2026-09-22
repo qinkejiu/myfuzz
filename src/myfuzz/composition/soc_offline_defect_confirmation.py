@@ -6,19 +6,21 @@ declarative standalone fixture before upgrading the known component fault.
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import shutil
+import stat
 import subprocess
 import tempfile
 from copy import deepcopy
 from collections import Counter
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, fields, replace
 from pathlib import Path
 
 from myfuzz.contracts import canonical_bytes
 
-from .soc_composition import CompositionPlan
+from .soc_composition import CompositionPlan, build_composition
 from .soc_failure_evidence import (
     COMPONENT_CANDIDATE,
     COMPOSITION_DEFECT,
@@ -26,11 +28,12 @@ from .soc_failure_evidence import (
     UNDIAGNOSED,
     EvidencePackage,
     classify_boundary,
+    compare_replay_results,
     identity_mismatches,
     replay_package,
     recorded_build_identity,
 )
-from .soc_runtime import RunResult, RuntimeBuild, run_sample
+from .soc_runtime import RUNTIME_SCHEMA, RunResult, RuntimeBuild, build_profile_runtime, run_sample
 from .soc_structure_audit import FAIL, PASS, audit_structure
 
 
@@ -254,12 +257,20 @@ def _runtime_identity_problem(package: EvidencePackage, mutant: RuntimeBuild) ->
         return "runtime.source_hashes:missing"
     if not isinstance(saved_hashes, Mapping):
         return "runtime.source_hashes:malformed"
-    saved = {str(name): value for name, value in saved_hashes.items()}
+    if any(not isinstance(name, str) for name in saved_hashes):
+        return "runtime.source_hashes:malformed"
+    saved = dict(saved_hashes)
     expected = {str(name): value for name, value in mutant.source_hashes.items()}
     if (any(not isinstance(value, str) or not value.startswith("sha256:")
             or len(value) != len("sha256:") + 64 for value in saved.values())
             or saved != expected):
         return "runtime.source_hashes:mismatch"
+    for field_name, expected_value in (
+            ("schema_version", RUNTIME_SCHEMA),
+            ("sources", list(mutant.sources)),
+            ("boot_image_policy", mutant.boot_image_policy)):
+        if runtime.get(field_name) != expected_value:
+            return f"runtime.{field_name}:mismatch"
     return None
 
 
@@ -282,7 +293,12 @@ def _criterion_problem(package: EvidencePackage, criterion: Mapping[str, object]
 
 def spi_wire_verdict(result: RunResult) -> tuple[str, object, object]:
     """Read MOSI verdicts from the independent SPI wire-check schema."""
-    checks = (result.peer_oracle or {}).get("checks", ())
+    if not isinstance(result.peer_oracle, Mapping):
+        return "not_assessed", None, None
+    checks = result.peer_oracle.get("checks", ())
+    if not isinstance(checks, (list, tuple)) or any(not isinstance(item, Mapping)
+                                                    for item in checks):
+        return "not_assessed", None, None
     matches = [item for item in checks if item.get("check_id") == "spi-transfer-wire"]
     if len(matches) != 1:
         return "not_assessed", None, None
@@ -362,10 +378,177 @@ def _single_byte(value: object) -> int | None:
     return None
 
 
-def confirm_component_offline(
+_BUILD_METADATA = ("raw_width", "slots", "observations", "peer_slots",
+                   "peer_observations", "peer_wires", "spi_wire_contracts",
+                   "cpu_data_sources", "boot_image_policy", "build_hash")
+
+
+def _plan_identity_problem(plan: CompositionPlan, baseline: RuntimeBuild,
+                           mutant: RuntimeBuild, package: EvidencePackage,
+                           *, base_dir: Path | None = None) -> str | None:
+    if not isinstance(plan, CompositionPlan):
+        return "plan-invalid"
+    layout = plan.raw_layout.get("layout_hash")
+    if not isinstance(plan.plan_hash, str) or not plan.plan_hash or not isinstance(layout, str) or not layout:
+        return "plan-invalid"
+    for side, build in (("baseline", baseline), ("mutant", mutant)):
+        recorded = recorded_build_identity(build)
+        if recorded["plan_hash"] != plan.plan_hash:
+            return "plan_hash"
+        if recorded["layout_hash"] != layout:
+            return "layout_hash"
+    identity = package.identity
+    if identity.get("plan_hash") != plan.plan_hash:
+        return "package.plan_hash"
+    if identity.get("layout_hash") != layout:
+        return "package.layout_hash"
+    return _derived_plan_problem(plan, Path.cwd() if base_dir is None else base_dir)
+
+
+def _derived_plan_problem(plan: CompositionPlan, base_dir: Path) -> str | None:
+    # Stored plan_hash omits some audit inputs. Recreate every derived field
+    # from the authoritative request/profiles, including future dataclass fields.
+    expected = build_composition(plan.request, base_dir=base_dir,
+                                 drive_profile=plan.drive_profile)
+    for field in fields(CompositionPlan):
+        if getattr(plan, field.name) != getattr(expected, field.name):
+            return "derived-plan:" + field.name
+    return None
+
+
+def _build_metadata_problem(original: RuntimeBuild, rebuilt: RuntimeBuild,
+                            side: str) -> str | None:
+    for field_name in _BUILD_METADATA:
+        if getattr(original, field_name) != getattr(rebuilt, field_name):
+            return f"{side}-rebuilt-{field_name}-mismatch"
+    if original.sources != rebuilt.sources:
+        return f"{side}-rebuilt-sources-mismatch"
+    if dict(original.source_hashes) != dict(rebuilt.source_hashes):
+        return f"{side}-rebuilt-source_hashes-mismatch"
+    for field_name in ("top", "testbench", "boot_image"):
+        original_path = (original.top_path if field_name == "top" else
+                         original.testbench_path if field_name == "testbench" else original.boot_image)
+        rebuilt_path = (rebuilt.top_path if field_name == "top" else
+                        rebuilt.testbench_path if field_name == "testbench" else rebuilt.boot_image)
+        original_hash = "none" if original_path is None else file_hash(original_path)
+        rebuilt_hash = "none" if rebuilt_path is None else file_hash(rebuilt_path)
+        if original_hash != rebuilt_hash:
+            return f"{side}-rebuilt-{field_name}-mismatch"
+    return None
+
+
+def _include_manifest(roots: Sequence[Path]) -> dict[str, str]:
+    """Bounded, fail-closed inventory; not an immutable compiler input snapshot.
+
+    Reject symlinks and special files rather than traversing outside declared
+    roots. Pre/post comparisons detect observed drift, not a change restored
+    between observations. Compiler wrappers must declare their include roots.
+    """
+    manifest: dict[str, str] = {}
+    entries = 0
+    total_bytes = 0
+    for root in roots:
+        if any(path.is_symlink() for path in (root, *root.parents)):
+            raise ValueError("include-symlink:" + str(root))
+        if not root.is_dir():
+            raise ValueError("include-root-missing:" + str(root))
+        pending = [root]
+        while pending:
+            directory = pending.pop()
+            if directory.is_symlink():
+                raise ValueError("include-symlink:" + str(directory))
+            manifest[str(directory)] = "directory"
+            with os.scandir(directory) as children:
+                for child in children:
+                    entries += 1
+                    if entries > 100000:
+                        raise ValueError("include-entry-limit")
+                    mode = child.stat(follow_symlinks=False).st_mode
+                    if stat.S_ISDIR(mode):
+                        pending.append(Path(child.path))
+                    elif stat.S_ISREG(mode):
+                        digest = hashlib.sha256()
+                        # O_NOFOLLOW also rejects a file swapped for a symlink
+                        # after scandir; O_NONBLOCK prevents a swapped FIFO hang.
+                        descriptor = os.open(child.path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+                        with os.fdopen(descriptor, "rb") as source:
+                            before = os.fstat(source.fileno())
+                            if not stat.S_ISREG(before.st_mode):
+                                raise ValueError("include-special-file:" + child.path)
+                            size = 0
+                            while chunk := source.read(1024 * 1024):
+                                size += len(chunk)
+                                total_bytes += len(chunk)
+                                if size > 64 * 1024 * 1024 or total_bytes > 512 * 1024 * 1024:
+                                    raise ValueError("include-size-limit")
+                                digest.update(chunk)
+                            after = os.fstat(source.fileno())
+                        if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (
+                                after.st_size, after.st_mtime_ns, after.st_ctime_ns):
+                            raise ValueError("include-read-drift:" + child.path)
+                        manifest[child.path] = "sha256:" + digest.hexdigest()
+                    else:
+                        raise ValueError("include-symlink-or-special-file:" + child.path)
+    return dict(sorted(manifest.items()))
+
+
+def _rebuild_pair(plan: CompositionPlan, baseline: RuntimeBuild, mutant: RuntimeBuild,
+                  *, base_dir: Path, output_dir: Path, timeout_seconds: int,
+                  verilator: str | None, include_roots: Sequence[str] = (),
+                  ) -> tuple[RuntimeBuild, RuntimeBuild, Mapping[str, object]]:
+    tool = verilator or shutil.which("verilator")
+    if not tool:
+        raise OSError("runtime-tool-missing")
+    resolved_tool = Path(tool).resolve()
+    if not resolved_tool.is_file():
+        raise OSError("runtime-tool-missing")
+    tool_record = {"path": resolved_tool.as_posix(), "sha256": file_hash(resolved_tool)}
+    roots = {Path(base_dir / item).absolute() for item in include_roots}
+    for instance in plan.instances:
+        source = instance.profile.source
+        roots.update((base_dir / source.source_root / item).absolute()
+                     for item in source.include_roots)
+    roots = tuple(sorted(roots))
+    include_manifest = _include_manifest(roots)
+    tool_record["include_manifest"] = {
+        "scope": "declared-roots-pre-post-drift-check-not-immutable-snapshot",
+        "roots": [str(root) for root in roots],
+        "entries": len(include_manifest),
+        "sha256": "sha256:" + hashlib.sha256(canonical_bytes(include_manifest)).hexdigest(),
+    }
+    rebuilt: list[RuntimeBuild] = []
+    for side, original in (("baseline", baseline), ("mutant", mutant)):
+        if _include_manifest(roots) != include_manifest:
+            raise ValueError(f"{side}-include-input-drift")
+        expected_sources, drift = _source_bytes(original, base_dir)
+        if drift:
+            raise ValueError(f"{side}-source-drift:{drift[0]}")
+        top_hash = file_hash(original.top_path)
+        boot_hash = _boot_hash(original)
+        rebuilt.append(build_profile_runtime(
+            plan, output_dir=output_dir / side, base_dir=base_dir,
+            top_text=original.top_path.read_text(encoding="utf-8"),
+            sources=original.sources,
+            boot_image=(None if original.boot_image_policy ==
+                        "explicit_empty_image_no_program_loaded" else original.boot_image),
+            timeout_seconds=timeout_seconds, verilator=resolved_tool.as_posix(),
+            spi_wire_contracts=original.spi_wire_contracts))
+        if _include_manifest(roots) != include_manifest:
+            raise ValueError(f"{side}-include-input-drift")
+        current_sources, post_drift = _source_bytes(original, base_dir)
+        if post_drift or current_sources != expected_sources or \
+                file_hash(original.top_path) != top_hash or _boot_hash(original) != boot_hash:
+            raise ValueError(f"{side}-build-input-drift")
+        if file_hash(resolved_tool) != tool_record["sha256"]:
+            raise ValueError("runtime-tool-drift")
+    return rebuilt[0], rebuilt[1], tool_record
+
+
+def _confirm_component_offline_impl(
         package: EvidencePackage, *, plan: CompositionPlan, baseline: RuntimeBuild,
         mutant: RuntimeBuild, fixture: IsolationFixture, criterion: Mapping[str, object],
         base_dir: Path, include_roots: Sequence[str] = (), timeout_seconds: int = 600,
+        verilator: str | None = None, rebuild_dir: Path,
 ) -> OfflineConfirmation:
     """Confirm only a fresh SoC and standalone-fixture reproduction."""
     boundary, reason = classify_boundary(package)
@@ -381,6 +564,8 @@ def confirm_component_offline(
     abi_problem = _same_build_abi(baseline, mutant)
     if abi_problem is not None:
         return OfflineConfirmation(UNDIAGNOSED, "build-identity:" + abi_problem, {})
+    if package.schema_version != "soc_failure_evidence.v1":
+        return OfflineConfirmation(UNDIAGNOSED, "evidence-schema-unsupported", {})
     try:
         differential = build_differential(baseline, mutant, base_dir=base_dir)
     except (OSError, ValueError) as error:
@@ -403,18 +588,49 @@ def confirm_component_offline(
     criterion_problem = _criterion_problem(package, criterion)
     if criterion_problem is not None:
         return OfflineConfirmation(COMPONENT_CANDIDATE, criterion_problem, differential)
+    if criterion.get("criterion_id") != "spi-mosi-byte":
+        return OfflineConfirmation(COMPONENT_CANDIDATE,
+                                   "unsupported-criterion:" + str(criterion.get("criterion_id")),
+                                   differential)
+    try:
+        plan_problem = _plan_identity_problem(plan, baseline, mutant, package, base_dir=base_dir)
+    except (OSError, ValueError) as error:
+        return OfflineConfirmation(UNDIAGNOSED, "plan-identity:" + str(error), differential)
+    if plan_problem:
+        return OfflineConfirmation(UNDIAGNOSED, "plan-identity:" + plan_problem, differential)
     if len(package.samples) != 1 or len(package.results) != 1:
         return OfflineConfirmation(COMPONENT_CANDIDATE, "offline-evidence-count", differential)
     try:
         replay = replay_package(package, mutant, timeout_seconds=timeout_seconds)
-        baseline_result = run_sample(baseline, package.sample(), timeout_seconds=timeout_seconds)
-        mutant_result = run_sample(mutant, package.sample(), timeout_seconds=timeout_seconds)
+        fresh_baseline, fresh_mutant, tool_record = _rebuild_pair(
+            plan, baseline, mutant, base_dir=base_dir, output_dir=rebuild_dir,
+            timeout_seconds=timeout_seconds, verilator=verilator, include_roots=include_roots)
+        for side, original, fresh in (("baseline", baseline, fresh_baseline),
+                                      ("mutant", mutant, fresh_mutant)):
+            problem = _build_metadata_problem(original, fresh, side)
+            if problem:
+                return OfflineConfirmation(UNDIAGNOSED, problem, differential)
+        differential = {**differential, "rebuild_tool": tool_record,
+                        "original_baseline_executable_provenance":
+                        "unverified-not-used-for-differential",
+                        "rebuilt_baseline_build_hashes": {
+                            "top": file_hash(fresh_baseline.top_path),
+                            "testbench": file_hash(fresh_baseline.testbench_path),
+                            "boot_image": _boot_hash(fresh_baseline),
+                            "executable": file_hash(fresh_baseline.executable)},
+                        "rebuilt_mutant_build_hashes": {
+                            "top": file_hash(fresh_mutant.top_path),
+                            "testbench": file_hash(fresh_mutant.testbench_path),
+                            "boot_image": _boot_hash(fresh_mutant),
+                            "executable": file_hash(fresh_mutant.executable)}}
+        baseline_result = run_sample(fresh_baseline, package.sample(), timeout_seconds=timeout_seconds)
+        mutant_result = run_sample(fresh_mutant, package.sample(), timeout_seconds=timeout_seconds)
         baseline_audit = audit_structure(
-            plan, top_text=baseline.top_path.read_text(encoding="utf-8"),
-            source_files=baseline.sources, base_dir=base_dir, include_roots=include_roots)
+            plan, top_text=fresh_baseline.top_path.read_text(encoding="utf-8"),
+            source_files=fresh_baseline.sources, base_dir=base_dir, include_roots=include_roots)
         mutant_audit = audit_structure(
-            plan, top_text=mutant.top_path.read_text(encoding="utf-8"),
-            source_files=mutant.sources, base_dir=base_dir, include_roots=include_roots)
+            plan, top_text=fresh_mutant.top_path.read_text(encoding="utf-8"),
+            source_files=fresh_mutant.sources, base_dir=base_dir, include_roots=include_roots)
     except (OSError, ValueError, TimeoutError) as error:
         return OfflineConfirmation(UNDIAGNOSED, "offline-rerun-tool-failure",
                                    _tool_failure_evidence(differential, error))
@@ -430,7 +646,7 @@ def confirm_component_offline(
             return OfflineConfirmation(UNDIAGNOSED, f"{side}-structure-audit-invalid",
                                        differential)
     evidence = {**differential, "criterion": deepcopy(dict(criterion)), **_fresh_evidence(
-        baseline=baseline, mutant=mutant, baseline_result=baseline_result,
+        baseline=fresh_baseline, mutant=fresh_mutant, baseline_result=baseline_result,
         mutant_result=mutant_result, replay=replay, baseline_audit=baseline_audit,
         mutant_audit=mutant_audit)}
     if getattr(replay, "status", None) != REPLAY_AGREEMENT:
@@ -439,6 +655,11 @@ def confirm_component_offline(
         return OfflineConfirmation(COMPOSITION_DEFECT, "baseline-structure-audit-failed", evidence)
     if _audit_summary(mutant_audit).get("status") == FAIL:
         return OfflineConfirmation(COMPOSITION_DEFECT, "mutant-structure-audit-failed", evidence)
+    rebuilt_replay = compare_replay_results(package.results, (mutant_result,))
+    evidence["rebuilt_mutant_replay"] = rebuilt_replay.document()
+    if rebuilt_replay.status != REPLAY_AGREEMENT:
+        return OfflineConfirmation(COMPONENT_CANDIDATE,
+                                   "rebuilt-mutant-replay-not-agreement", evidence)
     if baseline_result.requests != mutant_result.requests or \
             baseline_result.peer_applied != mutant_result.peer_applied:
         return OfflineConfirmation(COMPONENT_CANDIDATE, "cpu-peer-records-differ", evidence)
@@ -473,7 +694,7 @@ def confirm_component_offline(
         isolation = run_isolation(
             IsolationFixture(fixture_path, fixture.top_module, fixture.marker, fixture.source_name),
             baseline_source=baseline_source, mutant_source=mutant_source,
-            output_dir=baseline.output_dir / "offline-isolation", timeout_seconds=timeout_seconds)
+            output_dir=rebuild_dir / "isolation", timeout_seconds=timeout_seconds)
     except TimeoutError as error:
         return OfflineConfirmation(UNDIAGNOSED, str(error), evidence)
     except OSError as error:
@@ -511,6 +732,21 @@ def confirm_component_offline(
     if mutant_mosi != observed_byte:
         return OfflineConfirmation(COMPONENT_CANDIDATE, "isolation-mutant-observation", evidence)
     return OfflineConfirmation("component_confirmed", "offline-isolation-confirmed", evidence)
+
+
+def confirm_component_offline(
+        package: EvidencePackage, *, plan: CompositionPlan, baseline: RuntimeBuild,
+        mutant: RuntimeBuild, fixture: IsolationFixture, criterion: Mapping[str, object],
+        base_dir: Path, include_roots: Sequence[str] = (), timeout_seconds: int = 600,
+        verilator: str | None = None,
+) -> OfflineConfirmation:
+    """Run confirmation with disposable, separate SoC reconstruction directories."""
+    with tempfile.TemporaryDirectory(prefix="soc-offline-rebuild-") as temporary:
+        return _confirm_component_offline_impl(
+            package, plan=plan, baseline=baseline, mutant=mutant, fixture=fixture,
+            criterion=criterion, base_dir=base_dir, include_roots=include_roots,
+            timeout_seconds=timeout_seconds, verilator=verilator,
+            rebuild_dir=Path(temporary))
 
 
 __all__ = ["IsolationFixture", "OfflineConfirmation", "build_differential",

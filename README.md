@@ -1,13 +1,14 @@
 # myfuzz
 
-当前目标（2026-09-14）：自动组合真实 Ibex/CVA6 与 OpenTitan、PULP、ZipCPU
-三系列 MMIO 外设，通过生成的 harness 执行受约束指令、独立 MMIO 和混合激励。
-总线、RAM/ROM 由系统提供模型，真实外设响应与 IRQ 保留在 SoC 中。
-新目标尚未完成，下面的历史流程和执行示例不能代替新矩阵验收。
+当前目标：从组件 RTL 与 profile 自动组合受支持的 CPU、MMIO 外设、
+总线、peer 与中断路径，并使用 RFuzz 输入和可重放证据测试真实 SoC。
+已验证范围与尚未完成的留出组件、全量回归见
+[后续路线图](docs/superpowers/plans/2026-09-22-soc-next-steps-roadmap.md)；
+下方历史流程示例不代表所有组件或协议均已验收。
 
-- [项目目标与验收矩阵](docs/PROJECT_GOALS.md)
-- [分阶段实施计划](docs/superpowers/plans/2026-09-14-soc-composition-and-fuzz.md)
-- [代码与文件整理台账](docs/REPOSITORY_ORGANIZATION.md)
+- [当前实施路线与验收边界](docs/superpowers/plans/2026-09-22-soc-next-steps-roadmap.md)
+- [能力矩阵](docs/reports/soc-capability-matrix-20260921.md)
+- [项目目标与早期验收矩阵（历史）](docs/PROJECT_GOALS.md)
 
 `myfuzz` provides two related RTL fuzzing paths: Verilog/SystemVerilog
 source-level instrumentation, and protocol-aware processor composition for
@@ -32,6 +33,11 @@ artifacts/         preserved complete run artifacts
 ```
 
 Use the `src/`, `scripts/`, `configs/`, and `third_party/` paths for new work.
+For a fresh checkout, run `git submodule update --init --recursive` before
+running source-backed RTL tests. The RFuzz client source is kept under
+`third_party/rfuzz/upstream/rfuzz_reference/fuzzer/`; downloaded toolchains,
+build outputs, campaign results, and local archives are intentionally not
+committed.
 
 ## Active Flow
 

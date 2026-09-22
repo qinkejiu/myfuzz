@@ -1,0 +1,950 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "opentitan_gpio",
+  "kind": "peripheral",
+  "description": "Real OpenTitan Top Earl Grey gpio at the pinned revision: a TL-UL MMIO slave over the packed tl_h2d_t/tl_d2h_t struct pair, 32 filtered GPIO pads with separate output value and output-enable ports, 32 active-high level interrupts bussed through one prim_intr_hw, and a strap-sampling trigger. The declared port selection is bounded: the alert handshake arrays and the RACL policy array are outside it because the frontend cannot represent a top-level aggregate array (evidence.unknown).",
+  "source": {
+    "root": "third_party/soc-opentitan",
+    "revision": "git:fca045df919a26c47e71616b9dac917b1ea4fd07",
+    "top_module": "gpio",
+    "top_port_selection": "declared",
+    "files": [
+      "hw/ip/prim/rtl/prim_alert_pkg.sv",
+      "hw/ip/prim/rtl/prim_mubi_pkg.sv",
+      "hw/ip/prim/rtl/prim_secded_pkg.sv",
+      "hw/ip/prim/rtl/prim_subreg_pkg.sv",
+      "hw/ip/prim/rtl/prim_util_pkg.sv",
+      "hw/top_earlgrey/ip_autogen/gpio/rtl/gpio_pkg.sv",
+      "hw/top_earlgrey/ip_autogen/gpio/rtl/gpio_reg_pkg.sv",
+      "hw/top_earlgrey/rtl/top_pkg.sv",
+      "hw/ip/tlul/rtl/tlul_pkg.sv",
+      "hw/top_earlgrey/rtl/autogen/top_racl_pkg.sv",
+      "hw/ip/prim/rtl/prim_alert_sender.sv",
+      "hw/ip/prim/rtl/prim_diff_decode.sv",
+      "hw/ip/prim/rtl/prim_filter_ctr.sv",
+      "hw/ip/prim/rtl/prim_intr_hw.sv",
+      "hw/ip/prim/rtl/prim_onehot_check.sv",
+      "hw/ip/prim/rtl/prim_onehot_enc.sv",
+      "hw/ip/prim/rtl/prim_reg_we_check.sv",
+      "hw/ip/prim/rtl/prim_sec_anchor_buf.sv",
+      "hw/ip/prim/rtl/prim_sec_anchor_flop.sv",
+      "hw/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+      "hw/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+      "hw/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+      "hw/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+      "hw/ip/prim/rtl/prim_subreg.sv",
+      "hw/ip/prim/rtl/prim_subreg_arb.sv",
+      "hw/ip/prim/rtl/prim_subreg_ext.sv",
+      "hw/ip/prim_generic/rtl/prim_buf.sv",
+      "hw/ip/prim_generic/rtl/prim_flop.sv",
+      "hw/ip/prim_generic/rtl/prim_flop_2sync.sv",
+      "hw/ip/prim_generic/rtl/prim_xnor2.sv",
+      "hw/ip/tlul/rtl/tlul_adapter_reg.sv",
+      "hw/ip/tlul/rtl/tlul_cmd_intg_chk.sv",
+      "hw/ip/tlul/rtl/tlul_data_integ_dec.sv",
+      "hw/ip/tlul/rtl/tlul_data_integ_enc.sv",
+      "hw/ip/tlul/rtl/tlul_err.sv",
+      "hw/ip/tlul/rtl/tlul_rsp_intg_gen.sv",
+      "hw/top_earlgrey/ip_autogen/gpio/rtl/gpio.sv",
+      "hw/top_earlgrey/ip_autogen/gpio/rtl/gpio_reg_top.sv"
+    ],
+    "include_roots": [
+      "hw/ip/prim/rtl",
+      "hw/ip/prim_generic/rtl",
+      "hw/ip/tlul/rtl",
+      "hw/top_earlgrey/rtl",
+      "hw/top_earlgrey/rtl/autogen"
+    ],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {
+          "name": "AlertSkewCycles",
+          "value": "1"
+        }
+      ],
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [
+    {
+      "port": "clk_i",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "rst_ni",
+      "domain": "sys_rst",
+      "polarity": "active_low",
+      "synchronous": false,
+      "release": "rst_ni is the single active-low reset of the gpio IP and its generated register block; every state element is written on posedge clk_i with asynchronous assertion (gpio.sv:129-134,149-162 and the prim_subreg/prim_intr_hw/prim_filter_ctr instances), so deassertion must satisfy clk_i recovery/removal timing. cio_gpio_q and cio_gpio_en_q leave reset at 0 for all 32 pads, the interrupt state and the strap registers leave reset cleared."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "opentitan_gpio.mmio",
+      "function": "mmio_slave",
+      "protocol": [
+        "tl-ul",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "a_valid",
+          "width": 1,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "a_valid"
+            ],
+            "bit_range": [
+              108,
+              108
+            ]
+          }
+        },
+        {
+          "role": "a_opcode",
+          "width": 3,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "a_opcode"
+            ],
+            "bit_range": [
+              105,
+              107
+            ]
+          }
+        },
+        {
+          "role": "a_param",
+          "width": 3,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "a_param"
+            ],
+            "bit_range": [
+              102,
+              104
+            ]
+          }
+        },
+        {
+          "role": "a_size",
+          "width": 2,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "a_size"
+            ],
+            "bit_range": [
+              100,
+              101
+            ]
+          }
+        },
+        {
+          "role": "a_source",
+          "width": 8,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "a_source"
+            ],
+            "bit_range": [
+              92,
+              99
+            ]
+          }
+        },
+        {
+          "role": "a_address",
+          "width": 32,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "a_address"
+            ],
+            "bit_range": [
+              60,
+              91
+            ]
+          }
+        },
+        {
+          "role": "a_mask",
+          "width": 4,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "a_mask"
+            ],
+            "bit_range": [
+              56,
+              59
+            ]
+          }
+        },
+        {
+          "role": "a_data",
+          "width": 32,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "a_data"
+            ],
+            "bit_range": [
+              24,
+              55
+            ]
+          }
+        },
+        {
+          "role": "a_user",
+          "width": 23,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "a_user"
+            ],
+            "bit_range": [
+              1,
+              23
+            ]
+          }
+        },
+        {
+          "role": "d_ready",
+          "width": 1,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "d_ready"
+            ],
+            "bit_range": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "role": "a_ready",
+          "width": 1,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "a_ready"
+            ],
+            "bit_range": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "role": "d_valid",
+          "width": 1,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "d_valid"
+            ],
+            "bit_range": [
+              65,
+              65
+            ]
+          }
+        },
+        {
+          "role": "d_opcode",
+          "width": 3,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "d_opcode"
+            ],
+            "bit_range": [
+              62,
+              64
+            ]
+          }
+        },
+        {
+          "role": "d_param",
+          "width": 3,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "d_param"
+            ],
+            "bit_range": [
+              59,
+              61
+            ]
+          }
+        },
+        {
+          "role": "d_size",
+          "width": 2,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "d_size"
+            ],
+            "bit_range": [
+              57,
+              58
+            ]
+          }
+        },
+        {
+          "role": "d_source",
+          "width": 8,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "d_source"
+            ],
+            "bit_range": [
+              49,
+              56
+            ]
+          }
+        },
+        {
+          "role": "d_sink",
+          "width": 1,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "d_sink"
+            ],
+            "bit_range": [
+              48,
+              48
+            ]
+          }
+        },
+        {
+          "role": "d_data",
+          "width": 32,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "d_data"
+            ],
+            "bit_range": [
+              16,
+              47
+            ]
+          }
+        },
+        {
+          "role": "d_user",
+          "width": 14,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "d_user"
+            ],
+            "bit_range": [
+              2,
+              15
+            ]
+          }
+        },
+        {
+          "role": "d_error",
+          "width": 1,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "d_error"
+            ],
+            "bit_range": [
+              1,
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "function": "interrupt_source",
+      "fields": [
+        {
+          "role": "irq",
+          "aliases": [
+            "intr_gpio_o"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "gpio.pins",
+      "function": "external_pins",
+      "fields": [
+        {
+          "role": "in",
+          "direction": "input",
+          "aliases": [
+            "cio_gpio_i"
+          ]
+        },
+        {
+          "role": "out",
+          "direction": "output",
+          "aliases": [
+            "cio_gpio_o"
+          ]
+        },
+        {
+          "role": "en",
+          "direction": "output",
+          "aliases": [
+            "cio_gpio_en_o"
+          ]
+        },
+        {
+          "role": "strap_en",
+          "direction": "input",
+          "aliases": [
+            "strap_en_i"
+          ]
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 32,
+    "data_width": 32,
+    "read": true,
+    "write": true,
+    "byte_enable": true,
+    "partial_write": true,
+    "has_error": true,
+    "integrity": "required",
+    "source_width": 8,
+    "sink_width": 1,
+    "user_width": 23,
+    "size_width": 2,
+    "max_wait_cycles": 16,
+    "max_outstanding": 1,
+    "d_user_width": 14
+  },
+  "address": {
+    "window_size": 128,
+    "alignment": 128,
+    "registers": [
+      {
+        "name": "INTR_STATE",
+        "offset": 0,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "write_one_clears"
+      },
+      {
+        "name": "INTR_ENABLE",
+        "offset": 4,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "INTR_TEST",
+        "offset": 8,
+        "width": 32,
+        "access": "wo",
+        "side_effect": "write_pulses_interrupt_test"
+      },
+      {
+        "name": "ALERT_TEST",
+        "offset": 12,
+        "width": 32,
+        "access": "wo",
+        "side_effect": "write_pulses_alert_test"
+      },
+      {
+        "name": "DATA_IN",
+        "offset": 16,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "none"
+      },
+      {
+        "name": "DIRECT_OUT",
+        "offset": 20,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "write_drives_pads"
+      },
+      {
+        "name": "MASKED_OUT_LOWER",
+        "offset": 24,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "write_mask_gated_lanes"
+      },
+      {
+        "name": "MASKED_OUT_UPPER",
+        "offset": 28,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "write_mask_gated_lanes"
+      },
+      {
+        "name": "DIRECT_OE",
+        "offset": 32,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "write_drives_output_enable"
+      },
+      {
+        "name": "MASKED_OE_LOWER",
+        "offset": 36,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "write_mask_gated_lanes"
+      },
+      {
+        "name": "MASKED_OE_UPPER",
+        "offset": 40,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "write_mask_gated_lanes"
+      },
+      {
+        "name": "INTR_CTRL_EN_RISING",
+        "offset": 44,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "INTR_CTRL_EN_FALLING",
+        "offset": 48,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "INTR_CTRL_EN_LVLHIGH",
+        "offset": 52,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "INTR_CTRL_EN_LVLLOW",
+        "offset": 56,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "CTRL_EN_INPUT_FILTER",
+        "offset": 60,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "HW_STRAPS_DATA_IN_VALID",
+        "offset": 64,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "hardware_set_by_strap_sampling"
+      },
+      {
+        "name": "HW_STRAPS_DATA_IN",
+        "offset": 68,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "hardware_latched_by_strap_sampling"
+      }
+    ]
+  },
+  "interrupts": [
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 0,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Bit 0 of one bussified prim_intr_hw with Width=NumIOs=32, the default FlopOutput=1 and the default IntrT(\"Event\") (gpio.sv:170-181; prim_intr_hw.sv:39,62-70,96-102): the output is the registered level intr_gpio_o[0] = INTR_STATE[0] & INTR_ENABLE[0] and the state bit is set by the combined event for pad 0, (event_rise & INTR_CTRL_EN_RISING[0]) | (event_fall & INTR_CTRL_EN_FALLING[0]) | (data_in_d[0] & INTR_CTRL_EN_LVLHIGH[0]) | (~data_in_d[0] & INTR_CTRL_EN_LVLLOW[0]) (gpio.sv:183-193), with event_rise/event_fall derived from the filtered pin registered one cycle earlier (gpio.sv:75-80). It stays asserted until software clears the state bit.",
+      "clear": "Write 1 to INTR_STATE[0] (W1C, gpio_reg_top.sv:195-220) or clear INTR_ENABLE[0]; INTR_TEST[0] can force it. The event controls (INTR_CTRL_EN_*) and the per-pad input filter (CTRL_EN_INPUT_FILTER[0]) select which pin transitions produce the event."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 1,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[1] = INTR_STATE[1] & INTR_ENABLE[1], set by the rise/fall/level event of pad 1 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[1] (W1C) or clear INTR_ENABLE[1]; INTR_TEST[1] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 2,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[2] = INTR_STATE[2] & INTR_ENABLE[2], set by the rise/fall/level event of pad 2 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[2] (W1C) or clear INTR_ENABLE[2]; INTR_TEST[2] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 3,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[3] = INTR_STATE[3] & INTR_ENABLE[3], set by the rise/fall/level event of pad 3 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[3] (W1C) or clear INTR_ENABLE[3]; INTR_TEST[3] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 4,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[4] = INTR_STATE[4] & INTR_ENABLE[4], set by the rise/fall/level event of pad 4 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[4] (W1C) or clear INTR_ENABLE[4]; INTR_TEST[4] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 5,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[5] = INTR_STATE[5] & INTR_ENABLE[5], set by the rise/fall/level event of pad 5 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[5] (W1C) or clear INTR_ENABLE[5]; INTR_TEST[5] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 6,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[6] = INTR_STATE[6] & INTR_ENABLE[6], set by the rise/fall/level event of pad 6 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[6] (W1C) or clear INTR_ENABLE[6]; INTR_TEST[6] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 7,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[7] = INTR_STATE[7] & INTR_ENABLE[7], set by the rise/fall/level event of pad 7 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[7] (W1C) or clear INTR_ENABLE[7]; INTR_TEST[7] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 8,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[8] = INTR_STATE[8] & INTR_ENABLE[8], set by the rise/fall/level event of pad 8 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[8] (W1C) or clear INTR_ENABLE[8]; INTR_TEST[8] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 9,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[9] = INTR_STATE[9] & INTR_ENABLE[9], set by the rise/fall/level event of pad 9 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[9] (W1C) or clear INTR_ENABLE[9]; INTR_TEST[9] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 10,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[10] = INTR_STATE[10] & INTR_ENABLE[10], set by the rise/fall/level event of pad 10 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[10] (W1C) or clear INTR_ENABLE[10]; INTR_TEST[10] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 11,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[11] = INTR_STATE[11] & INTR_ENABLE[11], set by the rise/fall/level event of pad 11 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[11] (W1C) or clear INTR_ENABLE[11]; INTR_TEST[11] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 12,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[12] = INTR_STATE[12] & INTR_ENABLE[12], set by the rise/fall/level event of pad 12 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[12] (W1C) or clear INTR_ENABLE[12]; INTR_TEST[12] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 13,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[13] = INTR_STATE[13] & INTR_ENABLE[13], set by the rise/fall/level event of pad 13 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[13] (W1C) or clear INTR_ENABLE[13]; INTR_TEST[13] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 14,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[14] = INTR_STATE[14] & INTR_ENABLE[14], set by the rise/fall/level event of pad 14 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[14] (W1C) or clear INTR_ENABLE[14]; INTR_TEST[14] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 15,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[15] = INTR_STATE[15] & INTR_ENABLE[15], set by the rise/fall/level event of pad 15 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[15] (W1C) or clear INTR_ENABLE[15]; INTR_TEST[15] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 16,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[16] = INTR_STATE[16] & INTR_ENABLE[16], set by the rise/fall/level event of pad 16 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[16] (W1C) or clear INTR_ENABLE[16]; INTR_TEST[16] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 17,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[17] = INTR_STATE[17] & INTR_ENABLE[17], set by the rise/fall/level event of pad 17 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[17] (W1C) or clear INTR_ENABLE[17]; INTR_TEST[17] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 18,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[18] = INTR_STATE[18] & INTR_ENABLE[18], set by the rise/fall/level event of pad 18 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[18] (W1C) or clear INTR_ENABLE[18]; INTR_TEST[18] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 19,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[19] = INTR_STATE[19] & INTR_ENABLE[19], set by the rise/fall/level event of pad 19 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[19] (W1C) or clear INTR_ENABLE[19]; INTR_TEST[19] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 20,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[20] = INTR_STATE[20] & INTR_ENABLE[20], set by the rise/fall/level event of pad 20 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[20] (W1C) or clear INTR_ENABLE[20]; INTR_TEST[20] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 21,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[21] = INTR_STATE[21] & INTR_ENABLE[21], set by the rise/fall/level event of pad 21 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[21] (W1C) or clear INTR_ENABLE[21]; INTR_TEST[21] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 22,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[22] = INTR_STATE[22] & INTR_ENABLE[22], set by the rise/fall/level event of pad 22 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[22] (W1C) or clear INTR_ENABLE[22]; INTR_TEST[22] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 23,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[23] = INTR_STATE[23] & INTR_ENABLE[23], set by the rise/fall/level event of pad 23 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[23] (W1C) or clear INTR_ENABLE[23]; INTR_TEST[23] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 24,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[24] = INTR_STATE[24] & INTR_ENABLE[24], set by the rise/fall/level event of pad 24 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[24] (W1C) or clear INTR_ENABLE[24]; INTR_TEST[24] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 25,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[25] = INTR_STATE[25] & INTR_ENABLE[25], set by the rise/fall/level event of pad 25 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[25] (W1C) or clear INTR_ENABLE[25]; INTR_TEST[25] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 26,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[26] = INTR_STATE[26] & INTR_ENABLE[26], set by the rise/fall/level event of pad 26 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[26] (W1C) or clear INTR_ENABLE[26]; INTR_TEST[26] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 27,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[27] = INTR_STATE[27] & INTR_ENABLE[27], set by the rise/fall/level event of pad 27 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[27] (W1C) or clear INTR_ENABLE[27]; INTR_TEST[27] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 28,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[28] = INTR_STATE[28] & INTR_ENABLE[28], set by the rise/fall/level event of pad 28 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[28] (W1C) or clear INTR_ENABLE[28]; INTR_TEST[28] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 29,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[29] = INTR_STATE[29] & INTR_ENABLE[29], set by the rise/fall/level event of pad 29 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[29] (W1C) or clear INTR_ENABLE[29]; INTR_TEST[29] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 30,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[30] = INTR_STATE[30] & INTR_ENABLE[30], set by the rise/fall/level event of pad 30 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[30] (W1C) or clear INTR_ENABLE[30]; INTR_TEST[30] can force it."
+    },
+    {
+      "endpoint_id": "gpio.interrupts",
+      "role": "irq",
+      "bit": 31,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Same bussified prim_intr_hw as bit 0 (gpio.sv:170-193): intr_gpio_o[31] = INTR_STATE[31] & INTR_ENABLE[31], set by the rise/fall/level event of pad 31 and held until cleared.",
+      "clear": "Write 1 to INTR_STATE[31] (W1C) or clear INTR_ENABLE[31]; INTR_TEST[31] can force it."
+    }
+  ],
+  "port_actions": [
+    {
+      "port": "sampled_straps_o",
+      "action": "observe",
+      "reason": "Registered strap-sample output: with GpioAsHwStrapsEn=1 (the module default used by this closure) a strap_en_i pulse samples all 32 filtered pin values once per reset cycle and drives sampled_straps_o.data from reg2hw.hw_straps_data_in.q with sampled_straps_o.valid from reg2hw.hw_straps_data_in_valid.q (gpio.sv:81-107). It is a component output with no in-SoC consumer (the strap path is not instantiated), so it is exported for passive monitoring only. Note: the port is the packed struct gpio_straps_t{valid, data} (33 bits); the current renderer exports a flat logic vector, so a composition would need the struct members (see evidence.unknown)."
+    }
+  ],
+  "evidence": {
+    "semantics": [
+      "Interrupt form, read from the RTL: gpio instantiates ONE bussified prim_intr_hw with Width=NumIOs=32, the default FlopOutput=1 and the default IntrT(\"Event\") (gpio.sv:170-181; prim_intr_hw.sv:39,62-70,96-102). All 32 interrupts therefore share one W1C INTR_STATE register and one level output bus: intr_gpio_o[i] = INTR_STATE[i] & INTR_ENABLE[i], registered on clk_i, and hw2reg_intr_state_d_o = new_event | reg2hw_intr_state_q_i. This is why the profile declares 32 level sources on the single 32-bit intr_gpio_o field, each with an explicit bit index.",
+      "Interrupt events, read from the RTL: event_intr_combined = event_intr_rise | event_intr_fall | event_intr_actlow | event_intr_acthigh with event_intr_rise = event_rise & INTR_CTRL_EN_RISING, event_intr_fall = event_fall & INTR_CTRL_EN_FALLING, event_intr_acthigh = data_in_d & INTR_CTRL_EN_LVLHIGH and event_intr_actlow = ~data_in_d & INTR_CTRL_EN_LVLLOW (gpio.sv:183-193); event_rise = data_in_d & ~data_in_q and event_fall = ~data_in_d & data_in_q from the one-cycle-delayed filtered pin value (gpio.sv:75-80).",
+      "Pads, read from the RTL: each cio_gpio_i[i] passes through prim_filter_ctr with AsyncOn=GpioAsyncOn=1 (2-stage synchronizer), CntWidth=4 and thresh=4'hF, enabled by CTRL_EN_INPUT_FILTER[i], into data_in_d (gpio.sv:57-72), which is also what DATA_IN reads (gpio.sv:114-115). Outputs are registered: cio_gpio_o = cio_gpio_q and cio_gpio_en_o = cio_gpio_en_q (gpio.sv:119-120), updated with priority DIRECT_OUT > MASKED_OUT_UPPER > MASKED_OUT_LOWER, where a masked write only changes the enabled lanes: q <= (mask & data) | (~mask & q) (gpio.sv:122-142); the enable path is identical for DIRECT_OE / MASKED_OE_LOWER / MASKED_OE_UPPER (gpio.sv:144-162). The masked registers read their mask field back as constant 0 (assign hw2reg.masked_out_upper.mask.d = 16'h0, gpio.sv:125-128). The IP has no tristate primitive: value and enable are separate digital ports.",
+      "Strap sampling, read from the RTL: with GpioAsHwStrapsEn=1, `sample_trigger = strap_en_i && !reg2hw.hw_straps_data_in_valid.q` latches data_in_d into HW_STRAPS_DATA_IN, sets HW_STRAPS_DATA_IN_VALID and drives sampled_straps_o (gpio.sv:81-93); the sample is guaranteed once per reset cycle by design. With GpioAsHwStrapsEn=0 the block is replaced by tie-offs (gpio.sv:95-111); this profile elaborates the closure's parameterization, in which the module default 1 is used.",
+      "Register map: the generated gpio_reg_pkg declares the eighteen register offsets GPIO_*_OFFSET 7'h0..7'h44 (gpio_reg_pkg.sv:229-246) inside a 7-bit address window (localparam AW = 7 in the reg_top), which is what window_size 128 records. Access and side effects are read from the generated register primitives in gpio_reg_top.sv: SwAccessW1C for INTR_STATE (gpio_reg_top.sv:198), SwAccessRW for INTR_ENABLE and the four INTR_CTRL_EN_* and CTRL_EN_INPUT_FILTER (gpio_reg_top.sv:226,510,538,566,594,622), SwAccessRO for DATA_IN, HW_STRAPS_DATA_IN_VALID and HW_STRAPS_DATA_IN (gpio_reg_top.sv:294,650,678), prim_subreg_ext with .we(intr_test_we)/.re(1'b0) for INTR_TEST and ALERT_TEST (write-only; reads return 0, gpio_reg_top.sv:254-268,274-288) and prim_subreg_ext with both .re and .we for DIRECT_OUT, MASKED_OUT_LOWER/UPPER, DIRECT_OE and MASKED_OE_LOWER/UPPER (read-write, gpio_reg_top.sv:322-336,342-375,379-412,416-432,436-469,473-506).",
+      "Bus width, integrity and byte enables, read from the pinned packages and the generated decode: top_pkg fixes TL_AW=32, TL_DW=32, TL_DBW=4, TL_SZW=2, TL_AIW=8, TL_DIW=1 and TL_AUW=23 (top_pkg.sv:8-15); the reg_top instantiates tlul_cmd_intg_chk on tl_i and tlul_rsp_intg_gen with EnableRspIntgGen=1/EnableDataIntgGen=1 on the response path (gpio_reg_top.sv:57-87), which is what integrity=\"required\" records; tl_i.a_mask drives reg_be and each register's GPIO_PERMIT mask is checked as (|(GPIO_PERMIT[i] & ~reg_be)) to raise wr_err, so per-byte write enables are honoured per register.",
+      "Clocks and resets: clk_i/rst_ni are the only clock and reset of the IP; the generated prim_subreg blocks, the prim_filter_ctr instances, the interrupt primitive and the output registers are all posedge clk_i with rst_ni (asynchronous assertion), and the elaborated port list has no second clock.",
+      "Each declared capability and the construct it was read from: address_width=32, data_width=32, size_width=2, source_width=8, sink_width=1 and user_width=23 are the pinned top_pkg constants TL_AW/TL_DW/TL_SZW/TL_AIW/TL_DIW/TL_AUW (top_pkg.sv:8-15), which are the widths of the tl_i/tl_o struct members listed in evidence.unknown; byte_enable=true and partial_write=true are the generated decode (tl_i.a_mask drives reg_be and each register's GPIO_PERMIT mask is checked with `|(GPIO_PERMIT[i] & ~reg_be)` to raise wr_err, gpio_reg_top.sv:711-778, with PutPartialData in the legal opcode set, tlul_pkg.sv:16-25); has_error=true is the d_error production of tlul_adapter_reg (d_error = error_i | err_internal with error_i = addrmiss | wr_err | intg_err, tlul_adapter_reg.sv:216-241); integrity=\"required\" is the pair tlul_cmd_intg_chk on tl_i and tlul_rsp_intg_gen with EnableRspIntgGen=1/EnableDataIntgGen=1 on tl_o (gpio_reg_top.sv:57-87); read=true and write=true are the register read mux and the generated write paths of the reg_top; max_wait_cycles=16 is the SoC's declared patience bound (the IP completes without inserting wait states); max_outstanding=1 is the single-outstanding contract of the beat initiator and of resolve_target_adapter's parameter_values, not an RTL claim that the IP could not pipeline more.",
+      "The bus endpoint, read from the elaboration: tl_i is tlul_pkg::tl_h2d_t (109 bits) and tl_o is tlul_pkg::tl_d2h_t (66 bits); the composer's frontend reports their members with paths and bit ranges, so each of the 20 declared roles names one member (a_user and d_user name the intermediate packed structs, whose span is the union of their integrity leaves) and declares the inclusive bit range it must occupy. A declared span the elaboration contradicts is refused with member-offset-conflict, and the disposition ledger still requires all 175 bits to be classified.",
+      "The bus is driven as a real target: src/myfuzz/composition/target_adapters._resolve_tlul resolves beat-to-tlul for this profile's declared capabilities (address_width=32, data_width=32, size_width=2, source_width=8, sink_width=1, user_width=23, d_user_width=14, integrity=required, byte_enable/partial_write/has_error true), and the tl-ul plugin declares every member the adapter port list requires - a_user, d_user and d_error included - with the parameterised width expressions size_width and source_width.",
+      "d_user_width=14 is the pinned tl_d2h_t user field (rsp_intg[6:0] + data_intg[6:0]) and is the adapter's DUSER_WIDTH parameter; a_user=23 is TL_AUW (top_pkg.sv:8-15) and is USER_WIDTH. Both are declared capabilities rather than adapter constants.",
+      "sampled_straps_o is gpio_straps_t{valid, data[31:0]}, a 33-bit packed struct output. It is declared as one whole-port observation: the generated top exports it as a single 33-bit vector, which is a legal and verified packed-struct-to-vector connection, and the port is never driven by the SoC."
+    ],
+    "verified": [
+      "The declared parameter set is the representable subset of the closure's: AlertSkewCycles=1 is recorded in configs/soc/closures/opentitan_gpio.json parameters and is a real top-level integer parameter of gpio (gpio.sv:13). The other recorded values - AlertAsyncOn=1'b1, GpioAsHwStrapsEn=1'b1, GpioAsyncOn=1'b1, EnableRacl=1'b0, RaclErrorRsp=1'b1 and RaclPolicySelVec='{18{1'b0}} - cannot be expressed: interface_description.ElaborationSettings accepts only decimal-integer parameter values (re.compile(r\"-?(?:0|[1-9][0-9]*)\\\\Z\")), so a SystemVerilog literal such as 1'b1 or an assignment pattern is rejected as 'unsafe-elaboration-parameter' before any RTL is read. All of them take exactly those values from the module defaults and the pinned generated gpio_reg_pkg (NumIOs=32, NumAlerts=1, NumRegs=18, NumInpPeriodCounters=0, BlockAw=7), and the recorded closure command passed no -G override at all, so omitting them reproduces the recorded elaboration; AlertSkewCycles=1 is value-identical to the module default.",
+      "The declared port set, directions and widths (clk_i, rst_ni, the 32-bit intr_gpio_o, cio_gpio_i[31:0], cio_gpio_o[31:0], cio_gpio_en_o[31:0], strap_en_i, sampled_straps_o[32:0]) are the elaborated port facts of the pinned closure with those parameters, and the register offsets are the generated gpio_reg_pkg constants.",
+      "Every declared capability is carried by a semantics entry above, and the TL-UL target resolver consumes exactly address_width/data_width/byte_enable/partial_write/has_error/integrity/source_width/sink_width/user_width/size_width for this protocol.",
+      "The elaborated member layout of tl_i (13 members, 109 bits) and tl_o (11 members, 66 bits) is exactly what this profile declares: every one of the 20 endpoint roles carries a member path and the inclusive bit range that member occupies, and bind_profile re-proves each range against the frontend's own output rather than trusting it.",
+      "The endpoint is a real MMIO target: the profile's mmio_slave endpoint resolves through resolve_target_adapter to beat_to_tlul with the declared capabilities, the port-disposition ledger classifies every bit of tl_i and tl_o, and the generated top assembles the two struct ports member by member (struct_port_mapping in the independent structure audit re-reads the elaborated netlist against the plan's member-to-net record)."
+    ],
+    "unknown": [
+      "BLOCKER C (ports outside the bounded selection): alert_rx_i and alert_tx_o are arrays of prim_alert_pkg structs and racl_policies_i is an array of top_racl_pkg::racl_policy_t; the frontend rejects a top-level aggregate without member paths. racl_error_o is representable but omitted with them because the pinned EnableRacl=1'b0 makes the generated reg_top drive racl_error_o.valid to 0 for every access (gpio_reg_top.sv), so it carries no observable state in this parameterization. These four ports are therefore NOT elaborated, NOT classified and NOT connected; source.top_port_selection=\"declared\" keeps this bounded selection explicit. The elaboration and the MMIO endpoint are unaffected by it.",
+      "The pinned Earlgrey integration instantiates gpio with GpioGpioAsHwStrapsEn=0 and GpioGpioAsyncOn=1 (earlgrey_pd_main.sv:1234-1238), whereas this closure elaborates the module defaults (GpioAsHwStrapsEn=1, GpioAsyncOn=1). The strap-sampling behaviour described above is the behaviour of the parameterization this profile pins, not necessarily of the Earlgrey top; the composed port set is the same either way.",
+      "The register map is verified against the pinned generated bytes, not reproduced from hw/top_earlgrey/ip_autogen/gpio/data/gpio.hjson: sources.lock.json still records the generator as regtool/topgen with status pending_input_closure_and_reproduction.",
+      "No transaction, interrupt or pad transition of this IP was simulated for this profile: the composition is verified structurally (elaborate/bind/ledger/render/audit), while MMIO protocol behaviour over time belongs to the runtime phases and is not claimed here."
+    ]
+  }
+}

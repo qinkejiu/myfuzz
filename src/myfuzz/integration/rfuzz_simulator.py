@@ -29,6 +29,10 @@ from myfuzz.composition.protocol_composer import (
 )
 from myfuzz.composition.rfuzz_transport import build_rfuzz_transport, RfuzzInputTransport
 from myfuzz.composition.runtime_projection import RuntimeProjector
+from myfuzz.composition.soc_peer_replay import (
+    PeerRawReplayError,
+    decode_peer_raw_events,
+)
 from .rtl_execution_monitor import (
     validate_monitor, monitor_rtl, monitor_output, parse_metrics, validate_execution,
 )
@@ -39,6 +43,7 @@ MAX_IO_BYTES = 8 * 1024 * 1024
 MAX_DIAGNOSTIC_BYTES = 256 * 1024
 MAX_DIAGNOSTIC_LINES = 1024
 MAX_DIAGNOSTIC_LINE_BYTES = 4096
+MAX_PROJECTION_UNIQUE = 65536
 SIMULATOR_PROTOCOL_VERSION = 2
 MAX_REQUEST_ID = (1 << 64) - 1
 RSS_POLL_SECONDS = 0.1
@@ -121,6 +126,9 @@ class SimulatorArtifact:
     header_hash: str | None = None
     test_header: TestHeader | None = None
     implementation_hash: str | None = None
+    #: Profile peer slot contracts with raw offsets.  Empty for legacy cells;
+    #: populated profile artifacts use it to publish replayable event evidence.
+    peer_slots: tuple[Mapping[str, object], ...] = ()
 
 
 class CycleIdentityProjector:
@@ -648,9 +656,39 @@ class RtlSimulator:
             raise ValueError("finite simulator deadline required")
         self.artifact, self.timeout_seconds = artifact, timeout_seconds
         self.last_diagnostics = ()
+        self.last_peer_events = ()
         self._next_rss_poll = 0.0  # Immediate startup check; shared across tests.
         self._executions = 0
+        # Projection accounting is evidence for direct-vs-constrained campaign
+        # comparisons.  It is bounded and never participates in DUT coverage.
+        self._projection_stats = {
+            "raw_samples": 0,
+            "projected_samples": 0,
+            "projection_rejections": 0,
+            "raw_unique": 0,
+            "projected_unique": 0,
+            "unique_tracking_truncated": False,
+        }
+        self._raw_projection_values: set[int] = set()
+        self._projected_values: set[int] = set()
         self._start()
+
+    def projection_document(self) -> dict[str, object]:
+        """Return bounded input projection metrics, separate from RTL coverage."""
+        document = dict(self._projection_stats)
+        projector = getattr(self.artifact, "projector", None)
+        repairs = getattr(projector, "repair_counts", None)
+        if isinstance(repairs, Mapping):
+            document["repair_counts"] = {
+                str(name): int(value) for name, value in repairs.items()
+                if type(value) is int and value >= 0
+            }
+        document["instruction_mode"] = str(
+            getattr(projector, "instruction_mode", "none"))
+        constraint_hash = getattr(projector, "constraint_hash", None)
+        if isinstance(constraint_hash, str) and constraint_hash:
+            document["constraint_hash"] = constraint_hash
+        return document
 
     def _start(self):
         artifact = self.artifact
@@ -772,7 +810,45 @@ class RtlSimulator:
             self.close()
             self._start()
         self._executions += 1
-        samples = [self.artifact.projector.project(self.artifact.transport.unpack(r)) for r in records]
+        raw_values = [self.artifact.transport.unpack(r) for r in records]
+        self._projection_stats["raw_samples"] += len(raw_values)
+        if len(self._raw_projection_values) < MAX_PROJECTION_UNIQUE:
+            self._raw_projection_values.update(raw_values)
+            if len(self._raw_projection_values) >= MAX_PROJECTION_UNIQUE:
+                self._projection_stats["unique_tracking_truncated"] = True
+        self._projection_stats["raw_unique"] = len(self._raw_projection_values)
+        try:
+            project_records = getattr(self.artifact.projector, "project_records", None)
+            samples = (project_records(raw_values) if project_records is not None else
+                       [self.artifact.projector.project(raw) for raw in raw_values])
+        except BaseException:
+            self._projection_stats["projection_rejections"] += len(raw_values)
+            self.close()
+            raise
+        if (not isinstance(samples, Sequence) or isinstance(samples, (str, bytes))
+                or len(samples) != len(raw_values)):
+            raise ValueError("projector returned the wrong sample count")
+        for sample in samples:
+            if type(sample) is not int or not 0 <= sample < (1 << self.artifact.layout.raw_width):
+                self._projection_stats["projection_rejections"] += len(raw_values)
+                self.close()
+                raise ValueError("projector returned a sample outside the layout")
+        peer_slots = tuple(getattr(self.artifact, "peer_slots", ()) or ())
+        if peer_slots:
+            try:
+                self.last_peer_events = decode_peer_raw_events(
+                    samples, self.artifact.layout, peer_slots, validate_spacing=False)
+            except PeerRawReplayError as error:
+                self.close()
+                raise ValueError(str(error)) from error
+        else:
+            self.last_peer_events = ()
+        self._projection_stats["projected_samples"] += len(samples)
+        if len(self._projected_values) < MAX_PROJECTION_UNIQUE:
+            self._projected_values.update(samples)
+            if len(self._projected_values) >= MAX_PROJECTION_UNIQUE:
+                self._projection_stats["unique_tracking_truncated"] = True
+        self._projection_stats["projected_unique"] = len(self._projected_values)
         payload = (f"{self._executions:016x} {len(samples)}\n" + "".join(f"{s:x}\n" for s in samples)).encode("ascii")
         try:
             count = len(self.artifact.coverage_ports)

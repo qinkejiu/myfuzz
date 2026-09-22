@@ -1,0 +1,213 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "novauart",
+  "kind": "peripheral",
+  "description": "First-time input MMIO UART: APB4 slave, one level interrupt source and a two-wire external pin pair.",
+  "source": {
+    "root": "examples/soc_generation/rtl",
+    "revision": "sha256:64879ee885aa7c0c5a0f03095f1c1b692a10b6fa80c253a3ca6d1d10d07952ca",
+    "top_module": "novauart",
+    "files": [
+      "novauart.sv"
+    ],
+    "elaboration": {
+      "frontend": "verilator-json"
+    }
+  },
+  "clocks": [
+    {
+      "port": "clk_i",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "rst_ni",
+      "domain": "sys_rst",
+      "polarity": "active_low",
+      "synchronous": false,
+      "release": "RTL asserts reset asynchronously on negedge rst_ni; release must satisfy clk_i recovery/removal timing."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "uart.bus",
+      "function": "mmio_slave",
+      "protocol": [
+        "apb",
+        "4"
+      ],
+      "fields": [
+        {
+          "role": "paddr",
+          "aliases": [
+            "paddr_i"
+          ]
+        },
+        {
+          "role": "psel",
+          "aliases": [
+            "psel_i"
+          ]
+        },
+        {
+          "role": "penable",
+          "aliases": [
+            "penable_i"
+          ]
+        },
+        {
+          "role": "pwrite",
+          "aliases": [
+            "pwrite_i"
+          ]
+        },
+        {
+          "role": "pwdata",
+          "aliases": [
+            "pwdata_i"
+          ]
+        },
+        {
+          "role": "pstrb",
+          "aliases": [
+            "pstrb_i"
+          ]
+        },
+        {
+          "role": "pready",
+          "aliases": [
+            "pready_o"
+          ]
+        },
+        {
+          "role": "prdata",
+          "aliases": [
+            "prdata_o"
+          ]
+        },
+        {
+          "role": "pslverr",
+          "aliases": [
+            "pslverr_o"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "uart.irq",
+      "function": "interrupt_source",
+      "fields": [
+        {
+          "role": "irq",
+          "aliases": [
+            "irq_o"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "uart.pins",
+      "function": "external_pins",
+      "fields": [
+        {
+          "role": "rx",
+          "direction": "input",
+          "aliases": [
+            "uart_rx_i"
+          ]
+        },
+        {
+          "role": "tx",
+          "direction": "output",
+          "aliases": [
+            "uart_tx_o"
+          ]
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 12,
+    "data_width": 32,
+    "read": true,
+    "write": true,
+    "byte_enable": true,
+    "partial_write": true,
+    "has_error": true,
+    "max_wait_cycles": 16
+  },
+  "address": {
+    "window_size": 4096,
+    "alignment": 4096,
+    "registers": [
+      {
+        "name": "CTRL",
+        "offset": 0,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none",
+        "reset_value": 0,
+        "writable_bits": 255
+      },
+      {
+        "name": "STATUS",
+        "offset": 4,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "none"
+      },
+      {
+        "name": "TXDATA",
+        "offset": 8,
+        "width": 32,
+        "access": "wo",
+        "side_effect": "transmit_byte"
+      },
+      {
+        "name": "RXDATA",
+        "offset": 12,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "read_clears"
+      },
+      {
+        "name": "IRQ_STATUS",
+        "offset": 16,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "write_1_to_clear",
+        "writable_bits": 1,
+        "clears_register": "IRQ_STATUS"
+      }
+    ]
+  },
+  "interrupts": [
+    {
+      "endpoint_id": "uart.irq",
+      "role": "irq",
+      "trigger": "level",
+      "polarity": "active_high",
+      "clock_domain": "core",
+      "hold": "irq_o stays high while IRQ_STATUS[0] is set and CTRL[1] enables the interrupt.",
+      "clear": "Write 1 to IRQ_STATUS[0] (offset 0x10); reading RXDATA only clears the receive-valid state, not the interrupt latch."
+    }
+  ],
+  "port_actions": [],
+  "evidence": {
+    "semantics": [
+      "Register map, byte offsets and side effects were read from examples/soc_generation/rtl/novauart.sv.",
+      "APB4 access attributes come from src/myfuzz/protocols/plugins/apb4.json.",
+      "pready_o is tied high, so every accepted APB transfer completes in the first ACCESS cycle; pslverr_o is driven for offsets outside the documented register map.",
+      "Optional register declarations added for the generated software phase: reset_value is the register's post-reset value (ctrl_q resets to 0); writable_bits is the mask the RTL really stores, because the register is declared 32 bits wide while the RTL keeps ctrl_q[7:0] and irq_pending_q (bit 0 only); clears_register names the declared register whose value proves a clearing access took effect (writing 1 to IRQ_STATUS[0] clears irq_pending_q, which IRQ_STATUS itself exposes). RXDATA declares no clears_register: novauart.sv clears rx_valid_q on a RXDATA read, and no declared register exposes rx_valid_q, so the generator records that as a coverage note instead of inventing a probe."
+    ],
+    "verified": [
+      "Physical ports and widths come from verilator elaboration of the pinned novauart.sv.",
+      "APB behaviour is a direct implementation of the documented register decode; no independent bus-level run evidence exists yet."
+    ],
+    "unknown": [
+      "UART serial framing (baud rate, stop bits) is not modelled and is not claimed."
+    ]
+  }
+}

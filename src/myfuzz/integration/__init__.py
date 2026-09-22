@@ -55,6 +55,13 @@ from .soc_campaign import (
     preflight_soc_campaign,
     run_soc_campaign,
 )
+from .soc_comparison import (
+    ARM_NAMES,
+    COMPARISON_SCHEMA,
+    SocComparisonError,
+    compare_soc_campaign_arms,
+    replay_official_corpus_arms,
+)
 from .soc_coverage import (
     COVERAGE_SCHEMA,
     CoveragePoint,
@@ -112,6 +119,11 @@ __all__ = [
     "SocCampaignSoftwareTrap",
     "preflight_soc_campaign",
     "run_soc_campaign",
+    "ARM_NAMES",
+    "COMPARISON_SCHEMA",
+    "SocComparisonError",
+    "compare_soc_campaign_arms",
+    "replay_official_corpus_arms",
     "COVERAGE_SCHEMA",
     "CoveragePoint",
     "SocCoverageError",

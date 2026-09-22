@@ -274,7 +274,7 @@ class ProcessorExecutionTests(unittest.TestCase):
             [
                 ("obi-to-processor-memory-beat", "obi_processor_memory_adapter", "src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv"),
                 ("axi4-to-processor-memory-beat", "axi4_processor_memory_adapter", "src/myfuzz/protocols/rtl/axi4_processor_memory_adapter.sv"),
-                ("tl-ul-to-processor-memory-beat", "tl_ul_processor_memory_adapter", "src/myfuzz/protocols/rtl/tl_ul_processor_memory_adapter.sv"),
+                ("tl-ul-to-processor-memory-beat", "tl_ul_processor_memory_adapter_sideband", "src/myfuzz/protocols/rtl/tl_ul_processor_memory_adapter.sv"),
             ],
             selections,
         )

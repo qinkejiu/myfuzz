@@ -1,0 +1,41 @@
+# 自动组合支持能力记录
+
+2026-09-22 阶段 0 二次复核：当前代码的相关纯测试为 `47 passed, 25 skipped`（真实 RTL 开关未启用），SPI 注入/多源 latch/SPI 线级真实套件为 `15 passed, 0 skipped`，独立代码复审通过。离线确认现要求重建完整计划、对比重建变异版与保存证据的完整 replay 字段，并检查声明 include 根目录在编译前后的可观测漂移。确认仍限于受信任规范/夹具下的受控 SPI 注入；不证明不可变编译快照或任意未知组件缺陷。下方较早的测试数字与工具缺失记载均为历史记录；阶段 4 的工具状态以其最新记录为准。
+
+2026-09-22 阶段 2+3+4 复核验证：阶段 2 四个模块 `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest -q tests.integration.test_soc_peer_uart_oracle tests.integration.test_soc_peer_spi_modes tests.integration.test_soc_peer_gpio_contract tests.integration.test_soc_peer_replay_binding` 纯 197 通过 / 90 按依赖跳过，`MYFUZZ_SOC_REAL=1` 0 跳过通过；阶段 3 三个模块 `test_soc_irq_sample_matrix`(13) `test_soc_irq_trigger_negatives`(44) `test_soc_irq_evidence_package`(23) 全部真实通过；阶段 4 `MYFUZZ_SOC_REAL=1 tests.integration.test_soc_profile_rfuzz_campaign` 通过（197 秒，`status=completed_with_client_termination`、`evidence_missing=[]`、`corpus.status=verified` 3 条、`replay.status=passed`、`cleanup.status=clean`、4096 条 receipt、26422 次测试、13153 条覆盖记录、`source_transactions=26422`、`target_transactions>0`），`test_soc_official_corpus_replay`/`test_soc_campaign_arms`/`test_soc_campaign_comparison` 28 个真实用例通过。工具身份：官方 RFuzz 客户端 `kfuzz 0.1.0`（`runs/rfuzz_client_native_build/target/debug/kfuzz`，源码 <https://github.com/timothytrippel/rfuzz>）、bundled Verilator `Verilator 5.020 2024-01-01 rev UNKNOWN.REV (mod)`（`third_party/rfuzz/upstream/.tools/apt-root/usr/bin/verilator`，由 <https://github.com/verilator/verilator> v5.020 源码构建）。阶段 0+1 的结论保持：30 纯 + 288 纯 / 66 跳过 + 全量真实套件 0 跳过通过。`git diff --check` 干净。
+2026-09-22 阶段 0+1 复核验证：纯测试 `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest -q tests.integration.test_soc_input_arms_projection tests.integration.test_soc_input_transport_ab tests.integration.test_soc_input_chain_report tests.integration.test_soc_input_real_rtl_gate tests.integration.test_soc_input_stale_identity_refusals tests.integration.test_soc_input_event_refusals tests.integration.test_soc_input_repair_runtime tests.integration.test_soc_dependency_replay tests.composition.test_soc_input_repair tests.composition.test_soc_image tests.integration.test_soc_campaign_arms tests.integration.test_soc_campaign_comparison` 共 288 个通过、66 个按依赖跳过；`MYFUZZ_SOC_REAL=1` 全量真实套件（同前八项）0 跳过通过；阶段 0 的 `test_soc_defect_confirmation` + `test_soc_offline_defect_confirmation` 30 个通过；`git diff --check` 干净。工具身份：Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67（`~/.local/bin/verilator`，sha256 `fb2cc573…fcdf`）、Icarus Verilog 14.0 devel f493076（`~/.local/bin/iverilog`，sha256 `9b3f0a69…be6a`）。bundled RFuzz Verilator 5.020 仍缺失，因此 `test_soc_profile_rfuzz_build`/`test_soc_campaign_arms` 的 profile-build 用例保持 skip，这些结果不构成官方 campaign 验收。保存结果的哈希仅验证记录完整性。
+2026-09-22 阶段 0 复核验证：`PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest -q tests.integration.test_soc_defect_confirmation tests.integration.test_soc_offline_defect_confirmation` 共 30 个通过、0 跳过、1.882 秒；`MYFUZZ_SOC_REAL=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 -m unittest -v tests.integration.test_soc_defect_injection_real tests.integration.test_soc_multi_latch_fault tests.integration.test_soc_spi_wire_oracle` 共 15 个通过、0 跳过（SPI 注入 2、多源 latch 5、线级判据 8，304.851 秒）；`git diff --check` 干净。工具身份：Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67（`~/.local/bin/verilator`，sha256 `fb2cc573…fcdf`）、Icarus Verilog 14.0 devel f493076（`~/.local/bin/iverilog`，sha256 `9b3f0a69…be6a`）。本次定向验证没有工具阻塞。bundled RFuzz Verilator 5.020 仍缺失，因此 `test_soc_profile_rfuzz_build` 的 17 个 profile-build 用例保持 skip，这些结果不构成官方 campaign 验收。保存结果的哈希仅验证记录完整性。
+
+2026-09-21 离线复核迁移验证：`PYTHONPATH=src python3 -m unittest -q tests.integration.test_soc_defect_confirmation tests.integration.test_soc_offline_defect_confirmation` 共 25 个通过、0 跳过；`MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest -v tests.integration.test_soc_defect_injection_real tests.integration.test_soc_multi_latch_fault tests.integration.test_soc_spi_wire_oracle` 共 15 个通过、0 跳过（SPI 注入 2、多源 latch 5、线级判据 8，76.264 秒）。本次定向 Verilator/Icarus 验证没有工具阻塞；官方 RFuzz 的固定工具依赖缺口仍然存在，这些结果不构成官方 campaign 验收。保存结果的哈希仅验证记录完整性。
+
+更新日期：2026-09-21。本文只记录代码和回归已经证明的范围；profile 能描述但没有独立证据的能力仍列为缺口。没有按组件型号选择接线的分支，所有已支持路径都经过同一套 profile、协议适配、计划、渲染和结构审计。
+
+尚未完成的实现、环境和验收任务集中维护在 [`soc-remaining-implementation-20260921.md`](soc-remaining-implementation-20260921.md)；本文不把“明确拒绝”或“环境缺失”写成已实现能力。
+
+已验证的生成能力：
+
+- `component_profile.v1` 能绑定用户提供的 CPU/外设 RTL 与真实 elaboration 事实，检查顶层、方向、宽度、数组/结构成员、时钟复位和端口 disposition；首次出现的组件不需要修改生成器注册表或增加型号专用接线代码。
+- 已验证 Ibex、Nova 示例、PULP、ZipCPU 和 OpenTitan 外设 profile 的端口台账、地址/权限/寄存器证据及独立展开路径。OpenTitan UART/GPIO 的 TL-UL `tl_i/tl_o` 结构成员、`a_user/d_user/d_error` 和真实宽度已经绑定并复核。
+- CVA6 profile 已完成 pinned 闭包、45 个 AXI4 结构成员、13 个顶层端口和 8416 个 elaborated bits 的绑定与审计。64-bit AXI4 master 仍被生产组合范围明确拒绝：`unsupported-master-data-width:...:only-32-bit-is-composed`；绕过该策略的结构渲染仅是诊断证据，不是已支持的 CVA6 SoC。
+- OBI、AXI4、AXI4-Lite、TL-UL、Wishbone classic、APB3/APB4 等已声明子集的通用适配和错误路径有定向回归。TL-UL 可选 user/integrity sideband 只在 endpoint 声明时加入适配器端口，旧的最小 endpoint 行为保持不变；必要语义缺失时拒绝，不随机绑线。
+- ROM/RAM、地址译码、未映射访问、写 ROM、权限错误、响应等待和必要的响应归属均进入计划/审计；端口全部有功能连接、合法常量、顶层导出、observe 或有依据的显式不连接记录。
+- 同域时钟/复位和复位序列检查已接入 scope/adapter 审计；跨时钟域输入明确拒绝，当前没有伪造同步器或 CDC 自动接线。
+- 中断路径已经覆盖：level 直接采样；同域 `pulse` 直接接入并由 `LATCH_MASK` 保存；`rising_edge`、`falling_edge`、`both_edges` 经 `soc_irq_edge_detect` 转为单周期脉冲并设置对应 latch。控制器默认仍是旧的纯电平 pending；latch 位按“置位优先、仅 CLAIM 清除”工作。只接受 CPU 的 `machine_external` 入口，timer/software、supervisor、user、NMI、debug、machine-local 以及跨域逐项拒绝并保留原因。
+- 中断证据包括 7 组边沿转换器参数、非法参数和坏转换器负例，4 组 controller latch 掩码、忽略掩码负例，20 组触发/拒绝/故障注入，以及真实 Ibex + Verilator 的 edge→pending→CLAIM→ISR→清除→COMPLETE 闭环和去掉 latch 的负例。
+- 特殊输入的 raw layout、范围/枚举/掩码/对齐投影、所有权和重放身份已经接入生成路径；有限的单指令/单数据镜像、ISA 合法性、地址/权限与寄存器前置修复已实现并记录修复/拒绝计数。完整跨记录程序依赖和任意 ISA 仍不在支持范围。
+- BFM 隔离/竞争模式有生成、归属、复位保持和故障注入证据；这不等于 RFuzz 语料已经能够携带合成主接口输入，也不把 BFM 访问计为 CPU 执行覆盖。
+- UART/SPI/GPIO peer RTL 有独立 lint/RTL 回归；新 profile RFuzz artifact 已将 peer 请求字段接入 per-cycle raw layout、persistent testbench 和 source closure，并检查 pulse slot 最小间隔。raw ABI 事件证据可持久化及重放；`soc_peer_oracle.v1` 独立检查事件传输与 UART 发送忙窗口。SPI 四线现在按已解析角色绑定记录，单字判据根据实际 CPU TXDATA 总线写入和 peer arm 比较 MOSI/MISO；真实正例与注入组件缺陷分别得到 pass/mismatch，轨迹与请求进入 EvidencePackage replay。UART 接收/framing/timeout、GPIO 电气解析仍为 `not_assessed`，PULP GPIO 电气双向未建模。
+- profile 构建可使用内容寻址缓存；独立 `soc_structure_audit.v1` 在返回和缓存命中时重新核对源闭包、连接、参数和身份。
+- RFuzz 生产接入代码已经闭环：resolver 固定客户端/Verilator 身份，profile builder 使用同一工具环境和缓存身份，`run_soc_campaign` 在构建前拒绝未认证工具并把有效环境传给 builder/live runner；报告只发布工具身份与环境哈希，不发布完整环境值。官方单臂 raw corpus 还可通过 `replay_official_corpus_arms` 在同一 executable/layout/source/tool identity 下做三 projector 重放，并拒绝 seeded/unverified corpus 或身份漂移。
+
+当前明确缺口和边界：
+
+- 本机仍没有官方 RFuzz 客户端 `kfuzz` 和 bundled Verilator 5.020，因此没有真实官方变异器搜索证据；当前可运行的三臂证据仍是 `seeded-corpus-real-rtl`。生产单臂接线和“官方语料三臂重放”入口已实现，但必须在固定依赖环境中实际运行后才能宣称 RFuzz campaign 完成。BFM 合成主接口仍不属于 RFuzz 语料范围。
+- 真实 UART/SPI/GPIO 对端已经进入新生成 profile 的顶层、per-cycle raw ABI 和 corpus 事件重放闭环。SPI 的已准入单字传输有线级证据及独立判据；多字/异常时序、UART framing/timeout、GPIO 电气双向及默认输入的运行时判据仍未完成，缺证据时只能列为 `not_assessed`。PULP GPIO 的真实电气双向行为未建模。
+- 多源中断已有真实 Ibex + 双 novagpio、Ibex + UART peer + GPIO 和 Ibex + SPI peer + GPIO 运行证据：同周期与 staggered 事件覆盖 source ID、ISR、profile 清除和 COMPLETE。UART RX enable 与 SPI TXDATA/CTRL 均通过通用 profile 动作设置。双源 edge+level 的 source-specific latch 缺失注入显示 level 源仍被处理、edge 源丢失；证据可重放且分类为组合缺陷。持续多源 campaign、其他 trigger 的多源故障注入仍未完成。
+- `all_sources_closed` 是软件完成次数汇总，不是独立的 ID↔外设映射证明。真实源 ID 置换在同周期输入下可使该字段为 1；错开输入则暴露未闭环，结构审计明确拒绝置换后的 `interrupt_paths`。确认组件缺陷必须要求结构审计通过并与证据包的顶层哈希相符。
+- CVA6 的结构 profile/审计完成，但 64-bit master、结构体适配和 64→32 生产组合仍拒绝；OpenTitan TL-UL 的 profile/成员绑定完成，Ibex + OpenTitan 新组合与完整端到端行为仍需单独留出验证。
+- 首期是单核、单时钟域、单未完成事务、非 DMA 的受支持子集；不覆盖多核一致性、CDC、复杂时钟切换、多 outstanding/乱序/burst 完整语义、外设主动 DMA 或真实电气层。
+- 已知 SPI 组件 RTL 注入由 `confirm_component_offline` 重跑基线/变异 SoC、变异 replay、两份结构审计及独立 APB 夹具后确认，而仅删除 latch 位的连接错误仍为 `composition_defect`。旧自报映射入口保持 `component_candidate` / `offline-verification-required`。记录包含规范、源码差分、构建内容哈希及各次复核证据；保存 JSON 校验只返回 `record-integrity-only`。这是受信任规范/夹具前提下的受控注入验证，不是自然未知 bug 的发现，也不自动支持任意组件。
+
+环境说明：全量回归（2641 个用例）中依赖 RFuzz bundled Verilator 5.020 的既有用例在本机因工具缺失产生 2 个失败和 10 个错误，另有 155 个环境条件跳过；真实 RFuzz coverage/campaign 还缺 `kfuzz`，PicoRV32 留出运行用例还缺参考 RTL。本机安装的 Verilator 5.051-devel 不能替代固定的 5.020 工具身份。这些失败不应被写成组件或新组合路径失败。

@@ -18,3 +18,19 @@ temp/
 /runs/
 /artifacts/
 /.worktrees/
+
+# Local development inputs and generated evidence; keep these on disk.
+/.downloads/
+/.myfuzz-*/
+**/.myfuzz-elaboration-*/
+/camp-*/
+/archive/
+/deliverables/
+/trace_hart_0.dasm
+/third_party/rfuzz/upstream/.tools/
+/third_party/rfuzz/upstream/rfuzz_reference/results/
+/third_party/rfuzz/upstream/rfuzz_reference/fuzzer/logs/
+# Only the RFuzz client source is vendored; the rest of this local reference
+# checkout is retained locally, not mirrored into this repository.
+/third_party/rfuzz/upstream/rfuzz_reference/*
+!/third_party/rfuzz/upstream/rfuzz_reference/fuzzer/

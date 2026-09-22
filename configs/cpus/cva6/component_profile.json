@@ -1,0 +1,881 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "cva6",
+  "kind": "cpu",
+  "description": "Real OpenHW Group CVA6 (cva6) at the pinned revision, built as the cv64a6_imafdc_sv39 configuration, composed as one AXI4 memory master plus the machine-external interrupt entry. The AXI4 master is packed into the two top-level struct ports noc_req_o (AW+W+AR, 470 bits) and noc_resp_i (B+R, 210 bits), so each of the 45 protocol roles is declared as its own role on its own member with the elaborated bit range recorded as a checked claim. Debug entry, the timer, the software interrupt, the second external interrupt bit, the CVXIF coprocessor response and the RVFI probe bundle have no in-SoC producer in this composition and are held at their declared inactive values or left open under the RTL's own contract; see evidence.unknown for what that costs.",
+  "source": {
+    "root": "third_party/cva6_upstream_reference",
+    "revision": "git:2e1336dcff3d1a0b49fbe6282b97802f32ea32af",
+    "top_module": "cva6",
+    "filelist": "core/Flist.cva6",
+    "filelist_variables": [
+      {
+        "name": "CVA6_REPO_DIR",
+        "value": "."
+      },
+      {
+        "name": "HPDCACHE_DIR",
+        "value": "core/cache_subsystem/hpdcache"
+      },
+      {
+        "name": "TARGET_CFG",
+        "value": "cv64a6_imafdc_sv39"
+      }
+    ],
+    "repositories": [
+      {
+        "path": "core/cache_subsystem/hpdcache",
+        "revision": "git:f404e7ebbda8baa4af3729535f520a6b12a06d03"
+      },
+      {
+        "path": "core/cvfpu",
+        "revision": "git:3eb6afeab2cb33f7d8689222955d0171aeb3a801"
+      },
+      {
+        "path": "core/cvfpu/src/fpu_div_sqrt_mvp",
+        "revision": "git:86e1f558b3c95e91577c41b2fc452c86b04e85ac"
+      }
+    ],
+    "include_roots": [
+      "core/include",
+      "vendor/pulp-platform/common_cells/include",
+      "vendor/pulp-platform/common_cells/src",
+      "vendor/pulp-platform/axi/include",
+      "common/local/util",
+      "core/cache_subsystem/hpdcache/rtl/src/utils/ecc",
+      "core/cache_subsystem/hpdcache/rtl/include"
+    ],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [
+    {
+      "port": "clk_i",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "rst_ni",
+      "domain": "sys_rst",
+      "polarity": "active_low",
+      "synchronous": false,
+      "release": "rst_ni is the single active-low asynchronous reset of cva6 (core/cva6.sv:325) and is distributed to every submodule that takes a reset; deassertion must satisfy clk_i recovery/removal timing. The core leaves reset fetching from boot_addr_i (core/frontend/frontend.sv:359-365), so the reset vector is the declared boot_addr_i constant, not a value the core invents."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "processor.memory.unified",
+      "function": "memory_master",
+      "protocol": [
+        "axi4",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "araddr",
+          "width": 64,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "ar",
+              "addr"
+            ],
+            "bit_range": [
+              95,
+              158
+            ]
+          }
+        },
+        {
+          "role": "arburst",
+          "width": 2,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "ar",
+              "burst"
+            ],
+            "bit_range": [
+              82,
+              83
+            ]
+          }
+        },
+        {
+          "role": "arcache",
+          "width": 4,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "ar",
+              "cache"
+            ],
+            "bit_range": [
+              77,
+              80
+            ]
+          }
+        },
+        {
+          "role": "arid",
+          "width": 4,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "ar",
+              "id"
+            ],
+            "bit_range": [
+              159,
+              162
+            ]
+          }
+        },
+        {
+          "role": "arlen",
+          "width": 8,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "ar",
+              "len"
+            ],
+            "bit_range": [
+              87,
+              94
+            ]
+          }
+        },
+        {
+          "role": "arlock",
+          "width": 1,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "ar",
+              "lock"
+            ],
+            "bit_range": [
+              81,
+              81
+            ]
+          }
+        },
+        {
+          "role": "arprot",
+          "width": 3,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "ar",
+              "prot"
+            ],
+            "bit_range": [
+              74,
+              76
+            ]
+          }
+        },
+        {
+          "role": "arqos",
+          "width": 4,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "ar",
+              "qos"
+            ],
+            "bit_range": [
+              70,
+              73
+            ]
+          }
+        },
+        {
+          "role": "arready",
+          "width": 1,
+          "physical": {
+            "port": "noc_resp_i",
+            "member_path": [
+              "ar_ready"
+            ],
+            "bit_range": [
+              208,
+              208
+            ]
+          }
+        },
+        {
+          "role": "arregion",
+          "width": 4,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "ar",
+              "region"
+            ],
+            "bit_range": [
+              66,
+              69
+            ]
+          }
+        },
+        {
+          "role": "arsize",
+          "width": 3,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "ar",
+              "size"
+            ],
+            "bit_range": [
+              84,
+              86
+            ]
+          }
+        },
+        {
+          "role": "aruser",
+          "width": 64,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "ar",
+              "user"
+            ],
+            "bit_range": [
+              2,
+              65
+            ]
+          }
+        },
+        {
+          "role": "arvalid",
+          "width": 1,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "ar_valid"
+            ],
+            "bit_range": [
+              1,
+              1
+            ]
+          }
+        },
+        {
+          "role": "awaddr",
+          "width": 64,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "aw",
+              "addr"
+            ],
+            "bit_range": [
+              402,
+              465
+            ]
+          }
+        },
+        {
+          "role": "awatop",
+          "width": 6,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "aw",
+              "atop"
+            ],
+            "bit_range": [
+              367,
+              372
+            ]
+          }
+        },
+        {
+          "role": "awburst",
+          "width": 2,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "aw",
+              "burst"
+            ],
+            "bit_range": [
+              389,
+              390
+            ]
+          }
+        },
+        {
+          "role": "awcache",
+          "width": 4,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "aw",
+              "cache"
+            ],
+            "bit_range": [
+              384,
+              387
+            ]
+          }
+        },
+        {
+          "role": "awid",
+          "width": 4,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "aw",
+              "id"
+            ],
+            "bit_range": [
+              466,
+              469
+            ]
+          }
+        },
+        {
+          "role": "awlen",
+          "width": 8,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "aw",
+              "len"
+            ],
+            "bit_range": [
+              394,
+              401
+            ]
+          }
+        },
+        {
+          "role": "awlock",
+          "width": 1,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "aw",
+              "lock"
+            ],
+            "bit_range": [
+              388,
+              388
+            ]
+          }
+        },
+        {
+          "role": "awprot",
+          "width": 3,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "aw",
+              "prot"
+            ],
+            "bit_range": [
+              381,
+              383
+            ]
+          }
+        },
+        {
+          "role": "awqos",
+          "width": 4,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "aw",
+              "qos"
+            ],
+            "bit_range": [
+              377,
+              380
+            ]
+          }
+        },
+        {
+          "role": "awready",
+          "width": 1,
+          "physical": {
+            "port": "noc_resp_i",
+            "member_path": [
+              "aw_ready"
+            ],
+            "bit_range": [
+              209,
+              209
+            ]
+          }
+        },
+        {
+          "role": "awregion",
+          "width": 4,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "aw",
+              "region"
+            ],
+            "bit_range": [
+              373,
+              376
+            ]
+          }
+        },
+        {
+          "role": "awsize",
+          "width": 3,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "aw",
+              "size"
+            ],
+            "bit_range": [
+              391,
+              393
+            ]
+          }
+        },
+        {
+          "role": "awuser",
+          "width": 64,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "aw",
+              "user"
+            ],
+            "bit_range": [
+              303,
+              366
+            ]
+          }
+        },
+        {
+          "role": "awvalid",
+          "width": 1,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "aw_valid"
+            ],
+            "bit_range": [
+              302,
+              302
+            ]
+          }
+        },
+        {
+          "role": "bid",
+          "width": 4,
+          "physical": {
+            "port": "noc_resp_i",
+            "member_path": [
+              "b",
+              "id"
+            ],
+            "bit_range": [
+              202,
+              205
+            ]
+          }
+        },
+        {
+          "role": "bready",
+          "width": 1,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "b_ready"
+            ],
+            "bit_range": [
+              163,
+              163
+            ]
+          }
+        },
+        {
+          "role": "bresp",
+          "width": 2,
+          "physical": {
+            "port": "noc_resp_i",
+            "member_path": [
+              "b",
+              "resp"
+            ],
+            "bit_range": [
+              200,
+              201
+            ]
+          }
+        },
+        {
+          "role": "buser",
+          "width": 64,
+          "physical": {
+            "port": "noc_resp_i",
+            "member_path": [
+              "b",
+              "user"
+            ],
+            "bit_range": [
+              136,
+              199
+            ]
+          }
+        },
+        {
+          "role": "bvalid",
+          "width": 1,
+          "physical": {
+            "port": "noc_resp_i",
+            "member_path": [
+              "b_valid"
+            ],
+            "bit_range": [
+              206,
+              206
+            ]
+          }
+        },
+        {
+          "role": "rdata",
+          "width": 64,
+          "physical": {
+            "port": "noc_resp_i",
+            "member_path": [
+              "r",
+              "data"
+            ],
+            "bit_range": [
+              67,
+              130
+            ]
+          }
+        },
+        {
+          "role": "rid",
+          "width": 4,
+          "physical": {
+            "port": "noc_resp_i",
+            "member_path": [
+              "r",
+              "id"
+            ],
+            "bit_range": [
+              131,
+              134
+            ]
+          }
+        },
+        {
+          "role": "rlast",
+          "width": 1,
+          "physical": {
+            "port": "noc_resp_i",
+            "member_path": [
+              "r",
+              "last"
+            ],
+            "bit_range": [
+              64,
+              64
+            ]
+          }
+        },
+        {
+          "role": "rready",
+          "width": 1,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "r_ready"
+            ],
+            "bit_range": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "role": "rresp",
+          "width": 2,
+          "physical": {
+            "port": "noc_resp_i",
+            "member_path": [
+              "r",
+              "resp"
+            ],
+            "bit_range": [
+              65,
+              66
+            ]
+          }
+        },
+        {
+          "role": "ruser",
+          "width": 64,
+          "physical": {
+            "port": "noc_resp_i",
+            "member_path": [
+              "r",
+              "user"
+            ],
+            "bit_range": [
+              0,
+              63
+            ]
+          }
+        },
+        {
+          "role": "rvalid",
+          "width": 1,
+          "physical": {
+            "port": "noc_resp_i",
+            "member_path": [
+              "r_valid"
+            ],
+            "bit_range": [
+              135,
+              135
+            ]
+          }
+        },
+        {
+          "role": "wdata",
+          "width": 64,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "w",
+              "data"
+            ],
+            "bit_range": [
+              238,
+              301
+            ]
+          }
+        },
+        {
+          "role": "wlast",
+          "width": 1,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "w",
+              "last"
+            ],
+            "bit_range": [
+              229,
+              229
+            ]
+          }
+        },
+        {
+          "role": "wready",
+          "width": 1,
+          "physical": {
+            "port": "noc_resp_i",
+            "member_path": [
+              "w_ready"
+            ],
+            "bit_range": [
+              207,
+              207
+            ]
+          }
+        },
+        {
+          "role": "wstrb",
+          "width": 8,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "w",
+              "strb"
+            ],
+            "bit_range": [
+              230,
+              237
+            ]
+          }
+        },
+        {
+          "role": "wuser",
+          "width": 64,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "w",
+              "user"
+            ],
+            "bit_range": [
+              165,
+              228
+            ]
+          }
+        },
+        {
+          "role": "wvalid",
+          "width": 1,
+          "physical": {
+            "port": "noc_req_o",
+            "member_path": [
+              "w_valid"
+            ],
+            "bit_range": [
+              164,
+              164
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "endpoint_id": "processor.interrupts",
+      "function": "interrupt_entry",
+      "fields": [
+        {
+          "role": "machine_external",
+          "aliases": [
+            "irq_i"
+          ],
+          "bit_range": [
+            0,
+            0
+          ],
+          "direction": "input"
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 64,
+    "data_width": 64,
+    "id_width": 4,
+    "user_width": 64,
+    "max_outstanding": 1,
+    "byte_enable": true,
+    "error_response": true,
+    "bursts": false,
+    "evidence": "Widths are the pinned configuration constants, read from core/include/cv64a6_imafdc_sv39_config_pkg.sv: CVA6ConfigAxiAddrWidth = 64 (line 33), CVA6ConfigAxiDataWidth = 64 (line 34), CVA6ConfigAxiIdWidth = 4 (line 32) and AxiUserWidth = CVA6ConfigDataUserWidth = CVA6ConfigXlen = 64 (lines 38, 90). The elaborated noc_req_o/noc_resp_i members agree with every one of them: aw.id/ar.id are 4 bits, aw.addr/ar.addr are 64, w.data/r.data are 64, w.strb is 8 (= data_width/8) and aw.user/w.user/ar.user/b.user/r.user are 64. address_width/data_width are the fabric widths soc_composition builds the arbiter, the router and the memory model with; id_width/user_width are the AXI4 adapter's ID_WIDTH/USER_WIDTH parameters, which soc_composition now takes from the profile instead of leaving at the module defaults, and every role is then checked against the adapter's real elaborated port width (cpu-adapter-width-incompatible). max_outstanding is 1 because the composed beat backend and its arbiter admit exactly one outstanding transaction; CVA6 itself allows an unaligned access to occupy two outstanding data transactions (core/load_store_unit.sv), which this single-outstanding fabric deliberately does not admit - a composition limit, not a claim about the core. bursts is false for the same reason: the AXI4 adapter refuses any burst longer than one beat (axi4_processor_memory_adapter.sv), and CVA6's two-beat instruction fetch is therefore not admitted by this fabric, so declaring burst support would be a lie. byte_enable is w.strb (the adapter passes it through as the beat byte enable) and error_response is the adapter's rresp/bresp-to-rsp_error path: a DECERR/SLVERR completion becomes the beat backend's error response."
+  },
+  "cpu": {
+    "family": "riscv",
+    "xlen": 64,
+    "extensions": [
+      "i",
+      "m",
+      "a",
+      "f",
+      "d",
+      "c"
+    ],
+    "reset_vector": 65536,
+    "master_endpoints": [
+      "processor.memory.unified"
+    ],
+    "irq_entry_endpoint": "processor.interrupts",
+    "irq_entry_role": "machine_external",
+    "irq_entry_polarity": "active_high",
+    "irq_semantics": "machine_external",
+    "boot_address_required": true
+  },
+  "port_actions": [
+    {
+      "port": "boot_addr_i",
+      "action": "constant",
+      "value": 65536,
+      "reason": "Reset fetch address. core/frontend/frontend.sv:359-365 loads npc_d and fetch_address from boot_addr_i on the first cycle out of reset, so the composed boot image must start exactly there. 65536 (0x10000) is this profile's declared cpu.reset_vector and the base of the rom0 window every CVA6 composition request in this repository declares (examples/soc_generation/request-cva6.json), so the first fetch lands on the first byte of the ROM."
+    },
+    {
+      "port": "hart_id_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "Hart identity, read back as CSR_MHARTID (core/csr_regfile.sv:693). This composition instantiates exactly one hart, so the single-hart identity 0 is the only correct value."
+    },
+    {
+      "port": "ipi_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "Machine software interrupt, registered into mip as mip_d[riscv::IRQ_M_SOFT] = CVA6Cfg.SoftwareInterruptEn && ipi_i (core/csr_regfile.sv:2075). No CLINT or inter-processor source exists in this composition, so the input is held at its inactive level."
+    },
+    {
+      "port": "time_irq_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "Machine timer interrupt, mip_d[riscv::IRQ_M_TIMER] = time_irq_i (core/csr_regfile.sv:2077). No timer source is composed, so the input is held inactive; the composition's only interrupt entry is the machine-external bit."
+    },
+    {
+      "port": "debug_req_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "External debug request (core/csr_regfile.sv:2661 enters debug mode on a high level). This profile declares no debug endpoint: a debug transport would need a debug_slave protocol contract the composition does not provide, so debug entry is held disabled rather than driven by an invented model."
+    },
+    {
+      "port": "irq_i",
+      "action": "constant",
+      "value": 0,
+      "bits": [
+        1
+      ],
+      "reason": "irq_i[1] is the supervisor-external interrupt: it participates in the interrupt decision at core/csr_regfile.sv:2661 and is reported as IRQ_S_EXT at core/csr_regfile.sv:2724-2729. This profile's only declared entry is the machine-external bit (irq_i[0], mip_d[riscv::IRQ_M_EXT] = irq_i[0], core/csr_regfile.sv:2073), and the generated interrupt controller drives exactly one entry, so the supervisor bit is held inactive and the decomposition of irq_i into a driven bit and a held bit is explicit."
+    },
+    {
+      "port": "cvxif_resp_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "CVXIF coprocessor response. The pinned configuration has CvxifEn = 1 (core/include/cv64a6_imafdc_sv39_config_pkg.sv:22) with EnableAccelerator = 0, so cva6 forwards the core's x_* request signals to cvxif_req_o and takes every ready/response from the response port (core/cva6.sv:830-851). No coprocessor is instantiated here and the declared ISA extensions are i/m/a/f/d/c - there is no custom instruction to issue - so the whole response struct is held at its inactive (all-zero) value: every ready is deasserted and no result is returned. Behaviour reachable only through a real coprocessor is therefore out of this composition's coverage."
+    },
+    {
+      "port": "cvxif_req_o",
+      "action": "observe",
+      "reason": "CVXIF coprocessor request, driven by cva6 itself (core/cva6.sv:851,1747). It is a component output with no in-SoC consumer (cvxif_resp_i is held inactive), so the generated SoC exports it for passive monitoring only."
+    },
+    {
+      "port": "rvfi_probes_o",
+      "action": "unconnected",
+      "protocol": [
+        "cva6-rvfi-probes",
+        "1"
+      ],
+      "reason": "RVFI instruction-retirement probe bundle (6974 bits, 88 members). The RTL declares the contract in its own port comment: 'Probes to build RVFI, can be left open when not used - RVFI' (core/cva6.sv:339). No RVFI monitor is instantiated in this composition, so the bundle is left open under that declared contract; every bit of it is recorded as a coverage loss rather than being exported as a 6974-bit top-level port nothing observes."
+    }
+  ],
+  "evidence": {
+    "semantics": [
+      "Port facts, read from the pinned closure: cva6 declares exactly 13 top-level ports (clk_i, rst_ni, boot_addr_i, hart_id_i, irq_i, ipi_i, time_irq_i, debug_req_i, rvfi_probes_o, cvxif_req_o, cvxif_resp_i, noc_req_o, noc_resp_i; core/cva6.sv:323-347) and every one of them is declared here: two are bound to the clock and the reset, seventeen roles are bound into noc_req_o/noc_resp_i, one is the machine-external interrupt bit, and the remaining seven are port actions with a stated value, observation or contract.",
+      "The AXI4 master is packed, not flattened: noc_req_o is axi_pkg::noc_req_t, a packed struct of aw_t ({id, addr, len, size, burst, lock, cache, prot, qos, region, atop, user}), w_t ({data, strb, last, user}), aw_valid, w_valid, b_ready, ar_t and ar_valid, r_ready (470 bits, 32 members as the frontend reports them), and noc_resp_i is noc_resp_t of aw_ready, ar_ready, w_ready, b_t ({id, resp, user}), b_valid, r_t ({id, data, resp, last, user}), r_valid (210 bits, 13 members). Every role therefore names one member path, and the member's inclusive bit range is declared next to it as a checked claim (member-offset-conflict if the elaboration disagrees).",
+      "The 45 declared AXI4 roles are exactly the adapter's own source-port set: the 29 protocol fields of src/myfuzz/protocols/plugins/axi4.json plus the 16 sideband extension policies of src/myfuzz/composition/processor_adapters.py (_AXI4_EXTENSION_POLICIES). Declaring all 45 is what lets axi4_processor_memory_adapter be instantiated with every source port connected: a missing role would leave an adapter input floating.",
+      "Directions are checked, not assumed: every role of noc_req_o resolves to 'output' and every role of noc_resp_i to 'input', which is the direction of the struct port each member lives in, so the AXI4 host-to-device fields land on the output struct and the device-to-host fields on the input struct. The composed adapter's ID_WIDTH/USER_WIDTH are taken from the declared id_width/user_width capabilities and every role is then checked against the adapter's real elaborated port width.",
+      "The reset vector and boot contract, read from the RTL: boot_addr_i is the reset fetch address (core/frontend/frontend.sv:359-365), so it is declared as this profile's cpu.reset_vector = 65536 and the composition request places the boot ROM at exactly that base. hart_id_i is CSR_MHARTID (core/csr_regfile.sv:693) and is 0 because the composition is single-hart.",
+      "Interrupt semantics, read from the RTL: irq_i[0] is registered as mip_d[riscv::IRQ_M_EXT] (core/csr_regfile.sv:2073) and is the only entry this profile declares, level-sensitive and active high; ipi_i (IRQ_M_SOFT, csr_regfile.sv:2075) and time_irq_i (IRQ_M_TIMER, csr_regfile.sv:2077) have no source in the composition and are held inactive; irq_i[1] is the supervisor-external bit (csr_regfile.sv:2661,2724) and is held inactive for the same reason.",
+      "Capabilities: address_width=64, data_width=64, id_width=4 and user_width=64 are the pinned configuration constants CVA6ConfigAxiAddrWidth/CVA6ConfigAxiDataWidth/CVA6ConfigAxiIdWidth/AxiUserWidth (cv64a6_imafdc_sv39_config_pkg.sv:32-34,38,90) and agree with the elaborated member widths; max_outstanding=1 is the composed fabric's single-outstanding contract; byte_enable is w.strb and error_response is the adapter's rresp/bresp-to-error path."
+    ],
+    "verified": [
+      "The declared source is the pinned lock record for cva6 (configs/soc/sources.lock.json: root third_party/cva6_upstream_reference, revision git:2e1336dcff3d1a0b49fbe6282b97802f32ea32af, top_module cva6, filelist core/Flist.cva6 with the CVA6_REPO_DIR/HPDCACHE_DIR/TARGET_CFG variables and the three nested repository pins). resolve_cva6_source_closure verifies the root HEAD, each nested gitlink revision and the filelist expansion, and returns the 225-file ordered closure; the profile declares that same filelist rather than a copied file list, so there is one declaration of the closure.",
+      "The profile elaborates: elaborate_profile runs verilator --json-only over the closure and returns all 13 top-level ports with their member layouts; bind_profile resolves all 45 AXI4 roles plus the interrupt entry, the clock and the reset, and every declared member bit range is re-proved against the elaborated layout.",
+      "The port-disposition ledger classifies every elaborated port and every bit of it: 470+210 bits of the two struct ports are covered by the 45 roles, irq_i[0] by the interrupt entry and irq_i[1] by the declared constant, and each remaining port by exactly one port action.",
+      "Every declared capability is carried by a semantics entry above, and each one is either a pinned configuration constant or a declared composition limit."
+    ],
+    "unknown": [
+      "The CVXIF coprocessor interface is declared but not exercised: cvxif_resp_i is held at zero, so no coprocessor request/response handshake can complete and behaviour reachable only through a real coprocessor is not covered. The declared ISA extensions (i,m,a,f,d,c) contain no custom instruction, so no XIF instruction can be issued by a program built for this profile.",
+      "Debug mode is not covered: debug_req_i is held inactive and the profile declares no debug transport, so the debug-module entry path (core/csr_regfile.sv:2661) is unreachable in this composition.",
+      "Timer and software interrupts are not covered: ipi_i and time_irq_i are held inactive and irq_i[1] (supervisor external) is held inactive, because the composed interrupt controller drives exactly one entry (the machine-external bit).",
+      "The RVFI probe bundle is left open under the RTL's own 'can be left open when not used' contract; instruction-retirement coverage from RVFI probes is therefore a recorded coverage loss, not evidence.",
+      "AXI4 burst and atomic behaviour is outside this composition: the composed beat backend is single-beat (single_outstanding_fabric), arlen/awlen bursts longer than one beat are refused by the adapter, and awatop completes with an AXI error instead of performing the atomic operation. CVA6's two-beat instruction fetch is therefore not admitted by this fabric; a request that needs it must not claim it.",
+      "No CVA6 instruction was executed for this profile: the profile, its binding and its composition are verified (elaborate/bind/ledger/render/audit), while execution, replay and defect attribution belong to the runtime phases and are not claimed here."
+    ]
+  }
+}

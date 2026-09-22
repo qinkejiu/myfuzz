@@ -119,6 +119,24 @@ from .protocol_transducer import (
     ProcessorBeatTransducer,
     ProtocolState,
 )
+from .soc_boundary_replay import (
+    BOUNDARY_REPLAY_SCHEMA,
+    replay_boundary,
+    replay_boundary_document,
+)
+from .soc_peer_replay import (
+    PEER_RAW_REPLAY_SCHEMA,
+    PeerRawReplayError,
+    decode_peer_raw_events,
+    peer_event_hash,
+)
+from .soc_peer_oracle import (
+    PEER_ORACLE_SCHEMA,
+    PeerOracleError,
+    audit_peer_run,
+    gpio_resolution,
+    uart_tx_expectation,
+)
 
 __all__ = [
     "ContractRuntime",
@@ -130,6 +148,18 @@ __all__ = [
     "ProcessorBeatRequest",
     "ProcessorBeatTransducer",
     "ProtocolState",
+    "BOUNDARY_REPLAY_SCHEMA",
+    "replay_boundary",
+    "replay_boundary_document",
+    "PEER_RAW_REPLAY_SCHEMA",
+    "PeerRawReplayError",
+    "decode_peer_raw_events",
+    "peer_event_hash",
+    "PEER_ORACLE_SCHEMA",
+    "PeerOracleError",
+    "audit_peer_run",
+    "gpio_resolution",
+    "uart_tx_expectation",
     "AutoCompositionError",
     "AutoCompositionPlan",
     "AutoCompositionRequest",

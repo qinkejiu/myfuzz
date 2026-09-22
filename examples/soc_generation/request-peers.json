@@ -1,0 +1,103 @@
+{
+  "schema_version": "composition_request.v1",
+  "request_id": "peers-novacore-uart-spi-gpio",
+  "description": "One first-time CPU plus three first-time peripherals whose external interfaces are driven by the implemented peer models instead of being exported as pins. Every attachment is declared by the interface it names, not by a peer name: the composition matches the peer by the roles the profile declared, and refuses an interface no peer implements, a peer whose frame timing does not match the component's declared parameters, or a component whose own timing is faster than the peer's sampling contract.",
+  "cpu": {
+    "instance_id": "cpu0",
+    "profile": "examples/soc_generation/profiles/novacore.json",
+    "parameters": {}
+  },
+  "peripherals": [
+    {
+      "instance_id": "uart0",
+      "profile": "examples/soc_generation/profiles/novauart_link.json",
+      "parameters": {
+        "SERIAL_WIDTH": 8,
+        "BAUD_DIV": 8,
+        "STOP_BITS": 1,
+        "IDLE_LEVEL": 1
+      }
+    },
+    {
+      "instance_id": "spi0",
+      "profile": "examples/soc_generation/profiles/novaspi.json",
+      "parameters": {
+        "BITS": 8,
+        "CPOL": 0,
+        "CPHA": 0,
+        "SCK_HALF_DIV": 4,
+        "CS_SETUP": 2,
+        "CS_HOLD": 2
+      }
+    },
+    {
+      "instance_id": "gpio0",
+      "profile": "examples/soc_generation/profiles/novagpio.json",
+      "parameters": {}
+    }
+  ],
+  "memory": [
+    {
+      "region_id": "rom0",
+      "base": 65536,
+      "size": 32768,
+      "permissions": {"read": true, "write": false, "execute": true},
+      "physical_memory_id": "boot_rom",
+      "initialization_policy": "rom"
+    },
+    {
+      "region_id": "ram0",
+      "base": 2147483648,
+      "size": 65536,
+      "permissions": {"read": true, "write": true, "execute": true},
+      "physical_memory_id": "main_ram",
+      "initialization_policy": "on_demand"
+    }
+  ],
+  "address_policy": {
+    "mmio_base": 1073741824,
+    "mmio_limit": 1048576,
+    "alignment": 4096
+  },
+  "clock": {"domain": "core", "frequency_hz": 50000000},
+  "reset": {"domain": "sys_rst", "polarity": "active_low", "synchronous": false},
+  "test_modes": ["cpu_only", "mmio_only", "mixed"],
+  "peer_models": [
+    {
+      "instance_id": "uart0",
+      "endpoint_id": "link.pins",
+      "attach": true,
+      "parameters": {
+        "DATA_WIDTH": 8,
+        "BAUD_DIV": 8,
+        "STOP_BITS": 1,
+        "IDLE_LEVEL": 1,
+        "TIMEOUT_BITS": 64
+      }
+    },
+    {
+      "instance_id": "spi0",
+      "endpoint_id": "spi.pins",
+      "attach": true,
+      "parameters": {
+        "BITS": 8,
+        "CPOL": 0,
+        "CPHA": 0,
+        "CS_ACTIVE_LOW": 1
+      }
+    },
+    {
+      "instance_id": "gpio0",
+      "endpoint_id": "gpio.pins",
+      "attach": true,
+      "parameters": {
+        "DEFAULT_INPUT_LEVEL": 0,
+        "CONTENTION_IS_ERROR": 1
+      }
+    }
+  ],
+  "provenance": {
+    "author": "examples/soc_generation",
+    "purpose": "peer-model attachment evidence for the profile-driven composition path"
+  }
+}

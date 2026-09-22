@@ -1,0 +1,131 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "novaspi",
+  "kind": "peripheral",
+  "description": "First-time input MMIO SPI master: APB4 slave, one level interrupt source and a four-wire external interface (sck, cs, mosi, miso) whose mode and per-level timing are declared.",
+  "source": {
+    "root": "examples/soc_generation/rtl",
+    "revision": "sha256:f0e55a6af034eeeb4b0433028bd6e378cd596b90d1de9e18d1f794047cc800df",
+    "top_module": "novaspi",
+    "files": [
+      "novaspi.sv"
+    ],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {"name": "BITS", "value": "8"},
+        {"name": "CPOL", "value": "0"},
+        {"name": "CPHA", "value": "0"},
+        {"name": "SCK_HALF_DIV", "value": "4"},
+        {"name": "CS_SETUP", "value": "2"},
+        {"name": "CS_HOLD", "value": "2"}
+      ]
+    }
+  },
+  "clocks": [
+    {
+      "port": "clk_i",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "rst_ni",
+      "domain": "sys_rst",
+      "polarity": "active_low",
+      "synchronous": false,
+      "release": "RTL asserts reset asynchronously on negedge rst_ni; release must satisfy clk_i recovery/removal timing."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "spi.bus",
+      "function": "mmio_slave",
+      "protocol": [
+        "apb",
+        "4"
+      ],
+      "fields": [
+        {"role": "paddr", "aliases": ["paddr_i"]},
+        {"role": "psel", "aliases": ["psel_i"]},
+        {"role": "penable", "aliases": ["penable_i"]},
+        {"role": "pwrite", "aliases": ["pwrite_i"]},
+        {"role": "pwdata", "aliases": ["pwdata_i"]},
+        {"role": "pstrb", "aliases": ["pstrb_i"]},
+        {"role": "pready", "aliases": ["pready_o"]},
+        {"role": "prdata", "aliases": ["prdata_o"]},
+        {"role": "pslverr", "aliases": ["pslverr_o"]}
+      ]
+    },
+    {
+      "endpoint_id": "spi.irq",
+      "function": "interrupt_source",
+      "fields": [
+        {"role": "irq", "aliases": ["irq_o"]}
+      ]
+    },
+    {
+      "endpoint_id": "spi.pins",
+      "function": "external_pins",
+      "fields": [
+        {"role": "sck", "direction": "output", "aliases": ["spi_sck_o"]},
+        {"role": "cs", "direction": "output", "aliases": ["spi_cs_o"]},
+        {"role": "mosi", "direction": "output", "aliases": ["spi_mosi_o"]},
+        {"role": "miso", "direction": "input", "aliases": ["spi_miso_i"]}
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 12,
+    "data_width": 32,
+    "read": true,
+    "write": true,
+    "byte_enable": true,
+    "partial_write": true,
+    "has_error": true,
+    "max_wait_cycles": 16
+  },
+  "address": {
+    "window_size": 4096,
+    "alignment": 4096,
+    "registers": [
+      {"name": "CTRL", "offset": 0, "width": 32, "access": "rw", "side_effect": "none"},
+      {"name": "STATUS", "offset": 4, "width": 32, "access": "ro", "side_effect": "none"},
+      {"name": "TXDATA", "offset": 8, "width": 32, "access": "wo", "side_effect": "none"},
+      {"name": "RXDATA", "offset": 12, "width": 32, "access": "ro", "side_effect": "read_clears"},
+      {"name": "IRQ_STATUS", "offset": 16, "width": 32, "access": "rw", "side_effect": "write_1_to_clear"}
+    ]
+  },
+  "interrupts": [
+    {
+      "endpoint_id": "spi.irq",
+      "role": "irq",
+      "trigger": "level",
+      "polarity": "active_high",
+      "clock_domain": "core",
+      "hold": "irq_o stays high while IRQ_STATUS[0] (transfer done) is set and CTRL[1] enables the interrupt.",
+      "clear": "Write 1 to IRQ_STATUS[0] (offset 0x10); reading RXDATA also clears the done state.",
+      "raise_actions": [
+        {"register": "TXDATA", "offset": 8, "value": 90,
+         "reason": "load one byte before starting the SPI transfer", "operation": "write_value"},
+        {"register": "CTRL", "offset": 0, "value": 3,
+         "reason": "start one transfer with the interrupt enabled", "operation": "write_value"}
+      ]
+    }
+  ],
+  "port_actions": [],
+  "evidence": {
+    "semantics": [
+      "Register map, engine states and edge assignment were read from examples/soc_generation/rtl/novaspi.sv.",
+      "SCK_HALF_DIV counts clk_i cycles per sck_o level, CS_SETUP the cycles cs_o is low before the first leading edge and CS_HOLD the cycles after the last one; these are the three timing facts src/myfuzz/protocols/rtl/soc_spi_peer.sv requires (each sck_i level >= 2 clk_i cycles, cs_i stable >= 1 cycle in each state)."
+    ],
+    "verified": [
+      "Physical ports and widths come from verilator elaboration of the pinned novaspi.sv.",
+      "The declared mode and timing are the elaboration parameters, so the master the composition renders is the master that was bound."
+    ],
+    "unknown": [
+      "Word sizes above one frame, daisy chains, dual-edge modes, wait states, FIFOs and the electrical properties of the pins are not modelled and are not claimed."
+    ]
+  }
+}

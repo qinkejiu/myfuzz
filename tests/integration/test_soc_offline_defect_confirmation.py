@@ -20,6 +20,7 @@ from myfuzz.composition.soc_runtime import RunResult
 from myfuzz.composition.soc_failure_evidence import ReplayResult
 
 from tests.integration.test_soc_failure_evidence import _package
+from tests.composition.soc_generation_fixture import example_plan
 
 
 def _hash(path: Path) -> str:
@@ -29,7 +30,7 @@ def _hash(path: Path) -> str:
 class OfflineBuildBindingTests(unittest.TestCase):
     def _criterion(self) -> dict[str, object]:
         text = "independent SPI wire-level requirement"
-        return {"criterion_id": "criterion-1", "expected": [3], "observed": [2],
+        return {"criterion_id": "spi-mosi-byte", "expected": [3], "observed": [2],
                 "independent_of_profile": True, "specification_text": text,
                 "specification_hash": "sha256:" +
                 hashlib.sha256(text.encode("utf-8")).hexdigest()}
@@ -75,11 +76,197 @@ class OfflineBuildBindingTests(unittest.TestCase):
         runtime = dict(identity["runtime"])
         runtime.update({"raw_width": mutant.raw_width,
                         "executable_hash": _hash(mutant.executable),
+                        "sources": list(mutant.sources),
                         "source_hashes": dict(mutant.source_hashes)})
         identity["runtime"] = runtime
         anomaly = dict(package.anomaly)
-        anomaly.update({"expected": [3], "observed": [2]})
+        anomaly.update({"criterion": "spi-mosi-byte", "expected": [3], "observed": [2]})
         return dataclasses.replace(package, identity=identity, anomaly=anomaly)
+
+    def _plan(self):
+        # These legacy gate tests deliberately use synthetic hashes and files.
+        # The real plan derivation is exercised separately below and in real RTL.
+        validation = patch("myfuzz.composition.soc_offline_defect_confirmation._derived_plan_problem",
+                           return_value=None)
+        validation.start()
+        self.addCleanup(validation.stop)
+        plan = example_plan()
+        return dataclasses.replace(plan, plan_hash="sha256:" + "a" * 64,
+                                   raw_layout={**plan.raw_layout, "layout_hash": "b" * 64})
+
+    def test_audit_plan_fields_are_rederived_even_when_stored_hashes_match(self):
+        from myfuzz.composition.soc_offline_defect_confirmation import _plan_identity_problem
+
+        plan = example_plan()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            baseline = self._build(root, "baseline", component=b"baseline")
+            mutant = self._build(root, "mutant", component=b"mutant")
+            for build in (baseline, mutant):
+                build.testbench_path.write_text(
+                    f"// plan: {plan.plan_hash}\n"
+                    f"// raw-input layout: {plan.raw_layout['layout_hash']}\n")
+            package = self._candidate(mutant)
+            package = dataclasses.replace(package, identity={
+                **package.identity, "plan_hash": plan.plan_hash,
+                "layout_hash": plan.raw_layout["layout_hash"]})
+            self.assertIsNone(_plan_identity_problem(plan, baseline, mutant, package))
+            for field, value in (("target_records", ()), ("cpu_inputs", ()),
+                                 ("cpu_adapter", {}), ("interrupt_document", {}),
+                                 ("interrupt_plan", None),
+                                 ("instances", ()), ("plan", {}), ("spec", {}),
+                                 ("synthetic", {"forged": True}),
+                                 ("peers", ("forged",))):
+                with self.subTest(field=field):
+                    forged = dataclasses.replace(plan, **{field: value})
+                    self.assertNotEqual(getattr(plan, field), value)
+                    self.assertEqual("derived-plan:" + field,
+                                     _plan_identity_problem(forged, baseline, mutant, package))
+
+    def test_rebuild_preserves_automatic_empty_boot_policy(self):
+        from myfuzz.composition.soc_offline_defect_confirmation import _rebuild_pair
+        from myfuzz.composition.soc_runtime import build_profile_runtime
+
+        plan = example_plan()
+        root_dir = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            tool = root / "verilator"
+            tool.write_text("fake compiler")
+
+            # Only compilation is replaced: policy selection and metadata use the real API.
+            def compile_fake(command, **kwargs):
+                output = Path(command[command.index("--Mdir") + 1])
+                output.mkdir(parents=True, exist_ok=True)
+                (output / "myfuzz_profile_sim").write_text("fake executable")
+                return subprocess.CompletedProcess(command, 0, "", "")
+
+            with patch("myfuzz.composition.soc_runtime.subprocess.run", side_effect=compile_fake):
+                original = build_profile_runtime(
+                    plan, output_dir=root / "original", base_dir=root_dir,
+                    top_text="module myfuzz_soc_top; endmodule", sources=(),
+                    verilator=str(tool))
+                self.assertEqual("explicit_empty_image_no_program_loaded", original.boot_image_policy)
+                baseline, mutant, _ = _rebuild_pair(
+                    plan, original, original, base_dir=root_dir,
+                    output_dir=root / "rebuilt", timeout_seconds=10, verilator=str(tool))
+            for rebuilt in (baseline, mutant):
+                self.assertEqual(original.boot_image_policy, rebuilt.boot_image_policy)
+                self.assertEqual(original.build_hash, rebuilt.build_hash)
+                self.assertEqual(_hash(original.boot_image), _hash(rebuilt.boot_image))
+
+    def test_include_closure_drift_is_rejected_between_rebuilds(self):
+        from myfuzz.composition.soc_offline_defect_confirmation import _rebuild_pair
+
+        for change in ("modify", "add", "delete", "symlink"):
+            with self.subTest(change=change), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                include = root / "includes"
+                include.mkdir()
+                header = include / "constants.svh"
+                header.write_text("`define VALUE 1\n")
+                plan = example_plan()
+                instance = plan.instances[0]
+                source = dataclasses.replace(instance.profile.source, source_root=str(root),
+                                             include_roots=("includes",))
+                instance = dataclasses.replace(instance, profile=dataclasses.replace(
+                    instance.profile, source=source))
+                plan = dataclasses.replace(plan, instances=(instance,))
+                baseline = self._build(root, "baseline", component=b"baseline")
+                mutant = self._build(root, "mutant", component=b"mutant")
+                tool = root / "verilator"
+                tool.write_text("fake compiler")
+
+                calls = []
+
+                def build_fake(*args, **kwargs):
+                    calls.append(kwargs)
+                    if len(calls) > 1:
+                        return mutant
+                    if change == "modify":
+                        header.write_text("`define VALUE 2\n")
+                    elif change == "add":
+                        (include / "new.svh").write_text("added")
+                    elif change == "delete":
+                        header.unlink()
+                    else:
+                        (include / "escape").symlink_to(root, target_is_directory=True)
+                    return baseline
+
+                with patch("myfuzz.composition.soc_offline_defect_confirmation.build_profile_runtime",
+                           side_effect=build_fake) as build:
+                    with self.assertRaisesRegex(ValueError, "include-"):
+                        _rebuild_pair(plan, baseline, mutant, base_dir=root,
+                                      output_dir=root / "rebuilt", timeout_seconds=10,
+                                      verilator=str(tool))
+                    self.assertEqual(1, build.call_count)
+
+    def test_explicit_include_roots_are_checked_between_and_during_mutant_build(self):
+        from myfuzz.composition import soc_offline_defect_confirmation as offline
+
+        for timing in ("between", "mutant", "stable"):
+            with self.subTest(timing=timing), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                include = root / "wrapper-includes"
+                include.mkdir()
+                header = include / "not-in-sources.svh"
+                header.write_text("original")
+                baseline = self._build(root, "baseline", component=b"baseline")
+                mutant = self._build(root, "mutant", component=b"mutant")
+                plan = dataclasses.replace(example_plan(), instances=())
+                tool = root / "verilator"
+                tool.write_text("fake compiler")
+                source_checks = []
+                real_source_bytes = offline._source_bytes
+
+                def source_check(*args):
+                    result = real_source_bytes(*args)
+                    source_checks.append(args)
+                    if timing == "between" and len(source_checks) == 2:
+                        header.write_text("changed after baseline post-build inventory")
+                    return result
+
+                def build_fake(*args, **kwargs):
+                    if kwargs["output_dir"].name == "mutant":
+                        if timing == "mutant":
+                            header.write_text("changed during mutant compilation")
+                        return mutant
+                    return baseline
+
+                with patch.object(offline, "_source_bytes", side_effect=source_check), \
+                        patch.object(offline, "build_profile_runtime", side_effect=build_fake) as build:
+                    options = dict(base_dir=root, output_dir=root / "rebuilt",
+                                   timeout_seconds=10, verilator=str(tool),
+                                   include_roots=("wrapper-includes",))
+                    if timing == "stable":
+                        _, _, record = offline._rebuild_pair(plan, baseline, mutant, **options)
+                        self.assertEqual([str(include)], record["include_manifest"]["roots"])
+                        self.assertEqual(2, record["include_manifest"]["entries"])
+                    else:
+                        with self.assertRaisesRegex(ValueError, "mutant-include-input-drift"):
+                            offline._rebuild_pair(plan, baseline, mutant, **options)
+                    self.assertEqual(1 if timing == "between" else 2, build.call_count)
+
+    def test_include_manifest_rejects_symlinks_special_files_and_missing_roots(self):
+        from myfuzz.composition.soc_offline_defect_confirmation import _include_manifest
+        import os
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            declared = root / "declared"
+            declared.mkdir()
+            with self.assertRaisesRegex(ValueError, "include-root-missing"):
+                _include_manifest((root / "missing",))
+            link = declared / "escape"
+            link.symlink_to(root, target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, "include-symlink"):
+                _include_manifest((declared,))
+            with self.assertRaisesRegex(ValueError, "include-symlink"):
+                _include_manifest((link,))
+            link.unlink()
+            os.mkfifo(declared / "fifo")
+            with self.assertRaisesRegex(ValueError, "include-symlink-or-special-file"):
+                _include_manifest((declared,))
 
     def test_non_candidate_is_returned_unchanged(self) -> None:
         from myfuzz.composition.soc_offline_defect_confirmation import (
@@ -218,6 +405,117 @@ class OfflineBuildBindingTests(unittest.TestCase):
         self.assertEqual("undiagnosed", confirmation.status)
         self.assertEqual("mutant-identity:runtime.source_hashes:mismatch", confirmation.reason)
 
+    def test_unknown_criterion_cannot_confirm(self) -> None:
+        from myfuzz.composition.soc_offline_defect_confirmation import (
+            IsolationFixture, confirm_component_offline,
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            baseline = self._build(root, "baseline", component=b"baseline")
+            mutant = self._build(root, "mutant", component=b"mutant")
+            package = self._candidate(mutant)
+            package = dataclasses.replace(package, anomaly={**package.anomaly,
+                                                               "criterion": "criterion-1"})
+            result = confirm_component_offline(
+                package, plan=object(), baseline=baseline, mutant=mutant,
+                fixture=IsolationFixture(Path("fixture.sv"), "tb", "OBS", "component"),
+                criterion={**self._criterion(), "criterion_id": "criterion-1"}, base_dir=root)
+        self.assertEqual(COMPONENT_CANDIDATE, result.status)
+        self.assertEqual("unsupported-criterion:criterion-1", result.reason)
+
+    def test_plan_hash_and_layout_must_match_recorded_builds(self) -> None:
+        from myfuzz.composition.soc_offline_defect_confirmation import (
+            IsolationFixture, confirm_component_offline,
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            baseline = self._build(root, "baseline", component=b"baseline")
+            mutant = self._build(root, "mutant", component=b"mutant")
+            package = self._candidate(mutant)
+            criterion = self._criterion()
+            base_plan = self._plan()
+            for plan, reason in (
+                (dataclasses.replace(base_plan, plan_hash="sha256:" + "c" * 64),
+                 "plan-identity:plan_hash"),
+                (dataclasses.replace(base_plan,
+                                     raw_layout={**base_plan.raw_layout,
+                                                 "layout_hash": "c" * 64}),
+                 "plan-identity:layout_hash"),
+            ):
+                with self.subTest(reason=reason):
+                    result = confirm_component_offline(
+                        package, plan=plan, baseline=baseline, mutant=mutant,
+                        fixture=IsolationFixture(Path("fixture.sv"), "tb", "OBS", "component"),
+                        criterion=criterion, base_dir=root)
+                    self.assertEqual("undiagnosed", result.status)
+                    self.assertEqual(reason, result.reason)
+
+    def test_non_string_source_hash_key_is_rejected(self) -> None:
+        from myfuzz.composition.soc_offline_defect_confirmation import (
+            IsolationFixture, confirm_component_offline,
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            baseline = self._build(root, "baseline", component=b"baseline")
+            mutant = self._build(root, "mutant", component=b"mutant")
+            package = self._candidate(mutant)
+            identity = dict(package.identity)
+            runtime = dict(identity["runtime"])
+            runtime["source_hashes"] = {1: next(iter(mutant.source_hashes.values()))}
+            identity["runtime"] = runtime
+            result = confirm_component_offline(
+                dataclasses.replace(package, identity=identity), plan=object(),
+                baseline=baseline, mutant=mutant,
+                fixture=IsolationFixture(Path("fixture.sv"), "tb", "OBS", "component"),
+                criterion=self._criterion(), base_dir=root)
+        self.assertEqual("undiagnosed", result.status)
+        self.assertEqual("mutant-identity:runtime.source_hashes:malformed", result.reason)
+
+    def test_saved_runtime_fields_are_individually_bound(self) -> None:
+        from myfuzz.composition.soc_offline_defect_confirmation import (
+            IsolationFixture, confirm_component_offline,
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            baseline = self._build(root, "baseline", component=b"baseline")
+            mutant = self._build(root, "mutant", component=b"mutant")
+            package = self._candidate(mutant)
+            for field, forged in (("schema_version", "legacy"),
+                                  ("sources", ["forged.sv"]),
+                                  ("boot_image_policy", "forged")):
+                with self.subTest(field=field):
+                    identity = dict(package.identity)
+                    runtime = dict(identity["runtime"])
+                    runtime[field] = forged
+                    identity["runtime"] = runtime
+                    result = confirm_component_offline(
+                        dataclasses.replace(package, identity=identity), plan=self._plan(),
+                        baseline=baseline, mutant=mutant,
+                        fixture=IsolationFixture(Path("fixture.sv"), "tb", "OBS", "component"),
+                        criterion=self._criterion(), base_dir=root)
+                    self.assertEqual("undiagnosed", result.status)
+                    self.assertEqual(f"mutant-identity:runtime.{field}:mismatch", result.reason)
+
+    def test_rebuilt_runtime_interpretation_fields_are_individually_bound(self) -> None:
+        from myfuzz.composition.soc_offline_defect_confirmation import _build_metadata_problem
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            original = self._build(root, "original", component=b"component")
+            for field, forged in (
+                ("raw_width", 8), ("slots", ({"name": "forged"},)),
+                ("observations", ({"name": "forged"},)),
+                ("peer_slots", ({"slot": "forged"},)),
+                ("peer_observations", ({"name": "forged"},)),
+                ("peer_wires", ({"name": "forged"},)),
+                ("spi_wire_contracts", {"spi0": {"txdata_address": 0}}),
+                ("cpu_data_sources", (7,)),
+                ("build_hash", "sha256:" + "f" * 64),
+            ):
+                with self.subTest(field=field):
+                    rebuilt = dataclasses.replace(original, **{field: forged})
+                    self.assertEqual(f"baseline-rebuilt-{field}-mismatch",
+                                     _build_metadata_problem(original, rebuilt, "baseline"))
+
     def test_missing_runtime_source_identity_is_undiagnosed(self) -> None:
         from myfuzz.composition.soc_offline_defect_confirmation import (
             IsolationFixture, confirm_component_offline,
@@ -249,7 +547,7 @@ class OfflineBuildBindingTests(unittest.TestCase):
 
         def result(*, wire_status: str, observed: object, truncated: bool = False) -> RunResult:
             return RunResult(
-                request_id=1, cycles=4, status="OK", counters={}, observations={},
+                request_id=1, cycles=4, status="OK", counters={}, observations={"observed": 1},
                 trace=(), applied=(), stdout="", stderr="",
                 peer_applied=({"cycle": 0, "instance": "spi0", "slot": "spi.arm_byte",
                                "value": 3},),
@@ -304,9 +602,12 @@ class OfflineBuildBindingTests(unittest.TestCase):
                      patch("myfuzz.composition.soc_offline_defect_confirmation.run_sample",
                            side_effect=(baseline_result, mutant_result)), \
                      patch("myfuzz.composition.soc_offline_defect_confirmation.audit_structure",
-                           side_effect=(baseline_audit, mutant_audit)):
+                           side_effect=(baseline_audit, mutant_audit)), \
+                     patch("myfuzz.composition.soc_offline_defect_confirmation._rebuild_pair",
+                           return_value=(baseline, mutant, {"sha256": "test-tool"})):
                     confirmation = confirm_component_offline(
-                        package, plan=object(), baseline=baseline, mutant=mutant,
+                        dataclasses.replace(package, results=(mutant_result.document(),)),
+                        plan=self._plan(), baseline=baseline, mutant=mutant,
                         fixture=fixture, criterion=self._criterion(), base_dir=root,
                     )
                 expected_status = (COMPOSITION_DEFECT if name == "audit-failure" else
@@ -314,6 +615,78 @@ class OfflineBuildBindingTests(unittest.TestCase):
                                    COMPONENT_CANDIDATE)
                 self.assertEqual(expected_status, confirmation.status)
                 self.assertEqual(reason, confirmation.reason)
+
+    def test_rebuilt_mutant_must_match_every_saved_replay_field(self) -> None:
+        from myfuzz.composition import soc_offline_defect_confirmation as offline
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            baseline = self._build(root, "baseline", component=b"baseline")
+            mutant = self._build(root, "mutant", component=b"mutant")
+            fixture = root / "fixture.sv"
+            fixture.write_text("module tb; endmodule")
+            baseline_result = RunResult(1, 4, "OK", {}, {"observed": 999}, (), (), "", "",
+                peer_oracle={"status": "pass", "oracle_hash": "baseline-oracle",
+                             "checks": [{"check_id": "spi-transfer-wire", "status": "pass",
+                                         "expected": {"mosi": [3], "miso": [0]},
+                                         "observed": {"mosi": [3], "miso": [0]}}]})
+            mutant_result = dataclasses.replace(baseline_result, peer_oracle={
+                "status": "mismatch", "oracle_hash": "mutant-oracle",
+                "checks": [{"check_id": "spi-transfer-wire", "status": "mismatch",
+                            "expected": {"mosi": [3], "miso": [0]},
+                            "observed": {"mosi": [2], "miso": [0]}}]})
+            cases = (
+                ("observations", {"observed": 1}, "observation:observed"),
+                ("trace", [{"cycle": 0, "raw": 1}], "trace[0].raw"),
+                ("applied_trace", [{"cycle": 0, "port": "pin", "value": 1}], "applied[0].pin"),
+                ("peer_applied", [{"cycle": 0, "instance": "spi0", "slot": "arm", "value": 3}],
+                 "peer_applied[0].spi0.arm.value"),
+                ("peer_wire_trace", [{"cycle": 0, "instance_id": "spi0", "sck": 1,
+                                      "cs": 0, "mosi": 1, "miso": 0}], "peer_wire[0].spi0.sck"),
+                ("peer_wire_status", [{"instance_id": "spi0", "count": 1, "truncated": False}],
+                 "peer_wire_status:spi0:count"),
+                ("fabric_requests", [{"cycle": 0, "addr": 4096, "write": 1, "wdata": 3,
+                                      "be": 15, "source": 0}], "fabric_request[0].0x1000.wdata"),
+                ("fabric_requests_truncated", True, "fabric_requests_truncated"),
+                ("image_placements", [{"slot": "boot", "kind": "ram", "addr": 0,
+                                       "readback": 1, "reset_held": True}], "image_placement[ram].boot.readback"),
+                ("image_errors", [{"slot": "boot", "reason": "refused"}], "image_error[0].boot"),
+                ("counters", {"irq": 1}, "counter:irq"),
+                ("peer_oracle", {**mutant_result.peer_oracle, "oracle_hash": "different"}, "peer_oracle:hash"),
+                ("peer_oracle", {**mutant_result.peer_oracle, "status": "different"}, "peer_oracle:status"),
+                ("status", "TIMEOUT", "status"), ("cycles", 5, "cycles"),
+            )
+            for field, value, label in cases:
+                package = dataclasses.replace(self._candidate(mutant), results=(
+                    {**mutant_result.document(), field: value},))
+                with self.subTest(field=label), \
+                        patch.object(offline, "replay_package", return_value=ReplayResult("agreement", "original agrees")), \
+                        patch.object(offline, "_rebuild_pair", return_value=(baseline, mutant, {})), \
+                        patch.object(offline, "run_sample", side_effect=(baseline_result, mutant_result)), \
+                        patch.object(offline, "audit_structure", return_value={"summary": {"status": "pass"}}), \
+                        patch.object(offline, "run_isolation", return_value={
+                            "fixture_hash": _hash(fixture),
+                            "baseline_source_hash": baseline.source_hashes[baseline.sources[0]],
+                            "mutant_source_hash": mutant.source_hashes[mutant.sources[0]],
+                            "baseline": {"observation": {"bits": 8, "mosi": 3}},
+                            "mutant": {"observation": {"bits": 8, "mosi": 2}}}) as isolation:
+                    result = offline.confirm_component_offline(
+                        package, plan=self._plan(), baseline=baseline, mutant=mutant,
+                        fixture=offline.IsolationFixture(fixture, "tb", "OBS", "component"),
+                        criterion=self._criterion(), base_dir=root)
+                    self.assertEqual(COMPONENT_CANDIDATE, result.status)
+                    self.assertEqual("rebuilt-mutant-replay-not-agreement", result.reason)
+                    comparison = result.evidence["rebuilt_mutant_replay"]
+                    self.assertIn(label, comparison["mismatching_fields"])
+                    self.assertIsNotNone(comparison["divergence"])
+                    if field == "observations":
+                        self.assertEqual(1, comparison["divergence"]["expected"])
+                        self.assertEqual(999, comparison["divergence"]["observed"])
+                    if field == "peer_wire_trace":
+                        for wire in ("sck", "cs", "mosi", "miso"):
+                            self.assertIn(f"peer_wire[0].spi0.{wire}",
+                                          comparison["mismatching_fields"])
+                    isolation.assert_not_called()
 
     def test_positive_reruns_are_real_and_record_audits_and_hashes(self) -> None:
         from myfuzz.composition.soc_offline_defect_confirmation import (
@@ -324,6 +697,21 @@ class OfflineBuildBindingTests(unittest.TestCase):
             baseline = self._build(root, "baseline", component=b"baseline")
             mutant = self._build(root, "mutant", component=b"mutant")
             fixture_path = root / "fixture.sv"
+            def fresh_copy(original: RuntimeBuild, side: str) -> RuntimeBuild:
+                directory = root / f"rebuilt-{side}"
+                directory.mkdir()
+                for path in (original.top_path, original.testbench_path, original.boot_image):
+                    shutil.copy2(path, directory / path.name)
+                executable = directory / "sim"
+                executable.write_bytes(f"fresh-{side}".encode())
+                return dataclasses.replace(
+                    original, output_dir=directory, top_path=directory / original.top_path.name,
+                    testbench_path=directory / original.testbench_path.name,
+                    boot_image=directory / original.boot_image.name, executable=executable)
+            fresh_baseline = fresh_copy(baseline, "baseline")
+            fresh_mutant = fresh_copy(mutant, "mutant")
+            baseline.executable.write_bytes(b"substituted-original-baseline")
+            substituted_baseline_hash = _hash(baseline.executable)
             fixture_path.write_text("module tb; endmodule\n", encoding="utf-8")
             fixture_hash = _hash(fixture_path)
             replacement_fixture_hash = "sha256:" + hashlib.sha256(
@@ -333,7 +721,7 @@ class OfflineBuildBindingTests(unittest.TestCase):
             baseline_top_text = baseline.top_path.read_text(encoding="utf-8")
             mutant_top_text = mutant.top_path.read_text(encoding="utf-8")
             package = self._candidate(mutant)
-            baseline_result = RunResult(1, 4, "OK", {}, {}, (), (), "", "",
+            baseline_result = RunResult(1, 4, "OK", {}, {"observed": 1}, (), (), "", "",
                 peer_applied=({"cycle": 0, "instance": "spi0", "slot": "spi.arm_byte", "value": 3},),
                 peer_wire_trace=({"cycle": 1, "instance_id": "spi0", "mosi": "1"},),
                 peer_wire_status=({"instance_id": "spi0", "count": 1, "truncated": False},),
@@ -346,6 +734,7 @@ class OfflineBuildBindingTests(unittest.TestCase):
                                                             "status": "mismatch",
                                                             "expected": {"mosi": [3], "miso": [0]},
                                                             "observed": {"mosi": [2], "miso": [0]}},)})
+            package = dataclasses.replace(package, results=(mutant_result.document(),))
             audit = {"summary": {"status": "pass", "passed": 2, "failed": 0}}
             def isolated(bits: int, baseline_mosi: int, mutant_mosi: int) -> dict[str, object]:
                 return {"fixture_hash": fixture_hash,
@@ -359,13 +748,16 @@ class OfflineBuildBindingTests(unittest.TestCase):
                        side_effect=(baseline_result, mutant_result) * 5) as rerun, \
                  patch("myfuzz.composition.soc_offline_defect_confirmation.audit_structure",
                        side_effect=(audit, audit) * 5) as structural, \
+                 patch("myfuzz.composition.soc_offline_defect_confirmation._rebuild_pair",
+                       return_value=(fresh_baseline, fresh_mutant,
+                                     {"sha256": "test-tool"})), \
                  patch("myfuzz.composition.soc_offline_defect_confirmation.run_isolation",
                        side_effect=(
                            isolated(8, 3, 2), isolated(7, 3, 2), isolated(9, 3, 2),
                            isolated(8, 2, 2),
                            {**isolated(8, 3, 2), "fixture_hash": replacement_fixture_hash},
                        )) as isolation:
-                plan = object()
+                plan = self._plan()
                 include_roots = ("include-a", "include-b")
                 confirmation = confirm_component_offline(
                     package, plan=plan, baseline=baseline, mutant=mutant,
@@ -400,6 +792,7 @@ class OfflineBuildBindingTests(unittest.TestCase):
                 )
         self.assertEqual("component_confirmed", confirmation.status)
         self.assertEqual("offline-isolation-confirmed", confirmation.reason)
+        self.assertEqual("agreement", confirmation.evidence["rebuilt_mutant_replay"]["status"])
         self.assertEqual(self._criterion(), confirmation.evidence["criterion"])
         for side in ("baseline", "mutant"):
             self.assertIn(side + "_build_hashes", confirmation.evidence)
@@ -414,8 +807,15 @@ class OfflineBuildBindingTests(unittest.TestCase):
         self.assertEqual(10, rerun.call_count)
         self.assertEqual(10, structural.call_count)
         self.assertEqual(5, replay.call_count)
-        self.assertEqual(((baseline, package.sample()), {"timeout_seconds": 17}), rerun.call_args_list[0])
-        self.assertEqual(((mutant, package.sample()), {"timeout_seconds": 17}), rerun.call_args_list[1])
+        self.assertEqual(((fresh_baseline, package.sample()), {"timeout_seconds": 17}),
+                         rerun.call_args_list[0])
+        self.assertEqual(((fresh_mutant, package.sample()), {"timeout_seconds": 17}),
+                         rerun.call_args_list[1])
+        self.assertNotEqual(baseline.executable, fresh_baseline.executable)
+        self.assertNotEqual(substituted_baseline_hash,
+                            confirmation.evidence["rebuilt_baseline_build_hashes"]["executable"])
+        self.assertEqual("unverified-not-used-for-differential",
+                         confirmation.evidence.get("original_baseline_executable_provenance"))
         self.assertEqual(((plan,), {"top_text": baseline_top_text,
                                     "source_files": baseline.sources, "base_dir": root,
                                     "include_roots": include_roots}), structural.call_args_list[0])
@@ -427,10 +827,12 @@ class OfflineBuildBindingTests(unittest.TestCase):
         self.assertEqual(fixture_hash, confirmation.evidence["fixture_hash"])
         self.assertNotEqual(fixture_hash, changed_confirmation.evidence["fixture_hash"])
         self.assertEqual(5, isolation.call_count)
-        self.assertEqual(((IsolationFixture(fixture_path, "tb", "OBS", "component"),), {
-            "baseline_source": root / baseline.sources[0], "mutant_source": root / mutant.sources[0],
-            "output_dir": baseline.output_dir / "offline-isolation", "timeout_seconds": 17}),
-            isolation.call_args_list[0])
+        args, kwargs = isolation.call_args_list[0]
+        self.assertEqual((IsolationFixture(fixture_path, "tb", "OBS", "component"),), args)
+        self.assertEqual(root / baseline.sources[0], kwargs["baseline_source"])
+        self.assertEqual(root / mutant.sources[0], kwargs["mutant_source"])
+        self.assertEqual(17, kwargs["timeout_seconds"])
+        self.assertEqual("isolation", kwargs["output_dir"].name)
 
     def test_spi_wire_verdict_requires_one_independent_check(self) -> None:
         from myfuzz.composition.soc_offline_defect_confirmation import spi_wire_verdict
@@ -442,6 +844,14 @@ class OfflineBuildBindingTests(unittest.TestCase):
         self.assertEqual(("pass", [1], [1]), spi_wire_verdict(clean))
         self.assertEqual(("not_assessed", None, None),
                          spi_wire_verdict(dataclasses.replace(clean, peer_oracle={"checks": ()})))
+        for malformed in ({"checks": "not-a-sequence"},
+                          {"checks": ["not-a-check"]},
+                          {"checks": [{"check_id": "spi-transfer-wire",
+                                       "expected": "not-a-mapping", "observed": {}}]}):
+            with self.subTest(malformed=malformed):
+                self.assertEqual(("not_assessed", None, None),
+                                 spi_wire_verdict(dataclasses.replace(clean,
+                                                                       peer_oracle=malformed)))
 
     def test_tool_failure_has_stable_reason_and_keeps_details_in_evidence(self) -> None:
         from myfuzz.composition.soc_offline_defect_confirmation import (
@@ -454,7 +864,7 @@ class OfflineBuildBindingTests(unittest.TestCase):
             with patch("myfuzz.composition.soc_offline_defect_confirmation.replay_package",
                        side_effect=TimeoutError("simulator host detail")):
                 confirmation = confirm_component_offline(
-                    self._candidate(mutant), plan=object(), baseline=baseline, mutant=mutant,
+                    self._candidate(mutant), plan=self._plan(), baseline=baseline, mutant=mutant,
                     fixture=IsolationFixture(Path("fixture.sv"), "tb", "OBS", "component.sv"),
                     criterion=self._criterion(), base_dir=root,
                 )

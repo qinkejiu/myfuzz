@@ -1,0 +1,80 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "pulp_gpio",
+  "kind": "peripheral",
+  "description": "Original pinned PULP apb_gpio, 32 pads, APB3 full-word MMIO. Pulse interrupt exported for observation; not connected to the first-phase level controller.",
+  "source": {
+    "root": "third_party/soc-pulp-apb-gpio",
+    "revision": "git:f82caeb7f7d89427f05e9af5ed31e0675efe0d83",
+    "top_module": "apb_gpio",
+    "files": ["rtl/apb_gpio.sv"],
+    "elaboration": {"frontend": "verilator-json", "parameters": [
+      {"name": "APB_ADDR_WIDTH", "value": "12"},
+      {"name": "PAD_NUM", "value": "32"},
+      {"name": "NBIT_PADCFG", "value": "4"}
+    ]}
+  },
+  "clocks": [{"port": "HCLK", "domain": "core", "frequency_hz": 50000000}],
+  "resets": [{"port": "HRESETn", "domain": "sys_rst", "polarity": "active_low", "synchronous": false,
+    "release": "RTL asynchronously asserts active-low reset; release must satisfy HCLK recovery/removal timing."}],
+  "endpoints": [
+    {"endpoint_id": "gpio.bus", "function": "mmio_slave", "protocol": ["apb", "3"], "fields": [
+      {"role": "paddr", "aliases": ["PADDR"]},
+      {"role": "psel", "aliases": ["PSEL"]},
+      {"role": "penable", "aliases": ["PENABLE"]},
+      {"role": "pwrite", "aliases": ["PWRITE"]},
+      {"role": "pwdata", "aliases": ["PWDATA"]},
+      {"role": "pready", "aliases": ["PREADY"]},
+      {"role": "prdata", "aliases": ["PRDATA"]},
+      {"role": "pslverr", "aliases": ["PSLVERR"]}
+    ]},
+    {"endpoint_id": "gpio.pins", "function": "external_pins", "fields": [
+      {"role": "in", "direction": "input", "aliases": ["gpio_in"]},
+      {"role": "out", "direction": "output", "aliases": ["gpio_out"]},
+      {"role": "dir", "direction": "output", "aliases": ["gpio_dir"]},
+      {"role": "padcfg", "direction": "output", "aliases": ["gpio_padcfg"]},
+      {"role": "in_sync", "direction": "output", "aliases": ["gpio_in_sync"]}
+    ]}
+  ],
+  "capabilities": {"address_width": 12, "data_width": 32, "read": true, "write": true,
+    "byte_enable": false, "partial_write": false, "has_error": true, "max_wait_cycles": 16},
+  "address": {"window_size": 4096, "alignment": 4096, "registers": [
+    {"name": "PADDIR", "offset": 0, "width": 32, "access": "rw", "side_effect": "none"},
+    {"name": "GPIOEN", "offset": 4, "width": 32, "access": "rw", "side_effect": "none"},
+    {"name": "PADIN", "offset": 8, "width": 32, "access": "ro", "side_effect": "none"},
+    {"name": "PADOUT", "offset": 12, "width": 32, "access": "rw", "side_effect": "none"},
+    {"name": "PADOUTSET", "offset": 16, "width": 32, "access": "wo", "side_effect": "write_one_sets"},
+    {"name": "PADOUTCLR", "offset": 20, "width": 32, "access": "wo", "side_effect": "write_one_clears"},
+    {"name": "INTEN", "offset": 24, "width": 32, "access": "rw", "side_effect": "none"},
+    {"name": "INTTYPE_LOW", "offset": 28, "width": 32, "access": "rw", "side_effect": "none"},
+    {"name": "INTTYPE_HIGH", "offset": 32, "width": 32, "access": "rw", "side_effect": "none"},
+    {"name": "INTSTATUS", "offset": 36, "width": 32, "access": "ro", "side_effect": "read_clears"},
+    {"name": "PADCFG_0", "offset": 40, "width": 32, "access": "rw", "side_effect": "none"},
+    {"name": "PADCFG_1", "offset": 44, "width": 32, "access": "rw", "side_effect": "none"},
+    {"name": "PADCFG_2", "offset": 48, "width": 32, "access": "rw", "side_effect": "none"},
+    {"name": "PADCFG_3", "offset": 52, "width": 32, "access": "rw", "side_effect": "none"}
+  ]},
+  "interrupts": [],
+  "port_actions": [
+    {"port": "dft_cg_enable_i", "action": "constant", "value": 0,
+      "reason": "DFT disabled in this functional scenario. At the pinned revision this input is declared but unused; sampling enables are computed from r_gpio_en, not this input."},
+    {"port": "interrupt", "action": "observe",
+      "reason": "Active-high s_rise_int pulse from synchronized GPIO transitions. This is not the held r_status bitmap; observe without pulse-to-level conversion."}
+  ],
+  "evidence": {
+    "semantics": [
+      "Source rtl/apb_gpio.sv at the pinned revision: register defines, s_apb_addr=PADDR[6:2], and APB write/read case statements establish the offsets. PAD_NUM=32 selects the lower bank; upper-bank reads are zero and writes have no pad effect.",
+      "r_status accumulates s_is_int_all; a read of INTSTATUS 0x24 clears the lower bank only when no concurrent s_rise_int is present (new events take priority). Reading PADIN does not clear status.",
+      "interrupt=s_rise_int, not OR(r_status). GPIOEN and INTEN gate falling/rising/both-edge pulse generation according to INTTYPE. A cleared status does not define pulse width.",
+      "PREADY=1 and PSLVERR=0. Unimplemented offsets read zero; ignored address bits cause aliases. There is no PSTRB, so only full-word writes are admitted by the generic APB3 adapter.",
+      "All state blocks use HCLK and negedge HRESETn; GPIO sampling is enabled in groups of four using GPIOEN. dft_cg_enable_i has no internal use."
+    ],
+    "verified": [],
+    "unknown": [
+      "Pulse IRQ is intentionally not attached to the first-phase level-only interrupt controller: CPU interrupt servicing of this peripheral is not covered.",
+      "The generator rejects an honestly declared edge trigger for its level-only controller. A profile falsely claiming a held level must be caught by independent semantic/source review; physical elaboration alone cannot prove that claim.",
+      "Only PAD_NUM=32/NBIT_PADCFG=4/APB_ADDR_WIDTH=12 is exercised by this profile acceptance; other parameterizations are not claimed verified.",
+      "Pad electrical behaviour and an external pin driver are not provided by structural generation; all pins are exported."
+    ]
+  }
+}

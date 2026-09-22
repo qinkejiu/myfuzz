@@ -52,6 +52,9 @@ from myfuzz.contracts import content_hash
 
 from .rfuzz_live import build_corpus_manifest, replay_corpus, run_live
 from .rfuzz_simulator import probe_soc_dependencies, real_soc_opt_in
+from .rfuzz_toolchain import (
+    RfuzzToolchainError, normalize_rfuzz_config, resolve_rfuzz_toolchain,
+)
 
 
 SOC_RESULT_SCHEMA = "soc_result.v1"
@@ -190,12 +193,19 @@ def _source_paths(config: Mapping[str, object]) -> tuple[str, ...]:
 def _normalise_config(config: Mapping[str, object]) -> dict[str, object]:
     if not isinstance(config, Mapping):
         raise ValueError("config:mapping-required")
+    rfuzz = normalize_rfuzz_config(config)
     config_id = _string(config.get("config_id", config.get("cell_id")), "config_id")
-    mode = _string(config.get("mode"), "mode", default="mixed")
+    profile_request = None
+    if "composition_request" in config:
+        from .soc_builder import load_profile_campaign_request
+        profile_request = load_profile_campaign_request(
+            config, Path(config.get("root") or Path.cwd()).resolve())
+    mode = _string(config.get("mode"), "mode", default="cpu_only" if profile_request else "mixed")
     if mode not in _MODES:
         raise ValueError("mode:unsupported")
-    cpu = _cpu_id(config.get("cpu"))
-    peripherals = _peripheral_ids(config.get("peripherals", config.get("components", ())))
+    cpu = profile_request.cpu.instance_id if profile_request else _cpu_id(config.get("cpu"))
+    peripherals = ([item.instance_id for item in profile_request.peripherals] if profile_request
+                   else _peripheral_ids(config.get("peripherals", config.get("components", ()))))
     families = config.get("families", ())
     if isinstance(families, (str, bytes)) or not isinstance(families, Sequence):
         raise ValueError("families:array-required")
@@ -203,7 +213,7 @@ def _normalise_config(config: Mapping[str, object]) -> dict[str, object]:
     if len(set(family_ids)) != len(family_ids):
         raise ValueError("families:duplicate")
     seed = _nonnegative_int(config.get("seed"), "seed", default=0)
-    duration = _positive_duration(config.get("duration_seconds"), "duration_seconds")
+    duration = _positive_duration(rfuzz.get("duration_seconds"), "duration_seconds")
     simulator = _string(config.get("simulator"), "simulator", default="verilator")
     if simulator not in {"verilator", "icarus"}:
         raise ValueError("simulator:unsupported")
@@ -212,7 +222,7 @@ def _normalise_config(config: Mapping[str, object]) -> dict[str, object]:
         raise ValueError("mutation_mode:official-rfuzz-required")
     if config.get("zero_input_probe") is True or config.get("probe_only") is True:
         raise ValueError("zero-input-probe-cannot-substitute-for-rfuzz")
-    seed_cycles = _nonnegative_int(config.get("seed_cycles"), "seed_cycles", default=5)
+    seed_cycles = _nonnegative_int(rfuzz.get("seed_cycles"), "seed_cycles", default=5)
     if not 1 <= seed_cycles <= 200:
         raise ValueError("seed_cycles:positive-bounded-required")
     return {
@@ -227,7 +237,11 @@ def _normalise_config(config: Mapping[str, object]) -> dict[str, object]:
         "simulator": simulator,
         "mutation_mode": mutation_mode,
         "source_paths": _source_paths(config),
-        "client_binary": config.get("client_binary", config.get("client")),
+        "client_binary": rfuzz.get("client_binary", config.get("client")),
+        "verilator": rfuzz["verilator"],
+        "run_dir": rfuzz.get("run_dir"),
+        "build_cache_dir": rfuzz.get("build_cache_dir"),
+        "arm": rfuzz["arm"],
         "seed_cycles": seed_cycles,
         "reset_contract": config.get("reset_contract", {}),
         "source_target_transactions": config.get("source_target_transactions"),
@@ -278,6 +292,21 @@ def _client_probe(root: Path, value: object) -> dict[str, object]:
     }
 
 
+def _public_toolchain_document(toolchain: Mapping[str, object]) -> dict[str, object]:
+    """Return auditable tool identity without publishing process environment.
+
+    The effective Verilator environment is needed by the in-process campaign
+    supervisor, but it is not provenance: publishing it in ``report.json`` can
+    expose unrelated environment values (tokens, proxy credentials, and so
+    on).  The resolver already supplies a deterministic environment hash, so
+    the report keeps that hash and the executable identities only.
+    """
+    document = dict(toolchain)
+    document.pop("verilator_environment", None)
+    document.pop("environment", None)
+    return document
+
+
 def preflight_soc_campaign(
     config: Mapping[str, object], *, root: Path | None = None,
     environment: Mapping[str, str] | None = None,
@@ -297,15 +326,38 @@ def preflight_soc_campaign(
             "ready": False, "status": "error",
             "error": f"{type(error).__name__}: {error}",
         }
-    client = _client_probe(root, normal["client_binary"])
+    try:
+        resolved_toolchain = resolve_rfuzz_toolchain(root, config, environment=environment)
+    except RfuzzToolchainError as error:
+        category = str(error).split(":", 1)[0]
+        resolved_toolchain = {"schema_version": "rfuzz_toolchain.v1", "ready": False,
+                              "category": category, "error": str(error)}
+    except (OSError, TypeError, ValueError) as error:
+        resolved_toolchain = {"schema_version": "rfuzz_toolchain.v1", "ready": False,
+                              "category": "rfuzz-toolchain-config-invalid",
+                              "error": f"{type(error).__name__}: {error}"}
+    else:
+        resolved_toolchain = dict(resolved_toolchain)
+        resolved_toolchain["ready"] = True
+    toolchain = _public_toolchain_document(resolved_toolchain)
+    if toolchain.get("ready") and isinstance(toolchain.get("client"), Mapping):
+        selected = toolchain["client"]
+        client = _client_probe(root, selected.get("path"))
+        client["source"] = selected.get("source")
+    else:
+        effective_environment = os.environ if environment is None else environment
+        candidate = normal.get("client_binary")
+        if candidate is None:
+            candidate = effective_environment.get("MYFUZZ_RFuzz_CLIENT")
+        if candidate is None:
+            candidate = "runs/rfuzz_client_native_build/target/debug/kfuzz"
+        client = _client_probe(root, candidate)
     reset = _reset_document(normal["reset_contract"])
     # ``probe_soc_dependencies`` intentionally reads the process environment
     # for its own strict boundary.  This API also accepts an injected mapping
     # for tests and supervisors, so reflect that effective opt-in explicitly.
     dependencies["opt_in"] = opt_in
-    ready = bool(dependencies.get("ready")) and (
-        not client["requested"] or bool(client["ready"])
-    )
+    ready = bool(dependencies.get("ready")) and bool(toolchain["ready"])
     return {
         "schema_version": "soc_preflight.v1",
         "config_id": normal["config_id"],
@@ -319,6 +371,7 @@ def preflight_soc_campaign(
         "opt_in": opt_in,
         "dependencies": dependencies,
         "client": client,
+        "toolchain": toolchain,
         "reset": reset,
         "ready": ready,
         "unsupported": [],
@@ -359,13 +412,25 @@ def _error_category(error: BaseException, phase: str) -> str:
         return "interrupted"
     if isinstance(error, TimeoutError) or phase == "timeout":
         return "timeout"
+    # Tool admission errors are already precise, and must not be collapsed into
+    # the generic ``compile``/``client`` buckets.  The distinction is part of
+    # the campaign boundary: a missing or wrong RFuzz tool is not evidence
+    # about the generated RTL or a DUT component.
+    text = str(error).lower()
+    for category in (
+        "rfuzz-verilator-version-mismatch",
+        "rfuzz-verilator-unavailable",
+        "rfuzz-client-unavailable",
+        "rfuzz-toolchain-config-invalid",
+    ):
+        if category in text:
+            return category
     if phase in {"build", "compile"}:
         return "compile"
     if phase == "client":
         return "client"
     if isinstance(error, ValueError):
         return "protocol_or_model"
-    text = str(error).lower()
     if "software trap" in text or "legal trap" in text:
         return "software_trap"
     if "simulator" in text or "protocol" in text or "model" in text:
@@ -753,6 +818,46 @@ def _corpus_document(live_dir: Path, run_result: Mapping[str, object]) -> dict[s
     return {"status": "not-verified", "entries": entries, "manifest": None}
 
 
+def _artifact_boundary_document(artifact: object) -> dict[str, object]:
+    """Expose the build/adapter/profile boundary without claiming DUT behavior."""
+    build = getattr(artifact, "build_document", None)
+    if not isinstance(build, Mapping):
+        return {"status": "not-reported", "source": "artifact"}
+    audit = build.get("structure_audit")
+    audit_ok = isinstance(audit, Mapping) and audit.get("status") == "pass"
+    required = ("composition_hash", "layout_hash", "policy_hash", "constraint_hash")
+    identity_complete = all(isinstance(build.get(key), str) and bool(build.get(key))
+                            for key in required)
+    return {
+        "status": "verified" if audit_ok and identity_complete else "incomplete",
+        "source": "soc_campaign_build.v1",
+        "composition_hash": build.get("composition_hash"),
+        "layout_hash": build.get("layout_hash"),
+        "policy_hash": build.get("policy_hash"),
+        "constraint_hash": build.get("constraint_hash"),
+        "image_hash": build.get("image_hash"),
+        "coverage_kind": build.get("coverage_kind"),
+        "executable_sha256": build.get("executable_sha256"),
+        "mode": build.get("mode"),
+        # Keep the exact compiler identity when a profile builder published it;
+        # this is required to distinguish a toolchain drift from a DUT fault.
+        "tool_identity": _plain(build.get("tool_identity"))
+        if isinstance(build.get("tool_identity"), Mapping) else None,
+        "structure_audit": _plain(audit) if isinstance(audit, Mapping) else None,
+        "unsupported_capabilities": _plain(build.get("unsupported_capabilities", [])),
+        "source_closure": _plain(build.get("sources", {})),
+        "identity_complete": identity_complete,
+        "bug_attribution": {
+            "generator_boundary": "verified" if audit_ok else "unverified",
+            "adapter_boundary": "verified" if audit_ok else "unverified",
+            "profile_boundary": "verified" if identity_complete else "unverified",
+            "software_boundary": "not-assessed",
+            "environment_boundary": "not-assessed",
+            "component_internal_bug": "not-claimed",
+        },
+    }
+
+
 def _base_report(normal: Mapping[str, object], preflight: Mapping[str, object],
                  reset: Mapping[str, object]) -> dict[str, object]:
     return {
@@ -774,10 +879,12 @@ def _base_report(normal: Mapping[str, object], preflight: Mapping[str, object],
         },
         "preflight": _plain(preflight),
         "reset": _plain(reset),
+        "artifact": {"status": "not-built"},
         "errors": [],
         "fifo_reply_receipts": [],
         "rtl_execution": {"status": "not-started", "tests": 0, "coverage_records": 0,
                            "execution_totals": {}},
+        "input_projection": {"status": "not-observed"},
         "source_target_transactions": {"status": "not-reported", "source": {}, "target": {}, "all": {}},
         "corpus": {"status": "not-started", "entries": 0},
         "replay": {"status": "not-requested"},
@@ -843,19 +950,66 @@ def run_soc_campaign(
         report.update(status="failed", final_status="reset-contract-unverified")
         _write_report(report_path, report)
         return report
+    toolchain = preflight.get("toolchain")
+    toolchain = toolchain if isinstance(toolchain, Mapping) else {}
+    # Contract tests may inject a builder/runner/artifact and therefore do not
+    # need to own the external RFuzz installation.  A production invocation,
+    # however, must be rejected before rendering or compiling anything when the
+    # selected official client/Verilator pair is not admitted.
+    injected_boundary = (
+        # ``rebuilder`` is deliberately excluded: it runs only after the
+        # first official build/client boundary and must not let a production
+        # campaign bypass tool admission.
+        builder is not None or runner is not None
+        or callable(config.get("build"))
+        or callable(config.get("build_artifact"))
+        or config.get("artifact") is not None
+    )
+    if not toolchain.get("ready", False) and not injected_boundary:
+        category = str(toolchain.get("category") or "rfuzz-toolchain-unavailable")
+        detail = str(toolchain.get("error") or "RFuzz toolchain is not admitted")
+        error = SocCampaignError(f"{category}: {detail}")
+        report["errors"] = [_error_record(error, "preflight")]
+        report.update(status="failed", final_status=category)
+        _write_report(report_path, report)
+        return report
     if preflight["client"]["requested"] and not preflight["client"]["ready"]:
         error = SocCampaignError("official RFuzz client is missing or not executable")
         report["errors"] = [_error_record(error, "client")]
         report.update(status="failed", final_status="client-unavailable")
         _write_report(report_path, report)
         return report
-    client = _resolve_path(root, normal["client_binary"])
+    selected_client = preflight.get("toolchain", {}).get("client", {}).get("path")
+    client = Path(selected_client) if isinstance(selected_client, str) and selected_client else _resolve_path(root, normal["client_binary"])
     if client is None:
         error = SocCampaignError("official RFuzz client path is required")
         report["errors"] = [_error_record(error, "client")]
         report.update(status="failed", final_status="client-unavailable")
         _write_report(report_path, report)
         return report
+
+    # Resolve the runtime environment separately from the public preflight
+    # document.  The latter intentionally omits environment values, while the
+    # official runner and the profile builder must receive the exact effective
+    # variables used to validate Verilator.
+    runtime_toolchain: Mapping[str, object] = {}
+    if toolchain.get("ready", False):
+        try:
+            runtime_toolchain = resolve_rfuzz_toolchain(
+                root, config, environment=environment)
+        except (RfuzzToolchainError, OSError, TypeError, ValueError) as error:
+            category = str(error).split(":", 1)[0]
+            if not category.startswith("rfuzz-"):
+                category = "rfuzz-toolchain-config-invalid"
+            wrapped = SocCampaignError(f"{category}: {error}")
+            report["errors"] = [_error_record(wrapped, "preflight")]
+            report.update(status="failed", final_status=category)
+            _write_report(report_path, report)
+            return report
+
+    campaign_config = dict(config)
+    if environment is not None:
+        campaign_config["environment"] = dict(environment)
 
     build_dir = output / "build"
     live_dir = output / "live"
@@ -873,7 +1027,8 @@ def run_soc_campaign(
         if build_hook is None:
             artifact = config.get("artifact")
         elif callable(build_hook):
-            artifact = _call_forms(build_hook, ((config, build_dir), (build_dir,), (config,), ()))
+            artifact = _call_forms(build_hook, ((campaign_config, build_dir),
+                                                 (build_dir,), (campaign_config,), ()))
         else:
             raise ValueError("build hook must be callable")
         if artifact is None:
@@ -884,6 +1039,7 @@ def run_soc_campaign(
         report["input_transport"] = {
             "status": "observed", "document": transport, "transport_hash": _hash(transport),
         }
+        report["artifact"] = _artifact_boundary_document(artifact)
         phase = "client"
         try:
             if runner is None:
@@ -891,11 +1047,13 @@ def run_soc_campaign(
                     artifact, client, live_dir,
                     duration_seconds=normal["duration_seconds"],
                     seed_cycles=max(1, normal["seed_cycles"]),
+                    environment=(runtime_toolchain.get("verilator_environment")
+                                 if isinstance(runtime_toolchain, Mapping) else None),
                 )
             else:
                 run_result = _call_forms(
                     runner,
-                    ((config, artifact, client, live_dir),
+                    ((campaign_config, artifact, client, live_dir),
                      (artifact, client, live_dir), (artifact, live_dir), (artifact,)),
                 )
         except BaseException as client_error:
@@ -918,6 +1076,9 @@ def run_soc_campaign(
         report["corpus"] = _corpus_document(live_dir, run_result)
         if run_result.get("corpus_manifest_error"):
             report["corpus"]["manifest_error"] = run_result["corpus_manifest_error"]
+        projection = run_result.get("input_projection")
+        if isinstance(projection, Mapping):
+            report["input_projection"] = _plain(projection)
         remaining = run_result.get("remaining_segments")
         cleanup_is_explicitly_clean = (
             isinstance(remaining, Sequence)
@@ -935,7 +1096,8 @@ def run_soc_campaign(
         replay_builder = rebuilder or config.get("rebuild") or build_hook
         if callable(replay_builder):
             replay_dir = output / "rebuild"
-            rebuilt = _call_forms(replay_builder, ((config, replay_dir), (replay_dir,), (config,), ()))
+            rebuilt = _call_forms(replay_builder, ((campaign_config, replay_dir),
+                                                    (replay_dir,), (campaign_config,), ()))
             replay = replay_corpus(rebuilt, live_dir / "corpus")
             if not isinstance(replay, Mapping):
                 raise SocCampaignError("corpus replay did not return a mapping")

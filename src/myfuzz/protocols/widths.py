@@ -6,13 +6,36 @@ import ast
 from collections.abc import Mapping
 
 
+#: Width names a bundled plugin may use that are not the two the composition
+#: layer passes in (``address_width``/``data_width``).  They are the TL-UL
+#: parameter set of the pinned OpenTitan top package and of the bundled adapter,
+#: which declare the same values: top_pkg.sv fixes TL_SZW=2, TL_AIW=8, TL_DIW=1
+#: and TL_AUW=23, tlul_pkg's tl_d2h_t carries a 14-bit user field, and
+#: src/myfuzz/protocols/rtl/beat_to_tlul.sv defaults SIZE_WIDTH=2,
+#: SOURCE_WIDTH=8, SINK_WIDTH=1, USER_WIDTH=23 and DUSER_WIDTH=14.  A caller's
+#: own parameters always win over these defaults.
+PROTOCOL_WIDTH_PARAMETER_DEFAULTS: dict[str, int] = {
+    "size_width": 2,
+    "source_width": 8,
+    "sink_width": 1,
+    "user_width": 23,
+    "d_user_width": 14,
+}
+
+
 class ProtocolWidthError(ValueError):
     """Raised when a protocol width expression cannot be compiled."""
 
 
-def width_parameters(parameters: Mapping[str, object]) -> dict[str, int]:
-    """Require the positive integer parameter domain used by protocol widths."""
-    names: dict[str, int] = {}
+def width_parameters(parameters: Mapping[str, object], *,
+                     defaults: Mapping[str, int] | None = None) -> dict[str, int]:
+    """Require the positive integer parameter domain used by protocol widths.
+
+    ``defaults`` are the plugin-declared width names a binding need not repeat;
+    a name supplied by the caller always overrides its default.
+    """
+    names: dict[str, int] = dict(PROTOCOL_WIDTH_PARAMETER_DEFAULTS
+                                 if defaults is None else defaults)
     for name, value in parameters.items():
         if (
             not isinstance(name, str)
@@ -31,11 +54,13 @@ def width_parameters(parameters: Mapping[str, object]) -> dict[str, int]:
 def compile_width_expression(
     expression: str,
     parameters: Mapping[str, object],
+    *,
+    defaults: Mapping[str, int] | None = None,
 ) -> int:
     """Evaluate one bounded arithmetic width expression deterministically."""
     if not isinstance(expression, str) or not expression:
         raise ProtocolWidthError("width expression must be a non-empty string")
-    names = width_parameters(parameters)
+    names = width_parameters(parameters, defaults=defaults)
     try:
         node = ast.parse(expression, mode="eval").body
     except SyntaxError as error:
@@ -77,6 +102,7 @@ def compile_width_expression(
 
 
 __all__ = [
+    "PROTOCOL_WIDTH_PARAMETER_DEFAULTS",
     "ProtocolWidthError",
     "compile_width_expression",
     "width_parameters",

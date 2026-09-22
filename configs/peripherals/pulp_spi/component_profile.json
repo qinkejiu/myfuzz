@@ -1,0 +1,101 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "pulp_spi",
+  "kind": "peripheral",
+  "description": "Original pinned PULP apb_spi_master (APB3, 16 word slots, 32-bit FIFO data path, hardwired SPI mode 0). The SPI engine's event outputs are one-cycle pulses and are exported for observation only, never attached to the level-only interrupt controller.",
+  "source": {
+    "root": "third_party",
+    "revision": "sha256:c653811843b453f0689a8f6942934ff9d551734aa4bc4e197d8b9acbfb020230",
+    "top_module": "apb_spi_master",
+    "files": [
+      "soc-pulp-apb-spi/apb_spi_master.sv",
+      "soc-pulp-apb-spi/spi_master_apb_if.sv",
+      "soc-pulp-axi-spi/spi_master_clkgen.sv",
+      "soc-pulp-axi-spi/spi_master_controller.sv",
+      "soc-pulp-axi-spi/spi_master_fifo.sv",
+      "soc-pulp-axi-spi/spi_master_rx.sv",
+      "soc-pulp-axi-spi/spi_master_tx.sv"
+    ],
+    "include_roots": [],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {"name": "BUFFER_DEPTH", "value": "10"},
+        {"name": "APB_ADDR_WIDTH", "value": "12"}
+      ],
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [{"port": "HCLK", "domain": "core", "frequency_hz": 50000000}],
+  "resets": [{"port": "HRESETn", "domain": "sys_rst", "polarity": "active_low", "synchronous": false,
+    "release": "Every state element of apb_spi_master, spi_master_apb_if, spi_master_fifo, spi_master_clkgen and spi_master_controller is written on posedge HCLK with an asynchronous active-low reset (apb_spi_master.sv:119,133 `always_ff @(posedge HCLK, negedge HRESETn)`; spi_master_apb_if.sv:84 `always @(posedge HCLK or negedge HRESETn)`; spi_master_controller.sv:518-527). Release must satisfy HCLK recovery/removal timing; the SPI clock divider, the FSM and both FIFOs leave reset at their idle values (spi_clk low, spi_cs=1, FIFOs empty)."}],
+  "endpoints": [
+    {"endpoint_id": "spi.bus", "function": "mmio_slave", "protocol": ["apb", "3"], "fields": [
+      {"role": "paddr", "aliases": ["PADDR"]},
+      {"role": "psel", "aliases": ["PSEL"]},
+      {"role": "penable", "aliases": ["PENABLE"]},
+      {"role": "pwrite", "aliases": ["PWRITE"]},
+      {"role": "pwdata", "aliases": ["PWDATA"]},
+      {"role": "pready", "aliases": ["PREADY"]},
+      {"role": "prdata", "aliases": ["PRDATA"]},
+      {"role": "pslverr", "aliases": ["PSLVERR"]}
+    ]},
+    {"endpoint_id": "spi.pins", "function": "external_pins", "fields": [
+      {"role": "sck", "direction": "output", "aliases": ["spi_clk"]},
+      {"role": "csn0", "direction": "output", "aliases": ["spi_csn0"]},
+      {"role": "csn1", "direction": "output", "aliases": ["spi_csn1"]},
+      {"role": "csn2", "direction": "output", "aliases": ["spi_csn2"]},
+      {"role": "csn3", "direction": "output", "aliases": ["spi_csn3"]},
+      {"role": "mode", "direction": "output", "aliases": ["spi_mode"]},
+      {"role": "sdo0", "direction": "output", "aliases": ["spi_sdo0"]},
+      {"role": "sdo1", "direction": "output", "aliases": ["spi_sdo1"]},
+      {"role": "sdo2", "direction": "output", "aliases": ["spi_sdo2"]},
+      {"role": "sdo3", "direction": "output", "aliases": ["spi_sdo3"]},
+      {"role": "sdi0", "direction": "input", "aliases": ["spi_sdi0"]},
+      {"role": "sdi1", "direction": "input", "aliases": ["spi_sdi1"]},
+      {"role": "sdi2", "direction": "input", "aliases": ["spi_sdi2"]},
+      {"role": "sdi3", "direction": "input", "aliases": ["spi_sdi3"]}
+    ]}
+  ],
+  "capabilities": {"address_width": 12, "data_width": 32, "read": true, "write": true,
+    "byte_enable": false, "partial_write": false, "has_error": true, "max_wait_cycles": 16},
+  "address": {"window_size": 4096, "alignment": 4096, "registers": [
+    {"name": "STATUS", "offset": 0, "width": 32, "access": "rw", "side_effect": "write_starts_transfer"},
+    {"name": "CLKDIV", "offset": 4, "width": 32, "access": "rw", "side_effect": "write_loads_divider"},
+    {"name": "SPICMD", "offset": 8, "width": 32, "access": "rw", "side_effect": "none"},
+    {"name": "SPIADR", "offset": 12, "width": 32, "access": "rw", "side_effect": "none"},
+    {"name": "SPILEN", "offset": 16, "width": 32, "access": "rw", "side_effect": "none"},
+    {"name": "SPIDUM", "offset": 20, "width": 32, "access": "rw", "side_effect": "none"},
+    {"name": "TXFIFO", "offset": 24, "width": 32, "access": "wo", "side_effect": "write_pushes_fifo"},
+    {"name": "RXFIFO", "offset": 32, "width": 32, "access": "ro", "side_effect": "read_pops_fifo"},
+    {"name": "INTCFG", "offset": 36, "width": 32, "access": "rw", "side_effect": "none"},
+    {"name": "INTSTA", "offset": 40, "width": 32, "access": "ro", "side_effect": "read_rearms_interrupt"}
+  ]},
+  "interrupts": [],
+  "port_actions": [
+    {"port": "events_o", "action": "observe",
+      "reason": "Two one-cycle pulses, not held levels: `assign events_o[0] = s_int_tx | s_int_rx;` (the TX/RX threshold event generated for one cycle in GEN_INT_TX/GEN_INT_RX, apb_spi_master.sv:116,179-183,220-224) and `assign events_o[1] = s_eot;` (the end-of-transfer pulse registered in spi_master_controller.sv:455). This project's interrupt controller admits level sources only, so the profile declares no interrupt_source endpoint and exports both bits for observation instead of inventing a level hold the RTL does not have. The matching status path is also non-level: REG_INTSTA (0x28) has no read-mux arm, so it reads 0 and the read itself only re-arms the TX/RX event state machine (spi_master_apb_if.sv:82,210-211)."}
+  ],
+  "evidence": {
+    "semantics": [
+      "APB3 register map and address decode: `write_address = PADDR[5:2]` / `read_address = PADDR[5:2]` (spi_master_apb_if.sv:76-77), `REG_STATUS 4'b0000` .. `REG_INTSTA 4'b1010` (spi_master_apb_if.sv:13-22), the write case at spi_master_apb_if.sv:119-168 and the read mux at spi_master_apb_if.sv:185-212. APB_ADDR_WIDTH only widens PADDR; every higher address bit is ignored, so the 64-byte register block aliases throughout the 4 KB APB window.",
+      "PREADY/PSLVERR: `assign PSLVERR = 1'b0;` and `assign PREADY = 1'b1;` (spi_master_apb_if.sv:79-80). The slave completes every access in the APB access phase and can never insert a wait state; the PSLVERR pin exists and is bound, but no RTL path can assert it, so a fabric decode error must be produced by the fabric, not by this target.",
+      "No write strobe exists: neither apb_spi_master nor spi_master_apb_if has a PSTRB/PROT/PWAKEUP/PUSER port, and each write case arm stores whole PWDATA fields, so only full-word writes are admitted (byte_enable=false, partial_write=false). The generic beat-to-APB3 adapter therefore rejects sub-word writes instead of synthesising a read-modify-write.",
+      "Data path: a write to TXFIFO (0x18) pushes all 32 bits of PWDATA (`assign spi_data_tx_valid = PSEL & PENABLE & PWRITE & (write_address == REG_TXFIFO)`, spi_master_apb_if.sv:215-216), a read of RXFIFO (0x20) returns and pops one 32-bit word (`spi_data_rx_ready`, spi_master_apb_if.sv:217,198-199); both FIFOs are BUFFER_DEPTH=10 deep (apb_spi_master.sv:291-333). STATUS reads the packed {tx fill, rx fill, ctrl status} word (apb_spi_master.sv:114) and a STATUS write latches spi_rd/wr/qrd/qwr[3:0], the software reset bit [4] and the four CS enables [11:8] (spi_master_apb_if.sv:121-129).",
+      "The serial pins are HCLK-domain logic, not clocks or tristates: SCK comes from spi_master_clkgen (toggle every clk_div+1 HCLK cycles, idle low, spi_master_clkgen.sv:40-47) and the controller shifts TX on the falling SCK edge and samples RX on the rising edge, i.e. hardwired SPI mode 0 (spi_master_controller.sv:115); spi_mode is the line-width indicator SPI_STD/SPI_QUAD_TX/SPI_QUAD_RX (spi_master_controller.sv:11-13), not CPOL/CPHA. spi_csn[i] = ~spi_csreg[i] | spi_cs with spi_cs held 0 for the whole transfer (spi_master_controller.sv:555-558). In single-line mode MOSI is spi_sdo0 and MISO is spi_sdi1 (spi_master_tx.sv:42, spi_master_rx.sv:84); spi_sdi0/sdi2/sdi3 and spi_sdo1..3 carry data only in the quad modes, but all eight remain bound so no pad is left undriven.",
+      "Every state element is on posedge HCLK with asynchronous active-low reset (apb_spi_master.sv:119,133; spi_master_apb_if.sv:84; spi_master_controller.sv:518-527): single clock domain, no CDC, exactly one clock and one reset port.",
+      "Each declared capability and the construct it was read from: address_width=12 and data_width=32 are the elaborated widths of PADDR[APB_ADDR_WIDTH-1:0]/PWDATA[31:0]/PRDATA[31:0] (spi_master_apb_if.sv:33,35,38); read=true is the PRDATA read mux (spi_master_apb_if.sv:185-212) and write=true is the `PSEL && PENABLE && PWRITE` write case (spi_master_apb_if.sv:110-168); byte_enable=false and partial_write=false because no PSTRB or other per-byte write mask exists and every write arm stores whole PWDATA fields; has_error=true records that the APB3 PSLVERR pin is a real port and is bound, while `assign PSLVERR = 1'b0` (spi_master_apb_if.sv:79) means this IP can never assert it and any error response must be produced by the fabric; max_wait_cycles=16 is the SoC's declared patience bound, and the RTL is far inside it because `assign PREADY = 1'b1` (spi_master_apb_if.sv:80) completes every access in the APB access phase. max_outstanding is deliberately not declared here: the single-outstanding limit belongs to the beat initiator and to the resolved adapter (resolve_target_adapter returns max_outstanding=1 for every target), it is not an RTL fact of apb_spi_master."
+    ],
+    "verified": [
+      "Physical ports, directions and widths come from verilator-json elaboration of the pinned closure (25 ports, top apb_spi_master) with BUFFER_DEPTH=10 and APB_ADDR_WIDTH=12, which are the values recorded in configs/soc/closures/pulp_spi.json and configs/soc/sources.lock.json (component pulp_spi).",
+      "The declared capability set matches exactly what resolve_target_adapter consumes for an apb@3 target: address_width/data_width/read/write/byte_enable/partial_write/has_error/max_wait_cycles all carry a semantics entry above, and partial_write is false because no write strobe exists in the RTL."
+    ],
+    "unknown": [
+      "The five shared spi_master_* modules are pinned under a second source root (pulp_spi_dependencies -> third_party/soc-pulp-axi-spi) while this profile has a single source root, and in this checkout the copies inside third_party/soc-pulp-apb-spi are symlinks to ../../axi/axi_spi_master/* whose targets are not vendored. The profile therefore roots at third_party and pins the union of the two recorded roots with a sha256 content pin over exactly the closure's seven files (configs/soc/closures/pulp_spi.json:closure_files) instead of the git: revision recorded for the apb-spi root alone. Both roots' revisions are recorded in configs/soc/sources.lock.json (pulp_spi 3fce8108..., pulp_spi_dependencies ee219078...); the content pin is verified by elaborate_profile on every run, so a byte change fails closed.",
+      "spi_master_controller is registered as the separate component pulp_spi_dependencies with top_module spi_master_controller, but it is not a bus component: it has no address input, no APB interface and no MMIO registers (configs/soc/closures/pulp_spi_dependencies.json, finding 'module_role'), and this profile's top already instantiates it. No component_profile is written for it because a component_profile.v1 peripheral requires a declared address window and any window invented for it would be fabrication; the SPI is complete without it.",
+      "The serial transfer itself is not exercised by structural composition: the generated SoC exports SCK/CS/SDO/SDI, and no SPI peer model is composed for this profile (the test environment or the peer in src/myfuzz/protocols/rtl/soc_spi_peer.sv is a separate stream's work). No transaction of this composed SoC was simulated for this profile.",
+      "spi_master_controller declares spi_swrst but never references it ('FIXME Not used at all', spi_master_controller.sv:31): the software-reset bit only clears the two FIFOs (apb_spi_master.sv:300,322), not the FSM, bit counters or clock generator. The register table records the write path that exists; it does not claim a full software reset.",
+      "Only BUFFER_DEPTH=10/APB_ADDR_WIDTH=12 is exercised by this profile acceptance; other parameterizations are not claimed verified."
+    ]
+  }
+}

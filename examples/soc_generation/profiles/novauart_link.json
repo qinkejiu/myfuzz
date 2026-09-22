@@ -1,0 +1,125 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "novauart_link",
+  "kind": "peripheral",
+  "description": "First-time input MMIO UART with a real serial frame engine: APB4 slave, one level interrupt source and a two-wire external pin pair whose frame timing is declared.",
+  "source": {
+    "root": "examples/soc_generation/rtl",
+    "revision": "sha256:d16c65c0c8b3cd734f381b681123d98aa9ae3a94fa5fc2defdff695735bcd17c",
+    "top_module": "novauart_link",
+    "files": [
+      "novauart_link.sv"
+    ],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {"name": "SERIAL_WIDTH", "value": "8"},
+        {"name": "BAUD_DIV", "value": "8"},
+        {"name": "STOP_BITS", "value": "1"},
+        {"name": "IDLE_LEVEL", "value": "1"}
+      ]
+    }
+  },
+  "clocks": [
+    {
+      "port": "clk_i",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "rst_ni",
+      "domain": "sys_rst",
+      "polarity": "active_low",
+      "synchronous": false,
+      "release": "RTL asserts reset asynchronously on negedge rst_ni; release must satisfy clk_i recovery/removal timing."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "link.bus",
+      "function": "mmio_slave",
+      "protocol": [
+        "apb",
+        "4"
+      ],
+      "fields": [
+        {"role": "paddr", "aliases": ["paddr_i"]},
+        {"role": "psel", "aliases": ["psel_i"]},
+        {"role": "penable", "aliases": ["penable_i"]},
+        {"role": "pwrite", "aliases": ["pwrite_i"]},
+        {"role": "pwdata", "aliases": ["pwdata_i"]},
+        {"role": "pstrb", "aliases": ["pstrb_i"]},
+        {"role": "pready", "aliases": ["pready_o"]},
+        {"role": "prdata", "aliases": ["prdata_o"]},
+        {"role": "pslverr", "aliases": ["pslverr_o"]}
+      ]
+    },
+    {
+      "endpoint_id": "link.irq",
+      "function": "interrupt_source",
+      "fields": [
+        {"role": "irq", "aliases": ["irq_o"]}
+      ]
+    },
+    {
+      "endpoint_id": "link.pins",
+      "function": "external_pins",
+      "fields": [
+        {"role": "rx", "direction": "input", "aliases": ["uart_rx_i"]},
+        {"role": "tx", "direction": "output", "aliases": ["uart_tx_o"]}
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 12,
+    "data_width": 32,
+    "read": true,
+    "write": true,
+    "byte_enable": true,
+    "partial_write": true,
+    "has_error": true,
+    "max_wait_cycles": 16
+  },
+  "address": {
+    "window_size": 4096,
+    "alignment": 4096,
+    "registers": [
+      {"name": "CTRL", "offset": 0, "width": 32, "access": "rw", "side_effect": "none"},
+      {"name": "STATUS", "offset": 4, "width": 32, "access": "ro", "side_effect": "none"},
+      {"name": "TXDATA", "offset": 8, "width": 32, "access": "wo", "side_effect": "transmit_byte"},
+      {"name": "RXDATA", "offset": 12, "width": 32, "access": "ro", "side_effect": "read_clears"},
+      {"name": "IRQ_STATUS", "offset": 16, "width": 32, "access": "rw", "side_effect": "write_1_to_clear"}
+    ]
+  },
+  "interrupts": [
+    {
+      "endpoint_id": "link.irq",
+      "role": "irq",
+      "trigger": "level",
+      "polarity": "active_high",
+      "clock_domain": "core",
+      "hold": "irq_o stays high while IRQ_STATUS[0] (a received byte) or IRQ_STATUS[1] (a framing error) is set and CTRL[2] enables the interrupt.",
+      "clear": "Write 1 to the corresponding IRQ_STATUS bit (offset 0x10); reading RXDATA clears only the receive-valid cause.",
+      "prerequisites": [
+        {"register": "CTRL", "offset": 0, "mask": 1,
+         "reason": "enable UART receiver before peer frame", "operation": "set_bits"}
+      ]
+    }
+  ],
+  "port_actions": [],
+  "evidence": {
+    "semantics": [
+      "Register map, frame timing and sampling points were read from examples/soc_generation/rtl/novauart_link.sv.",
+      "The frame format (start bit at the complement of IDLE_LEVEL, SERIAL_WIDTH data bits least significant bit first, STOP_BITS stop bits at IDLE_LEVEL, BAUD_DIV clk_i cycles per bit) is the same contract src/myfuzz/protocols/rtl/soc_uart_peer.sv implements, so the peer model can be attached to link.pins only when the request declares exactly these parameter values."
+    ],
+    "verified": [
+      "Physical ports and widths come from verilator elaboration of the pinned novauart_link.sv.",
+      "The declared parameters SERIAL_WIDTH, BAUD_DIV, STOP_BITS and IDLE_LEVEL are the elaboration parameters, so the instance the composition renders is the instance that was bound."
+    ],
+    "unknown": [
+      "Parity, fractional baud rates, FIFOs, flow control, glitch filtering and the electrical properties of the line are not modelled and are not claimed."
+    ]
+  }
+}

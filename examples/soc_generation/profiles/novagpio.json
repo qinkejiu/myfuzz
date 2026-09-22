@@ -1,0 +1,229 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "novagpio",
+  "kind": "peripheral",
+  "description": "First-time input MMIO GPIO: APB4 slave, eight external pins, one level interrupt source and a three-bit special random input.",
+  "source": {
+    "root": "examples/soc_generation/rtl",
+    "revision": "sha256:5d7ae6c13e4d0a4b967b4a1c53d2f9f8f6df760987c631e02b2c28665ec397e6",
+    "top_module": "novagpio",
+    "files": [
+      "novagpio.sv"
+    ],
+    "elaboration": {
+      "frontend": "verilator-json"
+    }
+  },
+  "clocks": [
+    {
+      "port": "clk_i",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "rst_ni",
+      "domain": "sys_rst",
+      "polarity": "active_low",
+      "synchronous": false,
+      "release": "RTL asserts reset asynchronously on negedge rst_ni; release must satisfy clk_i recovery/removal timing."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "gpio.bus",
+      "function": "mmio_slave",
+      "protocol": [
+        "apb",
+        "4"
+      ],
+      "fields": [
+        {
+          "role": "paddr",
+          "aliases": [
+            "paddr_i"
+          ]
+        },
+        {
+          "role": "psel",
+          "aliases": [
+            "psel_i"
+          ]
+        },
+        {
+          "role": "penable",
+          "aliases": [
+            "penable_i"
+          ]
+        },
+        {
+          "role": "pwrite",
+          "aliases": [
+            "pwrite_i"
+          ]
+        },
+        {
+          "role": "pwdata",
+          "aliases": [
+            "pwdata_i"
+          ]
+        },
+        {
+          "role": "pstrb",
+          "aliases": [
+            "pstrb_i"
+          ]
+        },
+        {
+          "role": "pready",
+          "aliases": [
+            "pready_o"
+          ]
+        },
+        {
+          "role": "prdata",
+          "aliases": [
+            "prdata_o"
+          ]
+        },
+        {
+          "role": "pslverr",
+          "aliases": [
+            "pslverr_o"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "gpio.irq",
+      "function": "interrupt_source",
+      "fields": [
+        {
+          "role": "irq",
+          "aliases": [
+            "irq_o"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "gpio.pins",
+      "function": "external_pins",
+      "fields": [
+        {
+          "role": "in",
+          "direction": "input",
+          "aliases": [
+            "gpio_in_i"
+          ]
+        },
+        {
+          "role": "out",
+          "direction": "output",
+          "aliases": [
+            "gpio_out_o"
+          ]
+        },
+        {
+          "role": "dir",
+          "direction": "output",
+          "aliases": [
+            "gpio_dir_o"
+          ]
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 12,
+    "data_width": 32,
+    "read": true,
+    "write": true,
+    "byte_enable": true,
+    "partial_write": true,
+    "has_error": true,
+    "max_wait_cycles": 16
+  },
+  "address": {
+    "window_size": 4096,
+    "alignment": 4096,
+    "registers": [
+      {
+        "name": "DATA_OUT",
+        "offset": 0,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none",
+        "reset_value": 0,
+        "writable_bits": 255
+      },
+      {
+        "name": "DIR",
+        "offset": 4,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none",
+        "reset_value": 0,
+        "writable_bits": 255
+      },
+      {
+        "name": "DATA_IN",
+        "offset": 8,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "read_clears",
+        "clears_register": "IRQ_STATUS"
+      },
+      {
+        "name": "IRQ_EN",
+        "offset": 12,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none",
+        "reset_value": 0,
+        "writable_bits": 1
+      },
+      {
+        "name": "IRQ_STATUS",
+        "offset": 16,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "none"
+      }
+    ]
+  },
+  "interrupts": [
+    {
+      "endpoint_id": "gpio.irq",
+      "role": "irq",
+      "trigger": "level",
+      "polarity": "active_high",
+      "clock_domain": "core",
+      "hold": "irq_o stays high while IRQ_STATUS[0] is set and IRQ_EN[0] is set; IRQ_STATUS latches on any change of the sampled pin vector.",
+      "clear": "Read DATA_IN (offset 0x08) or write DATA_IN to clear IRQ_STATUS[0]."
+    }
+  ],
+  "port_actions": [
+    {
+      "port": "pin_mode_i",
+      "action": "fuzz",
+      "strategy": "cycle_value",
+      "reason": "Declared special input: the profile allows the environment to change the three pin-mode bits on every clock; the component XORs them into the sampled pin vector."
+    }
+  ],
+  "evidence": {
+    "semantics": [
+      "Register map and side effects were read from examples/soc_generation/rtl/novagpio.sv.",
+      "APB4 access attributes come from src/myfuzz/protocols/plugins/apb4.json.",
+      "pready_o is tied high and pslverr_o reports offsets outside the documented register map, so every APB transfer completes in one ACCESS cycle.",
+      "Optional register declarations added for the generated software phase: reset_value is the register's post-reset value (data_out_q, dir_q and irq_en_q reset to 0); writable_bits is the mask the RTL really stores, because the register is declared 32 bits wide while the RTL keeps only PINS=8 bits (DATA_OUT, DIR) or one bit (IRQ_EN); clears_register names the declared register whose value proves a read_clears access took effect (reading DATA_IN clears irq_stat_q, which IRQ_STATUS exposes). IRQ_STATUS declares side_effect none and carries no clears_register: novagpio.sv clears irq_stat_q only on a DATA_IN access (novagpio.sv:89 for a write, :93 for a read), so a read of IRQ_STATUS clears nothing and a read_clears declaration on it would have been false about the DUT. The clearing access is declared on DATA_IN, whose clears_register is IRQ_STATUS."
+    ],
+    "verified": [
+      "Physical ports and widths come from verilator elaboration of the pinned novagpio.sv."
+    ],
+    "unknown": [
+      "Electrical drive strength and bidirectional pin behaviour are out of the first-phase scope; out and dir are exported as separate unidirectional signals."
+    ]
+  }
+}

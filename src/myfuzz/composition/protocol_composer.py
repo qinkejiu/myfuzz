@@ -101,8 +101,16 @@ class CompositionArtifact:
 
 
 def _width(expression: str, *, address_width: int, data_width: int) -> int:
-    """Evaluate the closed width expressions used by bundled protocol plugins."""
-    names = {"address_width": address_width, "data_width": data_width}
+    """Evaluate the closed width expressions used by bundled protocol plugins.
+
+    The plugin vocabulary names its protocol parameters, not only the two fabric
+    widths, so the declared defaults of that vocabulary are the base of the name
+    domain and the two fabric widths override them.
+    """
+    from myfuzz.protocols.widths import PROTOCOL_WIDTH_PARAMETER_DEFAULTS
+
+    names = dict(PROTOCOL_WIDTH_PARAMETER_DEFAULTS)
+    names.update({"address_width": address_width, "data_width": data_width})
     try:
         node = ast.parse(expression, mode="eval").body
     except SyntaxError as error:

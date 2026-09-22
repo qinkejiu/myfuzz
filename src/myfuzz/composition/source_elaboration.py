@@ -138,6 +138,12 @@ class _Leaf:
     width: int
     signed: bool
     source: Mapping[str, object]
+    #: The fully qualified name of the enumerated type this leaf is declared
+    #: with, or "" for a plain integral leaf.  Assigning an integral expression
+    #: to an enumerated member is not a legal implicit conversion, so a generated
+    #: connection has to cast; recording the type is what lets it - and what lets
+    #: the audit check that the member's type really is the declared one.
+    enum_type: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,6 +152,8 @@ class _PhysicalType:
     signed: bool
     leaves: tuple[_Leaf, ...]
     aggregate: bool = False
+    #: Set when this whole type is an enumerated type (a scalar enum leaf).
+    enum_type: str = ""
 
 
 def _objects(root: object):
@@ -289,15 +297,21 @@ class _Reader:
             base = self.physical_type(self.pointer(node, "refDTypep"), active=active, depth=depth + 1)
             if base.aggregate:
                 raise ElaborationError("unsupported structured enum base")
-            return base
+            name = node.get("name")
+            if not isinstance(name, str) or not name:
+                raise ElaborationError("enum type name is missing")
+            return _PhysicalType(base.width, base.signed, (), False, name)
         if kind == "PACKARRAYDTYPE":
             element = self.physical_type(self.pointer(node, "refDTypep"), active=active, depth=depth + 1)
             count = _range_width(node.get("declRange"), "packed array")
             width = _bounded_width(element.width * count, "packed array")
             # Structured array indices are not stable semantic member names.
             # Validate the complete element closure above, then expose the
-            # array only as one aggregate leaf when embedded in a structure.
-            return _PhysicalType(width, _signed(node, element.signed), (), element.aggregate)
+            # array only as one aggregate leaf when embedded in a structure.  An
+            # array of enums is one packed array, not a scalar enum, so it keeps
+            # no enum type: a generated connection assigns it as a vector.
+            return _PhysicalType(width, _signed(node, element.signed), (),
+                                 element.aggregate)
         if kind == "STRUCTDTYPE":
             return self._structure(node, active, depth)
         raise ElaborationError(f"unsupported physical type: {kind}")
@@ -347,11 +361,13 @@ class _Reader:
             total = _bounded_width(total + member_type.width, "structure")
             if member_type.leaves:
                 expanded.extend(
-                    _Leaf((name, *leaf.path), leaf.width, leaf.signed, leaf.source)
+                    _Leaf((name, *leaf.path), leaf.width, leaf.signed, leaf.source,
+                          leaf.enum_type)
                     for leaf in member_type.leaves
                 )
             else:
-                expanded.append(_Leaf((name,), member_type.width, member_type.signed, self.source(member)))
+                expanded.append(_Leaf((name,), member_type.width, member_type.signed,
+                                      self.source(member), member_type.enum_type))
             if len(expanded) > _MAX_MEMBERS:
                 raise ElaborationError("flattened member count exceeds supported bounds")
         return _PhysicalType(total, _signed(node, False), tuple(expanded), True)
@@ -370,10 +386,17 @@ class _Reader:
         high = physical.width - 1
         for leaf in physical.leaves:
             low = high - leaf.width + 1
-            members.append({
+            member = {
                 "path": list(leaf.path), "width": leaf.width, "raw_lo": low,
                 "raw_hi": high, "signed": leaf.signed, "source": dict(leaf.source),
-            })
+            }
+            # Keep the v1 document byte-compatible for ordinary integral
+            # members.  Enum provenance is additive and is emitted only when
+            # a member actually has an enum declaration, so existing source
+            # identities do not change merely because enum support is enabled.
+            if leaf.enum_type:
+                member["enum_type"] = leaf.enum_type
+            members.append(member)
             high = low - 1
         return {
             "name": name,
@@ -418,7 +441,11 @@ def extract_physical_ports(
         item for item in statements
         if isinstance(item, Mapping)
         and item.get("type") == "VAR"
-        and item.get("varType") == "PORT"
+        # A net-style port (Verilog-2001 ``input wire i_clk``) is emitted as
+        # WIRE rather than PORT; both are primary IO of the elaborated top and
+        # must be extracted, otherwise every net port of a Verilog module is
+        # silently dropped.
+        and item.get("varType") in ("PORT", "WIRE")
         and item.get("isPrimaryIO") is True
     ]
     if len(port_nodes) > _MAX_PORTS:
@@ -549,7 +576,26 @@ def _closure(
                 if excluded is not None and (path == excluded or excluded in path.parents):
                     continue
                 if entry.is_symlink():
-                    raise ElaborationError("include closure contains a symlink")
+                    # A symlink inside an include root is only unsafe when it
+                    # escapes the source root or is not a regular file.  A
+                    # symlink that stays inside the tree is added as its
+                    # resolved target, so the closure still hashes the bytes
+                    # verilator would read, and an unrelated symlink no longer
+                    # rejects an otherwise complete closure.
+                    target = path.resolve()
+                    try:
+                        relative = target.relative_to(root)
+                    except ValueError as error:
+                        raise ElaborationError(
+                            "include closure symlink escapes the source root") from error
+                    status = target.lstat()
+                    if not stat.S_ISREG(status.st_mode):
+                        raise ElaborationError(
+                            "include closure contains a non-regular file")
+                    paths.setdefault(target, relative.as_posix())
+                    if len(paths) > _MAX_CLOSURE_FILES:
+                        raise ElaborationError("source closure exceeds file limit")
+                    continue
                 if entry.is_dir(follow_symlinks=False):
                     pending.append(path)
                 elif entry.is_file(follow_symlinks=False):
@@ -778,7 +824,7 @@ def run_verilator_elaboration(
         initial_tool_snapshot[name] = (path, digest, size)
     logical_command: tuple[str, ...] = (
         () if tool is None else (
-            "nice", "-n15", tool, "--json-only",
+            "nice", "-n15", tool, "--json-only", "--no-std-package",
             *(("-Wno-fatal",) if warning_policy == "recorded-nonfatal" else ()),
             "--json-only-output", tree_path.as_posix(),
             "--json-only-meta-output", metadata_path.as_posix(),

@@ -70,6 +70,7 @@ module generic_processor_fixture (
     output logic [3:0]  tl_a_mask_o,
     output logic [31:0] tl_a_data_o,
     output logic        tl_a_corrupt_o,
+    output logic [2:0]  tl_a_user_o,
     input  logic        tl_d_valid_i,
     output logic        tl_d_ready_o,
     input  logic [2:0]  tl_d_opcode_i,
@@ -80,6 +81,8 @@ module generic_processor_fixture (
     input  logic        tl_d_denied_i,
     input  logic [31:0] tl_d_data_i,
     input  logic        tl_d_corrupt_i,
+    input  logic [13:0] tl_d_user_i,
+    input  logic        tl_d_error_i,
 
     output logic        done_o,
     output logic [7:0]  accepted_o,
@@ -169,6 +172,7 @@ module generic_processor_fixture (
     assign tl_a_mask_o = writing ? 4'b0011 : 4'b1111;
     assign tl_a_data_o = WRITE_DATA;
     assign tl_a_corrupt_o = 1'b0;
+    assign tl_a_user_o = '0;
     assign tl_d_ready_o = 1'b1;
 
     always_comb begin

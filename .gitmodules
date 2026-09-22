@@ -22,3 +22,27 @@
 [submodule "external_designs/riscv-sodor"]
 	path = external_designs/riscv-sodor
 	url = git@github.com:ucb-bar/riscv-sodor.git
+[submodule "third_party/rfuzz/upstream/ibex"]
+	path = third_party/rfuzz/upstream/ibex
+	url = https://github.com/lowRISC/ibex.git
+[submodule "third_party/soc-opentitan"]
+	path = third_party/soc-opentitan
+	url = https://github.com/lowRISC/opentitan.git
+[submodule "third_party/soc-pulp-apb-gpio"]
+	path = third_party/soc-pulp-apb-gpio
+	url = https://github.com/pulp-platform/apb_gpio.git
+[submodule "third_party/soc-pulp-apb-spi"]
+	path = third_party/soc-pulp-apb-spi
+	url = https://github.com/pulp-platform/apb_spi_master.git
+[submodule "third_party/soc-pulp-axi-spi"]
+	path = third_party/soc-pulp-axi-spi
+	url = https://github.com/pulp-platform/axi_spi_master.git
+[submodule "third_party/soc-zipcpu-wbuart"]
+	path = third_party/soc-zipcpu-wbuart
+	url = https://github.com/ZipCPU/wbuart32.git
+[submodule "third_party/soc-zipcpu"]
+	path = third_party/soc-zipcpu
+	url = https://github.com/ZipCPU/zipcpu.git
+[submodule "third_party/cva6_upstream_reference"]
+	path = third_party/cva6_upstream_reference
+	url = https://github.com/openhwgroup/cva6.git

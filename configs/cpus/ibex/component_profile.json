@@ -1,0 +1,517 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "ibex",
+  "kind": "cpu",
+  "description": "Real lowRISC/CHERIoT-fork Ibex (ibex_top) at the pinned revision, composed as the instruction+data OBI master pair of the generated SoC. Endpoints, clocks, resets and every remaining top-level port come from the official interface description and from the RTL itself; the four aggregate ram_cfg_icache_* ports are declared unrepresentable (see evidence.unknown) and are therefore out of the bounded elaboration.",
+  "source": {
+    "root": "third_party/rfuzz/upstream/ibex",
+    "revision": "git:34b0705760ef3dfa00e99637432473d2be8f22f3",
+    "top_module": "ibex_top",
+    "top_port_selection": "declared",
+    "files": [
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_util_pkg.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_count_pkg.sv",
+      "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_ram_1p_pkg.sv",
+      "rtl/ibex_pkg.sv",
+      "rtl/ibex_cheriot_pkg.sv",
+      "rtl/ibex_cheriot_ex.sv",
+      "rtl/ibex_alu.sv",
+      "rtl/ibex_branch_predict.sv",
+      "rtl/ibex_compressed_decoder.sv",
+      "rtl/ibex_controller.sv",
+      "rtl/ibex_cs_registers.sv",
+      "rtl/ibex_csr.sv",
+      "rtl/ibex_counter.sv",
+      "rtl/ibex_decoder.sv",
+      "rtl/ibex_ex_block.sv",
+      "rtl/ibex_fetch_fifo.sv",
+      "rtl/ibex_id_stage.sv",
+      "rtl/ibex_if_stage.sv",
+      "rtl/ibex_load_store_unit.sv",
+      "rtl/ibex_multdiv_fast.sv",
+      "rtl/ibex_multdiv_slow.sv",
+      "rtl/ibex_prefetch_buffer.sv",
+      "rtl/ibex_pmp.sv",
+      "rtl/ibex_wb_stage.sv",
+      "rtl/ibex_dummy_instr.sv",
+      "rtl/ibex_register_file_ff.sv",
+      "rtl/ibex_trvk.sv",
+      "rtl/ibex_lockstep.sv",
+      "rtl/ibex_icache.sv",
+      "rtl/ibex_core.sv",
+      "rtl/ibex_top.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_assert.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_cipher_pkg.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_lfsr.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_mubi_pkg.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_mubi4_dec.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_pkg.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+      "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_buf.sv",
+      "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_clock_gating.sv"
+    ],
+    "include_roots": [
+      "vendor/lowrisc_ip/ip/prim/rtl",
+      "vendor/lowrisc_ip/ip/prim_generic/rtl",
+      "vendor/lowrisc_ip/dv/sv/dv_utils",
+      "vendor/pulp_common_cells/rtl"
+    ],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {
+          "name": "PMPEnable",
+          "value": "0"
+        },
+        {
+          "name": "RV32E",
+          "value": "0"
+        },
+        {
+          "name": "ICache",
+          "value": "0"
+        },
+        {
+          "name": "SecureIbex",
+          "value": "0"
+        }
+      ],
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [
+    {
+      "port": "clk_i",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "rst_ni",
+      "domain": "sys_rst",
+      "polarity": "active_low",
+      "synchronous": false,
+      "release": "rst_ni is the single active-low asynchronously asserted reset of ibex_top (rtl/ibex_top.sv:318,632,642); deassertion must satisfy clk_i recovery/removal timing, and the core only leaves reset into fetch once fetch_enable_i holds ibex_pkg::IbexMuBiOn."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "processor.instruction",
+      "function": "instruction_memory_master",
+      "protocol": [
+        "obi",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "req",
+          "aliases": [
+            "instr_req_o"
+          ]
+        },
+        {
+          "role": "gnt",
+          "aliases": [
+            "instr_gnt_i"
+          ]
+        },
+        {
+          "role": "addr",
+          "aliases": [
+            "instr_addr_o"
+          ]
+        },
+        {
+          "role": "rvalid",
+          "aliases": [
+            "instr_rvalid_i"
+          ]
+        },
+        {
+          "role": "rdata",
+          "aliases": [
+            "instr_rdata_i"
+          ]
+        },
+        {
+          "role": "error",
+          "aliases": [
+            "instr_err_i"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "processor.data",
+      "function": "data_memory_master",
+      "protocol": [
+        "obi",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "req",
+          "aliases": [
+            "data_req_o"
+          ]
+        },
+        {
+          "role": "gnt",
+          "aliases": [
+            "data_gnt_i"
+          ]
+        },
+        {
+          "role": "addr",
+          "aliases": [
+            "data_addr_o"
+          ]
+        },
+        {
+          "role": "we",
+          "aliases": [
+            "data_we_o"
+          ]
+        },
+        {
+          "role": "wdata",
+          "aliases": [
+            "data_wdata_o"
+          ]
+        },
+        {
+          "role": "be",
+          "aliases": [
+            "data_be_o"
+          ]
+        },
+        {
+          "role": "rvalid",
+          "aliases": [
+            "data_rvalid_i"
+          ]
+        },
+        {
+          "role": "rdata",
+          "aliases": [
+            "data_rdata_i"
+          ]
+        },
+        {
+          "role": "error",
+          "aliases": [
+            "data_err_i"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "processor.interrupts",
+      "function": "interrupt_entry",
+      "fields": [
+        {
+          "role": "external",
+          "aliases": [
+            "irq_external_i"
+          ]
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 32,
+    "data_width": 32,
+    "max_outstanding": 1,
+    "byte_enable": true,
+    "error_response": true,
+    "evidence": "Widths come from the elaborated facts: instr_addr_o/data_addr_o/instr_rdata_i/data_rdata_i/data_wdata_o are 32 bits, data_be_o is 4 bits (= data_width/8, which the OBI plugin's extension policy checks against wdata), and both master endpoints carry an error response, so byte_enable/error_response describe the data and read-only instruction OBI interfaces respectively. max_outstanding is declared 1 because that is the OBI capability limit and the single-outstanding contract of obi_processor_memory_adapter that this phase composes; ibex_top itself permits up to two outstanding data accesses for a single unaligned load or store (rtl/ibex_top.sv:228-236, MaxOutstandingDSideAccesses=2), which the generated single-outstanding fabric deliberately does not admit. This is a composition limit, not a claim about the core's full concurrency."
+  },
+  "port_actions": [
+    {
+      "port": "test_en_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "DFT / clock-gating test enable: ibex_top wires it into prim_clock_gating u_core_clock_gate_i (rtl/ibex_top.sv:332-337). Holding it at 0 keeps the gated core clock in functional mode; src/myfuzz/composition/rtl/soc_ibex_beat_core.sv ties the same port to 1'b0."
+    },
+    {
+      "port": "hart_id_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "rtl/ibex_cs_registers.sv:430 returns it as CSR_MHARTID. This SoC composes exactly one hart, so the single-hart identity 0 is the only correct value; soc_ibex_beat_core.sv drives 32'd0."
+    },
+    {
+      "port": "boot_addr_i",
+      "action": "constant",
+      "value": 65536,
+      "reason": "Reset-vector base. rtl/ibex_if_stage.sv:243 sets PC_BOOT = {boot_addr_i[31:8], 8'h80} and rtl/ibex_if_stage.sv:199 records boot_addr_i[7:0] as unused, so 0x10000 makes the first fetch 0x10080, inside the request's rom0 window 0x10000..0x18000. 0x10000 is this profile's declared cpu.reset_vector and the value configs/soc/ibex-pulp.json uses for the same core."
+    },
+    {
+      "port": "trvk_heap_base_addr_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "CHERIoT TRVK revocation-bitmap heap base. The parameters keep BaseIsa at its default BaseIsaRV32I, so ibex_top generates gen_no_cheriot_trvk and sinks this input (rtl/ibex_top.sv:1320-1349); 0 is the disabled value and matches soc_ibex_beat_core.sv (32'd0)."
+    },
+    {
+      "port": "instr_rdata_intg_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "Instruction-read integrity sideband. SecureIbex=0 makes MemECC 0, so ibex_top generates gen_non_mem_rdata_ecc and sinks instr_rdata_intg_i (rtl/ibex_top.sv:362-367). The OBI instruction path composed here carries no ECC bits, so 0 is the declared inactive value."
+    },
+    {
+      "port": "data_rdata_intg_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "Data-read integrity sideband, sunk through trvk_rdata_intg by gen_non_mem_rdata_ecc (rtl/ibex_top.sv:362-367) because MemECC is 0 with SecureIbex=0; the OBI data path carries no ECC bits, so 0 is the declared inactive value."
+    },
+    {
+      "port": "data_tag_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "CHERIoT data-tag sideband; gen_no_cheriot_trvk folds it into unused_trvk (rtl/ibex_top.sv:1328-1346) because BaseIsa is RV32I. 0 is the disabled value (soc_ibex_beat_core.sv drives 1'b0)."
+    },
+    {
+      "port": "trvk_revbm_gnt_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "CHERIoT revocation-bitmap response. gen_no_cheriot_trvk sinks it and drives trvk_revbm_req_o and trvk_revbm_addr_o to '0 (rtl/ibex_top.sv:1322-1346), so the channel is inactive and 0 is the declared idle value."
+    },
+    {
+      "port": "trvk_revbm_rvalid_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "CHERIoT revocation-bitmap response valid, sunk by gen_no_cheriot_trvk (rtl/ibex_top.sv:1328-1346); the channel is inactive, so 0 is the declared idle value."
+    },
+    {
+      "port": "trvk_revbm_rdata_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "CHERIoT revocation-bitmap read data, sunk by gen_no_cheriot_trvk (rtl/ibex_top.sv:1328-1346); no request is ever issued, so 0 is the declared idle value."
+    },
+    {
+      "port": "trvk_revbm_rdata_intg_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "CHERIoT revocation-bitmap read-data integrity, sunk by gen_no_cheriot_trvk (rtl/ibex_top.sv:1328-1346); no request is ever issued, so 0 is the declared idle value."
+    },
+    {
+      "port": "trvk_revbm_err_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "CHERIoT revocation-bitmap error response, sunk by gen_no_cheriot_trvk (rtl/ibex_top.sv:1328-1346); no request is ever issued, so 0 (no error) is the declared idle value."
+    },
+    {
+      "port": "irq_software_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "Machine software interrupt. The composition's interrupt plan routes exactly one machine-external level source into irq_external_i, this profile's declared entry; the SoC has no CLINT/software-interrupt source, so the input is held inactive (Ibex machine interrupts are active-high levels). soc_ibex_beat_core.sv ties it to 1'b0 as well."
+    },
+    {
+      "port": "irq_timer_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "Machine timer interrupt. No timer source is composed (the interrupt plan declares only the machine-external entry), so the input is held inactive; soc_ibex_beat_core.sv ties it to 1'b0 as well."
+    },
+    {
+      "port": "irq_fast_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "15 local (fast) interrupt bits. No local interrupt source is composed and the interrupt plan only drives the machine-external entry, so every fast bit is held inactive; soc_ibex_beat_core.sv drives 15'd0 as well."
+    },
+    {
+      "port": "irq_nm_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "Non-maskable interrupt. The SoC composes no NMI source and the interrupt plan declares none, so the input is held inactive rather than left floating; soc_ibex_beat_core.sv drives 1'b0."
+    },
+    {
+      "port": "scramble_key_valid_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "ICache scramble key valid. ICacheScramble keeps its default 1'b0, so ibex_top generates gen_noscramble and sinks this input (rtl/ibex_top.sv:657-671); no key is present, so 0 is the disabled value."
+    },
+    {
+      "port": "scramble_key_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "ICache scramble key, sunk by gen_noscramble (rtl/ibex_top.sv:657-671) because ICacheScramble is 0; all-zero is the declared disabled value."
+    },
+    {
+      "port": "scramble_nonce_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "ICache scramble nonce, sunk by gen_noscramble (rtl/ibex_top.sv:657-671) because ICacheScramble is 0; all-zero is the declared disabled value."
+    },
+    {
+      "port": "debug_req_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "Debug entry request. This profile declares no debug endpoint (a debug transport would need a debug_slave protocol contract that this composition request does not provide), so debug entry is held disabled: ibex_core enters debug mode on a high level and ibex_top keeps the core clock alive for a pending debug request (rtl/ibex_top.sv:322-331). soc_ibex_beat_core.sv drives 1'b0 as well."
+    },
+    {
+      "port": "cheriot_enable_i",
+      "action": "constant",
+      "value": 10,
+      "reason": "ibex_pkg::IbexMuBiOff is 4'b1010 = 10 (rtl/ibex_pkg.sv:760). The parameters keep BaseIsa at its default BaseIsaRV32I, so the CHERIoT base ISA is not selected and the MuBi 'off' pattern is the declared disabled value (soc_ibex_beat_core.sv drives ibex_pkg::IbexMuBiOff)."
+    },
+    {
+      "port": "fetch_enable_i",
+      "action": "constant",
+      "value": 5,
+      "reason": "ibex_pkg::IbexMuBiOn is 4'b0101 = 5 (rtl/ibex_pkg.sv:759). rtl/ibex_core.sv:648-649 gates instruction fetch on fetch_enable_i == IbexMuBiOn, so the core must be enabled for the whole test; soc_ibex_beat_core.sv drives ibex_pkg::IbexMuBiOn."
+    },
+    {
+      "port": "mcounteren_writable_i",
+      "action": "constant",
+      "value": 5,
+      "reason": "rtl/ibex_cs_registers.sv:845 makes CSR_MCOUNTEREN writable only when mcounteren_writable_i == IbexMuBiOn (= 4'b0101 = 5, rtl/ibex_pkg.sv:759); soc_ibex_beat_core.sv drives IbexMuBiOn and this profile declares no separate control for it."
+    },
+    {
+      "port": "scan_rst_ni",
+      "action": "constant",
+      "value": 1,
+      "reason": "DFT scan reset, active low. SecureIbex=0 means the lockstep block is not generated, so ibex_top takes gen_no_lockstep and sinks the input (rtl/ibex_top.sv:1262-1263). Holding it deasserted (1) is the functional-mode value; soc_ibex_beat_core.sv drives it from reset release."
+    },
+    {
+      "port": "alert_minor_o",
+      "action": "observe",
+      "reason": "Security alert output (minored, rtl/ibex_top.sv:1355-1359). It is a component output with no in-SoC consumer: nothing in the fabric, the adapters or the interrupt controller samples it, so the generated SoC exports it for passive monitoring only."
+    },
+    {
+      "port": "alert_major_internal_o",
+      "action": "observe",
+      "reason": "Major internal security alert (rtl/ibex_top.sv:1355-1360); status output with no in-SoC consumer, exported for passive monitoring only."
+    },
+    {
+      "port": "alert_major_bus_o",
+      "action": "observe",
+      "reason": "Major bus security alert (rtl/ibex_top.sv:1355-1360); status output with no in-SoC consumer, exported for passive monitoring only."
+    },
+    {
+      "port": "core_sleep_o",
+      "action": "observe",
+      "reason": "Clock-gating status, assigned ~clock_en (rtl/ibex_top.sv:331). Output, so it can only be observed: exported for passive monitoring only."
+    },
+    {
+      "port": "crash_dump_o",
+      "action": "observe",
+      "reason": "Crash dump of the trapped instruction (current_pc/next_pc/last_data_addr/exception_pc/exception_addr, ibex_top.sv:132 and 471). Status output; it stays one flat observation entry covering all five members and is exported for passive monitoring only."
+    },
+    {
+      "port": "double_fault_seen_o",
+      "action": "observe",
+      "reason": "Sticky double-fault status from ibex_core (rtl/ibex_top.sv:471). Status output, exported for passive monitoring only."
+    },
+    {
+      "port": "data_wdata_intg_o",
+      "action": "observe",
+      "reason": "Data-write integrity sideband. SecureIbex=0 makes MemECC 0, so ibex_top generates gen_no_mem_ecc and drives it to constant 0 (rtl/ibex_top.sv:862-869). It is an output, so it cannot be tied off by the SoC; it is exported for passive monitoring only."
+    },
+    {
+      "port": "data_tag_o",
+      "action": "observe",
+      "reason": "CHERIoT data-tag output, driven to constant 0 by gen_no_cheriot_trvk (rtl/ibex_top.sv:1322-1327) because BaseIsa is RV32I. Output, exported for passive monitoring only."
+    },
+    {
+      "port": "trvk_revbm_req_o",
+      "action": "observe",
+      "reason": "CHERIoT revocation-bitmap request, driven to constant 0 by gen_no_cheriot_trvk (rtl/ibex_top.sv:1322-1327). Output, exported for passive monitoring only."
+    },
+    {
+      "port": "trvk_revbm_addr_o",
+      "action": "observe",
+      "reason": "CHERIoT revocation-bitmap request address, driven to constant 0 by gen_no_cheriot_trvk (rtl/ibex_top.sv:1322-1327). Output, exported for passive monitoring only."
+    },
+    {
+      "port": "scramble_req_o",
+      "action": "observe",
+      "reason": "ICache scramble key request, driven to constant 0 by gen_noscramble (rtl/ibex_top.sv:666) because ICacheScramble is 0. Output, exported for passive monitoring only."
+    },
+    {
+      "port": "lockstep_cmp_en_o",
+      "action": "observe",
+      "reason": "Lockstep compare enable. With SecureIbex=0 ibex_top generates gen_no_lockstep and drives it to IbexMuBiOff (rtl/ibex_top.sv:1255). Output, exported for passive monitoring only."
+    },
+    {
+      "port": "data_req_shadow_o",
+      "action": "observe",
+      "reason": "Shadow-core data request of the redundant lockstep core, driven to constant 0 by gen_no_lockstep (rtl/ibex_top.sv:1256-1261) because Lockstep=SecureIbex=0. Output, exported for passive monitoring only."
+    },
+    {
+      "port": "data_we_shadow_o",
+      "action": "observe",
+      "reason": "Shadow-core data write enable, constant 0 under gen_no_lockstep (rtl/ibex_top.sv:1256-1261). Output, exported for passive monitoring only."
+    },
+    {
+      "port": "data_be_shadow_o",
+      "action": "observe",
+      "reason": "Shadow-core data byte enables, constant 0 under gen_no_lockstep (rtl/ibex_top.sv:1256-1261). Output, exported for passive monitoring only."
+    },
+    {
+      "port": "data_addr_shadow_o",
+      "action": "observe",
+      "reason": "Shadow-core data address, constant 0 under gen_no_lockstep (rtl/ibex_top.sv:1256-1261). Output, exported for passive monitoring only."
+    },
+    {
+      "port": "data_wdata_shadow_o",
+      "action": "observe",
+      "reason": "Shadow-core data write data, constant 0 under gen_no_lockstep (rtl/ibex_top.sv:1256-1261). Output, exported for passive monitoring only."
+    },
+    {
+      "port": "data_wdata_intg_shadow_o",
+      "action": "observe",
+      "reason": "Shadow-core data write integrity, constant 0 under gen_no_lockstep (rtl/ibex_top.sv:1256-1261). Output, exported for passive monitoring only."
+    },
+    {
+      "port": "instr_req_shadow_o",
+      "action": "observe",
+      "reason": "Shadow-core instruction request, constant 0 under gen_no_lockstep (rtl/ibex_top.sv:1256-1261). Output, exported for passive monitoring only."
+    },
+    {
+      "port": "instr_addr_shadow_o",
+      "action": "observe",
+      "reason": "Shadow-core instruction address, constant 0 under gen_no_lockstep (rtl/ibex_top.sv:1256-1261). Output, exported for passive monitoring only."
+    }
+  ],
+  "cpu": {
+    "family": "riscv",
+    "xlen": 32,
+    "extensions": [
+      "i",
+      "m",
+      "c"
+    ],
+    "reset_vector": 65536,
+    "master_endpoints": [
+      "processor.instruction",
+      "processor.data"
+    ],
+    "irq_entry_endpoint": "processor.interrupts",
+    "irq_entry_role": "external",
+    "irq_entry_polarity": "active_high",
+    "irq_semantics": "machine_external",
+    "boot_address_required": true
+  },
+  "evidence": {
+    "semantics": [
+      "configs/cpus/ibex/official_core_interface_description.json (endpoint ids, functions, protocols, role-to-port aliases, pinned file list and elaboration parameters)",
+      "third_party/rfuzz/upstream/ibex/rtl/ibex_top.sv at git:34b0705760ef3dfa00e99637432473d2be8f22f3",
+      "src/myfuzz/protocols/plugins/obi.json and src/myfuzz/composition/processor_adapters.py (OBI role directions, widths and the read-only instruction adapter)",
+      "configs/soc/ibex-pulp.json (top parameters and reset_vector for the same core)",
+      "src/myfuzz/composition/rtl/soc_ibex_beat_core.sv (the project's own wiring of ibex_top, used as a cross-check for every constant and for the disabled-feature inputs)"
+    ],
+    "verified": [
+      "Physical ports, directions and widths come from verilator-json elaboration of the pinned closure with ICache=0, PMPEnable=0, RV32E=0, SecureIbex=0 - the parameter set configs/soc/ibex-pulp.json uses for this core.",
+      "Every constant is grounded in the RTL line that consumes or sinks the port, and matches the value the project's own wrapper drives for the same parameterization.",
+      "Every observe entry is an output that the same RTL drives (to a status value or to a constant in this parameterization); no component output is driven by the SoC."
+    ],
+    "unknown": [
+      "The four top-level aggregate ports ram_cfg_icache_tag_i/ram_cfg_icache_tag_o/ram_cfg_icache_data_i/ram_cfg_icache_data_o (packed arrays of prim_ram_1p_pkg::ram_1p_cfg_req_t / ram_1p_cfg_rsp_t, two ways of a 12-bit request and a 1-bit response) cannot be represented by the current verilator-json port extractor: source_elaboration.py rejects a top-level aggregate without member paths. source.top_port_selection=\"declared\" therefore elaborates only the ports this profile binds, and these four ports are NOT elaborated, NOT classified and NOT connected in the generated SoC. With ICache=0 ibex_top takes gen_norams and drives the two response ports to prim_ram_1p_pkg::RAM_1P_CFG_RSP_DEFAULT while sinking the two request ports (rtl/ibex_top.sv:844-849), so no reachable behaviour is lost in this configuration - but the omission is a real coverage gap of the frontend and is recorded here instead of being hidden.",
+      "The SoC does not verify that ibex_top boots or executes: the profile and this phase prove composition structure and port disposition only.",
+      "Capability values (address_width/data_width/max_outstanding/byte_enable/error_response) are declared from the elaborated widths and the OBI adapter contract; no runtime transaction of this composed SoC was executed here."
+    ]
+  }
+}

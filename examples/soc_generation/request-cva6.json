@@ -1,0 +1,41 @@
+{
+  "schema_version": "composition_request.v1",
+  "request_id": "cva6-rom-ram",
+  "description": "Real pinned CVA6 (cva6, cv64a6_imafdc_sv39) as the single unified AXI4 memory master of a 64-bit fabric, with a boot ROM at its declared reset vector and one RAM region. The AXI4 boundary is the packed struct pair noc_req_o/noc_resp_i, so this request is what exercises the composer's member-wise struct-port binding, rendering and audit. No peripheral is composed: every peripheral profile in this repository is a 32-bit target, and a 64-to-32 width conversion is refused by the renderer (width-adapter-rendering-unsupported) rather than silently skipped, so the honest end-to-end composition of this CPU is CPU plus memory.",
+  "cpu": {
+    "instance_id": "cpu0",
+    "profile": "configs/cpus/cva6/component_profile.json",
+    "parameters": {}
+  },
+  "peripherals": [],
+  "memory": [
+    {
+      "region_id": "rom0",
+      "base": 65536,
+      "size": 32768,
+      "permissions": {"read": true, "write": false, "execute": true},
+      "physical_memory_id": "boot_rom",
+      "initialization_policy": "rom"
+    },
+    {
+      "region_id": "ram0",
+      "base": 2147483648,
+      "size": 65536,
+      "permissions": {"read": true, "write": true, "execute": true},
+      "physical_memory_id": "main_ram",
+      "initialization_policy": "on_demand"
+    }
+  ],
+  "address_policy": {
+    "mmio_base": 1073741824,
+    "mmio_limit": 1048576,
+    "alignment": 4096
+  },
+  "clock": {"domain": "core", "frequency_hz": 50000000},
+  "reset": {"domain": "sys_rst", "polarity": "active_low", "synchronous": false},
+  "test_modes": ["cpu_only"],
+  "provenance": {
+    "author": "examples/soc_generation",
+    "purpose": "real pinned CVA6 composed from a component_profile.v1 over its packed AXI4 struct pair"
+  }
+}

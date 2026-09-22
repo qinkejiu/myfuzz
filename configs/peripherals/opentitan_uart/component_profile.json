@@ -1,0 +1,720 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "opentitan_uart",
+  "kind": "peripheral",
+  "description": "Real OpenTitan Top Earl Grey uart at the pinned revision: a TL-UL MMIO slave over the packed tl_h2d_t/tl_d2h_t struct pair, nine active-high level interrupts, a two-wire serial port with a hardware-enabled transmit pad, and the pinned generated register block. The declared port selection is bounded: the alert handshake arrays and the RACL policy array are outside it because the frontend cannot represent a top-level aggregate array (evidence.unknown).",
+  "source": {
+    "root": "third_party/soc-opentitan",
+    "revision": "git:fca045df919a26c47e71616b9dac917b1ea4fd07",
+    "top_module": "uart",
+    "top_port_selection": "declared",
+    "files": [
+      "hw/ip/prim/rtl/prim_alert_pkg.sv",
+      "hw/ip/prim/rtl/prim_count_pkg.sv",
+      "hw/ip/prim/rtl/prim_mubi_pkg.sv",
+      "hw/ip/prim/rtl/prim_secded_pkg.sv",
+      "hw/ip/prim/rtl/prim_subreg_pkg.sv",
+      "hw/ip/prim/rtl/prim_util_pkg.sv",
+      "hw/ip/uart/rtl/uart_reg_pkg.sv",
+      "hw/top_earlgrey/rtl/top_pkg.sv",
+      "hw/ip/tlul/rtl/tlul_pkg.sv",
+      "hw/top_earlgrey/rtl/autogen/top_racl_pkg.sv",
+      "hw/ip/prim/rtl/prim_alert_sender.sv",
+      "hw/ip/prim/rtl/prim_count.sv",
+      "hw/ip/prim/rtl/prim_diff_decode.sv",
+      "hw/ip/prim/rtl/prim_fifo_sync.sv",
+      "hw/ip/prim/rtl/prim_fifo_sync_cnt.sv",
+      "hw/ip/prim/rtl/prim_intr_hw.sv",
+      "hw/ip/prim/rtl/prim_onehot_check.sv",
+      "hw/ip/prim/rtl/prim_onehot_enc.sv",
+      "hw/ip/prim/rtl/prim_reg_we_check.sv",
+      "hw/ip/prim/rtl/prim_sec_anchor_buf.sv",
+      "hw/ip/prim/rtl/prim_sec_anchor_flop.sv",
+      "hw/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+      "hw/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+      "hw/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+      "hw/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+      "hw/ip/prim/rtl/prim_subreg.sv",
+      "hw/ip/prim/rtl/prim_subreg_arb.sv",
+      "hw/ip/prim/rtl/prim_subreg_ext.sv",
+      "hw/ip/prim_generic/rtl/prim_buf.sv",
+      "hw/ip/prim_generic/rtl/prim_flop.sv",
+      "hw/ip/prim_generic/rtl/prim_flop_2sync.sv",
+      "hw/ip/prim_generic/rtl/prim_xnor2.sv",
+      "hw/ip/tlul/rtl/tlul_adapter_reg.sv",
+      "hw/ip/tlul/rtl/tlul_cmd_intg_chk.sv",
+      "hw/ip/tlul/rtl/tlul_data_integ_dec.sv",
+      "hw/ip/tlul/rtl/tlul_data_integ_enc.sv",
+      "hw/ip/tlul/rtl/tlul_err.sv",
+      "hw/ip/tlul/rtl/tlul_rsp_intg_gen.sv",
+      "hw/ip/uart/rtl/uart.sv",
+      "hw/ip/uart/rtl/uart_core.sv",
+      "hw/ip/uart/rtl/uart_reg_top.sv",
+      "hw/ip/uart/rtl/uart_rx.sv",
+      "hw/ip/uart/rtl/uart_tx.sv"
+    ],
+    "include_roots": [
+      "hw/ip/prim/rtl",
+      "hw/ip/prim_generic/rtl",
+      "hw/ip/tlul/rtl",
+      "hw/top_earlgrey/rtl",
+      "hw/top_earlgrey/rtl/autogen"
+    ],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {
+          "name": "AlertSkewCycles",
+          "value": "1"
+        }
+      ],
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [
+    {
+      "port": "clk_i",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "rst_ni",
+      "domain": "sys_rst",
+      "polarity": "active_low",
+      "synchronous": false,
+      "release": "rst_ni is the single active-low reset of the uart IP and its generated register block; every state element is written on posedge clk_i with an asynchronous assertion (uart_reg_top.sv prim_subreg instances, uart_core.sv prim_intr_hw instances and buf_rst_n), so deassertion must satisfy clk_i recovery/removal timing. The registers leave reset at their RESVAL values (all zero for this IP) and cio_tx_o leaves reset low while cio_tx_en_o is tied high."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "opentitan_uart.mmio",
+      "function": "mmio_slave",
+      "protocol": [
+        "tl-ul",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "a_valid",
+          "width": 1,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "a_valid"
+            ],
+            "bit_range": [
+              108,
+              108
+            ]
+          }
+        },
+        {
+          "role": "a_opcode",
+          "width": 3,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "a_opcode"
+            ],
+            "bit_range": [
+              105,
+              107
+            ]
+          }
+        },
+        {
+          "role": "a_param",
+          "width": 3,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "a_param"
+            ],
+            "bit_range": [
+              102,
+              104
+            ]
+          }
+        },
+        {
+          "role": "a_size",
+          "width": 2,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "a_size"
+            ],
+            "bit_range": [
+              100,
+              101
+            ]
+          }
+        },
+        {
+          "role": "a_source",
+          "width": 8,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "a_source"
+            ],
+            "bit_range": [
+              92,
+              99
+            ]
+          }
+        },
+        {
+          "role": "a_address",
+          "width": 32,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "a_address"
+            ],
+            "bit_range": [
+              60,
+              91
+            ]
+          }
+        },
+        {
+          "role": "a_mask",
+          "width": 4,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "a_mask"
+            ],
+            "bit_range": [
+              56,
+              59
+            ]
+          }
+        },
+        {
+          "role": "a_data",
+          "width": 32,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "a_data"
+            ],
+            "bit_range": [
+              24,
+              55
+            ]
+          }
+        },
+        {
+          "role": "a_user",
+          "width": 23,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "a_user"
+            ],
+            "bit_range": [
+              1,
+              23
+            ]
+          }
+        },
+        {
+          "role": "d_ready",
+          "width": 1,
+          "direction": "input",
+          "physical": {
+            "port": "tl_i",
+            "member_path": [
+              "d_ready"
+            ],
+            "bit_range": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "role": "a_ready",
+          "width": 1,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "a_ready"
+            ],
+            "bit_range": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "role": "d_valid",
+          "width": 1,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "d_valid"
+            ],
+            "bit_range": [
+              65,
+              65
+            ]
+          }
+        },
+        {
+          "role": "d_opcode",
+          "width": 3,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "d_opcode"
+            ],
+            "bit_range": [
+              62,
+              64
+            ]
+          }
+        },
+        {
+          "role": "d_param",
+          "width": 3,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "d_param"
+            ],
+            "bit_range": [
+              59,
+              61
+            ]
+          }
+        },
+        {
+          "role": "d_size",
+          "width": 2,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "d_size"
+            ],
+            "bit_range": [
+              57,
+              58
+            ]
+          }
+        },
+        {
+          "role": "d_source",
+          "width": 8,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "d_source"
+            ],
+            "bit_range": [
+              49,
+              56
+            ]
+          }
+        },
+        {
+          "role": "d_sink",
+          "width": 1,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "d_sink"
+            ],
+            "bit_range": [
+              48,
+              48
+            ]
+          }
+        },
+        {
+          "role": "d_data",
+          "width": 32,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "d_data"
+            ],
+            "bit_range": [
+              16,
+              47
+            ]
+          }
+        },
+        {
+          "role": "d_user",
+          "width": 14,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "d_user"
+            ],
+            "bit_range": [
+              2,
+              15
+            ]
+          }
+        },
+        {
+          "role": "d_error",
+          "width": 1,
+          "direction": "output",
+          "physical": {
+            "port": "tl_o",
+            "member_path": [
+              "d_error"
+            ],
+            "bit_range": [
+              1,
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "endpoint_id": "uart.interrupts",
+      "function": "interrupt_source",
+      "fields": [
+        {
+          "role": "tx_watermark",
+          "aliases": [
+            "intr_tx_watermark_o"
+          ]
+        },
+        {
+          "role": "tx_empty",
+          "aliases": [
+            "intr_tx_empty_o"
+          ]
+        },
+        {
+          "role": "rx_watermark",
+          "aliases": [
+            "intr_rx_watermark_o"
+          ]
+        },
+        {
+          "role": "tx_done",
+          "aliases": [
+            "intr_tx_done_o"
+          ]
+        },
+        {
+          "role": "rx_overflow",
+          "aliases": [
+            "intr_rx_overflow_o"
+          ]
+        },
+        {
+          "role": "rx_frame_err",
+          "aliases": [
+            "intr_rx_frame_err_o"
+          ]
+        },
+        {
+          "role": "rx_break_err",
+          "aliases": [
+            "intr_rx_break_err_o"
+          ]
+        },
+        {
+          "role": "rx_timeout",
+          "aliases": [
+            "intr_rx_timeout_o"
+          ]
+        },
+        {
+          "role": "rx_parity_err",
+          "aliases": [
+            "intr_rx_parity_err_o"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "uart.pins",
+      "function": "external_pins",
+      "fields": [
+        {
+          "role": "rx",
+          "direction": "input",
+          "aliases": [
+            "cio_rx_i"
+          ]
+        },
+        {
+          "role": "tx",
+          "direction": "output",
+          "aliases": [
+            "cio_tx_o"
+          ]
+        },
+        {
+          "role": "tx_en",
+          "direction": "output",
+          "aliases": [
+            "cio_tx_en_o"
+          ]
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 32,
+    "data_width": 32,
+    "read": true,
+    "write": true,
+    "byte_enable": true,
+    "partial_write": true,
+    "has_error": true,
+    "integrity": "required",
+    "source_width": 8,
+    "sink_width": 1,
+    "user_width": 23,
+    "size_width": 2,
+    "max_wait_cycles": 16,
+    "max_outstanding": 1,
+    "d_user_width": 14
+  },
+  "address": {
+    "window_size": 64,
+    "alignment": 64,
+    "registers": [
+      {
+        "name": "INTR_STATE",
+        "offset": 0,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "write_one_clears_event_bits"
+      },
+      {
+        "name": "INTR_ENABLE",
+        "offset": 4,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "INTR_TEST",
+        "offset": 8,
+        "width": 32,
+        "access": "wo",
+        "side_effect": "write_pulses_interrupt_test"
+      },
+      {
+        "name": "ALERT_TEST",
+        "offset": 12,
+        "width": 32,
+        "access": "wo",
+        "side_effect": "write_pulses_alert_test"
+      },
+      {
+        "name": "CTRL",
+        "offset": 16,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "STATUS",
+        "offset": 20,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "none"
+      },
+      {
+        "name": "RDATA",
+        "offset": 24,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "read_pops_rx_fifo"
+      },
+      {
+        "name": "WDATA",
+        "offset": 28,
+        "width": 32,
+        "access": "wo",
+        "side_effect": "write_pushes_tx_fifo"
+      },
+      {
+        "name": "FIFO_CTRL",
+        "offset": 32,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "write_one_clears_fifo"
+      },
+      {
+        "name": "FIFO_STATUS",
+        "offset": 36,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "none"
+      },
+      {
+        "name": "OVRD",
+        "offset": 40,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "VAL",
+        "offset": 44,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "none"
+      },
+      {
+        "name": "TIMEOUT_CTRL",
+        "offset": 48,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      }
+    ]
+  },
+  "interrupts": [
+    {
+      "endpoint_id": "uart.interrupts",
+      "role": "tx_watermark",
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Registered level: prim_intr_hw keeps its default FlopOutput=1 and this instance is built with IntrT(\"Status\") (uart_core.sv:402-415), so intr_o <= (status & INTR_ENABLE) and the output is asserted continuously while the enabled condition holds; for a Status interrupt the condition is the live hardware event `event_tx_watermark = tx_fifo_depth < tx_watermark_thresh` (uart_core.sv:315-323) and INTR_STATE is read-only, not software-held.",
+      "clear": "Clears by itself when the TX FIFO rises to the threshold (or by clearing INTR_ENABLE.tx_watermark); there is no software W1C for this bit because its INTR_STATE field is RO (uart_reg_top.sv:240-266)."
+    },
+    {
+      "endpoint_id": "uart.interrupts",
+      "role": "tx_empty",
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Registered level, IntrT(\"Status\") (uart_core.sv:417-430): asserted while `event_tx_empty = tx_fifo_depth == '0` holds and INTR_ENABLE.tx_empty is set (uart_core.sv:325); INTR_STATE.tx_empty is RO.",
+      "clear": "Clears when a word is written to the TX FIFO or INTR_ENABLE.tx_empty is cleared."
+    },
+    {
+      "endpoint_id": "uart.interrupts",
+      "role": "rx_watermark",
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Registered level, IntrT(\"Status\") (uart_core.sv:432-445): asserted while the RX FIFO level satisfies the power-of-two rxilvl threshold (event_rx_watermark, uart_core.sv:351-357) and INTR_ENABLE.rx_watermark is set; INTR_STATE.rx_watermark is RO.",
+      "clear": "Clears when the RX FIFO drops below the threshold (i.e. after enough RDATA reads) or INTR_ENABLE.rx_watermark is cleared."
+    },
+    {
+      "endpoint_id": "uart.interrupts",
+      "role": "tx_done",
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Registered level from prim_intr_hw with the default IntrT(\"Event\") (uart_core.sv:447-460): the event `~tx_fifo_rvalid & ~tx_uart_idle_q & tx_uart_idle` (uart_core.sv:327) sets INTR_STATE.tx_done, which is W1C, and the level output stays asserted while (INTR_STATE & INTR_ENABLE) is set (prim_intr_hw.sv:62-70,96-102).",
+      "clear": "Software writes 1 to INTR_STATE.tx_done (W1C, uart_reg_top.sv:267-293) or clears INTR_ENABLE.tx_done; the level persists until then."
+    },
+    {
+      "endpoint_id": "uart.interrupts",
+      "role": "rx_overflow",
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Registered level, IntrT(\"Event\"): `event_rx_overflow = rx_fifo_wvalid & ~rx_fifo_wready` (uart_core.sv:390) sets the W1C INTR_STATE bit and the level output remains asserted until software clears it (prim_intr_hw.sv:62-70,96-102).",
+      "clear": "Write 1 to INTR_STATE.rx_overflow (W1C) or clear INTR_ENABLE.rx_overflow."
+    },
+    {
+      "endpoint_id": "uart.interrupts",
+      "role": "rx_frame_err",
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Registered level, IntrT(\"Event\"): the event comes from uart_rx (framing error) and latches the W1C INTR_STATE bit; the level output stays asserted until software clears it (prim_intr_hw.sv:62-70,96-102).",
+      "clear": "Write 1 to INTR_STATE.rx_frame_err (W1C) or clear INTR_ENABLE.rx_frame_err."
+    },
+    {
+      "endpoint_id": "uart.interrupts",
+      "role": "rx_break_err",
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Registered level, IntrT(\"Event\"): `event_rx_break_err = break_err & (break_st_q == BRK_CHK)` (uart_core.sv:393) latches the W1C INTR_STATE bit; the level output stays asserted until software clears it (prim_intr_hw.sv:62-70,96-102).",
+      "clear": "Write 1 to INTR_STATE.rx_break_err (W1C) or clear INTR_ENABLE.rx_break_err."
+    },
+    {
+      "endpoint_id": "uart.interrupts",
+      "role": "rx_timeout",
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Registered level, IntrT(\"Event\"): `event_rx_timeout = (rx_timeout_count_q == TIMEOUT_CTRL.val) & TIMEOUT_CTRL.en` latches the W1C INTR_STATE bit; the level output stays asserted until software clears it (prim_intr_hw.sv:62-70,96-102).",
+      "clear": "Write 1 to INTR_STATE.rx_timeout (W1C) or clear INTR_ENABLE.rx_timeout."
+    },
+    {
+      "endpoint_id": "uart.interrupts",
+      "role": "rx_parity_err",
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Registered level, IntrT(\"Event\"): the parity error from uart_rx latches the W1C INTR_STATE bit; the level output stays asserted until software clears it (prim_intr_hw.sv:62-70,96-102).",
+      "clear": "Write 1 to INTR_STATE.rx_parity_err (W1C) or clear INTR_ENABLE.rx_parity_err."
+    }
+  ],
+  "port_actions": [
+    {
+      "port": "lsio_trigger_o",
+      "action": "observe",
+      "reason": "Registered LSIO trigger output: `lsio_trigger_o <= event_tx_watermark | event_rx_watermark` (uart_core.sv:357-359). It is a component output with no consumer in this composition (the LSIO trigger matrix is not instantiated), so it is exported for passive monitoring only."
+    }
+  ],
+  "evidence": {
+    "semantics": [
+      "Interrupt form, read from the RTL: uart_core instantiates one prim_intr_hw per interrupt with Width(1); tx_watermark, tx_empty and rx_watermark are built with IntrT(\"Status\") (uart_core.sv:402,417,432) while tx_done, rx_overflow, rx_frame_err, rx_break_err, rx_timeout and rx_parity_err keep the primitive default IntrT(\"Event\") (prim_intr_hw.sv:39). All nine keep the default FlopOutput=1, so every output is the registered level `intr_o <= status & INTR_ENABLE` (prim_intr_hw.sv:96-102) - none of them is a one-cycle pulse, which is why all nine are declared as level sources.",
+      "Interrupt events, read from the RTL: event_tx_watermark = tx_fifo_depth < tx_watermark_thresh with a power-of-two threshold from FIFO_CTRL.txilvl (uart_core.sv:315-323); event_tx_empty = tx_fifo_depth == 0 (uart_core.sv:325); event_tx_done = ~tx_fifo_rvalid & ~tx_uart_idle_q & tx_uart_idle (uart_core.sv:327); event_rx_watermark from the RX FIFO level (uart_core.sv:351-357); event_rx_overflow = rx_fifo_wvalid & ~rx_fifo_wready (uart_core.sv:390); event_rx_break_err = break_err & (break_st_q == BRK_CHK) (uart_core.sv:393); event_rx_timeout = (rx_timeout_count_q == TIMEOUT_CTRL.val) & TIMEOUT_CTRL.en; rx_frame_err and rx_parity_err come from uart_rx.",
+      "Register map: the generated uart_reg_pkg declares the thirteen register offsets UART_*_OFFSET 6'h0..6'h30 (uart_reg_pkg.sv:351-363) inside a 6-bit address window (localparam AW = 6, uart_reg_top.sv:34), and the reg_top decodes exactly those thirteen addresses into addr_hit (uart_reg_top.sv:1574,1600-1612). Access and side effects are read from the generated register primitives: prim_subreg SwAccessRW for INTR_ENABLE/CTRL/FIFO_CTRL/OVRD/TIMEOUT_CTRL (uart_reg_top.sv:485,899,1303,1449,1521), SwAccessW1C for the six Event bits of INTR_STATE and SwAccessRO for its three Status bits (uart_reg_top.sv:240-266), SwAccessWO for WDATA (uart_reg_top.sv:1262) and for FIFO_CTRL's rxrst/txrst write-one-to-reset bits (uart_reg_top.sv:1303,1331), prim_subreg_ext with .we(intr_test_we)/.re(1'b0) for INTR_TEST (write-only, reads return 0, uart_reg_top.sv:730-748), with .we(1'b0)/.re(status_re) for STATUS (uart_reg_top.sv:1142-1156), for RDATA (uart_reg_top.sv:1234-1246, where .qre(reg2hw.rdata.re) is the read strobe that pops the RX FIFO, uart_core.sv:298-302) and for VAL (uart_reg_top.sv:1503-1513, hardware-driven baud override value).",
+      "Bus width and integrity capability, read from the pinned packages: top_pkg fixes TL_AW=32, TL_DW=32, TL_DBW=4, TL_SZW=2, TL_AIW=8, TL_DIW=1 and TL_AUW=23 (top_pkg.sv:8-15); the reg_top instantiates tlul_cmd_intg_chk on tl_i and tlul_rsp_intg_gen with EnableRspIntgGen=1/EnableDataIntgGen=1 on the response path (uart_reg_top.sv:57-87 and the rsp_intg_gen instance), which is what integrity=\"required\" records. byte_enable/partial_write come from the same generated decode: tl_i.a_mask drives reg_be and each register's UART_PERMIT mask is checked as `(|(UART_PERMIT[i] & ~reg_be))` to raise wr_err (uart_reg_top.sv:1648-1660), so per-byte write enables are honoured per register rather than approximated.",
+      "Pins, read from the RTL: cio_tx_o is the registered uart_core transmit line, overwritten by OVRD.TXEN/TXVAL and forced high during CTRL.SLPBK, and cio_tx_en_o is hardwired to 1'b1 (uart.sv:119-124; uart_core.sv:217-266); cio_rx_i is synchronized by prim_flop_2sync with ResetValue=1 and optionally passed through a 3-sample majority filter when CTRL.NF is set (uart.sv:36-39, uart_core.sv:230-260). The IP contains no tristate or pad primitive: value and enable are separate digital ports.",
+      "Clocks and resets: clk_i/rst_ni are the only clock and reset of the IP; every generated prim_subreg, the prim_intr_hw instances and the synchronizers are posedge clk_i with rst_ni, and there is no second clock port in the elaborated port list.",
+      "Each declared capability and the construct it was read from: address_width=32, data_width=32, size_width=2, source_width=8, sink_width=1 and user_width=23 are the pinned top_pkg constants TL_AW/TL_DW/TL_SZW/TL_AIW/TL_DIW/TL_AUW (top_pkg.sv:8-15), which are exactly the widths of the tl_i/tl_o struct members listed in evidence.unknown; byte_enable=true and partial_write=true are the generated decode (tl_i.a_mask drives reg_be, per-register UART_PERMIT masks are checked with `|(UART_PERMIT[i] & ~reg_be)`, and PutPartialData is in the legal opcode set, uart_reg_top.sv:1648-1660, tlul_pkg.sv:16-25); has_error=true is the d_error production of tlul_adapter_reg (d_error = error_i | err_internal with error_i = addrmiss | wr_err | intg_err, tlul_adapter_reg.sv:216-241); integrity=\"required\" is the pair tlul_cmd_intg_chk on tl_i and tlul_rsp_intg_gen with EnableRspIntgGen=1/EnableDataIntgGen=1 on tl_o (uart_reg_top.sv:57-87); read=true and write=true are the register read mux and the generated write paths of the reg_top; max_wait_cycles=16 is the SoC's declared patience bound (the IP completes without inserting wait states); max_outstanding=1 is the single-outstanding contract of the beat initiator and of resolve_target_adapter's parameter_values, not an RTL claim that the IP could not pipeline more.",
+      "The bus endpoint, read from the elaboration: tl_i is tlul_pkg::tl_h2d_t (109 bits) and tl_o is tlul_pkg::tl_d2h_t (66 bits); the composer's frontend reports their members with paths and bit ranges, so each of the 20 declared roles names one member (a_user and d_user name the intermediate packed structs, whose span is the union of their integrity leaves) and declares the inclusive bit range it must occupy. A declared span the elaboration contradicts is refused with member-offset-conflict, and the disposition ledger still requires all 175 bits to be classified.",
+      "The bus is driven as a real target: src/myfuzz/composition/target_adapters._resolve_tlul resolves beat-to-tlul for this profile's declared capabilities (address_width=32, data_width=32, size_width=2, source_width=8, sink_width=1, user_width=23, d_user_width=14, integrity=required, byte_enable/partial_write/has_error true), and src/myfuzz/protocols/plugins/tl_ul.json now declares every TL-UL member the adapter port list requires - a_user, d_user and d_error included - with the parameterised width expressions size_width and source_width. The window is 64 bytes and the adapter's own WINDOW_BASE/WINDOW_SIZE are the composed window, so the IP's 6-bit local address decode is what the fabric addresses.",
+      "d_user_width=14 is the pinned tl_d2h_t user field (tlul_pkg.sv: rsp_intg[6:0] + data_intg[6:0]) and is the adapter's DUSER_WIDTH parameter; a_user=23 is TL_AUW (top_pkg.sv:8-15) and is USER_WIDTH. Both are declared capabilities rather than adapter constants, so a profile whose struct members have other widths is refused instead of silently mis-sized."
+    ],
+    "verified": [
+      "The declared parameter set is the representable subset of the closure's: AlertSkewCycles=1 is recorded in configs/soc/closures/opentitan_uart.json parameters and is a real top-level integer parameter of uart (uart.sv:11-17). The other recorded values - AlertAsyncOn=1'b1, EnableRacl=1'b0, RaclErrorRsp=1'b0 (the module default RaclErrorRsp=EnableRacl) and RaclPolicySelVec='{13{1'b0}} - cannot be expressed here: interface_description.ElaborationSettings accepts only decimal-integer parameter values (re.compile(r\"-?(?:0|[1-9][0-9]*)\\\\Z\")), so a SystemVerilog literal such as 1'b1 or an assignment pattern is rejected as 'unsafe-elaboration-parameter' before any RTL is read. All four equal the value the module takes with the pinned generated uart_reg_pkg (NumAlerts=1, NumRegs=13, RaclPolicySelVec='{13{1'b0}}) and the recorded closure command passed no -G override at all, so omitting them reproduces the recorded elaboration exactly; AlertSkewCycles=1 is value-identical to the module default too (uart.sv:13).",
+      "The declared port set, directions and widths (clk_i, rst_ni, nine 1-bit interrupt outputs, cio_rx_i, cio_tx_o, cio_tx_en_o, lsio_trigger_o) are the elaborated port facts of the pinned closure with those parameters, and the register block offsets are the generated uart_reg_pkg constants.",
+      "Every declared capability is carried by a semantics entry above, and the TL-UL target resolver consumes exactly address_width/data_width/byte_enable/partial_write/has_error/integrity/source_width/sink_width/user_width/size_width for this protocol.",
+      "The elaborated member layout of tl_i (13 members, 109 bits) and tl_o (11 members, 66 bits) is exactly what this profile declares: every one of the 20 endpoint roles carries a member path and the inclusive bit range that member occupies, and bind_profile re-proves each range against the frontend's own output rather than trusting it.",
+      "The endpoint is a real MMIO target: the profile's mmio_slave endpoint resolves through resolve_target_adapter to beat_to_tlul with the declared capabilities, the port-disposition ledger classifies every bit of tl_i and tl_o, and the generated top assembles the two struct ports member by member (struct_port_mapping in the independent structure audit re-reads the elaborated netlist against the plan's member-to-net record)."
+    ],
+    "unknown": [
+      "The alert handshake cannot complete in this closure: only prim_alert_sender is instantiated and no prim_alert_receiver/alert_handler peer is included, so alert_ack_o/alert_state_o are unconnected and alert escalation is unverified (recorded in configs/soc/closures/opentitan_uart.json unsupported).",
+      "BLOCKER C (ports outside the bounded selection): alert_rx_i and alert_tx_o are arrays of prim_alert_pkg structs and racl_policies_i is an array of top_racl_pkg::racl_policy_t; the frontend rejects a top-level aggregate without member paths, exactly as it does for ibex's ram_cfg_icache_* ports. racl_error_o is representable but omitted with them: with the pinned EnableRacl=1'b0 the generated reg_top substitutes racl_addr_hit_* = addr_hit and drives racl_error_o.valid to 0 for every access (uart_reg_top.sv:1624,1631-1633), so it carries no observable state in this parameterization. These four ports are therefore NOT elaborated, NOT classified and NOT connected; source.top_port_selection=\"declared\" keeps this bounded selection explicit instead of hiding it. The elaboration and the MMIO endpoint are unaffected by it.",
+      "The register map is verified against the pinned generated bytes, not reproduced from hw/ip/uart/data/uart.hjson: sources.lock.json still records the generator as regtool/topgen with status pending_input_closure_and_reproduction.",
+      "No transaction, interrupt or serial frame of this IP was simulated for this profile: the composition is verified structurally (elaborate/bind/ledger/render/audit), while MMIO protocol behaviour over time belongs to the runtime phases and is not claimed here."
+    ]
+  }
+}

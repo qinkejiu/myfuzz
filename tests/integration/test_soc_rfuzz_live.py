@@ -89,7 +89,21 @@ class SocRfuzzCampaignTests(unittest.TestCase):
             self.assertTrue((Path(temporary) / "run/report.json").is_file())
 
     def test_success_records_fifo_rtl_transport_and_corpus_identity(self):
-        artifact = SimpleNamespace(transport=_Transport())
+        artifact = SimpleNamespace(
+            transport=_Transport(),
+            build_document={
+                "composition_hash": "sha256:composition",
+                "layout_hash": "sha256:layout",
+                "policy_hash": "sha256:policy",
+                "constraint_hash": "sha256:constraint",
+                "image_hash": "sha256:image",
+                "coverage_kind": "source-instrumented-rtl-branch-u8-saturating",
+                "mode": "cpu_only",
+                "structure_audit": {"status": "pass", "summary": {"status": "pass"}},
+                "unsupported_capabilities": [],
+                "sources": {"source_count": 1, "source_files": [{"path": "dut.sv"}]},
+            },
+        )
         def runner(config, built, client, live_dir):
             self.assertIs(built, artifact)
             self.assertEqual(Path(sys.executable), client)
@@ -108,6 +122,12 @@ class SocRfuzzCampaignTests(unittest.TestCase):
                 "actual_rtl_execution": {
                     "tests": 2, "coverage_records": 1,
                     "execution_totals": {"source_transactions": 2, "target_transactions": 2},
+                },
+                "input_projection": {
+                    "raw_samples": 2, "projected_samples": 2,
+                    "projection_rejections": 0, "raw_unique": 2,
+                    "projected_unique": 1,
+                    "repair_counts": {"address_repair": 1},
                 },
                 "source_target_transactions": {
                     "source": {"ibex": 2}, "target": {"pulp_gpio": 1},
@@ -131,8 +151,111 @@ class SocRfuzzCampaignTests(unittest.TestCase):
             self.assertEqual("observed", result["rtl_execution"]["status"])
             self.assertEqual("observed", result["source_target_transactions"]["status"])
             self.assertEqual("observed", result["input_transport"]["status"])
+            self.assertEqual("verified", result["artifact"]["status"])
+            self.assertEqual("pass", result["artifact"]["structure_audit"]["status"])
+            self.assertEqual("verified", result["artifact"]["bug_attribution"]["generator_boundary"])
+            self.assertEqual(2, result["input_projection"]["raw_samples"])
+            self.assertEqual(1, result["input_projection"]["repair_counts"]["address_repair"])
             self.assertEqual("passed", result["replay"]["status"])
             self.assertFalse((Path(temporary) / "run/.report.json.tmp").exists())
+
+    def test_campaign_uses_environment_selected_client_for_runner(self):
+        artifact = SimpleNamespace(
+            transport=_Transport(),
+            build_document={
+                "composition_hash": "sha256:composition",
+                "layout_hash": "sha256:layout",
+                "policy_hash": "sha256:policy",
+                "constraint_hash": "sha256:constraint",
+                "structure_audit": {"status": "pass", "summary": {"status": "pass"}},
+            },
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            verilator = root / "verilator"
+            verilator.write_text("#!/bin/sh\nprintf 'Verilator 5.020 test\\n'\n", encoding="utf-8")
+            verilator.chmod(0o755)
+            config = _config(verilator=str(verilator))
+            config.pop("client_binary")
+            seen = []
+
+            def runner(_config, _artifact, client, _live_dir):
+                seen.append(Path(client))
+                return {
+                    "returncode": 0, "tests": 1, "duration_seconds": 1.0,
+                    "corpus_entries": 1, "corpus_manifest": _corpus_manifest(),
+                    "fifo_reply_receipts": [{
+                        "input_sha256": "sha256:input", "coverage_sha256": "sha256:coverage",
+                        "status": "fifo_reply_and_rtl_completed",
+                        "transport": "sysv-shared-memory-rfuzz-coverage-buffer",
+                    }],
+                    "actual_rtl_execution": {"tests": 1, "coverage_records": 1,
+                                              "execution_totals": {"source_transactions": 1,
+                                                                    "target_transactions": 1}},
+                    "source_target_transactions": {"source": {"cpu": 1}, "target": {"mmio": 1}},
+                    "remaining_segments": [],
+                }
+
+            with patch("myfuzz.integration.soc_campaign.probe_soc_dependencies",
+                       side_effect=self._ready_probe), patch(
+                           "myfuzz.integration.soc_campaign.replay_corpus",
+                           return_value={"status": "passed", "entries": 1}):
+                result = run_soc_campaign(
+                    config, root / "run", root=ROOT,
+                    environment={"MYFUZZ_SOC_REAL": "1",
+                                 "MYFUZZ_RFuzz_CLIENT": str(Path(sys.executable).resolve())},
+                    builder=lambda *_: artifact, runner=runner,
+                    rebuilder=lambda *_: artifact,
+                )
+        self.assertEqual("completed", result["status"])
+        self.assertEqual([Path(sys.executable).resolve()], seen)
+
+    def test_production_campaign_rejects_unadmitted_toolchain_before_build(self):
+        """A real campaign must not render a DUT with an unknown RFuzz tool."""
+        with tempfile.TemporaryDirectory() as temporary, patch(
+            "myfuzz.integration.soc_campaign.probe_soc_dependencies",
+            side_effect=self._ready_probe,
+        ), patch(
+            "myfuzz.integration.soc_builder.build_soc_campaign_artifact",
+            side_effect=AssertionError("builder must not run before tool admission"),
+        ):
+            result = run_soc_campaign(
+                _config(client_binary=str(Path(sys.executable).resolve())),
+                Path(temporary) / "run", root=ROOT,
+                # The environment names the compiler explicitly, so the campaign
+                # really is given an unadmitted tool now that a validated bundled
+                # Verilator is installed: without the override this test would
+                # resolve that tool and the builder would be reached.
+                environment={"MYFUZZ_SOC_REAL": "1",
+                             "MYFUZZ_SERVER_VERILATOR_BIN": str(Path(temporary) / "no-such-verilator")},
+                rebuilder=lambda *_: None,
+            )
+        self.assertEqual("failed", result["status"])
+        self.assertEqual("rfuzz-verilator-unavailable", result["final_status"])
+        self.assertEqual("rfuzz-verilator-unavailable", result["errors"][0]["category"])
+
+    def test_public_preflight_keeps_environment_values_out_of_report(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            verilator = root / "verilator"
+            verilator.write_text("#!/bin/sh\nprintf 'Verilator 5.020 test\\n'\n",
+                                 encoding="utf-8")
+            verilator.chmod(0o755)
+            config = _config(
+                client_binary=str(Path(sys.executable).resolve()),
+                verilator=str(verilator),
+            )
+            with patch("myfuzz.integration.soc_campaign.probe_soc_dependencies",
+                       side_effect=self._ready_probe):
+                result = run_soc_campaign(
+                    config, root / "run", root=root,
+                    environment={"MYFUZZ_SOC_REAL": "1", "SECRET_TOKEN": "do-not-publish"},
+                    preflight_only=True,
+                )
+        toolchain = result["preflight"]["toolchain"]
+        self.assertTrue(toolchain["ready"])
+        self.assertNotIn("verilator_environment", toolchain)
+        self.assertNotIn("SECRET_TOKEN", repr(result))
 
     def test_completion_rejects_each_missing_acceptance_evidence(self):
         artifact = SimpleNamespace(transport=_Transport())

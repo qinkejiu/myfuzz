@@ -417,19 +417,40 @@ class SourceElaborationRunnerTests(unittest.TestCase):
                 with self.assertRaisesRegex(ElaborationError, "entry limit"):
                     source_elaboration._closure(root, (), (include,))
 
-    def test_include_closure_rejects_symlink_and_non_regular_file(self) -> None:
+    def test_include_closure_resolves_internal_symlink_and_rejects_escape(self) -> None:
+        """A symlink inside the tree is resolved; one that escapes it is refused.
+
+        The closure must still hash the bytes verilator would read, so an
+        internal symlink is added as its resolved target.  Only a link that
+        leaves the source root (or is not a regular file) is a rejection: the
+        earlier behaviour rejected any symlink and thereby failed on unrelated
+        links such as a pinned repository's own convenience links.
+        """
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            (root / "top.sv").write_text("ok", encoding="utf-8")
+            (root / "top.sv").write_text("module top; endmodule\n", encoding="utf-8")
             include = root / "include"
             include.mkdir()
             (include / "link.svh").symlink_to(root / "top.sv")
-            with self.assertRaisesRegex(ElaborationError, "symlink"):
-                run_verilator_elaboration(source_root=root, top_module="top", source_files=("top.sv",), include_roots=("include",), output_dir=root / "symlink-closure")
+            closure = source_elaboration._closure(root, ((root / "top.sv", "top.sv"),),
+                                                  (include,))
+            self.assertIn((root / "top.sv").resolve(), closure)
+            self.assertEqual(
+                {(root / "top.sv").resolve()}, set(closure),
+                "the internal symlink must contribute its resolved target only")
             (include / "link.svh").unlink()
+            outside = Path(temporary).parent / "outside_target.svh"
+            outside.write_text("x", encoding="utf-8")
+            self.addCleanup(outside.unlink)
+            (include / "escape.svh").symlink_to(outside)
+            with self.assertRaisesRegex(ElaborationError, "escapes the source root"):
+                source_elaboration._closure(
+                    root, ((root / "top.sv", "top.sv"),), (include,))
+            (include / "escape.svh").unlink()
             os.mkfifo(include / "named-pipe")
             with self.assertRaisesRegex(ElaborationError, "non-regular"):
-                run_verilator_elaboration(source_root=root, top_module="top", source_files=("top.sv",), include_roots=("include",), output_dir=root / "fifo-closure")
+                source_elaboration._closure(
+                    root, ((root / "top.sv", "top.sv"),), (include,))
 
     def test_include_closure_is_hashed_mapped_and_checked_for_changes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

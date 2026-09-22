@@ -1,5 +1,6 @@
 """Run the official RFuzz mutator against a generated persistent RTL simulator."""
 import ctypes
+from collections.abc import Mapping
 import hashlib
 import json
 import math
@@ -9,6 +10,11 @@ import signal
 import subprocess
 import time
 from myfuzz.contracts import canonical_bytes
+from myfuzz.composition.soc_peer_replay import (
+    PeerRawReplayError,
+    decode_peer_raw_events,
+    peer_event_hash,
+)
 from .rfuzz_fifo import FifoEndpoint
 from .rfuzz_shmem import process_pair
 from .rfuzz_simulator import RtlSimulator
@@ -145,6 +151,43 @@ def _corpus_document(path, *, byte_count):
     return document, bytes(raw), expected
 
 
+def _peer_events_for_payload(artifact, payload):
+    """Decode the projected raw payload under the artifact's peer contract."""
+    slots = tuple(getattr(artifact, "peer_slots", ()) or ())
+    if not slots:
+        return ()
+    width = int(artifact.transport.byte_count)
+    records = tuple(payload[index:index + width]
+                    for index in range(0, len(payload), width))
+    values = [artifact.transport.unpack(record) for record in records]
+    projector = getattr(artifact, "projector", None)
+    project_records = getattr(projector, "project_records", None)
+    projected = (tuple(project_records(values)) if callable(project_records)
+                 else tuple(projector.project(value) for value in values))
+    try:
+        return decode_peer_raw_events(projected, artifact.layout, slots,
+                                      validate_spacing=False)
+    except PeerRawReplayError as error:
+        raise ValueError(f"peer event evidence decode failed: {error}") from error
+
+
+def _annotate_peer_events(artifact, corpus):
+    """Persist semantic peer events for raw entries before manifest replay."""
+    if not tuple(getattr(artifact, "peer_slots", ()) or ()):
+        return
+    width = artifact.transport.byte_count
+    for path in sorted(Path(corpus).glob("entry_*.json")):
+        document, payload, _expected = _corpus_document(path, byte_count=width)
+        if "peer_events" in document and "peer_event_hash" in document:
+            continue
+        if "peer_events" in document or "peer_event_hash" in document:
+            raise ValueError(f"peer event evidence incomplete: {path.name}")
+        events = _peer_events_for_payload(artifact, payload)
+        document["peer_events"] = [dict(item) for item in events]
+        document["peer_event_hash"] = peer_event_hash(events)
+        path.write_text(json.dumps(document, sort_keys=True) + "\n", encoding="utf-8")
+
+
 def build_corpus_manifest(artifact, corpus_dir, *, feedback_receipts=None):
     """Index the actual RFuzz-saved wire corpus without synthesizing coverage."""
     corpus = Path(corpus_dir)
@@ -152,6 +195,11 @@ def build_corpus_manifest(artifact, corpus_dir, *, feedback_receipts=None):
     if not paths:
         raise ValueError("empty RFuzz corpus")
     width = artifact.transport.byte_count
+    # The official client only knows the raw wire ABI.  Enrich its entries
+    # before replay so the saved corpus also carries the declared peer slot,
+    # cycle and payload evidence.  A direct replay of an unannotated peer
+    # corpus remains a refusal (see replay_corpus below).
+    _annotate_peer_events(artifact, corpus)
     verified = replay_corpus(artifact, corpus, _capture_receipts=feedback_receipts)
     verified_by_file = {entry["file"]: entry for entry in verified["replays"]}
     replays = []
@@ -187,6 +235,8 @@ def build_corpus_manifest(artifact, corpus_dir, *, feedback_receipts=None):
             "coverage_verified": True,
             "shared_memory_exchange_verified": feedback_receipts is not None,
             **identity,
+            **({"peer_event_hash": actual["peer_event_hash"]}
+               if isinstance(actual, Mapping) and "peer_event_hash" in actual else {}),
         })
     return {
         "schema_version": "rfuzz_corpus_manifest.v1",
@@ -201,6 +251,8 @@ def build_corpus_manifest(artifact, corpus_dir, *, feedback_receipts=None):
         "simulator_inputs_sha256": replays[0]["simulator_inputs_sha256"],
         "instruction_mode": getattr(getattr(artifact, "projector", None), "instruction_mode", "none"),
         "replays": replays,
+        **({"peer_event_mode": "raw-abi-derived-v1"}
+           if getattr(artifact, "peer_slots", ()) else {}),
     }
 
 
@@ -229,7 +281,8 @@ def _owned_segments(pid):
     return result
 
 
-def run_live(artifact, client_binary, output_dir, *, duration_seconds=30, seed_cycles=5):
+def run_live(artifact, client_binary, output_dir, *, duration_seconds=30, seed_cycles=5,
+             environment=None):
     """Retain a failure report even when startup or an RTL exchange raises."""
     state = {}
     def terminated(signum, frame):
@@ -242,7 +295,8 @@ def run_live(artifact, client_binary, output_dir, *, duration_seconds=30, seed_c
     previous_int = signal.signal(signal.SIGINT, terminated)
     try:
         result = _run_live(artifact, client_binary, output_dir,
-                           duration_seconds=duration_seconds, seed_cycles=seed_cycles, state=state)
+                           duration_seconds=duration_seconds, seed_cycles=seed_cycles, state=state,
+                           environment=environment)
         if "termination_signal" in state:
             raise KeyboardInterrupt(state["termination_signal"] + " received during RFuzz run")
         return result
@@ -257,7 +311,8 @@ def run_live(artifact, client_binary, output_dir, *, duration_seconds=30, seed_c
         signal.signal(signal.SIGINT, previous_int)
 
 
-def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, seed_cycles=5):
+def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, seed_cycles=5,
+              environment=None):
     if type(duration_seconds) not in (int,float) or not math.isfinite(duration_seconds) or not 0 < duration_seconds <= 86400:
         raise ValueError("finite positive live duration required")
     if type(seed_cycles) is not int or not 1 <= seed_cycles <= 200:
@@ -321,7 +376,8 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
         # upstream still saves corpus, statistics and its final raw bitmap.
         try:
             client=subprocess.Popen(("nice","-n15",str(binary),str(config),"-s",endpoint.directory.name,
-                "-o",str(output/"corpus"), "--seed-cycles", str(seed_cycles)),stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+                "-o",str(output/"corpus"), "--seed-cycles", str(seed_cycles)),stdout=log,stderr=subprocess.STDOUT,
+                start_new_session=True, env=(None if environment is None else dict(environment)))
             state.update(status="running", client_pid=client.pid, command=list(client.args),
                          compatibility="omit optional -c prettytable output; mutation mode unchanged")
             def check():
@@ -438,6 +494,14 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
                              },
                              peak_rss_bytes=peak, duration_seconds=time.monotonic()-started,
                              removed_owned_segments=removed, remaining_segments=_owned_segments(client.pid))
+                projection = getattr(simulator, "projection_document", None)
+                if callable(projection):
+                    try:
+                        value = projection()
+                    except Exception:
+                        value = None
+                    if isinstance(value, Mapping):
+                        state["input_projection"] = dict(value)
                 state["drain_seconds"] = (state["duration_seconds"] - state["interrupt_elapsed_seconds"]
                                           if "interrupt_elapsed_seconds" in state else 0)
     result={"returncode":client.returncode,"tests":tests,"counter_maxima":maxima,
@@ -510,6 +574,19 @@ def replay_corpus(artifact, corpus_dir, *, _capture_receipts=None):
             document, payload, expected = _corpus_document(
                 path, byte_count=artifact.transport.byte_count
             )
+            peer_slots = tuple(getattr(artifact, "peer_slots", ()) or ())
+            expected_peer_hash = None
+            expected_peer_events = None
+            if peer_slots:
+                if "peer_events" not in document or "peer_event_hash" not in document:
+                    raise ValueError(f"peer event evidence missing: {path.name}")
+                expected_peer_events = document.get("peer_events")
+                if (not isinstance(expected_peer_events, list)
+                        or any(not isinstance(item, Mapping) for item in expected_peer_events)):
+                    raise ValueError(f"peer event evidence invalid: {path.name}")
+                expected_peer_hash = str(document.get("peer_event_hash", ""))
+                if expected_peer_hash != peer_event_hash(expected_peer_events):
+                    raise ValueError(f"peer event evidence hash mismatch: {path.name}")
             if len(expected) != padded_count or any(expected[count:]):
                 raise ValueError("invalid RFuzz coverage padding")
             identity = replay_identity(artifact, payload)
@@ -543,6 +620,11 @@ def replay_corpus(artifact, corpus_dir, *, _capture_receipts=None):
             width = artifact.transport.byte_count
             records = tuple(payload[i:i+width] for i in range(0, len(payload), width))
             counters = simulator.run_test(records)
+            if peer_slots:
+                actual_peer_events = tuple(getattr(simulator, "last_peer_events", ()) or ())
+                actual_peer_hash = peer_event_hash(actual_peer_events)
+                if actual_peer_hash != expected_peer_hash:
+                    raise ValueError(f"peer event mismatch: {path.name}")
             if saved_entries is not None and saved_entries[path.name].get("coverage_sha256") != _hash_bytes(counters):
                 raise ValueError(f"RFuzz saved corpus coverage identity mismatch: {path.name}")
             if _capture_receipts is not None and (
@@ -555,7 +637,7 @@ def replay_corpus(artifact, corpus_dir, *, _capture_receipts=None):
             projector = getattr(artifact, "projector", None)
             if projector is not None and hasattr(projector, "project_ports"):
                 physical = [projector.project_ports(artifact.transport.unpack(record)) for record in records]
-            entries.append({
+            replay_entry = {
                 "file": path.name,
                 "input_sha256": identity["raw_sha256"],
                 "cycles": len(records),
@@ -563,7 +645,11 @@ def replay_corpus(artifact, corpus_dir, *, _capture_receipts=None):
                 "trace_sha256": _hash_bytes(bytes(expected)),
                 "physical_ports_sha256": _hash_bytes(canonical_bytes(physical)),
                 **identity,
-            })
+            }
+            if peer_slots:
+                replay_entry["peer_event_hash"] = str(expected_peer_hash)
+                replay_entry["peer_event_count"] = len(expected_peer_events or ())
+            entries.append(replay_entry)
     return {
         "status": "passed", "entries": len(entries), "replays": entries,
         "layout_hash": artifact.layout.layout_hash,
@@ -572,4 +658,5 @@ def replay_corpus(artifact, corpus_dir, *, _capture_receipts=None):
         "binary_sha256": entries[0]["binary_sha256"],
         "coverage_kind": artifact.coverage_kind,
         "coverage_transport": "sysv-shared-memory-rfuzz-coverage-buffer",
+        **({"peer_event_mode": "raw-abi-derived-v1"} if getattr(artifact, "peer_slots", ()) else {}),
     }

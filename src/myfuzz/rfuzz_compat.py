@@ -19,10 +19,11 @@ RFUZZ_VERILATOR_ROOT_RELATIVE = Path(
 RFUZZ_VERILATOR_VERSION_PREFIX = "Verilator 5.020"
 
 
-def resolve_rfuzz_verilator(repo_root: Path) -> str:
+def resolve_rfuzz_verilator(repo_root: Path, *, environment: dict[str, str] | None = None) -> str:
     if not isinstance(repo_root, Path) or not repo_root.is_absolute():
         raise ValueError("repo_root must be an absolute pathlib.Path")
-    override = os.environ.get("MYFUZZ_SERVER_VERILATOR_BIN")
+    environment = os.environ if environment is None else environment
+    override = environment.get("MYFUZZ_SERVER_VERILATOR_BIN")
     if override:
         return override
     candidate = repo_root / RFUZZ_VERILATOR_RELATIVE
@@ -46,7 +47,7 @@ def resolve_rfuzz_verilator(repo_root: Path) -> str:
 
 
 def rfuzz_verilator_environment(
-    repo_root: Path, verilator_bin: str
+    repo_root: Path, verilator_bin: str, *, environment: dict[str, str] | None = None
 ) -> dict[str, str] | None:
     if not isinstance(repo_root, Path) or not repo_root.is_absolute():
         raise ValueError("repo_root must be an absolute pathlib.Path")
@@ -76,10 +77,10 @@ def rfuzz_verilator_environment(
             "bundled RFuzz Verilator 5.020 installation is incomplete"
         )
 
-    environment = os.environ.copy()
-    environment["VERILATOR_ROOT"] = install_root.resolve().as_posix()
-    environment["VERILATOR_BIN"] = "../../bin/verilator_bin"
-    return environment
+    effective = (os.environ if environment is None else environment).copy()
+    effective["VERILATOR_ROOT"] = install_root.resolve().as_posix()
+    effective["VERILATOR_BIN"] = "../../bin/verilator_bin"
+    return effective
 
 
 def validate_rfuzz_verilator_version(version: str) -> str:

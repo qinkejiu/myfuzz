@@ -1,0 +1,172 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "novacore",
+  "kind": "cpu",
+  "description": "First-time input 32-bit RISC-V CPU with a unified OBI memory master. Appears in no myfuzz model table; composition must be derived from this profile and the OBI contract only.",
+  "source": {
+    "root": "examples/soc_generation/rtl",
+    "revision": "sha256:17e8b5afca92ea3ac7f394064120dc0f6f85fb81c93d1c88dd318cbf5698d606",
+    "top_module": "novacore",
+    "files": [
+      "novacore.sv"
+    ],
+    "elaboration": {
+      "frontend": "verilator-json"
+    }
+  },
+  "clocks": [
+    {
+      "port": "clk_i",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "rst_ni",
+      "domain": "sys_rst",
+      "polarity": "active_low",
+      "synchronous": false,
+      "release": "RTL asserts reset asynchronously on negedge rst_ni; release must satisfy clk_i recovery/removal timing. The core leaves ST_BOOT only after fetch_enable_i is high."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "core.bus",
+      "function": "memory_master",
+      "protocol": [
+        "obi",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "req",
+          "aliases": [
+            "obi_req_o"
+          ]
+        },
+        {
+          "role": "gnt",
+          "aliases": [
+            "obi_gnt_i"
+          ]
+        },
+        {
+          "role": "addr",
+          "aliases": [
+            "obi_addr_o"
+          ]
+        },
+        {
+          "role": "we",
+          "aliases": [
+            "obi_we_o"
+          ]
+        },
+        {
+          "role": "wdata",
+          "aliases": [
+            "obi_wdata_o"
+          ]
+        },
+        {
+          "role": "be",
+          "aliases": [
+            "obi_be_o"
+          ]
+        },
+        {
+          "role": "rvalid",
+          "aliases": [
+            "obi_rvalid_i"
+          ]
+        },
+        {
+          "role": "rdata",
+          "aliases": [
+            "obi_rdata_i"
+          ]
+        },
+        {
+          "role": "error",
+          "aliases": [
+            "obi_err_i"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "core.irq",
+      "function": "interrupt_entry",
+      "fields": [
+        {
+          "role": "external",
+          "aliases": [
+            "irq_external_i"
+          ]
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 32,
+    "data_width": 32,
+    "max_outstanding": 1,
+    "byte_enable": true,
+    "error_response": true,
+    "evidence": "obi_processor_memory_adapter requires a single-outstanding, single-beat initiator; novacore holds req until gnt and waits for rvalid before the next request."
+  },
+  "port_actions": [
+    {
+      "port": "fetch_enable_i",
+      "action": "constant",
+      "value": 1,
+      "reason": "novacore holds itself in ST_BOOT while fetch_enable_i is low; the composition request enables the core for the whole test, and no profile declares it a random input."
+    },
+    {
+      "port": "event_i",
+      "action": "fuzz",
+      "strategy": "cycle_value",
+      "reason": "Declared special input: four independent same-domain event bits the profile allows the environment to change every clock."
+    },
+    {
+      "port": "status_o",
+      "action": "observe",
+      "reason": "State observation exported to the SoC top for trace-only monitoring; never used as a functional driver."
+    },
+    {
+      "port": "trap_o",
+      "action": "observe",
+      "reason": "Trap observation exported to the SoC top for trace-only monitoring."
+    }
+  ],
+  "cpu": {
+    "family": "riscv",
+    "xlen": 32,
+    "extensions": [
+      "i"
+    ],
+    "reset_vector": 65536,
+    "master_endpoints": [
+      "core.bus"
+    ],
+    "irq_entry_endpoint": "core.irq",
+    "irq_entry_role": "external",
+    "irq_semantics": "machine_external",
+    "boot_address_required": true,
+    "irq_entry_polarity": "active_high"
+  },
+  "evidence": {
+    "semantics": [
+      "OBI protocol contract: src/myfuzz/protocols/plugins/obi.json",
+      "CPU-side adapter capability: src/myfuzz/composition/processor_adapters.py"
+    ],
+    "verified": [
+      "Physical ports and widths come from verilator elaboration of the pinned novacore.sv.",
+      "Sequence/timing semantics of the OBI handshake were read from the source and the OBI plugin; no independent run evidence exists yet."
+    ],
+    "unknown": [
+      "Instruction-set behaviour of novacore is a modelling stub: this profile supports composition and structural audit only, not a 'runs correctly' claim."
+    ]
+  }
+}

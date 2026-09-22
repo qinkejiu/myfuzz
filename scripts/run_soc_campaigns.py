@@ -189,7 +189,6 @@ def _task_config(root: Path, task: Mapping[str, object], *, matrix_path: Path,
         "mode": task["mode"], "seed": task["seed"],
         "duration_seconds": task["seconds"], "simulator": "verilator",
         "source_paths": source_paths,
-        "client_binary": client,
         "seed_cycles": 5,
         "reset_contract": {
             "driver": True, "memory": True, "cpu": True,
@@ -198,6 +197,13 @@ def _task_config(root: Path, task: Mapping[str, object], *, matrix_path: Path,
         "matrix_path": str(matrix_path), "bias_off": task["bias_off"],
         "base_cell": cell,
     }
+    # ``None`` means that the resolver should apply its documented
+    # explicit -> environment -> repository-default precedence.  Do not
+    # serialize an explicit null as ``client_binary``: the RFuzz toolchain
+    # contract reserves that field for a non-empty executable path and a
+    # JSON null would otherwise be (correctly) rejected as malformed.
+    if client is not None:
+        result["client_binary"] = client
     if task["bias_off"]:
         result["bias_policy"] = "all source/target input bias disabled; same coverage universe"
     return result
@@ -353,7 +359,18 @@ def run_matrix(matrix_path: Path, output: Path, *, seconds: int, seed: int,
         task_dir = output / str(task["task_id"]).replace("/", "__")
         if preflight_only:
             preflight = preflight_soc_campaign(task_config, root=root, environment=os.environ)
-            row = {**task, "status": "ready" if preflight["ready"] and all(item["present"] for item in evidence) else "unsupported",
+            # A preflight is an environment/capability report, not a live
+            # campaign.  A missing pinned RFuzz installation is therefore
+            # recorded as an environment-unavailable row rather than being
+            # mislabelled as an unsupported SoC cell.  Structural source-lock
+            # failures remain genuine unsupported rows.
+            if not all(item["present"] for item in evidence):
+                row_status = "unsupported"
+            elif preflight["ready"]:
+                row_status = "ready"
+            else:
+                row_status = "environment-unavailable"
+            row = {**task, "status": row_status,
                    "preflight": preflight, "source_lock_evidence": evidence}
         else:
             row_result = run_soc_campaign(task_config, task_dir, root=root, environment=os.environ,

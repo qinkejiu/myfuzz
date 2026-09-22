@@ -1,0 +1,55 @@
+{
+  "schema_version": "composition_request.v1",
+  "request_id": "novacore-novauart-novagpio",
+  "description": "One first-time CPU plus two first-time peripherals. Nothing here is registered in a myfuzz model table; the SoC must be composed from the profiles and the declared protocol capabilities.",
+  "cpu": {
+    "instance_id": "cpu0",
+    "profile": "examples/soc_generation/profiles/novacore.json",
+    "parameters": {}
+  },
+  "peripherals": [
+    {
+      "instance_id": "uart0",
+      "profile": "examples/soc_generation/profiles/novauart.json",
+      "parameters": {}
+    },
+    {
+      "instance_id": "gpio0",
+      "profile": "examples/soc_generation/profiles/novagpio.json",
+      "parameters": {}
+    },
+    {
+      "instance_id": "uart1",
+      "profile": "examples/soc_generation/profiles/novauart.json",
+      "parameters": {},
+      "address": 1073745920
+    }
+  ],
+  "memory": [
+    {
+      "region_id": "rom0",
+      "base": 65536,
+      "size": 32768,
+      "permissions": {"read": true, "write": false, "execute": true},
+      "physical_memory_id": "boot_rom",
+      "initialization_policy": "rom"
+    },
+    {
+      "region_id": "ram0",
+      "base": 2147483648,
+      "size": 65536,
+      "permissions": {"read": true, "write": true, "execute": true},
+      "physical_memory_id": "main_ram",
+      "initialization_policy": "on_demand"
+    }
+  ],
+  "address_policy": {
+    "mmio_base": 1073741824,
+    "mmio_limit": 1048576,
+    "alignment": 4096
+  },
+  "clock": {"domain": "core", "frequency_hz": 50000000},
+  "reset": {"domain": "sys_rst", "polarity": "active_low", "synchronous": false},
+  "test_modes": ["cpu_only", "mmio_only", "mixed"],
+  "provenance": {"author": "examples/soc_generation", "purpose": "automatic composition acceptance"}
+}

@@ -1,29 +1,197 @@
 {
-  "protocol_id": "tl-ul", "version": "1", "legal_adapters": ["width-adapter"],
+  "protocol_id": "tl-ul",
+  "version": "1",
+  "legal_adapters": [
+    "width-adapter"
+  ],
   "fields": [
-    {"field_id": "a_valid", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
-    {"field_id": "a_ready", "direction": "device_to_host", "width": "1", "required": true, "reset_value": 0},
-    {"field_id": "a_opcode", "direction": "host_to_device", "width": "3", "required": true, "reset_value": 0},
-    {"field_id": "a_param", "direction": "host_to_device", "width": "3", "required": false, "runtime_required": true, "reset_value": 0},
-    {"field_id": "a_size", "direction": "host_to_device", "width": "3", "required": false, "runtime_required": true, "reset_value": 0},
-    {"field_id": "a_source", "direction": "host_to_device", "width": "1", "required": false, "runtime_required": true, "reset_value": 0},
-    {"field_id": "a_address", "direction": "host_to_device", "width": "address_width", "required": true, "reset_value": 0},
-    {"field_id": "a_mask", "direction": "host_to_device", "width": "data_width / 8", "required": false, "runtime_required": true, "reset_value": 0},
-    {"field_id": "a_data", "direction": "host_to_device", "width": "data_width", "required": true, "reset_value": 0},
-    {"field_id": "a_corrupt", "direction": "host_to_device", "width": "1", "required": false, "runtime_required": true, "reset_value": 0},
-    {"field_id": "d_valid", "direction": "device_to_host", "width": "1", "required": true, "reset_value": 0},
-    {"field_id": "d_ready", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
-    {"field_id": "d_opcode", "direction": "device_to_host", "width": "3", "required": true, "reset_value": 0},
-    {"field_id": "d_param", "direction": "device_to_host", "width": "3", "required": false, "runtime_required": true, "reset_value": 0},
-    {"field_id": "d_size", "direction": "device_to_host", "width": "3", "required": false, "runtime_required": true, "reset_value": 0},
-    {"field_id": "d_source", "direction": "device_to_host", "width": "1", "required": false, "runtime_required": true, "reset_value": 0},
-    {"field_id": "d_sink", "direction": "device_to_host", "width": "1", "required": false, "runtime_required": true, "reset_value": 0},
-    {"field_id": "d_denied", "direction": "device_to_host", "width": "1", "required": false, "runtime_required": true, "reset_value": 0},
-    {"field_id": "d_data", "direction": "device_to_host", "width": "data_width", "required": true, "reset_value": 0},
-    {"field_id": "d_corrupt", "direction": "device_to_host", "width": "1", "required": false, "runtime_required": true, "reset_value": 0}
+    {
+      "field_id": "a_valid",
+      "direction": "host_to_device",
+      "width": "1",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "a_ready",
+      "direction": "device_to_host",
+      "width": "1",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "a_opcode",
+      "direction": "host_to_device",
+      "width": "3",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "a_param",
+      "direction": "host_to_device",
+      "width": "3",
+      "required": false,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "a_size",
+      "direction": "host_to_device",
+      "width": "size_width",
+      "required": false,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "a_source",
+      "direction": "host_to_device",
+      "width": "source_width",
+      "required": false,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "a_address",
+      "direction": "host_to_device",
+      "width": "address_width",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "a_mask",
+      "direction": "host_to_device",
+      "width": "data_width / 8",
+      "required": false,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "a_data",
+      "direction": "host_to_device",
+      "width": "data_width",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "a_corrupt",
+      "direction": "host_to_device",
+      "width": "1",
+      "required": false,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_valid",
+      "direction": "device_to_host",
+      "width": "1",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_ready",
+      "direction": "host_to_device",
+      "width": "1",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_opcode",
+      "direction": "device_to_host",
+      "width": "3",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_param",
+      "direction": "device_to_host",
+      "width": "3",
+      "required": false,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_size",
+      "direction": "device_to_host",
+      "width": "size_width",
+      "required": false,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_source",
+      "direction": "device_to_host",
+      "width": "source_width",
+      "required": false,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_sink",
+      "direction": "device_to_host",
+      "width": "1",
+      "required": false,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_denied",
+      "direction": "device_to_host",
+      "width": "1",
+      "required": false,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_data",
+      "direction": "device_to_host",
+      "width": "data_width",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_corrupt",
+      "direction": "device_to_host",
+      "width": "1",
+      "required": false,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "a_user",
+      "direction": "host_to_device",
+      "width": "user_width",
+      "required": false,
+      "runtime_required": false,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_user",
+      "direction": "device_to_host",
+      "width": "d_user_width",
+      "required": false,
+      "runtime_required": false,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_error",
+      "direction": "device_to_host",
+      "width": "1",
+      "required": false,
+      "runtime_required": false,
+      "reset_value": 0
+    }
   ],
   "channel_relations": [
-    {"relation_id": 1, "kind": "a_request_before_d_response", "field_ids": ["a_valid", "a_ready", "d_valid", "d_ready"]}
+    {
+      "relation_id": 1,
+      "kind": "a_request_before_d_response",
+      "field_ids": [
+        "a_valid",
+        "a_ready",
+        "d_valid",
+        "d_ready"
+      ]
+    }
   ],
   "capability_limits": {
     "max_outstanding": 1,
@@ -34,13 +202,54 @@
     "max_wait_cycles": 16
   },
   "projection_actions": [
-    {"action_id": 1, "field_ids": ["a_address"], "kind": "mask", "category": "address_validity"},
-    {"action_id": 2, "field_ids": ["a_valid", "d_ready"], "kind": "gate", "category": "protocol_legality", "max_cycles": 16},
-    {"action_id": 3, "field_ids": ["a_data"], "kind": "fold_xor", "category": "dependency_consistency"}
+    {
+      "action_id": 1,
+      "field_ids": [
+        "a_address"
+      ],
+      "kind": "mask",
+      "category": "address_validity"
+    },
+    {
+      "action_id": 2,
+      "field_ids": [
+        "a_valid",
+        "d_ready"
+      ],
+      "kind": "gate",
+      "category": "protocol_legality",
+      "max_cycles": 16
+    },
+    {
+      "action_id": 3,
+      "field_ids": [
+        "a_data"
+      ],
+      "kind": "fold_xor",
+      "category": "dependency_consistency"
+    }
   ],
   "temporal_rules": [
-    {"rule_id": 1, "kind": "a_handshake", "antecedent_field_id": "a_valid", "consequent_field_id": "a_ready", "max_cycles": 16},
-    {"rule_id": 2, "kind": "d_handshake", "antecedent_field_id": "d_ready", "consequent_field_id": "d_valid", "max_cycles": 16},
-    {"rule_id": 3, "kind": "response_after_request", "antecedent_field_id": "a_valid", "consequent_field_id": "d_valid", "max_cycles": 16}
+    {
+      "rule_id": 1,
+      "kind": "a_handshake",
+      "antecedent_field_id": "a_valid",
+      "consequent_field_id": "a_ready",
+      "max_cycles": 16
+    },
+    {
+      "rule_id": 2,
+      "kind": "d_handshake",
+      "antecedent_field_id": "d_ready",
+      "consequent_field_id": "d_valid",
+      "max_cycles": 16
+    },
+    {
+      "rule_id": 3,
+      "kind": "response_after_request",
+      "antecedent_field_id": "a_valid",
+      "consequent_field_id": "d_valid",
+      "max_cycles": 16
+    }
   ]
 }

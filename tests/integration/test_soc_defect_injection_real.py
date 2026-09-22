@@ -111,6 +111,7 @@ class SpiDefectInjectionRealTests(unittest.TestCase):
         wrapper.write_text("#!/bin/sh\nexec %s %s \"$@\"\n" %
                            (verilator, " ".join(flags)), encoding="utf-8")
         wrapper.chmod(0o755)
+        cls.verilator_wrapper = wrapper
         cls.builds = {}
         for name in ("baseline", "mutant"):
             closure = [mutant_path.as_posix() if item.endswith("/novaspi.sv") or
@@ -179,7 +180,7 @@ class SpiDefectInjectionRealTests(unittest.TestCase):
                                      top_module="novaspi_isolation_tb",
                                      marker="MYFUZZ_ISOLATED_SPI", source_name="novaspi"),
             criterion=criterion, base_dir=ROOT, include_roots=self.include_roots,
-            timeout_seconds=1800)
+            timeout_seconds=1800, verilator=self.verilator_wrapper.as_posix())
         self.assertEqual("component_confirmed", confirmation.status, confirmation.reason)
         self.assertEqual("offline-isolation-confirmed", confirmation.reason)
         saved = record_offline_confirmation(package, confirmation)

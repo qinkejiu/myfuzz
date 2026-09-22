@@ -80,6 +80,7 @@ _KNOWN_CAPABILITIES: dict[str, frozenset[str]] = {
             "sink_width",
             "user_width",
             "size_width",
+            "d_user_width",
         }
     ),
     "wishbone": frozenset(
@@ -493,12 +494,18 @@ def _resolve_tlul(
     sink_width = _int_fact(capabilities, evidence, component, "sink_width", default=1)
     user_width = _int_fact(capabilities, evidence, component, "user_width", default=23)
     size_width = _int_fact(capabilities, evidence, component, "size_width", default=2)
+    # The D-channel user field is a declared width, not a constant: tlul_pkg's
+    # tl_d2h_t carries rsp_intg plus data_intg, and the adapter parameter that
+    # sizes it is the profile's own declaration.
+    d_user_width = _int_fact(capabilities, evidence, component, "d_user_width", default=14)
     if source_width < 1:
         raise _capability_error("source-width", component, str(source_width))
     if sink_width < 1:
         raise _capability_error("sink-width", component, str(sink_width))
     if size_width < 2:
         raise _capability_error("size-width", component, str(size_width))
+    if d_user_width < 1:
+        raise _capability_error("d-user-width", component, str(d_user_width))
     if generate_integrity and user_width < 18:
         raise _capability_error("integrity-user-width", component, str(user_width))
     source_id = int(backend.get("source_id", 0))
@@ -532,7 +539,7 @@ def _resolve_tlul(
             _parameter("SOURCE_WIDTH", source_width),
             _parameter("SINK_WIDTH", sink_width),
             _parameter("USER_WIDTH", user_width),
-            _parameter("DUSER_WIDTH", 14),
+            _parameter("DUSER_WIDTH", d_user_width),
             _parameter("GEN_INTEGRITY", int(generate_integrity)),
             _parameter("SOURCE_ID", source_id),
             _parameter("MAX_WAIT_CYCLES", int(target.get("max_wait_cycles", 16))),

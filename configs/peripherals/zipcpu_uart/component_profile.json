@@ -1,0 +1,106 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "zipcpu_uart",
+  "kind": "peripheral",
+  "description": "Original pinned ZipCPU wbuart (wbuart32), 4-word word-addressed Wishbone slave with four combinational FIFO-level interrupts and an exported serial port. The IP acknowledges with a registered two-clock response and gates its registers on STB alone, so the declared bus contract is the registered-ack Wishbone flavour with a one-cycle STB pulse and CYC held into the response cycle.",
+  "source": {
+    "root": "third_party/soc-zipcpu-wbuart",
+    "revision": "git:f43a6b83c3a70fb2ac0696a45c5545b233fb860b",
+    "top_module": "wbuart",
+    "files": [
+      "rtl/wbuart.v",
+      "rtl/ufifo.v",
+      "rtl/rxuart.v",
+      "rtl/txuart.v"
+    ],
+    "include_roots": [],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {"name": "HARDWARE_FLOW_CONTROL_PRESENT", "value": "1"},
+        {"name": "INITIAL_SETUP", "value": "25"},
+        {"name": "LGFLEN", "value": "4"}
+      ],
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [{"port": "i_clk", "domain": "core", "frequency_hz": 50000000}],
+  "resets": [{"port": "i_reset", "domain": "sys_rst", "polarity": "active_high", "synchronous": true,
+    "release": "Single clock i_clk with a synchronous, active-high reset used directly in every always block of wbuart, ufifo, rxuart and txuart (wbuart.v:121-137,198,282-293,351,404-411,495,502; all state is reset on the posedge while i_reset is high). Reset must be held for at least one i_clk cycle and released synchronously; o_wb_ack is suppressed while i_reset is high (wbuart.v:495,502). rx_uart_reset/tx_uart_reset add derived one-cycle resets on UART_SETUP writes and on control bits of the RX/TX registers."}],
+  "endpoints": [
+    {"endpoint_id": "uart.bus", "function": "mmio_slave", "protocol": ["wishbone", "classic"], "fields": [
+      {"role": "cyc", "aliases": ["i_wb_cyc"]},
+      {"role": "stb", "aliases": ["i_wb_stb"]},
+      {"role": "we", "aliases": ["i_wb_we"]},
+      {"role": "adr", "aliases": ["i_wb_addr"]},
+      {"role": "dat_w", "aliases": ["i_wb_data"]},
+      {"role": "sel", "aliases": ["i_wb_sel"]},
+      {"role": "ack", "aliases": ["o_wb_ack"]},
+      {"role": "stall", "aliases": ["o_wb_stall"]},
+      {"role": "dat_r", "aliases": ["o_wb_data"]}
+    ]},
+    {"endpoint_id": "uart.pins", "function": "external_pins", "fields": [
+      {"role": "rx", "direction": "input", "aliases": ["i_uart_rx"]},
+      {"role": "tx", "direction": "output", "aliases": ["o_uart_tx"]},
+      {"role": "cts_n", "direction": "input", "aliases": ["i_cts_n"]},
+      {"role": "rts_n", "direction": "output", "aliases": ["o_rts_n"]}
+    ]},
+    {"endpoint_id": "uart.interrupts", "function": "interrupt_source", "fields": [
+      {"role": "rx", "aliases": ["o_uart_rx_int"]},
+      {"role": "rxfifo", "aliases": ["o_uart_rxfifo_int"]},
+      {"role": "tx", "aliases": ["o_uart_tx_int"]},
+      {"role": "txfifo", "aliases": ["o_uart_txfifo_int"]}
+    ]}
+  ],
+  "capabilities": {"address_width": 2, "data_width": 32, "read": true, "write": true,
+    "byte_enable": true, "partial_write": true, "has_error": false, "has_address_port": true,
+    "address_units": "word", "sel_implemented": true, "wishbone_flavour": "registered-ack",
+    "ack_requires_cyc": true, "max_wait_cycles": 16, "max_outstanding": 1},
+  "address": {"window_size": 16, "alignment": 16, "registers": [
+    {"name": "SETUP", "offset": 0, "width": 32, "access": "rw", "side_effect": "write_resets_uart_state"},
+    {"name": "FIFO_STATUS", "offset": 4, "width": 32, "access": "ro", "side_effect": "none"},
+    {"name": "RXREG", "offset": 8, "width": 32, "access": "rw", "side_effect": "read_pops_rx_fifo"},
+    {"name": "TXREG", "offset": 12, "width": 32, "access": "rw", "side_effect": "write_pushes_tx_fifo"}
+  ]},
+  "interrupts": [
+    {"endpoint_id": "uart.interrupts", "role": "rx", "polarity": "active_high", "trigger": "level",
+     "clock_domain": "core",
+     "hold": "Combinational level wired straight to the RX FIFO status bit: `assign o_uart_rx_int = rxf_status[0];` (wbuart.v:212), and ufifo.v:297-303 defines bit 0 as 'the FIFO can be read from' for a receive FIFO. It stays asserted for as long as the RX FIFO is non-empty, and it is not latched or edge-detected.",
+     "clear": "Clears when the condition disappears, i.e. when the RX FIFO is drained by reads of RXREG (wbuart.v:236-239)."},
+    {"endpoint_id": "uart.interrupts", "role": "rxfifo", "polarity": "active_high", "trigger": "level",
+     "clock_domain": "core",
+     "hold": "Combinational level: `assign o_uart_rxfifo_int = rxf_status[1];` (wbuart.v:207); ufifo.v:281 assigns w_half_full = r_fill[LGFLEN-1], so bit 1 means the RX FIFO is at least half full.",
+     "clear": "Clears when the RX FIFO drops below half full, i.e. after enough RXREG reads."},
+    {"endpoint_id": "uart.interrupts", "role": "tx", "polarity": "active_high", "trigger": "level",
+     "clock_domain": "core",
+     "hold": "Combinational level: `assign o_uart_tx_int = txf_status[0];` (wbuart.v:365); ufifo.v:297-303 defines bit 0 for a non-receive FIFO as 'the FIFO can be written to', so it is asserted while the TX FIFO has at least one free slot.",
+     "clear": "Clears when the TX FIFO becomes full, i.e. after enough TXREG writes; it re-asserts as the transmitter drains the FIFO."},
+    {"endpoint_id": "uart.interrupts", "role": "txfifo", "polarity": "active_high", "trigger": "level",
+     "clock_domain": "core",
+     "hold": "Combinational level: `assign o_uart_txfifo_int = txf_status[1];` (wbuart.v:369), i.e. the TX FIFO is less than half full (ufifo.v:281).",
+     "clear": "Clears when the TX FIFO reaches half full or more."}
+  ],
+  "port_actions": [],
+  "evidence": {
+    "semantics": [
+      "Bus behaviour: o_wb_stall is tied low (`assign o_wb_stall = 1'b0;`, wbuart.v:526) and the response is a two-stage shift register (`r_wb_ack <= !i_reset && i_wb_stb`, wbuart.v:495; `o_wb_ack <= !i_reset && r_wb_ack && i_wb_cyc`, wbuart.v:502), so a request strobed in cycle T is acknowledged in T+2. CYC is used only in that ACK gate (wbuart.v:502): it qualifies no register action, so a transaction whose CYC is low still performs its side effect but is never acknowledged. That is exactly the recorded 'registered-ack' flavour: one-cycle STB pulse, CYC held one cycle past the pulse, ack_requires_cyc true.",
+      "Address map: exactly two address bits are consumed as a word index, with no byte-offset bits - `localparam [1:0] UART_SETUP = 2'b00, UART_FIFO = 2'b01, UART_RXREG = 2'b10, UART_TXREG = 2'b11;` (wbuart.v:79-82) and the delayed read decode `casez(r_wb_addr)` (wbuart.v:511-517); o_wb_data is registered from that delayed address and is valid in the ACK cycle. The elaborated port is i_wb_addr[1:0], hence address_width 2 with address_units 'word'.",
+      "Byte enables are genuine and per register. SETUP: sel[0]->uart_setup[7:0], sel[1]->[15:8], sel[2]->[23:16], sel[3]->{data[30]||!HARDWARE_FLOW_CONTROL_PRESENT, data[29:24]} (wbuart.v:125-137); bit 31 is not implemented and reads back 0 (`o_wb_data <= {1'b0, uart_setup}` at UART_SETUP, wbuart.v:513). TXREG: `txf_wb_write <= STB && addr==TXREG && WE && sel[0]` pushes data[7:0] (wbuart.v:327-333), sel[1] gates break from data[9] and tx_uart_reset from data[12] (wbuart.v:404-411,438-440), sel[2]/sel[3] are unused. RXREG writes only act through sel[1]: it clears the latched parity/framing flags from data[9]/data[10] (wbuart.v:256-266) and loads rx_uart_reset from data[12] (wbuart.v:284-293). FIFO_STATUS is read-only and has no write path at all (wbuart.v:479,514). A read with all sel bits low or a write with all sel bits low leaves the state unchanged, so sub-word writes are honoured, not approximated.",
+      "Read side effects: a read of RXREG pops one byte from the RX FIFO (`rxf_wb_read <= STB && addr==RXREG && !WE`, wbuart.v:238; the RX FIFO read port is driven by it, wbuart.v:199). Reading SETUP, FIFO_STATUS and TXREG is side-effect free (wbuart.v:445-461 documents that only writing TXREG advances the TX FIFO).",
+      "Error reporting: the IP has no o_wb_err/o_wb_rty, no CTI/BTE and no burst support (elaborated port list: 19 ports, no error output), so has_error is false and the fabric owns any decode error on this target.",
+      "Interrupts are combinational levels, not pulses: all four outputs are continuous assignments from FIFO status bits (wbuart.v:207,212,365,369) and are never latched or edge-detected; the status bits themselves change only when the FIFOs change fill (ufifo.v:281-303). They are therefore declared as level sources with active-high polarity and no hold register.",
+      "Pins: i_uart_rx is sampled by the rxuart instance into the RX FIFO (wbuart.v:166,194-203); o_uart_tx is the txuart line output (wbuart.v:438-440); i_cts_n is gated by HARDWARE_FLOW_CONTROL_PRESENT=1 (`assign cts_n = (HARDWARE_FLOW_CONTROL_PRESENT)&&(i_cts_n);`, wbuart.v:424); o_rts_n is a registered flow-control output derived from the RX FIFO fill level (wbuart.v:224-227). All four are plain digital pins in the i_clk domain.",
+      "Each declared capability and the construct it was read from: data_width=32 is the elaborated width of i_wb_data/o_wb_data; address_width=2 is the elaborated width of i_wb_addr[1:0], which is a word index (wbuart.v:63,79-82), hence address_units=\"word\" and has_address_port=true; read=true and write=true are the delayed read decode `casez(r_wb_addr)` (wbuart.v:511-517) and the STB/WE-qualified write paths (wbuart.v:125-137,238,256-266,284-293,327-333,381-390,404-411); byte_enable=true and sel_implemented=true because i_wb_sel is genuinely implemented per byte lane on UART_SETUP and gates the TX push on sel[0]; partial_write=true follows from those two: the adapter may pass the beat byte enable through as `sel` unchanged, and a write with all sel bits low provably changes no state; has_error=false because the IP has no o_wb_err/o_wb_rty; wishbone_flavour=\"registered-ack\" with ack_requires_cyc=true is the recorded two-clock registered response gated by CYC (wbuart.v:495,502) with `assign o_wb_stall = 1'b0` (wbuart.v:526); max_wait_cycles=16 is the SoC's declared patience bound, far inside the two-cycle fixed latency of this slave; max_outstanding=1 is the single-outstanding contract of the beat initiator and of resolve_target_adapter's parameter_values, not an RTL concurrency claim about wbuart."
+    ],
+    "verified": [
+      "The 19 declared ports, their directions and their widths (i_wb_addr[1:0], i_wb_data[31:0], i_wb_sel[3:0], o_wb_data[31:0], the rest 1 bit) are the elaborated port facts of the pinned closure configs/soc/closures/zipcpu_uart.json with the recorded parameters HARDWARE_FLOW_CONTROL_PRESENT=1, INITIAL_SETUP=25, LGFLEN=4, which are also the RTL defaults (wbuart.v:48-55).",
+      "Every declared capability is carried by the semantics entries above; the wishbone target resolver consumes exactly address_width/data_width/byte_enable/partial_write/has_error/has_address_port/address_units/sel_implemented/wishbone_flavour/ack_requires_cyc for this protocol."
+    ],
+    "unknown": [
+      "This profile cannot be elaborated by the composition frontend in this environment. `wbuart` is Verilog-2001 with implicitly typed ports, and two independent limitations of src/myfuzz/composition/source_elaboration.py reject it: (1) `_Reader.physical_type` requires every type node's compiler location to be a declared source file, while Verilator locates the implicit default type in <verilator-root>/share/verilator/include/verilated_std.sv:53 - `elaborate_profile` therefore fails with 'elaboration-evidence-error:zipcpu_uart:compiler location has no source mapping'; (2) `extract_physical_ports` keeps only ports with `varType == \"PORT\"`, and Verilator reports `input wire`/`output wire` ports as `varType == \"WIRE\"`, so even when the first error is bypassed with --no-std-package the wire ports are silently dropped (an empty extraction for this module) instead of being reported. Nothing in this profile was therefore confirmed by elaborate_profile/bind_profile; the port facts above were verified against the same verilator-json output with --no-std-package plus the recorded closure finding.",
+      "No Wishbone error response exists, and the IP must never see a classic strobe hold: because STB alone triggers every register action, a master that holds STB until ACK performs the addressed action on every cycle STB is high and receives one ACK per cycle (duplicate side effects). The declared flavour encodes the required one-cycle STB pulse; whether a given peer master honours it is not verified here.",
+      "Only the pinned parameterization INITIAL_SETUP=25/LGFLEN=4/HARDWARE_FLOW_CONTROL_PRESENT=1 is exercised by this profile acceptance; the lite/flows-off variants are not claimed.",
+      "The UART serial link itself is not exercised by structural composition: the pins are exported and no serial peer is composed by this profile."
+    ]
+  }
+}

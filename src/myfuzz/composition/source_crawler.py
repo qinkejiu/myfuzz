@@ -87,6 +87,10 @@ class ElaboratedMemberFact:
     source_file: str
     line: int
     column: int
+    #: Fully qualified name of the member's enumerated type, or "" for a plain
+    #: integral member.  A connection to an enum member cannot be an implicit
+    #: integral conversion, so this is the type a generated cast must name.
+    enum_type: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,6 +120,15 @@ class SourceSnapshot:
     elaborated_ports: tuple[ElaboratedPortFact, ...] = ()
     elaboration_evidence: bytes | None = None
     elaborated_top_module: str | None = None
+    #: The HDL units the frontend actually compiled, in declaration order.  It is
+    #: a *subset* of ``files``: that list also carries the filelists and the
+    #: include-root files read for hashing, and a closure may contain several
+    #: alternative implementations of one module (CVA6 ships both a technology
+    #: and an FPGA wrapper, HPDcache ships behavioural and technology SRAMs)
+    #: that only the filelist's own ordering and defines select between.
+    #: Publishing every read file as a compilation unit is what turns such a
+    #: selection into a duplicate-module error.
+    compiled_files: tuple[str, ...] = ()
 
 
 def _physical_port_document(port: ElaboratedPortFact) -> dict[str, object]:
@@ -137,7 +150,7 @@ def _physical_port_document(port: ElaboratedPortFact) -> dict[str, object]:
                     "line": member.line,
                     "column": member.column,
                 },
-            }
+            } | ({"enum_type": member.enum_type} if member.enum_type else {})
             for member in port.members
         ],
     }
@@ -822,7 +835,7 @@ class SourceCrawler:
             for item in physical["ports"]:
                 source = item["source"]
                 members = tuple(
-                    ElaboratedMemberFact(tuple(member["path"]), member["width"], member["raw_lo"], member["raw_hi"], member["signed"], member["source"]["file"], member["source"]["line"], member["source"]["column"])
+                    ElaboratedMemberFact(tuple(member["path"]), member["width"], member["raw_lo"], member["raw_hi"], member["signed"], member["source"]["file"], member["source"]["line"], member["source"]["column"], str(member.get("enum_type", "")))
                     for member in item["members"]
                 )
                 facts.append(ElaboratedPortFact(item["name"], item["direction"], item["width"], item["signed"], source["file"], source["line"], source["column"], members))
@@ -861,7 +874,20 @@ class SourceCrawler:
             digest = hashlib.sha256()
             digest.update(content_hash.encode("ascii"))
             stable_bytes = canonical_bytes(stable_manifest)
-            digest.update(stable_bytes)
+            # ``enum_type`` is additive elaboration provenance.  Keep the
+            # established source identity stable for an otherwise unchanged
+            # closure while retaining the full enum annotation in the evidence
+            # bytes used by selector validation.  This lets old cache keys and
+            # reports replay against the new richer fact schema without
+            # discarding the type information itself.
+            def _identity_value(value: object) -> object:
+                if isinstance(value, dict):
+                    return {key: _identity_value(item) for key, item in value.items()
+                            if key != "enum_type"}
+                if isinstance(value, list):
+                    return [_identity_value(item) for item in value]
+                return value
+            digest.update(canonical_bytes(_identity_value(stable_manifest)))
             content_hash = "sha256:" + digest.hexdigest()
             elaboration_evidence = stable_bytes
         return SourceSnapshot(
@@ -876,6 +902,7 @@ class SourceCrawler:
             elaborated_ports,
             elaboration_evidence,
             locator.top_module if locator.elaboration is not None else None,
+            tuple(_relative(root, path) for path in files),
         )
 
     def _module_ports(

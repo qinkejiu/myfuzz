@@ -58,6 +58,8 @@ _WIDTH_ROLES = {
     "id": frozenset({"awid", "bid", "arid", "rid"}),
     "source": frozenset({"a_source", "d_source"}),
     "user": frozenset({"awuser", "wuser", "buser", "aruser", "ruser"}),
+    "tl_user": frozenset({"a_user"}),
+    "tl_d_user": frozenset({"d_user"}),
 }
 
 _BACKEND_ADAPTER_PORTS = {
@@ -324,6 +326,12 @@ def _route(
         parameters["ID_WIDTH"] = widths["id"]
     if "user" in widths:
         parameters["USER_WIDTH"] = widths["user"]
+    if "tl_user" in widths:
+        parameters["USER_WIDTH"] = widths["tl_user"]
+    if "tl_d_user" in widths:
+        parameters["DUSER_WIDTH"] = widths["tl_d_user"]
+    if memory.protocol == ("tl-ul", "1") and "source" in widths:
+        parameters["SOURCE_WIDTH"] = widths["source"]
     parameters.update(adapter.parameter_values)
     source_ports = {
         role: port for role, port, _direction in adapter.source_ports

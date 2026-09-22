@@ -131,6 +131,37 @@ class SocInstructionStimulus:
         self._pending[beat] = values
         return {"accepted": True, "address": address, "raw_candidate": dict(values)}
 
+    def flush(self) -> int:
+        """Materialise every pending candidate; returns how many were applied.
+
+        `accept` only records a candidate so that a later read sees a consistent
+        image.  Building an image artifact needs the opposite direction: every
+        accepted candidate must be committed before the image is written.
+        """
+        committed = 0
+        for beat in sorted(list(self._pending)):
+            self._materialize(beat)
+            committed += 1
+        return committed
+
+    def image_base(self) -> int | None:
+        """Lowest byte address this stimulus has initialized, or None."""
+        return min(self._bytes) if self._bytes else None
+
+    def byte_image(self) -> tuple[int, bytes]:
+        """The initialized bytes as one contiguous (base_address, image) pair.
+
+        The reference layer keeps a sparse byte map; a boot image has to be a
+        contiguous file that `$readmemh` can load from a known base, so the gaps
+        are materialised as zeroes and the base is returned with the bytes.
+        """
+        if not self._bytes:
+            return (0, b"")
+        base = min(self._bytes)
+        last = max(self._bytes)
+        return (base, bytes(self._bytes.get(address, 0)
+                            for address in range(base, last + 1)))
+
     def read_instruction(self, address: int, size: int) -> int:
         allowed_sizes = (1, 2, 4, 8) if self._capabilities.xlen == 64 else (1, 2, 4)
         if type(address) is not int or size not in allowed_sizes or not self._contains(address, size):

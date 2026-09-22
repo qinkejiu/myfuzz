@@ -1,6 +1,7 @@
 module tl_ul_processor_memory_adapter #(
     parameter integer ADDRESS_WIDTH = 32,
-    parameter integer DATA_WIDTH = 32
+    parameter integer DATA_WIDTH = 32,
+    parameter integer SOURCE_WIDTH = 1
 ) (
     input  logic                         clk_i,
     input  logic                         rst_ni,
@@ -9,7 +10,7 @@ module tl_ul_processor_memory_adapter #(
     input  logic [2:0]                   a_opcode_i,
     input  logic [2:0]                   a_param_i,
     input  logic [2:0]                   a_size_i,
-    input  logic                         a_source_i,
+    input  logic [SOURCE_WIDTH-1:0]      a_source_i,
     input  logic [ADDRESS_WIDTH-1:0]     a_address_i,
     input  logic [(DATA_WIDTH/8)-1:0]    a_mask_i,
     input  logic [DATA_WIDTH-1:0]        a_data_i,
@@ -19,7 +20,7 @@ module tl_ul_processor_memory_adapter #(
     output logic [2:0]                   d_opcode_o,
     output logic [2:0]                   d_param_o,
     output logic [2:0]                   d_size_o,
-    output logic                         d_source_o,
+    output logic [SOURCE_WIDTH-1:0]      d_source_o,
     output logic                         d_sink_o,
     output logic                         d_denied_o,
     output logic [DATA_WIDTH-1:0]        d_data_o,
@@ -51,7 +52,7 @@ module tl_ul_processor_memory_adapter #(
     logic [DATA_WIDTH-1:0] data_q;
     logic [BYTE_LANES-1:0] be_q;
     logic [2:0] size_q;
-    logic source_q;
+    logic [SOURCE_WIDTH-1:0] source_q;
     logic d_valid_q, d_denied_q, d_corrupt_q;
     logic [2:0] d_opcode_q;
     logic [DATA_WIDTH-1:0] d_data_q;
@@ -193,4 +194,85 @@ module tl_ul_processor_memory_adapter #(
             endcase
         end
     end
+endmodule
+
+// Variant used when a TL-UL endpoint explicitly declares optional user and
+// integrity sidebands.  The historical module above intentionally keeps its
+// original port list so legacy benches using ``.*`` continue to elaborate.
+// This wrapper exposes the optional fields without duplicating the transaction
+// state machine; the generic beat backend has no user payload, so d_user_o is
+// deterministic zero and d_error_o mirrors the response error indication.
+module tl_ul_processor_memory_adapter_sideband #(
+    parameter integer ADDRESS_WIDTH = 32,
+    parameter integer DATA_WIDTH = 32,
+    parameter integer SOURCE_WIDTH = 1,
+    parameter integer USER_WIDTH = 23,
+    parameter integer DUSER_WIDTH = 14
+) (
+    input  logic                         clk_i,
+    input  logic                         rst_ni,
+    input  logic                         a_valid_i,
+    output logic                         a_ready_o,
+    input  logic [2:0]                   a_opcode_i,
+    input  logic [2:0]                   a_param_i,
+    input  logic [2:0]                   a_size_i,
+    input  logic [SOURCE_WIDTH-1:0]      a_source_i,
+    input  logic [ADDRESS_WIDTH-1:0]     a_address_i,
+    input  logic [(DATA_WIDTH/8)-1:0]    a_mask_i,
+    input  logic [DATA_WIDTH-1:0]        a_data_i,
+    input  logic                         a_corrupt_i,
+    input  logic [USER_WIDTH-1:0]        a_user_i,
+    output logic                         d_valid_o,
+    input  logic                         d_ready_i,
+    output logic [2:0]                   d_opcode_o,
+    output logic [2:0]                   d_param_o,
+    output logic [2:0]                   d_size_o,
+    output logic [SOURCE_WIDTH-1:0]      d_source_o,
+    output logic                         d_sink_o,
+    output logic                         d_denied_o,
+    output logic [DATA_WIDTH-1:0]        d_data_o,
+    output logic                         d_corrupt_o,
+    output logic [DUSER_WIDTH-1:0]       d_user_o,
+    output logic                         d_error_o,
+    output logic                         req_valid_o,
+    input  logic                         req_ready_i,
+    output logic                         req_write_o,
+    output logic [ADDRESS_WIDTH-1:0]     req_addr_o,
+    output logic [DATA_WIDTH-1:0]        req_wdata_o,
+    output logic [(DATA_WIDTH/8)-1:0]    req_be_o,
+    input  logic                         rsp_valid_i,
+    output logic                         rsp_ready_o,
+    input  logic [DATA_WIDTH-1:0]        rsp_rdata_i,
+    input  logic                         rsp_error_i
+);
+    // The sideband is a declared protocol field, but this adapter's backend
+    // contract has no integrity payload to consume.  Keeping the input in the
+    // explicit interface makes that loss auditable instead of silently
+    // dropping a port during rendering.
+    logic unused_a_user;
+    assign unused_a_user = ^a_user_i;
+
+    tl_ul_processor_memory_adapter #(
+        .ADDRESS_WIDTH(ADDRESS_WIDTH),
+        .DATA_WIDTH(DATA_WIDTH),
+        .SOURCE_WIDTH(SOURCE_WIDTH)
+    ) u_base (
+        .clk_i(clk_i), .rst_ni(rst_ni),
+        .a_valid_i(a_valid_i), .a_ready_o(a_ready_o),
+        .a_opcode_i(a_opcode_i), .a_param_i(a_param_i), .a_size_i(a_size_i),
+        .a_source_i(a_source_i), .a_address_i(a_address_i),
+        .a_mask_i(a_mask_i), .a_data_i(a_data_i), .a_corrupt_i(a_corrupt_i),
+        .d_valid_o(d_valid_o), .d_ready_i(d_ready_i),
+        .d_opcode_o(d_opcode_o), .d_param_o(d_param_o), .d_size_o(d_size_o),
+        .d_source_o(d_source_o), .d_sink_o(d_sink_o), .d_denied_o(d_denied_o),
+        .d_data_o(d_data_o), .d_corrupt_o(d_corrupt_o),
+        .req_valid_o(req_valid_o), .req_ready_i(req_ready_i),
+        .req_write_o(req_write_o), .req_addr_o(req_addr_o),
+        .req_wdata_o(req_wdata_o), .req_be_o(req_be_o),
+        .rsp_valid_i(rsp_valid_i), .rsp_ready_o(rsp_ready_o),
+        .rsp_rdata_i(rsp_rdata_i), .rsp_error_i(rsp_error_i)
+    );
+
+    assign d_user_o = '0;
+    assign d_error_o = d_denied_o || d_corrupt_o;
 endmodule
