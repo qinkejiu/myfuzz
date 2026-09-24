@@ -41,6 +41,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 
 from myfuzz.contracts import canonical_bytes, content_hash
 from myfuzz.composition.input_layout import (
@@ -97,6 +98,8 @@ COUNTER_BITS_PER_PORT = 16
 COVERAGE_SIGNAL = "__vi_coverage"
 #: Real RTL branch feedback, not sampled event counters.
 COVERAGE_KIND = "source-instrumented-rtl-branch-u8-saturating"
+_COVERAGE_INSTRUMENTER_SCHEMA = "source_branch_instrumenter.v1"
+_COVERAGE_INSTRUMENTER_SETTINGS = {"runtime": {"single_statement": True}}
 PROBE_TIMEOUT_SECONDS = 60
 BUILD_TIMEOUT_SECONDS = 600
 #: CPUs whose first fetch is not at the reset vector itself.  Ibex documents
@@ -439,6 +442,82 @@ def _hash_bytes(data):
 
 def _file_hash(path):
     return _hash_bytes(Path(path).read_bytes())
+
+
+def _coverage_instrumenter_identity():
+    path = ROOT / "scripts/source_branch_instrumenter.py"
+    try:
+        source_hash = _file_hash(path)
+    except OSError as error:
+        raise SocBuildError(f"coverage-instrumenter-unavailable:{path}") from error
+    return {
+        "schema_version": _COVERAGE_INSTRUMENTER_SCHEMA,
+        "source_sha256": source_hash,
+        "settings": copy.deepcopy(_COVERAGE_INSTRUMENTER_SETTINGS),
+    }
+
+
+def _profile_build_cache_key(base_identity, instrumenter_identity,
+                            instrumented_output_sha256):
+    if not isinstance(base_identity, Mapping) or not isinstance(instrumenter_identity, Mapping):
+        raise SocBuildError("profile-build-cache-identity-invalid")
+    if not isinstance(instrumented_output_sha256, str) or not instrumented_output_sha256:
+        raise SocBuildError("profile-build-cache-instrumented-output-identity-invalid")
+    return content_hash({
+        "base_identity": dict(base_identity),
+        "coverage_instrumenter": dict(instrumenter_identity),
+        "instrumented_output_sha256": instrumented_output_sha256,
+    })
+
+
+def _instrumented_output_sha256(instrumented_root, instrumented_flist, *, path_aliases=()):
+    """Hash all compiler inputs while removing build-directory-specific paths."""
+    root = Path(instrumented_root).resolve()
+    flist = Path(instrumented_flist).resolve()
+    if not root.is_dir() or not flist.is_file() or not flist.is_relative_to(root):
+        raise SocBuildError("coverage-instrumented-output-incomplete")
+    aliases = {root.as_posix()}
+    aliases.update(str(item) for item in path_aliases if isinstance(item, str) and item)
+    aliases = sorted(aliases, key=len, reverse=True)
+    records = []
+    for path in sorted(root.rglob("*")):
+        if path.is_symlink():
+            raise SocBuildError("coverage-instrumented-output-symlink-unsupported")
+        if not path.is_file() or path.name == "instrumentation.json":
+            continue
+        payload = path.read_bytes()
+        if path.resolve() == flist:
+            for alias in aliases:
+                payload = payload.replace(alias.encode("utf-8"), b"<INSTRUMENTED_ROOT>")
+        records.append({
+            "path": path.relative_to(root).as_posix(),
+            "sha256": _hash_bytes(payload),
+        })
+    return content_hash({
+        "schema_version": "source_instrumented_output.v1",
+        "files": records,
+    })
+
+
+def _cached_instrumentation_matches(cache_entry, document, instrumenter_identity):
+    coverage = (document.get("coverage_instrumentation") or document.get("coverage")
+                if isinstance(document, Mapping) else None)
+    sources = document.get("sources") if isinstance(document, Mapping) else None
+    if not isinstance(coverage, Mapping) or not isinstance(sources, Mapping):
+        return False
+    if coverage.get("instrumenter") != instrumenter_identity:
+        return False
+    expected = coverage.get("instrumented_output_sha256")
+    old_root = coverage.get("instrumented_root", sources.get("instrumented_root"))
+    if not isinstance(expected, str) or not expected or not isinstance(old_root, str):
+        return False
+    root = Path(cache_entry) / "instrumentation/instrumented"
+    try:
+        actual = _instrumented_output_sha256(
+            root, root / "instrumented_sources.f", path_aliases=(old_root,))
+    except (OSError, SocBuildError, TypeError, ValueError):
+        return False
+    return actual == expected
 
 
 def _mode(config):
@@ -1261,6 +1340,21 @@ def _build_profile_campaign_artifact(config, build_dir):
                 define = f"{name}={value}"
                 if define not in closure["defines"]:
                     closure["defines"].append(define)
+    instrumenter_identity = _coverage_instrumenter_identity()
+    # Instrumentation is cheap compared with compiling Verilator and produces
+    # the output digest used by the cache identity. Generate it in an owned
+    # temporary tree before deciding whether the compiled artifact is reusable.
+    instrumentation_stage = tempfile.TemporaryDirectory(
+        prefix="myfuzz-soc-instrumentation-")
+    instrumentation_stage_root = Path(instrumentation_stage.name).resolve()
+    cpu = next(instance for instance in plan.instances if instance.kind == "cpu")
+    instrumentation = _instrument_coverage(
+        instrumentation_stage_root, root, request.request_id, closure, rendered,
+        top_name, top_module,
+        {"peripherals": {i.instance_id: {} for i in plan.instances
+                          if i.kind != "cpu"}},
+        cpu_instance="u_" + cpu.instance_id,
+        instrumenter_identity=instrumenter_identity)
 
     # A profile build is expensive (coverage instrumentation plus Verilator),
     # while a new RFuzz sample must never invalidate the RTL artifact.  The
@@ -1279,7 +1373,7 @@ def _build_profile_campaign_artifact(config, build_dir):
         if cache_root == build or build.is_relative_to(cache_root) \
                 or cache_root.is_relative_to(build):
             raise SocBuildError("profile-build-cache-overlaps-build-directory")
-        cache_key = content_hash({
+        cache_key = _profile_build_cache_key({
             "schema_version": "soc_profile_build_cache.v1",
             "generator_schema": BUILD_SCHEMA,
             "composition_hash": plan.plan_hash,
@@ -1293,7 +1387,7 @@ def _build_profile_campaign_artifact(config, build_dir):
             "external_input_defaults": dict(defaults),
             "closure": closure,
             "verilator": tool_identity,
-        })
+        }, instrumenter_identity, instrumentation["instrumented_output_sha256"])
         cache_entry = cache_root / cache_key
         cached_provenance = cache_entry / "artifact_provenance.json"
         if (cache_entry.is_dir() and not cache_entry.is_symlink()
@@ -1312,6 +1406,8 @@ def _build_profile_campaign_artifact(config, build_dir):
                     and cached_document.get("policy_hash") == policy.policy_hash
                     and cached_document.get("image_hash") == image.image_hash
                     and cached_document.get("tool_identity") == tool_identity
+                    and _cached_instrumentation_matches(
+                        cache_entry, cached_document, instrumenter_identity)
                     and cached_ports
                     and isinstance(cached_document.get("structure_audit"), Mapping)
                     and cached_document["structure_audit"].get("status") == "pass"
@@ -1324,17 +1420,63 @@ def _build_profile_campaign_artifact(config, build_dir):
                 valid_cache = False
             if valid_cache:
                 shutil.copytree(cache_entry, build)
+                if not _cached_instrumentation_matches(
+                        build, cached_document, instrumenter_identity):
+                    raise SocBuildError("profile-build-cache-copy-instrumentation-drift")
                 executable = build / "obj_dir" / "Vmyfuzz_live_tb"
                 simulator_args = (f"+riscv_boot_image={build / 'boot_image.hex'}",)
                 if _file_hash(executable) != cached_document.get("executable_sha256"):
                     raise SocBuildError("profile-build-cache-executable-drift")
                 _probe_executable(executable, simulator_args, request.request_id)
+                cached_coverage = (cached_document.get("coverage_instrumentation")
+                                   or cached_document.get("coverage"))
+                if isinstance(cached_coverage, dict):
+                    old_root = cached_coverage.get(
+                        "instrumented_root",
+                        (cached_document.get("sources") or {}).get("instrumented_root"))
+                    if not isinstance(old_root, str) or not old_root:
+                        raise SocBuildError(
+                            "profile-build-cache-instrumented-root-missing")
+                    old_build_root = Path(old_root).parent.parent
+                    new_build_root = build.resolve()
+                    for relative in (
+                            Path("instrumentation/instrumented/instrumented_sources.f"),
+                            Path("instrumentation/instrumented/instrumentation.json")):
+                        path = build / relative
+                        if path.is_file():
+                            payload = path.read_bytes().replace(
+                                old_build_root.as_posix().encode("utf-8"),
+                                new_build_root.as_posix().encode("utf-8"))
+                            path.write_bytes(payload)
+                    from scripts.source_branch_instrumenter import validate_closed_flist
+                    instrumented_root = build / "instrumentation/instrumented"
+                    instrumented_flist = instrumented_root / "instrumented_sources.f"
+                    validate_closed_flist(
+                        instrumented_flist.read_text(encoding="utf-8").splitlines(),
+                        instrumented_root)
+                    if _instrumented_output_sha256(
+                            instrumented_root, instrumented_flist) != \
+                            cached_coverage.get("instrumented_output_sha256"):
+                        raise SocBuildError(
+                            "profile-build-cache-relocated-instrumentation-drift")
                 cached_document["cache_hit"] = True
                 cached_document["cache_key"] = cache_key
                 cached_document["cache_source"] = str(cache_entry)
                 cached_document["peer_event_mode"] = (
                     "raw-abi-derived-v1" if peer_slots else None)
                 cached_document["peer_event_slots"] = [dict(item) for item in peer_slots]
+                if isinstance(cached_document.get("sources"), dict):
+                    cached_document["sources"]["instrumented_root"] = str(
+                        build / "instrumentation/instrumented")
+                    cached_document["sources"]["instrumented_flist"] = str(
+                        build / "instrumentation/instrumented/instrumented_sources.f")
+                cached_coverage = (cached_document.get("coverage_instrumentation")
+                                   or cached_document.get("coverage"))
+                if isinstance(cached_coverage, dict):
+                    cached_coverage["instrumented_root"] = str(
+                        build / "instrumentation/instrumented")
+                    cached_coverage["instrumented_flist"] = str(
+                        build / "instrumentation/instrumented/instrumented_sources.f")
                 cached_document["build_hash"] = content_hash(cached_document)
                 (build / "artifact_provenance.json").write_bytes(
                     canonical_bytes(cached_document))
@@ -1345,6 +1487,7 @@ def _build_profile_campaign_artifact(config, build_dir):
                     image_address_policy=address_policy,
                     candidate_program=candidate_program,
                     peer_slots=peer_slots)
+                instrumentation_stage.cleanup()
                 return SocCampaignArtifact(
                     # The monitor is part of the published artifact, not of the
                     # compile: a cache hit has to carry the same transaction
@@ -1381,11 +1524,26 @@ def _build_profile_campaign_artifact(config, build_dir):
         (build / name).write_text(text, encoding="utf-8")
     shutil.copyfile(boot, build / "boot_image.hex")
     simulator_args = (f"+riscv_boot_image={build / 'boot_image.hex'}",)
-    cpu = next(instance for instance in plan.instances if instance.kind == "cpu")
-    instrumentation = _instrument_coverage(
-        build, root, request.request_id, closure, rendered, top_name, top_module,
-        {"peripherals": {i.instance_id: {} for i in plan.instances if i.kind != "cpu"}},
-        cpu_instance="u_" + cpu.instance_id)
+    staged_instrumentation_dir = instrumentation_stage_root / "instrumentation"
+    final_instrumentation_dir = build / "instrumentation"
+    shutil.copytree(staged_instrumentation_dir, final_instrumentation_dir)
+    final_root = (final_instrumentation_dir / "instrumented").resolve()
+    for relative in (Path("instrumented/instrumented_sources.f"),
+                     Path("instrumented/instrumentation.json")):
+        path = final_instrumentation_dir / relative
+        if path.is_file():
+            payload = path.read_bytes().replace(
+                instrumentation_stage_root.as_posix().encode("utf-8"),
+                build.resolve().as_posix().encode("utf-8"))
+            path.write_bytes(payload)
+    instrumentation = dict(instrumentation)
+    instrumentation["instrumented_root"] = str(final_root)
+    instrumentation["flist"] = str(final_root / "instrumented_sources.f")
+    relocated_output_sha256 = _instrumented_output_sha256(
+        final_root, instrumentation["flist"])
+    if relocated_output_sha256 != instrumentation["instrumented_output_sha256"]:
+        raise SocBuildError("profile-instrumented-output-changed-during-relocation")
+    instrumentation_stage.cleanup()
     coverage_ports = tuple((COVERAGE_SIGNAL, int(item["bit"]))
                            for item in instrumentation["plan"]["observed"])
     (build / "rfuzz_input_transport.sv").write_text(transport.render_systemverilog())
@@ -1480,6 +1638,13 @@ def _build_profile_campaign_artifact(config, build_dir):
                 "peer_event_mode": ("raw-abi-derived-v1" if plan.peers else None),
                 "peer_event_slots": [dict(item) for item in peer_slots],
                 "coverage_kind": COVERAGE_KIND,
+                "coverage_instrumentation": {
+                    "instrumenter": instrumentation["instrumenter_identity"],
+                    "instrumented_output_sha256": (
+                        instrumentation["instrumented_output_sha256"]),
+                    "instrumented_root": instrumentation["instrumented_root"],
+                    "instrumented_flist": instrumentation["flist"],
+                },
                 "structure_audit": {
                     "schema_version": structure_audit.get("schema_version"),
                     "status": summary["status"],
@@ -1700,6 +1865,10 @@ def build_soc_campaign_artifact(config, build_dir):
         "coverage": {
             "kind": coverage_kind,
             "transport": "sysv-shared-memory-rfuzz-coverage-buffer",
+            "instrumenter": instrumentation["instrumenter_identity"],
+            "instrumented_output_sha256": instrumentation["instrumented_output_sha256"],
+            "instrumented_root": instrumentation["instrumented_root"],
+            "instrumented_flist": instrumentation["flist"],
             "counter_count": len(coverage_ports),
             "observations": [list(item) for item in coverage_ports],
             "signal": COVERAGE_SIGNAL,
@@ -1747,6 +1916,7 @@ def build_soc_campaign_artifact(config, build_dir):
             "max_cycles_per_test": MAX_CYCLES,
         },
         "build_command": list(command),
+        "test_isolation": "restart process: source instrumentation contains sticky branch hits",
         "policy": (
             "fail-closed: no behavioural CPU/peripheral fallback; the artifact is "
             "returned only after Verilator produced the executable and the protocol "
@@ -1765,7 +1935,7 @@ def build_soc_campaign_artifact(config, build_dir):
         randomized_controls=(),
         simulator_args=simulator_args,
         simulator="verilator",
-        isolate_tests=False,
+        isolate_tests=True,
         execution_monitor=None,
         build_document=document,
         rendered_files=tuple((item["file"], item["sha256"]) for item in rendered_records),
@@ -1955,7 +2125,8 @@ def _input_layout(stimulus, ports, cell_id):
 
 
 def _instrument_coverage(build, root, cell_id, closure, rendered, top_name,
-                         top_module, manifest, *, cpu_instance="u_cpu"):
+                         top_module, manifest, *, cpu_instance="u_cpu",
+                         instrumenter_identity=None):
     """Branch-instrument the cell closure and plan the observed coverage bits.
 
     P13 feedback has to be real RTL branch evidence.  A sampled input or output
@@ -1968,6 +2139,8 @@ def _instrument_coverage(build, root, cell_id, closure, rendered, top_name,
         raise SocBuildError(
             "%s:coverage-instrumenter-unavailable:%s" % (cell_id, error)) from error
     area = build / "instrumentation"
+    instrumenter_identity = (instrumenter_identity or
+                             _coverage_instrumenter_identity())
     project = area / "project"
     if project.exists():
         shutil.rmtree(project)
@@ -1996,7 +2169,7 @@ def _instrument_coverage(build, root, cell_id, closure, rendered, top_name,
             # Terse Verilog-2001 writes 'always @(posedge clk) if (...) begin'
             # with a single-statement body; without this the whole block is
             # uninstrumented and a peripheral family yields no IP points.
-            settings={"runtime": {"single_statement": True}})
+            settings=_COVERAGE_INSTRUMENTER_SETTINGS)
     except (ValueError, SystemExit) as error:
         raise SocBuildError(
             "%s:coverage-instrumentation-failed:%s" % (cell_id, error)) from error
@@ -2006,6 +2179,8 @@ def _instrument_coverage(build, root, cell_id, closure, rendered, top_name,
             "%s:coverage-instrumentation-found-no-branch-points" % cell_id)
     if not result.get("instrumented_flist"):
         raise SocBuildError("%s:coverage-instrumentation-has-no-flist" % cell_id)
+    output_sha256 = _instrumented_output_sha256(
+        result["out_dir"], result["instrumented_flist"])
     universe = universe_from_instance_bits(
         bits, cpu_instance=cpu_instance,
         ip_instances=["u_%s" % name for name in manifest.get("peripherals", {})])
@@ -2022,6 +2197,8 @@ def _instrument_coverage(build, root, cell_id, closure, rendered, top_name,
         "vector_width": int(result["coverage_vector_width"]),
         "point_count": int(result["coverage_point_count"]),
         "instrumented_root": str(area / "instrumented"),
+        "instrumenter_identity": instrumenter_identity,
+        "instrumented_output_sha256": output_sha256,
     }
 
 

@@ -163,6 +163,7 @@ class FlistParseResult:
     lines: list[str] = field(default_factory=list)
     line_bases: list[Path] = field(default_factory=list)
     incdirs: set[Path] = field(default_factory=set)
+    filelists: set[Path] = field(default_factory=set)
 
 
 @dataclass
@@ -2610,6 +2611,10 @@ def flatten_instance_coverage(
     for top in top_modules:
         walk(top, top, 0, ())
     entries.sort(key=lambda item: (int(item["bit"]), str(item["instance_path"])))
+    if entries and len(set(top_modules)) > 1:
+        raise ValueError(
+            "multiple-coverage-tops-unsupported: one flattened coverage vector "
+            "cannot represent independent top-level hierarchies")
     return entries
 
 
@@ -2682,6 +2687,7 @@ def parse_flist(
         return FlistParseResult()
     seen.add(flist)
     result = FlistParseResult()
+    result.filelists.add(flist)
     if path_base is None:
         try:
             flist.relative_to(project_root.resolve())
@@ -2703,6 +2709,7 @@ def parse_flist(
         result.lines.extend(nested_result.lines)
         result.line_bases.extend(nested_result.line_bases)
         result.incdirs.update(nested_result.incdirs)
+        result.filelists.update(nested_result.filelists)
     for raw_line in flist.read_text(errors="ignore").splitlines():
         line = strip_line_comment(raw_line).strip()
         if not line:
@@ -3045,6 +3052,14 @@ def validate_closed_flist(mapped_lines: Iterable[str], out_dir: Path) -> None:
             require_inside(source_token, "HDL source")
 
 
+def _paths_overlap(first: Path, second: Path) -> bool:
+    """Return true when replacing either path could remove the other tree."""
+    first = first.resolve()
+    second = second.resolve()
+    return (first == second or first.is_relative_to(second)
+            or second.is_relative_to(first))
+
+
 def instrument_project(
     project_root: Path,
     out_dir: Path,
@@ -3059,33 +3074,49 @@ def instrument_project(
     force: bool = False,
 ) -> dict:
     project_root = project_root.resolve()
-    out_dir = out_dir.resolve()
+    requested_out_dir = Path(out_dir).absolute()
+    if requested_out_dir.is_symlink():
+        raise ValueError(f"output-symlink-unsupported: {requested_out_dir}")
+    out_dir = requested_out_dir.resolve()
+    if _paths_overlap(out_dir, project_root):
+        raise ValueError(f"output-project-overlap: {out_dir} overlaps {project_root}")
+    if out_dir.exists() and not force:
+        raise SystemExit(f"Output directory exists, use --force: {out_dir}")
+    if out_dir.exists() and not out_dir.is_dir():
+        raise ValueError(f"output-path-not-directory: {out_dir}")
     if isinstance(settings, InstrumentationSettings):
         resolved_settings = settings
     else:
         resolved_settings = InstrumentationSettings.from_dict(settings)
-    frontend_index = (
-        load_frontend_index_from_data(frontend_manifest, project_root)
-        if frontend_manifest is not None
-        else load_frontend_index(frontend_json.as_posix() if frontend_json else None, project_root)
-    )
-    if out_dir.exists():
-        if not force:
-            raise SystemExit(f"Output directory exists, use --force: {out_dir}")
-        shutil.rmtree(out_dir)
-    out_dir.mkdir(parents=True)
 
     flist_files: list[Path] = []
     flist_lines: list[str] = []
     flist_line_bases: list[Path] = []
     flist_incdirs: set[Path] = set()
     flist_path: Path | None = flist.resolve() if flist else None
+    flist_result = None
     if flist_path:
         flist_result = parse_flist(flist_path, project_root)
         flist_files = flist_result.files
         flist_lines = flist_result.lines
         flist_line_bases = flist_result.line_bases
         flist_incdirs = flist_result.incdirs
+    input_paths = set(flist_files) | set(flist_incdirs)
+    if flist_result is not None:
+        input_paths.update(flist_result.filelists)
+    if frontend_json is not None:
+        input_paths.add(Path(frontend_json).resolve())
+    for input_path in input_paths:
+        input_path = Path(input_path).resolve()
+        if _paths_overlap(out_dir, input_path):
+            raise ValueError(
+                f"output-input-overlap: {out_dir} overlaps {input_path}")
+
+    frontend_index = (
+        load_frontend_index_from_data(frontend_manifest, project_root)
+        if frontend_manifest is not None
+        else load_frontend_index(frontend_json.as_posix() if frontend_json else None, project_root)
+    )
 
     all_files = set(flist_files) if flist_files else set(discover_hdl_files(project_root, out_dir))
     flist_mapping = build_flist_path_mapping(all_files, flist_incdirs, project_root)
@@ -3135,6 +3166,16 @@ def instrument_project(
             if module_plan.region.name in active_modules:
                 points.extend(module_plan.points)
                 merge_skipped(skipped, module_plan.skipped)
+
+    if requested_out_dir.is_symlink():
+        raise ValueError(f"output-symlink-unsupported: {requested_out_dir}")
+    if out_dir.exists():
+        if not force:
+            raise SystemExit(f"Output directory exists, use --force: {out_dir}")
+        if not out_dir.is_dir():
+            raise ValueError(f"output-path-not-directory: {out_dir}")
+        shutil.rmtree(out_dir)
+    out_dir.mkdir(parents=True)
 
     copied_include_file_count = copy_include_dirs(
         flist_incdirs,

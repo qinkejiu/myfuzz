@@ -139,6 +139,86 @@ endmodule
             self.assertTrue(first_a.is_file())
             self.assertTrue(first_b.is_file())
 
+    def test_force_refuses_output_paths_overlapping_project_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            project = root / "project"
+            source = self._write(project / "top.sv", "module top; endmodule\n")
+            (project / "sources.f").write_text("top.sv\n", encoding="utf-8")
+            output_paths = {
+                "equal": project,
+                "ancestor": root,
+                "descendant": project / "generated",
+            }
+            for name, output in output_paths.items():
+                with self.subTest(name=name), self.assertRaisesRegex(
+                    (SystemExit, ValueError), "output.*overlap|overlap.*output"):
+                    instrument_project(
+                        project, output, flist=project / "sources.f",
+                        top_module="top", force=True)
+                self.assertEqual("module top; endmodule\n",
+                                 source.read_text(encoding="utf-8"))
+
+    def test_force_refuses_output_symlink_resolving_to_project_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            project = root / "project"
+            source = self._write(project / "top.sv", "module top; endmodule\n")
+            (project / "sources.f").write_text("top.sv\n", encoding="utf-8")
+            alias = root / "output-link"
+            alias.symlink_to(project, target_is_directory=True)
+            with self.assertRaisesRegex(
+                (SystemExit, ValueError), "symlink|output.*overlap|overlap.*output"):
+                instrument_project(
+                    project, alias, flist=project / "sources.f",
+                    top_module="top", force=True)
+            self.assertTrue(alias.is_symlink())
+            self.assertEqual("module top; endmodule\n",
+                             source.read_text(encoding="utf-8"))
+
+    def test_force_refuses_external_filelist_source_and_include_inputs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            project = root / "project"
+            self._write(project / "top.sv", "module top; endmodule\n")
+            (project / "sources.f").write_text("top.sv\n", encoding="utf-8")
+
+            external = root / "external"
+            external.mkdir()
+            external_source = self._write(
+                external / "leaf.sv", "module leaf; endmodule\n")
+            external_flist = self._write(external / "sources.f", "leaf.sv\n")
+            with self.assertRaisesRegex(
+                (SystemExit, ValueError), "output.*overlap|overlap.*output"):
+                instrument_project(
+                    project, external, flist=external_flist,
+                    top_module="leaf", force=True)
+            self.assertTrue(external_source.is_file())
+            self.assertTrue(external_flist.is_file())
+
+            nested_dir = root / "nested-filelists"
+            nested_flist = self._write(
+                nested_dir / "sources.f", "../project/top.sv\n")
+            outer_flist = self._write(root / "outer.f", "-f nested-filelists/sources.f\n")
+            with self.assertRaisesRegex(
+                (SystemExit, ValueError), "output.*overlap|overlap.*output"):
+                instrument_project(
+                    project, nested_dir, flist=outer_flist,
+                    top_module="top", force=True)
+            self.assertTrue(nested_flist.is_file())
+
+            include_dir = root / "external-includes"
+            include_file = self._write(include_dir / "defs.svh", "`define X 1\n")
+            include_flist = self._write(
+                project / "include_sources.f",
+                f"+incdir+{include_dir}\ntop.sv\n")
+            with self.assertRaisesRegex(
+                (SystemExit, ValueError), "output.*overlap|overlap.*output"):
+                instrument_project(
+                    project, include_dir, flist=include_flist,
+                    top_module="top", force=True)
+            self.assertTrue(include_file.is_file())
+
 
 class SourceBranchInstrumenterInstanceMappingTest(unittest.TestCase):
     """The flat coverage vector must stay resolvable back to its instances.
@@ -177,6 +257,32 @@ endmodule
             flist=project / "sources.f", top_module="top", force=True,
         )
         return manifest, root / "instrumented"
+
+    def test_multiple_branch_bearing_tops_are_rejected_as_one_vector(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            project = root / "project"
+            project.mkdir()
+            (project / "first.sv").write_text(
+                "module first(input wire sel, output reg q);\n"
+                "always @* begin if (sel) q = 1'b1; else q = 1'b0; end\n"
+                "endmodule\n", encoding="utf-8")
+            (project / "second.sv").write_text(
+                "module second(input wire sel, output reg q);\n"
+                "always @* begin if (sel) q = 1'b1; else q = 1'b0; end\n"
+                "endmodule\n", encoding="utf-8")
+            flist = project / "sources.f"
+            flist.write_text("first.sv\nsecond.sv\n", encoding="utf-8")
+            output = root / "instrumented"
+
+            with self.assertRaisesRegex(
+                    ValueError, "multiple-coverage-tops-unsupported"):
+                instrument_project(
+                    project, output, flist=flist,
+                    top_module="first,second", force=True)
+
+            self.assertFalse(output.exists(),
+                             "ambiguous coverage must fail before publishing partial output")
 
     def test_two_instances_of_one_module_get_distinct_mapped_bits(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

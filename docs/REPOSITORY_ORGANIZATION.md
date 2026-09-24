@@ -4,9 +4,9 @@
 
 ## 工作区与所有权
 
-- 根目录 `/home/qinkejiu/myfuzz`：旧 composition-core 分支与用户交接入口。
-- 当前开发 `/home/qinkejiu/myfuzz/.worktrees/ibex-protocol-longrun`：已有 CPU 自动接线、协议运行时和 RFuzz 实现。不得在根目录复制一套新实现。
-- 其他 integration/harness-runtime worktree：保留，清理前核对未合并提交和被引用路径。
+- 根目录 `/home/qinkejiu/myfuzz`：当前活动 checkout，分支 `fix/soc-production-path`；SoC 自动组合、RFuzz 输入链和中断说明均在此工作树。
+- `.worktrees/`：目录当前为空；`git worktree list` 仅登记根目录这一棵工作树。保留目录本身，不把未登记的内容自动视作可删除文件。
+- `third_party/rfuzz/upstream/ibex` 有未跟踪状态；保留，不在本轮清理。
 - 当前已知用户修改：`.superpowers/sdd/task-2-report.md`、`docs/系统总览与RFuzz约束组合示例_20260909.md`。本轮不覆盖。
 - 未跟踪 `third_party/` 含上游源码及实核证据；不因 untracked 就视为缓存。
 
@@ -68,6 +68,17 @@
 | 批次 `P0-20260914-applied-3` | 隔离 109 | 109 `moved`；之后审计 eligible 为 0 |
 
 恢复方式：`PYTHONPATH=src python3 scripts/audit_repository.py --restore runs/quarantine/<批次>/manifest.json`。
+
+## 根目录临时文件整理与 Verilog 插装核查（2026-09-25）
+
+清理遵循“重要记录可恢复、可重建缓存才删除”。既有 `third_party/rfuzz/upstream/ibex` 未跟踪内容保留，不纳入本轮提交。插装核查发现的代码问题已修复，具体修改与验证边界见审计报告。
+
+- `tmp/` 整体移入 `archive/development/rtl-composition-probes-20260925/`；脚本、规格、生成 SoC、探针输出与日志均保留，目录内 README 说明内容。
+- 根目录七个 `camp-*` 失败试验报告、`.scratch` 日志和 7 个过期 `.myfuzz-elaboration-*` 快照移入 `runs/quarantine/folder-organize-20260925/`；该目录 README 与 `manifest.json` 记录来源、恢复路径和逐文件哈希，可核对并恢复。
+- 删除了 2 个 `.myfuzz-driver-*` 测试构建目录、2 个含纯 test-double 身份和 `exit 0` 假模拟器的泄漏 `.myfuzz-irq-evidence-*` 测试目录、工作区 Python `__pycache__`、`.pytest_cache`、空 `.vlog-*` 目录及 `trace_hart_0.dasm`。这些内容均被忽略且未跟踪；保留 `.downloads/`、`runs/` 既有结果、`archive/`、`deliverables/`、`.superpowers/`、第三方源码/工具链和 frontend 已构建库。
+- 插装核查结论见[Verilog/SystemVerilog 插装审计](reports/verilog-instrumenter-audit-20260925.md)：输出目录覆盖保护、legacy testcase 隔离、多个 coverage top 的拒绝策略及插装缓存身份绑定均已修复。当前仍只支持有验证证据的 RTL 子集，不宣称完整 SystemVerilog 支持。
+- 定向验证：80 项插装、仿真器、SoC coverage 与 profile 构建测试通过；另有两项真实 profile Verilator 5.020 测试通过。legacy `ibex-pulp` artifact 的真实编译仍被 `prim_secded_pkg` 源码闭包/可见顺序问题阻挡；默认 `test_soc_coverage_run` 有 4 项因未设置 `MYFUZZ_SOC_REAL=1` 跳过。详见审计报告。
+
 清单每条含精确相对路径、恢复路径、stored_path、sha256、大小、理由与状态。恢复前整体校验：工作区不匹配、stored_path 不在本批次目录内、内容被改写、目标已存在或目标已被 git 跟踪都会拒绝，且不移动任何文件。
 
 往返证据：隔离 203 → 恢复 203（逐文件 sha256 与大小比对，0 处不一致）→ 重新审计再次得到 203 eligible → 重新隔离。

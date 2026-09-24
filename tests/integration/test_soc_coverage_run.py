@@ -130,6 +130,17 @@ class SocInstrumentedCoverageRunTests(unittest.TestCase):
             with self.subTest(cell=cell_id):
                 _hits, coverage, live, _plan = self._hits(cell_id)
                 self.assertEqual(INSTRUMENTED_KIND, coverage["kind"])
+                build = json.loads((self.records[cell_id][1]
+                                    / "build/artifact_provenance.json")
+                                   .read_text(encoding="utf-8"))
+                self.assertEqual(
+                    "restart process: source instrumentation contains sticky branch hits",
+                    build["test_isolation"])
+                self.assertTrue(
+                    coverage["instrumenter"]["source_sha256"].startswith("sha256:"))
+                self.assertTrue(
+                    coverage["instrumented_output_sha256"].startswith("sha256:"))
+                self.assertTrue(Path(coverage["instrumented_flist"]).is_file())
                 self.assertEqual(INSTRUMENTED_KIND, live["coverage_kind"])
                 self.assertEqual("__vi_coverage", coverage["signal"])
                 self.assertEqual(128, coverage["counter_count"])

@@ -1,16 +1,19 @@
 # Docs
 
-## 当前入口（2026-09-15）
+## 当前入口（2026-09-25）
 
-- [项目目标](PROJECT_GOALS.md)：两层架构、输入约束、两 CPU × 三系列与混合协议验收。
-- [实施计划](superpowers/plans/2026-09-14-soc-composition-and-fuzz.md)：P0–P16 的文件、接口、步骤与门槛。
-- [验收报告 2026-09-15](reports/soc-acceptance-20260915.md)：实测命令与结果、八格 × 三模式矩阵、
-  P13 插桩覆盖、两款 CPU 的 RFuzz 闭环、P16 复查清单与**未完成判定**。
-- [执行进度](reports/soc-execution-progress-20260914.md)：逐轮执行记录，含根因更正与限制。
-- [整理台账](REPOSITORY_ORGANIZATION.md)：实际工作区、代码职责、历史文件和可恢复清理。
+- [项目目标](PROJECT_GOALS.md)：SoC 自动组合、输入约束和组件内部缺陷归因的研究目标。
+- [后续实施路线图](superpowers/plans/2026-09-22-soc-next-steps-roadmap.md)：阶段状态、验收边界和仍未完成的任务。
+- [能力矩阵](reports/soc-capability-matrix-20260921.md)：当前支持、拒绝和未评估的协议/机制。
+- [设计验收报告](reports/soc-design-acceptance-20260921.md)：SoC 组合、RFuzz 输入、中断和归因的验收证据与限制。
+- [最新插装审计](reports/verilog-instrumenter-audit-20260925.md)：Verilog 分支插装的实现、修复、验证和未覆盖语法边界。
+- [插装修复计划](superpowers/plans/2026-09-25-verilog-instrumenter-repairs.md)：本轮插装问题修复及待验收项。
+- [中断与输入连接说明](superpowers/specs/2026-09-22-soc-top-interrupt-input-wiring-design.md)：SoC 顶层中断路径及测试输入的数据流。
+- [整理台账](REPOSITORY_ORGANIZATION.md)：目录归档、保留原则和可恢复清理记录。
 
-新测试结果继续追加 `ALL_TEST_RESULTS_MASTER.md`。下列文档保留为历史参考，
-其中的当前状态、完成比例、运行门槛以对应日期为限；新目标状态以以上入口为准。
+旧验收文档和实施计划保留作历史证据；其状态与结论只适用于文档标注日期，
+不得替代以上最新能力矩阵、验收报告和插装审计。新测试结果继续追加
+`ALL_TEST_RESULTS_MASTER.md`。
 
 ## 历史实现、实验与参考资料
 

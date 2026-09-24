@@ -24,6 +24,57 @@ def config():
 
 
 class ProfileAdmissionTest(unittest.TestCase):
+    def test_profile_cache_binds_instrumenter_identity_and_generated_sources(self):
+        from myfuzz.integration.soc_builder import (
+            _cached_instrumentation_matches,
+            _coverage_instrumenter_identity,
+            _instrumented_output_sha256,
+            _profile_build_cache_key,
+        )
+
+        identity = _coverage_instrumenter_identity()
+        changed_identity = dict(identity, source_sha256="sha256:" + "f" * 64)
+        base_identity = {"composition_hash": "plan", "layout_hash": "layout"}
+        output_digest = "sha256:" + "1" * 64
+        self.assertNotEqual(
+            _profile_build_cache_key(base_identity, identity, output_digest),
+            _profile_build_cache_key(base_identity, changed_identity, output_digest),
+            "changing only the instrumentation implementation must miss cache")
+        self.assertNotEqual(
+            _profile_build_cache_key(base_identity, identity, output_digest),
+            _profile_build_cache_key(
+                base_identity, identity, "sha256:" + "2" * 64),
+            "changing emitted instrumented RTL must change the cache key")
+
+        with tempfile.TemporaryDirectory() as directory:
+            cache_entry = Path(directory)
+            instrumented_root = cache_entry / "instrumentation/instrumented"
+            instrumented_root.mkdir(parents=True)
+            source = instrumented_root / "top.sv"
+            source.write_text("module top; endmodule\n", encoding="utf-8")
+            old_root = "/build/original/instrumentation/instrumented"
+            filelist = instrumented_root / "instrumented_sources.f"
+            filelist.write_text(old_root + "/top.sv\n", encoding="utf-8")
+            digest = _instrumented_output_sha256(
+                instrumented_root, filelist, path_aliases=(old_root,))
+            document = {
+                "coverage": {
+                    "instrumenter": identity,
+                    "instrumented_output_sha256": digest,
+                },
+                "sources": {"instrumented_root": old_root},
+            }
+            self.assertTrue(_cached_instrumentation_matches(
+                cache_entry, document, identity))
+            source.write_text("module top; assign x = 1'b1; endmodule\n",
+                              encoding="utf-8")
+            self.assertFalse(_cached_instrumentation_matches(
+                cache_entry, document, identity),
+                "changed cached instrumented RTL must not be reused")
+            self.assertFalse(_cached_instrumentation_matches(
+                cache_entry, document, changed_identity),
+                "cached provenance must match the current instrumenter identity")
+
     def test_peer_stimulus_fields_are_part_of_the_profile_rfuzz_abi(self):
         """Attached peers must be driven by the same raw word as the SoC top.
 
@@ -301,6 +352,8 @@ class ProfileArtifactTest(unittest.TestCase):
 
     def test_persistent_protocol_two_executes_and_resets(self):
         self.assertIsInstance(self.artifact, SimulatorArtifact)
+        self.assertTrue(self.artifact.isolate_tests,
+                        "source-instrumented sticky coverage is testcase-local")
         simulator = RtlSimulator(self.artifact, timeout_seconds=30)
         try:
             records = [self.artifact.transport.pack(0)] * 12
@@ -366,6 +419,19 @@ class ProfileArtifactTest(unittest.TestCase):
         self.assertTrue(second_doc["cache_hit"])
         self.assertEqual(first_doc["cache_key"], second_doc["cache_key"])
         self.assertEqual(first_doc["executable_sha256"], second_doc["executable_sha256"])
+        self.assertEqual(first_doc["coverage_instrumentation"]["instrumenter"],
+                         second_doc["coverage_instrumentation"]["instrumenter"])
+        self.assertEqual(
+            first_doc["coverage_instrumentation"]["instrumented_output_sha256"],
+            second_doc["coverage_instrumentation"]["instrumented_output_sha256"])
+        self.assertNotEqual(
+            first_doc["coverage_instrumentation"]["instrumented_root"],
+            second_doc["coverage_instrumentation"]["instrumented_root"])
+        second_flist = (second_dir / "instrumentation/instrumented"
+                        / "instrumented_sources.f").read_text(encoding="utf-8")
+        self.assertIn(str(second_dir / "instrumentation/instrumented"), second_flist)
+        self.assertNotIn(str(first_dir / "instrumentation/instrumented"), second_flist,
+                         "cached filelist must not retain the first build's absolute path")
         self.assertEqual("pass", second_doc["structure_audit"]["status"])
         self.assertTrue(second.executable.is_file())
 

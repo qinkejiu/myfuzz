@@ -252,6 +252,19 @@ class SimulatorFramingTests(unittest.TestCase):
                         simulator.run_test((simulator.artifact.transport.pack(0),) * count))
                     self.assertEqual((f"id={identity} cycles={count}",), simulator.last_diagnostics)
 
+    def test_isolation_prevents_sticky_coverage_from_crossing_testcases(self):
+        body = """\
+            sticky = globals().get('sticky', 0) | (1 << execution)
+            os.write(1, counter(f'{sticky:02x}'))
+        """
+        for isolated, expected in ((False, (bytes((2,)), bytes((6,)))),
+                                   (True, (bytes((2,)), bytes((2,))))):
+            with self.subTest(isolated=isolated), self.simulator(
+                    body, isolate_tests=isolated) as simulator:
+                record = simulator.artifact.transport.pack(0)
+                self.assertEqual(expected[0], simulator.run_test((record,)))
+                self.assertEqual(expected[1], simulator.run_test((record,)))
+
     def test_request_id_exhaustion_does_not_wrap(self):
         with self.simulator("os.write(1, counter('00'))") as simulator:
             simulator._executions = (1 << 64) - 1
