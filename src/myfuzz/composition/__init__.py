@@ -137,6 +137,7 @@ from .soc_peer_oracle import (
     gpio_resolution,
     uart_tx_expectation,
 )
+from .pulp_spi_oracle import audit_pulp_spi_run
 
 __all__ = [
     "ContractRuntime",
@@ -160,6 +161,7 @@ __all__ = [
     "audit_peer_run",
     "gpio_resolution",
     "uart_tx_expectation",
+    "audit_pulp_spi_run",
     "AutoCompositionError",
     "AutoCompositionPlan",
     "AutoCompositionRequest",
