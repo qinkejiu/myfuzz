@@ -47,7 +47,7 @@ module soc_pulp_gpio_checker_tb;
     .pready_i(pready), .pslverr_i(pslverr),
     .gpio_in_i(gpio_in), .gpio_out_i(observed_gpio_out),
     .gpio_dir_i(observed_gpio_dir), .gpio_padcfg_i(observed_gpio_padcfg),
-    .gpio_in_sync_i(observed_gpio_in_sync), .interrupt_i(interrupt),
+    .gpio_in_sync_i(observed_gpio_in_sync),
     .eval_o(eval_o), .fail_o(fail_o), .first_fail_id_o(first_fail_id_o)
   );
 

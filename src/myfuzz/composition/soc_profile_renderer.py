@@ -836,12 +836,6 @@ def _render_protocol_checkers(writer: _Writer, plan: CompositionPlan,
                 _error(f"checker-gpio-pin-role-binding-missing:{role}")
             return _field_net(gpio, field.port, role)
 
-        interrupt_actions = [action for action in gpio.profile.port_actions
-                             if action.port == "interrupt" and action.action == "observe"]
-        interrupt_entries = [entry for entry in gpio.dispositions
-                             if entry.port == "interrupt" and entry.disposition == "observe"]
-        if len(interrupt_actions) != 1 or len(interrupt_entries) != 1:
-            _error("checker-gpio-interrupt-observation-missing")
         writer.add("  logic [14:0] checker_gpio0_eval, checker_gpio0_fail;")
         writer.add("  logic [5:0] checker_gpio0_first_fail_id;")
         writer.add("  // GPIO monitor ports resolve from gpio.bus and gpio.pins endpoint roles.")
@@ -860,7 +854,6 @@ def _render_protocol_checkers(writer: _Writer, plan: CompositionPlan,
                    f".gpio_dir_i({pin_signal('dir')}),")
         writer.add(f"    .gpio_padcfg_i({pin_signal('padcfg')}),")
         writer.add(f"    .gpio_in_sync_i({pin_signal('in_sync')}),")
-        writer.add(f"    .interrupt_i({segment_net(interrupt_entries[0])}),")
         writer.add("    .eval_o(checker_gpio0_eval), .fail_o(checker_gpio0_fail),")
         writer.add("    .first_fail_id_o(checker_gpio0_first_fail_id)")
         writer.add("  );")

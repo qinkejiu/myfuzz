@@ -17,7 +17,6 @@ module soc_pulp_gpio_checker (
     input  logic [31:0]  gpio_dir_i,
     input  logic [127:0] gpio_padcfg_i,
     input  logic [31:0]  gpio_in_sync_i,
-    input  logic         interrupt_i,
     output logic [14:0]  eval_o,
     output logic [14:0]  fail_o,
     output logic [5:0]   first_fail_id_o
@@ -203,5 +202,4 @@ module soc_pulp_gpio_checker (
         end
     end
 
-    wire unused_interrupt = interrupt_i;
 endmodule

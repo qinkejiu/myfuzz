@@ -13,6 +13,7 @@ from pathlib import Path
 
 from myfuzz.composition.soc_composition import build_composition
 from myfuzz.composition.soc_profile_renderer import render_composition, source_list
+from myfuzz.composition.soc_structure_audit import audit_structure
 from tests.composition.soc_generation_fixture import ROOT
 from tests.integration.test_soc_ibex_pulp_dual_profile import load_dual_request
 
@@ -57,7 +58,7 @@ class PulpGpioCheckerTests(unittest.TestCase):
         self.assertIn(".gpio_dir_i(gpio0__gpio_dir)", rendered)
         self.assertIn(".gpio_padcfg_i(gpio0__gpio_padcfg)", rendered)
         self.assertIn(".gpio_in_sync_i(gpio0__gpio_in_sync)", rendered)
-        self.assertIn(".interrupt_i(gpio0__interrupt)", rendered)
+        self.assertIn("output logic gpio0__interrupt", rendered)
         for bit in range(21, 32):
             self.assertIn(f"checker_gpio0_eval[{bit - 21}]", rendered)
         self.assertIn("checker_eval_o[21] = checker_gpio0_eval[0]", rendered)
@@ -70,6 +71,17 @@ class PulpGpioCheckerTests(unittest.TestCase):
         self.assertIn({"path": GPIO_SOURCE, "role": "checker_monitor",
                        "owner": "soc_top"}, sources)
         self.assertTrue(CHECKER.is_file())
+        source_paths = [item["path"] for item in sources if item["role"] != "include_root"]
+        include_roots = [item["path"] for item in sources if item["role"] == "include_root"]
+        audit = audit_structure(plan, top_text=rendered, source_files=source_paths,
+                                base_dir=ROOT, include_roots=include_roots)
+        observation = next(item for item in audit["findings"]
+                           if item["check_id"] == "observation_outputs")
+        self.assertEqual("pass", observation["status"], audit)
+        self.assertNotIn(".interrupt_i(gpio0__interrupt)", rendered)
+        checker_binding = rendered.split(
+            "soc_pulp_gpio_checker u_checker_gpio0 (", 1)[1].split("\n  );", 1)[0]
+        self.assertNotIn("gpio0__interrupt", checker_binding)
 
     @unittest.skipUnless(os.environ.get("MYFUZZ_SOC_REAL") == "1",
                          "set MYFUZZ_SOC_REAL=1 for real RTL calibration")
