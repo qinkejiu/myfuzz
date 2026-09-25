@@ -1,0 +1,510 @@
+{
+  "schema_version": "soc_checker_profile.v1",
+  "request_id": "ibex-pulp-gpio-spi",
+  "feedback": {
+    "eval_width": 50,
+    "fail_width": 50
+  },
+  "properties": [
+    {
+      "bit": 0,
+      "property_id": "OBI.INSTR.STALL_STABLE",
+      "status": "not_assessed",
+      "owner": "cpu0",
+      "binding": null,
+      "basis_kind": "standard",
+      "basis": "instruction request 未 grant 时 payload 保持稳定",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 1,
+      "property_id": "OBI.INSTR.NO_ORPHAN_RSP",
+      "status": "not_assessed",
+      "owner": "cpu0",
+      "binding": null,
+      "basis_kind": "standard",
+      "basis": "instruction response 必须有已 grant 请求",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 2,
+      "property_id": "OBI.INSTR.RESPONSE_ORDER",
+      "status": "not_assessed",
+      "owner": "cpu0",
+      "binding": null,
+      "basis_kind": "standard",
+      "basis": "instruction response 按接口顺序退休",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 3,
+      "property_id": "OBI.DATA.STALL_STABLE",
+      "status": "not_assessed",
+      "owner": "cpu0",
+      "binding": null,
+      "basis_kind": "standard",
+      "basis": "data request 未 grant 时 payload 保持稳定",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 4,
+      "property_id": "OBI.DATA.NO_ORPHAN_RSP",
+      "status": "not_assessed",
+      "owner": "cpu0",
+      "binding": null,
+      "basis_kind": "standard",
+      "basis": "data response 必须有已 grant 请求",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 5,
+      "property_id": "OBI.DATA.RESPONSE_ORDER",
+      "status": "not_assessed",
+      "owner": "cpu0",
+      "binding": null,
+      "basis_kind": "standard",
+      "basis": "data response 按接口顺序退休",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 6,
+      "property_id": "APB.GPIO.SETUP_ACCESS",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "standard",
+      "basis": "GPIO APB 先 setup 后 access",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 7,
+      "property_id": "APB.GPIO.WAIT_STABLE",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "standard",
+      "basis": "GPIO access wait 时控制载荷稳定",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 8,
+      "property_id": "APB.GPIO.READY_ONE",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "standard",
+      "basis": "GPIO target 持续 ready",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 9,
+      "property_id": "APB.GPIO.ERROR_ZERO",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "standard",
+      "basis": "GPIO target 不报告 slave error",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 10,
+      "property_id": "APB.SPI.SETUP_ACCESS",
+      "status": "not_assessed",
+      "owner": "spi0",
+      "binding": null,
+      "basis_kind": "standard",
+      "basis": "SPI APB 先 setup 后 access",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 11,
+      "property_id": "APB.SPI.WAIT_STABLE",
+      "status": "not_assessed",
+      "owner": "spi0",
+      "binding": null,
+      "basis_kind": "standard",
+      "basis": "SPI access wait 时控制载荷稳定",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 12,
+      "property_id": "APB.SPI.READY_ONE",
+      "status": "not_assessed",
+      "owner": "spi0",
+      "binding": null,
+      "basis_kind": "standard",
+      "basis": "SPI target 持续 ready",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 13,
+      "property_id": "APB.SPI.ERROR_ZERO",
+      "status": "not_assessed",
+      "owner": "spi0",
+      "binding": null,
+      "basis_kind": "standard",
+      "basis": "SPI target 不报告 slave error",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 14,
+      "property_id": "FABRIC.SELECT_UNIQUE",
+      "status": "not_assessed",
+      "owner": "fabric",
+      "binding": null,
+      "basis_kind": "standard",
+      "basis": "MMIO 地址只能选中计划中的唯一 target",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 15,
+      "property_id": "FABRIC.RESPONSE_SOURCE",
+      "status": "not_assessed",
+      "owner": "fabric",
+      "binding": null,
+      "basis_kind": "standard",
+      "basis": "响应返回发起该事务的 master lane",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 16,
+      "property_id": "RVFI.ORDER",
+      "status": "not_assessed",
+      "owner": "cpu0",
+      "binding": null,
+      "basis_kind": "independent_reference",
+      "basis": "RVFI order 连续且不重复",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 17,
+      "property_id": "RVFI.FETCH_IMAGE",
+      "status": "not_assessed",
+      "owner": "cpu0",
+      "binding": null,
+      "basis_kind": "independent_reference",
+      "basis": "退休 PC/指令与冻结镜像一致",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 18,
+      "property_id": "RVFI.SPIKE_STEP",
+      "status": "not_assessed",
+      "owner": "cpu0",
+      "binding": null,
+      "basis_kind": "independent_reference",
+      "basis": "每笔退休结果与 Spike reference 一致",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 19,
+      "property_id": "RVFI.MEMORY_TRANSACTION",
+      "status": "not_assessed",
+      "owner": "cpu0",
+      "binding": null,
+      "basis_kind": "independent_reference",
+      "basis": "RVFI memory commit 与已接受 CPU 总线事务一致",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 20,
+      "property_id": "RVFI.TRAP_POLICY",
+      "status": "not_assessed",
+      "owner": "cpu0",
+      "binding": null,
+      "basis_kind": "independent_reference",
+      "basis": "trap 符合 campaign 声明的策略",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 21,
+      "property_id": "GPIO.RESET_STATE",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "profile 支持的 GPIO reset 状态正确",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 22,
+      "property_id": "GPIO.PADDIR",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "PADDIR 写入/读回一致",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 23,
+      "property_id": "GPIO.GPIOEN",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "GPIOEN 写入/读回一致",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 24,
+      "property_id": "GPIO.PADOUT",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "PADOUT 写入/读回一致",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 25,
+      "property_id": "GPIO.PADOUTSET",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "PADOUTSET 仅置位指定 pin",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 26,
+      "property_id": "GPIO.PADOUTCLR",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "PADOUTCLR 仅清除指定 pin",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 27,
+      "property_id": "GPIO.PADCFG",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "PADCFG 写入/输出一致",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 28,
+      "property_id": "GPIO.SYNC_ENABLE_GROUP",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "GPIOEN 按 4-pin group 控制采样",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 29,
+      "property_id": "GPIO.IN_SYNC",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "gpio_in_sync 与独立输入延迟模型一致",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 30,
+      "property_id": "GPIO.PADIN",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "PADIN 与独立输入延迟模型一致",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 31,
+      "property_id": "GPIO.DIR_OUTPUT",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "gpio_out 与 gpio_dir 逐位匹配",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 32,
+      "property_id": "GPIO.INTERRUPT_EVENT",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "interrupt pulse 与已配置输入事件匹配",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 33,
+      "property_id": "GPIO.INTSTATUS_LATCH",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "INTSTATUS latch 符合契约",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 34,
+      "property_id": "GPIO.INTSTATUS_READ_CLEAR",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "INTSTATUS 读清行为符合契约",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 35,
+      "property_id": "GPIO.CONCURRENT_EVENT_PRIORITY",
+      "status": "not_assessed",
+      "owner": "gpio0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "并发新事件的优先级符合契约",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 36,
+      "property_id": "SPI.RESET_IDLE",
+      "status": "not_assessed",
+      "owner": "spi0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "SPI reset 后 SCK/CS/FIFO idle",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 37,
+      "property_id": "SPI.CLKDIV_READBACK",
+      "status": "not_assessed",
+      "owner": "spi0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "CLKDIV 写入/读回一致",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 38,
+      "property_id": "SPI.TXFIFO_PUSH",
+      "status": "not_assessed",
+      "owner": "spi0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "TXFIFO full-word write 恰好 push 一项",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 39,
+      "property_id": "SPI.RXFIFO_POP",
+      "status": "not_assessed",
+      "owner": "spi0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "RXFIFO full-word read 恰好 pop 一项",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 40,
+      "property_id": "SPI.STATUS_READBACK",
+      "status": "not_assessed",
+      "owner": "spi0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "STATUS 与独立 FIFO/控制状态一致",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 41,
+      "property_id": "SPI.CS_WINDOW",
+      "status": "not_assessed",
+      "owner": "spi0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "CS0 在一笔传输期间正确有效",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 42,
+      "property_id": "SPI.SCK_IDLE_MODE0",
+      "status": "not_assessed",
+      "owner": "spi0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "mode 0 的 SCK idle 为低",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 43,
+      "property_id": "SPI.MODE0_EDGE_COUNT",
+      "status": "not_assessed",
+      "owner": "spi0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "SCK 采样/移位边沿数量正确",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 44,
+      "property_id": "SPI.MOSI_MSB_FIRST",
+      "status": "not_assessed",
+      "owner": "spi0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "MOSI 以 MSB-first 发送 TXFIFO 数据",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 45,
+      "property_id": "SPI.MISO_TO_RXFIFO",
+      "status": "not_assessed",
+      "owner": "spi0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "MISO 采样值进入预期 RXFIFO 字",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 46,
+      "property_id": "SPI.STD_LANES",
+      "status": "not_assessed",
+      "owner": "spi0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "标准单线 mode 下使用正确 lane",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 47,
+      "property_id": "SPI.EOT_PULSE",
+      "status": "not_assessed",
+      "owner": "spi0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "end-of-transfer event pulse 符合宽度契约",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 48,
+      "property_id": "SPI.INTSTA_READ_REARM",
+      "status": "not_assessed",
+      "owner": "spi0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "INTSTA read/rearm 只在有契约依据时判定",
+      "reason": "monitor-not-implemented"
+    },
+    {
+      "bit": 49,
+      "property_id": "SPI.FIFO_DEPTH_BOUND",
+      "status": "not_assessed",
+      "owner": "spi0",
+      "binding": null,
+      "basis_kind": "source_derived",
+      "basis": "FIFO 状态不越过声明深度 10",
+      "reason": "monitor-not-implemented"
+    }
+  ]
+}

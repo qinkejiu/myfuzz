@@ -43,6 +43,11 @@ from .soc_composition import (
     InstanceComposition,
 )
 from .soc_peer_plan import PeerPlan
+from .soc_checker_profile import (
+    CheckerProfile,
+    REQUEST_ID as CHECKER_REQUEST_ID,
+    load_default_checker_profile,
+)
 from .soc_port_dispositions import (
     IRQ_NOTIFY_NET,
     DispositionEntry,
@@ -238,7 +243,18 @@ def _role_binding(roles: Mapping[str, object], entry: DispositionEntry) -> objec
     return roles.get(str(entry.role))
 
 
-def _render_top(plan: CompositionPlan) -> str:
+def _render_top(plan: CompositionPlan,
+                checker_profile: CheckerProfile | None = None) -> str:
+    if plan.request_id == CHECKER_REQUEST_ID:
+        checker_profile = checker_profile or load_default_checker_profile(plan)
+        if (checker_profile.request_id != plan.request_id
+                or len(checker_profile.properties) != 50):
+            _error("checker-profile-plan-mismatch")
+    elif checker_profile is not None:
+        _error("checker-profile-unexpected")
+    if checker_profile is not None and any(
+            item.status == "active" for item in checker_profile.properties):
+        _error("checker-active-without-rendered-monitor")
     soc_plan = plan.plan
     fabric = soc_plan["fabric"]
     parameters = fabric["rtl"]["parameters"]
@@ -349,6 +365,9 @@ def _render_top(plan: CompositionPlan) -> str:
             shape = "logic" if observation.width == 1 \
                 else f"logic [{observation.width - 1}:0]"
             ports.append(f"    output {shape} {observation.top_port}")
+    if checker_profile is not None:
+        ports.extend(("    output logic [49:0] checker_eval_o",
+                      "    output logic [49:0] checker_fail_o"))
     writer.add(",\n".join(ports))
     writer.add(");")
     writer.add("  // fuzz ports: declared special inputs, driven by the environment under the")
@@ -357,6 +376,11 @@ def _render_top(plan: CompositionPlan) -> str:
     writer.add("  // peer ports: request inputs and observation outputs of the peer models the")
     writer.add("  //   plan attached; an interface with a peer is *not* exported as pins.")
     writer.add("  // observe ports: exported component outputs, never driven by the SoC.")
+    if checker_profile is not None:
+        writer.add(f"  // checker profile: {checker_profile.profile_hash}")
+        writer.add("  // All reserved properties await a real monitor and evaluate low.")
+        writer.add("  assign checker_eval_o = 50'b0;")
+        writer.add("  assign checker_fail_o = 50'b0;")
     if synthetic:
         writer.add("  // synthetic-input ports: the generated MMIO master's raw fields, at the")
         writer.add("  //   offsets soc_stimulus.v1 records for its mmio segment; the master is")
@@ -1078,11 +1102,12 @@ def _render_interrupts(writer: _Writer, plan: CompositionPlan) -> None:
                    f"directly at the component instantiation.")
 
 
-def render_composition(plan: CompositionPlan) -> dict[str, str]:
+def render_composition(plan: CompositionPlan, *,
+                       checker_profile: CheckerProfile | None = None) -> dict[str, str]:
     """Return the generated file set for one composition plan."""
     if not isinstance(plan, CompositionPlan):
         _error("composition-plan-required")
-    return {"myfuzz_soc_top.sv": _render_top(plan)}
+    return {"myfuzz_soc_top.sv": _render_top(plan, checker_profile)}
 
 
 def _declared_component_sources(instance: object) -> tuple[str, ...]:

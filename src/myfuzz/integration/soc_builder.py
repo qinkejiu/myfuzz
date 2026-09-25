@@ -74,6 +74,7 @@ from .rfuzz_simulator import (
     MAX_CYCLES,
     SIMULATOR_PROTOCOL_VERSION,
     SimulatorArtifact,
+    checker_feedback_observations,
 )
 from .rfuzz_toolchain import (
     RfuzzToolchainError,
@@ -1211,6 +1212,8 @@ def _build_profile_campaign_artifact(config, build_dir):
     from myfuzz.composition.soc_image import build_image_plan, combined_input_layout
     from myfuzz.composition.soc_candidate_program import (
         CandidateProgramError, CandidateProgramPolicy, build_candidate_program)
+    from myfuzz.composition.soc_checker_profile import (
+        MANIFEST_PATH, REQUEST_ID as CHECKER_REQUEST_ID, load_checker_profile)
 
     root = Path(config.get("root") or ROOT).resolve()
     request = load_profile_campaign_request(config, root)
@@ -1233,6 +1236,11 @@ def _build_profile_campaign_artifact(config, build_dir):
     tool_env = dict(toolchain["environment"])
     drive_profile = str(config.get("drive_profile", "cpu_execute"))
     plan = build_composition(request, base_dir=root, drive_profile=drive_profile)
+    checker_manifest = None
+    checker_profile = None
+    if plan.request_id == CHECKER_REQUEST_ID:
+        checker_manifest = _read_json(root / MANIFEST_PATH, "checker-manifest")
+        checker_profile = load_checker_profile(checker_manifest, plan)
     policy = compile_input_constraints(plan, drive_profile=drive_profile)
     instruction_candidates = config.get("instruction_candidates", 1)
     data_candidates = config.get("data_candidates", 1)
@@ -1278,12 +1286,14 @@ def _build_profile_campaign_artifact(config, build_dir):
         if len(matches) != 1:
             raise SocBuildError("profile-image-memory-target-ambiguous:" + kind)
         image_targets[kind] = (matches[0], base, size)
-    rendered = render_composition(plan)
+    rendered = render_composition(plan, checker_profile=checker_profile)
     top_name, top_module = "myfuzz_soc_top.sv", "myfuzz_soc_top"
     # The generated profile header uses numeric widths, but the shared parser
     # still requires the legacy parameter document for symbolic expressions.
     rendered["soc_parameters.json"] = json.dumps(plan.plan["fabric"]["rtl"]["parameters"])
     ports = _parse_ports(rendered[top_name], rendered, request.request_id)
+    checker_ports = (checker_feedback_observations(ports)
+                     if checker_profile is not None else ())
     special_width = int(plan.raw_layout["raw_width"])
     layout = combined_input_layout(plan, image)
     peer_slots = _peer_projection_slots(plan, layout, base_dir=root)
@@ -1377,6 +1387,8 @@ def _build_profile_campaign_artifact(config, build_dir):
             "schema_version": "soc_profile_build_cache.v1",
             "generator_schema": BUILD_SCHEMA,
             "composition_hash": plan.plan_hash,
+            "checker_profile_hash": (checker_profile.profile_hash
+                                     if checker_profile is not None else None),
             "layout_hash": layout.layout_hash,
             "policy_hash": policy.policy_hash,
             "image_hash": image.image_hash,
@@ -1402,6 +1414,8 @@ def _build_profile_campaign_artifact(config, build_dir):
                     if isinstance(item, (list, tuple)) and len(item) == 2)
                 valid_cache = (
                     cached_document.get("composition_hash") == plan.plan_hash
+                    and cached_document.get("checker_profile_hash") == (
+                        checker_profile.profile_hash if checker_profile is not None else None)
                     and cached_document.get("layout_hash") == layout.layout_hash
                     and cached_document.get("policy_hash") == policy.policy_hash
                     and cached_document.get("image_hash") == image.image_hash
@@ -1496,7 +1510,7 @@ def _build_profile_campaign_artifact(config, build_dir):
                     execution_monitor=dict(PROFILE_FABRIC_MONITOR),
                     layout=layout, transport=transport, executable=executable,
                     coverage_ports=cached_ports, projector=arms["dependency_repair"],
-                    coverage_kind=COVERAGE_KIND,
+                    coverage_kind=str(cached_document["coverage_kind"]),
                     simulator="verilator", simulator_args=simulator_args,
                     isolate_tests=True, build_document=cached_document,
                     projection_arms=arms, peer_slots=peer_slots)
@@ -1544,8 +1558,9 @@ def _build_profile_campaign_artifact(config, build_dir):
     if relocated_output_sha256 != instrumentation["instrumented_output_sha256"]:
         raise SocBuildError("profile-instrumented-output-changed-during-relocation")
     instrumentation_stage.cleanup()
-    coverage_ports = tuple((COVERAGE_SIGNAL, int(item["bit"]))
-                           for item in instrumentation["plan"]["observed"])
+    branch_ports = tuple((COVERAGE_SIGNAL, int(item["bit"]))
+                         for item in instrumentation["plan"]["observed"])
+    coverage_ports = branch_ports + checker_ports
     (build / "rfuzz_input_transport.sv").write_text(transport.render_systemverilog())
     (build / "live_tb.sv").write_text(_testbench(
         layout, {"unmapped": [field.field_id for field in fields if not field.port]},
@@ -1563,6 +1578,8 @@ def _build_profile_campaign_artifact(config, build_dir):
                  "soc_structure_audit.json": structure_audit,
                  "soc_coverage_universe.json": instrumentation["universe"],
                  "soc_coverage_plan.json": instrumentation["plan"]}
+    if checker_manifest is not None:
+        documents["checker_profile.json"] = checker_manifest
     for name, value in documents.items():
         (build / name).write_bytes(canonical_bytes(value))
     command = _compile_command(tool, build, closure, root, top_name,
@@ -1600,6 +1617,8 @@ def _build_profile_campaign_artifact(config, build_dir):
     if not plan.synthetic:
         unsupported += ["bfm_isolated", "contention"]
     document = {"schema_version": BUILD_SCHEMA, "composition_hash": plan.plan_hash,
+                "checker_profile_hash": (checker_profile.profile_hash
+                                         if checker_profile is not None else None),
                 "layout_hash": layout.layout_hash, "policy_hash": policy.policy_hash,
                 "constraint_hash": constraint_hash,
                 "policy_scope": "finite special-input projection; generated RTL temporal drivers; single instruction ISA repair and bounded data initialization",
@@ -1637,7 +1656,29 @@ def _build_profile_campaign_artifact(config, build_dir):
                 "peer_input_mode": ("per-cycle-raw-fields" if plan.peers else None),
                 "peer_event_mode": ("raw-abi-derived-v1" if plan.peers else None),
                 "peer_event_slots": [dict(item) for item in peer_slots],
-                "coverage_kind": COVERAGE_KIND,
+                "coverage_kind": ("source-instrumented-rtl-branch-plus-"
+                                  "checker-output-bit-events-u8-saturating"
+                                  if checker_profile is not None else COVERAGE_KIND),
+                "branch_coverage_ports": [[name, bit] for name, bit in branch_ports],
+                "checker_feedback": (None if checker_profile is None else {
+                    "profile_hash": checker_profile.profile_hash,
+                    "manifest": "checker_profile.json",
+                    "property_count": len(checker_profile.properties),
+                    "arm": str(plan.stimulus.get("mode", "cpu_only")),
+                    "status": "not_assessed",
+                    "required_evaluated": [],
+                    "evaluation_counter_range": [len(branch_ports),
+                                                 len(branch_ports) + 49],
+                    "failure_counter_range": [len(branch_ports) + 50,
+                                              len(branch_ports) + 99],
+                    "observations": [[name, bit] for name, bit in checker_ports],
+                    "properties": [
+                        {"bit": item.bit, "property_id": item.property_id,
+                         "status": item.status, "owner": item.owner,
+                         "binding": item.binding, "basis_kind": item.basis_kind,
+                         "basis": item.basis, "reason": item.reason}
+                        for item in checker_profile.properties],
+                }),
                 "coverage_instrumentation": {
                     "instrumenter": instrumentation["instrumenter_identity"],
                     "instrumented_output_sha256": (
@@ -1689,7 +1730,7 @@ def _build_profile_campaign_artifact(config, build_dir):
         execution_monitor=dict(PROFILE_FABRIC_MONITOR),
         layout=layout, transport=transport, executable=executable,
         coverage_ports=coverage_ports, projector=arms["dependency_repair"],
-        coverage_kind=COVERAGE_KIND, simulator="verilator", simulator_args=simulator_args,
+        coverage_kind=document["coverage_kind"], simulator="verilator", simulator_args=simulator_args,
         isolate_tests=True, build_document=document, projection_arms=arms,
         peer_slots=peer_slots)
 
@@ -2363,7 +2404,7 @@ def _testbench(layout, mapping, ports, top_module, coverage_ports,
     add = lines.append
     add("// Generated by myfuzz.integration.soc_builder (%s)." % BUILD_SCHEMA)
     add("// Persistent RFuzz harness: one raw %d-bit stimulus sample per cycle," % layout.raw_width)
-    add("// %d saturating 8-bit counters over instrumented RTL branch points."
+    add("// %d saturating 8-bit counters over explicitly listed observations."
         % len(coverage_ports))
     add("module myfuzz_live_tb;")
     add("  localparam integer RAW_WIDTH = %d;" % layout.raw_width)

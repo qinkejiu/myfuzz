@@ -25,6 +25,10 @@ from pathlib import Path
 
 from .component_profile import ComponentProfileError
 from .soc_composition import CompositionPlan
+from .soc_checker_profile import (
+    REQUEST_ID as CHECKER_REQUEST_ID,
+    load_default_checker_profile,
+)
 from .soc_port_dispositions import (
     DispositionEntry,
     aligned_segments,
@@ -342,7 +346,8 @@ def _netlist_from_tree(tree: Mapping[str, object], ports: Sequence[Mapping[str, 
 
 def _expected_top_ports(entries: Sequence[DispositionEntry],
                         synthetic: Mapping[str, object] | None = None,
-                        peers: Sequence[object] = ()) -> dict[str, tuple[str, int]]:
+                        peers: Sequence[object] = (),
+                        checker_width: int | None = None) -> dict[str, tuple[str, int]]:
     expected: dict[str, tuple[str, int]] = {"clk_i": ("input", 1), "rst_ni": ("input", 1)}
     for entry in entries:
         if entry.disposition not in ("fuzz", "external", "observe"):
@@ -367,6 +372,9 @@ def _expected_top_ports(entries: Sequence[DispositionEntry],
                 expected[str(signal.top_port)] = ("input", int(signal.width))
         for observation in peer.observations:  # type: ignore[attr-defined]
             expected[str(observation.top_port)] = ("output", int(observation.width))
+    if checker_width is not None:
+        expected["checker_eval_o"] = ("output", checker_width)
+        expected["checker_fail_o"] = ("output", checker_width)
     return expected
 
 
@@ -607,7 +615,12 @@ def audit_structure(plan: CompositionPlan, *, top_text: str,
     entries = [entry for item in plan.instances for entry in item.dispositions]
 
     # 1. The top-level boundary is exactly the ledger's exported ports.
-    expected_ports = _expected_top_ports(entries, plan.synthetic, plan.peers)
+    checker_width = None
+    if plan.request_id == CHECKER_REQUEST_ID:
+        checker_width = len(load_default_checker_profile(
+            plan, base_dir=base_dir).properties)
+    expected_ports = _expected_top_ports(entries, plan.synthetic, plan.peers,
+                                         checker_width)
     actual_ports = {str(port["name"]): (str(port["direction"]), int(port["width"]))
                     for port in netlist.ports}
     findings.append(Finding(

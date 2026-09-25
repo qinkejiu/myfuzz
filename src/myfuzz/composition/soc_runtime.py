@@ -43,6 +43,7 @@ from pathlib import Path
 from myfuzz.contracts import canonical_bytes
 
 from .soc_composition import CompositionPlan
+from .soc_checker_profile import REQUEST_ID as CHECKER_REQUEST_ID
 from .soc_image import ImagePlan
 
 RUNTIME_SCHEMA = "soc_runtime.v1"
@@ -598,6 +599,11 @@ def _observations(plan: CompositionPlan) -> tuple[dict[str, object], ...]:
             "peer_observed": str(item["peer_port"]),
             "peer_counter": bool(item["counter"]),
         })
+    if plan.request_id == CHECKER_REQUEST_ID:
+        records.extend((
+            {"name": "checker_eval_o", "width": 50, "checker_feedback": "evaluation"},
+            {"name": "checker_fail_o", "width": 50, "checker_feedback": "failure"},
+        ))
     records.sort(key=lambda item: str(item["name"]))
     return tuple(records)
 

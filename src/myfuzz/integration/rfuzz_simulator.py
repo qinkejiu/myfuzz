@@ -131,6 +131,23 @@ class SimulatorArtifact:
     peer_slots: tuple[Mapping[str, object], ...] = ()
 
 
+def checker_feedback_observations(ports: Sequence[Mapping[str, object]],
+                                  *, width: int = 50) -> tuple[tuple[str, int], ...]:
+    """Map checker output bits to sampled counters, distinct from RTL branches.
+
+    Evaluation and sticky failure are two independent output buses. Callers
+    append these records after their source-instrumented branch observations.
+    """
+    by_name = {str(item.get("name")): item for item in ports}
+    for name in ("checker_eval_o", "checker_fail_o"):
+        port = by_name.get(name)
+        if (port is None or port.get("direction") != "output"
+                or type(port.get("width")) is not int or port["width"] != width):
+            raise ValueError(f"checker-bus-width:{name}")
+    return tuple((name, bit) for name in ("checker_eval_o", "checker_fail_o")
+                 for bit in range(width))
+
+
 class CycleIdentityProjector:
     """Keep backend entropy unchanged; expose only proven external bindings."""
     instruction_mode = "stateful-contract-transducer-rtl"

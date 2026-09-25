@@ -19,6 +19,7 @@ from myfuzz.composition.soc_structure_audit import (
 )
 
 from .soc_generation_fixture import ROOT, example_plan, example_request, tools_available
+from tests.integration.test_soc_ibex_pulp_dual_profile import load_dual_request
 
 
 def _failed_checks(result: dict) -> list[str]:
@@ -110,6 +111,39 @@ class CleanAuditTests(_AuditFixture):
         result = self.audit(self.text)
         kinds = {item["check_id"] for item in result["unknown"]}
         self.assertIn("protocol_behaviour", kinds)
+
+
+class CheckerBoundaryAuditTests(unittest.TestCase):
+    """Only the declared 50-bit checker outputs extend this target's boundary."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        if not tools_available():
+            raise unittest.SkipTest("verilator is not installed")
+        cls.plan = build_composition(load_dual_request(), base_dir=ROOT,
+                                     drive_profile="cpu_execute")
+        cls.top = render_composition(cls.plan)["myfuzz_soc_top.sv"]
+        cls.sources = [item["path"] for item in source_list(cls.plan)]
+
+    def audit(self, top: str) -> dict:
+        return audit_structure(self.plan, top_text=top, source_files=self.sources,
+                               base_dir=ROOT)
+
+    def test_declared_checker_ports_pass_boundary_audit(self) -> None:
+        self.assertNotIn("top_ports", _failed_checks(self.audit(self.top)))
+
+    def test_wrong_checker_width_fails_boundary_audit(self) -> None:
+        changed = self.top.replace("output logic [49:0] checker_eval_o",
+                                   "output logic [48:0] checker_eval_o")
+        self.assertNotEqual(self.top, changed)
+        self.assertIn("top_ports", _failed_checks(self.audit(changed)))
+
+    def test_undeclared_output_fails_boundary_audit(self) -> None:
+        changed = self.top.replace("output logic [49:0] checker_fail_o",
+                                   "output logic [49:0] checker_fail_o,\n"
+                                   "    output logic rogue_checker_o")
+        self.assertNotEqual(self.top, changed)
+        self.assertIn("top_ports", _failed_checks(self.audit(changed)))
 
 
 class FaultInjectionTests(_AuditFixture):
