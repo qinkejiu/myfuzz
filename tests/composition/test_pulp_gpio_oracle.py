@@ -79,6 +79,22 @@ class PulpGpioOracleSamplingTests(unittest.TestCase):
         self.assertEqual(0, oracle.sample_pins(0x00000001)["gpio_in_sync"])
         self.assertEqual(0x00000001, oracle.sample_pins(0x00000001)["gpio_in_sync"])
 
+    def test_disabled_neighboring_group_does_not_sample_when_another_group_is_enabled(self):
+        oracle = PulpGpioOracle(pins=32)
+        oracle.apb_access(address=0x04, write=True, wdata=0x00000008)
+
+        # Pad 4 toggles while only group 0 has an enable bit. Its whole
+        # 4-pad group must remain held despite group 0 being active.
+        self.assertEqual(0, oracle.sample_pins(0x00000010)["gpio_in_sync"])
+        self.assertEqual(0, oracle.sample_pins(0x00000000)["gpio_in_sync"])
+        self.assertEqual(0, oracle.sample_pins(0x00000010)["gpio_in_sync"])
+
+        # Enabling group 1 starts its pipeline; the first stage-2 observation
+        # is delayed by one sample, then reflects pad 4.
+        oracle.apb_access(address=0x04, write=True, wdata=0x00000018)
+        self.assertEqual(0, oracle.sample_pins(0x00000010)["gpio_in_sync"])
+        self.assertEqual(0x00000010, oracle.sample_pins(0x00000010)["gpio_in_sync"])
+
     def test_disabled_group_holds_all_stages(self):
         oracle = PulpGpioOracle(pins=32)
         oracle.apb_access(address=0x04, write=True, wdata=0x00000001)
