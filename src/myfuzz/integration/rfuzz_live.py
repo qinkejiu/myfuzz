@@ -20,6 +20,84 @@ from .rfuzz_shmem import process_pair
 from .rfuzz_simulator import RtlSimulator
 from .campaign import CampaignError, read_process_group_rss_bytes
 
+MAX_FAILURE_CASES = 1024
+MAX_FAILURE_BYTES = 64 * 1024 * 1024
+
+
+class CheckerFailureStore:
+    """Save bounded, deduplicated raw RFuzz records for checker failures."""
+
+    def __init__(self, output_dir, artifact, *, max_cases=MAX_FAILURE_CASES,
+                 max_bytes=MAX_FAILURE_BYTES):
+        self.directory = Path(output_dir) / "failures"
+        self.artifact = artifact
+        self.max_cases = max_cases
+        self.max_bytes = max_bytes
+        self.cases = []
+        self.by_hash = {}
+        self.saved_bytes = 0
+        self.dropped_cases = 0
+
+    @property
+    def saved_cases(self):
+        return len(self.cases)
+
+    def document(self):
+        return {"schema_version": "checker_failure_manifest.v1",
+                "entries": self.saved_cases, "saved_bytes": self.saved_bytes,
+                "dropped_cases": self.dropped_cases,
+                "max_cases": self.max_cases, "max_bytes": self.max_bytes,
+                "cases": list(self.cases)}
+
+    def record(self, records, counters):
+        ports = tuple(getattr(self.artifact, "coverage_ports", ()))
+        if len(counters) != len(ports):
+            raise ValueError("checker failure counter length mismatch")
+        failed = [bit for index, (name, bit) in enumerate(ports)
+                  if name == "checker_fail_o" and counters[index] > 0]
+        if not failed:
+            return None
+        width = self.artifact.transport.byte_count
+        if (not records or any(not isinstance(row, bytes) or len(row) != width
+                               for row in records)):
+            raise ValueError("checker failure raw record width mismatch")
+        payload = b"".join(records)
+        input_hash = _hash_bytes(payload)
+        mask = sum(1 << bit for bit in failed)
+        mask_text = f"0x{mask:013x}"
+        prior = self.by_hash.get(input_hash)
+        if prior is not None:
+            if prior["failure_mask"] != mask_text:
+                raise ValueError("checker failure replay changed failure mask")
+            return prior
+        if self.saved_cases >= self.max_cases or self.saved_bytes + len(payload) > self.max_bytes:
+            self.dropped_cases += 1
+            return None
+        build = getattr(self.artifact, "build_document", None)
+        feedback = build.get("checker_feedback") if isinstance(build, Mapping) else None
+        properties = feedback.get("properties", ()) if isinstance(feedback, Mapping) else ()
+        ids = {item.get("bit"): item.get("property_id") for item in properties
+               if isinstance(item, Mapping)}
+        filename = f"case_{input_hash.removeprefix('sha256:')}.bin"
+        entry = {"input_sha256": input_hash, "raw_file": filename,
+                 "record_width_bytes": width, "cycles": len(records),
+                 "failure_mask": mask_text,
+                 "failure_ids": [ids.get(bit) or f"checker_fail_o[{bit}]"
+                                 for bit in failed]}
+        self.directory.mkdir(parents=True, exist_ok=True)
+        raw_path = self.directory / filename
+        staging_raw = self.directory / (filename + ".tmp")
+        staging_raw.write_bytes(payload)
+        staging_raw.replace(raw_path)
+        self.cases.append(entry)
+        self.by_hash[input_hash] = entry
+        self.saved_bytes += len(payload)
+        manifest = self.directory / "manifest.json"
+        staging = self.directory / "manifest.json.tmp"
+        staging.write_bytes(canonical_bytes(self.document()))
+        staging.replace(manifest)
+        return entry
+
 
 def _hash_bytes(data):
     return "sha256:" + hashlib.sha256(data).hexdigest()
@@ -262,11 +340,17 @@ def _configuration(artifact):
              '[[input]]', 'name = "raw_bits"', f'width = {artifact.layout.raw_width}']
     for index, (port, bit) in enumerate(artifact.coverage_ports):
         name = json.dumps(f"{port}[{bit}]")
+        is_failure = port == "checker_fail_o"
+        human = ("checker sticky failure" if is_failure else
+                 "checker property evaluated" if port == "checker_eval_o" else
+                 "source-instrumented RTL branch" if port == "__vi_coverage" else
+                 "sampled output-bit event")
         lines.extend(['[[coverage]]', f'port = {name}', f'name = {name}', f'index = {index}',
             'filename = "live_tb.sv"', 'line = 0', 'column = 0',
-            'human = "sampled output-bit event, not branch coverage"', '[[counter]]',
+            f'human = {json.dumps(human)}', '[[counter]]',
             f'name = {name}', 'width = 8', 'max = 255', 'scale = false',
-            f'index = {index}', f'signal = {index}', 'fail = false'])
+            f'index = {index}', f'signal = {index}',
+            'fail = true' if is_failure else 'fail = false'])
     return "\n".join(lines) + "\n"
 
 
@@ -357,6 +441,7 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
     state["drain_limit_seconds"] = drain_limit
     tests=0
     maxima=[0]*len(artifact.coverage_ports)
+    failure_store = CheckerFailureStore(output, artifact)
     peak=0
     next_memory_check=0
     interrupted=False
@@ -409,6 +494,11 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
                         "errors": execution_totals.get("errors", 0),
                         "execution_totals": dict(execution_totals),
                         "completed_feedback_exchanges": len(receipts),
+                        "checker_failures": {
+                            "saved_cases": failure_store.saved_cases,
+                            "saved_bytes": failure_store.saved_bytes,
+                            "dropped_cases": failure_store.dropped_cases,
+                        },
                     }
                     with (output/"checkpoints.jsonl").open("a") as checkpoints:
                         checkpoints.write(json.dumps(checkpoint, sort_keys=True)+"\n")
@@ -433,6 +523,7 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
                 state["tests"] = tests
                 for index,value in enumerate(counters):
                     maxima[index]=max(maxima[index],value)
+                failure_store.record(records, counters)
                 pending_receipts.append((_hash_bytes(b"".join(records)), _hash_bytes(counters)))
                 return counters
             while client.poll() is None:
@@ -484,6 +575,7 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
                                  "records": tests,
                                  "counter_width": 8,
                              },
+                             checker_failures=failure_store.document(),
                              fifo_reply_receipts=receipt_records,
                              fifo_reply_receipt_count=len(receipts),
                              fifo_reply_receipt_sample_limit=4096,
@@ -517,6 +609,7 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
         "execution_totals": dict(execution_totals),
         "coverage_records": len(receipts),
     }
+    result["checker_failures"] = failure_store.document()
     state.update(result)
     if client.returncode == 0:
         if not tests:

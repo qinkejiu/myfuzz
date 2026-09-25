@@ -2398,6 +2398,9 @@ def _testbench(layout, mapping, ports, top_module, coverage_ports,
         if field.port:
             driven[field.port] = (field.raw_lo, field.raw_hi)
     widths = {port["name"]: port["width"] for port in ports}
+    checker_failure_bus = (widths.get("checker_fail_o") == 50 and
+                           any(port["name"] == "checker_fail_o" and
+                               port["direction"] == "output" for port in ports))
     if coverage_width is not None:
         widths[COVERAGE_SIGNAL] = int(coverage_width)
     lines = []
@@ -2414,6 +2417,8 @@ def _testbench(layout, mapping, ports, top_module, coverage_ports,
     add("  logic [RAW_WIDTH-1:0] raw_bits = '0;")
     add("  logic [7:0] counters [0:COUNTER_COUNT-1];")
     add("  logic [COUNTER_COUNT*8-1:0] counter_bits = '0;")
+    if checker_failure_bus:
+        add("  logic checker_failed = 1'b0;")
     add("  integer count, scan, i, j;")
     if image_plan is not None:
         add("  logic [RAW_WIDTH-1:0] sample_words [0:%d];" % (MAX_CYCLES-1))
@@ -2520,12 +2525,16 @@ def _testbench(layout, mapping, ports, top_module, coverage_ports,
         add("      end")
         add("      reset=%s;" % reset_inactive)
     add("      for (j=0;j<COUNTER_COUNT;j=j+1) counters[j]=8'h00;")
+    if checker_failure_bus:
+        add("      checker_failed=1'b0;")
     add("      for (i=0;i<count;i=i+1) begin")
     if image_plan is None:
         add('        scan=$fscanf(32\'h80000000,"%h",raw_bits);')
         add('        if (scan != 1) $fatal(1,"raw sample");')
     else:
         add("        raw_bits=sample_words[i];")
+    if checker_failure_bus:
+        add("        if (!checker_failed) begin")
     add("        tick();")
     for index, (name, bit) in enumerate(coverage_ports):
         expression = ("dut.%s" % name if widths[name] == 1
@@ -2534,6 +2543,9 @@ def _testbench(layout, mapping, ports, top_module, coverage_ports,
             % (expression, expression))
         add("        if (%s && counters[%d] != 8'hff) counters[%d] = counters[%d] + 1'b1;"
             % (expression, index, index, index))
+    if checker_failure_bus:
+        add("        if (checker_fail_o != 50'b0) checker_failed=1'b1;")
+        add("        end")
     add("      end")
     # Pack the counters into one wide vector: a single %h conversion keeps the
     # reply exactly COUNTER_COUNT*2 lowercase hex digits and avoids one slow
