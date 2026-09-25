@@ -47,7 +47,8 @@ class ProtocolCheckerTests(unittest.TestCase):
                               .read_text(encoding="utf-8"))
         active = {row["bit"] for row in manifest["properties"]
                   if row["status"] == "active"}
-        self.assertEqual({0, 1, 3, 4, 6, 8, 9, 10, 12, 13, 14, 15}, active)
+        self.assertEqual({0, 1, 3, 4, 6, 8, 9, 10, 12, 13, 14, 15}
+                         | set(range(21, 32)), active)
         self.assertEqual({"not_assessed"}, {manifest["properties"][bit]["status"]
                                             for bit in (2, 5, 7, 11)})
         rendered = render_composition(plan)["myfuzz_soc_top.sv"]
@@ -58,7 +59,8 @@ class ProtocolCheckerTests(unittest.TestCase):
         self.assertIn("u_checker_fabric (", rendered)
         self.assertIn("checker_fail_o[15]", rendered)
         self.assertEqual({source.as_posix().removeprefix(ROOT.as_posix() + "/")
-                          for source in SOURCES},
+                          for source in SOURCES} |
+                         {"src/myfuzz/protocols/rtl/soc_pulp_gpio_checker.sv"},
                          {row["path"] for row in source_list(plan)
                           if row["role"] == "checker_monitor"})
 

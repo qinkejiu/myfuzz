@@ -219,112 +219,112 @@
     {
       "bit": 21,
       "property_id": "GPIO.RESET_STATE",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "gpio0",
-      "binding": null,
+      "binding": "u_checker_gpio0",
       "basis_kind": "source_derived",
-      "basis": "profile 支持的 GPIO reset 状态正确",
-      "reason": "monitor-not-implemented"
+      "basis": "Source-derived probe: profile 支持的 GPIO reset 状态正确",
+      "reason": null
     },
     {
       "bit": 22,
       "property_id": "GPIO.PADDIR",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "gpio0",
-      "binding": null,
+      "binding": "u_checker_gpio0",
       "basis_kind": "source_derived",
-      "basis": "PADDIR 写入/读回一致",
-      "reason": "monitor-not-implemented"
+      "basis": "Source-derived probe: PADDIR 写入/读回一致",
+      "reason": null
     },
     {
       "bit": 23,
       "property_id": "GPIO.GPIOEN",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "gpio0",
-      "binding": null,
+      "binding": "u_checker_gpio0",
       "basis_kind": "source_derived",
-      "basis": "GPIOEN 写入/读回一致",
-      "reason": "monitor-not-implemented"
+      "basis": "Source-derived probe: GPIOEN 写入/读回一致",
+      "reason": null
     },
     {
       "bit": 24,
       "property_id": "GPIO.PADOUT",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "gpio0",
-      "binding": null,
+      "binding": "u_checker_gpio0",
       "basis_kind": "source_derived",
-      "basis": "PADOUT 写入/读回一致",
-      "reason": "monitor-not-implemented"
+      "basis": "Source-derived probe: PADOUT 写入/读回一致",
+      "reason": null
     },
     {
       "bit": 25,
       "property_id": "GPIO.PADOUTSET",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "gpio0",
-      "binding": null,
+      "binding": "u_checker_gpio0",
       "basis_kind": "source_derived",
-      "basis": "PADOUTSET 仅置位指定 pin",
-      "reason": "monitor-not-implemented"
+      "basis": "Source-derived probe: PADOUTSET 仅置位指定 pin",
+      "reason": null
     },
     {
       "bit": 26,
       "property_id": "GPIO.PADOUTCLR",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "gpio0",
-      "binding": null,
+      "binding": "u_checker_gpio0",
       "basis_kind": "source_derived",
-      "basis": "PADOUTCLR 仅清除指定 pin",
-      "reason": "monitor-not-implemented"
+      "basis": "Source-derived probe: PADOUTCLR 仅清除指定 pin",
+      "reason": null
     },
     {
       "bit": 27,
       "property_id": "GPIO.PADCFG",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "gpio0",
-      "binding": null,
+      "binding": "u_checker_gpio0",
       "basis_kind": "source_derived",
-      "basis": "PADCFG 写入/输出一致",
-      "reason": "monitor-not-implemented"
+      "basis": "Source-derived probe: PADCFG 写入/输出一致",
+      "reason": null
     },
     {
       "bit": 28,
       "property_id": "GPIO.SYNC_ENABLE_GROUP",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "gpio0",
-      "binding": null,
+      "binding": "u_checker_gpio0",
       "basis_kind": "source_derived",
-      "basis": "GPIOEN 按 4-pin group 控制采样",
-      "reason": "monitor-not-implemented"
+      "basis": "Source-derived probe: GPIOEN 按 4-pin group 控制采样",
+      "reason": null
     },
     {
       "bit": 29,
       "property_id": "GPIO.IN_SYNC",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "gpio0",
-      "binding": null,
+      "binding": "u_checker_gpio0",
       "basis_kind": "source_derived",
-      "basis": "gpio_in_sync 与独立输入延迟模型一致",
-      "reason": "monitor-not-implemented"
+      "basis": "Source-derived probe: gpio_in_sync 与独立输入延迟模型一致",
+      "reason": null
     },
     {
       "bit": 30,
       "property_id": "GPIO.PADIN",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "gpio0",
-      "binding": null,
+      "binding": "u_checker_gpio0",
       "basis_kind": "source_derived",
-      "basis": "PADIN 与独立输入延迟模型一致",
-      "reason": "monitor-not-implemented"
+      "basis": "Source-derived probe: PADIN 与独立输入延迟模型一致",
+      "reason": null
     },
     {
       "bit": 31,
       "property_id": "GPIO.DIR_OUTPUT",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "gpio0",
-      "binding": null,
+      "binding": "u_checker_gpio0",
       "basis_kind": "source_derived",
-      "basis": "gpio_out 与 gpio_dir 逐位匹配",
-      "reason": "monitor-not-implemented"
+      "basis": "Source-derived probe: gpio_dir output pins match the independent PADDIR shadow.",
+      "reason": null
     },
     {
       "bit": 32,
@@ -333,8 +333,8 @@
       "owner": "gpio0",
       "binding": null,
       "basis_kind": "source_derived",
-      "basis": "interrupt pulse 与已配置输入事件匹配",
-      "reason": "monitor-not-implemented"
+      "basis": "Source-derived behavior without an independent contract basis.",
+      "reason": "interrupt-pulse-semantics-not-independently-contracted"
     },
     {
       "bit": 33,
@@ -343,8 +343,8 @@
       "owner": "gpio0",
       "binding": null,
       "basis_kind": "source_derived",
-      "basis": "INTSTATUS latch 符合契约",
-      "reason": "monitor-not-implemented"
+      "basis": "Source-derived behavior without an independent contract basis.",
+      "reason": "status-latch-priority-source-derived-only"
     },
     {
       "bit": 34,
@@ -353,8 +353,8 @@
       "owner": "gpio0",
       "binding": null,
       "basis_kind": "source_derived",
-      "basis": "INTSTATUS 读清行为符合契约",
-      "reason": "monitor-not-implemented"
+      "basis": "Source-derived behavior without an independent contract basis.",
+      "reason": "read-clear-concurrent-event-semantics-not-independently-contracted"
     },
     {
       "bit": 35,
@@ -363,8 +363,8 @@
       "owner": "gpio0",
       "binding": null,
       "basis_kind": "source_derived",
-      "basis": "并发新事件的优先级符合契约",
-      "reason": "monitor-not-implemented"
+      "basis": "Source-derived behavior without an independent contract basis.",
+      "reason": "concurrent-event-priority-source-derived-only"
     },
     {
       "bit": 36,

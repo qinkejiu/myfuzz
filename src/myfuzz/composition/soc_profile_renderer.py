@@ -74,7 +74,9 @@ PROTOCOL_MONITOR_SOURCES = (
     "src/myfuzz/protocols/rtl/soc_apb3_checker.sv",
     "src/myfuzz/protocols/rtl/soc_fabric_checker.sv",
 )
+GPIO_MONITOR_SOURCE = "src/myfuzz/protocols/rtl/soc_pulp_gpio_checker.sv"
 PROTOCOL_ACTIVE_BITS = frozenset({0, 1, 3, 4, 6, 8, 9, 10, 12, 13, 14, 15})
+GPIO_ACTIVE_BITS = frozenset(range(21, 32))
 PROTOCOL_BIT_SOURCES = {0: ("obi_instr", 0), 1: ("obi_instr", 1),
                         3: ("obi_data", 0), 4: ("obi_data", 1),
                         6: ("gpio0_apb", 0), 8: ("gpio0_apb", 2),
@@ -265,14 +267,19 @@ def _render_top(plan: CompositionPlan,
     elif checker_profile is not None:
         _error("checker-profile-unexpected")
     if checker_profile is not None and any(
-            item.status == "active" and item.bit not in PROTOCOL_ACTIVE_BITS
+            item.status == "active" and item.bit not in
+            (PROTOCOL_ACTIVE_BITS | GPIO_ACTIVE_BITS)
             for item in checker_profile.properties):
         _error("checker-active-without-rendered-monitor")
-    if checker_profile is not None and any(
-            item.status == "active" and
-            item.binding != "u_checker_" + PROTOCOL_BIT_SOURCES[item.bit][0]
-            for item in checker_profile.properties):
-        _error("checker-binding-mismatch")
+    if checker_profile is not None:
+        for item in checker_profile.properties:
+            if item.status != "active":
+                continue
+            expected_binding = ("u_checker_" + PROTOCOL_BIT_SOURCES[item.bit][0]
+                                if item.bit in PROTOCOL_ACTIVE_BITS
+                                else "u_checker_gpio0")
+            if item.binding != expected_binding:
+                _error("checker-binding-mismatch")
     soc_plan = plan.plan
     fabric = soc_plan["fabric"]
     parameters = fabric["rtl"]["parameters"]
@@ -693,7 +700,8 @@ def _render_top(plan: CompositionPlan,
                            peripheral_roles[instance.instance_id])
 
     if checker_profile is not None:
-        _render_protocol_checkers(writer, plan, checker_profile, bindings, fabric)
+        _render_protocol_checkers(writer, plan, checker_profile, bindings, fabric,
+                                  peripheral_roles)
 
     # ---- interrupt controller -------------------------------------------
     _render_interrupts(writer, plan)
@@ -715,7 +723,8 @@ def _render_top(plan: CompositionPlan,
 def _render_protocol_checkers(writer: _Writer, plan: CompositionPlan,
                               profile: CheckerProfile,
                               bindings: Sequence[Mapping[str, object]],
-                              fabric: Mapping[str, object]) -> None:
+                              fabric: Mapping[str, object],
+                              peripheral_roles: Mapping[str, Mapping[str, object]]) -> None:
     """Bind only calibrated properties to the real Ibex/PULP boundary nets."""
     active = {item.bit for item in profile.properties if item.status == "active"}
     if not active:
@@ -772,14 +781,102 @@ def _render_protocol_checkers(writer: _Writer, plan: CompositionPlan,
     writer.add("    .rsp_valid_i(fabric_rsp_valid), .rsp_ready_i(fabric_rsp_ready),")
     writer.add("    .eval_o(checker_fabric_eval), .fail_o(checker_fabric_fail)")
     writer.add("  );")
+
+    if active & GPIO_ACTIVE_BITS:
+        gpio = plan.instance("gpio0")
+        if gpio.component_id != "pulp_gpio":
+            _error("checker-gpio-component-mismatch")
+        bus_endpoint = gpio.binding.endpoint("gpio.bus")
+        pin_endpoint = gpio.binding.endpoint("gpio.pins")
+        bus_fields = {field.role: field for field in bus_endpoint.fields}
+        pin_fields = {field.role: field for field in pin_endpoint.fields}
+        expected_bus_widths = {"paddr": 12, "psel": 1, "penable": 1,
+                               "pwrite": 1, "pwdata": 32, "pready": 1,
+                               "prdata": 32, "pslverr": 1}
+        expected_pin_widths = {"in": 32, "out": 32, "dir": 32,
+                               "padcfg": 128, "in_sync": 32}
+        expected_bus_directions = {
+            "paddr": "input", "psel": "input", "penable": "input",
+            "pwrite": "input", "pwdata": "input", "pready": "output",
+            "prdata": "output", "pslverr": "output",
+        }
+        expected_pin_directions = {
+            "in": "input", "out": "output", "dir": "output",
+            "padcfg": "output", "in_sync": "output",
+        }
+        bus_roles = peripheral_roles.get("gpio0", {})
+        for role, width in expected_bus_widths.items():
+            field = bus_fields.get(role)
+            binding = bus_roles.get(role)
+            if (field is None or binding is None or field.width != width or
+                    field.direction != expected_bus_directions[role]):
+                _error(f"checker-gpio-bus-role-missing:{role}")
+            if (str(binding.get("component_port")) != field.port or
+                    int(binding.get("component_width", -1)) != width):
+                _error(f"checker-gpio-bus-role-binding-mismatch:{role}")
+
+        def bus_signal(role: str) -> str:
+            binding = bus_roles[role]
+            net = str(binding["net"])
+            component_width = int(binding["component_width"])
+            bridge_width = int(binding["width"])
+            if bridge_width > component_width:
+                return f"{net}[{component_width - 1}:0]"
+            return net
+
+        def pin_signal(role: str) -> str:
+            field = pin_fields.get(role)
+            if (field is None or field.width != expected_pin_widths[role] or
+                    field.direction != expected_pin_directions[role]):
+                _error(f"checker-gpio-pin-role-missing:{role}")
+            entries = [entry for entry in gpio.dispositions
+                       if entry.endpoint_id == "gpio.pins" and entry.role == role
+                       and entry.port == field.port]
+            if len(entries) != 1:
+                _error(f"checker-gpio-pin-role-binding-missing:{role}")
+            return _field_net(gpio, field.port, role)
+
+        interrupt_actions = [action for action in gpio.profile.port_actions
+                             if action.port == "interrupt" and action.action == "observe"]
+        interrupt_entries = [entry for entry in gpio.dispositions
+                             if entry.port == "interrupt" and entry.disposition == "observe"]
+        if len(interrupt_actions) != 1 or len(interrupt_entries) != 1:
+            _error("checker-gpio-interrupt-observation-missing")
+        writer.add("  logic [14:0] checker_gpio0_eval, checker_gpio0_fail;")
+        writer.add("  logic [5:0] checker_gpio0_first_fail_id;")
+        writer.add("  // GPIO monitor ports resolve from gpio.bus and gpio.pins endpoint roles.")
+        writer.add("  soc_pulp_gpio_checker u_checker_gpio0 (")
+        writer.add("    .clk_i(clk_i), .rst_ni(rst_ni),")
+        writer.add(f"    .paddr_i({bus_signal('paddr')}),")
+        writer.add(f"    .psel_i({bus_signal('psel')}), "
+                   f".penable_i({bus_signal('penable')}),")
+        writer.add(f"    .pwrite_i({bus_signal('pwrite')}),")
+        writer.add(f"    .pwdata_i({bus_signal('pwdata')}), "
+                   f".prdata_i({bus_signal('prdata')}),")
+        writer.add(f"    .pready_i({bus_signal('pready')}), "
+                   f".pslverr_i({bus_signal('pslverr')}),")
+        writer.add(f"    .gpio_in_i({pin_signal('in')}),")
+        writer.add(f"    .gpio_out_i({pin_signal('out')}), "
+                   f".gpio_dir_i({pin_signal('dir')}),")
+        writer.add(f"    .gpio_padcfg_i({pin_signal('padcfg')}),")
+        writer.add(f"    .gpio_in_sync_i({pin_signal('in_sync')}),")
+        writer.add(f"    .interrupt_i({segment_net(interrupt_entries[0])}),")
+        writer.add("    .eval_o(checker_gpio0_eval), .fail_o(checker_gpio0_fail),")
+        writer.add("    .first_fail_id_o(checker_gpio0_first_fail_id)")
+        writer.add("  );")
+
     writer.add("  always_comb begin")
     writer.add("    checker_eval_o = '0;")
     writer.add("    checker_fail_o = '0;")
-    for bit, (monitor, local_bit) in sorted(PROTOCOL_BIT_SOURCES.items()):
-        if bit not in active:
-            continue
-        writer.add(f"    checker_eval_o[{bit}] = checker_{monitor}_eval[{local_bit}];")
-        writer.add(f"    checker_fail_o[{bit}] = checker_{monitor}_fail[{local_bit}];")
+    for bit in sorted(active):
+        if bit in PROTOCOL_ACTIVE_BITS:
+            monitor, local_bit = PROTOCOL_BIT_SOURCES[bit]
+            writer.add(f"    checker_eval_o[{bit}] = checker_{monitor}_eval[{local_bit}];")
+            writer.add(f"    checker_fail_o[{bit}] = checker_{monitor}_fail[{local_bit}];")
+        elif bit in GPIO_ACTIVE_BITS:
+            local_bit = bit - 21
+            writer.add(f"    checker_eval_o[{bit}] = checker_gpio0_eval[{local_bit}];")
+            writer.add(f"    checker_fail_o[{bit}] = checker_gpio0_fail[{local_bit}];")
     writer.add("  end")
 
 
@@ -1249,6 +1346,9 @@ def source_list(plan: CompositionPlan) -> list[dict[str, str]]:
                for item in profile.properties):
             for path in PROTOCOL_MONITOR_SOURCES:
                 add(path, "checker_monitor", "soc_top")
+        if any(item.status == "active" and item.bit in GPIO_ACTIVE_BITS
+               for item in profile.properties):
+            add(GPIO_MONITOR_SOURCE, "checker_monitor", "soc_top")
     if any(entry.disposition == "fuzz"
            for instance in plan.instances for entry in instance.dispositions):
         add(DRIVER_SOURCE, "special_input_driver", "soc_top")
