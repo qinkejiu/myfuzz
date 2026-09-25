@@ -49,12 +49,16 @@ module soc_obi_checker #(
             end
             if (req_i && gnt_i || rvalid_i) begin
                 eval_o[1] <= 1'b1;
-                if (rvalid_i && outstanding_q == 0 && !(req_i && gnt_i))
+                // A grant on this edge cannot justify a response on the same
+                // edge: only requests granted on earlier edges are pending.
+                if (rvalid_i && outstanding_q == 0)
                     fail_o[1] <= 1'b1;
                 case ({req_i && gnt_i, rvalid_i})
                     2'b10: outstanding_q <= outstanding_q + 1'b1;
                     2'b01: if (outstanding_q != 0)
                         outstanding_q <= outstanding_q - 1'b1;
+                    2'b11: if (outstanding_q == 0)
+                        outstanding_q <= 16'd1;
                     default: ;
                 endcase
             end

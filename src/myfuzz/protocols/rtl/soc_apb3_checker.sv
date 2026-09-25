@@ -35,9 +35,9 @@ module soc_apb3_checker #(
                 pwdata_q <= pwdata_i;
             end else if (psel_i && penable_i) begin
                 eval_o[0] <= 1'b1;
-                if ((!setup_q && !waiting_q) ||
+                if (!waiting_q && (!setup_q ||
                     paddr_i !== paddr_q || pwrite_i !== pwrite_q ||
-                    (pwrite_q && pwdata_i !== pwdata_q))
+                    (pwrite_q && pwdata_i !== pwdata_q)))
                     fail_o[0] <= 1'b1;
                 if (waiting_q) begin
                     eval_o[1] <= 1'b1;
