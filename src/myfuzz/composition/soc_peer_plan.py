@@ -46,6 +46,7 @@ PEER_ENDPOINT_FUNCTION = "external_pins"
 #: pin-count parameter.
 WIDTH_UNIT = "unit"
 WIDTH_COMMON = "common"
+WIDTH_ROLES = "roles"
 
 
 class PeerPlanError(ValueError):
@@ -143,6 +144,8 @@ class PeerModel:
     slots: tuple[PeerSlotSpec, ...]
     observations: tuple[PeerObservationSpec, ...]
     derived_parameter: str | None = None
+    #: Per-role widths for interfaces whose fields intentionally differ in size.
+    role_widths: tuple[tuple[str, int], ...] = ()
 
     def role_map(self) -> dict[str, str]:
         return dict(self.roles)
@@ -188,6 +191,15 @@ def _gpio_payload_width(parameters: Mapping[str, int]) -> int:
 
 def _gpio_minimum_gap(parameters: Mapping[str, int]) -> int:
     return 1
+
+
+def _pulp_spi_payload_width(parameters: Mapping[str, int]) -> int:
+    return 32
+
+
+def _pulp_spi_minimum_gap(parameters: Mapping[str, int]) -> int:
+    """Keep the registered arm and the next CS0 selection on distinct cycles."""
+    return 2
 
 
 UART_PEER = PeerModel(
@@ -317,6 +329,66 @@ SPI_PEER = PeerModel(
     ),
 )
 
+PULP_SPI_PEER = PeerModel(
+    peer_id="pulp_spi",
+    protocol=("spi", "1"),
+    module="soc_pulp_spi_peer",
+    source="src/myfuzz/protocols/rtl/soc_pulp_spi_peer.sv",
+    roles=(
+        ("sck", "output"), ("csn0", "output"), ("csn1", "output"),
+        ("csn2", "output"), ("csn3", "output"), ("mode", "output"),
+        ("sdo0", "output"), ("sdo1", "output"), ("sdo2", "output"),
+        ("sdo3", "output"), ("sdi0", "input"), ("sdi1", "input"),
+        ("sdi2", "input"), ("sdi3", "input"),
+    ),
+    bindings=(
+        ("sck", "sck_i"), ("csn0", "csn0_i"), ("csn1", "csn1_i"),
+        ("csn2", "csn2_i"), ("csn3", "csn3_i"), ("mode", "mode_i"),
+        ("sdo0", "sdo0_i"), ("sdo1", "sdo1_i"), ("sdo2", "sdo2_i"),
+        ("sdo3", "sdo3_i"), ("sdi0", "sdi0_o"), ("sdi1", "sdi1_o"),
+        ("sdi2", "sdi2_o"), ("sdi3", "sdi3_o"),
+    ),
+    width_rule=WIDTH_ROLES,
+    parameters=(),
+    requirements=(),
+    slots=(
+        PeerSlotSpec(
+            slot="spi.arm_word",
+            kind="pulse_word",
+            signals=(
+                PeerSignalSpec("arm_word_i", "payload", 32),
+                PeerSignalSpec("arm_valid_i", "pulse", 1),
+            ),
+            description="arm one 32-bit MISO word for the next CS0 selection; a word "
+                        "is consumed once and an unarmed selection shifts deterministic zero",
+            payload_width=_pulp_spi_payload_width,
+            minimum_gap=_pulp_spi_minimum_gap),
+    ),
+    observations=(
+        PeerObservationSpec("armed_o", False,
+                            "a response word is waiting for the next CS0 selection", 1),
+        PeerObservationSpec("arm_accept_count_o", True,
+                            "arm words accepted while CS0 is deselected and the slot is free", 32),
+        PeerObservationSpec("arm_drop_count_o", True,
+                            "arm requests received while selected or while a word is pending", 32),
+        PeerObservationSpec("selected_o", False, "live CS0-selected state", 1),
+        PeerObservationSpec("selection_count_o", True, "CS0 selections observed", 32),
+        PeerObservationSpec("clock_count_o", True,
+                            "SCK transitions observed during CS0 selection", 32),
+        PeerObservationSpec("shift_count_o", True,
+                            "mode-0 falling edges that advanced the MISO word", 32),
+        PeerObservationSpec("mode_error_o", False,
+                            "sticky indication of a non-single-line mode during selection", 1),
+        PeerObservationSpec("mode_error_count_o", True,
+                            "CS0 selections with at least one non-single-line mode cycle", 32),
+    ),
+    role_widths=(
+        ("sck", 1), ("csn0", 1), ("csn1", 1), ("csn2", 1), ("csn3", 1),
+        ("mode", 2), ("sdo0", 1), ("sdo1", 1), ("sdo2", 1), ("sdo3", 1),
+        ("sdi0", 1), ("sdi1", 1), ("sdi2", 1), ("sdi3", 1),
+    ),
+)
+
 GPIO_PEER = PeerModel(
     peer_id="gpio",
     protocol=("gpio", "1"),
@@ -366,7 +438,7 @@ GPIO_PEER = PeerModel(
 
 #: Every implemented peer model.  The tuple order is the only tie-break a
 #: caller may rely on; an ambiguous role signature is refused, not ordered.
-PEER_MODELS: tuple[PeerModel, ...] = (UART_PEER, SPI_PEER, GPIO_PEER)
+PEER_MODELS: tuple[PeerModel, ...] = (UART_PEER, SPI_PEER, GPIO_PEER, PULP_SPI_PEER)
 
 
 def peer_models() -> Mapping[str, PeerModel]:
@@ -602,6 +674,20 @@ def _common_width(model: PeerModel, fields: Sequence[object]) -> int:
     return width
 
 
+def _role_widths(model: PeerModel, fields: Sequence[object]) -> None:
+    """Require exactly the width declared for each role, with no coercions."""
+    declared = dict(model.role_widths)
+    signature_roles = {role for role, _direction in model.roles}
+    if len(declared) != len(model.role_widths) or set(declared) != signature_roles:
+        _error(f"peer-role-width-contract-invalid:{model.peer_id}")
+    for item in fields:
+        role = str(getattr(item, "role"))
+        actual = int(getattr(item, "width"))
+        expected = declared[role]
+        if actual != expected:
+            _error(f"peer-role-width-unsupported:{model.peer_id}:{role}:{actual}!={expected}")
+
+
 def _resolved_parameters(model: PeerModel, fields: Sequence[object], *,
                          declared: Mapping[str, object],
                          component_parameters: Mapping[str, object],
@@ -728,6 +814,8 @@ def plan_peer(*, instance_id: str, component_id: str, endpoint_id: str,
     model = candidates[0]
     if model.width_rule == WIDTH_UNIT:
         _unit_widths(model, fields)
+    elif model.width_rule == WIDTH_ROLES:
+        _role_widths(model, fields)
     parameters, values = _resolved_parameters(
         model, fields, declared=declared, component_parameters=component_parameters)
     requirements = _resolved_requirements(model, values,
@@ -806,6 +894,7 @@ __all__ = [
     "PEER_ENDPOINT_FUNCTION",
     "PEER_MODELS",
     "PEER_PLAN_SCHEMA",
+    "PULP_SPI_PEER",
     "SPI_PEER",
     "UART_PEER",
     "PeerModel",

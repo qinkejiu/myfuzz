@@ -108,6 +108,35 @@ def build_peer_plan(document: dict | None = None, *, profiles: dict | None = Non
     return build_composition(request, base_dir=ROOT, drive_profile=drive_profile)
 
 
+_PULP_SPI_PLAN = None
+
+
+def build_pulp_spi_peer_plan():
+    """Compose the pinned Ibex/PULP request with only the SPI pin peer attached."""
+    global _PULP_SPI_PLAN
+    if _PULP_SPI_PLAN is not None:
+        return _PULP_SPI_PLAN
+    profile_paths = (
+        "configs/cpus/ibex/component_profile.json",
+        "configs/peripherals/pulp_gpio/component_profile.json",
+        "configs/peripherals/pulp_spi/component_profile.json",
+    )
+    profiles = {}
+    for relative in profile_paths:
+        profile = load_component_profile(ROOT / relative)
+        profiles[relative] = profile
+        profiles.setdefault(profile.component_id, profile)
+    document = json.loads(
+        (ROOT / "examples/soc_generation/request-ibex-pulp-gpio-spi.json").read_text())
+    document["peer_models"] = [{
+        "instance_id": "spi0", "endpoint_id": "spi.pins", "attach": True,
+        "parameters": {},
+    }]
+    request = load_composition_request(document, profiles=profiles)
+    _PULP_SPI_PLAN = build_composition(request, base_dir=ROOT)
+    return _PULP_SPI_PLAN
+
+
 _PLAN = None
 
 
@@ -246,6 +275,15 @@ class PeerModelMatchTests(unittest.TestCase):
            _Field("mosi", "output", "spi_mosi_o"), _Field("miso", "input", "spi_miso_i"))
     GPIO = (_Field("in", "input", "gpio_in_i", 8), _Field("out", "output", "gpio_out_o", 8),
             _Field("dir", "output", "gpio_dir_o", 8))
+    PULP_SPI_ROLES = (
+        ("sck", "output", 1), ("csn0", "output", 1), ("csn1", "output", 1),
+        ("csn2", "output", 1), ("csn3", "output", 1), ("mode", "output", 2),
+        ("sdo0", "output", 1), ("sdo1", "output", 1), ("sdo2", "output", 1),
+        ("sdo3", "output", 1), ("sdi0", "input", 1), ("sdi1", "input", 1),
+        ("sdi2", "input", 1), ("sdi3", "input", 1),
+    )
+    PULP_SPI = tuple(_Field(role, direction, f"physical_pin_{index}", width)
+                     for index, (role, direction, width) in enumerate(PULP_SPI_ROLES))
 
     def test_the_role_signature_selects_exactly_one_model(self) -> None:
         for fields, peer_id in ((self.UART, "uart"), (self.SPI, "spi"), (self.GPIO, "gpio")):
@@ -284,6 +322,70 @@ class PeerModelMatchTests(unittest.TestCase):
                                     declared={}, component_parameters={})
         self.assertIn("peer-role-ambiguous", str(error.exception))
         self.assertIn("gpio,gpio_copy", str(error.exception))
+
+    def test_pulp_spi_uses_its_exact_fourteen_role_signature(self) -> None:
+        self.assertEqual(("pulp_spi",),
+                         tuple(model.peer_id for model in match_models(self.PULP_SPI)))
+
+    def test_pulp_spi_missing_lane_is_refused(self) -> None:
+        from myfuzz.composition.soc_peer_plan import PeerPlanError, plan_peer
+
+        fields = tuple(item for item in self.PULP_SPI if item.role != "sdi3")
+        self.assertEqual((), match_models(fields))
+        with self.assertRaises(PeerPlanError) as error:
+            plan_peer(instance_id="spi_missing_lane", component_id="renamed_component",
+                      endpoint_id="renamed_endpoint", fields=fields, declared={},
+                      component_parameters={})
+        self.assertIn("peer-role-unsupported", str(error.exception))
+        self.assertIn("sdi2:input", str(error.exception))
+
+    def test_pulp_spi_duplicate_signature_is_refused(self) -> None:
+        import myfuzz.composition.soc_peer_plan as peer_plan
+
+        template = getattr(peer_plan, "PULP_SPI_PEER", peer_plan.SPI_PEER)
+        duplicate = replace(template, peer_id="pulp_spi_copy",
+                            roles=tuple((role, direction)
+                                        for role, direction, _width in self.PULP_SPI_ROLES))
+        # Before PULP_SPI_PEER exists, two temporary signature candidates still
+        # exercise the ambiguity refusal instead of failing on an unrelated
+        # one-bit width check in the UART-era SPI model.
+        candidates = (duplicate,) if hasattr(peer_plan, "PULP_SPI_PEER") else (
+            duplicate, replace(duplicate, peer_id="pulp_spi_copy2"))
+        with unittest.mock.patch.object(peer_plan, "PEER_MODELS",
+                                        (*peer_plan.PEER_MODELS, *candidates)):
+            with self.assertRaises(peer_plan.PeerPlanError) as error:
+                peer_plan.plan_peer(instance_id="x0", component_id="x",
+                                    endpoint_id="x.pins", fields=self.PULP_SPI,
+                                    declared={}, component_parameters={})
+        self.assertIn("peer-role-ambiguous", str(error.exception))
+        self.assertIn("pulp_spi_copy", str(error.exception))
+
+    def test_pulp_spi_match_ignores_component_instance_and_port_names(self) -> None:
+        from myfuzz.composition.soc_peer_plan import plan_peer
+
+        renamed = tuple(_Field(field.role, field.direction, f"alias_{index}", field.width)
+                        for index, field in enumerate(self.PULP_SPI))
+        planned = plan_peer(instance_id="another_instance", component_id="another_component",
+                            endpoint_id="another_endpoint", fields=renamed, declared={},
+                            component_parameters={})
+        self.assertEqual("pulp_spi", planned.peer_id)
+        self.assertEqual({f"alias_{index}" for index in range(14)},
+                         {item.component_port for item in planned.bindings})
+
+    def test_pulp_spi_widths_are_exact_per_role(self) -> None:
+        from myfuzz.composition.soc_peer_plan import PeerPlanError, plan_peer
+
+        for role, bad_width, expected in (("mode", 1, "mode:1!=2"),
+                                          ("sck", 2, "sck:2!=1")):
+            with self.subTest(role=role):
+                fields = tuple(_Field(item.role, item.direction, item.port, bad_width)
+                               if item.role == role else item for item in self.PULP_SPI)
+                with self.assertRaises(PeerPlanError) as error:
+                    plan_peer(instance_id="spi_bad_width", component_id="pulp_spi",
+                              endpoint_id="spi.pins", fields=fields, declared={},
+                              component_parameters={})
+                self.assertIn("peer-role-width-unsupported:pulp_spi", str(error.exception))
+                self.assertIn(expected, str(error.exception))
 
 
 # ---------------------------------------------------------------------------
@@ -517,6 +619,65 @@ class PeerPlanTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # rendering
 # ---------------------------------------------------------------------------
+
+
+@unittest.skipUnless(tools_available(), "verilator is not installed")
+class PulpSpiPeerCompositionTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.plan = build_pulp_spi_peer_plan()
+        cls.peer = cls.plan.peer("spi0")
+        assert cls.peer is not None
+        cls.top_text = render_composition(cls.plan)["myfuzz_soc_top.sv"]
+
+    def test_pinned_pulp_profile_binds_all_fourteen_roles_at_declared_widths(self) -> None:
+        expected_widths = {
+            "sck": 1, "csn0": 1, "csn1": 1, "csn2": 1, "csn3": 1,
+            "mode": 2, "sdo0": 1, "sdo1": 1, "sdo2": 1, "sdo3": 1,
+            "sdi0": 1, "sdi1": 1, "sdi2": 1, "sdi3": 1,
+        }
+        self.assertEqual("pulp_spi", self.peer.peer_id)
+        self.assertEqual(expected_widths,
+                         {item.role: item.width for item in self.peer.bindings})
+        self.assertEqual(14, len(self.peer.bindings))
+        self.assertEqual(
+            {"sck": "sck_i", "csn0": "csn0_i", "csn1": "csn1_i",
+             "csn2": "csn2_i", "csn3": "csn3_i", "mode": "mode_i",
+             "sdo0": "sdo0_i", "sdo1": "sdo1_i", "sdo2": "sdo2_i",
+             "sdo3": "sdo3_i", "sdi0": "sdi0_o", "sdi1": "sdi1_o",
+             "sdi2": "sdi2_o", "sdi3": "sdi3_o"},
+            {item.role: item.peer_port for item in self.peer.bindings})
+
+    def test_pins_are_audited_and_peer_source_is_in_the_generated_closure(self) -> None:
+        audit = _audit(self.plan, self.top_text)
+        checks = {item["check_id"]: item for item in audit["findings"]}
+        for check_id in ("top_ports", "peer_instances", "peer_parameters",
+                         "peer_role_wiring", "peer_boundary", "peer_counters"):
+            self.assertEqual(PASS, checks[check_id]["status"], checks[check_id])
+        peer_source = Path(ROOT / self.peer.source).read_text()
+        for lane in (0, 2, 3):
+            self.assertIn(f"assign sdi{lane}_o = 1'b0;", peer_source)
+        self.assertIn(
+            "assign sdi1_o = (rst_ni && selected_o && mode0_w) ? "
+            "tx_shift_q[31] : 1'b0;", peer_source)
+        self.assertIn("assign mode0_w = (mode_i == 2'b00);", peer_source)
+        self.assertIn("tx_shift_q <= armed_q ? armed_word_q : 32'b0;", peer_source)
+        for binding in self.peer.bindings:
+            peer_connection = f".{binding.peer_port}(spi0__{binding.component_port})"
+            self.assertIn(peer_connection, self.top_text, binding.role)
+        self.assertEqual("sdi1_o", self.peer.binding("sdi1").peer_port)
+        source_records = [item for item in source_list(self.plan)
+                          if item["role"] == "peer_model"]
+        self.assertIn(self.peer.source, [item["path"] for item in source_records])
+
+    def test_events_remain_observed_without_a_spi_irq_route(self) -> None:
+        self.assertFalse(any(str(getattr(item, "component_id", "")) == "spi0"
+                             for item in self.plan.interrupt_plan.sources))
+        event_ports = [entry for instance in self.plan.instances
+                       if instance.instance_id == "spi0"
+                       for entry in instance.dispositions if entry.port == "events_o"]
+        self.assertTrue(event_ports)
+        self.assertTrue(all(item.disposition == "observe" for item in event_ports))
 
 
 @unittest.skipUnless(tools_available(), "verilator is not installed")

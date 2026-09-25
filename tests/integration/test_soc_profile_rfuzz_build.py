@@ -133,6 +133,40 @@ class ProfileAdmissionTest(unittest.TestCase):
         raw = 1 << peer_bit.raw_lo
         self.assertEqual(raw, projector.project(raw))
 
+    def test_pulp_spi_arm_word_and_valid_form_one_33_bit_post_image_segment(self):
+        """The pinned peer's per-cycle arm inputs are real RFuzz raw bits."""
+        from myfuzz.composition.soc_image import build_image_plan, combined_input_layout
+        from myfuzz.composition.soc_runtime import render_profile_testbench
+        from myfuzz.composition.soc_profile_renderer import render_composition
+        from tests.integration.test_soc_peer_models import build_pulp_spi_peer_plan
+
+        plan = build_pulp_spi_peer_plan()
+        image = build_image_plan(plan)
+        layout = combined_input_layout(plan, image)
+        fields = {field.port: field for field in layout.fields if field.owner == "soc_peer"}
+        word = fields["spi0__arm_word_i"]
+        valid = fields["spi0__arm_valid_i"]
+
+        self.assertEqual(32, word.width)
+        self.assertEqual(1, valid.width)
+        self.assertEqual(image.raw_width, word.raw_lo)
+        self.assertEqual(word.raw_hi + 1, valid.raw_lo)
+        self.assertEqual(image.raw_width + 32, valid.raw_lo)
+        self.assertEqual(33, layout.raw_width - image.raw_width)
+
+        testbench = render_profile_testbench(plan, image_plan=image)
+        top = render_composition(plan)["myfuzz_soc_top.sv"]
+        self.assertIn(
+            f"assign spi0__arm_word_i = spi0__arm_word_i__event_active ? "
+            f"spi0__arm_word_i__event : raw_bits[{word.raw_hi}:{word.raw_lo}];",
+            testbench)
+        self.assertIn(
+            f"assign spi0__arm_valid_i = spi0__arm_valid_i__event_active ? "
+            f"spi0__arm_valid_i__event : raw_bits[{valid.raw_hi}:{valid.raw_lo}];",
+            testbench)
+        self.assertIn(".arm_word_i(spi0__arm_word_i)", top)
+        self.assertIn(".arm_valid_i(spi0__arm_valid_i)", top)
+
     def test_peer_pulse_spacing_is_checked_before_profile_execution(self):
         """Raw peer requests must honor the model's declared minimum gap."""
         from myfuzz.composition.input_constraints import compile_input_constraints
