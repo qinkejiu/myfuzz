@@ -45,6 +45,10 @@ module soc_pulp_gpio_checker (
     logic [14:0] fail_d;
 
     wire access_accept = psel_i && penable_i && pready_i && !pslverr_i;
+    // The locked APB GPIO RTL decodes PADDR[6:2]; higher bits and the low
+    // byte offset therefore alias the same register. Keep this source-derived
+    // probe aligned with that decode while leaving the public oracle strict.
+    wire [11:0] canonical_paddr = {5'b0, paddr_i[6:2], 2'b00};
 
     // Evaluation is a one-cycle pulse. The failure vector is sticky until reset.
     always_comb begin
@@ -79,14 +83,17 @@ module soc_pulp_gpio_checker (
                 end
             end
 
-            // PADOUTSET/PADOUTCLR pin effects are checked one sampled cycle
-            // after their accepted writes, when the real register has updated.
+            // PADOUT/PADOUTSET/PADOUTCLR pin effects are checked one sampled
+            // cycle after accepted writes, when the real register has updated.
             if (out_check_kind_q == 2'd1) begin
                 eval_d[4] = 1'b1;
                 if (gpio_out_i !== padout_q) fail_d[4] = 1'b1;
             end else if (out_check_kind_q == 2'd2) begin
                 eval_d[5] = 1'b1;
                 if (gpio_out_i !== padout_q) fail_d[5] = 1'b1;
+            end else if (out_check_kind_q == 2'd3) begin
+                eval_d[3] = 1'b1;
+                if (gpio_out_i !== padout_q) fail_d[3] = 1'b1;
             end
 
             // PADCFG pin outputs are sampled after the accepted write. The
@@ -97,7 +104,7 @@ module soc_pulp_gpio_checker (
             end
 
             if (access_accept && !pwrite_i) begin
-                case (paddr_i)
+                case (canonical_paddr)
                     REG_PADDIR: begin
                         eval_d[1] = 1'b1;
                         if (prdata_i !== paddir_q) fail_d[1] = 1'b1;
@@ -115,11 +122,11 @@ module soc_pulp_gpio_checker (
                         if (prdata_i !== padout_q) fail_d[3] = 1'b1;
                     end
                     default: begin
-                        if (paddr_i >= REG_PADCFG0 && paddr_i <= REG_PADCFG3 &&
-                            paddr_i[1:0] == 2'b00) begin
+                        if (canonical_paddr >= REG_PADCFG0 &&
+                            canonical_paddr <= REG_PADCFG3) begin
                             eval_d[6] = 1'b1;
                             if (prdata_i !==
-                                padcfg_q[((paddr_i - REG_PADCFG0) >> 2)*32 +: 32])
+                                padcfg_q[((canonical_paddr - REG_PADCFG0) >> 2)*32 +: 32])
                                 fail_d[6] = 1'b1;
                         end
                     end
@@ -156,31 +163,33 @@ module soc_pulp_gpio_checker (
             end
 
             if (access_accept && pwrite_i) begin
-                case (paddr_i)
+                case (canonical_paddr)
                     REG_PADDIR: paddir_q <= pwdata_i;
                     REG_GPIOEN: gpioen_q <= pwdata_i;
                     REG_PADOUT: padout_q <= pwdata_i;
                     REG_PADOUTSET: padout_q <= padout_q | pwdata_i;
                     REG_PADOUTCLR: padout_q <= padout_q & ~pwdata_i;
                     default: begin
-                        if (paddr_i >= REG_PADCFG0 && paddr_i <= REG_PADCFG3 &&
-                            paddr_i[1:0] == 2'b00)
-                            padcfg_q[((paddr_i - REG_PADCFG0) >> 2)*32 +: 32]
+                        if (canonical_paddr >= REG_PADCFG0 &&
+                            canonical_paddr <= REG_PADCFG3)
+                            padcfg_q[((canonical_paddr - REG_PADCFG0) >> 2)*32 +: 32]
                                 <= pwdata_i;
                     end
                 endcase
             end
 
-            if (access_accept && pwrite_i && paddr_i == REG_PADOUTSET)
+            if (access_accept && pwrite_i && canonical_paddr == REG_PADOUT)
+                out_check_kind_q <= 2'd3;
+            else if (access_accept && pwrite_i && canonical_paddr == REG_PADOUTSET)
                 out_check_kind_q <= 2'd1;
-            else if (access_accept && pwrite_i && paddr_i == REG_PADOUTCLR)
+            else if (access_accept && pwrite_i && canonical_paddr == REG_PADOUTCLR)
                 out_check_kind_q <= 2'd2;
             else
                 out_check_kind_q <= '0;
 
             cfg_check_pending_q <= access_accept && pwrite_i &&
-                                   paddr_i >= REG_PADCFG0 && paddr_i <= REG_PADCFG3 &&
-                                   paddr_i[1:0] == 2'b00;
+                                   canonical_paddr >= REG_PADCFG0 &&
+                                   canonical_paddr <= REG_PADCFG3;
         end
     end
 

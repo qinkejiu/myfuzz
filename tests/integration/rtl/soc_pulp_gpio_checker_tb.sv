@@ -141,9 +141,14 @@ module soc_pulp_gpio_checker_tb;
     // Golden accepted APB accesses and pin timing cover every enabled local ID.
     reset_case(1'b0);
     if (fail_o !== 15'b0) $fatal(1, "reset golden trace failed: %015b", fail_o);
-    write_reg(12'h000, 32'h0000_00a5);
+    // The PULP RTL selects registers only with PADDR[6:2], so bit 7 aliases
+    // PADDIR. The independent shadow must apply the same canonical offset.
+    write_reg(12'h080, 32'h0000_00a5);
     read_reg(12'h000, value);
     if (value !== 32'h0000_00a5) $fatal(1, "PADDIR readback: %h", value);
+    if (gpio_dir !== 32'h0000_00a5 || fail_o !== 15'b0)
+      $fatal(1, "golden aliased PADDIR access failed: dir=%h fail=%h",
+             gpio_dir, fail_o);
     write_reg(12'h004, 32'h0000_000f);
     read_reg(12'h004, value);
     if (value !== 32'h0000_000f) $fatal(1, "GPIOEN readback: %h", value);
@@ -209,6 +214,13 @@ module soc_pulp_gpio_checker_tb;
     prdata_xor = 32'h1;
     read_reg(12'h00c, value);
     expect_failure(15'h008, 3, "PADOUT readback mutant");
+
+    // A complete PADOUT write must also drive the external output pins.
+    reset_case(1'b0);
+    write_reg(12'h00c, 32'h1);
+    gpio_out_xor = 32'h1;
+    tick();
+    expect_failure(15'h008, 3, "PADOUT output mutant");
 
     // PADOUTSET output pin observation.
     reset_case(1'b0);
