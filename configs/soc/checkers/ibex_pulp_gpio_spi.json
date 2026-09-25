@@ -9,22 +9,22 @@
     {
       "bit": 0,
       "property_id": "OBI.INSTR.STALL_STABLE",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "cpu0",
-      "binding": null,
+      "binding": "u_checker_obi_instr",
       "basis_kind": "standard",
       "basis": "instruction request 未 grant 时 payload 保持稳定",
-      "reason": "monitor-not-implemented"
+      "reason": null
     },
     {
       "bit": 1,
       "property_id": "OBI.INSTR.NO_ORPHAN_RSP",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "cpu0",
-      "binding": null,
+      "binding": "u_checker_obi_instr",
       "basis_kind": "standard",
       "basis": "instruction response 必须有已 grant 请求",
-      "reason": "monitor-not-implemented"
+      "reason": null
     },
     {
       "bit": 2,
@@ -34,27 +34,27 @@
       "binding": null,
       "basis_kind": "standard",
       "basis": "instruction response 按接口顺序退休",
-      "reason": "monitor-not-implemented"
+      "reason": "response-channel-has-no-tag-or-independent-expected-response-queue"
     },
     {
       "bit": 3,
       "property_id": "OBI.DATA.STALL_STABLE",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "cpu0",
-      "binding": null,
+      "binding": "u_checker_obi_data",
       "basis_kind": "standard",
       "basis": "data request 未 grant 时 payload 保持稳定",
-      "reason": "monitor-not-implemented"
+      "reason": null
     },
     {
       "bit": 4,
       "property_id": "OBI.DATA.NO_ORPHAN_RSP",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "cpu0",
-      "binding": null,
+      "binding": "u_checker_obi_data",
       "basis_kind": "standard",
       "basis": "data response 必须有已 grant 请求",
-      "reason": "monitor-not-implemented"
+      "reason": null
     },
     {
       "bit": 5,
@@ -64,17 +64,17 @@
       "binding": null,
       "basis_kind": "standard",
       "basis": "data response 按接口顺序退休",
-      "reason": "monitor-not-implemented"
+      "reason": "response-channel-has-no-tag-or-independent-expected-response-queue"
     },
     {
       "bit": 6,
       "property_id": "APB.GPIO.SETUP_ACCESS",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "gpio0",
-      "binding": null,
+      "binding": "u_checker_gpio0_apb",
       "basis_kind": "standard",
       "basis": "GPIO APB 先 setup 后 access",
-      "reason": "monitor-not-implemented"
+      "reason": null
     },
     {
       "bit": 7,
@@ -84,37 +84,37 @@
       "binding": null,
       "basis_kind": "standard",
       "basis": "GPIO access wait 时控制载荷稳定",
-      "reason": "monitor-not-implemented"
+      "reason": "pinned-pulp-target-is-always-ready-so-no-access-wait-is-observable"
     },
     {
       "bit": 8,
       "property_id": "APB.GPIO.READY_ONE",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "gpio0",
-      "binding": null,
-      "basis_kind": "standard",
+      "binding": "u_checker_gpio0_apb",
+      "basis_kind": "source_derived",
       "basis": "GPIO target 持续 ready",
-      "reason": "monitor-not-implemented"
+      "reason": null
     },
     {
       "bit": 9,
       "property_id": "APB.GPIO.ERROR_ZERO",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "gpio0",
-      "binding": null,
-      "basis_kind": "standard",
+      "binding": "u_checker_gpio0_apb",
+      "basis_kind": "source_derived",
       "basis": "GPIO target 不报告 slave error",
-      "reason": "monitor-not-implemented"
+      "reason": null
     },
     {
       "bit": 10,
       "property_id": "APB.SPI.SETUP_ACCESS",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "spi0",
-      "binding": null,
+      "binding": "u_checker_spi0_apb",
       "basis_kind": "standard",
       "basis": "SPI APB 先 setup 后 access",
-      "reason": "monitor-not-implemented"
+      "reason": null
     },
     {
       "bit": 11,
@@ -124,47 +124,47 @@
       "binding": null,
       "basis_kind": "standard",
       "basis": "SPI access wait 时控制载荷稳定",
-      "reason": "monitor-not-implemented"
+      "reason": "pinned-pulp-target-is-always-ready-so-no-access-wait-is-observable"
     },
     {
       "bit": 12,
       "property_id": "APB.SPI.READY_ONE",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "spi0",
-      "binding": null,
-      "basis_kind": "standard",
+      "binding": "u_checker_spi0_apb",
+      "basis_kind": "source_derived",
       "basis": "SPI target 持续 ready",
-      "reason": "monitor-not-implemented"
+      "reason": null
     },
     {
       "bit": 13,
       "property_id": "APB.SPI.ERROR_ZERO",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "spi0",
-      "binding": null,
-      "basis_kind": "standard",
+      "binding": "u_checker_spi0_apb",
+      "basis_kind": "source_derived",
       "basis": "SPI target 不报告 slave error",
-      "reason": "monitor-not-implemented"
+      "reason": null
     },
     {
       "bit": 14,
       "property_id": "FABRIC.SELECT_UNIQUE",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "fabric",
-      "binding": null,
+      "binding": "u_checker_fabric",
       "basis_kind": "standard",
-      "basis": "MMIO 地址只能选中计划中的唯一 target",
-      "reason": "monitor-not-implemented"
+      "basis": "已选 target 的请求有效向量必须 onehot；本位不覆盖地址与 target 的独立映射核对",
+      "reason": null
     },
     {
       "bit": 15,
       "property_id": "FABRIC.RESPONSE_SOURCE",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "fabric",
-      "binding": null,
+      "binding": "u_checker_fabric",
       "basis_kind": "standard",
-      "basis": "响应返回发起该事务的 master lane",
-      "reason": "monitor-not-implemented"
+      "basis": "router 响应携带的 source ID 必须与该笔已接受请求的 source ID 相同",
+      "reason": null
     },
     {
       "bit": 16,

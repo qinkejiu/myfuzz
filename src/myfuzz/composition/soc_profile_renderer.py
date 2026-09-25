@@ -69,6 +69,18 @@ RENDER_SCHEMA = "soc_generated.v1"
 TOP_MODULE = "myfuzz_soc_top"
 DRIVER_MODULE = "soc_special_input_driver"
 DRIVER_SOURCE = "src/myfuzz/protocols/rtl/soc_special_input_driver.sv"
+PROTOCOL_MONITOR_SOURCES = (
+    "src/myfuzz/protocols/rtl/soc_obi_checker.sv",
+    "src/myfuzz/protocols/rtl/soc_apb3_checker.sv",
+    "src/myfuzz/protocols/rtl/soc_fabric_checker.sv",
+)
+PROTOCOL_ACTIVE_BITS = frozenset({0, 1, 3, 4, 6, 8, 9, 10, 12, 13, 14, 15})
+PROTOCOL_BIT_SOURCES = {0: ("obi_instr", 0), 1: ("obi_instr", 1),
+                        3: ("obi_data", 0), 4: ("obi_data", 1),
+                        6: ("gpio0_apb", 0), 8: ("gpio0_apb", 2),
+                        9: ("gpio0_apb", 3), 10: ("spi0_apb", 0),
+                        12: ("spi0_apb", 2), 13: ("spi0_apb", 3),
+                        14: ("fabric", 0), 15: ("fabric", 1)}
 STRATEGY_CODES = {"cycle_value": 0, "reset_sampled": 1, "pulse": 2, "hold": 3}
 
 #: Reset conventions of the modules the renderer instantiates itself.  The beat
@@ -253,8 +265,14 @@ def _render_top(plan: CompositionPlan,
     elif checker_profile is not None:
         _error("checker-profile-unexpected")
     if checker_profile is not None and any(
-            item.status == "active" for item in checker_profile.properties):
+            item.status == "active" and item.bit not in PROTOCOL_ACTIVE_BITS
+            for item in checker_profile.properties):
         _error("checker-active-without-rendered-monitor")
+    if checker_profile is not None and any(
+            item.status == "active" and
+            item.binding != "u_checker_" + PROTOCOL_BIT_SOURCES[item.bit][0]
+            for item in checker_profile.properties):
+        _error("checker-binding-mismatch")
     soc_plan = plan.plan
     fabric = soc_plan["fabric"]
     parameters = fabric["rtl"]["parameters"]
@@ -378,9 +396,7 @@ def _render_top(plan: CompositionPlan,
     writer.add("  // observe ports: exported component outputs, never driven by the SoC.")
     if checker_profile is not None:
         writer.add(f"  // checker profile: {checker_profile.profile_hash}")
-        writer.add("  // All reserved properties await a real monitor and evaluate low.")
-        writer.add("  assign checker_eval_o = 50'b0;")
-        writer.add("  assign checker_fail_o = 50'b0;")
+        writer.add("  // Active property bits are assigned by the bound monitor instances below.")
     if synthetic:
         writer.add("  // synthetic-input ports: the generated MMIO master's raw fields, at the")
         writer.add("  //   offsets soc_stimulus.v1 records for its mmio segment; the master is")
@@ -676,6 +692,9 @@ def _render_top(plan: CompositionPlan,
         _render_peripheral(writer, instance, target_record, index,
                            peripheral_roles[instance.instance_id])
 
+    if checker_profile is not None:
+        _render_protocol_checkers(writer, plan, checker_profile, bindings, fabric)
+
     # ---- interrupt controller -------------------------------------------
     _render_interrupts(writer, plan)
 
@@ -691,6 +710,77 @@ def _render_top(plan: CompositionPlan,
                "fabric_rsp_transaction_id, fabric_protocol_error};")
     writer.add("endmodule")
     return writer.text()
+
+
+def _render_protocol_checkers(writer: _Writer, plan: CompositionPlan,
+                              profile: CheckerProfile,
+                              bindings: Sequence[Mapping[str, object]],
+                              fabric: Mapping[str, object]) -> None:
+    """Bind only calibrated properties to the real Ibex/PULP boundary nets."""
+    active = {item.bit for item in profile.properties if item.status == "active"}
+    if not active:
+        writer.add("  assign checker_eval_o = 50'b0;")
+        writer.add("  assign checker_fail_o = 50'b0;")
+        return
+    lane_functions = {str(binding["function"]) for binding in bindings}
+    if not {"instruction_memory_master", "data_memory_master"} <= lane_functions:
+        _error("checker-obi-lanes-missing")
+    if plan.instance("cpu0").component_id != "ibex":
+        _error("checker-cpu-boundary-mismatch")
+    writer.add("  // OBI monitor inputs are the Ibex top pins, before the beat adapters.")
+    writer.add("  logic [2:0] checker_obi_instr_eval, checker_obi_instr_fail;")
+    writer.add("  logic [2:0] checker_obi_data_eval, checker_obi_data_fail;")
+    writer.add("  soc_obi_checker u_checker_obi_instr (")
+    writer.add("    .clk_i(clk_i), .rst_ni(rst_ni),")
+    writer.add("    .req_i(cpu0__instr_req_o), .gnt_i(cpu0__instr_gnt_i),")
+    writer.add("    .addr_i(cpu0__instr_addr_o), .we_i(1'b0),")
+    writer.add("    .wdata_i(32'b0), .be_i(4'hf),")
+    writer.add("    .rvalid_i(cpu0__instr_rvalid_i), .rdata_i(cpu0__instr_rdata_i),")
+    writer.add("    .err_i(cpu0__instr_err_i),")
+    writer.add("    .eval_o(checker_obi_instr_eval), .fail_o(checker_obi_instr_fail)")
+    writer.add("  );")
+    writer.add("  soc_obi_checker u_checker_obi_data (")
+    writer.add("    .clk_i(clk_i), .rst_ni(rst_ni),")
+    writer.add("    .req_i(cpu0__data_req_o), .gnt_i(cpu0__data_gnt_i),")
+    writer.add("    .addr_i(cpu0__data_addr_o), .we_i(cpu0__data_we_o),")
+    writer.add("    .wdata_i(cpu0__data_wdata_o), .be_i(cpu0__data_be_o),")
+    writer.add("    .rvalid_i(cpu0__data_rvalid_i), .rdata_i(cpu0__data_rdata_i),")
+    writer.add("    .err_i(cpu0__data_err_i),")
+    writer.add("    .eval_o(checker_obi_data_eval), .fail_o(checker_obi_data_fail)")
+    writer.add("  );")
+    writer.add("  // APB monitors observe the actual peripheral PSEL/PENABLE/PREADY pins.")
+    for instance in ("gpio0", "spi0"):
+        writer.add(f"  logic [3:0] checker_{instance}_apb_eval, checker_{instance}_apb_fail;")
+        writer.add(f"  soc_apb3_checker #(.ADDRESS_WIDTH(32)) u_checker_{instance}_apb (")
+        writer.add("    .clk_i(clk_i), .rst_ni(rst_ni),")
+        writer.add(f"    .psel_i({instance}__psel), .penable_i({instance}__penable),")
+        writer.add(f"    .pready_i({instance}__pready), .paddr_i({instance}__paddr),")
+        writer.add(f"    .pwrite_i({instance}__pwrite), .pwdata_i({instance}__pwdata),")
+        writer.add(f"    .prdata_i({instance}__prdata), .pslverr_i({instance}__pslverr),")
+        writer.add(f"    .eval_o(checker_{instance}_apb_eval),")
+        writer.add(f"    .fail_o(checker_{instance}_apb_fail)")
+        writer.add("  );")
+    writer.add("  logic [1:0] checker_fabric_eval, checker_fabric_fail;")
+    writer.add("  soc_fabric_checker #(.NUM_TARGETS(NUM_TARGETS),")
+    writer.add(f"      .SOURCE_ID_WIDTH({max(1, (len(fabric['sources']) - 1).bit_length())}),")
+    writer.add("      .ADDRESS_WIDTH(ADDRESS_WIDTH)) u_checker_fabric (")
+    writer.add("    .clk_i(clk_i), .rst_ni(rst_ni),")
+    writer.add("    .req_valid_i(fabric_req_valid), .req_ready_i(fabric_req_ready),")
+    writer.add("    .addr_i(fabric_addr), .target_select_i(t_req_valid),")
+    writer.add("    .request_source_id_i(fabric_source_id),")
+    writer.add("    .response_source_id_i(fabric_rsp_source_id),")
+    writer.add("    .rsp_valid_i(fabric_rsp_valid), .rsp_ready_i(fabric_rsp_ready),")
+    writer.add("    .eval_o(checker_fabric_eval), .fail_o(checker_fabric_fail)")
+    writer.add("  );")
+    writer.add("  always_comb begin")
+    writer.add("    checker_eval_o = '0;")
+    writer.add("    checker_fail_o = '0;")
+    for bit, (monitor, local_bit) in sorted(PROTOCOL_BIT_SOURCES.items()):
+        if bit not in active:
+            continue
+        writer.add(f"    checker_eval_o[{bit}] = checker_{monitor}_eval[{local_bit}];")
+        writer.add(f"    checker_fail_o[{bit}] = checker_{monitor}_fail[{local_bit}];")
+    writer.add("  end")
 
 
 def _lane_instruction_bits(plan: CompositionPlan, fabric: Mapping[str, object]) -> str:
@@ -1153,6 +1243,12 @@ def source_list(plan: CompositionPlan) -> list[dict[str, str]]:
 
     for path in plan.plan["fabric"]["rtl"]["sources"]:
         add(path, "soc_fabric", "soc_fabric")
+    if plan.request_id == CHECKER_REQUEST_ID:
+        profile = load_default_checker_profile(plan)
+        if any(item.status == "active" and item.bit in PROTOCOL_ACTIVE_BITS
+               for item in profile.properties):
+            for path in PROTOCOL_MONITOR_SOURCES:
+                add(path, "checker_monitor", "soc_top")
     if any(entry.disposition == "fuzz"
            for instance in plan.instances for entry in instance.dispositions):
         add(DRIVER_SOURCE, "special_input_driver", "soc_top")

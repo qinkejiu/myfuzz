@@ -110,24 +110,25 @@ class CheckerProfileTests(unittest.TestCase):
 
     def test_not_assessed_reserves_id_without_claim(self):
         document = checker_document()
-        item = load_checker_profile(document, self.plan).properties[0]
+        item = load_checker_profile(document, self.plan).properties[2]
         self.assertEqual("not_assessed", item.status)
         self.assertTrue(item.reason)
         self.assertIsNone(item.binding)
-        document["properties"][0]["binding"] = "fake"
+        document["properties"][2]["binding"] = "fake"
         with self.assertRaisesRegex(CheckerProfileError, "not-assessed-binding"):
             load_checker_profile(document, self.plan)
         document = checker_document()
-        document["properties"][0]["reason"] = ""
+        document["properties"][2]["reason"] = ""
         with self.assertRaisesRegex(CheckerProfileError, "not-assessed-reason"):
             load_checker_profile(document, self.plan)
 
-    def test_rendered_bootstrap_exports_low_feedback_vectors(self):
+    def test_rendered_protocol_monitors_feed_reserved_vectors(self):
         top = render_composition(self.plan)["myfuzz_soc_top.sv"]
         self.assertIn("output logic [49:0] checker_eval_o", top)
         self.assertIn("output logic [49:0] checker_fail_o", top)
-        self.assertIn("assign checker_eval_o = 50'b0;", top)
-        self.assertIn("assign checker_fail_o = 50'b0;", top)
+        self.assertIn("checker_eval_o[0] = checker_obi_instr_eval[0]", top)
+        self.assertIn("checker_fail_o[15] = checker_fabric_fail[1]", top)
+        self.assertNotIn("checker_eval_o[2] =", top)
         bench = render_profile_testbench(self.plan,
                                          image_plan=build_image_plan(self.plan))
         self.assertIn(".checker_eval_o(obs_checker_eval_o)", bench)
