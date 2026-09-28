@@ -311,7 +311,9 @@ def _provisional_record_width(plan, image) -> int:
 
 def build_projection_arms(*, layout, constraint_hash, special_width, policy, image,
                           image_address_policy="repair",
-                          candidate_program=None, peer_slots=()) -> dict[str, object]:
+                          candidate_program=None, peer_slots=(),
+                          peer_spacing_policy="reject",
+                          rfuzz_candidate_repair=False) -> dict[str, object]:
     """The three input-projection arms over one compiled profile artifact.
 
     Every arm shares the layout, the executable and the coverage instrumentation;
@@ -323,15 +325,23 @@ def build_projection_arms(*, layout, constraint_hash, special_width, policy, ima
     """
     if image_address_policy not in ("repair", "strict"):
         raise SocBuildError("profile-image-address-policy-invalid")
+    if peer_spacing_policy not in ("reject", "drop_later"):
+        raise SocBuildError("profile-peer-spacing-policy-invalid")
+    if type(rfuzz_candidate_repair) is not bool:
+        raise SocBuildError("profile-rfuzz-candidate-repair-invalid")
+    if rfuzz_candidate_repair and candidate_program is None:
+        raise SocBuildError("profile-rfuzz-candidate-repair-without-program")
     return {
         "direct_input": SocRawProjector(layout, constraint_hash),
         "constrained_baseline": ProfileCampaignProjector(
             layout, constraint_hash, special_width, policy=policy, image_plan=None,
-            peer_slots=peer_slots),
+            peer_slots=peer_slots, peer_spacing_policy=peer_spacing_policy),
         "dependency_repair": ProfileCampaignProjector(
             layout, constraint_hash, special_width, policy=policy, image_plan=image,
             image_address_policy=image_address_policy,
-            candidate_program=candidate_program, peer_slots=peer_slots),
+            candidate_program=candidate_program, peer_slots=peer_slots,
+            peer_spacing_policy=peer_spacing_policy,
+            rfuzz_candidate_repair=rfuzz_candidate_repair),
     }
 
 
@@ -1014,7 +1024,8 @@ class ProfileCampaignProjector(SocRawProjector):
     instruction_mode = "profile-pre-reset-single-code-data-image"
 
     def __init__(self, layout, constraint_hash, special_width, *, policy, image_plan=None,
-                 image_address_policy="repair", candidate_program=None, peer_slots=()):
+                 image_address_policy="repair", candidate_program=None, peer_slots=(),
+                 peer_spacing_policy="reject", rfuzz_candidate_repair=False):
         super().__init__(layout, constraint_hash)
         self.special_width = special_width
         self.policy = policy
@@ -1022,9 +1033,17 @@ class ProfileCampaignProjector(SocRawProjector):
         if image_address_policy not in ("repair", "strict"):
             raise SocBuildError("profile-image-address-policy-invalid")
         self.image_address_policy = image_address_policy
+        if peer_spacing_policy not in ("reject", "drop_later"):
+            raise SocBuildError("profile-peer-spacing-policy-invalid")
+        self.peer_spacing_policy = peer_spacing_policy
         if candidate_program is not None and image_plan is None:
             raise SocBuildError("profile-candidate-program-without-an-image-plan")
         self.candidate_program = candidate_program
+        if type(rfuzz_candidate_repair) is not bool:
+            raise SocBuildError("profile-rfuzz-candidate-repair-invalid")
+        if rfuzz_candidate_repair and candidate_program is None:
+            raise SocBuildError("profile-rfuzz-candidate-repair-without-program")
+        self.rfuzz_candidate_repair = rfuzz_candidate_repair
         if not isinstance(peer_slots, Sequence) or isinstance(peer_slots, (str, bytes)):
             raise SocBuildError("profile-peer-slots-invalid")
         self.peer_slots = tuple(dict(item) for item in peer_slots)
@@ -1051,10 +1070,13 @@ class ProfileCampaignProjector(SocRawProjector):
         #: edges, bounded unknowns and counters), so a campaign run can publish
         #: what the projection really did instead of only its counters.
         self.last_repaired_test = None
+        self.last_candidate_input_normalization = None
         #: Semantic peer events decoded from the last projected sequence.  The
         #: raw ABI remains the source of truth; this is replay evidence only.
         self.last_peer_events = ()
         self.repair_counts = {"address_repair": 0}
+        if peer_spacing_policy == "drop_later":
+            self.repair_counts["peer_pulse_gap_drop"] = 0
 
     def project(self, raw):
         super().project(raw)
@@ -1141,6 +1163,8 @@ class ProfileCampaignProjector(SocRawProjector):
     def project_records(self, raw_values):
         values = tuple(raw_values)
         if self.candidate_program is not None:
+            if self.rfuzz_candidate_repair:
+                values = self._normalize_rfuzz_candidate_records(values)
             return self._project_declared_program(values)
         if self.image_plan is not None:
             for name in ("init_offer", "data_offer"):
@@ -1148,12 +1172,92 @@ class ProfileCampaignProjector(SocRawProjector):
                 if sum((raw >> lo) & 1 for raw in values) > 1:
                     raise SocBuildError("multiple-image-candidates-unsupported")
         projected = [self.project(raw) for raw in values]
+        projected = self._apply_peer_spacing_policy(projected)
         self._validate_peer_spacing(projected)
         if self.image_plan is not None:
             image_width = self.image_plan.raw_width
             self.image_plan.materialize_many(
                 [raw & ((1 << image_width) - 1) for raw in projected])
         return projected
+
+    def _normalize_rfuzz_candidate_records(self, values):
+        """Repair mutator-controlled slot controls while preserving raw payloads.
+
+        The declared program requires one instruction word for each instruction
+        slot.  RFuzz mutates the whole transport record without knowing that
+        contract, so a campaign normalizes the offer schedule to one slot per
+        canonical cycle and makes every active instruction/data offer a full
+        word.  Instruction/data payload bits and non-image input bits are left
+        untouched; the CandidateRepairer still owns address, ISA and dependency
+        repair after this boundary.
+        """
+        program = self.candidate_program
+        words = [int(value) for value in values]
+        instruction_slots = tuple(program.slots.instruction)
+        original_count = len(words)
+        if len(words) < len(instruction_slots):
+            words.extend([0] * (len(instruction_slots) - len(words)))
+
+        changes = {
+            "instruction_offers_added": 0,
+            "instruction_offers_cleared": 0,
+            "instruction_byte_enables_repaired": 0,
+            "data_offers_cleared": 0,
+            "data_byte_enables_repaired": 0,
+            "cycles_padded": len(words) - original_count,
+        }
+
+        def read(raw, segment):
+            return (raw >> segment.raw_lo) & ((1 << segment.width) - 1)
+
+        def write(raw, segment, value):
+            mask = ((1 << segment.width) - 1) << segment.raw_lo
+            return (raw & ~mask) | ((int(value) << segment.raw_lo) & mask)
+
+        for slot_index, slot in enumerate(instruction_slots):
+            offer = slot.segment("offer")
+            byte_enable = slot.segment("be")
+            for cycle in range(len(words)):
+                desired = int(cycle == slot_index)
+                previous = read(words[cycle], offer)
+                if previous != desired:
+                    if desired:
+                        changes["instruction_offers_added"] += 1
+                    else:
+                        changes["instruction_offers_cleared"] += 1
+                    words[cycle] = write(words[cycle], offer, desired)
+            if read(words[slot_index], byte_enable) != 0xF:
+                changes["instruction_byte_enables_repaired"] += 1
+                words[slot_index] = write(words[slot_index], byte_enable, 0xF)
+
+        for slot in program.slots.data:
+            offer = slot.segment("offer")
+            active_cycles = [cycle for cycle, raw in enumerate(words[:original_count])
+                             if read(raw, offer)]
+            retained_cycle = active_cycles[0] if active_cycles else None
+            for cycle in range(len(words)):
+                desired = int(cycle == retained_cycle)
+                previous = read(words[cycle], offer)
+                if previous != desired:
+                    changes["data_offers_cleared"] += int(previous and not desired)
+                    words[cycle] = write(words[cycle], offer, desired)
+            if retained_cycle is not None:
+                byte_enable = slot.segment("be")
+                if read(words[retained_cycle], byte_enable) != 0xF:
+                    changes["data_byte_enables_repaired"] += 1
+                    words[retained_cycle] = write(
+                        words[retained_cycle], byte_enable, 0xF)
+
+        for name, count in changes.items():
+            key = "candidate_fuzz_" + name
+            self.repair_counts[key] = self.repair_counts.get(key, 0) + int(count)
+        self.last_candidate_input_normalization = {
+            "schema_version": "rfuzz_candidate_input_normalization.v1",
+            "input_cycles": original_count,
+            "projected_cycles": len(words),
+            "changes": {name: int(value) for name, value in changes.items()},
+        }
+        return words
 
     def _validate_peer_spacing(self, values):
         """Decode peer events and reject requests closer than the model accepts."""
@@ -1165,6 +1269,46 @@ class ProfileCampaignProjector(SocRawProjector):
                 values, self.layout, self.peer_slots, validate_spacing=True)
         except PeerRawReplayError as error:
             raise SocBuildError(str(error)) from error
+
+    def _apply_peer_spacing_policy(self, values):
+        """Keep peer pulse streams legal, optionally dropping later close pulses.
+
+        RFuzz mutates raw bits without knowing peer timing constraints. The
+        profile campaign can preserve the first pulse and clear only later
+        pulse controls that violate a declared gap; direct projector users keep
+        the fail-closed reject policy by default.
+        """
+        projected = list(values)
+        if self.peer_spacing_policy != "drop_later" or not self.peer_slots:
+            return projected
+        last: dict[tuple[str, str], int] = {}
+        for cycle, raw in enumerate(projected):
+            for slot in self.peer_slots:
+                signals = slot.get("signals", ())
+                pulse_signals = [signal for signal in signals
+                                 if isinstance(signal, Mapping)
+                                 and signal.get("source") == "pulse"]
+                if not pulse_signals:
+                    continue
+                active = any(
+                    (raw >> int(signal["raw_lo"]))
+                    & ((1 << (int(signal["raw_hi"]) - int(signal["raw_lo"]) + 1)) - 1)
+                    for signal in pulse_signals)
+                if not active:
+                    continue
+                key = (str(slot.get("instance_id", "")),
+                       str(slot.get("slot", "")))
+                previous = last.get(key)
+                minimum = int(slot.get("minimum_gap_cycles", 0))
+                if previous is not None and cycle - previous < minimum:
+                    for signal in pulse_signals:
+                        lo, hi = int(signal["raw_lo"]), int(signal["raw_hi"])
+                        projected[cycle] &= ~(((1 << (hi - lo + 1)) - 1) << lo)
+                    self.repair_counts["peer_pulse_gap_drop"] += 1
+                    raw = projected[cycle]
+                    continue
+                last[key] = cycle
+        return projected
 
     def _project_declared_program(self, values):
         """Place a whole test through the plan's declared candidate program.
@@ -1186,6 +1330,7 @@ class ProfileCampaignProjector(SocRawProjector):
                 self.repair_counts[name] = self.repair_counts.get(name, 0) + value
         self.last_repaired_test = repaired
         request = list(repaired.request)
+        request = self._apply_peer_spacing_policy(request)
         self._validate_peer_spacing(request)
         return request
 
@@ -1206,7 +1351,8 @@ def _write_candidate_program_image(directory: Path, program) -> Path:
 
 def _build_profile_campaign_artifact(config, build_dir):
     """Compose profile RTL and publish the same protocol-2 artifact as the matrix path."""
-    from myfuzz.composition.soc_composition import build_composition, composition_document
+    from myfuzz.composition.soc_composition import (
+        STIMULUS_ADDRESS_STRATEGY, build_composition, composition_document)
     from myfuzz.composition.soc_profile_renderer import render_composition, source_list
     from myfuzz.composition.input_constraints import compile_input_constraints, input_constraint_document
     from myfuzz.composition.soc_image import build_image_plan, combined_input_layout
@@ -1235,7 +1381,9 @@ def _build_profile_campaign_artifact(config, build_dir):
     tool_version = str(tool_identity["version"])
     tool_env = dict(toolchain["environment"])
     drive_profile = str(config.get("drive_profile", "cpu_execute"))
-    plan = build_composition(request, base_dir=root, drive_profile=drive_profile)
+    address_strategy = str(config.get("address_strategy", STIMULUS_ADDRESS_STRATEGY))
+    plan = build_composition(request, base_dir=root, drive_profile=drive_profile,
+                             address_strategy=address_strategy)
     checker_manifest = None
     checker_profile = None
     if plan.request_id == CHECKER_REQUEST_ID:
@@ -1272,9 +1420,17 @@ def _build_profile_campaign_artifact(config, build_dir):
         image = candidate_program.image
     else:
         image = build_image_plan(plan)
+    rfuzz_candidate_repair = config.get("rfuzz_candidate_repair", False)
+    if type(rfuzz_candidate_repair) is not bool:
+        raise SocBuildError("profile-rfuzz-candidate-repair-invalid")
+    if rfuzz_candidate_repair and candidate_program is None:
+        raise SocBuildError("profile-rfuzz-candidate-repair-without-program")
     address_policy = config.get("image_address_policy", "repair")
     if address_policy not in ("repair", "strict"):
         raise SocBuildError("profile-image-address-policy-invalid")
+    peer_spacing_policy = config.get("peer_spacing_policy", "drop_later")
+    if peer_spacing_policy not in ("reject", "drop_later"):
+        raise SocBuildError("profile-peer-spacing-policy-invalid")
     image_targets = {}
     for kind, base, size in (("instruction", image.base, image.size),
                              ("data", image.data_base, image.data_size)):
@@ -1294,6 +1450,17 @@ def _build_profile_campaign_artifact(config, build_dir):
     ports = _parse_ports(rendered[top_name], rendered, request.request_id)
     checker_ports = (checker_feedback_observations(ports)
                      if checker_profile is not None else ())
+    opcode_coverage_ports = ()
+    if checker_profile is not None and any(
+            item.status == "active" and item.bit == 16
+            for item in checker_profile.properties):
+        opcode_port = next((item for item in ports
+                            if item.get("name") == "rvfi_opcode_coverage_o"), None)
+        if (opcode_port is None or opcode_port.get("direction") != "output"
+                or opcode_port.get("width") != 12):
+            raise SocBuildError("profile-rvfi-opcode-coverage-port-invalid")
+        opcode_coverage_ports = tuple(
+            ("rvfi_opcode_coverage_o", bit) for bit in range(12))
     special_width = int(plan.raw_layout["raw_width"])
     layout = combined_input_layout(plan, image)
     peer_slots = _peer_projection_slots(plan, layout, base_dir=root)
@@ -1394,7 +1561,9 @@ def _build_profile_campaign_artifact(config, build_dir):
             "image_hash": image.image_hash,
             "candidate_program_hash": (None if candidate_program is None else
                                        content_hash(candidate_program.document())),
+            "rfuzz_candidate_repair": rfuzz_candidate_repair,
             "image_address_policy": address_policy,
+            "peer_spacing_policy": peer_spacing_policy,
             "boot_image": _file_hash(boot),
             "external_input_defaults": dict(defaults),
             "closure": closure,
@@ -1419,6 +1588,10 @@ def _build_profile_campaign_artifact(config, build_dir):
                     and cached_document.get("layout_hash") == layout.layout_hash
                     and cached_document.get("policy_hash") == policy.policy_hash
                     and cached_document.get("image_hash") == image.image_hash
+                    and cached_document.get("peer_spacing_policy")
+                        == peer_spacing_policy
+                    and cached_document.get("rfuzz_candidate_repair", False)
+                        == rfuzz_candidate_repair
                     and cached_document.get("tool_identity") == tool_identity
                     and _cached_instrumentation_matches(
                         cache_entry, cached_document, instrumenter_identity)
@@ -1500,7 +1673,9 @@ def _build_profile_campaign_artifact(config, build_dir):
                     special_width=special_width, policy=policy, image=image,
                     image_address_policy=address_policy,
                     candidate_program=candidate_program,
-                    peer_slots=peer_slots)
+                    peer_slots=peer_slots,
+                    peer_spacing_policy=peer_spacing_policy,
+                    rfuzz_candidate_repair=rfuzz_candidate_repair)
                 instrumentation_stage.cleanup()
                 return SocCampaignArtifact(
                     # The monitor is part of the published artifact, not of the
@@ -1526,7 +1701,8 @@ def _build_profile_campaign_artifact(config, build_dir):
     try:
         structure_audit = audit_structure(
             plan, top_text=rendered[top_name], source_files=audit_sources,
-            base_dir=root, include_roots=audit_include_roots)
+            base_dir=root, include_roots=audit_include_roots,
+            defines=closure["defines"])
     except Exception as error:
         raise SocBuildError(f"profile-structure-audit-failed: {error}") from error
     summary = structure_audit.get("summary")
@@ -1560,7 +1736,7 @@ def _build_profile_campaign_artifact(config, build_dir):
     instrumentation_stage.cleanup()
     branch_ports = tuple((COVERAGE_SIGNAL, int(item["bit"]))
                          for item in instrumentation["plan"]["observed"])
-    coverage_ports = branch_ports + checker_ports
+    coverage_ports = branch_ports + checker_ports + opcode_coverage_ports
     (build / "rfuzz_input_transport.sv").write_text(transport.render_systemverilog())
     (build / "live_tb.sv").write_text(_testbench(
         layout, {"unmapped": [field.field_id for field in fields if not field.port]},
@@ -1596,6 +1772,8 @@ def _build_profile_campaign_artifact(config, build_dir):
                                     "layout_hash": layout.layout_hash,
                                     "image_plan_hash": image.image_hash,
                                     "image_address_policy": address_policy,
+                                    "peer_spacing_policy": peer_spacing_policy,
+                                    "rfuzz_candidate_repair": rfuzz_candidate_repair,
                                     "fixed_image": _file_hash(build / "boot_image.hex"),
                                     "external_defaults": dict(defaults)})
     # A declared candidate program really places several image candidates per
@@ -1636,13 +1814,33 @@ def _build_profile_campaign_artifact(config, build_dir):
                     "document_hash": content_hash(candidate_program.document()),
                     "image_loading": "each declared slot is overlaid into the memory "
                                      "model's initial_memory while the CPU is held in "
-                                     "reset; the static image carries the entry trampoline "
-                                     "and the generated prologue",
+                                     "reset; the static image carries the entry trampoline, "
+                                     "generated prologue and terminal self-loop",
                 }),
                 "image_loading": "buffer test records; overlay environment initial_memory; reset copies test-local image to memory before CPU release; process isolation restores fixed base between tests; no runtime image writes",
                 "image_address_policy": address_policy,
                 "image_address_repair": "deterministic declared-window word-slot mapping; projector.repair_counts[address_repair]",
+                "peer_spacing_policy": peer_spacing_policy,
+                "rfuzz_candidate_repair": rfuzz_candidate_repair,
+                "candidate_input_normalization": (
+                    {"schema_version": "rfuzz_candidate_input_normalization.v1",
+                     "scope": "official RFuzz profile campaign dependency-repair arm",
+                     "instruction_slots": "one canonical full-word offer per slot in "
+                                          "declared cycle order",
+                     "data_slots": "retain the first optional offer per slot and repair "
+                                    "its byte enable to full word",
+                     "preserved": ["instruction payload", "data payload",
+                                   "non-image input bits"],
+                     "repair_counts_prefix": "candidate_fuzz_"}
+                    if rfuzz_candidate_repair else None),
+                "peer_spacing_repair": (
+                    "clear later raw pulse controls that violate the declared gap; "
+                    "projector.repair_counts[peer_pulse_gap_drop]"
+                    if peer_spacing_policy == "drop_later"
+                    else "reject raw pulse streams that violate the declared gap"),
                 "image_hash": image.image_hash, "drive_profile": drive_profile,
+                "address_strategy": str(
+                    plan.stimulus.get("address_strategy", {}).get("selected", "")),
                 "mode": str(plan.stimulus.get("mode", "cpu_only")),
                 "synthetic_master": (dict(plan.synthetic) if plan.synthetic else None),
                 "peer_inputs": [
@@ -1657,9 +1855,18 @@ def _build_profile_campaign_artifact(config, build_dir):
                 "peer_event_mode": ("raw-abi-derived-v1" if plan.peers else None),
                 "peer_event_slots": [dict(item) for item in peer_slots],
                 "coverage_kind": ("source-instrumented-rtl-branch-plus-"
-                                  "checker-output-bit-events-u8-saturating"
+                                  "checker-output-bit-and-rvfi-opcode-events-u8-saturating"
                                   if checker_profile is not None else COVERAGE_KIND),
                 "branch_coverage_ports": [[name, bit] for name, bit in branch_ports],
+                "ibex_instruction_coverage": (None if not opcode_coverage_ports else {
+                    "source": "Ibex RVFI valid, non-trapping retirement records",
+                    "encoding": "12 one-hot instruction classes from rvfi_insn opcode/funct7",
+                    "bins": ["LUI", "AUIPC", "JAL", "JALR", "BRANCH", "LOAD",
+                             "STORE", "OP_IMM", "OP", "RV32M", "FENCE", "SYSTEM"],
+                    "observations": [[name, bit]
+                                     for name, bit in opcode_coverage_ports],
+                    "semantic_oracle": "not_assessed",
+                }),
                 "checker_feedback": (None if checker_profile is None else {
                     "profile_hash": checker_profile.profile_hash,
                     "manifest": "checker_profile.json",
@@ -1671,6 +1878,10 @@ def _build_profile_campaign_artifact(config, build_dir):
                                                  len(branch_ports) + 49],
                     "failure_counter_range": [len(branch_ports) + 50,
                                               len(branch_ports) + 99],
+                    "rvfi_opcode_coverage_counter_range": (
+                        None if not opcode_coverage_ports else
+                        [len(branch_ports) + 100,
+                         len(branch_ports) + 100 + len(opcode_coverage_ports) - 1]),
                     "observations": [[name, bit] for name, bit in checker_ports],
                     "properties": [
                         {"bit": item.bit, "property_id": item.property_id,
@@ -1725,7 +1936,9 @@ def _build_profile_campaign_artifact(config, build_dir):
         layout=layout, constraint_hash=constraint_hash, special_width=special_width,
         policy=policy, image=image, image_address_policy=address_policy,
         candidate_program=candidate_program,
-        peer_slots=peer_slots)
+        peer_slots=peer_slots,
+        peer_spacing_policy=peer_spacing_policy,
+        rfuzz_candidate_repair=rfuzz_candidate_repair)
     return SocCampaignArtifact(
         execution_monitor=dict(PROFILE_FABRIC_MONITOR),
         layout=layout, transport=transport, executable=executable,
@@ -1773,7 +1986,8 @@ def build_soc_campaign_artifact(config, build_dir):
     contracts = _target_contracts(cell, records, cpu, cell_id)
     plan = build_soc_plan(spec, execution, contracts)
     stimulus = compile_soc_stimulus(
-        plan, {"mode": mode, "address_strategy": "bias_off" if bias_off else "biased"})
+        plan, {"mode": mode, "address_strategy": str(config.get(
+            "address_strategy", "bias_off" if bias_off else "biased"))})
 
     rendered = render_soc(plan, stimulus)
     if not isinstance(rendered, Mapping) or "soc_top.sv" not in rendered:

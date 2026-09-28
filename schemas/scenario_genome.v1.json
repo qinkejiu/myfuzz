@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://myfuzz.local/schemas/scenario_genome.v1.json",
+  "title": "Continuous scenario Genome JSON envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["testcase_id", "direction", "path_id", "schedule_order", "max_steps", "actions", "initial_images", "encoding_version"],
+  "properties": {
+    "testcase_id": {"$ref": "#/$defs/name"},
+    "direction": {"$ref": "#/$defs/direction"},
+    "path_id": {"$ref": "#/$defs/name"},
+    "schedule_order": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/name"}},
+    "max_steps": {"type": "integer", "minimum": 1},
+    "actions": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["action_id", "component", "port", "value", "direction", "trigger", "delay_component", "delay_ticks", "bit_offset", "width"], "properties": {"action_id": {"$ref": "#/$defs/name"}, "component": {"$ref": "#/$defs/name"}, "port": {"$ref": "#/$defs/name"}, "value": {"$ref": "#/$defs/natural"}, "direction": {"$ref": "#/$defs/direction"}, "trigger": {"$ref": "#/$defs/trigger"}, "delay_component": {"type": "string"}, "delay_ticks": {"$ref": "#/$defs/natural"}, "bit_offset": {"$ref": "#/$defs/natural"}, "width": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 1}]}}}},
+    "initial_images": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["image_id", "component", "address", "data_hex"], "properties": {"image_id": {"$ref": "#/$defs/name"}, "component": {"$ref": "#/$defs/name"}, "address": {"$ref": "#/$defs/natural"}, "data_hex": {"type": "string", "pattern": "^(?:[0-9a-f]{2})+$"}}}},
+    "encoding_version": {"enum": [2, 3]},
+    "reset_actions": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["action_id", "policy", "trigger", "delay_component", "delay_ticks"], "properties": {"action_id": {"$ref": "#/$defs/name"}, "policy": {"enum": ["warm_all", "cold_all"]}, "trigger": {"$ref": "#/$defs/trigger"}, "delay_component": {"type": "string"}, "delay_ticks": {"$ref": "#/$defs/natural"}}}},
+    "quiesce_steps": {"type": "integer", "minimum": 0, "maximum": 4096}
+  },
+  "allOf": [
+    {"if": {"properties": {"encoding_version": {"const": 2}}}, "then": {"not": {"anyOf": [{"required": ["reset_actions"]}, {"required": ["quiesce_steps"]}]}}},
+    {"if": {"properties": {"encoding_version": {"const": 3}}}, "then": {"required": ["reset_actions", "quiesce_steps"]}}
+  ],
+  "$defs": {
+    "name": {"type": "string", "minLength": 1},
+    "natural": {"type": "integer", "minimum": 0},
+    "direction": {"enum": ["CPU_TO_IP", "IP_TO_CPU", "IP_TO_IP", "CPU_TO_IP_TO_CPU", "IP_TO_CPU_TO_IP", "MULTI_COMPONENT_CHAIN"]},
+    "trigger": {"type": "object", "additionalProperties": false, "required": ["kind", "source_component", "source_port", "mask", "value", "occurrence"], "properties": {"kind": {"enum": ["START", "AFTER_OUTPUT"]}, "source_component": {"type": "string"}, "source_port": {"type": "string"}, "mask": {"$ref": "#/$defs/natural"}, "value": {"$ref": "#/$defs/natural"}, "occurrence": {"type": "integer", "minimum": 1}}}
+  }
+}

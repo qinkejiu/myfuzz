@@ -1,0 +1,71 @@
+- V e r i l a t i o n   R e p o r t: Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67
+- Verilator: Built from 23.884 MB sources in 69 modules, into 0.634 MB in 3 C++ files needing 0.000 MB
+- Verilator: Walltime 0.247 s (elab=0.067, cvt=0.113, bld=0.000); cpu 0.255 s on 1 threads; allocated 50.895 MB
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_fifo_sync.sv:13:26: Operator VAR 'ReqDepth' expects 32 bits on the Initial value, but Initial value's CONST '4'h0' generates 4 bits.
+   13 |   parameter int unsigned ReqDepth = 2,
+      |                          ^~~~~~~~
+                      ... For warning description see https://verilator.org/warn/WIDTHEXPAND?v=5.051
+                      ... Use "/* verilator lint_off WIDTHEXPAND */" and lint_on around source to disable this message.
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_fifo_sync.sv:14:26: Operator VAR 'RspDepth' expects 32 bits on the Initial value, but Initial value's CONST '4'h0' generates 4 bits.
+   14 |   parameter int unsigned RspDepth = 2,
+      |                          ^~~~~~~~
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:502:38: Operator SUB expects 32 bits on the LHS, but LHS's VARREF 'SPI_DEVICE_INGRESS_BUFFER_OFFSET' generates 13 bits.
+                                                                                             : ... note: In instance 'spi_host'
+  502 |     SPI_DEVICE_INGRESS_BUFFER_OFFSET - SPI_DEVICE_EGRESS_BUFFER_OFFSET;
+      |                                      ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:502:38: Operator SUB expects 32 bits on the RHS, but RHS's VARREF 'SPI_DEVICE_EGRESS_BUFFER_OFFSET' generates 13 bits.
+                                                                                             : ... note: In instance 'spi_host'
+  502 |     SPI_DEVICE_INGRESS_BUFFER_OFFSET - SPI_DEVICE_EGRESS_BUFFER_OFFSET;
+      |                                      ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/prim/rtl/prim_diff_decode.sv:162:28: Operator LT expects 32 bits on the LHS, but LHS's VARREF 'skew_cnt_q' generates 1 bits.
+                                                                                         : ... note: In instance 'spi_host.gen_alert_tx[0].u_prim_alert_sender.u_decode_ack'
+  162 |             if (skew_cnt_q < SkewCycles) begin
+      |                            ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:509:41: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'SramReadBufferIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_host'
+  509 |     bit unused_bit [((SramReadBufferIdx == spi_device_reg_pkg::SramReadBufferOffset) ? 1 : -1)];                     
+      |                                         ^~
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:514:38: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'SramMailboxIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_host'
+  514 |     bit unused_bit [((SramMailboxIdx == spi_device_reg_pkg::SramMailboxOffset) ? 1 : -1)];                     
+      |                                      ^~
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:519:35: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'SramSfdpIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_host'
+  519 |     bit unused_bit [((SramSfdpIdx == spi_device_reg_pkg::SramSfdpOffset) ? 1 : -1)];                     
+      |                                   ^~
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:524:40: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'SramTpmRdFifoIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_host'
+  524 |     bit unused_bit [((SramTpmRdFifoIdx == spi_device_reg_pkg::SramTpmRdFifoOffset) ? 1 : -1)];                     
+      |                                        ^~
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:531:39: Operator SUB expects 32 bits on the LHS, but LHS's VARREF 'SramPayloadIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_host'
+  531 |     bit unused_bit [(((SramPayloadIdx - SramIngressIdx) == spi_device_reg_pkg::SramPayloadOffset) ? 1 : -1)];                     
+      |                                       ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:531:39: Operator SUB expects 32 bits on the RHS, but RHS's VARREF 'SramIngressIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_host'
+  531 |     bit unused_bit [(((SramPayloadIdx - SramIngressIdx) == spi_device_reg_pkg::SramPayloadOffset) ? 1 : -1)];                     
+      |                                       ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:536:39: Operator SUB expects 32 bits on the LHS, but LHS's VARREF 'SramCmdFifoIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_host'
+  536 |     bit unused_bit [(((SramCmdFifoIdx - SramIngressIdx) == spi_device_reg_pkg::SramCmdFifoOffset) ? 1 : -1)];                     
+      |                                       ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:536:39: Operator SUB expects 32 bits on the RHS, but RHS's VARREF 'SramIngressIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_host'
+  536 |     bit unused_bit [(((SramCmdFifoIdx - SramIngressIdx) == spi_device_reg_pkg::SramCmdFifoOffset) ? 1 : -1)];                     
+      |                                       ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:541:40: Operator SUB expects 32 bits on the LHS, but LHS's VARREF 'SramAddrFifoIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_host'
+  541 |     bit unused_bit [(((SramAddrFifoIdx - SramIngressIdx) == spi_device_reg_pkg::SramAddrFifoOffset) ? 1 : -1)];                     
+      |                                        ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:541:40: Operator SUB expects 32 bits on the RHS, but RHS's VARREF 'SramIngressIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_host'
+  541 |     bit unused_bit [(((SramAddrFifoIdx - SramIngressIdx) == spi_device_reg_pkg::SramAddrFifoOffset) ? 1 : -1)];                     
+      |                                        ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:546:41: Operator SUB expects 32 bits on the LHS, but LHS's VARREF 'SramTpmWrFifoIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_host'
+  546 |     bit unused_bit [(((SramTpmWrFifoIdx - SramIngressIdx) == spi_device_reg_pkg::SramTpmWrFifoOffset) ? 1 : -1)];                     
+      |                                         ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:546:41: Operator SUB expects 32 bits on the RHS, but RHS's VARREF 'SramIngressIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_host'
+  546 |     bit unused_bit [(((SramTpmWrFifoIdx - SramIngressIdx) == spi_device_reg_pkg::SramTpmWrFifoOffset) ? 1 : -1)];                     
+      |                                         ^

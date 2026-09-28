@@ -301,15 +301,18 @@ class CandidateProgram:
 
         Byte 0 is the first byte of the executable region: the entry trampoline,
         the generated prologue, then zeroes up to the end of the declared
-        program window.  A campaign's fixed boot image is exactly this, and a
+        program window, followed by a frozen self-loop. A campaign's fixed boot
+        image is exactly this, and a
         test's candidate slots are overlaid on top of it (by ``initial_memory``
         in the RFuzz campaign path, or by the repairer's own ``request`` words).
         """
         base = self.image.base
-        end = self.program_base + self.program_size
+        end = self.program_base + self.program_size + WORD_BYTES
         image = bytearray(end - base)
         for payload, address in ((self.entry_bytes(), self.entry_address),
-                                 (self.prologue_bytes(), self.prologue_address)):
+                                 (self.prologue_bytes(), self.prologue_address),
+                                 (_enc_j(0, 0, 0x6F).to_bytes(WORD_BYTES, "little"),
+                                  self.program_base + self.program_size)):
             offset = address - base
             image[offset:offset + len(payload)] = payload
         return bytes(image)
@@ -354,14 +357,21 @@ class CandidateProgram:
                                      "window is projected onto the window with "
                                      "project_address() and the instruction is re-encoded",
             },
+            "postlude": {
+                "address": self.program_base + self.program_size,
+                "word": "0x0000006f",
+                "operation": "jal x0, 0",
+                "purpose": "keep the CPU in a legal self-loop after the candidate slots",
+            },
             "candidates": self.image.candidates.document(),
             "static_image": {
                 "base": self.image.base,
                 "bytes": len(self.static_image()),
                 "content_hash": "sha256:" + hashlib.sha256(
                     self.static_image()).hexdigest(),
-                "content": "entry trampoline + generated prologue; the declared program "
-                           "window is zero until a test overlays its candidates",
+                "content": "entry trampoline + generated prologue + postlude self-loop; "
+                           "the declared program window is zero until a test overlays "
+                           "its candidates",
             },
             "isa": dict(self.isa),
             "policy": self.policy.document(),
@@ -546,12 +556,13 @@ def build_candidate_program(plan: CompositionPlan, *,
             data_base + policy.data_slot_offset + WORD_BYTES * index
 
     program_size = WORD_BYTES * instruction_candidates
-    if program_base + program_size > rom_base + rom_size:
-        _error(f"candidate-program-exceeds-region:0x{program_base + program_size:x}"
+    static_end = program_base + program_size + WORD_BYTES
+    if static_end > rom_base + rom_size:
+        _error(f"candidate-program-exceeds-region:0x{static_end:x}"
                f">0x{rom_base + rom_size:x}")
-    if program_base + program_size - rom_base > MAX_PROGRAM_BYTES:
+    if static_end - rom_base > MAX_PROGRAM_BYTES:
         _error(f"candidate-program-exceeds-bound:"
-               f"0x{program_base + program_size - rom_base:x}>{MAX_PROGRAM_BYTES}")
+               f"0x{static_end - rom_base:x}>{MAX_PROGRAM_BYTES}")
     data_end = data_base + policy.data_slot_offset + WORD_BYTES * data_candidates
     if data_end > ram_base + ram_size:
         _error(f"candidate-data-slots-exceed-region:0x{data_end:x}"
@@ -571,6 +582,8 @@ def build_candidate_program(plan: CompositionPlan, *,
         f"program: {instruction_candidates} instruction slot(s) from 0x{program_base:08x} "
         f"to 0x{program_base + program_size:08x}, four bytes apart, executed in declared "
         f"order after the prologue",
+        f"postlude at 0x{program_base + program_size:08x}: jal x0, 0 keeps the CPU in a "
+        f"legal self-loop after the last candidate slot",
         f"data: {data_candidates} data slot(s) from "
         f"0x{data_base + policy.data_slot_offset:08x}, frozen into the writable region "
         f"{ram['region_id']} before the CPU is released",
@@ -1530,6 +1543,9 @@ class CandidateRepairer:
         self._frozen: dict[int, int] = {}
         self._frozen.update(_bytes_map(program.entry_bytes(), program.entry_address))
         self._frozen.update(_bytes_map(program.prologue_bytes(), program.prologue_address))
+        self._frozen.update(_bytes_map(
+            _enc_j(0, 0, 0x6F).to_bytes(WORD_BYTES, "little"),
+            program.program_base + program.program_size))
 
     # -- public ------------------------------------------------------------
 
@@ -1710,14 +1726,17 @@ class CandidateRepairer:
     def _static_images(self) -> dict[int, bytes]:
         """The bytes the *plan* freezes in the executable region.
 
-        The entry trampoline and the generated prologue are not fuzz candidates:
-        no test may change them, they are part of every test's image, and the
+        The entry trampoline, generated prologue and terminal self-loop are not
+        fuzz candidates: no test may change them, they are part of every test's
+        image, and the
         campaign path must publish them as the fixed boot image a per-test
         overlay is applied on top of.
         """
         images = {
             self.program.entry_address: self.program.entry_bytes(),
             self.program.prologue_address: self.program.prologue_bytes(),
+            self.program.program_base + self.program.program_size:
+                _enc_j(0, 0, 0x6F).to_bytes(WORD_BYTES, "little"),
         }
         return {address: payload for address, payload in images.items() if payload}
 

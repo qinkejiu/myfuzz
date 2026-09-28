@@ -1,0 +1,12 @@
+{
+  "cpu_irq": "constant_zero",
+  "cpu_seed": "cva6_cpu_two_gpio_campaign_seed.json",
+  "cross_component_bindings": [],
+  "gpio_b_local_irq_setup": {
+    "cpu_group_mask": 1,
+    "ip_group_mask": 256
+  },
+  "local_response_model": "persistent_shadow_registers",
+  "reverse_seed": "cva6_independent_gpio_reverse_campaign_seed.json",
+  "schema_version": "scenario_independent_baseline.v1"
+}

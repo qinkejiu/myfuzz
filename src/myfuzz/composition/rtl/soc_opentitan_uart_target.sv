@@ -48,6 +48,8 @@ module soc_opentitan_uart_target #(
   output logic        obs_spi_cs0_o,
   output logic        obs_spi_sdo0_o,
   output logic        obs_uart_tx_o,
+  output logic        obs_uart_tx_done_o,
+  output logic        obs_uart_tx_watermark_o,
   output logic        irq_o,
   output logic        gpio_irq_o
 );
@@ -128,6 +130,8 @@ module soc_opentitan_uart_target #(
   assign irq_o = intr_tx_watermark | intr_tx_empty | intr_rx_watermark
                | intr_tx_done | intr_rx_overflow | intr_rx_frame_err
                | intr_rx_break_err | intr_rx_timeout | intr_rx_parity_err;
+  assign obs_uart_tx_done_o = intr_tx_done;
+  assign obs_uart_tx_watermark_o = intr_tx_watermark;
 
   assign obs_gpio_out_o = '0;
   assign obs_gpio_dir_o = '0;

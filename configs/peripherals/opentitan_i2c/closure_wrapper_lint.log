@@ -1,0 +1,9 @@
+- V e r i l a t i o n   R e p o r t: Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67
+- Verilator: Built from 24.527 MB sources in 75 modules, into 1.234 MB in 3 C++ files needing 0.000 MB
+- Verilator: Walltime 0.401 s (elab=0.086, cvt=0.232, bld=0.000); cpu 0.421 s on 1 threads; allocated 60.918 MB
+%Warning-WIDTHEXPAND: /home/qinkejiu/myfuzz/third_party/soc-opentitan/hw/ip/prim/rtl/prim_diff_decode.sv:162:28: Operator LT expects 32 bits on the LHS, but LHS's VARREF 'skew_cnt_q' generates 1 bits.
+                                                                                                               : ... note: In instance 'opentitan_i2c_closure_wrapper.u_i2c.gen_alert_tx[0].u_prim_alert_sender.u_decode_ack'
+  162 |             if (skew_cnt_q < SkewCycles) begin
+      |                            ^
+                      ... For warning description see https://verilator.org/warn/WIDTHEXPAND?v=5.051
+                      ... Use "/* verilator lint_off WIDTHEXPAND */" and lint_on around source to disable this message.

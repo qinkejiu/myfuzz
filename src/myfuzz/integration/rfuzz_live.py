@@ -1,6 +1,6 @@
 """Run the official RFuzz mutator against a generated persistent RTL simulator."""
 import ctypes
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 import hashlib
 import json
 import math
@@ -22,6 +22,49 @@ from .campaign import CampaignError, read_process_group_rss_bytes
 
 MAX_FAILURE_CASES = 1024
 MAX_FAILURE_BYTES = 64 * 1024 * 1024
+MAX_PROJECTION_REJECTIONS = 1024
+MAX_PROJECTION_REJECTION_BYTES = 64 * 1024 * 1024
+ISOLATED_DRAIN_LIMIT_SECONDS = 420
+
+
+def _drain_limit_seconds(artifact):
+    """Bound completion of an in-flight official RFuzz batch after SIGINT."""
+    # The pinned client can hand over a batch of up to 21,845 inputs. CPU
+    # campaigns restart the simulator for every testcase, so measured batches
+    # need longer than the ordinary live-run drain allowance.
+    return ISOLATED_DRAIN_LIMIT_SECONDS if getattr(artifact, "isolate_tests", False) else 60
+
+
+def _rfuzz_client_buffer_kib(environment=None):
+    """Resolve the patched official client's optional shared-memory batch size."""
+    values = os.environ if environment is None else environment
+    if not isinstance(values, Mapping):
+        raise ValueError("rfuzz-client-buffer-kib:environment-required")
+    raw = values.get("MYFUZZ_RFUZZ_TEST_BUFFER_KIB")
+    if raw is None:
+        return 1024
+    if not isinstance(raw, str) or not raw.isdecimal():
+        raise ValueError("rfuzz-client-buffer-kib:decimal-required")
+    kib = int(raw)
+    if not 64 <= kib <= 65536:
+        raise ValueError("rfuzz-client-buffer-kib:outside-bounds")
+    return kib
+
+
+def _rfuzz_client_max_runs(environment=None):
+    """Resolve the optional official-client mutation-call batch limit."""
+    values = os.environ if environment is None else environment
+    if not isinstance(values, Mapping):
+        raise ValueError("rfuzz-client-max-runs:environment-required")
+    raw = values.get("MYFUZZ_RFUZZ_MAX_RUNS_PER_BATCH")
+    if raw is None:
+        return 16384
+    if not isinstance(raw, str) or not raw.isdecimal():
+        raise ValueError("rfuzz-client-max-runs:decimal-required")
+    count = int(raw)
+    if not 256 <= count <= 16384:
+        raise ValueError("rfuzz-client-max-runs:outside-bounds")
+    return count
 
 
 class CheckerFailureStore:
@@ -99,6 +142,86 @@ class CheckerFailureStore:
         return entry
 
 
+class ProjectionRejectionStore:
+    """Save bounded raw RFuzz inputs refused by the declared candidate program."""
+
+    def __init__(self, output_dir, artifact, *, max_cases=MAX_PROJECTION_REJECTIONS,
+                 max_bytes=MAX_PROJECTION_REJECTION_BYTES):
+        self.directory = Path(output_dir) / "projection_rejections"
+        self.artifact = artifact
+        self.max_cases = max_cases
+        self.max_bytes = max_bytes
+        self.cases = []
+        self.by_hash = {}
+        self.saved_bytes = 0
+        self.repeated_cases = 0
+        self.dropped_cases = 0
+
+    @property
+    def saved_cases(self):
+        return len(self.cases)
+
+    def document(self):
+        return {
+            "schema_version": "rfuzz_projection_rejection_manifest.v1",
+            "entries": self.saved_cases,
+            "saved_bytes": self.saved_bytes,
+            "repeated_cases": self.repeated_cases,
+            "dropped_cases": self.dropped_cases,
+            "max_cases": self.max_cases,
+            "max_bytes": self.max_bytes,
+            "cases": list(self.cases),
+        }
+
+    def record(self, records, rejection):
+        width = self.artifact.transport.byte_count
+        if (not records or any(not isinstance(row, bytes) or len(row) != width
+                               for row in records)):
+            raise ValueError("projection rejection raw record width mismatch")
+        if (not isinstance(rejection, Mapping)
+                or not isinstance(rejection.get("type"), str)
+                or not isinstance(rejection.get("message"), str)):
+            raise ValueError("projection rejection reason is invalid")
+        payload = b"".join(records)
+        input_hash = _hash_bytes(payload)
+        prior = self.by_hash.get(input_hash)
+        if prior is not None:
+            prior["occurrences"] += 1
+            self.repeated_cases += 1
+            return prior
+        if self.saved_cases >= self.max_cases or self.saved_bytes + len(payload) > self.max_bytes:
+            self.dropped_cases += 1
+            return None
+        filename = f"case_{input_hash.removeprefix('sha256:')}.bin"
+        entry = {
+            "input_sha256": input_hash,
+            "raw_file": filename,
+            "record_width_bytes": width,
+            "cycles": len(records),
+            "occurrences": 1,
+            "rejection_type": rejection["type"][:128],
+            "rejection_message": rejection["message"][:512],
+        }
+        self.directory.mkdir(parents=True, exist_ok=True)
+        raw_path = self.directory / filename
+        staging_raw = self.directory / (filename + ".tmp")
+        staging_raw.write_bytes(payload)
+        staging_raw.replace(raw_path)
+        self.cases.append(entry)
+        self.by_hash[input_hash] = entry
+        self.saved_bytes += len(payload)
+        self.write_manifest()
+        return entry
+
+    def write_manifest(self):
+        self.directory.mkdir(parents=True, exist_ok=True)
+        manifest = self.directory / "manifest.json"
+        staging = self.directory / "manifest.json.tmp"
+        staging.write_bytes(canonical_bytes(self.document()))
+        staging.replace(manifest)
+        return manifest
+
+
 def _hash_bytes(data):
     return "sha256:" + hashlib.sha256(data).hexdigest()
 
@@ -139,6 +262,45 @@ def _binary_hash(artifact):
     if not path.is_file():
         return "unavailable"
     return _hash_bytes(path.read_bytes())
+
+
+def _ibex_instruction_coverage_document(artifact, counter_maxima):
+    """Decode the RVFI instruction-class counters into a named campaign summary."""
+    build = getattr(artifact, "build_document", None)
+    coverage = build.get("ibex_instruction_coverage") if isinstance(build, Mapping) else None
+    if not isinstance(coverage, Mapping):
+        return None
+    bins = coverage.get("bins")
+    observations = coverage.get("observations")
+    ports = tuple(getattr(artifact, "coverage_ports", ()))
+    if (not isinstance(bins, Sequence) or isinstance(bins, (str, bytes))
+            or not isinstance(observations, Sequence)
+            or isinstance(observations, (str, bytes))
+            or len(bins) != len(observations)):
+        return {"status": "invalid-build-coverage-map", "bins": {}}
+    maxima = tuple(counter_maxima)
+    results = {}
+    for name, observation in zip(bins, observations):
+        if (not isinstance(name, str) or not isinstance(observation, Sequence)
+                or isinstance(observation, (str, bytes)) or len(observation) != 2):
+            return {"status": "invalid-build-coverage-map", "bins": {}}
+        port = (str(observation[0]), int(observation[1]))
+        try:
+            index = ports.index(port)
+        except ValueError:
+            return {"status": "invalid-build-coverage-map", "bins": {}}
+        count = maxima[index] if index < len(maxima) else 0
+        results[name] = {"counter_maximum": int(count), "covered": int(count) > 0}
+    covered = sum(item["covered"] for item in results.values())
+    return {
+        "status": "observed",
+        "source": coverage.get("source"),
+        "semantic_oracle": coverage.get("semantic_oracle", "not_assessed"),
+        "covered_bins": covered,
+        "total_bins": len(results),
+        "all_bins_covered": covered == len(results),
+        "bins": results,
+    }
 
 
 def _physical_control_document(artifact):
@@ -365,8 +527,28 @@ def _owned_segments(pid):
     return result
 
 
+def encode_initial_seed(artifact, values, seed_cycles):
+    """Pack an optional one-raw-sample-per-cycle RFuzz starting seed."""
+    if values is None:
+        return None
+    if isinstance(values, (str, bytes)) or not isinstance(values, Sequence):
+        raise ValueError("initial-seed:sample-array-required")
+    if len(values) != seed_cycles:
+        raise ValueError("initial-seed:cycle-count-mismatch")
+    raw_width = int(artifact.layout.raw_width)
+    payload = bytearray()
+    for value in values:
+        if type(value) is not int or not 0 <= value < (1 << raw_width):
+            raise ValueError("initial-seed:sample-out-of-range")
+        record = artifact.transport.pack(value)
+        if not isinstance(record, bytes) or len(record) != int(artifact.transport.byte_count):
+            raise ValueError("initial-seed:transport-record-invalid")
+        payload.extend(record)
+    return bytes(payload)
+
+
 def run_live(artifact, client_binary, output_dir, *, duration_seconds=30, seed_cycles=5,
-             environment=None):
+             initial_seed_values=None, environment=None):
     """Retain a failure report even when startup or an RTL exchange raises."""
     state = {}
     def terminated(signum, frame):
@@ -380,6 +562,7 @@ def run_live(artifact, client_binary, output_dir, *, duration_seconds=30, seed_c
     try:
         result = _run_live(artifact, client_binary, output_dir,
                            duration_seconds=duration_seconds, seed_cycles=seed_cycles, state=state,
+                           initial_seed_values=initial_seed_values,
                            environment=environment)
         if "termination_signal" in state:
             raise KeyboardInterrupt(state["termination_signal"] + " received during RFuzz run")
@@ -396,17 +579,22 @@ def run_live(artifact, client_binary, output_dir, *, duration_seconds=30, seed_c
 
 
 def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, seed_cycles=5,
-              environment=None):
+              initial_seed_values=None, environment=None):
     if type(duration_seconds) not in (int,float) or not math.isfinite(duration_seconds) or not 0 < duration_seconds <= 86400:
         raise ValueError("finite positive live duration required")
     if type(seed_cycles) is not int or not 1 <= seed_cycles <= 200:
         raise ValueError("seed cycles must be between 1 and 200")
+    client_buffer_kib = _rfuzz_client_buffer_kib(environment)
+    client_max_runs = _rfuzz_client_max_runs(environment)
+    initial_seed = encode_initial_seed(artifact, initial_seed_values, seed_cycles)
     binary=Path(client_binary).resolve(strict=True)
     output=Path(output_dir).absolute()
     if output.exists() or output.is_symlink():
         raise ValueError("live output must be new")
     output.mkdir(parents=True)
-    state.update(_output=output, tests=0, status="starting", layout_hash=artifact.layout.layout_hash,
+    state.update(_output=output, tests=0, rtl_tests=0, status="starting", layout_hash=artifact.layout.layout_hash,
+                 rfuzz_client_buffer_kib=client_buffer_kib,
+                 rfuzz_client_max_runs_per_batch=client_max_runs,
                  client_binary=str(binary), client_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),
                  coverage_kind=artifact.coverage_kind, requested_duration_seconds=duration_seconds,
                  transport=artifact.transport.document(),
@@ -429,7 +617,16 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
     state["mutation_seed"] = None
     state["mutation_seed_policy"] = "upstream has no global seed option; retain corpus lineage and raw inputs for replay"
     state["mutation_mode"] = "official default deterministic and havoc mutation, JQF level 2"
-    state["initial_seed"] = {"kind": "all-zero", "cycles": seed_cycles}
+    seed_path = None
+    if initial_seed is None:
+        state["initial_seed"] = {"kind": "all-zero", "cycles": seed_cycles}
+    else:
+        seed_path = output / "initial_seed.bin"
+        seed_path.write_bytes(initial_seed)
+        state["initial_seed"] = {
+            "kind": "explicit-raw-samples", "cycles": seed_cycles,
+            "sha256": _hash_bytes(initial_seed), "file": seed_path.name,
+        }
     config=output/"rfuzz.toml"
     config.write_text(_configuration(artifact))
     state["config_sha256"] = hashlib.sha256(config.read_bytes()).hexdigest()
@@ -437,11 +634,14 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
     deadline=started+duration_seconds
     # Upstream completes a full shared-memory batch before honoring SIGINT.
     # Process-isolated RTL tests need a larger, still bounded drain allowance.
-    drain_limit = 180 if getattr(artifact, "isolate_tests", False) else 60
+    drain_limit = _drain_limit_seconds(artifact)
     state["drain_limit_seconds"] = drain_limit
     tests=0
+    rtl_tests=0
+    projection_rejections=0
     maxima=[0]*len(artifact.coverage_ports)
     failure_store = CheckerFailureStore(output, artifact)
+    projection_rejection_store = ProjectionRejectionStore(output, artifact)
     peak=0
     next_memory_check=0
     interrupted=False
@@ -455,13 +655,18 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
     receipt_records = []
     execution_totals = {}
     next_checkpoint = started
-    with FifoEndpoint() as endpoint, RtlSimulator(artifact) as simulator, (output/"client.log").open("wb") as log:
+    with FifoEndpoint() as endpoint, RtlSimulator(
+            artifact, reject_invalid_projection=True) as simulator, (output/"client.log").open("wb") as log:
         # The pinned client's prettytable 0.6.7 crashes on this Rust build when
         # -c prints the final table. Omit only that optional presentation step;
         # upstream still saves corpus, statistics and its final raw bitmap.
         try:
-            client=subprocess.Popen(("nice","-n15",str(binary),str(config),"-s",endpoint.directory.name,
-                "-o",str(output/"corpus"), "--seed-cycles", str(seed_cycles)),stdout=log,stderr=subprocess.STDOUT,
+            command = ["nice", "-n15", str(binary), str(config), "-s",
+                       endpoint.directory.name, "-o", str(output / "corpus"),
+                       "--seed-cycles", str(seed_cycles)]
+            if seed_path is not None:
+                command.extend(("--seed-input", str(seed_path)))
+            client=subprocess.Popen(tuple(command),stdout=log,stderr=subprocess.STDOUT,
                 start_new_session=True, env=(None if environment is None else dict(environment)))
             state.update(status="running", client_pid=client.pid, command=list(client.args),
                          compatibility="omit optional -c prettytable output; mutation mode unchanged")
@@ -488,6 +693,8 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
                 if now >= next_checkpoint:
                     checkpoint = {
                         "elapsed_seconds": now-started, "tests": tests,
+                        "actual_rtl_tests": rtl_tests,
+                        "projection_rejections": projection_rejections,
                         "counter_maxima": maxima, "peak_rss_bytes": peak,
                         "corpus_entries": len(tuple((output/"corpus").glob("entry_*.json"))),
                         "coverage_sha256": _hash_bytes(bytes(maxima)),
@@ -510,17 +717,28 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
                 if now>=deadline+drain_limit:
                     raise TimeoutError("RFuzz client failed to finish after interrupt")
             def execute(records):
-                nonlocal tests
+                nonlocal tests, rtl_tests, projection_rejections
                 check()
                 try:
                     counters=simulator.run_test(records, monitor=check)
                 finally:
                     _record_simulator_diagnostics(state, simulator)
+                tests += 1
+                state["tests"] = tests
+                rejection = getattr(simulator, "last_projection_rejection", None)
+                if rejection is not None:
+                    if any(counters):
+                        raise RuntimeError("rejected RFuzz input received nonzero coverage")
+                    projection_rejections += 1
+                    projection_rejection_store.record(records, rejection)
+                    state["projection_rejections"] = projection_rejection_store.document()
+                    state["projection_rejection_count"] = projection_rejections
+                    return counters
+                rtl_tests += 1
+                state["rtl_tests"] = rtl_tests
                 for key, value in getattr(simulator, "last_execution", {}).items():
                     execution_totals[key] = execution_totals.get(key, 0) + value
                 state["execution_totals"] = dict(execution_totals)
-                tests+=1
-                state["tests"] = tests
                 for index,value in enumerate(counters):
                     maxima[index]=max(maxima[index],value)
                 failure_store.record(records, counters)
@@ -574,18 +792,24 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
                                  "transport": "sysv-shared-memory-rfuzz-coverage-buffer",
                                  "records": tests,
                                  "counter_width": 8,
+                                 "actual_rtl_records": rtl_tests,
+                                 "projection_rejections": projection_rejections,
                              },
                              checker_failures=failure_store.document(),
+                             projection_rejections=projection_rejection_store.document(),
+                             projection_rejection_count=projection_rejections,
                              fifo_reply_receipts=receipt_records,
                              fifo_reply_receipt_count=len(receipts),
                              fifo_reply_receipt_sample_limit=4096,
                              actual_rtl_execution={
-                                 "tests": tests,
+                                 "tests": rtl_tests,
                                  "execution_totals": dict(execution_totals),
                                  "coverage_records": len(receipts),
+                                 "projection_rejections": projection_rejections,
                              },
                              peak_rss_bytes=peak, duration_seconds=time.monotonic()-started,
                              removed_owned_segments=removed, remaining_segments=_owned_segments(client.pid))
+                projection_rejection_store.write_manifest()
                 projection = getattr(simulator, "projection_document", None)
                 if callable(projection):
                     try:
@@ -605,15 +829,21 @@ def _run_live(artifact, client_binary, output_dir, *, duration_seconds, state, s
     result["fifo_reply_receipt_count"] = len(receipts)
     result["fifo_reply_receipt_sample_limit"] = 4096
     result["actual_rtl_execution"] = {
-        "tests": tests,
+        "tests": rtl_tests,
         "execution_totals": dict(execution_totals),
         "coverage_records": len(receipts),
+        "projection_rejections": projection_rejections,
     }
     result["checker_failures"] = failure_store.document()
+    result["projection_rejections"] = projection_rejection_store.document()
+    result["projection_rejection_count"] = projection_rejections
+    instruction_coverage = _ibex_instruction_coverage_document(artifact, maxima)
+    if instruction_coverage is not None:
+        result["ibex_instruction_coverage"] = instruction_coverage
     state.update(result)
     if client.returncode == 0:
-        if not tests:
-            raise RuntimeError("RFuzz client produced no RTL tests")
+        if not rtl_tests:
+            raise RuntimeError("RFuzz client produced no accepted RTL tests")
         if not result["corpus_entries"]:
             raise RuntimeError("RFuzz client produced no saved corpus")
         if result["remaining_segments"]:

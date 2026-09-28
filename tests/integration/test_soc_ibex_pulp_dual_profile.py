@@ -10,6 +10,7 @@ from myfuzz.composition.component_profile import (
     load_composition_request,
 )
 from myfuzz.composition.soc_composition import build_composition
+from myfuzz.composition.soc_profile_renderer import source_list
 from tests.composition.soc_generation_fixture import ROOT
 
 
@@ -58,9 +59,34 @@ class IbexPulpDualProfileTests(unittest.TestCase):
         self.assertEqual({"cpu_only", "mmio_only", "mixed"},
                          set(request.test_modes))
         self.assertEqual([], plan.spec["interrupt_routes"])
+        self.assertEqual([("spi0", "pulp_spi")], sorted(
+            (peer.instance_id, peer.peer_id) for peer in plan.peers))
+        source_paths = [item["path"] for item in source_list(plan)
+                        if item["role"] == "component_source"]
+        secded = source_paths.index(
+            "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_pkg.sv")
+        lockstep = source_paths.index(
+            "third_party/rfuzz/upstream/ibex/rtl/ibex_lockstep.sv")
+        self.assertLess(secded, lockstep,
+                        "the pinned Verilator requires imported packages before modules")
         self.assertEqual(plan.plan_hash,
                          build_composition(request, base_dir=ROOT,
                                            drive_profile="cpu_execute").plan_hash)
+
+    def test_bfm_address_strategy_is_configurable_and_part_of_identity(self):
+        request = load_dual_request()
+        biased = build_composition(
+            request, base_dir=ROOT, drive_profile="bfm_isolated",
+            address_strategy="biased")
+        raw = build_composition(
+            request, base_dir=ROOT, drive_profile="bfm_isolated",
+            address_strategy="bias_off")
+
+        self.assertEqual("biased", biased.stimulus["address_strategy"]["selected"])
+        self.assertEqual(1, biased.stimulus["rtl_projection"]["parameters"]["ADDRESS_STRATEGY"])
+        self.assertEqual("bias_off", raw.stimulus["address_strategy"]["selected"])
+        self.assertEqual(0, raw.stimulus["rtl_projection"]["parameters"]["ADDRESS_STRATEGY"])
+        self.assertNotEqual(biased.plan_hash, raw.plan_hash)
 
 
 if __name__ == "__main__":

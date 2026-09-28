@@ -957,7 +957,8 @@ def _resolve_peers(instances: Sequence[InstanceComposition], request: Compositio
 
 def build_composition(request: CompositionRequest, *, base_dir: Path,
                       elaboration_mode: str = "auto",
-                      drive_profile: str = DEFAULT_DRIVE_PROFILE) -> CompositionPlan:
+                      drive_profile: str = DEFAULT_DRIVE_PROFILE,
+                      address_strategy: str = STIMULUS_ADDRESS_STRATEGY) -> CompositionPlan:
     """Build the full, validated composition plan for one request.
 
     ``drive_profile`` selects the declared ownership profile from
@@ -1096,8 +1097,9 @@ def build_composition(request: CompositionRequest, *, base_dir: Path,
     # The stimulus document is compiled from the built plan, so it is the single
     # source of the driver parameters, the raw segment offsets and the declared
     # reset semantics the renderer and the runtime both consume.
-    stimulus = _compile_stimulus(plan, mode=str(synthetic["mode"]) if synthetic is not None
-                                 else "cpu_only")
+    stimulus = _compile_stimulus(
+        plan, mode=str(synthetic["mode"]) if synthetic is not None else "cpu_only",
+        address_strategy=address_strategy)
     synthetic_document: Mapping[str, object] = {}
     if synthetic is not None:
         projection = stimulus["rtl_projection"]
@@ -1162,6 +1164,7 @@ def build_composition(request: CompositionRequest, *, base_dir: Path,
         # CPU reset hold) without changing the fabric plan, so the composition
         # identity has to carry it: two profiles are two different builds.
         "drive_profile": profile_name,
+        "address_strategy": str(stimulus["address_strategy"]["selected"]),
         # The attached peers change the rendered boundary (an interface is driven
         # inside the top instead of being exported), so they are part of the
         # identity even when the fabric plan is identical.
@@ -1236,11 +1239,12 @@ def port_binding_records(instance: InstanceComposition, *,
     return tuple(records)
 
 
-def _compile_stimulus(plan: Mapping[str, object], *, mode: str) -> dict:
+def _compile_stimulus(plan: Mapping[str, object], *, mode: str,
+                      address_strategy: str = STIMULUS_ADDRESS_STRATEGY) -> dict:
     """Compile the plan's ``soc_stimulus.v1`` document for one declared mode."""
     try:
         return compile_soc_stimulus(_plain(plan), {  # type: ignore[arg-type]
-            "mode": mode, "address_strategy": STIMULUS_ADDRESS_STRATEGY})
+            "mode": mode, "address_strategy": address_strategy})
     except (ValueError, SocContractError) as error:
         raise CompositionError(f"soc-stimulus:{mode}:{error}") from error
 
@@ -1715,6 +1719,7 @@ def composition_document(plan: CompositionPlan) -> dict[str, object]:
             provenance={"request": plan.request_id}),
         "raw_layout": _plain(plan.raw_layout),
         "drive_profile": plan.drive_profile,
+        "address_strategy": str(plan.stimulus.get("address_strategy", {}).get("selected", "")),
         "drive": _plain(plan.drive),
         "stimulus": _plain(plan.stimulus),
         "synthetic_master": _plain(plan.synthetic),
@@ -1735,6 +1740,7 @@ def composition_summary(plan: CompositionPlan) -> dict[str, object]:
         "request_id": plan.request_id,
         "plan_hash": plan.plan_hash,
         "drive_profile": plan.drive_profile,
+        "address_strategy": str(plan.stimulus.get("address_strategy", {}).get("selected", "")),
         "synthetic_master": (str(plan.synthetic["source_id"]) if plan.synthetic else None),
         "peers": {item.instance_id: item.peer_id for item in plan.peers},
         "peer_counters": {item.instance_id: [counter.top_port for counter in item.counters]

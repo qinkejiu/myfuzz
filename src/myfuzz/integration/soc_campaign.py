@@ -50,7 +50,12 @@ import signal
 
 from myfuzz.contracts import content_hash
 
-from .rfuzz_live import build_corpus_manifest, replay_corpus, run_live
+from .rfuzz_live import (
+    _ibex_instruction_coverage_document,
+    build_corpus_manifest,
+    replay_corpus,
+    run_live,
+)
 from .rfuzz_simulator import probe_soc_dependencies, real_soc_opt_in
 from .rfuzz_toolchain import (
     RfuzzToolchainError, normalize_rfuzz_config, resolve_rfuzz_toolchain,
@@ -203,6 +208,18 @@ def _normalise_config(config: Mapping[str, object]) -> dict[str, object]:
     mode = _string(config.get("mode"), "mode", default="cpu_only" if profile_request else "mixed")
     if mode not in _MODES:
         raise ValueError("mode:unsupported")
+    default_address_strategy = (
+        "bias_off" if profile_request or config.get("bias_off") is True else "biased")
+    address_strategy = _string(config.get("address_strategy"), "address_strategy",
+                               default=default_address_strategy)
+    if address_strategy not in {"bias_off", "biased"}:
+        raise ValueError("address_strategy:unsupported")
+    default_peer_spacing_policy = "drop_later" if profile_request else "reject"
+    peer_spacing_policy = _string(
+        config.get("peer_spacing_policy"), "peer_spacing_policy",
+        default=default_peer_spacing_policy)
+    if peer_spacing_policy not in {"reject", "drop_later"}:
+        raise ValueError("peer_spacing_policy:unsupported")
     cpu = profile_request.cpu.instance_id if profile_request else _cpu_id(config.get("cpu"))
     peripherals = ([item.instance_id for item in profile_request.peripherals] if profile_request
                    else _peripheral_ids(config.get("peripherals", config.get("components", ()))))
@@ -225,6 +242,15 @@ def _normalise_config(config: Mapping[str, object]) -> dict[str, object]:
     seed_cycles = _nonnegative_int(rfuzz.get("seed_cycles"), "seed_cycles", default=5)
     if not 1 <= seed_cycles <= 200:
         raise ValueError("seed_cycles:positive-bounded-required")
+    initial_seed_values = config.get("initial_seed_values")
+    if initial_seed_values is not None:
+        if (isinstance(initial_seed_values, (str, bytes))
+                or not isinstance(initial_seed_values, Sequence)):
+            raise ValueError("initial_seed_values:array-required")
+        if len(initial_seed_values) != seed_cycles:
+            raise ValueError("initial_seed_values:cycle-count-mismatch")
+        if any(type(value) is not int or value < 0 for value in initial_seed_values):
+            raise ValueError("initial_seed_values:nonnegative-integer-required")
     return {
         "config_id": config_id,
         "cell_id": _string(config.get("cell_id"), "cell_id", default=config_id),
@@ -232,6 +258,8 @@ def _normalise_config(config: Mapping[str, object]) -> dict[str, object]:
         "peripherals": peripherals,
         "families": family_ids,
         "mode": mode,
+        "address_strategy": address_strategy,
+        "peer_spacing_policy": peer_spacing_policy,
         "seed": seed,
         "duration_seconds": duration,
         "simulator": simulator,
@@ -243,6 +271,8 @@ def _normalise_config(config: Mapping[str, object]) -> dict[str, object]:
         "build_cache_dir": rfuzz.get("build_cache_dir"),
         "arm": rfuzz["arm"],
         "seed_cycles": seed_cycles,
+        "initial_seed_values": (None if initial_seed_values is None
+                                 else list(initial_seed_values)),
         "reset_contract": config.get("reset_contract", {}),
         "source_target_transactions": config.get("source_target_transactions"),
         "coverage_universe": config.get("coverage_universe"),
@@ -366,6 +396,8 @@ def preflight_soc_campaign(
         "peripherals": normal["peripherals"],
         "families": normal["families"],
         "mode": normal["mode"],
+        "address_strategy": normal["address_strategy"],
+        "peer_spacing_policy": normal["peer_spacing_policy"],
         "simulator": normal["simulator"],
         "root": str(root),
         "opt_in": opt_in,
@@ -695,6 +727,13 @@ def _recover_terminated_client_run(
     if missing:
         return None
     result = dict(live)
+    counter_maxima = live.get("counter_maxima")
+    if (isinstance(counter_maxima, Sequence)
+            and not isinstance(counter_maxima, (str, bytes))):
+        instruction_coverage = _ibex_instruction_coverage_document(
+            artifact, counter_maxima)
+        if instruction_coverage is not None:
+            result["ibex_instruction_coverage"] = instruction_coverage
     result["corpus_manifest"] = None
     result["corpus_manifest_error"] = None
     try:
@@ -869,6 +908,8 @@ def _base_report(normal: Mapping[str, object], preflight: Mapping[str, object],
         "peripherals": normal["peripherals"],
         "families": normal["families"],
         "mode": normal["mode"],
+        "address_strategy": normal["address_strategy"],
+        "peer_spacing_policy": normal["peer_spacing_policy"],
         "seed": normal["seed"],
         "requested_duration_seconds": normal["duration_seconds"],
         "execution_kind": "official_rfuzz_source_backed_soc",
@@ -876,6 +917,9 @@ def _base_report(normal: Mapping[str, object], preflight: Mapping[str, object],
             "mode": "official_rfuzz",
             "zero_input_probe": False,
             "seed_cycles": normal["seed_cycles"],
+            "initial_seed_kind": ("explicit_raw_samples"
+                                  if normal["initial_seed_values"] is not None
+                                  else "all_zero"),
         },
         "preflight": _plain(preflight),
         "reset": _plain(reset),
@@ -1008,6 +1052,12 @@ def run_soc_campaign(
             return report
 
     campaign_config = dict(config)
+    campaign_config["peer_spacing_policy"] = normal["peer_spacing_policy"]
+    if ("composition_request" in campaign_config
+            and any(type(campaign_config.get(name, 1)) is int
+                    and campaign_config.get(name, 1) > 1
+                    for name in ("instruction_candidates", "data_candidates"))):
+        campaign_config.setdefault("rfuzz_candidate_repair", True)
     if environment is not None:
         campaign_config["environment"] = dict(environment)
 
@@ -1047,6 +1097,7 @@ def run_soc_campaign(
                     artifact, client, live_dir,
                     duration_seconds=normal["duration_seconds"],
                     seed_cycles=max(1, normal["seed_cycles"]),
+                    initial_seed_values=normal["initial_seed_values"],
                     environment=(runtime_toolchain.get("verilator_environment")
                                  if isinstance(runtime_toolchain, Mapping) else None),
                 )
@@ -1073,6 +1124,9 @@ def run_soc_campaign(
         report["errors"].extend(receipt_errors)
         report["rtl_execution"] = _execution_document(run_result)
         report["source_target_transactions"] = _transactions_document(normal, run_result)
+        instruction_coverage = run_result.get("ibex_instruction_coverage")
+        if isinstance(instruction_coverage, Mapping):
+            report["ibex_instruction_coverage"] = _plain(instruction_coverage)
         report["corpus"] = _corpus_document(live_dir, run_result)
         if run_result.get("corpus_manifest_error"):
             report["corpus"]["manifest_error"] = run_result["corpus_manifest_error"]

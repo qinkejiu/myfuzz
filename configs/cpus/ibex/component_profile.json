@@ -12,6 +12,7 @@
       "vendor/lowrisc_ip/ip/prim/rtl/prim_util_pkg.sv",
       "vendor/lowrisc_ip/ip/prim/rtl/prim_count_pkg.sv",
       "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_ram_1p_pkg.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_pkg.sv",
       "rtl/ibex_pkg.sv",
       "rtl/ibex_cheriot_pkg.sv",
       "rtl/ibex_cheriot_ex.sv",
@@ -45,7 +46,6 @@
       "vendor/lowrisc_ip/ip/prim/rtl/prim_lfsr.sv",
       "vendor/lowrisc_ip/ip/prim/rtl/prim_mubi_pkg.sv",
       "vendor/lowrisc_ip/ip/prim/rtl/prim_mubi4_dec.sv",
-      "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_pkg.sv",
       "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
       "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
       "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
@@ -61,6 +61,12 @@
     ],
     "elaboration": {
       "frontend": "verilator-json",
+      "defines": [
+        {
+          "name": "RVFI",
+          "value": "1"
+        }
+      ],
       "parameters": [
         {
           "name": "PMPEnable",
@@ -474,6 +480,31 @@
       "port": "instr_addr_shadow_o",
       "action": "observe",
       "reason": "Shadow-core instruction address, constant 0 under gen_no_lockstep (rtl/ibex_top.sv:1256-1261). Output, exported for passive monitoring only."
+    },
+    {
+      "port": "rvfi_valid",
+      "action": "observe",
+      "reason": "RVFI retirement-valid output, enabled by the declared RVFI compile define; exported for passive retirement and instruction coverage."
+    },
+    {
+      "port": "rvfi_order",
+      "action": "observe",
+      "reason": "RVFI architectural instruction order, enabled by the declared RVFI compile define; exported for a sequential-order checker."
+    },
+    {
+      "port": "rvfi_insn",
+      "action": "observe",
+      "reason": "RVFI retired instruction encoding, enabled by the declared RVFI compile define; used only for instruction-class coverage in this phase."
+    },
+    {
+      "port": "rvfi_trap",
+      "action": "observe",
+      "reason": "RVFI synchronous trap indicator, enabled by the declared RVFI compile define; excludes trap records from retired-instruction coverage."
+    },
+    {
+      "port": "rvfi_pc_rdata",
+      "action": "observe",
+      "reason": "RVFI instruction PC, enabled by the declared RVFI compile define; exported as retirement evidence."
     }
   ],
   "cpu": {
@@ -505,12 +536,13 @@
     ],
     "verified": [
       "Physical ports, directions and widths come from verilator-json elaboration of the pinned closure with ICache=0, PMPEnable=0, RV32E=0, SecureIbex=0 - the parameter set configs/soc/ibex-pulp.json uses for this core.",
+      "RVFI valid/order/instruction/trap/PC outputs are elaborated with the RVFI define and are exported as observe-only ports; bit 16 checks sequential record order and the opcode-class outputs provide coverage only.",
       "Every constant is grounded in the RTL line that consumes or sinks the port, and matches the value the project's own wrapper drives for the same parameterization.",
       "Every observe entry is an output that the same RTL drives (to a status value or to a constant in this parameterization); no component output is driven by the SoC."
     ],
     "unknown": [
       "The four top-level aggregate ports ram_cfg_icache_tag_i/ram_cfg_icache_tag_o/ram_cfg_icache_data_i/ram_cfg_icache_data_o (packed arrays of prim_ram_1p_pkg::ram_1p_cfg_req_t / ram_1p_cfg_rsp_t, two ways of a 12-bit request and a 1-bit response) cannot be represented by the current verilator-json port extractor: source_elaboration.py rejects a top-level aggregate without member paths. source.top_port_selection=\"declared\" therefore elaborates only the ports this profile binds, and these four ports are NOT elaborated, NOT classified and NOT connected in the generated SoC. With ICache=0 ibex_top takes gen_norams and drives the two response ports to prim_ram_1p_pkg::RAM_1P_CFG_RSP_DEFAULT while sinking the two request ports (rtl/ibex_top.sv:844-849), so no reachable behaviour is lost in this configuration - but the omission is a real coverage gap of the frontend and is recorded here instead of being hidden.",
-      "The SoC does not verify that ibex_top boots or executes: the profile and this phase prove composition structure and port disposition only.",
+      "RVFI order and opcode-class coverage prove that Ibex emitted retirement records; they do not compare register or memory results against an independent ISA model, which remains unassessed.",
       "Capability values (address_width/data_width/max_outstanding/byte_enable/error_response) are declared from the elaborated widths and the OBI adapter contract; no runtime transaction of this composed SoC was executed here."
     ]
   }

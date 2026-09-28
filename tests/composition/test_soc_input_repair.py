@@ -200,7 +200,8 @@ class PrologueTests(unittest.TestCase):
         program = build_candidate_program(self.plan, instruction_candidates=2)
         static = program.static_image()
         self.assertEqual(program.program_base + program.program_size
-                         - program.image.base, len(static))
+                         - program.image.base + 4, len(static))
+        self.assertEqual((0x0000006F).to_bytes(4, "little"), static[-4:])
         result = program.repairer().repair_test([], directed={
             "init": encode_addi(6, 0, 1), "init1": encode_addi(7, 0, 2)})
         for offset in range(len(static)):
@@ -639,7 +640,7 @@ CASES: tuple[dict, ...] = (
      "expect_error": "candidate-count-invalid:instruction_candidates:0"},
     {"name": "item1-region-bound-refused", "item": "1",
      "instruction_candidates": 64, "rom_size": 0x100,
-     "expect_error": "candidate-program-exceeds-region:0x10198>0x10100"},
+     "expect_error": "candidate-program-exceeds-region:0x1019c>0x10100"},
     # -- item 2: registers the program needs, generated or refused ---------
     {"name": "item2-prologue-and-frozen-load", "item": "2",
      "instruction_candidates": 2,

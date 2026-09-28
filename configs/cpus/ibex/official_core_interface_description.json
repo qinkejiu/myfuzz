@@ -8,6 +8,7 @@
       "vendor/lowrisc_ip/ip/prim/rtl/prim_util_pkg.sv",
       "vendor/lowrisc_ip/ip/prim/rtl/prim_count_pkg.sv",
       "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_ram_1p_pkg.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_pkg.sv",
       "rtl/ibex_pkg.sv",
       "rtl/ibex_cheriot_pkg.sv",
       "rtl/ibex_cheriot_ex.sv",
@@ -41,7 +42,6 @@
       "vendor/lowrisc_ip/ip/prim/rtl/prim_lfsr.sv",
       "vendor/lowrisc_ip/ip/prim/rtl/prim_mubi_pkg.sv",
       "vendor/lowrisc_ip/ip/prim/rtl/prim_mubi4_dec.sv",
-      "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_pkg.sv",
       "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
       "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
       "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
@@ -57,6 +57,9 @@
     ],
     "elaboration": {
       "frontend": "verilator-json",
+      "defines": [
+        {"name": "RVFI", "value": "1"}
+      ],
       "parameters": [
         {"name": "PMPEnable", "value": "0"},
         {"name": "RV32E", "value": "0"},
@@ -151,6 +154,17 @@
         {"role": "scramble_key_valid", "aliases": ["scramble_key_valid_i"]},
         {"role": "scramble_key", "aliases": ["scramble_key_i"]},
         {"role": "scramble_nonce", "aliases": ["scramble_nonce_i"]}
+      ]
+    },
+    {
+      "endpoint_id": "processor.retirement",
+      "function": "observation",
+      "fields": [
+        {"role": "valid", "aliases": ["rvfi_valid"]},
+        {"role": "order", "aliases": ["rvfi_order"]},
+        {"role": "instruction", "aliases": ["rvfi_insn"]},
+        {"role": "trap", "aliases": ["rvfi_trap"]},
+        {"role": "pc", "aliases": ["rvfi_pc_rdata"]}
       ]
     }
   ]

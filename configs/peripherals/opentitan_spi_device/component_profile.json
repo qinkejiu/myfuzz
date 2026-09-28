@@ -1,0 +1,235 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "opentitan_spi_device",
+  "kind": "peripheral",
+  "description": "Pinned independent OpenTitan SPI Device with native TL-UL register/SRAM interface, external SPI slave pins, and eight interrupt outputs; the wrapper fixes alert, RACL, passthrough, RAM configuration, and scan inputs.",
+  "source": {
+    "root": "third_party/soc-opentitan",
+    "revision": "git:fca045df919a26c47e71616b9dac917b1ea4fd07",
+    "top_module": "spi_device",
+    "files": [
+      "hw/ip/prim/rtl/prim_alert_pkg.sv",
+      "hw/ip/prim/rtl/prim_count_pkg.sv",
+      "hw/ip/prim/rtl/prim_mubi_pkg.sv",
+      "hw/ip/prim/rtl/prim_secded_pkg.sv",
+      "hw/ip/prim/rtl/prim_subreg_pkg.sv",
+      "hw/ip/prim/rtl/prim_util_pkg.sv",
+      "hw/ip/prim_generic/rtl/prim_ram_2p_pkg.sv",
+      "hw/ip/prim_generic/rtl/prim_ram_1r1w_pkg.sv",
+      "hw/ip/spi_device/rtl/spi_device_reg_pkg.sv",
+      "hw/ip/spi_device/rtl/spi_device_pkg.sv",
+      "hw/top_earlgrey/rtl/top_pkg.sv",
+      "hw/ip/tlul/rtl/tlul_pkg.sv",
+      "hw/top_earlgrey/rtl/autogen/top_racl_pkg.sv",
+      "hw/ip/prim/rtl/prim_alert_sender.sv",
+      "hw/ip/prim/rtl/prim_arbiter_fixed.sv",
+      "hw/ip/prim/rtl/prim_arbiter_ppc.sv",
+      "hw/ip/prim/rtl/prim_arbiter_tree.sv",
+      "hw/ip/prim/rtl/prim_count.sv",
+      "hw/ip/prim/rtl/prim_diff_decode.sv",
+      "hw/ip/prim/rtl/prim_edge_detector.sv",
+      "hw/ip/prim/rtl/prim_fifo_async.sv",
+      "hw/ip/prim/rtl/prim_fifo_async_sram_adapter.sv",
+      "hw/ip/prim/rtl/prim_fifo_sync.sv",
+      "hw/ip/prim/rtl/prim_fifo_sync_cnt.sv",
+      "hw/ip/prim/rtl/prim_intr_hw.sv",
+      "hw/ip/prim/rtl/prim_leading_one_ppc.sv",
+      "hw/ip/prim/rtl/prim_mubi4_sync.sv",
+      "hw/ip/prim/rtl/prim_onehot_check.sv",
+      "hw/ip/prim/rtl/prim_onehot_enc.sv",
+      "hw/ip/prim/rtl/prim_pulse_sync.sv",
+      "hw/ip/prim/rtl/prim_racl_error_arb.sv",
+      "hw/ip/prim/rtl/prim_ram_1r1w_async_adv.sv",
+      "hw/ip/prim/rtl/prim_ram_2p_async_adv.sv",
+      "hw/ip/prim/rtl/prim_reg_we_check.sv",
+      "hw/ip/prim/rtl/prim_sec_anchor_buf.sv",
+      "hw/ip/prim/rtl/prim_sec_anchor_flop.sv",
+      "hw/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+      "hw/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+      "hw/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+      "hw/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+      "hw/ip/prim/rtl/prim_secded_inv_hamming_39_32_dec.sv",
+      "hw/ip/prim/rtl/prim_secded_inv_hamming_39_32_enc.sv",
+      "hw/ip/prim/rtl/prim_slicer.sv",
+      "hw/ip/prim/rtl/prim_sram_arbiter.sv",
+      "hw/ip/prim/rtl/prim_subreg.sv",
+      "hw/ip/prim/rtl/prim_subreg_arb.sv",
+      "hw/ip/prim/rtl/prim_subreg_ext.sv",
+      "hw/ip/prim/rtl/prim_sync_reqack.sv",
+      "hw/ip/prim/rtl/prim_sync_reqack_data.sv",
+      "hw/ip/prim_generic/rtl/prim_buf.sv",
+      "hw/ip/prim_generic/rtl/prim_clock_buf.sv",
+      "hw/ip/prim_generic/rtl/prim_clock_gating.sv",
+      "hw/ip/prim_generic/rtl/prim_clock_inv.sv",
+      "hw/ip/prim_generic/rtl/prim_clock_mux2.sv",
+      "hw/ip/prim_generic/rtl/prim_flop.sv",
+      "hw/ip/prim_generic/rtl/prim_flop_2sync.sv",
+      "hw/ip/prim_generic/rtl/prim_flop_en.sv",
+      "hw/ip/prim_generic/rtl/prim_ram_1r1w.sv",
+      "hw/ip/prim_generic/rtl/prim_ram_2p.sv",
+      "hw/ip/prim_generic/rtl/prim_rst_sync.sv",
+      "hw/ip/prim_generic/rtl/prim_xnor2.sv",
+      "hw/ip/prim_generic/rtl/prim_xor2.sv",
+      "hw/ip/spi_device/rtl/spi_cmdparse.sv",
+      "hw/ip/spi_device/rtl/spi_device.sv",
+      "hw/ip/spi_device/rtl/spi_device_reg_top.sv",
+      "hw/ip/spi_device/rtl/spi_p2s.sv",
+      "hw/ip/spi_device/rtl/spi_passthrough.sv",
+      "hw/ip/spi_device/rtl/spi_readcmd.sv",
+      "hw/ip/spi_device/rtl/spi_s2p.sv",
+      "hw/ip/spi_device/rtl/spi_tpm.sv",
+      "hw/ip/spi_device/rtl/spid_addr_4b.sv",
+      "hw/ip/spi_device/rtl/spid_csb_sync.sv",
+      "hw/ip/spi_device/rtl/spid_dpram.sv",
+      "hw/ip/spi_device/rtl/spid_fifo2sram_adapter.sv",
+      "hw/ip/spi_device/rtl/spid_jedec.sv",
+      "hw/ip/spi_device/rtl/spid_readbuffer.sv",
+      "hw/ip/spi_device/rtl/spid_readsram.sv",
+      "hw/ip/spi_device/rtl/spid_status.sv",
+      "hw/ip/spi_device/rtl/spid_upload.sv",
+      "hw/ip/tlul/rtl/tlul_adapter_racl.sv",
+      "hw/ip/tlul/rtl/tlul_adapter_reg.sv",
+      "hw/ip/tlul/rtl/tlul_adapter_sram.sv",
+      "hw/ip/tlul/rtl/tlul_adapter_sram_racl.sv",
+      "hw/ip/tlul/rtl/tlul_cmd_intg_chk.sv",
+      "hw/ip/tlul/rtl/tlul_data_integ_dec.sv",
+      "hw/ip/tlul/rtl/tlul_data_integ_enc.sv",
+      "hw/ip/tlul/rtl/tlul_err.sv",
+      "hw/ip/tlul/rtl/tlul_err_resp.sv",
+      "hw/ip/tlul/rtl/tlul_fifo_sync.sv",
+      "hw/ip/tlul/rtl/tlul_request_loopback.sv",
+      "hw/ip/tlul/rtl/tlul_rsp_intg_gen.sv",
+      "hw/ip/tlul/rtl/tlul_socket_1n.sv",
+      "hw/ip/tlul/rtl/tlul_sram_byte.sv"
+    ],
+    "include_roots": [
+      "hw/ip/prim/rtl",
+      "hw/ip/prim_generic/rtl",
+      "hw/ip/tlul/rtl",
+      "hw/top_earlgrey/rtl",
+      "hw/top_earlgrey/rtl/autogen",
+      "hw/ip/lc_ctrl/rtl"
+    ]
+  },
+  "clocks": [
+    {
+      "port": "clk_i",
+      "domain": "core",
+      "frequency_hz": 50000000
+    },
+    {
+      "port": "sck_i",
+      "domain": "spi",
+      "frequency_hz": 10000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "rst_ni",
+      "domain": "core",
+      "polarity": "active_low",
+      "synchronous": false
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "opentitan_spi_device.mmio",
+      "function": "mmio_slave",
+      "protocol": [
+        "tl-ul",
+        "1"
+      ],
+      "physical": {
+        "port_in": "tl_i",
+        "port_out": "tl_o"
+      }
+    },
+    {
+      "endpoint_id": "opentitan_spi_device.spi",
+      "function": "external_pins",
+      "physical": {
+        "inputs": [
+          "sck_i",
+          "csb_i",
+          "tpm_csb_i",
+          "sd_i"
+        ],
+        "outputs": [
+          "sd_o",
+          "sd_en_o"
+        ]
+      }
+    },
+    {
+      "endpoint_id": "opentitan_spi_device.irq",
+      "function": "interrupt_source",
+      "physical": {
+        "output": "irq_o",
+        "width": 8
+      }
+    }
+  ],
+  "elaboration_boundary": {
+    "wrapper": "configs/peripherals/opentitan_spi_device/closure_wrapper.sv",
+    "wrapper_sha256": "212262f509b0730da20d9eb84b0094c26259bfec7d12d6595766db4560efc486",
+    "fixed_inputs": [
+      "alert_rx_i=ALERT_RX_DEFAULT",
+      "racl_policies_i=0",
+      "passthrough_i=PASSTHROUGH_RSP_DEFAULT",
+      "ram_cfg_sys2spi_i=RAM_1R1W_CFG_REQ_DEFAULT",
+      "ram_cfg_spi2sys_i=RAM_1R1W_CFG_REQ_DEFAULT",
+      "mbist_en_i=0",
+      "scan_clk_i=0",
+      "scan_rst_ni=rst_ni",
+      "scanmode_i=MuBi4False"
+    ],
+    "native_outputs": [
+      "sd_o",
+      "sd_en_o",
+      "irq_o"
+    ]
+  },
+  "capabilities": {
+    "address_width": 13,
+    "data_width": 32,
+    "read": true,
+    "write": true,
+    "byte_enable": true,
+    "partial_write": true,
+    "has_error": true
+  },
+  "address": {
+    "window_size": 8192,
+    "alignment": 8192,
+    "registers": [
+      {
+        "name": "INTR_STATE",
+        "offset": 0,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "write_one_to_clear"
+      },
+      {
+        "name": "CONTROL",
+        "offset": 16,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "CFG",
+        "offset": 20,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "STATUS",
+        "offset": 24,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "none"
+      }
+    ]
+  }
+}

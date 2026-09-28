@@ -19,6 +19,14 @@
       "parameters": {}
     }
   ],
+  "peer_models": [
+    {
+      "instance_id": "spi0",
+      "endpoint_id": "spi.pins",
+      "attach": true,
+      "parameters": {}
+    }
+  ],
   "memory": [
     {
       "region_id": "rom0",

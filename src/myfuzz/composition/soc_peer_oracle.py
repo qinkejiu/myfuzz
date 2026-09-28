@@ -33,6 +33,7 @@ from typing import Any
 
 from myfuzz.contracts import canonical_bytes
 
+from .pulp_spi_oracle import audit_pulp_spi_run
 from .soc_peer_replay import PeerRawReplayError, decode_peer_raw_events
 
 
@@ -820,6 +821,184 @@ def _oracle_hash(document: Mapping[str, object]) -> str:
     return "sha256:" + hashlib.sha256(canonical_bytes(document)).hexdigest()
 
 
+def _pulp_spi_peer_arms(build: object, sample: object, result: object,
+                        slot: Mapping[str, object], index: int,
+                        planned: Sequence[Mapping[str, object]]) -> tuple[
+                            list[dict[str, int]] | None, str | None]:
+    """Resolve the actual SPI peer-arm inputs from plan and raw input evidence.
+
+    A declared peer event overrides the raw peer pins for that cycle.  At all
+    other cycles the raw record remains active, so the expected arm stream is
+    the union of both routes with plan cycles taking precedence.
+    """
+    raw = _raw_record(sample, result)
+    if not raw:
+        return None, "spi-peer-arm-input-record-missing"
+    layout = _raw_layout(build, (slot,))
+    if layout is None:
+        return None, "spi-peer-arm-raw-layout-missing"
+    try:
+        decoded = decode_peer_raw_events(raw, layout, (slot,),
+                                         validate_spacing=False)
+    except (PeerRawReplayError, TypeError, ValueError) as error:
+        return None, f"spi-peer-arm-raw-decode-refused:{error}"
+    raw_arms = [
+        {"cycle": _integer(item.get("cycle"), "spi-peer-arm-cycle-invalid"),
+         "payload": _integer(item.get("payload"), "spi-peer-arm-payload-invalid")}
+        for item in decoded
+        if (str(item.get("peer_id", "")) == "pulp_spi" and
+            str(item.get("instance_id", "")) == str(slot.get("instance_id", "")) and
+            str(item.get("slot", "")) == str(slot.get("slot", "")))
+    ]
+    plan_arms = [
+        {"cycle": _integer(_event_value(event, "cycle"),
+                            "spi-peer-arm-cycle-invalid"),
+         "payload": _integer(_event_value(event, "payload", 0),
+                             "spi-peer-arm-payload-invalid")}
+        for event in planned
+    ]
+    plan_cycles = {int(item["cycle"]) for item in plan_arms}
+    arms = [item for item in raw_arms if int(item["cycle"]) not in plan_cycles]
+    arms.extend(plan_arms)
+    arms.sort(key=lambda item: int(item["cycle"]))
+    if any(int(left["cycle"]) >= int(right["cycle"])
+           for left, right in zip(arms, arms[1:])):
+        return None, "spi-peer-arm-cycle-ambiguous"
+    return arms, None
+
+
+def _pulp_spi_runtime_evidence(build: object, sample: object, result: object,
+                               slot: Mapping[str, object], index: int,
+                               planned: Sequence[Mapping[str, object]]) -> tuple[
+                                   dict[str, object] | None, str | None]:
+    """Adapt the runtime capture format to the strict PULP SPI reference API."""
+    instance = str(slot.get("instance_id", ""))
+    contracts = _mapping(getattr(build, "spi_wire_contracts", {}))
+    contract = _mapping(contracts.get(instance))
+    peer_wires = [item for item in getattr(build, "peer_wires", ()) or ()
+                  if isinstance(item, Mapping) and
+                  str(item.get("instance_id", "")) == instance and
+                  str(item.get("peer_id", "")) == "pulp_spi"]
+    identity_source = _mapping(contract.get("profile_identity"))
+    if not identity_source and len(peer_wires) == 1:
+        identity_source = _mapping(peer_wires[0].get("profile_identity"))
+    identity = {name: identity_source.get(name) for name in
+                ("component_id", "top_module", "source_revision")}
+    parameters_source = _mapping(contract.get("parameters"))
+    if not parameters_source and len(peer_wires) == 1:
+        parameters_source = _mapping(peer_wires[0].get("parameters"))
+    parameters = dict(parameters_source)
+    window_base = contract.get("spi_window_base")
+    if window_base is None and len(peer_wires) == 1:
+        window_base = peer_wires[0].get("spi_window_base")
+
+    apb_status_rows = [item for item in getattr(result, "spi_apb_status", ()) or ()
+                       if isinstance(item, Mapping) and
+                       str(item.get("instance_id", "")) == instance]
+    apb_rows = [item for item in getattr(result, "spi_apb_transactions", ()) or ()
+                if isinstance(item, Mapping) and
+                str(item.get("instance_id", "")) == instance]
+    wire_status_rows = [item for item in getattr(result, "peer_wire_status", ()) or ()
+                        if isinstance(item, Mapping) and
+                        str(item.get("instance_id", "")) == instance]
+    wire_rows = [item for item in getattr(result, "peer_wire_trace", ()) or ()
+                 if isinstance(item, Mapping) and
+                 str(item.get("instance_id", "")) == instance]
+
+    apb: list[dict[str, object]] = []
+    for raw in apb_rows:
+        address = raw.get("local_address", raw.get("addr"))
+        write = raw.get("write")
+        accepted = raw.get("accepted")
+        apb.append({
+            "cycle": raw.get("cycle"), "address": address,
+            "write": (bool(write) if write in (0, 1, False, True) else write),
+            "accepted": accepted,
+            "wdata": raw.get("wdata"), "rdata": raw.get("rdata"),
+            "pslverr": raw.get("pslverr", 0),
+            "source_request_id": raw.get("source_request_id"),
+        })
+    rx_reads = [
+        {"cycle": item.get("cycle"), "address": int(item.get(
+            "local_address", item.get("addr", -1))) & 0x3C,
+         "accepted": item.get("accepted") is True,
+         "rdata": item.get("rdata")}
+        for item in apb_rows
+        if item.get("write") in (0, False) and item.get("accepted") is True and
+        isinstance(item.get("local_address", item.get("addr")), int) and
+        (int(item.get("local_address", item.get("addr"))) & 0x3C) == 0x20
+    ]
+
+    source_requests: list[dict[str, object]] = []
+    runtime_source_requests = getattr(result, "source_requests", None)
+    if runtime_source_requests is None:
+        runtime_source_requests = getattr(result, "requests", ())
+    for raw in runtime_source_requests or ():
+        if not isinstance(raw, Mapping):
+            source_requests.append({})
+            continue
+        accepted_value = raw.get("accepted", 1)
+        write_value = raw.get("write")
+        source_requests.append({
+            "request_id": raw.get("request_id", raw.get("seq")),
+            "cycle": raw.get("cycle"),
+            "address": raw.get("global_address", raw.get("address", raw.get("addr"))),
+            "write": (bool(write_value) if write_value in (0, 1, False, True)
+                      else write_value),
+            "wdata": raw.get("wdata"),
+            "byte_enable": raw.get("byte_enable", raw.get("be")),
+            "source_id": raw.get("source_id", raw.get("source")),
+            "accepted": (bool(accepted_value)
+                         if accepted_value in (0, 1, False, True) else accepted_value),
+        })
+    source_requests.sort(key=lambda item: (
+        item.get("cycle") if isinstance(item.get("cycle"), int) else -1,
+        item.get("request_id") if isinstance(item.get("request_id"), int) else -1))
+
+    arms, arm_error = _pulp_spi_peer_arms(build, sample, result, slot,
+                                          index, planned)
+    if arm_error:
+        return None, arm_error
+    assert arms is not None
+    cpu_sources = tuple(getattr(build, "cpu_data_sources", ()) or ())
+    requests_total = getattr(
+        result, "source_requests_total",
+        getattr(result, "requests_total", len(source_requests)))
+    requests_truncated = getattr(
+        result, "source_requests_truncated",
+        getattr(result, "requests_truncated", False))
+    capture_status: dict[str, object] = {
+        "peer_arms": {"captured": len(arms), "total": len(arms),
+                      "truncated": False},
+        "rx_reads": {"captured": len(rx_reads), "total": len(rx_reads),
+                     "truncated": False},
+        "source_requests": {"captured": len(source_requests),
+                            "total": requests_total,
+                            "truncated": requests_truncated},
+    }
+    if len(apb_status_rows) == 1:
+        capture_status["apb_transactions"] = {
+            key: apb_status_rows[0].get(key)
+            for key in ("captured", "total", "truncated")}
+    if len(wire_status_rows) == 1:
+        capture_status["wire_trace"] = {
+            key: wire_status_rows[0].get(key)
+            for key in ("captured", "total", "truncated")}
+    evidence: dict[str, object] = {
+        "apb_transactions": apb,
+        "peer_arms": arms,
+        "wire_trace": wire_rows,
+        "rx_reads": rx_reads,
+        "source_requests": source_requests,
+        "parameters": parameters,
+        "profile_identity": identity,
+        "spi_window_base": window_base,
+        "cpu_data_source_ids": cpu_sources,
+        "capture_status": capture_status,
+    }
+    return evidence, None
+
+
 def audit_peer_run(build: object, sample: object, result: object) -> dict[str, object]:
     """Audit the peer portion of one runtime result.
 
@@ -1021,6 +1200,28 @@ def audit_peer_run(build: object, sample: object, result: object) -> dict[str, o
                                                "miso": verdict["observed_miso_words"]},
                                      basis=str(contract["basis"]),
                                      note=str(verdict["reason"])))
+        elif peer_id == "pulp_spi":
+            evidence, reason = _pulp_spi_runtime_evidence(
+                build, sample, result, slot, index, events_by_slot.get(index, ()))
+            if evidence is None:
+                unassessed.append({"check_id": "pulp-spi-transfer",
+                                   "reason": reason or "SPI runtime evidence unavailable"})
+                continue
+            verdict = audit_pulp_spi_run(**evidence)
+            if verdict["verdict"] == "not_assessed":
+                unassessed.append({"check_id": "pulp-spi-transfer",
+                                   "reason": str(verdict["reason"]),
+                                   "property_ids": list(verdict["property_ids"])})
+            else:
+                item = _check(
+                    "pulp-spi-transfer", str(verdict["verdict"]),
+                    expected=dict(_mapping(verdict.get("expected"))),
+                    observed=dict(_mapping(verdict.get("observed"))),
+                    basis="pulp_spi_oracle.v1:independent APB/OBI and pin evidence",
+                    note=str(verdict["reason"]))
+                item["property_ids"] = list(verdict["property_ids"])
+                item["failed_property_ids"] = list(verdict["failed_property_ids"])
+                checks.append(item)
         elif peer_id == "gpio":
             unassessed.append({"check_id": "gpio-resolution-wire",
                                "reason": "component direction/output waveform is not recorded"})

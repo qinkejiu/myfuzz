@@ -240,8 +240,17 @@ class RunResult:
     peer_oracle: Mapping[str, object] | None = None
     peer_wire_trace: tuple[dict[str, object], ...] = ()
     peer_wire_status: tuple[dict[str, object], ...] = ()
+    spi_apb_transactions: tuple[dict[str, object], ...] = ()
+    spi_apb_status: tuple[dict[str, object], ...] = ()
+    # ``requests`` preserves the historical write-only fabric evidence API.
+    # ``source_requests`` is the complete accepted OBI stream used by
+    # independent protocol oracles that must account for reads as well.
     requests: tuple[dict[str, int], ...] = ()
+    requests_total: int = 0
     requests_truncated: bool = False
+    source_requests: tuple[dict[str, int], ...] = ()
+    source_requests_total: int = 0
+    source_requests_truncated: bool = False
     #: The candidate-image placements the harness performed before releasing the
     #: CPU, one record per offered slot.  ``readback`` is the value the memory
     #: model's own array returned at the placed address, so the record is the
@@ -264,8 +273,14 @@ class RunResult:
             "peer_applied": [dict(item) for item in self.peer_applied],
             "peer_wire_trace": [dict(item) for item in self.peer_wire_trace],
             "peer_wire_status": [dict(item) for item in self.peer_wire_status],
+            "spi_apb_transactions": [dict(item) for item in self.spi_apb_transactions],
+            "spi_apb_status": [dict(item) for item in self.spi_apb_status],
             "fabric_requests": [dict(item) for item in self.requests],
+            "fabric_requests_total": self.requests_total,
             "fabric_requests_truncated": self.requests_truncated,
+            "source_requests": [dict(item) for item in self.source_requests],
+            "source_requests_total": self.source_requests_total,
+            "source_requests_truncated": self.source_requests_truncated,
             "fabric_responses": [dict(item) for item in self.responses],
             "image_placements": [dict(item) for item in self.image_placements],
             "image_errors": [dict(item) for item in self.image_errors],
@@ -369,12 +384,39 @@ def _spi_wire_records(plan: CompositionPlan) -> tuple[dict[str, object], ...]:
     """Resolve observation-only SPI nets from the already audited peer roles."""
     records: list[dict[str, object]] = []
     for peer in plan.peers:
-        if peer.peer_id != "spi":
+        if peer.peer_id not in ("spi", "pulp_spi"):
             continue
+        role_names = (("sck", "cs", "mosi", "miso") if peer.peer_id == "spi" else
+                      ("sck", "csn0", "csn1", "csn2", "csn3", "mode",
+                       "sdo0", "sdo1", "sdo2", "sdo3",
+                       "sdi0", "sdi1", "sdi2", "sdi3"))
         roles = {role: f"dut.{peer.instance_id}__{peer.binding(role).component_port}"
-                 for role in ("sck", "cs", "mosi", "miso")}
-        records.append({"instance_id": peer.instance_id, "roles": roles,
-                        "parameters": peer.parameter_values})
+                 for role in role_names}
+        instance = plan.instance(peer.instance_id)
+        widths = {role: instance.binding.field(peer.endpoint_id, role).width
+                  for role in role_names}
+        record: dict[str, object] = {
+            "instance_id": peer.instance_id, "peer_id": peer.peer_id,
+            "roles": roles, "widths": widths,
+            "parameters": (dict((str(name), int(str(value), 0)) for name, value in
+                                 instance.profile.source.elaboration.parameters)
+                           if peer.peer_id == "pulp_spi"
+                           else peer.parameter_values),
+        }
+        if peer.peer_id == "pulp_spi":
+            record["apb"] = {field.role: f"dut.{peer.instance_id}__{field.port}"
+                             for field in instance.binding.endpoint("spi.bus").fields}
+            record["spi_window_base"] = next(
+                int(window["base"])
+                for window in plan.plan["address_map"]["windows"]
+                if str(window["target_id"]) == f"{peer.instance_id}_win")
+            record["profile_identity"] = {
+                "component_id": instance.component_id,
+                "top_module": instance.top_module,
+                "source_revision": instance.profile.source.revision,
+                "binding_hash": instance.binding.binding_hash,
+            }
+        records.append(record)
     return tuple(records)
 
 
@@ -751,8 +793,14 @@ def render_profile_testbench(plan: CompositionPlan, *,
     add("  integer errors = 0;")
     for index, item in enumerate(spi_wires):
         add(f"  integer peer_wire_count_{index} = 0;")
+        add(f"  integer peer_wire_total_{index} = 0;")
         add(f"  integer peer_wire_truncated_{index} = 0;")
-        add(f"  logic [3:0] peer_wire_previous_{index} = 4'bxxxx;")
+        width = sum(int(value) for value in item["widths"].values())
+        add(f"  logic [{width - 1}:0] peer_wire_previous_{index} = 'x;")
+        if item["peer_id"] == "pulp_spi":
+            add(f"  integer spi_apb_count_{index} = 0;")
+            add(f"  integer spi_apb_total_{index} = 0;")
+            add(f"  integer spi_apb_truncated_{index} = 0;")
     add("  integer event_index = 0;")
     add("  integer event_slot [0:MAX_EVENTS-1];")
     add("  integer event_cycle [0:MAX_EVENTS-1];")
@@ -805,11 +853,22 @@ def render_profile_testbench(plan: CompositionPlan, *,
     add("  integer rsp_head = 0;")
     add("  integer req_total = 0;")
     add("  integer req_head = 0;")
+    add("  integer req_seq [0:REQ_CAPTURE-1];")
     add("  integer req_cycle [0:REQ_CAPTURE-1];")
     add(f"  logic [{fabric_address_width - 1}:0] req_addr [0:REQ_CAPTURE-1];")
     add(f"  logic [{fabric_data_width - 1}:0] req_wdata [0:REQ_CAPTURE-1];")
     add(f"  logic [{fabric_data_width // 8 - 1}:0] req_be [0:REQ_CAPTURE-1];")
+    add("  logic req_write [0:REQ_CAPTURE-1];")
     add(f"  logic [{fabric_source_width - 1}:0] req_source [0:REQ_CAPTURE-1];")
+    add("  integer source_req_total = 0;")
+    add("  integer source_req_head = 0;")
+    add("  integer source_req_seq [0:REQ_CAPTURE-1];")
+    add("  integer source_req_cycle [0:REQ_CAPTURE-1];")
+    add(f"  logic [{fabric_address_width - 1}:0] source_req_addr [0:REQ_CAPTURE-1];")
+    add(f"  logic [{fabric_data_width - 1}:0] source_req_wdata [0:REQ_CAPTURE-1];")
+    add(f"  logic [{fabric_data_width // 8 - 1}:0] source_req_be [0:REQ_CAPTURE-1];")
+    add("  logic source_req_write [0:REQ_CAPTURE-1];")
+    add(f"  logic [{fabric_source_width - 1}:0] source_req_source [0:REQ_CAPTURE-1];")
     add("  integer rsp_seq [0:RSP_CAPTURE-1];")
     add(f"  logic [{fabric_address_width - 1}:0] rsp_addr [0:RSP_CAPTURE-1];")
     add(f"  logic [{fabric_data_width - 1}:0] rsp_rdata [0:RSP_CAPTURE-1];")
@@ -827,14 +886,27 @@ def render_profile_testbench(plan: CompositionPlan, *,
     add("    end")
     add("  end")
     add("  always @(posedge clk_i) begin")
-    add("    if (dut.fabric_req_valid && dut.fabric_req_ready && dut.fabric_write) begin")
-    add("      req_cycle[req_head] = cycles;")
-    add("      req_addr[req_head] = dut.fabric_addr;")
-    add("      req_wdata[req_head] = dut.fabric_wdata;")
-    add("      req_be[req_head] = dut.fabric_be;")
-    add("      req_source[req_head] = dut.fabric_source_id;")
-    add("      req_head = (req_head + 1) % REQ_CAPTURE;")
-    add("      req_total = req_total + 1;")
+    add("    if (dut.fabric_req_valid && dut.fabric_req_ready) begin")
+    add("      source_req_seq[source_req_head] = source_req_total;")
+    add("      source_req_cycle[source_req_head] = cycles;")
+    add("      source_req_addr[source_req_head] = dut.fabric_addr;")
+    add("      source_req_wdata[source_req_head] = dut.fabric_wdata;")
+    add("      source_req_be[source_req_head] = dut.fabric_be;")
+    add("      source_req_write[source_req_head] = dut.fabric_write;")
+    add("      source_req_source[source_req_head] = dut.fabric_source_id;")
+    add("      source_req_head = (source_req_head + 1) % REQ_CAPTURE;")
+    add("      source_req_total = source_req_total + 1;")
+    add("      if (dut.fabric_write) begin")
+    add("        req_seq[req_head] = source_req_total - 1;")
+    add("        req_cycle[req_head] = cycles;")
+    add("        req_addr[req_head] = dut.fabric_addr;")
+    add("        req_wdata[req_head] = dut.fabric_wdata;")
+    add("        req_be[req_head] = dut.fabric_be;")
+    add("        req_write[req_head] = 1'b1;")
+    add("        req_source[req_head] = dut.fabric_source_id;")
+    add("        req_head = (req_head + 1) % REQ_CAPTURE;")
+    add("        req_total = req_total + 1;")
+    add("      end")
     add("    end")
     add("  end")
     add("")
@@ -865,18 +937,19 @@ def render_profile_testbench(plan: CompositionPlan, *,
     for index, item in enumerate(spi_wires):
         roles = item["roles"]
         assert isinstance(roles, Mapping)
-        packed = "{" + ", ".join(str(roles[role]) for role in
-                                   ("sck", "cs", "mosi", "miso")) + "}"
+        role_names = tuple(roles)
+        packed = "{" + ", ".join(str(roles[role]) for role in role_names) + "}"
         add("  // Sample after the active edge and all nonblocking updates settle.")
         add("  always @(negedge clk_i) begin")
         add(f"    if (rst_ni && cycles > 0 && cycles <= requested_cycles && "
             f"{packed} !== peer_wire_previous_{index}) begin")
         add(f"      peer_wire_previous_{index} = {packed};")
+        add(f"      peer_wire_total_{index} = peer_wire_total_{index} + 1;")
         add(f"      if (peer_wire_count_{index} < PEER_WIRE_MAX) begin")
+        format_fields = " ".join(f"{role}=%b" for role in role_names)
+        values = ", ".join(str(roles[role]) for role in role_names)
         add(f"        $display(\"MYFUZZ_PEER_WIRE cycle=%0d instance={item['instance_id']} "
-            "sck=%b cs=%b mosi=%b miso=%b\", cycles, " +
-            ", ".join(str(roles[role]) for role in
-                      ("sck", "cs", "mosi", "miso")) + ");")
+            f"{format_fields}\", cycles, {values});")
         add(f"        peer_wire_count_{index} = peer_wire_count_{index} + 1;")
         add("      end else begin")
         add(f"        peer_wire_truncated_{index} = 1;")
@@ -884,6 +957,26 @@ def render_profile_testbench(plan: CompositionPlan, *,
         add("    end")
         add("  end")
         add("")
+        if item["peer_id"] == "pulp_spi":
+            apb = item["apb"]
+            assert isinstance(apb, Mapping)
+            add("  always @(posedge clk_i) begin")
+            add(f"    if (rst_ni && {apb['psel']} && {apb['penable']} && "
+                f"{apb['pready']}) begin")
+            add(f"      spi_apb_total_{index} = spi_apb_total_{index} + 1;")
+            add(f"      if (spi_apb_count_{index} < PEER_WIRE_MAX) begin")
+            add(f"        $display(\"MYFUZZ_SPI_APB instance={item['instance_id']} "
+                "cycle=%0d addr=%0h write=%0d wdata=%0h rdata=%0h "
+                "pready=%0d pslverr=%0d\", cycles, "
+                f"{apb['paddr']}, {apb['pwrite']}, {apb['pwdata']}, "
+                f"{apb['prdata']}, {apb['pready']}, {apb['pslverr']});")
+            add(f"        spi_apb_count_{index} = spi_apb_count_{index} + 1;")
+            add("      end else begin")
+            add(f"        spi_apb_truncated_{index} = 1;")
+            add("      end")
+            add("    end")
+            add("  end")
+            add("")
     if fabric_sources:
         add("  // One counter per declared fabric source, incremented by the completion the")
         add("  // arbiter attributes to that source id.  The DUT is only observed.")
@@ -1181,8 +1274,15 @@ def render_profile_testbench(plan: CompositionPlan, *,
     add("    $display(\"MYFUZZ_SOC_RUN status=OK cycles=%0d request=%0d\", cycles, request_id);")
     for index, item in enumerate(spi_wires):
         add(f"    $display(\"MYFUZZ_PEER_WIRE_SUMMARY instance={item['instance_id']} "
-            f"count=%0d truncated=%0d\", peer_wire_count_{index}, "
+            f"count=%0d captured=%0d total=%0d truncated=%0d\", "
+            f"peer_wire_count_{index}, peer_wire_count_{index}, "
+            f"peer_wire_total_{index}, "
             f"peer_wire_truncated_{index});")
+        if item["peer_id"] == "pulp_spi":
+            add(f"    $display(\"MYFUZZ_SPI_APB_SUMMARY instance={item['instance_id']} "
+                f"captured=%0d total=%0d truncated=%0d\", "
+                f"spi_apb_count_{index}, spi_apb_total_{index}, "
+                f"spi_apb_truncated_{index});")
     for index, item in enumerate(observations):
         add(f"    $display(\"MYFUZZ_OBS {item['name']}=%0h\", obs_{item['name']});")
     for index, item in enumerate(fabric_sources):
@@ -1195,14 +1295,27 @@ def render_profile_testbench(plan: CompositionPlan, *,
         add("    $display(\"MYFUZZ_OBS fabric_protocol_error=%0h\", "
             "dut.fabric_protocol_error);")
     add("    $display(\"MYFUZZ_OBS fabric_responses=%0h\", rsp_total);")
-    add("    $display(\"MYFUZZ_REQ_SUMMARY total=%0d truncated=%0d\", "
+    add("    $display(\"MYFUZZ_REQ_SUMMARY captured=%0d total=%0d "
+        "truncated=%0d\", (req_total < REQ_CAPTURE ? req_total : REQ_CAPTURE), "
         "req_total, req_total > REQ_CAPTURE);")
     add("    for (cycle_index = 0; cycle_index < REQ_CAPTURE "
         "&& cycle_index < req_total; cycle_index = cycle_index + 1) begin")
     add("      code = (req_head - 1 - cycle_index + 2*REQ_CAPTURE) % REQ_CAPTURE;")
-    add("      $display(\"MYFUZZ_REQ cycle=%0d addr=%0h write=1 wdata=%0h "
-        "be=%0h source=%0h\", req_cycle[code], req_addr[code], "
+    add("      $display(\"MYFUZZ_REQ seq=%0d cycle=%0d addr=%0h write=%0d "
+        "wdata=%0h be=%0h source=%0h accepted=1\", req_seq[code], "
+        "req_cycle[code], req_addr[code], req_write[code], "
         "req_wdata[code], req_be[code], req_source[code]);")
+    add("    end")
+    add("    $display(\"MYFUZZ_SOURCE_REQ_SUMMARY captured=%0d total=%0d "
+        "truncated=%0d\", (source_req_total < REQ_CAPTURE ? source_req_total : REQ_CAPTURE), "
+        "source_req_total, source_req_total > REQ_CAPTURE);")
+    add("    for (cycle_index = 0; cycle_index < REQ_CAPTURE "
+        "&& cycle_index < source_req_total; cycle_index = cycle_index + 1) begin")
+    add("      code = (source_req_head - 1 - cycle_index + 2*REQ_CAPTURE) % REQ_CAPTURE;")
+    add("      $display(\"MYFUZZ_SOURCE_REQ seq=%0d cycle=%0d addr=%0h write=%0d "
+        "wdata=%0h be=%0h source=%0h accepted=1\", source_req_seq[code], "
+        "source_req_cycle[code], source_req_addr[code], source_req_write[code], "
+        "source_req_wdata[code], source_req_be[code], source_req_source[code]);")
     add("    end")
     add("    for (cycle_index = 0; cycle_index < RSP_CAPTURE "
         "&& cycle_index < rsp_total; cycle_index = cycle_index + 1) begin")
@@ -1311,10 +1424,21 @@ def build_profile_runtime(plan: CompositionPlan, *, output_dir: Path, base_dir: 
                              for item in plan.plan["fabric"]["sources"]
                              if str(item.get("kind")) == "cpu_data")
     contracts = dict(spi_wire_contracts or {})
-    admitted_spi = {str(item["instance_id"]) for item in peer_wires}
+    admitted_spi = {str(item["instance_id"]): item for item in peer_wires}
+    for item in peer_wires:
+        if item["peer_id"] == "pulp_spi":
+            contracts[str(item["instance_id"])] = {
+                **dict(contracts.get(str(item["instance_id"]), {})),
+                "profile_identity": dict(item["profile_identity"]),
+                "parameters": dict(item["parameters"]),
+                "spi_window_base": int(item["spi_window_base"]),
+            }
     for instance_id, record in contracts.items():
-        if instance_id not in admitted_spi or not isinstance(record, Mapping) or \
-                not isinstance(record.get("txdata_address"), int) or \
+        if instance_id not in admitted_spi or not isinstance(record, Mapping):
+            _error(f"runtime-spi-wire-contract-invalid:{instance_id}")
+        if admitted_spi[instance_id]["peer_id"] == "pulp_spi":
+            continue
+        if not isinstance(record.get("txdata_address"), int) or \
                 isinstance(record.get("txdata_address"), bool) or \
                 int(record["txdata_address"]) < 0 or not str(record.get("basis", "")):
             _error(f"runtime-spi-wire-contract-invalid:{instance_id}")
@@ -1477,9 +1601,16 @@ def run_sample(build: RuntimeBuild, sample: RuntimeSample, *,
     peer_applied: list[dict[str, object]] = []
     peer_wire_trace: list[dict[str, object]] = []
     peer_wire_status: list[dict[str, object]] = []
+    spi_apb_transactions: list[dict[str, object]] = []
+    spi_apb_status: list[dict[str, object]] = []
     responses: list[dict[str, int]] = []
     requests: list[dict[str, int]] = []
+    source_requests: list[dict[str, int]] = []
+    requests_total = 0
     requests_truncated = False
+    source_requests_total = 0
+    source_requests_truncated = False
+    source_request_summary_seen = False
     image_placements: list[dict[str, object]] = []
     image_errors: list[dict[str, object]] = []
     status = "unknown"
@@ -1512,19 +1643,55 @@ def run_sample(build: RuntimeBuild, sample: RuntimeSample, *,
         elif line.startswith("MYFUZZ_PEER_WIRE_SUMMARY "):
             fields = dict(part.split("=", 1) for part in line.split()[1:] if "=" in part)
             try:
-                peer_wire_status.append({"instance_id": fields["instance"],
-                                         "count": int(fields["count"]),
-                                         "truncated": bool(int(fields["truncated"]))})
+                captured = int(fields.get("captured", fields.get("count", "")))
+                peer_wire_status.append({
+                    "instance_id": fields["instance"], "count": captured,
+                    "captured": captured,
+                    "total": int(fields.get("total", captured)),
+                    "truncated": bool(int(fields["truncated"])),
+                })
             except (KeyError, ValueError):
                 continue
         elif line.startswith("MYFUZZ_PEER_WIRE "):
             fields = dict(part.split("=", 1) for part in line.split()[1:] if "=" in part)
             try:
+                role_names = (("sck", "cs", "mosi", "miso") if "cs" in fields else
+                              ("sck", "csn0", "csn1", "csn2", "csn3", "mode",
+                               "sdo0", "sdo1", "sdo2", "sdo3",
+                               "sdi0", "sdi1", "sdi2", "sdi3"))
                 peer_wire_trace.append({"instance_id": fields["instance"],
                                         "cycle": int(fields["cycle"]),
-                                        **{role: fields[role] for role in
-                                           ("sck", "cs", "mosi", "miso")}})
+                                        **{role: fields[role] for role in role_names}})
             except KeyError:
+                continue
+        elif line.startswith("MYFUZZ_SPI_APB_SUMMARY "):
+            fields = dict(part.split("=", 1) for part in line.split()[1:] if "=" in part)
+            try:
+                spi_apb_status.append({
+                    "instance_id": fields["instance"],
+                    "captured": int(fields["captured"]),
+                    "total": int(fields["total"]),
+                    "truncated": bool(int(fields["truncated"])),
+                })
+            except (KeyError, ValueError):
+                continue
+        elif line.startswith("MYFUZZ_SPI_APB "):
+            fields = dict(part.split("=", 1) for part in line.split()[1:] if "=" in part)
+            try:
+                spi_apb_transactions.append({
+                    "instance_id": fields["instance"],
+                    "cycle": int(fields["cycle"]),
+                    "addr": int(fields["addr"], 16),
+                    "local_address": int(fields["addr"], 16),
+                    "write": int(fields["write"]),
+                    "wdata": int(fields["wdata"], 16),
+                    "rdata": int(fields["rdata"], 16),
+                    "pready": int(fields["pready"]),
+                    "pslverr": int(fields["pslverr"]),
+                    "accepted": True,
+                    "source_request_id": None,
+                })
+            except (KeyError, ValueError):
                 continue
         elif line.startswith("MYFUZZ_IMAGE_ERROR "):
             fields = dict(part.split("=", 1) for part in line.split()[1:] if "=" in part)
@@ -1553,18 +1720,54 @@ def run_sample(build: RuntimeBuild, sample: RuntimeSample, *,
         elif line.startswith("MYFUZZ_REQ_SUMMARY "):
             fields = dict(part.split("=", 1) for part in line.split()[1:] if "=" in part)
             try:
+                requests_total = int(fields["total"])
                 requests_truncated = bool(int(fields["truncated"]))
             except (KeyError, ValueError):
                 continue
         elif line.startswith("MYFUZZ_REQ "):
             fields = dict(part.split("=", 1) for part in line.split()[1:] if "=" in part)
             try:
-                requests.append({"cycle": int(fields["cycle"]),
-                                 "addr": int(fields["addr"], 16),
+                address = int(fields["addr"], 16)
+                byte_enable = int(fields["be"], 16)
+                source = int(fields["source"], 16)
+                sequence = int(fields.get("seq", len(requests)))
+                requests.append({"seq": sequence, "request_id": sequence,
+                                 "cycle": int(fields["cycle"]),
+                                 "addr": address, "address": address,
+                                 "global_address": address,
                                  "write": int(fields["write"]),
                                  "wdata": int(fields["wdata"], 16),
-                                 "be": int(fields["be"], 16),
-                                 "source": int(fields["source"], 16)})
+                                 "be": byte_enable,
+                                 "byte_enable": byte_enable,
+                                 "source": source, "source_id": source,
+                                 "accepted": int(fields.get("accepted", "1"))})
+            except (KeyError, ValueError):
+                continue
+        elif line.startswith("MYFUZZ_SOURCE_REQ_SUMMARY "):
+            fields = dict(part.split("=", 1) for part in line.split()[1:] if "=" in part)
+            try:
+                source_requests_total = int(fields["total"])
+                source_requests_truncated = bool(int(fields["truncated"]))
+                source_request_summary_seen = True
+            except (KeyError, ValueError):
+                continue
+        elif line.startswith("MYFUZZ_SOURCE_REQ "):
+            fields = dict(part.split("=", 1) for part in line.split()[1:] if "=" in part)
+            try:
+                address = int(fields["addr"], 16)
+                byte_enable = int(fields["be"], 16)
+                source = int(fields["source"], 16)
+                sequence = int(fields.get("seq", len(source_requests)))
+                source_requests.append({"seq": sequence, "request_id": sequence,
+                                        "cycle": int(fields["cycle"]),
+                                        "addr": address, "address": address,
+                                        "global_address": address,
+                                        "write": int(fields["write"]),
+                                        "wdata": int(fields["wdata"], 16),
+                                        "be": byte_enable,
+                                        "byte_enable": byte_enable,
+                                        "source": source, "source_id": source,
+                                        "accepted": int(fields.get("accepted", "1"))})
             except (KeyError, ValueError):
                 continue
         elif line.startswith("MYFUZZ_MEM "):
@@ -1585,6 +1788,38 @@ def run_sample(build: RuntimeBuild, sample: RuntimeSample, *,
     if result.returncode != 0 and status == "OK":
         status = "simulator-error"
         reason = f"returncode:{result.returncode}"
+    # Associate each accepted APB write with one accepted fabric request.  The
+    # target sees local PADDR; the source uses the global address map.  Matching
+    # each source at most once preserves identity for repeated identical writes.
+    # Old generated binaries emitted only the write-only MYFUZZ_REQ stream.
+    # Keep them readable during replay; fresh builds emit both bounded streams.
+    if not source_request_summary_seen and not source_requests:
+        source_requests = list(requests)
+        source_requests_total = requests_total
+        source_requests_truncated = requests_truncated
+    wire_bases = {
+        str(item["instance_id"]): int(item["spi_window_base"])
+        for item in tuple(getattr(build, "peer_wires", ()) or ())
+        if item.get("peer_id") == "pulp_spi" and "spi_window_base" in item
+    }
+    unmatched = sorted((item for item in source_requests if item["write"]),
+                       key=lambda item: (item["cycle"], item["request_id"]))
+    for transaction in spi_apb_transactions:
+        if not transaction["write"]:
+            continue
+        base = wire_bases.get(str(transaction["instance_id"]))
+        if base is None:
+            continue
+        expected_address = base + int(transaction["addr"])
+        match = next((item for item in unmatched
+                      if item["global_address"] == expected_address
+                      and item["wdata"] == transaction["wdata"]
+                      and item["cycle"] <= transaction["cycle"]), None)
+        if match is not None:
+            transaction["source_request_id"] = match["request_id"]
+            transaction["source_id"] = match["source_id"]
+            transaction["byte_enable"] = match["byte_enable"]
+            unmatched.remove(match)
     counters = {
         "cycles": cycles,
         "observations": len(observations),
@@ -1626,8 +1861,15 @@ def run_sample(build: RuntimeBuild, sample: RuntimeSample, *,
                                key=lambda item: int(item["seq"]))),
         peer_wire_trace=tuple(peer_wire_trace),
         peer_wire_status=tuple(peer_wire_status),
-        requests=tuple(sorted(requests, key=lambda item: int(item["cycle"]))),
+        spi_apb_transactions=tuple(spi_apb_transactions),
+        spi_apb_status=tuple(spi_apb_status),
+        requests=tuple(sorted(requests, key=lambda item: int(item["request_id"]))),
+        requests_total=requests_total,
         requests_truncated=requests_truncated,
+        source_requests=tuple(sorted(source_requests,
+                                    key=lambda item: int(item["request_id"]))),
+        source_requests_total=source_requests_total,
+        source_requests_truncated=source_requests_truncated,
         image_placements=tuple(image_placements),
         image_errors=tuple(image_errors))
     if tuple(getattr(build, "peer_slots", ()) or ()):

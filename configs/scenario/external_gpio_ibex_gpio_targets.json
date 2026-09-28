@@ -1,0 +1,5 @@
+[
+  {"target_id":"gpio_a.out_0x300","component":"gpio_a","port":"gpio_out","mask":768,"value":768},
+  {"target_id":"gpio_b.irq_high","component":"gpio_b","port":"irq","mask":1,"value":1},
+  {"target_id":"cpu.data_write","component":"cpu","port":"data_write","mask":1,"value":1}
+]

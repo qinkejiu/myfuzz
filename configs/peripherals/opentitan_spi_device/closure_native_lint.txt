@@ -1,0 +1,88 @@
+- V e r i l a t i o n   R e p o r t: Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67
+- Verilator: Built from 66.168 MB sources in 94 modules, into 2.556 MB in 4 C++ files needing 0.000 MB
+- Verilator: Walltime 1.749 s (elab=0.357, cvt=1.228, bld=0.000); cpu 1.783 s on 1 threads; allocated 119.617 MB
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:502:38: Operator SUB expects 32 bits on the LHS, but LHS's VARREF 'SPI_DEVICE_INGRESS_BUFFER_OFFSET' generates 13 bits.
+  502 |     SPI_DEVICE_INGRESS_BUFFER_OFFSET - SPI_DEVICE_EGRESS_BUFFER_OFFSET;
+      |                                      ^
+                      ... For warning description see https://verilator.org/warn/WIDTHEXPAND?v=5.051
+                      ... Use "/* verilator lint_off WIDTHEXPAND */" and lint_on around source to disable this message.
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:502:38: Operator SUB expects 32 bits on the RHS, but RHS's VARREF 'SPI_DEVICE_EGRESS_BUFFER_OFFSET' generates 13 bits.
+  502 |     SPI_DEVICE_INGRESS_BUFFER_OFFSET - SPI_DEVICE_EGRESS_BUFFER_OFFSET;
+      |                                      ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_fifo_sync.sv:13:26: Operator VAR 'ReqDepth' expects 32 bits on the Initial value, but Initial value's CONST '4'h0' generates 4 bits.
+   13 |   parameter int unsigned ReqDepth = 2,
+      |                          ^~~~~~~~
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_fifo_sync.sv:14:26: Operator VAR 'RspDepth' expects 32 bits on the Initial value, but Initial value's CONST '4'h0' generates 4 bits.
+   14 |   parameter int unsigned RspDepth = 2,
+      |                          ^~~~~~~~
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:509:41: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'SramReadBufferIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_device.gen_alert_tx[0].u_prim_alert_sender.u_prim_flop_alert'
+  509 |     bit unused_bit [((SramReadBufferIdx == spi_device_reg_pkg::SramReadBufferOffset) ? 1 : -1)];                     
+      |                                         ^~
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:514:38: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'SramMailboxIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_device.gen_alert_tx[0].u_prim_alert_sender.u_prim_flop_alert'
+  514 |     bit unused_bit [((SramMailboxIdx == spi_device_reg_pkg::SramMailboxOffset) ? 1 : -1)];                     
+      |                                      ^~
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:519:35: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'SramSfdpIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_device.gen_alert_tx[0].u_prim_alert_sender.u_prim_flop_alert'
+  519 |     bit unused_bit [((SramSfdpIdx == spi_device_reg_pkg::SramSfdpOffset) ? 1 : -1)];                     
+      |                                   ^~
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:524:40: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'SramTpmRdFifoIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_device.gen_alert_tx[0].u_prim_alert_sender.u_prim_flop_alert'
+  524 |     bit unused_bit [((SramTpmRdFifoIdx == spi_device_reg_pkg::SramTpmRdFifoOffset) ? 1 : -1)];                     
+      |                                        ^~
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:531:39: Operator SUB expects 32 bits on the LHS, but LHS's VARREF 'SramPayloadIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_device.gen_alert_tx[0].u_prim_alert_sender.u_prim_flop_alert'
+  531 |     bit unused_bit [(((SramPayloadIdx - SramIngressIdx) == spi_device_reg_pkg::SramPayloadOffset) ? 1 : -1)];                     
+      |                                       ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:531:39: Operator SUB expects 32 bits on the RHS, but RHS's VARREF 'SramIngressIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_device.gen_alert_tx[0].u_prim_alert_sender.u_prim_flop_alert'
+  531 |     bit unused_bit [(((SramPayloadIdx - SramIngressIdx) == spi_device_reg_pkg::SramPayloadOffset) ? 1 : -1)];                     
+      |                                       ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:536:39: Operator SUB expects 32 bits on the LHS, but LHS's VARREF 'SramCmdFifoIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_device.gen_alert_tx[0].u_prim_alert_sender.u_prim_flop_alert'
+  536 |     bit unused_bit [(((SramCmdFifoIdx - SramIngressIdx) == spi_device_reg_pkg::SramCmdFifoOffset) ? 1 : -1)];                     
+      |                                       ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:536:39: Operator SUB expects 32 bits on the RHS, but RHS's VARREF 'SramIngressIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_device.gen_alert_tx[0].u_prim_alert_sender.u_prim_flop_alert'
+  536 |     bit unused_bit [(((SramCmdFifoIdx - SramIngressIdx) == spi_device_reg_pkg::SramCmdFifoOffset) ? 1 : -1)];                     
+      |                                       ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:541:40: Operator SUB expects 32 bits on the LHS, but LHS's VARREF 'SramAddrFifoIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_device.gen_alert_tx[0].u_prim_alert_sender.u_prim_flop_alert'
+  541 |     bit unused_bit [(((SramAddrFifoIdx - SramIngressIdx) == spi_device_reg_pkg::SramAddrFifoOffset) ? 1 : -1)];                     
+      |                                        ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:541:40: Operator SUB expects 32 bits on the RHS, but RHS's VARREF 'SramIngressIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_device.gen_alert_tx[0].u_prim_alert_sender.u_prim_flop_alert'
+  541 |     bit unused_bit [(((SramAddrFifoIdx - SramIngressIdx) == spi_device_reg_pkg::SramAddrFifoOffset) ? 1 : -1)];                     
+      |                                        ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:546:41: Operator SUB expects 32 bits on the LHS, but LHS's VARREF 'SramTpmWrFifoIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_device.gen_alert_tx[0].u_prim_alert_sender.u_prim_flop_alert'
+  546 |     bit unused_bit [(((SramTpmWrFifoIdx - SramIngressIdx) == spi_device_reg_pkg::SramTpmWrFifoOffset) ? 1 : -1)];                     
+      |                                         ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spi_device_pkg.sv:546:41: Operator SUB expects 32 bits on the RHS, but RHS's VARREF 'SramIngressIdx' generates 10 bits.
+                                                                                             : ... note: In instance 'spi_device.gen_alert_tx[0].u_prim_alert_sender.u_prim_flop_alert'
+  546 |     bit unused_bit [(((SramTpmWrFifoIdx - SramIngressIdx) == spi_device_reg_pkg::SramTpmWrFifoOffset) ? 1 : -1)];                     
+      |                                         ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/prim/rtl/prim_diff_decode.sv:162:28: Operator LT expects 32 bits on the LHS, but LHS's VARREF 'skew_cnt_q' generates 1 bits.
+                                                                                         : ... note: In instance 'spi_device.gen_alert_tx[0].u_prim_alert_sender.u_decode_ack'
+  162 |             if (skew_cnt_q < SkewCycles) begin
+      |                            ^
+%Warning-WIDTHEXPAND: third_party/soc-opentitan/hw/ip/spi_device/rtl/spid_fifo2sram_adapter.sv:81:34: Operator EQ expects 32 bits on the LHS, but LHS's SEL generates 2 bits.
+                                                                                                    : ... note: In instance 'spi_device.u_spi_tpm.u_tpm_wr_buffer'
+   81 |         if (fifoptr[0+:SubWordW] == i) begin
+      |                                  ^~
+%Warning-WIDTHTRUNC: third_party/soc-opentitan/hw/ip/spi_device/rtl/spid_status.sv:352:22: Operator ASSIGN expects 2 bits on the Assign RHS, but Assign RHS's VARREF 'i' generates 32 bits.
+                                                                                         : ... note: In instance 'spi_device.u_spid_status'
+  352 |           byte_sel_d = i;
+      |                      ^
+                     ... For warning description see https://verilator.org/warn/WIDTHTRUNC?v=5.051
+                     ... Use "/* verilator lint_off WIDTHTRUNC */" and lint_on around source to disable this message.
+%Warning-ALWCOMBORDER: third_party/soc-opentitan/hw/ip/prim/rtl/prim_leading_one_ppc.sv:25:7: always_comb reads 'ppc_out' before assigning it later in the same block; behavior may imply latch/state-like behavior and is not purely combinational
+                                                                                            : ... note: In instance 'spi_device.u_sys_sram_arbiter.gen_arb_ppc.u_reqarb.gen_normal_case.u_leading_one'
+                       third_party/soc-opentitan/hw/ip/prim/rtl/prim_leading_one_ppc.sv:25:20: ... Location of earlier read
+   25 |       ppc_out[i] = ppc_out[i-1] | in_i[i];
+      |                    ^~~~~~~
+   25 |       ppc_out[i] = ppc_out[i-1] | in_i[i];
+      |       ^~~~~~~
+                       ... For warning description see https://verilator.org/warn/ALWCOMBORDER?v=5.051
+                       ... Use "/* verilator lint_off ALWCOMBORDER */" and lint_on around source to disable this message.

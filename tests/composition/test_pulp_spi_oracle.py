@@ -483,6 +483,17 @@ class PulpSpiOracleEvidenceRefusalTests(unittest.TestCase):
         result = audit_pulp_spi_run(**evidence)
         self.assert_not_assessed(result, "spi-apb-source-not-cpu-data")
 
+    def test_non_spi_read_requests_may_share_the_complete_fabric_capture(self):
+        transactions = _apb_transactions("rx")
+        source_requests = list(transactions.source_requests)
+        source_requests.append({
+            "request_id": 100, "cycle": 50, "address": 0x0001_0000,
+            "write": False, "wdata": 0, "byte_enable": 0,
+            "source_id": 0, "accepted": True,
+        })
+        result = _audit(source_requests=source_requests)
+        self.assertEqual("pass", result["verdict"], result)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -75,8 +75,12 @@ PROTOCOL_MONITOR_SOURCES = (
     "src/myfuzz/protocols/rtl/soc_fabric_checker.sv",
 )
 GPIO_MONITOR_SOURCE = "src/myfuzz/protocols/rtl/soc_pulp_gpio_checker.sv"
+SPI_MONITOR_SOURCE = "src/myfuzz/protocols/rtl/soc_pulp_spi_checker.sv"
+RVFI_MONITOR_SOURCE = "src/myfuzz/protocols/rtl/soc_ibex_rvfi_checker.sv"
 PROTOCOL_ACTIVE_BITS = frozenset({0, 1, 3, 4, 6, 8, 9, 10, 12, 13, 14, 15})
 GPIO_ACTIVE_BITS = frozenset(range(21, 32))
+SPI_ACTIVE_BITS = frozenset(range(41, 47))
+RVFI_ACTIVE_BITS = frozenset({16})
 PROTOCOL_BIT_SOURCES = {0: ("obi_instr", 0), 1: ("obi_instr", 1),
                         3: ("obi_data", 0), 4: ("obi_data", 1),
                         6: ("gpio0_apb", 0), 8: ("gpio0_apb", 2),
@@ -268,7 +272,7 @@ def _render_top(plan: CompositionPlan,
         _error("checker-profile-unexpected")
     if checker_profile is not None and any(
             item.status == "active" and item.bit not in
-            (PROTOCOL_ACTIVE_BITS | GPIO_ACTIVE_BITS)
+            (PROTOCOL_ACTIVE_BITS | GPIO_ACTIVE_BITS | SPI_ACTIVE_BITS | RVFI_ACTIVE_BITS)
             for item in checker_profile.properties):
         _error("checker-active-without-rendered-monitor")
     if checker_profile is not None:
@@ -277,7 +281,9 @@ def _render_top(plan: CompositionPlan,
                 continue
             expected_binding = ("u_checker_" + PROTOCOL_BIT_SOURCES[item.bit][0]
                                 if item.bit in PROTOCOL_ACTIVE_BITS
-                                else "u_checker_gpio0")
+                                else ("u_checker_gpio0" if item.bit in GPIO_ACTIVE_BITS
+                                      else ("u_checker_spi0" if item.bit in SPI_ACTIVE_BITS
+                                            else "u_checker_ibex_rvfi")))
             if item.binding != expected_binding:
                 _error("checker-binding-mismatch")
     soc_plan = plan.plan
@@ -393,6 +399,9 @@ def _render_top(plan: CompositionPlan,
     if checker_profile is not None:
         ports.extend(("    output logic [49:0] checker_eval_o",
                       "    output logic [49:0] checker_fail_o"))
+        if any(item.status == "active" and item.bit in RVFI_ACTIVE_BITS
+               for item in checker_profile.properties):
+            ports.append("    output logic [11:0] rvfi_opcode_coverage_o")
     writer.add(",\n".join(ports))
     writer.add(");")
     writer.add("  // fuzz ports: declared special inputs, driven by the environment under the")
@@ -546,6 +555,7 @@ def _render_top(plan: CompositionPlan,
                    f" u_{cpu_instance.instance_id}_adapter_{lane} (")
         connections = ["    .clk_i(clk_i), .rst_ni(rst_ni)"]
         scoped = cpu_roles.get(str(master["port"]), {})
+        connected_roles = set()
         for field in endpoint.fields:
             # The adapter's source pin is connected to the net the *role* owns:
             # on a whole-port role that is the historical
@@ -556,6 +566,23 @@ def _render_top(plan: CompositionPlan,
             net = (str(role_binding["net"]) if isinstance(role_binding, Mapping)
                    else _signal(cpu_instance.instance_id, field.port))
             connections.append(f"    .{adapter_ports[field.role]}({net})")
+            connected_roles.add(str(field.role))
+        for source_port in plan.cpu_adapter["source_ports"]:
+            role = str(source_port["role"])
+            if (role in connected_roles
+                    or str(source_port["adapter_direction"]) != "input"):
+                continue
+            if (role in {"we", "wdata", "be"}
+                    and int(route["parameters"].get("READ_ONLY", 0)) == 1):
+                # A read-only master has no physical write pins. Tie the
+                # adapter's unused write-side inputs low instead of omitting
+                # named ports; this keeps the generated top warning-clean and
+                # makes the read-only contract explicit in the netlist.
+                tieoff = "1'b0" if role == "we" else "'0"
+                connections.append(f"    .{adapter_ports[role]}({tieoff})")
+                connected_roles.add(role)
+                continue
+            _error(f"unbound-cpu-adapter-source-input:{master['port']}:{role}")
         connections.extend([
             f"    .req_valid_o(src_req_valid[{lane}])",
             f"    .req_ready_i(src_req_ready[{lane}])",
@@ -858,6 +885,111 @@ def _render_protocol_checkers(writer: _Writer, plan: CompositionPlan,
         writer.add("    .first_fail_id_o(checker_gpio0_first_fail_id)")
         writer.add("  );")
 
+    if active & SPI_ACTIVE_BITS:
+        spi = plan.instance("spi0")
+        if spi.component_id != "pulp_spi":
+            _error("checker-spi-component-mismatch")
+        bus_endpoint = spi.binding.endpoint("spi.bus")
+        pin_endpoint = spi.binding.endpoint("spi.pins")
+        bus_fields = {field.role: field for field in bus_endpoint.fields}
+        pin_fields = {field.role: field for field in pin_endpoint.fields}
+        expected_bus_widths = {"paddr": 12, "psel": 1, "penable": 1,
+                               "pwrite": 1, "pwdata": 32, "pready": 1,
+                               "prdata": 32, "pslverr": 1}
+        expected_bus_directions = {
+            "paddr": "input", "psel": "input", "penable": "input",
+            "pwrite": "input", "pwdata": "input", "pready": "output",
+            "prdata": "output", "pslverr": "output",
+        }
+        expected_pin_widths = {
+            "sck": 1, "csn0": 1, "csn1": 1, "csn2": 1, "csn3": 1,
+            "mode": 2, "sdo0": 1, "sdo1": 1, "sdo2": 1, "sdo3": 1,
+            "sdi0": 1, "sdi1": 1, "sdi2": 1, "sdi3": 1,
+        }
+        expected_pin_directions = {
+            role: ("input" if role.startswith("sdi") else "output")
+            for role in expected_pin_widths
+        }
+        bus_roles = peripheral_roles.get("spi0", {})
+        for role, width in expected_bus_widths.items():
+            field = bus_fields.get(role)
+            binding = bus_roles.get(role)
+            if (field is None or binding is None or field.width != width or
+                    field.direction != expected_bus_directions[role]):
+                _error(f"checker-spi-bus-role-missing:{role}")
+            if (str(binding.get("component_port")) != field.port or
+                    int(binding.get("component_width", -1)) != width):
+                _error(f"checker-spi-bus-role-binding-mismatch:{role}")
+
+        def spi_bus_signal(role: str) -> str:
+            binding = bus_roles[role]
+            net = str(binding["net"])
+            component_width = int(binding["component_width"])
+            bridge_width = int(binding["width"])
+            if bridge_width > component_width:
+                return f"{net}[{component_width - 1}:0]"
+            return net
+
+        def spi_pin_signal(role: str) -> str:
+            field = pin_fields.get(role)
+            if (field is None or field.width != expected_pin_widths[role] or
+                    field.direction != expected_pin_directions[role]):
+                _error(f"checker-spi-pin-role-missing:{role}")
+            entries = [entry for entry in spi.dispositions
+                       if entry.endpoint_id == "spi.pins" and entry.role == role
+                       and entry.port == field.port]
+            if len(entries) != 1:
+                _error(f"checker-spi-pin-role-binding-missing:{role}")
+            return _field_net(spi, field.port, role)
+
+        writer.add("  logic [13:0] checker_spi0_eval, checker_spi0_fail;")
+        writer.add("  // SPI monitor nets resolve from the APB and 14-role pin endpoints.")
+        writer.add("  soc_pulp_spi_checker u_checker_spi0 (")
+        writer.add("    .clk_i(clk_i), .rst_ni(rst_ni),")
+        writer.add(f"    .paddr_i({spi_bus_signal('paddr')}),")
+        writer.add(f"    .psel_i({spi_bus_signal('psel')}), "
+                   f".penable_i({spi_bus_signal('penable')}),")
+        writer.add(f"    .pwrite_i({spi_bus_signal('pwrite')}),")
+        writer.add(f"    .pwdata_i({spi_bus_signal('pwdata')}), "
+                   f".prdata_i({spi_bus_signal('prdata')}),")
+        writer.add(f"    .pready_i({spi_bus_signal('pready')}), "
+                   f".pslverr_i({spi_bus_signal('pslverr')}),")
+        for role, port in (("sck", "sck"), ("csn0", "csn0"),
+                           ("csn1", "csn1"), ("csn2", "csn2"),
+                           ("csn3", "csn3"), ("mode", "mode"),
+                           ("sdo0", "sdo0"), ("sdo1", "sdo1"),
+                           ("sdo2", "sdo2"), ("sdo3", "sdo3"),
+                           ("sdi0", "sdi0"), ("sdi1", "sdi1"),
+                           ("sdi2", "sdi2"), ("sdi3", "sdi3")):
+            writer.add(f"    .{port}_i({spi_pin_signal(role)}),")
+        writer.add("    .eval_o(checker_spi0_eval), .fail_o(checker_spi0_fail)")
+        writer.add("  );")
+
+    if active & RVFI_ACTIVE_BITS:
+        cpu = plan.instance("cpu0")
+        if cpu.component_id != "ibex":
+            _error("checker-rvfi-cpu-mismatch")
+        expected = {"rvfi_valid": ("output", 1),
+                    "rvfi_order": ("output", 64),
+                    "rvfi_insn": ("output", 32),
+                    "rvfi_trap": ("output", 1)}
+        for port, (direction, width) in expected.items():
+            fact = cpu.binding.facts.port(port)
+            if fact.direction != direction or fact.width != width:
+                _error(f"checker-rvfi-port-mismatch:{port}")
+        writer.add("  logic checker_ibex_rvfi_eval, checker_ibex_rvfi_fail;")
+        writer.add("  // RVFI outputs are declared observe ports on the real Ibex top.")
+        writer.add("  soc_ibex_rvfi_checker u_checker_ibex_rvfi (")
+        writer.add("    .clk_i(clk_i), .rst_ni(rst_ni),")
+        writer.add("    .rvfi_valid_i(cpu0__rvfi_valid),")
+        writer.add("    .rvfi_order_i(cpu0__rvfi_order),")
+        writer.add("    .rvfi_insn_i(cpu0__rvfi_insn),")
+        writer.add("    .rvfi_trap_i(cpu0__rvfi_trap),")
+        writer.add("    .eval_o(checker_ibex_rvfi_eval),")
+        writer.add("    .fail_o(checker_ibex_rvfi_fail),")
+        writer.add("    .opcode_coverage_o(rvfi_opcode_coverage_o)")
+        writer.add("  );")
+
     writer.add("  always_comb begin")
     writer.add("    checker_eval_o = '0;")
     writer.add("    checker_fail_o = '0;")
@@ -870,6 +1002,13 @@ def _render_protocol_checkers(writer: _Writer, plan: CompositionPlan,
             local_bit = bit - 21
             writer.add(f"    checker_eval_o[{bit}] = checker_gpio0_eval[{local_bit}];")
             writer.add(f"    checker_fail_o[{bit}] = checker_gpio0_fail[{local_bit}];")
+        elif bit in SPI_ACTIVE_BITS:
+            local_bit = bit - 36
+            writer.add(f"    checker_eval_o[{bit}] = checker_spi0_eval[{local_bit}];")
+            writer.add(f"    checker_fail_o[{bit}] = checker_spi0_fail[{local_bit}];")
+        elif bit in RVFI_ACTIVE_BITS:
+            writer.add(f"    checker_eval_o[{bit}] = checker_ibex_rvfi_eval;")
+            writer.add(f"    checker_fail_o[{bit}] = checker_ibex_rvfi_fail;")
     writer.add("  end")
 
 
@@ -1342,6 +1481,12 @@ def source_list(plan: CompositionPlan) -> list[dict[str, str]]:
         if any(item.status == "active" and item.bit in GPIO_ACTIVE_BITS
                for item in profile.properties):
             add(GPIO_MONITOR_SOURCE, "checker_monitor", "soc_top")
+        if any(item.status == "active" and item.bit in SPI_ACTIVE_BITS
+               for item in profile.properties):
+            add(SPI_MONITOR_SOURCE, "checker_monitor", "soc_top")
+        if any(item.status == "active" and item.bit in RVFI_ACTIVE_BITS
+               for item in profile.properties):
+            add(RVFI_MONITOR_SOURCE, "checker_monitor", "soc_top")
     if any(entry.disposition == "fuzz"
            for instance in plan.instances for entry in instance.dispositions):
         add(DRIVER_SOURCE, "special_input_driver", "soc_top")

@@ -179,6 +179,36 @@ class SimulatorFramingTests(unittest.TestCase):
                 simulator.run_test((record,))
             self.assertEqual((), simulator.last_diagnostics)
 
+    def test_campaign_projection_rejection_returns_empty_feedback_and_keeps_simulator_live(self):
+        from myfuzz.composition.runtime_projection import RuntimeProjector
+        from myfuzz.integration.soc_builder import SocBuildError
+
+        class RejectFirstProjection:
+            def __init__(self, layout):
+                self.delegate = RuntimeProjector(layout)
+                self.rejected = False
+
+            def project_records(self, values):
+                if not self.rejected:
+                    self.rejected = True
+                    raise SocBuildError("candidate-access-address-unmapped:0xfffff800")
+                return [self.delegate.project(value) for value in values]
+
+        base = self.simulator("os.write(1, counter('00'))")
+        artifact = replace(base.artifact, projector=RejectFirstProjection(base.artifact.layout))
+        base.close()
+        simulator = rfuzz_simulator.RtlSimulator(
+            artifact, timeout_seconds=1, reject_invalid_projection=True)
+        with simulator:
+            record = artifact.transport.pack(0)
+            self.assertEqual(b"\0", simulator.run_test((record,)))
+            self.assertFalse(simulator.closed)
+            self.assertEqual("candidate-access-address-unmapped:0xfffff800",
+                             simulator.last_projection_rejection["message"])
+            self.assertEqual(b"\0", simulator.run_test((record,)))
+            self.assertIsNone(simulator.last_projection_rejection)
+            self.assertFalse(simulator.closed)
+
     def test_duplicate_counter_frames_fail_with_whole_or_split_reads(self):
         for chunk_size in (4096, 7):
             with self.subTest(chunk_size=chunk_size), self.simulator("""

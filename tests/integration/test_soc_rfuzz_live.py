@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
+import json
 import os
 import sys
 import tempfile
@@ -11,8 +12,17 @@ from unittest.mock import patch
 
 from myfuzz.integration.soc_campaign import (
     SocCampaignSoftwareTrap,
+    _normalise_config,
+    _recover_terminated_client_run,
     preflight_soc_campaign,
     run_soc_campaign,
+)
+from myfuzz.integration.rfuzz_live import (
+    ProjectionRejectionStore,
+    _drain_limit_seconds,
+    _rfuzz_client_buffer_kib,
+    _rfuzz_client_max_runs,
+    encode_initial_seed,
 )
 
 
@@ -45,6 +55,122 @@ class _Transport:
     def document(self):
         return {"schema_version": "rfuzz_input_transport.v1", "byte_count": 8,
                 "transport_hash": "sha256:test-transport"}
+
+
+class RfuzzInitialSeedTests(unittest.TestCase):
+    def test_raw_seed_samples_are_packed_one_per_cycle(self):
+        artifact = SimpleNamespace(
+            layout=SimpleNamespace(raw_width=16),
+            transport=SimpleNamespace(byte_count=2,
+                                      pack=lambda value: value.to_bytes(2, "big")),
+        )
+        self.assertEqual(b"\x12\x34\xab\xcd",
+                         encode_initial_seed(artifact, [0x1234, 0xABCD], 2))
+
+    def test_seed_requires_exact_cycle_count_and_fits_the_raw_layout(self):
+        artifact = SimpleNamespace(
+            layout=SimpleNamespace(raw_width=8),
+            transport=SimpleNamespace(byte_count=1,
+                                      pack=lambda value: value.to_bytes(1, "big")),
+        )
+        with self.assertRaisesRegex(ValueError, "initial-seed:cycle-count-mismatch"):
+            encode_initial_seed(artifact, [1], 2)
+        with self.assertRaisesRegex(ValueError, "initial-seed:sample-out-of-range"):
+            encode_initial_seed(artifact, [256], 1)
+
+    def test_campaign_normalization_preserves_and_sizes_an_explicit_seed(self):
+        normalized = _normalise_config(_config(initial_seed_values=[0, 1, 2]))
+        self.assertEqual([0, 1, 2], normalized["initial_seed_values"])
+        with self.assertRaisesRegex(ValueError, "initial_seed_values:cycle-count-mismatch"):
+            _normalise_config(_config(initial_seed_values=[0, 1]))
+
+
+class ProjectionRejectionStoreTests(unittest.TestCase):
+    def test_saves_replayable_raw_input_deduplicates_and_obeys_bounds(self):
+        artifact = SimpleNamespace(transport=SimpleNamespace(byte_count=2))
+        rejection = {"type": "SocBuildError", "message": "candidate-access-address-unmapped"}
+        with tempfile.TemporaryDirectory() as temporary:
+            store = ProjectionRejectionStore(
+                temporary, artifact, max_cases=1, max_bytes=2)
+            entry = store.record((b"\x01\x02",), rejection)
+            self.assertEqual(1, entry["occurrences"])
+            raw = Path(temporary) / "projection_rejections" / entry["raw_file"]
+            self.assertEqual(b"\x01\x02", raw.read_bytes())
+            store.record((b"\x01\x02",), rejection)
+            self.assertEqual(2, entry["occurrences"])
+            self.assertIsNone(store.record((b"\x03\x04",), rejection))
+            self.assertEqual(1, store.dropped_cases)
+            manifest = store.write_manifest()
+            document = json.loads(manifest.read_text())
+            self.assertEqual(2, document["cases"][0]["occurrences"])
+            self.assertEqual(1, document["dropped_cases"])
+
+
+class RfuzzDrainPolicyTests(unittest.TestCase):
+    def test_isolated_cpu_tests_get_a_drain_window_for_a_full_mutation_batch(self):
+        self.assertEqual(420, _drain_limit_seconds(SimpleNamespace(isolate_tests=True)))
+        self.assertEqual(60, _drain_limit_seconds(SimpleNamespace(isolate_tests=False)))
+
+    def test_client_buffer_override_is_bounded_and_defaults_to_upstream_size(self):
+        self.assertEqual(1024, _rfuzz_client_buffer_kib({}))
+        self.assertEqual(64, _rfuzz_client_buffer_kib(
+            {"MYFUZZ_RFUZZ_TEST_BUFFER_KIB": "64"}))
+        for value in ("63", "65537", "large"):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "buffer-kib"):
+                _rfuzz_client_buffer_kib({"MYFUZZ_RFUZZ_TEST_BUFFER_KIB": value})
+
+    def test_client_mutator_batch_override_is_bounded_and_defaults_to_upstream_limit(self):
+        self.assertEqual(16384, _rfuzz_client_max_runs({}))
+        self.assertEqual(512, _rfuzz_client_max_runs(
+            {"MYFUZZ_RFUZZ_MAX_RUNS_PER_BATCH": "512"}))
+        for value in ("255", "16385", "many"):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "max-runs"):
+                _rfuzz_client_max_runs({"MYFUZZ_RFUZZ_MAX_RUNS_PER_BATCH": value})
+
+
+class InterruptedInstructionCoverageTests(unittest.TestCase):
+    def test_recovered_run_decodes_retained_rvfi_opcode_counters(self):
+        receipt = {
+            "input_sha256": "sha256:input",
+            "coverage_sha256": "sha256:coverage",
+            "status": "fifo_reply_and_rtl_completed",
+            "transport": "sysv-shared-memory-rfuzz-coverage-buffer",
+        }
+        build = {
+            "ibex_instruction_coverage": {
+                "source": "Ibex RVFI valid, non-trapping retirement records",
+                "semantic_oracle": "not_assessed",
+                "bins": ["OP_IMM"],
+                "observations": [["rvfi_opcode_coverage_o", 0]],
+            },
+        }
+        artifact = SimpleNamespace(
+            build_document=build, coverage_ports=(("rvfi_opcode_coverage_o", 0),))
+        live_document = {
+            "status": "failed", "returncode": -15, "interrupt_elapsed_seconds": 5.0,
+            "duration_seconds": 8.0, "tests": 2,
+            "counter_maxima": [3], "fifo_reply_receipts": [receipt],
+            "fifo_reply_receipt_count": 1, "corpus_entries": 1,
+            "actual_rtl_execution": {"tests": 2, "coverage_records": 1,
+                                     "execution_totals": {"cycles": 10}},
+        }
+        report = {
+            "mutation": {"zero_input_probe": False},
+            "input_transport": {"status": "observed", "transport_hash": "sha256:transport"},
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            live_dir = Path(temporary) / "live"
+            (live_dir / "corpus").mkdir(parents=True)
+            (live_dir / "corpus/entry_0000.json").write_text("{}")
+            (live_dir / "report.json").write_text(json.dumps(live_document))
+            with patch("myfuzz.integration.soc_campaign.build_corpus_manifest",
+                       return_value={"entries": 1, "replays": []}):
+                recovered = _recover_terminated_client_run(
+                    TimeoutError("RFuzz client failed to finish after interrupt"),
+                    artifact, live_dir, report)
+        self.assertIsNotNone(recovered)
+        result, _termination = recovered
+        self.assertEqual(3, result["ibex_instruction_coverage"]["bins"]["OP_IMM"]["counter_maximum"])
 
 
 def _corpus_manifest():

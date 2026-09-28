@@ -169,12 +169,12 @@
     {
       "bit": 16,
       "property_id": "RVFI.ORDER",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "cpu0",
-      "binding": null,
-      "basis_kind": "independent_reference",
-      "basis": "RVFI order 连续且不重复",
-      "reason": "monitor-not-implemented"
+      "binding": "u_checker_ibex_rvfi",
+      "basis_kind": "standard",
+      "basis": "每个 RVFI valid 记录的 order 从 0 开始连续递增；只检查记录顺序，不比较指令语义结果。",
+      "reason": null
     },
     {
       "bit": 17,
@@ -419,62 +419,62 @@
     {
       "bit": 41,
       "property_id": "SPI.CS_WINDOW",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "spi0",
-      "binding": null,
-      "basis_kind": "source_derived",
-      "basis": "CS0 在一笔传输期间正确有效",
-      "reason": "monitor-not-implemented"
+      "binding": "u_checker_spi0",
+      "basis_kind": "standard",
+      "basis": "A mode-0 transfer selects only the configured active-low CS0; SCK edges remain inside that CS window.",
+      "reason": null
     },
     {
       "bit": 42,
       "property_id": "SPI.SCK_IDLE_MODE0",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "spi0",
-      "binding": null,
-      "basis_kind": "source_derived",
-      "basis": "mode 0 的 SCK idle 为低",
-      "reason": "monitor-not-implemented"
+      "binding": "u_checker_spi0",
+      "basis_kind": "standard",
+      "basis": "SPI mode 0 has CPOL=0, so SCK is low while no slave is selected.",
+      "reason": null
     },
     {
       "bit": 43,
       "property_id": "SPI.MODE0_EDGE_COUNT",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "spi0",
-      "binding": null,
-      "basis_kind": "source_derived",
-      "basis": "SCK 采样/移位边沿数量正确",
-      "reason": "monitor-not-implemented"
+      "binding": "u_checker_spi0",
+      "basis_kind": "independent_reference",
+      "basis": "For an accepted TX-only 32-bit data-only phase (no command, address, or dummy bits), the public mode-0 frame has 32 rising samples and 32 falling shifts under CS0; RX edge count is not assessed because pinned PULP RX has an additional completion transition.",
+      "reason": null
     },
     {
       "bit": 44,
       "property_id": "SPI.MOSI_MSB_FIRST",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "spi0",
-      "binding": null,
-      "basis_kind": "source_derived",
-      "basis": "MOSI 以 MSB-first 发送 TXFIFO 数据",
-      "reason": "monitor-not-implemented"
+      "binding": "u_checker_spi0",
+      "basis_kind": "independent_reference",
+      "basis": "A standard single-line MSB-first transfer reproduces the accepted full-word TXFIFO value on SDO0 at rising-edge samples.",
+      "reason": null
     },
     {
       "bit": 45,
       "property_id": "SPI.MISO_TO_RXFIFO",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "spi0",
-      "binding": null,
-      "basis_kind": "source_derived",
-      "basis": "MISO 采样值进入预期 RXFIFO 字",
-      "reason": "monitor-not-implemented"
+      "binding": "u_checker_spi0",
+      "basis_kind": "independent_reference",
+      "basis": "An RX-only mode-0 transfer samples SDI1 on 32 rising edges and returns that independently sampled word on the accepted RXFIFO read.",
+      "reason": null
     },
     {
       "bit": 46,
       "property_id": "SPI.STD_LANES",
-      "status": "not_assessed",
+      "status": "active",
       "owner": "spi0",
-      "binding": null,
-      "basis_kind": "source_derived",
-      "basis": "标准单线 mode 下使用正确 lane",
-      "reason": "monitor-not-implemented"
+      "binding": "u_checker_spi0",
+      "basis_kind": "standard",
+      "basis": "The supported single-line phase reports standard line mode 00 by its first SCK edge; data comparisons use SDO0 for TX and SDI1 for RX. Unused data lanes have no asserted value contract.",
+      "reason": null
     },
     {
       "bit": 47,

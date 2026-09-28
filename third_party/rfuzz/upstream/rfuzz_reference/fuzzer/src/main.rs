@@ -14,6 +14,7 @@ use clap::{Arg, App};
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::fs;
 
 mod config;
 mod run;
@@ -45,6 +46,8 @@ struct Args {
 	jqf: analysis::JQFLevel,
 	fuzz_server_id: String,
 	seed_cycles: usize,
+	seed_input: Option<String>,
+	search_seed: Option<u64>,
 }
 
 fn main() {
@@ -76,9 +79,19 @@ fn main() {
 			.default_value("2"))
 		.arg(Arg::with_name("seed_cycles")
 			.long("seed-cycles")
-			.help("The starting seed consits of all zeros for N cycles.")
+			.help("The starting seed contains N cycles, all zeros unless --seed-input is given.")
 			.takes_value(true)
 			.default_value("5"))
+		.arg(Arg::with_name("seed_input")
+			.long("seed-input")
+			.value_name("FILE")
+			.takes_value(true)
+			.help("Use packed raw input bytes as the initial seed instead of all zeros."))
+		.arg(Arg::with_name("search_seed")
+			.long("search-seed")
+			.value_name("U64")
+			.takes_value(true)
+			.help("Seed the scenario mutation candidate sequence."))
 		.arg(Arg::with_name("input_directory")
 			.long("input-directory").short("i").value_name("DIR")
 			.takes_value(true)
@@ -110,6 +123,9 @@ fn main() {
 		jqf: analysis::JQFLevel::from_arg(matches.value_of("jqf_level").unwrap()),
 		fuzz_server_id: matches.value_of("fuzz_server_id").unwrap().to_string(),
 		seed_cycles: matches.value_of("seed_cycles").unwrap().parse::<usize>().unwrap(),
+		seed_input: matches.value_of("seed_input").map(|s| s.to_string()),
+		search_seed: matches.value_of("search_seed").map(|s| s.parse::<u64>()
+			.expect("invalid scenario search seed")),
 	};
 
 	// "Ctrl + C" handling
@@ -122,15 +138,28 @@ fn main() {
 	let config = config::Config::from_file(WORD_SIZE, &args.toml_config);
 	let test_size = config.get_test_size();
 	config.print_header();
+	let test_buffer_kib = std::env::var("MYFUZZ_RFUZZ_TEST_BUFFER_KIB")
+		.map(|value| value.parse::<usize>().expect("invalid RFuzz test buffer size"))
+		.unwrap_or(1024);
+	assert!((64..=65536).contains(&test_buffer_kib), "RFuzz test buffer size outside 64..65536 KiB");
+	let batch_buffer_size = test_buffer_kib * 1024;
+	let max_runs_per_batch = std::env::var("MYFUZZ_RFUZZ_MAX_RUNS_PER_BATCH")
+		.map(|value| value.parse::<u32>().expect("invalid RFuzz max runs per batch"))
+		.unwrap_or(1024 * 16);
+	let scenario_mode = std::env::var("MYFUZZ_RFUZZ_SCENARIO_MODE")
+		.map(|value| value == "1").unwrap_or(false);
+	let minimum_runs = if scenario_mode { 1 } else { 256 };
+	assert!((minimum_runs..=1024 * 16).contains(&max_runs_per_batch),
+		"RFuzz max runs per batch outside mode bounds");
 
 	// test runner
 	let srv_config = BufferedFuzzServerConfig {
 		test_size : test_size,
 		max_cycles : 200,
-		test_buffer_size : 64 * 1024 * 16,
-		coverage_buffer_size : 64 * 1024 * 16,
+		test_buffer_size : batch_buffer_size,
+		coverage_buffer_size : batch_buffer_size,
 		buffer_count: 3,
-		max_runs: 1024 * 16,
+		max_runs: max_runs_per_batch,
 	};
 
 	println!("Test Buffer:     {} KiB", srv_config.test_buffer_size / 1024);
@@ -156,7 +185,16 @@ fn fuzzer(args: Args, canceled: Arc<AtomicBool>, config: config::Config,
           test_size: run::TestSize, server: &mut FuzzServer) {
 	// starting seed
 	let start_cycles = args.seed_cycles;
-	let starting_seed = vec![0u8; test_size.input * start_cycles];
+	let starting_seed = if let Some(path) = args.seed_input.as_ref() {
+		let seed = fs::read(path).expect("failed to read explicit seed input file");
+		let expected = test_size.input * start_cycles;
+		if seed.len() != expected {
+			panic!("explicit seed input has {} bytes; expected {}", seed.len(), expected);
+		}
+		seed
+	} else {
+		vec![0u8; test_size.input * start_cycles]
+	};
 
 	// analysis
 	let ranges = config.gen_ranges();
@@ -181,7 +219,10 @@ fn fuzzer(args: Args, canceled: Arc<AtomicBool>, config: config::Config,
 	if mut_config.independent_random {
 		println!("⚠️ Mutation disabled. Generating independent random inputs! ⚠️");
 	}
-	let mutations = mutation::MutationSchedule::initialize(mut_config, test_size, config.get_inputs());
+	let mutations = mutation::MutationSchedule::initialize(
+		mut_config, test_size, config.get_inputs(), args.search_seed.unwrap_or(0));
+	let scenario_mode = std::env::var("MYFUZZ_RFUZZ_SCENARIO_MODE")
+		.map(|value| value == "1").unwrap_or(false);
 
 	// statistics
 	let start_ts = get_time();
@@ -207,7 +248,8 @@ fn fuzzer(args: Args, canceled: Arc<AtomicBool>, config: config::Config,
 		let mut history = active_test.mutation_history;
 		let mut new_runs : u64 = 0;
 		q.print_entry_summary(active_test.id, &mutations);
-		while let Some(mut mutator) = mutations.get_mutator(&mut history, &active_test.inputs) {
+		while let Some(mut mutator) = mutations.get_mutator(
+			&mut history, &active_test.inputs, server.latest_feedback_buffer_id()) {
 			// println!("running {} mutation", mutations.get_name(mutator.id()));
 			let mut done = false;
 			let mut start = 0;
@@ -218,7 +260,10 @@ fn fuzzer(args: Args, canceled: Arc<AtomicBool>, config: config::Config,
 						new_runs += runs as u64;
 						done = true;
 					}
-					Run::Yield(ii) => { start = ii; }
+					Run::Yield(ii) => {
+						start = ii;
+						if canceled.load(Ordering::SeqCst) { done = true; }
+					}
 				}
 				while let Some(feedback) = server.pop_coverage() {
 					let rr = analysis.run(feedback.cycles, &feedback.data);
@@ -232,8 +277,28 @@ fn fuzzer(args: Args, canceled: Arc<AtomicBool>, config: config::Config,
 						               statistics.take_snapshot(), &feedback.data);
 					}
 				}
+				if canceled.load(Ordering::SeqCst) { done = true; }
 			}
+			if canceled.load(Ordering::SeqCst) { break; }
 			if new_runs >= max_children { break; }
+			// A scenario hint is one stage for this queue visit. Sync its
+			// feedback below before choosing another parent, including children.
+			if scenario_mode { break; }
+		}
+		// Every feedback item must be attached while this queue parent is
+		// active, including a last buffer returned during shutdown.
+		server.sync();
+		while let Some(feedback) = server.pop_coverage() {
+			let rr = analysis.run(feedback.cycles, &feedback.data);
+			if rr.is_interesting {
+				if rr.is_invalid { println!("invalid input...."); }
+				let (info, interesting_input) = server.get_info(feedback.id);
+				let now = get_time();
+				statistics.update_new_discovery(info.mutator.id, now, analysis.get_bitmap());
+				q.add_new_test(interesting_input, info, rr.new_cov,
+				               !rr.is_invalid, now,
+				               statistics.take_snapshot(), &feedback.data);
+			}
 		}
 		q.return_test(active_test.id, history);
 		q.save_latest(statistics.take_snapshot());
@@ -244,18 +309,8 @@ fn fuzzer(args: Args, canceled: Arc<AtomicBool>, config: config::Config,
 	}
 
 	server.sync();
-	while let Some(feedback) = server.pop_coverage() {
-		let rr = analysis.run(feedback.cycles, &feedback.data);
-		if rr.is_interesting {
-			if rr.is_invalid { println!("invalid input...."); }
-			let (info, interesting_input) = server.get_info(feedback.id);
-			let now = get_time();
-			statistics.update_new_discovery(info.mutator.id, now, analysis.get_bitmap());
-			q.add_new_test(interesting_input, info, rr.new_cov,
-			               !rr.is_invalid, now,
-			               statistics.take_snapshot(), &feedback.data);
-		}
-	}
+	assert!(server.pop_coverage().is_none(),
+		"orphaned RFuzz feedback after queue parent closed");
 	q.save_latest(statistics.take_snapshot());
 
 	// done with the main fuzzing part

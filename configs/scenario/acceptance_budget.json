@@ -1,0 +1,14 @@
+{
+  "build_workers": 1,
+  "evidence_termination_reserve_bytes": 1048576,
+  "max_evidence_bytes": 16777216,
+  "max_local_cycles_per_component": 65536,
+  "max_materialized_bytes_per_memory": 131072,
+  "max_quiesce_steps": 4096,
+  "max_scheduler_steps": 262144,
+  "max_semantic_records": 20000,
+  "max_source_actions": 4096,
+  "max_transactions": 16384,
+  "max_wall_time_ms": 120000,
+  "waveform_enabled": false
+}

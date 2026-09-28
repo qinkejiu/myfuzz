@@ -1,0 +1,1 @@
+{"actions":[],"direction":"IP_TO_IP","encoding_version":3,"initial_images":[],"max_steps":1,"path_id":"gpio-a-to-b-with-uart-pending","quiesce_steps":2,"reset_actions":[],"schedule_order":["gpio_a","gpio_b","uart"],"testcase_id":"three-device-gpio-reply-timeout"}

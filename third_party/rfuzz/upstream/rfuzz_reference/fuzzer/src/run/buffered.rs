@@ -192,6 +192,7 @@ pub struct BufferedFuzzServer <ChannelT : CommunicationChannel> {
 	history: TestHistory,
 	active_in: TestBuffer<ChannelT>,
 	next_coverage_slot: BufferSlot,
+	last_feedback_buffer_id: u32,
 	active_out: VecDeque<TestBuffer<ChannelT>>,
 	free: Vec<TestBuffer<ChannelT>>,
 	used: Vec<TestBuffer<ChannelT>>,
@@ -224,7 +225,7 @@ impl <ChannelT : CommunicationChannel> BufferedFuzzServer<ChannelT> {
 		active_in.reset(0);
 		let next_buffer_id = 1;
 		BufferedFuzzServer { conf, max_test_size, com, history, active_in,
-		                     next_coverage_slot,
+		                     next_coverage_slot, last_feedback_buffer_id: 0,
 		                     active_out, free, used, send, next_buffer_id }
 	}
 
@@ -330,6 +331,8 @@ impl <ChannelT : CommunicationChannel> BufferedFuzzServer<ChannelT> {
 			if let Some(oldest) = self.active_out.front_mut() {
 				if let Some((cycles, data)) = oldest.get_coverage(self.next_coverage_slot) {
 					let id = self.history.get_id_for_slot(self.next_coverage_slot);
+					self.last_feedback_buffer_id =
+						std::cmp::max(self.last_feedback_buffer_id, self.next_coverage_slot.id);
 					self.next_coverage_slot = self.next_coverage_slot.next();
 					return Some(BasicFeedback { id, cycles, data: data.to_vec() } );
 				}
@@ -357,6 +360,9 @@ impl <ChannelT : CommunicationChannel> BufferedFuzzServer<ChannelT> {
 }
 
 impl <ChannelT : CommunicationChannel> FuzzServer for BufferedFuzzServer<ChannelT> {
+	fn latest_feedback_buffer_id(&self) -> u32 {
+		self.last_feedback_buffer_id
+	}
 	/// shedule test input for execution
 	fn run(&mut self, mutator: &mut Box<Mutator>, start: u32) -> Run {
 		let mutator_id = mutator.id();
@@ -410,7 +416,12 @@ impl <ChannelT : CommunicationChannel> FuzzServer for BufferedFuzzServer<Channel
 
 	fn sync(&mut self) {
 		// TODO: deal with blocking send
-		self.send_active_buffers();
+		// A prior sync may already have drained the active buffer. Sending an
+		// empty buffer creates a count=0 input header, which the RFuzz wire
+		// protocol intentionally rejects.
+		if self.active_in.test_count > 0 {
+			self.send_active_buffers();
+		}
 		while self.used.len() > 0 || self.send.len() > 0 {
 			self.try_send_buffers();
 			self.receive_buffers();

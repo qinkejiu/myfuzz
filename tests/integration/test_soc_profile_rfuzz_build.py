@@ -24,6 +24,15 @@ def config():
 
 
 class ProfileAdmissionTest(unittest.TestCase):
+    def test_profile_campaign_normalizes_peer_spacing_policy(self):
+        from myfuzz.integration.soc_campaign import _normalise_config
+
+        self.assertEqual("drop_later", _normalise_config(config())["peer_spacing_policy"])
+        strict = _normalise_config(dict(config(), peer_spacing_policy="reject"))
+        self.assertEqual("reject", strict["peer_spacing_policy"])
+        with self.assertRaisesRegex(ValueError, "peer_spacing_policy:unsupported"):
+            _normalise_config(dict(config(), peer_spacing_policy="ignore"))
+
     def test_profile_cache_binds_instrumenter_identity_and_generated_sources(self):
         from myfuzz.integration.soc_builder import (
             _cached_instrumentation_matches,
@@ -132,6 +141,42 @@ class ProfileAdmissionTest(unittest.TestCase):
         peer_bit = min(peer_fields.values(), key=lambda field: field.raw_lo)
         raw = 1 << peer_bit.raw_lo
         self.assertEqual(raw, projector.project(raw))
+
+    def test_profile_fuzz_projection_drops_too_close_later_spi_arms(self):
+        """Repair mutated peer pulses while retaining the declared minimum gap."""
+        from myfuzz.composition.input_constraints import compile_input_constraints
+        from myfuzz.composition.soc_image import build_image_plan, combined_input_layout
+        from myfuzz.composition.soc_peer_replay import decode_peer_raw_events
+        from tests.integration.test_soc_peer_models import build_pulp_spi_peer_plan
+
+        plan = build_pulp_spi_peer_plan()
+        image = build_image_plan(plan)
+        layout = combined_input_layout(plan, image)
+        policy = compile_input_constraints(plan, drive_profile="cpu_execute")
+        slots = _peer_projection_slots(plan, layout)
+        projector = ProfileCampaignProjector(
+            layout, policy.policy_hash, int(plan.raw_layout["raw_width"]),
+            policy=policy, image_plan=image, peer_slots=slots,
+            peer_spacing_policy="drop_later")
+        fields = {field.port: field for field in layout.fields}
+        word = fields["spi0__arm_word_i"]
+        valid = fields["spi0__arm_valid_i"]
+
+        def arm(payload):
+            return ((payload << word.raw_lo) | (1 << valid.raw_lo))
+
+        first, rejected, later = arm(0xA5C396F0), arm(0x10203040), arm(0x5A3CC3A5)
+        projected = projector.project_records([first, rejected, later])
+
+        self.assertEqual(first, projected[0])
+        self.assertEqual(0, (projected[1] >> valid.raw_lo) & 1)
+        self.assertEqual(0x10203040, (projected[1] >> word.raw_lo) & 0xFFFFFFFF)
+        self.assertEqual(later, projected[2])
+        events = decode_peer_raw_events(projected, layout, slots)
+        self.assertEqual([0, 2], [int(event["cycle"]) for event in events])
+        self.assertEqual([0xA5C396F0, 0x5A3CC3A5],
+                         [int(event["payload"]) for event in events])
+        self.assertEqual(1, projector.repair_counts["peer_pulse_gap_drop"])
 
     def test_pulp_spi_arm_word_and_valid_form_one_33_bit_post_image_segment(self):
         """The pinned peer's per-cycle arm inputs are real RFuzz raw bits."""
@@ -336,6 +381,14 @@ class ProfileAdmissionTest(unittest.TestCase):
         report = preflight_soc_campaign(config(), root=ROOT)
         self.assertEqual(report["cpu"], "cpu0")
         self.assertEqual(report["mode"], "cpu_only")
+
+    def test_profile_preflight_records_and_validates_address_strategy(self):
+        report = preflight_soc_campaign(
+            dict(config(), address_strategy="biased"), root=ROOT)
+        self.assertEqual("biased", report["address_strategy"])
+        with self.assertRaisesRegex(ValueError, "address_strategy:unsupported"):
+            preflight_soc_campaign(
+                dict(config(), address_strategy="bias_everything"), root=ROOT)
 
 
 class ProfileToolchainAdmissionTest(unittest.TestCase):

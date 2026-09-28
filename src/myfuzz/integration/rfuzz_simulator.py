@@ -665,15 +665,21 @@ class RtlSimulator:
     request id encoded as exactly 16 lowercase hexadecimal digits. Versionless
     executables must be rebuilt; no fallback is safe.
     """
-    def __init__(self, artifact, *, timeout_seconds=5.0):
+    def __init__(self, artifact, *, timeout_seconds=5.0,
+                 reject_invalid_projection=False):
         if not isinstance(artifact, SimulatorArtifact):
             raise ValueError("simulator artifact required")
         if (type(timeout_seconds) not in (int, float) or not math.isfinite(timeout_seconds)
                 or not 0 < timeout_seconds <= 60):
             raise ValueError("finite simulator deadline required")
+        if type(reject_invalid_projection) is not bool:
+            raise ValueError("reject_invalid_projection must be boolean")
         self.artifact, self.timeout_seconds = artifact, timeout_seconds
+        self.reject_invalid_projection = reject_invalid_projection
         self.last_diagnostics = ()
         self.last_peer_events = ()
+        self.last_projection_rejection = None
+        self.last_execution = {}
         self._next_rss_poll = 0.0  # Immediate startup check; shared across tests.
         self._executions = 0
         # Projection accounting is evidence for direct-vs-constrained campaign
@@ -700,6 +706,9 @@ class RtlSimulator:
                 str(name): int(value) for name, value in repairs.items()
                 if type(value) is int and value >= 0
             }
+        normalization = getattr(projector, "last_candidate_input_normalization", None)
+        if isinstance(normalization, Mapping):
+            document["candidate_input_normalization"] = dict(normalization)
         document["instruction_mode"] = str(
             getattr(projector, "instruction_mode", "none"))
         constraint_hash = getattr(projector, "constraint_hash", None)
@@ -813,6 +822,9 @@ class RtlSimulator:
 
     def run_test(self, records, *, monitor=None):
         self.last_diagnostics = ()
+        self.last_peer_events = ()
+        self.last_projection_rejection = None
+        self.last_execution = {}
         if self.closed:
             raise ValueError("simulator is closed")
         if not isinstance(records, (tuple, list)) or not 1 <= len(records) <= MAX_CYCLES:
@@ -838,8 +850,21 @@ class RtlSimulator:
             project_records = getattr(self.artifact.projector, "project_records", None)
             samples = (project_records(raw_values) if project_records is not None else
                        [self.artifact.projector.project(raw) for raw in raw_values])
-        except BaseException:
+        except BaseException as error:
             self._projection_stats["projection_rejections"] += len(raw_values)
+            if self.reject_invalid_projection:
+                # soc_builder imports this module to define SimulatorArtifact,
+                # so import its exception only after module initialization.
+                # Direct simulator/replay use keeps the existing fail-closed
+                # behavior; only live campaigns may turn a declared candidate
+                # refusal into an empty-feedback mutation sample.
+                from .soc_builder import SocBuildError
+                if isinstance(error, SocBuildError):
+                    self.last_projection_rejection = {
+                        "type": type(error).__name__,
+                        "message": str(error)[:512],
+                    }
+                    return bytes(len(self.artifact.coverage_ports))
             self.close()
             raise
         if (not isinstance(samples, Sequence) or isinstance(samples, (str, bytes))
@@ -874,7 +899,6 @@ class RtlSimulator:
             if not reply.startswith(prefix):
                 raise ValueError("invalid simulator response request id")
             reply = reply[len(prefix):]
-            self.last_execution = {}
             if self.artifact.execution_monitor is not None:
                 reply, separator, metrics = reply.partition(b" EXEC ")
                 if not separator:

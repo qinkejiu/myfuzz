@@ -33,6 +33,8 @@ pub trait FuzzServer {
 	/// get a copy of the coverage information from a test
 	/// the TestId can be used to retrieve further info if needed
 	fn pop_coverage(&mut self) -> Option<BasicFeedback>;
+	/// Largest transport buffer ID whose coverage has been consumed by Rust.
+	fn latest_feedback_buffer_id(&self) -> u32;
 	/// must be called directly after `pop_coverage`
 	fn get_info(&mut self, test: TestId) -> (MutationInfo, &[u8]);
 	/// send all waiting tests to the fuzz server and wait

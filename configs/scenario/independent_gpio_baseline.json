@@ -1,0 +1,9 @@
+{
+  "schema_version": "scenario_independent_baseline.v1",
+  "cpu_seed": "ibex_two_gpio_closed_two_rounds.json",
+  "reverse_seed": "independent_gpio_reverse_seed.json",
+  "local_response_model": "persistent_shadow_registers",
+  "cross_component_bindings": [],
+  "cpu_irq": "constant_zero",
+  "gpio_b_local_irq_setup": {"cpu_group_mask": 1, "ip_group_mask": 256}
+}

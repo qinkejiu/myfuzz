@@ -1,0 +1,73 @@
+{
+  "schema_version": "myfuzz_git_preparation.v1",
+  "base_commit": "3f96d5729d375e4f8e569985bf7860816f83f155",
+  "repository_index_modified": false,
+  "patch_path": "patches/opentitan/opentitan-source-lock-review.patch",
+  "patch_sha256": "66bbcdb86167818489efb67078ee77a83b180df7bdd81ac486c4eed067ccf489",
+  "patch_apply_cached_check": true,
+  "source_gate_with_prepared_index_exit_code": 0,
+  "paths": [
+    {
+      "path": "configs/cpus/ibex/official_core_interface_description.json",
+      "sha256": "37ceab3a5c4524ebc5f43d01f549416fc37185564cb9e8778c19da111a1ddff0"
+    },
+    {
+      "path": "configs/soc/sources.lock.json",
+      "sha256": "06d7a3f445dd2ad67b0cd92bc0d039505ea13fcfbf02b2552f72553c04e0c36c"
+    },
+    {
+      "path": "configs/peripherals/opentitan_spi_host/closure_wrapper.sv",
+      "sha256": "cb6d50cb5f149aaf6bb244ef77aef6a7b2fe65a03dcb808f4b0c06e5cddd9d35"
+    },
+    {
+      "path": "configs/peripherals/opentitan_spi_host/component_profile.json",
+      "sha256": "7bfe8b87272b0a8e4075c85430fab7ee246cc2cd02abbc3b526cf3552383dc65"
+    },
+    {
+      "path": "configs/peripherals/opentitan_i2c/closure_wrapper.sv",
+      "sha256": "64b5007af7ff37e6de9e60ccc9c2eee45edf4dda5b3011d0ebdf813e22142195"
+    },
+    {
+      "path": "configs/peripherals/opentitan_i2c/component_profile.json",
+      "sha256": "27617164535c5f1e7033a06bae68ffcd0575d1b263070168e82fd8c008da1567"
+    },
+    {
+      "path": "configs/peripherals/opentitan_rv_timer/component_profile.json",
+      "sha256": "f1f9df387f909721b05df0dbf791186997446c402292fac72802766e06549c5f"
+    },
+    {
+      "path": "configs/peripherals/opentitan_spi_device/closure_native_lint.txt",
+      "sha256": "f5c0c7e79075f82617d430d4d6ffbc1578728eda9160d1eb5ed1677e5676d768"
+    },
+    {
+      "path": "configs/peripherals/opentitan_spi_device/closure_wrapper.sv",
+      "sha256": "212262f509b0730da20d9eb84b0094c26259bfec7d12d6595766db4560efc486"
+    },
+    {
+      "path": "configs/peripherals/opentitan_spi_device/closure_wrapper_lint.txt",
+      "sha256": "86e3cabc3cfb6d540efe393b7fe85b378a58bf5ec429da33c8f1a7da31ec415c"
+    },
+    {
+      "path": "configs/peripherals/opentitan_spi_device/component_profile.json",
+      "sha256": "34e2a3d2098261e06b93ce96c9b84cbc8360daf07bd256736d3a65d92333b0f1"
+    },
+    {
+      "path": "configs/soc/closures/opentitan_spi_host.json",
+      "sha256": "9a5ab74207118dc30c96d354d3e142bd6a23f5331cd73923a0fabefbf93fa9bf"
+    },
+    {
+      "path": "configs/soc/closures/opentitan_i2c.json",
+      "sha256": "f3fd8f42d8f84ac56c9928ec06ec9770f946aa7cb1ec885aa76def0e2859a2c1"
+    },
+    {
+      "path": "configs/soc/closures/opentitan_rv_timer.json",
+      "sha256": "d24367e4594d654396e25be75620c399b5f256a42e1ee924c04ec4f3701639b5"
+    },
+    {
+      "path": "configs/soc/closures/opentitan_spi_device.json",
+      "sha256": "8d0957ffa593f5ec07712b2e15ddfc807d55beac57cc5170b9ad42afdb1a0411"
+    }
+  ],
+  "patch_applied_gate_exit_code": 0,
+  "patch_applied_gate_verified_components": 13
+}

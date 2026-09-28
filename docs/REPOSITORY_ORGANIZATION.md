@@ -1,5 +1,11 @@
 # 项目代码与文件整理台账
 
+## 2026-09-28 根目录与验收目录整理
+
+本轮仅调整三个已核对文件的位置；移动前后内容哈希一致，原路径、目标路径、大小与哈希见 `runs/quarantine/folder-organize-20260928/manifest.json`。根目录新生成的 `trace_hart_0.dasm` 移入该批次的 `files/`，可按 README 恢复。OpenTitan source-lock 补丁和 Git 准备清单从 `runs/scenario/acceptance/` 移入 `patches/opentitan/`；清单中的补丁路径以及相关报告引用同步更新。临时索引门禁结果继续放在验收目录，Git 索引和提交留待后续处理。
+
+根目录交接文档仍有示例和测试按原路径引用，且与 `docs/handover/` 版本内容不同；`SoC内部数据流动与去向.docx` 是用户提供的原件。本轮保留这些入口，不合并、不删除。`configs/`、`src/`、`tests/`、`third_party/` 和已有场景验收包均未移动。
+
 日期：2026-09-14。本轮已执行文档入口整理；代码迁移在实施计划 P0/P2 中按验证门禁逐项执行。
 
 ## 工作区与所有权

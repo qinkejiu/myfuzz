@@ -200,15 +200,20 @@ def _parse_source_requests(rows: object) -> tuple[dict[int, dict[str, int]] | No
             return None, f"spi-source-request-address-invalid:{index}"
         if source_id is None or source_id < 0:
             return None, f"spi-source-request-source-invalid:{index}"
-        if accepted is not True or write_value is not True:
+        if accepted is not True or not isinstance(write_value, bool):
             return None, f"spi-source-request-control-invalid:{index}"
-        if byte_enable is None or not 0 <= byte_enable <= 0xF:
-            return None, f"spi-source-request-byte-enable-invalid:{index}"
-        if wdata is None or not 0 <= wdata <= 0xFFFF_FFFF:
-            return None, f"spi-source-request-wdata-invalid:{index}"
+        if write_value:
+            if byte_enable is None or not 0 <= byte_enable <= 0xF:
+                return None, f"spi-source-request-byte-enable-invalid:{index}"
+            if wdata is None or not 0 <= wdata <= 0xFFFF_FFFF:
+                return None, f"spi-source-request-wdata-invalid:{index}"
+        else:
+            byte_enable = -1 if byte_enable is None else byte_enable
+            wdata = -1 if wdata is None else wdata
         parsed[request_id] = {
             "request_id": request_id, "cycle": cycle, "address": address,
             "source_id": source_id, "byte_enable": byte_enable, "wdata": wdata,
+            "write": int(write_value),
         }
         previous_cycle = cycle
     return parsed, None
@@ -299,7 +304,7 @@ def _correlate_apb_source_requests(
             return "spi-apb-source-request-missing"
         if request_id in used:
             return "spi-apb-source-request-ambiguous"
-        if (request["cycle"] > int(row["cycle"])
+        if (not request["write"] or request["cycle"] > int(row["cycle"])
                 or request["address"] != window_base + int(row["address"])
                 or request["wdata"] != int(row["wdata"])):
             return "spi-apb-source-request-mismatch"
@@ -310,7 +315,8 @@ def _correlate_apb_source_requests(
                     else "spi-apb-partial-write")
         used.add(request_id)
     for request_id, request in source_requests.items():
-        if window_base <= request["address"] < window_base + (1 << _RTL_PARAMETERS["APB_ADDR_WIDTH"]):
+        if (request["write"] and window_base <= request["address"] <
+                window_base + (1 << _RTL_PARAMETERS["APB_ADDR_WIDTH"])):
             if request_id not in used:
                 return "spi-source-request-unmatched"
     return None
@@ -455,9 +461,9 @@ def audit_pulp_spi_run(*, apb_transactions: Sequence[Mapping[str, object]],
     ``apb_transactions`` is the complete accepted/rejected APB record stream.
     Each row has ``cycle``, 12-bit ``address``, boolean ``write``/``accepted``;
     writes carry ``source_request_id`` and ``wdata``; reads carry ``rdata``.
-    The separately captured accepted OBI writes in ``source_requests`` supply
-    the actual byte enables and are linked by request ID, address, data, source,
-    and cycle. ``peer_arms`` records raw arm inputs with cycle and payload.
+    The separately captured accepted OBI request stream in ``source_requests``
+    supplies the actual write byte enables and is linked by request ID, address,
+    data, source, and cycle. ``peer_arms`` records raw arm inputs with cycle and payload.
     ``wire_trace`` contains one HCLK observation per row and all 14 PULP pin
     roles. ``rx_reads`` is a duplicate evidence view of accepted RXFIFO reads
     and must match the corresponding APB records exactly. ``profile_identity``

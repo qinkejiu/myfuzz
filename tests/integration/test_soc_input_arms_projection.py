@@ -192,7 +192,8 @@ def segment(value: int, field) -> int:
 
 def arms_for(plan, *, instruction_candidates: int = 1, data_candidates: int = 1,
              data_slot_offset: int | None = None,
-             candidate_program: bool = False):
+             candidate_program: bool = False,
+             rfuzz_candidate_repair: bool = False):
     """The three arms of one plan, built the way the production path builds them.
 
     The declared candidate program is built when a test declares more than one
@@ -222,7 +223,8 @@ def arms_for(plan, *, instruction_candidates: int = 1, data_candidates: int = 1,
         layout=layout, constraint_hash=policy.policy_hash,
         special_width=int(plan.raw_layout["raw_width"]), policy=policy, image=image,
         candidate_program=program,
-        peer_slots=_peer_projection_slots(plan, layout, base_dir=ROOT))
+        peer_slots=_peer_projection_slots(plan, layout, base_dir=ROOT),
+        rfuzz_candidate_repair=rfuzz_candidate_repair)
     return image, layout, policy, arms
 
 
@@ -598,6 +600,89 @@ class DependencyRepairArmTests(unittest.TestCase):
         for item in repaired.placements:
             self.assertIn(item["source"], ("fuzz", "directed"))
             self.assertIn("address_hex", item)
+
+
+# ---------------------------------------------------------------------------
+# RFuzz candidate-program input normalization
+# ---------------------------------------------------------------------------
+
+
+class RfuzzCandidateInputNormalizationTests(unittest.TestCase):
+    """Campaign projection repairs RFuzz control mutations before slot placement."""
+
+    def setUp(self) -> None:
+        self.plan = ibex_plan()
+        self.image, self.layout, self.policy, self.arms = arms_for(
+            self.plan, instruction_candidates=3, data_candidates=1,
+            rfuzz_candidate_repair=True)
+        self.arm = self.arms["dependency_repair"]
+        self.program = self.arm.candidate_program
+
+    @staticmethod
+    def _put_slot(raw: int, slot, field: str, value: int) -> int:
+        segment = slot.segment(field)
+        mask = ((1 << segment.width) - 1) << segment.raw_lo
+        return (raw & ~mask) | ((value & ((1 << segment.width) - 1)) << segment.raw_lo)
+
+    @staticmethod
+    def _get_slot(raw: int, slot, field: str) -> int:
+        return slot.segment(field).extract(raw)
+
+    def test_mutated_offers_and_byte_enables_become_one_full_word_per_instruction_slot(self):
+        instructions = self.program.slots.instruction
+        data = self.program.slots.data[0]
+        words = [0, 0, 0]
+        # Mutator output has a missing slot, duplicate slot offers, malformed
+        # byte enables, and two optional data offers. Payload bits are retained.
+        words[0] = self._put_slot(words[0], instructions[1], "offer", 1)
+        words[0] = self._put_slot(words[0], instructions[1], "be", 0x2)
+        words[0] = self._put_slot(words[0], instructions[2], "offer", 1)
+        words[0] = self._put_slot(words[0], instructions[2], "be", 0x0)
+        words[0] = self._put_slot(words[0], data, "offer", 1)
+        words[0] = self._put_slot(words[0], data, "be", 0x1)
+        words[0] = self._put_slot(words[0], data, "value", 0x12345678)
+        words[1] = self._put_slot(words[1], instructions[0], "offer", 1)
+        words[1] = self._put_slot(words[1], instructions[0], "be", 0x7)
+        words[0] = self._put_slot(words[0], instructions[0], "data", 0x000002B7)
+        words[1] = self._put_slot(words[1], instructions[2], "offer", 1)
+        words[1] = self._put_slot(words[1], data, "offer", 1)
+        words[1] = self._put_slot(words[1], data, "be", 0x3)
+        words[1] = self._put_slot(words[1], instructions[1], "data", 0x01700313)
+        words[2] = self._put_slot(words[2], instructions[2], "data", 0x306283B3)
+
+        normalized = self.arm._normalize_rfuzz_candidate_records(words)
+        self.assertEqual(0x000002B7,
+                         self._get_slot(normalized[0], instructions[0], "data"))
+        self.assertEqual(0x01700313,
+                         self._get_slot(normalized[1], instructions[1], "data"))
+        self.assertEqual(0x306283B3,
+                         self._get_slot(normalized[2], instructions[2], "data"))
+        projected = list(self.arm.project_records(normalized))
+        self.assertEqual(3, len(projected))
+        for index, slot in enumerate(instructions):
+            for cycle, value in enumerate(projected):
+                self.assertEqual(int(cycle == index),
+                                 self._get_slot(value, slot, "offer"),
+                                 (slot.prefix, cycle))
+            self.assertEqual(0xF, self._get_slot(projected[index], slot, "be"))
+        placements = {item["slot"]: item["word_value"]
+                      for item in self.arm.last_repaired_test.placements}
+        for slot in instructions:
+            self.assertEqual(placements[slot.prefix],
+                             self._get_slot(projected[slot.index], slot, "data"))
+        self.assertEqual(1, self._get_slot(projected[0], data, "offer"))
+        self.assertEqual(0xF, self._get_slot(projected[0], data, "be"))
+        self.assertEqual(0, self._get_slot(projected[1], data, "offer"))
+        self.assertEqual(0x12345678, self._get_slot(projected[0], data, "value"))
+
+    def test_fuzz_repair_is_opt_in_and_strict_projectors_still_refuse_mutated_offers(self):
+        _, _, _, strict_arms = arms_for(
+            self.plan, instruction_candidates=3, data_candidates=1)
+        words = [0]
+        words[0] = self._put_slot(words[0], self.program.slots.instruction[0], "offer", 1)
+        words[0] = self._put_slot(words[0], self.program.slots.instruction[0], "be", 0)
+        with self.assertRaisesRegex(SocBuildError, "candidate-offer-not-full-word"):
+            strict_arms["dependency_repair"].project_records(words)
 
 
 # ---------------------------------------------------------------------------

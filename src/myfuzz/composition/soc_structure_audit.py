@@ -195,7 +195,8 @@ def _const_value(node: object) -> int | None:
 
 def extract_netlist(top_text: str, source_files: Sequence[str], *, top_module: str,
                     base_dir: Path, source_root: str = ".",
-                    include_roots: Sequence[str] = ()) -> Netlist:
+                    include_roots: Sequence[str] = (),
+                    defines: Sequence[str] = ()) -> Netlist:
     """Elaborate the published RTL and return the netlist facts it really has.
 
     This runs the SystemVerilog frontend over the generated top plus the source
@@ -237,7 +238,8 @@ def extract_netlist(top_text: str, source_files: Sequence[str], *, top_module: s
             files.append(candidate.as_posix())
             mapping[candidate.as_posix()] = item
         tree, meta, warnings = _dump_tree(files, top_module, root,
-                                          include_roots=tuple(resolved_includes))
+                                          include_roots=tuple(resolved_includes),
+                                          defines=defines)
         try:
             evidence = extract_physical_ports(tree, meta, top_module=top_module,
                                               source_files=mapping)
@@ -249,7 +251,8 @@ def extract_netlist(top_text: str, source_files: Sequence[str], *, top_module: s
 
 
 def _dump_tree(files: Sequence[str], top_module: str, root: Path,
-               *, include_roots: Sequence[str] = ()) -> tuple[dict, dict, int]:
+               *, include_roots: Sequence[str] = (),
+               defines: Sequence[str] = ()) -> tuple[dict, dict, int]:
     import shutil
     import subprocess
     import tempfile
@@ -264,6 +267,7 @@ def _dump_tree(files: Sequence[str], top_module: str, root: Path,
                    "--json-only-output", tree_path.as_posix(),
                    "--json-only-meta-output", meta_path.as_posix(),
                    "--top-module", top_module,
+                   *("-D" + str(item) for item in defines),
                    *(f"-I{item}" for item in include_roots), *files]
         try:
             result = subprocess.run(command, capture_output=True, text=True, check=False,
@@ -347,7 +351,9 @@ def _netlist_from_tree(tree: Mapping[str, object], ports: Sequence[Mapping[str, 
 def _expected_top_ports(entries: Sequence[DispositionEntry],
                         synthetic: Mapping[str, object] | None = None,
                         peers: Sequence[object] = (),
-                        checker_width: int | None = None) -> dict[str, tuple[str, int]]:
+                        checker_width: int | None = None,
+                        rvfi_opcode_coverage_width: int | None = None
+                        ) -> dict[str, tuple[str, int]]:
     expected: dict[str, tuple[str, int]] = {"clk_i": ("input", 1), "rst_ni": ("input", 1)}
     for entry in entries:
         if entry.disposition not in ("fuzz", "external", "observe"):
@@ -375,6 +381,9 @@ def _expected_top_ports(entries: Sequence[DispositionEntry],
     if checker_width is not None:
         expected["checker_eval_o"] = ("output", checker_width)
         expected["checker_fail_o"] = ("output", checker_width)
+    if rvfi_opcode_coverage_width is not None:
+        expected["rvfi_opcode_coverage_o"] = (
+            "output", rvfi_opcode_coverage_width)
     return expected
 
 
@@ -601,13 +610,26 @@ def _audit_multi_role_ports(plan: CompositionPlan, netlist: Netlist) -> dict[str
 
 def audit_structure(plan: CompositionPlan, *, top_text: str,
                     source_files: Sequence[str], base_dir: Path,
-                    include_roots: Sequence[str] = ()) -> dict[str, object]:
+                    include_roots: Sequence[str] = (),
+                    defines: Sequence[str] | None = None) -> dict[str, object]:
     """Re-elaborate the generated RTL and check it against the plan."""
     if not isinstance(plan, CompositionPlan):
         raise StructureAuditError("composition-plan-required")
+    if defines is None:
+        declared_defines: list[str] = []
+        for instance in plan.instances:
+            settings = instance.profile.source.elaboration
+            if settings is None:
+                continue
+            for name, value in settings.defines:
+                define = f"{name}={value}"
+                if define not in declared_defines:
+                    declared_defines.append(define)
+        defines = tuple(declared_defines)
     try:
         netlist = extract_netlist(top_text, source_files, top_module="myfuzz_soc_top",
-                                  base_dir=base_dir, include_roots=include_roots)
+                                  base_dir=base_dir, include_roots=include_roots,
+                                  defines=defines)
     except ComponentProfileError as error:
         raise StructureAuditError(f"audit-elaboration:{error}") from error
     findings: list[Finding] = []
@@ -616,11 +638,16 @@ def audit_structure(plan: CompositionPlan, *, top_text: str,
 
     # 1. The top-level boundary is exactly the ledger's exported ports.
     checker_width = None
+    rvfi_opcode_coverage_width = None
     if plan.request_id == CHECKER_REQUEST_ID:
-        checker_width = len(load_default_checker_profile(
-            plan, base_dir=base_dir).properties)
+        checker_profile = load_default_checker_profile(plan, base_dir=base_dir)
+        checker_width = len(checker_profile.properties)
+        if any(item.status == "active" and item.bit == 16
+               for item in checker_profile.properties):
+            rvfi_opcode_coverage_width = 12
     expected_ports = _expected_top_ports(entries, plan.synthetic, plan.peers,
-                                         checker_width)
+                                         checker_width,
+                                         rvfi_opcode_coverage_width)
     actual_ports = {str(port["name"]): (str(port["direction"]), int(port["width"]))
                     for port in netlist.ports}
     findings.append(Finding(
@@ -1058,6 +1085,12 @@ def audit_structure(plan: CompositionPlan, *, top_text: str,
             if _base_net(str(expression)) not in observe_nets:
                 continue
             if pin in ("clk_i", "rst_ni"):
+                continue
+            if cell["instance"] == "u_checker_ibex_rvfi":
+                # This registered monitor is the declared consumer of RVFI
+                # observations; checker logic is intentionally allowed to
+                # sample them while ordinary components remain forbidden from
+                # driving or consuming observe-only ports.
                 continue
             # Only a pin the cell *samples* would make an observation net an
             # input to something; the component output that drives it is fine.
