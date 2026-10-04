@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from pathlib import Path
 import tempfile
 import unittest
@@ -12,9 +13,11 @@ from myfuzz.local_harness.cpu_session import GeneratedCve2Session
 from myfuzz.local_harness.driver_renderer import render_local_driver
 from myfuzz.local_harness.i2c_session import GeneratedPulpI2cSession
 from myfuzz.scenario.contracts import ResourceBudget
+from myfuzz.scenario.dependency import DependencyGraph, DependencyRule, FuzzableSource
 from myfuzz.scenario.evidence import replay_evidence_bundle, save_evidence_bundle
 from myfuzz.scenario.genome import Action, MemoryImage, ScenarioGenome, Trigger
 from myfuzz.scenario.memory import MemoryRegion, PersistentMemory
+from myfuzz.scenario.mutation import MutationTarget, choose_mutation, mutate_genome
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
 from myfuzz.scenario.router import DataflowRouter, DeviceWindow
 from myfuzz.scenario.runner import Binding, ScenarioRunner
@@ -97,6 +100,8 @@ class GeneratedPulpI2cRealTests(unittest.TestCase):
         device.begin_case('local-i2c')
         self.addCleanup(device.end_case)
         device.configure_peer_response(0x5a)
+        with self.assertRaisesRegex(ValueError, 'single response byte'):
+            device.configure_peer_response(0xa6)
         with self.assertRaisesRegex(ValueError, 'unsupported'):
             device.write_register(0, 1)
         device.write_register(0, 2)
@@ -160,28 +165,56 @@ class GeneratedPulpI2cRealTests(unittest.TestCase):
             runners.append(runner)
             return runner
 
-        for byte in (0x5a, 0xa6):
+        graph = DependencyGraph(
+            sources=(FuzzableSource('external_i2c_peer', 'i2c',
+                                    'peer_response', 0, 8, ('IP_TO_CPU',)),),
+            rules=(DependencyRule('i2c.rxdata', ('external_i2c_peer',),
+                                  'DATA_BINDING'),
+                   DependencyRule('cpu.mmio_rdata', ('i2c.rxdata',),
+                                  'DATA_BINDING'),
+                   DependencyRule('cpu.result.ram', ('cpu.mmio_rdata',),
+                                  'PERSISTENT_STATE_RULE')))
+        plan = choose_mutation(graph, {'cpu.result.ram': 10},
+                               direction='IP_TO_CPU')
+        self.assertEqual('external_i2c_peer', plan.focus_source)
+        self.assertEqual(('external_i2c_peer',), plan.path.source_ids)
+        seed = ScenarioGenome(testcase_id='generated-cve2-i2c-read-5a',
+            direction='IP_TO_CPU', path_id='peer-i2c-controller-irq-cpu-ram',
+            schedule_order=('cpu', 'i2c'), max_steps=1300,
+            actions=(Action('peer-response', 'i2c', 'peer_response', 0x5a,
+                            'IP_TO_CPU', Trigger('START')),),
+            initial_images=(MemoryImage('cpu.boot', 'cpu', 0x10000, _program()),
+                            MemoryImage('cpu.result', 'cpu', RESULT, '00000000')))
+        ownership = factory().ownership
+        with self.assertRaisesRegex(ValueError, 'immutable'):
+            mutate_genome(seed, plan, graph, ownership, bit_index=0,
+                          target=MutationTarget('real_response', 'i2c.rxdata'))
+        changed = seed
+        for bit in range(8):
+            if (0x5a ^ 0xa6) & (1 << bit):
+                changed = mutate_genome(changed, plan, graph, ownership,
+                                        bit_index=bit, action_id='peer-response')
+        changed = replace(changed, testcase_id='generated-cve2-i2c-read-a6')
+        self.assertEqual(0xa6, changed.actions[0].value)
+        self.assertEqual(seed.initial_images, changed.initial_images)
+        self.assertEqual(seed.actions[0].trigger, changed.actions[0].trigger)
+        traces = []
+        for genome in (seed, changed):
+            byte = genome.actions[0].value
             with self.subTest(peer_response=byte):
-                genome = ScenarioGenome(testcase_id=f'generated-cve2-i2c-read-{byte:02x}',
-                    direction='IP_TO_CPU', path_id='peer-i2c-controller-irq-cpu-ram',
-                    schedule_order=('cpu', 'i2c'), max_steps=1300,
-                    actions=(Action(f'peer-{byte:02x}', 'i2c', 'peer_response', byte,
-                                    'IP_TO_CPU', Trigger('START')),),
-                    initial_images=(MemoryImage('cpu.boot', 'cpu', 0x10000, _program()),
-                                    MemoryImage('cpu.result', 'cpu', RESULT, '00000000')))
                 bundle = Path(self.temp.name) / f'formal-i2c-evidence-{byte:02x}'
                 trace = save_evidence_bundle(genome, factory, bundle,
                     budget=ResourceBudget(max_wall_time_ms=180000,
                         max_materialized_bytes_per_memory=0x20000))
                 self.assertEqual('complete', trace.status)
+                traces.append(trace)
                 self.assertEqual(byte, runners[-1].sessions['cpu'].memory.read(
                     RESULT, 4, transaction_id='acceptance-read').value)
-                self.assertTrue(any(event.get('kind') == 'source_injection'
-                                    and event.get('component') == 'i2c'
-                                    and event.get('port') == 'peer_response'
-                                    and event.get('source_ref') == 'external_i2c_peer'
-                                    and event.get('value') == byte
-                                    for event in trace.events))
+                self.assertEqual([(byte, 'external_i2c_peer')], [
+                    (event['value'], event['source_ref']) for event in trace.events
+                    if event.get('kind') == 'source_injection'
+                    and event.get('component') == 'i2c'
+                    and event.get('port') == 'peer_response'])
                 self.assertTrue(any(event.get('kind') == 'mmio_delivery'
                                     and event.get('device_id') == 'i2c'
                                     and event.get('offset') == 8
@@ -198,6 +231,7 @@ class GeneratedPulpI2cRealTests(unittest.TestCase):
                                     for event in trace.events))
                 replay = replay_evidence_bundle(bundle, factory)
                 self.assertTrue(replay.matches, replay.difference_context)
+        self.assertNotEqual(traces[0].semantic_sha256, traces[1].semantic_sha256)
 
 
 if __name__ == '__main__':
