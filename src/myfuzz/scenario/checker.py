@@ -38,6 +38,24 @@ def check_pulp_gpio_irq_chain(events: Iterable[Mapping], *, expected_value: int)
     ids = [event.get('event_id') for event in stream]
     if any(type(event_id) is not int for event_id in ids) or ids != sorted(set(ids)):
         incomplete.append('event_order_invalid')
+    padout_writes = [event for event in stream
+                     if event.get('kind') == 'mmio_delivery'
+                     and event.get('device_id') == 'gpio_a'
+                     and event.get('offset') == 0x0c and event.get('write') is True]
+    seen_padout_transactions: set[tuple] = set()
+    for event in padout_writes:
+        tx = event.get('source_transaction')
+        if not isinstance(tx, Mapping):
+            continue
+        key = tuple(tx.get(field) for field in (
+            'execution_id', 'testcase_id', 'source_component', 'source_epoch',
+            'channel_id', 'source_sequence'))
+        if any(part is None for part in key):
+            continue
+        if key in seen_padout_transactions:
+            incomplete.append('gpio_a_padout_transaction_reused')
+            break
+        seen_padout_transactions.add(key)
     for offset, value, name in ((4, 0xff, 'gpio_b_enable'),
                                 (0x18, 1, 'gpio_b_irq_enable'),
                                 (0x1c, 1, 'gpio_b_irq_rising')):
@@ -53,6 +71,13 @@ def check_pulp_gpio_irq_chain(events: Iterable[Mapping], *, expected_value: int)
                  and e.get('write_value') == expected_value)
     if write is None:
         incomplete.append('gpio_a_padout_write_missing')
+    direction = find(0, lambda e: e.get('kind') == 'mmio_delivery'
+                     and e.get('component') == 'cpu' and e.get('device_id') == 'gpio_a'
+                     and e.get('offset') == 0 and e.get('write') is True
+                     and e.get('byte_enable') == 15 and e.get('write_value') == 0xff
+                     and (write is None or e['event_id'] < write['event_id']))
+    if direction is None:
+        incomplete.append('gpio_a_direction_missing')
     first_observed = None if write is None else find(write['event_id'], lambda e:
                           e.get('component') == 'gpio_a'
                           and isinstance(e.get('outputs'), Mapping)
@@ -123,20 +148,26 @@ def check_pulp_gpio_irq_chain(events: Iterable[Mapping], *, expected_value: int)
                and e.get('offset') == 8 and e.get('write') is False)
     if vector is not None and read is None:
         incomplete.append('gpio_b_padin_read_missing')
-    if read is not None and read.get('read_value') != expected_value:
+    configured = direction is not None and not any(name in incomplete for name in (
+        'gpio_b_enable_missing', 'gpio_b_irq_enable_missing',
+        'gpio_b_irq_rising_missing'))
+    if (read is not None and read.get('read_value') != expected_value
+            and configured):
         violations.append('gpio_b_padin_read_mismatch')
     tx = read.get('source_transaction', {}) if read else {}
     consumed = None if read is None else find(read['event_id'], lambda e:
                    e.get('component') == 'cpu'
                    and e.get('outputs', {}).get('data_rsp_consumed') == 1
-                   and e['outputs'].get('data_rsp_rdata') == read.get('read_value')
                    and e['outputs'].get('data_rsp_source_epoch') == tx.get('source_epoch')
                    and e['outputs'].get('data_rsp_source_sequence') == tx.get('source_sequence'))
+    if consumed is not None and consumed['outputs'].get('data_rsp_rdata') != read.get('read_value'):
+        violations.append('cpu_padin_response_mismatch')
     stored = None if consumed is None else find(consumed['event_id'], lambda e:
                  e.get('kind') == 'memory_write' and e.get('component') == 'cpu'
                  and e.get('address') == 0x20000
-                 and e.get('value') == read.get('read_value')
                  and e.get('byte_enable') == 15)
+    if stored is not None and stored.get('value') != read.get('read_value'):
+        violations.append('cpu_padin_store_mismatch')
     if read is not None and (consumed is None or stored is None):
         incomplete.append('cpu_padin_response_or_store_missing')
     status = None if stored is None else find(stored['event_id'], lambda e:
