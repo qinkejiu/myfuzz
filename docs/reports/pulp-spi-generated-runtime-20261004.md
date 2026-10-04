@@ -22,6 +22,12 @@ FIFO effect. A fresh-process `save_evidence_bundle` /
 word; changing the literal source from `A5C396F0` to `A5C396F1` changed the
 observed word and semantic trace.
 
+After integration, the formal scenario also passed with a `ResourceBudget`
+and fresh replay. Its per-step tick reservation covers the declarative APB
+startup writes and the optional RXFIFO read; a first budgeted run exposed an
+underdeclared one-tick limit and was rejected before this bound was corrected.
+Explicit reset discards pre-reset tick samples and rearms the startup plan.
+
 ## Accepted real run
 
 At CLKDIV=1, STATUS `0x102` transmitted `A5C396F0` on 32 actual selected MOSI

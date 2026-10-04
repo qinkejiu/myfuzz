@@ -139,8 +139,9 @@ class GeneratedPulpSpiRealTests(unittest.TestCase):
 
         genome = ScenarioGenome(testcase_id='generated-spi-rx', direction='IP_TO_CPU',
             path_id='standalone-spi', schedule_order=('spi',), max_steps=132, actions=())
+        budget = ResourceBudget(max_wall_time_ms=180000)
         bundle = Path(self.temp.name) / 'formal-spi-evidence'
-        trace = save_evidence_bundle(genome, factory, bundle, budget=None)
+        trace = save_evidence_bundle(genome, factory, bundle, budget=budget)
         self.assertEqual('complete', trace.status)
         self.assertTrue(any(event.get('outputs', {}).get('spi_rx_word') == 0xa5c396f0
                             for event in trace.events))
@@ -152,7 +153,7 @@ class GeneratedPulpSpiRealTests(unittest.TestCase):
 
         mutated = factory_for(bytes.fromhex('a5c396f1'))
         changed = save_evidence_bundle(genome, mutated,
-            Path(self.temp.name) / 'formal-spi-mutated', budget=None)
+            Path(self.temp.name) / 'formal-spi-mutated', budget=budget)
         self.assertNotEqual(trace.semantic_sha256, changed.semantic_sha256)
         self.assertTrue(any(event.get('outputs', {}).get('spi_rx_word') == 0xa5c396f1
                             for event in changed.events))

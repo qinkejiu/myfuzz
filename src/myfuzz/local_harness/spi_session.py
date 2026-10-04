@@ -37,6 +37,12 @@ class GeneratedPulpSpiSession(GeneratedLocalSession):
         self._samples: deque[dict[str, object]] = deque()
         wait = artifact.runtime_document['effective_max_wait_cycles']
         self.max_local_ticks_per_register_access = 2 * wait + 5
+        # The first scenario step performs the declarative APB startup plan;
+        # one later step may read RXFIFO after an observed EOT. Reserve both
+        # cases before budgeted execution begins.
+        self.max_local_ticks_per_step = (1 +
+            (len(startup_writes) + int(read_rx_on_eot)) *
+            self.max_local_ticks_per_register_access)
 
     def identity_document(self):
         return {**super().identity_document(),
@@ -120,5 +126,10 @@ class GeneratedPulpSpiSession(GeneratedLocalSession):
         return result['rdata']
 
     def reset_local(self):
+        result = super().reset_local()
         self.peer.reset_case(self.source)
-        return super().reset_local()
+        self._samples.clear()
+        self._started = False
+        self._rx_word = 0
+        self._rx_read = False
+        return result
