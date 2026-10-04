@@ -24,6 +24,19 @@ _APB = {'paddr': ('input', 12), 'psel': ('input', 1), 'penable': ('input', 1),
         'prdata': ('output', 32), 'pslverr': ('output', 1)}
 
 
+def _obi_boot_contract(cpu, address_width, endpoints):
+    """Record a configured boot base without assuming the first fetch offset."""
+    if cpu is None or type(address_width) is not int or address_width < 1:
+        raise ValueError('runtime-cpu-boot-contract')
+    address = cpu.reset_vector
+    if type(address) is not int or address < 0 or address >= 1 << address_width or address % 4:
+        raise ValueError('runtime-cpu-boot-address')
+    if set(cpu.master_endpoints) != {endpoint.endpoint_id for endpoint in endpoints}:
+        raise ValueError('runtime-cpu-master-endpoints')
+    return {'configured_boot_base': address, 'expected_first_fetch': None,
+            'first_fetch_verification': 'runtime_observation_required'}
+
+
 def _admit(plan, structural, supplied, root):
     path = (root / plan.request.profile_path).resolve()
     if not path.is_relative_to(root / 'configs'):
@@ -97,13 +110,11 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
     functions = {endpoint.function for endpoint in endpoints}
     if len(endpoints) == 2 and functions == cpu_functions and all(e.protocol == ('obi', '1') for e in endpoints):
         kind = 'obi_cpu'
-        if plan.profile.cpu is None or plan.profile.cpu.reset_vector != 0x10000:
-            raise ValueError('runtime-cpu-reset-vector')
-        if set(plan.profile.cpu.master_endpoints) != {e.endpoint_id for e in endpoints}:
-            raise ValueError('runtime-cpu-master-endpoints')
+        boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
         adapters = ['src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv']
     elif len(endpoints) == 1 and functions == {'mmio_slave'} and endpoints[0].protocol == ('apb', '3'):
         kind = 'apb_gpio'
+        boot = None
         capabilities = plan.profile.capabilities
         if (capabilities.get('address_width'), capabilities.get('data_width'),
                 capabilities.get('byte_enable'), capabilities.get('partial_write'),
@@ -182,9 +193,10 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         locals_.append('logic [31:0] apb_paddr;')
         locals_.append('logic [3:0] unused_pstrb;')
         statements.append(f"assign {wires['paddr']} = apb_paddr[11:0];")
-        wait = plan.profile.capabilities['max_wait_cycles']
-        if type(wait) is not int or wait < 1:
+        declared_wait = plan.profile.capabilities['max_wait_cycles']
+        if type(declared_wait) is not int or declared_wait < 1:
             raise ValueError('runtime-apb-wait-bound')
+        wait = min(declared_wait, plan.request.max_wait_cycles)
         pairs = dict(clk='clk', reset='reset', req_valid='gpio_req_valid', req_ready='gpio_req_ready',
                      write='gpio_req_write', addr='gpio_req_addr', wdata='gpio_req_wdata', be='gpio_req_be',
                      rsp_valid='gpio_rsp_valid', rsp_ready='gpio_rsp_ready', rdata='gpio_rsp_rdata', error='gpio_rsp_error',
@@ -205,6 +217,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
     document = dict(schema_version='local_runtime_artifact.v1', status='top_only', kind=kind,
                     module_name=module, plan=plan.document(), structural_abi=copy.deepcopy(structural.abi_document),
                     structural_build=copy.deepcopy(structural.build_document), source_verification=copy.deepcopy(verified),
+                    boot_contract=boot,
+                    effective_max_wait_cycles=(wait if kind == 'apb_gpio' else plan.request.max_wait_cycles),
                     runtime_sv_sha256=hashlib.sha256(runtime.encode()).hexdigest(), cpp_sha256=hashlib.sha256(b'').hexdigest(),
                     adapted_endpoint_ids=sorted(adapted), physical_exports=exports, backend_ports=backend,
                     runtime_ports=[dict(name=n,direction=d,width=w) for n,d,w in ports],

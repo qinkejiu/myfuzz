@@ -61,6 +61,23 @@ class RuntimeRendererTests(unittest.TestCase):
         self.assertIn('.WINDOW_SIZE(4096)', gpio.runtime_sv)
         self.assertIn('apb_paddr[11:0]', gpio.runtime_sv)
 
+    def test_request_wait_bound_is_used_by_apb_adapter(self):
+        plan = replace(self.gpio, request=replace(self.gpio.request, max_wait_cycles=5))
+        structural = render_local_harness(plan)
+        artifact = render_local_runtime(plan, structural, self.verifications[1], base_dir=ROOT)
+        self.assertIn('.MAX_WAIT_CYCLES(5)', artifact.runtime_sv)
+        self.assertEqual(5, artifact.runtime_document['effective_max_wait_cycles'])
+
+    def test_obi_boot_contract_accepts_supported_nondefault_base(self):
+        from myfuzz.local_harness.runtime_renderer import _obi_boot_contract
+        cpu = self.cpu.profile.cpu
+        endpoints = tuple(e for e in self.cpu.binding.endpoints if e.protocol is not None)
+        self.assertEqual(0x20000, _obi_boot_contract(replace(cpu, reset_vector=0x20000),
+                                                       32, endpoints)['configured_boot_base'])
+        for address in (-1, 1, 0x1_0000_0000):
+            with self.subTest(address=address), self.assertRaises(ValueError):
+                _obi_boot_contract(replace(cpu, reset_vector=address), 32, endpoints)
+
     def test_tampered_profile_structure_and_source_admission_refused(self):
         with self.assertRaises(ValueError):
             render_local_runtime(replace(self.cpu, profile_sha256='0'*64), self.structures[0], self.verifications[0], base_dir=ROOT)

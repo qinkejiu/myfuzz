@@ -76,6 +76,8 @@ The existing adapter does not enforce address alignment, and native GPIO decodes
 
 ## Remaining gates
 
+Review follow-up: OBI runtime rendering now records the profile's configured boot base without fixing it to `0x10000`; `expected_first_fetch` remains unknown until a source-backed first-fetch contract or real CPU observation is added. APB uses `min(request.max_wait_cycles, profile.max_wait_cycles)` and records the effective limit. Two regression cases failed before these changes and pass afterward. Runtime build admission still must reject mutation of nested artifact documents, even though the outer dataclass is frozen.
+
 - Task 2 must implement the C++ wire driver, source-identity build/cache admission and persistent bounded transport. Empty C++ text here is intentional.
 - `BoundedLineReader` defaults to 64 KiB while the planned wire payload permits 1 MiB before hex encoding; its reader limit/deadline must be set explicitly. A missing command deadline must not admit unbounded reads.
 - `LocalCommandReplay` short ERROR replies must be wrapped in the versioned execution/sequence/tick envelope; lost receipts cannot authorize repeated uncertain effects.
