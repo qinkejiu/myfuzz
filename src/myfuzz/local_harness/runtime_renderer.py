@@ -99,8 +99,10 @@ def _admit(plan, structural, supplied, root):
     return verified
 
 
-def _apb_local_kind(endpoints, abi, capabilities):
+def _apb_local_kind(endpoints, abi=(), capabilities=None):
     """Choose the local APB executor from the declared physical pin roles."""
+    if capabilities is None:
+        capabilities = {}
     pins = [endpoint for endpoint in endpoints
             if endpoint.function == 'external_pins']
     if not pins:
