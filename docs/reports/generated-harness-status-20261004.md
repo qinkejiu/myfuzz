@@ -12,6 +12,7 @@
 | IP | PULP APB3：GPIO、SPI master、Timer、I2C master | 各自独立生成的本地协议执行器及真实 GPIO pin、SPI 串行、Timer IRQ、I2C 开漏 ACK/数据与回放 | SPI 只验收 CLKDIV=1；I2C 限固定从地址和单字节响应，字节值可变异 |
 | IP | OpenTitan TL-UL：GPIO、RV Timer | GPIO 的真实寄存器与 pin/IRQ、错误响应；RV Timer 的真实计数、比较 IRQ、W1C 和回放 | 其余 OpenTitan IP 仍待接入；Timer→CPU 已验收状态回读，未验收 CPU 中断入口 |
 | IP | ZipCPU Wishbone target：ziptimer | 无地址注册 ACK、计数、单周期 IRQ 与回放 | 不支持部分写；CPU IRQ 尚未绑定 |
+| IP | ZipCPU Wishbone target：wbuart | 19/19 端口、word 地址、byte select、注册 ACK；真实串行 TX/RX、原生 RX IRQ 和两种源值回放 | 固定 8N1、单字节；尚无 CPU 数据链 |
 | IP | ZipCPU AXI4-Lite target：axiluart | 独立 AW/W/B 与 AR/R 握手、TX pin 解码、RX 串行回读与回放 | 固定 8N1/波特，当前 peer 仅单字节 |
 
 跨组件验收包括 CVE2↔PULP GPIO A↔GPIO B 双向多轮中断链，以及 CVE2→PULP SPI/OpenTitan GPIO/OpenTitan RV Timer/PULP Timer/ZipCPU Timer/PULP I2C/ZipCPU AXI4-Lite UART→CVE2 RAM 数据链。I2C 原生 IRQ 已转交 CPU 输入；该程序仍轮询状态，尚未验收 CPU 的中断处理程序。OpenTitan RV Timer 当前由 CPU 读取真实中断状态，尚未将 IRQ 交付 CPU。每条链在独立 CPU/IP harness 中运行，Router 只转交真实 RTL 输出，不组合 Bus/Crossbar。testcase 内进程、RAM、事务和 pending 状态连续保存；显式 reset 才按策略清理。
