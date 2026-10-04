@@ -54,9 +54,10 @@ class GeneratedZipTimerRealTests(unittest.TestCase):
         timer = self.session('timer-register')
         self.assertEqual(0, timer.read_register())
         with self.assertRaisesRegex(RuntimeError, 'Wishbone write error'):
-            timer.write_register(5, be=1)
+            timer.write_register(0, 5, be=1)
+        self.assertEqual(0, timer.pending_events)
         self.assertEqual(0, timer.read_register())
-        timer.write_register(20)
+        timer.write_register(0, 20)
         self.assertGreater(timer.read_register(), 0)
         levels = [timer.step_local({})['irq'] for _ in range(24)]
         self.assertEqual(1, sum(levels))
@@ -74,7 +75,7 @@ class GeneratedZipTimerRealTests(unittest.TestCase):
             return ScenarioRunner(sessions={'timer': timer}, ownership=ownership, bindings=())
 
         budget = ResourceBudget(max_local_cycles_per_component=512,
-            max_scheduler_steps=512, max_transactions=32,
+            max_scheduler_steps=512, max_transactions=1,
             max_semantic_records=50_000, max_evidence_bytes=16 * 1024 * 1024,
             evidence_termination_reserve_bytes=1024 * 1024)
         identity = factory().identity_document()
@@ -103,6 +104,8 @@ class GeneratedZipTimerRealTests(unittest.TestCase):
         self.assertTrue(any(event.get('kind') == 'local_tick_sample'
                             and event.get('outputs', {}).get('interrupt', 0) == 1
                             for event in trace.events))
+        self.assertEqual(1, sum(event.get('kind') == 'local_register_transaction'
+                                for event in trace.events))
         replay = replay_evidence_bundle(bundle, factory)
         self.assertTrue(replay.matches, replay.difference_context)
 

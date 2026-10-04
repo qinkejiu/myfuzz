@@ -31,7 +31,8 @@ _EVENT_FILES = {
     "schedule.jsonl": {"source_injection", "dataflow_delivery",
                        "quiesce_start", "quiesce_end", "quiesce_failure"},
     "transactions.jsonl": {"memory_read", "memory_write",
-                           "mmio_acceptance", "mmio_delivery", "memory_commit"},
+                           "mmio_acceptance", "mmio_delivery", "memory_commit",
+                           "local_register_transaction"},
     "state_versions.jsonl": {"state_dependency"},
     "resets.jsonl": {"reset_barrier", "reset_failure"},
 }
@@ -430,7 +431,7 @@ def _measured_usage(genome: ScenarioGenome, runner: ScenarioRunner,
         source_actions=sum(event.get("kind") == "source_injection"
                            for event in trace.events),
         transactions=sum(event.get("kind") in ("memory_read", "memory_write",
-                                                      "mmio_delivery")
+                                              "mmio_delivery", "local_register_transaction")
                          for event in trace.events),
         semantic_records=len(trace.events), evidence_bytes=0,
         # A failed prepare_local build precedes testcase start. Its separately
@@ -819,7 +820,7 @@ def replay_evidence_bundle(output_dir: Path,
             "source_actions": sum(event.get("kind") == "source_injection"
                                   for event in saved["events"]),
             "transactions": sum(event.get("kind") in ("memory_read", "memory_write",
-                                                    "mmio_delivery")
+                                                    "mmio_delivery", "local_register_transaction")
                                 for event in saved["events"]),
             "evidence_bytes": (sum((output / name).stat().st_size
                                    for name in index["files"])

@@ -385,6 +385,10 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
     elif kind == 'wishbone_timer':
         wires = _shape(endpoints[0], _WISHBONE_TIMER, abi)
         beat_ports('timer', False)
+        ports.append(('timer_target_stb', 'output', 1))
+        backend.append(dict(name='timer_target_stb', direction='output', width=1,
+                            role='target_stb', channel='timer'))
+        statements.append(f"assign timer_target_stb = {wires['stb']};")
         declared_wait = plan.profile.capabilities['max_wait_cycles']
         if type(declared_wait) is not int or declared_wait < 1:
             raise ValueError('runtime-wishbone-timer-wait-bound')

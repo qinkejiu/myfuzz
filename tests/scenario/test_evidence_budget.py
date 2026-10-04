@@ -822,6 +822,61 @@ class EvidenceBudgetTests(unittest.TestCase):
                                     for event in trace.events))
             self.assertTrue(replay_evidence_bundle(bundle, transaction_factory).matches)
 
+    def test_local_register_transaction_is_counted_and_budgeted(self):
+        def transaction_factory():
+            runner = self.factory()
+            session = runner.sessions["gpio"]
+            session.local_transactions = []
+            session.max_transaction_events_per_step = 1
+
+            def step(inputs):
+                session.steps += 1
+                session.local_transactions.append({
+                    "offset": 0, "write_value": session.steps})
+                return {"out": inputs.get("pin", 0)}
+
+            session.step_local = step
+            return runner
+
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = Path(directory) / "bundle"
+            trace = save_evidence_bundle(
+                self.genome, transaction_factory, bundle,
+                budget=ResourceBudget(max_transactions=1))
+            self.assertEqual("budget_exhausted", trace.status)
+            self.assertEqual("max_transactions", trace.events[-1]["limit"])
+            self.assertEqual(1, trace.local_ticks["gpio"])
+            self.assertEqual(1, sum(event.get("kind") == "local_register_transaction"
+                                    for event in trace.events))
+            self.assertTrue(replay_evidence_bundle(bundle, transaction_factory).matches)
+
+    def test_transaction_budget_allows_nontransacting_followup_steps(self):
+        def transaction_factory():
+            runner = self.factory()
+            session = runner.sessions["gpio"]
+            session.local_transactions = []
+            session.max_transaction_events_for_step = lambda _inputs: int(session.steps == 0)
+
+            def step(inputs):
+                session.steps += 1
+                if session.steps == 1:
+                    session.local_transactions.append({"offset": 0, "write_value": 5})
+                return {"out": inputs.get("pin", 0)}
+
+            session.step_local = step
+            return runner
+
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = Path(directory) / "bundle"
+            trace = save_evidence_bundle(
+                self.genome, transaction_factory, bundle,
+                budget=ResourceBudget(max_transactions=1))
+            self.assertEqual("complete", trace.status)
+            self.assertGreater(trace.local_ticks["gpio"], 1)
+            self.assertEqual(1, sum(event.get("kind") == "local_register_transaction"
+                                    for event in trace.events))
+            self.assertTrue(replay_evidence_bundle(bundle, transaction_factory).matches)
+
     def test_declared_transaction_step_bound_is_checked_against_observed_commits(self):
         runner = self.factory()
         session = runner.sessions["gpio"]

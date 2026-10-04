@@ -17,6 +17,7 @@ class GeneratedZipTimerSession(GeneratedLocalSession):
 
     artifact_kind = 'wishbone_timer'
     max_local_ticks_per_step = 37
+    max_transaction_events_per_step = 1
 
     def __init__(self, artifact, *, base_dir, cache_dir, **kwargs):
         super().__init__(artifact, base_dir=base_dir, cache_dir=cache_dir, **kwargs)
@@ -30,6 +31,7 @@ class GeneratedZipTimerSession(GeneratedLocalSession):
         self._samples: deque[dict[str, object]] = deque()
         self._load_seen: int | None = None
         self._await_irq = False
+        self.local_transactions: list[dict[str, int]] = []
 
     @property
     def pending_responses(self) -> int:
@@ -38,6 +40,9 @@ class GeneratedZipTimerSession(GeneratedLocalSession):
     @property
     def pending_events(self) -> int:
         return int(self._await_irq)
+
+    def max_transaction_events_for_step(self, inputs: Mapping[str, int]) -> int:
+        return int('load_count' in inputs and inputs['load_count'] != self._load_seen)
 
     def begin_case(self, testcase_id: str) -> None:
         super().begin_case(testcase_id)
@@ -78,17 +83,25 @@ class GeneratedZipTimerSession(GeneratedLocalSession):
         self._samples.clear()
         return result
 
-    def write_register(self, value: int, *, offset: int = 0, be: int = 15) -> None:
+    def write_register(self, offset: int, value: int, *, be: int = 15) -> None:
         if type(offset) is not int or offset != 0:
             raise ValueError('timer has exactly one addressless register')
         if type(value) is not int or not 0 <= value <= _WORD:
             raise ValueError('invalid timer count')
         if type(be) is not int or not 0 <= be <= 15:
             raise ValueError('invalid timer byte enable')
-        self._await_irq = value != 0 and value < (1 << 31)
-        result = self._take(self.command('ACCESS_WB_TIMER', (1, offset, value, be)))
+        reply = self.command('ACCESS_WB_TIMER', (1, offset, value, be))
+        result = self._take(reply)
         if result['error']:
             raise RuntimeError('generated timer Wishbone write error')
+        samples = reply.payload['samples']
+        strobes = [index for index, sample in enumerate(samples)
+                   if sample['pre']['backend']['timer_target_stb']]
+        if len(strobes) != 1:
+            raise RuntimeError('generated timer write lacked exactly one native strobe')
+        new_pulse = any(sample['post']['interrupt']
+                        for sample in samples[strobes[0]:])
+        self._await_irq = bool(value != 0 and value < (1 << 31) and not new_pulse)
 
     def read_register(self, offset: int = 0) -> int:
         if type(offset) is not int or offset != 0:
@@ -106,8 +119,10 @@ class GeneratedZipTimerSession(GeneratedLocalSession):
             if type(value) is not int or not 0 <= value < (1 << 31):
                 raise ValueError('invalid one-shot timer load')
             if value != self._load_seen:
-                self.write_register(value)
+                self.write_register(0, value)
                 self._load_seen = value
+                self.local_transactions.append({'offset': 0, 'write_value': value,
+                                                'byte_enable': 15})
         return self._take(self.command('STEP_WB_TIMER', ()))
 
     def reset_local(self) -> dict[str, int]:

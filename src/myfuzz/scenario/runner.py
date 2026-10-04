@@ -97,7 +97,8 @@ class _EventLog(list):
     def append(self, record: dict) -> None:
         self.runner._ensure_semantic_capacity("append_event")
         super().append(record)
-        if record.get("kind") in ("memory_read", "memory_write", "mmio_delivery"):
+        if record.get("kind") in ("memory_read", "memory_write", "mmio_delivery",
+                                  "local_register_transaction"):
             self.runner._transaction_count += 1
         self.runner._count_evidence_record(record)
 
@@ -1007,7 +1008,9 @@ class ScenarioRunner:
                                        (getattr(session, "router", None),
                                         "acceptances", "mmio_acceptance"),
                                        (getattr(session, "router", None),
-                                        "deliveries", "mmio_delivery")):
+                                        "deliveries", "mmio_delivery"),
+                                       (session, "local_transactions",
+                                        "local_register_transaction")):
             stream = getattr(owner, attribute, None)
             if stream is None:
                 continue
@@ -1018,7 +1021,8 @@ class ScenarioRunner:
                 for key, value in tuple(record.items()):
                     if is_dataclass(value):
                         record[key] = asdict(value)
-                if kind in ("mmio_acceptance", "mmio_delivery"):
+                if kind in ("mmio_acceptance", "mmio_delivery",
+                            "local_register_transaction"):
                     record["kind"] = kind
                 event_component = component
                 if kind in ("mmio_acceptance", "mmio_delivery"):
@@ -1090,7 +1094,9 @@ class ScenarioRunner:
                     budget.max_scheduler_steps):
                 self._exhaust_budget("max_scheduler_steps", "before_step")
             session = self.sessions[component]
-            maximum = getattr(session, "max_transaction_events_per_step", 0)
+            dynamic_maximum = getattr(session, "max_transaction_events_for_step", None)
+            maximum = (dynamic_maximum(payload) if callable(dynamic_maximum)
+                       else getattr(session, "max_transaction_events_per_step", 0))
             if type(maximum) is not int or maximum < 0:
                 raise ValueError("invalid maximum transaction events per step")
             maximum += sum(component in getattr(router, "ready_targets", ())
