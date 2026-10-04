@@ -57,6 +57,17 @@ def reverse_genome(external_byte: int = 0x49) -> ScenarioGenome:
                         MemoryImage('results', 'cpu', 0x20000, '00' * 8)))
 
 
+def reverse_ownership():
+    return compile_ownership(
+        (InputField('cpu', 'irq', 1), InputField('gpio_a', 'gpio_in', 32),
+         InputField('gpio_b', 'gpio_in', 32)),
+        (InputOwner('cpu', 'irq', 0, 1, 'bound', 'gpio_b.irq'),
+         InputOwner('gpio_a', 'gpio_in', 0, 32, 'fixed', 'constant_zero'),
+         InputOwner('gpio_b', 'gpio_in', 0, 8, 'fixed', 'constant_zero'),
+         InputOwner('gpio_b', 'gpio_in', 8, 8, 'source', 'external_b'),
+         InputOwner('gpio_b', 'gpio_in', 16, 16, 'fixed', 'constant_zero')))
+
+
 def make_reverse_factory(cache_dir: Path):
     cpu_artifact = _artifact('configs/cpus/ibex_obi_local/component_profile.json', 'cpu')
     a_artifact = _artifact('configs/peripherals/pulp_gpio/component_profile.json', 'gpio_a')
@@ -73,14 +84,7 @@ def make_reverse_factory(cache_dir: Path):
         cpu = GeneratedCve2Session(cpu_artifact, base_dir=ROOT, cache_dir=cache_dir,
                                    memory=memory, router=router, defer_mmio=True)
         irq = Binding('gpio_b', 'irq', 'cpu', 'irq', 1)
-        ownership = compile_ownership(
-            (InputField('cpu', 'irq', 1), InputField('gpio_a', 'gpio_in', 32),
-             InputField('gpio_b', 'gpio_in', 32)),
-            (InputOwner('cpu', 'irq', 0, 1, 'bound', 'gpio_b.irq'),
-             InputOwner('gpio_a', 'gpio_in', 0, 32, 'fixed', 'constant_zero'),
-             InputOwner('gpio_b', 'gpio_in', 0, 8, 'fixed', 'constant_zero'),
-             InputOwner('gpio_b', 'gpio_in', 8, 8, 'source', 'external_b'),
-             InputOwner('gpio_b', 'gpio_in', 16, 16, 'fixed', 'constant_zero')))
+        ownership = reverse_ownership()
         runner = ScenarioRunner(sessions={'cpu': cpu, 'gpio_a': a, 'gpio_b': b},
                                 ownership=ownership, bindings=(irq,),
                                 irq_pulses={irq: 4})
@@ -88,6 +92,20 @@ def make_reverse_factory(cache_dir: Path):
         return runner
 
     return factory, instances
+
+
+class ReverseOwnershipTests(unittest.TestCase):
+    def test_only_external_b_byte_is_mutable(self):
+        ownership = reverse_ownership()
+        direction = 'IP_TO_CPU_TO_IP'
+        self.assertEqual('external_b', ownership.mutation_source(
+            'gpio_b', 'gpio_in', 8, 8, direction=direction))
+        with self.assertRaisesRegex(ValueError, 'bound'):
+            ownership.mutation_source('cpu', 'irq', 0, 1, direction=direction)
+        with self.assertRaisesRegex(ValueError, 'fixed'):
+            ownership.mutation_source('gpio_b', 'gpio_in', 0, 8, direction=direction)
+        with self.assertRaisesRegex(ValueError, 'undeclared'):
+            ownership.mutation_source('cpu', 'rdata', 0, 32, direction=direction)
 
 
 @unittest.skipUnless(os.environ.get('MYFUZZ_SCENARIO_REAL') == '1',
@@ -107,6 +125,26 @@ class ReverseGeneratedIbexPulpGpioTests(unittest.TestCase):
                 0x20000, 4, transaction_id='reverse-result').value)
             replay = replay_scenario(case, factory, trace)
             self.assertTrue(replay.matches, replay)
+
+    def test_two_mutated_external_bytes_propagate_and_replay(self):
+        with tempfile.TemporaryDirectory(prefix='myfuzz-ibex-pulp-reverse-variants-') as directory:
+            factory, instances = make_reverse_factory(Path(os.environ.get(
+                'MYFUZZ_IBEX_GPIO_CACHE', Path(directory) / 'cache')))
+            for value in (0x81, 0xff):
+                with self.subTest(value=value):
+                    case = reverse_genome(value)
+                    trace = record_scenario(case, factory)
+                    self.assertEqual('complete', trace.status)
+                    report = checker.check_pulp_gpio_reverse_irq_chain(
+                        trace.events, external_byte=value)
+                    self.assertTrue(report['complete'], report)
+                    self.assertEqual(value, instances[-1].sessions['cpu'].memory.read(
+                        0x20000, 4, transaction_id=f'reverse-{value}').value)
+                    replay = replay_scenario(case, factory, trace)
+                    self.assertTrue(replay.matches, replay)
+                    self.assertIsNot(instances[-2].sessions['cpu'], instances[-1].sessions['cpu'])
+                    self.assertNotEqual(instances[-2].sessions['cpu']._execution,
+                                        instances[-1].sessions['cpu']._execution)
 
 
 if __name__ == '__main__':
