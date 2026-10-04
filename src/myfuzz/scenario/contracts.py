@@ -93,6 +93,8 @@ def _verify_generated_session(identity: dict):
                   'source_hex', 'startup_writes', 'read_rx_on_eot'}
     axi4_fields = {'cpu_service_schema_version', 'source_component'}
     tlul_gpio_fields = {'tlul_gpio_service_schema_version', 'source_component', 'startup_writes'}
+    tlul_spi_host_fields = {'tlul_spi_host_service_schema_version', 'source_component',
+                            'setup_writes', 'probe_offsets'}
     axil_uart_fields = {'axil_uart_service_schema_version', 'source_component',
                         'source_hex', 'startup_writes', 'read_rx_after_source'}
     axil_uart_genome_fields = axil_uart_fields | {'source_mode'}
@@ -100,6 +102,7 @@ def _verify_generated_session(identity: dict):
             base_fields, base_fields | cpu_fields, base_fields | native_fields,
             base_fields | axi_lite_fields, base_fields | spi_fields,
             base_fields | axi4_fields, base_fields | tlul_gpio_fields,
+            base_fields | tlul_spi_host_fields,
             base_fields | axil_uart_fields,
             base_fields | axil_uart_genome_fields):
 
@@ -173,6 +176,23 @@ def _verify_generated_session(identity: dict):
                        or row[0] % 4 or type(row[1]) is not int
                 or not 0 <= row[1] <= 0xffffffff for row in writes)):
             raise ValueError('generated TL-UL GPIO service identity mismatch')
+    elif artifact.runtime_document['kind'] == 'tlul_spi_host':
+        _exact(identity, base_fields | tlul_spi_host_fields,
+               'generated TL-UL SPI Host service identity')
+        writes = identity['setup_writes']
+        probes = identity['probe_offsets']
+        if (identity['tlul_spi_host_service_schema_version'] !=
+                'generated_tlul_spi_host_registers.v1'
+                or identity['source_component'] != artifact.plan.request.instance_id
+                or type(writes) is not list or len(writes) > 8
+                or any(type(row) is not list or len(row) != 2
+                       or row[0] not in (4, 16, 24, 28, 52)
+                       or type(row[1]) is not int or not 0 <= row[1] <= 0xffffffff
+                       for row in writes)
+                or type(probes) is not list or len(probes) > 8
+                or any(type(offset) is not int or offset not in
+                       (0, 4, 16, 20, 24, 28, 48, 52) for offset in probes)):
+            raise ValueError('generated TL-UL SPI Host service identity mismatch')
     elif artifact.runtime_document['kind'] == 'axi4_lite_uart':
         genome_source = identity.get('source_mode') == 'genome'
         _exact(identity, base_fields | (axil_uart_genome_fields if genome_source

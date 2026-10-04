@@ -13,6 +13,7 @@ from .gpio_session import GeneratedPulpGpioSession
 from .opentitan_gpio_session import GeneratedOpentitanGpioSession
 from .opentitan_rv_timer_session import GeneratedOpentitanRvTimerSession
 from .wishbone_uart_session import GeneratedWishboneUartSession
+from .opentitan_spi_host_session import GeneratedOpentitanSpiHostSession
 from .zip_timer_session import GeneratedZipTimerSession
 from .cpu_session import GeneratedCve2Session
 from .axi_lite_session import GeneratedAxiLiteMemorySession
@@ -25,6 +26,8 @@ __all__ = ["LocalHarnessRequest", "load_local_harness_request",
            "verify_local_source_lock", "LocalRuntimeArtifact", "render_local_runtime",
            "render_local_driver", "build_local_harness", "local_build_identity",
            "GeneratedLocalSession", "GeneratedPulpGpioSession", "GeneratedOpentitanGpioSession",
+           "GeneratedOpentitanRvTimerSession", "GeneratedOpentitanSpiHostSession",
+           "GeneratedWishboneUartSession",
            "GeneratedZipTimerSession", "GeneratedCve2Session",
            "GeneratedAxiLiteMemorySession", "GeneratedAxiLiteUartSession",
            "GeneratedPulpI2cSession"]
