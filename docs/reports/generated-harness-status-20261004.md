@@ -13,12 +13,12 @@
 | IP | PULP APB3：GPIO、SPI master、Timer、I2C master | 各自独立生成的本地协议执行器及真实 GPIO pin、SPI 串行、Timer IRQ、I2C 开漏 ACK/数据与回放 | SPI 只验收 CLKDIV=1；I2C 限固定从地址和单字节响应，字节值可变异 |
 | IP | OpenTitan TL-UL：GPIO、RV Timer、SPI Host、I2C、UART、SPI Device | GPIO pin/IRQ、Timer 计数/IRQ、SPI Host 受限 4 字节 mode-0 RX、I2C 开漏单字节、UART 串行，以及 SPI Device 单线 JEDEC/上传均来自真实 RTL 并可 replay | SPI Device 的 CPU 多组件链尚未验收；各串行模式仅按已验收子集计；Timer 与 I2C 的 CPU 中断入口未验收 |
 | IP | ZipCPU Wishbone target：ziptimer | 无地址注册 ACK、计数、单周期 IRQ 与回放 | 不支持部分写；CPU IRQ 尚未绑定 |
-| IP | ZipCPU Wishbone target：wbuart | 19/19 端口、word 地址、byte select、注册 ACK；真实串行 TX/RX、原生 RX IRQ 和两种源值回放 | 固定 8N1、单字节；尚无 CPU 数据链 |
+| IP | ZipCPU Wishbone target：wbuart | 19/19 端口、word 地址、byte select、注册 ACK；真实串行 TX/RX、原生 RX IRQ 和两种源值回放 | 固定 8N1、单字节；CPU 数据链已验收，CPU ISR 未验收 |
 | IP | ZipCPU AXI4-Lite target：axiluart | 独立 AW/W/B 与 AR/R 握手、TX pin 解码、RX 串行回读与回放 | 固定 8N1/波特，当前 peer 仅单字节 |
 
-跨组件验收包括 CVE2↔PULP GPIO A↔GPIO B 双向多轮中断链、CVE2↔OpenTitan UART↔CVE2 RAM 双向数据链，以及 CVE2→PULP SPI/OpenTitan GPIO/OpenTitan RV Timer/OpenTitan I2C/OpenTitan SPI Host/PULP Timer/ZipCPU Timer/PULP I2C/ZipCPU AXI4-Lite UART→CVE2 RAM 数据链。I2C 原生 IRQ 已转交 CPU 输入；该程序仍轮询状态，尚未验收 CPU 的中断处理程序。OpenTitan RV Timer 当前由 CPU 读取真实中断状态，尚未将 IRQ 交付 CPU。每条链在独立 CPU/IP harness 中运行，Router 只转交真实 RTL 输出，不组合 Bus/Crossbar。testcase 内进程、RAM、事务和 pending 状态连续保存；显式 reset 才按策略清理。
+跨组件验收包括 CVE2↔PULP GPIO A↔GPIO B 双向多轮中断链、CVE2↔OpenTitan UART/ZipCPU wbuart↔CVE2 RAM 双向数据链，以及 CVE2→PULP SPI/OpenTitan GPIO/OpenTitan RV Timer/OpenTitan I2C/OpenTitan SPI Host/PULP Timer/ZipCPU Timer/PULP I2C/ZipCPU AXI4-Lite UART→CVE2 RAM 数据链。I2C 与 ZipCPU wbuart 原生 IRQ 已转交 CPU 输入；这两个程序仍轮询状态，尚未验收 CPU 的中断处理程序。OpenTitan RV Timer 当前由 CPU 读取真实中断状态，尚未将 IRQ 交付 CPU。每条链在独立 CPU/IP harness 中运行，Router 只转交真实 RTL 输出，不组合 Bus/Crossbar。testcase 内进程、RAM、事务和 pending 状态连续保存；显式 reset 才按策略清理。
 
-通用 `local_harness.v2` 的 `tlul_register_observe` 模板已用 GPIO、RV Timer 与 SPI Device 三个 profile-only 请求做真实寄存器/输出及 fresh replay。输入需逐字段归属：`fixed_inputs` 给有依据的常量，`environment_bindings` 给可变外部源；GPIO 的动态 pin 已验收真实状态/IRQ 和回放。模板当前不生成串行 peer；SPI Device 单线串行由专用 session 验收。
+通用 `local_harness.v2` 的 `tlul_register_observe` 模板已用 GPIO、RV Timer 与 SPI Device 三个 profile-only 请求做真实寄存器/输出及 fresh replay。输入需逐字段归属：`fixed_inputs` 给有依据的常量，`environment_bindings` 给可变外部源，`bound_bindings` 给指定真实 RTL 输出；两个独立 OpenTitan GPIO 的真实输出→输入→真实 IRQ 和 fresh replay 已验收。模板当前不生成串行 peer；SPI Device 单线串行由专用 session 验收。
 
 生成器可处理已声明的协议形态和局部变体，尚不能凭协议名称无检查地接入任意同协议 RTL。ZipCPU UART 和 OpenTitan UART RX 已支持 DependencyGraph 引导的 Genome 变异；`0x35→0xA6` 两种源值经真实串行接收、CPU MMIO 回读和 RAM 写入，均匹配 fresh replay。CPU 写入 `0x41` 也经真实 UART TX 引脚解码。PULP I2C 的 `peer_response` 也由 8 位 Genome 源选择；`0x5A` 和 `0xA6` 分别经真实串行传输、CPU MMIO 回读并存入 RAM，两份证据可重放。I2C 仍限固定地址 `0x42` 的单字节响应。OpenTitan SPI Device 的本地寄存器与单线串行已验收；其 CPU 跨组件链、更多串行模式及其他 CPU 中断链仍需分别验收。OpenTitan I2C 的 CPU 程序轮询 IRQ 状态，CPU IRQ 固定为 0。
 
