@@ -52,3 +52,5 @@ policy = {'endpoint_id': 'memory', 'template_id': 'cpu.obi',
 - [ ] Select contracts against current full CPU/IP profiles and bindings; record actual acceptances/refusals and native explicit-only behavior.
 - [ ] Record test counts, exact boundaries and remaining runtime work.
 - [ ] Run `git diff --check`, confirm prohibited files unchanged, commit with `git commit -m 'feat: register versioned local protocol template contracts'`; do not push.
+
+Approved semantic refinement: CPU Wishbone without a typed address_units fact also refuses automatic selection; explicit byte-address policy remains contract-only. Target registered-ACK variants use a one-cycle STB pulse and distinguish held CYC versus CYC ignored. Contradictory typed optional semantics refuse even under explicit selection.

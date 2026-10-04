@@ -165,10 +165,19 @@ def validate_local_harness_tuning(tuning: LocalHarnessTuning, *, profile, bindin
         reset_domain='local_reset', profile_port_actions=profile.port_actions)
     sources = None if registered_source_ids is None else _source_context(registered_source_ids)
     owned = None if bound_inputs is None else _owned_context(bound_inputs, binding)
+    endpoint_contracts = []
     for row in tuning.records:
         value = row.document()
         kind = row.kind
-        if kind in ('endpoint_policies', 'boot', 'peer_bindings', 'optional_signals'):
+        if kind == 'endpoint_policies':
+            from .template_contracts import select_template_contract
+            selected = select_template_contract(binding.endpoint(value['endpoint_id']), profile.capabilities,
+                template_id=value['template_id'], template_version=value['template_version'], variant_id=value['variant_id'])
+            if value['max_outstanding'] != dict(selected.contract.limits)['max_outstanding']:
+                raise ValueError('local-tuning-outstanding-limit-unverified')
+            endpoint_contracts.append({**selected.document(), 'selection_sha256': selected.identity_sha256})
+            continue
+        if kind in ('boot', 'peer_bindings', 'optional_signals'):
             raise ValueError('local-tuning-capability-unverified:' + kind)
         if kind == 'reset_policies':
             resets = [reset for reset, _ in binding.resets if reset.domain == value['domain']]
@@ -215,6 +224,7 @@ def validate_local_harness_tuning(tuning: LocalHarnessTuning, *, profile, bindin
         'schema_version': 'local_harness_tuning_validation.v1',
         'status': 'validated_configuration_only', 'runtime_effective': False,
         'tuning': tuning.document(), 'binding_hash': binding.binding_hash,
+        'endpoint_contracts': endpoint_contracts,
         'profile_contract_sha256': _identity(_json_value(profile)),
         'ownership_context': {'registered_source_ids': None if sources is None else sorted(sources),
                               'bound_inputs': None if owned is None else [list(key) for key in sorted(owned)]},
