@@ -44,10 +44,10 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     exports = document['physical_exports']
     backend = document['backend_ports']
     fields = {}
-    if kind in ('tlul_register_observe', 'apb3_register_observe'):
+    if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe'):
         fixed = document['fixed_physical_inputs']
-        dynamic = document['dynamic_physical_inputs']
-        bound = document['bound_physical_inputs']
+        dynamic = document.get('dynamic_physical_inputs', [])
+        bound = document.get('bound_physical_inputs', [])
         allowed_inputs = {row['runtime_name'] for row in fixed + dynamic + bound}
         if (len(allowed_inputs) != len(fixed) + len(dynamic) + len(bound) or
                 len(dynamic) > 64 or len(bound) > 64 or
@@ -221,7 +221,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     ports = document['runtime_ports']
     fixed_at_reset = ({row['runtime_name']: row['value']
                        for row in document['fixed_physical_inputs']}
-                      if kind in ('tlul_register_observe', 'apb3_register_observe') else {})
+                      if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe') else {})
     initializers = '\n'.join(
         f'  dut.{row["name"]} = {fixed_at_reset.get(row["name"], 0)};'
         for row in ports if row['direction'] == 'input')
@@ -393,14 +393,15 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     else:
         spi = kind == 'apb_spi'
         timer = kind in ('apb_timer', 'wishbone_timer', 'tlul_timer')
-        channel = ('reg' if kind in ('tlul_register_observe', 'apb3_register_observe') else
+        channel = ('reg' if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe') else
                    'spi' if spi else 'timer' if timer else
                    'uart' if kind == 'wishbone_uart' else
                    'spi_host' if kind == 'tlul_spi_host' else
                    'uart' if kind == 'tlul_uart' else
                    'i2c' if kind in ('apb_i2c', 'tlul_i2c') else
                    'spi_device' if kind == 'tlul_spi_device' else 'gpio')
-        command_channel = ('TLUL_REG' if kind == 'tlul_register_observe' else
+        command_channel = ('WB_REG' if kind == 'wishbone_register_observe' else
+                           'TLUL_REG' if kind == 'tlul_register_observe' else
                            'APB3_REG' if kind == 'apb3_register_observe' else
                            'TLUL_GPIO' if kind == 'tlul_gpio' else
                            'TLUL_TIMER' if kind == 'tlul_timer' else
@@ -421,7 +422,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             input_assignment = f'      dut.{fields["sd_i"]} = command.fields[0];\n'
         if kind == 'tlul_uart':
             input_assignment += f'      dut.{fields["uart_rx"]} = command.fields[0];\n'
-        if kind in ('tlul_register_observe', 'apb3_register_observe'):
+        if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe'):
             input_assignment = ''.join(
                 f'      dut.{row["runtime_name"]} = {row["value"]};\n'
                 for row in document['fixed_physical_inputs'])

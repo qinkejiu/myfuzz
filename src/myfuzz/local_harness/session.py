@@ -45,6 +45,8 @@ _OPERATIONS = {
                               'ACCESS_APB3_REG': (1, 4092, 0xffffffff, 15),
                               'SOURCE_APB3_REG': (63, 0xffffffffffffffff),
                               'BIND_APB3_REG': (63, 0xffffffffffffffff)},
+    'wishbone_register_observe': {'STEP_WB_REG': (),
+                                  'ACCESS_WB_REG': (1, 4092, 0xffffffff, 15)},
     'tlul_spi_device': {'STEP_TLUL_SPI_DEVICE': (1, 1, 1, 15),
                         'ACCESS_TLUL_SPI_DEVICE': (1, 1, 1, 15, 1, 8188, 0xffffffff, 15)},
     'wishbone_timer': {'STEP_WB_TIMER': (),

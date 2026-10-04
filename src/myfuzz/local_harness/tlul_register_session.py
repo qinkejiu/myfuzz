@@ -9,6 +9,8 @@ from .session import GeneratedLocalSession
 
 class GeneratedTlulRegisterSession(GeneratedLocalSession):
     artifact_kind = 'tlul_register_observe'
+    step_operation = 'STEP_TLUL_REG'
+    access_operation = 'ACCESS_TLUL_REG'
 
     def __init__(self, artifact, *, base_dir, cache_dir, setup_writes=(),
                  probe_offsets=(), **kwargs):
@@ -192,7 +194,7 @@ class GeneratedTlulRegisterSession(GeneratedLocalSession):
                 type(value) is not int or not 0 <= value <= 0xffffffff or
                 type(be) is not int or not 0 <= be <= 15):
             raise ValueError('invalid generic TL-UL access')
-        result = self._take(self.command('ACCESS_TLUL_REG', (int(write), offset, value, be)))
+        result = self._take(self.command(self.access_operation, (int(write), offset, value, be)))
         if result['error']:
             raise RuntimeError(f'real TL-UL error at offset {offset:#x}')
         return result['rdata']
@@ -248,7 +250,7 @@ class GeneratedTlulRegisterSession(GeneratedLocalSession):
                 index, _, _ = self._bound[name]
                 self._take(self.command('BIND_TLUL_REG', (index, value)))
                 self._bound_values[name] = value
-        return {**self._take(self.command('STEP_TLUL_REG', ()), step=True), **probes}
+        return {**self._take(self.command(self.step_operation, ()), step=True), **probes}
 
     def reset_local(self):
         result = super().reset_local()
