@@ -1,5 +1,6 @@
 from dataclasses import replace
 import hashlib
+import shutil
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -82,6 +83,8 @@ class LocalHarnessPlanTests(unittest.TestCase):
             path.parent.mkdir(parents=True)
             original = (ROOT / self.gpio_request.profile_path).read_bytes()
             path.write_bytes(original)
+            shutil.copytree(ROOT / self.gpio.profile.source.source_root,
+                            root / self.gpio.profile.source.source_root)
 
             def change_after_load(profile, *, base_dir):
                 path.write_bytes(b'{"changed":true}')

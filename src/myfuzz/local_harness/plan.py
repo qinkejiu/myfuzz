@@ -47,6 +47,7 @@ class LocalHarnessPlan:
     binding: ProfileBinding
     dispositions: tuple[DispositionEntry, ...]
     profile_sha256: str
+    parameter_sources: tuple[tuple[str, str], ...] = ()
 
     def document(self) -> dict[str, object]:
         ports = []
@@ -65,6 +66,8 @@ class LocalHarnessPlan:
             'source_content_hash': self.facts.content_hash,
             'source_files': list(self.facts.files),
             'top': self.facts.top_module,
+            'parameter_source_sha256': {name: hashlib.sha256(text.encode()).hexdigest()
+                                        for name, text in self.parameter_sources},
             'timing': {
                 'reset_assert_ticks': self.request.reset_assert_ticks,
                 'reset_release_ticks': self.request.reset_release_ticks,
@@ -89,7 +92,23 @@ def plan_local_harness(request: LocalHarnessRequest, *, base_dir: Path) -> Local
         raise ValueError('invalid-profile-path:outside-configs')
     profile_bytes = profile_path.read_bytes()
     profile = load_component_profile(json.loads(profile_bytes))
+    parameter_sources = ()
+    if (profile.source.filelist is None and profile.source.elaboration is not None
+            and profile.source.elaboration.parameters):
+        source_root = (root / profile.source.source_root).resolve()
+        if not source_root.is_relative_to(root):
+            raise ValueError('parameter-source-outside-root')
+        snapshots = []
+        for name in profile.source.files:
+            path = (source_root / name).resolve()
+            if not path.is_relative_to(source_root):
+                raise ValueError('parameter-source-outside-root')
+            snapshots.append((name, path.read_bytes().decode('utf-8')))
+        parameter_sources = tuple(snapshots)
     facts = elaborate_profile(profile, base_dir=root)
+    for name, text in parameter_sources:
+        if (source_root / name).read_bytes().decode('utf-8') != text:
+            raise ValueError('parameter-source-changed-during-elaboration')
     if facts.selection != 'all':
         raise ValueError('full-top-required')
     binding = bind_profile(profile, facts)
@@ -101,4 +120,4 @@ def plan_local_harness(request: LocalHarnessRequest, *, base_dir: Path) -> Local
         _local_target(entry)
     return LocalHarnessPlan(
         request, profile, facts, binding, dispositions,
-        hashlib.sha256(profile_bytes).hexdigest())
+        hashlib.sha256(profile_bytes).hexdigest(), parameter_sources)
