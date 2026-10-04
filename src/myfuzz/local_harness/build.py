@@ -99,7 +99,8 @@ def _host_sources():
     for name in ('session', 'cpu_session', 'gpio_session',
                  'wishbone_cpu_session', 'axi_lite_session', 'axi4_cpu_session',
                  'spi_session', 'timer_session', 'axil_uart_session', 'i2c_session',
-                 'opentitan_spi_host_session', 'opentitan_i2c_session'):
+                 'opentitan_spi_host_session', 'opentitan_i2c_session',
+                 'opentitan_spi_device_session'):
         path = f'src/myfuzz/local_harness/{name}.py'
         if (root / path).is_file():
             pending.append(path)
@@ -233,7 +234,8 @@ def _prepare(artifact, base_dir):
                   'opentitan_rv_timer_local': 'opentitan_rv_timer',
                   'opentitan_spi_host_local': 'opentitan_spi_host',
                   'opentitan_uart_local': 'opentitan_uart',
-                  'opentitan_i2c_local': 'opentitan_i2c'}
+                  'opentitan_i2c_local': 'opentitan_i2c',
+                  'opentitan_spi_device_local': 'opentitan_spi_device'}
                  .get(artifact.plan.profile.component_id, artifact.plan.profile.component_id))
     record = next(record for record in lock['components'] if record['id'] == record_id)
     evidence = record['elaboration']['evidence']
@@ -242,7 +244,8 @@ def _prepare(artifact, base_dir):
     for item in closure['closure_files']:
         capture(item['root'] + '/' + item['path'], item['sha256'])
     if artifact.plan.profile.component_id in ('opentitan_gpio_local', 'opentitan_rv_timer_local',
-                                              'opentitan_uart_local', 'opentitan_i2c_local'):
+                                              'opentitan_uart_local', 'opentitan_i2c_local',
+                                              'opentitan_spi_device_local'):
         capture(verified['wrapper_path'], verified['wrapper_sha256'])
     if artifact.plan.profile.component_id == 'opentitan_spi_host_local':
         for path, digest in zip(verified['wrapper_paths'], verified['wrapper_sha256']):
@@ -252,6 +255,9 @@ def _prepare(artifact, base_dir):
                 verified['upstream_profile_sha256'])
     if artifact.plan.profile.component_id == 'opentitan_i2c_local':
         capture('configs/peripherals/opentitan_i2c/component_profile.json',
+                verified['upstream_profile_sha256'])
+    if artifact.plan.profile.component_id == 'opentitan_spi_device_local':
+        capture('configs/peripherals/opentitan_spi_device/component_profile.json',
                 verified['upstream_profile_sha256'])
     for item in doc['adapter_sources']:
         capture(item['path'], item['sha256'])

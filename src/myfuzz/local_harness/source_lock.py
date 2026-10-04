@@ -33,6 +33,9 @@ def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path) -> di
     if profile.component_id == 'opentitan_i2c_local':
         from .opentitan_i2c_contract import verify_opentitan_i2c_source_contract
         return verify_opentitan_i2c_source_contract(profile, base_dir=base_dir)
+    if profile.component_id == 'opentitan_spi_device_local':
+        from .opentitan_spi_device_contract import verify_opentitan_spi_device_source_contract
+        return verify_opentitan_spi_device_source_contract(profile, base_dir=base_dir)
     if profile.component_id == 'opentitan_rv_timer_local':
         from .opentitan_rv_timer_contract import verify_opentitan_rv_timer_source_contract
         return verify_opentitan_rv_timer_source_contract(profile, base_dir=base_dir)

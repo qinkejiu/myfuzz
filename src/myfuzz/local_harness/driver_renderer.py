@@ -187,6 +187,21 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             raise ValueError('driver-tlul-i2c-native-irq-required')
         fields['irq_o'] = irq[0]['runtime_name']
         allowed_inputs = {fields['scl_i'], fields['sda_i']}
+    elif kind == 'tlul_spi_device':
+        for role, width in (('sck_i', 1), ('csb_i', 1), ('tpm_csb_i', 1),
+                            ('sd_i', 4), ('sd_o', 4), ('sd_en_o', 4)):
+            rows = [row for row in exports if row['endpoint_id'] == 'spi_device.pins'
+                    and row['role'] == role and row['width'] == width]
+            if len(rows) != 1:
+                raise ValueError('driver-tlul-spi-device-pin:' + role)
+            fields[role] = rows[0]['runtime_name']
+        irq = [row for row in exports if row['endpoint_id'] == 'spi_device.interrupts'
+               and row['role'] == 'irq' and row['direction'] == 'output'
+               and row['width'] == 8]
+        if len(irq) != 1:
+            raise ValueError('driver-tlul-spi-device-irq')
+        fields['irq_o'] = irq[0]['runtime_name']
+        allowed_inputs = {fields[name] for name in ('sck_i', 'csb_i', 'tpm_csb_i', 'sd_i')}
     elif kind in ('native_memory_cpu', 'wishbone_cpu', 'axi4_lite_cpu', 'axi4_cpu'):
         allowed_inputs = set()
     elif kind == 'obi_cpu':
@@ -210,6 +225,9 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         for row in ports if row['direction'] == 'input')
     if kind == 'tlul_uart':
         initializers += f'\n  dut.{fields["uart_rx"]} = 1;'
+    if kind == 'tlul_spi_device':
+        initializers += (f'\n  dut.{fields["csb_i"]} = 1;'
+                         f'\n  dut.{fields["tpm_csb_i"]} = 1;')
 
     def signal(row, name_key='runtime_name'):
         name, width = row[name_key], row['width']
@@ -220,7 +238,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     physical_items = ',\n'.join('    {' + _literal(row['runtime_name']) + ', ' + signal(row) + '}' for row in exports)
     aliases = ''
     if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host',
-                'tlul_uart', 'tlul_i2c', 'wishbone_timer', 'wishbone_uart', 'axi4_lite_uart', 'apb_i2c'):
+                'tlul_uart', 'tlul_i2c', 'tlul_spi_device', 'wishbone_timer', 'wishbone_uart', 'axi4_lite_uart', 'apb_i2c'):
         by_name = {row['runtime_name']: row for row in exports}
         aliases = ''.join(f'  values[{_literal(alias)}] = {signal(by_name[name])};\n'
                           for alias, name in fields.items()
@@ -234,7 +252,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                           or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi')))
                           or (kind in ('axi4_lite_uart', 'wishbone_uart')
                               and alias not in ('uart_rx', 'uart_cts_n'))
-                          or kind in ('apb_i2c', 'tlul_i2c'))
+                          or kind in ('apb_i2c', 'tlul_i2c', 'tlul_spi_device'))
 
     max_wait = document['effective_max_wait_cycles']
     max_samples = (1 if kind in ('obi_cpu', 'native_memory_cpu',
@@ -256,7 +274,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                 or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi')))
                 or (kind in ('axi4_lite_uart', 'wishbone_uart')
                     and alias not in ('uart_rx', 'uart_cts_n'))
-                or kind in ('apb_i2c', 'tlul_i2c')):
+                or kind in ('apb_i2c', 'tlul_i2c', 'tlul_spi_device')):
             maximum_snapshot[alias] = maxima_physical[name]
     snapshot_size = len(json.dumps(maximum_snapshot, sort_keys=True, separators=(',', ':')))
     # 128 bytes per sample exceeds its numeric tick and object delimiters;
@@ -378,7 +396,8 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                    'uart' if kind == 'wishbone_uart' else
                    'spi_host' if kind == 'tlul_spi_host' else
                    'uart' if kind == 'tlul_uart' else
-                   'i2c' if kind in ('apb_i2c', 'tlul_i2c') else 'gpio')
+                   'i2c' if kind in ('apb_i2c', 'tlul_i2c') else
+                   'spi_device' if kind == 'tlul_spi_device' else 'gpio')
         command_channel = ('TLUL_REG' if kind == 'tlul_register_observe' else
                            'TLUL_GPIO' if kind == 'tlul_gpio' else
                            'TLUL_TIMER' if kind == 'tlul_timer' else
@@ -386,6 +405,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                            'TLUL_SPI_HOST' if kind == 'tlul_spi_host' else
                            'TLUL_UART' if kind == 'tlul_uart' else
                            'TLUL_I2C' if kind == 'tlul_i2c' else
+                           'TLUL_SPI_DEVICE' if kind == 'tlul_spi_device' else
                            'WB_TIMER' if kind == 'wishbone_timer' else channel.upper())
         input_assignment = (f'      dut.{fields["gpio_in"]} = command.fields[0];\n'
                             if kind in ('apb_gpio', 'tlul_gpio') else '')
@@ -402,7 +422,14 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             input_assignment = ''.join(
                 f'      dut.{row["runtime_name"]} = {row["value"]};\n'
                 for row in document['fixed_physical_inputs'])
-        index = 2 if kind in ('tlul_gpio', 'wishbone_uart') else 1 if kind in ('apb_gpio', 'tlul_spi_host', 'tlul_uart') else 0
+        if kind == 'tlul_spi_device':
+            input_assignment += ''.join(
+                f'      dut.{fields[name]} = command.fields[{i}];\n'
+                for i, name in enumerate(('sck_i', 'csb_i', 'tpm_csb_i', 'sd_i')))
+
+        index = (4 if kind == 'tlul_spi_device' else
+                 2 if kind in ('tlul_gpio', 'wishbone_uart') else
+                 1 if kind in ('apb_gpio', 'tlul_spi_host', 'tlul_uart') else 0)
         source_branch = '''      if (command.operation == "SOURCE_SPI") {
         peer.append(command.fields[0], command.fields[1], command.fields[2]);
         dut.eval();
@@ -623,6 +650,7 @@ int main(int argc, char **argv) {
     tick(dut, nullptr);
     ++released_ticks;
   }
+@SPI_DEVICE_BOOT@
   local_ticks = 0;
   std::cout << "READY local_driver.v1 " << MYFUZZ_STRINGIFY(MYFUZZ_ARTIFACT_DIGEST)
             << " " << hex_integer(asserted_ticks) << " " << hex_integer(released_ticks) << std::endl;
@@ -694,6 +722,11 @@ int main(int argc, char **argv) {
                             'static OpenTitanI2cSingleSlavePeer peer;' if kind == 'tlul_i2c' else ''),
                   SPI_DRIVE=spi_drive, SPI_OBSERVE=spi_observe,
                   I2C_RESOLVE=i2c_resolve, I2C_OBSERVE=i2c_observe,
+                  SPI_DEVICE_BOOT=(
+                      f'  for (unsigned i = 0; i < 2; ++i) {{\n'
+                      f'    dut.{fields["sck_i"]} = 1; tick(dut, nullptr);\n'
+                      f'    dut.{fields["sck_i"]} = 0; tick(dut, nullptr);\n'
+                      f'  }}' if kind == 'tlul_spi_device' else ''),
                   ASSERT=str(artifact.plan.request.reset_assert_ticks),
                   RELEASE=str(artifact.plan.request.reset_release_ticks), CACHE=str(64 * 1024 * 1024),
                   RESERVATION=str(reservation), OPERATION_CHECK=operation_check,
