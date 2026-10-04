@@ -209,6 +209,7 @@ def _final_state_growth_bound(genome: ScenarioGenome,
     from .uart_session import OpenTitanUartSession
     from myfuzz.local_harness.cpu_session import GeneratedCve2Session
     from myfuzz.local_harness.gpio_session import GeneratedPulpGpioSession
+    from myfuzz.local_harness.native_session import GeneratedNativeMemorySession
 
     largest = 0
     digits = len(str(max(budget.max_scheduler_steps,
@@ -223,7 +224,8 @@ def _final_state_growth_bound(genome: ScenarioGenome,
             key_bytes = (512 + 4 * len(genome.testcase_id.encode("utf-8"))
                          + 4 * component_bytes + 4 * digits)
             bound = 8192 + 4 * component_bytes + keys * key_bytes
-        elif type(session) in (GeneratedCve2Session, GeneratedPulpGpioSession):
+        elif type(session) in (GeneratedCve2Session, GeneratedPulpGpioSession,
+                              GeneratedNativeMemorySession):
             # A generated command contributes one fixed-width RTL snapshot;
             # the CPU may also add one persistent memory transaction key.
             # Include the variable testcase and component identity lengths.
@@ -254,6 +256,7 @@ def _evidence_record_bound(genome: ScenarioGenome,
     from .uart_session import OpenTitanUartSession
     from myfuzz.local_harness.cpu_session import GeneratedCve2Session
     from myfuzz.local_harness.gpio_session import GeneratedPulpGpioSession
+    from myfuzz.local_harness.native_session import GeneratedNativeMemorySession
 
     digits = len(str(max(budget.max_scheduler_steps,
                          budget.max_transactions,
@@ -278,12 +281,15 @@ def _evidence_record_bound(genome: ScenarioGenome,
                                  genome.testcase_id.encode("utf-8"))
                              + 4 * len(component.encode("utf-8"))
                              + max(4, writer_lanes + 1) * 4 * digits)
-        elif type(session) in (GeneratedCve2Session, GeneratedPulpGpioSession):
+        elif type(session) in (GeneratedCve2Session, GeneratedPulpGpioSession,
+                              GeneratedNativeMemorySession):
             limits = session.artifact.runtime_document['driver_limits']
             reservation = limits['reply_reservation_bytes']
             if type(reservation) is not int or reservation < 1:
                 raise ValueError(f"{component}: invalid generated reply reservation")
-            writer_lanes = 4 if type(session) is GeneratedCve2Session else 0
+            writer_lanes = (4 if type(session) in
+                            (GeneratedCve2Session, GeneratedNativeMemorySession)
+                            else 0)
             # One generated reply bounds all native pre/post samples of one
             # command. Router, source and observation records may repeat its
             # decoded fields; reserve four copies plus identity overhead.

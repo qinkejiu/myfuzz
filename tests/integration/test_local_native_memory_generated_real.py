@@ -10,7 +10,8 @@ from myfuzz.scenario.genome import MemoryImage,ScenarioGenome
 from myfuzz.scenario.memory import MemoryRegion,PersistentMemory
 from myfuzz.scenario.ownership import compile_ownership
 from myfuzz.scenario.runner import ScenarioRunner
-from myfuzz.scenario.replay import record_scenario,replay_scenario
+from myfuzz.scenario.evidence import save_evidence_bundle,replay_evidence_bundle
+from myfuzz.scenario.contracts import ResourceBudget
 from tests.local_harness.test_renderer import ROOT,real_plan
 
 def program():
@@ -37,7 +38,10 @@ class NativeProgramRealTests(unittest.TestCase):
             genome=ScenarioGenome(testcase_id='native-two-rounds',direction='CPU_TO_IP',path_id='native-memory',
                 schedule_order=('cpu',),max_steps=240,actions=(),
                 initial_images=(MemoryImage('program','cpu',0,program()),MemoryImage('state','cpu',256,'0500000000000000')))
-            trace=record_scenario(genome,factory)
+            bundle=Path(cache)/'evidence'
+            trace=save_evidence_bundle(genome,factory,bundle,
+                budget=ResourceBudget(max_wall_time_ms=90000,
+                                      max_materialized_bytes_per_memory=4096))
             self.assertEqual(trace.status,'complete',trace.status)
             memory=instances[0][2];cpu=instances[0][1]
             self.assertEqual(memory.read(256,4,transaction_id='check').value,7)
@@ -50,7 +54,7 @@ class NativeProgramRealTests(unittest.TestCase):
             self.assertIn(0,cpu.accepted_addresses)
             self.assertIn(256,cpu.accepted_addresses)
             self.assertGreater(cpu.native_instruction_fetch_count,0)
-            comparison=replay_scenario(genome,factory,trace)
+            comparison=replay_evidence_bundle(bundle,factory)
             self.assertTrue(comparison.matches,comparison.difference_context)
             self.assertEqual(instances[1][2].read(256,4,transaction_id='check').value,7)
             self.assertNotEqual(instances[0][1]._execution,instances[1][1]._execution)
