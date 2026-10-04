@@ -30,6 +30,7 @@ _OPERATIONS = {
                   'ACCESS_TLUL_GPIO': (0xffffffff, 1, 1, 124, 0xffffffff, 15)},
     'apb_spi': {'STEP_SPI': (1,), 'ACCESS_SPI': (1, 4092, 0xffffffff, 15),
                 'SOURCE_SPI': (3, 0xffffffff, 32)},
+    'apb_timer': {'STEP_TIMER': (1,), 'ACCESS_TIMER': (1, 4092, 0xffffffff, 15)},
 }
 _DIGEST = re.compile(r'[0-9a-f]{64}\Z')
 
@@ -149,6 +150,7 @@ class GeneratedLocalSession:
                 or (operation == 'ACCESS_GPIO' and fields[2] % 4)
                 or (operation == 'ACCESS_TLUL_GPIO' and fields[3] % 4)
                 or (operation == 'ACCESS_SPI' and fields[1] % 4)
+                or (operation == 'ACCESS_TIMER' and fields[1] % 4)
                 or (operation == 'SOURCE_SPI' and fields[2] == 0)):
             raise ValueError('invalid generated driver command')
         sequence = self._sequence + 1

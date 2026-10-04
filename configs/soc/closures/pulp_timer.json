@@ -1,0 +1,78 @@
+{
+  "schema_version": "soc_elaboration_closure.v1",
+  "component": "pulp_timer",
+  "root": "third_party/soc-pulp-apb-timer",
+  "top_module": "apb_timer",
+  "tool": {
+    "name": "verilator",
+    "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "frontend": "verilator-lint"
+  },
+  "command": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "apb_timer",
+    "-GAPB_ADDR_WIDTH=12",
+    "-GTIMER_CNT=2",
+    "third_party/soc-pulp-apb-timer/src/apb_timer.sv",
+    "third_party/soc-pulp-apb-timer/src/timer.sv"
+  ],
+  "include_roots": [],
+  "defines": [],
+  "parameters": [
+    {
+      "name": "APB_ADDR_WIDTH",
+      "value": "12"
+    },
+    {
+      "name": "TIMER_CNT",
+      "value": "2"
+    }
+  ],
+  "closure_files": [
+    {
+      "root": "third_party/soc-pulp-apb-timer",
+      "path": "src/apb_timer.sv",
+      "sha256": "22dce4e3ff8328bdd6e1621c20e2877e7f44cfecccc07203d09e994632cc1778"
+    },
+    {
+      "root": "third_party/soc-pulp-apb-timer",
+      "path": "src/timer.sv",
+      "sha256": "d352fc4476da83658d361e8f500b5a73f857f0a11e9436ab47d5bf0ba0bc7fce"
+    }
+  ],
+  "status": "elaboration_verified",
+  "lint": {
+    "errors": 0,
+    "warnings": 9,
+    "exit_code": 0
+  },
+  "capability_findings": [
+    {
+      "topic": "apb3_full_word",
+      "observed": "Top has APB3 PADDR/PSEL/PENABLE/PWRITE/PWDATA/PRDATA/PREADY/PSLVERR, no PSTRB; timer PREADY=1 and PSLVERR=0.",
+      "evidence_path": "third_party/soc-pulp-apb-timer/src/timer.sv:25-45",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "native_irq",
+      "observed": "Each timer exports overflow and compare equality signals from registered count/comparator and cycle counter; no held status or acknowledge is provided.",
+      "evidence_path": "third_party/soc-pulp-apb-timer/src/timer.sv:52-65",
+      "provenance": "rtl_read"
+    }
+  ],
+  "unsupported": [
+    {
+      "topic": "partial_write",
+      "reason": "No byte strobe exists.",
+      "evidence_path": "third_party/soc-pulp-apb-timer/src/apb_timer.sv:20-29"
+    },
+    {
+      "topic": "level_irq",
+      "reason": "Native equality outputs are observed as pulses; no level conversion is declared.",
+      "evidence_path": "third_party/soc-pulp-apb-timer/src/timer.sv:52-65"
+    }
+  ]
+}

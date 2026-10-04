@@ -81,6 +81,14 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             raise ValueError('driver-spi-native-events-required')
         fields['events_o'] = events[0]['runtime_name']
         allowed_inputs = {fields[f'spi_sdi{i}'] for i in range(4)}
+    elif kind == 'apb_timer':
+        events = [row for row in exports if row['physical_port'] == 'irq_o'
+                  and row['disposition'] == 'observe' and row['direction'] == 'output'
+                  and row['width'] == 4]
+        if len(events) != 1:
+            raise ValueError('driver-timer-native-events-required')
+        fields['irq_o'] = events[0]['runtime_name']
+        allowed_inputs = set()
     elif kind in ('native_memory_cpu', 'wishbone_cpu', 'axi4_lite_cpu', 'axi4_cpu'):
         allowed_inputs = set()
     elif kind == 'obi_cpu':
@@ -106,12 +114,13 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     backend_items = ',\n'.join('    {' + _literal(row['name']) + ', ' + signal(row, 'name') + '}' for row in backend)
     physical_items = ',\n'.join('    {' + _literal(row['runtime_name']) + ', ' + signal(row) + '}' for row in exports)
     aliases = ''
-    if kind in ('apb_gpio', 'apb_spi', 'tlul_gpio'):
+    if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'tlul_gpio'):
         by_name = {row['runtime_name']: row for row in exports}
         aliases = ''.join(f'  values[{_literal(alias)}] = {signal(by_name[name])};\n'
                           for alias, name in fields.items()
                           if (kind in ('apb_gpio', 'tlul_gpio') and alias not in ('gpio_in', 'strap_en'))
-                          or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi'))))
+                          or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi')))
+                          or kind == 'apb_timer')
 
     max_wait = document['effective_max_wait_cycles']
     max_samples = (1 if kind in ('obi_cpu', 'native_memory_cpu',
@@ -123,7 +132,9 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                                             else (1 << row['width']) - 1) for row in exports}
     maximum_snapshot = dict(backend=maxima_backend, physical=maxima_physical)
     for alias, name in fields.items():
-        if (kind in ('apb_gpio', 'tlul_gpio') and alias not in ('gpio_in', 'strap_en')) or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi'))):
+        if ((kind in ('apb_gpio', 'tlul_gpio') and alias not in ('gpio_in', 'strap_en'))
+                or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi')))
+                or kind == 'apb_timer'):
             maximum_snapshot[alias] = maxima_physical[name]
     snapshot_size = len(json.dumps(maximum_snapshot, sort_keys=True, separators=(',', ':')))
     # 128 bytes per sample exceeds its numeric tick and object delimiters;
@@ -190,13 +201,13 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         operation_check = 'command.operation != "STEP_CPU"'
     else:
         spi = kind == 'apb_spi'
-        channel = 'spi' if spi else 'gpio'
+        channel = 'spi' if spi else 'timer' if kind == 'apb_timer' else 'gpio'
         command_channel = 'TLUL_GPIO' if kind == 'tlul_gpio' else channel.upper()
-        input_assignment = ('' if spi else
-                            f'      dut.{fields["gpio_in"]} = command.fields[0];\n' +
-                            (f'      dut.{fields["strap_en"]} = command.fields[1];\n'
-                             if kind == 'tlul_gpio' else ''))
-        index = 0 if spi else 2 if kind == 'tlul_gpio' else 1
+        input_assignment = (f'      dut.{fields["gpio_in"]} = command.fields[0];\n'
+                            if kind in ('apb_gpio', 'tlul_gpio') else '')
+        if kind == 'tlul_gpio':
+            input_assignment += f'      dut.{fields["strap_en"]} = command.fields[1];\n'
+        index = 2 if kind == 'tlul_gpio' else 1 if kind == 'apb_gpio' else 0
         source_branch = '''      if (command.operation == "SOURCE_SPI") {
         peer.append(command.fields[0], command.fields[1], command.fields[2]);
         dut.eval();

@@ -52,3 +52,6 @@
 [submodule "third_party/picorv32_upstream_reference"]
 	path = third_party/picorv32_upstream_reference
 	url = https://github.com/YosysHQ/picorv32.git
+[submodule "third_party/soc-pulp-apb-timer"]
+	path = third_party/soc-pulp-apb-timer
+	url = https://github.com/pulp-platform/apb_timer.git

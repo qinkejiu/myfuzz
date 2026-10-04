@@ -99,10 +99,17 @@ def _admit(plan, structural, supplied, root):
     return verified
 
 
-def _apb_local_kind(endpoints):
+def _apb_local_kind(endpoints, abi):
     """Choose the local APB executor from the declared physical pin roles."""
     pins = [endpoint for endpoint in endpoints
             if endpoint.function == 'external_pins']
+    if not pins:
+        observed = [row for row in abi if row['disposition'] == 'observe'
+                    and row['direction'] == 'output']
+        if (len(observed) == 1 and observed[0]['physical_port'] == 'irq_o'
+                and observed[0]['width'] == 4):
+            return 'apb_timer'
+        raise ValueError('runtime-external-pin-shape')
     if len(pins) != 1:
         raise ValueError('runtime-external-pin-shape')
     fields = pins[0].fields
@@ -221,7 +228,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             raise ValueError('runtime-tlul-pin-shape')
         adapters = ['src/myfuzz/protocols/rtl/beat_to_tlul.sv']
     elif len(endpoints) == 1 and functions == {'mmio_slave'} and endpoints[0].protocol == ('apb', '3'):
-        kind = _apb_local_kind(plan.binding.endpoints)
+        kind = _apb_local_kind(plan.binding.endpoints, abi)
         boot = None
         capabilities = plan.profile.capabilities
         if (capabilities.get('address_width'), capabilities.get('data_width'),
@@ -360,7 +367,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                          '  ) u_adapter_gpio (\n    '+',\n    '.join(f'.{p}({v})' for p,v in pairs.items())+'\n  );')
     else:
         wires = _shape(endpoints[0], _APB, abi)
-        channel = 'spi' if kind == 'apb_spi' else 'gpio'
+        channel = {'apb_spi': 'spi', 'apb_gpio': 'gpio', 'apb_timer': 'timer'}[kind]
         beat_ports(channel, False)
         locals_.append('logic [31:0] apb_paddr;')
         locals_.append('logic [3:0] unused_pstrb;')
@@ -390,7 +397,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                     module_name=module, plan=plan.document(), structural_abi=copy.deepcopy(structural.abi_document),
                     structural_build=copy.deepcopy(structural.build_document), source_verification=copy.deepcopy(verified),
                     boot_contract=boot,
-                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'tlul_gpio') else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
+                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'tlul_gpio') else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
                     runtime_sv_sha256=hashlib.sha256(runtime.encode()).hexdigest(), cpp_sha256=hashlib.sha256(b'').hexdigest(),
                     adapted_endpoint_ids=sorted(adapted), physical_exports=exports, backend_ports=backend,
                     runtime_ports=[dict(name=n,direction=d,width=w) for n,d,w in ports],

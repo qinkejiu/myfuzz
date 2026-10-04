@@ -1,0 +1,189 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "pulp_timer",
+  "kind": "peripheral",
+  "description": "Pinned PULP apb_timer, two APB3 full-word counters and four native equality pulses.",
+  "source": {
+    "root": "third_party/soc-pulp-apb-timer",
+    "revision": "git:03eba2e6965f5363df12621882bc70498c551a73",
+    "top_module": "apb_timer",
+    "files": [
+      "src/apb_timer.sv",
+      "src/timer.sv"
+    ],
+    "include_roots": [],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {
+          "name": "APB_ADDR_WIDTH",
+          "value": "12"
+        },
+        {
+          "name": "TIMER_CNT",
+          "value": "2"
+        }
+      ],
+      "warning_policy": "recorded-nonfatal"
+    },
+    "top_port_selection": "all"
+  },
+  "clocks": [
+    {
+      "port": "HCLK",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "HRESETn",
+      "domain": "sys_rst",
+      "polarity": "active_low",
+      "synchronous": false,
+      "release": "The timer count, compare and prescaler registers asynchronously reset on negedge HRESETn; release must satisfy HCLK recovery/removal timing."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "timer.bus",
+      "function": "mmio_slave",
+      "protocol": [
+        "apb",
+        "3"
+      ],
+      "fields": [
+        {
+          "role": "paddr",
+          "aliases": [
+            "PADDR"
+          ]
+        },
+        {
+          "role": "psel",
+          "aliases": [
+            "PSEL"
+          ]
+        },
+        {
+          "role": "penable",
+          "aliases": [
+            "PENABLE"
+          ]
+        },
+        {
+          "role": "pwrite",
+          "aliases": [
+            "PWRITE"
+          ]
+        },
+        {
+          "role": "pwdata",
+          "aliases": [
+            "PWDATA"
+          ]
+        },
+        {
+          "role": "pready",
+          "aliases": [
+            "PREADY"
+          ]
+        },
+        {
+          "role": "prdata",
+          "aliases": [
+            "PRDATA"
+          ]
+        },
+        {
+          "role": "pslverr",
+          "aliases": [
+            "PSLVERR"
+          ]
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 12,
+    "data_width": 32,
+    "read": true,
+    "write": true,
+    "byte_enable": false,
+    "partial_write": false,
+    "has_error": true,
+    "max_wait_cycles": 16
+  },
+  "address": {
+    "window_size": 4096,
+    "alignment": 4096,
+    "registers": [
+      {
+        "name": "TIMER0_COUNT",
+        "offset": 0,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "TIMER0_CTRL",
+        "offset": 4,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "TIMER0_CMP",
+        "offset": 8,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "write_resets_count"
+      },
+      {
+        "name": "TIMER1_COUNT",
+        "offset": 16,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "TIMER1_CTRL",
+        "offset": 20,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "TIMER1_CMP",
+        "offset": 24,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "write_resets_count"
+      }
+    ]
+  },
+  "interrupts": [],
+  "port_actions": [
+    {
+      "port": "irq_o",
+      "action": "observe",
+      "reason": "Four native comparator/overflow equality signals, one cycle when count equals the comparator at the prescaler point. They are pulse observations; the level-only CPU IRQ collector cannot directly consume them."
+    }
+  ],
+  "evidence": {
+    "semantics": [
+      "Both selected source files, parameters APB_ADDR_WIDTH=12/TIMER_CNT=2 and all 11 top ports are pinned by the source lock and elaboration closure.",
+      "The top uses PADDR[4] to select one of two timers. Each timer uses PADDR[3:2] for count, control and compare at offsets 0,4,8. Timer 1 aliases at offsets 0x10,0x14,0x18; high address bits are ignored.",
+      "The timer module assigns PREADY=1 and PSLVERR=0. APB writes store whole PWDATA on PSEL/PENABLE/PWRITE; there is no PSTRB. Unmapped slot reads zero and writes have no register case arm.",
+      "Writing compare also resets count. Control bit 0 enables counting; control bits 5:3 select prescaler. IRQ bits [2*k] and [2*k+1] are overflow and compare equality outputs from timer k, not held status registers.",
+      "All state uses posedge HCLK and asynchronous active-low HRESETn."
+    ],
+    "verified": [
+      "Verilator --lint-only succeeds on the two-file closure with 9 recorded nonfatal warnings; dependency replay reads exactly those two pinned files."
+    ],
+    "unknown": [
+      "No level conversion or acknowledge register is provided for native IRQ pulses; CPU IRQ wiring is outside this profile.",
+      "Only APB_ADDR_WIDTH=12/TIMER_CNT=2 is accepted; other parameterizations are not claimed."
+    ]
+  }
+}

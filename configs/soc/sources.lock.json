@@ -5640,6 +5640,86 @@
           "exit_code": 0
         }
       }
+    },
+    {
+      "id": "pulp_timer",
+      "source": {
+        "root": "third_party/soc-pulp-apb-timer",
+        "revision": "git:03eba2e6965f5363df12621882bc70498c551a73",
+        "top_module": "apb_timer",
+        "files": [
+          "src/apb_timer.sv",
+          "src/timer.sv"
+        ],
+        "include_roots": [],
+        "repositories": []
+      },
+      "artifacts": [
+        {
+          "path": "LICENSE",
+          "sha256": "b41106a9d0de1cf6ab4ea56bedf677503085c0570248f37fe2cdf657a5e72601",
+          "kind": "license"
+        },
+        {
+          "path": "src_files.yml",
+          "sha256": "8839a0909116d402ed7cdfd6ff585aa944f2e8cd12fec64a0315bcbf6840b9eb",
+          "kind": "provenance"
+        },
+        {
+          "path": "src/apb_timer.sv",
+          "sha256": "22dce4e3ff8328bdd6e1621c20e2877e7f44cfecccc07203d09e994632cc1778",
+          "kind": "source"
+        },
+        {
+          "path": "src/timer.sv",
+          "sha256": "d352fc4476da83658d361e8f500b5a73f857f0a11e9436ab47d5bf0ba0bc7fce",
+          "kind": "source"
+        }
+      ],
+      "selected_content_hash": "sha256:114a62d680fbafc5c28b612bd9b90e997041632525a8a12979cbc58e9f729530",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "defines": [],
+      "typed_parameters": [
+        {
+          "name": "APB_ADDR_WIDTH",
+          "type": "integer",
+          "value": "12"
+        },
+        {
+          "name": "TIMER_CNT",
+          "type": "integer",
+          "value": "2"
+        }
+      ],
+      "generator": {
+        "status": "not_invoked",
+        "tool_version": null,
+        "name": "none for selected checked-in files"
+      },
+      "dependencies": [],
+      "closure_note": "Two-file PULP APB timer closure and exact elaboration parameters are hash-pinned in configs/soc/closures/pulp_timer.json.",
+      "elaboration": {
+        "status": "elaboration_verified",
+        "top_module": "apb_timer",
+        "tool": {
+          "name": "verilator",
+          "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "frontend": "verilator-lint"
+        },
+        "evidence": "configs/soc/closures/pulp_timer.json",
+        "evidence_sha256": "fd6a575e2cff3f4b2eeb4d1cdf4a8e71a2998b7027c70e591ebd07fa78a89b5b",
+        "closure_files": 2,
+        "lint": {
+          "errors": 0,
+          "warnings": 9,
+          "exit_code": 0
+        },
+        "capability_findings": 2,
+        "unsupported": 2
+      }
     }
   ]
 }
