@@ -1,0 +1,94 @@
+{
+  "schema_version": "soc_elaboration_closure.v1",
+  "component": "pulp_i2c",
+  "root": "third_party/soc-pulp-apb-i2c",
+  "top_module": "apb_i2c",
+  "tool": {
+    "name": "verilator",
+    "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "frontend": "verilator-lint"
+  },
+  "command": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "apb_i2c",
+    "-GAPB_ADDR_WIDTH=12",
+    "-Ithird_party/soc-pulp-apb-i2c",
+    "third_party/soc-pulp-apb-i2c/i2c_master_defines.sv",
+    "third_party/soc-pulp-apb-i2c/i2c_master_bit_ctrl.sv",
+    "third_party/soc-pulp-apb-i2c/i2c_master_byte_ctrl.sv",
+    "third_party/soc-pulp-apb-i2c/apb_i2c.sv"
+  ],
+  "include_roots": [
+    "third_party/soc-pulp-apb-i2c"
+  ],
+  "defines": [],
+  "parameters": [
+    {
+      "name": "APB_ADDR_WIDTH",
+      "value": "12"
+    }
+  ],
+  "closure_files": [
+    {
+      "root": "third_party/soc-pulp-apb-i2c",
+      "path": "i2c_master_defines.sv",
+      "sha256": "c7fd72652e757395ff8723e8a2482714b5416b05ca662e2d135a6b0104b1e905"
+    },
+    {
+      "root": "third_party/soc-pulp-apb-i2c",
+      "path": "i2c_master_bit_ctrl.sv",
+      "sha256": "eac653e44503288d1b807675f0484e663eea5956d0b05bd08546477825ae355e"
+    },
+    {
+      "root": "third_party/soc-pulp-apb-i2c",
+      "path": "i2c_master_byte_ctrl.sv",
+      "sha256": "2a24014648add68ba016672a149b81cc97ac891160e57a7caf1c2f155211899f"
+    },
+    {
+      "root": "third_party/soc-pulp-apb-i2c",
+      "path": "apb_i2c.sv",
+      "sha256": "a57ab49abdf879e03db1582c9716eb84c5d14c9457f7dd86a239c95757ea0169"
+    }
+  ],
+  "status": "elaboration_verified",
+  "lint": {
+    "errors": 0,
+    "warnings": 12,
+    "exit_code": 0
+  },
+  "capability_findings": [
+    {
+      "topic": "apb3_full_word",
+      "observed": "PREADY is constant one, PSLVERR zero, and no PSTRB port exists; six 32-bit addressed register slots use low data bytes as documented in RTL.",
+      "evidence_path": "third_party/soc-pulp-apb-i2c/apb_i2c.sv:58-129",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "open_drain_i2c",
+      "observed": "SCL/SDA output values are hardwired low; active-low output-enable pins drive low or release. Input pads receive resolved pull-up/peer levels.",
+      "evidence_path": "third_party/soc-pulp-apb-i2c/i2c_master_bit_ctrl.sv:541-542",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "native_level_irq",
+      "observed": "interrupt_o is registered from irq_flag && IEN; irq_flag sets on command done or arbitration lost and clears on IACK.",
+      "evidence_path": "third_party/soc-pulp-apb-i2c/apb_i2c.sv:184-211",
+      "provenance": "rtl_read"
+    }
+  ],
+  "unsupported": [
+    {
+      "topic": "partial_write",
+      "reason": "No APB byte strobe exists.",
+      "evidence_path": "third_party/soc-pulp-apb-i2c/apb_i2c.sv:34-45"
+    },
+    {
+      "topic": "multi_master_arbitration",
+      "reason": "Only one local master and one deterministic peer are admitted in this harness.",
+      "evidence_path": "third_party/soc-pulp-apb-i2c/i2c_master_bit_ctrl.sv:300-330"
+    }
+  ]
+}

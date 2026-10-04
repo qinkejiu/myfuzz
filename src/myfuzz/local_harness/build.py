@@ -98,7 +98,7 @@ def _host_sources():
                'src/myfuzz/local_harness/native_session.py', 'scripts/verify_soc_sources.py']
     for name in ('session', 'cpu_session', 'gpio_session',
                  'wishbone_cpu_session', 'axi_lite_session', 'axi4_cpu_session',
-                 'spi_session', 'timer_session', 'axil_uart_session'):
+                 'spi_session', 'timer_session', 'axil_uart_session', 'i2c_session'):
         path = f'src/myfuzz/local_harness/{name}.py'
         if (root / path).is_file():
             pending.append(path)
@@ -265,9 +265,13 @@ def _prepare(artifact, base_dir):
     tools = _toolchain()
     module = doc['module_name']
     build = artifact.structural.build_document
+    timing_mode = artifact.plan.profile.capabilities.get('verilator_timing_mode')
+    if timing_mode not in (None, 'no_timing'):
+        raise LocalHarnessBuildError('unsupported-local-verilator-timing-mode')
     cpp_flags = (f'-std={CXX_STANDARD} ' + shlex.quote('-I{BUILD}/inputs/src/myfuzz/local_harness/rtl') + ' '
                  f'-DMYFUZZ_ARTIFACT_DIGEST={doc["artifact_digest"]}')
     argv = [tools['verilator']['path'], '--cc', '--exe', '--build', '-j', '1', '-Wno-fatal',
+            *(['--no-timing'] if timing_mode == 'no_timing' else []),
             '--top-module', module, '--Mdir', '{BUILD}/obj', '-o', 'harness',
             '-CFLAGS', cpp_flags, '-MAKEFLAGS', 'CXX=' + tools['cxx']['path'] +
             ' LINK=' + tools['cxx']['path'] + ' AR=' + tools['ar']['path'],

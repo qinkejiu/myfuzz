@@ -135,10 +135,16 @@ def _apb_local_kind(endpoints, abi=(), capabilities=None):
            **{f'csn{i}': ('output', 1) for i in range(4)},
            **{f'sdo{i}': ('output', 1) for i in range(4)},
            **{f'sdi{i}': ('input', 1) for i in range(4)}}
+    i2c = {name: (direction, 1) for name, direction in (
+        ('scl_pad_i', 'input'), ('scl_pad_o', 'output'),
+        ('scl_padoen_o', 'output'), ('sda_pad_i', 'input'),
+        ('sda_pad_o', 'output'), ('sda_padoen_o', 'output'))}
     if len(observed) != len(fields):
         raise ValueError('runtime-external-pin-shape')
-    for kind, expected in (('apb_gpio', gpio), ('apb_spi', spi)):
-        if observed == expected:
+    for kind, expected in (('apb_gpio', gpio), ('apb_spi', spi),
+                           ('apb_i2c', i2c)):
+        if observed == expected and (kind != 'apb_i2c' or
+                                     capabilities.get('local_runtime_variant') == 'apb_i2c'):
             return kind
     raise ValueError('runtime-external-pin-shape')
 
@@ -318,6 +324,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                 kind == 'apb_spi' and row['endpoint_id'] == 'spi.pins' or
                 kind == 'axi4_lite_uart' and row['endpoint_id'] in
                 ('uart.pins', 'uart.interrupts') or
+                kind == 'apb_i2c' and row['endpoint_id'] == 'i2c.pins' or
                 kind == 'tlul_gpio' and row['endpoint_id'] == 'gpio.interrupts'
                 and row['direction'] == 'output' and row['width'] == 32 or
                 kind == 'obi_cpu' and row['direction'] == 'input' and row['width'] == 1
@@ -471,7 +478,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                          '  ) u_adapter_gpio (\n    '+',\n    '.join(f'.{p}({v})' for p,v in pairs.items())+'\n  );')
     else:
         wires = _shape(endpoints[0], _APB, abi)
-        channel = {'apb_spi': 'spi', 'apb_gpio': 'gpio', 'apb_timer': 'timer'}[kind]
+        channel = {'apb_spi': 'spi', 'apb_gpio': 'gpio',
+                   'apb_timer': 'timer', 'apb_i2c': 'i2c'}[kind]
         beat_ports(channel, False)
         locals_.append('logic [31:0] apb_paddr;')
         locals_.append('logic [3:0] unused_pstrb;')
@@ -501,7 +509,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                     module_name=module, plan=plan.document(), structural_abi=copy.deepcopy(structural.abi_document),
                     structural_build=copy.deepcopy(structural.build_document), source_verification=copy.deepcopy(verified),
                     boot_contract=boot,
-                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'tlul_gpio', 'wishbone_timer') else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
+                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'apb_i2c', 'tlul_gpio', 'wishbone_timer') else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
                     runtime_sv_sha256=hashlib.sha256(runtime.encode()).hexdigest(), cpp_sha256=hashlib.sha256(b'').hexdigest(),
                     adapted_endpoint_ids=sorted(adapted), physical_exports=exports, backend_ports=backend,
                     runtime_ports=[dict(name=n,direction=d,width=w) for n,d,w in ports],

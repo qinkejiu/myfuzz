@@ -5839,6 +5839,90 @@
         "capability_findings": 13,
         "unsupported": 5
       }
+    },
+    {
+      "id": "pulp_i2c",
+      "source": {
+        "root": "third_party/soc-pulp-apb-i2c",
+        "revision": "git:84855413cc2c8e70209ee7f168a0225d3c5914a1",
+        "top_module": "apb_i2c",
+        "files": [
+          "i2c_master_defines.sv",
+          "i2c_master_bit_ctrl.sv",
+          "i2c_master_byte_ctrl.sv",
+          "apb_i2c.sv"
+        ],
+        "include_roots": [
+          "."
+        ],
+        "repositories": []
+      },
+      "artifacts": [
+        {
+          "path": "i2c_master_defines.sv",
+          "sha256": "c7fd72652e757395ff8723e8a2482714b5416b05ca662e2d135a6b0104b1e905",
+          "kind": "license"
+        },
+        {
+          "path": "i2c_master_bit_ctrl.sv",
+          "sha256": "eac653e44503288d1b807675f0484e663eea5956d0b05bd08546477825ae355e",
+          "kind": "source"
+        },
+        {
+          "path": "i2c_master_byte_ctrl.sv",
+          "sha256": "2a24014648add68ba016672a149b81cc97ac891160e57a7caf1c2f155211899f",
+          "kind": "source"
+        },
+        {
+          "path": "apb_i2c.sv",
+          "sha256": "a57ab49abdf879e03db1582c9716eb84c5d14c9457f7dd86a239c95757ea0169",
+          "kind": "source"
+        },
+        {
+          "path": "src_files.yml",
+          "sha256": "3a966881494714332ea0beda314eefc81dfc0492d6f83b52ff14b8b42fce5029",
+          "kind": "provenance"
+        }
+      ],
+      "selected_content_hash": "sha256:17a792afefd7d412b6e587233913d07f80d3da5d0df21487cd65ca076d3b8b52",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "defines": [],
+      "typed_parameters": [
+        {
+          "name": "APB_ADDR_WIDTH",
+          "type": "integer",
+          "value": "12"
+        }
+      ],
+      "generator": {
+        "status": "not_invoked",
+        "tool_version": null,
+        "name": "none for selected checked-in files"
+      },
+      "dependencies": [],
+      "closure_note": "Four-file PULP APB I2C closure, include path and APB_ADDR_WIDTH=12 are hash-pinned in configs/soc/closures/pulp_i2c.json. Upstream has no standalone LICENSE file; the pinned i2c_master_defines.sv contains the original embedded OpenCores copyright/disclaimer and is recorded as the license artifact.",
+      "elaboration": {
+        "status": "elaboration_verified",
+        "top_module": "apb_i2c",
+        "tool": {
+          "name": "verilator",
+          "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "frontend": "verilator-lint"
+        },
+        "evidence": "configs/soc/closures/pulp_i2c.json",
+        "evidence_sha256": "f9ebfa5d223c7e050f381b87d22bee85712024359f8e6c2c31c9cdea90380921",
+        "closure_files": 4,
+        "lint": {
+          "errors": 0,
+          "warnings": 12,
+          "exit_code": 0
+        },
+        "capability_findings": 3,
+        "unsupported": 2
+      }
     }
   ]
 }

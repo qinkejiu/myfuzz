@@ -582,6 +582,11 @@ def _closure(
                     entries.append(entry)
             for entry in sorted(entries, key=lambda item: item.name):
                 path = Path(entry.path)
+                # A submodule's worktree marker is Git administration, not a
+                # source include. Compiler read-set checks still reject it if
+                # an HDL file attempts to include it.
+                if path == root / '.git':
+                    continue
                 if excluded is not None and (path == excluded or excluded in path.parents):
                     continue
                 if entry.is_symlink():
