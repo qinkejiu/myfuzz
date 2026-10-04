@@ -210,6 +210,134 @@ def check_pulp_gpio_irq_chain(events: Iterable[Mapping], *, expected_value: int)
             'endpoint_event_id': status_store['event_id'] if status_store else None}
 
 
+def check_pulp_gpio_reverse_irq_chain(events: Iterable[Mapping], *, external_byte: int) -> dict:
+    """Check external B pins→B RTL IRQ/PADIN→Ibex ISR→A RTL PADOUT.
+
+    The external byte is the sole mutated source. IRQ, MMIO data and A output
+    must be observed from RTL. Missing causal stages are incomplete coverage;
+    concrete contradictory readback or output is a DUT violation candidate.
+    """
+    if (type(external_byte) is not int or not 0 < external_byte < 256
+            or not external_byte & 1):
+        raise ValueError('external byte must be an odd byte')
+    stream = tuple(events)
+    incomplete: list[str] = []
+    violations: list[str] = []
+
+    def find(after: int, predicate):
+        return next((event for event in stream
+                     if type(event.get('event_id')) is int
+                     and event['event_id'] > after and predicate(event)), None)
+
+    if any(event.get('kind') == 'reset_barrier' for event in stream):
+        incomplete.append('unexpected_reset')
+    ids = [event.get('event_id') for event in stream]
+    if any(type(event_id) is not int for event_id in ids) or ids != sorted(set(ids)):
+        incomplete.append('event_order_invalid')
+    for device, offset, value, name in (
+            ('gpio_b', 4, 0xff00, 'gpio_b_enable'),
+            ('gpio_b', 0x18, 0x100, 'gpio_b_irq_enable'),
+            ('gpio_b', 0x1c, 0x10000, 'gpio_b_irq_rising'),
+            ('gpio_a', 0, 0xff, 'gpio_a_output_enable')):
+        if find(0, lambda e: e.get('kind') == 'mmio_delivery'
+                and e.get('component') == 'cpu' and e.get('device_id') == device
+                and e.get('offset') == offset and e.get('write') is True
+                and e.get('write_value') == value) is None:
+            incomplete.append(name + '_missing')
+    injected = find(0, lambda e: e.get('kind') == 'source_injection'
+                    and e.get('component') == 'gpio_b'
+                    and e.get('port') == 'gpio_in' and e.get('bit_offset') == 8
+                    and e.get('width') == 8 and e.get('value') == external_byte)
+    if injected is None:
+        incomplete.append('external_b_injection_missing')
+    rise = None if injected is None else find(injected['event_id'], lambda e:
+               e.get('component') == 'gpio_b'
+               and e.get('inputs', {}).get('gpio_in') == external_byte << 8
+               and e.get('outputs', {}).get('irq') == 1)
+    if injected is not None and rise is None:
+        incomplete.append('gpio_b_real_irq_missing')
+    source = None if rise is None else find(rise['event_id'], lambda e:
+                 e.get('kind') == 'source_start'
+                 and tuple(e.get('source', ())) == ('gpio_b', 'irq')
+                 and tuple(e.get('target', ())) == ('cpu', 'irq'))
+    pulse = None if source is None else find(source['event_id'], lambda e:
+                e.get('kind') == 'pulse_start'
+                and tuple(e.get('source', ())) == ('gpio_b', 'irq')
+                and tuple(e.get('target', ())) == ('cpu', 'irq'))
+    if rise is not None and (source is None or pulse is None):
+        incomplete.append('irq_pulse_delivery_missing')
+    cpu_irq = None if pulse is None else find(pulse['event_id'], lambda e:
+                  e.get('component') == 'cpu' and e.get('inputs', {}).get('irq') == 1)
+    vector = None if cpu_irq is None else find(cpu_irq['event_id'], lambda e:
+                 e.get('component') == 'cpu'
+                 and e.get('outputs', {}).get('instr_req_accepted') == 1
+                 and e.get('outputs', {}).get('instr_addr') == 0x1012c)
+    if pulse is not None and (cpu_irq is None or vector is None):
+        incomplete.append('cpu_irq_vector_missing')
+    read = None if vector is None else find(vector['event_id'], lambda e:
+               e.get('kind') == 'mmio_delivery' and e.get('component') == 'cpu'
+               and e.get('device_id') == 'gpio_b' and e.get('offset') == 8
+               and e.get('write') is False)
+    if vector is not None and read is None:
+        incomplete.append('gpio_b_padin_read_missing')
+    if read is not None and read.get('read_value') != external_byte << 8:
+        violations.append('gpio_b_padin_read_mismatch')
+    tx = read.get('source_transaction', {}) if read else {}
+    consumed = None if read is None else find(read['event_id'], lambda e:
+                   e.get('component') == 'cpu'
+                   and e.get('outputs', {}).get('data_rsp_consumed') == 1
+                   and e['outputs'].get('data_rsp_rdata') == read.get('read_value')
+                   and e['outputs'].get('data_rsp_source_epoch') == tx.get('source_epoch')
+                   and e['outputs'].get('data_rsp_source_sequence') == tx.get('source_sequence'))
+    if read is not None and consumed is None:
+        incomplete.append('cpu_padin_response_missing')
+    stored = None if consumed is None else find(consumed['event_id'], lambda e:
+                 e.get('kind') == 'memory_write' and e.get('component') == 'cpu'
+                 and e.get('address') == 0x20000 and e.get('byte_enable') == 15)
+    if consumed is not None and stored is None:
+        incomplete.append('cpu_result_store_missing')
+    if stored is not None and stored.get('value') != external_byte:
+        violations.append('cpu_result_store_mismatch')
+    write = None if stored is None else find(stored['event_id'], lambda e:
+                e.get('kind') == 'mmio_delivery' and e.get('component') == 'cpu'
+                and e.get('device_id') == 'gpio_a' and e.get('offset') == 0x0c
+                and e.get('write') is True and e.get('byte_enable') == 15)
+    if stored is not None and write is None:
+        incomplete.append('cpu_gpio_a_write_missing')
+    if write is not None and write.get('write_value') != external_byte:
+        violations.append('cpu_gpio_a_write_mismatch')
+    first_a = None if write is None else find(write['event_id'], lambda e:
+                  e.get('component') == 'gpio_a'
+                  and type(e.get('local_tick')) is int
+                  and type(e.get('outputs', {}).get('gpio_out')) is int)
+    next_a_write = None if write is None else find(write['event_id'], lambda e:
+                       e.get('kind') == 'mmio_delivery'
+                       and e.get('device_id') == 'gpio_a'
+                       and e.get('offset') == 0x0c and e.get('write') is True)
+    first_tick = first_a['local_tick'] if first_a else None
+    output = None if first_a is None else find(write['event_id'], lambda e:
+                 e.get('component') == 'gpio_a'
+                 and (next_a_write is None or e['event_id'] < next_a_write['event_id'])
+                 and type(e.get('local_tick')) is int
+                 and first_tick <= e['local_tick'] <= first_tick + 4
+                 and e.get('outputs', {}).get('gpio_out') == external_byte)
+    if write is not None and first_a is None:
+        incomplete.append('gpio_a_output_observation_missing')
+    if first_a is not None and output is None:
+        settled = find(first_a['event_id'], lambda e:
+                       e.get('component') == 'gpio_a'
+                       and (next_a_write is None or e['event_id'] < next_a_write['event_id'])
+                       and type(e.get('local_tick')) is int
+                       and e['local_tick'] >= first_tick + 4)
+        if settled is None:
+            incomplete.append('gpio_a_settle_window_incomplete')
+        else:
+            violations.append('gpio_a_output_mismatch')
+    return {'complete': not incomplete and not violations,
+            'path_incomplete': incomplete, 'dut_violations': violations,
+            'endpoint_event_id': output['event_id'] if output else None}
+
+
 def check_uart_early_irq_chain(events: Iterable[Mapping],
                                final_state: Mapping) -> dict:
     """Check real UART IRQ→Ibex consumption before the real TX_DONE observation.
