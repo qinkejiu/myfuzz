@@ -13,28 +13,54 @@ class GeneratedOpentitanSpiDeviceSession(GeneratedLocalSession):
     artifact_kind = 'tlul_spi_device'
     max_local_ticks_per_step = 1
 
-    def __init__(self, artifact, *, base_dir, cache_dir, **kwargs):
+    def __init__(self, artifact, *, base_dir, cache_dir,
+                 cpu_routed_mode: bool = False, **kwargs):
         super().__init__(artifact, base_dir=base_dir, cache_dir=cache_dir, **kwargs)
+        if type(cpu_routed_mode) is not bool:
+            raise ValueError('CPU-routed SPI Device mode must be boolean')
         if self._expected_ready()[3] != self.artifact_kind:
             raise ValueError('generated OpenTitan SPI Device requires tlul_spi_device artifact')
         wait = artifact.runtime_document['effective_max_wait_cycles']
         if type(wait) is not int or wait < 1:
             raise ValueError('invalid TL-UL SPI Device wait bound')
         self.max_local_ticks_per_register_access = 2 * wait + 5
+        self.cpu_routed_mode = cpu_routed_mode
         self._samples: deque[dict[str, object]] = deque()
         self._pins = {'sck_i': 0, 'csb_i': 1, 'tpm_csb_i': 1, 'sd_i': 0}
+        self._master_frame: int | None = None
+        self._frame_done = False
+        if cpu_routed_mode:
+            # One upload frame is clocked with native mode-0 local SPI timing.
+            self.max_local_ticks_per_step = 800
 
     def identity_document(self):
         identity = super().identity_document()
-        identity.update(tlul_spi_device_service_schema_version='generated_tlul_spi_device_service.v1',
+        identity.update(tlul_spi_device_service_schema_version=(
+                            'generated_tlul_spi_device_service.v2'
+                            if self.cpu_routed_mode else 'generated_tlul_spi_device_service.v1'),
                         source_component=self.artifact.plan.request.instance_id,
-                        external_spi_mode='mode_0_single_bit_local_sck')
+                        external_spi_mode='mode_0_single_bit_local_sck',
+                        **({'cpu_routed_mode': True,
+                            'source_mode': 'genome_one_upload_frame'}
+                           if self.cpu_routed_mode else {}))
         return identity
+
+    def validate_scenario_ownership(self, component, ownership) -> None:
+        if not self.cpu_routed_mode:
+            return
+        if component != self.artifact.plan.request.instance_id:
+            raise ValueError('CPU-routed SPI Device component identity mismatch')
+        source = ownership.mutation_source(component, 'master_frame', 0, 32,
+                                           direction='CPU_TO_IP_TO_CPU')
+        if source != 'external_spi_master_frame':
+            raise ValueError('CPU-routed SPI Device master frame source identity mismatch')
 
     def begin_case(self, testcase_id: str) -> None:
         super().begin_case(testcase_id)
         self._samples.clear()
         self._pins = {'sck_i': 0, 'csb_i': 1, 'tpm_csb_i': 1, 'sd_i': 0}
+        self._master_frame = None
+        self._frame_done = False
 
     @property
     def pending_events(self) -> int:
@@ -71,6 +97,28 @@ class GeneratedOpentitanSpiDeviceSession(GeneratedLocalSession):
         return tuple(self._pins[name] for name in ('sck_i', 'csb_i', 'tpm_csb_i', 'sd_i'))
 
     def step_local(self, inputs: Mapping[str, int]):
+        if self.cpu_routed_mode:
+            if not isinstance(inputs, Mapping) or set(inputs) - {'master_frame'}:
+                raise ValueError('CPU-routed SPI Device accepts only genome master_frame')
+            if 'master_frame' in inputs:
+                frame = inputs['master_frame']
+                if type(frame) is not int or not 0 <= frame <= 0xffffffff:
+                    raise ValueError('SPI Device master frame must be a 32-bit value')
+                if self._master_frame is not None and frame != self._master_frame:
+                    raise ValueError('SPI Device master frame cannot change after transfer')
+                if self._master_frame is None:
+                    # Upload opcode 0x02 is configured through CPU-origin MMIO.
+                    # No expected DUT response is injected here.
+                    self._master_frame = frame
+                    self.transfer_bytes(bytes((0x02,)) + frame.to_bytes(4, 'big'))
+                    self._frame_done = True
+            observed = self._take(self.command('STEP_TLUL_SPI_DEVICE', self._fields()))['observations']
+            return {name: observed[name] for name in
+                    ('sck_i', 'csb_i', 'tpm_csb_i', 'sd_i', 'sd_o', 'sd_en_o', 'irq_o')} | {
+                        'master_frame_done': int(self._frame_done)}
+        return self._step_pins(inputs)
+
+    def _step_pins(self, inputs: Mapping[str, int]):
         if not isinstance(inputs, Mapping) or set(inputs) - set(self._pins):
             raise ValueError('undeclared OpenTitan SPI Device external input')
         limits = {'sck_i': 2, 'csb_i': 2, 'tpm_csb_i': 2, 'sd_i': 16}
@@ -87,7 +135,7 @@ class GeneratedOpentitanSpiDeviceSession(GeneratedLocalSession):
             raise ValueError('invalid local SPI phase length')
         observed = None
         for _ in range(cycles):
-            observed = self.step_local({'sck_i': sck, 'csb_i': csb,
+            observed = self._step_pins({'sck_i': sck, 'csb_i': csb,
                                         'tpm_csb_i': 1, 'sd_i': mosi})
         return observed
 
@@ -143,4 +191,6 @@ class GeneratedOpentitanSpiDeviceSession(GeneratedLocalSession):
         result = super().reset_local()
         self._samples.clear()
         self._pins = {'sck_i': 0, 'csb_i': 1, 'tpm_csb_i': 1, 'sd_i': 0}
+        self._master_frame = None
+        self._frame_done = False
         return result
