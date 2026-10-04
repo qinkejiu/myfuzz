@@ -23,6 +23,14 @@ produces an observed serial `0x41`, and a peer-driven `0x5a` appears in the
 real RX register. A 780-step budgeted scenario saves both the generated
 artifact and peer source identity, then replays from a fresh process.
 
+With `source=None`, the session instead owns an 8-bit `uart_rx_byte` Fuzzable
+Source. A Genome START action selects one byte for the testcase; the value is
+latched before the first frame and cannot be changed mid-frame. Dependency
+selection and mutation changed `0x35` to `0xA6`; the two runs produced the
+corresponding distinct real RTL RX register values, and both evidence bundles
+matched fresh replay. This is a local IP source mutation proof; a generated
+CPU-to-UART-to-CPU chain is tracked separately.
+
 The admitted subset fixes baud to 25 clocks per bit, 8N1 framing, one RX
 source byte, setup writes of exactly `25`, and byte writes to TXREG. Reads are
 limited to the four 32-bit registers. CTS is held active and no arbitrary
