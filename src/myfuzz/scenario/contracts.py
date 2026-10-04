@@ -91,9 +91,11 @@ def _verify_generated_session(identity: dict):
                 or identity['source_component'] != artifact.plan.request.instance_id
                 or identity['memory_policy'] != 'ram-rom-only'):
             raise ValueError('generated native service identity mismatch')
-    elif artifact.runtime_document['kind'] == 'obi_cpu':
+    elif artifact.runtime_document['kind'] in ('obi_cpu', 'wishbone_cpu'):
         _exact(identity, base_fields | cpu_fields, 'generated CPU service identity')
-        if (identity['cpu_service_schema_version'] != 'generated_obi_cpu_service.v1'
+        service_versions = {'obi_cpu': 'generated_obi_cpu_service.v1',
+                            'wishbone_cpu': 'generated_wishbone_cpu_service.v1'}
+        if (identity['cpu_service_schema_version'] != service_versions[artifact.runtime_document['kind']]
                 or identity['source_component'] != artifact.plan.request.instance_id
                 or type(identity['defer_mmio']) is not bool):
             raise ValueError('generated CPU service identity mismatch')
@@ -423,12 +425,14 @@ class ScenarioManifest:
                 if (identity['schema_version'] != 'scenario_manifest_identity.v2'
                         or session['type'] not in ('myfuzz.local_harness.native_session.GeneratedNativeMemorySession',
                                                   'myfuzz.local_harness.cpu_session.GeneratedCve2Session',
+                                                  'myfuzz.local_harness.wishbone_cpu_session.GeneratedWishboneCpuSession',
                                                   'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession')):
                     raise ValueError('generated session type or runner schema mismatch')
                 artifact = _verify_generated_session(session['identity'])
                 expected_kinds = {
                     'myfuzz.local_harness.native_session.GeneratedNativeMemorySession': 'native_memory_cpu',
                     'myfuzz.local_harness.cpu_session.GeneratedCve2Session': 'obi_cpu',
+                    'myfuzz.local_harness.wishbone_cpu_session.GeneratedWishboneCpuSession': 'wishbone_cpu',
                     'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession': 'apb_gpio',
                 }
                 if artifact.runtime_document['kind'] != expected_kinds[session['type']]:

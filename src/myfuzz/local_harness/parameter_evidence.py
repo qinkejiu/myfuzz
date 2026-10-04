@@ -49,7 +49,7 @@ def parameter_evidence(top: str, names: tuple[str, ...], sources: tuple[tuple[st
         if name not in declarations:
             raise LocalPortRenderError(f'parameter-declaration-missing:{name}')
         type_name, declaration = declarations[name]
-        builtin = re.fullmatch(r'(?:(?:bit|logic|reg|int|integer|longint|shortint|byte|time)(?:\s+(?:unsigned|signed))?(?:\s*\[\s*\d+\s*:\s*\d+\s*\])?|)', type_name)
+        builtin = re.fullmatch(r'(?:(?:bit|logic|reg|int|integer|longint|shortint|byte|time)(?:\s+(?:unsigned|signed))?(?:\s*\[\s*\d+\s*:\s*\d+\s*\])?|\[\s*\d+\s*:\s*\d+\s*\]|)', type_name)
         row = dict(name=name, source_file=filename, declaration=declaration,
                    source_sha256=hashlib.sha256(original.encode()).hexdigest(), qualified_type=None)
         if not builtin and not re.fullmatch(r'\[\s*\d+\s*:\s*\d+\s*\]', type_name):

@@ -24,6 +24,10 @@ _OBI_WRITE = {**_OBI_READ, 'we': ('output', 1), 'wdata': ('output', 32), 'be': (
 _APB = {'paddr': ('input', 12), 'psel': ('input', 1), 'penable': ('input', 1),
         'pwrite': ('input', 1), 'pwdata': ('input', 32), 'pready': ('output', 1),
         'prdata': ('output', 32), 'pslverr': ('output', 1)}
+_WISHBONE = {'cyc': ('output', 1), 'stb': ('output', 1),
+             'we': ('output', 1), 'adr': ('output', 32),
+             'dat_w': ('output', 32), 'sel': ('output', 4),
+             'ack': ('input', 1), 'dat_r': ('input', 32)}
 
 
 def _obi_boot_contract(cpu, address_width, endpoints):
@@ -124,6 +128,15 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         kind = 'native_memory_cpu'
         boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
         adapters = ['src/myfuzz/protocols/rtl/native_completion_memory_adapter.sv']
+    elif len(endpoints) == 1 and functions == {'memory_master'} and endpoints[0].protocol == ('wishbone', 'classic'):
+        capabilities = plan.profile.capabilities
+        if (capabilities.get('address_width'), capabilities.get('data_width'),
+                capabilities.get('byte_enable'), capabilities.get('max_outstanding'),
+                capabilities.get('error_response')) != (32, 32, True, 1, False):
+            raise ValueError('runtime-wishbone-capabilities')
+        kind = 'wishbone_cpu'
+        boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
+        adapters = []
     elif len(endpoints) == 1 and functions == {'mmio_slave'} and endpoints[0].protocol == ('apb', '3'):
         kind = 'apb_gpio'
         boot = None
@@ -182,7 +195,16 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             ports.append((name, direction, width))
             backend.append(dict(name=name, direction=direction, width=width, role=role, channel=prefix))
 
-    if kind == 'native_memory_cpu':
+    if kind == 'wishbone_cpu':
+        wires = _shape(endpoints[0], _WISHBONE, abi)
+        for role, (direction, width) in _WISHBONE.items():
+            name = 'wb_' + role
+            ports.append((name, direction, width))
+            backend.append(dict(name=name, direction=direction, width=width,
+                                role=role, channel='wb'))
+            statements.append(f'assign {name} = {wires[role]};' if direction == 'output'
+                              else f'assign {wires[role]} = {name};')
+    elif kind == 'native_memory_cpu':
         wires = _shape(endpoints[0], _NATIVE, abi)
         beat_ports('m', True)
         for name, width in [('m_fault', 1), ('m_fault_code', 2)]:
