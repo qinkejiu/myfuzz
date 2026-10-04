@@ -37,6 +37,8 @@ class I2cSourceTests(unittest.TestCase):
         session._irq_level = 0
         with self.assertRaisesRegex(ValueError, 'peer_response'):
             session.write_register(0, 2)
+        with self.assertRaisesRegex(ValueError, 'peer_response'):
+            session.read_register(12)
 
 
 if __name__ == '__main__':

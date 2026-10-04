@@ -16,6 +16,6 @@
 
 跨组件验收包括 CVE2↔PULP GPIO A↔GPIO B 双向多轮中断链，以及 CVE2→PULP SPI/OpenTitan GPIO/PULP Timer/ZipCPU Timer/PULP I2C→CVE2 RAM 数据链。I2C 原生 IRQ 已转交 CPU 输入；该程序仍轮询状态，尚未验收 CPU 的中断处理程序。每条链在独立 CPU/IP harness 中运行，Router 只转交真实 RTL 输出，不组合 Bus/Crossbar。testcase 内进程、RAM、事务和 pending 状态连续保存；显式 reset 才按策略清理。
 
-生成器可处理已声明的协议形态和局部变体，尚不能凭协议名称无检查地接入任意同协议 RTL。UART RX 已支持 Genome 在 testcase 开始时选择一个字节；真实 RTL 对 `0x35` 和 `0xA6` 分别产生不同回读并匹配 fresh replay。I2C 从设备字节当前仍固定为 `0xA5`。其他 OpenTitan IP、更多串行模式及 CPU 中断链仍需分别验收。
+生成器可处理已声明的协议形态和局部变体，尚不能凭协议名称无检查地接入任意同协议 RTL。UART RX 已支持 Genome 在 testcase 开始时选择一个字节；真实 RTL 对 `0x35` 和 `0xA6` 分别产生不同回读并匹配 fresh replay。PULP I2C 的 `peer_response` 也由 8 位 Genome 源选择；`0x5A` 和 `0xA6` 分别经真实串行传输、CPU MMIO 回读并存入 RAM，两份证据可重放。I2C 仍限固定地址 `0x42` 的单字节响应。其他 OpenTitan IP、更多串行模式及 CPU 中断链仍需分别验收。
 
 用户特别关注的三个 CPU 中，Ibex 已有生成式 OBI 真实运行与回放；CVA6 有本地接口 profile 和既有非本生成器实验，但本报告不授予生成式运行等级；BOOM 当前只有接口描述候选，缺少已验收的完整本地生成式运行路径，按不可执行 CPU 跳过真实验收并记录缺口。

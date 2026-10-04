@@ -129,6 +129,8 @@ class GeneratedPulpI2cSession(GeneratedLocalSession):
 
     def read_register(self, offset: int) -> int:
         self._offset(offset)
+        if self._peer_response is None:
+            raise ValueError('PULP I2C peer_response source must be selected before APB transaction')
         payload = self._take(self.command('ACCESS_I2C', (0, offset, 0, 15)))
         if payload['error']:
             raise RuntimeError(f'generated I2C APB read error at {offset:#x}')
