@@ -108,6 +108,7 @@
     "byte_enable": true,
     "max_outstanding": 1,
     "error_response": false,
+    "instruction_identity_port": "mem_instr",
     "evidence": "picorv32.v top declarations have 32-bit address/data and four byte lanes. max_outstanding=1 is the planned environment limit. No physical error response exists. The physical Wishbone top has no err or stall. The plugin requires err, so a later local transactor needs an explicit no-error/no-stall variant. picorv32.v assigns wbm_adr_o <= mem_addr (byte address) and wbm_sel_o <= mem_wstrb, including zero select on reads; later transactor tests must verify read select behavior."
   },
   "port_actions": [

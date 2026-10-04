@@ -347,13 +347,16 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                     wire_schema_version='local_driver.v1', driver_status='not_generated')
     if kind in ('native_memory_cpu', 'axi4_lite_cpu'):
         document['selected_template'] = selected.document()
-        marker = plan.profile.capabilities.get('instruction_identity_port') if kind == 'native_memory_cpu' else None
+    if kind in ('native_memory_cpu', 'wishbone_cpu'):
+        marker = plan.profile.capabilities.get('instruction_identity_port')
+        if kind == 'wishbone_cpu' and (type(marker) is not str or not marker):
+            raise ValueError('runtime-wishbone-instruction-observation-required')
         if marker is not None:
             rows = [row for row in exports if row['physical_port'] == marker
                     and row['direction'] == 'output' and row['width'] == 1
                     and row['disposition'] == 'observe']
             if len(rows) != 1:
-                raise ValueError('runtime-native-instruction-observation')
+                raise ValueError('runtime-cpu-instruction-observation')
             document['instruction_identity_observation'] = rows[0]['runtime_name']
     document['artifact_digest'] = _sha(document)
     return LocalRuntimeArtifact(copy.deepcopy(plan), copy.deepcopy(structural), copy.deepcopy(verified), runtime, '', document)

@@ -177,7 +177,12 @@ class GeneratedWishboneCpuSession(GeneratedLocalSession):
                 or pre['wb_ack'] != ack or pre['wb_dat_r'] != rdata
                 or payload['samples'][0].get('pre', {}).get('backend') != pre):
             raise ProtocolEnvironmentError('invalid generated Wishbone backend observation')
-        physical = self._physical(payload['samples'][0]['pre'])
+        pre_observation = payload['samples'][0]['pre']
+        self._physical(pre_observation)
+        marker = self._artifact_document['instruction_identity_observation']
+        instruction = pre_observation['physical'].get(marker)
+        if type(instruction) is not int or instruction not in (0, 1):
+            raise ProtocolEnvironmentError('invalid Wishbone instruction observation')
         self.last_samples = tuple(copy.deepcopy(payload['samples']))
         request = bool(pre['wb_cyc'] and pre['wb_stb'])
         consumed = int(bool(request and ack))
@@ -187,10 +192,10 @@ class GeneratedWishboneCpuSession(GeneratedLocalSession):
             self._pending = None
         accepted = int(bool(request and pending is None and not self._queued_mmio and not self._quiescing))
         if accepted:
-            self._serve(instruction=bool(physical.get('mem_instr', 0)), write=pre['wb_we'],
+            self._serve(instruction=bool(instruction), write=pre['wb_we'],
                 address=pre['wb_adr'], wdata=pre['wb_dat_w'], sel=pre['wb_sel'])
         self.memory.advance_step()
-        channel = pending[2] if consumed else ('instr' if physical.get('mem_instr', 0) else 'data')
+        channel = pending[2] if consumed else ('instr' if instruction else 'data')
         return {**self._physical(payload['observations']),
                 'instr_req_valid': int(request and channel == 'instr'),
                 'instr_req_accepted': int(accepted and channel == 'instr'),
