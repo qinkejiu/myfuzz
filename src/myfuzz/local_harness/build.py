@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import copy
 import errno
 import hashlib
 import importlib
@@ -30,6 +31,8 @@ _DRIVER_KEYS = {'driver_schema_version', 'driver_header_sources', 'driver_reset'
 _DRIVER_CHANGES = {'status', 'driver_status', 'cpp_sha256', 'artifact_digest'}
 _HEX = re.compile(r'[0-9a-f]{64}\Z')
 _IMPLEMENTATION_ROOT = Path(__file__).resolve().parents[3]
+_PREPARED_CACHE: dict[int, tuple] = {}
+_PREPARED_CACHE_LIMIT = 16
 
 
 class LocalHarnessBuildError(RuntimeError):
@@ -195,6 +198,38 @@ def _verify_generated_driver(artifact, baseline, root):
         raise LocalHarnessBuildError('generated-driver-identity-mismatch')
 
 
+def _preparation_stamp() -> tuple:
+    """Include mutable in-process admission hooks in the fast-path key."""
+    renderer = importlib.import_module('myfuzz.local_harness.driver_renderer')
+    return (CXX_STANDARD, BUILD_TIMEOUT_SECONDS, _REQUIRED_HEADERS,
+            frozenset(_DRIVER_KEYS), frozenset(_DRIVER_CHANGES),
+            id(render_local_runtime), id(verify_local_source_lock),
+            id(_verify_generated_driver), id(getattr(renderer, 'render_local_driver', None)),
+            str(_IMPLEMENTATION_ROOT.resolve()))
+
+
+def _prepared_if_current(artifact, root):
+    entry = _PREPARED_CACHE.get(id(artifact))
+    if entry is None:
+        return None
+    original, frozen, saved_root, stamp, identity, snapshots = entry
+    if (original is not artifact or saved_root != root
+            or stamp != _preparation_stamp() or artifact != frozen):
+        _PREPARED_CACHE.pop(id(artifact), None)
+        return None
+    # Hash and path-check every admitted byte on each use. A new transitive
+    # source or import requires an already admitted file to change first.
+    try:
+        if _toolchain() != identity['toolchain']:
+            return None
+        for name, raw in snapshots.items():
+            if not name.startswith('generated/') and _path(root, name).read_bytes() != raw:
+                return None
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+    return copy.deepcopy(identity), snapshots.copy()
+
+
 def _prepare(artifact, base_dir):
     if (not isinstance(artifact, LocalRuntimeArtifact) or not isinstance(artifact.cpp_text, str)
             or not artifact.cpp_text.strip()):
@@ -211,6 +246,10 @@ def _prepare(artifact, base_dir):
     if doc.get('artifact_digest') != _sha(unsigned):
         raise LocalHarnessBuildError('artifact-digest-mismatch')
     root = Path(base_dir).resolve()
+    if root == _IMPLEMENTATION_ROOT.resolve():
+        current = _prepared_if_current(artifact, root)
+        if current is not None:
+            return current
     verified = verify_local_source_lock(artifact.plan.profile, base_dir=root)
     if verified != artifact.source_verification:
         raise LocalHarnessBuildError('artifact-source-verification-mismatch')
@@ -308,6 +347,12 @@ def _prepare(artifact, base_dir):
                     host_sources=dict(schema_version='local_harness_host_sources.v1',
                                       files=[dict(path=name, sha256=_digest(raw)) for name, raw in sorted(host.items())]))
     identity['build_digest'] = _sha(identity)
+    if root == _IMPLEMENTATION_ROOT.resolve():
+        if len(_PREPARED_CACHE) >= _PREPARED_CACHE_LIMIT:
+            _PREPARED_CACHE.pop(next(iter(_PREPARED_CACHE)))
+        _PREPARED_CACHE[id(artifact)] = (
+            artifact, copy.deepcopy(artifact), root, _preparation_stamp(),
+            copy.deepcopy(identity), snapshots.copy())
     return identity, snapshots
 
 

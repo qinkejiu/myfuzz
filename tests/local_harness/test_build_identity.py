@@ -88,6 +88,46 @@ int main() {
         self.assertEqual(first['schema_version'],'local_harness_build_identity.v1')
         self.assertEqual(first['workers'],1)
 
+    def test_repeated_identity_reuses_verified_preparation_and_rechecks_bytes(self):
+        artifact = self.fixture()
+        with patch('myfuzz.local_harness.build.render_local_runtime',
+                   wraps=render_local_runtime) as renderer:
+            first = local_build_identity(artifact, base_dir=ROOT)
+            second = local_build_identity(artifact, base_dir=ROOT)
+            self.assertEqual(first, second)
+            self.assertEqual(1, renderer.call_count)
+        header = (ROOT / 'src/myfuzz/local_harness/rtl/local_driver_v1.h').resolve()
+        original_read = Path.read_bytes
+
+        def changed_header(path):
+            raw = original_read(path)
+            return raw + b'\n// changed after admission\n' if path.resolve() == header else raw
+
+        with patch.object(Path, 'read_bytes', changed_header):
+            with self.assertRaises(LocalHarnessBuildError):
+                local_build_identity(artifact, base_dir=ROOT)
+
+        source = (ROOT / 'third_party/soc-pulp-apb-gpio/rtl/apb_gpio.sv').resolve()
+
+        def changed_rtl(path):
+            raw = original_read(path)
+            return raw + b'\n// changed RTL\n' if path.resolve() == source else raw
+
+        with patch.object(Path, 'read_bytes', changed_rtl):
+            with self.assertRaises(LocalHarnessBuildError):
+                local_build_identity(artifact, base_dir=ROOT)
+
+        changed_toolchain = copy.deepcopy(first['toolchain'])
+        changed_toolchain['cxx']['version'] += '-mutated'
+        with patch('myfuzz.local_harness.build._toolchain',
+                   return_value=changed_toolchain):
+            changed = local_build_identity(artifact, base_dir=ROOT)
+            self.assertNotEqual(first['build_digest'], changed['build_digest'])
+
+        artifact.runtime_document['driver_reset']['reset_assert_ticks'] += 1
+        with self.assertRaisesRegex(LocalHarnessBuildError, 'artifact-digest'):
+            local_build_identity(artifact, base_dir=ROOT)
+
     def test_header_change_and_undeclared_extension_refused(self):
         a=self.fixture()
         for mutate in ('header','extra','missing','escape'):
