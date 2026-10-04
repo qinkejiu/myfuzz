@@ -56,13 +56,15 @@ def check_pulp_gpio_irq_chain(events: Iterable[Mapping], *, expected_value: int)
             incomplete.append('gpio_a_padout_transaction_reused')
             break
         seen_padout_transactions.add(key)
+    padout_start = padout_writes[0]['event_id'] if padout_writes else None
     for offset, value, name in ((4, 0xff, 'gpio_b_enable'),
                                 (0x18, 1, 'gpio_b_irq_enable'),
                                 (0x1c, 1, 'gpio_b_irq_rising')):
         if find(0, lambda e: e.get('kind') == 'mmio_delivery'
                 and e.get('component') == 'cpu' and e.get('device_id') == 'gpio_b'
                 and e.get('offset') == offset and e.get('write') is True
-                and e.get('write_value') == value) is None:
+                and e.get('write_value') == value
+                and (padout_start is None or e['event_id'] < padout_start)) is None:
             incomplete.append(name + '_missing')
     write = find(0, lambda e: e.get('kind') == 'mmio_delivery'
                  and e.get('component') == 'cpu' and e.get('device_id') == 'gpio_a'

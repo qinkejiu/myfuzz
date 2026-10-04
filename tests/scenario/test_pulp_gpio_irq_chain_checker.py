@@ -149,6 +149,20 @@ class PulpGpioIrqCheckerTests(unittest.TestCase):
         self.assertIn('gpio_b_padin_transaction_missing', report['path_incomplete'])
         self.assertNotIn('cpu_padin_response_mismatch', report['dut_violations'])
 
+    def test_late_b_configuration_is_incomplete_not_dut_bug(self):
+        events = _configured_events()
+        configuration = events[:3]
+        later = events[3:]
+        for index, event in enumerate(configuration):
+            event['event_id'] = later[-1]['event_id'] + index + 1
+        events = later + configuration
+        events[9]['read_value'] = 2 if events[9].get('read_value') == 3 else events[9].get('read_value')
+        report = checker.check_pulp_gpio_irq_chain(events, expected_value=3)
+        for name in ('gpio_b_enable_missing', 'gpio_b_irq_enable_missing',
+                     'gpio_b_irq_rising_missing'):
+            self.assertIn(name, report['path_incomplete'])
+        self.assertNotIn('gpio_b_padin_read_mismatch', report['dut_violations'])
+
 
 if __name__ == '__main__':
     unittest.main()

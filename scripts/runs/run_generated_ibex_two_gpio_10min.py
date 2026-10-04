@@ -28,6 +28,27 @@ from tests.integration.test_scenario_ibex_two_pulp_gpio_generated_real import (
     genome, make_factory)
 
 
+def _case_counts(cases: list[dict]) -> dict[str, int]:
+    """Keep scheduler, causal checker, and replay accounting separate."""
+    scheduler_complete = sum(case.get("status") == "complete" for case in cases)
+    return {
+        "complete": scheduler_complete,  # legacy field
+        "scheduler_complete": scheduler_complete,
+        "chain_complete": sum(case.get("coverage", {}).get("chain_complete") is True
+                              for case in cases),
+        "replay_attempted": sum(case.get("replay_attempted") is True
+                                for case in cases),
+        "replay_skipped": sum(case.get("replay_skipped") is True for case in cases),
+        "replay_matches": sum(case.get("replay_matches") is True for case in cases),
+        "replay_errors": sum(case.get("replay_error") is not None for case in cases),
+    }
+
+
+def _mark_replay_error(report: dict, exc: Exception) -> None:
+    report["replay_error"] = {"type": type(exc).__name__, "message": str(exc)}
+    report["failure_class"] = "replay_error"
+
+
 def run(*, seconds: float, output: Path, seed: int = 20261005,
         max_cases: int | None = None, cache_dir: Path | None = None) -> dict:
     if seconds <= 0 or max_cases is not None and max_cases <= 0:
@@ -117,9 +138,11 @@ def run(*, seconds: float, output: Path, seed: int = 20261005,
                       "dependency_sources": list(paths[0].source_ids),
                       "status": "not_started", "assertion_findings": [],
                       "failure_class": None, "replay_matches": None,
-                      "replay_skipped": False, "local_ticks": {}, "coverage": {},
+                      "replay_attempted": False, "replay_skipped": False,
+                      "replay_error": None, "local_ticks": {}, "coverage": {},
                       "record_seconds": None, "replay_seconds": None,
                       "case_seconds": 0.0}
+            phase = "record"
             try:
                 trace = save_evidence_bundle(case, factory, bundle)
                 report["record_seconds"] = time.monotonic() - started
@@ -190,7 +213,10 @@ def run(*, seconds: float, output: Path, seed: int = 20261005,
                     else "every_fifth_new_value" if sampled_value else None)
                 if replay_required:
                     replay_start = time.monotonic()
+                    report["replay_attempted"] = True
+                    phase = "replay"
                     replay = replay_evidence_bundle(bundle, factory)
+                    phase = "classify"
                     report["replay_seconds"] = time.monotonic() - replay_start
                     report["replay_matches"] = replay.matches
                 else:
@@ -204,9 +230,13 @@ def run(*, seconds: float, output: Path, seed: int = 20261005,
                 elif report["replay_matches"] is False:
                     report["failure_class"] = "replay_mismatch"
             except Exception as exc:
-                report["status"] = "execution_exception"
-                report["failure_class"] = type(exc).__name__
-                report["error"] = str(exc)
+                if phase == "replay":
+                    report["replay_seconds"] = time.monotonic() - replay_start
+                    _mark_replay_error(report, exc)
+                else:
+                    report["status"] = "execution_exception"
+                    report["failure_class"] = type(exc).__name__
+                    report["error"] = str(exc)
             report["case_seconds"] = time.monotonic() - started
             cases.append(report)
             (output / f"case-{index:04d}-report.json").write_text(
@@ -224,7 +254,6 @@ def run(*, seconds: float, output: Path, seed: int = 20261005,
             failure = case["failure_class"]
             if failure:
                 classes[failure] = classes.get(failure, 0) + 1
-        completed = [case for case in cases if case["status"] == "complete"]
         summary = {"campaign_kind": "source_aware_seed_schedule_not_rfuzz_coverage_guided",
                    "coverage_kind": "semantic_dataflow_values_and_chain_stages",
                    "dependency_path": {"target": paths[0].target,
@@ -235,14 +264,9 @@ def run(*, seconds: float, output: Path, seed: int = 20261005,
                    "total_wall_seconds": time.monotonic() - wall_start,
                    "testcases": len(cases),
                    "unique_source_values": len({case["source_value"] for case in cases}),
-                   "complete": len(completed),
                    "assertion_findings": sum(len(case["assertion_findings"])
                                              for case in cases),
-                   "replay_matches": sum(case["replay_matches"] is True
-                                         for case in cases),
-                   "replay_attempted": sum(case["replay_matches"] is not None
-                                           for case in cases),
-                   "replay_skipped": sum(case["replay_skipped"] for case in cases),
+                   **_case_counts(cases),
                    "replay_policy": "first_complete_chain_every_fifth_new_value_or_failure",
                    "failure_classes": classes,
                    "semantic_dataflow_values": sorted(covered_values),
