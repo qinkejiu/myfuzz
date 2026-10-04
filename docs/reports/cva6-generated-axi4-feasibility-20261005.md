@@ -25,3 +25,9 @@
 固定 CVA6 源码的 Verilator lint elaboration 已在独立工作树中成功：顶层 `cva6`，输入为当前 profile 展开的 225 个 Verilog/SystemVerilog 文件，实际读取 232 个仓库内文件，其中 108 个由三个嵌套 Git 仓库拥有。退出码为 0，无编译错误，505 条非致命警告保存在 `docs/reports/cva6-elaboration-warnings-20261005.txt.gz`。`configs/soc/closures/cva6.json` 记录精确命令、工具版本、完整读集以及每个文件的 SHA-256；每个文件还逐一与其固定 Git blob 比对。源码锁中的 include roots 与 profile 现已相同，CVA6 elaboration 状态提升为 `elaboration_verified`。
 
 源码锁验证器原先把嵌套 Git 仓库的相对路径误当成工作区根路径；此次改为将其接在组件 source root 下，并增加回归测试。下一阶段仍须单独实现 64 位 packed AXI4 生成式 harness/session，完成真实 Store/Load 和全新会话 replay。`runtime_status` 仍为 `runtime_unverified`，生成式 CVA6 状态仍是 `not_supported`。
+
+## 2026-10-05 生成式 runtime 阶段证据
+
+生成式全顶层 structural wrapper 和专用 `cva6_packed_axi4_cpu` runtime top 已通过 Verilator lint。随后从这些生成物编译的驱动完成真实 reset，并以 1 个本地周期为单位返回 pre/post 边界快照；在第 400 个受测周期前观察到 CVA6 RTL 自身发出的首个 AXI4 AR 请求，地址为 profile 固定的 `0x10000`。旧手写 harness 的首次 AR 在复位后的第 268 个总周期，因此 200 个受测周期不足以覆盖这段初始化延迟。
+
+该证据只证明生成式驱动可运行、时钟/复位/端口映射允许真实取指请求到达 AXI4 边界。此时没有返回内存响应，也没有证明指令已被执行；Store/Load、持久内存、IRQ 和 replay 仍未验收。`runtime_status` 继续保持 `runtime_unverified`，CVA6 的能力应标为“生成式边界与取指请求已验证，完整 testcase 未验证”。

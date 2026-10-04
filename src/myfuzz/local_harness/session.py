@@ -16,10 +16,12 @@ from .build import build_local_harness, local_build_identity
 from .runtime_artifact import LocalRuntimeArtifact
 from .wire import MAX_REPLY_LINE_BYTES, DriverReceipt, parse_driver_ready, parse_driver_receipt
 from .axi4_fields import AXI_STEP_MAXIMA
+from .cva6_axi4_fields import CVA6_AXI_STEP_MAXIMA
 
 
 _OPERATIONS = {
     'axi4_cpu': {'STEP_AXI4': AXI_STEP_MAXIMA},
+    'cva6_packed_axi4_cpu': {'STEP_CVA6_AXI4': CVA6_AXI_STEP_MAXIMA},
     'native_memory_cpu': {'STEP_MEMORY': (1, 1, 0xffffffff, 1)},
     'wishbone_cpu': {'STEP_WISHBONE': (1, 0xffffffff)},
     'axi4_lite_cpu': {'STEP_MEMORY': (1, 1, 0xffffffff, 1)},

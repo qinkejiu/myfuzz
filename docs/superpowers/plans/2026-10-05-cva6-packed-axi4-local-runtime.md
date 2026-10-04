@@ -29,8 +29,8 @@
 
 - [x] Write a failing test requiring one 64-bit/ID4 AXI4 channel and the physical IRQ port in the generated ABI.
 - [x] Add strict shape and capability selection for the pinned CVA6 profile only.
-- [ ] Generate driver command parsing, pre-edge observations, and one measured edge without fabricating DUT outputs.
-- [ ] Compile the generated binary and observe reset release and a real first AR request.
+- [x] Generate driver command parsing, pre-edge observations, and one measured edge without fabricating DUT outputs.
+- [x] Compile the generated binary and observe reset release and a real first AR request.
 
 ## Task 3: Persistent service and replay
 

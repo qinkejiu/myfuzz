@@ -133,6 +133,14 @@ inline ParseResult parse_command(const std::string &line) {
       maxima.insert(maxima.end(), channel.begin(), channel.end());
     }
   }
+  else if (tokens[3] == "STEP_CVA6_AXI4") {
+    maxima = {1, 1, 1, 1, 15, 3,
+              std::numeric_limits<std::uint64_t>::max(),
+              1, 1, 15,
+              std::numeric_limits<std::uint64_t>::max(),
+              1, 3,
+              std::numeric_limits<std::uint64_t>::max()};
+  }
   else if (tokens[3] == "STEP_WISHBONE") maxima = {1, word};
   else if (tokens[3] == "STEP_MEMORY") maxima = {1, 1, word, 1};
   else if (tokens[3] == "STEP_GPIO") maxima = {word};

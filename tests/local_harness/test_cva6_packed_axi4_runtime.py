@@ -8,12 +8,66 @@ from myfuzz.local_harness import (
     load_local_harness_request, plan_local_harness, render_local_harness,
     render_local_runtime, verify_local_source_lock,
 )
+from myfuzz.local_harness.driver_renderer import render_local_driver
+from myfuzz.local_harness.session import GeneratedLocalSession
 
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 class Cva6PackedAxi4RuntimeAcceptance(unittest.TestCase):
+    def test_generated_binary_exposes_real_reset_fetch_request(self):
+        if not (ROOT / 'third_party/cva6_upstream_reference/core/cva6.sv').is_file():
+            self.skipTest('pinned CVA6 submodule is not initialized locally')
+        request = load_local_harness_request({
+            'schema_version': 'local_harness.v1',
+            'profile_path': 'configs/cpus/cva6/component_profile.json',
+            'instance_id': 'cva6',
+            'reset_assert_ticks': 16,
+            'reset_release_ticks': 20,
+            'max_wait_cycles': 32,
+        })
+        plan = plan_local_harness(request, base_dir=ROOT)
+        top = render_local_runtime(plan, render_local_harness(plan),
+            verify_local_source_lock(plan.profile, base_dir=ROOT), base_dir=ROOT)
+        driver = render_local_driver(top, base_dir=ROOT)
+        with tempfile.TemporaryDirectory(prefix='myfuzz-cva6-fetch-') as directory:
+            session = GeneratedLocalSession(driver, base_dir=ROOT,
+                cache_dir=Path(directory) / 'cache', command_timeout_seconds=60)
+            session.begin_case('cva6-generated-fetch')
+            try:
+                requests = []
+                for _ in range(400):
+                    receipt = session.command('STEP_CVA6_AXI4', (0,) * 14)
+                    self.assertEqual(1, receipt.new_ticks)
+                    row = receipt.payload['pre_backend']
+                    if row['axi_arvalid']:
+                        requests.append((row['axi_araddr'], row['axi_arid'], row['axi_arlen']))
+                        break
+                self.assertTrue(requests, 'real CVA6 did not issue an AXI4 fetch')
+                self.assertEqual(0x10000, requests[0][0])
+            finally:
+                session.end_case()
+
+    def test_driver_maps_irq_and_one_packed_axi4_step(self):
+        if not (ROOT / 'third_party/cva6_upstream_reference/core/cva6.sv').is_file():
+            self.skipTest('pinned CVA6 submodule is not initialized locally')
+        request = load_local_harness_request({
+            'schema_version': 'local_harness.v1',
+            'profile_path': 'configs/cpus/cva6/component_profile.json',
+            'instance_id': 'cva6',
+            'reset_assert_ticks': 16,
+            'reset_release_ticks': 20,
+            'max_wait_cycles': 32,
+        })
+        plan = plan_local_harness(request, base_dir=ROOT)
+        top = render_local_runtime(plan, render_local_harness(plan),
+            verify_local_source_lock(plan.profile, base_dir=ROOT), base_dir=ROOT)
+        driver = render_local_driver(top, base_dir=ROOT)
+        self.assertEqual('driver_generated', driver.runtime_document['status'])
+        self.assertIn('irq_external', driver.runtime_document['driver_field_map'])
+        self.assertIn('STEP_CVA6_AXI4', driver.cpp_text)
+
     def test_single_64_bit_id4_packed_axi4_runtime_top_lints(self):
         if not (ROOT / 'third_party/cva6_upstream_reference/core/cva6.sv').is_file():
             self.skipTest('pinned CVA6 submodule is not initialized locally')

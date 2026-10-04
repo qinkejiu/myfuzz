@@ -11,6 +11,7 @@ from .renderer import _sha
 from .runtime_artifact import LocalRuntimeArtifact
 from .runtime_renderer import render_local_runtime
 from .axi4_fields import AXI_STEP_PORTS
+from .cva6_axi4_fields import CVA6_AXI_STEP_PORTS
 
 _HEADERS = ('src/myfuzz/local_harness/rtl/local_driver_v1.h',
             'src/myfuzz/scenario/rtl/local_command_replay.h')
@@ -206,6 +207,15 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         allowed_inputs = {fields[name] for name in ('sck_i', 'csb_i', 'tpm_csb_i', 'sd_i')}
     elif kind in ('native_memory_cpu', 'wishbone_cpu', 'axi4_lite_cpu', 'axi4_cpu'):
         allowed_inputs = set()
+    elif kind == 'cva6_packed_axi4_cpu':
+        cpu = artifact.plan.profile.cpu
+        irq = [row for row in exports if row['endpoint_id'] == cpu.irq_entry_endpoint
+               and row['role'] == cpu.irq_entry_role and row['direction'] == 'input'
+               and row['width'] == 1]
+        if len(irq) != 1:
+            raise ValueError('driver-cva6-irq-field')
+        fields['irq_external'] = irq[0]['runtime_name']
+        allowed_inputs = {fields['irq_external']}
     elif kind == 'obi_cpu':
         cpu = artifact.plan.profile.cpu
         irq = [row for row in exports if row['endpoint_id'] == cpu.irq_entry_endpoint and
@@ -258,7 +268,8 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
 
     max_wait = document['effective_max_wait_cycles']
     max_samples = (1 if kind in ('obi_cpu', 'native_memory_cpu',
-                                'wishbone_cpu', 'axi4_lite_cpu', 'axi4_cpu')
+                                'wishbone_cpu', 'axi4_lite_cpu', 'axi4_cpu',
+                                'cva6_packed_axi4_cpu')
                    else 2 * max_wait + 5)
     # Conservative serialized upper bound, before issuing any command effects.
     maxima_backend = {row['name']: (1 << row['width']) - 1 for row in backend}
@@ -344,6 +355,16 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
       tick(dut, &samples);
 '''
         operation_check = 'command.operation != "STEP_AXI4"'
+    elif kind == 'cva6_packed_axi4_cpu':
+        names = (fields['irq_external'], *CVA6_AXI_STEP_PORTS[1:])
+        assignments = '\n'.join(f'      dut.{name} = command.fields[{index}];'
+                                for index, name in enumerate(names))
+        dispatch = assignments + '''
+      dut.eval();
+      pre_backend = backend_snapshot(dut);
+      tick(dut, &samples);
+'''
+        operation_check = 'command.operation != "STEP_CVA6_AXI4"'
     elif kind == 'wishbone_cpu':
         dispatch = r'''      dut.wb_ack = command.fields[0];
       dut.wb_dat_r = command.fields[1];

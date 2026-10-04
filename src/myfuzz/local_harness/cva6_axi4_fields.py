@@ -27,3 +27,11 @@ CVA6_AXI_SHAPE = {
     role: ('input' if role in CVA6_AXI_INPUT_FIELDS else 'output', width)
     for role, width in CVA6_AXI_WIDTHS.items()
 }
+
+CVA6_AXI_STEP_ROLES = (
+    'awready', 'wready', 'bvalid', 'bid', 'bresp', 'buser',
+    'arready', 'rvalid', 'rid', 'rdata', 'rlast', 'rresp', 'ruser',
+)
+CVA6_AXI_STEP_PORTS = ('irq_external', *(f'axi_{role}' for role in CVA6_AXI_STEP_ROLES))
+CVA6_AXI_STEP_MAXIMA = (1, *( (1 << CVA6_AXI_WIDTHS[role]) - 1
+                              for role in CVA6_AXI_STEP_ROLES))
