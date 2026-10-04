@@ -15,6 +15,7 @@ from .opentitan_rv_timer_session import GeneratedOpentitanRvTimerSession
 from .wishbone_uart_session import GeneratedWishboneUartSession
 from .opentitan_spi_host_session import GeneratedOpentitanSpiHostSession
 from .opentitan_uart_session import GeneratedOpentitanUartSession
+from .tlul_uart_peer_session import GeneratedTlulUartPeerSession
 from .tlul_register_session import GeneratedTlulRegisterSession
 from .apb3_register_session import GeneratedApb3RegisterSession
 from .wishbone_register_session import GeneratedWishboneRegisterSession
