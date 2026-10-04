@@ -20,6 +20,7 @@ from .cpu_session import GeneratedCve2Session
 from .axi_lite_session import GeneratedAxiLiteMemorySession
 from .axil_uart_session import GeneratedAxiLiteUartSession
 from .i2c_session import GeneratedPulpI2cSession
+from .opentitan_i2c_session import GeneratedOpentitanI2cSession
 
 __all__ = ["LocalHarnessRequest", "load_local_harness_request",
            "LocalHarnessPlan", "plan_local_harness",
@@ -32,4 +33,4 @@ __all__ = ["LocalHarnessRequest", "load_local_harness_request",
            "GeneratedWishboneUartSession",
            "GeneratedZipTimerSession", "GeneratedCve2Session",
            "GeneratedAxiLiteMemorySession", "GeneratedAxiLiteUartSession",
-           "GeneratedPulpI2cSession"]
+           "GeneratedPulpI2cSession", "GeneratedOpentitanI2cSession"]

@@ -34,6 +34,9 @@ _OPERATIONS = {
                    'ACCESS_TLUL_TIMER': (1, 4092, 0xffffffff, 15)},
     'tlul_uart': {'STEP_TLUL_UART': (1,),
                   'ACCESS_TLUL_UART': (1, 1, 4092, 0xffffffff, 15)},
+    'tlul_i2c': {'STEP_TLUL_I2C': (),
+                 'ACCESS_TLUL_I2C': (1, 124, 0xffffffff, 15),
+                 'SOURCE_TLUL_I2C': (255,)},
     'wishbone_timer': {'STEP_WB_TIMER': (),
                        'ACCESS_WB_TIMER': (1, 0, 0xffffffff, 15)},
     'wishbone_uart': {'STEP_WB_UART': (1, 1),
@@ -167,6 +170,7 @@ class GeneratedLocalSession:
                 or (operation == 'ACCESS_TLUL_TIMER' and fields[1] % 4)
                 or (operation == 'ACCESS_WB_UART' and fields[3] % 4)
                 or (operation == 'ACCESS_TLUL_UART' and fields[2] % 4)
+                or (operation == 'ACCESS_TLUL_I2C' and fields[1] % 4)
                 or (operation == 'ACCESS_SPI' and fields[1] % 4)
                 or (operation == 'ACCESS_TIMER' and fields[1] % 4)
                 or (operation == 'ACCESS_I2C' and fields[1] % 4)
