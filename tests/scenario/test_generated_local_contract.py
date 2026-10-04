@@ -77,6 +77,12 @@ class GeneratedLocalContractTests(unittest.TestCase):
         self.assertGreater(_evidence_record_bound(genome,runner,budget),
                            4*self.artifact.runtime_document['driver_limits']['reply_reservation_bytes'])
 
+    def test_generated_session_type_must_match_artifact_kind(self):
+        identity = self.identity()
+        identity['sessions']['gpio']['type'] = 'myfuzz.local_harness.cpu_session.GeneratedCve2Session'
+        with self.assertRaisesRegex(ValueError, 'generated session type'):
+            self.manifest(identity, self.timing())
+
     def identity(self):
         session=GeneratedPulpGpioSession(self.artifact,base_dir=ROOT,cache_dir=Path('/tmp/contract-unused-cache'))
         return ScenarioRunner(sessions={'gpio':session},ownership=compile_ownership((),()),bindings=()).identity_document()

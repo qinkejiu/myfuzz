@@ -417,7 +417,13 @@ class ScenarioManifest:
                         or session['type'] not in ('myfuzz.local_harness.cpu_session.GeneratedCve2Session',
                                                   'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession')):
                     raise ValueError('generated session type or runner schema mismatch')
-                _verify_generated_session(session['identity'])
+                artifact = _verify_generated_session(session['identity'])
+                expected_type = {
+                    'obi_cpu': 'myfuzz.local_harness.cpu_session.GeneratedCve2Session',
+                    'apb_gpio': 'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession',
+                }[artifact.runtime_document['kind']]
+                if session['type'] != expected_type:
+                    raise ValueError('generated session type disagrees with artifact kind')
                 continue
             if not isinstance(session["type"], str) or not session["type"].startswith(
                     "myfuzz.scenario."):

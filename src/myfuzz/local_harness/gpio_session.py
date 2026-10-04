@@ -116,6 +116,7 @@ class GeneratedPulpGpioSession(GeneratedLocalSession):
 
     def reset_local(self) -> dict[str, int]:
         result = super().reset_local()
+        self._samples.clear()
         self._gpio_in = 0
         self._pin_settle_until = self.local_ticks
         return result

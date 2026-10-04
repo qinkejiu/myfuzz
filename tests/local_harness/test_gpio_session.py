@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from pathlib import Path
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from myfuzz.local_harness.gpio_session import GeneratedPulpGpioSession
+from myfuzz.local_harness.session import GeneratedLocalSession
 from myfuzz.local_harness.wire import DriverReceipt
 
 
@@ -58,6 +59,15 @@ class GeneratedGpioSessionTests(unittest.TestCase):
         self.assertEqual(1, len(samples))
         self.assertEqual(1, samples[0]['post']['interrupt'])
         self.assertEqual([], session.drain_tick_samples())
+
+    def test_explicit_reset_discards_undelivered_pre_reset_samples(self):
+        session = self.make_session(receipt(1, irq=1))
+        session.step_local({'gpio_in': 1})
+        self.assertEqual(1, len(session._samples))
+        with patch.object(GeneratedLocalSession, 'reset_local', return_value={'cancelled_responses': 0}):
+            session.reset_local()
+        self.assertEqual([], session.drain_tick_samples())
+        self.assertEqual(0, session._gpio_in)
 
 
 if __name__ == '__main__':

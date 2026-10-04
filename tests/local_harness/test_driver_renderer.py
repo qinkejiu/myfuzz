@@ -77,6 +77,13 @@ class DriverRendererTests(unittest.TestCase):
             self.assertIn('BoundedReplay', driver.cpp_text)
             self.assertIn('MYFUZZ_ARTIFACT_DIGEST', driver.cpp_text)
 
+    def test_ready_reports_reset_edges_counted_by_tick(self):
+        driver = render_local_driver(self.gpio, base_dir=SOURCE_ROOT)
+        self.assertIn('++asserted_ticks;', driver.cpp_text)
+        self.assertIn('++released_ticks;', driver.cpp_text)
+        self.assertIn('hex_integer(asserted_ticks)', driver.cpp_text)
+        self.assertIn('hex_integer(released_ticks)', driver.cpp_text)
+
     def test_rejects_tampered_or_already_generated_artifacts(self):
         for changed in (replace(self.gpio, runtime_sv=self.gpio.runtime_sv + '// forged'),
                         replace(self.gpio, runtime_document=dict(self.gpio.runtime_document, kind='fake'))):

@@ -256,12 +256,19 @@ int main(int argc, char **argv) {
   // Evaluate inactive reset first to create a real asynchronous assertion edge.
   dut.reset = 0; dut.eval();
   dut.reset = 1; dut.eval();
-  for (unsigned i = 0; i < @ASSERT@; ++i) tick(dut, nullptr);
+  std::uint64_t asserted_ticks = 0, released_ticks = 0;
+  for (unsigned i = 0; i < @ASSERT@; ++i) {
+    tick(dut, nullptr);
+    ++asserted_ticks;
+  }
   dut.reset = 0; dut.eval();
-  for (unsigned i = 0; i < @RELEASE@; ++i) tick(dut, nullptr);
+  for (unsigned i = 0; i < @RELEASE@; ++i) {
+    tick(dut, nullptr);
+    ++released_ticks;
+  }
   local_ticks = 0;
   std::cout << "READY local_driver.v1 " << MYFUZZ_STRINGIFY(MYFUZZ_ARTIFACT_DIGEST)
-            << " " << hex_integer(@ASSERT@) << " " << hex_integer(@RELEASE@) << std::endl;
+            << " " << hex_integer(asserted_ticks) << " " << hex_integer(released_ticks) << std::endl;
   BoundedReplay replay(@CACHE@, kMaxReplyBytes);
   std::string line;
   bool oversize;
