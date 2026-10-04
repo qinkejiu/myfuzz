@@ -129,6 +129,8 @@ class SourceSnapshot:
     #: Publishing every read file as a compilation unit is what turns such a
     #: selection into a duplicate-module error.
     compiled_files: tuple[str, ...] = ()
+    #: Effective ordered include roots after parsing the pinned filelist.
+    effective_include_roots: tuple[str, ...] = ()
 
 
 def _physical_port_document(port: ElaboratedPortFact) -> dict[str, object]:
@@ -903,6 +905,7 @@ class SourceCrawler:
             elaboration_evidence,
             locator.top_module if locator.elaboration is not None else None,
             tuple(_relative(root, path) for path in files),
+            tuple(include_roots),
         )
 
     def _module_ports(

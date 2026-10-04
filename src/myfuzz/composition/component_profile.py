@@ -1499,6 +1499,10 @@ class PhysicalFacts:
     #: list the audit re-elaborates must still be the whole closure rather than
     #: only the file that happens to declare the top module.
     files: tuple[str, ...] = ()
+    #: Effective -I roots after a pinned filelist is expanded. ``None`` means
+    #: the elaboration did not publish the options and a generated filelist
+    #: build must fail closed.
+    include_roots: tuple[str, ...] | None = None
 
     def port(self, name: str) -> ElaboratedPortFact | None:
         for item in self.ports:
@@ -1778,6 +1782,7 @@ def _direct_elaboration(profile: ComponentProfile, *, base_dir: Path,
         modules=(),
         warning_count=warnings,
         files=_closure_names(root, files),
+        include_roots=tuple(include_roots),
     )
 
 
@@ -1954,6 +1959,7 @@ def elaborate_profile(profile: ComponentProfile, *, base_dir: Path,
         warning_count=warning_count,
         selection=selection,
         files=published,
+        include_roots=tuple(snapshot.effective_include_roots),
     )
 
 

@@ -28,7 +28,11 @@ def render_local_harness(plan: LocalHarnessPlan) -> RenderedLocalHarness:
         raise LocalPortRenderError('stale-elaboration-settings')
     declarations, local, connections, rows = render_port_connections(plan)
     source = plan.profile.source
-    if source.filelist is not None:
+    # A filelist is expanded during pinned elaboration. Build from those exact
+    # ordered facts rather than reinterpreting its variables or options here.
+    # The elaborator rejects filelist defines; all filelist include roots must
+    # also be represented in the declarative build inputs.
+    if source.filelist is not None and plan.facts.include_roots != tuple(source.include_roots):
         raise LocalPortRenderError('filelist-build-options-not-retained')
     if not plan.facts.files:
         raise LocalPortRenderError('source-files-required')
