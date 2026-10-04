@@ -94,7 +94,7 @@ class GeneratedPulpTimerRealTests(unittest.TestCase):
             scheduler_policy_id='stable-local-v1', budget=ResourceBudget(),
             reset_timings={'timer': timing})
         self.assertEqual('apb_timer',
-            manifest.to_document()['sessions']['timer']['identity']['runtime_artifact']['kind'])
+            manifest.to_document()['runner_identity']['sessions']['timer']['identity']['runtime_artifact']['kind'])
 
         genome = ScenarioGenome(testcase_id='generated-timer-replay',
             direction='IP_TO_CPU', path_id='timer-native-irq',

@@ -99,14 +99,15 @@ def _admit(plan, structural, supplied, root):
     return verified
 
 
-def _apb_local_kind(endpoints, abi):
+def _apb_local_kind(endpoints, abi, capabilities):
     """Choose the local APB executor from the declared physical pin roles."""
     pins = [endpoint for endpoint in endpoints
             if endpoint.function == 'external_pins']
     if not pins:
         observed = [row for row in abi if row['disposition'] == 'observe'
                     and row['direction'] == 'output']
-        if (len(observed) == 1 and observed[0]['physical_port'] == 'irq_o'
+        if (capabilities.get('local_runtime_variant') == 'apb_timer'
+                and len(observed) == 1 and observed[0]['physical_port'] == 'irq_o'
                 and observed[0]['width'] == 4):
             return 'apb_timer'
         raise ValueError('runtime-external-pin-shape')
@@ -208,8 +209,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         adapters = []
 
     elif (len(endpoints) == 1 and functions == {'mmio_slave'}
-          and endpoints[0].protocol == ('tl-ul', '1')
-          and plan.profile.component_id == 'opentitan_gpio_local'):
+          and endpoints[0].protocol == ('tl-ul', '1')):
         kind = 'tlul_gpio'
         boot = None
         c = plan.profile.capabilities
@@ -228,7 +228,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             raise ValueError('runtime-tlul-pin-shape')
         adapters = ['src/myfuzz/protocols/rtl/beat_to_tlul.sv']
     elif len(endpoints) == 1 and functions == {'mmio_slave'} and endpoints[0].protocol == ('apb', '3'):
-        kind = _apb_local_kind(plan.binding.endpoints, abi)
+        kind = _apb_local_kind(plan.binding.endpoints, abi, plan.profile.capabilities)
         boot = None
         capabilities = plan.profile.capabilities
         if (capabilities.get('address_width'), capabilities.get('data_width'),

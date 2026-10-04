@@ -2,6 +2,7 @@
 import unittest
 
 from myfuzz.scenario.contracts import _generated_session_class_kind
+from myfuzz.local_harness.runtime_renderer import _apb_local_kind
 
 
 class GeneratedSessionRegistrationTests(unittest.TestCase):
@@ -27,6 +28,14 @@ class GeneratedSessionRegistrationTests(unittest.TestCase):
                      'myfuzz.local_harness.cpu_session.GeneratedNativeMemorySession'):
             with self.subTest(name=name), self.assertRaises(ValueError):
                 _generated_session_class_kind(name)
+
+    def test_timer_executor_requires_typed_profile_variant(self):
+        native_irq = [{'disposition': 'observe', 'direction': 'output',
+                       'physical_port': 'irq_o', 'width': 4}]
+        with self.assertRaisesRegex(ValueError, 'runtime-external-pin-shape'):
+            _apb_local_kind([], native_irq, {})
+        self.assertEqual('apb_timer', _apb_local_kind(
+            [], native_irq, {'local_runtime_variant': 'apb_timer'}))
 
 
 if __name__ == '__main__':
