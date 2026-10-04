@@ -93,10 +93,13 @@ def _verify_generated_session(identity: dict):
                   'source_hex', 'startup_writes', 'read_rx_on_eot'}
     axi4_fields = {'cpu_service_schema_version', 'source_component'}
     tlul_gpio_fields = {'tlul_gpio_service_schema_version', 'source_component', 'startup_writes'}
+    axil_uart_fields = {'axil_uart_service_schema_version', 'source_component',
+                        'source_hex', 'startup_writes', 'read_rx_after_source'}
     if not isinstance(identity, dict) or set(identity) not in (
             base_fields, base_fields | cpu_fields, base_fields | native_fields,
             base_fields | axi_lite_fields, base_fields | spi_fields,
-            base_fields | axi4_fields, base_fields | tlul_gpio_fields):
+            base_fields | axi4_fields, base_fields | tlul_gpio_fields,
+            base_fields | axil_uart_fields):
 
         raise ValueError('generated session identity has unknown or missing fields')
     if identity['schema_version'] != 'generated_local_session_identity.v1':
@@ -166,8 +169,27 @@ def _verify_generated_session(identity: dict):
                 or any(type(row) is not list or len(row) != 2
                        or type(row[0]) is not int or row[0] < 0 or row[0] > 124
                        or row[0] % 4 or type(row[1]) is not int
-                       or not 0 <= row[1] <= 0xffffffff for row in writes)):
+                or not 0 <= row[1] <= 0xffffffff for row in writes)):
             raise ValueError('generated TL-UL GPIO service identity mismatch')
+    elif artifact.runtime_document['kind'] == 'axi4_lite_uart':
+        _exact(identity, base_fields | axil_uart_fields,
+               'generated AXI4-Lite UART service identity')
+        source = identity['source_hex']
+        writes = identity['startup_writes']
+        if (identity['axil_uart_service_schema_version'] != 'generated_axil_uart_8n1.v1'
+                or identity['source_component'] != artifact.plan.request.instance_id
+                or type(source) is not str or len(source) not in (0, 2)
+                or any(ch not in '0123456789abcdef' for ch in source)
+                or type(writes) is not list or len(writes) > 4
+                or any(type(row) is not list or len(row) != 3
+                       or row != [0, 25, 15]
+                       and not (type(row[0]) is int and row[0] == 12
+                                and type(row[1]) is int and 0 <= row[1] <= 255
+                                and type(row[2]) is int and row[2] == 1)
+                       for row in writes)
+                or type(identity['read_rx_after_source']) is not bool
+                or identity['read_rx_after_source'] and not source):
+            raise ValueError('generated AXI4-Lite UART service identity mismatch')
     else:
         _exact(identity, base_fields, 'generated IP service identity')
     if identity['build_identity'] != local_build_identity(artifact, base_dir=_ROOT):

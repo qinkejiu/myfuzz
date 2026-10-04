@@ -40,6 +40,13 @@ _AXI_LITE = {
     'arvalid': ('output', 1), 'arready': ('input', 1), 'araddr': ('output', 32), 'arprot': ('output', 3),
     'rvalid': ('input', 1), 'rready': ('output', 1), 'rdata': ('input', 32),
 }
+_AXI_LITE_TARGET = {
+    role: ('input' if direction == 'output' else 'output',
+           4 if role in ('awaddr', 'araddr') else width)
+    for role, (direction, width) in {
+        **_AXI_LITE, 'bresp': ('input', 2), 'rresp': ('input', 2)
+    }.items()
+}
 _TLUL = {
     **{role: ('input', width) for role, width in (
         ('a_valid', 1), ('a_opcode', 3), ('a_param', 3), ('a_size', 2),
@@ -244,6 +251,30 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         adapters = []
 
     elif (len(endpoints) == 1 and functions == {'mmio_slave'}
+          and endpoints[0].protocol == ('axi4-lite', '1')):
+        kind = 'axi4_lite_uart'
+        boot = None
+        c = plan.profile.capabilities
+        if tuple(c.get(name) for name in ('address_width', 'data_width', 'byte_enable',
+                'partial_write', 'has_error', 'max_outstanding', 'bursts', 'ids',
+                'local_runtime_variant')) != (4, 32, True, True, True, 1, False,
+                                                False, 'axi4_lite_uart'):
+            raise ValueError('runtime-axi-lite-uart-capabilities')
+        if plan.profile.address is None or plan.profile.address.window_size != 16:
+            raise ValueError('runtime-axi-lite-uart-window')
+        pins = [e for e in plan.binding.endpoints if e.function == 'external_pins']
+        interrupts = [e for e in plan.binding.endpoints if e.function == 'interrupt_source']
+        if (len(pins) != 1 or len(interrupts) != 1
+                or {f.role: (f.direction, f.width) for f in pins[0].fields} != {
+                    'rx': ('input', 1), 'tx': ('output', 1),
+                    'cts_n': ('input', 1), 'rts_n': ('output', 1)}
+                or {f.role: (f.direction, f.width) for f in interrupts[0].fields} != {
+                    'rx': ('output', 1), 'tx': ('output', 1),
+                    'rxfifo': ('output', 1), 'txfifo': ('output', 1)}):
+            raise ValueError('runtime-axi-lite-uart-pin-shape')
+        adapters = []
+
+    elif (len(endpoints) == 1 and functions == {'mmio_slave'}
           and endpoints[0].protocol == ('tl-ul', '1')):
         kind = 'tlul_gpio'
         boot = None
@@ -285,6 +316,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             raise ValueError('runtime-peer-ownership-unsupported')
         if row['disposition'] == 'functional' and not (
                 kind == 'apb_spi' and row['endpoint_id'] == 'spi.pins' or
+                kind == 'axi4_lite_uart' and row['endpoint_id'] in
+                ('uart.pins', 'uart.interrupts') or
                 kind == 'tlul_gpio' and row['endpoint_id'] == 'gpio.interrupts'
                 and row['direction'] == 'output' and row['width'] == 32 or
                 kind == 'obi_cpu' and row['direction'] == 'input' and row['width'] == 1
@@ -327,6 +360,15 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                                 role=role, channel='wb'))
             statements.append(f'assign {name} = {wires[role]};' if direction == 'output'
                               else f'assign {wires[role]} = {name};')
+    elif kind == 'axi4_lite_uart':
+        wires = _shape(endpoints[0], _AXI_LITE_TARGET, abi)
+        for role, (direction, width) in _AXI_LITE_TARGET.items():
+            name = 'axil_' + role
+            ports.append((name, direction, width))
+            backend.append(dict(name=name, direction=direction, width=width,
+                                role=role, channel='axil'))
+            statements.append(f'assign {wires[role]} = {name};' if direction == 'input'
+                              else f'assign {name} = {wires[role]};')
     elif kind == 'axi4_cpu':
         for endpoint in sorted(endpoints, key=lambda e: e.function):
             prefix = 'i' if endpoint.function == 'instruction_memory_master' else 'd'

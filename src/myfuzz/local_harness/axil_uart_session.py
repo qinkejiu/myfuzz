@@ -1,0 +1,181 @@
+"""Generated AXI4-Lite UART target with a measured 8N1 serial peer."""
+
+from __future__ import annotations
+
+from collections import deque
+from collections.abc import Mapping
+
+from myfuzz.scenario.uart_peer import Uart8N1Peer
+
+from .session import GeneratedLocalSession
+
+
+class GeneratedAxiLiteUartSession(GeneratedLocalSession):
+    artifact_kind = 'axi4_lite_uart'
+    max_transaction_events_per_step = 0
+
+    def __init__(self, artifact, *, base_dir, cache_dir,
+                 source: bytes = b'', startup_writes: tuple[tuple[int, int, int], ...] = (),
+                 read_rx_after_source: bool = False, **kwargs):
+        super().__init__(artifact, base_dir=base_dir, cache_dir=cache_dir, **kwargs)
+        if self._expected_ready()[3] != self.artifact_kind:
+            raise ValueError('generated AXI4-Lite UART artifact required')
+        if not isinstance(source, bytes) or len(source) > 1:
+            raise ValueError('UART peer supports at most one source byte')
+        if (type(startup_writes) is not tuple or len(startup_writes) > 4
+                or any(type(row) is not tuple or len(row) != 3
+                       or row not in ((0, 25, 15),)
+                       and not (type(row[0]) is int and row[0] == 12
+                                and type(row[1]) is int and 0 <= row[1] <= 255
+                                and type(row[2]) is int and row[2] == 1)
+                       for row in startup_writes)):
+            raise ValueError('invalid AXI4-Lite UART startup writes')
+        if type(read_rx_after_source) is not bool or read_rx_after_source and not source:
+            raise ValueError('UART RX read requires a serial source')
+        self.source = source
+        self.startup_writes = startup_writes
+        self.read_rx_after_source = read_rx_after_source
+        self.peer = Uart8N1Peer(source)
+        self._started = False
+        self._rx_read = False
+        self._rx_word = 0
+        self._samples: deque[dict] = deque()
+        wait = artifact.runtime_document['effective_max_wait_cycles']
+        self.max_local_ticks_per_register_access = 2 * wait + 5
+        self.max_local_ticks_per_step = (1 + (len(startup_writes)
+            + int(read_rx_after_source)) * self.max_local_ticks_per_register_access)
+
+    def identity_document(self):
+        return {**super().identity_document(),
+                'axil_uart_service_schema_version': 'generated_axil_uart_8n1.v1',
+                'source_component': self.artifact.plan.request.instance_id,
+                'source_hex': self.source.hex(),
+                'startup_writes': [list(row) for row in self.startup_writes],
+                'read_rx_after_source': self.read_rx_after_source}
+
+    def begin_case(self, testcase_id):
+        super().begin_case(testcase_id)
+        self.peer.reset_case()
+        self._started = False
+        self._rx_read = False
+        self._rx_word = 0
+        self._samples.clear()
+
+    @property
+    def pending_responses(self):
+        return 0
+
+    @property
+    def pending_events(self):
+        if not self._started:
+            return len(self.startup_writes) + len(self.source)
+        return max(0, self.peer.source_end_tick - self.local_ticks)
+
+    def begin_quiesce(self):
+        if self.process is None or self.process.poll() is not None:
+            raise RuntimeError('generated AXI4-Lite UART process is not running')
+
+    def _take(self, reply, *, operation):
+        if reply.status != 'result' or reply.payload is None:
+            raise RuntimeError('generated AXI4-Lite UART protocol error: '
+                               + str(reply.error_code))
+        payload = reply.payload
+        samples = payload.get('samples')
+        if (not isinstance(samples, list) or not 1 <= len(samples) <=
+                self.max_local_ticks_per_register_access
+                or len(self._samples) + len(samples) > 65536):
+            raise ValueError('invalid UART driver tick evidence')
+        if operation == 'STEP_AXIL_UART' and len(samples) != 1:
+            raise ValueError('UART step did not advance one tick')
+        for sample in samples:
+            post = sample['post']
+            line = post['uart_tx']
+            if type(line) is not int or line not in (0, 1):
+                raise ValueError('invalid physical UART TX pin')
+            self.peer.observe_tx(sample['local_tick'], line)
+            self._samples.append({**sample,
+                                  'local_tick': self._tick_base + sample['local_tick']})
+        if operation == 'ACCESS_AXIL_UART':
+            if type(payload['rdata']) is not int or not 0 <= payload['rdata'] <= 0xffffffff:
+                raise ValueError('invalid AXI4-Lite UART read data')
+            if type(payload['error']) is not int or not 0 <= payload['error'] <= 3:
+                raise ValueError('invalid AXI4-Lite UART response')
+        return payload
+
+    def drain_tick_samples(self):
+        result = list(self._samples)
+        self._samples.clear()
+        return result
+
+    def step_local(self, inputs: Mapping[str, int]):
+        if not isinstance(inputs, Mapping) or inputs:
+            raise ValueError('UART peer source is selected at case start')
+        if not self._started:
+            self._started = True
+            for offset, value, be in self.startup_writes:
+                self.write_register(offset, value, be=be)
+            # rxuart requires an idle mark for its 16-bit-cell synchronization
+            # counter before accepting the first start bit after reset.
+            self.peer.start_source(self.local_ticks + 17 * self.peer.clocks_per_bit + 1)
+        rx = self.peer.drive_rx(self.local_ticks + 1)
+        payload = self._take(self.command('STEP_AXIL_UART', (rx, 0)),
+                             operation='STEP_AXIL_UART')
+        if (self.read_rx_after_source and not self._rx_read
+                and self.local_ticks >= self.peer.source_end_tick + 50):
+            self._rx_word = self.read_register(8)
+            self._rx_read = True
+        return {name: value for name, value in payload['observations'].items()
+                if name not in ('backend', 'physical')} | {
+            'serial_tx_count': len(self.peer.captured),
+            'serial_tx_last': self.peer.captured[-1] if self.peer.captured else 0,
+            'serial_rx_read': int(self._rx_read), 'serial_rx_word': self._rx_word}
+
+    @staticmethod
+    def _offset(offset):
+        if type(offset) is not int or offset not in (0, 4, 8, 12):
+            raise ValueError('invalid AXI4-Lite UART register offset')
+
+    def _access(self, write, offset, value, be):
+        self._offset(offset)
+        if type(value) is not int or not 0 <= value <= 0xffffffff:
+            raise ValueError('invalid AXI4-Lite UART register value')
+        if type(be) is not int or not 0 <= be <= 15:
+            raise ValueError('invalid AXI4-Lite UART byte strobe')
+        if self.peer.source_start_tick is not None and self.local_ticks < self.peer.source_end_tick:
+            raise RuntimeError('AXI access during serial source waveform is unsupported')
+        payload = self._take(self.command('ACCESS_AXIL_UART',
+            (1, 0, int(write), offset, value, be)), operation='ACCESS_AXIL_UART')
+        pre = [sample['pre']['backend'] for sample in payload['samples']]
+        if write:
+            handshakes = tuple(sum(bool(row['axil_' + valid] and row['axil_' + ready])
+                               for row in pre) for valid, ready in
+                               (('awvalid', 'awready'), ('wvalid', 'wready'),
+                                ('bvalid', 'bready')))
+        else:
+            handshakes = tuple(sum(bool(row['axil_' + valid] and row['axil_' + ready])
+                               for row in pre) for valid, ready in
+                               (('arvalid', 'arready'), ('rvalid', 'rready')))
+        if any(count != 1 for count in handshakes):
+            raise RuntimeError('AXI4-Lite UART channel handshake count mismatch')
+        if payload['error']:
+            raise RuntimeError('AXI4-Lite UART slave response error')
+        return payload['rdata']
+
+    def write_register(self, offset: int, value: int, *, be: int = 15):
+        if not ((offset, value, be) == (0, 25, 15)
+                or offset == 12 and type(value) is int and 0 <= value <= 255
+                and type(be) is int and be == 1):
+            raise ValueError('unsupported UART setup, break, or register write')
+        self._access(True, offset, value, be)
+
+    def read_register(self, offset: int) -> int:
+        return self._access(False, offset, 0, 15)
+
+    def reset_local(self):
+        result = super().reset_local()
+        self.peer.reset_case()
+        self._started = False
+        self._rx_read = False
+        self._rx_word = 0
+        self._samples.clear()
+        return result

@@ -145,6 +145,8 @@ inline ParseResult parse_command(const std::string &line) {
   else if (tokens[3] == "ACCESS_SPI") maxima = {1, 4092, word, 15};
   else if (tokens[3] == "STEP_TIMER") maxima = {1};
   else if (tokens[3] == "ACCESS_TIMER") maxima = {1, 4092, word, 15};
+  else if (tokens[3] == "STEP_AXIL_UART") maxima = {1, 1};
+  else if (tokens[3] == "ACCESS_AXIL_UART") maxima = {1, 1, 1, 12, word, 15};
   else if (tokens[3] == "SOURCE_SPI") maxima = {3, word, 32};
   else {
     result.code = "invalid_operation";
@@ -169,6 +171,7 @@ inline ParseResult parse_command(const std::string &line) {
       (tokens[3] == "ACCESS_TLUL_GPIO" && result.command.fields[3] % 4 != 0) ||
       (tokens[3] == "ACCESS_SPI" && result.command.fields[1] % 4 != 0) ||
       (tokens[3] == "ACCESS_TIMER" && result.command.fields[1] % 4 != 0) ||
+      (tokens[3] == "ACCESS_AXIL_UART" && result.command.fields[3] % 4 != 0) ||
       (tokens[3] == "SOURCE_SPI" && result.command.fields[2] == 0)) {
     result.code = "invalid_fields";
     result.detail = "unaligned_offset";

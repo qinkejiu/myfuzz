@@ -1,0 +1,13 @@
+- V e r i l a t i o n   R e p o r t: Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67
+- Verilator: Built from 0.262 MB sources in 6 modules, into 0.089 MB in 3 C++ files needing 0.000 MB
+- Verilator: Walltime 0.021 s (elab=0.003, cvt=0.010, bld=0.000); cpu 0.020 s on 1 threads; allocated 23.945 MB
+%Warning-WIDTHTRUNC: third_party/soc-zipcpu-wbuart/rtl/axiluart.v:45:20: Operator VAR 'INITIAL_SETUP' expects 31 bits on the Initial value, but Initial value's CONST '32'h19' generates 32 bits.
+                                                                       : ... note: In instance 'axiluart'
+   45 |   parameter [30:0] INITIAL_SETUP = 31'd25,
+      |                    ^~~~~~~~~~~~~
+                     ... For warning description see https://verilator.org/warn/WIDTHTRUNC?v=5.051
+                     ... Use "/* verilator lint_off WIDTHTRUNC */" and lint_on around source to disable this message.
+%Warning-WIDTHTRUNC: third_party/soc-zipcpu-wbuart/rtl/axiluart.v:49:19: Operator VAR 'LGFLEN' expects 4 bits on the Initial value, but Initial value's CONST '32'h4' generates 32 bits.
+                                                                       : ... note: In instance 'axiluart'
+   49 |   parameter [3:0] LGFLEN = 4,
+      |                   ^~~~~~

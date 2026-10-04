@@ -97,6 +97,20 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             raise ValueError('driver-timer-native-events-required')
         fields['irq_o'] = events[0]['runtime_name']
         allowed_inputs = set()
+    elif kind == 'axi4_lite_uart':
+        for role in ('rx', 'tx', 'cts_n', 'rts_n'):
+            rows = [row for row in exports if row['endpoint_id'] == 'uart.pins'
+                    and row['role'] == role and row['width'] == 1]
+            if len(rows) != 1:
+                raise ValueError('driver-axi-lite-uart-pin:' + role)
+            fields['uart_' + role] = rows[0]['runtime_name']
+        for role in ('rx', 'tx', 'rxfifo', 'txfifo'):
+            rows = [row for row in exports if row['endpoint_id'] == 'uart.interrupts'
+                    and row['role'] == role and row['width'] == 1]
+            if len(rows) != 1:
+                raise ValueError('driver-axi-lite-uart-interrupt:' + role)
+            fields['uart_' + role + '_int'] = rows[0]['runtime_name']
+        allowed_inputs = {fields['uart_rx'], fields['uart_cts_n']}
     elif kind in ('native_memory_cpu', 'wishbone_cpu', 'axi4_lite_cpu', 'axi4_cpu'):
         allowed_inputs = set()
     elif kind == 'obi_cpu':
@@ -122,14 +136,16 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     backend_items = ',\n'.join('    {' + _literal(row['name']) + ', ' + signal(row, 'name') + '}' for row in backend)
     physical_items = ',\n'.join('    {' + _literal(row['runtime_name']) + ', ' + signal(row) + '}' for row in exports)
     aliases = ''
-    if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'tlul_gpio', 'wishbone_timer'):
+    if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'tlul_gpio',
+                'wishbone_timer', 'axi4_lite_uart'):
         by_name = {row['runtime_name']: row for row in exports}
         aliases = ''.join(f'  values[{_literal(alias)}] = {signal(by_name[name])};\n'
                           for alias, name in fields.items()
                           if (kind in ('apb_gpio', 'tlul_gpio') and alias not in ('gpio_in', 'strap_en'))
                           or kind == 'wishbone_timer'
                           or kind == 'apb_timer'
-                          or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi'))))
+                          or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi')))
+                          or (kind == 'axi4_lite_uart' and alias not in ('uart_rx', 'uart_cts_n')))
 
     max_wait = document['effective_max_wait_cycles']
     max_samples = (1 if kind in ('obi_cpu', 'native_memory_cpu',
@@ -144,7 +160,8 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         if ((kind in ('apb_gpio', 'tlul_gpio') and alias not in ('gpio_in', 'strap_en'))
                 or kind == 'wishbone_timer'
                 or kind == 'apb_timer'
-                or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi')))):
+                or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi')))
+                or (kind == 'axi4_lite_uart' and alias not in ('uart_rx', 'uart_cts_n'))):
             maximum_snapshot[alias] = maxima_physical[name]
     snapshot_size = len(json.dumps(maximum_snapshot, sort_keys=True, separators=(',', ':')))
     # 128 bytes per sample exceeds its numeric tick and object delimiters;
@@ -154,7 +171,56 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     if reservation > 2 * 1024 * 1024 + 512:
         raise ValueError('driver-result-reservation-too-large')
 
-    if kind == 'axi4_cpu':
+    if kind == 'axi4_lite_uart':
+        dispatch = f'''      dut.{fields['uart_rx']} = command.fields[0];
+      dut.{fields['uart_cts_n']} = command.fields[1];
+      dut.eval();
+      pre_backend = backend_snapshot(dut);
+      if (command.operation == "STEP_AXIL_UART") {{
+        tick(dut, &samples);
+      }} else {{
+        const bool write = command.fields[2] != 0;
+        const unsigned address = command.fields[3];
+        if (write) {{
+          dut.axil_awaddr = address; dut.axil_awprot = 0; dut.axil_awvalid = 1;
+          dut.axil_wdata = command.fields[4]; dut.axil_wstrb = command.fields[5];
+          dut.axil_wvalid = 1; dut.axil_bready = 1;
+          bool aw_done = false, w_done = false, b_done = false;
+          for (unsigned waits = 0; waits < {2 * max_wait + 5}; ++waits) {{
+            dut.eval();
+            const bool aw = !aw_done && dut.axil_awvalid && dut.axil_awready;
+            const bool w = !w_done && dut.axil_wvalid && dut.axil_wready;
+            const bool b = aw_done && w_done && dut.axil_bvalid && dut.axil_bready;
+            if (b) {{ error = dut.axil_bresp; b_done = true; }}
+            tick(dut, &samples);
+            if (aw) {{ aw_done = true; dut.axil_awvalid = 0; }}
+            if (w) {{ w_done = true; dut.axil_wvalid = 0; }}
+            if (b_done) break;
+          }}
+          dut.axil_bready = 0;
+          if (!aw_done || !w_done || !b_done) throw std::runtime_error("axil_write_timeout");
+        }} else {{
+          dut.axil_araddr = address; dut.axil_arprot = 0; dut.axil_arvalid = 1;
+          dut.axil_rready = 1;
+          bool ar_done = false, r_done = false;
+          for (unsigned waits = 0; waits < {2 * max_wait + 5}; ++waits) {{
+            dut.eval();
+            const bool ar = !ar_done && dut.axil_arvalid && dut.axil_arready;
+            const bool r = ar_done && dut.axil_rvalid && dut.axil_rready;
+            if (r) {{ rdata = dut.axil_rdata; error = dut.axil_rresp; r_done = true; }}
+            tick(dut, &samples);
+            if (ar) {{ ar_done = true; dut.axil_arvalid = 0; }}
+            if (r_done) break;
+          }}
+          dut.axil_rready = 0;
+          if (!ar_done || !r_done) throw std::runtime_error("axil_read_timeout");
+        }}
+        dut.eval();
+      }}
+'''
+        operation_check = ('command.operation != "STEP_AXIL_UART" && '
+                           'command.operation != "ACCESS_AXIL_UART"')
+    elif kind == 'axi4_cpu':
         assignments = '\n'.join(f'      dut.{name} = command.fields[{index}];'
                                 for index, name in enumerate(AXI_STEP_PORTS))
         dispatch = assignments + '''

@@ -33,6 +33,8 @@ _OPERATIONS = {
     'apb_spi': {'STEP_SPI': (1,), 'ACCESS_SPI': (1, 4092, 0xffffffff, 15),
                 'SOURCE_SPI': (3, 0xffffffff, 32)},
     'apb_timer': {'STEP_TIMER': (1,), 'ACCESS_TIMER': (1, 4092, 0xffffffff, 15)},
+    'axi4_lite_uart': {'STEP_AXIL_UART': (1, 1),
+                       'ACCESS_AXIL_UART': (1, 1, 1, 12, 0xffffffff, 15)},
 }
 _DIGEST = re.compile(r'[0-9a-f]{64}\Z')
 
