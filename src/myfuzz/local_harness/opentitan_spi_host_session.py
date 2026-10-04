@@ -19,7 +19,8 @@ class GeneratedOpentitanSpiHostSession(GeneratedLocalSession):
     def __init__(self, artifact, *, base_dir, cache_dir,
                  setup_writes: tuple[tuple[int, int], ...] = (),
                  probe_offsets: tuple[int, ...] = (), source: bytes | None = b'',
-                 read_rx_on_complete: bool = False, **kwargs):
+                 read_rx_on_complete: bool = False, cpu_routed_mode: bool = False,
+                 **kwargs):
         super().__init__(artifact, base_dir=base_dir, cache_dir=cache_dir, **kwargs)
         if self._expected_ready()[3] != self.artifact_kind:
             raise ValueError('generated OpenTitan SPI Host artifact required')
@@ -36,19 +37,24 @@ class GeneratedOpentitanSpiHostSession(GeneratedLocalSession):
         command_rows = [row for row in setup_writes if row[0] == 0x20]
         if (source is not None and (type(source) is not bytes or len(source) not in (0, 4))
                 or type(read_rx_on_complete) is not bool
-                or bool(command_rows) != (source is None or bool(source))
+                or type(cpu_routed_mode) is not bool
+                or cpu_routed_mode and (source is not None or read_rx_on_complete
+                                        or bool(setup_writes) or bool(probe_offsets))
+                or not cpu_routed_mode and (
+                bool(command_rows) != (source is None or bool(source))
                 or bool(command_rows) != read_rx_on_complete
                 or command_rows and (len(command_rows) != 1 or setup_writes[-1] != command_rows[0])
                 or command_rows and ((0x10, 0xa0000001) not in setup_writes
                                      or (0x18, 8) not in setup_writes)
                 or command_rows and bool(probe_offsets)
-                or 0x24 in probe_offsets):
+                or 0x24 in probe_offsets)):
             raise ValueError('SPI Host mode-0 source requires one final four-byte read command')
         self.setup_writes = setup_writes
         self.probe_offsets = probe_offsets
         self.source = source
         self.source_mode = 'genome' if source is None else 'constructor'
         self.read_rx_on_complete = read_rx_on_complete
+        self.cpu_routed_mode = cpu_routed_mode
         self.peer = SpiPeer(source or b'')
         self._started = False
         self._command_sent = False
@@ -75,13 +81,15 @@ class GeneratedOpentitanSpiHostSession(GeneratedLocalSession):
 
     def identity_document(self):
         return {**super().identity_document(),
-                'tlul_spi_host_service_schema_version': ('generated_tlul_spi_host_registers.v2'
+                'tlul_spi_host_service_schema_version': ('generated_tlul_spi_host_registers.v3'
+                    if self.cpu_routed_mode else 'generated_tlul_spi_host_registers.v2'
                     if self.source_mode == 'genome' else 'generated_tlul_spi_host_registers.v1'),
                 'source_component': self.artifact.plan.request.instance_id,
                 'setup_writes': [list(row) for row in self.setup_writes],
                 'probe_offsets': list(self.probe_offsets),
                 'source_hex': (self.source or b'').hex(),
                 'read_rx_on_complete': self.read_rx_on_complete,
+                **({'cpu_routed_mode': True} if self.cpu_routed_mode else {}),
                 **({'source_mode': 'genome'} if self.source_mode == 'genome' else {})}
 
     def begin_case(self, testcase_id):
@@ -102,7 +110,8 @@ class GeneratedOpentitanSpiHostSession(GeneratedLocalSession):
 
     @property
     def pending_events(self):
-        return int(self.read_rx_on_complete and not self._rx_read)
+        return int((self.read_rx_on_complete and not self._rx_read)
+                   or (self.cpu_routed_mode and self._command_sent and not self._rx_read))
 
     def begin_quiesce(self):
         if self.process is None or self.process.poll() is not None:
@@ -154,10 +163,11 @@ class GeneratedOpentitanSpiHostSession(GeneratedLocalSession):
                 or type(value) is not int or not 0 <= value <= 0xffffffff
                 or type(be) is not int or not 0 <= be <= 15
                 or write and offset == 0x20 and
-                   (not self.read_rx_on_complete or value != 0x68 or be != 15)
-                or self.read_rx_on_complete and write and offset == 0x10
+                   (not (self.read_rx_on_complete or self.cpu_routed_mode)
+                    or value != 0x68 or be != 15)
+                or (self.read_rx_on_complete or self.cpu_routed_mode) and write and offset == 0x10
                    and value != 0xa0000001
-                or self.read_rx_on_complete and write and offset == 0x18
+                or (self.read_rx_on_complete or self.cpu_routed_mode) and write and offset == 0x18
                    and value != 8):
             raise ValueError('unsupported OpenTitan SPI Host register access')
         if (self._command_sent and not self._rx_read
@@ -180,7 +190,11 @@ class GeneratedOpentitanSpiHostSession(GeneratedLocalSession):
             self._command_sent = True
 
     def read_register(self, offset):
-        return self._access(False, offset)
+        value = self._access(False, offset)
+        if self.cpu_routed_mode and offset == 0x24:
+            self.rx_word = value
+            self._rx_read = True
+        return value
 
     def step_local(self, inputs: Mapping[str, int]):
         if not isinstance(inputs, Mapping):

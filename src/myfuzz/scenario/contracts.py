@@ -97,6 +97,7 @@ def _verify_generated_session(identity: dict):
                             'setup_writes', 'probe_offsets', 'source_hex',
                             'read_rx_on_complete'}
     tlul_spi_host_genome_fields = tlul_spi_host_fields | {'source_mode'}
+    tlul_spi_host_cpu_fields = tlul_spi_host_genome_fields | {'cpu_routed_mode'}
     axil_uart_fields = {'axil_uart_service_schema_version', 'source_component',
                         'source_hex', 'startup_writes', 'read_rx_after_source'}
     axil_uart_genome_fields = axil_uart_fields | {'source_mode'}
@@ -106,6 +107,7 @@ def _verify_generated_session(identity: dict):
             base_fields | axi4_fields, base_fields | tlul_gpio_fields,
             base_fields | tlul_spi_host_fields,
             base_fields | tlul_spi_host_genome_fields,
+            base_fields | tlul_spi_host_cpu_fields,
             base_fields | axil_uart_fields,
             base_fields | axil_uart_genome_fields):
 
@@ -181,7 +183,9 @@ def _verify_generated_session(identity: dict):
             raise ValueError('generated TL-UL GPIO service identity mismatch')
     elif artifact.runtime_document['kind'] == 'tlul_spi_host':
         genome_source = identity.get('source_mode') == 'genome'
-        _exact(identity, base_fields | (tlul_spi_host_genome_fields if genome_source
+        cpu_routed = identity.get('cpu_routed_mode') is True
+        _exact(identity, base_fields | (tlul_spi_host_cpu_fields if cpu_routed else
+                                        tlul_spi_host_genome_fields if genome_source
                                         else tlul_spi_host_fields),
                'generated TL-UL SPI Host service identity')
         writes = identity['setup_writes']
@@ -189,7 +193,8 @@ def _verify_generated_session(identity: dict):
         source = identity['source_hex']
         read_rx = identity['read_rx_on_complete']
         if (identity['tlul_spi_host_service_schema_version'] !=
-                ('generated_tlul_spi_host_registers.v2' if genome_source else
+                ('generated_tlul_spi_host_registers.v3' if cpu_routed else
+                 'generated_tlul_spi_host_registers.v2' if genome_source else
                  'generated_tlul_spi_host_registers.v1')
                 or identity['source_component'] != artifact.plan.request.instance_id
                 or type(writes) is not list or len(writes) > 8
@@ -205,7 +210,8 @@ def _verify_generated_session(identity: dict):
                 or any(ch not in '0123456789abcdef' for ch in source)
                 or genome_source and source != ''
                 or type(read_rx) is not bool
-                or (genome_source or bool(source)) != read_rx
+                or cpu_routed and (not genome_source or read_rx or writes or probes)
+                or not cpu_routed and (genome_source or bool(source)) != read_rx
                 or [row for row in writes if row[0] == 32] !=
                    ([[32, 0x68]] if read_rx else [])
                 or read_rx and ([16, 0xa0000001] not in writes
