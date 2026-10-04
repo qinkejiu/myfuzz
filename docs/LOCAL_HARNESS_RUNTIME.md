@@ -10,11 +10,12 @@
 | PicoRV32，原生 Ready/Valid 完成式内存端口 | 固定源码、生成式本地 adapter/driver；真实程序连续两轮 Store/Load、持久 RAM、预算化证据与 fresh replay | RAM/ROM RTL operational；暂不支持 MMIO/IRQ |
 | PicoRV32，classic Wishbone | 固定源码、生成式 driver；真实取指、RAM 写入、deferred MMIO 与显式 reset，预算化证据在新进程重放一致 | RTL operational；单 outstanding，无 IRQ |
 | PicoRV32，AXI4-Lite | 固定源码、真实 AW/W/B/AR/R 引脚经本地 adapter；真实程序两轮 Store/Load、持久 RAM、预算化证据 fresh replay | RAM/ROM RTL operational；固定 no-response-code 变体，无 MMIO/IRQ |
+| ZipCPU，完整 AXI4 双主端口 | 15 文件固定源码闭包；真实五通道握手、八拍取指突发、两次 RAM 写入、预算化证据 fresh replay | RAM RTL operational；不接受 exclusive 与非 RAM 地址 |
 | PULP GPIO，APB3 | 固定源码、全顶层端口、生成式 wrapper/driver；持续 APB 寄存器事务、双实例状态隔离、真实边沿脉冲逐本地 tick 记录 | RTL operational |
 | PULP SPI master，APB3＋模式 0 外部串行 peer | 两份固定源码记录共同认证；真实 APB 配置、32 个选中 SCK 上升沿、EOT、RXFIFO `0xA5C396F0`、fresh replay | CLKDIV=1 单次 TX/RX RTL operational；其余模式见限制 |
 | CVE2 ↔ GPIO A ↔ GPIO B | 同一 testcase 两个方向各两轮，4 次真实 GPIO IRQ 和 CPU ISR，RAM 历史为 6、8、11、15；有预算证据包从初态重放一致 | 双向多组件链通过 |
 
-协议模板注册表还列出 CPU OBI、AXI4、AXI4-Lite、Wishbone classic、Pico native Ready/Valid，以及 OpenTitan TL-UL、PULP APB3、ZipCPU Wishbone 目标端变体。除上表列出的 OBI、原生 Ready/Valid、Wishbone、AXI4-Lite、PULP GPIO APB3 与 PULP SPI APB3 实例外，注册表条目仍只是契约配置，`runtime_effective=false`；不能据此声称真实 RTL 协议会话已经生成。
+协议模板注册表列出 CPU OBI、AXI4、AXI4-Lite、Wishbone classic、Pico native Ready/Valid，以及 OpenTitan TL-UL、PULP APB3、ZipCPU Wishbone 目标端变体。上表的 OBI、原生 Ready/Valid、Wishbone、AXI4-Lite、完整 AXI4、PULP GPIO APB3 与 PULP SPI APB3 实例有真实 RTL 运行证据；其余条目仍只是契约配置，不能据此声称协议会话已经生成。
 
 ## 生成与启动
 
@@ -56,10 +57,11 @@ MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest discover -s tests/in
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest discover -s tests/integration -p test_local_axi_lite_generated_real.py -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest discover -s tests/integration -p test_local_pulp_spi_generated_real.py -v
 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_wishbone_cpu -q
+PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_axi4_cpu -q
 ```
 
 合入 Wishbone 前的全量结果：本地 harness 158 项中 157 通过、1 项未开启真实 RTL 环境门禁；场景回归 365/365。随后 Wishbone 专项真实 RTL 6/6 通过。Pico 原生内存真实测试 2/2、CVE2 双 GPIO 双向真实场景 2/2，二者的预算化证据 fresh replay 均一致。若本地缺少某 CPU 的可执行固定源码，只跳过该 CPU 的真实验收并记录 `skipped_unavailable`，不让其他 CPU/IP 或协议等级自动通过。
 
 ## 尚未满足的验收
 
-当前双向 CPU/GPIO 首阶段已经具备真实 RTL、连续状态、IRQ、预算化证据和 replay。仍须完成完整 AXI4 的真实 CPU 协议会话，以及 OpenTitan/ZipCPU 外设系列的生成、局部协议交易、peer 环境和 replay。Pico 原生及 AXI4-Lite 接口目前只能测试 RAM/ROM；Wishbone 已服务 RAM 与 GPIO MMIO，但无 IRQ。PULP SPI 目前只验收 CLKDIV=1 单次传输，CPU→SPI→CPU 链和 CLKDIV=0 均未验收。新增同协议组件最终应只需固定 profile 与有证据的声明式微调；现在尚未证明这一通用化门槛。
+五类初始 CPU 协议已有至少一个固定 RTL 实例的生成式运行证据，但同协议的第二种 CPU 尚未形成通用化验收。双向 CPU/GPIO 首阶段具备连续状态、IRQ、预算化证据和 replay。OpenTitan/ZipCPU 外设系列的生成、局部协议交易、peer 环境和 replay 仍待完成。Pico 原生及 AXI4-Lite 接口目前只能测试 RAM/ROM；Wishbone 已服务 RAM 与 GPIO MMIO，但无 IRQ；ZipCPU AXI4 当前只服务 RAM。PULP SPI 只验收 CLKDIV=1 单次传输，CPU→SPI→CPU 链和 CLKDIV=0 均未验收。新增同协议组件最终应只需固定 profile 与有证据的声明式微调；现在尚未证明这一通用化门槛。

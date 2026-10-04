@@ -89,6 +89,29 @@ def _admit(plan, structural, supplied, root):
     return verified
 
 
+def _apb_local_kind(endpoints):
+    """Choose the local APB executor from the declared physical pin roles."""
+    pins = [endpoint for endpoint in endpoints
+            if endpoint.function == 'external_pins']
+    if len(pins) != 1:
+        raise ValueError('runtime-external-pin-shape')
+    fields = pins[0].fields
+    observed = {field.role: (field.direction, field.width) for field in fields}
+    gpio = {'in': ('input', 32), 'out': ('output', 32),
+            'dir': ('output', 32), 'in_sync': ('output', 32),
+            'padcfg': ('output', 128)}
+    spi = {'sck': ('output', 1), 'mode': ('output', 2),
+           **{f'csn{i}': ('output', 1) for i in range(4)},
+           **{f'sdo{i}': ('output', 1) for i in range(4)},
+           **{f'sdi{i}': ('input', 1) for i in range(4)}}
+    if len(observed) != len(fields):
+        raise ValueError('runtime-external-pin-shape')
+    for kind, expected in (('apb_gpio', gpio), ('apb_spi', spi)):
+        if observed == expected:
+            return kind
+    raise ValueError('runtime-external-pin-shape')
+
+
 def _shape(endpoint, expected, abi):
     fields = {field.role: field for field in endpoint.fields}
     if len(fields) != len(endpoint.fields) or set(fields) != set(expected):
@@ -167,7 +190,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
         adapters = []
     elif len(endpoints) == 1 and functions == {'mmio_slave'} and endpoints[0].protocol == ('apb', '3'):
-        kind = 'apb_spi' if plan.profile.component_id == 'pulp_spi' else 'apb_gpio'
+        kind = _apb_local_kind(plan.binding.endpoints)
         boot = None
         capabilities = plan.profile.capabilities
         if (capabilities.get('address_width'), capabilities.get('data_width'),
@@ -176,16 +199,6 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             raise ValueError('runtime-apb-capabilities')
         if plan.profile.address is None or plan.profile.address.window_size != 4096:
             raise ValueError('runtime-apb-window')
-        pins = [e for e in plan.binding.endpoints if e.function == 'external_pins']
-        pin_shape = ({'sck': ('output', 1), 'mode': ('output', 2),
-                      **{f'csn{i}': ('output', 1) for i in range(4)},
-                      **{f'sdo{i}': ('output', 1) for i in range(4)},
-                      **{f'sdi{i}': ('input', 1) for i in range(4)}}
-                     if kind == 'apb_spi' else
-                     {'in': ('input', 32), 'out': ('output', 32), 'dir': ('output', 32),
-                      'in_sync': ('output', 32), 'padcfg': ('output', 128)})
-        if len(pins) != 1 or {f.role: (f.direction, f.width) for f in pins[0].fields} != pin_shape:
-            raise ValueError('runtime-external-pin-shape')
         adapters = ['src/myfuzz/protocols/rtl/beat_to_apb.sv']
     else:
         raise ValueError('runtime-unsupported-protocol-shape')

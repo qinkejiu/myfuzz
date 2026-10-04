@@ -6,6 +6,11 @@ The local driver advances one real ZipCPU clock edge per `STEP_AXI4` command. It
 
 The bounded real ZipCPU program comes from the repository's existing RTL-derived boot encoder. It fetches from byte address `0x100`, stores `0x0000beef` at `0x200`, loads that value, increments it, stores `0x0000bef0` at `0x204`, then halts. The generated acceptance test requires a real multi-beat fetch, two data writes, exact RAM values, a formal `scenario_runtime_manifest.v1` evidence bundle, and a matching replay with a fresh RTL process. The source lock retains `runtime_unverified` because that status is a source registry declaration; the generated acceptance test is the runtime evidence.
 
+After integration, the acceptance also passed with `ResourceBudget`
+(`max_wall_time_ms=180000`, 4 KiB materialized RAM cap). The published runtime
+manifest JSON Schema now admits the exact AXI4 session type and service
+identity; a separate schema test validates the generated manifest document.
+
 Run the focused acceptance with:
 
 ```sh

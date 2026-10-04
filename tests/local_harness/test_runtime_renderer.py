@@ -11,6 +11,13 @@ from tests.local_harness.test_renderer import real_plan, ROOT
 
 
 class RuntimeRendererTests(unittest.TestCase):
+    def test_apb_local_kind_depends_on_pin_roles_not_component_name(self):
+        from myfuzz.local_harness.runtime_renderer import _apb_local_kind
+        gpio = real_plan('configs/peripherals/pulp_gpio/component_profile.json', 'renamed_gpio')
+        spi = real_plan('configs/peripherals/pulp_spi/local_component_profile.json', 'renamed_spi')
+        self.assertEqual('apb_gpio', _apb_local_kind(gpio.binding.endpoints))
+        self.assertEqual('apb_spi', _apb_local_kind(spi.binding.endpoints))
+
     @classmethod
     def setUpClass(cls):
         cls.cpu = real_plan('configs/cpus/cv32e20/component_profile.json', 'cpu_0')
