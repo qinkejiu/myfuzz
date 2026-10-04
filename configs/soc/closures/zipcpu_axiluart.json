@@ -84,7 +84,7 @@
   "status": "elaboration_verified",
   "lint": {
     "errors": 0,
-    "warnings": 0,
+    "warnings": 2,
     "exit_code": 0,
     "log": "runs/soc-source-elaboration/zipcpu/axiluart-lint.log"
   },

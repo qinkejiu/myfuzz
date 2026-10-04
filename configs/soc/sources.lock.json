@@ -5828,11 +5828,11 @@
           "frontend": "verilator-lint"
         },
         "evidence": "configs/soc/closures/zipcpu_axiluart.json",
-        "evidence_sha256": "80957d3cd737db4f52de771ad2eec555827fd00a9dfd95325d26317892245f88",
+        "evidence_sha256": "08f88c12474c5ef241ff55947c66653e6178481228c2c1234adc9437ff0e12d9",
         "closure_files": 5,
         "lint": {
           "errors": 0,
-          "warnings": 0,
+          "warnings": 2,
           "exit_code": 0,
           "log": "runs/soc-source-elaboration/zipcpu/axiluart-lint.log"
         },
