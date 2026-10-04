@@ -206,6 +206,48 @@ class WishboneCpuAcceptance(unittest.TestCase):
             self.assertEqual([(0, 0xdeadbeef, 15)], target.writes)
             self.assertEqual(1, cpu.mmio_write_count)
 
+    def test_formal_saved_bundle_replays_fresh_wishbone_rtl(self):
+        from myfuzz.local_harness.wishbone_cpu_session import GeneratedWishboneCpuSession
+        from myfuzz.local_harness.gpio_session import GeneratedPulpGpioSession
+        from myfuzz.scenario.evidence import save_evidence_bundle, replay_evidence_bundle
+        from myfuzz.scenario.genome import MemoryImage, ScenarioGenome
+        from myfuzz.scenario.ownership import compile_ownership
+        from myfuzz.scenario.runner import ScenarioRunner
+        cpu_art = cpu_artifact()
+        gpio_art = gpio_artifact()
+        with tempfile.TemporaryDirectory(prefix='myfuzz-wb-evidence-') as directory:
+            root = Path(directory)
+            instances = []
+            def factory():
+                memory = PersistentMemory(regions=(MemoryRegion('ram', 0, 4096),),
+                    initialization_seed=4, max_initialized_bytes=4096)
+                gpio = GeneratedPulpGpioSession(gpio_art, base_dir=ROOT, cache_dir=root/'cache')
+                router = DataflowRouter((DeviceWindow('gpio', 0x40000000, 4096, gpio),))
+                cpu = GeneratedWishboneCpuSession(cpu_art, base_dir=ROOT, cache_dir=root/'cache',
+                    memory=memory, router=router)
+                runner = ScenarioRunner(sessions={'cpu': cpu, 'gpio': gpio},
+                    ownership=compile_ownership((),()), bindings=())
+                instances.append((runner, cpu, memory))
+                return runner
+            # lw x1,0x20(x0); sw x1,0x24(x0); jal x0,0
+            program = '83200002232210026f000000'
+            case = ScenarioGenome(testcase_id='wishbone-saved-evidence', direction='CPU_TO_IP',
+                path_id='wishbone-memory', schedule_order=('cpu','gpio'), max_steps=100, actions=(),
+                initial_images=(MemoryImage('program','cpu',0,program),
+                                MemoryImage('data','cpu',0x20,'78563412')))
+            bundle = root/'evidence'
+            trace = save_evidence_bundle(case, factory, bundle)
+            self.assertEqual('complete', trace.status)
+            self.assertEqual(0x12345678,
+                instances[0][2].read(0x24, 4, transaction_id='saved-check').value)
+            self.assertEqual('wishbone_cpu', json.loads((bundle/'manifest.json').read_text())
+                             ['sessions']['cpu']['identity']['runtime_artifact']['kind'])
+            replay = replay_evidence_bundle(bundle, factory)
+            self.assertTrue(replay.matches, replay)
+            self.assertEqual(0x12345678,
+                instances[1][2].read(0x24, 4, transaction_id='replay-check').value)
+            self.assertNotEqual(instances[0][1]._execution, instances[1][1]._execution)
+
 
 if __name__ == '__main__':
     unittest.main()
