@@ -127,6 +127,20 @@ class SourceLockTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "git-content-mismatch"):
             self.verify()
 
+    def test_nested_repository_owner_uses_component_root(self):
+        source = dict(self.record["source"])
+        source["repositories"] = [
+            {"path": "child", "revision": "git:" + "b" * 40},
+            {"path": "child/grandchild", "revision": "git:" + "c" * 40},
+        ]
+        document = {"components": [{**self.record, "source": source}]}
+        owners = self.verifier.document_owners(document, self.base)
+        allowed = self.verifier.document_roots(document)["fixture"]
+        self.assertEqual("git:" + "b" * 40, owners["repo/child"])
+        self.assertEqual("git:" + "c" * 40, owners["repo/child/grandchild"])
+        self.assertEqual({"repo", "repo/child", "repo/child/grandchild"}, allowed)
+        self.assertNotIn("child", owners)
+
     def test_modified_license_rejected(self):
         (self.repo / "LICENSE").write_text("different license")
         self.refresh()
@@ -174,11 +188,13 @@ class SourceLockTests(unittest.TestCase):
         doc = json.loads(lock.read_text())
         self.assertEqual("soc_sources.v1", doc["schema_version"])
         self.assertEqual({
-            "ibex", "cva6", "cv32e20", "picorv32", "picorv32_axi",
+            "ibex", "ibex_obi_local", "cva6", "cv32e20", "cv32e20_rv32e",
+            "picorv32", "picorv32_axi",
             "picorv32_wb", "opentitan_uart", "opentitan_gpio",
             "opentitan_spi_host", "opentitan_i2c", "opentitan_rv_timer",
-            "opentitan_spi_device", "pulp_gpio", "pulp_spi",
-            "pulp_spi_dependencies", "zipcpu_uart", "zipcpu_timer",
+            "opentitan_spi_device", "pulp_gpio", "pulp_spi", "pulp_timer",
+            "pulp_i2c", "pulp_spi_dependencies", "zipcpu_uart", "zipaxi",
+            "zipcpu_timer", "zipcpu_axiluart",
         }, {r["id"] for r in doc["components"]})
         for record in doc["components"]:
             self.assertRegex(record["source"]["revision"], r"^git:[0-9a-f]{40}$")
@@ -382,12 +398,12 @@ class SourceLockTests(unittest.TestCase):
         allowed = self.verifier.document_roots(document)
         records = {record["id"]: record for record in document["components"]}
         for component in ("opentitan_uart", "opentitan_gpio", "pulp_gpio", "pulp_spi",
-                          "pulp_spi_dependencies", "zipcpu_uart", "zipcpu_timer"):
+                          "pulp_spi_dependencies", "zipcpu_uart", "zipcpu_timer", "cva6"):
             with self.subTest(component=component):
                 self.assertEqual("elaboration_verified", records[component]["elaboration_status"])
                 self.assertEqual("runtime_unverified", records[component]["runtime_status"])
                 self.assertIn("elaboration", records[component])
-        for component in ("ibex", "cva6"):
+        for component in ("ibex",):
             self.assertEqual("elaboration_unverified", records[component]["elaboration_status"])
             self.assertEqual("runtime_unverified", records[component]["runtime_status"])
         for record in document["components"]:

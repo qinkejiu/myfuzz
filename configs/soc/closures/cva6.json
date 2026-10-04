@@ -1,0 +1,1446 @@
+{
+  "schema_version": "soc_elaboration_closure.v1",
+  "component": "cva6",
+  "root": "third_party/cva6_upstream_reference",
+  "top_module": "cva6",
+  "tool": {
+    "name": "verilator",
+    "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "frontend": "verilator-lint"
+  },
+  "command": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "cva6",
+    "-Ithird_party/cva6_upstream_reference/core/include",
+    "-Ithird_party/cva6_upstream_reference/vendor/pulp-platform/common_cells/include",
+    "-Ithird_party/cva6_upstream_reference/vendor/pulp-platform/common_cells/src",
+    "-Ithird_party/cva6_upstream_reference/vendor/pulp-platform/axi/include",
+    "-Ithird_party/cva6_upstream_reference/common/local/util",
+    "-Ithird_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/utils/ecc",
+    "-Ithird_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/include",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/fpga-support/rtl/SyncDpRam.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/fpga-support/rtl/AsyncDpRam.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/fpga-support/rtl/AsyncThreePortRam.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/fpga-support/rtl/SyncThreePortRam.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/fpga-support/rtl/SyncDpRam_ind_r_w.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpnew_pkg.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpnew_cast_multi.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpnew_classifier.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/clk/rtl/gated_clk_cell.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_ctrl.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_ff1.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_pack_single.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_prepare.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_round_single.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_special.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_srt_single.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_top.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fpu/rtl/pa_fpu_dp.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fpu/rtl/pa_fpu_frbus.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/opene906/E906_RTL_FACTORY/gen_rtl/fpu/rtl/pa_fpu_src_type.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_ctrl.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_double.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_ff1.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_pack.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_prepare.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_round.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_scalar_dp.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_srt_radix16_bound_table.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_srt_radix16_with_sqrt.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_srt.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_top.v",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpnew_divsqrt_th_32.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpnew_divsqrt_th_64_multi.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpnew_divsqrt_multi.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpnew_fma_multi.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpnew_fma.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpnew_noncomp.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpnew_opgroup_block.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpnew_opgroup_fmt_slice.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpnew_opgroup_multifmt_slice.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpnew_rounding.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpnew_top.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpu_div_sqrt_mvp/hdl/defs_div_sqrt_mvp.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpu_div_sqrt_mvp/hdl/control_mvp.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpu_div_sqrt_mvp/hdl/div_sqrt_top_mvp.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpu_div_sqrt_mvp/hdl/iteration_div_sqrt_mvp.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpu_div_sqrt_mvp/hdl/norm_div_sqrt_mvp.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpu_div_sqrt_mvp/hdl/nrbd_nrsc_mvp.sv",
+    "third_party/cva6_upstream_reference/core/cvfpu/src/fpu_div_sqrt_mvp/hdl/preprocess_mvp.sv",
+    "third_party/cva6_upstream_reference/core/include/config_pkg.sv",
+    "third_party/cva6_upstream_reference/core/include/cv64a6_imafdc_sv39_config_pkg.sv",
+    "third_party/cva6_upstream_reference/core/include/riscv_pkg.sv",
+    "third_party/cva6_upstream_reference/core/include/ariane_pkg.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/axi/src/axi_pkg.sv",
+    "third_party/cva6_upstream_reference/core/include/wt_cache_pkg.sv",
+    "third_party/cva6_upstream_reference/core/include/std_cache_pkg.sv",
+    "third_party/cva6_upstream_reference/core/include/instr_tracer_pkg.sv",
+    "third_party/cva6_upstream_reference/core/include/build_config_pkg.sv",
+    "third_party/cva6_upstream_reference/core/include/aes_pkg.sv",
+    "third_party/cva6_upstream_reference/core/include/triggers_pkg.sv",
+    "third_party/cva6_upstream_reference/core/cvxif_compressed_if_driver.sv",
+    "third_party/cva6_upstream_reference/core/cvxif_issue_register_commit_if_driver.sv",
+    "third_party/cva6_upstream_reference/core/cvxif_example/include/cvxif_instr_pkg.sv",
+    "third_party/cva6_upstream_reference/core/cvxif_fu.sv",
+    "third_party/cva6_upstream_reference/core/cvxif_example/cvxif_example_coprocessor.sv",
+    "third_party/cva6_upstream_reference/core/cvxif_example/instr_decoder.sv",
+    "third_party/cva6_upstream_reference/core/cvxif_example/compressed_instr_decoder.sv",
+    "third_party/cva6_upstream_reference/core/cvxif_example/copro_alu.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/common_cells/src/cf_math_pkg.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/common_cells/src/fifo_v3.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/common_cells/src/lfsr.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/common_cells/src/lfsr_8bit.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/common_cells/src/stream_arbiter.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/common_cells/src/stream_arbiter_flushable.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/common_cells/src/stream_mux.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/common_cells/src/stream_demux.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/common_cells/src/lzc.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/common_cells/src/rr_arb_tree.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/common_cells/src/shift_reg.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/common_cells/src/unread.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/common_cells/src/popcount.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/common_cells/src/exp_backoff.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/common_cells/src/counter.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/common_cells/src/delta_counter.sv",
+    "third_party/cva6_upstream_reference/core/cva6.sv",
+    "third_party/cva6_upstream_reference/core/cva6_rvfi_probes.sv",
+    "third_party/cva6_upstream_reference/core/alu.sv",
+    "third_party/cva6_upstream_reference/core/alu_wrapper.sv",
+    "third_party/cva6_upstream_reference/core/aes.sv",
+    "third_party/cva6_upstream_reference/core/fpu_wrap.sv",
+    "third_party/cva6_upstream_reference/core/branch_unit.sv",
+    "third_party/cva6_upstream_reference/core/compressed_decoder.sv",
+    "third_party/cva6_upstream_reference/core/macro_decoder.sv",
+    "third_party/cva6_upstream_reference/core/controller.sv",
+    "third_party/cva6_upstream_reference/core/zcmt_decoder.sv",
+    "third_party/cva6_upstream_reference/core/csr_buffer.sv",
+    "third_party/cva6_upstream_reference/core/csr_regfile.sv",
+    "third_party/cva6_upstream_reference/core/trigger_module.sv",
+    "third_party/cva6_upstream_reference/core/decoder.sv",
+    "third_party/cva6_upstream_reference/core/ex_stage.sv",
+    "third_party/cva6_upstream_reference/core/instr_realign.sv",
+    "third_party/cva6_upstream_reference/core/id_stage.sv",
+    "third_party/cva6_upstream_reference/core/issue_read_operands.sv",
+    "third_party/cva6_upstream_reference/core/issue_stage.sv",
+    "third_party/cva6_upstream_reference/core/load_unit.sv",
+    "third_party/cva6_upstream_reference/core/load_store_unit.sv",
+    "third_party/cva6_upstream_reference/core/lsu_bypass.sv",
+    "third_party/cva6_upstream_reference/core/mult.sv",
+    "third_party/cva6_upstream_reference/core/multiplier.sv",
+    "third_party/cva6_upstream_reference/core/serdiv.sv",
+    "third_party/cva6_upstream_reference/core/perf_counters.sv",
+    "third_party/cva6_upstream_reference/core/ariane_regfile_ff.sv",
+    "third_party/cva6_upstream_reference/core/ariane_regfile_fpga.sv",
+    "third_party/cva6_upstream_reference/core/scoreboard.sv",
+    "third_party/cva6_upstream_reference/core/raw_checker.sv",
+    "third_party/cva6_upstream_reference/core/store_buffer.sv",
+    "third_party/cva6_upstream_reference/core/amo_buffer.sv",
+    "third_party/cva6_upstream_reference/core/store_unit.sv",
+    "third_party/cva6_upstream_reference/core/commit_stage.sv",
+    "third_party/cva6_upstream_reference/core/axi_shim.sv",
+    "third_party/cva6_upstream_reference/core/cva6_accel_first_pass_decoder_stub.sv",
+    "third_party/cva6_upstream_reference/core/acc_dispatcher.sv",
+    "third_party/cva6_upstream_reference/core/cva6_fifo_v3.sv",
+    "third_party/cva6_upstream_reference/core/frontend/btb.sv",
+    "third_party/cva6_upstream_reference/core/frontend/bht.sv",
+    "third_party/cva6_upstream_reference/core/frontend/bht2lvl.sv",
+    "third_party/cva6_upstream_reference/core/frontend/ras.sv",
+    "third_party/cva6_upstream_reference/core/frontend/instr_scan.sv",
+    "third_party/cva6_upstream_reference/core/frontend/instr_queue.sv",
+    "third_party/cva6_upstream_reference/core/frontend/frontend.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/wt_dcache_ctrl.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/wt_dcache_mem.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/wt_dcache_missunit.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/wt_dcache_wbuffer.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/wt_dcache.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/cva6_icache.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/wt_cache_subsystem.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/wt_axi_adapter.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/tag_cmp.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/axi_adapter.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/miss_handler.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/cache_ctrl.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/cva6_icache_axi_wrapper.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/std_cache_subsystem.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/std_nbdcache.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hpdcache_pkg.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/utils/hpdcache_mem_req_read_arbiter.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/utils/hpdcache_mem_req_write_arbiter.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_demux.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_lfsr.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_sync_buffer.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_fifo_reg.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_fifo_reg_initialized.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_fxarb.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_rrarb.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_mux.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_decoder.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_1hot_to_binary.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_prio_1hot_encoder.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_prio_bin_encoder.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_sram.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_sram_wbyteenable.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_sram_wmask.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_regbank_wbyteenable_1rw.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_regbank_wmask_1rw.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_data_downsize.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_data_upsize.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/hpdcache_data_resize.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hwpf_stride/hwpf_stride_pkg.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hwpf_stride/hwpf_stride.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hwpf_stride/hwpf_stride_arb.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hwpf_stride/hwpf_stride_wrapper.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hpdcache.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hpdcache_amo.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hpdcache_cmo.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hpdcache_core_arbiter.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hpdcache_ctrl.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hpdcache_ctrl_pe.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hpdcache_memctrl.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hpdcache_cbuf.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hpdcache_miss_handler.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hpdcache_mshr.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hpdcache_rtab.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hpdcache_uncached.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hpdcache_victim_plru.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hpdcache_victim_random.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hpdcache_victim_sel.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hpdcache_wbuf.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/hpdcache_flush.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/utils/ecc/prim_secded_36_29_dec.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/utils/ecc/prim_secded_36_29_enc.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/utils/ecc/prim_secded_39_32_dec.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/utils/ecc/prim_secded_39_32_enc.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/utils/ecc/prim_secded_55_48_dec.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/utils/ecc/prim_secded_55_48_enc.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/utils/ecc/prim_secded_72_64_dec.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/utils/ecc/prim_secded_72_64_enc.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/utils/ecc/prim_secded_pkg.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/utils/hpdcache_mem_resp_demux.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/utils/hpdcache_mem_to_axi_read.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/utils/hpdcache_mem_to_axi_write.sv",
+    "third_party/cva6_upstream_reference/core/include/dummy_l15_pkg.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/cva6_hpdcache_subsystem.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/cva6_hpdcache_subsystem_axi_arbiter.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/cva6_hpdcache_if_adapter.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/cva6_hpdcache_wrapper.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/macros/behav/hpdcache_sram_1rw.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/macros/behav/hpdcache_sram_wbyteenable_1rw.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/macros/behav/hpdcache_sram_wmask_1rw.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/macros/behav/hpdcache_sram_ecc_1rw.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/macros/behav/hpdcache_sram_wbyteenable_ecc_1rw.sv",
+    "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache/rtl/src/common/macros/behav/hpdcache_sram_wmask_ecc_1rw.sv",
+    "third_party/cva6_upstream_reference/core/pmp/src/pmp.sv",
+    "third_party/cva6_upstream_reference/core/pmp/src/pmp_entry.sv",
+    "third_party/cva6_upstream_reference/core/pmp/src/pmp_data_if.sv",
+    "third_party/cva6_upstream_reference/common/local/util/instr_tracer.sv",
+    "third_party/cva6_upstream_reference/common/local/util/tc_sram_wrapper.sv",
+    "third_party/cva6_upstream_reference/common/local/util/tc_sram_wrapper_cache_techno.sv",
+    "third_party/cva6_upstream_reference/vendor/pulp-platform/tech_cells_generic/src/rtl/tc_sram.sv",
+    "third_party/cva6_upstream_reference/common/local/util/sram.sv",
+    "third_party/cva6_upstream_reference/common/local/util/sram_cache.sv",
+    "third_party/cva6_upstream_reference/core/cva6_mmu/cva6_mmu.sv",
+    "third_party/cva6_upstream_reference/core/cva6_mmu/cva6_ptw.sv",
+    "third_party/cva6_upstream_reference/core/cva6_mmu/cva6_tlb.sv",
+    "third_party/cva6_upstream_reference/core/cva6_mmu/cva6_shared_tlb.sv"
+  ],
+  "include_roots": [
+    "core/include",
+    "vendor/pulp-platform/common_cells/include",
+    "vendor/pulp-platform/common_cells/src",
+    "vendor/pulp-platform/axi/include",
+    "common/local/util",
+    "core/cache_subsystem/hpdcache/rtl/src/utils/ecc",
+    "core/cache_subsystem/hpdcache/rtl/include"
+  ],
+  "defines": [],
+  "parameters": [],
+  "closure_files": [
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "common/local/util/instr_tracer.sv",
+      "sha256": "357620ef11eb1b96cab3b801909ade204677f53caf546f979dc2d649a80d21ac"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "common/local/util/sram.sv",
+      "sha256": "3350a570916eb2170edf374d6611de21eb320e979e7f50b3797fa5f76f7b2f16"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "common/local/util/sram_cache.sv",
+      "sha256": "08f855e6fc7b6f79971bc51724d10ccbbd7641cc9a4c63ef61c0f287e97fc962"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "common/local/util/tc_sram_wrapper.sv",
+      "sha256": "9aa0ccac1617b8d2a13edd050999f18869738898f72c653d0c9edba6090eb6b8"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "common/local/util/tc_sram_wrapper_cache_techno.sv",
+      "sha256": "c10b2faf922c2d7c49a52f93087bb545077d9c82399c985c2bfdaead0a03b220"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/acc_dispatcher.sv",
+      "sha256": "3bb09e7dc4be73e397eeb59a90be25e2354576787b56d19f74b9a9c89dedcbc8"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/aes.sv",
+      "sha256": "cf35c20c69e37bdbc54ae9cb5b2c9e59445fa20e8abc54b7cf3a9f914ff16f9a"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/alu.sv",
+      "sha256": "49ba35e04bf1e8cecf8fdf6378a585bad4c0f914291dc4941e0d58dfda834f6a"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/alu_wrapper.sv",
+      "sha256": "b2de99f62b1d6bda465c4354ba9f88be9c6e0908d524fffb45ab5d8ccdc7a22c"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/amo_buffer.sv",
+      "sha256": "af1fd888b4d9151b7edf0632934e140bb0a6b0dd92b3d03d1f607f63ce3351f7"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/ariane_regfile_ff.sv",
+      "sha256": "e8b86693adf85bcdbfb40b650698fc38f675d840213be55eff1468bff273e95f"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/ariane_regfile_fpga.sv",
+      "sha256": "8032c173aeceb7e62675db1132baede2f7b8f0696137f38da3739eb122901557"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/axi_shim.sv",
+      "sha256": "337d3dd8921aac6beec87f323f3459efdc6917245f5977a2a78b172b0f1d2fbc"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/branch_unit.sv",
+      "sha256": "39c5c4fad84091c91da5f391e8b6354244823b9ccd4aeec0371415c8d4862bea"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/axi_adapter.sv",
+      "sha256": "58e6a85435b4b4ea1090fee3067cd26f6cfaec1389e58d17dc7e823c69043389"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/cache_ctrl.sv",
+      "sha256": "85f79f86158cb1c1e591dd14c30d87916282593eb185eaa24642b5dbed60c3b6"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/cva6_hpdcache_if_adapter.sv",
+      "sha256": "2a73f0d536f9b52d80ca3dbe9213fe408fa559207ea40382f98f21a50bd3af32"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/cva6_hpdcache_subsystem.sv",
+      "sha256": "460981ffe77fc496dfccfe8bf3cda7e82b127d64a5e715fe1156e3bb44d98309"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/cva6_hpdcache_subsystem_axi_arbiter.sv",
+      "sha256": "1b6b1b7ebd594cd5e5d49405adb490f5e22178231c421f918661a980cf790b9b"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/cva6_hpdcache_wrapper.sv",
+      "sha256": "8092ed052b8c097e2f3969ae2c43205989666f2495f7c678d2749e5db25872c0"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/cva6_icache.sv",
+      "sha256": "272c06abf1f37a3f3a7d18d6c29a08df0a493631e330aefb4c677357a4d901c3"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/cva6_icache_axi_wrapper.sv",
+      "sha256": "ba84da3c3fd16241671fc37fdea23e9177d04ac291758d2fab29b71446c221da"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/include/hpdcache_typedef.svh",
+      "sha256": "db5500bf9ea739ca57bf67fe9b76a838e18c4f39705656670ac7302749495126"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_1hot_to_binary.sv",
+      "sha256": "614752a4144b15b38fe08f79f6a30fb4a77e67db15daeed0c439af4025de6c8f"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_data_downsize.sv",
+      "sha256": "ff676d8d9ecc9fbf0c8dbce795a799a11c25b163f5efbd494a15680e3558231c"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_data_resize.sv",
+      "sha256": "0571f7068cef28d54d684d5faed566d09830b96686874f377545dfb48f1f7966"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_data_upsize.sv",
+      "sha256": "3945c19d53c4209df848f6185be651d46e0ebaf4f8b6e70a39c2fe43f2f10452"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_decoder.sv",
+      "sha256": "1513c572bc8b2c7ab01b737b761c640bbf04dc1fdc6c710f8e485b804763ed54"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_demux.sv",
+      "sha256": "c0faf549360c31318832fc98abb41c3654d8aba2360aa7e98b60b61a24d1eb6d"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_fifo_reg.sv",
+      "sha256": "36081c55fb66cc1f5505c8e66788a71a729d41228f6e7f90d4729f82878cd4d5"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_fifo_reg_initialized.sv",
+      "sha256": "5f219742699e569b8d741d6f1c0dc0b8f4f0aee6f0ead7e597299045dfc825b1"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_fxarb.sv",
+      "sha256": "873d1c3f00b4036c4441ffa3ccd42a7995865f64ca8b0eaa2e22cab45533ac49"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_lfsr.sv",
+      "sha256": "487a72a672dab3fc3b16eaaf08f7f64a856a29c663c7983fa16cabe17ce8d265"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_mux.sv",
+      "sha256": "b32dd4327b73885ea8cd6802e02f5d72f073d83f02eb883bbadb850690ea67a1"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_prio_1hot_encoder.sv",
+      "sha256": "70db16e1076aa0584dcea79e96aac84fbeac73c36a2a907b0309d94959b74f55"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_prio_bin_encoder.sv",
+      "sha256": "8bbf61e8f9d9ff13982a38684aeb3e16c337983ec7a5209f02e6dfa932463657"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_regbank_wbyteenable_1rw.sv",
+      "sha256": "475ece0e8ac1a7c4dd633a67de52d0ef315ea66f2679ab08f1f9c6a844202801"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_regbank_wmask_1rw.sv",
+      "sha256": "76ad2f03fa85088868dfcad32df7578879ad6c2fada27bda5bf719106301e3da"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_rrarb.sv",
+      "sha256": "2b3c6497fcbb636a8d0ef378609db4924574ce0cd2a3958a2709c1a7aff3cf8d"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_sram.sv",
+      "sha256": "941cdde519394aafb1d147ec3e592d18177a6eea431731ad51457f0d66c35250"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_sram_wbyteenable.sv",
+      "sha256": "f99bafaae1d8bd9410998bb39ee389d33fbdc78fdaa32e1b5ac75e2ba317d9f3"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_sram_wmask.sv",
+      "sha256": "627ce1eb5f94da2872f8be597c613c902655d306cfe8b8ba003258860bb5e54a"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/hpdcache_sync_buffer.sv",
+      "sha256": "4f8e44eb05307acc9982e2797e454314e76ff4fc3cebaef372f587b07dcd1b14"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/macros/behav/hpdcache_sram_1rw.sv",
+      "sha256": "271bc9139cc9d51b6a1247cb6507a51e095e918e9c331dc7c468a563c2fd0f5e"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/macros/behav/hpdcache_sram_ecc_1rw.sv",
+      "sha256": "9dabd7ed2448fa3555f066e2d4079e2d9e4588a5135a5d8ba8568c6a328ec2f3"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/macros/behav/hpdcache_sram_wbyteenable_1rw.sv",
+      "sha256": "1a955e41c2476e1c105b467a96e69ddc378df0b65f432c3c717741a7650bdc01"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/macros/behav/hpdcache_sram_wbyteenable_ecc_1rw.sv",
+      "sha256": "d7e728c8f8345f7546043d1f88bc7a4ce4260390be927c85edecf67e3c3ce186"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/macros/behav/hpdcache_sram_wmask_1rw.sv",
+      "sha256": "56597669e2f67879ab88941ad0358400c2e45de76c8f5e85b4350a864da7bc9d"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/common/macros/behav/hpdcache_sram_wmask_ecc_1rw.sv",
+      "sha256": "e55be4d6b6c53073f35b62d5324b151fddf79af0a317ab6e14d45702b317c629"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hpdcache.sv",
+      "sha256": "35d9b2dca6415fca40050bc6fec3d4823701111fb2104db3cd79775268c53b47"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hpdcache_amo.sv",
+      "sha256": "1a0bf5cb2d12f65ce79b7da1173321d8119c744ddd5df09d33dd78317a80bc2f"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hpdcache_cbuf.sv",
+      "sha256": "c1e25c23a5da9268609a25067d22c9df99e5d51f73763d99a793e17a2c60cb3c"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hpdcache_cmo.sv",
+      "sha256": "65dbff93791ef9425531ad31408a5943407edf4a61020756b9c8b7784da4fd9e"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hpdcache_core_arbiter.sv",
+      "sha256": "5d895629db5a75ae8ce76385641e7ead0053d6ebd031b896e378a945b8cad4ea"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hpdcache_ctrl.sv",
+      "sha256": "1e73a4bd6dabe4c6fcc8663819a9f6072e46f03181000961ba7d2ca85210c1a3"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hpdcache_ctrl_pe.sv",
+      "sha256": "a2dc2bc28900d9f9285286fbd1a8ee8d716853d975c7131121e4de8fcbd877f8"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hpdcache_flush.sv",
+      "sha256": "ff1cf8c71c820c694976205a688994f582637142ac25e846d14e39e63d3888e2"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hpdcache_memctrl.sv",
+      "sha256": "b1edc2a9a55691ef559e0489447a9bf4f49cff91f794d5518a989d0b5c61e5ef"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hpdcache_miss_handler.sv",
+      "sha256": "ac26528a861d1e237a56e9add5bf77c37c84db2f179e78118832926c8d9e54f0"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hpdcache_mshr.sv",
+      "sha256": "fb01c23a96bc2d913e6e12a2b662265796363d6c8bd95b3e64f7f6171f936f68"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hpdcache_pkg.sv",
+      "sha256": "14761c94905390d548215dc19aed3f80332dbaa7e617fef4c700f47a3dd8bdbf"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hpdcache_rtab.sv",
+      "sha256": "5a61d9aade361532b4df8463172d536aeee887d7f0c349ed0ddafa3e25c2169c"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hpdcache_uncached.sv",
+      "sha256": "afe48f13f234b03631702f06d21facbd908f957d94ed84672c9bfad964ae6f07"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hpdcache_victim_plru.sv",
+      "sha256": "2ed614f12e28894d90a6ed7f356c30a16e1131c8928b93dfbf0f2862129ae2c6"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hpdcache_victim_random.sv",
+      "sha256": "919698df94c00c07fd941bc2464516c4bc7d1fc13d64c66f00f657deadb4a8c0"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hpdcache_victim_sel.sv",
+      "sha256": "d5d326dcecd67259c848d8c7d39fa29f249bcd2ba9ec3700906a06b8eef8d3f8"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hpdcache_wbuf.sv",
+      "sha256": "134fefdfd7f7846896ed814a4710859b0b9bc884cf498079a4a93c3ea939e21c"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hwpf_stride/hwpf_stride.sv",
+      "sha256": "ccd89b1bf08c77726d984d513f3d41a6798ffacf98e374545fb01b7995e7d787"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hwpf_stride/hwpf_stride_arb.sv",
+      "sha256": "ff5e13b0f5df4e94075ddfe34b8c47b747e91c18ea647db1448d9a2a4003d046"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hwpf_stride/hwpf_stride_pkg.sv",
+      "sha256": "d35f97634b014c9723ef165e84188eac0be60e1a6b676ae3847b0c5c7fb8c427"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/hwpf_stride/hwpf_stride_wrapper.sv",
+      "sha256": "d1432b1f200626bfbf7cb710ec3b06e9c24444e29ac76d9bddb168f667f434e6"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/utils/ecc/prim_secded_36_29_dec.sv",
+      "sha256": "0c3fb5221a5bcb645e3ca23a552136c14257e29fdf3b2cc2344576b49825b78b"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/utils/ecc/prim_secded_36_29_enc.sv",
+      "sha256": "4e2053fad666e029ec99e19395a89d6828e0d86db385767418fbb6dbe44ecca0"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/utils/ecc/prim_secded_39_32_dec.sv",
+      "sha256": "13cbe5fdac6efeba3e92cbddc5c77efa68477996c616984d87f7abe438c2c61e"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/utils/ecc/prim_secded_39_32_enc.sv",
+      "sha256": "31b80e9aefe5cc6df99fe7134a39c417809536b29de6892e6382a9ec3374b4c7"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/utils/ecc/prim_secded_55_48_dec.sv",
+      "sha256": "388aef13f5c3da74332130fc78dcef9466a997e504ca04b1117b65961fef6f76"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/utils/ecc/prim_secded_55_48_enc.sv",
+      "sha256": "b1eb2f2ad4936f7c28b8952c8139b3d0fd48ec7ea2546afe9774d3a543bdcfc1"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/utils/ecc/prim_secded_72_64_dec.sv",
+      "sha256": "b706646195e58396cff43b5256f25a474a180ea18eb483499cb85c649f5ee532"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/utils/ecc/prim_secded_72_64_enc.sv",
+      "sha256": "71c2c5924cf277fd978ab40ccc5eec939f609894ddf8adb3f81144baaa774755"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/utils/ecc/prim_secded_inc.svh",
+      "sha256": "ec253c14180e29c35d43cac4d13b30682683ee38f09d0e415d6ea10eabbf1d53"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/utils/ecc/prim_secded_pkg.sv",
+      "sha256": "5ec03842914cd31acbfbfa1526dbc1b64f4296521ab04308553d6f6350ec8e0c"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/utils/hpdcache_mem_req_read_arbiter.sv",
+      "sha256": "7f37b2fb12fa9216b36d1a959619aada6b2e09810a3c9784d55a82d0a71412fc"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/utils/hpdcache_mem_req_write_arbiter.sv",
+      "sha256": "91763bf92a12126d953141eda1706589c83869db232c02e83f70b6acbe324bbb"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/utils/hpdcache_mem_resp_demux.sv",
+      "sha256": "df921af34241cea3884ec81f05e1bc2db470c98f5a72b686eba312e883d0b4ee"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/utils/hpdcache_mem_to_axi_read.sv",
+      "sha256": "b83579bbf51c1a5d9ce80b8bd7a99151a54e3076504263329b0a2d32c19f6004"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cache_subsystem/hpdcache",
+      "path": "rtl/src/utils/hpdcache_mem_to_axi_write.sv",
+      "sha256": "eed309d22eaf8d8c5b40a5c8b41bda6c9a70bae34f6f23aa86942240570a92ad"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/miss_handler.sv",
+      "sha256": "941a51abdab9c350a73d769267bc68815c70f4351a9171bc28235069a17e3e7b"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/std_cache_subsystem.sv",
+      "sha256": "34c92d72a45cf415a3598e1dae3d2dde9d1146c6e5d93668036a4f24f4e5a406"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/std_nbdcache.sv",
+      "sha256": "628a504680fe0cd9530a7873b32c04b4c55dcd292c4d75239407eb6b780aafc0"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/tag_cmp.sv",
+      "sha256": "5f9f6f5e1e3576c4f033105129b33733f789b845866ca8dadb2b481c01ba2e20"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/wt_axi_adapter.sv",
+      "sha256": "460bc984bbd4d741527d807c598f536dc438e73f8a2b9a79ffec6040cac90d32"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/wt_cache_subsystem.sv",
+      "sha256": "0c5ff2e60296add490d12a18f54b3ee423ee22cebc3494d41b4a8f0b9ae5a37e"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/wt_dcache.sv",
+      "sha256": "698f119f0d598f7ad09e450930b369ab01073b3de16a6ab13018639b95357608"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/wt_dcache_ctrl.sv",
+      "sha256": "809b413b7899629a5c716d5ca4199f03f07ae17e263175cafacfdd74df39da5c"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/wt_dcache_mem.sv",
+      "sha256": "18c4b7105801f9edfaba6dd87b9999a106e820ca9717d4404376bbb409a2ce2f"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/wt_dcache_missunit.sv",
+      "sha256": "22ce8304cb6c4987a614fdee8f192c28c18d9c50c70d217d01eb59dfe62e434e"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cache_subsystem/wt_dcache_wbuffer.sv",
+      "sha256": "4565fbe5f043c8ee1a52254e7f4b4ff7152aa81f2d8e68b6cc9211e5581f1cf8"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/commit_stage.sv",
+      "sha256": "7bb90c8f04dd669a2df888ad8dfabcf924815c88ed7a67a18eda3fb2a2361f7a"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/compressed_decoder.sv",
+      "sha256": "8fcbc36f099de87018068fc788fc488712ba3db2fb7b7f6a9715bd46919c0c62"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/controller.sv",
+      "sha256": "ab22c8b7dae0c31e9c55cd524b5a804929d63a2c3b496b14d38aef4fa51373e3"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/csr_buffer.sv",
+      "sha256": "abc337764a461e1772f72290a80bdc9fcdeab8676145e458faad80944a29f6f1"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/csr_regfile.sv",
+      "sha256": "1d6a3c7de6fd3848dc3676dc5fa5a1d9685a95c37b27620b38aa225eb2345fe5"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cva6.sv",
+      "sha256": "a06f296f9cfd551ec50fbdfbf3c3ddc5d1e14461dd705692bcc5e2c85b147c2c"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cva6_accel_first_pass_decoder_stub.sv",
+      "sha256": "77aa80671e09f200b25c5dcc2e65b3da4e50c413e9e3f4d74f56d8acf875da70"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cva6_fifo_v3.sv",
+      "sha256": "f61e13a52583cc8e1a5a6d46910bed6247cf0dd8b52aa39b4fd683729e3faa68"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cva6_mmu/cva6_mmu.sv",
+      "sha256": "ce8b1ba2e9d08ccdb409404f6cf1af620999cb14d5393946caa31afd6c3efe0a"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cva6_mmu/cva6_ptw.sv",
+      "sha256": "dfeb7de806b406858dceed8e4362d8742e6b599fafd38ee852af94b7fd094d9f"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cva6_mmu/cva6_shared_tlb.sv",
+      "sha256": "3ac49fb19105e711fe25a83a730657a23df1ddde1a30b4d2e75212140adb73a4"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cva6_mmu/cva6_tlb.sv",
+      "sha256": "2390206bffb5d5b40193a8482ab71b849347866c08e716c3b4dd9c39da2ffe52"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cva6_rvfi_probes.sv",
+      "sha256": "c30feb6835dc2bb03b788d090a1aeebc4c8427813b6e52f56f8457efb80c7960"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "src/fpnew_cast_multi.sv",
+      "sha256": "abb8e0420facb0d1b1da4b70c060f71101e3140a6f9d9ad30264abe3b6388286"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "src/fpnew_classifier.sv",
+      "sha256": "cfff43772aea7d918cb0ab3c2e0e996ea34b8740d8edb43f359582ce9978546f"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "src/fpnew_divsqrt_multi.sv",
+      "sha256": "dd0d071b72ec93c7878ec70f2c83c2dd09e35389c565fb47b6f3bcb2844e125f"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "src/fpnew_divsqrt_th_32.sv",
+      "sha256": "5840f2e0cbd371391569e60803257950ef8f7f2e0e5c803e9855815d8dd18330"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "src/fpnew_divsqrt_th_64_multi.sv",
+      "sha256": "677569f16bb18f8f0394e1e35fbf73215c62ab6134d82e0850b6d7605efe8523"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "src/fpnew_fma.sv",
+      "sha256": "fa01fd6f8934056da2de855e3f53aa802006834d8ff1467899f8af67400e8845"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "src/fpnew_fma_multi.sv",
+      "sha256": "9db2d3d22b1501173c979eccdbebd88ab3763dec02d6a3808d014f00b48cd2bb"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "src/fpnew_noncomp.sv",
+      "sha256": "56e0656f0960bebfed806bbb268a014904e2e9e17690d6905fc32b1935657021"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "src/fpnew_opgroup_block.sv",
+      "sha256": "6bfd0c2e3852eb08df61816a943d347bd2333356d0a66bd07c0967426a817f3b"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "src/fpnew_opgroup_fmt_slice.sv",
+      "sha256": "31b13abcca4255d7dca72c0a1323926607c34cd3a0da284f9ddb550b04a6c23a"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "src/fpnew_opgroup_multifmt_slice.sv",
+      "sha256": "febc65223fa993f1ae4d86ef061319d5fa22096afdd756c78dcf4966234b1aeb"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "src/fpnew_pkg.sv",
+      "sha256": "2abe80eb1ef173f4d2dacd68b29a11d3038b86dbd682f2fdff0203df11a2b9af"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "src/fpnew_rounding.sv",
+      "sha256": "67d0a15d9e418159eea18a4b521e5d30a563f251e058049041cb2a0cbb0327bd"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "src/fpnew_top.sv",
+      "sha256": "cb83bf8f674f0d87934cbf3b07e4a2cd4e26ca057647c94968b71de28af7fb68"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu/src/fpu_div_sqrt_mvp",
+      "path": "hdl/control_mvp.sv",
+      "sha256": "728111abd5a87e9f11e773dfbbb9ab8c7020b3423c896b569a55b865428fc216"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu/src/fpu_div_sqrt_mvp",
+      "path": "hdl/defs_div_sqrt_mvp.sv",
+      "sha256": "14814817e16137d2ac1d4f0960dd47d7ce9b3bc289e02d4e041ac4c1da93c08f"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu/src/fpu_div_sqrt_mvp",
+      "path": "hdl/div_sqrt_top_mvp.sv",
+      "sha256": "2abf0597d491fa7efc108d47dee6ea824017ac52e6361fda1aaeee50a3690367"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu/src/fpu_div_sqrt_mvp",
+      "path": "hdl/iteration_div_sqrt_mvp.sv",
+      "sha256": "3cbdd9c9cf821570611729691956c40a5e3307feca4004cd3aa5f757e034a742"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu/src/fpu_div_sqrt_mvp",
+      "path": "hdl/norm_div_sqrt_mvp.sv",
+      "sha256": "b96f2bebe6a2feb2af7e9b937cf980e6681f907c8da9bd7ecf569f15e73cfddf"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu/src/fpu_div_sqrt_mvp",
+      "path": "hdl/nrbd_nrsc_mvp.sv",
+      "sha256": "2e405102c7704302823b9f44a51fecac89662ce0224cc902745f4f047ab08ef2"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu/src/fpu_div_sqrt_mvp",
+      "path": "hdl/preprocess_mvp.sv",
+      "sha256": "923b6f553151d4a803fe4450e8c439ea20059e9937f173c0207eeadfbcae9bab"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_ctrl.v",
+      "sha256": "52e386bf4399a5e599bfc31ac8b924d337cda9e1cb4ff2a042554315efe2aa54"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_double.v",
+      "sha256": "14901bd729d40dfb13c6e6130390c17786f54dc388c5fb325289c811660e3748"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_ff1.v",
+      "sha256": "5df80c7b5f91aec33893fe8fe1a05cdd11cfe2c92518226933cd6fcbbbc58c1b"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_pack.v",
+      "sha256": "df94dc248d8e3e4976cfdad861640abd344a1b9bcafa166eba4901c827bc13da"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_prepare.v",
+      "sha256": "e7b24e037e5ad78ec0f7201de5f4593c4edfa4384c9646391878887d67d0474f"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_round.v",
+      "sha256": "9e3ba6079023f087b67ba18a20b31bf7a80784f8da9803a7903b0deb71cdb522"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_scalar_dp.v",
+      "sha256": "f97cf092cf63c8f11638b344530d27767e569b447ca26460408c08add1d50e2d"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_srt.v",
+      "sha256": "1d090b2332afe2a651eeef99977ccd16bfba164c009ac42166eb2bb4ec3dc837"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_srt_radix16_bound_table.v",
+      "sha256": "dd3fe6708001b89cf78d52db5d81085e05bc4bd0e1b60ea3f269c60094193fdb"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_srt_radix16_with_sqrt.v",
+      "sha256": "685b6469e6c307cb46eb21c05047388565d0c08caf528922dea64e98ec9655e6"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/openc910/C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/ct_vfdsu_top.v",
+      "sha256": "9b773bd65c105afc8a057f658da2e4ca10454e2bbc9eb7aabd3a00b19dae69a3"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/opene906/E906_RTL_FACTORY/gen_rtl/clk/rtl/gated_clk_cell.v",
+      "sha256": "22a4a5f41c7733bd4935adc8a036870a110a8e2f2a70f1f3cf64476b7a49eb9e"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_ctrl.v",
+      "sha256": "082c8019b9191c700eeef514e1879b808f77acb85c825f0706f121151821b827"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_ff1.v",
+      "sha256": "1338016c22e25d93288bc7ade14c07a9f21d29c3d1541863787cc6ce96d4e49c"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_pack_single.v",
+      "sha256": "e30b8a6d666bcce6d1fc2922c939aabb138a5ace4471c7f17c165ae7c89e67ec"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_prepare.v",
+      "sha256": "18cc2887533030d2049a518c0ad6b7afce03485d239bf6444b2e2a1f4c185339"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_round_single.v",
+      "sha256": "ba09bdc5e5b1bdfec7698f1bfdc6473bef5e7bdc2dfce884d9bc0dcb24855f1a"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_special.v",
+      "sha256": "dc74933f7b288a66240d1bbc7a6b8838d1bb819f9b08802d27b5846f64187ee3"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_srt_single.v",
+      "sha256": "a336b8c70e5afc188122ededfa90b1d1390a2cdb974c8a1633a5f8861062c89b"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_top.v",
+      "sha256": "029a9a42c1a82501ce5a4cb546b399f5de922b0be7b8ce3bd9cee370ca90dbe8"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/opene906/E906_RTL_FACTORY/gen_rtl/fpu/rtl/pa_fpu_dp.v",
+      "sha256": "904561370d3130ca05d5a57a153b153af1b342c8bb8f9cd872e27c3975dfa4c8"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/opene906/E906_RTL_FACTORY/gen_rtl/fpu/rtl/pa_fpu_frbus.v",
+      "sha256": "d347df146bae61e7b098d1d680baf06f0dc4f76779d39023708b49ba86832605"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference/core/cvfpu",
+      "path": "vendor/opene906/E906_RTL_FACTORY/gen_rtl/fpu/rtl/pa_fpu_src_type.v",
+      "sha256": "2f31dbe04cb7f151a76eca5c698eddae8eaa773bf94f8906582762cd146cd4a7"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cvxif_compressed_if_driver.sv",
+      "sha256": "e5dd565b9a6fcf95129182075d481771c5dc4ae45e5fb760476b50e9fcc5f318"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cvxif_example/compressed_instr_decoder.sv",
+      "sha256": "b7a5bfdc09a732770691e350c4efc154a402b3823578134b23c1cd3ad5e14375"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cvxif_example/copro_alu.sv",
+      "sha256": "a6ffa7e2e0778bf1bc1b0609a1880ae9afcf8976d101c03ddb62a97ec00c1768"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cvxif_example/cvxif_example_coprocessor.sv",
+      "sha256": "aa3f44d9e7da0c71ff8b2e940cf7f9b4475d6b2fd49f298cf63c0009af21a9b7"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cvxif_example/include/cvxif_instr_pkg.sv",
+      "sha256": "a498af9cdfc4ef0238f2cfbf5d24579ee5e9126443917675f5d5ccb8e022bee3"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cvxif_example/instr_decoder.sv",
+      "sha256": "6116f241a09a0494600319f33f41ea61e545c92e4ad729ced4e5c9c39337f3ca"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cvxif_fu.sv",
+      "sha256": "6bf9957ce56e7ff5f5250258f486989754fe5b1979d49b08260b56c2e099152e"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/cvxif_issue_register_commit_if_driver.sv",
+      "sha256": "79577da9e81421b986255b84f5249979c5b1f3218d83ed761b564dd5821ad553"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/decoder.sv",
+      "sha256": "51b32709bf0a8e46f311bd82fea2cc1edd05f16d33aa3dad681d22f77cd929c3"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/ex_stage.sv",
+      "sha256": "49f72879415b965687b7201996eba884dc2690e96081a2bdabdcbeaa00a08091"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/fpu_wrap.sv",
+      "sha256": "84eba4a8bdd846d474a4e5db61bd8f4951cb63f7b22a3640b80036adb1a1fa10"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/frontend/bht.sv",
+      "sha256": "a80924695e868d5ae1d96874af8a3accd82d14b522d1fef1c39cc059744879e0"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/frontend/bht2lvl.sv",
+      "sha256": "5232af87ba785a78b454c0572ec610984b9d37b45ae39c1972d53a1491d86a22"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/frontend/btb.sv",
+      "sha256": "6848d908494a9686389aba7ac02b30ec36bb8a2b4bee90dfd0590772305d6e69"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/frontend/frontend.sv",
+      "sha256": "10a3a3cbcb75ab9a70167f9ea1cdbfbe7c942fae2eab17663fb23396ee880515"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/frontend/instr_queue.sv",
+      "sha256": "f43b24576db6e6e0da59e31c6dd90e5cf54de12a4bf7a3316b7405618e1b45e5"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/frontend/instr_scan.sv",
+      "sha256": "434748f17f877cc4c45750edcd46757e73c2bdbc17c3901b0bc3200262b5e3d0"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/frontend/ras.sv",
+      "sha256": "27d447b38c9ac3b8523c15c2e20545f0992b3361633f1897e23acff169bd8cf4"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/id_stage.sv",
+      "sha256": "2c6bdf3d746093c95d719d4ccb79cc2a966e8c05724d25853bdabca933740863"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/include/aes_pkg.sv",
+      "sha256": "1d72543cbb7e82d5d9a7124172a01f639adc6a775d5e7d8c47decc792f0c4f63"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/include/ariane_pkg.sv",
+      "sha256": "f492b1dda7044c4d202df1a1e4609a53fbecc94ad3f08b5d6d9a150b4569d2d7"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/include/build_config_pkg.sv",
+      "sha256": "15dcfdd9b8e0c14ffb4ebb04aa85f259dac607b5816233dbdf9ff2e1b52cc2bc"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/include/config_pkg.sv",
+      "sha256": "f6f193daa7dfe1161689f651d6aa6e2b1fdec6560fc83c1313385e944ce4c97c"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/include/cv64a6_imafdc_sv39_config_pkg.sv",
+      "sha256": "5d0ca10eac2368a5c1276f8b6a893d699bc37a89d3d197d9c439a0ef7a228e8f"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/include/cvxif_types.svh",
+      "sha256": "1bd2114654627c9df62bdc74165f14b6392e4b17eae591e86e767917c2cadfd0"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/include/dummy_l15_pkg.sv",
+      "sha256": "8b4e869af23f7fd69652ceaaa8e770a07da261c9102e26ab2bf314cd6dc57811"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/include/instr_tracer_pkg.sv",
+      "sha256": "3f34a7641475f7ee7cbbebe5a1aaae61917518328cb425551c43e0bec05b195a"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/include/riscv_pkg.sv",
+      "sha256": "225881e0df4c08d0d9768999408c7c93186a59270955a391bccd63f34b95777a"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/include/rvfi_types.svh",
+      "sha256": "6e82e4a1fb7785994a81c6b3f173a8cf28b9bff5b5b88b12989be233c214440f"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/include/std_cache_pkg.sv",
+      "sha256": "a0e01186dfdb63a059fbc7ffcc7bde10322f337c39c05bd0a17ad67995ba668f"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/include/triggers_pkg.sv",
+      "sha256": "a4c09c9522e0e34200f32e1ce92c1eea0de5ae49f4dcf248793cb711f6c1c830"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/include/wt_cache_pkg.sv",
+      "sha256": "8ffd0b9fd1ba2c0adfc49263f6970f47ede65901da84c46322459208a765e3f4"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/instr_realign.sv",
+      "sha256": "3ad0190ed64c81d1ecaaf6c9b3641f6ee9b0ebc17db9af7eca33316da2768f05"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/issue_read_operands.sv",
+      "sha256": "fb4732b4761b73ecdf9aa52c1af6927ac60c9a791d33575a592383c9fe3d1ed8"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/issue_stage.sv",
+      "sha256": "5d5fd9c1c3e0b7fbc43c907b716de7091a74197110de935b3f0fdc1b07e36618"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/load_store_unit.sv",
+      "sha256": "ce091f34f60e489a79d335548355e7d69e7dcd3982f8ece835ce9df2baf72a78"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/load_unit.sv",
+      "sha256": "33eac31ac3d488a308b8a688188a559a41f3efe2c5b8b00bed3a72c9d90e82e7"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/lsu_bypass.sv",
+      "sha256": "e5405f82d34ff052e6d17846f88600258a2c13a6668196d8f6c6230a18ec8316"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/macro_decoder.sv",
+      "sha256": "75db5256f71531e318df3cc0edcb69a291f5c76abd232c4dc7bcb8d4e4bc1e07"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/mult.sv",
+      "sha256": "e6660a01fc56369e2e1ad96ff89fa1fcafde795d398eaf5c812d7e9afd84ec59"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/multiplier.sv",
+      "sha256": "eb546d486c0515fc2057d694e924c3575a649cc0beb9362a31498a22134eccf9"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/perf_counters.sv",
+      "sha256": "4f381974ded0277f663c2991bcddb93a2a9c5de43b3847686607f293a5bc0fd8"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/pmp/src/pmp.sv",
+      "sha256": "9c2dce5d4bd2390a617882c282080dbf191c54f016b36b5e719672382c15c7b6"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/pmp/src/pmp_data_if.sv",
+      "sha256": "6c61e6022c150d2446d60f0aa8936361f45543b41428ca4c149cae586deee589"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/pmp/src/pmp_entry.sv",
+      "sha256": "d460cad15eafe78c9c1de689238ec4579279ef28c556d8ac231715afff84c702"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/raw_checker.sv",
+      "sha256": "758273502e408f962340ca7a8ec1c35f1a9285ae88946f38300166b2756fa59c"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/scoreboard.sv",
+      "sha256": "dd816cdefd64817737e11ed79dbf91ce0d9d7361c08806a5f7f4883468791022"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/serdiv.sv",
+      "sha256": "7b4d4b0be7512ec025fd3f4cec4e140e2f4466115237dd244fabc6b2095425f6"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/store_buffer.sv",
+      "sha256": "523de0930e91e54e7a69e1301eca34d8aeb6ef368b523054be66d7b80205b946"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/store_unit.sv",
+      "sha256": "a846efab0c86729e956a59f84e225f45c873fe33830767ae2cac4f5baea5d93f"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/trigger_module.sv",
+      "sha256": "5d04504ac55ee435d3740b913332cd04aa9f6f17724ef887652a37b58047f766"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "core/zcmt_decoder.sv",
+      "sha256": "ff7a3debc5981f8a4df280a6a5efa9a5f8ae249815ac6b8b68db3f59693f865e"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/axi/src/axi_pkg.sv",
+      "sha256": "76b3797792ee5b95ab5937f3d457b48852e5c427de48298dafbdde43d0916ac2"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/include/common_cells/registers.svh",
+      "sha256": "a4e19da894564fd30a4dec4ca8466d181592c9202be2bf124fc4caa82b432d25"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/src/cf_math_pkg.sv",
+      "sha256": "afc32fcae21f6cbb834c5ee602a1aaee1b518fc436a86d4fe1b97942473d35c8"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/src/counter.sv",
+      "sha256": "b7a9b5fc11ce4def51133f27ec0470a18ae7c8c6b1161f21c948ae848b693f58"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/src/delta_counter.sv",
+      "sha256": "698851a015f2b093d5688faa02ae60f0b3ed4324a7584846a99726e1c93732f7"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/src/exp_backoff.sv",
+      "sha256": "fb3bff5787bf454bae844982f946bbd693aff49abe8ac4c85099742c272b8238"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/src/fifo_v3.sv",
+      "sha256": "08cc968a5b26b5a68ad2c548755e6b3b0d07a7ad75a3f11e92bc1bab71eeb7c6"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/src/lfsr.sv",
+      "sha256": "91f6c37be706ca7648cb66635e3f46a210e517f7addb8569ec28e4738599f7d7"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/src/lfsr_8bit.sv",
+      "sha256": "b6caa6223650523ccf68435e0718fdd2c6942cca031a445cd427f749ad416e06"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/src/lzc.sv",
+      "sha256": "c47046cab67cd9e9ff46f9b2a4c055f301eabd0f135d76d96639eb41c9fa3609"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/src/popcount.sv",
+      "sha256": "e01dc8c6b0e36bbea5229f12686fbc97ee251133cf9b7bbcf5d91c084aff6822"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/src/rr_arb_tree.sv",
+      "sha256": "c7361280318a605131345932ab3325bc53f8fc76e67c5579b991b96a5b4ffeed"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/src/shift_reg.sv",
+      "sha256": "73fd475108016aa3ff5f940324e6bbf627a13bb8404e285b86876d3e948ff622"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/src/spill_register.sv",
+      "sha256": "97bf85128f538c54c749896b8eee5fcfe4b27c16845d2a17990979a63b09f2ec"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/src/spill_register_flushable.sv",
+      "sha256": "f25965444dd82ef32a8a5eaaf6bcc5f05d1ab577b42ee4157dffb38aff5ccfe9"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/src/stream_arbiter.sv",
+      "sha256": "727cfd2af43220b85c91f4098f9372d10aca1a0115cd614fe98a8730fb5bb1f8"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/src/stream_arbiter_flushable.sv",
+      "sha256": "8a6ffd292fde633bcfba55ca5a0e89f367aa65406978d5947914979b6096a6d4"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/src/stream_demux.sv",
+      "sha256": "210695a35a6107e1c6ec74e15ca535d57a766be1f81d1aa060787e79699443a2"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/src/stream_mux.sv",
+      "sha256": "1bbc1d41d72532dd0b89053d0ea6a31054a65c5f25323bf0f0fc1df7df57491f"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/common_cells/src/unread.sv",
+      "sha256": "430bd1218854da3032104f5da6fd4bd6cc5b4c9569b85bfea8e805f9ebfc8cf7"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/fpga-support/rtl/AsyncDpRam.sv",
+      "sha256": "d9ab2572fdfdfa95d89bc4ee6909a2151e5fd26e3ea9218700bdb2b244e5c638"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/fpga-support/rtl/AsyncThreePortRam.sv",
+      "sha256": "ace7a0258a6e959befa75c456374bc14e7edd5a4b9109ff0aeaeac6be81de7c0"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/fpga-support/rtl/SyncDpRam.sv",
+      "sha256": "0d2d43ccae9e1b4097ad9051f17d2e9ae56e5faf1c99f3d37ad7d1cdd8a093ed"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/fpga-support/rtl/SyncDpRam_ind_r_w.sv",
+      "sha256": "ec83e7c003bf460b88c85102ea8cc4b14a86e8cbff8921a5a6fa2e619ba0a96f"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/fpga-support/rtl/SyncThreePortRam.sv",
+      "sha256": "ac6e0347e778d4d207a254a8f4ccdab69eb1e8cf4f74203986a086b898546222"
+    },
+    {
+      "root": "third_party/cva6_upstream_reference",
+      "path": "vendor/pulp-platform/tech_cells_generic/src/rtl/tc_sram.sv",
+      "sha256": "32e9cb89cf89902e9fa566a66f931f6fe00a616cd426ba440b1e634d0caeb607"
+    }
+  ],
+  "status": "elaboration_verified",
+  "lint": {
+    "errors": 0,
+    "warnings": 505,
+    "exit_code": 0,
+    "log": "docs/reports/cva6-elaboration-warnings-20261005.txt.gz"
+  },
+  "capability_findings": [
+    {
+      "topic": "single_packed_axi4_master",
+      "port_or_field": "noc_req_o/noc_resp_i",
+      "observed": "One packed AXI4 master; 64-bit address/data and 4-bit ID in the pinned cv64a6_imafdc_sv39 configuration.",
+      "evidence_path": "third_party/cva6_upstream_reference/core/include/cv64a6_imafdc_sv39_config_pkg.sv:32-34",
+      "provenance": "rtl_read"
+    }
+  ],
+  "unsupported": [
+    {
+      "topic": "generated_local_axi4_runtime",
+      "reason": "Current local AXI4 CPU runtime expects two independent 32-bit/ID1 masters; CVA6 uses one 64-bit/ID4 packed master.",
+      "evidence_path": "src/myfuzz/local_harness/runtime_renderer.py:286-294"
+    }
+  ]
+}

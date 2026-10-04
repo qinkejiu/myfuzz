@@ -881,7 +881,16 @@
         "elaboration": {
           "frontend": "verilator-json",
           "warning_policy": "recorded-nonfatal"
-        }
+        },
+        "include_roots": [
+          "core/include",
+          "vendor/pulp-platform/common_cells/include",
+          "vendor/pulp-platform/common_cells/src",
+          "vendor/pulp-platform/axi/include",
+          "common/local/util",
+          "core/cache_subsystem/hpdcache/rtl/src/utils/ecc",
+          "core/cache_subsystem/hpdcache/rtl/include"
+        ]
       },
       "artifacts": [
         {
@@ -2058,7 +2067,7 @@
       "selected_content_hash": "sha256:4d1def9f37a9046d2fbf3d1d7c7363231858e173d5ba33bb5af496f5eb195d9e",
       "closure_status": "selected",
       "source_status": "source_verified",
-      "elaboration_status": "elaboration_unverified",
+      "elaboration_status": "elaboration_verified",
       "runtime_status": "runtime_unverified",
       "defines": [],
       "typed_parameters": [],
@@ -2070,7 +2079,24 @@
       "dependencies": [],
       "interface_description": "configs/cpus/cva6/official_core_interface_description.json",
       "interface_description_sha256": "69c0005a719c204abe3fae628968049cf4c921cf1f9b548b98890344bb0cde34",
-      "closure_note": "Explicit source/filelist selection pinned; transitive include/module closure and physical types still require parent elaboration."
+      "closure_note": "Pinned CVA6 core source selection and Verilator elaboration read set are verified; generated local AXI4 runtime remains unverified.",
+      "elaboration": {
+        "status": "elaboration_verified",
+        "top_module": "cva6",
+        "tool": {
+          "name": "verilator",
+          "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "frontend": "verilator-lint"
+        },
+        "evidence": "configs/soc/closures/cva6.json",
+        "evidence_sha256": "126b5cb49fd3a765005f4fda4dae254e03a880baad3b74ccaeef5546502366f3",
+        "closure_files": 232,
+        "lint": {
+          "errors": 0,
+          "warnings": 505,
+          "exit_code": 0
+        }
+      }
     },
     {
       "id": "pulp_gpio",

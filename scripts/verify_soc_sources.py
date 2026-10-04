@@ -78,7 +78,10 @@ def document_owners(document, base_dir):
         if "root" in source and "revision" in source:
             owners[source["root"]] = source["revision"]
         for pin in source.get("repositories", []):
-            owners[pin["path"]] = pin["revision"]
+            # RepositoryPin.path is relative to its component source root.
+            # A nested submodule's blob does not exist in the parent Git tree.
+            nested = (Path(source["root"]) / _declared_relative(pin["path"])).as_posix()
+            owners[nested] = pin["revision"]
     return owners
 
 
@@ -97,13 +100,13 @@ def document_roots(document):
         if "root" in source:
             roots.add(source["root"])
         for pin in source.get("repositories", []):
-            roots.add(pin["path"])
+            roots.add((Path(source["root"]) / _declared_relative(pin["path"])).as_posix())
         for dependency in record.get("dependencies", []):
             other = by_id.get(dependency, {}).get("source", {})
             if "root" in other:
                 roots.add(other["root"])
             for pin in other.get("repositories", []):
-                roots.add(pin["path"])
+                roots.add((Path(other["root"]) / _declared_relative(pin["path"])).as_posix())
         allowed[identifier] = roots
     return allowed
 
@@ -213,7 +216,8 @@ def verify_elaboration(record, base_dir, owners, allowed_roots=None):
         entries.add(key)
     allowed = allowed_roots if allowed_roots is not None else (
         {record["source"]["root"]}
-        | {pin["path"] for pin in record["source"].get("repositories", [])})
+        | {(Path(record["source"]["root"]) / _declared_relative(pin["path"])).as_posix()
+           for pin in record["source"].get("repositories", [])})
 
     command = closure.get("command")
     if not isinstance(command, list) or not command or not all(isinstance(t, str) for t in command):
