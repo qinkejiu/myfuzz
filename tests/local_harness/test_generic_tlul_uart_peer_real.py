@@ -2,19 +2,24 @@
 from __future__ import annotations
 
 import os
+import copy
+from dataclasses import replace
 from pathlib import Path
 import tempfile
 import unittest
 
-from myfuzz.local_harness import GeneratedTlulUartPeerSession, load_local_harness_request
+from myfuzz.local_harness import (
+    GeneratedTlulRegisterSession, create_generated_tlul_session,
+    load_local_harness_request,
+)
 from myfuzz.scenario.evidence import replay_evidence_bundle, save_evidence_bundle
 from myfuzz.scenario.genome import Action, ResetAction, ScenarioGenome, Trigger
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
 from myfuzz.scenario.runner import ScenarioRunner
-from tests.local_harness.test_generic_tlul_register_real import ROOT, artifact
+from tests.local_harness.test_generic_tlul_register_real import ROOT, artifact, request
 
 
-def uart_request():
+def uart_request(*, tx_byte=True):
     return load_local_harness_request(dict(
         schema_version='local_harness.v2',
         profile_path='configs/peripherals/opentitan_uart_local/component_profile.json',
@@ -24,7 +29,18 @@ def uart_request():
             endpoint_id='opentitan_uart.mmio', template_id='target.tl-ul',
             template_version='1', variant_id='user-integrity', max_outstanding=1)],
             'environment_bindings': [dict(endpoint_id='uart.pins', role='rx',
-                                          source_id='serial_rx_frame')]}))
+                                          source_id='serial_rx_frame')],
+            'uart_8n1_peers': [dict(endpoint_id='uart.pins', rx_role='rx',
+                                    tx_role='tx', source_id='serial_rx_frame',
+                                    format='8N1', clocks_per_bit=32, idle_bits=17)],
+            'startup_writes': [dict(sequence=i + 1, offset=offset, value=value)
+                               for i, (offset, value) in enumerate((
+                                   (0x10, 0x80000003), (0x04, 0x6)) +
+                                   (((0x1c, 0x41),) if tx_byte else ()))]}))
+
+
+def make_uart_session(generated, cache_dir):
+    return create_generated_tlul_session(generated, base_dir=ROOT, cache_dir=cache_dir)
 
 
 class GenericTlulUartPeerContractTests(unittest.TestCase):
@@ -32,10 +48,7 @@ class GenericTlulUartPeerContractTests(unittest.TestCase):
         generated = artifact(uart_request())
         self.assertEqual('tlul_register_observe', generated.runtime_document['kind'])
         with tempfile.TemporaryDirectory() as directory:
-            session = GeneratedTlulUartPeerSession(generated, base_dir=ROOT,
-                cache_dir=Path(directory), rx_port='uart.pins.rx', tx_port='cio_tx_o',
-                source_id='serial_rx_frame', clocks_per_bit=32,
-                setup_writes=((0x10, 0x80000003), (0x04, 0x6), (0x1c, 0x41)))
+            session = make_uart_session(generated, Path(directory))
             identity = session.identity_document()
             self.assertEqual('uart.pins.rx', identity['uart_peer']['rx_port'])
             self.assertEqual(32, identity['uart_peer']['clocks_per_bit'])
@@ -46,6 +59,61 @@ class GenericTlulUartPeerContractTests(unittest.TestCase):
                 (InputOwner('uart', 'uart.pins.rx', 0, 1, 'source', 'serial_rx_frame'),))
             with self.assertRaisesRegex(ValueError, 'UART frame source ownership'):
                 session.validate_scenario_ownership('uart', wrong)
+
+    def test_peer_shape_and_unknown_tuning_fail_closed(self):
+        document = uart_request().document()
+        for edit, error in (
+                (lambda d: d['tuning']['uart_8n1_peers'][0].update(format='7E1'),
+                 'invalid-tuning-value'),
+                (lambda d: d['tuning']['uart_8n1_peers'][0].update(clocks_per_bit=15),
+                 'invalid-tuning-value'),
+                (lambda d: d['tuning']['uart_8n1_peers'][0].update(idle_bits=65),
+                 'invalid-tuning-value'),
+                (lambda d: d['tuning']['uart_8n1_peers'][0].update(unknown=1),
+                 'unexpected-or-missing-tuning-fields')):
+            invalid = copy.deepcopy(document)
+            edit(invalid)
+            with self.subTest(error=error), self.assertRaisesRegex(ValueError, error):
+                load_local_harness_request(invalid)
+
+        invalid = copy.deepcopy(document)
+        invalid['tuning']['environment_bindings'] = []
+        with self.assertRaisesRegex(ValueError, 'uart-rx-source-required'):
+            artifact(load_local_harness_request(invalid))
+        invalid = copy.deepcopy(document)
+        invalid['tuning']['uart_8n1_peers'][0]['tx_role'] = 'rx'
+        with self.assertRaisesRegex(ValueError, 'uart-pin-shape'):
+            artifact(load_local_harness_request(invalid))
+        invalid = copy.deepcopy(document)
+        invalid['tuning']['startup_writes'][0]['offset'] = 3
+        with self.assertRaisesRegex(ValueError, 'startup-access'):
+            artifact(load_local_harness_request(invalid))
+
+    def test_artifact_identity_and_factory_registration(self):
+        generated = artifact(uart_request())
+        alternate_document = uart_request().document()
+        alternate_document['tuning']['uart_8n1_peers'][0]['idle_bits'] = 18
+        alternate = artifact(load_local_harness_request(alternate_document))
+        self.assertNotEqual(generated.runtime_document['artifact_digest'],
+                            alternate.runtime_document['artifact_digest'])
+        self.assertEqual('tlul_register_uart_8n1_peer',
+                         generated.runtime_document['functional_scope'])
+        self.assertEqual('8N1', generated.runtime_document['serial_peer']['format'])
+        with tempfile.TemporaryDirectory() as directory:
+            session = make_uart_session(generated, Path(directory))
+            self.assertEqual([[0x10, 0x80000003], [0x04, 0x6], [0x1c, 0x41]],
+                             generated.runtime_document['serial_peer']['startup_writes'])
+            self.assertEqual(((0x10, 0x80000003), (0x04, 0x6), (0x1c, 0x41)),
+                             session.setup_writes)
+            forged = copy.deepcopy(generated.runtime_document)
+            forged['serial_peer']['source_id'] = 'wrong_source'
+            with self.assertRaisesRegex(ValueError, 'differs from artifact'):
+                make_uart_session(replace(generated, runtime_document=forged), Path(directory))
+            plain = artifact(request('rv_timer'))
+            self.assertNotIn('uart_8n1_peers', plain.plan.request.tuning.document())
+            self.assertNotIn('startup_writes', plain.plan.request.tuning.document())
+            self.assertIsInstance(make_uart_session(plain, Path(directory)),
+                                  GeneratedTlulRegisterSession)
 
 
 @unittest.skipUnless(os.environ.get('MYFUZZ_SCENARIO_REAL') == '1',
@@ -60,11 +128,7 @@ class GenericTlulUartPeerRealTests(unittest.TestCase):
                 (InputOwner('uart', 'uart_rx_byte', 0, 8, 'source', 'serial_rx_frame'),))
 
             def factory():
-                session = GeneratedTlulUartPeerSession(generated, base_dir=ROOT,
-                    cache_dir=work / 'cache', rx_port='uart.pins.rx',
-                    tx_port='cio_tx_o', source_id='serial_rx_frame',
-                    clocks_per_bit=32,
-                    setup_writes=((0x10, 0x80000003), (0x04, 0x6), (0x1c, 0x41)))
+                session = make_uart_session(generated, work / 'cache')
                 sessions.append(session)
                 return ScenarioRunner(sessions={'uart': session},
                     ownership=ownership, bindings=())
@@ -86,13 +150,9 @@ class GenericTlulUartPeerRealTests(unittest.TestCase):
             self.assertIsNot(sessions[0], sessions[1])
 
     def test_explicit_reset_restores_real_idle_pin_and_clears_frame(self):
-        generated = artifact(uart_request())
+        generated = artifact(uart_request(tx_byte=False))
         with tempfile.TemporaryDirectory(prefix='myfuzz-generic-uart-reset-') as directory:
-            session = GeneratedTlulUartPeerSession(generated, base_dir=ROOT,
-                cache_dir=Path(directory), rx_port='uart.pins.rx',
-                tx_port='cio_tx_o', source_id='serial_rx_frame',
-                clocks_per_bit=32,
-                setup_writes=((0x10, 0x80000003), (0x04, 0x6)))
+            session = make_uart_session(generated, Path(directory))
             session.prepare_local()
             session.begin_case('uart-reset-physical')
             try:
@@ -122,7 +182,7 @@ class GenericTlulUartPeerRealTests(unittest.TestCase):
                 session.end_case()
 
     def test_explicit_reset_mid_frame_has_fresh_replay(self):
-        generated = artifact(uart_request())
+        generated = artifact(uart_request(tx_byte=False))
         with tempfile.TemporaryDirectory(prefix='myfuzz-generic-uart-reset-replay-') as directory:
             work = Path(directory)
             ownership = compile_ownership((InputField('uart', 'uart_rx_byte', 8),),
@@ -130,11 +190,7 @@ class GenericTlulUartPeerRealTests(unittest.TestCase):
             sessions = []
 
             def factory():
-                session = GeneratedTlulUartPeerSession(generated, base_dir=ROOT,
-                    cache_dir=work / 'cache', rx_port='uart.pins.rx',
-                    tx_port='cio_tx_o', source_id='serial_rx_frame',
-                    clocks_per_bit=32,
-                    setup_writes=((0x10, 0x80000003), (0x04, 0x6)))
+                session = make_uart_session(generated, work / 'cache')
                 sessions.append(session)
                 return ScenarioRunner(sessions={'uart': session},
                     ownership=ownership, bindings=())

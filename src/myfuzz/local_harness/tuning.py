@@ -20,13 +20,18 @@ _SCHEMAS = {
     'environment_bindings': {'endpoint_id': 'token', 'role': 'token', 'source_id': 'token'},
     'bound_bindings': {'endpoint_id': 'token', 'role': 'token', 'producer_ref': 'token'},
     'peer_bindings': {'endpoint_id': 'token', 'peer_id': 'token'},
+    'uart_8n1_peers': {'endpoint_id': 'token', 'rx_role': 'token', 'tx_role': 'token',
+                       'source_id': 'token', 'format': ('8N1',),
+                       'clocks_per_bit': 'uart_clocks', 'idle_bits': 'uart_idle'},
+    'startup_writes': {'sequence': 'positive', 'offset': 'unsigned', 'value': 'unsigned'},
 }
 _KEYS = {'endpoint_policies': ('endpoint_id',), 'optional_signals': ('endpoint_id', 'role'),
          'fixed_inputs': ('endpoint_id', 'role'),
          'reset_policies': ('domain',), 'irq_delivery': ('endpoint_id', 'role'),
          'boot': ('endpoint_id',), 'environment_bindings': ('endpoint_id', 'role'),
          'bound_bindings': ('endpoint_id', 'role'),
-         'peer_bindings': ('endpoint_id',)}
+         'peer_bindings': ('endpoint_id',), 'uart_8n1_peers': ('endpoint_id',),
+         'startup_writes': ('sequence',)}
 
 
 def _canonical(value):
@@ -51,12 +56,15 @@ class LocalHarnessTuning:
     records: tuple[TuningRecord, ...] = ()
 
     def document(self):
-        result = {kind: [] for kind in _SCHEMAS if kind != 'boot'}
+        # Preserve the identity of older v2 requests when these optional
+        # serial-peer records are absent.
+        result = {kind: [] for kind in _SCHEMAS
+                  if kind not in ('boot', 'uart_8n1_peers', 'startup_writes')}
         for row in self.records:
             if row.kind == 'boot':
                 result['boot'] = row.document()
             else:
-                result[row.kind].append(row.document())
+                result.setdefault(row.kind, []).append(row.document())
         return result
 
     @property
@@ -80,7 +88,11 @@ def _parse_row(kind, row):
             valid = isinstance(value, str) and re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:-]*', value) is not None and len(value) <= 128
         else:
             valid = type(value) is int and value >= (1 if rule == 'positive' else 0)
-            if rule in ('positive', 'ticks'):
+            if rule == 'uart_clocks':
+                valid = valid and 16 <= value <= 4096
+            elif rule == 'uart_idle':
+                valid = valid and 1 <= value <= 64
+            elif rule in ('positive', 'ticks'):
                 valid = valid and value <= 1024
             else:
                 valid = valid and value.bit_length() <= 4096
@@ -181,7 +193,8 @@ def validate_local_harness_tuning(tuning: LocalHarnessTuning, *, profile, bindin
                 raise ValueError('local-tuning-outstanding-limit-unverified')
             endpoint_contracts.append({**selected.document(), 'selection_sha256': selected.identity_sha256})
             continue
-        if kind in ('boot', 'peer_bindings', 'optional_signals', 'fixed_inputs'):
+        if kind in ('boot', 'peer_bindings', 'optional_signals', 'fixed_inputs',
+                    'uart_8n1_peers', 'startup_writes'):
             raise ValueError('local-tuning-capability-unverified:' + kind)
         if kind == 'reset_policies':
             resets = [reset for reset, _ in binding.resets if reset.domain == value['domain']]

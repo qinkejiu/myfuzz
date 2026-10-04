@@ -17,7 +17,7 @@ from .runtime_artifact import LocalRuntimeArtifact
 from .source_lock import verify_local_source_lock
 from .axi4_fields import AXI_SHAPE
 from .request import LocalHarnessRequestV2
-from .tlul_register_template import register_observe_policy
+from .tlul_register_template import register_observe_policy, uart_peer_policy
 from .apb3_register_template import register_observe_policy as apb3_register_observe_policy
 from .wishbone_register_template import register_observe_policy as wishbone_register_policy
 
@@ -675,7 +675,12 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
              'producer_ref': bound[(row['endpoint_id'], row['role'])]}
             for row in exports if row['direction'] == 'input'
             and (row['endpoint_id'], row['role']) in bound]
-        document['functional_scope'] = ('tlul_register_only_pin_observe_no_serial'
+        serial_peer = uart_peer_policy(plan) if kind == 'tlul_register_observe' else None
+        if serial_peer is not None:
+            document['serial_peer'] = serial_peer
+        document['functional_scope'] = ('tlul_register_uart_8n1_peer'
+                                        if serial_peer is not None else
+                                        'tlul_register_only_pin_observe_no_serial'
                                         if kind == 'tlul_register_observe' else
                                         'apb3_register_only_pin_observe_no_peer')
     if kind == 'wishbone_register_observe':
