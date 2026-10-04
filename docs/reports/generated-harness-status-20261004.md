@@ -7,6 +7,7 @@
 | CPU | OBI：CV32E20/CVE2、Ibex | 两种真实 CPU 复用同一 OBI 生成器；取指、Store/Load、byte enable、持久 RAM、回放 | 已验证的 OBI 形态；新 CPU 须重新核对全部端口和握手变体 |
 | CPU | OBI：CVE2 RV32E 参数变体 | 仅新增 profile/源码锁/闭包，复用生成器并通过真实 Store/Load、byte enable 与 fresh replay | 证明同 CPU 参数复用；不等于新 CPU 型号的 profile-only 验收 |
 | CPU | AXI4：ZipCPU | 五通道、八拍取指突发、RAM 写入和回放 | 只验收当前 RAM 路径，不接受 exclusive 或非 RAM 地址 |
+| CPU | AXI4：CVA6，64 位打包单主端口 | 生成式驱动服务真实取指、Store→Load→Store、8 字节 byte strobe 与持久 RAM；全新会话 replay | 固定 CVA6 专用模板和 RAM 路径；未验收外设 MMIO、IRQ 或新 CPU profile-only 复用 |
 | CPU | AXI4-Lite：PicoRV32 | 真实取指及两轮 Store/Load、持久 RAM、回放 | 当前 CPU 路径仅 RAM/ROM，无 MMIO/IRQ |
 | CPU | Wishbone classic：PicoRV32 | 真实取指、RAM、deferred GPIO MMIO、reset 和回放 | 单 outstanding，尚无 CPU IRQ |
 | CPU | Pico 原生 Ready/Valid Memory | 真实程序两轮 Store/Load、持久 RAM、回放 | 当前仅 RAM/ROM，无 MMIO/IRQ |
@@ -26,4 +27,4 @@ v2 寄存器观察 artifact 现可按协议类型自动创建 TL-UL、APB3 或 W
 
 声明式 SPI peer 的主线焦点验收 5/5 通过，其中两项使用真实 OpenTitan SPI Device：一项从 artifact 选择 JEDEC peer 并观察真实 MISO，一项由 artifact 指定上传帧前缀、32 位 Fuzzable Source、启动配置和节拍，观察真实 IRQ、状态和 SRAM。两项均完成 fresh replay。外部 master 仍限 mode-0 单线及已验收的单帧形态。
 
-用户特别关注的三个 CPU 中，Ibex 已有生成式 OBI 真实运行与回放；CVA6 的固定源码与 232 文件 Verilator 读取闭包已通过 elaboration 和全库源码锁校验，现可从经验证 filelist 展开生成单个打包 64 位/ID4 AXI4 顶层 wrapper 与 runtime top，顶层 lint 无错误。CVA6 生成式 driver 已编译运行并观察到真实 ARVALID 取指请求；AXI 数据响应、程序执行和回放尚未验收，不能列为 RTL operational，详见 `docs/reports/cva6-generated-axi4-feasibility-20261005.md` 和 `docs/superpowers/plans/2026-10-05-cva6-packed-axi4-local-runtime.md`；BOOM 当前只有接口描述候选，缺少已验收的完整本地生成式运行路径，按不可执行 CPU 跳过真实验收并记录缺口。五类协议的 AXI4 首个真实生成式实例使用 ZipCPU，和早期设计计划中的 CVA6 不同。
+用户特别关注的三个 CPU 中，Ibex 已有生成式 OBI 真实运行与回放；CVA6 的固定源码与 232 文件 Verilator 读取闭包已通过 elaboration 和全库源码锁校验，现可从经验证 filelist 展开生成单个打包 64 位/ID4 AXI4 顶层 wrapper 与 runtime top，顶层 lint 无错误。CVA6 生成式 driver 和持久 RAM 服务已完成真实取指、Store→Load→Store 和全新会话 evidence replay，可按固定 CVA6 的 RAM 路径列为 RTL operational；外设 MMIO、IRQ 和同协议新 CPU 的 profile-only 复用尚未验收，详见 `docs/reports/cva6-generated-axi4-feasibility-20261005.md` 和 `docs/superpowers/plans/2026-10-05-cva6-packed-axi4-local-runtime.md`；BOOM 当前只有接口描述候选，缺少已验收的完整本地生成式运行路径，按不可执行 CPU 跳过真实验收并记录缺口。五类协议的 AXI4 首个真实生成式实例使用 ZipCPU；CVA6 目前另有受限的 64 位打包 AXI4 RAM 路径证据。
