@@ -152,6 +152,10 @@ inline ParseResult parse_command(const std::string &line) {
   else if (tokens[3] == "ACCESS_TLUL_REG") maxima = {1, 8188, word, 15};
   else if (tokens[3] == "SOURCE_TLUL_REG") maxima = {63, std::numeric_limits<std::uint64_t>::max()};
   else if (tokens[3] == "BIND_TLUL_REG") maxima = {63, std::numeric_limits<std::uint64_t>::max()};
+  else if (tokens[3] == "STEP_APB3_REG") maxima = {};
+  else if (tokens[3] == "ACCESS_APB3_REG") maxima = {1, 4092, word, 15};
+  else if (tokens[3] == "SOURCE_APB3_REG") maxima = {63, std::numeric_limits<std::uint64_t>::max()};
+  else if (tokens[3] == "BIND_APB3_REG") maxima = {63, std::numeric_limits<std::uint64_t>::max()};
   else if (tokens[3] == "STEP_TLUL_SPI_DEVICE") maxima = {1, 1, 1, 15};
   else if (tokens[3] == "ACCESS_TLUL_SPI_DEVICE") maxima = {1, 1, 1, 15, 1, 8188, word, 15};
   else if (tokens[3] == "STEP_WB_TIMER") maxima = {};
@@ -192,6 +196,8 @@ inline ParseResult parse_command(const std::string &line) {
       (tokens[3] == "ACCESS_TLUL_GPIO" && result.command.fields[3] % 4 != 0) ||
       (tokens[3] == "ACCESS_TLUL_TIMER" && result.command.fields[1] % 4 != 0) ||
       (tokens[3] == "ACCESS_TLUL_REG" && result.command.fields[1] % 4 != 0) ||
+      (tokens[3] == "ACCESS_APB3_REG" &&
+       (result.command.fields[1] % 4 != 0 || result.command.fields[3] != 15)) ||
       (tokens[3] == "ACCESS_WB_UART" && result.command.fields[3] % 4 != 0) ||
       (tokens[3] == "ACCESS_TLUL_UART" && result.command.fields[2] % 4 != 0) ||
       (tokens[3] == "ACCESS_TLUL_I2C" && result.command.fields[1] % 4 != 0) ||

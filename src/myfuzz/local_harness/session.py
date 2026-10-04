@@ -41,6 +41,10 @@ _OPERATIONS = {
                               'ACCESS_TLUL_REG': (1, 8188, 0xffffffff, 15),
                               'SOURCE_TLUL_REG': (63, 0xffffffffffffffff),
                               'BIND_TLUL_REG': (63, 0xffffffffffffffff)},
+    'apb3_register_observe': {'STEP_APB3_REG': (),
+                              'ACCESS_APB3_REG': (1, 4092, 0xffffffff, 15),
+                              'SOURCE_APB3_REG': (63, 0xffffffffffffffff),
+                              'BIND_APB3_REG': (63, 0xffffffffffffffff)},
     'tlul_spi_device': {'STEP_TLUL_SPI_DEVICE': (1, 1, 1, 15),
                         'ACCESS_TLUL_SPI_DEVICE': (1, 1, 1, 15, 1, 8188, 0xffffffff, 15)},
     'wishbone_timer': {'STEP_WB_TIMER': (),
@@ -176,6 +180,9 @@ class GeneratedLocalSession:
                 or (operation == 'ACCESS_TLUL_TIMER' and fields[1] % 4)
                 or (operation == 'ACCESS_TLUL_REG' and
                     (fields[1] % 4 or fields[1] >= self.artifact.plan.profile.address.window_size))
+                or (operation == 'ACCESS_APB3_REG' and
+                    (fields[1] % 4 or fields[1] >= self.artifact.plan.profile.address.window_size
+                     or fields[3] != 15))
                 or (operation == 'ACCESS_WB_UART' and fields[3] % 4)
                 or (operation == 'ACCESS_TLUL_UART' and fields[2] % 4)
                 or (operation == 'ACCESS_TLUL_I2C' and fields[1] % 4)

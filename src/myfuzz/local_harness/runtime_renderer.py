@@ -18,6 +18,7 @@ from .source_lock import verify_local_source_lock
 from .axi4_fields import AXI_SHAPE
 from .request import LocalHarnessRequestV2
 from .tlul_register_template import register_observe_policy
+from .apb3_register_template import register_observe_policy as apb3_register_observe_policy
 
 _NATIVE = {'valid': ('output', 1), 'addr': ('output', 32), 'wdata': ('output', 32), 'wstrb': ('output', 4), 'ready': ('input', 1), 'rdata': ('input', 32)}
 
@@ -393,7 +394,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             raise ValueError('runtime-tlul-timer-pin-shape')
         adapters = ['src/myfuzz/protocols/rtl/beat_to_tlul.sv']
     elif len(endpoints) == 1 and functions == {'mmio_slave'} and endpoints[0].protocol == ('apb', '3'):
-        kind = _apb_local_kind(plan.binding.endpoints, abi, plan.profile.capabilities)
+        kind = ('apb3_register_observe' if isinstance(plan.request, LocalHarnessRequestV2)
+                else _apb_local_kind(plan.binding.endpoints, abi, plan.profile.capabilities))
         boot = None
         capabilities = plan.profile.capabilities
         if (capabilities.get('address_width'), capabilities.get('data_width'),
@@ -402,6 +404,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             raise ValueError('runtime-apb-capabilities')
         if plan.profile.address is None or plan.profile.address.window_size != 4096:
             raise ValueError('runtime-apb-window')
+        if kind == 'apb3_register_observe':
+            apb3_register_observe_policy(plan, abi)
         adapters = ['src/myfuzz/protocols/rtl/beat_to_apb.sv']
     else:
         raise ValueError('runtime-unsupported-protocol-shape')
@@ -415,6 +419,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             raise ValueError('runtime-peer-ownership-unsupported')
         if row['disposition'] == 'functional' and not (
                 kind == 'tlul_register_observe' and row['direction'] == 'output' or
+                kind == 'apb3_register_observe' and row['direction'] == 'output' or
                 kind == 'apb_spi' and row['endpoint_id'] == 'spi.pins' or
                 kind == 'axi4_lite_uart' and row['endpoint_id'] in
                 ('uart.pins', 'uart.interrupts') or
@@ -595,7 +600,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
     else:
         wires = _shape(endpoints[0], _APB, abi)
         channel = {'apb_spi': 'spi', 'apb_gpio': 'gpio',
-                   'apb_timer': 'timer', 'apb_i2c': 'i2c'}[kind]
+                   'apb_timer': 'timer', 'apb_i2c': 'i2c',
+                   'apb3_register_observe': 'reg'}[kind]
         beat_ports(channel, False)
         locals_.append('logic [31:0] apb_paddr;')
         locals_.append('logic [3:0] unused_pstrb;')
@@ -625,14 +631,15 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                     module_name=module, plan=plan.document(), structural_abi=copy.deepcopy(structural.abi_document),
                     structural_build=copy.deepcopy(structural.build_document), source_verification=copy.deepcopy(verified),
                     boot_contract=boot,
-                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'apb_i2c', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host', 'tlul_uart', 'tlul_i2c', 'tlul_register_observe', 'tlul_spi_device', 'wishbone_timer', 'wishbone_uart') else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
+                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'apb_i2c', 'apb3_register_observe', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host', 'tlul_uart', 'tlul_i2c', 'tlul_register_observe', 'tlul_spi_device', 'wishbone_timer', 'wishbone_uart') else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
                     runtime_sv_sha256=hashlib.sha256(runtime.encode()).hexdigest(), cpp_sha256=hashlib.sha256(b'').hexdigest(),
                     adapted_endpoint_ids=sorted(adapted), physical_exports=exports, backend_ports=backend,
                     runtime_ports=[dict(name=n,direction=d,width=w) for n,d,w in ports],
                     adapter_sources=adapter_hashes, lint_argv=flags+adapters,
                     wire_schema_version='local_driver.v1', driver_status='not_generated')
-    if kind == 'tlul_register_observe':
-        fixed, dynamic, bound = register_observe_policy(plan, abi)
+    if kind in ('tlul_register_observe', 'apb3_register_observe'):
+        fixed, dynamic, bound = (register_observe_policy(plan, abi) if kind == 'tlul_register_observe'
+                                 else apb3_register_observe_policy(plan, abi))
         document['fixed_physical_inputs'] = [
             {'endpoint_id': row['endpoint_id'], 'role': row['role'],
              'runtime_name': row['runtime_name'], 'width': row['width'],
@@ -653,7 +660,9 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
              'producer_ref': bound[(row['endpoint_id'], row['role'])]}
             for row in exports if row['direction'] == 'input'
             and (row['endpoint_id'], row['role']) in bound]
-        document['functional_scope'] = 'tlul_register_only_pin_observe_no_serial'
+        document['functional_scope'] = ('tlul_register_only_pin_observe_no_serial'
+                                        if kind == 'tlul_register_observe' else
+                                        'apb3_register_only_pin_observe_no_peer')
     if kind in ('native_memory_cpu', 'axi4_lite_cpu'):
         document['selected_template'] = selected.document()
     if kind in ('native_memory_cpu', 'wishbone_cpu'):
