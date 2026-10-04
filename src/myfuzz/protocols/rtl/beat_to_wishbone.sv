@@ -51,10 +51,11 @@
 //                          a beat error and no bus cycle.
 //   ADDRESS_UNITS          0 = byte address, 1 = word address (wbuart consumes
 //                          two word-index bits, no byte-offset bits).
-//   SUPPORTS_PARTIAL_WRITE 0 when i_wb_sel is unimplemented (ziptimer) or only
-//                          register-specific (wbuart).  Sub-word writes are then
-//                          answered with a beat error response and ZERO bus
-//                          cycles; no read-modify-write is synthesised.
+//   SUPPORTS_PARTIAL_WRITE 0 when i_wb_sel is unimplemented (ziptimer).
+//                          wbuart implements register-specific byte enables,
+//                          so its admitted target variant uses 1 and passes
+//                          SEL through. When 0, sub-word writes receive a
+//                          beat error with zero target cycles.
 //   HAS_ERR                1 when the target really has an ERR output.  When 0
 //                          (both ZipCPU IPs) the target has no error pin: the
 //                          parent fabric must drive err with its own decode

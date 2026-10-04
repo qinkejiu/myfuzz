@@ -12,6 +12,7 @@ from .session import GeneratedLocalSession
 from .gpio_session import GeneratedPulpGpioSession
 from .opentitan_gpio_session import GeneratedOpentitanGpioSession
 from .opentitan_rv_timer_session import GeneratedOpentitanRvTimerSession
+from .wishbone_uart_session import GeneratedWishboneUartSession
 from .zip_timer_session import GeneratedZipTimerSession
 from .cpu_session import GeneratedCve2Session
 from .axi_lite_session import GeneratedAxiLiteMemorySession

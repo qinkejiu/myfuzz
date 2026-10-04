@@ -55,7 +55,8 @@
   "capabilities": {"address_width": 2, "data_width": 32, "read": true, "write": true,
     "byte_enable": true, "partial_write": true, "has_error": false, "has_address_port": true,
     "address_units": "word", "sel_implemented": true, "wishbone_flavour": "registered-ack",
-    "ack_requires_cyc": true, "max_wait_cycles": 16, "max_outstanding": 1},
+    "ack_requires_cyc": true, "max_wait_cycles": 16, "max_outstanding": 1,
+    "local_runtime_variant": "wishbone_uart"},
   "address": {"window_size": 16, "alignment": 16, "registers": [
     {"name": "SETUP", "offset": 0, "width": 32, "access": "rw", "side_effect": "write_resets_uart_state"},
     {"name": "FIFO_STATUS", "offset": 4, "width": 32, "access": "ro", "side_effect": "none"},
@@ -97,10 +98,10 @@
       "Every declared capability is carried by the semantics entries above; the wishbone target resolver consumes exactly address_width/data_width/byte_enable/partial_write/has_error/has_address_port/address_units/sel_implemented/wishbone_flavour/ack_requires_cyc for this protocol."
     ],
     "unknown": [
-      "This profile cannot be elaborated by the composition frontend in this environment. `wbuart` is Verilog-2001 with implicitly typed ports, and two independent limitations of src/myfuzz/composition/source_elaboration.py reject it: (1) `_Reader.physical_type` requires every type node's compiler location to be a declared source file, while Verilator locates the implicit default type in <verilator-root>/share/verilator/include/verilated_std.sv:53 - `elaborate_profile` therefore fails with 'elaboration-evidence-error:zipcpu_uart:compiler location has no source mapping'; (2) `extract_physical_ports` keeps only ports with `varType == \"PORT\"`, and Verilator reports `input wire`/`output wire` ports as `varType == \"WIRE\"`, so even when the first error is bypassed with --no-std-package the wire ports are silently dropped (an empty extraction for this module) instead of being reported. Nothing in this profile was therefore confirmed by elaborate_profile/bind_profile; the port facts above were verified against the same verilator-json output with --no-std-package plus the recorded closure finding.",
-      "No Wishbone error response exists, and the IP must never see a classic strobe hold: because STB alone triggers every register action, a master that holds STB until ACK performs the addressed action on every cycle STB is high and receives one ACK per cycle (duplicate side effects). The declared flavour encodes the required one-cycle STB pulse; whether a given peer master honours it is not verified here.",
+      "The current composition frontend extracts all 19 Verilog-2001 wire ports and the generated local harness binds them; frontend limitations recorded in the earlier profile revision are resolved.",
+      "The pinned wbuart has no Wishbone ERR response. The generated local registered-ACK adapter emits exactly one target STB per accepted access and holds CYC through ACK; other master implementations still require their own handshake validation.",
       "Only the pinned parameterization INITIAL_SETUP=25/LGFLEN=4/HARDWARE_FLOW_CONTROL_PRESENT=1 is exercised by this profile acceptance; the lite/flows-off variants are not claimed.",
-      "The UART serial link itself is not exercised by structural composition: the pins are exported and no serial peer is composed by this profile."
+      "Structural composition alone does not exercise the serial link. The generated local runtime acceptance separately drives one bounded 8N1 RX frame and decodes one TX frame from real RTL pins."
     ]
   }
 }

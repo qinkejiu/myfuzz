@@ -105,7 +105,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             raise ValueError('driver-timer-native-events-required')
         fields['irq_o'] = events[0]['runtime_name']
         allowed_inputs = set()
-    elif kind == 'axi4_lite_uart':
+    elif kind in ('axi4_lite_uart', 'wishbone_uart'):
         for role in ('rx', 'tx', 'cts_n', 'rts_n'):
             rows = [row for row in exports if row['endpoint_id'] == 'uart.pins'
                     and row['role'] == role and row['width'] == 1]
@@ -159,7 +159,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     physical_items = ',\n'.join('    {' + _literal(row['runtime_name']) + ', ' + signal(row) + '}' for row in exports)
     aliases = ''
     if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'tlul_gpio', 'tlul_timer',
-                'wishbone_timer', 'axi4_lite_uart', 'apb_i2c'):
+                'wishbone_timer', 'wishbone_uart', 'axi4_lite_uart', 'apb_i2c'):
         by_name = {row['runtime_name']: row for row in exports}
         aliases = ''.join(f'  values[{_literal(alias)}] = {signal(by_name[name])};\n'
                           for alias, name in fields.items()
@@ -168,7 +168,8 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                           or kind == 'apb_timer'
                           or kind == 'tlul_timer'
                           or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi')))
-                          or (kind == 'axi4_lite_uart' and alias not in ('uart_rx', 'uart_cts_n'))
+                          or (kind in ('axi4_lite_uart', 'wishbone_uart')
+                              and alias not in ('uart_rx', 'uart_cts_n'))
                           or kind == 'apb_i2c')
 
     max_wait = document['effective_max_wait_cycles']
@@ -186,7 +187,8 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                 or kind == 'apb_timer'
                 or kind == 'tlul_timer'
                 or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi')))
-                or (kind == 'axi4_lite_uart' and alias not in ('uart_rx', 'uart_cts_n'))
+                or (kind in ('axi4_lite_uart', 'wishbone_uart')
+                    and alias not in ('uart_rx', 'uart_cts_n'))
                 or kind == 'apb_i2c'):
             maximum_snapshot[alias] = maxima_physical[name]
     snapshot_size = len(json.dumps(maximum_snapshot, sort_keys=True, separators=(',', ':')))
@@ -305,15 +307,20 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         spi = kind == 'apb_spi'
         timer = kind in ('apb_timer', 'wishbone_timer', 'tlul_timer')
         channel = ('spi' if spi else 'timer' if timer else
+                   'uart' if kind == 'wishbone_uart' else
                    'i2c' if kind == 'apb_i2c' else 'gpio')
         command_channel = ('TLUL_GPIO' if kind == 'tlul_gpio' else
                            'TLUL_TIMER' if kind == 'tlul_timer' else
+                           'WB_UART' if kind == 'wishbone_uart' else
                            'WB_TIMER' if kind == 'wishbone_timer' else channel.upper())
         input_assignment = (f'      dut.{fields["gpio_in"]} = command.fields[0];\n'
                             if kind in ('apb_gpio', 'tlul_gpio') else '')
         if kind == 'tlul_gpio':
             input_assignment += f'      dut.{fields["strap_en"]} = command.fields[1];\n'
-        index = 2 if kind == 'tlul_gpio' else 1 if kind == 'apb_gpio' else 0
+        if kind == 'wishbone_uart':
+            input_assignment += (f'      dut.{fields["uart_rx"]} = command.fields[0];\n'
+                                 f'      dut.{fields["uart_cts_n"]} = command.fields[1];\n')
+        index = 2 if kind in ('tlul_gpio', 'wishbone_uart') else 1 if kind == 'apb_gpio' else 0
         source_branch = '''      if (command.operation == "SOURCE_SPI") {
         peer.append(command.fields[0], command.fields[1], command.fields[2]);
         dut.eval();
