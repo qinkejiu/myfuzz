@@ -11,6 +11,7 @@
 | CV32E20/CVE2 RV32E 参数变体，OBI | 仅增加 profile、源码锁和闭包；复用同一 OBI 模板/driver/session，真实 Store/Load、byte-enable 与 fresh replay | 同 CPU 参数复用通过；不代表新 CPU 型号仅靠 profile 接入 |
 | PicoRV32，原生 Ready/Valid 完成式内存端口 | 固定源码、生成式本地 adapter/driver；真实程序连续两轮 Store/Load、持久 RAM、预算化证据与 fresh replay | RAM/ROM RTL operational；暂不支持 MMIO/IRQ |
 | PicoRV32，classic Wishbone | 固定源码、生成式 driver；真实取指、RAM 写入、deferred MMIO 与显式 reset，预算化证据在新进程重放一致 | RTL operational；单 outstanding，无 IRQ |
+| PicoRV32，classic Wishbone，`ENABLE_IRQ=1` | 独立参数 profile 与源码闭包；真实 ZipCPU timer IRQ 绑定 IRQ3，Pico custom0 handler 写 RAM，观察真实 EOI 拉高/返回后归零、trap=0 和主程序恢复执行，fresh replay 一致 | 自定义 IRQ ABI 的单 IRQ 闭环通过；旧 IRQ=0 profile 保持原样；标准 machine-mode ABI 与嵌套中断未验收 |
 | PicoRV32，AXI4-Lite | 固定源码、真实 AW/W/B/AR/R 引脚经本地 adapter；真实程序两轮 Store/Load、持久 RAM、预算化证据 fresh replay | RAM/ROM RTL operational；固定 no-response-code 变体，无 MMIO/IRQ |
 | ZipCPU，完整 AXI4 双主端口 | 15 文件固定源码闭包；真实五通道握手、八拍取指突发、两次 RAM 写入、预算化证据 fresh replay | RAM RTL operational；不接受 exclusive 与非 RAM 地址 |
 | CVA6，打包 64 位/ID4 AXI4 单主端口 | 固定源码与 232 文件读取闭包通过 elaboration 和源码锁校验；225 个编译源可生成结构 wrapper 与 13/13 端口 runtime top，57 个输入处置完整，Verilator lint 无错误；生成式 driver 已编译并完成真实 RAM 取指、Store→Load→Store 和 fresh replay | 固定 CVA6 RAM 路径 RTL operational：真实取指、Store→Load→Store 与 fresh replay；MMIO/IP/IRQ 和通用 packed AXI4 复用未验收 |
@@ -24,11 +25,13 @@
 | OpenTitan GPIO，TL-UL | 固定上游源码与完整本地 wrapper 边界；真实寄存器读写、pin 输出、边沿 IRQ、合法及非法部分写响应、预算化证据 fresh replay | GPIO RTL operational；RACL 默认关闭，alert ack peer 未接入 |
 | OpenTitan RV Timer，TL-UL | 固定上游源码、25/25 物理端口与本地标量 wrapper；真实计数、比较 IRQ、停止后的 INTR_STATE W1C 与 fresh replay | Timer RTL operational；CPU 中断入口未验收 |
 | OpenTitan SPI Host，TL-UL | 固定上游源码、29/29 物理端口；受限 4 字节 mode-0 环境源经真实 32 个采样边沿进入 RXDATA，两种 Genome 源值及 fresh replay 一致 | SPI Host RTL operational；CPU MMIO 数据链已验收，CPU IRQ/ISR 尚未验收 |
+| OpenTitan pattgen，TL-UL | 独立固定 profile 与认证闭包；通用 TL-UL session 配置两个真实图样，检查 LSB-first 输出、不同分频周期、双完成 IRQ、闲置电平及 fresh replay | 双通道短图样 RTL operational；alert handshaking 与 CPU/外设路由未验收 |
+| Ibex → OpenTitan pattgen → Ibex RAM | CPU OBI 真事务经抽象 MMIO Router 配置两个 pattgen 通道；两种程序图样产生不同的真实串行输出，CPU 轮询真实双完成状态并写持久 RAM；fresh replay 使用新 harness 重现 | 两通道输出与 CPU 状态读回闭环通过；未验收 CPU IRQ handler |
 | OpenTitan I2C，TL-UL | 固定上游源码、33/33 物理端口；真实开漏 ACK/单字节 `0x5A`、RDATA、原生 IRQ 和 fresh replay | I2C RTL operational；从地址 `0x50`，无 clock stretching |
 | OpenTitan UART，TL-UL | 固定上游源码、37/37 物理端口；真实 TX `0x41`、RX `0x5A/0xA6`、原生 IRQ 与 fresh replay | UART RTL operational；CPU 数据闭环已验收，CPU IRQ/ISR 尚未验收 |
 | OpenTitan SPI Device，TL-UL | 固定上游源码、35/35 物理端口；专用 session 验收 mode-0 单线 JEDEC 应答、CSR 改写、上传 IRQ/FIFO/SRAM 与 fresh replay；通用 v2 模板另验收静态引脚下寄存器事务 | 串行行为只覆盖当前单线场景；CPU 数据链已验收，ISR 未验收 |
 | CVE2 ↔ GPIO A ↔ GPIO B | 同一 testcase 两个方向各两轮，4 次真实 GPIO IRQ 和 CPU ISR，RAM 历史为 6、8、11、15；有预算证据包从初态重放一致 | 双向多组件链通过 |
-| Ibex ↔ PULP GPIO A ↔ PULP GPIO B | 三个生成式独立 harness；CPU 程序变异经 A 真实输出绑定 B 输入、B 真实 IRQ 回 Ibex ISR 和持久 RAM；反方向 B 外部 pin `0x49/0x81/0xff` 经真实 IRQ 使 Ibex MMIO 写 A；两方向 checker 和 fresh replay 通过。CPU 上游单源 600 秒运行 420/420 完整链，128/128 合法奇数字节，26/26 抽样重放一致 | 双方向单轮真实闭环；定时运行不是 RFuzz coverage-guided 搜索，未发现 RTL 缺陷 |
+| Ibex ↔ PULP GPIO A ↔ PULP GPIO B | 三个生成式独立 harness；CPU 程序变异经 A 真实输出绑定 B 输入、B 真实 IRQ 回 Ibex ISR 和持久 RAM；反方向 B 外部 pin `0x49/0x81/0xff` 经真实 IRQ 使 Ibex MMIO 写 A；另有一个连续 testcase 内三轮 `0x49→0x81→0xff`，RAM 写历史、状态依赖 WAW 和 fresh replay 均一致。两方向 checker 通过。CPU 上游单源 600 秒运行 420/420 完整链，128/128 合法奇数字节，26/26 抽样重放一致 | 双方向真实闭环；多轮输入仍为预编码的单 Genome actions；定时运行不是 RFuzz coverage-guided 搜索，未发现 RTL 缺陷 |
 | CV32E20/CVE2 RV32E → PULP GPIO A → B → RV32E | 生成式 OBI 参数变体真实写 A、A 输出绑定 B、B IRQ 进入 CPU ISR；程序值 `0x49/0xff` 均到持久 RAM 且 fresh replay 一致 | 同核 RV32E 参数变体验收，不等于新增 CPU 架构 |
 | PicoRV32 Wishbone → PULP GPIO A → B → PicoRV32 RAM | CPU 真实 Wishbone MMIO 写 A、APB3 A 真实输出绑定 B、CPU 读 B.PADIN 和 A.PADOUT 后写持久 RAM；`0x49/0xff` 变异、Bound Input 拒绝随机覆盖与 fresh replay 通过 | 跨 Wishbone/APB3 数据闭环；此 Pico profile 的 IRQ 关闭 |
 | Ibex → PULP SPI → Ibex RAM | 生成式 Ibex OBI 真 MMIO 配置 APB3 SPI；mode-0 peer 两种外部源使 SPI 真实 RXFIFO 与 CPU RAM 随之变化；独立因果 checker、fresh replay 通过 | RX 数据闭环；SPI `events_o` 仅观察，未验收 CPU ISR |
@@ -97,6 +100,9 @@ MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest discover -s tests/in
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest discover -s tests/integration -p test_scenario_cve2_two_pulp_gpio_real.py -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest discover -s tests/integration -p test_scenario_cve2_two_pulp_gpio_irq_real.py -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_scenario_ibex_two_pulp_gpio_generated_real tests.integration.test_scenario_ibex_pulp_gpio_reverse_generated_real tests.integration.test_scenario_ibex_two_pulp_gpio_rfuzz_real -v
+MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_scenario_ibex_pulp_gpio_reverse_generated_real.ReverseGeneratedIbexPulpGpioTests.test_three_external_phases_share_one_rtl_lifetime_and_replay -v
+MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_scenario_ibex_opentitan_pattgen_generated_real -v
+MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_generated_opentitan_pattgen tests.local_harness.test_wishbone_cpu_irq -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_scenario_cve2_rv32e_two_pulp_gpio_generated_real tests.integration.test_scenario_picorv32_wb_two_pulp_gpio_generated_real -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_scenario_ibex_pulp_spi_generated_real tests.integration.test_scenario_ibex_opentitan_rv_timer_generated_real -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest discover -s tests/integration -p test_local_native_memory_generated_real.py -v

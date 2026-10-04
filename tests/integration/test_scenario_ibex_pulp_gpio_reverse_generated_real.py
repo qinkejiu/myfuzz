@@ -57,6 +57,37 @@ def reverse_genome(external_byte: int = 0x49) -> ScenarioGenome:
                         MemoryImage('results', 'cpu', 0x20000, '00' * 8)))
 
 
+def reverse_batch_genome() -> ScenarioGenome:
+    """Three external values enter one continuous generated RTL testcase."""
+    base = reverse_genome()
+    direction = 'IP_TO_CPU_TO_IP'
+    source = ('gpio_b', 'gpio_in')
+    def action(action_id, value, trigger, *, clock='gpio_b', delay=0):
+        return Action(action_id, source[0], source[1], value, direction, trigger,
+                      delay_component=clock, delay_ticks=delay,
+                      bit_offset=8, width=8)
+    return ScenarioGenome(
+        testcase_id='ibex-pulp-batch-three-external-events',
+        direction=direction, path_id='b-external-irq-ibex-isr-a-padout-three-rounds',
+        schedule_order=base.schedule_order, max_steps=900,
+        initial_images=base.initial_images,
+        actions=(
+            Action('first-rise', 'gpio_b', 'gpio_in', 0x49, direction,
+                   Trigger('AFTER_OUTPUT', 'cpu', 'data_req_accepted', 1, 1, 4),
+                   delay_component='cpu', delay_ticks=8,
+                   bit_offset=8, width=8),
+            action('first-fall', 0,
+                   Trigger('AFTER_OUTPUT', 'cpu', 'data_rsp_consumed', 1, 1, 5)),
+            action('second-rise', 0x81,
+                   Trigger('AFTER_OUTPUT', 'cpu', 'data_rsp_consumed', 1, 1, 5),
+                   clock='cpu', delay=64),
+            action('second-fall', 0,
+                   Trigger('AFTER_OUTPUT', 'cpu', 'data_rsp_consumed', 1, 1, 10)),
+            action('third-rise', 0xff,
+                   Trigger('AFTER_OUTPUT', 'cpu', 'data_rsp_consumed', 1, 1, 10),
+                   clock='cpu', delay=64)))
+
+
 def reverse_ownership():
     return compile_ownership(
         (InputField('cpu', 'irq', 1), InputField('gpio_a', 'gpio_in', 32),
@@ -145,6 +176,68 @@ class ReverseGeneratedIbexPulpGpioTests(unittest.TestCase):
                     self.assertIsNot(instances[-2].sessions['cpu'], instances[-1].sessions['cpu'])
                     self.assertNotEqual(instances[-2].sessions['cpu']._execution,
                                         instances[-1].sessions['cpu']._execution)
+
+    def test_three_external_phases_share_one_rtl_lifetime_and_replay(self):
+        with tempfile.TemporaryDirectory(prefix='myfuzz-ibex-pulp-reverse-batch-') as directory:
+            factory, instances = make_reverse_factory(Path(os.environ.get(
+                'MYFUZZ_IBEX_GPIO_CACHE', Path(directory) / 'cache')))
+            case = reverse_batch_genome()
+            trace = record_scenario(case, factory)
+            self.assertEqual('complete', trace.status)
+            injections = [event['action_id'] for event in trace.events
+                          if event.get('kind') == 'source_injection']
+            self.assertEqual(['first-rise', 'first-fall', 'second-rise',
+                              'second-fall', 'third-rise'], injections)
+            ram_writes = [event for event in trace.events
+                          if event.get('kind') == 'memory_write'
+                          and event.get('component') == 'cpu'
+                          and event.get('address') == 0x20000]
+            self.assertEqual([0x49, 0x81, 0xff],
+                             [event['value'] & 0xff for event in ram_writes])
+            memory = instances[0].sessions['cpu'].memory
+            self.assertEqual(0, memory.generation)
+            self.assertEqual(0xff, memory.read(
+                0x20000, 4, transaction_id='reverse-batch-final').value)
+            padin_reads = [event['read_value'] & 0xffffffff
+                           for event in trace.events
+                           if event.get('kind') == 'mmio_delivery'
+                           and event.get('device_id') == 'gpio_b'
+                           and event.get('offset') == 0x08
+                           and not event.get('write')]
+            self.assertEqual([0x4900, 0x8100, 0xff00], padin_reads)
+            gpio_a_writes = [event['write_value'] & 0xff
+                             for event in trace.events
+                             if event.get('kind') == 'mmio_delivery'
+                             and event.get('device_id') == 'gpio_a'
+                             and event.get('offset') == 0x0c
+                             and event.get('write')]
+            self.assertEqual([0x49, 0x81, 0xff], gpio_a_writes)
+            a_outputs = []
+            for event in trace.events:
+                if event.get('component') != 'gpio_a':
+                    continue
+                value = event.get('outputs', {}).get('gpio_out', 0) & 0xff
+                if value in (0x49, 0x81, 0xff) and (
+                        not a_outputs or a_outputs[-1] != value):
+                    a_outputs.append(value)
+            self.assertEqual([0x49, 0x81, 0xff], a_outputs)
+            self.assertEqual(3, sum(event.get('kind') == 'source_start'
+                                    and event.get('source') == ('gpio_b', 'irq')
+                                    for event in trace.events))
+            self.assertEqual(3, sum(event.get('kind') == 'pulse_start'
+                                    for event in trace.events))
+            self.assertEqual(3, sum(event.get('kind') == 'initial_image'
+                                    for event in trace.events))
+            self.assertFalse(any(event.get('kind') in
+                                 ('irq_overrun', 'reset', 'reset_barrier', 'reset_failure')
+                                 for event in trace.events))
+            self.assertTrue(any(event.get('kind') == 'state_dependency'
+                                and event.get('edge_kind') == 'WAW'
+                                for event in trace.events))
+            self.assertEqual(1, len(instances))
+            replay = replay_scenario(case, factory, trace)
+            self.assertTrue(replay.matches, replay)
+            self.assertEqual(2, len(instances))
 
 
 if __name__ == '__main__':
