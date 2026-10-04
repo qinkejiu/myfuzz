@@ -66,6 +66,13 @@ def _configured_events():
         'execution_id': 'fixture', 'testcase_id': 'fixture',
         'source_component': 'cpu', 'source_epoch': 0,
         'channel_id': 'data', 'source_sequence': 4}
+    events[12]['source_transaction'].update({
+        'execution_id': 'fixture', 'testcase_id': 'fixture',
+        'source_component': 'cpu', 'channel_id': 'data'})
+    events[14]['transaction'] = {
+        'execution_id': 'fixture', 'testcase_id': 'fixture',
+        'source_component': 'cpu', 'source_epoch': 0,
+        'channel_id': 'data', 'source_sequence': 8}
     return events
 
 
@@ -121,6 +128,26 @@ class PulpGpioIrqCheckerTests(unittest.TestCase):
         events.append(duplicate)
         report = checker.check_pulp_gpio_irq_chain(events, expected_value=3)
         self.assertIn('gpio_a_padout_transaction_reused', report['path_incomplete'])
+
+    def test_unrelated_ram_store_does_not_count_as_cpu_result(self):
+        events = _configured_events()
+        unrelated = deepcopy(events[14])
+        unrelated['value'] = 2
+        unrelated['transaction']['testcase_id'] = 'other-testcase'
+        unrelated['event_id'] = events[14]['event_id']
+        for event in events[14:]:
+            event['event_id'] += 1
+        events.insert(14, unrelated)
+        report = checker.check_pulp_gpio_irq_chain(events, expected_value=3)
+        self.assertTrue(report['complete'], report)
+
+    def test_unidentified_response_is_incomplete_not_data_mismatch(self):
+        events = _configured_events()
+        events[12]['source_transaction'].pop('source_sequence')
+        events[13]['outputs']['data_rsp_rdata'] = 2
+        report = checker.check_pulp_gpio_irq_chain(events, expected_value=3)
+        self.assertIn('gpio_b_padin_transaction_missing', report['path_incomplete'])
+        self.assertNotIn('cpu_padin_response_mismatch', report['dut_violations'])
 
 
 if __name__ == '__main__':

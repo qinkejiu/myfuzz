@@ -155,16 +155,34 @@ def check_pulp_gpio_irq_chain(events: Iterable[Mapping], *, expected_value: int)
             and configured):
         violations.append('gpio_b_padin_read_mismatch')
     tx = read.get('source_transaction', {}) if read else {}
-    consumed = None if read is None else find(read['event_id'], lambda e:
+    tx_valid = (isinstance(tx, Mapping)
+                and tx.get('source_component') == 'cpu'
+                and tx.get('channel_id') == 'data'
+                and all(isinstance(tx.get(field), str) and tx[field]
+                        for field in ('execution_id', 'testcase_id'))
+                and type(tx.get('source_epoch')) is int
+                and type(tx.get('source_sequence')) is int)
+    if read is not None and not tx_valid:
+        incomplete.append('gpio_b_padin_transaction_missing')
+    consumed = None if not tx_valid else find(read['event_id'], lambda e:
                    e.get('component') == 'cpu'
                    and e.get('outputs', {}).get('data_rsp_consumed') == 1
                    and e['outputs'].get('data_rsp_source_epoch') == tx.get('source_epoch')
                    and e['outputs'].get('data_rsp_source_sequence') == tx.get('source_sequence'))
     if consumed is not None and consumed['outputs'].get('data_rsp_rdata') != read.get('read_value'):
         violations.append('cpu_padin_response_mismatch')
+    def same_cpu_case_store(event):
+        identity = event.get('transaction')
+        return (isinstance(identity, Mapping)
+                and all(identity.get(field) == tx.get(field) for field in (
+                    'execution_id', 'testcase_id', 'source_component',
+                    'source_epoch', 'channel_id'))
+                and type(identity.get('source_sequence')) is int
+                and identity['source_sequence'] > tx['source_sequence'])
+
     stored = None if consumed is None else find(consumed['event_id'], lambda e:
                  e.get('kind') == 'memory_write' and e.get('component') == 'cpu'
-                 and e.get('address') == 0x20000
+                 and e.get('address') == 0x20000 and same_cpu_case_store(e)
                  and e.get('byte_enable') == 15)
     if stored is not None and stored.get('value') != read.get('read_value'):
         violations.append('cpu_padin_store_mismatch')
