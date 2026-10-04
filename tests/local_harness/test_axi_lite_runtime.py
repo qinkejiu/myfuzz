@@ -8,6 +8,28 @@ from tests.local_harness.test_renderer import ROOT, real_plan
 
 
 class AxiLiteRuntimeTests(unittest.TestCase):
+    def test_axi_lite_generated_evidence_has_driver_bounds(self):
+        from myfuzz.local_harness.axi_lite_session import GeneratedAxiLiteMemorySession
+        from myfuzz.scenario.evidence import _evidence_record_bound, _final_state_growth_bound
+        from myfuzz.scenario.genome import ScenarioGenome
+        from myfuzz.scenario.memory import MemoryRegion, PersistentMemory
+        from myfuzz.scenario.ownership import compile_ownership
+        from myfuzz.scenario.runner import ScenarioRunner
+        from myfuzz.scenario.contracts import ResourceBudget
+        plan = real_plan('configs/cpus/picorv32_axi/component_profile.json', 'cpu')
+        artifact = render_local_driver(render_local_runtime(plan,render_local_harness(plan),
+            verify_local_source_lock(plan.profile,base_dir=ROOT),base_dir=ROOT),base_dir=ROOT)
+        memory = PersistentMemory(regions=(MemoryRegion('ram',0,4096),),
+            initialization_seed=7,max_initialized_bytes=4096)
+        cpu = GeneratedAxiLiteMemorySession(artifact,base_dir=ROOT,
+            cache_dir=Path('/tmp/unused-axi-lite'),memory=memory)
+        runner = ScenarioRunner(sessions={'cpu':cpu},ownership=compile_ownership((),()),bindings=())
+        genome = ScenarioGenome(testcase_id='axi-lite-budget',direction='CPU_TO_IP',
+            path_id='memory',schedule_order=('cpu',),max_steps=1,actions=())
+        self.assertGreater(_final_state_growth_bound(genome,runner,ResourceBudget()),0)
+        self.assertGreater(_evidence_record_bound(genome,runner,ResourceBudget()),
+            4*artifact.runtime_document['driver_limits']['reply_reservation_bytes'])
+
     def test_pico_axi_lite_no_error_pin_top_and_driver(self):
         plan = real_plan('configs/cpus/picorv32_axi/component_profile.json', 'cpu')
         top = render_local_runtime(plan, render_local_harness(plan),

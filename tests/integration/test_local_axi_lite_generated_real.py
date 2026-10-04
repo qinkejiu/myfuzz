@@ -12,7 +12,7 @@ from myfuzz.scenario.memory import MemoryRegion, PersistentMemory
 from myfuzz.scenario.ownership import compile_ownership
 from myfuzz.scenario.runner import ScenarioRunner
 from myfuzz.scenario.evidence import save_evidence_bundle, replay_evidence_bundle
-from myfuzz.scenario.contracts import ProtocolEnvironmentError
+from myfuzz.scenario.contracts import ProtocolEnvironmentError, ResourceBudget
 from tests.local_harness.test_renderer import ROOT, real_plan
 from tests.integration.test_local_native_memory_generated_real import program
 
@@ -38,7 +38,9 @@ class AxiLiteProgramRealTests(unittest.TestCase):
                 initial_images=(MemoryImage('program','cpu',0,program()),
                     MemoryImage('state','cpu',256,'0500000000000000')))
             bundle = Path(cache) / 'axi-lite-evidence'
-            trace = save_evidence_bundle(genome, factory, bundle)
+            trace = save_evidence_bundle(genome, factory, bundle,
+                budget=ResourceBudget(max_wall_time_ms=90000,
+                                      max_materialized_bytes_per_memory=4096))
             self.assertEqual(trace.status, 'complete', trace.status)
             self.assertTrue((bundle/'manifest.json').is_file())
             self.assertTrue((bundle/'observations.jsonl').is_file())
