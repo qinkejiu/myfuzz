@@ -8,8 +8,10 @@ pins, two clock/reset pins, and four interrupt pins. The five-file source
 closure pins `axiluart.v`, `ufifo.v`, `rxuart.v`, `txuart.v`, and
 `skidbuffer.v`; a fresh Verilator dependency replay reads exactly those files.
 
-The local driver issues independent AW and W handshakes, then waits for the
-real B response. Reads issue AR and wait for R. The driver records every tick
+The local driver presents AW and W as distinct AXI4-Lite channels and holds
+each valid signal until its handshake. With the pinned `OPT_SKIDBUFFER=0`, the
+RTL accepts AW and W together; the driver then waits for the real B response.
+Reads issue AR and wait for R. The driver records every tick
 and returns the RTL response code and data. The session checks exactly one
 handshake on each required channel before admitting a register completion.
 

@@ -345,7 +345,7 @@
     "semantics": [
       "All 29 top ports are physical facts from pinned axiluart Verilator elaboration.",
       "S_AXI_AWADDR[3:2] and S_AXI_ARADDR[3:2] select four 32-bit registers. AXI responses are distinct B and R channels; S_AXI_BRESP and S_AXI_RRESP are tied to OKAY in the RTL.",
-      "AW and W are independently accepted by the AXI4-Lite target. The local executor must preserve both handshakes and wait for the B response before reporting completion.",
+      "AW and W are distinct AXI4-Lite channels; with OPT_SKIDBUFFER=0 the pinned RTL asserts AWREADY and WREADY together only when both valids are high (axiluart.v:229-247). The local executor holds both valids until their real handshakes and waits for B before reporting completion.",
       "RX and TX remain physical serial pins; host input must come from a bounded declared peer, and output must be sampled from RTL."
     ]
   }
