@@ -51,29 +51,23 @@ explicit source files and 99 actual vendor files including nested includes.
 Native and closure-wrapper Verilator lint complete with zero errors. The
 source-lock record was checked through its full hash/read-set replay path.
 
-The repository's formal `verify_soc_sources.py` gate still reports the four
-new OpenTitan closure JSON files as untracked. The sandbox mounts `.git`
-read-only, so `git add` cannot complete here. This is a Git tracking gate;
-the independent source/read-set replay and runtime tests passed. With a
-temporary Git index and temporary object directory under `/tmp`, both the
-full source gate and `--elaborate` replay exited 0, including exact read-set
-matches for SPI Host, I2C, RV Timer, and SPI Device. The real repository index
-was not modified. The conditional gate result is recorded at
-`runs/scenario/acceptance/opentitan-source-gate-temporary-index-20260928.json`.
-The existing
-Ibex interface description hash was refreshed after the already-present RVFI
-interface update, leaving the four untracked closure paths as the reported
-source-lock failures.
-
-When `.git` is writable, the remaining repository-index step is:
+On 2026-10-04 the four OpenTitan closure JSON files were tracked in commit
+`07c8d6428070e5e50ba259602af2656a96fd7d5b`. The original worktree was
+aligned to that commit without changing its file contents. The formal source
+gate then passed directly against the repository index:
 
 ```sh
-git add -- configs/soc/closures/opentitan_spi_host.json \
-  configs/soc/closures/opentitan_i2c.json \
-  configs/soc/closures/opentitan_rv_timer.json \
-  configs/soc/closures/opentitan_spi_device.json
 PYTHONPATH=src python3 scripts/verify_soc_sources.py --elaborate
 ```
+
+The command exited 0. SPI Host, I2C, RV Timer, and SPI Device each reported
+`source_verified`, `elaboration_verified`, `replayed: true`, and
+`read_set_matches_closure: true`. Ibex and CVA6 source records were verified,
+while their elaboration records remain `elaboration_unverified` in this gate.
+The earlier temporary-index conditional result remains at
+`runs/scenario/acceptance/opentitan-source-gate-temporary-index-20260928.json`
+for historical comparison. It was needed when the repository index was
+read-only on 2026-09-28; it is no longer the basis of the source-gate claim.
 
 A source-lock-only Git patch was prepared at
 `patches/opentitan/opentitan-source-lock-review.patch`. It applies
@@ -83,7 +77,8 @@ Its path and SHA256 manifest is
 `patches/opentitan/opentitan-git-preparation-20260928.json`.
 Generated Verilator lint logs retain upstream trailing spaces in quoted source
 lines; `git diff --check` flags those log lines, while other selected files
-pass the whitespace check. The real worktree's `.git` was not modified.
+pass the whitespace check. The patch is retained as a historical review aid;
+the repository index and remote `main` now contain the selected files.
 
 ## Verification
 
