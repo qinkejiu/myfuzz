@@ -7,6 +7,7 @@ from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
 
 from .apb3_register_session import GeneratedApb3RegisterSession
 from .request import LocalHarnessRequestV2
+from .tlul_register_session import GeneratedTlulRegisterSession
 from .tlul_session_factory import create_generated_tlul_session
 from .wishbone_register_session import GeneratedWishboneRegisterSession
 
@@ -25,15 +26,24 @@ def _document(artifact):
     return document
 
 
-def create_generated_register_session(artifact, *, base_dir, cache_dir):
+def create_generated_register_session(artifact, *, base_dir, cache_dir,
+                                      setup_writes=(), probe_offsets=()):
     """Select the local register service by artifact kind, never component name."""
     kind = _document(artifact)['kind']
     if kind == 'tlul_register_observe':
-        return create_generated_tlul_session(artifact, base_dir=base_dir,
-                                             cache_dir=cache_dir)
+        selected = create_generated_tlul_session(artifact, base_dir=base_dir,
+                                                 cache_dir=cache_dir)
+        if not setup_writes and not probe_offsets:
+            return selected
+        if type(selected) is not GeneratedTlulRegisterSession:
+            raise ValueError('serial peer setup comes from artifact tuning')
+        return GeneratedTlulRegisterSession(artifact, base_dir=base_dir,
+            cache_dir=cache_dir, setup_writes=setup_writes,
+            probe_offsets=probe_offsets)
     cls = (GeneratedApb3RegisterSession if kind == 'apb3_register_observe'
            else GeneratedWishboneRegisterSession)
-    return cls(artifact, base_dir=base_dir, cache_dir=cache_dir)
+    return cls(artifact, base_dir=base_dir, cache_dir=cache_dir,
+               setup_writes=setup_writes, probe_offsets=probe_offsets)
 
 
 def compile_generated_register_ownership(artifacts: Mapping[str, object]):

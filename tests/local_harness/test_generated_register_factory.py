@@ -32,6 +32,11 @@ class GeneratedRegisterFactoryTests(unittest.TestCase):
                     session = create_generated_register_session(generated,
                         base_dir=ROOT, cache_dir=Path(directory))
                     self.assertIsInstance(session, expected)
+            apb = create_generated_register_session(artifacts[1][0],
+                base_dir=ROOT, cache_dir=Path(directory),
+                setup_writes=((0x00, 1),), probe_offsets=(0x04,))
+            self.assertEqual(((0x00, 1),), apb.setup_writes)
+            self.assertEqual((0x04,), apb.probe_offsets)
 
     def test_physical_bound_input_stays_bound_across_artifacts(self):
         target = tlul_artifact(bound_request())

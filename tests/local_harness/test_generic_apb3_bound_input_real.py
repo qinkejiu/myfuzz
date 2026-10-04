@@ -7,7 +7,8 @@ import tempfile
 import unittest
 
 from myfuzz.local_harness import (GeneratedApb3RegisterSession,
-    compile_generated_register_ownership, load_local_harness_request)
+    compile_generated_register_ownership, create_generated_register_session,
+    load_local_harness_request)
 from myfuzz.scenario.evidence import replay_evidence_bundle, save_evidence_bundle
 from myfuzz.scenario.genome import ScenarioGenome
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
@@ -72,12 +73,14 @@ class GenericApb3BoundRealTests(unittest.TestCase):
             sessions = []
 
             def factory():
-                a = GeneratedApb3RegisterSession(source, base_dir=ROOT,
+                a = create_generated_register_session(source, base_dir=ROOT,
                     cache_dir=work / 'cache',
                     setup_writes=((0x00, 1), (0x04, 1), (0x0c, 1)))
-                b = GeneratedApb3RegisterSession(target, base_dir=ROOT,
+                b = create_generated_register_session(target, base_dir=ROOT,
                     cache_dir=work / 'cache',
                     setup_writes=((0x04, 1), (0x18, 1), (0x1c, 1)))
+                self.assertIsInstance(a, GeneratedApb3RegisterSession)
+                self.assertIsInstance(b, GeneratedApb3RegisterSession)
                 sessions.append((a, b))
                 return ScenarioRunner(sessions={'a': a, 'b': b},
                     ownership=compile_generated_register_ownership(
