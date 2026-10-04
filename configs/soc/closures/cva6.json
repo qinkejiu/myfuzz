@@ -1438,9 +1438,9 @@
   ],
   "unsupported": [
     {
-      "topic": "generated_local_axi4_runtime",
-      "reason": "Current local AXI4 CPU runtime expects two independent 32-bit/ID1 masters; CVA6 uses one 64-bit/ID4 packed master.",
-      "evidence_path": "src/myfuzz/local_harness/runtime_renderer.py:286-294"
+      "topic": "generic_generated_packed_axi4_profile_reuse",
+      "reason": "The pinned CVA6 now has a generated single-port 64-bit/ID4 packed AXI4 RAM runtime, but selection is still gated by component_id == cva6. A new AXI4 CPU profile with a different packed top shape has not been demonstrated as profile-only reusable; MMIO/IP/IRQ chains and full AXI4 semantics are outside this acceptance.",
+      "evidence_path": "src/myfuzz/local_harness/runtime_renderer.py:299-313"
     }
   ]
 }

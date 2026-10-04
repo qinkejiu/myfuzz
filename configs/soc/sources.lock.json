@@ -2079,7 +2079,7 @@
       "dependencies": [],
       "interface_description": "configs/cpus/cva6/official_core_interface_description.json",
       "interface_description_sha256": "69c0005a719c204abe3fae628968049cf4c921cf1f9b548b98890344bb0cde34",
-      "closure_note": "Pinned CVA6 core source selection and Verilator elaboration read set are verified; generated local AXI4 runtime remains unverified.",
+      "closure_note": "Pinned CVA6 core source selection and Verilator elaboration read set are verified. The source lock's runtime_status is a source-verifier boundary, not the separate generated CVA6 RAM testcase/replay acceptance documented in docs/reports/cva6-generated-axi4-feasibility-20261005.md; MMIO/IP/IRQ chains and general profile reuse remain unverified.",
       "elaboration": {
         "status": "elaboration_verified",
         "top_module": "cva6",
@@ -2089,7 +2089,7 @@
           "frontend": "verilator-lint"
         },
         "evidence": "configs/soc/closures/cva6.json",
-        "evidence_sha256": "126b5cb49fd3a765005f4fda4dae254e03a880baad3b74ccaeef5546502366f3",
+        "evidence_sha256": "cb1df1e4e3dea37498da0c8a97e0c3bd81585b5deca171e3c02d6373dbeb36d4",
         "closure_files": 232,
         "lint": {
           "errors": 0,
