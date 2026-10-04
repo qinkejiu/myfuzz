@@ -59,6 +59,9 @@ class LocalTuningParsingTests(unittest.TestCase):
         row = {'endpoint_id': 'pins', 'role': 'in', 'source_id': 'src'}
         with self.assertRaisesRegex(ValueError, 'duplicate'):
             request_v2({'environment_bindings': [row, row]})
+        bound = {'endpoint_id': 'pins', 'role': 'in', 'producer_ref': 'gpio.out'}
+        with self.assertRaisesRegex(ValueError, 'duplicate'):
+            request_v2({'bound_bindings': [bound, bound]})
         for value in (True, -1, 1025, '2', 2.0):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 request_v2({'reset_policies': [{'domain': 'a', 'assert_ticks': value, 'release_ticks': 0}]})
@@ -136,6 +139,17 @@ class LocalTuningValidationTests(unittest.TestCase):
                        {'registered_source_ids': {'src'}, 'bound_inputs': {('pins', 'in')}}):
             with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
                 self.validate(tuning, **kwargs)
+
+    def test_bound_binding_requires_declared_upstream_owned_field(self):
+        tuning = {'bound_bindings': [{'endpoint_id': 'pins', 'role': 'in',
+                                      'producer_ref': 'gpio.out'}]}
+        for context in (None, set()):
+            with self.subTest(context=context), self.assertRaisesRegex(
+                    ValueError, 'bound-input-context-required'):
+                self.validate(tuning, bound_inputs=context)
+        result = self.validate(tuning, bound_inputs={('pins', 'in')})
+        self.assertEqual('gpio.out', result.document()['tuning']
+                         ['bound_bindings'][0]['producer_ref'])
 
     def test_environment_cannot_override_constant_or_output(self):
         for endpoint, role in [('cfg', 'mode'), ('irq', 'irq')]:

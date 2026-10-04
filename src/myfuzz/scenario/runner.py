@@ -141,6 +141,10 @@ class ScenarioRunner:
                 binding.target_bit_offset, binding.width)
             if actual != expected:
                 raise ValueError("binding producer does not match input ownership")
+        for component, session in self.sessions.items():
+            validate = getattr(session, 'validate_scenario_bindings', None)
+            if callable(validate):
+                validate(component, bindings)
         target_routers: dict[str, object] = {}
         for session in self.sessions.values():
             router = getattr(session, "router", None)
@@ -854,7 +858,19 @@ class ScenarioRunner:
         event_count_before_step = len(self._events)
         ticks_before_step = dict(self.local_ticks)
         try:
-            outputs = dict(self.sessions[component].step_local(inputs))
+            session = self.sessions[component]
+            routed_step = getattr(session, 'step_local_routed', None)
+            if callable(routed_step):
+                names = getattr(session, 'routed_input_names', None)
+                if not isinstance(names, frozenset):
+                    raise ValueError('routed session must declare bound input names')
+                source_inputs = {name: value for name, value in inputs.items()
+                                 if name not in names}
+                bound_inputs = {name: value for name, value in inputs.items()
+                                if name in names}
+                outputs = dict(routed_step(source_inputs, bound_inputs))
+            else:
+                outputs = dict(session.step_local(inputs))
         except BaseException as exc:
             self._status = "failed"
             uncertain = self._uncertain_transactions()

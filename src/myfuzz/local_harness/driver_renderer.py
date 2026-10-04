@@ -47,10 +47,12 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     if kind == 'tlul_register_observe':
         fixed = document['fixed_physical_inputs']
         dynamic = document['dynamic_physical_inputs']
-        allowed_inputs = {row['runtime_name'] for row in fixed + dynamic}
-        if (len(allowed_inputs) != len(fixed) + len(dynamic) or len(dynamic) > 64 or
+        bound = document['bound_physical_inputs']
+        allowed_inputs = {row['runtime_name'] for row in fixed + dynamic + bound}
+        if (len(allowed_inputs) != len(fixed) + len(dynamic) + len(bound) or
+                len(dynamic) > 64 or len(bound) > 64 or
                 any(row['value'] >= 1 << row['width'] for row in fixed) or
-                any(not 1 <= row['width'] <= 64 for row in dynamic)):
+                any(not 1 <= row['width'] <= 64 for row in dynamic + bound)):
             raise ValueError('driver-tlul-register-input-ownership')
     elif kind == 'apb_gpio':
         for role, alias in [('in', 'gpio_in'), ('out', 'gpio_out'), ('dir', 'gpio_dir'),
@@ -452,10 +454,22 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                    f'throw std::runtime_error("source_width");\n' if row['width'] < 64 else '')
                 + f'          dut.{row["runtime_name"]} = command.fields[1]; break;\n'
                 for index, row in enumerate(document['dynamic_physical_inputs']))
+            bound_cases = ''.join(
+                f'        case {index}:\n'
+                + (f'          if (command.fields[1] > {(1 << row["width"]) - 1}ULL) '
+                   f'throw std::runtime_error("bound_width");\n' if row['width'] < 64 else '')
+                + f'          dut.{row["runtime_name"]} = command.fields[1]; break;\n'
+                for index, row in enumerate(document['bound_physical_inputs']))
             source_branch = '''      if (command.operation == "SOURCE_TLUL_REG") {
         pre_backend = backend_snapshot(dut);
         switch (command.fields[0]) {
 ''' + source_cases + '''        default: throw std::runtime_error("source_index");
+        }
+        tick(dut, &samples);
+      } else if (command.operation == "BIND_TLUL_REG") {
+        pre_backend = backend_snapshot(dut);
+        switch (command.fields[0]) {
+''' + bound_cases + '''        default: throw std::runtime_error("bound_index");
         }
         tick(dut, &samples);
       } else {
@@ -496,7 +510,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
 ''' + ('      }\n' if spi or kind in ('apb_i2c', 'tlul_i2c', 'tlul_register_observe') else '')
         operation_check = (f'command.operation != "STEP_{command_channel}" && '
                            f'command.operation != "ACCESS_{command_channel}"' +
-                           (' && command.operation != "SOURCE_TLUL_REG"'
+                           (' && command.operation != "SOURCE_TLUL_REG" && command.operation != "BIND_TLUL_REG"'
                             if kind == 'tlul_register_observe' else
                             ' && command.operation != "SOURCE_SPI"' if spi else
                             ' && command.operation != "SOURCE_I2C"'

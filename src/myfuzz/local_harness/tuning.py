@@ -18,12 +18,14 @@ _SCHEMAS = {
     'irq_delivery': {'endpoint_id': 'token', 'role': 'token', 'delivery': ('follow_level', 'capture_pulse_event')},
     'boot': {'endpoint_id': 'token', 'entry_address': 'unsigned'},
     'environment_bindings': {'endpoint_id': 'token', 'role': 'token', 'source_id': 'token'},
+    'bound_bindings': {'endpoint_id': 'token', 'role': 'token', 'producer_ref': 'token'},
     'peer_bindings': {'endpoint_id': 'token', 'peer_id': 'token'},
 }
 _KEYS = {'endpoint_policies': ('endpoint_id',), 'optional_signals': ('endpoint_id', 'role'),
          'fixed_inputs': ('endpoint_id', 'role'),
          'reset_policies': ('domain',), 'irq_delivery': ('endpoint_id', 'role'),
          'boot': ('endpoint_id',), 'environment_bindings': ('endpoint_id', 'role'),
+         'bound_bindings': ('endpoint_id', 'role'),
          'peer_bindings': ('endpoint_id',)}
 
 
@@ -209,6 +211,12 @@ def validate_local_harness_tuning(tuning: LocalHarnessTuning, *, profile, bindin
             continue
         if physical.direction != 'input':
             raise ValueError('local-tuning-cannot-drive-output')
+        if kind == 'bound_bindings':
+            if owned is None or key not in owned:
+                raise ValueError('local-tuning-bound-input-context-required')
+            if endpoint.function != 'external_pins':
+                raise ValueError('local-tuning-bound-input-not-external')
+            continue
         if owned is not None and key in owned:
             raise ValueError('local-tuning-input-already-bound')
         # Every selected physical bit must already have one established owner.

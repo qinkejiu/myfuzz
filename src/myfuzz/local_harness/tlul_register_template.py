@@ -18,7 +18,9 @@ def register_observe_policy(plan, abi=None):
     policies = [r.document() for r in rows if r.kind == 'endpoint_policies']
     constants = [r.document() for r in rows if r.kind == 'fixed_inputs']
     environment = [r.document() for r in rows if r.kind == 'environment_bindings']
-    if any(r.kind not in ('endpoint_policies', 'fixed_inputs', 'environment_bindings') for r in rows):
+    bound_rows = [r.document() for r in rows if r.kind == 'bound_bindings']
+    if any(r.kind not in ('endpoint_policies', 'fixed_inputs', 'environment_bindings',
+                          'bound_bindings') for r in rows):
         raise ValueError('tlul-register-unsupported-tuning')
     endpoints = [e for e in plan.binding.endpoints if e.protocol is not None]
     if len(endpoints) != 1 or endpoints[0].protocol != ('tl-ul', '1') or endpoints[0].function != 'mmio_slave':
@@ -54,10 +56,22 @@ def register_observe_policy(plan, abi=None):
         if key in by_field:
             raise ValueError('tlul-register-overlapping-input-owners')
         dynamic[key] = row['source_id']
+    bound = {}
+    for row in bound_rows:
+        key = (row['endpoint_id'], row['role'])
+        field = plan.binding.field(*key)
+        owner = plan.binding.endpoint(row['endpoint_id'])
+        if (owner.function != 'external_pins' or field.direction != 'input' or
+                field.endpoint_id == endpoint.endpoint_id or field.width > 64):
+            raise ValueError('tlul-register-bound-input-required')
+        if key in by_field or key in dynamic:
+            raise ValueError('tlul-register-overlapping-input-owners')
+        bound[key] = row['producer_ref']
     if abi is None:
-        return by_field, dynamic
+        return by_field, dynamic, bound
     fixed_ownership = {}
     dynamic_ownership = {}
+    bound_ownership = {}
     for row in abi:
         if row['endpoint_id'] == endpoint.endpoint_id:
             continue
@@ -65,16 +79,23 @@ def register_observe_policy(plan, abi=None):
             raise ValueError('tlul-register-peer-unsupported')
         if row['direction'] == 'input':
             key = (row['endpoint_id'], row['role'])
-            if row['width'] > 64 or (key not in by_field and key not in dynamic):
+            if row['width'] > 64 or (key not in by_field and key not in dynamic
+                                    and key not in bound):
                 raise ValueError('tlul-register-unowned-input:' + row['wrapper_name'])
             if key in dynamic:
                 if row['disposition'] not in ('external', 'fuzz'):
                     raise ValueError('tlul-register-environment-disposition')
                 dynamic_ownership[key] = dynamic[key]
+            elif key in bound:
+                if row['disposition'] not in ('external', 'fuzz'):
+                    raise ValueError('tlul-register-bound-disposition')
+                bound_ownership[key] = bound[key]
             else:
                 fixed_ownership[key] = by_field[key]
         elif row['direction'] != 'output':
             raise ValueError('tlul-register-port-direction')
-    if set(fixed_ownership) != set(by_field) or set(dynamic_ownership) != set(dynamic):
+    if (set(fixed_ownership) != set(by_field) or
+            set(dynamic_ownership) != set(dynamic) or
+            set(bound_ownership) != set(bound)):
         raise ValueError('tlul-register-constant-not-exported')
-    return fixed_ownership, dynamic_ownership
+    return fixed_ownership, dynamic_ownership, bound_ownership
