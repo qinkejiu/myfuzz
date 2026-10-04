@@ -38,7 +38,7 @@ _OPERATIONS = {
                  'ACCESS_TLUL_I2C': (1, 124, 0xffffffff, 15),
                  'SOURCE_TLUL_I2C': (255,)},
     'tlul_register_observe': {'STEP_TLUL_REG': (),
-                              'ACCESS_TLUL_REG': (1, 4092, 0xffffffff, 15),
+                              'ACCESS_TLUL_REG': (1, 8188, 0xffffffff, 15),
                               'SOURCE_TLUL_REG': (63, 0xffffffffffffffff)},
     'tlul_spi_device': {'STEP_TLUL_SPI_DEVICE': (1, 1, 1, 15),
                         'ACCESS_TLUL_SPI_DEVICE': (1, 1, 1, 15, 1, 8188, 0xffffffff, 15)},

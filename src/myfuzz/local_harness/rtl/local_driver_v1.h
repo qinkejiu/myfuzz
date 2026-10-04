@@ -149,7 +149,7 @@ inline ParseResult parse_command(const std::string &line) {
   else if (tokens[3] == "ACCESS_TLUL_I2C") maxima = {1, 124, word, 15};
   else if (tokens[3] == "SOURCE_TLUL_I2C") maxima = {255};
   else if (tokens[3] == "STEP_TLUL_REG") maxima = {};
-  else if (tokens[3] == "ACCESS_TLUL_REG") maxima = {1, 4092, word, 15};
+  else if (tokens[3] == "ACCESS_TLUL_REG") maxima = {1, 8188, word, 15};
   else if (tokens[3] == "SOURCE_TLUL_REG") maxima = {63, std::numeric_limits<std::uint64_t>::max()};
   else if (tokens[3] == "STEP_TLUL_SPI_DEVICE") maxima = {1, 1, 1, 15};
   else if (tokens[3] == "ACCESS_TLUL_SPI_DEVICE") maxima = {1, 1, 1, 15, 1, 8188, word, 15};

@@ -32,7 +32,7 @@ def register_observe_policy(plan, abi=None):
                              template_id=expected['template_id'],
                              template_version=expected['template_version'],
                              variant_id=expected['variant_id'])
-    if plan.profile.address is None or not 4 <= plan.profile.address.window_size <= 4096 or plan.profile.address.window_size % 4:
+    if plan.profile.address is None or not 4 <= plan.profile.address.window_size <= 8192 or plan.profile.address.window_size % 4:
         raise ValueError('tlul-register-window-unsupported')
     by_field = {}
     for row in constants:

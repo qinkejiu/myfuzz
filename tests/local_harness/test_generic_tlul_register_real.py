@@ -63,10 +63,59 @@ class GenericTlulContractTests(unittest.TestCase):
             artifact(request('gpio', constants=(('gpio.pins', 'in', 1 << 32),
                                                  ('gpio.pins', 'strap_en', 0))))
 
+    def test_spi_device_requires_all_four_fixed_external_inputs(self):
+        with self.assertRaisesRegex(ValueError, 'unowned-input'):
+            artifact(request('spi_device', constants=(('spi_device.pins', 'csb_i', 1),)))
+        spi = artifact(request('spi_device', constants=(
+            ('spi_device.pins', 'sck_i', 0),
+            ('spi_device.pins', 'csb_i', 1),
+            ('spi_device.pins', 'tpm_csb_i', 1),
+            ('spi_device.pins', 'sd_i', 0))))
+        self.assertEqual('tlul_register_observe', spi.runtime_document['kind'])
+        self.assertEqual('tlul_register_only_pin_observe_no_serial',
+                         spi.runtime_document['functional_scope'])
+        self.assertEqual({'sck_i', 'csb_i', 'tpm_csb_i', 'sd_i'},
+                         {row['role'] for row in spi.runtime_document['fixed_physical_inputs']})
+
 
 @unittest.skipUnless(os.environ.get('MYFUZZ_SCENARIO_REAL') == '1',
                      'set MYFUZZ_SCENARIO_REAL=1 for pinned real RTL')
 class GenericTlulRealTests(unittest.TestCase):
+    def test_spi_device_profile_only_registers_and_fresh_replay(self):
+        constants = (('spi_device.pins', 'sck_i', 0),
+                     ('spi_device.pins', 'csb_i', 1),
+                     ('spi_device.pins', 'tpm_csb_i', 1),
+                     ('spi_device.pins', 'sd_i', 0))
+        generated = artifact(request('spi_device', constants=constants))
+        with tempfile.TemporaryDirectory(prefix='myfuzz-generic-tlul-spi-device-') as directory:
+            work = Path(directory)
+            sessions = []
+
+            def factory():
+                session = GeneratedTlulRegisterSession(generated, base_dir=ROOT,
+                    cache_dir=work / 'cache',
+                    setup_writes=((0x10, 1 << 4), (0x30, 0x00A11234)),
+                    probe_offsets=(0x30,))
+                sessions.append(session)
+                return ScenarioRunner(sessions={'dut': session},
+                    ownership=compile_ownership((), ()), bindings=())
+
+            genome = ScenarioGenome(testcase_id='generic-spi-device-registers',
+                direction='IP_TO_IP', path_id='tlul-register-observe',
+                schedule_order=('dut',), max_steps=8, actions=())
+            bundle = work / 'evidence'
+            trace = save_evidence_bundle(genome, factory, bundle, budget=None)
+            self.assertEqual('complete', trace.status, trace.events[-3:])
+            self.assertEqual(0x00A11234,
+                             sessions[0].local_transactions[-1]['read_value'])
+            self.assertTrue(any(event.get('outputs', {}).get('sd_en_o') == 0
+                                and event.get('outputs', {}).get('irq_o') == 0
+                                for event in trace.events))
+            self.assertEqual(3, len(sessions[0].local_transactions))
+            replay = replay_evidence_bundle(bundle, factory)
+            self.assertTrue(replay.matches, replay.difference_context)
+            self.assertIsNot(sessions[0], sessions[1])
+
     def test_timer_and_gpio_real_registers_and_fresh_replay(self):
         cases = (
             ('rv_timer', (), ((0x118, 5), (0x11c, 0), (0x100, 1), (0x004, 1)),
