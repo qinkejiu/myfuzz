@@ -155,6 +155,7 @@ class ScenarioRunner:
                 if previous is not router:
                     raise ValueError("all sources for one MMIO target need a shared target router")
         self.local_ticks = {component: 0 for component in self.sessions}
+        self._last_sample_ticks: dict[str, int] = {}
         self._inputs: dict[str, dict[str, int]] = {component: {} for component in self.sessions}
         self._pending_bound_targets: set[str] = set()
         self._events: list[dict] = _EventLog(self)
@@ -871,6 +872,7 @@ class ScenarioRunner:
                                             else self.failure_status),
                                  "uncertain_transactions": uncertain})
             self._append_external_events(component, self._events[-1]["event_id"])
+            self._drain_tick_samples(self._events[-1]["event_id"])
             if timed_out:
                 self.failure_status = "budget_exhausted"
                 list.append(self._events, {
@@ -909,6 +911,24 @@ class ScenarioRunner:
                               masked=None if mask_observed is None else bool(mask_observed),
                               accepted=None if taken_observed is None else bool(taken_observed))
             self._append_irq_events(binding)
+        if not callable(getattr(self.sessions[component], "drain_tick_samples", None)):
+            self._route_observed_outputs(component, outputs, event_id,
+                                         self.local_ticks[component])
+        self._drain_tick_samples(event_id)
+        for source_component, router in self._unique_routers():
+            if (router is None or
+                    component not in getattr(router, "pending_targets", ())):
+                continue
+            try:
+                router.drain_one(component)
+            finally:
+                self._sync_session_ticks()
+                self._append_external_events(source_component, event_id)
+                self._drain_tick_samples(event_id)
+        return outputs
+
+    def _route_observed_outputs(self, component: str, outputs: Mapping[str, int],
+                                event_id: int, source_tick: int) -> None:
         for binding in self.bindings:
             if binding.source_component != component \
                     or binding.source_port not in outputs:
@@ -919,7 +939,7 @@ class ScenarioRunner:
             fragment = value >> binding.source_bit_offset & ((1 << binding.width) - 1)
             if binding in self._irq_pulses:
                 policy = self._irq_pulses[binding]
-                policy.observe_source(fragment, source_tick=self.local_ticks[component],
+                policy.observe_source(fragment, source_tick=source_tick,
                                       cpu_tick=self.local_ticks[binding.target_component])
                 self._append_irq_events(binding)
                 if policy.status != "active":
@@ -939,16 +959,43 @@ class ScenarioRunner:
                                  "source": (component, binding.source_port),
                                  "target": (binding.target_component, binding.target_port),
                                  "value": fragment})
-        for source_component, router in self._unique_routers():
-            if (router is None or
-                    component not in getattr(router, "pending_targets", ())):
+
+    def _drain_tick_samples(self, producer_event_id: int) -> None:
+        """Route every real receipt phase, including indirectly clocked targets.
+
+        Pre and post are distinct observations of one local tick. A post-only
+        summary cannot establish whether a native interrupt pulsed during an
+        APB command. Legacy sessions without this API keep their output path.
+        """
+        for component, session in self.sessions.items():
+            drain = getattr(session, "drain_tick_samples", None)
+            if not callable(drain):
                 continue
-            try:
-                router.drain_one(component)
-            finally:
-                self._sync_session_ticks()
-                self._append_external_events(source_component, event_id)
-        return outputs
+            for sample in drain():
+                tick = sample.get("local_tick")
+                if (type(tick) is not int
+                        or not self._last_sample_ticks.get(component, 0) < tick
+                        <= self.local_ticks[component]):
+                    raise ValueError("invalid local tick sample receipt")
+                for phase in ("pre", "post"):
+                    observed = sample.get(phase)
+                    if not isinstance(observed, Mapping):
+                        raise ValueError("invalid local tick sample observations")
+                    outputs = dict(observed)
+                    # The generated GPIO receipt names the native signal;
+                    # irq is the session's existing public semantic alias.
+                    if "interrupt" in outputs:
+                        outputs["irq"] = outputs["interrupt"]
+                    if isinstance(outputs.get("gpio_padcfg"), str):
+                        outputs["gpio_padcfg"] = int(outputs["gpio_padcfg"], 16)
+                    event_id = len(self._events) + 1
+                    self._events.append({"event_id": event_id,
+                                         "kind": "local_tick_sample",
+                                         "producer_event_id": producer_event_id,
+                                         "component": component, "local_tick": tick,
+                                         "phase": phase, "outputs": dict(observed)})
+                    self._route_observed_outputs(component, outputs, event_id, tick)
+                self._last_sample_ticks[component] = tick
 
     def _append_external_events(self, component: str, event_id: int) -> None:
         """Keep facts logged by local services even when the step reply is lost."""
