@@ -231,7 +231,8 @@ def _prepare(artifact, base_dir):
     lock = json.loads(snapshots['configs/soc/sources.lock.json'])
     record_id = ({'opentitan_gpio_local': 'opentitan_gpio',
                   'opentitan_rv_timer_local': 'opentitan_rv_timer',
-                  'opentitan_spi_host_local': 'opentitan_spi_host'}
+                  'opentitan_spi_host_local': 'opentitan_spi_host',
+                  'opentitan_uart_local': 'opentitan_uart'}
                  .get(artifact.plan.profile.component_id, artifact.plan.profile.component_id))
     record = next(record for record in lock['components'] if record['id'] == record_id)
     evidence = record['elaboration']['evidence']
@@ -239,7 +240,8 @@ def _prepare(artifact, base_dir):
     closure = json.loads(snapshots[evidence])
     for item in closure['closure_files']:
         capture(item['root'] + '/' + item['path'], item['sha256'])
-    if artifact.plan.profile.component_id in ('opentitan_gpio_local', 'opentitan_rv_timer_local'):
+    if artifact.plan.profile.component_id in ('opentitan_gpio_local', 'opentitan_rv_timer_local',
+                                              'opentitan_uart_local'):
         capture(verified['wrapper_path'], verified['wrapper_sha256'])
     if artifact.plan.profile.component_id == 'opentitan_spi_host_local':
         for path, digest in zip(verified['wrapper_paths'], verified['wrapper_sha256']):

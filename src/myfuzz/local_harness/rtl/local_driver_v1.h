@@ -143,6 +143,8 @@ inline ParseResult parse_command(const std::string &line) {
   else if (tokens[3] == "ACCESS_TLUL_TIMER") maxima = {1, 4092, word, 15};
   else if (tokens[3] == "STEP_TLUL_SPI_HOST") maxima = {15};
   else if (tokens[3] == "ACCESS_TLUL_SPI_HOST") maxima = {15, 1, 4092, word, 15};
+  else if (tokens[3] == "STEP_TLUL_UART") maxima = {1};
+  else if (tokens[3] == "ACCESS_TLUL_UART") maxima = {1, 1, 4092, word, 15};
   else if (tokens[3] == "STEP_WB_TIMER") maxima = {};
   else if (tokens[3] == "ACCESS_WB_TIMER") maxima = {1, 0, word, 15};
   else if (tokens[3] == "STEP_WB_UART") maxima = {1, 1};
@@ -181,6 +183,7 @@ inline ParseResult parse_command(const std::string &line) {
       (tokens[3] == "ACCESS_TLUL_GPIO" && result.command.fields[3] % 4 != 0) ||
       (tokens[3] == "ACCESS_TLUL_TIMER" && result.command.fields[1] % 4 != 0) ||
       (tokens[3] == "ACCESS_WB_UART" && result.command.fields[3] % 4 != 0) ||
+      (tokens[3] == "ACCESS_TLUL_UART" && result.command.fields[2] % 4 != 0) ||
       (tokens[3] == "ACCESS_SPI" && result.command.fields[1] % 4 != 0) ||
       (tokens[3] == "ACCESS_TIMER" && result.command.fields[1] % 4 != 0) ||
       (tokens[3] == "ACCESS_AXIL_UART" && result.command.fields[3] % 4 != 0) ||

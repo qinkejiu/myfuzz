@@ -312,7 +312,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
           and endpoints[0].protocol == ('tl-ul', '1')):
         variant = plan.profile.capabilities.get('local_runtime_variant')
         kind = ('tlul_timer' if variant == 'tlul_timer' else
-                'tlul_spi_host' if variant == 'tlul_spi_host' else 'tlul_gpio')
+                'tlul_spi_host' if variant == 'tlul_spi_host' else
+                'tlul_uart' if variant == 'tlul_uart' else 'tlul_gpio')
         boot = None
         c = plan.profile.capabilities
         if tuple(c.get(k) for k in ('address_width', 'data_width', 'byte_enable',
@@ -321,7 +322,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                                    'd_user_width', 'size_width', 'max_outstanding')) != (
                 32, 32, True, True, True, 'required', 8, 1, 23, 14, 2, 1):
             raise ValueError('runtime-tlul-capabilities')
-        expected_window = 4096 if kind in ('tlul_timer', 'tlul_spi_host') else 128
+        expected_window = 4096 if kind in ('tlul_timer', 'tlul_spi_host', 'tlul_uart') else 128
         if plan.profile.address is None or plan.profile.address.window_size != expected_window:
             raise ValueError('runtime-tlul-window')
         pins = [e for e in plan.binding.endpoints if e.function == 'external_pins']
@@ -341,6 +342,19 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                     {f.role: (f.direction, f.width) for f in interrupts[0].fields} != {
                         'event': ('output', 1), 'error': ('output', 1)}):
                 raise ValueError('runtime-tlul-spi-host-irq-shape')
+        elif kind == 'tlul_uart':
+            if len(pins) != 1 or {f.role: (f.direction, f.width) for f in pins[0].fields} != {
+                    'rx': ('input', 1), 'tx': ('output', 1),
+                    'tx_en': ('output', 1)}:
+                raise ValueError('runtime-tlul-uart-pin-shape')
+            interrupts = [e for e in plan.binding.endpoints if e.function == 'interrupt_source']
+            irq_roles = ('tx_watermark', 'tx_empty', 'rx_watermark', 'tx_done',
+                         'rx_overflow', 'rx_frame_err', 'rx_break_err',
+                         'rx_timeout', 'rx_parity_err')
+            if len(interrupts) != 1 or {f.role: (f.direction, f.width)
+                                        for f in interrupts[0].fields} != {
+                    role: ('output', 1) for role in irq_roles}:
+                raise ValueError('runtime-tlul-uart-irq-shape')
         elif pins:
             raise ValueError('runtime-tlul-timer-pin-shape')
         adapters = ['src/myfuzz/protocols/rtl/beat_to_tlul.sv']
@@ -378,6 +392,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                 and row['direction'] == 'output' and row['width'] == 1 or
                 kind == 'tlul_spi_host' and row['endpoint_id'] == 'spi_host.interrupts'
                 and row['direction'] == 'output' and row['width'] == 1 or
+                kind == 'tlul_uart' and row['endpoint_id'] in ('uart.pins', 'uart.interrupts') or
                 kind == 'obi_cpu' and row['direction'] == 'input' and row['width'] == 1
                 and row['endpoint_id'] == plan.profile.cpu.irq_entry_endpoint
                 and row['role'] == plan.profile.cpu.irq_entry_role):
@@ -513,10 +528,11 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                          f'    .SUPPORTS_PARTIAL_WRITE({1 if kind == "wishbone_uart" else 0}), .HAS_ERR(0),\n'
                          f'    .MAX_WAIT_CYCLES({wait}), .WINDOW_BASE(32\'d0), .WINDOW_SIZE({16 if kind == "wishbone_uart" else 4})\n'
                          f'  ) u_adapter_{channel} (\n    '+',\n    '.join(f'.{p}({v})' for p,v in pairs.items())+'\n  );')
-    elif kind in ('tlul_gpio', 'tlul_timer', 'tlul_spi_host'):
+    elif kind in ('tlul_gpio', 'tlul_timer', 'tlul_spi_host', 'tlul_uart'):
         wires = _shape(endpoints[0], _TLUL, abi)
         channel = ('timer' if kind == 'tlul_timer' else
-                   'spi_host' if kind == 'tlul_spi_host' else 'gpio')
+                   'spi_host' if kind == 'tlul_spi_host' else
+                   'uart' if kind == 'tlul_uart' else 'gpio')
         beat_ports(channel, False)
         declared_wait = plan.profile.capabilities['max_wait_cycles']
         if type(declared_wait) is not int or declared_wait < 1:
@@ -566,7 +582,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                     module_name=module, plan=plan.document(), structural_abi=copy.deepcopy(structural.abi_document),
                     structural_build=copy.deepcopy(structural.build_document), source_verification=copy.deepcopy(verified),
                     boot_contract=boot,
-                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'apb_i2c', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host', 'wishbone_timer', 'wishbone_uart') else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
+                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'apb_i2c', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host', 'tlul_uart', 'wishbone_timer', 'wishbone_uart') else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
                     runtime_sv_sha256=hashlib.sha256(runtime.encode()).hexdigest(), cpp_sha256=hashlib.sha256(b'').hexdigest(),
                     adapted_endpoint_ids=sorted(adapted), physical_exports=exports, backend_ports=backend,
                     runtime_ports=[dict(name=n,direction=d,width=w) for n,d,w in ports],

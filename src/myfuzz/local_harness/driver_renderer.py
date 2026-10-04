@@ -91,6 +91,22 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                 raise ValueError('driver-tlul-spi-host-irq:' + role)
             fields['irq_' + role] = rows[0]['runtime_name']
         allowed_inputs = {fields['sd_i']}
+    elif kind == 'tlul_uart':
+        for role in ('rx', 'tx', 'tx_en'):
+            rows = [row for row in exports if row['endpoint_id'] == 'uart.pins'
+                    and row['role'] == role and row['width'] == 1]
+            if len(rows) != 1:
+                raise ValueError('driver-tlul-uart-pin-field:' + role)
+            fields['uart_' + role] = rows[0]['runtime_name']
+        for role in ('tx_watermark', 'tx_empty', 'rx_watermark', 'tx_done',
+                     'rx_overflow', 'rx_frame_err', 'rx_break_err',
+                     'rx_timeout', 'rx_parity_err'):
+            rows = [row for row in exports if row['endpoint_id'] == 'uart.interrupts'
+                    and row['role'] == role and row['width'] == 1]
+            if len(rows) != 1:
+                raise ValueError('driver-tlul-uart-irq-field:' + role)
+            fields['uart_' + role] = rows[0]['runtime_name']
+        allowed_inputs = {fields['uart_rx']}
     elif kind == 'wishbone_timer':
         irq = [row for row in exports if row['physical_port'] == 'o_int'
                and row['width'] == 1 and row['direction'] == 'output'
@@ -164,6 +180,8 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         raise ValueError('driver-unmapped-physical-input')
     ports = document['runtime_ports']
     initializers = '\n'.join(f'  dut.{row["name"]} = 0;' for row in ports if row['direction'] == 'input')
+    if kind == 'tlul_uart':
+        initializers += f'\n  dut.{fields["uart_rx"]} = 1;'
 
     def signal(row, name_key='runtime_name'):
         name, width = row[name_key], row['width']
@@ -174,7 +192,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     physical_items = ',\n'.join('    {' + _literal(row['runtime_name']) + ', ' + signal(row) + '}' for row in exports)
     aliases = ''
     if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host',
-                'wishbone_timer', 'wishbone_uart', 'axi4_lite_uart', 'apb_i2c'):
+                'tlul_uart', 'wishbone_timer', 'wishbone_uart', 'axi4_lite_uart', 'apb_i2c'):
         by_name = {row['runtime_name']: row for row in exports}
         aliases = ''.join(f'  values[{_literal(alias)}] = {signal(by_name[name])};\n'
                           for alias, name in fields.items()
@@ -182,6 +200,8 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                           or kind == 'wishbone_timer'
                           or kind == 'apb_timer'
                           or kind == 'tlul_timer'
+                          or (kind == 'tlul_spi_host' and alias != 'sd_i')
+                          or (kind == 'tlul_uart' and alias != 'uart_rx')
                           or (kind == 'tlul_spi_host' and alias != 'sd_i')
                           or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi')))
                           or (kind in ('axi4_lite_uart', 'wishbone_uart')
@@ -202,6 +222,8 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                 or kind == 'wishbone_timer'
                 or kind == 'apb_timer'
                 or kind == 'tlul_timer'
+                or (kind == 'tlul_spi_host' and alias != 'sd_i')
+                or (kind == 'tlul_uart' and alias != 'uart_rx')
                 or (kind == 'tlul_spi_host' and alias != 'sd_i')
                 or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi')))
                 or (kind in ('axi4_lite_uart', 'wishbone_uart')
@@ -326,11 +348,13 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         channel = ('spi' if spi else 'timer' if timer else
                    'uart' if kind == 'wishbone_uart' else
                    'spi_host' if kind == 'tlul_spi_host' else
+                   'uart' if kind == 'tlul_uart' else
                    'i2c' if kind == 'apb_i2c' else 'gpio')
         command_channel = ('TLUL_GPIO' if kind == 'tlul_gpio' else
                            'TLUL_TIMER' if kind == 'tlul_timer' else
                            'WB_UART' if kind == 'wishbone_uart' else
                            'TLUL_SPI_HOST' if kind == 'tlul_spi_host' else
+                           'TLUL_UART' if kind == 'tlul_uart' else
                            'WB_TIMER' if kind == 'wishbone_timer' else channel.upper())
         input_assignment = (f'      dut.{fields["gpio_in"]} = command.fields[0];\n'
                             if kind in ('apb_gpio', 'tlul_gpio') else '')
@@ -341,7 +365,9 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                                  f'      dut.{fields["uart_cts_n"]} = command.fields[1];\n')
         if kind == 'tlul_spi_host':
             input_assignment = f'      dut.{fields["sd_i"]} = command.fields[0];\n'
-        index = 2 if kind in ('tlul_gpio', 'wishbone_uart') else 1 if kind in ('apb_gpio', 'tlul_spi_host') else 0
+        if kind == 'tlul_uart':
+            input_assignment += f'      dut.{fields["uart_rx"]} = command.fields[0];\n'
+        index = 2 if kind in ('tlul_gpio', 'wishbone_uart') else 1 if kind in ('apb_gpio', 'tlul_spi_host', 'tlul_uart') else 0
         source_branch = '''      if (command.operation == "SOURCE_SPI") {
         peer.append(command.fields[0], command.fields[1], command.fields[2]);
         dut.eval();
