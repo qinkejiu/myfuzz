@@ -210,7 +210,8 @@ class BeginWallEvidenceContractTests(unittest.TestCase):
                   "effect_may_have_occurred": True,
                   "prefix_event_count": 1,
                   "prefix_local_ticks": {"gpio": 1},
-                  "local_ticks": {"gpio": 1}}
+                  "local_ticks": {"gpio": 1},
+                  "finalize_timeout_us": 1200}
         self.assertEqual(marker, _wall_cut_event(
             "budget_exhausted", (prior, marker)))
         for change in ({"prefix_event_count": 0},

@@ -113,7 +113,11 @@ begin once
 
 每个在线 source segment 的宽度上限为 **65,536 bit（8 KiB）**。解码和 admission 在任何 mask/移位或 harness 执行之前拒绝超过该上限的宽度；payload 是否能放入字段用 `int.bit_length()` 判定，避免根据未信任的 width 构造巨型整数。
 
+命令日志保存已通过静态 Ownership/宽度检查的输入尝试。若 Runner 在运行时因确定性的资源预算拒绝该尝试，trace 会记录 `budget_exhausted` 且不记录 `source_injection`；batch replay 会重放这条尝试并复现终止结果，避免移除失败输入后无法重现原 trace。
+
 完成后 `recorder.plan` 才可读取。`ScenarioBatchCodec` 使用严格版本化 JSON 保存完整命令序列和每个调用边界；trace 的 `genome_sha256` 标识整个 batch plan，因此把同一串本地步骤拆成不同的在线调用也会有不同身份。`replay_scenario_batch` 创建新的一组 harness，先核对 runner manifest，再按原命令边界重放 source admission 与本地步骤，并比较完整事件、local ticks 和语义摘要。测试 ID 是模板提供的运行标签，结束后 trace 使用完整 plan 的 SHA-256 作为 testcase identity。
+
+若 wall budget 在本地 STEP 或 finalize 清理命令进行中耗尽，trace 会保存该命令开始时剩余的 deadline，replay 会在对应本地命令上恢复同一时长并比较真实观察到的部分事件、tick 与清理错误。此类超时依赖本地命令实际再次超时；若重放时命令在 deadline 内完成，replay 会报告 trace 不匹配，不会合成原 RTL 输出或清理错误。`inflight_finalize` trace 必须包含不超过 testcase wall budget 的剩余清理时间；缺少该字段的旧 trace 会被拒绝，避免无期限清理或伪造 timeout marker。
 
 此能力明确区别于现有预编码 Genome：`DependencyScheduler` 可在开始前知道完整 Action 列表；在线 batch 可以在 RTL 正在运行时根据已观测输出决定下一次输入，再把实际决定完整记录下来。当前它是 ScenarioRunner 层的 API，`ScenarioRfuzzExecutor` 尚未接入在线 RFuzz FIFO slot 流，因此不能据此声称 RFuzz 执行入口已经支持运行中逐次供给。
 

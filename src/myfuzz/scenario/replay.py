@@ -11,7 +11,8 @@ from typing import Callable
 from .batch import (BatchAdvance, BatchSourceEvent, ScenarioBatchCodec,
                     ScenarioBatchPlan, ScenarioBatchRecorder)
 from .genome import GenomeCodec, ScenarioGenome
-from .runner import ScenarioRunner
+from .protocol_io import LocalCommandDeadlineExceeded
+from .runner import ScenarioBudgetExhausted, ScenarioRunner
 from .scheduler import DependencyScheduler
 
 
@@ -137,8 +138,8 @@ def record_scenario_batch(plan: ScenarioBatchPlan,
 def _record_batch_with_runner(plan: ScenarioBatchPlan,
                               runner: ScenarioRunner) -> ScenarioTrace:
     recorder = ScenarioBatchRecorder(plan.template, runner)
-    recorder.begin()
     try:
+        recorder.begin()
         for command in plan.commands:
             if isinstance(command, BatchSourceEvent):
                 recorder.submit_source_event(command)
@@ -146,10 +147,62 @@ def _record_batch_with_runner(plan: ScenarioBatchPlan,
                 recorder.advance(command.schedule)
             else:  # Plan validation makes this unreachable; keep replay strict.
                 raise ValueError("unknown batch command")
+    except (ScenarioBudgetExhausted, LocalCommandDeadlineExceeded):
+        # Budget exhaustion is a deterministic terminal testcase result. The
+        # recorder already retains the command attempt that reached the limit.
+        if runner.failure_status != "budget_exhausted":
+            raise
     finally:
-        if not recorder._finished:
+        if (not recorder._finished and recorder._begin_attempted
+                and getattr(runner, "_status", None) in
+                ("running", "quiescing", "failed")):
             recorder.finish()
     return recorder.trace
+
+
+def _install_batch_wall_cut(runner: ScenarioRunner,
+                            reference: ScenarioTrace) -> None:
+    """Restore a saved wall-clock cutoff at its semantic command boundary."""
+    cuts = [event for event in reference.events
+            if event.get("kind") == "budget_exhausted"
+            and event.get("limit") == "max_wall_time_ms"]
+    if not cuts:
+        return
+    if len(cuts) != 1:
+        raise ValueError("batch replay has multiple wall-time budget markers")
+    marker = cuts[0]
+    phase = marker.get("phase")
+    prefix_ticks = marker.get("prefix_local_ticks", marker.get("local_ticks"))
+    prefix_event_count = marker.get("prefix_event_count")
+    if (not isinstance(prefix_ticks, dict)
+            or any(type(value) is not int or value < 0
+                   for value in prefix_ticks.values())
+            or type(prefix_event_count) is not int or prefix_event_count < 0):
+        raise ValueError("batch replay wall-time marker is incomplete")
+    options = {"prefix_event_count": prefix_event_count}
+    if phase == "inflight_step" and "step_timeout_us" in marker:
+        value = marker["step_timeout_us"]
+        if type(value) is not int or value < 0:
+            raise ValueError("batch replay step wall-time marker is invalid")
+        options["step_timeout_us"] = value
+    if phase == "inflight_finalize":
+        if "finalize_timeout_us" not in marker:
+            raise ValueError(
+                "batch replay finalize wall-time marker is incomplete")
+        value = marker["finalize_timeout_us"]
+        if type(value) is not int or value < 0:
+            raise ValueError("batch replay finalize wall-time marker is invalid")
+        options["finalize_timeout_us"] = value
+    if phase in ("before_begin", "inflight_begin"):
+        failed_component = marker.get("failed_component")
+        started_components = marker.get("started_components")
+        if (not isinstance(failed_component, str)
+                or not isinstance(started_components, (tuple, list))
+                or any(not isinstance(name, str) for name in started_components)):
+            raise ValueError("batch replay begin wall-time marker is incomplete")
+        options.update({"failed_component": failed_component,
+                        "started_components": tuple(started_components)})
+    runner.set_replay_wall_cut(sum(prefix_ticks.values()), phase, **options)
 
 
 def replay_scenario_batch(plan: ScenarioBatchPlan,
@@ -171,6 +224,7 @@ def replay_scenario_batch(plan: ScenarioBatchPlan,
     actual_manifest = hashlib.sha256(_canonical(runner.identity_document())).hexdigest()
     if reference.manifest_sha256 != actual_manifest:
         raise ValueError("replay manifest identity mismatch")
+    _install_batch_wall_cut(runner, reference)
     actual = _record_batch_with_runner(plan, runner)
     for index in range(max(len(reference.events), len(actual.events))):
         expected_event = reference.events[index] if index < len(reference.events) else None

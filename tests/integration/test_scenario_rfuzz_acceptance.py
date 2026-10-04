@@ -70,8 +70,10 @@ class ScenarioRfuzzAcceptanceTests(unittest.TestCase):
         prefix = {"event_id": 1, "kind": "harness_failure", "component": "cpu"}
         marker = {"event_id": 2, "kind": "budget_exhausted",
                   "limit": "max_wall_time_ms", "phase": "inflight_finalize",
+                  "effect_may_have_occurred": True,
                   "status_before_finalize": "uncertain_effect",
-                  "prefix_event_count": 1, "prefix_local_ticks": {"cpu": 1}}
+                  "prefix_event_count": 1, "prefix_local_ticks": {"cpu": 1},
+                  "local_ticks": {"cpu": 1}, "finalize_timeout_us": 1200}
         trace = ScenarioTrace("genome", "uncertain_effect", (prefix, marker),
                               {"cpu": 1}, "semantic")
         cut = _trace_wall_cut(trace)

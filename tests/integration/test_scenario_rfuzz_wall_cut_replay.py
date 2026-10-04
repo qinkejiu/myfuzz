@@ -32,6 +32,21 @@ class WallCutReplayTests(unittest.TestCase):
             "semantic_prefix_sha256": _digest(prefix),
         }
 
+    def finalize_cut(self):
+        prefix, marker = self.marker()
+        marker.update({"phase": "inflight_finalize",
+                       "event_id": 2,
+                       "local_ticks": {"cpu": 2},
+                       "status_before_finalize": "uncertain_effect",
+                       "cleanup_errors": [{"component": "cpu",
+                                            "error_type": "TimeoutError"}],
+                       "finalize_timeout_us": 1200})
+        terminal = {key: value for key, value in marker.items()
+                    if key != "semantic_prefix_sha256"}
+        trace = SimpleNamespace(status="uncertain_effect",
+                                events=tuple(prefix + [terminal]))
+        return prefix, marker, terminal, trace
+
     def test_factory_arms_saved_semantic_boundary_after_budget(self):
         _, marker = self.marker()
 
@@ -60,6 +75,39 @@ class WallCutReplayTests(unittest.TestCase):
         self.assertEqual((9, "inflight_step", {"prefix_event_count": 1}),
                          runner.cut)
 
+    def test_finalize_cut_restores_saved_finite_timeout(self):
+        _, marker = self.marker()
+        marker.update({"phase": "inflight_finalize",
+                       "local_ticks": {"cpu": 2},
+                       "finalize_timeout_us": 1200})
+
+        class Runner:
+            def __init__(self):
+                self._resource_budget = SimpleNamespace(max_wall_time_ms=5000)
+
+            def set_replay_wall_cut(self, steps, phase, **kwargs):
+                self.cut = (steps, phase, kwargs)
+
+        runner = _wall_cut_factory(Runner, marker)()
+        self.assertEqual((2, "inflight_finalize", {
+            "prefix_event_count": 1, "finalize_timeout_us": 1200}),
+            runner.cut)
+
+    def test_finalize_cut_rejects_missing_timeout(self):
+        _, marker = self.marker()
+        marker.update({"phase": "inflight_finalize",
+                       "local_ticks": {"cpu": 2}})
+
+        class Runner:
+            def __init__(self):
+                self._resource_budget = SimpleNamespace(max_wall_time_ms=5000)
+
+            def set_replay_wall_cut(self, steps, phase, **kwargs):
+                self.cut = (steps, phase, kwargs)
+
+        with self.assertRaisesRegex(ValueError, "finalize timeout"):
+            _wall_cut_factory(Runner, marker)()
+
     def test_prefix_replay_accepts_same_prefix_and_rejects_changed_event(self):
         prefix, marker = self.marker()
         actual = SimpleNamespace(
@@ -72,6 +120,39 @@ class WallCutReplayTests(unittest.TestCase):
                                      "events": ({**prefix[0], "value": 4},)
                                      + actual.events[1:]})
         self.assertIn("semantic prefix", _wall_cut_mismatch(marker, changed))
+
+    def test_finalize_wall_cut_rejects_changed_terminal_local_ticks(self):
+        _prefix, marker, terminal, trace = self.finalize_cut()
+        self.assertIsNone(_wall_cut_mismatch(marker, trace))
+
+        changed_terminal = {**terminal, "local_ticks": {"cpu": 3}}
+        changed = SimpleNamespace(status=trace.status,
+                                  events=trace.events[:-1] + (changed_terminal,))
+        mismatch = _wall_cut_mismatch(marker, changed)
+        self.assertIsNotNone(mismatch)
+        self.assertIn("local_ticks", mismatch)
+
+    def test_finalize_wall_cut_rejects_changed_terminal_cleanup_errors(self):
+        _prefix, marker, terminal, trace = self.finalize_cut()
+        self.assertIsNone(_wall_cut_mismatch(marker, trace))
+
+        changed_terminal = {**terminal, "cleanup_errors": []}
+        changed = SimpleNamespace(status=trace.status,
+                                  events=trace.events[:-1] + (changed_terminal,))
+        mismatch = _wall_cut_mismatch(marker, changed)
+        self.assertIsNotNone(mismatch)
+        self.assertIn("cleanup_errors", mismatch)
+
+    def test_finalize_wall_cut_rejects_changed_terminal_event_id(self):
+        _prefix, marker, terminal, trace = self.finalize_cut()
+        self.assertIsNone(_wall_cut_mismatch(marker, trace))
+
+        changed_terminal = {**terminal, "event_id": 99}
+        changed = SimpleNamespace(status=trace.status,
+                                  events=trace.events[:-1] + (changed_terminal,))
+        mismatch = _wall_cut_mismatch(marker, changed)
+        self.assertIsNotNone(mismatch)
+        self.assertIn("event_id", mismatch)
 
     def test_replay_rejects_missing_budget_marker(self):
         prefix, marker = self.marker()

@@ -181,6 +181,11 @@ class ScenarioRunner:
         self._wall_started_at: float | None = None
         self._replay_wall_cut: tuple[int, str] | None = None
         self._replay_wall_cut_prefix_event_count: int | None = None
+        self._replay_wall_cut_step_timeout_us: int | None = None
+        self._replay_wall_cut_finalize_timeout_us: int | None = None
+        self._replay_wall_cut_step_armed = False
+        self._active_step_deadline: float | None = None
+        self._active_step_timeout_us: int | None = None
         self._replay_begin_component: str | None = None
         self._replay_begin_started: tuple[str, ...] = ()
         self._step_in_flight = False
@@ -321,6 +326,8 @@ class ScenarioRunner:
 
     def set_replay_wall_cut(self, scheduler_steps: int, phase: str, *,
                             prefix_event_count: int | None = None,
+                            step_timeout_us: int | None = None,
+                            finalize_timeout_us: int | None = None,
                             failed_component: str | None = None,
                             started_components: tuple[str, ...] = ()) -> None:
         """Reproduce a saved watchdog prefix at its semantic boundary."""
@@ -336,6 +343,21 @@ class ScenarioRunner:
                                  "inflight_reset", "before_source_injection",
                                  "before_quiesce", "inflight_finalize")):
             raise ValueError("invalid replay wall cutoff")
+        for name, value in (("step_timeout_us", step_timeout_us),
+                            ("finalize_timeout_us", finalize_timeout_us)):
+            if (value is not None and
+                    (type(value) is not int or value < 0)):
+                raise ValueError(f"invalid replay {name}")
+            if (value is not None and self._resource_budget is not None
+                    and value > self._resource_budget.max_wall_time_ms * 1000):
+                raise ValueError(f"replay {name} exceeds testcase wall budget")
+        if (step_timeout_us is not None and phase != "inflight_step"):
+            raise ValueError("step timeout is only valid for an inflight step")
+        if (finalize_timeout_us is not None and phase != "inflight_finalize"):
+            raise ValueError("finalize timeout is only valid for inflight finalize")
+        if phase == "inflight_finalize" and finalize_timeout_us is None:
+            raise ValueError(
+                "finalize_timeout_us is required for inflight finalize replay")
         if phase in ("before_begin", "inflight_begin"):
             names = tuple(sorted(self.sessions))
             if (scheduler_steps != 0 or failed_component not in names
@@ -347,6 +369,8 @@ class ScenarioRunner:
             raise ValueError("begin cutoff metadata is only valid for begin")
         self._replay_wall_cut = (scheduler_steps, phase)
         self._replay_wall_cut_prefix_event_count = prefix_event_count
+        self._replay_wall_cut_step_timeout_us = step_timeout_us
+        self._replay_wall_cut_finalize_timeout_us = finalize_timeout_us
 
     def _ensure_semantic_capacity(self, phase: str) -> None:
         budget = self._resource_budget
@@ -371,10 +395,15 @@ class ScenarioRunner:
                            and len(self._events) == prefix)
             if (phase == "before_step" and cut_phase == "inflight_step"
                     and at_boundary):
-                self._exhaust_budget(
-                    "max_wall_time_ms", "inflight_step",
-                    effect_may_have_occurred=True,
-                    prefix_event_count=len(self._events))
+                if self._replay_wall_cut_step_timeout_us is None:
+                    # Legacy markers lack a command-local remaining deadline.
+                    # Keep their historical prefix-only replay behavior.
+                    self._exhaust_budget(
+                        "max_wall_time_ms", "inflight_step",
+                        effect_may_have_occurred=True,
+                        prefix_event_count=len(self._events))
+                self._replay_wall_cut_step_armed = True
+                return
             if (phase == "before_reset" and cut_phase == "inflight_reset"
                     and at_boundary):
                 self._exhaust_budget(
@@ -877,8 +906,13 @@ class ScenarioRunner:
             # The local command was issued but no complete reply was accepted.
             # A harness may have ticked or performed an effect without a ledger
             # entry, so absence of an unresolved transaction proves nothing.
+            replay_step_expired = (
+                self._replay_wall_cut_step_armed
+                and self._active_step_deadline is not None
+                and time.monotonic() >= self._active_step_deadline)
             timed_out = (isinstance(exc, LocalCommandDeadlineExceeded)
-                         and self._testcase_wall_deadline_reached())
+                         and (self._testcase_wall_deadline_reached()
+                              or replay_step_expired))
             self.failure_status = "uncertain_effect"
             tick_before = self.local_ticks[component]
             for session_id, session in self.sessions.items():
@@ -898,14 +932,17 @@ class ScenarioRunner:
             self._drain_tick_samples(self._events[-1]["event_id"])
             if timed_out:
                 self.failure_status = "budget_exhausted"
-                list.append(self._events, {
+                marker = {
                     "event_id": len(self._events) + 1,
                     "kind": "budget_exhausted", "limit": "max_wall_time_ms",
                     "phase": "inflight_step", "effect_may_have_occurred": True,
                     "local_ticks": dict(self.local_ticks),
                     "prefix_event_count": event_count_before_step,
                     "prefix_local_ticks": ticks_before_step,
-                })
+                }
+                if self._active_step_timeout_us is not None:
+                    marker["step_timeout_us"] = self._active_step_timeout_us
+                list.append(self._events, marker)
             raise
         if getattr(self.sessions[component], "local_ticks", None) is None:
             self.local_ticks[component] += 1
@@ -1129,9 +1166,19 @@ class ScenarioRunner:
         ticks_before_step = dict(self.local_ticks)
         transaction_count_before = self._transaction_count
         self._step_in_flight = True
-        deadline = (self._wall_started_at + budget.max_wall_time_ms / 1000
-                    if budget is not None and self._wall_started_at is not None
-                    and self._replay_wall_cut is None else None)
+        if (self._replay_wall_cut_step_armed
+                and self._replay_wall_cut_step_timeout_us is not None):
+            self._active_step_timeout_us = self._replay_wall_cut_step_timeout_us
+            deadline = (time.monotonic()
+                        + self._active_step_timeout_us / 1_000_000)
+        else:
+            deadline = (self._wall_started_at + budget.max_wall_time_ms / 1000
+                        if budget is not None and self._wall_started_at is not None
+                        and self._replay_wall_cut is None else None)
+            self._active_step_timeout_us = (
+                max(0, int((deadline - time.monotonic()) * 1_000_000))
+                if deadline is not None else None)
+        self._active_step_deadline = deadline
         try:
             with command_deadline(deadline):
                 outputs = dict(self._step_once(component))
@@ -1167,7 +1214,7 @@ class ScenarioRunner:
                                          self._uncertain_transactions()})
                 if timed_out:
                     self.failure_status = "budget_exhausted"
-                    list.append(self._events, {
+                    marker = {
                         "event_id": len(self._events) + 1,
                         "kind": "budget_exhausted",
                         "limit": "max_wall_time_ms",
@@ -1176,10 +1223,16 @@ class ScenarioRunner:
                         "local_ticks": dict(self.local_ticks),
                         "prefix_event_count": start,
                         "prefix_local_ticks": ticks_before_step,
-                    })
+                    }
+                    if self._active_step_timeout_us is not None:
+                        marker["step_timeout_us"] = self._active_step_timeout_us
+                    list.append(self._events, marker)
             raise
         finally:
             self._step_in_flight = False
+            self._active_step_deadline = None
+            self._active_step_timeout_us = None
+            self._replay_wall_cut_step_armed = False
         receipt = StepReceipt(execution_id, command_sequence, epoch, component,
                               deepcopy(payload), deepcopy(outputs),
                               deepcopy(tuple(self._events[start:])),
@@ -1334,9 +1387,19 @@ class ScenarioRunner:
             self._status = "finalized"
             return
         budget = self._resource_budget
-        deadline = (self._wall_started_at + budget.max_wall_time_ms / 1000
-                    if budget is not None and self._wall_started_at is not None
-                    and self._replay_wall_cut is None else None)
+        replay_cut = (self._replay_wall_cut is not None
+                      and self._replay_wall_cut[1] == "inflight_finalize")
+        if (replay_cut
+                and self._replay_wall_cut_finalize_timeout_us is not None):
+            finalize_timeout_us = self._replay_wall_cut_finalize_timeout_us
+            deadline = time.monotonic() + finalize_timeout_us / 1_000_000
+        else:
+            deadline = (self._wall_started_at + budget.max_wall_time_ms / 1000
+                        if budget is not None and self._wall_started_at is not None
+                        and self._replay_wall_cut is None else None)
+            finalize_timeout_us = (
+                max(0, int((deadline - time.monotonic()) * 1_000_000))
+                if deadline is not None else None)
         cleanup_errors: list[dict[str, str]] = []
         for component in sorted(self.sessions):
             try:
@@ -1362,14 +1425,12 @@ class ScenarioRunner:
                     "status": "environment_error",
                 })
         self._status = "finalized"
-        replay_cut = (self._replay_wall_cut is not None
-                      and self._replay_wall_cut[1] == "inflight_finalize")
         wall_expired = (deadline is not None and time.monotonic() >= deadline)
         already_has_wall_cut = any(
             event.get("kind") == "budget_exhausted"
             and event.get("limit") == "max_wall_time_ms"
             for event in self._events)
-        if (replay_cut or wall_expired) and not already_has_wall_cut:
+        if wall_expired and not already_has_wall_cut:
             prior_failure_status = self.failure_status
             if prior_failure_status is None:
                 self.failure_status = "budget_exhausted"
@@ -1383,6 +1444,8 @@ class ScenarioRunner:
             }
             if cleanup_errors:
                 marker["cleanup_errors"] = cleanup_errors
+            if finalize_timeout_us is not None:
+                marker["finalize_timeout_us"] = finalize_timeout_us
             if prior_failure_status is not None:
                 marker["status_before_finalize"] = prior_failure_status
             list.append(self._events, marker)

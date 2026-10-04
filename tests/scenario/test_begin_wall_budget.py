@@ -286,6 +286,7 @@ class BeginWallBudgetTests(unittest.TestCase):
 
             def end_case(self):
                 time.sleep(0.03)
+                raise LocalCommandDeadlineExceeded("END deadline")
 
         ownership = compile_ownership(
             (InputField("device", "pin", 1),),
@@ -308,6 +309,9 @@ class BeginWallBudgetTests(unittest.TestCase):
             marker = trace.events[-1]
             self.assertEqual("inflight_finalize", marker["phase"])
             self.assertEqual("uncertain_effect", marker["status_before_finalize"])
+            self.assertEqual([{"component": "device",
+                               "error_type": "LocalCommandDeadlineExceeded"}],
+                             marker["cleanup_errors"])
             replay = replay_evidence_bundle(output, factory)
             self.assertTrue(replay.matches)
             self.assertEqual("semantic_prefix", replay.verification_scope)

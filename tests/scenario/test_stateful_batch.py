@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
+import threading
+import time
 import unittest
+from unittest.mock import patch
 
 from myfuzz.scenario.batch import (
     BatchAdvance,
@@ -15,6 +20,7 @@ from myfuzz.scenario.batch import (
 )
 from myfuzz.scenario.genome import ScenarioGenome
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
+from myfuzz.scenario.protocol_io import BoundedLineReader, read_local_reply
 from myfuzz.scenario.replay import record_scenario_batch, replay_scenario_batch
 from myfuzz.scenario.runner import Binding, ScenarioRunner
 
@@ -38,6 +44,90 @@ class RecordingSession:
 
     def end_case(self):
         self.ends += 1
+
+
+class DeadlineBoundarySession(RecordingSession):
+    """Exercise partial local effects before STEP or END reply deadlines."""
+
+    max_local_ticks_per_step = 1
+
+    def __init__(self, *, block_step: bool = False,
+                 delayed_end_reply: bool = False, end_delay_s: float = 0):
+        super().__init__()
+        self.block_step = block_step
+        self.delayed_end_reply = delayed_end_reply
+        self.end_delay_s = end_delay_s
+        self.local_ticks = 0
+        self._samples = []
+        self._read_fd = None
+        self._write_fd = None
+        self._line_reader = BoundedLineReader()
+        self._stream = None
+
+    def begin_case(self, testcase_id):
+        super().begin_case(testcase_id)
+        self._read_fd, self._write_fd = os.pipe()
+        self._line_reader.reset()
+        self._stream = os.fdopen(self._read_fd, "r", encoding="ascii",
+                                 buffering=1)
+
+    def step_local(self, inputs):
+        self.local_ticks += 1
+        if self.block_step:
+            self._samples.append({
+                "local_tick": self.local_ticks,
+                "pre": {"irq": 0},
+                "post": {"irq": 0},
+            })
+            read_local_reply(self, self._stream)
+        self.steps.append(dict(inputs))
+        return {"value": inputs.get("source", 0)}
+
+    def drain_tick_samples(self):
+        samples, self._samples = self._samples, []
+        return samples
+
+    def end_case(self):
+        self.ends += 1
+        if self.end_delay_s:
+            # Model process cleanup that reaches its deadline, kills/reaps the
+            # child, and returns without surfacing the lower-level timeout.
+            time.sleep(self.end_delay_s)
+        if self.delayed_end_reply:
+            if self._write_fd is None or self._stream is None:
+                raise RuntimeError("session pipe was not started")
+            reply_fd = os.dup(self._write_fd)
+
+            def release_reply():
+                try:
+                    time.sleep(0.05)
+                    os.write(reply_fd, b"END\n")
+                except OSError:
+                    pass
+                finally:
+                    os.close(reply_fd)
+
+            threading.Thread(target=release_reply, daemon=True).start()
+            try:
+                read_local_reply(self, self._stream)
+            finally:
+                self._close_pipe()
+            return
+        self._close_pipe()
+
+    def _close_pipe(self):
+        if self._write_fd is not None:
+            try:
+                os.close(self._write_fd)
+            except OSError:
+                pass
+            self._write_fd = None
+        if self._stream is not None:
+            try:
+                self._stream.close()
+            except OSError:
+                pass
+            self._stream = None
 
 
 def template(*, max_steps: int = 8) -> ScenarioGenome:
@@ -236,6 +326,28 @@ class ScenarioBatchRecorderTests(unittest.TestCase):
                              for event in runner.events))
         recorder.finish()
 
+    def test_actual_semantic_budget_failure_records_attempt_and_replays(self):
+        from myfuzz.scenario.contracts import ResourceBudget
+
+        def budget_factory():
+            runner = make_factory()[0]()
+            runner.set_resource_budget(ResourceBudget(max_semantic_records=1))
+            return runner
+
+        source = BatchSourceEvent("budget-rejected", "cpu", "source", 0x35)
+        plan = ScenarioBatchPlan(template(), (source,))
+        trace = record_scenario_batch(plan, budget_factory)
+        self.assertEqual("budget_exhausted", trace.status)
+        self.assertEqual(hashlib.sha256(ScenarioBatchCodec.encode(plan)).hexdigest(),
+                         trace.genome_sha256)
+        self.assertFalse(any(item.get("kind") == "source_injection"
+                             for item in trace.events))
+        self.assertTrue(any(item.get("kind") == "budget_exhausted"
+                            and item.get("phase") == "before_source_injection"
+                            for item in trace.events))
+        replay = replay_scenario_batch(plan, budget_factory, trace)
+        self.assertTrue(replay.matches, replay.difference_context)
+
     def test_recorder_rejects_duplicate_lifecycle_calls(self):
         runner = make_factory()[0]()
         recorder = ScenarioBatchRecorder(template(), runner)
@@ -261,6 +373,185 @@ class ScenarioBatchRecorderTests(unittest.TestCase):
 
 
 class ScenarioBatchReplayTests(unittest.TestCase):
+    def test_inflight_step_replay_preserves_partial_ticks_and_failure_events(self):
+        from myfuzz.scenario.contracts import ResourceBudget
+
+        runners = []
+
+        def budget_factory():
+            cpu = DeadlineBoundarySession(block_step=True)
+            gpio = RecordingSession()
+            ownership = compile_ownership(
+                (InputField("cpu", "source", 8), InputField("cpu", "irq", 1),
+                 InputField("gpio", "source", 8), InputField("gpio", "irq_out", 1)),
+                (InputOwner("cpu", "source", 0, 8, "source", "program"),
+                 InputOwner("cpu", "irq", 0, 1, "bound", "gpio.irq_out"),
+                 InputOwner("gpio", "source", 0, 8, "source", "external"),
+                 InputOwner("gpio", "irq_out", 0, 1, "fixed", "constant_zero")))
+            runner = ScenarioRunner(
+                sessions={"cpu": cpu, "gpio": gpio}, ownership=ownership,
+                bindings=(Binding("gpio", "irq_out", "cpu", "irq", 1),))
+            runner.set_resource_budget(ResourceBudget(max_wall_time_ms=25))
+            runners.append(runner)
+            return runner
+
+        plan = ScenarioBatchPlan(template(), (BatchAdvance(("cpu",)),))
+        reference = record_scenario_batch(plan, budget_factory)
+        kinds = [event["kind"] for event in reference.events]
+        self.assertEqual("budget_exhausted", reference.status)
+        self.assertEqual(["harness_failure", "local_tick_sample",
+                          "local_tick_sample", "budget_exhausted"], kinds)
+        self.assertEqual(1, reference.local_ticks["cpu"])
+
+        replay = replay_scenario_batch(plan, budget_factory, reference)
+        self.assertTrue(replay.matches, replay.difference_context)
+
+    def test_inflight_finalize_replay_preserves_cleanup_deadline_evidence(self):
+        from myfuzz.scenario.contracts import ResourceBudget
+
+        runners = []
+
+        def budget_factory():
+            cpu = RecordingSession()
+            gpio = DeadlineBoundarySession(delayed_end_reply=True)
+            ownership = compile_ownership(
+                (InputField("cpu", "source", 8), InputField("cpu", "irq", 1),
+                 InputField("gpio", "source", 8), InputField("gpio", "irq_out", 1)),
+                (InputOwner("cpu", "source", 0, 8, "source", "program"),
+                 InputOwner("cpu", "irq", 0, 1, "bound", "gpio.irq_out"),
+                 InputOwner("gpio", "source", 0, 8, "source", "external"),
+                 InputOwner("gpio", "irq_out", 0, 1, "fixed", "constant_zero")))
+            runner = ScenarioRunner(
+                sessions={"cpu": cpu, "gpio": gpio}, ownership=ownership,
+                bindings=(Binding("gpio", "irq_out", "cpu", "irq", 1),))
+            runner.set_resource_budget(ResourceBudget(max_wall_time_ms=25))
+            runners.append(runner)
+            return runner
+
+        plan = ScenarioBatchPlan(template(), (BatchAdvance(("cpu",)),))
+        reference = record_scenario_batch(plan, budget_factory)
+        marker = reference.events[-1]
+        self.assertEqual("budget_exhausted", reference.status)
+        self.assertEqual("inflight_finalize", marker["phase"])
+        self.assertEqual([{"component": "gpio",
+                           "error_type": "LocalCommandDeadlineExceeded"}],
+                         marker["cleanup_errors"])
+
+        replay = replay_scenario_batch(plan, budget_factory, reference)
+        self.assertTrue(replay.matches, replay.difference_context)
+
+    def test_inflight_finalize_replay_mismatches_if_cleanup_finishes_early(self):
+        from myfuzz.scenario.contracts import ResourceBudget
+
+        factory_calls = 0
+
+        def budget_factory():
+            nonlocal factory_calls
+            factory_calls += 1
+            cpu = RecordingSession()
+            # The original cleanup crosses its wall deadline but behaves like
+            # end_local_process: it handles the low-level timeout internally.
+            gpio = DeadlineBoundarySession(end_delay_s=(0.05
+                                                        if factory_calls == 1
+                                                        else 0))
+            ownership = compile_ownership(
+                (InputField("cpu", "source", 8), InputField("cpu", "irq", 1),
+                 InputField("gpio", "source", 8), InputField("gpio", "irq_out", 1)),
+                (InputOwner("cpu", "source", 0, 8, "source", "program"),
+                 InputOwner("cpu", "irq", 0, 1, "bound", "gpio.irq_out"),
+                 InputOwner("gpio", "source", 0, 8, "source", "external"),
+                 InputOwner("gpio", "irq_out", 0, 1, "fixed", "constant_zero")))
+            runner = ScenarioRunner(
+                sessions={"cpu": cpu, "gpio": gpio}, ownership=ownership,
+                bindings=(Binding("gpio", "irq_out", "cpu", "irq", 1),))
+            runner.set_resource_budget(ResourceBudget(max_wall_time_ms=25))
+            return runner
+
+        plan = ScenarioBatchPlan(template(), (BatchAdvance(("cpu",)),))
+        reference = record_scenario_batch(plan, budget_factory)
+        marker = reference.events[-1]
+        self.assertEqual("budget_exhausted", reference.status)
+        self.assertEqual("inflight_finalize", marker["phase"])
+        self.assertNotIn("cleanup_errors", marker)
+
+        replay = replay_scenario_batch(plan, budget_factory, reference)
+        self.assertFalse(replay.matches, replay.difference_context)
+
+    def test_batch_replay_rejects_finalize_wall_cut_without_timeout_window(self):
+        from dataclasses import replace
+        from myfuzz.scenario.contracts import ResourceBudget
+
+        factory_calls = 0
+
+        def budget_factory():
+            nonlocal factory_calls
+            factory_calls += 1
+            cpu = RecordingSession()
+            gpio = DeadlineBoundarySession(end_delay_s=(0.05
+                                                        if factory_calls == 1
+                                                        else 0))
+            ownership = compile_ownership(
+                (InputField("cpu", "source", 8), InputField("cpu", "irq", 1),
+                 InputField("gpio", "source", 8), InputField("gpio", "irq_out", 1)),
+                (InputOwner("cpu", "source", 0, 8, "source", "program"),
+                 InputOwner("cpu", "irq", 0, 1, "bound", "gpio.irq_out"),
+                 InputOwner("gpio", "source", 0, 8, "source", "external"),
+                 InputOwner("gpio", "irq_out", 0, 1, "fixed", "constant_zero")))
+            runner = ScenarioRunner(
+                sessions={"cpu": cpu, "gpio": gpio}, ownership=ownership,
+                bindings=(Binding("gpio", "irq_out", "cpu", "irq", 1),))
+            runner.set_resource_budget(ResourceBudget(max_wall_time_ms=25))
+            return runner
+
+        plan = ScenarioBatchPlan(template(), (BatchAdvance(("cpu",)),))
+        trace = record_scenario_batch(plan, budget_factory)
+        self.assertEqual("inflight_finalize", trace.events[-1]["phase"])
+        marker = dict(trace.events[-1])
+        marker.pop("finalize_timeout_us", None)
+        events = (*trace.events[:-1], marker)
+        incomplete = replace(trace, events=events)
+        with self.assertRaisesRegex(ValueError, "finalize wall-time marker"):
+            replay_scenario_batch(plan, budget_factory, incomplete)
+
+    def test_runner_rejects_unbounded_inflight_finalize_replay_cut(self):
+        from myfuzz.scenario.contracts import ResourceBudget
+
+        runner = make_factory()[0]()
+        runner.set_resource_budget(ResourceBudget(max_wall_time_ms=25))
+        with self.assertRaisesRegex(ValueError, "finalize_timeout_us is required"):
+            runner.set_replay_wall_cut(
+                0, "inflight_finalize", prefix_event_count=0)
+
+    def test_batch_replay_restores_a_wall_cut_before_source_admission(self):
+        from myfuzz.scenario.contracts import ResourceBudget
+        from myfuzz.scenario.runner import ScenarioBudgetExhausted
+
+        def budget_factory():
+            runner = make_factory()[0]()
+            runner.set_resource_budget(ResourceBudget(max_wall_time_ms=60_000))
+            return runner
+
+        source = BatchSourceEvent("wall-cut", "cpu", "source", 0x35)
+        plan = ScenarioBatchPlan(template(), (source,))
+        runner = budget_factory()
+        recorder = ScenarioBatchRecorder(template(), runner)
+        now = [100.0]
+        with patch("myfuzz.scenario.runner.time.monotonic",
+                   side_effect=lambda: now[0]):
+            recorder.begin()
+            now[0] = 200.0
+            with self.assertRaises(ScenarioBudgetExhausted):
+                recorder.submit_source_event(source)
+            reference = recorder.finish()
+
+        self.assertEqual("budget_exhausted", reference.status)
+        marker = next(event for event in reference.events
+                      if event.get("kind") == "budget_exhausted")
+        self.assertEqual("before_source_injection", marker["phase"])
+        self.assertEqual((source,), recorder.plan.commands)
+        replay = replay_scenario_batch(recorder.plan, budget_factory, reference)
+        self.assertTrue(replay.matches, replay.difference_context)
+
     def test_batch_replays_same_full_trace_in_fresh_runtime(self):
         plan = ScenarioBatchPlan(
             template(),

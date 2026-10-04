@@ -74,6 +74,7 @@ class CampaignTests(unittest.TestCase):
                   "prefix_event_count": 1,
                   "prefix_local_ticks": {"gpio": 0},
                   "local_ticks": {"gpio": 0},
+                  "finalize_timeout_us": 1200,
                   "status_before_finalize": "uncertain_effect"}
         expected = {"genome_sha256": "genome", "status": "uncertain_effect",
                     "events": prefix + [marker], "local_ticks": {"gpio": 0},
@@ -87,7 +88,8 @@ class CampaignTests(unittest.TestCase):
         def fake_record(genome, factory):
             runner = factory()
             self.assertEqual((0, "inflight_finalize",
-                              {"prefix_event_count": 1}), runner.cut)
+                              {"prefix_event_count": 1,
+                               "finalize_timeout_us": 1200}), runner.cut)
             return ScenarioTrace("genome", "uncertain_effect",
                                  tuple(prefix + [marker]), {"gpio": 0},
                                  sha256(b"replay").hexdigest(), "manifest")

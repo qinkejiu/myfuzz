@@ -37,10 +37,23 @@ def _wall_cut_factory(factory: Callable[[], ScenarioRunner], marker: dict):
             or type(marker.get("prefix_event_count")) is not int
             or not isinstance(marker.get("prefix_local_ticks"), dict)):
         raise ValueError("invalid saved wall cutoff")
+    if marker.get("phase") == "inflight_finalize":
+        timeout_us = marker.get("finalize_timeout_us")
+        if type(timeout_us) is not int or timeout_us < 0:
+            raise ValueError("invalid finalize timeout in saved wall cutoff")
 
     def make_runner():
         runner = factory()
         kwargs = {"prefix_event_count": marker["prefix_event_count"]}
+        if marker.get("phase") == "inflight_finalize":
+            timeout_us = marker["finalize_timeout_us"]
+            budget = getattr(runner, "_resource_budget", None)
+            maximum_ms = getattr(budget, "max_wall_time_ms", None)
+            if (type(maximum_ms) is int
+                    and timeout_us > maximum_ms * 1000):
+                raise ValueError(
+                    "finalize timeout exceeds replay wall budget")
+            kwargs["finalize_timeout_us"] = timeout_us
         if marker.get("phase") in ("before_begin", "inflight_begin"):
             kwargs.update({"failed_component": marker["failed_component"],
                            "started_components": tuple(marker["started_components"])})
@@ -61,8 +74,10 @@ def _wall_cut_mismatch(marker: dict, trace) -> str | None:
             marker["semantic_prefix_sha256"]:
         return "wall cutoff semantic prefix differs"
     actual = trace.events[prefix]
-    for key in ("kind", "limit", "phase", "effect_may_have_occurred",
+    for key in ("event_id", "kind", "limit", "phase",
+                "effect_may_have_occurred", "local_ticks", "cleanup_errors",
                 "prefix_event_count", "prefix_local_ticks",
+                "step_timeout_us", "finalize_timeout_us",
                 "failed_component", "started_components",
                 "status_before_finalize"):
         if _canonical(actual.get(key)) != _canonical(marker.get(key)):

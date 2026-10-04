@@ -230,7 +230,7 @@ class ScenarioBatchRecorder:
 
     @property
     def commands(self) -> tuple[BatchCommand, ...]:
-        """Snapshot of successfully admitted commands so far."""
+        """Snapshot of submitted commands, including a terminal attempt."""
         return tuple(self._commands)
 
     @property
@@ -286,6 +286,8 @@ class ScenarioBatchRecorder:
             raise ValueError("source event value exceeds selected source width")
         if event.component not in self.template.schedule_order:
             raise ValueError("source event component is absent from template")
+        # Preserve the requested attempt before execution so terminal runtime
+        # failures can be reproduced from the same command transcript.
         self._commands.append(event)
         self._source_ids.add(event.action_id)
         self.runner.inject_source(

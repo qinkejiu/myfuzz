@@ -491,6 +491,10 @@ def _wall_cut_event(status: str, events: tuple[dict, ...] | list[dict]) -> dict 
                 or (cuts[0]["phase"] in ("inflight_reset", "inflight_finalize")
                     and prefix != len(events) - 1)):
             raise ValueError("invalid inflight wall prefix marker")
+    if cuts[0].get("phase") == "inflight_finalize":
+        timeout_us = cuts[0].get("finalize_timeout_us")
+        if type(timeout_us) is not int or timeout_us < 0:
+            raise ValueError("invalid inflight finalize timeout marker")
     return cuts[0]
 
 
@@ -913,10 +917,15 @@ def replay_evidence_bundle(output_dir: Path,
                                        if check["checker"] == "gpio_direct_out.v1"), ()))
         wall_cut = _wall_cut_event(saved["status"], saved["events"])
         if wall_cut is not None:
+            replay_options = {}
+            if wall_cut["phase"] == "inflight_finalize":
+                replay_options["finalize_timeout_us"] = (
+                    wall_cut["finalize_timeout_us"])
             runner.set_replay_wall_cut(
                 sum(wall_cut.get("prefix_local_ticks",
                                  wall_cut["local_ticks"]).values()),
                 wall_cut["phase"],
+                **replay_options,
                 **({"failed_component": wall_cut["failed_component"],
                     "started_components": tuple(wall_cut["started_components"])}
                    if wall_cut["phase"] in ("before_begin", "inflight_begin")
@@ -944,6 +953,10 @@ def replay_evidence_bundle(output_dir: Path,
                                    or marker.get("prefix_event_count") != prefix
                                    or marker.get("prefix_local_ticks") !=
                                    wall_cut["prefix_local_ticks"]
+                                   or marker.get("finalize_timeout_us") !=
+                                   wall_cut.get("finalize_timeout_us")
+                                   or marker.get("cleanup_errors", []) !=
+                                   wall_cut.get("cleanup_errors", [])
                                    or marker.get("status_before_finalize") !=
                                    wall_cut.get("status_before_finalize")
                                    or (wall_cut["phase"] in
