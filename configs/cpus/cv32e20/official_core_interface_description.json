@@ -2,33 +2,228 @@
   "schema_version": "interface_description.v1",
   "source": {
     "root": "third_party/cv32e20_upstream_reference",
-    "revision": "git:0000000000000000000000000000000000000000",
+    "revision": "git:d079e8c8e6a08b330940ae123876ba0612bec18d",
     "top_module": "cve2_top",
-    "filelist": "cv32e20_manifest.flist",
-    "filelist_variables": [{"name": "DESIGN_RTL_DIR", "value": "rtl"}],
-    "include_roots": ["rtl", "vendor/lowrisc_ip/ip/prim/rtl", "vendor/lowrisc_ip/dv/sv/dv_utils"],
-    "elaboration": {"frontend": "verilator-json", "warning_policy": "recorded-nonfatal"}
+    "top_port_selection": "all",
+    "files": [
+      "rtl/cve2_pkg.sv",
+      "rtl/cve2_tracer_pkg.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_pkg.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_ram_1p_pkg.sv",
+      "rtl/cve2_alu.sv",
+      "rtl/cve2_compressed_decoder.sv",
+      "rtl/cve2_controller.sv",
+      "rtl/cve2_cs_registers.sv",
+      "rtl/cve2_csr.sv",
+      "rtl/cve2_counter.sv",
+      "rtl/cve2_decoder.sv",
+      "rtl/cve2_ex_block.sv",
+      "rtl/cve2_fetch_fifo.sv",
+      "rtl/cve2_id_stage.sv",
+      "rtl/cve2_if_stage.sv",
+      "rtl/cve2_load_store_unit.sv",
+      "rtl/cve2_multdiv_fast.sv",
+      "rtl/cve2_multdiv_slow.sv",
+      "rtl/cve2_prefetch_buffer.sv",
+      "rtl/cve2_pmp.sv",
+      "rtl/cve2_register_file_ff.sv",
+      "rtl/cve2_wb.sv",
+      "rtl/cve2_core.sv",
+      "rtl/cve2_top.sv",
+      "rtl/cve2_top_tracing.sv",
+      "rtl/cve2_tracer.sv",
+      "rtl/cve2_clock_gate.sv",
+      "rtl/cve2_branch_predict.sv"
+    ],
+    "include_roots": [
+      "rtl",
+      "vendor/lowrisc_ip/ip/prim/rtl",
+      "vendor/lowrisc_ip/dv/sv/dv_utils"
+    ],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "defines": [
+        {
+          "name": "RVFI",
+          "value": "1"
+        }
+      ],
+      "parameters": [
+        {
+          "name": "MHPMCounterNum",
+          "value": "10"
+        },
+        {
+          "name": "MHPMCounterWidth",
+          "value": "40"
+        },
+        {
+          "name": "RV32E",
+          "value": "0"
+        },
+        {
+          "name": "RV32M",
+          "value": "2"
+        },
+        {
+          "name": "XInterface",
+          "value": "0"
+        }
+      ],
+      "warning_policy": "recorded-nonfatal"
+    }
   },
   "endpoints": [
-    {"endpoint_id": "processor.clock", "function": "clock", "module": "cve2_top", "fields": [{"role": "clock", "aliases": ["clk_i"]}]},
-    {"endpoint_id": "processor.reset", "function": "reset", "module": "cve2_top", "fields": [{"role": "reset", "aliases": ["rst_ni"]}]},
     {
-      "endpoint_id": "processor.instruction", "function": "instruction_memory_master", "module": "cve2_top", "protocol": ["obi", "1"],
+      "endpoint_id": "processor.clock",
+      "function": "clock",
+      "module": "cve2_top",
       "fields": [
-        {"role": "req", "aliases": ["instr_req_o"]}, {"role": "gnt", "aliases": ["instr_gnt_i"]},
-        {"role": "addr", "aliases": ["instr_addr_o"]}, {"role": "rvalid", "aliases": ["instr_rvalid_i"]},
-        {"role": "rdata", "aliases": ["instr_rdata_i"]}, {"role": "error", "aliases": ["instr_err_i"]}
+        {
+          "role": "clock",
+          "aliases": [
+            "clk_i"
+          ]
+        }
       ]
     },
     {
-      "endpoint_id": "processor.data", "function": "data_memory_master", "module": "cve2_top", "protocol": ["obi", "1"],
+      "endpoint_id": "processor.reset",
+      "function": "reset",
+      "module": "cve2_top",
       "fields": [
-        {"role": "req", "aliases": ["data_req_o"]}, {"role": "gnt", "aliases": ["data_gnt_i"]},
-        {"role": "addr", "aliases": ["data_addr_o"]}, {"role": "we", "aliases": ["data_we_o"]},
-        {"role": "wdata", "aliases": ["data_wdata_o"]}, {"role": "be", "aliases": ["data_be_o"]},
-        {"role": "rvalid", "aliases": ["data_rvalid_i"]}, {"role": "rdata", "aliases": ["data_rdata_i"]},
-        {"role": "error", "aliases": ["data_err_i"]}
+        {
+          "role": "reset",
+          "aliases": [
+            "rst_ni"
+          ]
+        }
       ]
+    },
+    {
+      "endpoint_id": "processor.instruction",
+      "function": "instruction_memory_master",
+      "protocol": [
+        "obi",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "req",
+          "aliases": [
+            "instr_req_o"
+          ]
+        },
+        {
+          "role": "gnt",
+          "aliases": [
+            "instr_gnt_i"
+          ]
+        },
+        {
+          "role": "addr",
+          "aliases": [
+            "instr_addr_o"
+          ]
+        },
+        {
+          "role": "rvalid",
+          "aliases": [
+            "instr_rvalid_i"
+          ]
+        },
+        {
+          "role": "rdata",
+          "aliases": [
+            "instr_rdata_i"
+          ]
+        },
+        {
+          "role": "error",
+          "aliases": [
+            "instr_err_i"
+          ]
+        }
+      ],
+      "module": "cve2_top"
+    },
+    {
+      "endpoint_id": "processor.data",
+      "function": "data_memory_master",
+      "protocol": [
+        "obi",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "req",
+          "aliases": [
+            "data_req_o"
+          ]
+        },
+        {
+          "role": "gnt",
+          "aliases": [
+            "data_gnt_i"
+          ]
+        },
+        {
+          "role": "addr",
+          "aliases": [
+            "data_addr_o"
+          ]
+        },
+        {
+          "role": "we",
+          "aliases": [
+            "data_we_o"
+          ]
+        },
+        {
+          "role": "wdata",
+          "aliases": [
+            "data_wdata_o"
+          ]
+        },
+        {
+          "role": "be",
+          "aliases": [
+            "data_be_o"
+          ]
+        },
+        {
+          "role": "rvalid",
+          "aliases": [
+            "data_rvalid_i"
+          ]
+        },
+        {
+          "role": "rdata",
+          "aliases": [
+            "data_rdata_i"
+          ]
+        },
+        {
+          "role": "error",
+          "aliases": [
+            "data_err_i"
+          ]
+        }
+      ],
+      "module": "cve2_top"
+    },
+    {
+      "endpoint_id": "processor.interrupts",
+      "function": "interrupt_entry",
+      "fields": [
+        {
+          "role": "external",
+          "aliases": [
+            "irq_external_i"
+          ]
+        }
+      ],
+      "module": "cve2_top"
     }
   ]
 }

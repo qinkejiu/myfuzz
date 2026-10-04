@@ -1,0 +1,537 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "cv32e20",
+  "kind": "cpu",
+  "description": "Pinned CVE2 full top source contract for planned local OBI composition; source facts only, with no generated harness or runtime claim.",
+  "source": {
+    "root": "third_party/cv32e20_upstream_reference",
+    "revision": "git:d079e8c8e6a08b330940ae123876ba0612bec18d",
+    "top_module": "cve2_top",
+    "top_port_selection": "all",
+    "files": [
+      "rtl/cve2_pkg.sv",
+      "rtl/cve2_tracer_pkg.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_pkg.sv",
+      "vendor/lowrisc_ip/ip/prim/rtl/prim_ram_1p_pkg.sv",
+      "rtl/cve2_alu.sv",
+      "rtl/cve2_compressed_decoder.sv",
+      "rtl/cve2_controller.sv",
+      "rtl/cve2_cs_registers.sv",
+      "rtl/cve2_csr.sv",
+      "rtl/cve2_counter.sv",
+      "rtl/cve2_decoder.sv",
+      "rtl/cve2_ex_block.sv",
+      "rtl/cve2_fetch_fifo.sv",
+      "rtl/cve2_id_stage.sv",
+      "rtl/cve2_if_stage.sv",
+      "rtl/cve2_load_store_unit.sv",
+      "rtl/cve2_multdiv_fast.sv",
+      "rtl/cve2_multdiv_slow.sv",
+      "rtl/cve2_prefetch_buffer.sv",
+      "rtl/cve2_pmp.sv",
+      "rtl/cve2_register_file_ff.sv",
+      "rtl/cve2_wb.sv",
+      "rtl/cve2_core.sv",
+      "rtl/cve2_top.sv",
+      "rtl/cve2_top_tracing.sv",
+      "rtl/cve2_tracer.sv",
+      "rtl/cve2_clock_gate.sv",
+      "rtl/cve2_branch_predict.sv"
+    ],
+    "include_roots": [
+      "rtl",
+      "vendor/lowrisc_ip/ip/prim/rtl",
+      "vendor/lowrisc_ip/dv/sv/dv_utils"
+    ],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "defines": [
+        {
+          "name": "RVFI",
+          "value": "1"
+        }
+      ],
+      "parameters": [
+        {
+          "name": "MHPMCounterNum",
+          "value": "10"
+        },
+        {
+          "name": "MHPMCounterWidth",
+          "value": "40"
+        },
+        {
+          "name": "RV32E",
+          "value": "0"
+        },
+        {
+          "name": "RV32M",
+          "value": "2"
+        },
+        {
+          "name": "XInterface",
+          "value": "0"
+        }
+      ],
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [
+    {
+      "port": "clk_i",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "rst_ni",
+      "domain": "sys_rst",
+      "polarity": "active_low",
+      "synchronous": false,
+      "release": "rtl/cve2_top.sv:146-156 uses negedge rst_ni; release must satisfy clk_i recovery/removal timing."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "processor.instruction",
+      "function": "instruction_memory_master",
+      "protocol": [
+        "obi",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "req",
+          "aliases": [
+            "instr_req_o"
+          ]
+        },
+        {
+          "role": "gnt",
+          "aliases": [
+            "instr_gnt_i"
+          ]
+        },
+        {
+          "role": "addr",
+          "aliases": [
+            "instr_addr_o"
+          ]
+        },
+        {
+          "role": "rvalid",
+          "aliases": [
+            "instr_rvalid_i"
+          ]
+        },
+        {
+          "role": "rdata",
+          "aliases": [
+            "instr_rdata_i"
+          ]
+        },
+        {
+          "role": "error",
+          "aliases": [
+            "instr_err_i"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "processor.data",
+      "function": "data_memory_master",
+      "protocol": [
+        "obi",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "req",
+          "aliases": [
+            "data_req_o"
+          ]
+        },
+        {
+          "role": "gnt",
+          "aliases": [
+            "data_gnt_i"
+          ]
+        },
+        {
+          "role": "addr",
+          "aliases": [
+            "data_addr_o"
+          ]
+        },
+        {
+          "role": "we",
+          "aliases": [
+            "data_we_o"
+          ]
+        },
+        {
+          "role": "wdata",
+          "aliases": [
+            "data_wdata_o"
+          ]
+        },
+        {
+          "role": "be",
+          "aliases": [
+            "data_be_o"
+          ]
+        },
+        {
+          "role": "rvalid",
+          "aliases": [
+            "data_rvalid_i"
+          ]
+        },
+        {
+          "role": "rdata",
+          "aliases": [
+            "data_rdata_i"
+          ]
+        },
+        {
+          "role": "error",
+          "aliases": [
+            "data_err_i"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "processor.interrupts",
+      "function": "interrupt_entry",
+      "fields": [
+        {
+          "role": "external",
+          "aliases": [
+            "irq_external_i"
+          ]
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 32,
+    "data_width": 32,
+    "max_outstanding": 1,
+    "byte_enable": true,
+    "error_response": true,
+    "evidence": "rtl/cve2_top.sv:35-51 declares 32-bit OBI addresses/data, four data byte enables and separate request/grant/response/error signals. max_outstanding=1 is the planned local environment limit, not native concurrency evidence."
+  },
+  "port_actions": [
+    {
+      "port": "test_en_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "rtl/cve2_top.sv:162-167 connects the test enable to scan_cg_en_i; zero selects functional clock gating."
+    },
+    {
+      "port": "ram_cfg_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "rtl/cve2_top.sv:282-285 sinks the unused RAM configuration; zero supplies known inactive bits."
+    },
+    {
+      "port": "hart_id_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "rtl/cve2_top.sv:192 forwards hart identity to the core; this planned environment uses single hart zero."
+    },
+    {
+      "port": "boot_addr_i",
+      "action": "constant",
+      "value": 65536,
+      "reason": "rtl/cve2_if_stage.sv:140 selects {boot_addr_i[31:2],2'b00}; 65536 is aligned and yields first fetch 0x10000."
+    },
+    {
+      "port": "fetch_enable_i",
+      "action": "constant",
+      "value": 1,
+      "reason": "rtl/cve2_top.sv:159 latches fetch_enable_i high; one enables fetch."
+    },
+    {
+      "port": "debug_req_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "rtl/cve2_top.sv:157 and 237 route debug request; zero keeps unsolicited debug entry inactive."
+    },
+    {
+      "port": "dm_halt_addr_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "rtl/cve2_top.sv:239 provides the debug halt vector; zero is the declared unused vector with debug_req_i=0."
+    },
+    {
+      "port": "dm_exception_addr_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "rtl/cve2_top.sv:240 provides the debug exception vector; zero is the declared unused vector with debug_req_i=0."
+    },
+    {
+      "port": "x_issue_ready_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "rtl/cve2_top.sv:54-72 declares this CV-X-IF input and forwards it to the core; XInterface=0 disables external extension execution, so the environment supplies inactive zero."
+    },
+    {
+      "port": "x_issue_resp_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "rtl/cve2_top.sv:54-72 declares this CV-X-IF input and forwards it to the core; XInterface=0 disables external extension execution, so the environment supplies inactive zero."
+    },
+    {
+      "port": "x_result_valid_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "rtl/cve2_top.sv:54-72 declares this CV-X-IF input and forwards it to the core; XInterface=0 disables external extension execution, so the environment supplies inactive zero."
+    },
+    {
+      "port": "x_result_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "rtl/cve2_top.sv:54-72 declares this CV-X-IF input and forwards it to the core; XInterface=0 disables external extension execution, so the environment supplies inactive zero."
+    },
+    {
+      "port": "irq_software_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "rtl/cve2_top.sv:75-79 declares this active-high interrupt input; the planned environment provides only the external IRQ endpoint, so these sources are inactive zero."
+    },
+    {
+      "port": "irq_timer_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "rtl/cve2_top.sv:75-79 declares this active-high interrupt input; the planned environment provides only the external IRQ endpoint, so these sources are inactive zero."
+    },
+    {
+      "port": "irq_fast_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "rtl/cve2_top.sv:75-79 declares this active-high interrupt input; the planned environment provides only the external IRQ endpoint, so these sources are inactive zero."
+    },
+    {
+      "port": "irq_nm_i",
+      "action": "constant",
+      "value": 0,
+      "reason": "rtl/cve2_top.sv:75-79 declares this active-high interrupt input; the planned environment provides only the external IRQ endpoint, so these sources are inactive zero."
+    },
+    {
+      "port": "x_issue_valid_o",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:55 declares x_issue_valid_o as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "x_issue_req_o",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:57 declares x_issue_req_o as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "x_register_o",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:61 declares x_register_o as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "x_commit_valid_o",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:64 declares x_commit_valid_o as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "x_commit_o",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:65 declares x_commit_o as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "x_result_ready_o",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:69 declares x_result_ready_o as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "debug_halted_o",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:81 declares debug_halted_o as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "crash_dump_o",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:84 declares crash_dump_o as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_valid",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:90 declares rvfi_valid as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_order",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:91 declares rvfi_order as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_insn",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:92 declares rvfi_insn as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_trap",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:93 declares rvfi_trap as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_halt",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:94 declares rvfi_halt as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_intr",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:95 declares rvfi_intr as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_mode",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:96 declares rvfi_mode as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_ixl",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:97 declares rvfi_ixl as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_rs1_addr",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:98 declares rvfi_rs1_addr as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_rs2_addr",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:99 declares rvfi_rs2_addr as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_rs3_addr",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:100 declares rvfi_rs3_addr as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_rs1_rdata",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:101 declares rvfi_rs1_rdata as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_rs2_rdata",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:102 declares rvfi_rs2_rdata as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_rs3_rdata",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:103 declares rvfi_rs3_rdata as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_rd_addr",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:104 declares rvfi_rd_addr as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_rd_wdata",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:105 declares rvfi_rd_wdata as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_pc_rdata",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:106 declares rvfi_pc_rdata as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_pc_wdata",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:107 declares rvfi_pc_wdata as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_mem_addr",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:108 declares rvfi_mem_addr as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_mem_rmask",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:109 declares rvfi_mem_rmask as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_mem_wmask",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:110 declares rvfi_mem_wmask as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_mem_rdata",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:111 declares rvfi_mem_rdata as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_mem_wdata",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:112 declares rvfi_mem_wdata as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_ext_mip",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:113 declares rvfi_ext_mip as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_ext_nmi",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:114 declares rvfi_ext_nmi as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_ext_debug_req",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:115 declares rvfi_ext_debug_req as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "rvfi_ext_mcycle",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:116 declares rvfi_ext_mcycle as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    },
+    {
+      "port": "core_sleep_o",
+      "action": "observe",
+      "reason": "rtl/cve2_top.sv:121 declares core_sleep_o as an output; passive observation preserves the physical CV-X-IF, debug, crash, sleep or RVFI status without driving it."
+    }
+  ],
+  "cpu": {
+    "family": "riscv",
+    "xlen": 32,
+    "extensions": [
+      "i",
+      "m",
+      "c"
+    ],
+    "reset_vector": 65536,
+    "master_endpoints": [
+      "processor.instruction",
+      "processor.data"
+    ],
+    "irq_entry_endpoint": "processor.interrupts",
+    "irq_entry_role": "external",
+    "irq_entry_polarity": "active_high",
+    "irq_semantics": "machine_external",
+    "boot_address_required": true
+  },
+  "evidence": {
+    "semantics": [
+      "Pinned rtl/cve2_top.sv, rtl/cve2_pkg.sv, rtl/cve2_if_stage.sv and cv32e20_manifest.flist."
+    ],
+    "verified": [
+      "Verilator JSON elaboration with full top selection returned all 70 ports, including packed RAM, CV-X-IF and crash aggregates and all 27 RVFI outputs. Binding and the complete bit disposition ledger passed the focused acceptance test.",
+      "All five top overrides were accepted: MHPMCounterNum=10, MHPMCounterWidth=40, RV32E=0, RV32M=2, XInterface=0. rtl/cve2_pkg.sv:38 defines RV32MFast=2.",
+      "rtl/cve2_if_stage.sv:140 aligns boot_addr_i to four bytes; boot_addr_i=65536 yields reset fetch address 0x10000. OBI grant accepts a request separately from rvalid/rdata/error response completion."
+    ],
+    "unknown": [
+      "No generated harness, RTL operational execution or cross-component acceptance is claimed. RVFI observation is not independent ISA validation."
+    ]
+  }
+}
