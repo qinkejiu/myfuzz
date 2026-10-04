@@ -4,7 +4,7 @@
 
 | CPU 侧原生协议 | 固定源码与完整端口事实 | 新生成器当前产物 | 尚缺的正式等级门槛 |
 |---|---|---|---|
-| OBI | CV32E20/CVE2 已有固定源锁和 full-top profile；Ibex 现有 profile 只选部分顶层端口 | CVE2 wrapper、双 OBI adapter、生成式 C++ driver；真实 Verilator 构建和首取指请求 `0x10000`，**Generated** | 持续 CPU session、真实取指/Store/Load、replay；另一个 OBI CPU 的生成式复用 |
+| OBI | CV32E20/CVE2 已有固定源锁和 full-top profile；Ibex 现有 profile 只选部分顶层端口 | CVE2 wrapper、双 OBI adapter、生成式 driver/持久 session；真实取指、Store/Load、byte-enable、显式 reset 后 RAM 保持及前向三组件 replay，CVE2 达到 **RTL operational** | 反向中断链和另一个 OBI CPU 的生成式复用 |
 | AXI4 | CVA6 已有 profile 与手写真实会话 | Catalog | 明确有限 ID/burst/在途契约的生成式 driver、真实局部执行和 replay |
 | AXI4-Lite | PicoRV32 `_axi` 已有固定源锁和 full-top profile | Catalog | 处理物理顶层无 BRESP/RRESP 的生成式模板及真实会话 |
 | Wishbone classic | PicoRV32 `_wb` 已有固定源锁和 full-top profile | Catalog | 处理物理顶层无 ERR/STALL 的生成式模板及真实会话 |
@@ -16,8 +16,8 @@
 | PULP APB3 | GPIO、SPI | GPIO 单 DUT wrapper、APB3 adapter、生成式 C++ driver 与 Python 持续 session；真实寄存器读写、状态清除、原生脉冲中断、双实例隔离，GPIO 达到 **RTL operational**；SPI 仍为 Catalog | GPIO 与 CPU 的完整双向多轮因果链及 replay；SPI peer 与独立生成式会话 |
 | ZipCPU Wishbone | UART、Timer | Catalog；旧 SoC target 证据单列 | 生成式独立 Wishbone IP session；Timer 的特殊 CYC/SEL/地址单位须明示语义变体 |
 
-当前结构与来源门禁：`local_harness.v1` 请求、full-top planner、逐位 disposition、参数类型源码证据、确定性结构 wrapper、CV32E20/PULP GPIO 外层局部协议 adapter、固定源码锁校验、生成式 C++ driver、身份键构建缓存及 Python 持续会话均已落地。`local_harness.v2` 的微调和 10 个协议模板变体只验证有事实依据的配置，记录 `runtime_effective=false`，尚未作用于其他协议的执行。最新 `tests/local_harness` 为 **131/131**；真实生成式 PULP GPIO Python 集成 **2/2**，验证寄存器状态跨命令持续、双实例隔离和原生脉冲采样。
+当前结构与来源门禁：`local_harness.v1` 请求、full-top planner、逐位 disposition、参数类型源码证据、确定性结构 wrapper、CV32E20/PULP GPIO 外层局部协议 adapter、固定源码锁校验、生成式 C++ driver、身份键构建缓存及 Python 持续会话均已落地。`local_harness.v2` 的微调和 10 个协议模板变体只验证有事实依据的配置，记录 `runtime_effective=false`，尚未作用于其他协议的执行。最新 `tests/local_harness` 共 **142 项：141 通过、1 项按环境门禁跳过**；真实 CVE2 session 专项 **8/8**、PULP GPIO Python 集成 **2/2**、前向 CPU→GPIO A→GPIO B→CPU 与 replay **1/1**。完整 `tests/scenario` 为 **347/347**。
 
-正式等级依实际证据分别为：CVE2 OBI **Generated**，PULP GPIO APB3 **RTL operational**，其他五协议 CPU 候选及 OpenTitan/ZipCPU IP 仍为 **Catalog**。**Cross-component accepted 尚未达到**：目前缺少多个生成式独立会话在同一 testcase 中完成双方向传播、状态持续、约束检查及从初态完整 replay。现有手写 Ibex/CVA6/OpenTitan 场景和旧 Pico adapter bench 保留各自证据，但不会给新生成器升级。
+正式等级依实际证据分别为：CVE2 OBI 与 PULP GPIO APB3 **RTL operational**，其他 CPU 协议候选及 OpenTitan/ZipCPU IP 仍为 **Catalog**。前向 CPU→GPIO A→GPIO B→CPU 已在三个生成式独立会话中完成并回放。**Cross-component accepted 尚未达到**：同一 testcase 内的反向中断传播、双方向各两轮和完整验收约束尚未通过。现有手写 Ibex/CVA6/OpenTitan 场景和旧 Pico adapter bench 保留各自证据，但不会给新生成器升级。
 
-下一验收顺序：CVE2 OBI 持久会话及真实程序 Store/Load → 双 PULP GPIO 双向各两轮及 replay → Pico 三协议 → 有限 CVA6 AXI4 → OpenTitan TL-UL、PULP SPI、ZipCPU Wishbone 的生成式独立外设会话。未来新同协议组件必须只增加固定 profile 与声明式微调，即可生成、真实运行、replay，才算达到通用化目标。
+下一验收顺序：双 PULP GPIO 反向中断链与双方向各两轮 replay → Pico 三协议 → 有限 CVA6 AXI4 → OpenTitan TL-UL、PULP SPI、ZipCPU Wishbone 的生成式独立外设会话。未来新同协议组件必须只增加固定 profile 与声明式微调，即可生成、真实运行、replay，才算达到通用化目标。
