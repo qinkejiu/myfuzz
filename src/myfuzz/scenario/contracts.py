@@ -98,6 +98,10 @@ def _verify_generated_session(identity: dict):
                             'read_rx_on_complete'}
     tlul_spi_host_genome_fields = tlul_spi_host_fields | {'source_mode'}
     tlul_spi_host_cpu_fields = tlul_spi_host_genome_fields | {'cpu_routed_mode'}
+    tlul_uart_fields = {'tlul_uart_service_schema_version', 'source_component',
+                        'source_hex', 'startup_writes', 'read_rx_after_source'}
+    tlul_uart_genome_fields = tlul_uart_fields | {'source_mode'}
+    tlul_uart_cpu_fields = tlul_uart_genome_fields | {'cpu_routed_mode'}
     axil_uart_fields = {'axil_uart_service_schema_version', 'source_component',
                         'source_hex', 'startup_writes', 'read_rx_after_source'}
     axil_uart_genome_fields = axil_uart_fields | {'source_mode'}
@@ -108,6 +112,9 @@ def _verify_generated_session(identity: dict):
             base_fields | tlul_spi_host_fields,
             base_fields | tlul_spi_host_genome_fields,
             base_fields | tlul_spi_host_cpu_fields,
+            base_fields | tlul_uart_fields,
+            base_fields | tlul_uart_genome_fields,
+            base_fields | tlul_uart_cpu_fields,
             base_fields | axil_uart_fields,
             base_fields | axil_uart_genome_fields):
 
@@ -219,6 +226,35 @@ def _verify_generated_session(identity: dict):
                 or read_rx and bool(probes)
                 or read_rx and writes[-1] != [32, 0x68]):
             raise ValueError('generated TL-UL SPI Host service identity mismatch')
+    elif artifact.runtime_document['kind'] == 'tlul_uart':
+        genome_source = identity.get('source_mode') == 'genome'
+        cpu_routed = identity.get('cpu_routed_mode') is True
+        _exact(identity, base_fields | (tlul_uart_cpu_fields if cpu_routed else
+                                        tlul_uart_genome_fields if genome_source
+                                        else tlul_uart_fields),
+               'generated TL-UL UART service identity')
+        source = identity['source_hex']
+        writes = identity['startup_writes']
+        read_rx = identity['read_rx_after_source']
+        if (identity['tlul_uart_service_schema_version'] !=
+                ('generated_tlul_uart_8n1.v3' if cpu_routed else
+                 'generated_tlul_uart_8n1.v2' if genome_source else
+                 'generated_tlul_uart_8n1.v1')
+                or identity['source_component'] != artifact.plan.request.instance_id
+                or type(source) is not str or len(source) not in (0, 2)
+                or any(ch not in '0123456789abcdef' for ch in source)
+                or genome_source and source != ''
+                or type(writes) is not list or len(writes) > 4
+                or any(type(row) is not list or len(row) != 3
+                       or row not in ([0x10, 0x80000003, 15], [0x04, 0x6, 15])
+                       and not (type(row[0]) is int and row[0] == 0x1c
+                                and type(row[1]) is int and 0 <= row[1] <= 255
+                                and type(row[2]) is int and row[2] == 15)
+                       for row in writes)
+                or type(read_rx) is not bool
+                or read_rx and not (genome_source or source)
+                or cpu_routed and (not genome_source or read_rx or writes)):
+            raise ValueError('generated TL-UL UART service identity mismatch')
     elif artifact.runtime_document['kind'] == 'axi4_lite_uart':
         genome_source = identity.get('source_mode') == 'genome'
         _exact(identity, base_fields | (axil_uart_genome_fields if genome_source
