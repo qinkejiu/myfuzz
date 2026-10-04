@@ -135,3 +135,56 @@ class GenericTlulSpiMode0TuningRealTests(unittest.TestCase):
             self.assertEqual(bytes((0xA1, 0x34, 0x12)), sessions[0].last_response)
             self.assertGreater(sessions[0].miso_enabled_samples, 0)
             self.assertTrue(replay_evidence_bundle(bundle, factory).matches)
+
+    def test_factory_real_upload_prefix_irq_sram_and_replay(self):
+        document = tuned_request().document()
+        document['tuning']['spi_mode0_peers'][0].update(
+            source_bytes=4, prefix_value=2, prefix_bytes=1, read_count=0)
+        document['tuning']['startup_writes'] = [
+            dict(sequence=index, offset=offset, value=value)
+            for index, (offset, value) in enumerate((
+                (0x10, 1 << 4), (0xA8, 0x81010202), (0x04, 1)), 1)]
+        generated = artifact(load_local_harness_request(document))
+        with tempfile.TemporaryDirectory(prefix='myfuzz-spi-declarative-upload-') as directory:
+            work = Path(directory)
+            direct = create_generated_tlul_session(generated, base_dir=ROOT,
+                cache_dir=work / 'cache')
+            direct.prepare_local()
+            direct.begin_case('declarative-upload-direct')
+            try:
+                direct.step_local({'spi_master_frame': 0x0012345A})
+                for _ in range(100):
+                    if direct.step_local({})['irq_o'] & 1:
+                        break
+                else:
+                    self.fail('real upload IRQ absent')
+                self.assertEqual(0x02, direct.read_register(0x44) & 0xff)
+                self.assertEqual(0x001234, direct.read_register(0x48) & 0xffffff)
+                self.assertEqual(0x5A, direct.read_register(0x1e00) & 0xff)
+            finally:
+                direct.end_case()
+
+            ownership = compile_ownership((InputField('device', 'spi_master_frame', 32),),
+                (InputOwner('device', 'spi_master_frame', 0, 32, 'source',
+                            'external_spi_master_frame'),))
+            sessions = []
+
+            def factory():
+                session = create_generated_tlul_session(generated, base_dir=ROOT,
+                    cache_dir=work / 'cache')
+                sessions.append(session)
+                return ScenarioRunner(sessions={'device': session},
+                    ownership=ownership, bindings=())
+
+            genome = ScenarioGenome(testcase_id='declarative-spi-upload',
+                direction='IP_TO_CPU', path_id='external-master-real-upload',
+                schedule_order=('device',), max_steps=100,
+                actions=(Action('upload-frame', 'device', 'spi_master_frame',
+                                0x0012345A, 'IP_TO_CPU', Trigger('START')),))
+            bundle = work / 'evidence'
+            trace = save_evidence_bundle(genome, factory, bundle, budget=None)
+            self.assertEqual('complete', trace.status, trace.events[-3:])
+            self.assertTrue(any(event.get('outputs', {}).get('irq_o', 0) & 1
+                                for event in trace.events))
+            self.assertTrue(replay_evidence_bundle(bundle, factory).matches)
+            self.assertIsNot(sessions[0], sessions[1])
