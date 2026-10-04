@@ -21,6 +21,7 @@ from .request import LocalHarnessRequestV2
 from .tlul_register_template import register_observe_policy, serial_peer_policy
 from .apb3_register_template import register_observe_policy as apb3_register_observe_policy
 from .wishbone_register_template import register_observe_policy as wishbone_register_policy
+from .clock_schedule import build_local_clock_schedule
 
 _NATIVE = {'valid': ('output', 1), 'addr': ('output', 32), 'wdata': ('output', 32), 'wstrb': ('output', 4), 'ready': ('input', 1), 'rdata': ('input', 32)}
 
@@ -109,11 +110,28 @@ def _admit(plan, structural, supplied, root):
         raise ValueError('runtime-disposition-profile-mismatch')
     if render_local_harness(plan) != structural:
         raise ValueError('runtime-structural-identity-mismatch')
-    if len(plan.profile.clocks) != 1 or len(plan.profile.resets) != 1:
-        raise ValueError('runtime-single-clock-reset-required')
-    if plan.profile.resets[0].sequence_after:
-        raise ValueError('runtime-reset-sequence-unsupported')
+    build_local_clock_schedule(plan.profile.clocks, plan.profile.resets,
+        reset_assert_ticks=plan.request.reset_assert_ticks,
+        reset_release_ticks=plan.request.reset_release_ticks)
     return verified
+
+
+def _endpoint_clock_reset(plan: LocalHarnessPlan, endpoint_id: str,
+                          schedule: dict[str, object]) -> tuple[str, str]:
+    """Resolve a protocol executor to its declared local clock/reset domains."""
+    endpoint = next((item for item in plan.profile.endpoints
+                     if item.endpoint_id == endpoint_id), None)
+    if endpoint is None:
+        raise ValueError('runtime-endpoint-clock-reset-unknown:' + endpoint_id)
+    clock_rows = {row['domain']: row['signal'] for row in schedule['clocks']}
+    reset_rows = {row['domain']: row['signal'] for row in schedule['resets']}
+    clock_domain = endpoint.clock or schedule['primary_clock_domain']
+    reset_domain = endpoint.reset or schedule['primary_reset_domain']
+    if clock_domain not in clock_rows:
+        raise ValueError('runtime-endpoint-clock-domain-unknown:' + endpoint_id)
+    if reset_domain not in reset_rows:
+        raise ValueError('runtime-endpoint-reset-domain-unknown:' + endpoint_id)
+    return clock_rows[clock_domain], reset_rows[reset_domain]
 
 
 def _apb_local_kind(endpoints, abi=(), capabilities=None):
@@ -184,7 +202,12 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
     """
     root = Path(base_dir).resolve()
     verified = _admit(plan, structural, source_verification, root)
+    clock_schedule = build_local_clock_schedule(plan.profile.clocks, plan.profile.resets,
+        reset_assert_ticks=plan.request.reset_assert_ticks,
+        reset_release_ticks=plan.request.reset_release_ticks)
     endpoints = [endpoint for endpoint in plan.binding.endpoints if endpoint.protocol is not None]
+    endpoint_controls = {endpoint.endpoint_id: _endpoint_clock_reset(
+        plan, endpoint.endpoint_id, clock_schedule) for endpoint in endpoints}
     abi = structural.abi_document['ports']
     cpu_functions = {'instruction_memory_master', 'data_memory_master'}
     functions = {endpoint.function for endpoint in endpoints}
@@ -478,6 +501,13 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
     ports = [('clk', 'input', 1), ('reset', 'input', 1)]
     locals_, statements, exports, backend, instances = [], [], [], [], []
     connections = ['.clk(clk)', '.reset(reset)']
+    control_signals = {'clk', 'reset'}
+    for row in (*clock_schedule['clocks'], *clock_schedule['resets']):
+        signal = row['signal']
+        if signal not in control_signals:
+            ports.append((signal, 'input', 1))
+            connections.append(f'.{signal}({signal})')
+            control_signals.add(signal)
     for row in abi:
         consumed = row['endpoint_id'] in adapted
         name = ('link_' if consumed else 'rt_') + row['wrapper_name']
@@ -546,7 +576,9 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         for name, width in [('m_fault', 1), ('m_fault_code', 2)]:
             ports.append((name, 'output', width))
             backend.append(dict(name=name, direction='output', width=width, role=name[2:], channel='m'))
-        pairs = dict(clk='clk', reset='reset', valid_i=wires['valid'], ready_o=wires['ready'],
+        local_clk, local_reset = endpoint_controls[endpoints[0].endpoint_id]
+        pairs = dict(clk=local_clk, reset=local_reset,
+            valid_i=wires['valid'], ready_o=wires['ready'],
             addr_i=wires['addr'], wdata_i=wires['wdata'], wstrb_i=wires['wstrb'], rdata_o=wires['rdata'],
             fault_o='m_fault', fault_code_o='m_fault_code')
         pairs.update({role + ('_o' if row['direction'] == 'output' else '_i'): row['name']
@@ -558,7 +590,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         wires = _shape(endpoints[0], _AXI_LITE, abi)
         beat_ports('m', True)
         locals_.extend(['logic [1:0] unused_bresp;', 'logic [1:0] unused_rresp;'])
-        pairs = {'clk_i': 'clk', 'rst_ni': '~reset'}
+        local_clk, local_reset = endpoint_controls[endpoints[0].endpoint_id]
+        pairs = {'clk_i': local_clk, 'rst_ni': '~' + local_reset}
         for role, wire in wires.items():
             pairs[role + ('_i' if _AXI_LITE[role][0] == 'output' else '_o')] = wire
         pairs.update({'bresp_o': 'unused_bresp', 'rresp_o': 'unused_rresp'})
@@ -573,7 +606,9 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             prefix = 'i' if instruction else 'd'
             wires = _shape(endpoint, _OBI_READ if instruction else _OBI_WRITE, abi)
             beat_ports(prefix, True)
-            pairs = dict(clk_i='clk', rst_ni='~reset', req_i=wires['req'], gnt_o=wires['gnt'],
+            local_clk, local_reset = endpoint_controls[endpoint.endpoint_id]
+            pairs = dict(clk_i=local_clk, rst_ni='~' + local_reset,
+                         req_i=wires['req'], gnt_o=wires['gnt'],
                          addr_i=wires['addr'], we_i="1'b0" if instruction else wires['we'],
                          wdata_i="32'b0" if instruction else wires['wdata'],
                          be_i="4'b1111" if instruction else wires['be'], rvalid_o=wires['rvalid'],
@@ -605,7 +640,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         locals_.extend(['logic unused_request_accepted;', 'logic unused_completion;'])
         if not addressed:
             locals_.append('logic unused_adr;')
-        pairs = dict(clk='clk', reset='reset', req_valid=channel+'_req_valid',
+        local_clk, local_reset = endpoint_controls[endpoints[0].endpoint_id]
+        pairs = dict(clk=local_clk, reset=local_reset, req_valid=channel+'_req_valid',
                      req_ready=channel+'_req_ready', write=channel+'_req_write',
                      addr=channel+'_req_addr', wdata=channel+'_req_wdata', be=channel+'_req_be',
                      rsp_valid=channel+'_rsp_valid', rsp_ready=channel+'_rsp_ready',
@@ -634,7 +670,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         if type(declared_wait) is not int or declared_wait < 1:
             raise ValueError('runtime-tlul-wait-bound')
         wait = min(declared_wait, plan.request.max_wait_cycles)
-        pairs = dict(clk='clk', reset='reset', req_valid=channel+'_req_valid',
+        local_clk, local_reset = endpoint_controls[endpoints[0].endpoint_id]
+        pairs = dict(clk=local_clk, reset=local_reset, req_valid=channel+'_req_valid',
                      req_ready=channel+'_req_ready', write=channel+'_req_write',
                      addr=channel+'_req_addr', wdata=channel+'_req_wdata', be=channel+'_req_be',
                      rsp_valid=channel+'_rsp_valid', rsp_ready=channel+'_rsp_ready',
@@ -658,7 +695,9 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         if type(declared_wait) is not int or declared_wait < 1:
             raise ValueError('runtime-apb-wait-bound')
         wait = min(declared_wait, plan.request.max_wait_cycles)
-        pairs = dict(clk='clk', reset='reset', req_valid=f'{channel}_req_valid', req_ready=f'{channel}_req_ready',
+        local_clk, local_reset = endpoint_controls[endpoints[0].endpoint_id]
+        pairs = dict(clk=local_clk, reset=local_reset,
+                     req_valid=f'{channel}_req_valid', req_ready=f'{channel}_req_ready',
                      write=f'{channel}_req_write', addr=f'{channel}_req_addr', wdata=f'{channel}_req_wdata', be=f'{channel}_req_be',
                      rsp_valid=f'{channel}_rsp_valid', rsp_ready=f'{channel}_rsp_ready', rdata=f'{channel}_rsp_rdata', error=f'{channel}_rsp_error',
                      paddr='apb_paddr', pstrb='unused_pstrb', **{r: n for r,n in wires.items() if r != 'paddr'})
@@ -675,10 +714,17 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
     flags = list(structural.build_document['lint_argv'])
     flags[flags.index('--top-module')+1] = module
     adapter_hashes = [dict(path=name, sha256=hashlib.sha256((root/name).read_bytes()).hexdigest()) for name in adapters]
+    artifact_clock_schedule = copy.deepcopy(clock_schedule)
+    if kind == 'tlul_spi_device':
+        # The generated external-master peer clocks four mode-0 setup edges
+        # after reset and before READY. They advance the clock phase even
+        # though trace edge counters are initialized immediately after setup.
+        artifact_clock_schedule['startup_fast_ticks'] += 4
     document = dict(schema_version='local_runtime_artifact.v1', status='top_only', kind=kind,
                     module_name=module, plan=plan.document(), structural_abi=copy.deepcopy(structural.abi_document),
                     structural_build=copy.deepcopy(structural.build_document), source_verification=copy.deepcopy(verified),
                     boot_contract=boot,
+                    clock_schedule=artifact_clock_schedule,
                     effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'apb_i2c', 'apb3_register_observe', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host', 'tlul_uart', 'tlul_i2c', 'tlul_register_observe', 'tlul_spi_device', 'wishbone_timer', 'wishbone_uart', 'wishbone_register_observe') else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
                     runtime_sv_sha256=hashlib.sha256(runtime.encode()).hexdigest(), cpp_sha256=hashlib.sha256(b'').hexdigest(),
                     adapted_endpoint_ids=sorted(adapted), physical_exports=exports, backend_ports=backend,

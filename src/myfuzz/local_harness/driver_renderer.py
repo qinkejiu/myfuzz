@@ -579,6 +579,81 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         i2c_observe = (f'  peer.observe(dut.{fields["scl_i"]}, dut.{fields["sda_i"]}, '
                        f'dut.{fields["scl_o"]}, dut.{fields["sda_o"]}, '
                        f'dut.{fields["scl_en_o"]}, dut.{fields["sda_en_o"]});')
+
+    schedule = document.get('clock_schedule')
+    if (not isinstance(schedule, dict)
+            or schedule.get('schema_version') != 'local_clock_schedule.v1'
+            or not isinstance(schedule.get('clocks'), list)
+            or not isinstance(schedule.get('resets'), list)
+            or not schedule['clocks'] or not schedule['resets']):
+        raise ValueError('driver-clock-schedule-required')
+    clock_rows = schedule['clocks']
+    reset_rows = schedule['resets']
+    if any(not isinstance(row, dict) for row in clock_rows + reset_rows):
+        raise ValueError('driver-clock-schedule-shape')
+    multiclock = len(clock_rows) > 1
+    reset_signal_values = [row.get('signal') for row in reset_rows]
+    if any(not isinstance(name, str) or not name for name in reset_signal_values):
+        raise ValueError('driver-clock-schedule-shape')
+    reset_signals = sorted(set(reset_signal_values))
+    reset_inactive = ''.join(f'  dut.{name} = 0;\n' for name in reset_signals)
+    reset_assert = ''.join(f'  dut.{name} = 1;\n' for name in reset_signals)
+    reset_release = reset_inactive
+    clock_state_declarations = ''
+    clock_counter_reset = ''
+    clock_counter_inc = ''
+    clock_toggle = ''
+    clock_fast_extra_low = ''
+    clock_fast_extra_high = ''
+    clock_edge_snapshot = ''
+    clock_edge_sample_entry = ''
+    clock_schedule_next = ''
+    clock_schedule_increment = ''
+    if multiclock:
+        primary_domain = schedule.get('primary_clock_domain')
+        rows_by_domain = {row.get('domain'): row for row in clock_rows}
+        if (len(rows_by_domain) != len(clock_rows)
+                or primary_domain not in rows_by_domain
+                or rows_by_domain[primary_domain].get('signal') != 'clk'):
+            raise ValueError('driver-clock-schedule-shape')
+        counter_names = {domain: f'clock_edge_count_{index}'
+                         for index, domain in enumerate(sorted(rows_by_domain))}
+        clock_state_declarations = 'static std::uint64_t fast_schedule_ticks = 0;\n' + '\n'.join(
+            f'static std::uint64_t {counter_names[domain]} = 0;'
+            for domain in sorted(counter_names))
+        clock_counter_reset = '\n'.join(
+            f'  {counter_names[domain]} = 0;' for domain in sorted(counter_names))
+        clock_schedule_next = '  const std::uint64_t next_fast_tick = fast_schedule_ticks + 1;\n'
+        clock_schedule_increment = '  ++fast_schedule_ticks;\n'
+        clock_counter_inc = f'  ++{counter_names[primary_domain]};\n'
+        for domain, row in sorted(rows_by_domain.items()):
+            ratio = row.get('ratio')
+            signal_name = row.get('signal')
+            half_period = row.get('half_period_fast_ticks')
+            if (type(ratio) is not int or ratio < 1
+                    or type(half_period) is not int or half_period < 1
+                    or not isinstance(signal_name, str) or not signal_name):
+                raise ValueError('driver-clock-schedule-shape')
+            if domain == primary_domain:
+                continue
+            if ratio == 1:
+                # Equal-frequency domains remain distinct wires and each gets
+                # one full low/high cycle inside every local fastest tick.
+                clock_fast_extra_low += f'  dut.{signal_name} = 0;\n'
+                clock_fast_extra_high += f'  dut.{signal_name} = 1;\n'
+                clock_counter_inc += f'  ++{counter_names[domain]};\n'
+            else:
+                clock_toggle += (
+                    f'  if (next_fast_tick % {half_period}ULL == 0) {{\n'
+                    f'    dut.{signal_name} = !dut.{signal_name};\n'
+                    f'    if (dut.{signal_name}) ++{counter_names[domain]};\n'
+                    f'  }}\n')
+        edge_fields = ',\n'.join(
+            f'    {{{_literal(domain)}, std::to_string({counter_names[domain]})}}'
+            for domain in sorted(counter_names))
+        clock_edge_snapshot = ('static std::string clock_edge_snapshot() {\n'
+            '  return object({\n' + edge_fields + '\n  });\n}\n')
+        clock_edge_sample_entry = '{"clock_edges", clock_edge_snapshot()}, '
     template = r'''#include "V@MODULE@.h"
 #include "verilated.h"
 #include "local_driver_v1.h"
@@ -599,6 +674,7 @@ using Model = V@MODULE@;
 using namespace myfuzz::local_driver_v1;
 using JsonObject = std::map<std::string, std::string>;
 static std::uint64_t local_ticks = 0;
+@CLOCK_STATE_DECLARATIONS@
 @SPI_PEER@
 
 static std::string quote(const std::string &value) {
@@ -646,21 +722,26 @@ static std::string snapshot(const Model &dut) {
   };
 @ALIASES@  return object(values);
 }
+@CLOCK_EDGE_SNAPSHOT@
 static void tick(Model &dut, std::vector<std::string> *samples) {
 @SPI_DRIVE@
-  dut.clk = 0; dut.eval();
+  dut.clk = 0;
+@CLOCK_FAST_EXTRA_LOW@  dut.eval();
 @I2C_RESOLVE@
 @SPI_OBSERVE@
 @I2C_OBSERVE@
   const auto pre = samples ? snapshot(dut) : "";
-  dut.clk = 1; dut.eval();
+@CLOCK_SCHEDULE_NEXT@  dut.clk = 1;
+@CLOCK_FAST_EXTRA_HIGH@@CLOCK_EDGE_COUNT_INC@@CLOCK_SLOW_TOGGLE@  dut.eval();
 @I2C_RESOLVE@
+@CLOCK_SCHEDULE_INCREMENT@
   ++local_ticks;
 @SPI_OBSERVE@
 @I2C_OBSERVE@
   const auto post = samples ? snapshot(dut) : "";
-  dut.clk = 0; dut.eval();
-  if (samples) samples->push_back(object({{"local_tick", std::to_string(local_ticks)},
+  dut.clk = 0;
+@CLOCK_FAST_EXTRA_LOW@  dut.eval();
+  if (samples) samples->push_back(object({@CLOCK_EDGE_SAMPLE_ENTRY@{"local_tick", std::to_string(local_ticks)},
                                        {"pre", pre}, {"post", post}}));
 }
 static std::string encode_hex(const std::string &value) {
@@ -691,19 +772,20 @@ int main(int argc, char **argv) {
   Model dut;
 @INITIALIZERS@
   // Evaluate inactive reset first to create a real asynchronous assertion edge.
-  dut.reset = 0; dut.eval();
-  dut.reset = 1; dut.eval();
+@RESET_INACTIVE@  dut.eval();
+@RESET_ASSERT@  dut.eval();
   std::uint64_t asserted_ticks = 0, released_ticks = 0;
   for (unsigned i = 0; i < @ASSERT@; ++i) {
     tick(dut, nullptr);
     ++asserted_ticks;
   }
-  dut.reset = 0; dut.eval();
+@RESET_RELEASE@  dut.eval();
   for (unsigned i = 0; i < @RELEASE@; ++i) {
     tick(dut, nullptr);
     ++released_ticks;
   }
 @SPI_DEVICE_BOOT@
+@CLOCK_COUNTER_RESET@
   local_ticks = 0;
   std::cout << "READY local_driver.v1 " << MYFUZZ_STRINGIFY(MYFUZZ_ARTIFACT_DIGEST)
             << " " << hex_integer(asserted_ticks) << " " << hex_integer(released_ticks) << std::endl;
@@ -766,6 +848,18 @@ int main(int argc, char **argv) {
 '''
     values = dict(MODULE=document['module_name'], BACKEND=backend_items, PHYSICAL=physical_items,
                   ALIASES=aliases, INITIALIZERS=initializers,
+                  CLOCK_STATE_DECLARATIONS=clock_state_declarations,
+                  CLOCK_EDGE_SNAPSHOT=clock_edge_snapshot,
+                  CLOCK_FAST_EXTRA_LOW=clock_fast_extra_low,
+                  CLOCK_SCHEDULE_NEXT=clock_schedule_next,
+                  CLOCK_FAST_EXTRA_HIGH=clock_fast_extra_high,
+                  CLOCK_EDGE_COUNT_INC=clock_counter_inc,
+                  CLOCK_SLOW_TOGGLE=clock_toggle,
+                  CLOCK_SCHEDULE_INCREMENT=clock_schedule_increment,
+                  CLOCK_EDGE_SAMPLE_ENTRY=clock_edge_sample_entry,
+                  CLOCK_COUNTER_RESET=clock_counter_reset,
+                  RESET_INACTIVE=reset_inactive, RESET_ASSERT=reset_assert,
+                  RESET_RELEASE=reset_release,
                   SPI_HEADER='#include "pulp_spi_mode0_peer.h"' if kind == 'apb_spi' else '',
                   I2C_HEADER=('#include "pulp_i2c_single_slave_peer.h"' if kind == 'apb_i2c'
                               else '#include "opentitan_i2c_single_slave_peer.h"'

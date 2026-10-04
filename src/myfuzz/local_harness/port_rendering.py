@@ -4,6 +4,9 @@ from __future__ import annotations
 import re
 from myfuzz.composition.soc_port_dispositions import constant_expression, port_segments
 from .plan import LocalHarnessPlan
+from .clock_schedule import (
+    build_local_clock_schedule, clock_signal_by_port, reset_signal_by_port,
+)
 
 
 class LocalPortRenderError(ValueError):
@@ -52,8 +55,12 @@ def render_port_connections(plan: LocalHarnessPlan) -> tuple[list[str], list[str
     """
     if not isinstance(plan, LocalHarnessPlan) or plan.facts.selection != 'all':
         raise LocalPortRenderError('full-top-required')
-    if len(plan.profile.clocks) != 1 or len(plan.profile.resets) != 1:
-        raise LocalPortRenderError('single-clock-reset-domain-required')
+    try:
+        schedule = build_local_clock_schedule(plan.profile.clocks, plan.profile.resets,
+            reset_assert_ticks=plan.request.reset_assert_ticks,
+            reset_release_ticks=plan.request.reset_release_ticks)
+    except ValueError as error:
+        raise LocalPortRenderError(str(error)) from error
     for name in (plan.request.instance_id, plan.profile.source.top_module, plan.facts.top_module):
         require_identifier(name)
     if plan.profile.source.top_module != plan.facts.top_module:
@@ -62,9 +69,12 @@ def render_port_connections(plan: LocalHarnessPlan) -> tuple[list[str], list[str
     facts = {p.name: p for p in plan.facts.ports}
     if len(facts) != len(plan.facts.ports) or set(grouped) != set(facts):
         raise LocalPortRenderError('physical-port-set-mismatch')
-    resets = {r.port: r.polarity for r in plan.profile.resets}
-    clocks = {c.port for c in plan.profile.clocks}
     declarations, local, connections, abi = [], [], [], []
+    clock_signals = clock_signal_by_port(plan.profile.clocks, schedule)
+    reset_signals = reset_signal_by_port(plan.profile.resets, schedule)
+    declarations.extend(f'input logic {name}' for name in sorted(set(clock_signals.values()) - {'clk'}))
+    declarations.extend(f'input logic {name}' for name in sorted(set(reset_signals.values()) - {'reset'}))
+    reset_polarities = {binding.port: binding.polarity for binding in plan.profile.resets}
     for index, name in enumerate(sorted(facts)):
         require_identifier(name)
         fact = facts[name]
@@ -85,10 +95,11 @@ def render_port_connections(plan: LocalHarnessPlan) -> tuple[list[str], list[str
             if entry.role in ('clock', 'reset'):
                 if entry.direction != 'input' or width != 1 or entry.disposition != 'functional':
                     raise LocalPortRenderError(f'invalid-clock-reset:{name}')
-                if entry.role == 'clock' and name in clocks:
-                    expression = 'clk'
-                elif entry.role == 'reset' and resets.get(name) in ('active_high', 'active_low'):
-                    expression = '~reset' if resets[name] == 'active_low' else 'reset'
+                if entry.role == 'clock' and name in clock_signals:
+                    expression = clock_signals[name]
+                elif entry.role == 'reset' and name in reset_signals and reset_polarities.get(name) in ('active_high', 'active_low'):
+                    signal = reset_signals[name]
+                    expression = '~' + signal if reset_polarities[name] == 'active_low' else signal
                 else:
                     raise LocalPortRenderError(f'undeclared-clock-reset:{name}')
                 local.append(f'assign {span} = {expression};')

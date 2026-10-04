@@ -83,7 +83,39 @@ def _valid_signal_json(value: object) -> bool:
     return False
 
 
-def _payload(encoded: str, *, kind: str, before: int, after: int) -> dict[str, object]:
+def _clock_trace_identity(schedule: object) -> tuple[list[dict[str, object]], int] | None:
+    if schedule is None:
+        return None
+    if (not isinstance(schedule, dict)
+            or schedule.get('schema_version') != 'local_clock_schedule.v1'
+            or type(schedule.get('startup_fast_ticks')) is not int
+            or schedule['startup_fast_ticks'] < 0
+            or not isinstance(schedule.get('clocks'), list)
+            or not schedule['clocks']):
+        raise ValueError('invalid-driver-clock-schedule')
+    rows = schedule['clocks']
+    domains: set[str] = set()
+    for row in rows:
+        if (not isinstance(row, dict) or type(row.get('domain')) is not str
+                or not row['domain'] or row['domain'] in domains
+                or type(row.get('ratio')) is not int or row['ratio'] < 1
+                or type(row.get('first_rising_fast_tick')) is not int
+                or row['first_rising_fast_tick'] < 1):
+            raise ValueError('invalid-driver-clock-schedule')
+        domains.add(row['domain'])
+    return rows, schedule['startup_fast_ticks']
+
+
+def _clock_edges_through(row: dict[str, object], fast_tick: int) -> int:
+    first = row['first_rising_fast_tick']
+    ratio = row['ratio']
+    if fast_tick < first:
+        return 0
+    return 1 + (fast_tick - first) // ratio
+
+
+def _payload(encoded: str, *, kind: str, before: int, after: int,
+             clock_schedule: object = None) -> dict[str, object]:
     if (not encoded or len(encoded) > 2 * MAX_PAYLOAD_JSON_BYTES
             or len(encoded) % 2 or re.fullmatch(r'[0-9a-f]+', encoded) is None):
         raise ValueError('invalid-driver-payload-hex')
@@ -111,18 +143,38 @@ def _payload(encoded: str, *, kind: str, before: int, after: int) -> dict[str, o
             or type(document['error']) is not int or document['error'] not in (0, 1)):
         raise ValueError('invalid-driver-payload-schema')
     samples = document['samples']
+    trace_identity = _clock_trace_identity(clock_schedule)
+    clock_rows, startup_ticks = trace_identity if trace_identity is not None else ([], 0)
+    multi_clock = len(clock_rows) > 1
     if len(samples) != after - before:
         raise ValueError('driver-sample-count-mismatch')
     for index, sample in enumerate(samples, start=before + 1):
-        if (not isinstance(sample, dict) or set(sample) != {'local_tick', 'pre', 'post'}
+        expected_sample_keys = ({'local_tick', 'pre', 'post', 'clock_edges'}
+                                if multi_clock else {'local_tick', 'pre', 'post'})
+        if (not isinstance(sample, dict) or set(sample) != expected_sample_keys
                 or type(sample['local_tick']) is not int or sample['local_tick'] != index
                 or not isinstance(sample['pre'], dict) or not isinstance(sample['post'], dict)):
             raise ValueError('invalid-driver-sample')
+        if multi_clock:
+            edges = sample['clock_edges']
+            domains = {row['domain'] for row in clock_rows}
+            if (not isinstance(edges, dict) or set(edges) != domains
+                    or any(type(value) is not int or value < 0 for value in edges.values())):
+                raise ValueError('invalid-driver-clock-edges')
+            absolute_tick = startup_ticks + index
+            expected_edges = {
+                row['domain']: (_clock_edges_through(row, absolute_tick)
+                                - _clock_edges_through(row, startup_ticks))
+                for row in clock_rows
+            }
+            if edges != expected_edges:
+                raise ValueError('driver-clock-edge-count-mismatch')
     return document
 
 
 def parse_driver_receipt(line: str, *, execution: str, sequence: int,
-                         current_tick: int, kind: str, cached: bool = False) -> DriverReceipt:
+                         current_tick: int, kind: str, cached: bool = False,
+                         clock_schedule: object = None) -> DriverReceipt:
     if (_EXECUTION.fullmatch(execution) is None or type(sequence) is not int or sequence < 1
             or type(current_tick) is not int or current_tick < 0 or type(cached) is not bool):
         raise ValueError('invalid-expected-driver-identity')
@@ -135,7 +187,8 @@ def parse_driver_receipt(line: str, *, execution: str, sequence: int,
         before, after = _hex(parts[3]), _hex(parts[4])
         if after < before or (before != current_tick if not cached else after > current_tick):
             raise ValueError('driver-reply-tick-mismatch')
-        payload = _payload(parts[5], kind=kind, before=before, after=after)
+        payload = _payload(parts[5], kind=kind, before=before, after=after,
+                           clock_schedule=clock_schedule)
         return DriverReceipt('result', execution, sequence, before, after,
                              0 if cached else after - before, payload=payload)
     parts = _tokens(line, 6)

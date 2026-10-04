@@ -15,6 +15,7 @@ from myfuzz.composition.soc_port_dispositions import (
     DispositionEntry, build_port_dispositions,
 )
 from .request import LocalHarnessRequest, LocalHarnessRequestV2, load_local_harness_request
+from .clock_schedule import build_local_clock_schedule
 
 
 def _local_target(entry: DispositionEntry) -> str | None:
@@ -101,6 +102,11 @@ def plan_local_harness(request: LocalHarnessRequest | LocalHarnessRequestV2, *, 
         raise ValueError('invalid-profile-path:outside-configs')
     profile_bytes = profile_path.read_bytes()
     profile = load_component_profile(json.loads(profile_bytes))
+    # Reject unsupported clock ratios and ordered resets during planning, before
+    # generating or starting any simulator process.
+    build_local_clock_schedule(profile.clocks, profile.resets,
+        reset_assert_ticks=request.reset_assert_ticks,
+        reset_release_ticks=request.reset_release_ticks)
     parameter_sources = ()
     if (profile.source.filelist is None and profile.source.elaboration is not None
             and profile.source.elaboration.parameters):

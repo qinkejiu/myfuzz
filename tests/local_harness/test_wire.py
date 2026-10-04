@@ -79,6 +79,42 @@ class GeneratedWireTests(unittest.TestCase):
             parse_driver_receipt(line, execution=EXECUTION, sequence=1,
                                  current_tick=3, kind='apb_gpio')
 
+    def test_multiclock_trace_requires_exact_per_domain_rising_edge_counts(self):
+        schedule = {
+            'schema_version': 'local_clock_schedule.v1',
+            'startup_fast_ticks': 1,
+            'clocks': [
+                {'domain': 'core', 'ratio': 1, 'first_rising_fast_tick': 1},
+                {'domain': 'aon', 'ratio': 4, 'first_rising_fast_tick': 2},
+            ],
+        }
+        payload = result_payload()
+        payload['samples'][0]['clock_edges'] = {'core': 1, 'aon': 1}
+        line = result_line(payload)
+        parsed = parse_driver_receipt(line, execution=EXECUTION, sequence=1,
+            current_tick=0, kind='apb_gpio', clock_schedule=schedule)
+        self.assertEqual({'core': 1, 'aon': 1},
+                         parsed.payload['samples'][0]['clock_edges'])
+
+        payload['samples'][0]['clock_edges']['aon'] = 0
+        with self.assertRaisesRegex(ValueError, 'edge-count-mismatch'):
+            parse_driver_receipt(result_line(payload), execution=EXECUTION,
+                sequence=1, current_tick=0, kind='apb_gpio', clock_schedule=schedule)
+
+    def test_single_clock_schedule_keeps_legacy_sample_wire_shape(self):
+        schedule = {
+            'schema_version': 'local_clock_schedule.v1',
+            'startup_fast_ticks': 8,
+            'clocks': [
+                {'domain': 'core', 'ratio': 1, 'first_rising_fast_tick': 1},
+            ],
+        }
+        receipt = parse_driver_receipt(result_line(result_payload()),
+            execution=EXECUTION, sequence=1, current_tick=0,
+            kind='apb_gpio', clock_schedule=schedule)
+        self.assertEqual({'local_tick', 'pre', 'post'},
+                         set(receipt.payload['samples'][0]))
+
     def test_nonfinite_duplicate_and_negative_signal_values_refuse(self):
         bad_payloads = [
             {**result_payload(), 'observations': {'signal': float('nan')}},

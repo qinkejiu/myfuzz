@@ -216,7 +216,8 @@ class GeneratedLocalSession:
             receipt = parse_driver_receipt(answer.strip(), execution=self._execution,
                                            sequence=sequence,
                                            current_tick=self.local_ticks - self._tick_base,
-                                           kind=kind)
+                                           kind=kind,
+                                           clock_schedule=self._artifact_document.get('clock_schedule'))
         except BaseException:
             self._abort()
             raise

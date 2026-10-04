@@ -71,6 +71,12 @@ python3 scripts/generate_local_harness.py --request request.json --output /tmp/g
 
 `GeneratedCve2Session` 只服务真实 OBI 握手接受的取指/数据请求。RAM 用 `PersistentMemory` 保存：写入后的读取得到先前真实写值，byte-enable 只覆盖对应字节；首次未初始化读取会物化并保留。MMIO 请求由 `DataflowRouter` 交给真实 GPIO session，目标读值再返回 CPU。`GeneratedPulpGpioSession` 只接受合法 GPIO 外部 pin 值与全字 APB3 写；已绑定的 pin、CPU IRQ 和 MMIO read data 由上游真实输出或持久状态决定，不能再次随机覆盖。
 
+### 单组件多时钟运行
+
+Profile 中每个 `ClockBinding`/`ResetBinding` 都映射到单 DUT runtime 上独立的时钟/复位信号。每次本地 `tick()` 只推进该 DUT 的最快时钟一个完整周期；它不与其他 harness 同步，也不代表全局 SoC cycle。所有逻辑时钟从低电平开始，最快域每个 local tick 都执行低→高→低，因此恰有一个上升沿。较慢时钟按固定频率比 `ratio` 在每 `ratio / 2` 个最快时钟周期翻转一次，首次上升沿位于第 `ratio / 2` 个周期；同一时刻发生的边沿在同一次 DUT 求值中观察。当前只接收正整数频率、可整除的偶数慢时钟比，最大 1024；不支持的比例在计划阶段拒绝。时钟比、初相位、复位映射和启动 tick 数进入 runtime artifact 身份。
+
+复位由 driver 统一同时断言和释放，但每个物理端口仍按自己的 `active_high`/`active_low` 极性连接。断言与释放长度以最快域周期计数；每个时钟域必须在 READY 前收到至少一个复位采样上升沿。profile 声明了有序复位依赖时，当前 runtime 会拒绝运行，避免把顺序要求折叠成同时释放。artifact 的 `startup_fast_ticks` 包含复位周期和 READY 前固定的 driver 初始化周期；例如 OpenTitan SPI Device 的 mode-0 peer 启动会先执行 4 个本地周期。多时钟 RESULT 样本在原有 `local_tick`、`pre`、`post` 外增加 `clock_edges`，记录 READY 后每域累计上升沿数；host 根据 artifact 中固定的 schedule 核对每个样本。单时钟仍只输出原有三个 sample 字段和 `clk`/`reset` 控制名，保持旧 wire shape。
+
 ### 输入约束的判定
 
 | 输入或状态 | 谁可以决定 | 强制约束 |
