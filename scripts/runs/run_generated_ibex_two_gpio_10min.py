@@ -37,11 +37,23 @@ def run(*, seconds: float, output: Path, seed: int = 20261005,
     output.mkdir(parents=True)
     wall_start = time.monotonic()
     factory, _instances = make_factory(cache_dir or output / "compile-cache")
+    first_boot = next(image for image in genome(1).initial_images
+                      if image.component == "cpu" and image.image_id == "boot")
+    last_boot = next(image for image in genome(0xff).initial_images
+                     if image.component == "cpu" and image.image_id == "boot")
+    changed = [bit for bit in range(len(first_boot.data) * 8)
+               if (first_boot.data[bit // 8] ^ last_boot.data[bit // 8])
+               & (1 << (bit % 8))]
+    if (len(changed) != 7 or changed != list(range(changed[0], changed[0] + 7))
+            or changed[0] % 32 != 21 or first_boot.address != 0x10080):
+        raise ValueError("CPU GPIO immediate source no longer matches pinned genome")
+    source_bit_offset = changed[0]
     # Build all three native executables once before counting search time.
     warm_runner = factory()
     graph = DependencyGraph(
         sources=(FuzzableSource(
-            "cpu.program.gpio_a_padout_immediate", "cpu", "boot", 501, 7,
+            "cpu.program.gpio_a_padout_immediate", "cpu", "boot",
+            source_bit_offset, 7,
             ("CPU_TO_IP_TO_CPU",), "memory_image"),),
         rules=(
             DependencyRule("cpu.gpio_a.mmio_write", ("cpu.program.gpio_a_padout_immediate",),
@@ -58,7 +70,7 @@ def run(*, seconds: float, output: Path, seed: int = 20261005,
         raise ValueError("generated Ibex GPIO dependency path is ambiguous")
     SourceBindings((SourceBinding(
         "cpu.program.gpio_a_padout_immediate", "memory_image", "cpu", "boot",
-        501, 7, "initial_image:cpu:boot", 0x10080),)).validate(
+        source_bit_offset, 7, "initial_image:cpu:boot", 0x10080),)).validate(
             graph, warm_runner.ownership, (genome(1),))
     try:
         warm_runner.ownership.mutation_source(
@@ -166,8 +178,16 @@ def run(*, seconds: float, output: Path, seed: int = 20261005,
                         new_coverage.append(key)
                     first_coverage.setdefault(key, index)
                 report["new_semantic_coverage"] = new_coverage
-                replay_required = bool(new_coverage or report["assertion_findings"]
-                                       or trace.status != "complete")
+                new_value = any(item.startswith("cpu.ram_result:")
+                                for item in new_coverage)
+                first_complete = "chain_fact:complete_causal_chain" in new_coverage
+                failure = bool(report["assertion_findings"] or
+                               trace.status != "complete")
+                sampled_value = new_value and len(covered_values) % 5 == 0
+                replay_required = first_complete or sampled_value or failure
+                report["replay_reason"] = (
+                    "failure" if failure else "first_complete_chain" if first_complete
+                    else "every_fifth_new_value" if sampled_value else None)
                 if replay_required:
                     replay_start = time.monotonic()
                     replay = replay_evidence_bundle(bundle, factory)
@@ -222,7 +242,8 @@ def run(*, seconds: float, output: Path, seed: int = 20261005,
                                          for case in cases),
                    "replay_attempted": sum(case["replay_matches"] is not None
                                            for case in cases),
-                   "replay_policy": "first_new_semantic_coverage_or_any_failure",
+                   "replay_skipped": sum(case["replay_skipped"] for case in cases),
+                   "replay_policy": "first_complete_chain_every_fifth_new_value_or_failure",
                    "failure_classes": classes,
                    "semantic_dataflow_values": sorted(covered_values),
                    "first_coverage_case": first_coverage,
