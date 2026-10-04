@@ -31,7 +31,7 @@
 
 PicoRV32 当前普通顶层 profile 的 revision 为占位值，`_axi`/`_wb` 也未有独立 profile。进入 Generated 前必须从本地 checkout 生成受信 revision、完整源清单和逐端口绑定；占位 revision 禁止通过。CV32E20 亦须新建以真实 checkout revision、参数、源闭包和端口为依据的 profile。现有 Composition 的 processor adapter 和协议插件只能作为契约参考，不能作为独立 harness 已可运行的证据；尤其 Ready/Valid 现有 adapter 的 IDLE ready 语义不适合 PicoRV32 的完成握手。
 
-**外设侧**首期组件库使用现有真实 RTL：OpenTitan GPIO、UART、SPI Host、I2C、RV Timer、SPI Device（TL-UL）；PULP GPIO、SPI（APB3）；ZipCPU UART、Timer（Wishbone 变体）。外设类型覆盖 GPIO、UART、SPI、I2C、Timer。APB4 与 AXI4-Lite target 可进入协议模板目录，但没有真实外设独立运行证据之前只标记 Catalog/Generated。每种外设须分别声明寄存器事务、外部环境源、真实输出、IRQ 形态（电平或脉冲）及 peer 要求。PULP/ZipCPU 现有 SoC target wrapper 不算独立场景 harness；ZipCPU UART 的隐式 Verilog wire 必须先解决端口事实提取。
+**外设侧**首期组件库使用现有真实 RTL：OpenTitan GPIO、UART、SPI Host、I2C、RV Timer、SPI Device（TL-UL）；PULP GPIO、SPI（APB3）；ZipCPU UART、Timer（Wishbone 变体）。外设类型覆盖 GPIO、UART、SPI、I2C、Timer。本地 ZipCPU 源还包含 AXI4-Lite `axiluart`，它是补充候选，须建立受信 profile 和独立 session 后才能提升等级。APB4 与 AXI4-Lite target 可进入协议模板目录，但没有真实外设独立运行证据之前只标记 Catalog/Generated。每种外设须分别声明寄存器事务、外部环境源、真实输出、IRQ 形态（电平或脉冲）及 peer 要求。PULP/ZipCPU 现有 SoC target wrapper 不算独立场景 harness；ZipCPU UART 的隐式 Verilog wire 必须先解决端口事实提取。
 
 ## 3. 输入契约与自动生成流程
 
@@ -49,7 +49,7 @@ PicoRV32 当前普通顶层 profile 的 revision 为占位值，`_axi`/`_wb` 也
   → Verilator 编译/真实局部交易/可重放身份门禁
 ```
 
-生成器复用 `component_profile.elaborate_profile/bind_profile` 与端口 disposition 的事实检查，但建立单组件计划/渲染入口；不调用 `build_composition` 或 `render_composition` 来制造多组件 fabric。对于每一 DUT 输入位，只有四种驱动归属：协议执行器、Fuzzable Source 环境执行器、已绑定真实上游值、声明式常量。输出只被观察或送往 Router；未归属、多重归属、宽度不符、方向不符、未经证明的结构成员都 fail closed。inout 端口要求专门 pin transactor；没有时拒绝，不将其默默拆成独立输入输出。
+生成器复用 `component_profile.elaborate_profile/bind_profile` 与端口 disposition 的事实检查，但建立单组件计划/渲染入口；不调用 `build_composition` 或 `render_composition` 来制造多组件 fabric。Generated 等级要求 elaboration 覆盖完整顶层端口，`PhysicalFacts.selection` 若不是 `all` 则拒绝；不能用已有 profile 的局部端口选择冒充全端口证明。对于每一 DUT 输入位，只有四种驱动归属：协议执行器、Fuzzable Source 环境执行器、已绑定真实上游值、声明式常量。输出只被观察或送往 Router；未归属、多重归属、宽度不符、方向不符、未经证明的结构成员都 fail closed。inout 端口要求专门 pin transactor；没有时拒绝，不将其默默拆成独立输入输出。
 
 声明式微调限于：端口/结构字段映射、合法常量、参数、复位极性与周期数、取指起点、等待上限、可选信号默认响应、IRQ 电平/脉冲、寄存器字宽/byte-enable 能力、外部 pin/peer 映射、允许的局部在途数。每个微调必须写明适用 endpoint、由已验证源码事实支撑，并纳入 identity；若它改变协议语义，需要协议模板显式提供该变体，不能用后处理脚本改生成 SV。
 
@@ -65,7 +65,7 @@ Router 仅映射真实数据的来源与去向；Scheduler 仅检查因果先决
 
 每份生成结果保存 profile、源 closure/revision、参数、协议模板版本和 SHA、微调配置、生成器版本和 SHA、生成文件 SHA、Verilator/C++ 工具链版本、局部 session 能力表。Replay 从初态重建相同身份，重放完整 Genome、环境首次物化值、事务 token、局部输出、Router/Scheduler 事件、RAM/IRQ 末态；身份不同先拒绝，不以“近似输出”冒充完整回放。
 
-新生成器源码不能无意将旧固定包的全局宿主身份全部作废。宿主身份由每个 harness 实际依赖的代码闭包计算；迁移旧包时保留旧 schema 的验证路径，并在新包中使用新 schema。任何语义源码变化都需要重新录制受影响证据。
+新生成器源码不能无意将旧固定包的全局宿主身份全部作废。现有 `scenario_host_sources.v1` 的固定 34 文件清单与验证路径保持可用；新包采用版本化的每 harness 宿主代码闭包，把生成器、模板与 session 实际依赖计入身份。旧包继续按 v1 逐文件验证，新包按新 schema 验证；不能通过忽略已依赖文件来保持旧哈希。任何语义源码变化都需要重新录制受影响证据。
 
 ## 6. 实施阶段和验收标准
 
