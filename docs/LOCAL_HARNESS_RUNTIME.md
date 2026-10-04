@@ -14,6 +14,7 @@
 | PULP GPIO，APB3 | 固定源码、全顶层端口、生成式 wrapper/driver；持续 APB 寄存器事务、双实例状态隔离、真实边沿脉冲逐本地 tick 记录 | RTL operational |
 | PULP SPI master，APB3＋模式 0 外部串行 peer | 两份固定源码记录共同认证；真实 APB 配置、32 个选中 SCK 上升沿、EOT、RXFIFO `0xA5C396F0`、fresh replay | CLKDIV=1 单次 TX/RX RTL operational；其余模式见限制 |
 | CVE2 ↔ GPIO A ↔ GPIO B | 同一 testcase 两个方向各两轮，4 次真实 GPIO IRQ 和 CPU ISR，RAM 历史为 6、8、11、15；有预算证据包从初态重放一致 | 双向多组件链通过 |
+| CVE2 → PULP SPI → CVE2 RAM | CPU 真实 APB 配置、SPI 外部源真实接收、CPU 读取 RXFIFO 并写入持久 RAM；改变串行源会改变 RAM 与 trace，预算化证据 fresh replay 一致 | 数据闭环通过；CPU IRQ 固定为 0 |
 
 协议模板注册表列出 CPU OBI、AXI4、AXI4-Lite、Wishbone classic、Pico native Ready/Valid，以及 OpenTitan TL-UL、PULP APB3、ZipCPU Wishbone 目标端变体。上表的 OBI、原生 Ready/Valid、Wishbone、AXI4-Lite、完整 AXI4、PULP GPIO APB3 与 PULP SPI APB3 实例有真实 RTL 运行证据；其余条目仍只是契约配置，不能据此声称协议会话已经生成。
 
@@ -64,4 +65,4 @@ PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_axi4_cpu -q
 
 ## 尚未满足的验收
 
-五类初始 CPU 协议已有至少一个固定 RTL 实例的生成式运行证据，但同协议的第二种 CPU 尚未形成通用化验收。双向 CPU/GPIO 首阶段具备连续状态、IRQ、预算化证据和 replay。OpenTitan/ZipCPU 外设系列的生成、局部协议交易、peer 环境和 replay 仍待完成。Pico 原生及 AXI4-Lite 接口目前只能测试 RAM/ROM；Wishbone 已服务 RAM 与 GPIO MMIO，但无 IRQ；ZipCPU AXI4 当前只服务 RAM。PULP SPI 只验收 CLKDIV=1 单次传输，CPU→SPI→CPU 链和 CLKDIV=0 均未验收。新增同协议组件最终应只需固定 profile 与有证据的声明式微调；现在尚未证明这一通用化门槛。
+五类初始 CPU 协议已有至少一个固定 RTL 实例的生成式运行证据，但同协议的第二种 CPU 尚未形成通用化验收。双向 CPU/GPIO 首阶段具备连续状态、IRQ、预算化证据和 replay；CPU→PULP SPI→CPU RAM 数据闭环也已通过。OpenTitan/ZipCPU 外设系列的生成、局部协议交易、peer 环境和 replay 仍待完成。Pico 原生及 AXI4-Lite 接口目前只能测试 RAM/ROM；Wishbone 已服务 RAM 与 GPIO MMIO，但无 IRQ；ZipCPU AXI4 当前只服务 RAM。PULP SPI 只验收 CLKDIV=1 单次传输，CLKDIV=0 和 CPU 中断链均未验收。新增同协议组件最终应只需固定 profile 与有证据的声明式微调；现在尚未证明这一通用化门槛。
