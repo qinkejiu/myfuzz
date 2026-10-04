@@ -25,7 +25,10 @@ class BidirectionalIrqRealTests(unittest.TestCase):
             factory, instances, case = make_case(Path(directory))
             from myfuzz.scenario.evidence import save_evidence_bundle, replay_evidence_bundle
             bundle = Path(directory) / 'evidence'
-            trace = save_evidence_bundle(case, factory, bundle)
+            from myfuzz.scenario.contracts import ResourceBudget
+            budget = ResourceBudget(max_wall_time_ms=180000,
+                                    max_materialized_bytes_per_memory=0x20000)
+            trace = save_evidence_bundle(case, factory, bundle, budget=budget)
             self.assertEqual('complete', trace.status)
             runner = instances[0]
             memory = runner.sessions['cpu'].memory
@@ -75,7 +78,7 @@ class BidirectionalIrqRealTests(unittest.TestCase):
             self.assertEqual({0}, {key[1] for key in keys})
             self.assertFalse(any(e.get('kind') in ('irq_overrun', 'reset') for e in trace.events))
             import json
-            from myfuzz.scenario.contracts import ResourceBudget, ScenarioManifest
+            from myfuzz.scenario.contracts import ScenarioManifest
             import jsonschema
             saved_identity = json.loads((bundle / 'manifest.json').read_text())
             timings = {}
@@ -89,7 +92,7 @@ class BidirectionalIrqRealTests(unittest.TestCase):
                     'release_cycles': artifact['driver_reset']['reset_release_ticks']}
             manifest = ScenarioManifest.from_runner_identity(
                 saved_identity, scenario_id=case.testcase_id, schedule_order=case.schedule_order,
-                scheduler_policy_id='stable-local-v1', budget=ResourceBudget(), reset_timings=timings)
+                scheduler_policy_id='stable-local-v1', budget=budget, reset_timings=timings)
             schema = json.loads((ROOT / 'schemas/scenario_runtime_manifest.v1.json').read_text())
             budget_schema = json.loads((ROOT / 'schemas/scenario_manifest.v1.json').read_text())
             schema['properties']['budget'] = budget_schema['properties']['budget']

@@ -58,6 +58,25 @@ class GeneratedLocalContractTests(unittest.TestCase):
             with self.subTest(field=field),self.assertRaises(ValueError):
                 _verify_generated_session(changed)
 
+    def test_generated_evidence_bounds_are_derived_from_driver_limits(self):
+        from myfuzz.scenario.evidence import (_final_state_growth_bound,
+                                              _evidence_record_bound)
+        from myfuzz.scenario.genome import ScenarioGenome
+        gpio=GeneratedPulpGpioSession(self.artifact,base_dir=ROOT,cache_dir=Path('/tmp/contract-unused-cache'))
+        router=DataflowRouter((DeviceWindow('gpio',0x40000000,0x1000,gpio),))
+        memory=PersistentMemory(regions=(MemoryRegion('ram',0x10000,0x20000),),
+                                initialization_seed=1,max_initialized_bytes=0x20000)
+        cpu=GeneratedCve2Session(self.cpu_artifact,base_dir=ROOT,
+            cache_dir=Path('/tmp/contract-unused-cache'),memory=memory,router=router)
+        runner=ScenarioRunner(sessions={'cpu':cpu,'gpio':gpio},
+            ownership=compile_ownership((),()),bindings=())
+        genome=ScenarioGenome(testcase_id='generated-budget',direction='CPU_TO_IP',
+            path_id='p',schedule_order=('cpu','gpio'),max_steps=1,actions=())
+        budget=ResourceBudget()
+        self.assertGreater(_final_state_growth_bound(genome,runner,budget),0)
+        self.assertGreater(_evidence_record_bound(genome,runner,budget),
+                           4*self.artifact.runtime_document['driver_limits']['reply_reservation_bytes'])
+
     def identity(self):
         session=GeneratedPulpGpioSession(self.artifact,base_dir=ROOT,cache_dir=Path('/tmp/contract-unused-cache'))
         return ScenarioRunner(sessions={'gpio':session},ownership=compile_ownership((),()),bindings=()).identity_document()

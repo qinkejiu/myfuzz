@@ -55,20 +55,21 @@ and final A output `0x0f82`. Fresh replay must match the entire event stream,
 component ticks and final state. The schedule has 1,860 component steps
 (620 CPU ticks); it retains all native receipts.
 
-## Evidence gate and remaining admission
+## Evidence and resource admission
 
 The integration uses `save_evidence_bundle` / `replay_evidence_bundle`, checks
 published images/index/result/final-state material through the replay API, and
 validates a `scenario_runtime_manifest.v1` document against the published JSON
 Schema. The reset declarations come from each actual generated artifact.
 
-Verification on main `300d349`: both tests passed in 101.865 seconds, including
-fresh real RTL bundle replay. The compiled firmware SHA-256 was
+The first unbudgeted verification on `300d349` passed both tests in 101.865
+seconds. The compiled firmware SHA-256 was
 `99daa25de1fb0335007ad9f7f2b89a1608da9fa6522aec2bcc4e748f7099cac0`.
 
-This test publishes an **unbudgeted** bundle (`budget=None`). Generated
-sessions still lack the per-operation final-state growth and evidence-record
-bounds required by budgeted publication. This establishes the Task7 real
-bidirectional functional and replay gate; full cross-component acceptance
-still requires the separate resource-budget admission gate. No resource
-budget is raised here.
+The integration now publishes with `ResourceBudget(max_wall_time_ms=180000,
+max_materialized_bytes_per_memory=0x20000)`. The memory cap matches the
+fixture's declared persistent RAM service cap; the default 64 KiB cap correctly
+rejects that fixture before RTL starts. A separate budgeted real RTL run
+completed with 8,924 events and fresh replay matched. The generated-session
+per-operation evidence bounds derive from the generated driver's reply
+reservation, with additional room for host transaction identities and state.
