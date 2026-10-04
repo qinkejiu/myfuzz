@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, fields
 import hashlib
+from importlib import import_module
 import json
 from pathlib import Path
 import re
@@ -25,6 +26,27 @@ _RESET_LOOP = re.compile(r"for\s*\(\s*int\s+i\s*=\s*0\s*;\s*i\s*<\s*(\d+)\s*;\s*
 
 class ProtocolEnvironmentError(RuntimeError):
     """The local driver violated a DUT-facing protocol or response rule."""
+
+
+def _generated_session_class_kind(class_path: str) -> str:
+    """Resolve an audited generated session class in the local harness package."""
+    if (type(class_path) is not str or
+            re.fullmatch(r'myfuzz\.local_harness\.[a-z][a-z0-9_]*\.Generated[A-Za-z0-9_]+Session',
+                         class_path) is None):
+        raise ValueError('generated session type is not registered')
+    module_name, class_name = class_path.rsplit('.', 1)
+    try:
+        cls = getattr(import_module(module_name), class_name)
+    except (ImportError, AttributeError) as exc:
+        raise ValueError('generated session type is not registered') from exc
+    from myfuzz.local_harness.session import GeneratedLocalSession
+    kind = getattr(cls, 'artifact_kind', None)
+    if (not isinstance(cls, type) or cls.__module__ != module_name
+            or cls is GeneratedLocalSession or not issubclass(cls, GeneratedLocalSession)
+            or 'artifact_kind' not in cls.__dict__ or type(kind) is not str
+            or re.fullmatch(r'[a-z][a-z0-9_]*', kind) is None):
+        raise ValueError('generated session type is not registered')
+    return kind
 
 
 def _verify_local_reset_timing(component: str, timing: dict) -> None:
@@ -469,28 +491,11 @@ class ScenarioManifest:
             _text(component, "session component")
             session = _exact(session, {"type", "identity"}, f"sessions.{component}")
             if session['identity'].get('schema_version') == 'generated_local_session_identity.v1':
-                if (identity['schema_version'] != 'scenario_manifest_identity.v2'
-                        or session['type'] not in ('myfuzz.local_harness.native_session.GeneratedNativeMemorySession',
-                                                  'myfuzz.local_harness.axi_lite_session.GeneratedAxiLiteMemorySession',
-                                                  'myfuzz.local_harness.cpu_session.GeneratedCve2Session',
-                                                  'myfuzz.local_harness.wishbone_cpu_session.GeneratedWishboneCpuSession',
-                                                  'myfuzz.local_harness.axi4_cpu_session.GeneratedAxi4CpuSession',
-                                                  'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession',
-                                                  'myfuzz.local_harness.opentitan_gpio_session.GeneratedOpentitanGpioSession',
-                                                  'myfuzz.local_harness.spi_session.GeneratedPulpSpiSession')):
+                if identity['schema_version'] != 'scenario_manifest_identity.v2':
                     raise ValueError('generated session type or runner schema mismatch')
+                expected_kind = _generated_session_class_kind(session['type'])
                 artifact = _verify_generated_session(session['identity'])
-                expected_kinds = {
-                    'myfuzz.local_harness.native_session.GeneratedNativeMemorySession': 'native_memory_cpu',
-                    'myfuzz.local_harness.axi_lite_session.GeneratedAxiLiteMemorySession': 'axi4_lite_cpu',
-                    'myfuzz.local_harness.cpu_session.GeneratedCve2Session': 'obi_cpu',
-                    'myfuzz.local_harness.wishbone_cpu_session.GeneratedWishboneCpuSession': 'wishbone_cpu',
-                    'myfuzz.local_harness.axi4_cpu_session.GeneratedAxi4CpuSession': 'axi4_cpu',
-                    'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession': 'apb_gpio',
-                    'myfuzz.local_harness.opentitan_gpio_session.GeneratedOpentitanGpioSession': 'tlul_gpio',
-                    'myfuzz.local_harness.spi_session.GeneratedPulpSpiSession': 'apb_spi',
-                }
-                if artifact.runtime_document['kind'] != expected_kinds[session['type']]:
+                if artifact.runtime_document['kind'] != expected_kind:
                     raise ValueError('generated session type disagrees with artifact kind')
                 continue
             if not isinstance(session["type"], str) or not session["type"].startswith(

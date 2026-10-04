@@ -22,6 +22,7 @@ def _word(value: object, name: str) -> int:
 class GeneratedPulpGpioSession(GeneratedLocalSession):
     """One actual PULP apb_gpio process, reset only on testcase/reset policy."""
 
+    artifact_kind = 'apb_gpio'
     max_local_ticks_per_step = 1
 
     def __init__(self, artifact, *, base_dir, cache_dir, **kwargs):

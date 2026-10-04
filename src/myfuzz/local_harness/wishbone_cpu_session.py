@@ -23,6 +23,7 @@ _LIMITS = {'wb_cyc': 1, 'wb_stb': 1, 'wb_we': 1, 'wb_adr': 0xffffffff,
 class GeneratedWishboneCpuSession(GeneratedLocalSession):
     """Acknowledge each observed Wishbone request once after servicing it."""
 
+    artifact_kind = 'wishbone_cpu'
     max_transaction_events_per_step = 1
     max_local_ticks_per_step = 1
 

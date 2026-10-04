@@ -15,6 +15,7 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
     No IRQ or instruction decoding is synthesized by the environment. An
     optional typed physical instruction marker remains an RTL observation.
     """
+    artifact_kind = 'native_memory_cpu'
     max_driver_samples_per_operation=1
     max_memory_materialized_bytes_per_operation=4
     max_pending_responses=1

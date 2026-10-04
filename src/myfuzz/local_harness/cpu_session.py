@@ -34,6 +34,7 @@ class GeneratedCve2Session(GeneratedLocalSession):
     Deferred MMIO executes only through a registered target's scheduler step.
     """
 
+    artifact_kind = 'obi_cpu'
     max_transaction_events_per_step = 2
     max_local_ticks_per_step = 1
 

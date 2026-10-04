@@ -9,6 +9,7 @@ from .session import GeneratedLocalSession
 
 
 class GeneratedPulpSpiSession(GeneratedLocalSession):
+    artifact_kind = 'apb_spi'
     max_local_ticks_per_step = 1
 
     def __init__(self, artifact, *, base_dir, cache_dir, source: bytes,

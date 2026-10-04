@@ -3,6 +3,7 @@ from .native_session import GeneratedNativeMemorySession
 
 
 class GeneratedAxiLiteMemorySession(GeneratedNativeMemorySession):
+    artifact_kind = 'axi4_lite_cpu'
     runtime_kind = 'axi4_lite_cpu'
     service_schema = 'generated_axi4_lite_memory_service.v1'
     read_request_be = 0

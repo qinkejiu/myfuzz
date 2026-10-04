@@ -44,6 +44,7 @@ def _check_address(row: Mapping[str, int], channel: str) -> None:
 class GeneratedAxi4CpuSession(GeneratedLocalSession):
     """Advance both AXI4 masters one measured edge while serving versioned RAM."""
 
+    artifact_kind = 'axi4_cpu'
     max_transaction_events_per_step = 4
     max_local_ticks_per_step = 1
     max_mmio_target_accesses_per_step = 0
