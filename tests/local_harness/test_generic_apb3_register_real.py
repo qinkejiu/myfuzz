@@ -112,6 +112,9 @@ class GenericApb3RealTests(unittest.TestCase):
                     self.assertGreater(sessions[0].local_ticks, 12)
                     if kind == 'gpio':
                         self.assertEqual(0xa5, sessions[0].local_transactions[-1]['read_value'])
+                    else:
+                        self.assertGreater(sessions[0].local_transactions[-1]['read_value'], 0,
+                                           'timer count must advance in real RTL')
                     replay = replay_evidence_bundle(bundle, factory)
                     self.assertTrue(replay.matches, replay.difference_context)
                     self.assertIsNot(sessions[0], sessions[1])
