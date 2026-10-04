@@ -1,0 +1,226 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "picorv32_wb_irq",
+  "kind": "cpu",
+  "description": "Pinned PicoRV32 Wishbone with custom IRQ enabled; generated runtime exposes the real 32-bit IRQ input and EOI output. Uses Pico custom0 IRQ ABI, not RISC-V privileged interrupts.",
+  "source": {
+    "root": "third_party/picorv32_upstream_reference",
+    "revision": "git:ef203c2b0a3fb793280f5114941416c425c5b461",
+    "top_module": "picorv32_wb",
+    "top_port_selection": "all",
+    "files": [
+      "picorv32.v"
+    ],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {
+          "name": "ENABLE_PCPI",
+          "value": "0"
+        },
+        {
+          "name": "ENABLE_IRQ",
+          "value": "1"
+        }
+      ],
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [
+    {
+      "port": "wb_clk_i",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "wb_rst_i",
+      "domain": "sys_rst",
+      "polarity": "active_high",
+      "synchronous": true,
+      "release": "picorv32.v samples resetn in posedge clk sequential blocks; the Wishbone wrapper assigns clk=wb_clk_i and resetn=~wb_rst_i."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "processor.memory",
+      "function": "memory_master",
+      "protocol": [
+        "wishbone",
+        "classic"
+      ],
+      "fields": [
+        {
+          "role": "adr",
+          "aliases": [
+            "wbm_adr_o"
+          ]
+        },
+        {
+          "role": "dat_w",
+          "aliases": [
+            "wbm_dat_o"
+          ]
+        },
+        {
+          "role": "dat_r",
+          "aliases": [
+            "wbm_dat_i"
+          ]
+        },
+        {
+          "role": "we",
+          "aliases": [
+            "wbm_we_o"
+          ]
+        },
+        {
+          "role": "sel",
+          "aliases": [
+            "wbm_sel_o"
+          ]
+        },
+        {
+          "role": "stb",
+          "aliases": [
+            "wbm_stb_o"
+          ]
+        },
+        {
+          "role": "ack",
+          "aliases": [
+            "wbm_ack_i"
+          ]
+        },
+        {
+          "role": "cyc",
+          "aliases": [
+            "wbm_cyc_o"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "processor.interrupts",
+      "function": "interrupt_entry",
+      "fields": [
+        {
+          "role": "custom",
+          "aliases": [
+            "irq"
+          ]
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 32,
+    "data_width": 32,
+    "byte_enable": true,
+    "max_outstanding": 1,
+    "error_response": false,
+    "instruction_identity_port": "mem_instr",
+    "evidence": "picorv32.v top declarations have 32-bit address/data and four byte lanes. max_outstanding=1 is the planned environment limit. No physical error response exists. The physical Wishbone top has no err or stall. The plugin requires err, so a later local transactor needs an explicit no-error/no-stall variant. picorv32.v assigns wbm_adr_o <= mem_addr (byte address) and wbm_sel_o <= mem_wstrb, including zero select on reads; later transactor tests must verify read select behavior."
+  },
+  "port_actions": [
+    {
+      "port": "pcpi_wr",
+      "action": "constant",
+      "value": 0,
+      "reason": "picorv32.v gates external PCPI response handling on ENABLE_PCPI; all three tops explicitly select ENABLE_PCPI=0, so zero is the inactive response value."
+    },
+    {
+      "port": "pcpi_rd",
+      "action": "constant",
+      "value": 0,
+      "reason": "picorv32.v gates external PCPI response handling on ENABLE_PCPI; all three tops explicitly select ENABLE_PCPI=0, so zero is the inactive response value."
+    },
+    {
+      "port": "pcpi_wait",
+      "action": "constant",
+      "value": 0,
+      "reason": "picorv32.v gates external PCPI response handling on ENABLE_PCPI; all three tops explicitly select ENABLE_PCPI=0, so zero is the inactive response value."
+    },
+    {
+      "port": "pcpi_ready",
+      "action": "constant",
+      "value": 0,
+      "reason": "picorv32.v gates external PCPI response handling on ENABLE_PCPI; all three tops explicitly select ENABLE_PCPI=0, so zero is the inactive response value."
+    },
+    {
+      "port": "trap",
+      "action": "observe",
+      "reason": "picorv32.v declares trap as the core status output; observe its RTL-produced value."
+    },
+    {
+      "port": "eoi",
+      "action": "observe",
+      "reason": "Observe the real custom IRQ end-of-interrupt vector: Pico raises handled bits during the IRQ handler and clears them on retirq."
+    },
+    {
+      "port": "pcpi_valid",
+      "action": "observe",
+      "reason": "picorv32.v declares this PCPI request output even with ENABLE_PCPI=0; observe its RTL-produced value."
+    },
+    {
+      "port": "pcpi_insn",
+      "action": "observe",
+      "reason": "picorv32.v declares this PCPI request output even with ENABLE_PCPI=0; observe its RTL-produced value."
+    },
+    {
+      "port": "pcpi_rs1",
+      "action": "observe",
+      "reason": "picorv32.v declares this PCPI request output even with ENABLE_PCPI=0; observe its RTL-produced value."
+    },
+    {
+      "port": "pcpi_rs2",
+      "action": "observe",
+      "reason": "picorv32.v declares this PCPI request output even with ENABLE_PCPI=0; observe its RTL-produced value."
+    },
+    {
+      "port": "trace_valid",
+      "action": "observe",
+      "reason": "picorv32.v declares this trace output even with default ENABLE_TRACE=0; observe its RTL-produced value."
+    },
+    {
+      "port": "trace_data",
+      "action": "observe",
+      "reason": "picorv32.v declares this trace output even with default ENABLE_TRACE=0; observe its RTL-produced value."
+    },
+    {
+      "port": "mem_instr",
+      "action": "observe",
+      "reason": "picorv32.v declares instruction identity as a physical output; the selected protocol plugin has no instruction_identity role, so observe it."
+    }
+  ],
+  "cpu": {
+    "family": "riscv",
+    "xlen": 32,
+    "extensions": [
+      "i"
+    ],
+    "reset_vector": 0,
+    "master_endpoints": [
+      "processor.memory"
+    ],
+    "boot_address_required": false,
+    "irq_entry_endpoint": "processor.interrupts",
+    "irq_entry_role": "custom",
+    "irq_entry_polarity": "active_high"
+  },
+  "evidence": {
+    "semantics": [
+      "Pinned picorv32.v and firmware/custom_ops.S: ENABLE_IRQ=1 exposes a 32-bit custom IRQ vector; getq/setq/maskirq/retirq use custom0 opcode. PROGADDR_IRQ defaults to 0x10; ENABLE_IRQ_QREGS=1 and LATCHED_IRQ=0xffffffff are retained defaults. IRQ bits 0-2 also have internal sources; this acceptance binds external timer IRQ to bit 3.",
+      "The source parameters retain ENABLE_PCPI=0. Wishbone addressing/select behavior is identical to the separate picorv32_wb profile."
+    ],
+    "verified": [
+      "Focused generated Wishbone acceptance executes the pinned Pico RTL and ziptimer RTL in persistent independent processes: CPU arms the timer via MMIO, native timer IRQ is bound to irq[3], Pico custom handler stores q1=8 and its completion marker in RAM, real eoi returns from 8 to zero, trap remains zero and main RAM transactions resume.",
+      "The focused test saves a formal evidence bundle and replays it with new RTL processes; semantic evidence and RAM results match. The separate IRQ-disabled picorv32_wb acceptance suite still passes."
+    ],
+    "unknown": [
+      "No standard RISC-V machine-external CSR/trap ABI is implemented or claimed.",
+      "Only IRQ3 from the pinned ziptimer and the focused custom handler are covered; nested interrupts, all other IRQ bits and ABI context preservation are unassessed."
+    ]
+  }
+}

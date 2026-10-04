@@ -52,6 +52,13 @@ class GeneratedWishboneCpuSession(GeneratedLocalSession):
         self.mmio_write_count = 0
         self.mmio_read_count = 0
         self.last_samples: tuple[dict, ...] = ()
+        cpu = artifact.plan.profile.cpu
+        self._irq_runtime_name = next((row['runtime_name']
+            for row in self._artifact_document['physical_exports']
+            if row['direction'] == 'input' and row['width'] == 32
+            and cpu.irq_entry_endpoint is not None
+            and row['endpoint_id'] == cpu.irq_entry_endpoint
+            and row['role'] == cpu.irq_entry_role), None)
 
     def identity_document(self) -> dict[str, object]:
         return {**super().identity_document(),
@@ -154,12 +161,18 @@ class GeneratedWishboneCpuSession(GeneratedLocalSession):
             self._pending = (snapshot.value, key.source_sequence, channel)
 
     def step_local(self, inputs: Mapping[str, int]) -> Mapping[str, object]:
-        if not isinstance(inputs, Mapping) or inputs:
-            raise ValueError('generated Wishbone CPU has no external input')
+        allowed = {'irq'} if self._irq_runtime_name is not None else set()
+        if not isinstance(inputs, Mapping) or set(inputs) - allowed:
+            raise ValueError('undeclared generated Wishbone CPU input')
+        irq = inputs.get('irq', 0)
+        if type(irq) is not int or not 0 <= irq <= 0xffffffff:
+            raise ValueError('invalid generated Wishbone CPU IRQ width')
         pending = self._pending
         ack = int(pending is not None)
         rdata = pending[0] if pending else 0
-        receipt = self.command('STEP_WISHBONE', (ack, rdata))
+        receipt = (self.command('STEP_WISHBONE_IRQ', (ack, rdata, irq))
+                   if self._irq_runtime_name is not None
+                   else self.command('STEP_WISHBONE', (ack, rdata)))
         if receipt.status == 'error':
             message = f'{receipt.error_code}: {receipt.error_detail}'
             if receipt.error_code == 'protocol_environment':
@@ -179,6 +192,9 @@ class GeneratedWishboneCpuSession(GeneratedLocalSession):
                 or payload['samples'][0].get('pre', {}).get('backend') != pre):
             raise ProtocolEnvironmentError('invalid generated Wishbone backend observation')
         pre_observation = payload['samples'][0]['pre']
+        if (self._irq_runtime_name is not None
+                and pre_observation.get('physical', {}).get(self._irq_runtime_name) != irq):
+            raise ProtocolEnvironmentError('generated Wishbone IRQ observation mismatch')
         self._physical(pre_observation)
         marker = self._artifact_document['instruction_identity_observation']
         instruction = pre_observation['physical'].get(marker)

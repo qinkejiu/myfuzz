@@ -469,6 +469,10 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                 kind in ('obi_cpu', 'cva6_packed_axi4_cpu')
                 and row['direction'] == 'input' and row['width'] == 1
                 and row['endpoint_id'] == plan.profile.cpu.irq_entry_endpoint
+                and row['role'] == plan.profile.cpu.irq_entry_role or
+                kind == 'wishbone_cpu' and row['direction'] == 'input'
+                and row['width'] == 32
+                and row['endpoint_id'] == plan.profile.cpu.irq_entry_endpoint
                 and row['role'] == plan.profile.cpu.irq_entry_role):
             raise ValueError('runtime-functional-ownership-unsupported')
     ports = [('clk', 'input', 1), ('reset', 'input', 1)]

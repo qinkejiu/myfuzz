@@ -205,7 +205,18 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             raise ValueError('driver-tlul-spi-device-irq')
         fields['irq_o'] = irq[0]['runtime_name']
         allowed_inputs = {fields[name] for name in ('sck_i', 'csb_i', 'tpm_csb_i', 'sd_i')}
-    elif kind in ('native_memory_cpu', 'wishbone_cpu', 'axi4_lite_cpu', 'axi4_cpu'):
+    elif kind == 'wishbone_cpu':
+        cpu = artifact.plan.profile.cpu
+        allowed_inputs = set()
+        if cpu.irq_entry_endpoint is not None:
+            irq = [row for row in exports if row['endpoint_id'] == cpu.irq_entry_endpoint
+                   and row['role'] == cpu.irq_entry_role and row['direction'] == 'input'
+                   and row['width'] == 32]
+            if len(irq) != 1:
+                raise ValueError('driver-wishbone-irq-field')
+            fields['irq_custom'] = irq[0]['runtime_name']
+            allowed_inputs = {fields['irq_custom']}
+    elif kind in ('native_memory_cpu', 'axi4_lite_cpu', 'axi4_cpu'):
         allowed_inputs = set()
     elif kind == 'cva6_packed_axi4_cpu':
         cpu = artifact.plan.profile.cpu
@@ -378,6 +389,9 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
       }
 '''
         operation_check = 'command.operation != "STEP_WISHBONE"'
+        if 'irq_custom' in fields:
+            dispatch = f'      dut.{fields["irq_custom"]} = command.fields[2];\n' + dispatch
+            operation_check = 'command.operation != "STEP_WISHBONE_IRQ"'
     elif kind in ('native_memory_cpu', 'axi4_lite_cpu'):
         dispatch = "\n".join(f'      dut.{name} = command.fields[{index}];' for index, name in enumerate([
             'm_req_ready', 'm_rsp_valid', 'm_rsp_rdata', 'm_rsp_error'])) + r'''

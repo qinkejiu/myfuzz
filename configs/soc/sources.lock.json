@@ -6225,6 +6225,83 @@
           "exit_code": 0
         }
       }
+    },
+    {
+      "id": "picorv32_wb_irq",
+      "source": {
+        "root": "third_party/picorv32_upstream_reference",
+        "revision": "git:ef203c2b0a3fb793280f5114941416c425c5b461",
+        "top_module": "picorv32_wb",
+        "top_port_selection": "all",
+        "files": [
+          "picorv32.v"
+        ],
+        "elaboration": {
+          "frontend": "verilator-json",
+          "parameters": [
+            {
+              "name": "ENABLE_PCPI",
+              "value": "0"
+            },
+            {
+              "name": "ENABLE_IRQ",
+              "value": "1"
+            }
+          ],
+          "warning_policy": "recorded-nonfatal"
+        }
+      },
+      "artifacts": [
+        {
+          "path": "picorv32.v",
+          "sha256": "0836050971b3c6cdd28ac3b1e5719a67fb645161912bef1e472e63995ceb0622",
+          "kind": "source"
+        },
+        {
+          "path": "COPYING",
+          "sha256": "041ebc727233e5bf096dd41260cbb81014d3d29ca007a15f3b1807d4e9ff288e",
+          "kind": "license"
+        }
+      ],
+      "selected_content_hash": "sha256:5a83803c2cb893f1363b21ad1ebbc8d84de13bc363f2d40727d6a444b2b882bd",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "defines": [],
+      "typed_parameters": [
+        {
+          "name": "ENABLE_PCPI",
+          "value": "0"
+        },
+        {
+          "name": "ENABLE_IRQ",
+          "value": "1"
+        }
+      ],
+      "generator": {
+        "status": "not_invoked",
+        "tool_version": null,
+        "name": "none for selected checked-in files"
+      },
+      "dependencies": [],
+      "elaboration": {
+        "status": "elaboration_verified",
+        "top_module": "picorv32_wb",
+        "tool": {
+          "name": "verilator",
+          "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "frontend": "verilator-lint"
+        },
+        "evidence": "configs/soc/closures/picorv32_wb_irq.json",
+        "evidence_sha256": "5573eba73d5ed2112196e0a4ce15914e9bf3240171e2d9c5167902bf3a819aff",
+        "closure_files": 1,
+        "lint": {
+          "errors": 0,
+          "warnings": 0,
+          "exit_code": 0
+        }
+      }
     }
   ]
 }
