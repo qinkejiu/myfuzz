@@ -59,6 +59,9 @@ class GeneratedOpentitanSpiDeviceRealTests(unittest.TestCase):
                          device.transfer_bytes(bytes((0x9F,)), read_count=3))
         self.assertEqual(bytes((0xA1, 0x34, 0x12)),
                          device.transfer_bytes(bytes((0x9F,)), read_count=3))
+        device.write_register(0x30, 0x00B25678)
+        self.assertEqual(bytes((0xB2, 0x78, 0x56)),
+                         device.transfer_bytes(bytes((0x9F,)), read_count=3))
         self.assertTrue(any(sample['post']['sd_en_o'] & 2
                             for sample in device.drain_tick_samples()))
         with self.assertRaisesRegex(ValueError, 'external input'):
