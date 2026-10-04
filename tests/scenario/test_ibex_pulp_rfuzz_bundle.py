@@ -13,7 +13,7 @@ from myfuzz.integration.scenario_rfuzz import ScenarioRfuzzExecutor
 from myfuzz.scenario.ibex_pulp_rfuzz import make_ibex_pulp_rfuzz_bundle
 from myfuzz.scenario.replay import ScenarioTrace
 from tests.integration.test_scenario_ibex_two_pulp_gpio_generated_real import genome
-from tests.scenario.test_pulp_gpio_irq_chain_checker import _events
+from tests.scenario.test_pulp_gpio_irq_chain_checker import _configured_events
 
 
 def flip(bit_index):
@@ -38,7 +38,7 @@ class IbexPulpRfuzzBundleTests(unittest.TestCase):
         maximum = decoder.decode(tuple(flip(index) for index in range(7)))
         max_boot = next(image for image in maximum.initial_images if image.image_id == 'boot')
         self.assertEqual(0xff, int.from_bytes(max_boot.data[68:72], 'little') >> 20)
-        self.assertEqual((), checker(ScenarioTrace('g', 'complete', tuple(_events()),
+        self.assertEqual((), checker(ScenarioTrace('g', 'complete', tuple(_configured_events()),
                                                    {}, 's', 'm')))
 
     def test_unreviewed_seed_cannot_be_used_for_trusted_search(self):
@@ -50,7 +50,7 @@ class IbexPulpRfuzzBundleTests(unittest.TestCase):
     def test_seeded_trace_fault_checker_violation_is_saved_to_corpus(self):
         seed = genome(1)
         decoder, targets, checker = make_ibex_pulp_rfuzz_bundle(seed, genome(0xff))
-        events = [dict(event) for event in _events()]
+        events = [dict(event) for event in _configured_events()]
         for event in events:
             if event.get('kind') == 'mmio_delivery' and event.get('device_id') == 'gpio_b' \
                     and event.get('offset') == 8 and event.get('write') is False:
