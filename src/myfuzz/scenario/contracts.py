@@ -105,6 +105,10 @@ def _verify_generated_session(identity: dict):
     axil_uart_fields = {'axil_uart_service_schema_version', 'source_component',
                         'source_hex', 'startup_writes', 'read_rx_after_source'}
     axil_uart_genome_fields = axil_uart_fields | {'source_mode'}
+    wb_uart_fields = {'wb_uart_service_schema_version', 'source_component',
+                      'source_hex', 'startup_writes', 'read_rx_after_source'}
+    wb_uart_genome_fields = wb_uart_fields | {'source_mode'}
+    wb_uart_cpu_fields = wb_uart_genome_fields | {'cpu_routed_mode'}
     if not isinstance(identity, dict) or set(identity) not in (
             base_fields, base_fields | cpu_fields, base_fields | native_fields,
             base_fields | axi_lite_fields, base_fields | spi_fields,
@@ -116,7 +120,10 @@ def _verify_generated_session(identity: dict):
             base_fields | tlul_uart_genome_fields,
             base_fields | tlul_uart_cpu_fields,
             base_fields | axil_uart_fields,
-            base_fields | axil_uart_genome_fields):
+            base_fields | axil_uart_genome_fields,
+            base_fields | wb_uart_fields,
+            base_fields | wb_uart_genome_fields,
+            base_fields | wb_uart_cpu_fields):
 
         raise ValueError('generated session identity has unknown or missing fields')
     if identity['schema_version'] != 'generated_local_session_identity.v1':
@@ -280,6 +287,35 @@ def _verify_generated_session(identity: dict):
                 or identity['read_rx_after_source'] and not source
                    and not genome_source):
             raise ValueError('generated AXI4-Lite UART service identity mismatch')
+    elif artifact.runtime_document['kind'] == 'wishbone_uart':
+        genome_source = identity.get('source_mode') == 'genome'
+        cpu_routed = identity.get('cpu_routed_mode') is True
+        _exact(identity, base_fields | (wb_uart_cpu_fields if cpu_routed else
+                                        wb_uart_genome_fields if genome_source
+                                        else wb_uart_fields),
+               'generated Wishbone UART service identity')
+        source = identity['source_hex']
+        writes = identity['startup_writes']
+        read_rx = identity['read_rx_after_source']
+        if (identity['wb_uart_service_schema_version'] !=
+                ('generated_wb_uart_8n1.v3' if cpu_routed else
+                 'generated_wb_uart_8n1.v2' if genome_source else
+                 'generated_wb_uart_8n1.v1')
+                or identity['source_component'] != artifact.plan.request.instance_id
+                or type(source) is not str or len(source) not in (0, 2)
+                or any(ch not in '0123456789abcdef' for ch in source)
+                or genome_source and source != ''
+                or type(writes) is not list or len(writes) > 4
+                or any(type(row) is not list or len(row) != 3
+                       or row != [0, 25, 15]
+                       and not (type(row[0]) is int and row[0] == 12
+                                and type(row[1]) is int and 0 <= row[1] <= 255
+                                and type(row[2]) is int and row[2] == 1)
+                       for row in writes)
+                or type(read_rx) is not bool
+                or read_rx and not (genome_source or source)
+                or cpu_routed and (not genome_source or read_rx or writes)):
+            raise ValueError('generated Wishbone UART service identity mismatch')
     else:
         _exact(identity, base_fields, 'generated IP service identity')
     if identity['build_identity'] != local_build_identity(artifact, base_dir=_ROOT):
