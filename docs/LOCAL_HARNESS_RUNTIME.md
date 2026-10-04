@@ -40,7 +40,7 @@
 | CVE2 ↔ ZipCPU wbuart ↔ CVE2 RAM | CPU 真实 MMIO 写 SETUP/TXREG，UART TX 引脚解码 `0x41`；两种 Genome RX 字节经真实 RXREG 到 CPU RAM，原生 IRQ 电平交付 CPU 输入，fresh replay 一致 | 双向数据闭环通过；CPU 程序仍轮询，未验收 ISR |
 | CVE2 → OpenTitan SPI Device → CVE2 RAM | CPU 真实 TL-UL MMIO 配置 CONTROL、上传命令和中断使能；两种 Genome 外部 master 帧经 mode-0 引脚进入真实上传路径；CPU 轮询真实 IRQ_STATE，读取 FIFO/地址/SRAM 并写持久 RAM，fresh replay 一致 | 数据闭环通过；CPU ISR 未验收，串行限当前单线上传帧 |
 
-协议模板注册表列出 CPU OBI、AXI4、AXI4-Lite、Wishbone classic、Pico native Ready/Valid，以及 OpenTitan TL-UL、PULP APB3、ZipCPU Wishbone 和 AXI4-Lite 目标端变体。上表的五种 CPU 协议、PULP APB3 GPIO/SPI/Timer/I2C、OpenTitan TL-UL GPIO/RV Timer/SPI Host/I2C/UART/SPI Device、ZipCPU Wishbone Timer/UART 与 AXI4-Lite UART 实例有真实 RTL 运行证据。`local_harness.v2` 现有三个寄存器观察模板：TL-UL 的 GPIO/RV Timer/SPI Device，APB3 的 PULP GPIO/Timer，Wishbone 的 ZipCPU Timer/wbuart；每组真实交易和 fresh replay 都通过。同一个 TL-UL 模板还验收 GPIO 的动态环境引脚源，以及 GPIO A 真实输出绑定 GPIO B 输入并引出真实 IRQ；APB3 模板验收动态 GPIO 输入。APB3 通用模板当前限定 12 位地址、4096 字节窗口和 32 位数据；Wishbone 通用模板要求目标有真实 `stall` 输出，且目前只接收声明式固定物理输入。不符合这些运行时形状的 profile 在规划阶段拒绝。通用模板只执行寄存器交易和输出观察，不驱动串行 peer；SPI Device 的 JEDEC/上传等串行行为由专用 session 提供。
+协议模板注册表列出 CPU OBI、AXI4、AXI4-Lite、Wishbone classic、Pico native Ready/Valid，以及 OpenTitan TL-UL、PULP APB3、ZipCPU Wishbone 和 AXI4-Lite 目标端变体。上表的五种 CPU 协议、PULP APB3 GPIO/SPI/Timer/I2C、OpenTitan TL-UL GPIO/RV Timer/SPI Host/I2C/UART/SPI Device、ZipCPU Wishbone Timer/UART 与 AXI4-Lite UART 实例有真实 RTL 运行证据。`local_harness.v2` 现有三个寄存器观察模板：TL-UL 的 GPIO/RV Timer/SPI Device，APB3 的 PULP GPIO/Timer，Wishbone 的 ZipCPU Timer/wbuart；每组真实交易和 fresh replay 都通过。同一个 TL-UL 模板还验收 GPIO 的动态环境引脚源，以及 GPIO A 真实输出绑定 GPIO B 输入并引出真实 IRQ；APB3 模板验收动态 GPIO 输入。APB3 通用模板当前限定 12 位地址、4096 字节窗口和 32 位数据；Wishbone 通用模板要求目标有真实 `stall` 输出，且目前只接收声明式固定物理输入。不符合这些运行时形状的 profile 在规划阶段拒绝。v2 TL-UL 模板上另有参数化 UART 8N1 peer 和 SPI mode-0 单线 master peer：UART 的 RX 帧来自声明式环境源、TX/IRQ 来自真实 RTL；SPI 的 SCK/CS/MOSI 由声明式外部帧驱动，MISO/IRQ/SRAM 由真实 RTL 给出。两者分别在 OpenTitan UART 单字节和 SPI Device 单帧场景通过 fresh replay；peer 参数目前仍在 session 身份中，未进入统一 tuning schema。专用 SPI Device session 仍保留其独立验收。
 
 ## 生成与启动
 
@@ -107,6 +107,8 @@ MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.te
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_generic_tlul_register_real tests.local_harness.test_generic_tlul_dynamic_source_real -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_generic_tlul_bound_input_real -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_generic_apb3_register_real tests.local_harness.test_generic_wishbone_register_real -v
+MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_generic_tlul_uart_peer_real -v
+MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_generic_tlul_spi_mode0_peer_real -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_local_opentitan_spi_device_generated_real -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_scenario_cve2_opentitan_spi_device_generated_real -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_scenario_cve2_zip_wb_uart_real -v
@@ -117,7 +119,7 @@ PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_axi4_cpu -q
 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_ibex_obi_runtime -q
 ```
 
-2026-10-04 至 2026-10-05 回归结果：TL-UL Bound Input、RV32E 参数变体与 APB3/Wishbone 通用寄存器模板合入后，本地 harness 全量 226 项运行、12 项按真实 RTL 环境门禁跳过、零失败；场景回归 367/367。CVE2 RV32E 参数变体定向真实测试 1/1，通过 fresh replay；源码锁全量校验通过。SPI Device 专用真实用例 3/3、CPU→SPI Device→CPU RAM 真实链 1/1、通用 TL-UL 固定/动态/Bound Input 的真实及合同用例 12/12、CVE2↔ZipCPU wbuart 真实链 1/1、通用 APB3＋Wishbone 寄存器模板在合同修正后联合真实及负例用例 8/8 在主线通过；各自能力边界见 `docs/reports/` 下的对应报告。Pico 原生内存真实测试 2/2、AXI4-Lite 真实测试 2/2、Wishbone 专项 6/6、ZipCPU AXI4 突发及 schema 2/2、PULP SPI 预算化证据测试均通过。CVE2 双 GPIO 双向真实场景此前 2/2，预算化证据 fresh replay 一致。若本地缺少某 CPU 的可执行固定源码，只跳过该 CPU 的真实验收并记录 `skipped_unavailable`，不让其他 CPU/IP 或协议等级自动通过。
+2026-10-04 至 2026-10-05 回归结果：TL-UL Bound Input、RV32E 参数变体与 APB3/Wishbone 通用寄存器模板合入后，本地 harness 全量 226 项运行、12 项按真实 RTL 环境门禁跳过、零失败；场景回归 367/367。CVE2 RV32E 参数变体定向真实测试 1/1，通过 fresh replay；CVA6 elaboration 闭包与全库源码锁校验通过，生成式运行时仍未验收。SPI Device 专用真实用例 3/3、CPU→SPI Device→CPU RAM 真实链 1/1、通用 TL-UL 固定/动态/Bound Input 的真实及合同用例 12/12、通用 UART peer 及显式 reset 4/4、通用 SPI peer JEDEC/上传 3/3、CVE2↔ZipCPU wbuart 真实链 1/1、通用 APB3＋Wishbone 寄存器模板在合同修正后联合真实及负例用例 8/8 在主线通过；各自能力边界见 `docs/reports/` 下的对应报告。Pico 原生内存真实测试 2/2、AXI4-Lite 真实测试 2/2、Wishbone 专项 6/6、ZipCPU AXI4 突发及 schema 2/2、PULP SPI 预算化证据测试均通过。CVE2 双 GPIO 双向真实场景此前 2/2，预算化证据 fresh replay 一致。若本地缺少某 CPU 的可执行固定源码，只跳过该 CPU 的真实验收并记录 `skipped_unavailable`，不让其他 CPU/IP 或协议等级自动通过。
 
 ## 尚未满足的验收
 
