@@ -21,7 +21,9 @@ process and local clock state for one testcase. The C++ peer models one
 response byte. It can only pull SDA low; the controller's real enable outputs
 and the peer pull-down resolve SCL/SDA inputs. Fuzzer actions can select the
 response byte once per testcase. The resolved pad inputs are Bound Inputs
-and direct injection into `scl_i` or `sda_i` is rejected.
+and direct injection into `scl_i` or `sda_i` is rejected. An FDATA command
+is rejected until the response source is selected; it cannot use the peer's
+internal default byte as an undeclared fuzzing source.
 
 ## Real RTL observations
 

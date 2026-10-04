@@ -109,6 +109,8 @@ class GeneratedOpentitanI2cSession(GeneratedLocalSession):
 
     def write_register(self, offset: int, value: int, *, be: int = 15) -> None:
         self._offset(offset)
+        if offset == 0x1c and self._peer_response is None:
+            raise ValueError('OpenTitan I2C peer response source required before FDATA')
         if type(value) is not int or not 0 <= value <= 0xffffffff:
             raise ValueError('invalid OpenTitan I2C write value')
         if type(be) is not int or not 0 <= be <= 15:
