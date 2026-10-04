@@ -173,7 +173,13 @@ class SourceLockTests(unittest.TestCase):
         self.assertTrue(lock.is_file(), "P1 lock missing")
         doc = json.loads(lock.read_text())
         self.assertEqual("soc_sources.v1", doc["schema_version"])
-        self.assertEqual({"ibex", "cva6", "opentitan_uart", "opentitan_gpio", "pulp_gpio", "pulp_spi", "pulp_spi_dependencies", "zipcpu_uart", "zipcpu_timer"}, {r["id"] for r in doc["components"]})
+        self.assertEqual({
+            "ibex", "cva6", "cv32e20", "picorv32", "picorv32_axi",
+            "picorv32_wb", "opentitan_uart", "opentitan_gpio",
+            "opentitan_spi_host", "opentitan_i2c", "opentitan_rv_timer",
+            "opentitan_spi_device", "pulp_gpio", "pulp_spi",
+            "pulp_spi_dependencies", "zipcpu_uart", "zipcpu_timer",
+        }, {r["id"] for r in doc["components"]})
         for record in doc["components"]:
             self.assertRegex(record["source"]["revision"], r"^git:[0-9a-f]{40}$")
             self.assertEqual("runtime_unverified", record["runtime_status"])
