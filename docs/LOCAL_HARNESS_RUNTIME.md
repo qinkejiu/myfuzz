@@ -95,6 +95,26 @@ Profile 中每个 `ClockBinding`/`ResetBinding` 都映射到单 DUT runtime 上�
 
 每个 driver RESULT 包含真实前后 tick、完整本地 pre/post 样本、原始物理端口及局部协议端口。调度器以样本中的 GPIO 原生 `interrupt` 脉冲建立后续 CPU 输入，包含 APB 访问期间发生的脉冲；不会从 INTSTATUS 或预期配置合成 IRQ。重复命令只取得历史回执，不再次推进 RTL；回复丢失后终止会话，归类为不确定效果，不重试真实事务。
 
+### 在线连续 Scenario Batch
+
+`ScenarioBatchRecorder` 为**已经启动的同一组 harness**提供逐次输入入口。`ScenarioBatchPlan` 保存一个无预编码 Action、无 reset、无 quiesce 的 `ScenarioGenome` 模板，并按执行顺序记录 `BatchSourceEvent` 与 `BatchAdvance`：
+
+```text
+begin once
+→ observe real CPU/IP output
+→ submit one unbound Fuzzable Source
+→ advance selected local harnesses
+→ observe resulting real RTL output / IRQ / memory effect
+→ submit next source event
+→ finish once
+```
+
+`submit_source_event` 会按模板 direction 再次检查逐位 OwnershipMap，只接受 `source` 所有的输入。Bound Input 继续由 ScenarioRunner/Dataflow Router 从上游真实输出更新，无法被在线提交接口覆盖。`advance(schedule)` 精确执行该顺序中的本地 harness 步数并累计检查 `max_steps`；schedule 不是全局 SoC 时钟，也不要求不同 DUT 使用 cycle-accurate 相位。初始 MemoryImage 在首次 begin 前只加载一次；同一个 CPU/IP session、RAM、事务、Pending Event、IRQ pulse 与输入保持到 `finish()`。
+
+完成后 `recorder.plan` 才可读取。`ScenarioBatchCodec` 使用严格版本化 JSON 保存完整命令序列和每个调用边界；trace 的 `genome_sha256` 标识整个 batch plan，因此把同一串本地步骤拆成不同的在线调用也会有不同身份。`replay_scenario_batch` 创建新的一组 harness，先核对 runner manifest，再按原命令边界重放 source admission 与本地步骤，并比较完整事件、local ticks 和语义摘要。测试 ID 是模板提供的运行标签，结束后 trace 使用完整 plan 的 SHA-256 作为 testcase identity。
+
+此能力明确区别于现有预编码 Genome：`DependencyScheduler` 可在开始前知道完整 Action 列表；在线 batch 可以在 RTL 正在运行时根据已观测输出决定下一次输入，再把实际决定完整记录下来。当前它是 ScenarioRunner 层的 API，`ScenarioRfuzzExecutor` 尚未接入在线 RFuzz FIFO slot 流，因此不能据此声称 RFuzz 执行入口已经支持运行中逐次供给。
+
 ## 运行验收
 
 在仓库根目录运行：
@@ -102,6 +122,7 @@ Profile 中每个 `ClockBinding`/`ResetBinding` 都映射到单 DUT runtime 上�
 ```bash
 PYTHONPATH=src:. python3 -m unittest discover -s tests/local_harness -p 'test_*.py' -q
 PYTHONPATH=src:. python3 -m unittest discover -s tests/scenario -p 'test_*.py' -q
+PYTHONPATH=src:. python3 -m unittest tests.scenario.test_stateful_batch -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest discover -s tests/integration -p test_local_pulp_gpio_generated_real.py -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest discover -s tests/integration -p test_scenario_cve2_two_pulp_gpio_real.py -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest discover -s tests/integration -p test_scenario_cve2_two_pulp_gpio_irq_real.py -v
@@ -109,6 +130,7 @@ MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.te
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_scenario_ibex_pulp_gpio_reverse_generated_real.ReverseGeneratedIbexPulpGpioTests.test_three_external_phases_share_one_rtl_lifetime_and_replay -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_scenario_ibex_opentitan_pattgen_generated_real -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_generated_opentitan_pattgen tests.local_harness.test_wishbone_cpu_irq -v
+MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_scenario_ibex_pulp_gpio_online_batch_real -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_scenario_cve2_rv32e_two_pulp_gpio_generated_real tests.integration.test_scenario_picorv32_wb_two_pulp_gpio_generated_real -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_scenario_ibex_pulp_spi_generated_real tests.integration.test_scenario_ibex_opentitan_rv_timer_generated_real -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest discover -s tests/integration -p test_local_native_memory_generated_real.py -v

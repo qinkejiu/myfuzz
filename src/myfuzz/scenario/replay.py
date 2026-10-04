@@ -8,6 +8,8 @@ import hashlib
 import json
 from typing import Callable
 
+from .batch import (BatchAdvance, BatchSourceEvent, ScenarioBatchCodec,
+                    ScenarioBatchPlan, ScenarioBatchRecorder)
 from .genome import GenomeCodec, ScenarioGenome
 from .runner import ScenarioRunner
 from .scheduler import DependencyScheduler
@@ -106,6 +108,77 @@ def replay_scenario(genome: ScenarioGenome,
             return ReplayComparison(False, index, expected_event, actual_event,
                                     actual, _difference_context(expected_event,
                                                                 actual_event, index))
+    if (reference.status != actual.status
+            or reference.local_ticks != actual.local_ticks
+            or reference.semantic_sha256 != actual.semantic_sha256):
+        index = len(reference.events)
+        return ReplayComparison(
+            False, index, None, None, actual,
+            {"event_index": index, "expected_status": reference.status,
+             "actual_status": actual.status,
+             "expected_local_ticks": reference.local_ticks,
+             "actual_local_ticks": actual.local_ticks,
+             "expected_semantic_sha256": reference.semantic_sha256,
+             "actual_semantic_sha256": actual.semantic_sha256})
+    return ReplayComparison(True, None, None, None, actual)
+
+
+def record_scenario_batch(plan: ScenarioBatchPlan,
+                          factory: Callable[[], ScenarioRunner]) -> ScenarioTrace:
+    """Record a live command stream in one fresh, continuous runtime."""
+    if not isinstance(plan, ScenarioBatchPlan):
+        raise ValueError("ScenarioBatchPlan is required")
+    runner = factory()
+    if not isinstance(runner, ScenarioRunner):
+        raise ValueError("factory must return a fresh ScenarioRunner")
+    return _record_batch_with_runner(plan, runner)
+
+
+def _record_batch_with_runner(plan: ScenarioBatchPlan,
+                              runner: ScenarioRunner) -> ScenarioTrace:
+    recorder = ScenarioBatchRecorder(plan.template, runner)
+    recorder.begin()
+    try:
+        for command in plan.commands:
+            if isinstance(command, BatchSourceEvent):
+                recorder.submit_source_event(command)
+            elif isinstance(command, BatchAdvance):
+                recorder.advance(command.schedule)
+            else:  # Plan validation makes this unreachable; keep replay strict.
+                raise ValueError("unknown batch command")
+    finally:
+        if not recorder._finished:
+            recorder.finish()
+    return recorder.trace
+
+
+def replay_scenario_batch(plan: ScenarioBatchPlan,
+                          factory: Callable[[], ScenarioRunner],
+                          reference: ScenarioTrace) -> ReplayComparison:
+    """Replay all live admissions and local-step boundaries from fresh RTL."""
+    if not isinstance(plan, ScenarioBatchPlan):
+        raise ValueError("ScenarioBatchPlan is required")
+    if not isinstance(reference, ScenarioTrace):
+        raise ValueError("reference trace is required")
+    expected_plan = hashlib.sha256(ScenarioBatchCodec.encode(plan)).hexdigest()
+    if reference.genome_sha256 != expected_plan:
+        raise ValueError("replay batch identity mismatch")
+    if not reference.manifest_sha256:
+        raise ValueError("replay manifest identity missing")
+    runner = factory()
+    if not isinstance(runner, ScenarioRunner):
+        raise ValueError("factory must return a fresh ScenarioRunner")
+    actual_manifest = hashlib.sha256(_canonical(runner.identity_document())).hexdigest()
+    if reference.manifest_sha256 != actual_manifest:
+        raise ValueError("replay manifest identity mismatch")
+    actual = _record_batch_with_runner(plan, runner)
+    for index in range(max(len(reference.events), len(actual.events))):
+        expected_event = reference.events[index] if index < len(reference.events) else None
+        actual_event = actual.events[index] if index < len(actual.events) else None
+        if expected_event != actual_event:
+            return ReplayComparison(
+                False, index, expected_event, actual_event, actual,
+                _difference_context(expected_event, actual_event, index))
     if (reference.status != actual.status
             or reference.local_ticks != actual.local_ticks
             or reference.semantic_sha256 != actual.semantic_sha256):
