@@ -114,6 +114,155 @@ def check_pulp_spi_rx_chain(events: Iterable[Mapping], *, expected_word: int,
             'endpoint_event_id': stored['event_id'] if stored else None}
 
 
+def check_generated_rv_timer_irq_chain(events: Iterable[Mapping]) -> dict:
+    """Check two Ibex→real RV Timer→Ibex ISR rounds from observations only.
+
+    A missing causal stage is incomplete coverage. An observed value that
+    contradicts the real timer read or CPU response is a violation candidate.
+    The scheduler and this checker never synthesize a timer count or IRQ.
+    """
+    stream = tuple(events)
+    incomplete: list[str] = []
+    violations: list[str] = []
+
+    def find(after: int, predicate):
+        return next((event for event in stream
+                     if type(event.get('event_id')) is int
+                     and event['event_id'] > after and predicate(event)), None)
+
+    def mmio(after: int, offset: int, write: bool):
+        return find(after, lambda event:
+                    event.get('kind') == 'mmio_delivery'
+                    and event.get('component') == 'cpu'
+                    and event.get('device_id') == 'timer'
+                    and event.get('offset') == offset
+                    and event.get('write') is write)
+
+    ids = [event.get('event_id') for event in stream]
+    if (any(type(event_id) is not int for event_id in ids)
+            or ids != sorted(set(ids))):
+        incomplete.append('event_order_invalid')
+    if any(event.get('kind') == 'reset_barrier' for event in stream):
+        incomplete.append('unexpected_reset')
+    seen_transactions: set[tuple] = set()
+    for event in stream:
+        if event.get('kind') != 'mmio_delivery' or event.get('device_id') != 'timer':
+            continue
+        transaction = event.get('source_transaction')
+        if not isinstance(transaction, Mapping):
+            incomplete.append('timer_transaction_missing')
+            break
+        key = tuple(transaction.get(field) for field in (
+            'execution_id', 'testcase_id', 'source_component', 'source_epoch',
+            'channel_id', 'source_sequence'))
+        if any(part is None for part in key):
+            incomplete.append('timer_transaction_missing')
+            break
+        if key in seen_transactions:
+            incomplete.append('timer_transaction_reused')
+            break
+        seen_transactions.add(key)
+    configuration = []
+    after = 0
+    for offset, value in ((0x10c, 0x10000), (0x118, 200),
+                          (0x11c, 0), (0x100, 1), (0x4, 1)):
+        event = mmio(after, offset, True)
+        if event is None or event.get('write_value') != value or event.get('byte_enable') != 15:
+            incomplete.append(f'timer_config_{offset:03x}_missing')
+            break
+        configuration.append(event)
+        after = event['event_id']
+
+    last = configuration[-1]['event_id'] if len(configuration) == 5 else 0
+    endpoint = None
+    for round_index, address in enumerate((0x200, 0x204), 1):
+        prefix = f'round_{round_index}_'
+        irq_sample = find(last, lambda event:
+                          event.get('component') == 'timer'
+                          and isinstance(event.get('outputs'), Mapping)
+                          and event['outputs'].get('irq') == 1)
+        if irq_sample is None:
+            incomplete.append(prefix + 'timer_irq_missing')
+            break
+        delivery = find(irq_sample['event_id'], lambda event:
+                        event.get('kind') == 'dataflow_delivery'
+                        and tuple(event.get('source', ())) == ('timer', 'irq')
+                        and tuple(event.get('target', ())) == ('cpu', 'irq')
+                        and event.get('value') == 1)
+        cpu_irq = None if delivery is None else find(delivery['event_id'], lambda event:
+                    event.get('component') == 'cpu'
+                    and event.get('inputs', {}).get('irq') == 1)
+        vector = None if cpu_irq is None else find(cpu_irq['event_id'], lambda event:
+                    event.get('component') == 'cpu'
+                    and event.get('outputs', {}).get('instr_req_accepted') == 1
+                    and event['outputs'].get('instr_addr') == 0x1012c)
+        if delivery is None or cpu_irq is None or vector is None:
+            incomplete.append(prefix + 'cpu_irq_vector_missing')
+            break
+        pending = mmio(vector['event_id'], 0x104, False)
+        count = None if pending is None else mmio(pending['event_id'], 0x110, False)
+        if pending is None or count is None:
+            incomplete.append(prefix + 'timer_reads_missing')
+            break
+        if pending.get('read_value', 0) & 1 != 1:
+            violations.append(prefix + 'pending_read_mismatch')
+        transaction = count.get('source_transaction')
+        if (not isinstance(transaction, Mapping)
+                or transaction.get('source_component') != 'cpu'
+                or transaction.get('channel_id') != 'data'
+                or not isinstance(transaction.get('execution_id'), str)
+                or not transaction['execution_id']
+                or not isinstance(transaction.get('testcase_id'), str)
+                or not transaction['testcase_id']
+                or type(transaction.get('source_epoch')) is not int
+                or type(transaction.get('source_sequence')) is not int):
+            incomplete.append(prefix + 'count_transaction_missing')
+            break
+        response = find(count['event_id'], lambda event:
+                        event.get('component') == 'cpu'
+                        and event.get('outputs', {}).get('data_rsp_consumed') == 1
+                        and event['outputs'].get('data_rsp_source_epoch') == transaction['source_epoch']
+                        and event['outputs'].get('data_rsp_source_sequence') == transaction['source_sequence'])
+        if response is None:
+            incomplete.append(prefix + 'cpu_count_response_missing')
+            break
+        if response['outputs'].get('data_rsp_rdata') != count.get('read_value'):
+            violations.append(prefix + 'cpu_count_response_mismatch')
+        def same_cpu_case_store(event):
+            identity = event.get('transaction')
+            return (isinstance(identity, Mapping)
+                    and all(identity.get(field) == transaction.get(field)
+                            for field in ('execution_id', 'testcase_id',
+                                          'source_component', 'source_epoch',
+                                          'channel_id'))
+                    and type(identity.get('source_sequence')) is int
+                    and identity['source_sequence'] > transaction['source_sequence'])
+
+        store = find(response['event_id'], lambda event:
+                     event.get('kind') == 'memory_write'
+                     and event.get('component') == 'cpu'
+                     and event.get('address') == address
+                     and event.get('byte_enable') == 15
+                     and same_cpu_case_store(event))
+        if store is None:
+            incomplete.append(prefix + 'ram_store_missing')
+            break
+        if store.get('value') != response['outputs'].get('data_rsp_rdata'):
+            violations.append(prefix + 'ram_store_mismatch')
+        endpoint = store['event_id']
+        rearm = mmio(endpoint, 0x118, True)
+        if rearm is None:
+            incomplete.append(prefix + 'compare_rearm_missing')
+            break
+        last = rearm['event_id']
+    disable = mmio(last, 0x4, True) if endpoint is not None else None
+    if disable is None or disable.get('write_value') != 0:
+        incomplete.append('timer_disable_missing')
+    return {'complete': not incomplete and not violations,
+            'path_incomplete': incomplete, 'dut_violations': violations,
+            'endpoint_event_id': endpoint}
+
+
 def check_pulp_gpio_irq_chain(events: Iterable[Mapping], *, expected_value: int) -> dict:
     """Check one generated Ibex→PULP A→PULP B→Ibex IRQ round.
 
