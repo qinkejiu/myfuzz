@@ -65,8 +65,9 @@ def _verify_generated_session(identity: dict):
     base_fields = {'schema_version', 'runtime_artifact', 'build_identity',
                    'command_timeout_seconds'}
     cpu_fields = {'cpu_service_schema_version', 'source_component', 'defer_mmio'}
+    native_fields = {'native_service_schema_version', 'source_component', 'memory_policy'}
     if not isinstance(identity, dict) or set(identity) not in (
-            base_fields, base_fields | cpu_fields):
+            base_fields, base_fields | cpu_fields, base_fields | native_fields):
         raise ValueError('generated session identity has unknown or missing fields')
     if identity['schema_version'] != 'generated_local_session_identity.v1':
         raise ValueError('unsupported generated session schema')
@@ -84,7 +85,13 @@ def _verify_generated_session(identity: dict):
     artifact = render_local_driver(top, base_dir=_ROOT)
     if document != artifact.runtime_document:
         raise ValueError('generated runtime artifact identity mismatch')
-    if artifact.runtime_document['kind'] == 'obi_cpu':
+    if artifact.runtime_document['kind'] == 'native_memory_cpu':
+        _exact(identity, base_fields | native_fields, 'generated native service identity')
+        if (identity['native_service_schema_version'] != 'generated_native_memory_service.v1'
+                or identity['source_component'] != artifact.plan.request.instance_id
+                or identity['memory_policy'] != 'ram-rom-only'):
+            raise ValueError('generated native service identity mismatch')
+    elif artifact.runtime_document['kind'] == 'obi_cpu':
         _exact(identity, base_fields | cpu_fields, 'generated CPU service identity')
         if (identity['cpu_service_schema_version'] != 'generated_obi_cpu_service.v1'
                 or identity['source_component'] != artifact.plan.request.instance_id
@@ -414,15 +421,17 @@ class ScenarioManifest:
             session = _exact(session, {"type", "identity"}, f"sessions.{component}")
             if session['identity'].get('schema_version') == 'generated_local_session_identity.v1':
                 if (identity['schema_version'] != 'scenario_manifest_identity.v2'
-                        or session['type'] not in ('myfuzz.local_harness.cpu_session.GeneratedCve2Session',
+                        or session['type'] not in ('myfuzz.local_harness.native_session.GeneratedNativeMemorySession',
+                                                  'myfuzz.local_harness.cpu_session.GeneratedCve2Session',
                                                   'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession')):
                     raise ValueError('generated session type or runner schema mismatch')
                 artifact = _verify_generated_session(session['identity'])
-                expected_type = {
-                    'obi_cpu': 'myfuzz.local_harness.cpu_session.GeneratedCve2Session',
-                    'apb_gpio': 'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession',
-                }[artifact.runtime_document['kind']]
-                if session['type'] != expected_type:
+                expected_kinds = {
+                    'myfuzz.local_harness.native_session.GeneratedNativeMemorySession': 'native_memory_cpu',
+                    'myfuzz.local_harness.cpu_session.GeneratedCve2Session': 'obi_cpu',
+                    'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession': 'apb_gpio',
+                }
+                if artifact.runtime_document['kind'] != expected_kinds[session['type']]:
                     raise ValueError('generated session type disagrees with artifact kind')
                 continue
             if not isinstance(session["type"], str) or not session["type"].startswith(

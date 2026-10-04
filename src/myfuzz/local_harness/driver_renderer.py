@@ -53,6 +53,8 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             raise ValueError('driver-gpio-pulse-observation-required')
         fields['interrupt'] = pulses[0]['runtime_name']
         allowed_inputs = {fields['gpio_in']}
+    elif kind == 'native_memory_cpu':
+        allowed_inputs = set()
     elif kind == 'obi_cpu':
         cpu = artifact.plan.profile.cpu
         irq = [row for row in exports if row['endpoint_id'] == cpu.irq_entry_endpoint and
@@ -82,7 +84,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                           for alias, name in fields.items() if alias != 'gpio_in')
 
     max_wait = document['effective_max_wait_cycles']
-    max_samples = 1 if kind == 'obi_cpu' else 2 * max_wait + 5
+    max_samples = 1 if kind in ('obi_cpu', 'native_memory_cpu') else 2 * max_wait + 5
     # Conservative serialized upper bound, before issuing any command effects.
     maxima_backend = {row['name']: (1 << row['width']) - 1 for row in backend}
     maxima_physical = {row['runtime_name']: ('f' * row['hex_digits'] if row['width'] > 64
@@ -99,7 +101,24 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     if reservation > 2 * 1024 * 1024 + 512:
         raise ValueError('driver-result-reservation-too-large')
 
-    if kind == 'obi_cpu':
+    if kind == 'native_memory_cpu':
+        dispatch = "\n".join(f'      dut.{name} = command.fields[{index}];' for index, name in enumerate([
+            'm_req_ready', 'm_rsp_valid', 'm_rsp_rdata', 'm_rsp_error'])) + r'''
+      dut.eval();
+      pre_backend = backend_snapshot(dut);
+      if (dut.m_fault || (dut.m_rsp_valid && !dut.m_rsp_ready)) {
+        terminal = error_reply(command.execution, command.sequence, local_ticks,
+                               "protocol_environment", "native_unsolicited_or_fault");
+      } else {
+        tick(dut, &samples);
+        if (dut.m_fault) {
+          terminal = error_reply(command.execution, command.sequence, local_ticks,
+                                 "protocol_environment", "native_completion_fault");
+        }
+      }
+'''
+        operation_check = 'command.operation != "STEP_MEMORY"'
+    elif kind == 'obi_cpu':
         assignments = '\n'.join(f'      dut.{name} = command.fields[{index}];' for index, name in enumerate([
             fields['irq_external'], 'i_req_ready', 'i_rsp_valid', 'i_rsp_rdata', 'i_rsp_error',
             'd_req_ready', 'd_rsp_valid', 'd_rsp_rdata', 'd_rsp_error']))

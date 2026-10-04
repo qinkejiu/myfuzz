@@ -18,6 +18,7 @@ from .wire import MAX_REPLY_LINE_BYTES, DriverReceipt, parse_driver_ready, parse
 
 
 _OPERATIONS = {
+    'native_memory_cpu': {'STEP_MEMORY': (1, 1, 0xffffffff, 1)},
     'obi_cpu': {'STEP_CPU': (1, 1, 1, 0xffffffff, 1, 1, 1, 0xffffffff, 1)},
     'apb_gpio': {'STEP_GPIO': (0xffffffff,),
                  'ACCESS_GPIO': (0xffffffff, 1, 4092, 0xffffffff, 15)},

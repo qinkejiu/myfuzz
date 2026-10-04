@@ -94,7 +94,8 @@ def _host_sources():
     """Discover the actual Python import closure; leave legacy v1 unchanged."""
     root = _IMPLEMENTATION_ROOT
     pending = ['src/myfuzz/local_harness/build.py', 'src/myfuzz/local_harness/driver_renderer.py',
-               'src/myfuzz/local_harness/wire.py', 'scripts/verify_soc_sources.py']
+               'src/myfuzz/local_harness/wire.py',
+               'src/myfuzz/local_harness/native_session.py', 'scripts/verify_soc_sources.py']
     for name in ('session', 'cpu_session', 'gpio_session'):
         path = f'src/myfuzz/local_harness/{name}.py'
         if (root / path).is_file():

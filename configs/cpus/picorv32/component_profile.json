@@ -92,6 +92,9 @@
   ],
   "capabilities": {
     "address_width": 32,
+    "address_units": "byte",
+    "completion_semantics": "completion",
+    "instruction_identity_port": "mem_instr",
     "data_width": 32,
     "byte_enable": true,
     "max_outstanding": 1,

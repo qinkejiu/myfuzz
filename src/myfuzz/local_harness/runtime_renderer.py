@@ -16,6 +16,8 @@ from .renderer import RenderedLocalHarness, render_local_harness, _sha
 from .runtime_artifact import LocalRuntimeArtifact
 from .source_lock import verify_local_source_lock
 
+_NATIVE = {'valid': ('output', 1), 'addr': ('output', 32), 'wdata': ('output', 32), 'wstrb': ('output', 4), 'ready': ('input', 1), 'rdata': ('input', 32)}
+
 _OBI_READ = {'req': ('output', 1), 'addr': ('output', 32), 'gnt': ('input', 1),
              'rvalid': ('input', 1), 'rdata': ('input', 32), 'error': ('input', 1)}
 _OBI_WRITE = {**_OBI_READ, 'we': ('output', 1), 'wdata': ('output', 32), 'be': ('output', 4)}
@@ -112,6 +114,16 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         kind = 'obi_cpu'
         boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
         adapters = ['src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv']
+    elif len(endpoints) == 1 and functions <= {'memory_master', 'processor_memory_master'} and endpoints[0].protocol == ('ready-valid-memory', '1'):
+        from .native_contract import native_completion_contract
+        selected = native_completion_contract(endpoints[0], plan.profile.capabilities)
+        native_wait = min(plan.request.max_wait_cycles,
+                          plan.profile.capabilities.get('max_wait_cycles', plan.request.max_wait_cycles))
+        if plan.request.reset_release_ticks > native_wait:
+            raise ValueError('runtime-native-reset-release-exceeds-wait-bound')
+        kind = 'native_memory_cpu'
+        boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
+        adapters = ['src/myfuzz/protocols/rtl/native_completion_memory_adapter.sv']
     elif len(endpoints) == 1 and functions == {'mmio_slave'} and endpoints[0].protocol == ('apb', '3'):
         kind = 'apb_gpio'
         boot = None
@@ -170,7 +182,21 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             ports.append((name, direction, width))
             backend.append(dict(name=name, direction=direction, width=width, role=role, channel=prefix))
 
-    if kind == 'obi_cpu':
+    if kind == 'native_memory_cpu':
+        wires = _shape(endpoints[0], _NATIVE, abi)
+        beat_ports('m', True)
+        for name, width in [('m_fault', 1), ('m_fault_code', 2)]:
+            ports.append((name, 'output', width))
+            backend.append(dict(name=name, direction='output', width=width, role=name[2:], channel='m'))
+        pairs = dict(clk='clk', reset='reset', valid_i=wires['valid'], ready_o=wires['ready'],
+            addr_i=wires['addr'], wdata_i=wires['wdata'], wstrb_i=wires['wstrb'], rdata_o=wires['rdata'],
+            fault_o='m_fault', fault_code_o='m_fault_code')
+        pairs.update({role + ('_o' if row['direction'] == 'output' else '_i'): row['name']
+                      for row in backend if row['role'] not in ('fault', 'fault_code') for role in [row['role']]})
+        instances.append('native_completion_memory_adapter #(\n'
+            f'    .MAX_WAIT_CYCLES({native_wait})\n'
+            '  ) u_native_completion (\n    ' + ',\n    '.join(f'.{p}({v})' for p,v in pairs.items()) + '\n  );')
+    elif kind == 'obi_cpu':
         for endpoint in sorted(endpoints, key=lambda e: e.function):
             instruction = endpoint.function == 'instruction_memory_master'
             prefix = 'i' if instruction else 'd'
@@ -218,11 +244,21 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                     module_name=module, plan=plan.document(), structural_abi=copy.deepcopy(structural.abi_document),
                     structural_build=copy.deepcopy(structural.build_document), source_verification=copy.deepcopy(verified),
                     boot_contract=boot,
-                    effective_max_wait_cycles=(wait if kind == 'apb_gpio' else plan.request.max_wait_cycles),
+                    effective_max_wait_cycles=(wait if kind == 'apb_gpio' else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
                     runtime_sv_sha256=hashlib.sha256(runtime.encode()).hexdigest(), cpp_sha256=hashlib.sha256(b'').hexdigest(),
                     adapted_endpoint_ids=sorted(adapted), physical_exports=exports, backend_ports=backend,
                     runtime_ports=[dict(name=n,direction=d,width=w) for n,d,w in ports],
                     adapter_sources=adapter_hashes, lint_argv=flags+adapters,
                     wire_schema_version='local_driver.v1', driver_status='not_generated')
+    if kind == 'native_memory_cpu':
+        document['selected_template'] = selected.document()
+        marker = plan.profile.capabilities.get('instruction_identity_port')
+        if marker is not None:
+            rows = [row for row in exports if row['physical_port'] == marker
+                    and row['direction'] == 'output' and row['width'] == 1
+                    and row['disposition'] == 'observe']
+            if len(rows) != 1:
+                raise ValueError('runtime-native-instruction-observation')
+            document['instruction_identity_observation'] = rows[0]['runtime_name']
     document['artifact_digest'] = _sha(document)
     return LocalRuntimeArtifact(copy.deepcopy(plan), copy.deepcopy(structural), copy.deepcopy(verified), runtime, '', document)
