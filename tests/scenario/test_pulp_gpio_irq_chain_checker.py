@@ -9,7 +9,7 @@ from myfuzz.scenario import checker
 def _events():
     return (
         {'event_id': 1, 'kind': 'mmio_delivery', 'component': 'cpu',
-         'device_id': 'gpio_b', 'offset': 4, 'write': True, 'write_value': 1},
+         'device_id': 'gpio_b', 'offset': 4, 'write': True, 'write_value': 0xff},
         {'event_id': 2, 'kind': 'mmio_delivery', 'component': 'cpu',
          'device_id': 'gpio_b', 'offset': 0x18, 'write': True, 'write_value': 1},
         {'event_id': 3, 'kind': 'mmio_delivery', 'component': 'cpu',

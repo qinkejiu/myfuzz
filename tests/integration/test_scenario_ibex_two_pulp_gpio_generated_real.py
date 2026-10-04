@@ -50,12 +50,13 @@ def genome(output_value: int = 1):
         raise ValueError('GPIO output must be an odd byte to create the IRQ edge')
     # Ibex reset PC is 0x10080. The handler is the machine external vector.
     main = (
-        _lui(1, 0x40000), _lui(3, 0x40001), _addi(2, 0, 1),
-        _sw(2, 1, 4), _sw(2, 1, 0x18), _sw(2, 1, 0x1c),
+        _lui(1, 0x40000), _lui(3, 0x40001), _addi(2, 0, 0xff),
+        _sw(2, 1, 4), _addi(2, 0, 1), _sw(2, 1, 0x18), _sw(2, 1, 0x1c),
         _lui(7, 0x10), _addi(7, 7, 0x12c), _csrrs(0x305, 7),
         _lui(7, 1), _addi(7, 7, -2048), _csrrs(0x304, 7),
         _addi(7, 0, 8), _csrrs(0x300, 7),
-        _sw(2, 3, 0), _addi(2, 0, output_value), _sw(2, 3, 0x0c), 0x0000006f,
+        _addi(2, 0, 0xff), _sw(2, 3, 0),
+        _addi(2, 0, output_value), _sw(2, 3, 0x0c), 0x0000006f,
     )
     isr = (
         _lw(4, 1, 8), _lui(5, 0x20), _sw(4, 5, 0),

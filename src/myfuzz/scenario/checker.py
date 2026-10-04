@@ -38,7 +38,7 @@ def check_pulp_gpio_irq_chain(events: Iterable[Mapping], *, expected_value: int)
     ids = [event.get('event_id') for event in stream]
     if any(type(event_id) is not int for event_id in ids) or ids != sorted(set(ids)):
         incomplete.append('event_order_invalid')
-    for offset, value, name in ((4, 1, 'gpio_b_enable'),
+    for offset, value, name in ((4, 0xff, 'gpio_b_enable'),
                                 (0x18, 1, 'gpio_b_irq_enable'),
                                 (0x1c, 1, 'gpio_b_irq_rising')):
         if find(0, lambda e: e.get('kind') == 'mmio_delivery'
