@@ -36,7 +36,7 @@
 - Consumes: the existing local upstream Git checkouts and their `origin` URLs.
 - Produces: two parent repository gitlinks plus `.gitmodules` declarations usable by `git submodule update --init`.
 
-- [ ] **Step 1: Assert the two source checkouts are pristine and at the approved commits**
+- [x] **Step 1: Assert the two source checkouts are pristine and at the approved commits**
 
 ```bash
 test -z "$(git -C third_party/cv32e20_upstream_reference status --porcelain)"
@@ -49,7 +49,7 @@ test "$(git -C third_party/picorv32_upstream_reference remote get-url origin)" =
 
 Expected: every command exits 0. Stop without modifying either checkout if any assertion fails.
 
-- [ ] **Step 2: Register the existing checkouts as submodules**
+- [x] **Step 2: Register the existing checkouts as submodules**
 
 ```bash
 git submodule add --force https://github.com/openhwgroup/cve2.git third_party/cv32e20_upstream_reference
@@ -58,7 +58,7 @@ git submodule add --force https://github.com/YosysHQ/picorv32.git third_party/pi
 
 Expected: `.gitmodules` has two new sections; both paths have mode `160000` in the index. The commands may move each checkout's Git metadata under `.git/modules`; source files and HEAD remain the same.
 
-- [ ] **Step 3: Assert exact staged gitlinks and URLs**
+- [x] **Step 3: Assert exact staged gitlinks and URLs**
 
 ```bash
 git ls-files --stage third_party/cv32e20_upstream_reference third_party/picorv32_upstream_reference
@@ -69,7 +69,7 @@ git diff --cached --check
 
 Expected: two `160000` entries at the exact revisions above, expected HTTPS URLs, no whitespace errors. If the existing checkouts make `git submodule add` refuse, inspect its message and use `git -C <checkout> status` before a reversible repair; do not delete either directory.
 
-- [ ] **Step 4: Commit only the acquisition change**
+- [x] **Step 4: Commit only the acquisition change**
 
 ```bash
 git add .gitmodules third_party/cv32e20_upstream_reference third_party/picorv32_upstream_reference
@@ -88,7 +88,7 @@ Expected: one commit changing only `.gitmodules` and the two gitlinks.
 - Consumes: Task 1 committed parent repository.
 - Produces: independently observed clean clone source acquisition evidence.
 
-- [ ] **Step 1: Clone the parent locally without inheriting developer checkout state**
+- [x] **Step 1: Clone the parent locally without inheriting developer checkout state**
 
 ```bash
 verify_dir="$(mktemp -d /tmp/myfuzz-source-check-XXXXXX)"
@@ -98,7 +98,7 @@ git -C "$verify_dir" checkout HEAD
 
 Expected: no untracked local CVE2/Pico source is copied into `verify_dir`.
 
-- [ ] **Step 2: Fetch only the two pinned upstream submodules**
+- [x] **Step 2: Fetch only the two pinned upstream submodules**
 
 ```bash
 git -C "$verify_dir" submodule update --init third_party/cv32e20_upstream_reference third_party/picorv32_upstream_reference
@@ -108,7 +108,7 @@ test "$(git -C "$verify_dir/third_party/picorv32_upstream_reference" rev-parse H
 
 Expected: both remote source revisions exist and are checked out at the parent pinned gitlinks. A transient network failure requires re-poll/retry of this command, not a weaker source claim.
 
-- [ ] **Step 3: Verify pristine source trees and clean up the isolated clone**
+- [x] **Step 3: Verify pristine source trees and clean up the isolated clone**
 
 ```bash
 test -z "$(git -C "$verify_dir/third_party/cv32e20_upstream_reference" status --porcelain)"
@@ -118,7 +118,7 @@ rm -rf "$verify_dir"
 
 Expected: both clean; only the freshly created `/tmp/myfuzz-source-check-*` path is removed.
 
-- [ ] **Step 4: Record the gate result in the next profile/source-lock implementation evidence**
+- [x] **Step 4: Record the gate result in the next profile/source-lock implementation evidence**
 
 ```bash
 git show --stat --oneline HEAD
