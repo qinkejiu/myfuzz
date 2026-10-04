@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from pathlib import Path
 import tempfile
 import unittest
@@ -15,6 +16,7 @@ from myfuzz.scenario.evidence import replay_evidence_bundle, save_evidence_bundl
 from myfuzz.scenario.genome import Action, ScenarioGenome, Trigger
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
 from myfuzz.scenario.runner import ScenarioRunner
+from myfuzz.local_harness.apb3_register_template import register_observe_policy
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -45,6 +47,25 @@ def artifact(req):
 
 
 class GenericApb3RegisterTests(unittest.TestCase):
+    def test_plan_policy_rejects_window_and_bus_shape_runtime_cannot_render(self):
+        plan = plan_local_harness(request('timer'), base_dir=ROOT)
+        oversized = replace(plan, profile=replace(plan.profile,
+            address=replace(plan.profile.address, window_size=8192)))
+        with self.assertRaisesRegex(ValueError, 'apb3-register-window-unsupported'):
+            register_observe_policy(oversized)
+        endpoint = next(e for e in plan.binding.endpoints if e.protocol == ('apb', '3'))
+        narrow = replace(endpoint, fields=tuple(
+            replace(field, width=10, raw_hi=9, port_width=10)
+            if field.role == 'paddr' else field for field in endpoint.fields))
+        narrow_binding = replace(plan.binding, endpoints=tuple(
+            narrow if e.endpoint_id == endpoint.endpoint_id else e
+            for e in plan.binding.endpoints))
+        narrow_plan = replace(plan, binding=narrow_binding,
+            profile=replace(plan.profile,
+                capabilities={**plan.profile.capabilities, 'address_width': 10}))
+        with self.assertRaisesRegex(ValueError, 'apb3-register-bus-shape-unsupported'):
+            register_observe_policy(narrow_plan)
+
     def test_two_profiles_share_one_generic_kind_and_fail_closed_input_ownership(self):
         gpio = artifact(request('gpio', fixed=(('gpio.pins', 'in', 0),)))
         timer = artifact(request('timer'))

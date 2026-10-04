@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from pathlib import Path
 import tempfile
 import unittest
@@ -15,6 +16,7 @@ from myfuzz.scenario.evidence import replay_evidence_bundle, save_evidence_bundl
 from myfuzz.scenario.genome import ScenarioGenome
 from myfuzz.scenario.ownership import compile_ownership
 from myfuzz.scenario.runner import ScenarioRunner
+from myfuzz.local_harness.wishbone_register_template import register_observe_policy
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -44,6 +46,20 @@ def artifact(req):
 
 
 class GenericWishboneContractTests(unittest.TestCase):
+    def test_plan_policy_rejects_missing_stall_before_runtime_render(self):
+        for name in ('zipcpu_timer', 'zipcpu_uart'):
+            with self.subTest(name=name):
+                plan = plan_local_harness(request(name), base_dir=ROOT)
+                endpoint = next(e for e in plan.binding.endpoints
+                                if e.protocol == ('wishbone', 'classic'))
+                no_stall = replace(endpoint,
+                    fields=tuple(field for field in endpoint.fields if field.role != 'stall'))
+                bad = replace(plan, binding=replace(plan.binding, endpoints=tuple(
+                    no_stall if e.endpoint_id == endpoint.endpoint_id else e
+                    for e in plan.binding.endpoints)))
+                with self.assertRaisesRegex(ValueError, 'template-selection-refused'):
+                    register_observe_policy(bad)
+
     def test_two_variants_share_one_kind_and_unowned_pins_fail_closed(self):
         timer = artifact(request('zipcpu_timer'))
         self.assertEqual('wishbone_register_observe', timer.runtime_document['kind'])

@@ -4,6 +4,13 @@ from __future__ import annotations
 from .request import LocalHarnessRequestV2
 from .template_contracts import select_template_contract
 
+_BUS_SHAPE = {
+    'paddr': ('input', 12), 'psel': ('input', 1),
+    'penable': ('input', 1), 'pwrite': ('input', 1),
+    'pwdata': ('input', 32), 'pready': ('output', 1),
+    'prdata': ('output', 32), 'pslverr': ('output', 1),
+}
+
 
 def register_observe_policy(plan, abi=None):
     """Return fixed and dynamic physical inputs; reject every unowned bit.
@@ -34,7 +41,12 @@ def register_observe_policy(plan, abi=None):
                              template_id=expected['template_id'],
                              template_version=expected['template_version'],
                              variant_id=expected['variant_id'])
-    if plan.profile.address is None or not 4 <= plan.profile.address.window_size <= 8192 or plan.profile.address.window_size % 4:
+    if ({field.role: (field.direction, field.width) for field in endpoint.fields}
+            != _BUS_SHAPE or tuple(plan.profile.capabilities.get(key) for key in
+            ('address_width', 'data_width', 'byte_enable', 'partial_write',
+             'has_error')) != (12, 32, False, False, True)):
+        raise ValueError('apb3-register-bus-shape-unsupported')
+    if plan.profile.address is None or plan.profile.address.window_size != 4096:
         raise ValueError('apb3-register-window-unsupported')
     by_field = {}
     for row in constants:
