@@ -5,6 +5,8 @@ from myfuzz.scenario.ledger import TransactionKey, TransactionLedger
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
 from myfuzz.scenario.router import DataflowRouter, DeviceWindow
 from myfuzz.scenario.runner import Binding, ScenarioRunner
+from myfuzz.scenario.genome import ScenarioGenome
+from myfuzz.scenario.scheduler import DependencyScheduler
 from tests.scenario.test_irq_delivery import RecordingSession
 
 
@@ -37,7 +39,7 @@ class SampleGpio(RecordingSession):
 
 
 class ReceiptDeliveryTests(unittest.TestCase):
-    def make_runner(self):
+    def make_runner(self, *, begin=True):
         gpio = SampleGpio()
         router = DataflowRouter((DeviceWindow('gpio', 0x1000, 4096, gpio),))
         cpu = RecordingSession()
@@ -61,8 +63,18 @@ class ReceiptDeliveryTests(unittest.TestCase):
         runner = ScenarioRunner(sessions={'cpu': cpu, 'gpio': gpio, 'sink': sink},
                                 ownership=ownership, bindings=(irq, out),
                                 irq_pulses={irq: 1})
-        runner.begin_test('samples')
+        if begin:
+            runner.begin_test('samples')
         return runner, cpu, gpio
+
+    def test_scheduler_treats_tick_samples_as_part_of_one_step(self):
+        runner, _, _ = self.make_runner(begin=False)
+        genome = ScenarioGenome(testcase_id='samples', direction='CPU_TO_IP',
+                                path_id='native-samples',
+                                schedule_order=('gpio', 'cpu', 'sink'),
+                                max_steps=3, actions=())
+        result = DependencyScheduler().run(runner, genome)
+        self.assertEqual('complete', result.status)
 
     def test_cpu_apb_access_preserves_intermediate_irq_and_output(self):
         runner, cpu, gpio = self.make_runner()

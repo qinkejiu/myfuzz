@@ -145,6 +145,7 @@ class DependencyScheduler:
             nonlocal steps, last_event_count
             source_events = tuple(event for event in runner.events_since(last_event_count)
                                   if event.get("component") == component
+                                  and event.get("kind") is None
                                   and "outputs" in event)
             if (len(source_events) != 1
                     or source_events[0]["outputs"] != dict(outputs)):

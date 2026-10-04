@@ -7,7 +7,8 @@ from myfuzz import local_harness
 class LocalHarnessPublicApiTests(unittest.TestCase):
     def test_generated_runtime_pipeline_is_exported(self):
         for name in ('render_local_driver', 'build_local_harness',
-                     'GeneratedLocalSession', 'GeneratedPulpGpioSession'):
+                     'GeneratedLocalSession', 'GeneratedPulpGpioSession',
+                     'GeneratedCve2Session'):
             with self.subTest(name=name):
                 self.assertTrue(callable(getattr(local_harness, name, None)))
 
