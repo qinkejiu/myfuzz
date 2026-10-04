@@ -14,6 +14,106 @@ class CheckFinding:
     observed: int
 
 
+def check_pulp_spi_rx_chain(events: Iterable[Mapping], *, expected_word: int,
+                            device_id: str = 'spi',
+                            result_address: int = 0x20000) -> dict:
+    """Check a real CPU→PULP SPI→CPU RX word without generating DUT outputs.
+
+    ``expected_word`` comes from the separately selected external mode 0 peer.
+    A missing transfer stage is a path coverage gap. A concrete value that
+    contradicts a completed real transfer is a DUT violation candidate.
+    """
+    if (type(expected_word) is not int or not 0 <= expected_word <= 0xffffffff
+            or not isinstance(device_id, str) or not device_id
+            or type(result_address) is not int or result_address < 0):
+        raise ValueError('invalid PULP SPI RX checker parameters')
+    stream = tuple(events)
+    incomplete: list[str] = []
+    violations: list[str] = []
+
+    def find(after: int, predicate):
+        return next((event for event in stream
+                     if type(event.get('event_id')) is int
+                     and event['event_id'] > after and predicate(event)), None)
+
+    ids = [event.get('event_id') for event in stream]
+    if any(type(value) is not int for value in ids) or ids != sorted(set(ids)):
+        incomplete.append('event_order_invalid')
+    if any(event.get('kind') == 'reset_barrier' for event in stream):
+        incomplete.append('unexpected_reset')
+
+    previous = 0
+    for offset, value, name in ((4, 1, 'spi_clkdiv_write_missing'),
+                                (0x10, 0x00200000, 'spi_length_write_missing'),
+                                (0, 0x101, 'spi_start_write_missing')):
+        accepted = find(previous, lambda event:
+            event.get('kind') == 'mmio_delivery'
+            and event.get('component') == 'cpu'
+            and event.get('device_id') == device_id
+            and event.get('offset') == offset
+            and event.get('write') is True
+            and event.get('byte_enable') == 15
+            and event.get('write_value') == value)
+        if accepted is None:
+            incomplete.append(name)
+            break
+        previous = accepted['event_id']
+    started = previous if not incomplete else None
+    eot = None if started is None else find(started, lambda event:
+        event.get('component') == device_id
+        and isinstance(event.get('outputs'), Mapping)
+        and event['outputs'].get('events_o', 0) & 2
+        and event['outputs'].get('spi_sample_count') == 32)
+    if started is not None and eot is None:
+        incomplete.append('spi_eot_missing')
+    read = None if eot is None else find(eot['event_id'], lambda event:
+        event.get('kind') == 'mmio_delivery'
+        and event.get('component') == 'cpu'
+        and event.get('device_id') == device_id
+        and event.get('offset') == 0x20
+        and event.get('write') is False
+        and event.get('byte_enable') == 15)
+    if eot is not None and read is None:
+        incomplete.append('spi_rxfifo_read_missing')
+    if read is not None and read.get('read_value') != expected_word:
+        violations.append('spi_rxfifo_data_mismatch')
+
+    tx = read.get('source_transaction') if read else None
+    tx_valid = (isinstance(tx, Mapping)
+                and tx.get('source_component') == 'cpu'
+                and tx.get('channel_id') == 'data'
+                and type(tx.get('source_epoch')) is int
+                and type(tx.get('source_sequence')) is int)
+    if read is not None and not tx_valid:
+        incomplete.append('spi_rxfifo_transaction_missing')
+    consumed = None if not tx_valid else find(read['event_id'], lambda event:
+        event.get('component') == 'cpu'
+        and isinstance(event.get('outputs'), Mapping)
+        and event['outputs'].get('data_rsp_consumed') == 1
+        and event['outputs'].get('data_rsp_source_epoch') == tx['source_epoch']
+        and event['outputs'].get('data_rsp_source_sequence') == tx['source_sequence'])
+    if consumed is not None and consumed['outputs'].get('data_rsp_rdata') != read.get('read_value'):
+        violations.append('cpu_spi_response_mismatch')
+    if read is not None and consumed is None:
+        incomplete.append('cpu_spi_response_missing')
+    stored = None if consumed is None else find(consumed['event_id'], lambda event:
+        event.get('kind') == 'memory_write'
+        and event.get('component') == 'cpu'
+        and event.get('address') == result_address
+        and event.get('byte_enable') == 15
+        and isinstance(event.get('transaction'), Mapping)
+        and event['transaction'].get('source_epoch') == tx['source_epoch']
+        and type(event['transaction'].get('source_sequence')) is int
+        and event['transaction']['source_sequence'] > tx['source_sequence'])
+    if stored is not None and stored.get('value') != read.get('read_value'):
+        violations.append('cpu_spi_store_mismatch')
+    if consumed is not None and stored is None:
+        incomplete.append('cpu_spi_store_missing')
+    return {'complete': not incomplete and not violations,
+            'path_incomplete': incomplete, 'dut_violations': violations,
+            'endpoint_event_id': stored['event_id'] if stored else None}
+
+
 def check_pulp_gpio_irq_chain(events: Iterable[Mapping], *, expected_value: int) -> dict:
     """Check one generated Ibex→PULP A→PULP B→Ibex IRQ round.
 
