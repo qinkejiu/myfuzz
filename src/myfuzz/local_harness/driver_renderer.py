@@ -309,7 +309,14 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         dut.eval();
         pre_backend = backend_snapshot(dut);
       } else {
-''' if spi else ''
+''' if spi else '''      if (command.operation == "SOURCE_I2C") {
+        pre_backend = backend_snapshot(dut);
+        if (!peer.set_response(static_cast<std::uint8_t>(command.fields[0]))) {
+          terminal = error_reply(command.execution, command.sequence, local_ticks,
+                                 "invalid_source", "peer_response_already_bound");
+        }
+      } else {
+''' if kind == 'apb_i2c' else ''
         dispatch = input_assignment + source_branch + f'''      dut.eval();
       if (command.operation == "STEP_{command_channel}") {{
         pre_backend = backend_snapshot(dut);
@@ -343,10 +350,12 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         dut.{channel}_rsp_ready = 0;
         dut.eval();
       }}
-''' + ('      }\n' if spi else '')
+''' + ('      }\n' if spi or kind == 'apb_i2c' else '')
         operation_check = (f'command.operation != "STEP_{command_channel}" && '
                            f'command.operation != "ACCESS_{command_channel}"' +
-                           (' && command.operation != "SOURCE_SPI"' if spi else ''))
+                           (' && command.operation != "SOURCE_SPI"' if spi else
+                            ' && command.operation != "SOURCE_I2C"'
+                            if kind == 'apb_i2c' else ''))
 
     spi_active_cs = ' | '.join(f'((!dut.{fields[f"spi_csn{i}"]}) << {i})' for i in range(4)) if kind == 'apb_spi' else ''
     spi_observe = (f'peer.observe(dut.{fields["spi_clk"]}, {spi_active_cs}, '

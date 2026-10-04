@@ -13,7 +13,7 @@ from myfuzz.local_harness.driver_renderer import render_local_driver
 from myfuzz.local_harness.i2c_session import GeneratedPulpI2cSession
 from myfuzz.scenario.contracts import ResourceBudget
 from myfuzz.scenario.evidence import replay_evidence_bundle, save_evidence_bundle
-from myfuzz.scenario.genome import MemoryImage, ScenarioGenome
+from myfuzz.scenario.genome import Action, MemoryImage, ScenarioGenome, Trigger
 from myfuzz.scenario.memory import MemoryRegion, PersistentMemory
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
 from myfuzz.scenario.router import DataflowRouter, DeviceWindow
@@ -96,6 +96,7 @@ class GeneratedPulpI2cRealTests(unittest.TestCase):
         device.prepare_local()
         device.begin_case('local-i2c')
         self.addCleanup(device.end_case)
+        device.configure_peer_response(0x5a)
         with self.assertRaisesRegex(ValueError, 'unsupported'):
             device.write_register(0, 1)
         device.write_register(0, 2)
@@ -123,7 +124,7 @@ class GeneratedPulpI2cRealTests(unittest.TestCase):
                 break
         else:
             self.fail('read command produced no native IRQ')
-        self.assertEqual(0xa5, device.read_register(8))
+        self.assertEqual(0x5a, device.read_register(8))
         self.assertEqual(0x80, device.read_register(12) & 0x80)  # Master NACK.
         samples = device.drain_tick_samples()
         self.assertTrue(any(row['post']['sda_padoen_o'] == 1
@@ -150,42 +151,53 @@ class GeneratedPulpI2cRealTests(unittest.TestCase):
             cpu = GeneratedCve2Session(cpu_artifact, base_dir=ROOT,
                 cache_dir=self.cache, memory=memory, router=router, defer_mmio=True)
             owner = compile_ownership(
-                (InputField('cpu', 'irq', 1),),
-                (InputOwner('cpu', 'irq', 0, 1, 'bound', 'i2c.interrupt_o'),))
+                (InputField('cpu', 'irq', 1), InputField('i2c', 'peer_response', 8)),
+                (InputOwner('cpu', 'irq', 0, 1, 'bound', 'i2c.interrupt_o'),
+                 InputOwner('i2c', 'peer_response', 0, 8, 'source', 'external_i2c_peer')))
             runner = ScenarioRunner(sessions={'cpu': cpu, 'i2c': i2c},
                 ownership=owner,
                 bindings=(Binding('i2c', 'interrupt_o', 'cpu', 'irq', 1),))
             runners.append(runner)
             return runner
 
-        genome = ScenarioGenome(testcase_id='generated-cve2-i2c-read',
-            direction='CPU_TO_IP_TO_CPU', path_id='cpu-i2c-serial-read-ram',
-            schedule_order=('cpu', 'i2c'), max_steps=1300, actions=(),
-            initial_images=(MemoryImage('cpu.boot', 'cpu', 0x10000, _program()),
-                            MemoryImage('cpu.result', 'cpu', RESULT, '00000000')))
-        bundle = Path(self.temp.name) / 'formal-i2c-evidence'
-        trace = save_evidence_bundle(genome, factory, bundle,
-            budget=ResourceBudget(max_wall_time_ms=180000,
-                max_materialized_bytes_per_memory=0x20000))
-        self.assertEqual('complete', trace.status)
-        self.assertEqual(0xa5, runners[0].sessions['cpu'].memory.read(
-            RESULT, 4, transaction_id='acceptance-read').value)
-        self.assertTrue(any(event.get('kind') == 'mmio_delivery'
-                            and event.get('device_id') == 'i2c'
-                            and event.get('offset') == 8
-                            and event.get('read_value') == 0xa5
-                            for event in trace.events))
-        self.assertTrue(any(event.get('kind') == 'local_tick_sample'
-                            and event.get('component') == 'i2c'
-                            and event.get('outputs', {}).get('interrupt_o') == 1
-                            for event in trace.events))
-        self.assertTrue(any(event.get('kind') == 'dataflow_delivery'
-                            and event.get('source') == ('i2c', 'interrupt_o')
-                            and event.get('target') == ('cpu', 'irq')
-                            and event.get('value') == 1
-                            for event in trace.events))
-        replay = replay_evidence_bundle(bundle, factory)
-        self.assertTrue(replay.matches, replay.difference_context)
+        for byte in (0x5a, 0xa6):
+            with self.subTest(peer_response=byte):
+                genome = ScenarioGenome(testcase_id=f'generated-cve2-i2c-read-{byte:02x}',
+                    direction='IP_TO_CPU', path_id='peer-i2c-controller-irq-cpu-ram',
+                    schedule_order=('cpu', 'i2c'), max_steps=1300,
+                    actions=(Action(f'peer-{byte:02x}', 'i2c', 'peer_response', byte,
+                                    'IP_TO_CPU', Trigger('START')),),
+                    initial_images=(MemoryImage('cpu.boot', 'cpu', 0x10000, _program()),
+                                    MemoryImage('cpu.result', 'cpu', RESULT, '00000000')))
+                bundle = Path(self.temp.name) / f'formal-i2c-evidence-{byte:02x}'
+                trace = save_evidence_bundle(genome, factory, bundle,
+                    budget=ResourceBudget(max_wall_time_ms=180000,
+                        max_materialized_bytes_per_memory=0x20000))
+                self.assertEqual('complete', trace.status)
+                self.assertEqual(byte, runners[-1].sessions['cpu'].memory.read(
+                    RESULT, 4, transaction_id='acceptance-read').value)
+                self.assertTrue(any(event.get('kind') == 'source_injection'
+                                    and event.get('component') == 'i2c'
+                                    and event.get('port') == 'peer_response'
+                                    and event.get('source_ref') == 'external_i2c_peer'
+                                    and event.get('value') == byte
+                                    for event in trace.events))
+                self.assertTrue(any(event.get('kind') == 'mmio_delivery'
+                                    and event.get('device_id') == 'i2c'
+                                    and event.get('offset') == 8
+                                    and event.get('read_value') == byte
+                                    for event in trace.events))
+                self.assertTrue(any(event.get('kind') == 'local_tick_sample'
+                                    and event.get('component') == 'i2c'
+                                    and event.get('outputs', {}).get('interrupt_o') == 1
+                                    for event in trace.events))
+                self.assertTrue(any(event.get('kind') == 'dataflow_delivery'
+                                    and event.get('source') == ('i2c', 'interrupt_o')
+                                    and event.get('target') == ('cpu', 'irq')
+                                    and event.get('value') == 1
+                                    for event in trace.events))
+                replay = replay_evidence_bundle(bundle, factory)
+                self.assertTrue(replay.matches, replay.difference_context)
 
 
 if __name__ == '__main__':

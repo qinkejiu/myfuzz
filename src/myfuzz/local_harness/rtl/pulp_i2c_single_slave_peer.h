@@ -3,11 +3,17 @@
 #include <cstdint>
 #include <stdexcept>
 
-// One 7-bit slave at 0x42. It never stretches SCL, and has one response byte.
+// One 7-bit slave at 0x42. It never stretches SCL, and has one testcase byte.
 // Pull-ups resolve every released line high; the peer may only pull SDA low.
 class PulpI2cSingleSlavePeer {
  public:
   bool sda_low() const { return drive_low_; }
+  bool set_response(std::uint8_t response) {
+    if (configured_ && response != response_) return false;
+    response_ = response;
+    configured_ = true;
+    return true;
+  }
 
   void observe(unsigned scl, unsigned sda, unsigned scl_out,
                unsigned sda_out, unsigned scl_oen, unsigned sda_oen) {
@@ -73,7 +79,8 @@ class PulpI2cSingleSlavePeer {
 
  private:
   enum class Phase { Idle, Address, Write, Ack, Read, MasterAck };
-  static constexpr std::uint8_t response_ = 0xa5;
+  std::uint8_t response_ = 0xff;
+  bool configured_ = false;
   Phase phase_ = Phase::Idle;
   bool last_scl_ = true;
   bool last_sda_ = true;

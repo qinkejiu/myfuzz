@@ -35,7 +35,8 @@ _OPERATIONS = {
     'apb_timer': {'STEP_TIMER': (1,), 'ACCESS_TIMER': (1, 4092, 0xffffffff, 15)},
     'axi4_lite_uart': {'STEP_AXIL_UART': (1, 1),
                        'ACCESS_AXIL_UART': (1, 1, 1, 12, 0xffffffff, 15)},
-    'apb_i2c': {'STEP_I2C': (1,), 'ACCESS_I2C': (1, 4092, 0xffffffff, 15)},
+    'apb_i2c': {'STEP_I2C': (1,), 'ACCESS_I2C': (1, 4092, 0xffffffff, 15),
+                'SOURCE_I2C': (255,)},
 }
 _DIGEST = re.compile(r'[0-9a-f]{64}\Z')
 

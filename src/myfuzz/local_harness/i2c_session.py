@@ -8,7 +8,7 @@ from .session import GeneratedLocalSession
 
 
 class GeneratedPulpI2cSession(GeneratedLocalSession):
-    """A 0x42 slave ACKs writes and supplies one 0xa5 read byte."""
+    """A 0x42 slave ACKs writes and supplies one testcase-owned read byte."""
 
     artifact_kind = 'apb_i2c'
     max_local_ticks_per_step = 1
@@ -25,6 +25,7 @@ class GeneratedPulpI2cSession(GeneratedLocalSession):
         self.irq_edges: list[dict[str, int | str]] = []
         self._irq_level = 0
         self._write_stage = 0
+        self._peer_response: int | None = None
 
     def begin_case(self, testcase_id: str) -> None:
         super().begin_case(testcase_id)
@@ -32,6 +33,7 @@ class GeneratedPulpI2cSession(GeneratedLocalSession):
         self.irq_edges.clear()
         self._irq_level = 0
         self._write_stage = 0
+        self._peer_response = None
 
     @property
     def pending_events(self) -> int:
@@ -71,9 +73,23 @@ class GeneratedPulpI2cSession(GeneratedLocalSession):
         self._samples.clear()
         return result
 
+    def configure_peer_response(self, value: int) -> None:
+        if type(value) is not int or not 0 <= value <= 255:
+            raise ValueError('PULP I2C response byte must be 8-bit')
+        if self._peer_response is not None:
+            if self._peer_response != value:
+                raise ValueError('PULP I2C permits a single response byte per testcase')
+            return
+        self._take(self.command('SOURCE_I2C', (value,)))
+        self._peer_response = value
+
     def step_local(self, inputs: Mapping[str, int]):
-        if not isinstance(inputs, Mapping) or inputs:
+        if not isinstance(inputs, Mapping) or set(inputs) - {'peer_response'}:
             raise ValueError('PULP I2C peer owns both electrical pad inputs')
+        if 'peer_response' in inputs:
+            self.configure_peer_response(inputs['peer_response'])
+        if self._peer_response is None:
+            raise ValueError('PULP I2C peer_response source must be selected before step')
         observed = self._take(self.command('STEP_I2C', (0,)))['observations']
         return {key: observed[key] for key in
                 ('interrupt_o', 'scl_pad_i', 'scl_padoen_o',
@@ -86,6 +102,8 @@ class GeneratedPulpI2cSession(GeneratedLocalSession):
 
     def write_register(self, offset: int, value: int, *, be: int = 15) -> None:
         self._offset(offset)
+        if self._peer_response is None:
+            raise ValueError('PULP I2C peer_response source must be selected before APB transaction')
         if type(value) is not int or not 0 <= value <= 0xffffffff:
             raise ValueError('invalid I2C write value')
         if type(be) is not int or be != 15:
@@ -122,4 +140,5 @@ class GeneratedPulpI2cSession(GeneratedLocalSession):
         self.irq_edges.clear()
         self._irq_level = 0
         self._write_stage = 0
+        self._peer_response = None
         return result
