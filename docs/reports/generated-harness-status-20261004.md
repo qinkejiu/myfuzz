@@ -15,7 +15,9 @@
 | IP | ZipCPU Wishbone target：wbuart | 19/19 端口、word 地址、byte select、注册 ACK；真实串行 TX/RX、原生 RX IRQ 和两种源值回放 | 固定 8N1、单字节；尚无 CPU 数据链 |
 | IP | ZipCPU AXI4-Lite target：axiluart | 独立 AW/W/B 与 AR/R 握手、TX pin 解码、RX 串行回读与回放 | 固定 8N1/波特，当前 peer 仅单字节 |
 
-跨组件验收包括 CVE2↔PULP GPIO A↔GPIO B 双向多轮中断链，以及 CVE2→PULP SPI/OpenTitan GPIO/OpenTitan RV Timer/OpenTitan I2C/PULP Timer/ZipCPU Timer/PULP I2C/ZipCPU AXI4-Lite UART→CVE2 RAM 数据链。I2C 原生 IRQ 已转交 CPU 输入；该程序仍轮询状态，尚未验收 CPU 的中断处理程序。OpenTitan RV Timer 当前由 CPU 读取真实中断状态，尚未将 IRQ 交付 CPU。每条链在独立 CPU/IP harness 中运行，Router 只转交真实 RTL 输出，不组合 Bus/Crossbar。testcase 内进程、RAM、事务和 pending 状态连续保存；显式 reset 才按策略清理。
+跨组件验收包括 CVE2↔PULP GPIO A↔GPIO B 双向多轮中断链，以及 CVE2→PULP SPI/OpenTitan GPIO/OpenTitan RV Timer/OpenTitan I2C/OpenTitan SPI Host/PULP Timer/ZipCPU Timer/PULP I2C/ZipCPU AXI4-Lite UART→CVE2 RAM 数据链。I2C 原生 IRQ 已转交 CPU 输入；该程序仍轮询状态，尚未验收 CPU 的中断处理程序。OpenTitan RV Timer 当前由 CPU 读取真实中断状态，尚未将 IRQ 交付 CPU。每条链在独立 CPU/IP harness 中运行，Router 只转交真实 RTL 输出，不组合 Bus/Crossbar。testcase 内进程、RAM、事务和 pending 状态连续保存；显式 reset 才按策略清理。
+
+通用 `local_harness.v2` 的 `tlul_register_observe` 模板已用 GPIO 与 RV Timer 两个 profile-only 请求做真实寄存器/输出及 fresh replay；它要求逐字段固定非总线输入，当前不生成串行 peer。
 
 生成器可处理已声明的协议形态和局部变体，尚不能凭协议名称无检查地接入任意同协议 RTL。UART RX 已支持 DependencyGraph 引导的 Genome 变异；`0x35→0xA6` 两种源值经真实串行接收、CPU MMIO 回读和 RAM 写入，均匹配 fresh replay。CPU 写入 `0x41` 也经真实 UART TX 引脚解码。PULP I2C 的 `peer_response` 也由 8 位 Genome 源选择；`0x5A` 和 `0xA6` 分别经真实串行传输、CPU MMIO 回读并存入 RAM，两份证据可重放。I2C 仍限固定地址 `0x42` 的单字节响应。OpenTitan SPI Device、更多串行模式及 CPU 中断链仍需分别验收。OpenTitan I2C 的 CPU 程序轮询 IRQ 状态，CPU IRQ 固定为 0。
 
