@@ -33,6 +33,14 @@ class GeneratedPulpI2cSession(GeneratedLocalSession):
         self._irq_level = 0
         self._write_stage = 0
 
+    @property
+    def pending_events(self) -> int:
+        return int(self._write_stage in (4, 6) and self._irq_level == 0)
+
+    def begin_quiesce(self) -> None:
+        if self.process is None or self.process.poll() is not None:
+            raise RuntimeError('generated PULP I2C process is not running')
+
     def _take(self, reply):
         if reply.status != 'result' or reply.payload is None:
             raise RuntimeError('generated I2C protocol error: ' + str(reply.error_code))

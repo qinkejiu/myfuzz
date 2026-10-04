@@ -587,6 +587,13 @@ def _closure(
                 # an HDL file attempts to include it.
                 if path == root / '.git':
                     continue
+                # Concurrent local-harness elaborations create sibling evidence
+                # directories below this source root. Their files are generated
+                # outputs, and each run validates Verilator's actual read set
+                # against the admitted closure separately.
+                if (path.parent == root and entry.name.startswith('.myfuzz-elaboration-')
+                        and entry.is_dir(follow_symlinks=False)):
+                    continue
                 if excluded is not None and (path == excluded or excluded in path.parents):
                     continue
                 if entry.is_symlink():

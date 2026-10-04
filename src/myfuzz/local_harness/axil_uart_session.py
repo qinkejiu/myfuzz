@@ -69,7 +69,8 @@ class GeneratedAxiLiteUartSession(GeneratedLocalSession):
     def pending_events(self):
         if not self._started:
             return len(self.startup_writes) + len(self.source)
-        return max(0, self.peer.source_end_tick - self.local_ticks)
+        return (max(0, self.peer.source_end_tick - self.local_ticks)
+                + int(self.read_rx_after_source and not self._rx_read))
 
     def begin_quiesce(self):
         if self.process is None or self.process.poll() is not None:

@@ -15,6 +15,7 @@ from .zip_timer_session import GeneratedZipTimerSession
 from .cpu_session import GeneratedCve2Session
 from .axi_lite_session import GeneratedAxiLiteMemorySession
 from .axil_uart_session import GeneratedAxiLiteUartSession
+from .i2c_session import GeneratedPulpI2cSession
 
 __all__ = ["LocalHarnessRequest", "load_local_harness_request",
            "LocalHarnessPlan", "plan_local_harness",
@@ -23,4 +24,5 @@ __all__ = ["LocalHarnessRequest", "load_local_harness_request",
            "render_local_driver", "build_local_harness", "local_build_identity",
            "GeneratedLocalSession", "GeneratedPulpGpioSession", "GeneratedOpentitanGpioSession",
            "GeneratedZipTimerSession", "GeneratedCve2Session",
-           "GeneratedAxiLiteMemorySession", "GeneratedAxiLiteUartSession"]
+           "GeneratedAxiLiteMemorySession", "GeneratedAxiLiteUartSession",
+           "GeneratedPulpI2cSession"]

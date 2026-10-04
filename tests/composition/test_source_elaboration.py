@@ -59,6 +59,18 @@ def fixture() -> tuple[dict[str, object], dict[str, object]]:
 
 
 class SourceElaborationTests(unittest.TestCase):
+    def test_generated_sibling_evidence_is_excluded_from_source_closure(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'design.sv'
+            source.write_text('module design; endmodule\n')
+            sibling = root / '.myfuzz-elaboration-other'
+            sibling.mkdir()
+            (sibling / 'ports.tree.json').write_text('{"running":true}')
+            closure = source_elaboration._closure(
+                root, ((source, 'design.sv'),), (root,))
+            self.assertEqual({source}, set(closure))
+
     def test_structured_packed_array_becomes_one_parent_aggregate_leaf(self) -> None:
         tree, metadata = fixture()
         types = tree["miscsp"][0]["typesp"]
@@ -90,7 +102,7 @@ class SourceElaborationTests(unittest.TestCase):
         with self.assertRaisesRegex(ElaborationError, "unresolved type reference"):
             extract_physical_ports(tree, metadata, top_module="renamed_top", source_files={SOURCE: "rtl/stable.sv"})
 
-    def test_structured_array_cannot_be_enum_base_or_unpathed_top_port(self) -> None:
+    def test_top_level_structured_array_is_vector_but_not_enum_base(self) -> None:
         for enum_wrap in (False, True):
             with self.subTest(enum_wrap=enum_wrap):
                 tree, metadata = fixture()
@@ -101,8 +113,13 @@ class SourceElaborationTests(unittest.TestCase):
                     types.append(node("ENUMDTYPE", "(enum-array)", refDTypep=target, loc="s,15:1,15:8"))
                     target = "(enum-array)"
                 tree["modulesp"][0]["stmtsp"][1]["dtypep"] = target
-                with self.assertRaisesRegex(ElaborationError, "structured enum base|top-level aggregate"):
-                    extract_physical_ports(tree, metadata, top_module="renamed_top", source_files={SOURCE: "rtl/stable.sv"})
+                if enum_wrap:
+                    with self.assertRaisesRegex(ElaborationError, "structured enum base"):
+                        extract_physical_ports(tree, metadata, top_module="renamed_top", source_files={SOURCE: "rtl/stable.sv"})
+                else:
+                    document = extract_physical_ports(tree, metadata, top_module="renamed_top", source_files={SOURCE: "rtl/stable.sv"})
+                    self.assertEqual(28, document["ports"][1]["width"])
+                    self.assertEqual([], document["ports"][1]["members"])
 
     def test_structured_packed_array_product_obeys_width_limit(self) -> None:
         tree, metadata = fixture()
