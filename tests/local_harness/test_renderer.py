@@ -111,6 +111,35 @@ class LocalPortRendererTests(unittest.TestCase):
         with self.assertRaises(LocalPortRenderError):
             render_local_harness(replace(self.cpu, parameter_sources=sources))
 
+    def test_renderer_rejects_profile_parameters_changed_after_elaboration(self):
+        plan = self.gpio
+        settings = plan.profile.source.elaboration
+        changed = replace(settings, parameters=tuple(
+            (name, '16' if name == 'PAD_NUM' else value)
+            for name, value in settings.parameters))
+        profile = replace(plan.profile, source=replace(plan.profile.source,
+                                                      elaboration=changed))
+        with self.assertRaisesRegex(LocalPortRenderError, 'stale'):
+            render_local_harness(replace(plan, profile=profile))
+
+    def test_parameter_evidence_rejects_conditional_enum_origin(self):
+        from myfuzz.local_harness.parameter_evidence import parameter_evidence
+        top = 'module sample import types::*; #(parameter mode_e MODE = Fast) (); endmodule'
+        package = ('package types; `ifdef UNUSED\n'
+                   'typedef enum integer {Slow=0, Fast=2} mode_e;\n'
+                   '`endif\nendpackage')
+        with self.assertRaises(LocalPortRenderError):
+            parameter_evidence('sample', ('MODE',), (('top.sv', top), ('pkg.sv', package)))
+
+    def test_renderer_rejects_multiple_clock_or_reset_domains(self):
+        plan = self.gpio
+        extra_clock = replace(plan.profile.clocks[0], domain='second_clock')
+        extra_reset = replace(plan.profile.resets[0], domain='second_reset')
+        for profile in (replace(plan.profile, clocks=plan.profile.clocks + (extra_clock,)),
+                        replace(plan.profile, resets=plan.profile.resets + (extra_reset,))):
+            with self.assertRaises(LocalPortRenderError):
+                render_local_harness(replace(plan, profile=profile))
+
     def test_rejects_reserved_and_escaped_identifiers(self):
         from myfuzz.local_harness.port_rendering import require_identifier
         for name in ('wire', 'always_ff', 'interface', 'endclass', '\\escaped', 'with', 'automatic'):

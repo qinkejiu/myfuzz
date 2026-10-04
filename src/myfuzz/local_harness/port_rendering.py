@@ -52,6 +52,8 @@ def render_port_connections(plan: LocalHarnessPlan) -> tuple[list[str], list[str
     """
     if not isinstance(plan, LocalHarnessPlan) or plan.facts.selection != 'all':
         raise LocalPortRenderError('full-top-required')
+    if len(plan.profile.clocks) != 1 or len(plan.profile.resets) != 1:
+        raise LocalPortRenderError('single-clock-reset-domain-required')
     for name in (plan.request.instance_id, plan.profile.source.top_module, plan.facts.top_module):
         require_identifier(name)
     if plan.profile.source.top_module != plan.facts.top_module:

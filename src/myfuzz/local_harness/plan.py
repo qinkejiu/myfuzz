@@ -10,6 +10,7 @@ from myfuzz.composition.component_profile import (
     ComponentProfile, PhysicalFacts, ProfileBinding, bind_profile,
     elaborate_profile, load_component_profile,
 )
+from myfuzz.composition.interface_description import SourceLocator
 from myfuzz.composition.soc_port_dispositions import (
     DispositionEntry, build_port_dispositions,
 )
@@ -47,6 +48,7 @@ class LocalHarnessPlan:
     binding: ProfileBinding
     dispositions: tuple[DispositionEntry, ...]
     profile_sha256: str
+    elaborated_source: SourceLocator
     parameter_sources: tuple[tuple[str, str], ...] = ()
 
     def document(self) -> dict[str, object]:
@@ -120,4 +122,4 @@ def plan_local_harness(request: LocalHarnessRequest, *, base_dir: Path) -> Local
         _local_target(entry)
     return LocalHarnessPlan(
         request, profile, facts, binding, dispositions,
-        hashlib.sha256(profile_bytes).hexdigest(), parameter_sources)
+        hashlib.sha256(profile_bytes).hexdigest(), profile.source, parameter_sources)

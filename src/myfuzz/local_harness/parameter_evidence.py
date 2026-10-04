@@ -33,6 +33,8 @@ def parameter_evidence(top: str, names: tuple[str, ...], sources: tuple[tuple[st
     closing = find_matching(body, opening, '(', ')')
     if closing < 0:
         raise LocalPortRenderError('parameter-header-unclosed')
+    if '`' in body[match.start():closing]:
+        raise LocalPortRenderError('parameter-preprocessor-unsupported')
     header = body[opening+1:closing]
     if '`' in header:
         raise LocalPortRenderError('parameter-preprocessor-unsupported')
@@ -64,6 +66,8 @@ def parameter_evidence(top: str, names: tuple[str, ...], sources: tuple[tuple[st
                     if not visible:
                         continue
                     for typedef in re.finditer(r'\btypedef\s+enum\b[^;]*?\}\s*' + re.escape(short) + r'\s*;', package[2], re.S):
+                        if '`' in package[2]:
+                            raise LocalPortRenderError(f'parameter-type-preprocessor-unsupported:{name}')
                         candidates.append((package_name, package_file, package_original, typedef[0]))
             if len(candidates) != 1:
                 raise LocalPortRenderError(f'parameter-type-origin-not-unique:{name}')

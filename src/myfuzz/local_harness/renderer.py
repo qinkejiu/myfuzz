@@ -24,6 +24,8 @@ class RenderedLocalHarness:
 
 def render_local_harness(plan: LocalHarnessPlan) -> RenderedLocalHarness:
     """Render exactly one real DUT; no simulator driver or session is implied."""
+    if plan.profile.source != plan.elaborated_source:
+        raise LocalPortRenderError('stale-elaboration-settings')
     declarations, local, connections, rows = render_port_connections(plan)
     source = plan.profile.source
     if source.filelist is not None:
