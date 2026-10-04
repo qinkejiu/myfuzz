@@ -614,12 +614,20 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                     adapter_sources=adapter_hashes, lint_argv=flags+adapters,
                     wire_schema_version='local_driver.v1', driver_status='not_generated')
     if kind == 'tlul_register_observe':
-        fixed = register_observe_policy(plan, abi)
+        fixed, dynamic = register_observe_policy(plan, abi)
         document['fixed_physical_inputs'] = [
             {'endpoint_id': row['endpoint_id'], 'role': row['role'],
              'runtime_name': row['runtime_name'], 'width': row['width'],
              'value': fixed[(row['endpoint_id'], row['role'])]}
-            for row in exports if row['direction'] == 'input']
+            for row in exports if row['direction'] == 'input'
+            and (row['endpoint_id'], row['role']) in fixed]
+        document['dynamic_physical_inputs'] = [
+            {'endpoint_id': row['endpoint_id'], 'role': row['role'],
+             'input_name': row['endpoint_id'] + '.' + row['role'],
+             'runtime_name': row['runtime_name'], 'width': row['width'],
+             'source_id': dynamic[(row['endpoint_id'], row['role'])]}
+            for row in exports if row['direction'] == 'input'
+            and (row['endpoint_id'], row['role']) in dynamic]
         document['functional_scope'] = 'tlul_register_only_pin_observe_no_serial'
     if kind in ('native_memory_cpu', 'axi4_lite_cpu'):
         document['selected_template'] = selected.document()

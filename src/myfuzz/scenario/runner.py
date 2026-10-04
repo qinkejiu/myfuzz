@@ -120,6 +120,10 @@ class ScenarioRunner:
         self.sessions = dict(sessions)
         self.ownership = ownership
         self.bindings = bindings
+        for component, session in self.sessions.items():
+            validate = getattr(session, 'validate_scenario_ownership', None)
+            if callable(validate):
+                validate(component, ownership)
         self.independent_baseline = independent_baseline
         self._irq_pulses: dict[Binding, IrqPulseDelivery] = {}
         for binding, width in (irq_pulses or {}).items():

@@ -31,6 +31,13 @@ class GeneratedTlulRegisterSession(GeneratedLocalSession):
         self._started = False
         self._samples = deque()
         self.local_transactions = []
+        self._dynamic = {}
+        for index, row in enumerate(artifact.runtime_document['dynamic_physical_inputs']):
+            name = row['input_name']
+            if name in self._dynamic or not 1 <= row['width'] <= 64:
+                raise ValueError('invalid generic TL-UL dynamic input')
+            self._dynamic[name] = (index, row['width'], row['source_id'])
+        self._dynamic_values = {name: 0 for name in self._dynamic}
         self._outputs = {}
         for row in artifact.runtime_document['physical_exports']:
             if row['direction'] != 'output':
@@ -41,20 +48,53 @@ class GeneratedTlulRegisterSession(GeneratedLocalSession):
             self._outputs[name] = (row['runtime_name'], row['width'])
         wait = artifact.runtime_document['effective_max_wait_cycles']
         self.max_local_ticks_per_register_access = 2 * wait + 5
-        self.max_local_ticks_per_step = 1 + (
+        self.max_local_ticks_per_step = 1 + len(self._dynamic) + (
             len(setup_writes) + len(probe_offsets)) * self.max_local_ticks_per_register_access
 
     def identity_document(self):
         return {**super().identity_document(),
                 'tlul_register_service_schema_version': 'generated_tlul_register_observe.v1',
                 'setup_writes': [list(row) for row in self.setup_writes],
-                'probe_offsets': list(self.probe_offsets)}
+                'probe_offsets': list(self.probe_offsets),
+                'dynamic_input_initial_policy': 'zero_until_first_source_event'}
+
+    def validate_scenario_ownership(self, component_id, ownership):
+        """Require the ScenarioRunner's bit owners to match this physical ABI."""
+        document = ownership.document()
+        fields = {row['port']: row['width'] for row in document['fields']
+                  if row['component_id'] == component_id}
+        expected = {row['input_name']: row for row in
+                    self.artifact.runtime_document['dynamic_physical_inputs']}
+        fixed = {row['endpoint_id'] + '.' + row['role'] for row in
+                 self.artifact.runtime_document['fixed_physical_inputs']}
+        if set(fields) - set(expected) - fixed or set(expected) - set(fields):
+            raise ValueError('generic TL-UL scenario ownership fields mismatch physical inputs')
+        for name, width in fields.items():
+            expected_width = expected[name]['width'] if name in expected else next(
+                row['width'] for row in self.artifact.runtime_document['fixed_physical_inputs']
+                if row['endpoint_id'] + '.' + row['role'] == name)
+            if width != expected_width:
+                raise ValueError('generic TL-UL scenario ownership width mismatch')
+            bits = [None] * width
+            for owner in document['owners']:
+                if owner['component_id'] != component_id or owner['port'] != name:
+                    continue
+                if (owner['kind'] != ('source' if name in expected else 'fixed') or
+                        name in expected and owner['producer_ref'] != expected[name]['source_id']):
+                    raise ValueError('generic TL-UL source identity or fixed ownership mismatch')
+                for bit in range(owner['bit_offset'], owner['bit_offset'] + owner['width']):
+                    if bit >= width or bits[bit] is not None:
+                        raise ValueError('generic TL-UL overlapping scenario input ownership')
+                    bits[bit] = owner['producer_ref']
+            if any(bit is None for bit in bits):
+                raise ValueError('generic TL-UL incomplete scenario input ownership')
 
     def begin_case(self, testcase_id):
         super().begin_case(testcase_id)
         self._started = False
         self._samples.clear()
         self.local_transactions.clear()
+        self._dynamic_values = {name: 0 for name in self._dynamic}
 
     @property
     def pending_responses(self):
@@ -116,8 +156,12 @@ class GeneratedTlulRegisterSession(GeneratedLocalSession):
         return self._access(False, offset)
 
     def step_local(self, inputs: Mapping[str, int]):
-        if not isinstance(inputs, Mapping) or inputs:
-            raise ValueError('generic TL-UL fixed inputs cannot be overwritten')
+        if not isinstance(inputs, Mapping) or set(inputs) - set(self._dynamic):
+            raise ValueError('generic TL-UL undeclared or fixed input cannot be overwritten')
+        for name, value in inputs.items():
+            _, width, _ = self._dynamic[name]
+            if type(value) is not int or not 0 <= value < 1 << width:
+                raise ValueError('generic TL-UL dynamic source value exceeds physical width')
         probes = {}
         if not self._started:
             self._started = True
@@ -130,6 +174,12 @@ class GeneratedTlulRegisterSession(GeneratedLocalSession):
                 self.local_transactions.append(dict(offset=offset, write=False,
                     read_value=read_value))
                 probes[f'reg_{offset:03x}'] = read_value
+        for name in sorted(inputs):
+            value = inputs[name]
+            if self._dynamic_values[name] != value:
+                index, _, _ = self._dynamic[name]
+                self._take(self.command('SOURCE_TLUL_REG', (index, value)))
+                self._dynamic_values[name] = value
         return {**self._take(self.command('STEP_TLUL_REG', ()), step=True), **probes}
 
     def reset_local(self):
@@ -137,4 +187,5 @@ class GeneratedTlulRegisterSession(GeneratedLocalSession):
         self._started = False
         self._samples.clear()
         self.local_transactions.clear()
+        self._dynamic_values = {name: 0 for name in self._dynamic}
         return result
