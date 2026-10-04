@@ -111,6 +111,8 @@ begin once
 
 `submit_source_event` 会按模板 direction 再次检查逐位 OwnershipMap，只接受 `source` 所有的输入。Bound Input 继续由 ScenarioRunner/Dataflow Router 从上游真实输出更新，无法被在线提交接口覆盖。`advance(schedule)` 精确执行该顺序中的本地 harness 步数并累计检查 `max_steps`；schedule 不是全局 SoC 时钟，也不要求不同 DUT 使用 cycle-accurate 相位。初始 MemoryImage 在首次 begin 前只加载一次；同一个 CPU/IP session、RAM、事务、Pending Event、IRQ pulse 与输入保持到 `finish()`。
 
+每个在线 source segment 的宽度上限为 **65,536 bit（8 KiB）**。解码和 admission 在任何 mask/移位或 harness 执行之前拒绝超过该上限的宽度；payload 是否能放入字段用 `int.bit_length()` 判定，避免根据未信任的 width 构造巨型整数。
+
 完成后 `recorder.plan` 才可读取。`ScenarioBatchCodec` 使用严格版本化 JSON 保存完整命令序列和每个调用边界；trace 的 `genome_sha256` 标识整个 batch plan，因此把同一串本地步骤拆成不同的在线调用也会有不同身份。`replay_scenario_batch` 创建新的一组 harness，先核对 runner manifest，再按原命令边界重放 source admission 与本地步骤，并比较完整事件、local ticks 和语义摘要。测试 ID 是模板提供的运行标签，结束后 trace 使用完整 plan 的 SHA-256 作为 testcase identity。
 
 此能力明确区别于现有预编码 Genome：`DependencyScheduler` 可在开始前知道完整 Action 列表；在线 batch 可以在 RTL 正在运行时根据已观测输出决定下一次输入，再把实际决定完整记录下来。当前它是 ScenarioRunner 层的 API，`ScenarioRfuzzExecutor` 尚未接入在线 RFuzz FIFO slot 流，因此不能据此声称 RFuzz 执行入口已经支持运行中逐次供给。

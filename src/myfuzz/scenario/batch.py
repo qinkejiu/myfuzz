@@ -19,9 +19,20 @@ if TYPE_CHECKING:
     from .replay import ScenarioTrace
 
 
+MAX_BATCH_SOURCE_WIDTH_BITS = 1 << 16
+
+
 def _natural(value: int, name: str, *, minimum: int = 0) -> None:
     if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
         raise ValueError(f"{name} must be an integer >= {minimum}")
+
+
+def _source_width(value: int, name: str) -> None:
+    _natural(value, name, minimum=1)
+    if value > MAX_BATCH_SOURCE_WIDTH_BITS:
+        raise ValueError(
+            f"{name} exceeds maximum supported width "
+            f"({MAX_BATCH_SOURCE_WIDTH_BITS} bits)")
 
 
 @dataclass(frozen=True)
@@ -42,8 +53,8 @@ class BatchSourceEvent:
         _natural(self.value, "source event value")
         _natural(self.bit_offset, "source event bit_offset")
         if self.width is not None:
-            _natural(self.width, "source event width", minimum=1)
-            if self.value >= 1 << self.width:
+            _source_width(self.width, "source event width")
+            if self.value.bit_length() > self.width:
                 raise ValueError("source event value exceeds width")
 
 
@@ -266,11 +277,12 @@ class ScenarioBatchRecorder:
             raise ValueError("source event action_id values must be unique")
         field_width = self.runner.ownership.field_width(event.component, event.port)
         selected_width = event.width if event.width is not None else field_width
+        _source_width(selected_width, "selected source width")
         # Do all semantic checks before changing the runner or transcript.
         self.runner.ownership.mutation_source(
             event.component, event.port, event.bit_offset, selected_width,
             direction=self.template.direction)
-        if event.value >= 1 << selected_width:
+        if event.value.bit_length() > selected_width:
             raise ValueError("source event value exceeds selected source width")
         if event.component not in self.template.schedule_order:
             raise ValueError("source event component is absent from template")

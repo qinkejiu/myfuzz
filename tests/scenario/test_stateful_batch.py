@@ -8,6 +8,7 @@ import unittest
 from myfuzz.scenario.batch import (
     BatchAdvance,
     BatchSourceEvent,
+    MAX_BATCH_SOURCE_WIDTH_BITS,
     ScenarioBatchCodec,
     ScenarioBatchPlan,
     ScenarioBatchRecorder,
@@ -98,6 +99,21 @@ class ScenarioBatchCodecTests(unittest.TestCase):
                b'"template":{}}')
         with self.assertRaisesRegex(ValueError, "invalid batch plan JSON"):
             ScenarioBatchCodec.decode(raw)
+
+    def test_decode_rejects_width_far_above_supported_limit(self):
+        document = json.loads(ScenarioBatchCodec.encode(self.plan))
+        document["commands"][0]["width"] = 1 << 63
+        document["commands"][0]["value"] = 1
+        raw = json.dumps(document, separators=(",", ":")).encode()
+        with self.assertRaisesRegex(ValueError, "width exceeds maximum"):
+            ScenarioBatchCodec.decode(raw)
+
+    def test_source_event_width_limit_is_inclusive_and_bounded(self):
+        BatchSourceEvent("max-width", "gpio", "source", 0,
+                         width=MAX_BATCH_SOURCE_WIDTH_BITS)
+        with self.assertRaisesRegex(ValueError, "width exceeds maximum"):
+            BatchSourceEvent("over-width", "gpio", "source", 0,
+                             width=MAX_BATCH_SOURCE_WIDTH_BITS + 1)
 
     def test_plan_rejects_duplicate_action_ids_invalid_width_and_bad_schedule(self):
         duplicate = (BatchSourceEvent("same", "gpio", "source", 1),
@@ -204,6 +220,20 @@ class ScenarioBatchRecorderTests(unittest.TestCase):
             recorder.advance(("cpu", "gpio", "cpu"))
         self.assertEqual({"cpu": 0, "gpio": 0}, runner.local_ticks)
         self.assertEqual((), recorder.commands)
+        recorder.finish()
+
+    def test_implicit_ownership_width_is_capped_before_source_validation(self):
+        runner = make_factory()[0]()
+        runner.ownership.field_width = lambda *_: MAX_BATCH_SOURCE_WIDTH_BITS + 1
+        runner.ownership.mutation_source = lambda *args, **kwargs: self.fail(
+            "oversized ownership width reached source validation")
+        recorder = ScenarioBatchRecorder(template(), runner)
+        recorder.begin()
+        with self.assertRaisesRegex(ValueError, "selected source width exceeds maximum"):
+            recorder.submit_source_event(BatchSourceEvent(
+                "oversized-field", "cpu", "source", 0))
+        self.assertFalse(any(event.get("kind") == "source_injection"
+                             for event in runner.events))
         recorder.finish()
 
     def test_recorder_rejects_duplicate_lifecycle_calls(self):
