@@ -1,0 +1,739 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "zipaxi",
+  "kind": "cpu",
+  "description": "Pinned ZipCPU zipaxi physical top with two full AXI4 masters. Instruction cache is enabled to exercise multi-beat reads.",
+  "source": {
+    "root": "third_party/soc-zipcpu",
+    "revision": "git:42606d2d6ef55df313772232977621b2d72f0159",
+    "top_module": "zipaxi",
+    "top_port_selection": "all",
+    "files": [
+      "rtl/zipaxi.v",
+      "rtl/core/axidcache.v",
+      "rtl/core/axiicache.v",
+      "rtl/core/axilfetch.v",
+      "rtl/core/axiops.v",
+      "rtl/core/axipipe.v",
+      "rtl/core/cpuops.v",
+      "rtl/core/div.v",
+      "rtl/core/idecode.v",
+      "rtl/core/iscachable.v",
+      "rtl/core/mpyop.v",
+      "rtl/core/slowmpy.v",
+      "rtl/core/zipcore.v",
+      "rtl/ex/sfifo.v",
+      "rtl/ex/skidbuffer.v"
+    ],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {
+          "name": "OPT_LGICACHE",
+          "value": "5"
+        },
+        {
+          "name": "OPT_LGDCACHE",
+          "value": "0"
+        },
+        {
+          "name": "OPT_CIS",
+          "value": "0"
+        },
+        {
+          "name": "OPT_DBGPORT",
+          "value": "0"
+        },
+        {
+          "name": "RESET_ADDRESS",
+          "value": "256"
+        }
+      ],
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [
+    {
+      "port": "S_AXI_ACLK",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "S_AXI_ARESETN",
+      "domain": "sys_rst",
+      "polarity": "active_low",
+      "synchronous": true,
+      "release": "zipaxi samples S_AXI_ARESETN in the S_AXI_ACLK domain."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "processor.memory.insn",
+      "function": "instruction_memory_master",
+      "protocol": [
+        "axi4",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "araddr",
+          "aliases": [
+            "M_INSN_ARADDR"
+          ]
+        },
+        {
+          "role": "arburst",
+          "aliases": [
+            "M_INSN_ARBURST"
+          ]
+        },
+        {
+          "role": "arcache",
+          "aliases": [
+            "M_INSN_ARCACHE"
+          ]
+        },
+        {
+          "role": "arid",
+          "aliases": [
+            "M_INSN_ARID"
+          ]
+        },
+        {
+          "role": "arlen",
+          "aliases": [
+            "M_INSN_ARLEN"
+          ]
+        },
+        {
+          "role": "arlock",
+          "aliases": [
+            "M_INSN_ARLOCK"
+          ]
+        },
+        {
+          "role": "arprot",
+          "aliases": [
+            "M_INSN_ARPROT"
+          ]
+        },
+        {
+          "role": "arqos",
+          "aliases": [
+            "M_INSN_ARQOS"
+          ]
+        },
+        {
+          "role": "arready",
+          "aliases": [
+            "M_INSN_ARREADY"
+          ]
+        },
+        {
+          "role": "arsize",
+          "aliases": [
+            "M_INSN_ARSIZE"
+          ]
+        },
+        {
+          "role": "arvalid",
+          "aliases": [
+            "M_INSN_ARVALID"
+          ]
+        },
+        {
+          "role": "awaddr",
+          "aliases": [
+            "M_INSN_AWADDR"
+          ]
+        },
+        {
+          "role": "awburst",
+          "aliases": [
+            "M_INSN_AWBURST"
+          ]
+        },
+        {
+          "role": "awcache",
+          "aliases": [
+            "M_INSN_AWCACHE"
+          ]
+        },
+        {
+          "role": "awid",
+          "aliases": [
+            "M_INSN_AWID"
+          ]
+        },
+        {
+          "role": "awlen",
+          "aliases": [
+            "M_INSN_AWLEN"
+          ]
+        },
+        {
+          "role": "awlock",
+          "aliases": [
+            "M_INSN_AWLOCK"
+          ]
+        },
+        {
+          "role": "awprot",
+          "aliases": [
+            "M_INSN_AWPROT"
+          ]
+        },
+        {
+          "role": "awqos",
+          "aliases": [
+            "M_INSN_AWQOS"
+          ]
+        },
+        {
+          "role": "awready",
+          "aliases": [
+            "M_INSN_AWREADY"
+          ]
+        },
+        {
+          "role": "awsize",
+          "aliases": [
+            "M_INSN_AWSIZE"
+          ]
+        },
+        {
+          "role": "awvalid",
+          "aliases": [
+            "M_INSN_AWVALID"
+          ]
+        },
+        {
+          "role": "bid",
+          "aliases": [
+            "M_INSN_BID"
+          ]
+        },
+        {
+          "role": "bready",
+          "aliases": [
+            "M_INSN_BREADY"
+          ]
+        },
+        {
+          "role": "bresp",
+          "aliases": [
+            "M_INSN_BRESP"
+          ]
+        },
+        {
+          "role": "bvalid",
+          "aliases": [
+            "M_INSN_BVALID"
+          ]
+        },
+        {
+          "role": "rdata",
+          "aliases": [
+            "M_INSN_RDATA"
+          ]
+        },
+        {
+          "role": "rid",
+          "aliases": [
+            "M_INSN_RID"
+          ]
+        },
+        {
+          "role": "rlast",
+          "aliases": [
+            "M_INSN_RLAST"
+          ]
+        },
+        {
+          "role": "rready",
+          "aliases": [
+            "M_INSN_RREADY"
+          ]
+        },
+        {
+          "role": "rresp",
+          "aliases": [
+            "M_INSN_RRESP"
+          ]
+        },
+        {
+          "role": "rvalid",
+          "aliases": [
+            "M_INSN_RVALID"
+          ]
+        },
+        {
+          "role": "wdata",
+          "aliases": [
+            "M_INSN_WDATA"
+          ]
+        },
+        {
+          "role": "wlast",
+          "aliases": [
+            "M_INSN_WLAST"
+          ]
+        },
+        {
+          "role": "wready",
+          "aliases": [
+            "M_INSN_WREADY"
+          ]
+        },
+        {
+          "role": "wstrb",
+          "aliases": [
+            "M_INSN_WSTRB"
+          ]
+        },
+        {
+          "role": "wvalid",
+          "aliases": [
+            "M_INSN_WVALID"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "processor.memory.data",
+      "function": "data_memory_master",
+      "protocol": [
+        "axi4",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "araddr",
+          "aliases": [
+            "M_DATA_ARADDR"
+          ]
+        },
+        {
+          "role": "arburst",
+          "aliases": [
+            "M_DATA_ARBURST"
+          ]
+        },
+        {
+          "role": "arcache",
+          "aliases": [
+            "M_DATA_ARCACHE"
+          ]
+        },
+        {
+          "role": "arid",
+          "aliases": [
+            "M_DATA_ARID"
+          ]
+        },
+        {
+          "role": "arlen",
+          "aliases": [
+            "M_DATA_ARLEN"
+          ]
+        },
+        {
+          "role": "arlock",
+          "aliases": [
+            "M_DATA_ARLOCK"
+          ]
+        },
+        {
+          "role": "arprot",
+          "aliases": [
+            "M_DATA_ARPROT"
+          ]
+        },
+        {
+          "role": "arqos",
+          "aliases": [
+            "M_DATA_ARQOS"
+          ]
+        },
+        {
+          "role": "arready",
+          "aliases": [
+            "M_DATA_ARREADY"
+          ]
+        },
+        {
+          "role": "arsize",
+          "aliases": [
+            "M_DATA_ARSIZE"
+          ]
+        },
+        {
+          "role": "arvalid",
+          "aliases": [
+            "M_DATA_ARVALID"
+          ]
+        },
+        {
+          "role": "awaddr",
+          "aliases": [
+            "M_DATA_AWADDR"
+          ]
+        },
+        {
+          "role": "awburst",
+          "aliases": [
+            "M_DATA_AWBURST"
+          ]
+        },
+        {
+          "role": "awcache",
+          "aliases": [
+            "M_DATA_AWCACHE"
+          ]
+        },
+        {
+          "role": "awid",
+          "aliases": [
+            "M_DATA_AWID"
+          ]
+        },
+        {
+          "role": "awlen",
+          "aliases": [
+            "M_DATA_AWLEN"
+          ]
+        },
+        {
+          "role": "awlock",
+          "aliases": [
+            "M_DATA_AWLOCK"
+          ]
+        },
+        {
+          "role": "awprot",
+          "aliases": [
+            "M_DATA_AWPROT"
+          ]
+        },
+        {
+          "role": "awqos",
+          "aliases": [
+            "M_DATA_AWQOS"
+          ]
+        },
+        {
+          "role": "awready",
+          "aliases": [
+            "M_DATA_AWREADY"
+          ]
+        },
+        {
+          "role": "awsize",
+          "aliases": [
+            "M_DATA_AWSIZE"
+          ]
+        },
+        {
+          "role": "awvalid",
+          "aliases": [
+            "M_DATA_AWVALID"
+          ]
+        },
+        {
+          "role": "bid",
+          "aliases": [
+            "M_DATA_BID"
+          ]
+        },
+        {
+          "role": "bready",
+          "aliases": [
+            "M_DATA_BREADY"
+          ]
+        },
+        {
+          "role": "bresp",
+          "aliases": [
+            "M_DATA_BRESP"
+          ]
+        },
+        {
+          "role": "bvalid",
+          "aliases": [
+            "M_DATA_BVALID"
+          ]
+        },
+        {
+          "role": "rdata",
+          "aliases": [
+            "M_DATA_RDATA"
+          ]
+        },
+        {
+          "role": "rid",
+          "aliases": [
+            "M_DATA_RID"
+          ]
+        },
+        {
+          "role": "rlast",
+          "aliases": [
+            "M_DATA_RLAST"
+          ]
+        },
+        {
+          "role": "rready",
+          "aliases": [
+            "M_DATA_RREADY"
+          ]
+        },
+        {
+          "role": "rresp",
+          "aliases": [
+            "M_DATA_RRESP"
+          ]
+        },
+        {
+          "role": "rvalid",
+          "aliases": [
+            "M_DATA_RVALID"
+          ]
+        },
+        {
+          "role": "wdata",
+          "aliases": [
+            "M_DATA_WDATA"
+          ]
+        },
+        {
+          "role": "wlast",
+          "aliases": [
+            "M_DATA_WLAST"
+          ]
+        },
+        {
+          "role": "wready",
+          "aliases": [
+            "M_DATA_WREADY"
+          ]
+        },
+        {
+          "role": "wstrb",
+          "aliases": [
+            "M_DATA_WSTRB"
+          ]
+        },
+        {
+          "role": "wvalid",
+          "aliases": [
+            "M_DATA_WVALID"
+          ]
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 32,
+    "data_width": 32,
+    "id_width": 1,
+    "bursts": true,
+    "byte_enable": true,
+    "error_response": true,
+    "max_outstanding": 1,
+    "evidence": "zipaxi.v exposes full AW W B AR R channels on both instruction and data ports; OPT_LGICACHE=5 enables axiicache multi-beat fetch."
+  },
+  "port_actions": [
+    {
+      "port": "i_interrupt",
+      "action": "constant",
+      "value": 0,
+      "reason": "Inactive debug, interrupt, and CPU reset input under OPT_DBGPORT=0."
+    },
+    {
+      "port": "i_cpu_reset",
+      "action": "constant",
+      "value": 0,
+      "reason": "Inactive debug, interrupt, and CPU reset input under OPT_DBGPORT=0."
+    },
+    {
+      "port": "S_DBG_AWVALID",
+      "action": "constant",
+      "value": 0,
+      "reason": "Inactive debug, interrupt, and CPU reset input under OPT_DBGPORT=0."
+    },
+    {
+      "port": "S_DBG_AWREADY",
+      "action": "observe",
+      "reason": "Observe ZipCPU physical status or inactive debug output."
+    },
+    {
+      "port": "S_DBG_AWADDR",
+      "action": "constant",
+      "value": 0,
+      "reason": "Inactive debug, interrupt, and CPU reset input under OPT_DBGPORT=0."
+    },
+    {
+      "port": "S_DBG_AWPROT",
+      "action": "constant",
+      "value": 0,
+      "reason": "Inactive debug, interrupt, and CPU reset input under OPT_DBGPORT=0."
+    },
+    {
+      "port": "S_DBG_WVALID",
+      "action": "constant",
+      "value": 0,
+      "reason": "Inactive debug, interrupt, and CPU reset input under OPT_DBGPORT=0."
+    },
+    {
+      "port": "S_DBG_WREADY",
+      "action": "observe",
+      "reason": "Observe ZipCPU physical status or inactive debug output."
+    },
+    {
+      "port": "S_DBG_WDATA",
+      "action": "constant",
+      "value": 0,
+      "reason": "Inactive debug, interrupt, and CPU reset input under OPT_DBGPORT=0."
+    },
+    {
+      "port": "S_DBG_WSTRB",
+      "action": "constant",
+      "value": 0,
+      "reason": "Inactive debug, interrupt, and CPU reset input under OPT_DBGPORT=0."
+    },
+    {
+      "port": "S_DBG_BVALID",
+      "action": "observe",
+      "reason": "Observe ZipCPU physical status or inactive debug output."
+    },
+    {
+      "port": "S_DBG_BREADY",
+      "action": "constant",
+      "value": 0,
+      "reason": "Inactive debug, interrupt, and CPU reset input under OPT_DBGPORT=0."
+    },
+    {
+      "port": "S_DBG_BRESP",
+      "action": "observe",
+      "reason": "Observe ZipCPU physical status or inactive debug output."
+    },
+    {
+      "port": "S_DBG_ARVALID",
+      "action": "constant",
+      "value": 0,
+      "reason": "Inactive debug, interrupt, and CPU reset input under OPT_DBGPORT=0."
+    },
+    {
+      "port": "S_DBG_ARREADY",
+      "action": "observe",
+      "reason": "Observe ZipCPU physical status or inactive debug output."
+    },
+    {
+      "port": "S_DBG_ARADDR",
+      "action": "constant",
+      "value": 0,
+      "reason": "Inactive debug, interrupt, and CPU reset input under OPT_DBGPORT=0."
+    },
+    {
+      "port": "S_DBG_ARPROT",
+      "action": "constant",
+      "value": 0,
+      "reason": "Inactive debug, interrupt, and CPU reset input under OPT_DBGPORT=0."
+    },
+    {
+      "port": "S_DBG_RVALID",
+      "action": "observe",
+      "reason": "Observe ZipCPU physical status or inactive debug output."
+    },
+    {
+      "port": "S_DBG_RREADY",
+      "action": "constant",
+      "value": 0,
+      "reason": "Inactive debug, interrupt, and CPU reset input under OPT_DBGPORT=0."
+    },
+    {
+      "port": "S_DBG_RDATA",
+      "action": "observe",
+      "reason": "Observe ZipCPU physical status or inactive debug output."
+    },
+    {
+      "port": "S_DBG_RRESP",
+      "action": "observe",
+      "reason": "Observe ZipCPU physical status or inactive debug output."
+    },
+    {
+      "port": "o_cmd_reset",
+      "action": "observe",
+      "reason": "Observe ZipCPU physical status or inactive debug output."
+    },
+    {
+      "port": "o_halted",
+      "action": "observe",
+      "reason": "Observe ZipCPU physical status or inactive debug output."
+    },
+    {
+      "port": "o_gie",
+      "action": "observe",
+      "reason": "Observe ZipCPU physical status or inactive debug output."
+    },
+    {
+      "port": "o_op_stall",
+      "action": "observe",
+      "reason": "Observe ZipCPU physical status or inactive debug output."
+    },
+    {
+      "port": "o_pf_stall",
+      "action": "observe",
+      "reason": "Observe ZipCPU physical status or inactive debug output."
+    },
+    {
+      "port": "o_i_count",
+      "action": "observe",
+      "reason": "Observe ZipCPU physical status or inactive debug output."
+    },
+    {
+      "port": "o_cpu_debug",
+      "action": "observe",
+      "reason": "Observe ZipCPU physical status or inactive debug output."
+    },
+    {
+      "port": "o_prof_stb",
+      "action": "observe",
+      "reason": "Observe ZipCPU physical status or inactive debug output."
+    },
+    {
+      "port": "o_prof_addr",
+      "action": "observe",
+      "reason": "Observe ZipCPU physical status or inactive debug output."
+    },
+    {
+      "port": "o_prof_ticks",
+      "action": "observe",
+      "reason": "Observe ZipCPU physical status or inactive debug output."
+    }
+  ],
+  "cpu": {
+    "family": "zipcpu",
+    "xlen": 32,
+    "extensions": [],
+    "reset_vector": 256,
+    "master_endpoints": [
+      "processor.memory.insn",
+      "processor.memory.data"
+    ],
+    "boot_address_required": false
+  },
+  "evidence": {
+    "semantics": [
+      "Pinned zipaxi.v at git:42606d2; reset vector parameter RESET_ADDRESS=256; OPT_LGICACHE=5 selects axiicache with burst fetch."
+    ],
+    "verified": [
+      "Verilator JSON elaborated all 107 physical ports with both full AXI4 master bundles."
+    ],
+    "unknown": [
+      "Runtime behavior pending generated local admission."
+    ]
+  }
+}

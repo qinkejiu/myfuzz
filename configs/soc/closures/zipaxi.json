@@ -1,0 +1,156 @@
+{
+  "schema_version": "soc_elaboration_closure.v1",
+  "component": "zipaxi",
+  "root": "third_party/soc-zipcpu",
+  "top_module": "zipaxi",
+  "tool": {
+    "name": "verilator",
+    "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "frontend": "verilator-lint"
+  },
+  "command": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "zipaxi",
+    "-GOPT_LGICACHE=5",
+    "-GOPT_LGDCACHE=0",
+    "-GOPT_CIS=0",
+    "-GOPT_DBGPORT=0",
+    "-GRESET_ADDRESS=256",
+    "third_party/soc-zipcpu/rtl/zipaxi.v",
+    "third_party/soc-zipcpu/rtl/core/axidcache.v",
+    "third_party/soc-zipcpu/rtl/core/axiicache.v",
+    "third_party/soc-zipcpu/rtl/core/axilfetch.v",
+    "third_party/soc-zipcpu/rtl/core/axiops.v",
+    "third_party/soc-zipcpu/rtl/core/axipipe.v",
+    "third_party/soc-zipcpu/rtl/core/cpuops.v",
+    "third_party/soc-zipcpu/rtl/core/div.v",
+    "third_party/soc-zipcpu/rtl/core/idecode.v",
+    "third_party/soc-zipcpu/rtl/core/iscachable.v",
+    "third_party/soc-zipcpu/rtl/core/mpyop.v",
+    "third_party/soc-zipcpu/rtl/core/slowmpy.v",
+    "third_party/soc-zipcpu/rtl/core/zipcore.v",
+    "third_party/soc-zipcpu/rtl/ex/sfifo.v",
+    "third_party/soc-zipcpu/rtl/ex/skidbuffer.v"
+  ],
+  "include_roots": [],
+  "defines": [],
+  "parameters": [
+    {
+      "name": "OPT_LGICACHE",
+      "value": "5"
+    },
+    {
+      "name": "OPT_LGDCACHE",
+      "value": "0"
+    },
+    {
+      "name": "OPT_CIS",
+      "value": "0"
+    },
+    {
+      "name": "OPT_DBGPORT",
+      "value": "0"
+    },
+    {
+      "name": "RESET_ADDRESS",
+      "value": "256"
+    }
+  ],
+  "closure_files": [
+    {
+      "root": "third_party/soc-zipcpu",
+      "path": "rtl/zipaxi.v",
+      "sha256": "4666a33b61ee5cdeeabd35b9006478b1fe756bf37411887b56c7dc4ebe6d3bd8"
+    },
+    {
+      "root": "third_party/soc-zipcpu",
+      "path": "rtl/core/axidcache.v",
+      "sha256": "57dd00f99e5fee4d70f3f198f104b8b05ea273c4c39e55bcb5e452b678ca0a4c"
+    },
+    {
+      "root": "third_party/soc-zipcpu",
+      "path": "rtl/core/axiicache.v",
+      "sha256": "57169a69107445eb0e1165ebcc36ec8e464c082c74a71130909287d8b4349211"
+    },
+    {
+      "root": "third_party/soc-zipcpu",
+      "path": "rtl/core/axilfetch.v",
+      "sha256": "737a8873cbe0204212d5a5f603a4303be1bade15b8826305996ec6bb6610569a"
+    },
+    {
+      "root": "third_party/soc-zipcpu",
+      "path": "rtl/core/axiops.v",
+      "sha256": "30de8f5db700fb7dd8f708c4fb2c6712e5f89a0e30313e5b829786ed449e77e4"
+    },
+    {
+      "root": "third_party/soc-zipcpu",
+      "path": "rtl/core/axipipe.v",
+      "sha256": "452c0dea5d753ec6f62a4dbe416091337f40094ad427b7e71eb78ff1aa47a52c"
+    },
+    {
+      "root": "third_party/soc-zipcpu",
+      "path": "rtl/core/cpuops.v",
+      "sha256": "54707430127001eb7e716eb14ff3b733ecfeac437a4a1cec6906bb7befa48a7e"
+    },
+    {
+      "root": "third_party/soc-zipcpu",
+      "path": "rtl/core/div.v",
+      "sha256": "ca220c1db020a4b3365d8c29fe9cdb24dfbc93a5db82827cb818b888d834abf5"
+    },
+    {
+      "root": "third_party/soc-zipcpu",
+      "path": "rtl/core/idecode.v",
+      "sha256": "f8e29e5e5d387a7fefc73dd456448bcbd41d65ed4d80e5d23d8541ae4e507c4e"
+    },
+    {
+      "root": "third_party/soc-zipcpu",
+      "path": "rtl/core/iscachable.v",
+      "sha256": "4423b32aafd994418b211db91da4e1b9593dcd95144fd14a63299535e108a7eb"
+    },
+    {
+      "root": "third_party/soc-zipcpu",
+      "path": "rtl/core/mpyop.v",
+      "sha256": "2b831b42a8b14671925c2284ce2e838378f3d738b1293eca74ede4c861aed5a4"
+    },
+    {
+      "root": "third_party/soc-zipcpu",
+      "path": "rtl/core/slowmpy.v",
+      "sha256": "449527da756405fab2b30ad7121609a0a0d7555c7fba68a6d0c81eb0f90502d4"
+    },
+    {
+      "root": "third_party/soc-zipcpu",
+      "path": "rtl/core/zipcore.v",
+      "sha256": "b0db25e2017c2e6cb6715d8901806c3bdd12ae98879e0723ff5b58b750c7938e"
+    },
+    {
+      "root": "third_party/soc-zipcpu",
+      "path": "rtl/ex/sfifo.v",
+      "sha256": "f97bc8f20fa52b4819f9cfd4a18cfd257370359c065760441da37dba281c0145"
+    },
+    {
+      "root": "third_party/soc-zipcpu",
+      "path": "rtl/ex/skidbuffer.v",
+      "sha256": "ae8b294b58c139f15aece4e4270b868aa21f690727c15a05e15bba2e83169635"
+    }
+  ],
+  "status": "elaboration_verified",
+  "lint": {
+    "errors": 0,
+    "warnings": 14,
+    "exit_code": 0,
+    "log": "runs/soc-source-elaboration/zipcpu/zipaxi-lint.log"
+  },
+  "capability_findings": [
+    {
+      "topic": "full_axi4_bursts",
+      "port_or_field": "M_INSN_ARLEN/M_INSN_RLAST",
+      "observed": "OPT_LGICACHE=5 selects axiicache, allowing multi-beat instruction fetch. Both master ports expose all five AXI4 channels.",
+      "evidence_path": "third_party/soc-zipcpu/rtl/zipaxi.v:885-932",
+      "provenance": "rtl_read"
+    }
+  ],
+  "unsupported": []
+}

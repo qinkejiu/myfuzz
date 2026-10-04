@@ -1,0 +1,65 @@
+- V e r i l a t i o n   R e p o r t: Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67
+- Verilator: Built from 3.531 MB sources in 16 modules, into 0.365 MB in 3 C++ files needing 0.000 MB
+- Verilator: Walltime 0.122 s (elab=0.031, cvt=0.047, bld=0.000); cpu 0.122 s on 1 threads; allocated 39.047 MB
+%Warning-ASCRANGE: third_party/soc-zipcpu/rtl/core/axiicache.v:178:7: Ascending bit range vector: left < right of bit range: [-1:0]
+                                                                    : ... note: In instance 'zipaxi.INSN_CACHE.pf'
+  178 |  wire [CWB-LSB-1:0] axi_line, pc_line, last_line;
+      |       ^
+                   ... For warning description see https://verilator.org/warn/ASCRANGE?v=5.051
+                   ... Use "/* verilator lint_off ASCRANGE */" and lint_on around source to disable this message.
+%Warning-SELRANGE: third_party/soc-zipcpu/rtl/core/axiicache.v:206:30: [4:5] Slice range has ascending bit ordering, perhaps you wanted [5:4]
+                                                                     : ... note: In instance 'zipaxi.INSN_CACHE.pf'
+  206 |  assign axi_line = axi_araddr[CWB-1:LSB];
+      |                              ^
+                   ... For warning description see https://verilator.org/warn/SELRANGE?v=5.051
+                   ... Use "/* verilator lint_off SELRANGE */" and lint_on around source to disable this message.
+%Warning-SELRANGE: third_party/soc-zipcpu/rtl/core/axiicache.v:208:24: [4:5] Slice range has ascending bit ordering, perhaps you wanted [5:4]
+                                                                     : ... note: In instance 'zipaxi.INSN_CACHE.pf'
+  208 |  assign pc_line  = i_pc[CWB-1:LSB];
+      |                        ^
+%Warning-SELRANGE: third_party/soc-zipcpu/rtl/core/axiicache.v:209:27: [4:5] Slice range has ascending bit ordering, perhaps you wanted [5:4]
+                                                                     : ... note: In instance 'zipaxi.INSN_CACHE.pf'
+  209 |  assign last_line= last_pc[CWB-1:LSB];
+      |                           ^
+%Warning-WIDTHTRUNC: third_party/soc-zipcpu/rtl/core/axiicache.v:217:26: Bit extraction of var[0:0] requires 1 bit index, not 2 bits.
+                                                                       : ... note: In instance 'zipaxi.INSN_CACHE.pf'
+  217 |   pc_valid <= cache_valid[pc_line];
+      |                          ^
+                     ... For warning description see https://verilator.org/warn/WIDTHTRUNC?v=5.051
+                     ... Use "/* verilator lint_off WIDTHTRUNC */" and lint_on around source to disable this message.
+%Warning-WIDTHTRUNC: third_party/soc-zipcpu/rtl/core/axiicache.v:225:25: Bit extraction of array[0:0] requires 1 bit index, not 2 bits.
+                                                                       : ... note: In instance 'zipaxi.INSN_CACHE.pf'
+  225 |   pc_tag <= { cache_tags[pc_line], pc_line };
+      |                         ^
+%Warning-WIDTHTRUNC: third_party/soc-zipcpu/rtl/core/axiicache.v:225:10: Operator ASSIGNDLY expects 27 bits on the Assign RHS, but Assign RHS's REPLICATE generates 29 bits.
+                                                                       : ... note: In instance 'zipaxi.INSN_CACHE.pf'
+  225 |   pc_tag <= { cache_tags[pc_line], pc_line };
+      |          ^~
+%Warning-WIDTHTRUNC: third_party/soc-zipcpu/rtl/core/axiicache.v:243:28: Bit extraction of var[0:0] requires 1 bit index, not 2 bits.
+                                                                       : ... note: In instance 'zipaxi.INSN_CACHE.pf'
+  243 |   last_valid <= cache_valid[last_line];
+      |                            ^
+%Warning-WIDTHTRUNC: third_party/soc-zipcpu/rtl/core/axiicache.v:249:27: Bit extraction of array[0:0] requires 1 bit index, not 2 bits.
+                                                                       : ... note: In instance 'zipaxi.INSN_CACHE.pf'
+  249 |   last_tag <= { cache_tags[last_line], last_line };
+      |                           ^
+%Warning-WIDTHTRUNC: third_party/soc-zipcpu/rtl/core/axiicache.v:249:12: Operator ASSIGNDLY expects 27 bits on the Assign RHS, but Assign RHS's REPLICATE generates 29 bits.
+                                                                       : ... note: In instance 'zipaxi.INSN_CACHE.pf'
+  249 |   last_tag <= { cache_tags[last_line], last_line };
+      |            ^~
+%Warning-SELRANGE: third_party/soc-zipcpu/rtl/core/axiicache.v:442:22: [4:5] Slice range has ascending bit ordering, perhaps you wanted [5:4]
+                                                                     : ... note: In instance 'zipaxi.INSN_CACHE.pf'
+  442 |    cache[{ axi_araddr[CWB-1:LSB], write_posn }]
+      |                      ^
+%Warning-WIDTHTRUNC: third_party/soc-zipcpu/rtl/core/axiicache.v:442:9: Bit extraction of array[7:0] requires 3 bit index, not 5 bits.
+                                                                      : ... note: In instance 'zipaxi.INSN_CACHE.pf'
+  442 |    cache[{ axi_araddr[CWB-1:LSB], write_posn }]
+      |         ^
+%Warning-WIDTHTRUNC: third_party/soc-zipcpu/rtl/core/axiicache.v:452:13: Bit extraction of array[0:0] requires 1 bit index, not 2 bits.
+                                                                       : ... note: In instance 'zipaxi.INSN_CACHE.pf'
+  452 |   cache_tags[axi_line] <= axi_tag;
+      |             ^
+%Warning-WIDTHTRUNC: third_party/soc-zipcpu/rtl/core/axiicache.v:462:14: Bit extraction of var[0:0] requires 1 bit index, not 2 bits.
+                                                                       : ... note: In instance 'zipaxi.INSN_CACHE.pf'
+  462 |   cache_valid[axi_line]
+      |              ^
