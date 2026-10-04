@@ -143,58 +143,79 @@ class DependencyScheduler:
 
         def observe_step(component: str, outputs: Mapping[str, int]) -> None:
             nonlocal steps, last_event_count
-            source_events = tuple(event for event in runner.events_since(last_event_count)
+            window = runner.events_since(last_event_count)
+            source_events = tuple(event for event in window
                                   if event.get("component") == component
                                   and event.get("kind") is None
                                   and "outputs" in event)
             if (len(source_events) != 1
                     or source_events[0]["outputs"] != dict(outputs)):
                 raise RuntimeError("observed output has no unique source step event")
-            source_event_id = source_events[0]["event_id"]
+            # Native receipts describe each local tick in pre/post order. A
+            # step's final output is only a summary of those same observations.
+            # Some receipts belong to an indirectly clocked target component.
+            sampled_components = {event["component"] for event in window
+                                  if event.get("kind") == "local_tick_sample"}
+            observations = []
+            for event in window:
+                if event.get("kind") == "local_tick_sample":
+                    observed_outputs = dict(event["outputs"])
+                    if "interrupt" in observed_outputs:
+                        observed_outputs["irq"] = observed_outputs["interrupt"]
+                    if isinstance(observed_outputs.get("gpio_padcfg"), str):
+                        observed_outputs["gpio_padcfg"] = int(
+                            observed_outputs["gpio_padcfg"], 16)
+                    observations.append((event, observed_outputs))
+                elif (event is source_events[0]
+                      and component not in sampled_components):
+                    observations.append((event, event["outputs"]))
             source_epoch = runner.command_epoch
             steps += 1
-            for action in genome.actions:
-                if (action.action_id in fired or action.action_id in pending
-                        or action.trigger.kind != "AFTER_OUTPUT"
-                        or action.trigger.source_component != component):
-                    continue
-                trigger = action.trigger
-                observed = outputs.get(trigger.source_port)
-                matched = (isinstance(observed, int) and not isinstance(observed, bool)
-                           and observed >= 0
-                           and observed & trigger.mask == trigger.value)
-                if matched and not previous_match[action.action_id]:
-                    counts[action.action_id] += 1
-                    if counts[action.action_id] == trigger.occurrence:
-                        clock = action.delay_component or action.component
-                        pending[action.action_id] = (
-                            runner.local_ticks[clock] + action.delay_ticks)
-                        selected_cursors[action.action_id] = observed_cursor(
-                            component, source_event_id, source_epoch,
-                            trigger.source_port,
-                            counts[action.action_id])
-                previous_match[action.action_id] = matched
-            for action in genome.reset_actions:
-                if (action.action_id in reset_fired or action.action_id in reset_pending
-                        or action.trigger.kind != "AFTER_OUTPUT"
-                        or action.trigger.source_component != component):
-                    continue
-                trigger = action.trigger
-                observed = outputs.get(trigger.source_port)
-                matched = (isinstance(observed, int) and not isinstance(observed, bool)
-                           and observed >= 0
-                           and observed & trigger.mask == trigger.value)
-                if matched and not reset_previous_match[action.action_id]:
-                    reset_counts[action.action_id] += 1
-                    if reset_counts[action.action_id] == trigger.occurrence:
-                        clock = action.delay_component or component
-                        reset_pending[action.action_id] = (
-                            runner.local_ticks[clock] + action.delay_ticks)
-                        selected_cursors[action.action_id] = observed_cursor(
-                            component, source_event_id, source_epoch,
-                            trigger.source_port,
-                            reset_counts[action.action_id])
-                reset_previous_match[action.action_id] = matched
+            for event, observed_outputs in observations:
+                source_component = event["component"]
+                source_event_id = event["event_id"]
+                for action in genome.actions:
+                    if (action.action_id in fired or action.action_id in pending
+                            or action.trigger.kind != "AFTER_OUTPUT"
+                            or action.trigger.source_component != source_component):
+                        continue
+                    trigger = action.trigger
+                    observed = observed_outputs.get(trigger.source_port)
+                    matched = (isinstance(observed, int) and not isinstance(observed, bool)
+                               and observed >= 0
+                               and observed & trigger.mask == trigger.value)
+                    if matched and not previous_match[action.action_id]:
+                        counts[action.action_id] += 1
+                        if counts[action.action_id] == trigger.occurrence:
+                            clock = action.delay_component or action.component
+                            pending[action.action_id] = (
+                                runner.local_ticks[clock] + action.delay_ticks)
+                            selected_cursors[action.action_id] = observed_cursor(
+                                source_component, source_event_id, source_epoch,
+                                trigger.source_port,
+                                counts[action.action_id])
+                    previous_match[action.action_id] = matched
+                for action in genome.reset_actions:
+                    if (action.action_id in reset_fired or action.action_id in reset_pending
+                            or action.trigger.kind != "AFTER_OUTPUT"
+                            or action.trigger.source_component != source_component):
+                        continue
+                    trigger = action.trigger
+                    observed = observed_outputs.get(trigger.source_port)
+                    matched = (isinstance(observed, int) and not isinstance(observed, bool)
+                               and observed >= 0
+                               and observed & trigger.mask == trigger.value)
+                    if matched and not reset_previous_match[action.action_id]:
+                        reset_counts[action.action_id] += 1
+                        if reset_counts[action.action_id] == trigger.occurrence:
+                            clock = action.delay_component or source_component
+                            reset_pending[action.action_id] = (
+                                runner.local_ticks[clock] + action.delay_ticks)
+                            selected_cursors[action.action_id] = observed_cursor(
+                                source_component, source_event_id, source_epoch,
+                                trigger.source_port,
+                                reset_counts[action.action_id])
+                    reset_previous_match[action.action_id] = matched
             release_due()
             last_event_count = runner.event_count
 
