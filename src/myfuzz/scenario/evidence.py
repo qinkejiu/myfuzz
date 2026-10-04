@@ -699,6 +699,21 @@ def _save_evidence_bundle_unstaged(genome: ScenarioGenome,
     return trace
 
 
+def _verify_evidence_host_identity(identity: dict) -> None:
+    """Bind saved v2 host bytes to the generated sessions in this bundle."""
+    if not isinstance(identity, dict) or not isinstance(identity.get("sessions"), dict):
+        raise ValueError("invalid evidence session identity")
+    generated = []
+    for record in identity["sessions"].values():
+        if not isinstance(record, dict) or not isinstance(record.get("identity"), dict):
+            raise ValueError("invalid evidence session identity")
+        session = record["identity"]
+        if session.get("schema_version") == "generated_local_session_identity.v1":
+            generated.append(session)
+    verify_host_source_identity(identity["host_sources"],
+                                harness_identities=tuple(generated))
+
+
 def replay_evidence_bundle(output_dir: Path,
                            factory: Callable[[], ScenarioRunner], *,
                            allow_factory_mismatch: bool = False) -> ReplayComparison:
@@ -744,7 +759,7 @@ def replay_evidence_bundle(output_dir: Path,
         raise ValueError("manifest identity mismatch")
     if "host_sources" not in identity:
         raise ValueError("legacy evidence lacks host_sources; rerecord the bundle")
-    verify_host_source_identity(identity["host_sources"])
+    _verify_evidence_host_identity(identity)
     expected_semantic = hashlib.sha256(_canonical({
         "status": saved["status"], "events": saved["events"],
         "local_ticks": saved["local_ticks"]})).hexdigest()
