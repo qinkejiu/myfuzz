@@ -8,7 +8,8 @@ import tempfile
 import unittest
 
 from myfuzz.local_harness import (
-    GeneratedApb3RegisterSession, load_local_harness_request,
+    GeneratedApb3RegisterSession, compile_generated_register_ownership,
+    load_local_harness_request,
     plan_local_harness, render_local_driver, render_local_harness,
     render_local_runtime, verify_local_source_lock,
 )
@@ -119,7 +120,8 @@ class GenericApb3RealTests(unittest.TestCase):
                             setup_writes=writes, probe_offsets=probes)
                         sessions.append(session)
                         return ScenarioRunner(sessions={'dut': session},
-                            ownership=compile_ownership((), ()), bindings=())
+                            ownership=compile_generated_register_ownership({'dut': generated}),
+                            bindings=())
 
                     genome = ScenarioGenome(testcase_id='generic-apb3-' + kind,
                         direction='IP_TO_IP', path_id='apb3-register-observe',

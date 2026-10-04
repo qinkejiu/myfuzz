@@ -8,13 +8,13 @@ import tempfile
 import unittest
 
 from myfuzz.local_harness import (
-    GeneratedWishboneRegisterSession, load_local_harness_request,
+    GeneratedWishboneRegisterSession, compile_generated_register_ownership,
+    load_local_harness_request,
     plan_local_harness, render_local_driver, render_local_harness,
     render_local_runtime, verify_local_source_lock,
 )
 from myfuzz.scenario.evidence import replay_evidence_bundle, save_evidence_bundle
 from myfuzz.scenario.genome import ScenarioGenome
-from myfuzz.scenario.ownership import compile_ownership
 from myfuzz.scenario.runner import ScenarioRunner
 from myfuzz.local_harness.wishbone_register_template import register_observe_policy
 
@@ -97,7 +97,8 @@ class GenericWishboneRealTests(unittest.TestCase):
                             setup_writes=writes, probe_offsets=probes)
                         sessions.append(session)
                         return ScenarioRunner(sessions={'dut': session},
-                            ownership=compile_ownership((), ()), bindings=())
+                            ownership=compile_generated_register_ownership({'dut': generated}),
+                            bindings=())
 
                     genome = ScenarioGenome(testcase_id='generic-' + name,
                         direction='IP_TO_IP', path_id='wishbone-register-observe',

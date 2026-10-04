@@ -8,12 +8,12 @@ import unittest
 
 from myfuzz.local_harness import (
     GeneratedTlulRegisterSession, load_local_harness_request,
+    compile_generated_register_ownership,
     plan_local_harness, render_local_driver, render_local_harness,
     render_local_runtime, verify_local_source_lock,
 )
 from myfuzz.scenario.evidence import replay_evidence_bundle, save_evidence_bundle
 from myfuzz.scenario.genome import ScenarioGenome
-from myfuzz.scenario.ownership import compile_ownership
 from myfuzz.scenario.runner import ScenarioRunner
 
 
@@ -98,7 +98,8 @@ class GenericTlulRealTests(unittest.TestCase):
                     probe_offsets=(0x30,))
                 sessions.append(session)
                 return ScenarioRunner(sessions={'dut': session},
-                    ownership=compile_ownership((), ()), bindings=())
+                    ownership=compile_generated_register_ownership({'dut': generated}),
+                    bindings=())
 
             genome = ScenarioGenome(testcase_id='generic-spi-device-registers',
                 direction='IP_TO_IP', path_id='tlul-register-observe',
@@ -136,7 +137,8 @@ class GenericTlulRealTests(unittest.TestCase):
                             probe_offsets=probes)
                         sessions.append(session)
                         return ScenarioRunner(sessions={'dut': session},
-                            ownership=compile_ownership((), ()), bindings=())
+                            ownership=compile_generated_register_ownership({'dut': generated}),
+                            bindings=())
 
                     genome = ScenarioGenome(testcase_id='generic-' + kind,
                         direction='IP_TO_IP', path_id='tlul-register-observe',

@@ -79,8 +79,7 @@ class GeneratedTlulRegisterSession(GeneratedLocalSession):
                  self.artifact.runtime_document['bound_physical_inputs']}
         fixed = {row['endpoint_id'] + '.' + row['role'] for row in
                  self.artifact.runtime_document['fixed_physical_inputs']}
-        if (set(fields) - set(expected) - set(bound) - fixed or
-                set(expected) - set(fields) or set(bound) - set(fields)):
+        if set(fields) != set(expected) | set(bound) | fixed:
             raise ValueError('generic TL-UL scenario ownership fields mismatch physical inputs')
         for name, width in fields.items():
             expected_width = (expected[name]['width'] if name in expected else
@@ -95,9 +94,9 @@ class GeneratedTlulRegisterSession(GeneratedLocalSession):
                     continue
                 kind = 'source' if name in expected else 'bound' if name in bound else 'fixed'
                 identity = (expected[name]['source_id'] if name in expected else
-                            bound[name]['producer_ref'] if name in bound else None)
-                if (owner['kind'] != kind or identity is not None and
-                        owner['producer_ref'] != identity):
+                            bound[name]['producer_ref'] if name in bound else
+                            'profile_constant')
+                if owner['kind'] != kind or owner['producer_ref'] != identity:
                     raise ValueError('generic TL-UL source identity or fixed ownership mismatch')
                 for bit in range(owner['bit_offset'], owner['bit_offset'] + owner['width']):
                     if bit >= width or bits[bit] is not None:

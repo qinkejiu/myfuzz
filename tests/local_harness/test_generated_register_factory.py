@@ -10,8 +10,11 @@ from myfuzz.local_harness import (GeneratedApb3RegisterSession,
     GeneratedTlulRegisterSession, GeneratedWishboneRegisterSession,
     compile_generated_register_bindings, compile_generated_register_ownership,
     create_generated_register_session)
+from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
+from myfuzz.scenario.runner import ScenarioRunner
 
-from tests.local_harness.test_generic_tlul_register_real import ROOT, artifact as tlul_artifact
+from tests.local_harness.test_generic_tlul_register_real import (ROOT,
+    artifact as tlul_artifact, request as tlul_request)
 from tests.local_harness.test_generic_tlul_bound_input_real import bound_request
 from tests.local_harness.test_generic_apb3_register_real import artifact as apb_artifact
 from tests.local_harness.test_generic_apb3_register_real import request as apb_request
@@ -22,6 +25,37 @@ from tests.local_harness.test_generic_wishbone_register_real import request as w
 
 
 class GeneratedRegisterFactoryTests(unittest.TestCase):
+    def test_runner_rejects_missing_or_forged_fixed_owner_for_tlul_and_apb3(self):
+        artifacts = (
+            tlul_artifact(tlul_request('gpio', constants=(
+                ('gpio.pins', 'in', 0), ('gpio.pins', 'strap_en', 0)))),
+            apb_artifact(apb_request('gpio', fixed=(('gpio.pins', 'in', 0),))),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            for generated in artifacts:
+                with self.subTest(kind=generated.runtime_document['kind']):
+                    session = create_generated_register_session(generated,
+                        base_dir=ROOT, cache_dir=Path(directory))
+                    fixed = generated.runtime_document['fixed_physical_inputs'][0]
+                    name = fixed['endpoint_id'] + '.' + fixed['role']
+                    complete = compile_generated_register_ownership({'dut': generated})
+                    owner_rows = complete.document()['owners']
+                    field_rows = complete.document()['fields']
+                    omitted = compile_ownership(
+                        tuple(InputField(**row) for row in field_rows if row['port'] != name),
+                        tuple(InputOwner(**row) for row in owner_rows if row['port'] != name))
+                    with self.assertRaisesRegex(ValueError, 'ownership fields mismatch'):
+                        ScenarioRunner(sessions={'dut': session}, ownership=omitted,
+                                       bindings=())
+                    forged = compile_ownership(
+                        tuple(InputField(**row) for row in field_rows),
+                        tuple(InputOwner(**dict(row, producer_ref='forged_constant'))
+                              if row['port'] == name else InputOwner(**row)
+                              for row in owner_rows))
+                    with self.assertRaisesRegex(ValueError, 'fixed ownership mismatch'):
+                        ScenarioRunner(sessions={'dut': session}, ownership=forged,
+                                       bindings=())
+
     def test_artifact_selects_protocol_session_without_component_branch(self):
         artifacts = (
             (tlul_artifact(bound_request()), GeneratedTlulRegisterSession),

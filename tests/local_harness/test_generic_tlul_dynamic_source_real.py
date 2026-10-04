@@ -6,7 +6,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from myfuzz.local_harness import GeneratedTlulRegisterSession, load_local_harness_request
+from myfuzz.local_harness import (GeneratedTlulRegisterSession,
+    compile_generated_register_ownership, load_local_harness_request)
 from myfuzz.scenario.evidence import replay_evidence_bundle, save_evidence_bundle
 from myfuzz.scenario.genome import Action, ScenarioGenome, Trigger
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
@@ -64,8 +65,11 @@ class GenericTlulDynamicContractTests(unittest.TestCase):
             for kind, reference in (('source', 'wrong_external'),
                                     ('bound', 'real_upstream')):
                 ownership = compile_ownership(
-                    (InputField('gpio', 'gpio.pins.in', 32),),
-                    (InputOwner('gpio', 'gpio.pins.in', 0, 32, kind, reference),))
+                    (InputField('gpio', 'gpio.pins.in', 32),
+                     InputField('gpio', 'gpio.pins.strap_en', 1)),
+                    (InputOwner('gpio', 'gpio.pins.in', 0, 32, kind, reference),
+                     InputOwner('gpio', 'gpio.pins.strap_en', 0, 1,
+                                'fixed', 'profile_constant')))
                 with self.subTest(kind=kind), self.assertRaisesRegex(
                         ValueError, 'source identity or fixed ownership mismatch'):
                     ScenarioRunner(sessions={'gpio': session},
@@ -113,10 +117,7 @@ class GenericTlulDynamicRealTests(unittest.TestCase):
                 direct.end_case()
 
             sessions = []
-            ownership = compile_ownership(
-                (InputField('gpio', 'gpio.pins.in', 32),),
-                (InputOwner('gpio', 'gpio.pins.in', 0, 32,
-                            'source', 'gpio_external'),))
+            ownership = compile_generated_register_ownership({'gpio': generated})
 
             def factory():
                 session = GeneratedTlulRegisterSession(generated, base_dir=ROOT,

@@ -6,10 +6,10 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from myfuzz.local_harness import GeneratedTlulRegisterSession, load_local_harness_request
+from myfuzz.local_harness import (GeneratedTlulRegisterSession,
+    compile_generated_register_ownership, load_local_harness_request)
 from myfuzz.scenario.evidence import replay_evidence_bundle, save_evidence_bundle
 from myfuzz.scenario.genome import ScenarioGenome
-from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
 from myfuzz.scenario.runner import Binding, ScenarioRunner
 from tests.local_harness.test_generic_tlul_register_real import ROOT, artifact, request
 
@@ -39,9 +39,7 @@ class GenericTlulBoundContractTests(unittest.TestCase):
 
     def test_runner_requires_exact_whole_field_real_route(self):
         generated = artifact(bound_request())
-        ownership = compile_ownership(
-            (InputField('b', 'gpio.pins.in', 32),),
-            (InputOwner('b', 'gpio.pins.in', 0, 32, 'bound', 'a.cio_gpio_o'),))
+        ownership = compile_generated_register_ownership({'b': generated})
         with tempfile.TemporaryDirectory() as directory:
             session = GeneratedTlulRegisterSession(generated, base_dir=ROOT,
                 cache_dir=Path(directory))
@@ -72,10 +70,8 @@ class GenericTlulBoundRealTests(unittest.TestCase):
                 b = GeneratedTlulRegisterSession(target, base_dir=ROOT,
                     cache_dir=work / 'cache', setup_writes=((0x04, 1), (0x2c, 1)))
                 sessions.append((a, b))
-                ownership = compile_ownership(
-                    (InputField('b', 'gpio.pins.in', 32),),
-                    (InputOwner('b', 'gpio.pins.in', 0, 32,
-                                'bound', 'a.cio_gpio_o'),))
+                ownership = compile_generated_register_ownership(
+                    {'a': source, 'b': target})
                 return ScenarioRunner(sessions={'a': a, 'b': b},
                     ownership=ownership,
                     bindings=(Binding('a', 'cio_gpio_o', 'b', 'gpio.pins.in', 32),))
