@@ -4,7 +4,10 @@ from pathlib import Path
 from myfuzz.local_harness import render_local_harness, render_local_runtime, verify_local_source_lock
 from myfuzz.local_harness.driver_renderer import render_local_driver
 from myfuzz.local_harness.gpio_session import GeneratedPulpGpioSession
+from myfuzz.local_harness.cpu_session import GeneratedCve2Session
 from myfuzz.scenario.contracts import ScenarioManifest, ResourceBudget
+from myfuzz.scenario.memory import PersistentMemory, MemoryRegion
+from myfuzz.scenario.router import DataflowRouter, DeviceWindow
 from myfuzz.scenario.runner import ScenarioRunner
 from myfuzz.scenario.ownership import compile_ownership
 from tests.local_harness.test_renderer import real_plan, ROOT
@@ -15,6 +18,45 @@ class GeneratedLocalContractTests(unittest.TestCase):
         plan=real_plan('configs/peripherals/pulp_gpio/component_profile.json','gpio')
         top=render_local_runtime(plan,render_local_harness(plan),verify_local_source_lock(plan.profile,base_dir=ROOT),base_dir=ROOT)
         cls.artifact=render_local_driver(top,base_dir=ROOT)
+        cpu_plan=real_plan('configs/cpus/cv32e20/component_profile.json','cpu_0')
+        cpu_top=render_local_runtime(cpu_plan,render_local_harness(cpu_plan),
+            verify_local_source_lock(cpu_plan.profile,base_dir=ROOT),base_dir=ROOT)
+        cls.cpu_artifact=render_local_driver(cpu_top,base_dir=ROOT)
+
+    def test_generated_cpu_service_identity_is_verified(self):
+        from myfuzz.scenario.contracts import _verify_generated_session
+        gpio=GeneratedPulpGpioSession(self.artifact,base_dir=ROOT,cache_dir=Path('/tmp/contract-unused-cache'))
+        router=DataflowRouter((DeviceWindow('gpio',0x40000000,0x1000,gpio),))
+        memory=PersistentMemory(regions=(MemoryRegion('ram',0x10000,0x20000),),
+                                initialization_seed=1,max_initialized_bytes=0x20000)
+        cpu=GeneratedCve2Session(self.cpu_artifact,base_dir=ROOT,
+            cache_dir=Path('/tmp/contract-unused-cache'),memory=memory,router=router)
+        identity=cpu.identity_document()
+        self.assertEqual(self.cpu_artifact,_verify_generated_session(identity))
+        runner=ScenarioRunner(sessions={'cpu':cpu,'gpio':gpio},
+            ownership=compile_ownership((),()),bindings=())
+        manifest_identity=runner.identity_document()
+        self.assertEqual('scenario_manifest_identity.v2',manifest_identity['schema_version'])
+        cpu_doc=self.cpu_artifact.runtime_document
+        cpu_timing=dict(schema_version='generated_local_reset.v1',
+            artifact_digest=cpu_doc['artifact_digest'],driver_sha256=cpu_doc['cpp_sha256'],
+            hold_cycles=cpu_doc['driver_reset']['reset_assert_ticks'],
+            release_cycles=cpu_doc['driver_reset']['reset_release_ticks'])
+        manifest=ScenarioManifest.from_runner_identity(manifest_identity,scenario_id='generated-cpu-contract',
+            schedule_order=('cpu','gpio'),scheduler_policy_id='stable-local-v1',
+            budget=ResourceBudget(),reset_timings={'cpu':cpu_timing,'gpio':self.timing()})
+        import json
+        import jsonschema
+        schema=json.loads((ROOT/'schemas/scenario_runtime_manifest.v1.json').read_text())
+        budget_schema=json.loads((ROOT/'schemas/scenario_manifest.v1.json').read_text())
+        schema['properties']['budget']=budget_schema['properties']['budget']
+        schema['$defs'].update(budget_schema.get('$defs',{}))
+        jsonschema.Draft202012Validator(schema).validate(manifest.to_document())
+        for field,value in [('source_component','other'),('defer_mmio','yes'),
+                            ('cpu_service_schema_version','other')]:
+            changed=copy.deepcopy(identity);changed[field]=value
+            with self.subTest(field=field),self.assertRaises(ValueError):
+                _verify_generated_session(changed)
 
     def identity(self):
         session=GeneratedPulpGpioSession(self.artifact,base_dir=ROOT,cache_dir=Path('/tmp/contract-unused-cache'))

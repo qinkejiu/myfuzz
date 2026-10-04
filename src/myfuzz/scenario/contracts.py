@@ -62,8 +62,12 @@ def _verify_generated_session(identity: dict):
         render_local_harness, render_local_runtime, verify_local_source_lock)
     from myfuzz.local_harness.driver_renderer import render_local_driver
     from myfuzz.local_harness.build import local_build_identity
-    _exact(identity, {'schema_version', 'runtime_artifact', 'build_identity',
-                      'command_timeout_seconds'}, 'generated session identity')
+    base_fields = {'schema_version', 'runtime_artifact', 'build_identity',
+                   'command_timeout_seconds'}
+    cpu_fields = {'cpu_service_schema_version', 'source_component', 'defer_mmio'}
+    if not isinstance(identity, dict) or set(identity) not in (
+            base_fields, base_fields | cpu_fields):
+        raise ValueError('generated session identity has unknown or missing fields')
     if identity['schema_version'] != 'generated_local_session_identity.v1':
         raise ValueError('unsupported generated session schema')
     timeout = identity['command_timeout_seconds']
@@ -80,6 +84,14 @@ def _verify_generated_session(identity: dict):
     artifact = render_local_driver(top, base_dir=_ROOT)
     if document != artifact.runtime_document:
         raise ValueError('generated runtime artifact identity mismatch')
+    if artifact.runtime_document['kind'] == 'obi_cpu':
+        _exact(identity, base_fields | cpu_fields, 'generated CPU service identity')
+        if (identity['cpu_service_schema_version'] != 'generated_obi_cpu_service.v1'
+                or identity['source_component'] != artifact.plan.request.instance_id
+                or type(identity['defer_mmio']) is not bool):
+            raise ValueError('generated CPU service identity mismatch')
+    else:
+        _exact(identity, base_fields, 'generated IP service identity')
     if identity['build_identity'] != local_build_identity(artifact, base_dir=_ROOT):
         raise ValueError('generated build identity mismatch')
     return artifact
