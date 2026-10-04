@@ -7,12 +7,13 @@ import tempfile
 import unittest
 
 from myfuzz.local_harness import (GeneratedApb3RegisterSession,
-    compile_generated_register_ownership, create_generated_register_session,
+    compile_generated_register_bindings, compile_generated_register_ownership,
+    create_generated_register_session,
     load_local_harness_request)
 from myfuzz.scenario.evidence import replay_evidence_bundle, save_evidence_bundle
 from myfuzz.scenario.genome import ScenarioGenome
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
-from myfuzz.scenario.runner import Binding, ScenarioRunner
+from myfuzz.scenario.runner import ScenarioRunner
 from tests.local_harness.test_generic_apb3_register_real import ROOT, artifact, request
 
 
@@ -85,7 +86,8 @@ class GenericApb3BoundRealTests(unittest.TestCase):
                 return ScenarioRunner(sessions={'a': a, 'b': b},
                     ownership=compile_generated_register_ownership(
                         {'a': source, 'b': target}),
-                    bindings=(Binding('a', 'gpio_out', 'b', 'gpio.pins.in', 32),))
+                    bindings=compile_generated_register_bindings(
+                        {'a': source, 'b': target}))
 
             genome = ScenarioGenome(testcase_id='generic-apb3-gpio-bound',
                 direction='IP_TO_IP', path_id='real-a-out-b-in-b-irq',

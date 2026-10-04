@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
+from myfuzz.scenario.runner import Binding
 
 from .apb3_register_session import GeneratedApb3RegisterSession
 from .request import LocalHarnessRequestV2
@@ -86,3 +87,32 @@ def compile_generated_register_ownership(artifacts: Mapping[str, object]):
                 owners.append(InputOwner(component_id, name, 0, width, kind,
                                          reference))
     return compile_ownership(tuple(fields), tuple(owners))
+
+
+def compile_generated_register_bindings(artifacts: Mapping[str, object]):
+    """Resolve declared Bound Inputs to whole real physical RTL outputs."""
+    if not isinstance(artifacts, Mapping) or not artifacts:
+        raise ValueError('at least one generated register artifact required')
+    documents = {component: _document(artifact)
+                 for component, artifact in artifacts.items()}
+    if any(type(component) is not str or not component for component in documents):
+        raise ValueError('component id must be a nonempty string')
+    bindings = []
+    for target_component, document in documents.items():
+        for row in document['bound_physical_inputs']:
+            producer_ref = row['producer_ref']
+            if type(producer_ref) is not str or producer_ref.count('.') != 1:
+                raise ValueError('bound input producer must name one component output')
+            source_component, source_port = producer_ref.split('.')
+            source = documents.get(source_component)
+            if source is None or source_component == target_component:
+                raise ValueError('bound input lacks distinct generated producer')
+            outputs = [port for port in source['physical_exports']
+                       if port['physical_port'] == source_port
+                       and port['direction'] == 'output']
+            if (len(outputs) != 1 or type(row['width']) is not int or
+                    outputs[0]['width'] != row['width']):
+                raise ValueError('bound input lacks exact real output width')
+            bindings.append(Binding(source_component, source_port,
+                                    target_component, row['input_name'], row['width']))
+    return tuple(bindings)

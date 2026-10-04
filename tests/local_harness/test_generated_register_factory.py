@@ -8,12 +8,15 @@ import unittest
 
 from myfuzz.local_harness import (GeneratedApb3RegisterSession,
     GeneratedTlulRegisterSession, GeneratedWishboneRegisterSession,
-    compile_generated_register_ownership, create_generated_register_session)
+    compile_generated_register_bindings, compile_generated_register_ownership,
+    create_generated_register_session)
 
 from tests.local_harness.test_generic_tlul_register_real import ROOT, artifact as tlul_artifact
 from tests.local_harness.test_generic_tlul_bound_input_real import bound_request
 from tests.local_harness.test_generic_apb3_register_real import artifact as apb_artifact
 from tests.local_harness.test_generic_apb3_register_real import request as apb_request
+from tests.local_harness.test_generic_apb3_bound_input_real import (
+    source_request as apb_source_request, target_request as apb_target_request)
 from tests.local_harness.test_generic_wishbone_register_real import artifact as wb_artifact
 from tests.local_harness.test_generic_wishbone_register_real import request as wb_request
 
@@ -64,6 +67,24 @@ class GeneratedRegisterFactoryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'generated v2'):
             create_generated_register_session(replace(generated,
                 runtime_document=document), base_dir=ROOT, cache_dir=Path('/tmp'))
+
+    def test_bound_routes_derive_only_from_exact_real_exports(self):
+        source = apb_artifact(apb_source_request())
+        target = apb_artifact(apb_target_request())
+        bindings = compile_generated_register_bindings({'a': source, 'b': target})
+        self.assertEqual(1, len(bindings))
+        self.assertEqual(('a', 'gpio_out', 'b', 'gpio.pins.in', 32),
+                         (bindings[0].source_component, bindings[0].source_port,
+                          bindings[0].target_component, bindings[0].target_port,
+                          bindings[0].width))
+        with self.assertRaisesRegex(ValueError, 'distinct generated producer'):
+            compile_generated_register_bindings({'b': target})
+        with self.assertRaisesRegex(ValueError, 'exact real output width'):
+            altered = dict(target.runtime_document)
+            row = dict(altered['bound_physical_inputs'][0], width=1)
+            altered['bound_physical_inputs'] = [row]
+            compile_generated_register_bindings({'a': source, 'b': replace(
+                target, runtime_document=altered)})
 
 
 if __name__ == '__main__':

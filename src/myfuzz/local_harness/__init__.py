@@ -18,7 +18,8 @@ from .opentitan_uart_session import GeneratedOpentitanUartSession
 from .tlul_uart_peer_session import GeneratedTlulUartPeerSession
 from .tlul_session_factory import create_generated_tlul_session
 from .generated_register_factory import (create_generated_register_session,
-                                         compile_generated_register_ownership)
+                                         compile_generated_register_ownership,
+                                         compile_generated_register_bindings)
 from .tlul_register_session import GeneratedTlulRegisterSession
 from .tlul_spi_mode0_peer_session import GeneratedTlulSpiMode0PeerSession
 from .apb3_register_session import GeneratedApb3RegisterSession
@@ -42,6 +43,7 @@ __all__ = ["LocalHarnessRequest", "load_local_harness_request",
            "GeneratedTlulRegisterSession",
            "create_generated_register_session",
            "compile_generated_register_ownership",
+           "compile_generated_register_bindings",
            "GeneratedTlulSpiMode0PeerSession",
            "GeneratedApb3RegisterSession",
            "GeneratedWishboneRegisterSession",

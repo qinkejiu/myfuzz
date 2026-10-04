@@ -22,7 +22,7 @@
 
 生成器可处理已声明的协议形态和局部变体，尚不能凭协议名称无检查地接入任意同协议 RTL。ZipCPU UART 和 OpenTitan UART RX 已支持 DependencyGraph 引导的 Genome 变异；`0x35→0xA6` 两种源值经真实串行接收、CPU MMIO 回读和 RAM 写入，均匹配 fresh replay。CPU 写入 `0x41` 也经真实 UART TX 引脚解码。PULP I2C 的 `peer_response` 也由 8 位 Genome 源选择；`0x5A` 和 `0xA6` 分别经真实串行传输、CPU MMIO 回读并存入 RAM，两份证据可重放。I2C 仍限固定地址 `0x42` 的单字节响应。OpenTitan SPI Device 的本地寄存器、单线串行和 CPU 轮询读取真实上传 FIFO/SRAM 的多组件链已验收；更多串行模式及 CPU 中断处理程序仍需分别验收。OpenTitan I2C 的 CPU 程序轮询 IRQ 状态，CPU IRQ 固定为 0。
 
-v2 寄存器观察 artifact 现可按协议类型自动创建 TL-UL、APB3 或 Wishbone session，并从多个 artifact 的物理输入声明编译 OwnershipMap。固定值、环境源、Bound Input 各有唯一归属；绑定值仍需 ScenarioRunner 核对真实输出路由。该入口与 PULP APB3 双 GPIO 绑定场景的联合用例 5/5 通过：A 的真实 `gpio_out` 持续转交 B 输入，B 的真实 IRQ 随后产生，fresh replay 一致。串行抽象帧和 CPU 协议 session 的自动场景装配尚未纳入此入口。
+v2 寄存器观察 artifact 现可按协议类型自动创建 TL-UL、APB3 或 Wishbone session，并从多个 artifact 的物理输入声明编译 OwnershipMap 和精确等宽的真实输出 Binding。固定值、环境源、Bound Input 各有唯一归属；ScenarioRunner 仍核对绑定的真实输出路由。该入口的合同用例 4/4、PULP APB3 双 GPIO 真实绑定用例 2/2 通过：A 的真实 `gpio_out` 持续转交 B 输入，B 的真实 IRQ 随后产生，fresh replay 一致。串行抽象帧和 CPU 协议 session 的自动场景装配尚未纳入此入口。
 
 声明式 SPI peer 的主线焦点验收 5/5 通过，其中两项使用真实 OpenTitan SPI Device：一项从 artifact 选择 JEDEC peer 并观察真实 MISO，一项由 artifact 指定上传帧前缀、32 位 Fuzzable Source、启动配置和节拍，观察真实 IRQ、状态和 SRAM。两项均完成 fresh replay。外部 master 仍限 mode-0 单线及已验收的单帧形态。
 
