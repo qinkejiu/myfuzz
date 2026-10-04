@@ -17,13 +17,26 @@ transactions are counted against `max_transactions=5`; replay starts a fresh
 RTL process and matches the semantic evidence. The testcase keeps the same RTL
 instance for all its local ticks, with no per-step reset.
 
-Current scope: the generated session deliberately permits only configuration,
-status, and interrupt register accesses. It does not issue `COMMAND`, `TXDATA`,
-or `RXDATA`, so this result establishes real TL-UL register behavior and
-observable SPI pins but does not establish a serial data transfer, SPI peer
-byte propagation, or CPU interrupt servicing. Those need a per-tick peer path
-during command execution; returning expected RX bytes from a model would not
-satisfy the project rule that intermediate results come from real RTL.
+The next stage adds a constrained four-byte standard mode-0 read. The generated
+session accepts one final `COMMAND=0x68` after CONTROL and CONFIGOPTS setup. A
+stateful serial peer owns the four input bytes, drives SD1 (MISO), and advances
+only on real selected SCK edges. The `COMMAND` TL-UL write was measured to
+complete in four local ticks with CSB high and SCK low throughout, so no peer
+edge is lost during the non-interactive access command. The Host subsequently
+produces 32 selected rising edges and its real `RXDATA` register returns the
+four source bytes in little-endian word order. The generated session records
+that RTL read as one counted local register transaction. Both a constructor
+source and a genome-owned 32-bit `spi_source_word` are accepted. The latter is
+selected by a dependency path targeting real RXDATA, mutated at the source,
+locked for the testcase, and replayed in a fresh RTL process. A changed source
+changes the real RTL readback.
+
+The serial stage is intentionally limited to one four-byte command, one chip
+select, standard SPI single-line mode 0, CONFIGOPTS=8, and an 8-bit source
+byte stream. No `TXDATA`, chained commands, nonzero chip selects, or alternate
+clock modes are admitted. The external peer is a host-side input model; the
+RXDATA and IRQ observations come from real RTL. No CPU interrupt servicing is
+claimed.
 
 Acceptance command:
 
