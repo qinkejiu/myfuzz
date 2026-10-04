@@ -17,6 +17,7 @@ from .opentitan_spi_host_session import GeneratedOpentitanSpiHostSession
 from .opentitan_uart_session import GeneratedOpentitanUartSession
 from .tlul_uart_peer_session import GeneratedTlulUartPeerSession
 from .tlul_register_session import GeneratedTlulRegisterSession
+from .tlul_spi_mode0_peer_session import GeneratedTlulSpiMode0PeerSession
 from .apb3_register_session import GeneratedApb3RegisterSession
 from .wishbone_register_session import GeneratedWishboneRegisterSession
 from .zip_timer_session import GeneratedZipTimerSession
@@ -36,6 +37,7 @@ __all__ = ["LocalHarnessRequest", "load_local_harness_request",
            "GeneratedOpentitanRvTimerSession", "GeneratedOpentitanSpiHostSession",
            "GeneratedOpentitanUartSession",
            "GeneratedTlulRegisterSession",
+           "GeneratedTlulSpiMode0PeerSession",
            "GeneratedApb3RegisterSession",
            "GeneratedWishboneRegisterSession",
            "GeneratedOpentitanUartSession",
