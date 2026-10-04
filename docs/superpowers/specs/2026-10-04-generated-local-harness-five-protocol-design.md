@@ -31,6 +31,8 @@
 
 PicoRV32 当前普通顶层 profile 的 revision 为占位值，`_axi`/`_wb` 也未有独立 profile。进入 Generated 前必须从本地 checkout 生成受信 revision、完整源清单和逐端口绑定；占位 revision 禁止通过。CV32E20 亦须新建以真实 checkout revision、参数、源闭包和端口为依据的 profile。现有 Composition 的 processor adapter 和协议插件只能作为契约参考，不能作为独立 harness 已可运行的证据；尤其 Ready/Valid 现有 adapter 的 IDLE ready 语义不适合 PicoRV32 的完成握手。
 
+CV32E20 与 PicoRV32 的源码当前只在本地未跟踪目录中，远程仓库的新检出无法取得它们。首期须将这两个上游 checkout 登记为仓库 submodule/gitlink，固定各自 revision，并在源码锁登记选定文件及真实 elaboration closure；从全新 `git clone` 加 `git submodule update --init` 的工作树必须能重建相同身份。验收不能依赖开发机原有的未跟踪目录。
+
 **外设侧**首期组件库使用现有真实 RTL：OpenTitan GPIO、UART、SPI Host、I2C、RV Timer、SPI Device（TL-UL）；PULP GPIO、SPI（APB3）；ZipCPU UART、Timer（Wishbone 变体）。外设类型覆盖 GPIO、UART、SPI、I2C、Timer。本地 ZipCPU 源还包含 AXI4-Lite `axiluart`，它是补充候选，须建立受信 profile 和独立 session 后才能提升等级。APB4 与 AXI4-Lite target 可进入协议模板目录，但没有真实外设独立运行证据之前只标记 Catalog/Generated。每种外设须分别声明寄存器事务、外部环境源、真实输出、IRQ 形态（电平或脉冲）及 peer 要求。PULP/ZipCPU 现有 SoC target wrapper 不算独立场景 harness；ZipCPU UART 的隐式 Verilog wire 必须先解决端口事实提取。
 
 ## 3. 输入契约与自动生成流程
