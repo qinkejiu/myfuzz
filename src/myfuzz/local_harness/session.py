@@ -26,6 +26,8 @@ _OPERATIONS = {
     'obi_cpu': {'STEP_CPU': (1, 1, 1, 0xffffffff, 1, 1, 1, 0xffffffff, 1)},
     'apb_gpio': {'STEP_GPIO': (0xffffffff,),
                  'ACCESS_GPIO': (0xffffffff, 1, 4092, 0xffffffff, 15)},
+    'tlul_gpio': {'STEP_TLUL_GPIO': (0xffffffff, 1),
+                  'ACCESS_TLUL_GPIO': (0xffffffff, 1, 1, 124, 0xffffffff, 15)},
     'apb_spi': {'STEP_SPI': (1,), 'ACCESS_SPI': (1, 4092, 0xffffffff, 15),
                 'SOURCE_SPI': (3, 0xffffffff, 32)},
 }
@@ -145,6 +147,7 @@ class GeneratedLocalSession:
                 or any(type(value) is not int or not 0 <= value <= maximum
                        for value, maximum in zip(fields, maxima))
                 or (operation == 'ACCESS_GPIO' and fields[2] % 4)
+                or (operation == 'ACCESS_TLUL_GPIO' and fields[3] % 4)
                 or (operation == 'ACCESS_SPI' and fields[1] % 4)
                 or (operation == 'SOURCE_SPI' and fields[2] == 0)):
             raise ValueError('invalid generated driver command')

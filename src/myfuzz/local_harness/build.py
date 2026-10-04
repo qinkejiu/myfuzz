@@ -228,12 +228,16 @@ def _prepare(artifact, base_dir):
     capture(artifact.plan.request.profile_path, artifact.plan.profile_sha256)
     capture('configs/soc/sources.lock.json', verified['lock_sha256'])
     lock = json.loads(snapshots['configs/soc/sources.lock.json'])
-    record = next(record for record in lock['components'] if record['id'] == artifact.plan.profile.component_id)
+    record_id = ('opentitan_gpio' if artifact.plan.profile.component_id == 'opentitan_gpio_local'
+                 else artifact.plan.profile.component_id)
+    record = next(record for record in lock['components'] if record['id'] == record_id)
     evidence = record['elaboration']['evidence']
     capture(evidence, record['elaboration']['evidence_sha256'])
     closure = json.loads(snapshots[evidence])
     for item in closure['closure_files']:
         capture(item['root'] + '/' + item['path'], item['sha256'])
+    if artifact.plan.profile.component_id == 'opentitan_gpio_local':
+        capture(verified['wrapper_path'], verified['wrapper_sha256'])
     for item in doc['adapter_sources']:
         capture(item['path'], item['sha256'])
     rows = doc['driver_header_sources']

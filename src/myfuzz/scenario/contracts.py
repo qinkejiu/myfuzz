@@ -70,10 +70,12 @@ def _verify_generated_session(identity: dict):
     spi_fields = {'spi_peer_schema_version', 'source_component', 'chip_select',
                   'source_hex', 'startup_writes', 'read_rx_on_eot'}
     axi4_fields = {'cpu_service_schema_version', 'source_component'}
+    tlul_gpio_fields = {'tlul_gpio_service_schema_version', 'source_component', 'startup_writes'}
     if not isinstance(identity, dict) or set(identity) not in (
             base_fields, base_fields | cpu_fields, base_fields | native_fields,
             base_fields | axi_lite_fields, base_fields | spi_fields,
-            base_fields | axi4_fields):
+            base_fields | axi4_fields, base_fields | tlul_gpio_fields):
+
         raise ValueError('generated session identity has unknown or missing fields')
     if identity['schema_version'] != 'generated_local_session_identity.v1':
         raise ValueError('unsupported generated session schema')
@@ -133,6 +135,17 @@ def _verify_generated_session(identity: dict):
                        or row[1] < 0 or row[1] > 0xffffffff for row in writes)
                 or type(identity['read_rx_on_eot']) is not bool):
             raise ValueError('generated SPI service identity mismatch')
+    elif artifact.runtime_document['kind'] == 'tlul_gpio':
+        _exact(identity, base_fields | tlul_gpio_fields, 'generated TL-UL GPIO service identity')
+        writes = identity['startup_writes']
+        if (identity['tlul_gpio_service_schema_version'] != 'generated_tlul_gpio_service.v1'
+                or identity['source_component'] != artifact.plan.request.instance_id
+                or type(writes) is not list or len(writes) > 16
+                or any(type(row) is not list or len(row) != 2
+                       or type(row[0]) is not int or row[0] < 0 or row[0] > 124
+                       or row[0] % 4 or type(row[1]) is not int
+                       or not 0 <= row[1] <= 0xffffffff for row in writes)):
+            raise ValueError('generated TL-UL GPIO service identity mismatch')
     else:
         _exact(identity, base_fields, 'generated IP service identity')
     if identity['build_identity'] != local_build_identity(artifact, base_dir=_ROOT):
@@ -463,6 +476,7 @@ class ScenarioManifest:
                                                   'myfuzz.local_harness.wishbone_cpu_session.GeneratedWishboneCpuSession',
                                                   'myfuzz.local_harness.axi4_cpu_session.GeneratedAxi4CpuSession',
                                                   'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession',
+                                                  'myfuzz.local_harness.opentitan_gpio_session.GeneratedOpentitanGpioSession',
                                                   'myfuzz.local_harness.spi_session.GeneratedPulpSpiSession')):
                     raise ValueError('generated session type or runner schema mismatch')
                 artifact = _verify_generated_session(session['identity'])
@@ -473,6 +487,7 @@ class ScenarioManifest:
                     'myfuzz.local_harness.wishbone_cpu_session.GeneratedWishboneCpuSession': 'wishbone_cpu',
                     'myfuzz.local_harness.axi4_cpu_session.GeneratedAxi4CpuSession': 'axi4_cpu',
                     'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession': 'apb_gpio',
+                    'myfuzz.local_harness.opentitan_gpio_session.GeneratedOpentitanGpioSession': 'tlul_gpio',
                     'myfuzz.local_harness.spi_session.GeneratedPulpSpiSession': 'apb_spi',
                 }
                 if artifact.runtime_document['kind'] != expected_kinds[session['type']]:

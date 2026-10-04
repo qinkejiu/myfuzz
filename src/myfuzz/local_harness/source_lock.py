@@ -27,6 +27,9 @@ def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path) -> di
     # Builders consume source, so matching only its retained JSON is insufficient.
     if profile.source != _source_locator(profile.source_document):
         raise ValueError('local-source-lock-profile-source-inconsistent')
+    if profile.component_id == 'opentitan_gpio_local':
+        from .opentitan_gpio_contract import verify_opentitan_gpio_source_contract
+        return verify_opentitan_gpio_source_contract(profile, base_dir=base_dir)
     if profile.component_id == 'pulp_spi':
         # The selected APB top has one separately owned RTL dependency. Its
         # profile names exactly the authenticated elaboration union, while the

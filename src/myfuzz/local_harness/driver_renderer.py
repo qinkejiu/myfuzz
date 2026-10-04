@@ -55,6 +55,19 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             raise ValueError('driver-gpio-pulse-observation-required')
         fields['interrupt'] = pulses[0]['runtime_name']
         allowed_inputs = {fields['gpio_in']}
+    elif kind == 'tlul_gpio':
+        for role, alias in [('in', 'gpio_in'), ('out', 'gpio_out'),
+                            ('en', 'gpio_dir'), ('strap_en', 'strap_en')]:
+            rows = [row for row in exports if row['endpoint_id'] == 'gpio.pins' and row['role'] == role]
+            if len(rows) != 1:
+                raise ValueError('driver-tlul-pin-field:' + role)
+            fields[alias] = rows[0]['runtime_name']
+        irq = [row for row in exports if row['endpoint_id'] == 'gpio.interrupts'
+               and row['role'] == 'irq' and row['width'] == 32 and row['direction'] == 'output']
+        if len(irq) != 1:
+            raise ValueError('driver-tlul-irq-field')
+        fields['interrupt'] = irq[0]['runtime_name']
+        allowed_inputs = {fields['gpio_in'], fields['strap_en']}
     elif kind == 'apb_spi':
         for role in ('sck', 'mode', *(f'csn{i}' for i in range(4)),
                      *(f'sdo{i}' for i in range(4)), *(f'sdi{i}' for i in range(4))):
@@ -93,11 +106,11 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     backend_items = ',\n'.join('    {' + _literal(row['name']) + ', ' + signal(row, 'name') + '}' for row in backend)
     physical_items = ',\n'.join('    {' + _literal(row['runtime_name']) + ', ' + signal(row) + '}' for row in exports)
     aliases = ''
-    if kind in ('apb_gpio', 'apb_spi'):
+    if kind in ('apb_gpio', 'apb_spi', 'tlul_gpio'):
         by_name = {row['runtime_name']: row for row in exports}
         aliases = ''.join(f'  values[{_literal(alias)}] = {signal(by_name[name])};\n'
                           for alias, name in fields.items()
-                          if (kind == 'apb_gpio' and alias != 'gpio_in')
+                          if (kind in ('apb_gpio', 'tlul_gpio') and alias not in ('gpio_in', 'strap_en'))
                           or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi'))))
 
     max_wait = document['effective_max_wait_cycles']
@@ -110,7 +123,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                                             else (1 << row['width']) - 1) for row in exports}
     maximum_snapshot = dict(backend=maxima_backend, physical=maxima_physical)
     for alias, name in fields.items():
-        if (kind == 'apb_gpio' and alias != 'gpio_in') or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi'))):
+        if (kind in ('apb_gpio', 'tlul_gpio') and alias not in ('gpio_in', 'strap_en')) or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi'))):
             maximum_snapshot[alias] = maxima_physical[name]
     snapshot_size = len(json.dumps(maximum_snapshot, sort_keys=True, separators=(',', ':')))
     # 128 bytes per sample exceeds its numeric tick and object delimiters;
@@ -178,8 +191,12 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     else:
         spi = kind == 'apb_spi'
         channel = 'spi' if spi else 'gpio'
-        input_assignment = '' if spi else f'      dut.{fields["gpio_in"]} = command.fields[0];\n'
-        index = 0 if spi else 1
+        command_channel = 'TLUL_GPIO' if kind == 'tlul_gpio' else channel.upper()
+        input_assignment = ('' if spi else
+                            f'      dut.{fields["gpio_in"]} = command.fields[0];\n' +
+                            (f'      dut.{fields["strap_en"]} = command.fields[1];\n'
+                             if kind == 'tlul_gpio' else ''))
+        index = 0 if spi else 2 if kind == 'tlul_gpio' else 1
         source_branch = '''      if (command.operation == "SOURCE_SPI") {
         peer.append(command.fields[0], command.fields[1], command.fields[2]);
         dut.eval();
@@ -187,7 +204,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
       } else {
 ''' if spi else ''
         dispatch = input_assignment + source_branch + f'''      dut.eval();
-      if (command.operation == "STEP_{channel.upper()}") {{
+      if (command.operation == "STEP_{command_channel}") {{
         pre_backend = backend_snapshot(dut);
         tick(dut, &samples);
       }} else {{
@@ -220,8 +237,8 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         dut.eval();
       }}
 ''' + ('      }\n' if spi else '')
-        operation_check = (f'command.operation != "STEP_{channel.upper()}" && '
-                           f'command.operation != "ACCESS_{channel.upper()}"' +
+        operation_check = (f'command.operation != "STEP_{command_channel}" && '
+                           f'command.operation != "ACCESS_{command_channel}"' +
                            (' && command.operation != "SOURCE_SPI"' if spi else ''))
 
     spi_active_cs = ' | '.join(f'((!dut.{fields[f"spi_csn{i}"]}) << {i})' for i in range(4)) if kind == 'apb_spi' else ''
