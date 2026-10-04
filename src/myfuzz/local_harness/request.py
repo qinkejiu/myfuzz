@@ -37,7 +37,7 @@ class LocalHarnessRequest:
 
 @dataclass(frozen=True)
 class LocalHarnessRequestV2:
-    """Parsed configuration; existing planner deliberately rejects this type."""
+    """Parsed configuration; only explicitly admitted runtime templates may execute."""
     profile_path: str
     instance_id: str
     reset_assert_ticks: int

@@ -14,7 +14,7 @@ from myfuzz.composition.interface_description import SourceLocator
 from myfuzz.composition.soc_port_dispositions import (
     DispositionEntry, build_port_dispositions,
 )
-from .request import LocalHarnessRequest, load_local_harness_request
+from .request import LocalHarnessRequest, LocalHarnessRequestV2, load_local_harness_request
 
 
 def _local_target(entry: DispositionEntry) -> str | None:
@@ -42,7 +42,7 @@ def _local_target(entry: DispositionEntry) -> str | None:
 
 @dataclass(frozen=True, slots=True)
 class LocalHarnessPlan:
-    request: LocalHarnessRequest
+    request: LocalHarnessRequest | LocalHarnessRequestV2
     profile: ComponentProfile
     facts: PhysicalFacts
     binding: ProfileBinding
@@ -57,7 +57,7 @@ class LocalHarnessPlan:
             row = entry.document()
             row['target'] = _local_target(entry)
             ports.append(row)
-        return {
+        document = {
             'schema_version': 'local_harness_plan.v1',
             'scope': 'single_component',
             'component_id': self.profile.component_id,
@@ -80,10 +80,17 @@ class LocalHarnessPlan:
                 if endpoint.protocol is not None),
             'ports': ports,
         }
+        if isinstance(self.request, LocalHarnessRequestV2):
+            document['request_schema_version'] = 'local_harness.v2'
+            document['tuning'] = self.request.tuning.document()
+            document['tuning_sha256'] = self.request.tuning.identity_sha256
+        return document
 
 
-def plan_local_harness(request: LocalHarnessRequest, *, base_dir: Path) -> LocalHarnessPlan:
-    if not isinstance(request, LocalHarnessRequest):
+def plan_local_harness(request: LocalHarnessRequest | LocalHarnessRequestV2, *, base_dir: Path) -> LocalHarnessPlan:
+    if not isinstance(request, (LocalHarnessRequest, LocalHarnessRequestV2)):
+        raise ValueError('local-harness-request-required')
+    if isinstance(request, LocalHarnessRequestV2) and not request.tuning.records:
         raise ValueError('local-harness-request-required')
     # Revalidate direct dataclass construction as well as parsed requests.
     load_local_harness_request(request.document())
@@ -120,6 +127,10 @@ def plan_local_harness(request: LocalHarnessRequest, *, base_dir: Path) -> Local
     )
     for entry in dispositions:
         _local_target(entry)
-    return LocalHarnessPlan(
+    plan = LocalHarnessPlan(
         request, profile, facts, binding, dispositions,
         hashlib.sha256(profile_bytes).hexdigest(), profile.source, parameter_sources)
+    if isinstance(request, LocalHarnessRequestV2):
+        from .tlul_register_template import register_observe_policy
+        register_observe_policy(plan)
+    return plan

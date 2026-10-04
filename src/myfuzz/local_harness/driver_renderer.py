@@ -44,7 +44,13 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     exports = document['physical_exports']
     backend = document['backend_ports']
     fields = {}
-    if kind == 'apb_gpio':
+    if kind == 'tlul_register_observe':
+        fixed = document['fixed_physical_inputs']
+        allowed_inputs = {row['runtime_name'] for row in fixed}
+        if len(allowed_inputs) != len(fixed) or any(
+                row['value'] >= 1 << row['width'] for row in fixed):
+            raise ValueError('driver-tlul-register-input-ownership')
+    elif kind == 'apb_gpio':
         for role, alias in [('in', 'gpio_in'), ('out', 'gpio_out'), ('dir', 'gpio_dir'),
                             ('in_sync', 'gpio_in_sync'), ('padcfg', 'gpio_padcfg')]:
             rows = [row for row in exports if row['role'] == role]
@@ -194,7 +200,12 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     if {row['runtime_name'] for row in exports if row['direction'] == 'input'} != allowed_inputs:
         raise ValueError('driver-unmapped-physical-input')
     ports = document['runtime_ports']
-    initializers = '\n'.join(f'  dut.{row["name"]} = 0;' for row in ports if row['direction'] == 'input')
+    fixed_at_reset = ({row['runtime_name']: row['value']
+                       for row in document['fixed_physical_inputs']}
+                      if kind == 'tlul_register_observe' else {})
+    initializers = '\n'.join(
+        f'  dut.{row["name"]} = {fixed_at_reset.get(row["name"], 0)};'
+        for row in ports if row['direction'] == 'input')
     if kind == 'tlul_uart':
         initializers += f'\n  dut.{fields["uart_rx"]} = 1;'
 
@@ -360,12 +371,14 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     else:
         spi = kind == 'apb_spi'
         timer = kind in ('apb_timer', 'wishbone_timer', 'tlul_timer')
-        channel = ('spi' if spi else 'timer' if timer else
+        channel = ('reg' if kind == 'tlul_register_observe' else
+                   'spi' if spi else 'timer' if timer else
                    'uart' if kind == 'wishbone_uart' else
                    'spi_host' if kind == 'tlul_spi_host' else
                    'uart' if kind == 'tlul_uart' else
                    'i2c' if kind in ('apb_i2c', 'tlul_i2c') else 'gpio')
-        command_channel = ('TLUL_GPIO' if kind == 'tlul_gpio' else
+        command_channel = ('TLUL_REG' if kind == 'tlul_register_observe' else
+                           'TLUL_GPIO' if kind == 'tlul_gpio' else
                            'TLUL_TIMER' if kind == 'tlul_timer' else
                            'WB_UART' if kind == 'wishbone_uart' else
                            'TLUL_SPI_HOST' if kind == 'tlul_spi_host' else
@@ -383,6 +396,10 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             input_assignment = f'      dut.{fields["sd_i"]} = command.fields[0];\n'
         if kind == 'tlul_uart':
             input_assignment += f'      dut.{fields["uart_rx"]} = command.fields[0];\n'
+        if kind == 'tlul_register_observe':
+            input_assignment = ''.join(
+                f'      dut.{row["runtime_name"]} = {row["value"]};\n'
+                for row in document['fixed_physical_inputs'])
         index = 2 if kind in ('tlul_gpio', 'wishbone_uart') else 1 if kind in ('apb_gpio', 'tlul_spi_host', 'tlul_uart') else 0
         source_branch = '''      if (command.operation == "SOURCE_SPI") {
         peer.append(command.fields[0], command.fields[1], command.fields[2]);

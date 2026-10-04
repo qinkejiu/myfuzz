@@ -1,4 +1,4 @@
-"""Typed declarative tuning; parsing does not enable an execution strategy."""
+"""Typed declarative tuning; execution still needs a specific runtime admission."""
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -13,6 +13,7 @@ _SCHEMAS = {
     'endpoint_policies': {'endpoint_id': 'token', 'template_id': 'token', 'template_version': 'token',
                           'variant_id': 'token', 'max_outstanding': 'positive'},
     'optional_signals': {'endpoint_id': 'token', 'role': 'token', 'policy': ('drive_constant', 'template_default')},
+    'fixed_inputs': {'endpoint_id': 'token', 'role': 'token', 'value': 'unsigned'},
     'reset_policies': {'domain': 'token', 'assert_ticks': 'positive', 'release_ticks': 'ticks'},
     'irq_delivery': {'endpoint_id': 'token', 'role': 'token', 'delivery': ('follow_level', 'capture_pulse_event')},
     'boot': {'endpoint_id': 'token', 'entry_address': 'unsigned'},
@@ -20,6 +21,7 @@ _SCHEMAS = {
     'peer_bindings': {'endpoint_id': 'token', 'peer_id': 'token'},
 }
 _KEYS = {'endpoint_policies': ('endpoint_id',), 'optional_signals': ('endpoint_id', 'role'),
+         'fixed_inputs': ('endpoint_id', 'role'),
          'reset_policies': ('domain',), 'irq_delivery': ('endpoint_id', 'role'),
          'boot': ('endpoint_id',), 'environment_bindings': ('endpoint_id', 'role'),
          'peer_bindings': ('endpoint_id',)}
@@ -177,7 +179,7 @@ def validate_local_harness_tuning(tuning: LocalHarnessTuning, *, profile, bindin
                 raise ValueError('local-tuning-outstanding-limit-unverified')
             endpoint_contracts.append({**selected.document(), 'selection_sha256': selected.identity_sha256})
             continue
-        if kind in ('boot', 'peer_bindings', 'optional_signals'):
+        if kind in ('boot', 'peer_bindings', 'optional_signals', 'fixed_inputs'):
             raise ValueError('local-tuning-capability-unverified:' + kind)
         if kind == 'reset_policies':
             resets = [reset for reset, _ in binding.resets if reset.domain == value['domain']]

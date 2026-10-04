@@ -16,6 +16,8 @@ from .renderer import RenderedLocalHarness, render_local_harness, _sha
 from .runtime_artifact import LocalRuntimeArtifact
 from .source_lock import verify_local_source_lock
 from .axi4_fields import AXI_SHAPE
+from .request import LocalHarnessRequestV2
+from .tlul_register_template import register_observe_policy
 
 _NATIVE = {'valid': ('output', 1), 'addr': ('output', 32), 'wdata': ('output', 32), 'wstrb': ('output', 4), 'ready': ('input', 1), 'rdata': ('input', 32)}
 
@@ -311,7 +313,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
     elif (len(endpoints) == 1 and functions == {'mmio_slave'}
           and endpoints[0].protocol == ('tl-ul', '1')):
         variant = plan.profile.capabilities.get('local_runtime_variant')
-        kind = ('tlul_timer' if variant == 'tlul_timer' else
+        kind = ('tlul_register_observe' if isinstance(plan.request, LocalHarnessRequestV2) else
+                'tlul_timer' if variant == 'tlul_timer' else
                 'tlul_spi_host' if variant == 'tlul_spi_host' else
                 'tlul_uart' if variant == 'tlul_uart' else
                 'tlul_i2c' if variant == 'tlul_i2c' else 'tlul_gpio')
@@ -323,11 +326,15 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                                    'd_user_width', 'size_width', 'max_outstanding')) != (
                 32, 32, True, True, True, 'required', 8, 1, 23, 14, 2, 1):
             raise ValueError('runtime-tlul-capabilities')
-        expected_window = 4096 if kind in ('tlul_timer', 'tlul_spi_host', 'tlul_uart') else 128
+        expected_window = (plan.profile.address.window_size if
+                           kind == 'tlul_register_observe' and plan.profile.address is not None
+                           else 4096 if kind in ('tlul_timer', 'tlul_spi_host', 'tlul_uart') else 128)
         if plan.profile.address is None or plan.profile.address.window_size != expected_window:
             raise ValueError('runtime-tlul-window')
         pins = [e for e in plan.binding.endpoints if e.function == 'external_pins']
-        if kind == 'tlul_gpio':
+        if kind == 'tlul_register_observe':
+            register_observe_policy(plan, abi)
+        elif kind == 'tlul_gpio':
             if len(pins) != 1 or {f.role: (f.direction, f.width) for f in pins[0].fields} != {
                     'in': ('input', 32), 'out': ('output', 32), 'en': ('output', 32),
                     'strap_en': ('input', 1)}:
@@ -393,6 +400,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         if row['disposition'] == 'peer':
             raise ValueError('runtime-peer-ownership-unsupported')
         if row['disposition'] == 'functional' and not (
+                kind == 'tlul_register_observe' and row['direction'] == 'output' or
                 kind == 'apb_spi' and row['endpoint_id'] == 'spi.pins' or
                 kind == 'axi4_lite_uart' and row['endpoint_id'] in
                 ('uart.pins', 'uart.interrupts') or
@@ -543,9 +551,10 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                          f'    .SUPPORTS_PARTIAL_WRITE({1 if kind == "wishbone_uart" else 0}), .HAS_ERR(0),\n'
                          f'    .MAX_WAIT_CYCLES({wait}), .WINDOW_BASE(32\'d0), .WINDOW_SIZE({16 if kind == "wishbone_uart" else 4})\n'
                          f'  ) u_adapter_{channel} (\n    '+',\n    '.join(f'.{p}({v})' for p,v in pairs.items())+'\n  );')
-    elif kind in ('tlul_gpio', 'tlul_timer', 'tlul_spi_host', 'tlul_uart', 'tlul_i2c'):
+    elif kind in ('tlul_gpio', 'tlul_timer', 'tlul_spi_host', 'tlul_uart', 'tlul_i2c', 'tlul_register_observe'):
         wires = _shape(endpoints[0], _TLUL, abi)
-        channel = ('timer' if kind == 'tlul_timer' else
+        channel = ('reg' if kind == 'tlul_register_observe' else
+                   'timer' if kind == 'tlul_timer' else
                    'spi_host' if kind == 'tlul_spi_host' else
                    'uart' if kind == 'tlul_uart' else
                    'i2c' if kind == 'tlul_i2c' else 'gpio')
@@ -598,12 +607,20 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                     module_name=module, plan=plan.document(), structural_abi=copy.deepcopy(structural.abi_document),
                     structural_build=copy.deepcopy(structural.build_document), source_verification=copy.deepcopy(verified),
                     boot_contract=boot,
-                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'apb_i2c', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host', 'tlul_uart', 'tlul_i2c', 'wishbone_timer', 'wishbone_uart') else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
+                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'apb_i2c', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host', 'tlul_uart', 'tlul_i2c', 'tlul_register_observe', 'wishbone_timer', 'wishbone_uart') else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
                     runtime_sv_sha256=hashlib.sha256(runtime.encode()).hexdigest(), cpp_sha256=hashlib.sha256(b'').hexdigest(),
                     adapted_endpoint_ids=sorted(adapted), physical_exports=exports, backend_ports=backend,
                     runtime_ports=[dict(name=n,direction=d,width=w) for n,d,w in ports],
                     adapter_sources=adapter_hashes, lint_argv=flags+adapters,
                     wire_schema_version='local_driver.v1', driver_status='not_generated')
+    if kind == 'tlul_register_observe':
+        fixed = register_observe_policy(plan, abi)
+        document['fixed_physical_inputs'] = [
+            {'endpoint_id': row['endpoint_id'], 'role': row['role'],
+             'runtime_name': row['runtime_name'], 'width': row['width'],
+             'value': fixed[(row['endpoint_id'], row['role'])]}
+            for row in exports if row['direction'] == 'input']
+        document['functional_scope'] = 'tlul_register_only_pin_observe_no_serial'
     if kind in ('native_memory_cpu', 'axi4_lite_cpu'):
         document['selected_template'] = selected.document()
     if kind in ('native_memory_cpu', 'wishbone_cpu'):
