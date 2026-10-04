@@ -14,6 +14,151 @@ class CheckFinding:
     observed: int
 
 
+def check_pulp_gpio_irq_chain(events: Iterable[Mapping], *, expected_value: int) -> dict:
+    """Check one generated Ibex→PULP A→PULP B→Ibex IRQ round.
+
+    Missing propagation is an incomplete path. A concrete output/readback
+    contradicting an accepted transaction is a DUT violation candidate.
+    The checker reads observations; it never drives a DUT output.
+    """
+    if (type(expected_value) is not int or not 0 < expected_value < 256
+            or not expected_value & 1):
+        raise ValueError('expected_value must be an odd GPIO byte')
+    stream = tuple(events)
+    incomplete: list[str] = []
+    violations: list[str] = []
+
+    def find(after: int, predicate):
+        return next((event for event in stream
+                     if type(event.get('event_id')) is int
+                     and event['event_id'] > after and predicate(event)), None)
+
+    if any(event.get('kind') == 'reset_barrier' for event in stream):
+        incomplete.append('unexpected_reset')
+    ids = [event.get('event_id') for event in stream]
+    if any(type(event_id) is not int for event_id in ids) or ids != sorted(set(ids)):
+        incomplete.append('event_order_invalid')
+    for offset, value, name in ((4, 1, 'gpio_b_enable'),
+                                (0x18, 1, 'gpio_b_irq_enable'),
+                                (0x1c, 1, 'gpio_b_irq_rising')):
+        if find(0, lambda e: e.get('kind') == 'mmio_delivery'
+                and e.get('component') == 'cpu' and e.get('device_id') == 'gpio_b'
+                and e.get('offset') == offset and e.get('write') is True
+                and e.get('write_value') == value) is None:
+            incomplete.append(name + '_missing')
+    write = find(0, lambda e: e.get('kind') == 'mmio_delivery'
+                 and e.get('component') == 'cpu' and e.get('device_id') == 'gpio_a'
+                 and e.get('offset') == 0x0c and e.get('write') is True
+                 and e.get('byte_enable') == 15
+                 and e.get('write_value') == expected_value)
+    if write is None:
+        incomplete.append('gpio_a_padout_write_missing')
+    first_observed = None if write is None else find(write['event_id'], lambda e:
+                          e.get('component') == 'gpio_a'
+                          and isinstance(e.get('outputs'), Mapping)
+                          and type(e['outputs'].get('gpio_out')) is int)
+    next_write = None if write is None else find(write['event_id'], lambda e:
+                      e.get('kind') == 'mmio_delivery'
+                      and e.get('device_id') == 'gpio_a'
+                      and e.get('offset') == 0x0c and e.get('write') is True)
+    first_tick = first_observed.get('local_tick') if first_observed else None
+    # The APB receipt can include pre/post samples from the same accepted
+    # access. Allow four GPIO-local clocks for its registered PADOUT result;
+    # later unrelated writes cannot satisfy this obligation.
+    observed = None if type(first_tick) is not int else find(write['event_id'], lambda e:
+                    e.get('component') == 'gpio_a'
+                    and (next_write is None or e['event_id'] < next_write['event_id'])
+                    and type(e.get('local_tick')) is int
+                    and first_tick <= e['local_tick'] <= first_tick + 4
+                    and e.get('outputs', {}).get('gpio_out') == expected_value)
+    if write is not None and first_observed is None:
+        incomplete.append('gpio_a_output_missing')
+    if first_observed is not None and type(first_tick) is not int:
+        incomplete.append('gpio_a_local_tick_missing')
+    if first_observed is not None and observed is None and type(first_tick) is int:
+        settled = find(first_observed['event_id'], lambda e:
+                       e.get('component') == 'gpio_a'
+                       and (next_write is None or e['event_id'] < next_write['event_id'])
+                       and type(e.get('local_tick')) is int
+                       and e['local_tick'] >= first_tick + 4)
+        if settled is None:
+            incomplete.append('gpio_a_settle_window_incomplete')
+        else:
+            violations.append('gpio_a_output_mismatch')
+    delivery = None if observed is None else find(observed['event_id'], lambda e:
+                    e.get('kind') == 'dataflow_delivery'
+                    and tuple(e.get('source', ())) == ('gpio_a', 'gpio_out')
+                    and tuple(e.get('target', ())) == ('gpio_b', 'gpio_in')
+                    and e.get('value') == expected_value
+                    and e.get('producer_event_id') == observed['event_id'])
+    if observed is not None and delivery is None:
+        incomplete.append('gpio_a_to_b_delivery_missing')
+    rise = None if delivery is None else find(delivery['event_id'], lambda e:
+               e.get('component') == 'gpio_b'
+               and e.get('inputs', {}).get('gpio_in', 0) & 0xff == expected_value
+               and e.get('outputs', {}).get('irq') == 1)
+    if delivery is not None and rise is None:
+        incomplete.append('gpio_b_irq_missing')
+    source = None if rise is None else find(rise['event_id'], lambda e:
+                 e.get('kind') == 'source_start'
+                 and tuple(e.get('source', ())) == ('gpio_b', 'irq')
+                 and tuple(e.get('target', ())) == ('cpu', 'irq'))
+    pulse = None if source is None else find(source['event_id'], lambda e:
+                e.get('kind') == 'pulse_start'
+                and tuple(e.get('source', ())) == ('gpio_b', 'irq')
+                and tuple(e.get('target', ())) == ('cpu', 'irq'))
+    if rise is not None and (source is None or pulse is None):
+        incomplete.append('gpio_b_irq_pulse_delivery_missing')
+    cpu_irq = None if pulse is None else find(pulse['event_id'], lambda e:
+                  e.get('component') == 'cpu' and e.get('inputs', {}).get('irq') == 1)
+    vector = None if cpu_irq is None else find(cpu_irq['event_id'], lambda e:
+                 e.get('component') == 'cpu'
+                 and e.get('outputs', {}).get('instr_req_accepted') == 1
+                 and e.get('outputs', {}).get('instr_addr') == 0x1012c)
+    if pulse is not None and (cpu_irq is None or vector is None):
+        incomplete.append('cpu_irq_vector_missing')
+    read = None if vector is None else find(vector['event_id'], lambda e:
+               e.get('kind') == 'mmio_delivery'
+               and e.get('component') == 'cpu' and e.get('device_id') == 'gpio_b'
+               and e.get('offset') == 8 and e.get('write') is False)
+    if vector is not None and read is None:
+        incomplete.append('gpio_b_padin_read_missing')
+    if read is not None and read.get('read_value') != expected_value:
+        violations.append('gpio_b_padin_read_mismatch')
+    tx = read.get('source_transaction', {}) if read else {}
+    consumed = None if read is None else find(read['event_id'], lambda e:
+                   e.get('component') == 'cpu'
+                   and e.get('outputs', {}).get('data_rsp_consumed') == 1
+                   and e['outputs'].get('data_rsp_rdata') == read.get('read_value')
+                   and e['outputs'].get('data_rsp_source_epoch') == tx.get('source_epoch')
+                   and e['outputs'].get('data_rsp_source_sequence') == tx.get('source_sequence'))
+    stored = None if consumed is None else find(consumed['event_id'], lambda e:
+                 e.get('kind') == 'memory_write' and e.get('component') == 'cpu'
+                 and e.get('address') == 0x20000
+                 and e.get('value') == read.get('read_value')
+                 and e.get('byte_enable') == 15)
+    if read is not None and (consumed is None or stored is None):
+        incomplete.append('cpu_padin_response_or_store_missing')
+    status = None if stored is None else find(stored['event_id'], lambda e:
+                 e.get('kind') == 'mmio_delivery'
+                 and e.get('component') == 'cpu' and e.get('device_id') == 'gpio_b'
+                 and e.get('offset') == 0x24 and e.get('write') is False)
+    if stored is not None and status is None:
+        incomplete.append('gpio_b_irq_status_read_missing')
+    if status is not None and status.get('read_value', 0) & 1 != 1:
+        violations.append('gpio_b_irq_status_mismatch')
+    status_store = None if status is None else find(status['event_id'], lambda e:
+                   e.get('kind') == 'memory_write' and e.get('component') == 'cpu'
+                   and e.get('address') == 0x20004
+                   and e.get('value') == status.get('read_value')
+                   and e.get('byte_enable') == 15)
+    if status is not None and status_store is None:
+        incomplete.append('cpu_irq_status_store_missing')
+    return {'complete': not incomplete and not violations,
+            'path_incomplete': incomplete, 'dut_violations': violations,
+            'endpoint_event_id': status_store['event_id'] if status_store else None}
+
+
 def check_uart_early_irq_chain(events: Iterable[Mapping],
                                final_state: Mapping) -> dict:
     """Check real UART IRQ→Ibex consumption before the real TX_DONE observation.
