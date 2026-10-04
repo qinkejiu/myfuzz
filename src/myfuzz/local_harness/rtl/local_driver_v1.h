@@ -126,6 +126,13 @@ inline ParseResult parse_command(const std::string &line) {
   constexpr std::uint64_t word = 0xffffffffULL;
   std::vector<std::uint64_t> maxima;
   if (tokens[3] == "STEP_CPU") maxima = {1, 1, 1, word, 1, 1, 1, word, 1};
+  else if (tokens[3] == "STEP_AXI4") {
+    for (unsigned bus = 0; bus < 2; ++bus) {
+      const std::vector<std::uint64_t> channel =
+          {1, 1, 1, 1, 3, 1, 1, 1, word, 1, 3};
+      maxima.insert(maxima.end(), channel.begin(), channel.end());
+    }
+  }
   else if (tokens[3] == "STEP_WISHBONE") maxima = {1, word};
   else if (tokens[3] == "STEP_MEMORY") maxima = {1, 1, word, 1};
   else if (tokens[3] == "STEP_GPIO") maxima = {word};

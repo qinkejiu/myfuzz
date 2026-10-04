@@ -97,7 +97,8 @@ def _host_sources():
                'src/myfuzz/local_harness/wire.py',
                'src/myfuzz/local_harness/native_session.py', 'scripts/verify_soc_sources.py']
     for name in ('session', 'cpu_session', 'gpio_session',
-                 'wishbone_cpu_session', 'axi_lite_session', 'spi_session'):
+                 'wishbone_cpu_session', 'axi_lite_session', 'axi4_cpu_session',
+                 'spi_session'):
         path = f'src/myfuzz/local_harness/{name}.py'
         if (root / path).is_file():
             pending.append(path)

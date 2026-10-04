@@ -213,6 +213,7 @@ def _final_state_growth_bound(genome: ScenarioGenome,
     from myfuzz.local_harness.wishbone_cpu_session import GeneratedWishboneCpuSession
     from myfuzz.local_harness.axi_lite_session import GeneratedAxiLiteMemorySession
     from myfuzz.local_harness.spi_session import GeneratedPulpSpiSession
+    from myfuzz.local_harness.axi4_cpu_session import GeneratedAxi4CpuSession
 
     largest = 0
     digits = len(str(max(budget.max_scheduler_steps,
@@ -231,7 +232,8 @@ def _final_state_growth_bound(genome: ScenarioGenome,
                               GeneratedNativeMemorySession,
                               GeneratedWishboneCpuSession,
                               GeneratedAxiLiteMemorySession,
-                              GeneratedPulpSpiSession):
+                              GeneratedPulpSpiSession,
+                              GeneratedAxi4CpuSession):
             # A generated command contributes one fixed-width RTL snapshot;
             # the CPU may also add one persistent memory transaction key.
             # Include the variable testcase and component identity lengths.
@@ -266,6 +268,7 @@ def _evidence_record_bound(genome: ScenarioGenome,
     from myfuzz.local_harness.wishbone_cpu_session import GeneratedWishboneCpuSession
     from myfuzz.local_harness.axi_lite_session import GeneratedAxiLiteMemorySession
     from myfuzz.local_harness.spi_session import GeneratedPulpSpiSession
+    from myfuzz.local_harness.axi4_cpu_session import GeneratedAxi4CpuSession
 
     digits = len(str(max(budget.max_scheduler_steps,
                          budget.max_transactions,
@@ -294,7 +297,8 @@ def _evidence_record_bound(genome: ScenarioGenome,
                               GeneratedNativeMemorySession,
                               GeneratedWishboneCpuSession,
                               GeneratedAxiLiteMemorySession,
-                              GeneratedPulpSpiSession):
+                              GeneratedPulpSpiSession,
+                              GeneratedAxi4CpuSession):
             limits = session.artifact.runtime_document['driver_limits']
             reservation = limits['reply_reservation_bytes']
             if type(reservation) is not int or reservation < 1:
@@ -302,7 +306,8 @@ def _evidence_record_bound(genome: ScenarioGenome,
             writer_lanes = (4 if type(session) in
                             (GeneratedCve2Session, GeneratedNativeMemorySession,
                              GeneratedWishboneCpuSession,
-                             GeneratedAxiLiteMemorySession)
+                             GeneratedAxiLiteMemorySession,
+                             GeneratedAxi4CpuSession)
                             else 0)
             # One generated reply bounds all native pre/post samples of one
             # command. Router, source and observation records may repeat its

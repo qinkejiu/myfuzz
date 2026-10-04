@@ -69,9 +69,11 @@ def _verify_generated_session(identity: dict):
     axi_lite_fields = {'axi_lite_service_schema_version', 'source_component', 'memory_policy'}
     spi_fields = {'spi_peer_schema_version', 'source_component', 'chip_select',
                   'source_hex', 'startup_writes', 'read_rx_on_eot'}
+    axi4_fields = {'cpu_service_schema_version', 'source_component'}
     if not isinstance(identity, dict) or set(identity) not in (
             base_fields, base_fields | cpu_fields, base_fields | native_fields,
-            base_fields | axi_lite_fields, base_fields | spi_fields):
+            base_fields | axi_lite_fields, base_fields | spi_fields,
+            base_fields | axi4_fields):
         raise ValueError('generated session identity has unknown or missing fields')
     if identity['schema_version'] != 'generated_local_session_identity.v1':
         raise ValueError('unsupported generated session schema')
@@ -101,6 +103,11 @@ def _verify_generated_session(identity: dict):
                 or identity['source_component'] != artifact.plan.request.instance_id
                 or identity['memory_policy'] != 'ram-rom-only'):
             raise ValueError('generated AXI4-Lite service identity mismatch')
+    elif artifact.runtime_document['kind'] == 'axi4_cpu':
+        _exact(identity, base_fields | axi4_fields, 'generated AXI4 CPU service identity')
+        if (identity['cpu_service_schema_version'] != 'generated_axi4_cpu_service.v1'
+                or identity['source_component'] != artifact.plan.request.instance_id):
+            raise ValueError('generated AXI4 CPU service identity mismatch')
     elif artifact.runtime_document['kind'] in ('obi_cpu', 'wishbone_cpu'):
         _exact(identity, base_fields | cpu_fields, 'generated CPU service identity')
         service_versions = {'obi_cpu': 'generated_obi_cpu_service.v1',
@@ -454,6 +461,7 @@ class ScenarioManifest:
                                                   'myfuzz.local_harness.axi_lite_session.GeneratedAxiLiteMemorySession',
                                                   'myfuzz.local_harness.cpu_session.GeneratedCve2Session',
                                                   'myfuzz.local_harness.wishbone_cpu_session.GeneratedWishboneCpuSession',
+                                                  'myfuzz.local_harness.axi4_cpu_session.GeneratedAxi4CpuSession',
                                                   'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession',
                                                   'myfuzz.local_harness.spi_session.GeneratedPulpSpiSession')):
                     raise ValueError('generated session type or runner schema mismatch')
@@ -463,6 +471,7 @@ class ScenarioManifest:
                     'myfuzz.local_harness.axi_lite_session.GeneratedAxiLiteMemorySession': 'axi4_lite_cpu',
                     'myfuzz.local_harness.cpu_session.GeneratedCve2Session': 'obi_cpu',
                     'myfuzz.local_harness.wishbone_cpu_session.GeneratedWishboneCpuSession': 'wishbone_cpu',
+                    'myfuzz.local_harness.axi4_cpu_session.GeneratedAxi4CpuSession': 'axi4_cpu',
                     'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession': 'apb_gpio',
                     'myfuzz.local_harness.spi_session.GeneratedPulpSpiSession': 'apb_spi',
                 }

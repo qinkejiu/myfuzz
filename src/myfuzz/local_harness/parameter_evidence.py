@@ -33,13 +33,15 @@ def parameter_evidence(top: str, names: tuple[str, ...], sources: tuple[tuple[st
     closing = find_matching(body, opening, '(', ')')
     if closing < 0:
         raise LocalPortRenderError('parameter-header-unclosed')
-    if '`' in body[match.start():closing]:
-        raise LocalPortRenderError('parameter-preprocessor-unsupported')
     header = body[opening+1:closing]
     if '`' in header:
-        raise LocalPortRenderError('parameter-preprocessor-unsupported')
+        # A conditional tail may declare simulator-only parameters. Only
+        # unconditional declarations before the first directive are admitted.
+        header = header.split('`', 1)[0].rstrip().rstrip(',')
     declarations = {}
     for fragment in header.split(','):
+        if re.match(r'\s*localparam\b', fragment):
+            continue
         declaration = re.fullmatch(r'\s*parameter\s+(?:(.*?)\s+)?(' + _IDENTIFIER + r')\s*=\s*([^,]+?)\s*', fragment, re.S)
         if not declaration or declaration[2] in declarations:
             raise LocalPortRenderError('parameter-declaration-unsupported-or-duplicate')
@@ -49,10 +51,11 @@ def parameter_evidence(top: str, names: tuple[str, ...], sources: tuple[tuple[st
         if name not in declarations:
             raise LocalPortRenderError(f'parameter-declaration-missing:{name}')
         type_name, declaration = declarations[name]
-        builtin = re.fullmatch(r'(?:(?:bit|logic|reg|int|integer|longint|shortint|byte|time)(?:\s+(?:unsigned|signed))?(?:\s*\[\s*\d+\s*:\s*\d+\s*\])?|\[\s*\d+\s*:\s*\d+\s*\]|)', type_name)
+        packed_width = r'\[\s*[A-Za-z0-9_+*/\s-]+\s*:\s*[A-Za-z0-9_+*/\s-]+\s*\]'
+        builtin = re.fullmatch(r'(?:(?:bit|logic|reg|int|integer|longint|shortint|byte|time)(?:\s+(?:unsigned|signed))?(?:\s*' + packed_width + r')?|' + packed_width + r'|)', type_name)
         row = dict(name=name, source_file=filename, declaration=declaration,
                    source_sha256=hashlib.sha256(original.encode()).hexdigest(), qualified_type=None)
-        if not builtin and not re.fullmatch(r'\[\s*\d+\s*:\s*\d+\s*\]', type_name):
+        if not builtin:
             named = re.fullmatch(r'(?:((' + _IDENTIFIER + r'))::)?(' + _IDENTIFIER + r')', type_name)
             if not named:
                 raise LocalPortRenderError(f'parameter-type-unsupported:{name}')

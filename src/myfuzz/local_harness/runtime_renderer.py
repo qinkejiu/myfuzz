@@ -15,6 +15,7 @@ from myfuzz.composition.soc_port_dispositions import build_port_dispositions
 from .renderer import RenderedLocalHarness, render_local_harness, _sha
 from .runtime_artifact import LocalRuntimeArtifact
 from .source_lock import verify_local_source_lock
+from .axi4_fields import AXI_SHAPE
 
 _NATIVE = {'valid': ('output', 1), 'addr': ('output', 32), 'wdata': ('output', 32), 'wstrb': ('output', 4), 'ready': ('input', 1), 'rdata': ('input', 32)}
 
@@ -155,6 +156,16 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         kind = 'axi4_lite_cpu'
         boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
         adapters = ['src/myfuzz/protocols/rtl/axi4_lite_processor_memory_adapter.sv']
+    elif (len(endpoints) == 2 and functions == cpu_functions
+          and all(e.protocol == ('axi4', '1') for e in endpoints)):
+        if (plan.profile.capabilities.get('address_width'),
+                plan.profile.capabilities.get('data_width'),
+                plan.profile.capabilities.get('id_width'),
+                plan.profile.capabilities.get('bursts')) != (32, 32, 1, True):
+            raise ValueError('runtime-axi4-capabilities')
+        kind = 'axi4_cpu'
+        boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
+        adapters = []
     elif len(endpoints) == 1 and functions == {'mmio_slave'} and endpoints[0].protocol == ('apb', '3'):
         kind = 'apb_spi' if plan.profile.component_id == 'pulp_spi' else 'apb_gpio'
         boot = None
@@ -228,6 +239,17 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                                 role=role, channel='wb'))
             statements.append(f'assign {name} = {wires[role]};' if direction == 'output'
                               else f'assign {wires[role]} = {name};')
+    elif kind == 'axi4_cpu':
+        for endpoint in sorted(endpoints, key=lambda e: e.function):
+            prefix = 'i' if endpoint.function == 'instruction_memory_master' else 'd'
+            wires = _shape(endpoint, AXI_SHAPE, abi)
+            for role, (direction, width) in AXI_SHAPE.items():
+                name = prefix + '_' + role
+                ports.append((name, direction, width))
+                backend.append(dict(name=name, direction=direction, width=width,
+                                    role=role, channel=prefix))
+                statements.append(f'assign {name} = {wires[role]};' if direction == 'output'
+                                  else f'assign {wires[role]} = {name};')
     elif kind == 'native_memory_cpu':
         wires = _shape(endpoints[0], _NATIVE, abi)
         beat_ports('m', True)

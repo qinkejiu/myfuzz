@@ -10,6 +10,7 @@ from pathlib import Path
 from .renderer import _sha
 from .runtime_artifact import LocalRuntimeArtifact
 from .runtime_renderer import render_local_runtime
+from .axi4_fields import AXI_STEP_PORTS
 
 _HEADERS = ('src/myfuzz/local_harness/rtl/local_driver_v1.h',
             'src/myfuzz/scenario/rtl/local_command_replay.h')
@@ -67,7 +68,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             raise ValueError('driver-spi-native-events-required')
         fields['events_o'] = events[0]['runtime_name']
         allowed_inputs = {fields[f'spi_sdi{i}'] for i in range(4)}
-    elif kind in ('native_memory_cpu', 'wishbone_cpu', 'axi4_lite_cpu'):
+    elif kind in ('native_memory_cpu', 'wishbone_cpu', 'axi4_lite_cpu', 'axi4_cpu'):
         allowed_inputs = set()
     elif kind == 'obi_cpu':
         cpu = artifact.plan.profile.cpu
@@ -100,7 +101,9 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                           or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi'))))
 
     max_wait = document['effective_max_wait_cycles']
-    max_samples = 1 if kind in ('obi_cpu', 'native_memory_cpu', 'wishbone_cpu', 'axi4_lite_cpu') else 2 * max_wait + 5
+    max_samples = (1 if kind in ('obi_cpu', 'native_memory_cpu',
+                                'wishbone_cpu', 'axi4_lite_cpu', 'axi4_cpu')
+                   else 2 * max_wait + 5)
     # Conservative serialized upper bound, before issuing any command effects.
     maxima_backend = {row['name']: (1 << row['width']) - 1 for row in backend}
     maxima_physical = {row['runtime_name']: ('f' * row['hex_digits'] if row['width'] > 64
@@ -117,7 +120,16 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     if reservation > 2 * 1024 * 1024 + 512:
         raise ValueError('driver-result-reservation-too-large')
 
-    if kind == 'wishbone_cpu':
+    if kind == 'axi4_cpu':
+        assignments = '\n'.join(f'      dut.{name} = command.fields[{index}];'
+                                for index, name in enumerate(AXI_STEP_PORTS))
+        dispatch = assignments + '''
+      dut.eval();
+      pre_backend = backend_snapshot(dut);
+      tick(dut, &samples);
+'''
+        operation_check = 'command.operation != "STEP_AXI4"'
+    elif kind == 'wishbone_cpu':
         dispatch = r'''      dut.wb_ack = command.fields[0];
       dut.wb_dat_r = command.fields[1];
       dut.eval();
