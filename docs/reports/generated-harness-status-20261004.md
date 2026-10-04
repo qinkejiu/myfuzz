@@ -14,6 +14,6 @@
 | IP | ZipCPU Wishbone target：ziptimer | 无地址注册 ACK、计数、单周期 IRQ 与回放 | 不支持部分写；CPU IRQ 尚未绑定 |
 | IP | ZipCPU AXI4-Lite target：axiluart | 独立 AW/W/B 与 AR/R 握手、TX pin 解码、RX 串行回读与回放 | 固定 8N1/波特，当前 peer 仅单字节 |
 
-跨组件验收包括 CVE2↔PULP GPIO A↔GPIO B 双向多轮中断链，以及 CVE2→PULP SPI/OpenTitan GPIO/PULP Timer/ZipCPU Timer/PULP I2C→CVE2 RAM 数据链。I2C 原生 IRQ 已绑定 CPU 输入。每条链在独立 CPU/IP harness 中运行，Router 只转交真实 RTL 输出，不组合 Bus/Crossbar。testcase 内进程、RAM、事务和 pending 状态连续保存；显式 reset 才按策略清理。
+跨组件验收包括 CVE2↔PULP GPIO A↔GPIO B 双向多轮中断链，以及 CVE2→PULP SPI/OpenTitan GPIO/PULP Timer/ZipCPU Timer/PULP I2C→CVE2 RAM 数据链。I2C 原生 IRQ 已转交 CPU 输入；该程序仍轮询状态，尚未验收 CPU 的中断处理程序。每条链在独立 CPU/IP harness 中运行，Router 只转交真实 RTL 输出，不组合 Bus/Crossbar。testcase 内进程、RAM、事务和 pending 状态连续保存；显式 reset 才按策略清理。
 
 生成器可处理已声明的协议形态和局部变体，尚不能凭协议名称无检查地接入任意同协议 RTL。UART RX 当前在构造会话时选择，I2C 从设备字节当前固定为 `0xA5`；这两个实例证明真实外部 peer 与数据回流，尚未证明 Genome 对其外部字节的自动变异。其他 OpenTitan IP、更多串行模式及 CPU 中断链仍需分别验收。

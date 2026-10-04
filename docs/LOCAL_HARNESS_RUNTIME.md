@@ -24,7 +24,7 @@
 | CVE2 → OpenTitan GPIO → CVE2 RAM | CPU 真实配置 TL-UL GPIO；外部 pin 在真实输出触发后变化，GPIO RTL 产生中断状态，CPU 真实回读并写 RAM；fresh replay 一致 | 双向数据闭环通过；CPU IRQ 固定为 0 |
 | CVE2 → PULP Timer → CVE2 RAM | CPU 真实配置 APB Timer、读取真实计数并写 RAM；Timer 原生 IRQ 脉冲单独观察，fresh replay 一致 | 数据闭环通过；CPU IRQ 固定为 0 |
 | CVE2 → ZipCPU ziptimer → CVE2 RAM | CPU 真实 MMIO 写入 Wishbone Timer、回读真实计数并存入持久 RAM；原生 IRQ 脉冲逐 tick 观察，fresh replay 一致 | 数据闭环通过；CPU IRQ 固定为 0 |
-| CVE2 → PULP I2C → CVE2 RAM | CPU 真实 APB 配置，I2C RTL 接收 peer 串行字节 `0xA5` 并产生原生 IRQ；IRQ 绑定 CPU 输入，CPU 读取 I2C 真值并写 RAM，fresh replay 一致 | 数据与 IRQ 闭环通过；只验收单从设备单字节模式 |
+| CVE2 → PULP I2C → CVE2 RAM | CPU 真实 APB 配置，I2C RTL 接收 peer 串行字节 `0xA5` 并产生原生 IRQ；IRQ 真实转交 CPU 输入，CPU 轮询状态、回读数据并写 RAM，fresh replay 一致 | 数据闭环与 IRQ 输入交付通过；CPU 中断处理程序未验收 |
 
 协议模板注册表列出 CPU OBI、AXI4、AXI4-Lite、Wishbone classic、Pico native Ready/Valid，以及 OpenTitan TL-UL、PULP APB3、ZipCPU Wishbone 和 AXI4-Lite 目标端变体。上表的五种 CPU 协议、PULP APB3 GPIO/SPI/Timer/I2C、OpenTitan TL-UL GPIO 与 ZipCPU Wishbone Timer/AXI4-Lite UART 实例有真实 RTL 运行证据。
 
@@ -92,4 +92,4 @@ PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_ibex_obi_runtime -
 
 ## 尚未满足的验收
 
-五类初始 CPU 协议已有至少一个固定 RTL 实例的生成式运行证据；Ibex 与 CVE2 是两种真实 OBI CPU，证明该特定 OBI 形态可复用同一生成器。双向 CPU/GPIO 首阶段具备连续状态、IRQ、预算化证据和 replay；CPU→PULP SPI→CPU RAM、CPU→OpenTitan GPIO→CPU RAM、CPU→PULP Timer→CPU RAM、CPU→ZipCPU Timer→CPU RAM 与 CPU→PULP I2C→CPU RAM 数据闭环已通过，其中 I2C 原生 IRQ 已绑定 CPU 输入。OpenTitan GPIO 已有生成式 TL-UL 真实运行与 replay，其他 OpenTitan IP 仍待完成。Pico 原生及 AXI4-Lite CPU 接口目前只能测试 RAM/ROM；Wishbone CPU 已服务 RAM 与 GPIO MMIO，但无 IRQ；ZipCPU AXI4 CPU 当前只服务 RAM。PULP SPI 只验收 CLKDIV=1 单次传输，CLKDIV=0 和 CPU 中断链均未验收。ZipCPU ziptimer 的 IRQ 是单周期脉冲，当前 CPU 链未绑定 CPU IRQ。ZipCPU UART 当前固定波特与单字节 TX/RX；PULP I2C 当前 peer 固定从地址 `0x42` 和返回字节 `0xA5`，不能据此声称已支持任意外部数据变异。新 CPU/IP 仍需固定源码、完整端口 profile、已支持的协议形态与必要的声明式微调，不能推断任意同协议 RTL 均可直接运行。
+五类初始 CPU 协议已有至少一个固定 RTL 实例的生成式运行证据；Ibex 与 CVE2 是两种真实 OBI CPU，证明该特定 OBI 形态可复用同一生成器。双向 CPU/GPIO 首阶段具备连续状态、IRQ、预算化证据和 replay；CPU→PULP SPI→CPU RAM、CPU→OpenTitan GPIO→CPU RAM、CPU→PULP Timer→CPU RAM、CPU→ZipCPU Timer→CPU RAM 与 CPU→PULP I2C→CPU RAM 数据闭环已通过，其中 I2C 原生 IRQ 已真实转交 CPU 输入，CPU 程序仍以轮询读取数据。OpenTitan GPIO 已有生成式 TL-UL 真实运行与 replay，其他 OpenTitan IP 仍待完成。Pico 原生及 AXI4-Lite CPU 接口目前只能测试 RAM/ROM；Wishbone CPU 已服务 RAM 与 GPIO MMIO，但无 IRQ；ZipCPU AXI4 CPU 当前只服务 RAM。PULP SPI 只验收 CLKDIV=1 单次传输，CLKDIV=0 和 CPU 中断链均未验收。ZipCPU ziptimer 的 IRQ 是单周期脉冲，当前 CPU 链未绑定 CPU IRQ。ZipCPU UART 当前固定波特与单字节 TX/RX；PULP I2C 当前 peer 固定从地址 `0x42` 和返回字节 `0xA5`，不能据此声称已支持任意外部数据变异。新 CPU/IP 仍需固定源码、完整端口 profile、已支持的协议形态与必要的声明式微调，不能推断任意同协议 RTL 均可直接运行。
