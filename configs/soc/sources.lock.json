@@ -5923,6 +5923,282 @@
         "capability_findings": 3,
         "unsupported": 2
       }
+    },
+    {
+      "id": "cv32e20_rv32e",
+      "source": {
+        "root": "third_party/cv32e20_upstream_reference",
+        "revision": "git:d079e8c8e6a08b330940ae123876ba0612bec18d",
+        "top_module": "cve2_top",
+        "top_port_selection": "all",
+        "files": [
+          "rtl/cve2_pkg.sv",
+          "rtl/cve2_tracer_pkg.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_pkg.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_ram_1p_pkg.sv",
+          "rtl/cve2_alu.sv",
+          "rtl/cve2_compressed_decoder.sv",
+          "rtl/cve2_controller.sv",
+          "rtl/cve2_cs_registers.sv",
+          "rtl/cve2_csr.sv",
+          "rtl/cve2_counter.sv",
+          "rtl/cve2_decoder.sv",
+          "rtl/cve2_ex_block.sv",
+          "rtl/cve2_fetch_fifo.sv",
+          "rtl/cve2_id_stage.sv",
+          "rtl/cve2_if_stage.sv",
+          "rtl/cve2_load_store_unit.sv",
+          "rtl/cve2_multdiv_fast.sv",
+          "rtl/cve2_multdiv_slow.sv",
+          "rtl/cve2_prefetch_buffer.sv",
+          "rtl/cve2_pmp.sv",
+          "rtl/cve2_register_file_ff.sv",
+          "rtl/cve2_wb.sv",
+          "rtl/cve2_core.sv",
+          "rtl/cve2_top.sv",
+          "rtl/cve2_top_tracing.sv",
+          "rtl/cve2_tracer.sv",
+          "rtl/cve2_clock_gate.sv",
+          "rtl/cve2_branch_predict.sv"
+        ],
+        "include_roots": [
+          "rtl",
+          "vendor/lowrisc_ip/ip/prim/rtl",
+          "vendor/lowrisc_ip/dv/sv/dv_utils"
+        ],
+        "elaboration": {
+          "frontend": "verilator-json",
+          "defines": [
+            {
+              "name": "RVFI",
+              "value": "1"
+            }
+          ],
+          "parameters": [
+            {
+              "name": "MHPMCounterNum",
+              "value": "10"
+            },
+            {
+              "name": "MHPMCounterWidth",
+              "value": "40"
+            },
+            {
+              "name": "RV32E",
+              "value": "1"
+            },
+            {
+              "name": "RV32M",
+              "value": "2"
+            },
+            {
+              "name": "XInterface",
+              "value": "0"
+            }
+          ],
+          "warning_policy": "recorded-nonfatal"
+        }
+      },
+      "artifacts": [
+        {
+          "path": "rtl/cve2_alu.sv",
+          "sha256": "756fd26f1bfc3996c685e0f3fb846ae4c7b973140e8d3b69ad5e284a9a32ea0c",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_branch_predict.sv",
+          "sha256": "7389e1ffa3f42221a4f6804270d10899f9925a2470fd74bcdc38ab934e9bc362",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_clock_gate.sv",
+          "sha256": "10c5666623b9e1eb0be9d3566c7eab1f4fec37a40e1aff1ec396474d8232705e",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_compressed_decoder.sv",
+          "sha256": "c872067466e64789a9abbc588f747c29573ddced5a5815978e336bdcb55743db",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_controller.sv",
+          "sha256": "5f5a05d177ed7e500b28c77e4e708fe4e4af73d00fc659c9648a95bed235b865",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_core.sv",
+          "sha256": "0320d1ee39957b44527581f3fb1bba48d7753c5cc5873918645ced9b5312b09b",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_counter.sv",
+          "sha256": "1ab6bb193cb75c9e44e86ac702f6765a329ab9ff669d861960a0122f29fe71f2",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_cs_registers.sv",
+          "sha256": "603b8325790ca56f87886bb3d6a163923cab76e2cbdc29db0f08b490614a2fb3",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_csr.sv",
+          "sha256": "453d45844fe57004bd2d92baec30b78f3c95e282dda0cacc9feed4981bf9614a",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_decoder.sv",
+          "sha256": "c5291a98e2b8b20b92ce05dec31963cc14e9a10acfeded7afb4e40225da960d3",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_ex_block.sv",
+          "sha256": "2437e51c3725c7815f4b14f114c22407b367a442d2f7684114069bba58867050",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_fetch_fifo.sv",
+          "sha256": "2f8c0df3b28c36168918ffe7c872187d69d98f8610262c4638ee0989abcf2728",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_id_stage.sv",
+          "sha256": "babe0d9084fa93c725e197a4796bb03f95059c94454617ae28bff69219323866",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_if_stage.sv",
+          "sha256": "c42468e108838a1c78bdddde679ba520d4acf9396176637c7b30a4f06a23a325",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_load_store_unit.sv",
+          "sha256": "d7f23ac068c9ef6afeef0b1f56a96ee0bf3a7ae51f43352f46a81199c72b1f56",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_multdiv_fast.sv",
+          "sha256": "0dc472630421e02d3e138eaca857ea2f1b1ef719a7b5830fbb1e654a624eac52",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_multdiv_slow.sv",
+          "sha256": "9ef95c2abd6bdd8afb8b8d333dc1ad6f32d099bdace6a7d241359c93d2d878b5",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_pkg.sv",
+          "sha256": "b656d1bae7dd486e7a4a87eb67f9d99a473988212d988f19ce2753c83645c038",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_pmp.sv",
+          "sha256": "fa63493ce456cd686b4b3faab1242d1860dd41084b24b668cde83511bb9df805",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_prefetch_buffer.sv",
+          "sha256": "345ff7275ee8e0cd3f0e86051deea98e320cca71ee3336a6175d867caa5e8379",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_register_file_ff.sv",
+          "sha256": "4eeb8486f78d4c649397537979e5b668a3e16a1ce2b2ee2387eabab042161e0a",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_top.sv",
+          "sha256": "d7bdb559738c0ccbe8f92ee3f194e92d7f9223f1066ed63f3a2bb1850e240b82",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_top_tracing.sv",
+          "sha256": "93f16af66c882f1e90fca3e57a7d0cdca5bcc5994f76d05eb1ec49fa5e497afb",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_tracer.sv",
+          "sha256": "b0f12e039b0ac5572b5cc0b7600ddb65942442608286c09cff799fc42b0e33c5",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_tracer_pkg.sv",
+          "sha256": "f158b3ff2fb51e96987ae2a70087a12ccbf03c528c404a658861e323242b1969",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cve2_wb.sv",
+          "sha256": "77157d52a21daaac8c63e585b9acae97a878ecce7a8c4e0571c2b6315d01f796",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_ram_1p_pkg.sv",
+          "sha256": "4492e3f0a6615703239364fa2f52a41e0bf73c5335916b7cd82a311a9af09147",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_pkg.sv",
+          "sha256": "d754dc75bf551dcacfd966546118322dc29e6600defb6fd1fe5e5aed46fceeca",
+          "kind": "source"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "kind": "license"
+        }
+      ],
+      "selected_content_hash": "sha256:65ad2b0224d73b1b3e0a4a86c1384acdf54c7356bca758fa8d92e9745cb2def2",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "defines": [
+        "RVFI=1"
+      ],
+      "typed_parameters": [
+        {
+          "name": "MHPMCounterNum",
+          "value": "10"
+        },
+        {
+          "name": "MHPMCounterWidth",
+          "value": "40"
+        },
+        {
+          "name": "RV32E",
+          "value": "1"
+        },
+        {
+          "name": "RV32M",
+          "value": "2"
+        },
+        {
+          "name": "XInterface",
+          "value": "0"
+        }
+      ],
+      "generator": {
+        "status": "not_invoked",
+        "tool_version": null,
+        "name": "none for selected checked-in files"
+      },
+      "dependencies": [],
+      "elaboration": {
+        "status": "elaboration_verified",
+        "top_module": "cve2_top",
+        "tool": {
+          "name": "verilator",
+          "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "frontend": "verilator-lint"
+        },
+        "evidence": "configs/soc/closures/cv32e20_rv32e.json",
+        "evidence_sha256": "2ba1cf0b8041c922561b2b58b19db6e7b041be53f3374815a9300c2ce04f93e9",
+        "closure_files": 33,
+        "lint": {
+          "errors": 0,
+          "warnings": 94,
+          "exit_code": 0
+        }
+      }
     }
   ]
 }
