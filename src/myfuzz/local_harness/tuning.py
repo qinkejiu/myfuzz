@@ -23,6 +23,16 @@ _SCHEMAS = {
     'uart_8n1_peers': {'endpoint_id': 'token', 'rx_role': 'token', 'tx_role': 'token',
                        'source_id': 'token', 'format': ('8N1',),
                        'clocks_per_bit': 'uart_clocks', 'idle_bits': 'uart_idle'},
+    'spi_mode0_peers': {'endpoint_id': 'token', 'clock_role': 'token',
+                        'select_role': 'token', 'data_input_role': 'token',
+                        'data_output_role': 'token', 'enable_output_role': 'token',
+                        'source_id': 'token', 'source_port': 'token',
+                        'format': ('mode0-single',),
+                        'source_bytes': 'spi_source_bytes',
+                        'prefix_value': 'unsigned', 'prefix_bytes': 'spi_prefix_bytes',
+                        'read_count': 'spi_read_count',
+                        'mosi_lane': 'spi_lane', 'miso_lane': 'spi_lane',
+                        'half_period': 'spi_half_period'},
     'startup_writes': {'sequence': 'positive', 'offset': 'unsigned', 'value': 'unsigned'},
 }
 _KEYS = {'endpoint_policies': ('endpoint_id',), 'optional_signals': ('endpoint_id', 'role'),
@@ -31,6 +41,7 @@ _KEYS = {'endpoint_policies': ('endpoint_id',), 'optional_signals': ('endpoint_i
          'boot': ('endpoint_id',), 'environment_bindings': ('endpoint_id', 'role'),
          'bound_bindings': ('endpoint_id', 'role'),
          'peer_bindings': ('endpoint_id',), 'uart_8n1_peers': ('endpoint_id',),
+         'spi_mode0_peers': ('endpoint_id',),
          'startup_writes': ('sequence',)}
 
 
@@ -59,7 +70,8 @@ class LocalHarnessTuning:
         # Preserve the identity of older v2 requests when these optional
         # serial-peer records are absent.
         result = {kind: [] for kind in _SCHEMAS
-                  if kind not in ('boot', 'uart_8n1_peers', 'startup_writes')}
+                  if kind not in ('boot', 'uart_8n1_peers', 'spi_mode0_peers',
+                                  'startup_writes')}
         for row in self.records:
             if row.kind == 'boot':
                 result['boot'] = row.document()
@@ -92,6 +104,16 @@ def _parse_row(kind, row):
                 valid = valid and 16 <= value <= 4096
             elif rule == 'uart_idle':
                 valid = valid and 1 <= value <= 64
+            elif rule == 'spi_source_bytes':
+                valid = valid and 1 <= value <= 4
+            elif rule == 'spi_prefix_bytes':
+                valid = valid and 0 <= value <= 4
+            elif rule == 'spi_read_count':
+                valid = valid and 0 <= value <= 8
+            elif rule == 'spi_lane':
+                valid = valid and 0 <= value <= 63
+            elif rule == 'spi_half_period':
+                valid = valid and 2 <= value <= 32
             elif rule in ('positive', 'ticks'):
                 valid = valid and value <= 1024
             else:
@@ -194,7 +216,7 @@ def validate_local_harness_tuning(tuning: LocalHarnessTuning, *, profile, bindin
             endpoint_contracts.append({**selected.document(), 'selection_sha256': selected.identity_sha256})
             continue
         if kind in ('boot', 'peer_bindings', 'optional_signals', 'fixed_inputs',
-                    'uart_8n1_peers', 'startup_writes'):
+                    'uart_8n1_peers', 'spi_mode0_peers', 'startup_writes'):
             raise ValueError('local-tuning-capability-unverified:' + kind)
         if kind == 'reset_policies':
             resets = [reset for reset, _ in binding.resets if reset.domain == value['domain']]

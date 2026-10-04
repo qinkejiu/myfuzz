@@ -11,7 +11,7 @@ def uart_peer_policy(plan):
     peers = [r.document() for r in rows if r.kind == 'uart_8n1_peers']
     startup = [r.document() for r in rows if r.kind == 'startup_writes']
     if not peers:
-        if startup:
+        if startup and not any(r.kind == 'spi_mode0_peers' for r in rows):
             raise ValueError('tlul-register-startup-writes-need-serial-peer')
         return None
     if len(peers) != 1:
@@ -44,6 +44,77 @@ def uart_peer_policy(plan):
             'startup_writes': [[r['offset'], r['value']] for r in startup]}
 
 
+def spi_peer_policy(plan):
+    """Admit one external mode-0 master using only endpoint facts and tuning."""
+    rows = plan.request.tuning.records
+    peers = [r.document() for r in rows if r.kind == 'spi_mode0_peers']
+    if not peers:
+        return None
+    if len(peers) != 1:
+        raise ValueError('tlul-register-one-spi-peer-required')
+    peer = peers[0]
+    endpoint = plan.binding.endpoint(peer['endpoint_id'])
+    if endpoint.function != 'external_pins':
+        raise ValueError('tlul-register-spi-external-pins-required')
+    roles = [peer[key] for key in ('clock_role', 'select_role', 'data_input_role',
+                                   'data_output_role', 'enable_output_role')]
+    if len(set(roles)) != len(roles):
+        raise ValueError('tlul-register-spi-pin-shape')
+    clock, select, data_in, data_out, enable_out = (
+        plan.binding.field(peer['endpoint_id'], role) for role in roles)
+    if (clock.direction != 'input' or clock.width != 1 or
+            select.direction != 'input' or select.width != 1 or
+            data_in.direction != 'input' or not 1 <= data_in.width <= 64 or
+            data_out.direction != 'output' or enable_out.direction != 'output' or
+            data_out.width != enable_out.width or not 1 <= data_out.width <= 64 or
+            not all(field.whole_port for field in
+                    (clock, select, data_in, data_out, enable_out))):
+        raise ValueError('tlul-register-spi-pin-shape')
+    if peer['mosi_lane'] >= data_in.width:
+        raise ValueError('tlul-register-spi-input-lane')
+    if peer['miso_lane'] >= data_out.width:
+        raise ValueError('tlul-register-spi-output-lane')
+    environment = [r.document() for r in rows if r.kind == 'environment_bindings']
+    expected = {(peer['endpoint_id'], role, peer['source_id'])
+                for role in roles[:3]}
+    if (len(environment) != 3 or
+            {(row['endpoint_id'], row['role'], row['source_id'])
+             for row in environment} != expected):
+        raise ValueError('tlul-register-spi-source-required')
+    if any(r.kind == 'bound_bindings' for r in rows):
+        raise ValueError('tlul-register-spi-bound-input-unsupported')
+    prefix_bytes = peer['prefix_bytes']
+    if peer['prefix_value'] >= 1 << (8 * prefix_bytes):
+        raise ValueError('tlul-register-spi-prefix-width')
+    startup = [r.document() for r in rows if r.kind == 'startup_writes']
+    if len(startup) > 16 or [r['sequence'] for r in startup] != list(range(1, len(startup) + 1)):
+        raise ValueError('tlul-register-spi-startup-sequence')
+    window = plan.profile.address.window_size if plan.profile.address is not None else 0
+    if any(r['offset'] % 4 or r['offset'] >= window or r['value'] > 0xffffffff
+           for r in startup):
+        raise ValueError('tlul-register-spi-startup-access')
+    return {'schema_version': 'generated_tlul_spi_mode0_tuning.v1',
+            'format': 'mode0-single',
+            'clock_input': peer['endpoint_id'] + '.' + peer['clock_role'],
+            'select_input': peer['endpoint_id'] + '.' + peer['select_role'],
+            'data_input': peer['endpoint_id'] + '.' + peer['data_input_role'],
+            'data_output': data_out.port, 'enable_output': enable_out.port,
+            'source_id': peer['source_id'], 'source_port': peer['source_port'],
+            'source_bytes': peer['source_bytes'],
+            'prefix_hex': peer['prefix_value'].to_bytes(prefix_bytes, 'big').hex(),
+            'read_count': peer['read_count'], 'mosi_lane': peer['mosi_lane'],
+            'miso_lane': peer['miso_lane'], 'half_period': peer['half_period'],
+            'startup_writes': [[r['offset'], r['value']] for r in startup]}
+
+
+def serial_peer_policy(plan):
+    """Choose at most one declared serial peer for the generic TL-UL template."""
+    kinds = {r.kind for r in plan.request.tuning.records}
+    if 'uart_8n1_peers' in kinds and 'spi_mode0_peers' in kinds:
+        raise ValueError('tlul-register-one-serial-peer-required')
+    return spi_peer_policy(plan) if 'spi_mode0_peers' in kinds else uart_peer_policy(plan)
+
+
 def register_observe_policy(plan, abi=None):
     """Return fixed and dynamic physical inputs; reject every unowned bit.
 
@@ -59,9 +130,10 @@ def register_observe_policy(plan, abi=None):
     environment = [r.document() for r in rows if r.kind == 'environment_bindings']
     bound_rows = [r.document() for r in rows if r.kind == 'bound_bindings']
     if any(r.kind not in ('endpoint_policies', 'fixed_inputs', 'environment_bindings',
-                          'bound_bindings', 'uart_8n1_peers', 'startup_writes') for r in rows):
+                          'bound_bindings', 'uart_8n1_peers', 'spi_mode0_peers',
+                          'startup_writes') for r in rows):
         raise ValueError('tlul-register-unsupported-tuning')
-    uart_peer_policy(plan)
+    serial_peer_policy(plan)
     endpoints = [e for e in plan.binding.endpoints if e.protocol is not None]
     if len(endpoints) != 1 or endpoints[0].protocol != ('tl-ul', '1') or endpoints[0].function != 'mmio_slave':
         raise ValueError('tlul-register-target-required')
