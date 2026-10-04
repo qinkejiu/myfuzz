@@ -11,7 +11,7 @@ from myfuzz.scenario.genome import MemoryImage, ScenarioGenome
 from myfuzz.scenario.memory import MemoryRegion, PersistentMemory
 from myfuzz.scenario.ownership import compile_ownership
 from myfuzz.scenario.runner import ScenarioRunner
-from myfuzz.scenario.replay import record_scenario, replay_scenario
+from myfuzz.scenario.evidence import save_evidence_bundle, replay_evidence_bundle
 from myfuzz.scenario.contracts import ProtocolEnvironmentError
 from tests.local_harness.test_renderer import ROOT, real_plan
 from tests.integration.test_local_native_memory_generated_real import program
@@ -37,15 +37,19 @@ class AxiLiteProgramRealTests(unittest.TestCase):
                 path_id='axi-lite-memory', schedule_order=('cpu',), max_steps=340, actions=(),
                 initial_images=(MemoryImage('program','cpu',0,program()),
                     MemoryImage('state','cpu',256,'0500000000000000')))
-            trace = record_scenario(genome, factory)
+            bundle = Path(cache) / 'axi-lite-evidence'
+            trace = save_evidence_bundle(genome, factory, bundle)
             self.assertEqual(trace.status, 'complete', trace.status)
+            self.assertTrue((bundle/'manifest.json').is_file())
+            self.assertTrue((bundle/'observations.jsonl').is_file())
             cpu, memory = instances[0]
             self.assertEqual(memory.read(256,4,transaction_id='check').value, 7)
             self.assertEqual(memory.read(260,4,transaction_id='check').value, 7)
             self.assertEqual(cpu.memory_write_count, 4)
             self.assertIn(256, cpu.accepted_addresses)
-            comparison = replay_scenario(genome, factory, trace)
+            comparison = replay_evidence_bundle(bundle, factory)
             self.assertTrue(comparison.matches, comparison.difference_context)
+            self.assertEqual(comparison.verification_scope, 'full')
             self.assertNotEqual(instances[0][0]._execution, instances[1][0]._execution)
 
     def test_unmapped_memory_terminates_without_axi_success(self):

@@ -24,7 +24,7 @@ class AxiLiteRuntimeTests(unittest.TestCase):
     def test_manifest_admits_only_matching_axi_lite_service_identity(self):
         import copy
         import json
-        from jsonschema import validate
+        from jsonschema import Draft202012Validator
         from myfuzz.local_harness.axi_lite_session import GeneratedAxiLiteMemorySession
         from myfuzz.scenario.memory import MemoryRegion, PersistentMemory
         from myfuzz.scenario.ownership import compile_ownership
@@ -45,7 +45,11 @@ class AxiLiteRuntimeTests(unittest.TestCase):
             schedule_order=('cpu',),scheduler_policy_id='stable-local-v1',
             budget=ResourceBudget(),reset_timings={'cpu':timing})
         schema = json.loads((ROOT/'schemas/scenario_runtime_manifest.v1.json').read_text())
-        validate(manifest.to_document(), schema)
+        budget_schema = json.loads((ROOT/'schemas/scenario_manifest.v1.json').read_text())
+        schema['properties']['budget'] = budget_schema['properties']['budget']
+        schema['$defs'].update(budget_schema.get('$defs',{}))
+        Draft202012Validator.check_schema(schema)
+        Draft202012Validator(schema).validate(manifest.to_document())
         changed = copy.deepcopy(identity)
         changed['sessions']['cpu']['identity']['axi_lite_service_schema_version'] = 'changed'
         with self.assertRaises(ValueError):
