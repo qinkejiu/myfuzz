@@ -1,6 +1,17 @@
 # 持续多组件场景：阶段验收记录
 
-更新日期：2026-09-28。**最新结论：当前 Runner 身份下的固定场景证据共 21 份，20 份完整回放、1 份物理超时语义前缀回放匹配；Ibex 和 CVA6 各自与双 OpenTitan GPIO 的当前源码 G4 均已在 18/18 单元正式重跑中通过。详情见[CVA6/UART 扩展报告](cva6-uart-expansion-20260928.md)和[Ibex 当前 G4 报告](../../runs/scenario/campaign-ibex-g4-18cell-post-budget-source-use-20260928-v2/campaign_report.json)。历史 G4 v9 属旧源码身份，不能代替当前结果。** [G1 逐 ID 审计](persistent-scenario-g1-id-evidence-20260928.md)的 24 项及[G2/G3 逐 ID 账本](persistent-scenario-g2g3-id-evidence-20260928.md)仍只覆盖其各自声明的首期固定场景。本文件保留历史运行记录；具体判据以[实施与验收计划](../superpowers/plans/2026-09-27-persistent-multicomponent-fuzz-implementation.md)第 16～18 节为准。
+更新日期：2026-10-04。**当前固定场景目录共 25 份证据包：24 份完整回放匹配，1 份物理超时语义前缀回放匹配。** 本次重跑 G2 软件 54/54、G2 真实 RTL 15/15、G3 真实 RTL 37/37 通过。Ibex 和 CVA6 各自与双 OpenTitan GPIO 的 G4 正式搜索结果见[CVA6/UART 扩展报告](cva6-uart-expansion-20260928.md)和[Ibex G4 报告](../../runs/scenario/campaign-ibex-g4-18cell-post-budget-source-use-20260928-v2/campaign_report.json)；G2/G3 结论限各自列出的锁定场景。下文 2026-09-28 的 HEAD、包数与源码哈希均为历史快照，不表示当前工作树状态。具体判据以[实施与验收计划](../superpowers/plans/2026-09-27-persistent-multicomponent-fuzz-implementation.md)第 16～18 节为准。
+
+### 2026-10-04 当前身份与复核
+
+| 项目 | 当前结果 |
+|---|---|
+| 代码基线 | `373a2cb`；当前宿主源码闭包 34 文件，规范 JSON SHA-256 `6acd04d66ed306994f7bd57f8b04e5d39e5dcdd8c95c53ce2e68e3362ccb091b`。本节提交仅修改文档，不改变该宿主闭包。 |
+| 固定场景 | `runs/scenario/acceptance/` 中 25 份 manifest/replay 报告；`matches=true` 且 `verification_scope=full` 为 24 份，`semantic_prefix` 为 1 份。 |
+| G2 软件 | 原账本命令重跑 54/54，输出留在 `runs/scenario/verification-20261004/g2-software.log`。 |
+| G2 真实 RTL | 原账本命令重跑 15/15，53.048 秒；输出留在 `runs/scenario/verification-20261004/g2-real.log`。 |
+| G3 真实 RTL | 原账本命令重跑 37/37，149.488 秒；输出留在 `runs/scenario/verification-20261004/g3-real.log`。 |
+| 范围 | 上述复核证明当前锁定的 Ibex＋双 OpenTitan GPIO 场景；不等于新增协议、CPU 或外设系列的生成 harness 已通过验收。 |
 
 ## 环境与代码身份
 

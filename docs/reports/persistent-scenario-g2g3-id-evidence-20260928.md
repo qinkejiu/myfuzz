@@ -2,6 +2,8 @@
 
 日期：2026-09-28。判据采用[实施与验收计划 §16～18](../superpowers/plans/2026-09-27-persistent-multicomponent-fuzz-implementation.md)，阶段判断参见[主报告](persistent-scenario-acceptance-20260927.md)。本账本把“测试通过”“证据包可独立重放”和“尚未证明的泛化范围”分开。`pass` 表示列出的具体断言通过；故障注入的预期拒绝也记为 `pass`，并非 DUT 缺陷。`skip` 只用于未执行或按本地不可执行规则跳过的范围。
 
+**2026-10-04 复核补记：** 本账本下文的 2026-09-28 HEAD、20 包、33 文件与 SHA 是历史身份。当前宿主源码闭包有 34 文件，规范 JSON SHA-256 为 `6acd04d66ed306994f7bd57f8b04e5d39e5dcdd8c95c53ce2e68e3362ccb091b`；固定目录有 25 包，其中 24 包完整回放匹配、1 包物理超时语义前缀匹配。原列 G2 软件、G2 真实 RTL、G3 真实 RTL 批量命令在当前工作树分别重跑 54/54（0.704 秒）、15/15（53.048 秒）、37/37（149.488 秒）通过；输出保存在 `runs/scenario/verification-20261004/{g2-software,g2-real,g3-real}.log`。这些通过结论只适用于下文逐项列出的场景与断言。
+
 ## 环境、身份与实际批量命令
 
 - 工作树：`/home/qinkejiu/myfuzz`；HEAD `3f96d5729d375e4f8e569985bf7860816f83f155`，有未提交实现，因此以证据包内逐文件 SHA 为准。当前 `host_source_identity()` 的规范 JSON SHA-256 为 `d03caf926677befbb6cf68687827e1fbfb1bb3843f45b6cc62a368fe8908a290`，共 33 个 host 文件。
