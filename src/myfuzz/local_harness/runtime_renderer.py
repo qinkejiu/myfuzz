@@ -16,6 +16,7 @@ from .renderer import RenderedLocalHarness, render_local_harness, _sha
 from .runtime_artifact import LocalRuntimeArtifact
 from .source_lock import verify_local_source_lock
 from .axi4_fields import AXI_SHAPE
+from .cva6_axi4_fields import CVA6_AXI_SHAPE
 from .request import LocalHarnessRequestV2
 from .tlul_register_template import register_observe_policy, uart_peer_policy
 from .apb3_register_template import register_observe_policy as apb3_register_observe_policy
@@ -295,6 +296,24 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
         adapters = []
 
+    elif (plan.profile.component_id == 'cva6' and len(endpoints) == 1
+          and functions == {'memory_master'}
+          and endpoints[0].protocol == ('axi4', '1')):
+        c = plan.profile.capabilities
+        if tuple(c.get(key) for key in ('address_width', 'data_width',
+                'id_width', 'user_width', 'byte_enable', 'error_response')) != (
+                64, 64, 4, 64, True, True):
+            raise ValueError('runtime-cva6-axi4-capabilities')
+        request_port = plan.facts.port('noc_req_o')
+        response_port = plan.facts.port('noc_resp_i')
+        if (plan.facts.selection != 'all' or len(plan.facts.ports) != 13
+                or request_port is None or (request_port.direction, request_port.width) != ('output', 470)
+                or response_port is None or (response_port.direction, response_port.width) != ('input', 210)):
+            raise ValueError('runtime-cva6-physical-top')
+        kind = 'cva6_packed_axi4_cpu'
+        boot = _obi_boot_contract(plan.profile.cpu, 64, endpoints)
+        adapters = []
+
     elif (len(endpoints) == 1 and functions == {'mmio_slave'}
           and endpoints[0].protocol == ('axi4-lite', '1')):
         kind = 'axi4_lite_uart'
@@ -447,7 +466,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                 kind == 'tlul_spi_device' and row['endpoint_id'] == 'spi_device.interrupts'
                 and row['direction'] == 'output' and row['width'] == 8 or
                 kind == 'tlul_spi_device' and row['endpoint_id'] == 'spi_device.pins' or
-                kind == 'obi_cpu' and row['direction'] == 'input' and row['width'] == 1
+                kind in ('obi_cpu', 'cva6_packed_axi4_cpu')
+                and row['direction'] == 'input' and row['width'] == 1
                 and row['endpoint_id'] == plan.profile.cpu.irq_entry_endpoint
                 and row['role'] == plan.profile.cpu.irq_entry_role):
             raise ValueError('runtime-functional-ownership-unsupported')
@@ -507,6 +527,15 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                                     role=role, channel=prefix))
                 statements.append(f'assign {name} = {wires[role]};' if direction == 'output'
                                   else f'assign {wires[role]} = {name};')
+    elif kind == 'cva6_packed_axi4_cpu':
+        wires = _shape(endpoints[0], CVA6_AXI_SHAPE, abi)
+        for role, (direction, width) in CVA6_AXI_SHAPE.items():
+            name = 'axi_' + role
+            ports.append((name, direction, width))
+            backend.append(dict(name=name, direction=direction, width=width,
+                                role=role, channel='axi'))
+            statements.append(f'assign {name} = {wires[role]};' if direction == 'output'
+                              else f'assign {wires[role]} = {name};')
     elif kind == 'native_memory_cpu':
         wires = _shape(endpoints[0], _NATIVE, abi)
         beat_ports('m', True)
