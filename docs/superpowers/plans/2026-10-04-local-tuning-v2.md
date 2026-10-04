@@ -4,7 +4,7 @@
 
 **Goal:** Parse a strictly versioned local request and validate declarative tuning against existing bound source/profile facts without claiming runtime integration.
 
-**Architecture:** Keep the v1 dataclass and document unchanged. Add a separate frozen LocalHarnessRequestV2 and immutable LocalHarnessTuning records. A pure validator rebinds the supplied profile to the supplied physical facts, checks exact binding equality, and checks timing, physical input constants, IRQ semantics and environment source ownership. Unavailable template, boot and peer contracts fail closed. Validation produces a canonical document/hash that incorporates the binding and explicit ownership context, but no generated plan/session consumes it yet.
+**Architecture:** Keep the v1 dataclass and document unchanged. Add a separate frozen LocalHarnessRequestV2 and immutable LocalHarnessTuning records. A pure validator rebinds the supplied profile to the supplied physical facts, checks exact binding equality, and checks timing, unavailable optional-signal contracts, IRQ semantics and environment source ownership. Unavailable template, boot and peer contracts fail closed. Validation produces a canonical document/hash that incorporates the binding and explicit ownership context, but no generated plan/session consumes it yet.
 
 **Tech Stack:** Python 3.12, dataclasses, unittest, existing bind_profile.
 
@@ -23,7 +23,7 @@ V2 contains exactly the six v1 fields, schema_version=local_harness.v2, and tuni
 Tuning permits only endpoint_policies, optional_signals, reset_policies, irq_delivery, boot, environment_bindings, peer_bindings. All lists normalize by semantic identity; absent lists become empty. Boot is absent or one record.
 
 - endpoint_policies rows: endpoint_id/template_id/template_version/variant_id/max_outstanding (bounded 1..1024); no template capability registry exists yet, so nonempty rows refuse validation.
-- optional_signals rows: endpoint_id/role/policy/value?; policy drive_constant requires unsigned integer value; template_default has no value and refuses validation until a template exists. Constant tuning must equal an existing profile-declared physical constant for the exact bit segment.
+- optional_signals rows: endpoint_id/role/policy/value?; policy drive_constant requires unsigned integer value; template_default has no value and refuses validation until a template exists. Both policies refuse validation in this phase: the existing disposition model has no legal bound-role-to-constant override contract.
 - reset_policies rows: domain/assert_ticks/release_ticks, bounded 1..1024 / 0..1024; domain must exist in bound resets.
 - irq_delivery rows: endpoint_id/role/delivery; delivery follow_level or capture_pulse_event, agreeing with the profile level/pulse trigger and a bound output.
 - boot: endpoint_id/entry_address (unsigned integer); refused until a boot template capability contract exists.
@@ -55,8 +55,8 @@ self.assertEqual(load_local_harness_request(request.document()), request)
 
 **Interfaces:** validate_local_harness_tuning(tuning, *, profile, binding, registered_source_ids=None, bound_inputs=None) -> ValidatedLocalHarnessTuning. Context keys use (endpoint_id, role) tuples. Rebind profile against binding.facts before accepting it. Return identity_sha256 and document with explicit parsed_only/no runtime effect status.
 
-- [ ] Construct a tiny in-memory profile with scalar reset, external pin input, declared constant configuration input and level/pulse IRQ outputs; bind against matching PhysicalFacts. Assert successful timing, exact constant, matching IRQ and unbound registered environment tuning.
-- [ ] Assert wrong direction/role, constant overflow or nondeclared value, unknown reset, incompatible IRQ, absent pulse width, stale binding, missing ownership context, unknown source, bound input and unavailable template/boot/peer contracts refuse.
+- [ ] Construct a tiny in-memory profile with scalar reset, external pin input, unbound physical constant input and level/pulse IRQ outputs; bind against matching PhysicalFacts. Assert successful timing, matching IRQ and unbound registered environment tuning.
+- [ ] Assert wrong direction/role, unavailable constant override, unknown reset, incompatible IRQ, absent pulse width, stale binding, missing ownership context, unknown source, bound input and unavailable template/boot/peer contracts refuse.
 - [ ] Run validator tests before implementation; observe missing validator failure.
 - [ ] Implement validation with `bind_profile(profile, binding.facts)` equality, profile interrupts and port actions; no DUT/runtime generation.
 - [ ] Run request/tuning tests and relevant local_harness regressions, preserving planner mutation tests. Real regression fixtures can use existing source checkouts via module ROOT overrides, never source symlinks.
@@ -67,3 +67,5 @@ self.assertEqual(load_local_harness_request(request.document()), request)
 
 - [ ] Record exact test counts, command context, accepted/rejected fields, canonical identity evidence and lack of runtime integration.
 - [ ] Run `git diff --check`, verify prohibited files unchanged, commit with `git commit -m 'feat: parse and validate declarative local harness v2 tuning'`; do not push.
+
+Approved scope refinement during implementation: build_port_dispositions cannot render configuration endpoint overrides and refuses an endpoint plus a same-bit constant action. Keep existing ownership rules intact; optional_signals parses typed values but refuses validation until a template and ownership/render contract exist. Environment validation includes the existing complete bit-disposition gate.
