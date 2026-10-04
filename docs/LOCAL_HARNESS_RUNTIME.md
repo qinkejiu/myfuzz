@@ -23,7 +23,8 @@
 | OpenTitan RV Timer，TL-UL | 固定上游源码、25/25 物理端口与本地标量 wrapper；真实计数、比较 IRQ、停止后的 INTR_STATE W1C 与 fresh replay | Timer RTL operational；CPU 中断入口未验收 |
 | OpenTitan SPI Host，TL-UL | 固定上游源码、29/29 物理端口；受限 4 字节 mode-0 环境源经真实 32 个采样边沿进入 RXDATA，两种 Genome 源值及 fresh replay 一致 | SPI Host RTL operational；CPU MMIO 数据链已验收，CPU IRQ/ISR 尚未验收 |
 | OpenTitan I2C，TL-UL | 固定上游源码、33/33 物理端口；真实开漏 ACK/单字节 `0x5A`、RDATA、原生 IRQ 和 fresh replay | I2C RTL operational；从地址 `0x50`，无 clock stretching |
-| OpenTitan UART，TL-UL | 固定上游源码、37/37 物理端口；真实 TX `0x41`、RX `0x5A/0xA6`、原生 IRQ 与 fresh replay | UART RTL operational；CPU 数据链尚未验收 |
+| OpenTitan UART，TL-UL | 固定上游源码、37/37 物理端口；真实 TX `0x41`、RX `0x5A/0xA6`、原生 IRQ 与 fresh replay | UART RTL operational；CPU 数据闭环已验收，CPU IRQ/ISR 尚未验收 |
+| OpenTitan SPI Device，TL-UL | 固定上游源码、35/35 物理端口；专用 session 验收 mode-0 单线 JEDEC 应答、CSR 改写、上传 IRQ/FIFO/SRAM 与 fresh replay；通用 v2 模板另验收静态引脚下寄存器事务 | 串行行为只覆盖当前单线场景；CPU 跨组件链尚未验收 |
 | CVE2 ↔ GPIO A ↔ GPIO B | 同一 testcase 两个方向各两轮，4 次真实 GPIO IRQ 和 CPU ISR，RAM 历史为 6、8、11、15；有预算证据包从初态重放一致 | 双向多组件链通过 |
 | CVE2 → PULP SPI → CVE2 RAM | CPU 真实 APB 配置、SPI 外部源真实接收、CPU 读取 RXFIFO 并写入持久 RAM；改变串行源会改变 RAM 与 trace，预算化证据 fresh replay 一致 | 数据闭环通过；CPU IRQ 固定为 0 |
 | CVE2 → OpenTitan GPIO → CVE2 RAM | CPU 真实配置 TL-UL GPIO；外部 pin 在真实输出触发后变化，GPIO RTL 产生中断状态，CPU 真实回读并写 RAM；fresh replay 一致 | 双向数据闭环通过；CPU IRQ 固定为 0 |
@@ -34,8 +35,9 @@
 | CVE2 → OpenTitan RV Timer → CVE2 RAM | CPU 真实配置 TL-UL Timer、读取真实中断状态和计数并写 RAM；预算化证据 fresh replay 一致 | 数据闭环通过；CPU IRQ 当前固定为 0 |
 | CVE2 → OpenTitan I2C → CVE2 RAM | CPU 真实配置 I2C 时序和 FDATA；固定地址从设备经开漏引脚返回 `0x5A`，CPU 读真实 RDATA 后写持久 RAM，fresh replay 一致 | 数据闭环通过；CPU 轮询 IRQ 状态，IRQ 输入固定为 0 |
 | CVE2 → OpenTitan SPI Host → CVE2 RAM | CPU 真实 MMIO 配置 CONTROL/CONFIGOPTS/COMMAND；两种 4 字节外部源经 32 个真实 SCK 采样边沿改变 RXDATA，CPU 读回后写持久 RAM，fresh replay 一致 | 数据闭环通过；CPU IRQ 固定为 0 |
+| CVE2 ↔ OpenTitan UART ↔ CVE2 RAM | CPU 真实 MMIO 写 CTRL/WDATA，UART TX 引脚解码 `0x41`；两种 Genome RX 字节经 UART 真实 RDATA 被 CPU 存入 RAM，fresh replay 一致 | 双向数据闭环通过；CPU IRQ 固定为 0 |
 
-协议模板注册表列出 CPU OBI、AXI4、AXI4-Lite、Wishbone classic、Pico native Ready/Valid，以及 OpenTitan TL-UL、PULP APB3、ZipCPU Wishbone 和 AXI4-Lite 目标端变体。上表的五种 CPU 协议、PULP APB3 GPIO/SPI/Timer/I2C、OpenTitan TL-UL GPIO/RV Timer/SPI Host/I2C/UART、ZipCPU Wishbone Timer/UART 与 AXI4-Lite UART 实例有真实 RTL 运行证据。`local_harness.v2` 另提供同一个 `tlul_register_observe` 模板：RV Timer 与 GPIO 只更换 profile、endpoint 和逐字段 `fixed_inputs`，真实寄存器/输出与 fresh replay 均通过。该通用模板目前只执行寄存器事务和观察引脚，不驱动动态串行 peer。
+协议模板注册表列出 CPU OBI、AXI4、AXI4-Lite、Wishbone classic、Pico native Ready/Valid，以及 OpenTitan TL-UL、PULP APB3、ZipCPU Wishbone 和 AXI4-Lite 目标端变体。上表的五种 CPU 协议、PULP APB3 GPIO/SPI/Timer/I2C、OpenTitan TL-UL GPIO/RV Timer/SPI Host/I2C/UART/SPI Device、ZipCPU Wishbone Timer/UART 与 AXI4-Lite UART 实例有真实 RTL 运行证据。`local_harness.v2` 的同一个 `tlul_register_observe` 模板已用 RV Timer、GPIO、SPI Device 的 profile/endpoint 和逐字段输入声明验收寄存器与输出观察；GPIO 的 `environment_bindings` 还验收动态外部引脚源、真实状态/IRQ 与 fresh replay。该通用模板目前不驱动串行 peer；SPI Device 的 JEDEC/上传验收由专用 session 提供，不能算作通用模板自动生成的串行能力。
 
 ## 生成与启动
 
@@ -97,7 +99,9 @@ MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.te
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_opentitan_spi_host_generated_real -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_local_opentitan_i2c_generated_real tests.integration.test_scenario_cve2_opentitan_i2c_generated_real -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_local_opentitan_uart_generated_real -v
-MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_generic_tlul_register_real -v
+MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_scenario_cve2_opentitan_uart_generated_real -v
+MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_generic_tlul_register_real tests.local_harness.test_generic_tlul_dynamic_source_real -v
+MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_local_opentitan_spi_device_generated_real -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_scenario_cve2_opentitan_spi_host_generated_real -v
 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_axil_uart_runtime -v
 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_wishbone_cpu -q
@@ -105,8 +109,8 @@ PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_axi4_cpu -q
 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_ibex_obi_runtime -q
 ```
 
-2026-10-04 回归结果：合入 I2C IRQ 端口通用化之前，本地 harness 198 项中 197 通过、1 项因真实 RTL 环境门禁跳过；场景回归 367/367；OpenTitan RV Timer 独立及 CPU 数据链真实 RTL 测试 3/3。I2C IRQ 端口通用化后的 driver 专项 6/6 通过，后续增量适配应重新记录全量计数。Pico 原生内存真实测试 2/2、AXI4-Lite 真实测试 2/2、Wishbone 专项 6/6、ZipCPU AXI4 突发及 schema 2/2、PULP SPI 预算化证据测试均通过。CVE2 双 GPIO 双向真实场景此前 2/2，预算化证据 fresh replay 一致。若本地缺少某 CPU 的可执行固定源码，只跳过该 CPU 的真实验收并记录 `skipped_unavailable`，不让其他 CPU/IP 或协议等级自动通过。
+2026-10-04 回归结果：通用 TL-UL 动态环境源与 SPI Device 合入前，本地 harness 全量 208 项运行、6 项按真实 RTL 环境门禁跳过，无失败；合入后场景回归 367/367。SPI Device 专用真实用例 3/3、通用 TL-UL 动态/固定输入真实及合同用例 9/9 在主线通过；各自能力边界见 `docs/reports/opentitan-spi-device-generated-20261004.md`。Pico 原生内存真实测试 2/2、AXI4-Lite 真实测试 2/2、Wishbone 专项 6/6、ZipCPU AXI4 突发及 schema 2/2、PULP SPI 预算化证据测试均通过。CVE2 双 GPIO 双向真实场景此前 2/2，预算化证据 fresh replay 一致。若本地缺少某 CPU 的可执行固定源码，只跳过该 CPU 的真实验收并记录 `skipped_unavailable`，不让其他 CPU/IP 或协议等级自动通过。
 
 ## 尚未满足的验收
 
-五类初始 CPU 协议已有至少一个固定 RTL 实例的生成式运行证据；Ibex 与 CVE2 是两种真实 OBI CPU，证明该特定 OBI 形态可复用同一生成器。双向 CPU/GPIO 首阶段具备连续状态、IRQ、预算化证据和 replay；CPU→PULP SPI→CPU RAM、CPU→OpenTitan GPIO→CPU RAM、CPU→OpenTitan RV Timer→CPU RAM、CPU→OpenTitan I2C→CPU RAM、CPU→OpenTitan SPI Host→CPU RAM、CPU→ZipCPU AXI4-Lite UART→CPU RAM、CPU→PULP Timer→CPU RAM、CPU→ZipCPU Timer→CPU RAM 与 CPU→PULP I2C→CPU RAM 数据闭环已通过。I2C 原生 IRQ 已真实转交 CPU 输入，CPU 程序仍轮询状态。OpenTitan GPIO、RV Timer、SPI Host、I2C 与 UART 已有生成式 TL-UL 真实运行与 replay；SPI Device 及更多串行模式仍待验收。OpenTitan I2C 的 CPU 程序轮询中断状态，CPU IRQ 固定为 0。Pico 原生及 AXI4-Lite CPU 接口目前只能测试 RAM/ROM；Wishbone CPU 已服务 RAM 与 GPIO MMIO，但无 IRQ；ZipCPU AXI4 CPU 当前只服务 RAM。PULP SPI 只验收 CLKDIV=1 单次传输，CLKDIV=0 和 CPU 中断链均未验收。ZipCPU ziptimer 的 IRQ 是单周期脉冲，当前 CPU 链未绑定 CPU IRQ。ZipCPU UART 当前固定波特和单帧 8N1，RX 字节支持 DependencyGraph 引导的 Genome 变异，并已验收真实 CPU 双向数据链；CPU IRQ 尚未绑定。PULP I2C 固定从地址 `0x42`，peer 响应支持单字节 Genome 变异，尚不支持多字节或多个从设备。新 CPU/IP 仍需固定源码、完整端口 profile、已支持的协议形态与必要的声明式微调；通用 TL-UL 寄存器模板已能复用 GPIO/Timer，动态引脚源、串行 peer、跨组件绑定仍需分别验收，不能推断任意同协议 RTL 均可直接运行。
+五类初始 CPU 协议已有至少一个固定 RTL 实例的生成式运行证据；Ibex 与 CVE2 是两种真实 OBI CPU，证明该特定 OBI 形态可复用同一生成器。AXI4 的当前固定 RTL 实例是 ZipCPU，原设计计划中的 CVA6 未达到生成式运行验收。双向 CPU/GPIO 首阶段具备连续状态、IRQ、预算化证据和 replay；CPU→PULP SPI→CPU RAM、CPU→OpenTitan GPIO→CPU RAM、CPU→OpenTitan RV Timer→CPU RAM、CPU→OpenTitan I2C→CPU RAM、CPU→OpenTitan SPI Host→CPU RAM、CPU→ZipCPU AXI4-Lite UART→CPU RAM、CPU→PULP Timer→CPU RAM、CPU→ZipCPU Timer→CPU RAM 与 CPU→PULP I2C→CPU RAM 数据闭环，以及 CVE2↔OpenTitan UART↔CPU RAM 双向数据链已通过。I2C 原生 IRQ 已真实转交 CPU 输入，CPU 程序仍轮询状态。OpenTitan GPIO、RV Timer、SPI Host、I2C、UART 与 SPI Device 已有生成式 TL-UL 真实运行与 replay；SPI Device 仅验收当前单线 mode-0 串行子集，其 CPU 多组件链与更多串行模式尚未验收。OpenTitan I2C 的 CPU 程序轮询中断状态，CPU IRQ 固定为 0。Pico 原生及 AXI4-Lite CPU 接口目前只能测试 RAM/ROM；Wishbone CPU 已服务 RAM 与 GPIO MMIO，但无 IRQ；ZipCPU AXI4 CPU 当前只服务 RAM。PULP SPI 只验收 CLKDIV=1 单次传输，CLKDIV=0 和 CPU 中断链均未验收。ZipCPU ziptimer 的 IRQ 是单周期脉冲，当前 CPU 链未绑定 CPU IRQ。ZipCPU UART 和 OpenTitan UART 的 CPU 双向数据链已验收，但 CPU IRQ 尚未绑定。PULP I2C 固定从地址 `0x42`，peer 响应支持单字节 Genome 变异，尚不支持多字节或多个从设备。新 CPU/IP 仍需固定源码、完整端口 profile、已支持的协议形态与必要的声明式微调；通用 TL-UL 寄存器模板已能复用 GPIO/Timer/SPI Device，并有动态 GPIO 引脚源证据；串行 peer、跨组件绑定仍需分别验收，不能推断任意同协议 RTL 均可直接运行。
