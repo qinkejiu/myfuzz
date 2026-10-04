@@ -51,6 +51,8 @@
 4. `build_local_harness` 重建并逐字节核对上述产物、源码闭包、头文件及构建身份，再执行有界 `verilator --cc --exe --build -j 1`。缓存键由实际构建输入决定。
 5. `GeneratedLocalSession.prepare_local()` 在 testcase 计时前构建；`begin_case()` 启动一个进程并核对 READY 的产物摘要和实测 reset tick；每个命令有执行 ID、单调序列及有界回复期限。一个 testcase 的多个命令共用该进程。只有显式 reset 或 testcase 结束才重新初始化 RTL。
 
+对于 v2 寄存器观察 artifact，`create_generated_register_session` 依据 artifact 类型创建 TL-UL、APB3 或 Wishbone 本地 session；`compile_generated_register_ownership` 从其固定、环境源与绑定输入记录编译多个组件的逐位 OwnershipMap。编译时拒绝重复字段、无身份的源和未生成的 artifact。Bound Input 后续由 ScenarioRunner 要求连接真实输出，无法改作随机源。串行 peer 使用抽象帧源，其输入归属仍按 peer 的场景合同提供；该通用编译入口目前只覆盖物理寄存器观察输入。
+
 也可将 `local_harness.v1` 请求保存为 JSON，直接生成可审阅文件：
 
 ```bash

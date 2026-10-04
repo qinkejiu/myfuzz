@@ -22,4 +22,6 @@
 
 生成器可处理已声明的协议形态和局部变体，尚不能凭协议名称无检查地接入任意同协议 RTL。ZipCPU UART 和 OpenTitan UART RX 已支持 DependencyGraph 引导的 Genome 变异；`0x35→0xA6` 两种源值经真实串行接收、CPU MMIO 回读和 RAM 写入，均匹配 fresh replay。CPU 写入 `0x41` 也经真实 UART TX 引脚解码。PULP I2C 的 `peer_response` 也由 8 位 Genome 源选择；`0x5A` 和 `0xA6` 分别经真实串行传输、CPU MMIO 回读并存入 RAM，两份证据可重放。I2C 仍限固定地址 `0x42` 的单字节响应。OpenTitan SPI Device 的本地寄存器、单线串行和 CPU 轮询读取真实上传 FIFO/SRAM 的多组件链已验收；更多串行模式及 CPU 中断处理程序仍需分别验收。OpenTitan I2C 的 CPU 程序轮询 IRQ 状态，CPU IRQ 固定为 0。
 
+v2 寄存器观察 artifact 现可按协议类型自动创建 TL-UL、APB3 或 Wishbone session，并从多个 artifact 的物理输入声明编译 OwnershipMap。固定值、环境源、Bound Input 各有唯一归属；绑定值仍需 ScenarioRunner 核对真实输出路由。该入口的合同用例 3/3 通过；串行抽象帧和 CPU 协议 session 的自动场景装配尚未纳入此入口。
+
 用户特别关注的三个 CPU 中，Ibex 已有生成式 OBI 真实运行与回放；CVA6 的固定源码与 232 文件 Verilator 读取闭包已通过 elaboration 和全库源码锁校验，现可从经验证 filelist 展开生成单个打包 64 位/ID4 AXI4 顶层 wrapper 与 runtime top，顶层 lint 无错误。CVA6 执行驱动及真实取指/回放尚未验收，不能列为 RTL operational，详见 `docs/reports/cva6-generated-axi4-feasibility-20261005.md` 和 `docs/superpowers/plans/2026-10-05-cva6-packed-axi4-local-runtime.md`；BOOM 当前只有接口描述候选，缺少已验收的完整本地生成式运行路径，按不可执行 CPU 跳过真实验收并记录缺口。五类协议的 AXI4 首个真实生成式实例使用 ZipCPU，和早期设计计划中的 CVA6 不同。
