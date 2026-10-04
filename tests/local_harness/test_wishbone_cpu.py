@@ -38,6 +38,30 @@ def gpio_artifact():
 
 
 class WishboneCpuAcceptance(unittest.TestCase):
+    def test_generated_wishbone_evidence_has_driver_derived_bounds(self):
+        from myfuzz.local_harness.wishbone_cpu_session import GeneratedWishboneCpuSession
+        from myfuzz.local_harness.gpio_session import GeneratedPulpGpioSession
+        from myfuzz.scenario.contracts import ResourceBudget
+        from myfuzz.scenario.evidence import _evidence_record_bound, _final_state_growth_bound
+        from myfuzz.scenario.genome import ScenarioGenome
+        from myfuzz.scenario.ownership import compile_ownership
+        from myfuzz.scenario.runner import ScenarioRunner
+        artifact = cpu_artifact()
+        memory = PersistentMemory(regions=(MemoryRegion('ram', 0, 4096),),
+                                  initialization_seed=3, max_initialized_bytes=4096)
+        gpio = GeneratedPulpGpioSession(gpio_artifact(), base_dir=ROOT,
+            cache_dir=ROOT/'unused')
+        cpu = GeneratedWishboneCpuSession(artifact, base_dir=ROOT,
+            cache_dir=ROOT/'unused', memory=memory,
+            router=DataflowRouter((DeviceWindow('gpio',0x40000000,4096,gpio),)))
+        runner = ScenarioRunner(sessions={'cpu': cpu,'gpio':gpio},
+            ownership=compile_ownership((),()), bindings=())
+        genome = ScenarioGenome(testcase_id='wishbone-budget',direction='CPU_TO_IP',
+            path_id='memory',schedule_order=('cpu','gpio'),max_steps=1,actions=())
+        self.assertGreater(_final_state_growth_bound(genome, runner, ResourceBudget()), 0)
+        self.assertGreater(_evidence_record_bound(genome, runner, ResourceBudget()),
+            4 * artifact.runtime_document['driver_limits']['reply_reservation_bytes'])
+
     def test_formal_identity_and_published_manifest_schema(self):
         import jsonschema
         from myfuzz.scenario.contracts import ScenarioManifest, ResourceBudget, _verify_generated_session
