@@ -29,6 +29,10 @@ _WISHBONE = {'cyc': ('output', 1), 'stb': ('output', 1),
              'we': ('output', 1), 'adr': ('output', 32),
              'dat_w': ('output', 32), 'sel': ('output', 4),
              'ack': ('input', 1), 'dat_r': ('input', 32)}
+_WISHBONE_TIMER = {'cyc': ('input', 1), 'stb': ('input', 1),
+                   'we': ('input', 1), 'dat_w': ('input', 32), 'sel': ('input', 4),
+                   'ack': ('output', 1), 'stall': ('output', 1),
+                   'dat_r': ('output', 32)}
 _AXI_LITE = {
     'awvalid': ('output', 1), 'awready': ('input', 1), 'awaddr': ('output', 32), 'awprot': ('output', 3),
     'wvalid': ('output', 1), 'wready': ('input', 1), 'wdata': ('output', 32), 'wstrb': ('output', 4),
@@ -188,6 +192,35 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         kind = 'wishbone_cpu'
         boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
         adapters = []
+    elif (len(endpoints) == 1 and functions == {'mmio_slave'}
+          and endpoints[0].protocol == ('wishbone', 'classic')
+          and plan.profile.capabilities.get('wishbone_flavour') == 'registered-ack-cyc-ignored'
+          and plan.profile.capabilities.get('has_address_port') is False):
+        c = plan.profile.capabilities
+        if tuple(c.get(k) for k in ('data_width', 'byte_enable', 'partial_write',
+                                   'has_error', 'has_address_port', 'address_units',
+                                   'sel_implemented', 'wishbone_flavour',
+                                   'ack_requires_cyc', 'max_outstanding')) != (
+                32, False, False, False, False, 'word', False,
+                'registered-ack-cyc-ignored', False, 1):
+            raise ValueError('runtime-wishbone-timer-capabilities')
+        if (plan.facts.selection != 'all' or len(plan.facts.ports) != 12
+                or plan.profile.address is None or plan.profile.address.window_size != 4):
+            raise ValueError('runtime-wishbone-timer-window')
+        if any(e.function in ('external_pins', 'interrupt_source')
+               for e in plan.binding.endpoints):
+            raise ValueError('runtime-wishbone-timer-extra-endpoint')
+        ce = [row for row in plan.dispositions if row.port == 'i_ce']
+        irq = [row for row in plan.dispositions if row.port == 'o_int']
+        if (len(ce) != 1 or ce[0].disposition != 'constant' or ce[0].value != 1
+                or ce[0].direction != 'input' or ce[0].bit_lo != 0 or ce[0].bit_hi != 0
+                or len(irq) != 1 or irq[0].disposition != 'observe'
+                or irq[0].direction != 'output' or irq[0].bit_lo != 0 or irq[0].bit_hi != 0
+                or plan.profile.interrupts):
+            raise ValueError('runtime-wishbone-timer-clock-enable-irq-policy')
+        kind = 'wishbone_timer'
+        boot = None
+        adapters = ['src/myfuzz/protocols/rtl/beat_to_wishbone.sv']
     elif len(endpoints) == 1 and functions <= {'memory_master', 'processor_memory_master'} and endpoints[0].protocol == ('axi4-lite', '1'):
         from .template_contracts import select_template_contract
         selected = select_template_contract(endpoints[0], plan.profile.capabilities,
@@ -349,6 +382,29 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                              f'    .ADDRESS_WIDTH(32), .DATA_WIDTH(32), .READ_ONLY({int(instruction)}),\n'
                              f'    .HAS_BE({int(not instruction)}), .HAS_ERROR(1)\n'
                              f'  ) u_adapter_{prefix} (\n    ' + ',\n    '.join(f'.{p}({v})' for p,v in pairs.items()) + '\n  );')
+    elif kind == 'wishbone_timer':
+        wires = _shape(endpoints[0], _WISHBONE_TIMER, abi)
+        beat_ports('timer', False)
+        declared_wait = plan.profile.capabilities['max_wait_cycles']
+        if type(declared_wait) is not int or declared_wait < 1:
+            raise ValueError('runtime-wishbone-timer-wait-bound')
+        wait = min(declared_wait, plan.request.max_wait_cycles)
+        locals_.extend(['logic unused_request_accepted;', 'logic unused_completion;',
+                        'logic unused_adr;'])
+        pairs = dict(clk='clk', reset='reset', req_valid='timer_req_valid',
+                     req_ready='timer_req_ready', write='timer_req_write',
+                     addr='timer_req_addr', wdata='timer_req_wdata', be='timer_req_be',
+                     rsp_valid='timer_rsp_valid', rsp_ready='timer_rsp_ready',
+                     rdata='timer_rsp_rdata', error='timer_rsp_error',
+                     request_accepted='unused_request_accepted',
+                     completion='unused_completion', adr='unused_adr', err="1'b0",
+                     **wires)
+        instances.append('beat_to_wishbone #(\n'
+                         '    .ADDRESS_WIDTH(32), .DATA_WIDTH(32), .WB_FLAVOUR(2),\n'
+                         '    .TARGET_ADDRESS_WIDTH(0), .ADDRESS_UNITS(1),\n'
+                         '    .SUPPORTS_PARTIAL_WRITE(0), .HAS_ERR(0),\n'
+                         f'    .MAX_WAIT_CYCLES({wait}), .WINDOW_BASE(32\'d0), .WINDOW_SIZE(4)\n'
+                         '  ) u_adapter_timer (\n    '+',\n    '.join(f'.{p}({v})' for p,v in pairs.items())+'\n  );')
     elif kind == 'tlul_gpio':
         wires = _shape(endpoints[0], _TLUL, abi)
         beat_ports('gpio', False)
@@ -399,7 +455,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                     module_name=module, plan=plan.document(), structural_abi=copy.deepcopy(structural.abi_document),
                     structural_build=copy.deepcopy(structural.build_document), source_verification=copy.deepcopy(verified),
                     boot_contract=boot,
-                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'tlul_gpio') else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
+                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'tlul_gpio', 'wishbone_timer') else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
                     runtime_sv_sha256=hashlib.sha256(runtime.encode()).hexdigest(), cpp_sha256=hashlib.sha256(b'').hexdigest(),
                     adapted_endpoint_ids=sorted(adapted), physical_exports=exports, backend_ports=backend,
                     runtime_ports=[dict(name=n,direction=d,width=w) for n,d,w in ports],

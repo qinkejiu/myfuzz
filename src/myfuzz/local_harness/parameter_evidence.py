@@ -39,19 +39,28 @@ def parameter_evidence(top: str, names: tuple[str, ...], sources: tuple[tuple[st
         # unconditional declarations before the first directive are admitted.
         header = header.split('`', 1)[0].rstrip().rstrip(',')
     declarations = {}
+    inherited_type: str | None = None
     for fragment in header.split(','):
         if re.match(r'\s*localparam\b', fragment):
+            inherited_type = None
             continue
         declaration = re.fullmatch(r'\s*parameter\s+(?:(.*?)\s+)?(' + _IDENTIFIER + r')\s*=\s*([^,]+?)\s*', fragment, re.S)
-        if not declaration:
-            # Unselected parameter forms need no wrapper override. A selected
-            # name inside one still fails rather than receiving guessed type.
-            if any(re.search(r'\b' + re.escape(name) + r'\b', fragment) for name in names):
-                raise LocalPortRenderError('parameter-declaration-unsupported-or-duplicate')
-            continue
-        if declaration[2] in declarations:
+        if declaration:
+            name, type_name = declaration[2], declaration[1] or ''
+            inherited_type = type_name
+        else:
+            continuation = re.fullmatch(r'\s*(' + _IDENTIFIER + r')\s*=\s*([^,]+?)\s*', fragment, re.S)
+            if continuation is None or inherited_type is None:
+                # Unselected parameter forms need no wrapper override. A selected
+                # name inside one still fails rather than receiving guessed type.
+                if any(re.search(r'\b' + re.escape(selected) + r'\b', fragment) for selected in names):
+                    raise LocalPortRenderError('parameter-declaration-unsupported-or-duplicate')
+                inherited_type = None
+                continue
+            name, type_name = continuation[1], inherited_type
+        if name in declarations:
             raise LocalPortRenderError('parameter-declaration-unsupported-or-duplicate')
-        declarations[declaration[2]] = (declaration[1] or '', ' '.join(fragment.split()))
+        declarations[name] = (type_name, ' '.join(fragment.split()))
     rows = []
     for name in sorted(names):
         if name not in declarations:

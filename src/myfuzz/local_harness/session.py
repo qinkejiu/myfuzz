@@ -28,6 +28,8 @@ _OPERATIONS = {
                  'ACCESS_GPIO': (0xffffffff, 1, 4092, 0xffffffff, 15)},
     'tlul_gpio': {'STEP_TLUL_GPIO': (0xffffffff, 1),
                   'ACCESS_TLUL_GPIO': (0xffffffff, 1, 1, 124, 0xffffffff, 15)},
+    'wishbone_timer': {'STEP_WB_TIMER': (),
+                       'ACCESS_WB_TIMER': (1, 0, 0xffffffff, 15)},
     'apb_spi': {'STEP_SPI': (1,), 'ACCESS_SPI': (1, 4092, 0xffffffff, 15),
                 'SOURCE_SPI': (3, 0xffffffff, 32)},
     'apb_timer': {'STEP_TIMER': (1,), 'ACCESS_TIMER': (1, 4092, 0xffffffff, 15)},
@@ -154,8 +156,9 @@ class GeneratedLocalSession:
                 or (operation == 'SOURCE_SPI' and fields[2] == 0)):
             raise ValueError('invalid generated driver command')
         sequence = self._sequence + 1
-        line = (f'CMD {self._execution} {sequence:x} {operation} '
-                + ' '.join(f'{value:x}' for value in fields) + '\n')
+        line = (f'CMD {self._execution} {sequence:x} {operation}'
+                + ('' if not fields else ' ' + ' '.join(f'{value:x}' for value in fields))
+                + '\n')
         deadline = time.monotonic() + self.command_timeout_seconds
         outer = _deadline.get()
         if outer is not None:

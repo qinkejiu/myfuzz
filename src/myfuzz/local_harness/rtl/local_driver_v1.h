@@ -139,6 +139,8 @@ inline ParseResult parse_command(const std::string &line) {
   else if (tokens[3] == "ACCESS_GPIO") maxima = {word, 1, 4092, word, 15};
   else if (tokens[3] == "STEP_TLUL_GPIO") maxima = {word, 1};
   else if (tokens[3] == "ACCESS_TLUL_GPIO") maxima = {word, 1, 1, 124, word, 15};
+  else if (tokens[3] == "STEP_WB_TIMER") maxima = {};
+  else if (tokens[3] == "ACCESS_WB_TIMER") maxima = {1, 0, word, 15};
   else if (tokens[3] == "STEP_SPI") maxima = {1};
   else if (tokens[3] == "ACCESS_SPI") maxima = {1, 4092, word, 15};
   else if (tokens[3] == "STEP_TIMER") maxima = {1};

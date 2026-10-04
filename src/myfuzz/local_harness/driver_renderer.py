@@ -68,6 +68,14 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             raise ValueError('driver-tlul-irq-field')
         fields['interrupt'] = irq[0]['runtime_name']
         allowed_inputs = {fields['gpio_in'], fields['strap_en']}
+    elif kind == 'wishbone_timer':
+        irq = [row for row in exports if row['physical_port'] == 'o_int'
+               and row['width'] == 1 and row['direction'] == 'output'
+               and row['disposition'] == 'observe']
+        if len(irq) != 1:
+            raise ValueError('driver-timer-native-irq-required')
+        fields['interrupt'] = irq[0]['runtime_name']
+        allowed_inputs = set()
     elif kind == 'apb_spi':
         for role in ('sck', 'mode', *(f'csn{i}' for i in range(4)),
                      *(f'sdo{i}' for i in range(4)), *(f'sdi{i}' for i in range(4))):
@@ -114,13 +122,14 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     backend_items = ',\n'.join('    {' + _literal(row['name']) + ', ' + signal(row, 'name') + '}' for row in backend)
     physical_items = ',\n'.join('    {' + _literal(row['runtime_name']) + ', ' + signal(row) + '}' for row in exports)
     aliases = ''
-    if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'tlul_gpio'):
+    if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'tlul_gpio', 'wishbone_timer'):
         by_name = {row['runtime_name']: row for row in exports}
         aliases = ''.join(f'  values[{_literal(alias)}] = {signal(by_name[name])};\n'
                           for alias, name in fields.items()
                           if (kind in ('apb_gpio', 'tlul_gpio') and alias not in ('gpio_in', 'strap_en'))
-                          or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi')))
-                          or kind == 'apb_timer')
+                          or kind == 'wishbone_timer'
+                          or kind == 'apb_timer'
+                          or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi'))))
 
     max_wait = document['effective_max_wait_cycles']
     max_samples = (1 if kind in ('obi_cpu', 'native_memory_cpu',
@@ -133,8 +142,9 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     maximum_snapshot = dict(backend=maxima_backend, physical=maxima_physical)
     for alias, name in fields.items():
         if ((kind in ('apb_gpio', 'tlul_gpio') and alias not in ('gpio_in', 'strap_en'))
-                or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi')))
-                or kind == 'apb_timer'):
+                or kind == 'wishbone_timer'
+                or kind == 'apb_timer'
+                or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi')))):
             maximum_snapshot[alias] = maxima_physical[name]
     snapshot_size = len(json.dumps(maximum_snapshot, sort_keys=True, separators=(',', ':')))
     # 128 bytes per sample exceeds its numeric tick and object delimiters;
@@ -201,8 +211,10 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         operation_check = 'command.operation != "STEP_CPU"'
     else:
         spi = kind == 'apb_spi'
-        channel = 'spi' if spi else 'timer' if kind == 'apb_timer' else 'gpio'
-        command_channel = 'TLUL_GPIO' if kind == 'tlul_gpio' else channel.upper()
+        timer = kind in ('apb_timer', 'wishbone_timer')
+        channel = 'spi' if spi else 'timer' if timer else 'gpio'
+        command_channel = ('TLUL_GPIO' if kind == 'tlul_gpio' else
+                           'WB_TIMER' if kind == 'wishbone_timer' else channel.upper())
         input_assignment = (f'      dut.{fields["gpio_in"]} = command.fields[0];\n'
                             if kind in ('apb_gpio', 'tlul_gpio') else '')
         if kind == 'tlul_gpio':
