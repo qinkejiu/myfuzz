@@ -20,6 +20,8 @@
 
 ---
 
+**完成证据（2026-10-04）：** 请求解析器提交 `4632640`，事实规划器提交 `e51d30e`，两项均经独立审查。主工作树补齐 profile 文件哈希和实际协议 endpoint 列表后，`PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_request tests.local_harness.test_plan -q` 重跑 14/14 通过。CVE2 与 PULP GPIO 的完整顶层端口分别为 70/17，Ibex 的局部端口选择按设计被拒绝。本阶段仅是事实计划，尚无生成 RTL 或真实运行。
+
 ## File Structure
 
 - Create `src/myfuzz/local_harness/__init__.py`: public parser/planner exports.
@@ -40,7 +42,7 @@
 - Produces: `LocalHarnessRequest` frozen dataclass with fields `profile_path: str`, `instance_id: str`, `reset_assert_ticks: int`, `reset_release_ticks: int`, `max_wait_cycles: int`; `load_local_harness_request(document: Mapping[str, object]) -> LocalHarnessRequest`; `request.document() -> dict[str, object]`.
 - Consumes: `local_harness.v1` object with exactly the schema and five fields above.
 
-- [ ] **Step 1: Write parser tests**
+- [x] **Step 1: Write parser tests**
 
 ```python
 import unittest
@@ -74,11 +76,11 @@ class LocalHarnessRequestTests(unittest.TestCase):
 
 Run: `PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_request -q`. Expected before implementation: import failure.
 
-- [ ] **Step 2: Implement parser with exact validation**
+- [x] **Step 2: Implement parser with exact validation**
 
 Use a frozen dataclass and reject extra/missing keys. `profile_path` must be a relative `configs/.../component_profile.json` path with no empty, `.` or `..` segment and no backslash; `instance_id` must match `[A-Za-z][A-Za-z0-9_]*`. Require `reset_assert_ticks` in 1–1024, `reset_release_ticks` in 0–1024, `max_wait_cycles` in 1–1024, and reject bools. `document()` returns exactly `GOOD`'s six keys, sorted through the caller's canonical JSON layer.
 
-- [ ] **Step 3: Run focused tests and commit**
+- [x] **Step 3: Run focused tests and commit**
 
 ```bash
 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_request -q
@@ -101,7 +103,7 @@ Expected: parser tests pass; only the listed files enter the commit.
 - Consumes: `LocalHarnessRequest`, `load_component_profile`, `elaborate_profile`, `bind_profile`, `build_port_dispositions`.
 - Produces: `plan_local_harness(request: LocalHarnessRequest, *, base_dir: Path) -> LocalHarnessPlan`, with `document() -> dict[str, object]` and immutable `profile`, `facts`, `binding`, `dispositions` references. Plan schema `local_harness_plan.v1`.
 
-- [ ] **Step 1: Write real fact and deterministic plan tests**
+- [x] **Step 1: Write real fact and deterministic plan tests**
 
 ```python
 from pathlib import Path
@@ -144,11 +146,11 @@ class LocalHarnessPlanTests(unittest.TestCase):
 
 Run: `PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_plan -q`. Expected before implementation: import failure.
 
-- [ ] **Step 2: Implement the planner's fail-closed path**
+- [x] **Step 2: Implement the planner's fail-closed path**
 
 Resolve `profile_path` beneath `base_dir/configs` and reject symlink escapes; load profile, elaborate its pinned source, reject `facts.selection != "all"`, bind protocol roles, and call `build_port_dispositions` with the request instance/domain and `profile.port_actions`. Copy each disposition document to the plan, mapping `clock_reset→local_clock_reset`, `processor_adapter/fabric_target→local_protocol`, `interrupt_controller→local_interrupt`, `soc_top` with `external/fuzz→environment_pin` or `observe→observation`, `const→constant`, `peer:<id>→local_peer:<id>`, and a declared unconnected output to `null`; reject any other target. Preserve endpoint ID, role, bit span, direction, evidence and reason. The plan document contains schema, scope, component ID, instance ID, profile path, source revision/content hash, top, request timing, protocol endpoint IDs, and all port records sorted by port/bit. It must contain no generated RTL and no claimed runtime status.
 
-- [ ] **Step 3: Add negative planner tests**
+- [x] **Step 3: Add negative planner tests**
 
 ```python
     def test_rejects_profile_path_outside_configs(self):
@@ -165,7 +167,7 @@ Resolve `profile_path` beneath `base_dir/configs` and reject symlink escapes; lo
 
 The old Ibex profile deliberately uses selected-only top facts; refusal is the correct result for this new Generated path. Execute the focused tests again and require every positive/negative case to pass.
 
-- [ ] **Step 4: Record evidence and commit**
+- [x] **Step 4: Record evidence and commit**
 
 Write the report with the actual plan port counts and hashes for CVE2 and PULP GPIO, exact test command/result, selected-only Ibex rejection, and explicit statement that this is a fact-bound plan only. Then:
 

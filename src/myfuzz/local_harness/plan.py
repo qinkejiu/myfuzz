@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 from pathlib import Path
 
 from myfuzz.composition.component_profile import (
@@ -44,6 +45,7 @@ class LocalHarnessPlan:
     facts: PhysicalFacts
     binding: ProfileBinding
     dispositions: tuple[DispositionEntry, ...]
+    profile_sha256: str
 
     def document(self) -> dict[str, object]:
         ports = []
@@ -57,6 +59,7 @@ class LocalHarnessPlan:
             'component_id': self.profile.component_id,
             'instance_id': self.request.instance_id,
             'profile_path': self.request.profile_path,
+            'profile_sha256': self.profile_sha256,
             'source_revision': self.facts.revision,
             'source_content_hash': self.facts.content_hash,
             'source_files': list(self.facts.files),
@@ -66,7 +69,9 @@ class LocalHarnessPlan:
                 'reset_release_ticks': self.request.reset_release_ticks,
                 'max_wait_cycles': self.request.max_wait_cycles,
             },
-            'protocol_endpoint_ids': sorted(endpoint.endpoint_id for endpoint in self.binding.endpoints),
+            'protocol_endpoint_ids': sorted(
+                endpoint.endpoint_id for endpoint in self.binding.endpoints
+                if endpoint.protocol is not None),
             'ports': ports,
         }
 
@@ -92,4 +97,6 @@ def plan_local_harness(request: LocalHarnessRequest, *, base_dir: Path) -> Local
     )
     for entry in dispositions:
         _local_target(entry)
-    return LocalHarnessPlan(request, profile, facts, binding, dispositions)
+    return LocalHarnessPlan(
+        request, profile, facts, binding, dispositions,
+        hashlib.sha256(profile_path.read_bytes()).hexdigest())

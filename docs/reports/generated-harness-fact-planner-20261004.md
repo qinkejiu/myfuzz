@@ -13,13 +13,15 @@ Both real source elaborations return `PhysicalFacts.selection == "all"`. Every p
 
 CVE2 source revision: `git:d079e8c8e6a08b330940ae123876ba0612bec18d`.
 Source content hash: `sha256:afe5ca029cc2ba2078bb7524475dc8061c32f88bcb91e197ae2861512c00b338`.
-Plan SHA-256: `5bc433bbf437f766b7a7075ab3a7900c01e58405975ce9cffc309a7ab993970e`.
+Profile file SHA-256: `18ef425486107690d2fb92bb80141cbfab4013b05768c8c2a5ee706fe223d7ec`.
+Plan SHA-256: `22ccf552ca300865c0c5f757012eafff124241f6985cfeaf49bd53bd5ad46397`.
 
 PULP GPIO source revision: `git:f82caeb7f7d89427f05e9af5ed31e0675efe0d83`.
 Source content hash: `sha256:bde1f2c536e833582ab80faf74f8e56394aeb2af8cf6528a9452c34daa1da456`.
-Plan SHA-256: `0eee40d651cdd210efcc435b3df8aa15fe1472e81245d3c8a4b2e2abfdb00b07`.
+Profile file SHA-256: `2268967fa909658fbc079fc41112a10bba88e7484909153cbc1a5a1b222a0b56`.
+Plan SHA-256: `95c4294c99effe3abe098937e59a5fe7aa65d19199e8679d3d2f294bb89b0a6a`.
 
-Plan hashes use UTF-8 bytes of `json.dumps(plan.document(), sort_keys=True, separators=(",", ":"))`, without a trailing newline. The document includes the source closure in frontend order, source hashes, timing, endpoint IDs and sorted port records. Repeated CVE2 elaborations produced identical documents.
+Plan hashes use UTF-8 bytes of `json.dumps(plan.document(), sort_keys=True, separators=(",", ":"))`, without a trailing newline. The document includes the source closure in frontend order, source and profile file hashes, timing, actual protocol endpoint IDs and sorted port records. Repeated CVE2 elaborations produced identical documents.
 
 Validation command:
 

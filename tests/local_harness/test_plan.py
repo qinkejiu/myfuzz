@@ -1,4 +1,5 @@
 from dataclasses import replace
+import hashlib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -31,6 +32,12 @@ class LocalHarnessPlanTests(unittest.TestCase):
         self.assertEqual(self.cpu.facts.selection, 'all')
         self.assertEqual(self.cpu.profile.component_id, 'cv32e20')
         self.assertEqual(self.cpu.document()['scope'], 'single_component')
+        self.assertEqual(
+            self.cpu.document()['profile_sha256'],
+            hashlib.sha256((ROOT / self.cpu_request.profile_path).read_bytes()).hexdigest())
+        self.assertEqual(
+            self.cpu.document()['protocol_endpoint_ids'],
+            ['processor.data', 'processor.instruction'])
         targets = {row['target'] for row in self.cpu.document()['ports']}
         self.assertTrue(targets.isdisjoint({'fabric_target', 'processor_adapter',
             'interrupt_controller', 'clock_reset', 'soc_top'}))
@@ -38,6 +45,7 @@ class LocalHarnessPlanTests(unittest.TestCase):
     def test_pulp_gpio_plan_exposes_environment_pin(self):
         self.assertEqual(self.gpio.facts.selection, 'all')
         self.assertEqual(self.gpio.binding.field('gpio.pins', 'in').port, 'gpio_in')
+        self.assertEqual(self.gpio.document()['protocol_endpoint_ids'], ['gpio.bus'])
         self.assertTrue(any(row['target'] == 'environment_pin'
                             for row in self.gpio.document()['ports']))
 
