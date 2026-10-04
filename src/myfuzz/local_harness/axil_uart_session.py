@@ -161,7 +161,10 @@ class GeneratedAxiLiteUartSession(GeneratedLocalSession):
             raise ValueError('invalid AXI4-Lite UART register value')
         if type(be) is not int or not 0 <= be <= 15:
             raise ValueError('invalid AXI4-Lite UART byte strobe')
-        if self.peer.source_start_tick is not None and self.local_ticks < self.peer.source_end_tick:
+        source_start = self.peer.source_start_tick
+        if (source_start is not None and self.peer.source
+                and self.local_ticks < self.peer.source_end_tick
+                and self.local_ticks + self.max_local_ticks_per_register_access >= source_start):
             raise RuntimeError('AXI access during serial source waveform is unsupported')
         payload = self._take(self.command('ACCESS_AXIL_UART',
             (1, 0, int(write), offset, value, be)), operation='ACCESS_AXIL_UART')
