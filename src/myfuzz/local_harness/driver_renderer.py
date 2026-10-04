@@ -53,7 +53,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             raise ValueError('driver-gpio-pulse-observation-required')
         fields['interrupt'] = pulses[0]['runtime_name']
         allowed_inputs = {fields['gpio_in']}
-    elif kind in ('native_memory_cpu', 'wishbone_cpu'):
+    elif kind in ('native_memory_cpu', 'wishbone_cpu', 'axi4_lite_cpu'):
         allowed_inputs = set()
     elif kind == 'obi_cpu':
         cpu = artifact.plan.profile.cpu
@@ -84,7 +84,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                           for alias, name in fields.items() if alias != 'gpio_in')
 
     max_wait = document['effective_max_wait_cycles']
-    max_samples = 1 if kind in ('obi_cpu', 'native_memory_cpu', 'wishbone_cpu') else 2 * max_wait + 5
+    max_samples = 1 if kind in ('obi_cpu', 'native_memory_cpu', 'wishbone_cpu', 'axi4_lite_cpu') else 2 * max_wait + 5
     # Conservative serialized upper bound, before issuing any command effects.
     maxima_backend = {row['name']: (1 << row['width']) - 1 for row in backend}
     maxima_physical = {row['runtime_name']: ('f' * row['hex_digits'] if row['width'] > 64
@@ -114,22 +114,23 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
       }
 '''
         operation_check = 'command.operation != "STEP_WISHBONE"'
-    elif kind == 'native_memory_cpu':
+    elif kind in ('native_memory_cpu', 'axi4_lite_cpu'):
         dispatch = "\n".join(f'      dut.{name} = command.fields[{index}];' for index, name in enumerate([
             'm_req_ready', 'm_rsp_valid', 'm_rsp_rdata', 'm_rsp_error'])) + r'''
       dut.eval();
       pre_backend = backend_snapshot(dut);
-      if (dut.m_fault || (dut.m_rsp_valid && !dut.m_rsp_ready)) {
+      if (@FAULT_CHECK@ || (dut.m_rsp_valid && !dut.m_rsp_ready)) {
         terminal = error_reply(command.execution, command.sequence, local_ticks,
                                "protocol_environment", "native_unsolicited_or_fault");
       } else {
         tick(dut, &samples);
-        if (dut.m_fault) {
+        if (@FAULT_CHECK@) {
           terminal = error_reply(command.execution, command.sequence, local_ticks,
                                  "protocol_environment", "native_completion_fault");
         }
       }
 '''
+        dispatch = dispatch.replace('@FAULT_CHECK@', 'dut.m_fault' if kind == 'native_memory_cpu' else 'false')
         operation_check = 'command.operation != "STEP_MEMORY"'
     elif kind == 'obi_cpu':
         assignments = '\n'.join(f'      dut.{name} = command.fields[{index}];' for index, name in enumerate([

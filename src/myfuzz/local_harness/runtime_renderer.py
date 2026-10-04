@@ -28,6 +28,13 @@ _WISHBONE = {'cyc': ('output', 1), 'stb': ('output', 1),
              'we': ('output', 1), 'adr': ('output', 32),
              'dat_w': ('output', 32), 'sel': ('output', 4),
              'ack': ('input', 1), 'dat_r': ('input', 32)}
+_AXI_LITE = {
+    'awvalid': ('output', 1), 'awready': ('input', 1), 'awaddr': ('output', 32), 'awprot': ('output', 3),
+    'wvalid': ('output', 1), 'wready': ('input', 1), 'wdata': ('output', 32), 'wstrb': ('output', 4),
+    'bvalid': ('input', 1), 'bready': ('output', 1),
+    'arvalid': ('output', 1), 'arready': ('input', 1), 'araddr': ('output', 32), 'arprot': ('output', 3),
+    'rvalid': ('input', 1), 'rready': ('output', 1), 'rdata': ('input', 32),
+}
 
 
 def _obi_boot_contract(cpu, address_width, endpoints):
@@ -137,6 +144,17 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         kind = 'wishbone_cpu'
         boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
         adapters = []
+    elif len(endpoints) == 1 and functions <= {'memory_master', 'processor_memory_master'} and endpoints[0].protocol == ('axi4-lite', '1'):
+        from .template_contracts import select_template_contract
+        selected = select_template_contract(endpoints[0], plan.profile.capabilities,
+            template_id='cpu.axi4-lite', template_version='1', variant_id='no-response-code')
+        if (plan.profile.capabilities.get('address_width'), plan.profile.capabilities.get('data_width'),
+                plan.profile.capabilities.get('byte_enable'), plan.profile.capabilities.get('error_response'),
+                plan.profile.capabilities.get('max_outstanding')) != (32, 32, True, False, 1):
+            raise ValueError('runtime-axi-lite-capabilities')
+        kind = 'axi4_lite_cpu'
+        boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
+        adapters = ['src/myfuzz/protocols/rtl/axi4_lite_processor_memory_adapter.sv']
     elif len(endpoints) == 1 and functions == {'mmio_slave'} and endpoints[0].protocol == ('apb', '3'):
         kind = 'apb_gpio'
         boot = None
@@ -218,6 +236,19 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         instances.append('native_completion_memory_adapter #(\n'
             f'    .MAX_WAIT_CYCLES({native_wait})\n'
             '  ) u_native_completion (\n    ' + ',\n    '.join(f'.{p}({v})' for p,v in pairs.items()) + '\n  );')
+    elif kind == 'axi4_lite_cpu':
+        wires = _shape(endpoints[0], _AXI_LITE, abi)
+        beat_ports('m', True)
+        locals_.extend(['logic [1:0] unused_bresp;', 'logic [1:0] unused_rresp;'])
+        pairs = {'clk_i': 'clk', 'rst_ni': '~reset'}
+        for role, wire in wires.items():
+            pairs[role + ('_i' if _AXI_LITE[role][0] == 'output' else '_o')] = wire
+        pairs.update({'bresp_o': 'unused_bresp', 'rresp_o': 'unused_rresp'})
+        pairs.update({row['role'] + ('_o' if row['direction'] == 'output' else '_i'): row['name']
+                      for row in backend})
+        instances.append('axi4_lite_processor_memory_adapter #(\n'
+            '    .ADDRESS_WIDTH(32), .DATA_WIDTH(32)\n'
+            '  ) u_axi_lite (\n    ' + ',\n    '.join(f'.{p}({v})' for p,v in pairs.items()) + '\n  );')
     elif kind == 'obi_cpu':
         for endpoint in sorted(endpoints, key=lambda e: e.function):
             instruction = endpoint.function == 'instruction_memory_master'
@@ -272,9 +303,9 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                     runtime_ports=[dict(name=n,direction=d,width=w) for n,d,w in ports],
                     adapter_sources=adapter_hashes, lint_argv=flags+adapters,
                     wire_schema_version='local_driver.v1', driver_status='not_generated')
-    if kind == 'native_memory_cpu':
+    if kind in ('native_memory_cpu', 'axi4_lite_cpu'):
         document['selected_template'] = selected.document()
-        marker = plan.profile.capabilities.get('instruction_identity_port')
+        marker = plan.profile.capabilities.get('instruction_identity_port') if kind == 'native_memory_cpu' else None
         if marker is not None:
             rows = [row for row in exports if row['physical_port'] == marker
                     and row['direction'] == 'output' and row['width'] == 1

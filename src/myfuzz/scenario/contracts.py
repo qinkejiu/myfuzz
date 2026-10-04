@@ -66,8 +66,10 @@ def _verify_generated_session(identity: dict):
                    'command_timeout_seconds'}
     cpu_fields = {'cpu_service_schema_version', 'source_component', 'defer_mmio'}
     native_fields = {'native_service_schema_version', 'source_component', 'memory_policy'}
+    axi_lite_fields = {'axi_lite_service_schema_version', 'source_component', 'memory_policy'}
     if not isinstance(identity, dict) or set(identity) not in (
-            base_fields, base_fields | cpu_fields, base_fields | native_fields):
+            base_fields, base_fields | cpu_fields, base_fields | native_fields,
+            base_fields | axi_lite_fields):
         raise ValueError('generated session identity has unknown or missing fields')
     if identity['schema_version'] != 'generated_local_session_identity.v1':
         raise ValueError('unsupported generated session schema')
@@ -91,6 +93,12 @@ def _verify_generated_session(identity: dict):
                 or identity['source_component'] != artifact.plan.request.instance_id
                 or identity['memory_policy'] != 'ram-rom-only'):
             raise ValueError('generated native service identity mismatch')
+    elif artifact.runtime_document['kind'] == 'axi4_lite_cpu':
+        _exact(identity, base_fields | axi_lite_fields, 'generated AXI4-Lite service identity')
+        if (identity['axi_lite_service_schema_version'] != 'generated_axi4_lite_memory_service.v1'
+                or identity['source_component'] != artifact.plan.request.instance_id
+                or identity['memory_policy'] != 'ram-rom-only'):
+            raise ValueError('generated AXI4-Lite service identity mismatch')
     elif artifact.runtime_document['kind'] in ('obi_cpu', 'wishbone_cpu'):
         _exact(identity, base_fields | cpu_fields, 'generated CPU service identity')
         service_versions = {'obi_cpu': 'generated_obi_cpu_service.v1',
@@ -424,6 +432,7 @@ class ScenarioManifest:
             if session['identity'].get('schema_version') == 'generated_local_session_identity.v1':
                 if (identity['schema_version'] != 'scenario_manifest_identity.v2'
                         or session['type'] not in ('myfuzz.local_harness.native_session.GeneratedNativeMemorySession',
+                                                  'myfuzz.local_harness.axi_lite_session.GeneratedAxiLiteMemorySession',
                                                   'myfuzz.local_harness.cpu_session.GeneratedCve2Session',
                                                   'myfuzz.local_harness.wishbone_cpu_session.GeneratedWishboneCpuSession',
                                                   'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession')):
@@ -431,6 +440,7 @@ class ScenarioManifest:
                 artifact = _verify_generated_session(session['identity'])
                 expected_kinds = {
                     'myfuzz.local_harness.native_session.GeneratedNativeMemorySession': 'native_memory_cpu',
+                    'myfuzz.local_harness.axi_lite_session.GeneratedAxiLiteMemorySession': 'axi4_lite_cpu',
                     'myfuzz.local_harness.cpu_session.GeneratedCve2Session': 'obi_cpu',
                     'myfuzz.local_harness.wishbone_cpu_session.GeneratedWishboneCpuSession': 'wishbone_cpu',
                     'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession': 'apb_gpio',

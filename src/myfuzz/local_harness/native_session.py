@@ -21,9 +21,12 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
     max_local_ticks_per_step=1
     max_transaction_events_per_step=1
     max_mmio_target_accesses_per_step=0
+    runtime_kind='native_memory_cpu'
+    service_schema='generated_native_memory_service.v1'
+    read_request_be=15
 
     def __init__(self,artifact,*,base_dir,cache_dir,memory,**kwargs):
-        if artifact.runtime_document.get('kind')!='native_memory_cpu' or not isinstance(memory,PersistentMemory):
+        if artifact.runtime_document.get('kind')!=self.runtime_kind or not isinstance(memory,PersistentMemory):
             raise ValueError('native completion CPU requires authenticated artifact and persistent memory')
         super().__init__(artifact,base_dir=base_dir,cache_dir=cache_dir,**kwargs)
         self.memory=memory
@@ -38,7 +41,7 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
 
     def identity_document(self):
         return {**super().identity_document(),
-                'native_service_schema_version':'generated_native_memory_service.v1',
+                'native_service_schema_version':self.service_schema,
                 'source_component':self.artifact.plan.request.instance_id,
                 'memory_policy':'ram-rom-only'}
 
@@ -85,7 +88,7 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
         if accepted:
             if pending is not None:raise ProtocolEnvironmentError('native concurrent request')
             address=pre['m_req_addr'];write=pre['m_req_write'];be=pre['m_req_be'];value=pre['m_req_wdata']
-            if address%4 or (not write and be!=15):
+            if address%4 or (not write and be!=self.read_request_be):
                 self._abort();raise ProtocolEnvironmentError('native unaligned or incomplete read')
             self._sequence_memory+=1
             key=TransactionKey('local-execution',self._case_id,self.artifact.plan.request.instance_id,
