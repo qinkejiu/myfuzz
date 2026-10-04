@@ -1,6 +1,6 @@
 # PULP SPI Local Contract Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Verify the pinned PULP APB SPI source/profile facts and provide an independently tested native mode-0 pin peer, without claiming generated runtime acceptance.
 
@@ -10,19 +10,19 @@
 
 ## Task 1: Source/profile facts
 
-- [ ] Write failing tests for the local full-top profile and source verification API.
-- [ ] Add the union-pin profile, with explicit full-top selection and no claimed interrupt level.
-- [ ] Verify lock-owned selected bytes, seven-file closure, parameters, profile pin and binding APB contract. Test mismatched source/parameters fail closed.
-- [ ] Record that `verify_local_source_lock` refuses the union locator. Do not grant build acceptance.
+- [x] Write failing tests for the local full-top profile and source verification API.
+- [x] Add the union-pin profile, with explicit full-top selection and no claimed interrupt level.
+- [x] Verify lock-owned selected bytes, seven-file closure, parameters, profile pin and binding APB contract. Test mismatched source/parameters fail closed.
+- [x] Record that `verify_local_source_lock` refuses the union locator. Do not grant build acceptance.
 
 ## Task 2: Native peer
 
-- [ ] Write failing tests for SDI1 mapping, selected rising-edge capture, falling-edge MISO update, incomplete CS frames, reset persistence, unsupported quad/multi-CS and raw IRQ observation.
-- [ ] Add a strict single-CS mode-0 wrapper over `SpiPeer`; unused SDI sources are explicitly zero. Accept actual pre/post pin snapshots only; no cycle-based expected completion or fabricated IRQ.
-- [ ] Run dedicated and existing peer regressions.
+- [x] Write failing tests for SDI1 mapping, selected rising-edge capture, falling-edge MISO update, incomplete CS frames, reset persistence, unsupported quad/multi-CS and raw IRQ observation.
+- [x] Add a strict single-CS mode-0 wrapper over `SpiPeer`; unused SDI sources are explicitly zero. Accept actual pre/post pin snapshots only; no cycle-based expected completion or fabricated IRQ.
+- [x] Run dedicated and existing peer regressions.
 
 ## Task 3: Executable acceptance roadmap
 
-- [ ] Re-elaborate pinned RTL and bind all 25 top ports; select existing APB3 full-word contract by actual fields.
-- [ ] Record test commands, source identities, source-gate gap, peer/runtime ownership, and hardware acceptance cases: TX/RX shifts, header/dummy framing, actual event pulses, repeated commands, retry/replay and reset.
-- [ ] Commit independently without push. Levels remain source/elaboration and contract/peer unit verification; new local SPI runtime is not Generated, RTL-operational or cross-component accepted.
+- [x] Re-elaborate pinned RTL and bind all 25 top ports; select existing APB3 full-word contract by actual fields.
+- [x] Record test commands, source identities, source-gate gap, peer/runtime ownership, and hardware acceptance cases: TX/RX shifts, header/dummy framing, actual event pulses, repeated commands, retry/replay and reset.
+- [x] Commit independently without push. Levels remain source/elaboration and contract/peer unit verification; new local SPI runtime is not Generated, RTL-operational or cross-component accepted.
