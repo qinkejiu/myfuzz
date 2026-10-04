@@ -60,7 +60,7 @@ PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_wishbone_cpu -q
 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_axi4_cpu -q
 ```
 
-合入 Wishbone 前的全量结果：本地 harness 158 项中 157 通过、1 项未开启真实 RTL 环境门禁；场景回归 365/365。随后 Wishbone 专项真实 RTL 6/6 通过。Pico 原生内存真实测试 2/2、CVE2 双 GPIO 双向真实场景 2/2，二者的预算化证据 fresh replay 均一致。若本地缺少某 CPU 的可执行固定源码，只跳过该 CPU 的真实验收并记录 `skipped_unavailable`，不让其他 CPU/IP 或协议等级自动通过。
+合入五类 CPU 协议与两种 PULP 外设后的全量结果：本地 harness 172 项中 171 通过、1 项未开启真实 RTL 环境门禁；场景回归 365/365。Pico 原生内存真实测试 2/2、AXI4-Lite 真实测试 2/2、Wishbone 专项 6/6、ZipCPU AXI4 突发及 schema 2/2、PULP SPI 预算化证据测试均通过。CVE2 双 GPIO 双向真实场景此前 2/2，预算化证据 fresh replay 一致。若本地缺少某 CPU 的可执行固定源码，只跳过该 CPU 的真实验收并记录 `skipped_unavailable`，不让其他 CPU/IP 或协议等级自动通过。
 
 ## 尚未满足的验收
 
