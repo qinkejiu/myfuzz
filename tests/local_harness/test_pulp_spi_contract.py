@@ -40,16 +40,17 @@ class PulpSpiContractTests(unittest.TestCase):
         self.assertEqual(7, len(result['closure_files']))
         self.assertEqual(2, len(result['source_records']))
         self.assertFalse(result['runtime_effective'])
-        self.assertFalse(result['artifact_source_gate_compatible'])
+        self.assertTrue(result['artifact_source_gate_compatible'])
         self.assertEqual('spi_sdi1', result['serial']['miso'])
         self.assertEqual([0, 1], [event['bit'] for event in result['events']])
         self.assertTrue(all(event['trigger'] == 'native_pulse' for event in result['events']))
         self.assertEqual(0x28, result['events'][0]['rearm_read_offset'])
         self.assertEqual(0, result['events'][0]['rearm_read_value'])
 
-    def test_union_profile_cannot_bypass_existing_artifact_source_gate(self):
-        with self.assertRaisesRegex(ValueError, 'source-mismatch:root'):
-            verify_local_source_lock(self.profile(), base_dir=SOURCES)
+    def test_union_profile_passes_strict_two_owner_artifact_gate(self):
+        result = verify_local_source_lock(self.profile(), base_dir=SOURCES)
+        self.assertEqual('local_source_lock_verification.v1', result['schema_version'])
+        self.assertEqual(2, len(result['source_records']))
 
     def test_profile_locator_dataclass_mutation_refused(self):
         profile = self.profile()

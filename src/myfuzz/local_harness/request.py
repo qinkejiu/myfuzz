@@ -87,7 +87,8 @@ def load_local_harness_request(document: Mapping[str, object]) -> LocalHarnessRe
         raise ValueError("invalid-profile-path")
     segments = profile_path.split("/")
     if (len(segments) < 2 or segments[0] != "configs"
-            or segments[-1] != "component_profile.json"
+            or (segments[-1] != "component_profile.json" and
+                profile_path != "configs/peripherals/pulp_spi/local_component_profile.json")
             or any(segment in ("", ".", "..") for segment in segments)
             or "\\" in profile_path or "\x00" in profile_path):
         raise ValueError("invalid-profile-path")

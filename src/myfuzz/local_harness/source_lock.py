@@ -27,6 +27,22 @@ def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path) -> di
     # Builders consume source, so matching only its retained JSON is insufficient.
     if profile.source != _source_locator(profile.source_document):
         raise ValueError('local-source-lock-profile-source-inconsistent')
+    if profile.component_id == 'pulp_spi':
+        # The selected APB top has one separately owned RTL dependency. Its
+        # profile names exactly the authenticated elaboration union, while the
+        # lock keeps the two original git owners separate. The SPI verifier
+        # checks both records, the closure pin, and every union byte.
+        from .pulp_spi_contract import verify_pulp_spi_source_contract
+        facts = verify_pulp_spi_source_contract(profile, base_dir=base_dir)
+        return {
+            'schema_version': 'local_source_lock_verification.v1',
+            'source_status': 'source_verified',
+            'elaboration_status': 'elaboration_verified',
+            'lock_sha256': facts['lock_sha256'],
+            'closure_sha256': facts['closure_sha256'],
+            'profile_union_revision': facts['profile_union_revision'],
+            'source_records': facts['source_records'],
+        }
     root = Path(base_dir).resolve()
     raw = (root / 'configs/soc/sources.lock.json').read_bytes()
     document = json.loads(raw)

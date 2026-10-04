@@ -2,7 +2,7 @@
   "schema_version": "component_profile.v1",
   "component_id": "pulp_spi",
   "kind": "peripheral",
-  "description": "Local contract pilot for original pinned PULP apb_spi_master. APB3 full-word and single-line mode-0 external peer contract only; generated local runtime is not implemented or accepted.",
+  "description": "Original pinned PULP apb_spi_master with APB3 full-word access and an explicit single-line mode-0 external peer source.",
   "source": {
     "root": "third_party",
     "revision": "sha256:c653811843b453f0689a8f6942934ff9d551734aa4bc4e197d8b9acbfb020230",
@@ -327,7 +327,7 @@
       "The serial transfer itself is not exercised by structural composition: the generated SoC exports SCK/CS/SDO/SDI, and no SPI peer model is composed for this profile (the test environment or the peer in src/myfuzz/protocols/rtl/soc_spi_peer.sv is a separate stream's work). No transaction of this composed SoC was simulated for this profile.",
       "spi_master_controller declares spi_swrst but never references it ('FIXME Not used at all', spi_master_controller.sv:31): the software-reset bit only clears the two FIFOs (apb_spi_master.sv:300,322), not the FSM, bit counters or clock generator. The register table records the write path that exists; it does not claim a full software reset.",
       "Only BUFFER_DEPTH=10/APB_ADDR_WIDTH=12 is exercised by this profile acceptance; other parameterizations are not claimed verified.",
-      "The independent local artifact source gate rejects this seven-file union source locator against the two-file git-root pulp_spi lock record. Source/closure fact verification is separate and does not authorize a local artifact build. Runtime core does not yet implement this SPI pilot."
+      "The local artifact gate reconciles this exact seven-file union against the two separately owned source-lock records and the pinned elaboration closure. Other source roots, files, parameters and unpinned overrides remain rejected."
     ]
   }
 }

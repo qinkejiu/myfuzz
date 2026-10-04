@@ -156,7 +156,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
         adapters = ['src/myfuzz/protocols/rtl/axi4_lite_processor_memory_adapter.sv']
     elif len(endpoints) == 1 and functions == {'mmio_slave'} and endpoints[0].protocol == ('apb', '3'):
-        kind = 'apb_gpio'
+        kind = 'apb_spi' if plan.profile.component_id == 'pulp_spi' else 'apb_gpio'
         boot = None
         capabilities = plan.profile.capabilities
         if (capabilities.get('address_width'), capabilities.get('data_width'),
@@ -166,10 +166,15 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         if plan.profile.address is None or plan.profile.address.window_size != 4096:
             raise ValueError('runtime-apb-window')
         pins = [e for e in plan.binding.endpoints if e.function == 'external_pins']
-        if len(pins) != 1 or {f.role: (f.direction, f.width) for f in pins[0].fields} != {
-                'in': ('input', 32), 'out': ('output', 32), 'dir': ('output', 32),
-                'in_sync': ('output', 32), 'padcfg': ('output', 128)}:
-            raise ValueError('runtime-gpio-pin-shape')
+        pin_shape = ({'sck': ('output', 1), 'mode': ('output', 2),
+                      **{f'csn{i}': ('output', 1) for i in range(4)},
+                      **{f'sdo{i}': ('output', 1) for i in range(4)},
+                      **{f'sdi{i}': ('input', 1) for i in range(4)}}
+                     if kind == 'apb_spi' else
+                     {'in': ('input', 32), 'out': ('output', 32), 'dir': ('output', 32),
+                      'in_sync': ('output', 32), 'padcfg': ('output', 128)})
+        if len(pins) != 1 or {f.role: (f.direction, f.width) for f in pins[0].fields} != pin_shape:
+            raise ValueError('runtime-external-pin-shape')
         adapters = ['src/myfuzz/protocols/rtl/beat_to_apb.sv']
     else:
         raise ValueError('runtime-unsupported-protocol-shape')
@@ -182,6 +187,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         if row['disposition'] == 'peer':
             raise ValueError('runtime-peer-ownership-unsupported')
         if row['disposition'] == 'functional' and not (
+                kind == 'apb_spi' and row['endpoint_id'] == 'spi.pins' or
                 kind == 'obi_cpu' and row['direction'] == 'input' and row['width'] == 1
                 and row['endpoint_id'] == plan.profile.cpu.irq_entry_endpoint
                 and row['role'] == plan.profile.cpu.irq_entry_role):
@@ -268,7 +274,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                              f'  ) u_adapter_{prefix} (\n    ' + ',\n    '.join(f'.{p}({v})' for p,v in pairs.items()) + '\n  );')
     else:
         wires = _shape(endpoints[0], _APB, abi)
-        beat_ports('gpio', False)
+        channel = 'spi' if kind == 'apb_spi' else 'gpio'
+        beat_ports(channel, False)
         locals_.append('logic [31:0] apb_paddr;')
         locals_.append('logic [3:0] unused_pstrb;')
         statements.append(f"assign {wires['paddr']} = apb_paddr[11:0];")
@@ -276,14 +283,14 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         if type(declared_wait) is not int or declared_wait < 1:
             raise ValueError('runtime-apb-wait-bound')
         wait = min(declared_wait, plan.request.max_wait_cycles)
-        pairs = dict(clk='clk', reset='reset', req_valid='gpio_req_valid', req_ready='gpio_req_ready',
-                     write='gpio_req_write', addr='gpio_req_addr', wdata='gpio_req_wdata', be='gpio_req_be',
-                     rsp_valid='gpio_rsp_valid', rsp_ready='gpio_rsp_ready', rdata='gpio_rsp_rdata', error='gpio_rsp_error',
+        pairs = dict(clk='clk', reset='reset', req_valid=f'{channel}_req_valid', req_ready=f'{channel}_req_ready',
+                     write=f'{channel}_req_write', addr=f'{channel}_req_addr', wdata=f'{channel}_req_wdata', be=f'{channel}_req_be',
+                     rsp_valid=f'{channel}_rsp_valid', rsp_ready=f'{channel}_rsp_ready', rdata=f'{channel}_rsp_rdata', error=f'{channel}_rsp_error',
                      paddr='apb_paddr', pstrb='unused_pstrb', **{r: n for r,n in wires.items() if r != 'paddr'})
         instances.append('beat_to_apb #(\n    .ADDRESS_WIDTH(32), .DATA_WIDTH(32), .HAS_PSTRB(0),\n'
                          '    .SUPPORTS_PARTIAL_WRITE(0), .HAS_PSLVERR(1),\n'
                          f"    .MAX_WAIT_CYCLES({wait}), .WINDOW_BASE(32'd0), .WINDOW_SIZE(4096)\n"
-                         '  ) u_adapter_gpio (\n    '+',\n    '.join(f'.{p}({v})' for p,v in pairs.items())+'\n  );')
+                         f'  ) u_adapter_{channel} (\n    '+',\n    '.join(f'.{p}({v})' for p,v in pairs.items())+'\n  );')
     module = 'local_runtime_' + plan.request.instance_id
     declarations = [f'{direction} logic [{width-1}:0] {name}' for name,direction,width in ports]
     runtime = ('module ' + module + ' (\n  ' + ',\n  '.join(declarations) + '\n);\n'
@@ -297,7 +304,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                     module_name=module, plan=plan.document(), structural_abi=copy.deepcopy(structural.abi_document),
                     structural_build=copy.deepcopy(structural.build_document), source_verification=copy.deepcopy(verified),
                     boot_contract=boot,
-                    effective_max_wait_cycles=(wait if kind == 'apb_gpio' else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
+                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi') else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
                     runtime_sv_sha256=hashlib.sha256(runtime.encode()).hexdigest(), cpp_sha256=hashlib.sha256(b'').hexdigest(),
                     adapted_endpoint_ids=sorted(adapted), physical_exports=exports, backend_ports=backend,
                     runtime_ports=[dict(name=n,direction=d,width=w) for n,d,w in ports],

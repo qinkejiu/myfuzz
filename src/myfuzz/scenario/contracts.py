@@ -67,9 +67,11 @@ def _verify_generated_session(identity: dict):
     cpu_fields = {'cpu_service_schema_version', 'source_component', 'defer_mmio'}
     native_fields = {'native_service_schema_version', 'source_component', 'memory_policy'}
     axi_lite_fields = {'axi_lite_service_schema_version', 'source_component', 'memory_policy'}
+    spi_fields = {'spi_peer_schema_version', 'source_component', 'chip_select',
+                  'source_hex', 'startup_writes', 'read_rx_on_eot'}
     if not isinstance(identity, dict) or set(identity) not in (
             base_fields, base_fields | cpu_fields, base_fields | native_fields,
-            base_fields | axi_lite_fields):
+            base_fields | axi_lite_fields, base_fields | spi_fields):
         raise ValueError('generated session identity has unknown or missing fields')
     if identity['schema_version'] != 'generated_local_session_identity.v1':
         raise ValueError('unsupported generated session schema')
@@ -107,6 +109,23 @@ def _verify_generated_session(identity: dict):
                 or identity['source_component'] != artifact.plan.request.instance_id
                 or type(identity['defer_mmio']) is not bool):
             raise ValueError('generated CPU service identity mismatch')
+    elif artifact.runtime_document['kind'] == 'apb_spi':
+        _exact(identity, base_fields | spi_fields, 'generated SPI service identity')
+        source = identity['source_hex']
+        writes = identity['startup_writes']
+        if (identity['spi_peer_schema_version'] != 'pulp_spi_mode0_source.v1'
+                or identity['source_component'] != artifact.plan.request.instance_id
+                or type(identity['chip_select']) is not int
+                or not 0 <= identity['chip_select'] < 4
+                or type(source) is not str or len(source) > 1024 or len(source) % 2
+                or any(character not in '0123456789abcdef' for character in source)
+                or type(writes) is not list or len(writes) > 16
+                or any(type(row) is not list or len(row) != 2
+                       or type(row[0]) is not int or type(row[1]) is not int
+                       or row[0] < 0 or row[0] > 4092 or row[0] % 4
+                       or row[1] < 0 or row[1] > 0xffffffff for row in writes)
+                or type(identity['read_rx_on_eot']) is not bool):
+            raise ValueError('generated SPI service identity mismatch')
     else:
         _exact(identity, base_fields, 'generated IP service identity')
     if identity['build_identity'] != local_build_identity(artifact, base_dir=_ROOT):
@@ -435,7 +454,8 @@ class ScenarioManifest:
                                                   'myfuzz.local_harness.axi_lite_session.GeneratedAxiLiteMemorySession',
                                                   'myfuzz.local_harness.cpu_session.GeneratedCve2Session',
                                                   'myfuzz.local_harness.wishbone_cpu_session.GeneratedWishboneCpuSession',
-                                                  'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession')):
+                                                  'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession',
+                                                  'myfuzz.local_harness.spi_session.GeneratedPulpSpiSession')):
                     raise ValueError('generated session type or runner schema mismatch')
                 artifact = _verify_generated_session(session['identity'])
                 expected_kinds = {
@@ -444,6 +464,7 @@ class ScenarioManifest:
                     'myfuzz.local_harness.cpu_session.GeneratedCve2Session': 'obi_cpu',
                     'myfuzz.local_harness.wishbone_cpu_session.GeneratedWishboneCpuSession': 'wishbone_cpu',
                     'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession': 'apb_gpio',
+                    'myfuzz.local_harness.spi_session.GeneratedPulpSpiSession': 'apb_spi',
                 }
                 if artifact.runtime_document['kind'] != expected_kinds[session['type']]:
                     raise ValueError('generated session type disagrees with artifact kind')

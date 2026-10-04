@@ -13,6 +13,7 @@ from .runtime_renderer import render_local_runtime
 
 _HEADERS = ('src/myfuzz/local_harness/rtl/local_driver_v1.h',
             'src/myfuzz/scenario/rtl/local_command_replay.h')
+_SPI_HEADER = 'src/myfuzz/local_harness/rtl/pulp_spi_mode0_peer.h'
 
 
 def _literal(value: str) -> str:
@@ -53,6 +54,19 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             raise ValueError('driver-gpio-pulse-observation-required')
         fields['interrupt'] = pulses[0]['runtime_name']
         allowed_inputs = {fields['gpio_in']}
+    elif kind == 'apb_spi':
+        for role in ('sck', 'mode', *(f'csn{i}' for i in range(4)),
+                     *(f'sdo{i}' for i in range(4)), *(f'sdi{i}' for i in range(4))):
+            rows = [row for row in exports if row['endpoint_id'] == 'spi.pins' and row['role'] == role]
+            if len(rows) != 1:
+                raise ValueError('driver-spi-pin-field:' + role)
+            fields['spi_' + ('clk' if role == 'sck' else role)] = rows[0]['runtime_name']
+        events = [row for row in exports if row['physical_port'] == 'events_o'
+                  and row['disposition'] == 'observe' and row['width'] == 2]
+        if len(events) != 1:
+            raise ValueError('driver-spi-native-events-required')
+        fields['events_o'] = events[0]['runtime_name']
+        allowed_inputs = {fields[f'spi_sdi{i}'] for i in range(4)}
     elif kind in ('native_memory_cpu', 'wishbone_cpu', 'axi4_lite_cpu'):
         allowed_inputs = set()
     elif kind == 'obi_cpu':
@@ -78,10 +92,12 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     backend_items = ',\n'.join('    {' + _literal(row['name']) + ', ' + signal(row, 'name') + '}' for row in backend)
     physical_items = ',\n'.join('    {' + _literal(row['runtime_name']) + ', ' + signal(row) + '}' for row in exports)
     aliases = ''
-    if kind == 'apb_gpio':
+    if kind in ('apb_gpio', 'apb_spi'):
         by_name = {row['runtime_name']: row for row in exports}
         aliases = ''.join(f'  values[{_literal(alias)}] = {signal(by_name[name])};\n'
-                          for alias, name in fields.items() if alias != 'gpio_in')
+                          for alias, name in fields.items()
+                          if (kind == 'apb_gpio' and alias != 'gpio_in')
+                          or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi'))))
 
     max_wait = document['effective_max_wait_cycles']
     max_samples = 1 if kind in ('obi_cpu', 'native_memory_cpu', 'wishbone_cpu', 'axi4_lite_cpu') else 2 * max_wait + 5
@@ -91,7 +107,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                                             else (1 << row['width']) - 1) for row in exports}
     maximum_snapshot = dict(backend=maxima_backend, physical=maxima_physical)
     for alias, name in fields.items():
-        if kind == 'apb_gpio' and alias != 'gpio_in':
+        if (kind == 'apb_gpio' and alias != 'gpio_in') or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi'))):
             maximum_snapshot[alias] = maxima_physical[name]
     snapshot_size = len(json.dumps(maximum_snapshot, sort_keys=True, separators=(',', ':')))
     # 128 bytes per sample exceeds its numeric tick and object delimiters;
@@ -148,46 +164,64 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
 '''
         operation_check = 'command.operation != "STEP_CPU"'
     else:
-        dispatch = f'''      dut.{fields['gpio_in']} = command.fields[0];
-      dut.eval();
-      if (command.operation == "STEP_GPIO") {{
+        spi = kind == 'apb_spi'
+        channel = 'spi' if spi else 'gpio'
+        input_assignment = '' if spi else f'      dut.{fields["gpio_in"]} = command.fields[0];\n'
+        index = 0 if spi else 1
+        source_branch = '''      if (command.operation == "SOURCE_SPI") {
+        peer.append(command.fields[0], command.fields[1], command.fields[2]);
+        dut.eval();
+        pre_backend = backend_snapshot(dut);
+      } else {
+''' if spi else ''
+        dispatch = input_assignment + source_branch + f'''      dut.eval();
+      if (command.operation == "STEP_{channel.upper()}") {{
         pre_backend = backend_snapshot(dut);
         tick(dut, &samples);
       }} else {{
-        dut.gpio_req_valid = 1;
-        dut.gpio_req_write = command.fields[1];
-        dut.gpio_req_addr = command.fields[2];
-        dut.gpio_req_wdata = command.fields[3];
-        dut.gpio_req_be = command.fields[4];
-        dut.gpio_rsp_ready = 0;
+        dut.{channel}_req_valid = 1;
+        dut.{channel}_req_write = command.fields[{index}];
+        dut.{channel}_req_addr = command.fields[{index+1}];
+        dut.{channel}_req_wdata = command.fields[{index+2}];
+        dut.{channel}_req_be = command.fields[{index+3}];
+        dut.{channel}_rsp_ready = 0;
         dut.eval();
         pre_backend = backend_snapshot(dut);
         unsigned waits = 0;
-        while (!dut.gpio_req_ready) {{
+        while (!dut.{channel}_req_ready) {{
           if (waits++ >= {max_wait}) throw std::runtime_error("request_timeout");
           tick(dut, &samples);
         }}
         tick(dut, &samples);
-        dut.gpio_req_valid = 0;
+        dut.{channel}_req_valid = 0;
         dut.eval();
         waits = 0;
-        while (!dut.gpio_rsp_valid) {{
+        while (!dut.{channel}_rsp_valid) {{
           if (waits++ >= {max_wait + 3}) throw std::runtime_error("response_timeout");
           tick(dut, &samples);
         }}
-        rdata = dut.gpio_rsp_rdata;
-        error = dut.gpio_rsp_error;
-        dut.gpio_rsp_ready = 1;
+        rdata = dut.{channel}_rsp_rdata;
+        error = dut.{channel}_rsp_error;
+        dut.{channel}_rsp_ready = 1;
         tick(dut, &samples);
-        dut.gpio_rsp_ready = 0;
+        dut.{channel}_rsp_ready = 0;
         dut.eval();
       }}
-'''
-        operation_check = 'command.operation != "STEP_GPIO" && command.operation != "ACCESS_GPIO"'
+''' + ('      }\n' if spi else '')
+        operation_check = (f'command.operation != "STEP_{channel.upper()}" && '
+                           f'command.operation != "ACCESS_{channel.upper()}"' +
+                           (' && command.operation != "SOURCE_SPI"' if spi else ''))
 
+    spi_active_cs = ' | '.join(f'((!dut.{fields[f"spi_csn{i}"]}) << {i})' for i in range(4)) if kind == 'apb_spi' else ''
+    spi_observe = (f'peer.observe(dut.{fields["spi_clk"]}, {spi_active_cs}, '
+                   f'dut.{fields["spi_mode"]}, dut.{fields["spi_sdo0"]});') if kind == 'apb_spi' else ''
+    spi_drive = ('  ' + '\n  '.join(f'dut.{fields[f"spi_sdi{i}"]} = '
+                                      + ('peer.drive_bit();' if i == 1 else '0;')
+                                      for i in range(4)) + '\n') if kind == 'apb_spi' else ''
     template = r'''#include "V@MODULE@.h"
 #include "verilated.h"
 #include "local_driver_v1.h"
+@SPI_HEADER@
 #include <iostream>
 #include <map>
 #include <string>
@@ -203,6 +237,7 @@ using Model = V@MODULE@;
 using namespace myfuzz::local_driver_v1;
 using JsonObject = std::map<std::string, std::string>;
 static std::uint64_t local_ticks = 0;
+@SPI_PEER@
 
 static std::string quote(const std::string &value) {
   return "\"" + value + "\"";
@@ -250,10 +285,13 @@ static std::string snapshot(const Model &dut) {
 @ALIASES@  return object(values);
 }
 static void tick(Model &dut, std::vector<std::string> *samples) {
+@SPI_DRIVE@
   dut.clk = 0; dut.eval();
+@SPI_OBSERVE@
   const auto pre = samples ? snapshot(dut) : "";
   dut.clk = 1; dut.eval();
   ++local_ticks;
+@SPI_OBSERVE@
   const auto post = samples ? snapshot(dut) : "";
   dut.clk = 0; dut.eval();
   if (samples) samples->push_back(object({{"local_tick", std::to_string(local_ticks)},
@@ -361,6 +399,9 @@ int main(int argc, char **argv) {
 '''
     values = dict(MODULE=document['module_name'], BACKEND=backend_items, PHYSICAL=physical_items,
                   ALIASES=aliases, INITIALIZERS=initializers,
+                  SPI_HEADER='#include "pulp_spi_mode0_peer.h"' if kind == 'apb_spi' else '',
+                  SPI_PEER='static PulpSpiMode0Peer peer;' if kind == 'apb_spi' else '',
+                  SPI_DRIVE=spi_drive, SPI_OBSERVE=spi_observe,
                   ASSERT=str(artifact.plan.request.reset_assert_ticks),
                   RELEASE=str(artifact.plan.request.reset_release_ticks), CACHE=str(64 * 1024 * 1024),
                   RESERVATION=str(reservation), OPERATION_CHECK=operation_check,
@@ -369,7 +410,7 @@ int main(int argc, char **argv) {
     for key, value in values.items():
         cpp = cpp.replace('@' + key + '@', value)
     headers = [{'path': name, 'sha256': hashlib.sha256((root / name).read_bytes()).hexdigest()}
-               for name in _HEADERS]
+               for name in (*_HEADERS, *([_SPI_HEADER] if kind == 'apb_spi' else []))]
     document.update(driver_schema_version='local_driver_generation.v1', status='driver_generated',
                     driver_status='generated', driver_header_sources=headers,
                     cpp_sha256=hashlib.sha256(cpp.encode()).hexdigest(),

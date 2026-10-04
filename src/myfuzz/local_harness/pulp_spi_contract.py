@@ -1,10 +1,4 @@
-"""Pinned SPI source facts; deliberately independent of artifact acceptance.
-
-The APB SPI profile requires the seven-file union of two locked repositories.
-The current artifact source gate compares one source locator literally and
-rejects this union. This verifier authenticates source facts and cannot grant
-build acceptance, generation or runtime execution.
-"""
+"""Pinned SPI source facts for the two-owner elaboration closure."""
 from __future__ import annotations
 
 import hashlib
@@ -24,7 +18,7 @@ def verify_pulp_spi_source_contract(profile: ComponentProfile, *, base_dir: Path
     """Authenticate the selected bytes/closure and the full-top union profile.
 
     Requires a repository checkout with scripts/verify_soc_sources.py. This
-    explicit source-fact API is not called by any builder, session or renderer.
+    The artifact gate calls this verifier for the exact PULP SPI union profile.
     """
     if not isinstance(profile, ComponentProfile):
         raise ValueError('pulp-spi-profile-required')
@@ -99,8 +93,8 @@ def verify_pulp_spi_source_contract(profile: ComponentProfile, *, base_dir: Path
         'lock_sha256': hashlib.sha256(raw_lock).hexdigest(),
         'closure_sha256': hashlib.sha256(closure_raw).hexdigest(),
         'profile_union_revision': source['revision'],
-        'artifact_source_gate_compatible': False,
-        'artifact_source_gate_gap': 'seven-file-union-vs-two-file-git-locator',
+        'artifact_source_gate_compatible': True,
+        'artifact_source_gate_gap': None,
         'runtime_effective': False, 'dut_semantics_verified': False,
         'clock_reset': {'clock': 'HCLK', 'reset': 'HRESETn',
                         'polarity': 'active_low', 'synchronous': False},
