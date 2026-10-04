@@ -18,6 +18,8 @@
 
 ---
 
+**完成证据（2026-10-04）：** `57d86a2` 增加四个 source lock 记录和独立 closure；独立审查无发现。主工作树运行 `PYTHONPATH=src python3 scripts/verify_soc_sources.py --elaborate` 返回 0，共 17 个组件，其中新增四项均为 `source_verified`、`elaboration_verified`、`runtime_unverified`，且 `read_set_matches_closure=true`。CV32E20 closure 33 文件/94 条非致命 warning；三种 Pico 各 1 文件/0 warning。
+
 ## File Structure
 
 - Modify `configs/soc/sources.lock.json`: append four source records.
@@ -37,7 +39,7 @@
 - Consumes: final profile `source` objects and `scripts.verify_soc_sources.selected_paths`.
 - Produces: four `soc_sources.v1` records whose source hashes and closure documents can pass `verify_soc_sources.py`.
 
-- [ ] **Step 1: Inspect exact profile inputs and toolchain**
+- [x] **Step 1: Inspect exact profile inputs and toolchain**
 
 ```bash
 PYTHONPATH=src python3 - <<'PY'
@@ -53,7 +55,7 @@ verilator --version
 
 Expected: four actual git revisions matching the two parent gitlinks; the Verilator version string is saved exactly, not normalized.
 
-- [ ] **Step 2: Compute selected artifacts and selected-content hash with repository helpers**
+- [x] **Step 2: Compute selected artifacts and selected-content hash with repository helpers**
 
 ```python
 import json
@@ -82,7 +84,7 @@ artifacts.append({"path": license_path,
 
 Expected: all selected source/filelist/header input paths appear in `artifacts`, plus a git-owned license. The hash has `sha256:` prefix and uses framed relative paths/bytes, not a raw file digest.
 
-- [ ] **Step 3: Run a native-top lint with Verilator dependency recording**
+- [x] **Step 3: Run a native-top lint with Verilator dependency recording**
 
 ```python
 from pathlib import Path
@@ -111,7 +113,7 @@ with TemporaryDirectory() as work:
 
 Expected: one dependency report and no Verilator errors. Normalize paths against repository root if Verilator emits relative paths; closure entries must name **exactly** this actual read set. Record nonfatal warning count from the tool output, including its exact log in the report.
 
-- [ ] **Step 4: Assemble each closure document and lock record**
+- [x] **Step 4: Assemble each closure document and lock record**
 
 Repeat Steps 2–3 with `component_id` set to each of `cv32e20`, `picorv32`, `picorv32_axi`, `picorv32_wb`. For each component write the closure fields `schema_version`, `component`, `root`, `top_module`, `tool={name,version,frontend}`, `command`, `include_roots`, `defines`, `parameters`, `closure_files=[{root,path,sha256}]`, `status="elaboration_verified"`, `lint={errors:0,warnings:warning_count,exit_code:0}` where `warning_count` is the number of actual Verilator warning diagnostics. `command` is the reproducible workspace-relative command without temporary `--Mdir`; the verifier appends its own dependency flags on replay. Every closure file must lie under the component's declared source root and match `git cat-file blob <revision>:<path>`.
 
@@ -127,7 +129,7 @@ Append one lock record per top with `id`, matching `source`, `artifacts`, `selec
 - Consumes: Task 1 JSON records.
 - Produces: actual source and elaboration gate evidence.
 
-- [ ] **Step 1: Stage evidence before verification**
+- [x] **Step 1: Stage evidence before verification**
 
 ```bash
 git add configs/soc/sources.lock.json configs/soc/closures/cv32e20.json configs/soc/closures/picorv32.json configs/soc/closures/picorv32_axi.json configs/soc/closures/picorv32_wb.json
@@ -137,11 +139,11 @@ PYTHONPATH=src python3 scripts/verify_soc_sources.py --elaborate
 
 Expected: both commands exit 0. The verifier deliberately rejects untracked closure evidence, so stage it first. Four new records show `source_verified`, `elaboration_verified`, `runtime_unverified`; replay shows `read_set_matches_closure=true` for each. Existing records continue to pass unchanged.
 
-- [ ] **Step 2: Record measured counts and limitations**
+- [x] **Step 2: Record measured counts and limitations**
 
 Write the report with the four component IDs, source pins, selected path counts, closure read counts, actual lint warnings, Verilator version, verifier command exit codes and replay status. State that no generated harness or real CPU execution has been proven and that Pico AXI/Wishbone reduced response signals still need declared local transactor variants.
 
-- [ ] **Step 3: Commit exact evidence and source lock**
+- [x] **Step 3: Commit exact evidence and source lock**
 
 ```bash
 git diff --cached --check
