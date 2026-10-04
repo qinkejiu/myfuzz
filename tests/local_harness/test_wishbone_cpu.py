@@ -210,6 +210,7 @@ class WishboneCpuAcceptance(unittest.TestCase):
         from myfuzz.local_harness.wishbone_cpu_session import GeneratedWishboneCpuSession
         from myfuzz.local_harness.gpio_session import GeneratedPulpGpioSession
         from myfuzz.scenario.evidence import save_evidence_bundle, replay_evidence_bundle
+        from myfuzz.scenario.contracts import ResourceBudget
         from myfuzz.scenario.genome import MemoryImage, ScenarioGenome
         from myfuzz.scenario.ownership import compile_ownership
         from myfuzz.scenario.runner import ScenarioRunner
@@ -236,7 +237,9 @@ class WishboneCpuAcceptance(unittest.TestCase):
                 initial_images=(MemoryImage('program','cpu',0,program),
                                 MemoryImage('data','cpu',0x20,'78563412')))
             bundle = root/'evidence'
-            trace = save_evidence_bundle(case, factory, bundle)
+            trace = save_evidence_bundle(case, factory, bundle,
+                budget=ResourceBudget(max_wall_time_ms=90000,
+                                      max_materialized_bytes_per_memory=4096))
             self.assertEqual('complete', trace.status)
             self.assertEqual(0x12345678,
                 instances[0][2].read(0x24, 4, transaction_id='saved-check').value)
