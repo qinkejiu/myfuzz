@@ -93,7 +93,7 @@ PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_axi4_cpu -q
 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_ibex_obi_runtime -q
 ```
 
-2026-10-04 回归结果：场景回归 367/367；OpenTitan RV Timer 独立及 CPU 数据链真实 RTL 测试 3/3。本地 harness 全量回归仍按上面的命令执行，后续增量适配应重新记录当前计数。Pico 原生内存真实测试 2/2、AXI4-Lite 真实测试 2/2、Wishbone 专项 6/6、ZipCPU AXI4 突发及 schema 2/2、PULP SPI 预算化证据测试均通过。CVE2 双 GPIO 双向真实场景此前 2/2，预算化证据 fresh replay 一致。若本地缺少某 CPU 的可执行固定源码，只跳过该 CPU 的真实验收并记录 `skipped_unavailable`，不让其他 CPU/IP 或协议等级自动通过。
+2026-10-04 回归结果：合入 I2C IRQ 端口通用化之前，本地 harness 198 项中 197 通过、1 项因真实 RTL 环境门禁跳过；场景回归 367/367；OpenTitan RV Timer 独立及 CPU 数据链真实 RTL 测试 3/3。I2C IRQ 端口通用化后的 driver 专项 6/6 通过，后续增量适配应重新记录全量计数。Pico 原生内存真实测试 2/2、AXI4-Lite 真实测试 2/2、Wishbone 专项 6/6、ZipCPU AXI4 突发及 schema 2/2、PULP SPI 预算化证据测试均通过。CVE2 双 GPIO 双向真实场景此前 2/2，预算化证据 fresh replay 一致。若本地缺少某 CPU 的可执行固定源码，只跳过该 CPU 的真实验收并记录 `skipped_unavailable`，不让其他 CPU/IP 或协议等级自动通过。
 
 ## 尚未满足的验收
 
