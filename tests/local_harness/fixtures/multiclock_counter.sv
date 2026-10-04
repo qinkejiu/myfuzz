@@ -23,7 +23,9 @@ module local_runtime_dual_clock_fixture (
     else core_count_o <= core_count_o + 1'b1;
   end
 
-  always_ff @(posedge clk_aon or posedge reset_aon) begin
+  // The AON domain intentionally uses a synchronous active-high reset so the
+  // fixture covers both reset styles in one genuine two-domain instance.
+  always_ff @(posedge clk_aon) begin
     if (reset_aon) aon_count_o <= '0;
     else aon_count_o <= aon_count_o + 1'b1;
   end

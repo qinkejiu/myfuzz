@@ -22,8 +22,38 @@ from myfuzz.local_harness.clock_schedule import build_local_clock_schedule
 from myfuzz.local_harness.driver_renderer import render_local_driver
 from myfuzz.local_harness.port_rendering import render_port_connections
 from myfuzz.local_harness.session import GeneratedLocalSession
+from myfuzz.scenario.ownership import compile_ownership
+from myfuzz.scenario.genome import ScenarioGenome
+from myfuzz.scenario.runner import ScenarioRunner
+from myfuzz.scenario.replay import record_scenario, replay_scenario
 
 ROOT = Path(os.environ.get('MYFUZZ_LOCAL_SOURCE_ROOT', Path(__file__).resolve().parents[2])).resolve()
+
+
+class _DualClockScenarioSession(GeneratedLocalSession):
+    """Expose generated dual-clock samples to the ordinary fresh-runner replay."""
+
+    def prepare_local(self):
+        if self._binary is None:
+            raise RuntimeError('synthetic fixture binary was not prebuilt')
+
+    def identity_document(self):
+        return {'schema_version': 'synthetic_dual_clock_identity.v1',
+                'artifact_digest': self.artifact.runtime_document['artifact_digest'],
+                'clock_schedule': self.artifact.runtime_document['clock_schedule']}
+
+    def step_local(self, inputs):
+        if inputs:
+            raise ValueError('synthetic counter fixture has no mutable inputs')
+        reply = self.command('STEP_TIMER', (0,))
+        if reply.status != 'result' or reply.payload is None:
+            raise RuntimeError('synthetic dual-clock step failed')
+        sample = reply.payload['samples'][-1]
+        edges = sample['clock_edges']
+        physical = sample['post']['physical']
+        return {'core_edges': edges['core'], 'aon_edges': edges['aon'],
+                'core_count': physical['core_count_o'],
+                'aon_count': physical['aon_count_o']}
 
 
 def real_plan(profile, instance):
@@ -250,8 +280,11 @@ class MultiClockScheduleTests(unittest.TestCase):
             (ClockBinding('clk_i', 'core', 2_000_000),
              ClockBinding('clk_aon_i', 'aon', 1_000_000)),
             (ResetBinding('rst_ni', 'core', 'active_high', False),
-             ResetBinding('rst_aon_ni', 'aon', 'active_high', False)),
+             ResetBinding('rst_aon_ni', 'aon', 'active_high', True)),
             reset_assert_ticks=8, reset_release_ticks=8)
+        reset_bindings = {row['domain']: row for row in schedule['resets']}
+        self.assertFalse(reset_bindings['core']['synchronous'])
+        self.assertTrue(reset_bindings['aon']['synchronous'])
         document['module_name'] = 'local_runtime_dual_clock_fixture'
         document['clock_schedule'] = schedule
         original_export = document['physical_exports'][0]
@@ -288,6 +321,10 @@ class MultiClockScheduleTests(unittest.TestCase):
         # generated C++ advances the slow clock and reports domain edge counts.
         self.assertIn('dut.clk_aon', driver.cpp_text)
         self.assertIn('"clock_edges"', driver.cpp_text)
+        runtime_resets = {row['domain']: row for row in
+                          driver.runtime_document['clock_schedule']['resets']}
+        self.assertFalse(runtime_resets['core']['synchronous'])
+        self.assertTrue(runtime_resets['aon']['synchronous'])
 
         with tempfile.TemporaryDirectory(prefix='myfuzz-dual-clock-') as work:
             directory = Path(work)
@@ -327,6 +364,40 @@ class MultiClockScheduleTests(unittest.TestCase):
                     [[item.payload['samples'] for item in run] for run in (first, replay)][0],
                     [item.payload['samples'] for item in replay])
                 session.end_case()
+
+            # Exercise the public scenario replay path with two fresh runner
+            # instances. The edge counters are ordinary observed outputs, so
+            # replay compares the local-clock receipts as part of the trace.
+            runners = []
+
+            def factory():
+                fresh = _DualClockScenarioSession(driver, base_dir=ROOT,
+                    cache_dir=directory / 'cache', command_timeout_seconds=5)
+                fresh._binary = binary
+                runner = ScenarioRunner(sessions={'timer': fresh},
+                    ownership=compile_ownership((), ()), bindings=())
+                runners.append(runner)
+                return runner
+
+            genome = ScenarioGenome(testcase_id='dual-clock-public-replay',
+                direction='IP_TO_IP', path_id='dual-clock-edge-receipts',
+                schedule_order=('timer',), max_steps=5, actions=())
+            trace = record_scenario(genome, factory)
+            self.assertEqual('complete', trace.status, trace.events[-5:])
+            replayed = replay_scenario(genome, factory, trace)
+            self.assertTrue(replayed.matches, replayed.difference_context)
+            self.assertIsNot(runners[0], runners[1])
+            self.assertIsNot(runners[0].sessions['timer'], runners[1].sessions['timer'])
+            recorded_edges = [event['outputs'] for event in trace.events
+                              if event.get('outputs') is not None
+                              and 'core_edges' in event['outputs']]
+            replayed_edges = [event['outputs'] for event in replayed.actual_trace.events
+                              if event.get('outputs') is not None
+                              and 'core_edges' in event['outputs']]
+            self.assertEqual(5, len(recorded_edges))
+            self.assertEqual(recorded_edges, replayed_edges)
+            self.assertTrue(all(row['core_edges'] > 0 and row['aon_edges'] > 0
+                                for row in recorded_edges))
 
 
 if __name__ == '__main__':
