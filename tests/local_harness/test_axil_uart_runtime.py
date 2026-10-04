@@ -11,9 +11,11 @@ from myfuzz.local_harness.axil_uart_session import GeneratedAxiLiteUartSession
 from myfuzz.local_harness.build import build_local_harness
 from myfuzz.local_harness.driver_renderer import render_local_driver
 from myfuzz.scenario.contracts import ResourceBudget, _verify_generated_session
+from myfuzz.scenario.dependency import DependencyGraph, DependencyRule, FuzzableSource
 from myfuzz.scenario.evidence import replay_evidence_bundle, save_evidence_bundle
-from myfuzz.scenario.genome import ScenarioGenome
-from myfuzz.scenario.ownership import compile_ownership
+from myfuzz.scenario.genome import Action, ScenarioGenome, Trigger
+from myfuzz.scenario.mutation import choose_mutation, mutate_genome
+from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
 from myfuzz.scenario.runner import ScenarioRunner
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -94,3 +96,65 @@ class AxilUartRuntimeAcceptance(unittest.TestCase):
         self.assertEqual([65], sessions[1].peer.captured)
         self.assertEqual(90, sessions[1]._rx_word)
         self.assertNotEqual(sessions[0]._execution, sessions[1]._execution)
+
+    def test_genome_source_byte_changes_real_uart_rx_and_replays(self):
+        ownership = compile_ownership(
+            (InputField('uart', 'uart_rx_byte', 8),),
+            (InputOwner('uart', 'uart_rx_byte', 0, 8, 'source',
+                        'external_uart_rx_byte'),))
+        graph = DependencyGraph(
+            sources=(FuzzableSource('external_uart_rx_byte', 'uart',
+                'uart_rx_byte', 0, 8, ('IP_TO_CPU',)),),
+            rules=(DependencyRule('uart.serial_rx_word',
+                ('external_uart_rx_byte',), 'DATA_BINDING'),))
+        seed = ScenarioGenome(testcase_id='axil-uart-genome-source',
+            direction='IP_TO_CPU', path_id='external-rx-rtl-read',
+            schedule_order=('uart',), max_steps=780,
+            actions=(Action('serial-byte', 'uart', 'uart_rx_byte', 0x35,
+                            'IP_TO_CPU', Trigger('START')),))
+        plan = choose_mutation(graph, {'uart.serial_rx_word': 1},
+                               direction='IP_TO_CPU')
+        changed = seed
+        for bit in (0, 1, 4, 7):
+            changed = mutate_genome(changed, plan, graph, ownership,
+                                    bit_index=bit)
+        self.assertEqual(0xa6, changed.actions[0].value)
+        observed = []
+        for genome in (seed, changed):
+            byte = genome.actions[0].value
+            sessions = []
+
+            def factory():
+                uart = GeneratedAxiLiteUartSession(self.artifact, base_dir=ROOT,
+                    cache_dir=self.cache, source=None, read_rx_after_source=True)
+                sessions.append(uart)
+                return ScenarioRunner(sessions={'uart': uart},
+                    ownership=ownership, bindings=())
+            bundle = Path(self.directory.name) / f'genome-{byte:02x}'
+            trace = save_evidence_bundle(genome, factory, bundle,
+                budget=ResourceBudget(max_wall_time_ms=90000))
+            self.assertEqual('complete', trace.status)
+            self.assertEqual(byte, sessions[0]._rx_word)
+            injections = [event for event in trace.events
+                          if event.get('kind') == 'source_injection']
+            self.assertEqual([byte], [event['value'] for event in injections])
+            self.assertEqual('genome', sessions[0].identity_document()['source_mode'])
+            replay = replay_evidence_bundle(bundle, factory)
+            self.assertTrue(replay.matches, replay)
+            self.assertEqual(byte, sessions[1]._rx_word)
+            observed.append(sessions[0]._rx_word)
+        self.assertEqual([0x35, 0xa6], observed)
+
+    def test_genome_source_cannot_change_after_frame_begins(self):
+        uart = GeneratedAxiLiteUartSession(self.artifact, base_dir=ROOT,
+            cache_dir=self.cache, source=None, read_rx_after_source=True)
+        uart.begin_case('axil-uart-locked-source')
+        try:
+            uart.step_local({'uart_rx_byte': 0x35})
+            tick = uart.local_ticks
+            with self.assertRaisesRegex(ValueError, 'cannot change'):
+                uart.step_local({'uart_rx_byte': 0xa6})
+            self.assertEqual(tick, uart.local_ticks)
+            self.assertEqual(b'5', uart.peer.source)
+        finally:
+            uart.end_case()

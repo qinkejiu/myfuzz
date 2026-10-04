@@ -15,12 +15,12 @@ class GeneratedAxiLiteUartSession(GeneratedLocalSession):
     max_transaction_events_per_step = 0
 
     def __init__(self, artifact, *, base_dir, cache_dir,
-                 source: bytes = b'', startup_writes: tuple[tuple[int, int, int], ...] = (),
+                 source: bytes | None = b'', startup_writes: tuple[tuple[int, int, int], ...] = (),
                  read_rx_after_source: bool = False, **kwargs):
         super().__init__(artifact, base_dir=base_dir, cache_dir=cache_dir, **kwargs)
         if self._expected_ready()[3] != self.artifact_kind:
             raise ValueError('generated AXI4-Lite UART artifact required')
-        if not isinstance(source, bytes) or len(source) > 1:
+        if source is not None and (not isinstance(source, bytes) or len(source) > 1):
             raise ValueError('UART peer supports at most one source byte')
         if (type(startup_writes) is not tuple or len(startup_writes) > 4
                 or any(type(row) is not tuple or len(row) != 3
@@ -30,12 +30,14 @@ class GeneratedAxiLiteUartSession(GeneratedLocalSession):
                                 and type(row[2]) is int and row[2] == 1)
                        for row in startup_writes)):
             raise ValueError('invalid AXI4-Lite UART startup writes')
-        if type(read_rx_after_source) is not bool or read_rx_after_source and not source:
+        if (type(read_rx_after_source) is not bool
+                or read_rx_after_source and source == b''):
             raise ValueError('UART RX read requires a serial source')
         self.source = source
+        self.source_mode = 'genome' if source is None else 'constructor'
         self.startup_writes = startup_writes
         self.read_rx_after_source = read_rx_after_source
-        self.peer = Uart8N1Peer(source)
+        self.peer = Uart8N1Peer(source or b'')
         self._started = False
         self._rx_read = False
         self._rx_word = 0
@@ -47,15 +49,19 @@ class GeneratedAxiLiteUartSession(GeneratedLocalSession):
 
     def identity_document(self):
         return {**super().identity_document(),
-                'axil_uart_service_schema_version': 'generated_axil_uart_8n1.v1',
+                'axil_uart_service_schema_version': ('generated_axil_uart_8n1.v2'
+                    if self.source_mode == 'genome' else 'generated_axil_uart_8n1.v1'),
                 'source_component': self.artifact.plan.request.instance_id,
-                'source_hex': self.source.hex(),
+                'source_hex': (self.source or b'').hex(),
+                **({'source_mode': 'genome'} if self.source_mode == 'genome' else {}),
                 'startup_writes': [list(row) for row in self.startup_writes],
                 'read_rx_after_source': self.read_rx_after_source}
 
     def begin_case(self, testcase_id):
         super().begin_case(testcase_id)
         self.peer.reset_case()
+        if self.source_mode == 'genome':
+            self.peer.source = b''
         self._started = False
         self._rx_read = False
         self._rx_word = 0
@@ -68,7 +74,8 @@ class GeneratedAxiLiteUartSession(GeneratedLocalSession):
     @property
     def pending_events(self):
         if not self._started:
-            return len(self.startup_writes) + len(self.source)
+            return len(self.startup_writes) + (1 if self.source_mode == 'genome'
+                                               else len(self.source))
         return (max(0, self.peer.source_end_tick - self.local_ticks)
                 + int(self.read_rx_after_source and not self._rx_read))
 
@@ -109,7 +116,19 @@ class GeneratedAxiLiteUartSession(GeneratedLocalSession):
         return result
 
     def step_local(self, inputs: Mapping[str, int]):
-        if not isinstance(inputs, Mapping) or inputs:
+        if not isinstance(inputs, Mapping):
+            raise ValueError('UART inputs must be a mapping')
+        if self.source_mode == 'genome':
+            if (set(inputs) != {'uart_rx_byte'}
+                    or type(inputs['uart_rx_byte']) is not int
+                    or not 0 <= inputs['uart_rx_byte'] <= 255):
+                raise ValueError('UART genome source needs one byte')
+            byte = inputs['uart_rx_byte']
+            if not self._started:
+                self.peer.source = bytes((byte,))
+            elif self.peer.source != bytes((byte,)):
+                raise ValueError('UART source cannot change after serial frame starts')
+        elif inputs:
             raise ValueError('UART peer source is selected at case start')
         if not self._started:
             self._started = True
@@ -175,6 +194,8 @@ class GeneratedAxiLiteUartSession(GeneratedLocalSession):
     def reset_local(self):
         result = super().reset_local()
         self.peer.reset_case()
+        if self.source_mode == 'genome':
+            self.peer.source = b''
         self._started = False
         self._rx_read = False
         self._rx_word = 0
