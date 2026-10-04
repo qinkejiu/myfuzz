@@ -29,6 +29,6 @@ Validation command:
 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_request tests.local_harness.test_plan -q
 ```
 
-Actual result: 14 tests passed (`Ran 14 tests`, `OK`). The first planner test run failed at import because the planner export did not exist, before implementation. Negative tests verify missing profiles, profile symlink escapes, unknown destination refusal and full-bit ledger refusal for removed or duplicated CVE2 port actions. The real selected-only Ibex profile is rejected with `full-top-required`; this coverage limitation is never accepted as full-top evidence. `git diff --check` also passes.
+Actual result: 15 tests passed (`Ran 15 tests`, `OK`). The first planner test run failed at import because the planner export did not exist, before implementation. Negative tests verify missing profiles, profile symlink escapes, unknown destination refusal and full-bit ledger refusal for removed or duplicated CVE2 port actions. A profile-file change during elaboration still hashes the original bytes used for parsing. The real selected-only Ibex profile is rejected with `full-top-required`; this coverage limitation is never accepted as full-top evidence. `git diff --check` also passes.
 
 The planner retains frozen references to existing profile/facts/binding records and an immutable disposition tuple. It does not modify the existing fixed source list or older session/evidence identities. Binding environment inputs to real upstream outputs and implementing local protocol owners remain work for the rendering/runtime milestone.

@@ -75,6 +75,23 @@ class LocalHarnessPlanTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'invalid-profile-path'):
                 plan_local_harness(self.gpio_request, base_dir=root)
 
+    def test_profile_identity_uses_the_loaded_byte_snapshot(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / self.gpio_request.profile_path
+            path.parent.mkdir(parents=True)
+            original = (ROOT / self.gpio_request.profile_path).read_bytes()
+            path.write_bytes(original)
+
+            def change_after_load(profile, *, base_dir):
+                path.write_bytes(b'{"changed":true}')
+                return self.gpio.facts
+
+            with patch('myfuzz.local_harness.plan.elaborate_profile',
+                       side_effect=change_after_load):
+                plan = plan_local_harness(self.gpio_request, base_dir=root)
+            self.assertEqual(plan.profile_sha256, hashlib.sha256(original).hexdigest())
+
     def test_rejects_declared_only_ibex_top(self):
         with self.assertRaisesRegex(ValueError, 'full-top-required'):
             plan_local_harness(request('configs/cpus/ibex/component_profile.json', 'cpu_0'), base_dir=ROOT)

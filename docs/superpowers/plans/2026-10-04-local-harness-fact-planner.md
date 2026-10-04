@@ -20,7 +20,7 @@
 
 ---
 
-**完成证据（2026-10-04）：** 请求解析器提交 `4632640`，事实规划器提交 `e51d30e`，两项均经独立审查。主工作树补齐 profile 文件哈希和实际协议 endpoint 列表后，`PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_request tests.local_harness.test_plan -q` 重跑 14/14 通过。CVE2 与 PULP GPIO 的完整顶层端口分别为 70/17，Ibex 的局部端口选择按设计被拒绝。本阶段仅是事实计划，尚无生成 RTL 或真实运行。
+**完成证据（2026-10-04）：** 请求解析器提交 `4632640`，事实规划器提交 `e51d30e`，两项均经独立审查。主工作树补齐 profile 文件哈希和实际协议 endpoint 列表，随后按审查意见使哈希绑定同一次读取的 profile 字节快照。`PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_request tests.local_harness.test_plan -q` 重跑 15/15 通过。CVE2 与 PULP GPIO 的完整顶层端口分别为 70/17，Ibex 的局部端口选择按设计被拒绝。本阶段仅是事实计划，尚无生成 RTL 或真实运行。
 
 ## File Structure
 

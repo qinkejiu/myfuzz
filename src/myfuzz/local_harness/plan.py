@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import json
 from pathlib import Path
 
 from myfuzz.composition.component_profile import (
@@ -86,7 +87,8 @@ def plan_local_harness(request: LocalHarnessRequest, *, base_dir: Path) -> Local
     profile_path = (root / request.profile_path).resolve()
     if not profile_path.is_relative_to(configs):
         raise ValueError('invalid-profile-path:outside-configs')
-    profile = load_component_profile(profile_path)
+    profile_bytes = profile_path.read_bytes()
+    profile = load_component_profile(json.loads(profile_bytes))
     facts = elaborate_profile(profile, base_dir=root)
     if facts.selection != 'all':
         raise ValueError('full-top-required')
@@ -99,4 +101,4 @@ def plan_local_harness(request: LocalHarnessRequest, *, base_dir: Path) -> Local
         _local_target(entry)
     return LocalHarnessPlan(
         request, profile, facts, binding, dispositions,
-        hashlib.sha256(profile_path.read_bytes()).hexdigest())
+        hashlib.sha256(profile_bytes).hexdigest())
