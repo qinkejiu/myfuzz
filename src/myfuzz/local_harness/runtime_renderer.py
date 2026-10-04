@@ -282,7 +282,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
 
     elif (len(endpoints) == 1 and functions == {'mmio_slave'}
           and endpoints[0].protocol == ('tl-ul', '1')):
-        kind = 'tlul_gpio'
+        kind = ('tlul_timer' if plan.profile.capabilities.get('local_runtime_variant') == 'tlul_timer'
+                else 'tlul_gpio')
         boot = None
         c = plan.profile.capabilities
         if tuple(c.get(k) for k in ('address_width', 'data_width', 'byte_enable',
@@ -291,13 +292,17 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                                    'd_user_width', 'size_width', 'max_outstanding')) != (
                 32, 32, True, True, True, 'required', 8, 1, 23, 14, 2, 1):
             raise ValueError('runtime-tlul-capabilities')
-        if plan.profile.address is None or plan.profile.address.window_size != 128:
+        expected_window = 4096 if kind == 'tlul_timer' else 128
+        if plan.profile.address is None or plan.profile.address.window_size != expected_window:
             raise ValueError('runtime-tlul-window')
         pins = [e for e in plan.binding.endpoints if e.function == 'external_pins']
-        if len(pins) != 1 or {f.role: (f.direction, f.width) for f in pins[0].fields} != {
-                'in': ('input', 32), 'out': ('output', 32), 'en': ('output', 32),
-                'strap_en': ('input', 1)}:
-            raise ValueError('runtime-tlul-pin-shape')
+        if kind == 'tlul_gpio':
+            if len(pins) != 1 or {f.role: (f.direction, f.width) for f in pins[0].fields} != {
+                    'in': ('input', 32), 'out': ('output', 32), 'en': ('output', 32),
+                    'strap_en': ('input', 1)}:
+                raise ValueError('runtime-tlul-pin-shape')
+        elif pins:
+            raise ValueError('runtime-tlul-timer-pin-shape')
         adapters = ['src/myfuzz/protocols/rtl/beat_to_tlul.sv']
     elif len(endpoints) == 1 and functions == {'mmio_slave'} and endpoints[0].protocol == ('apb', '3'):
         kind = _apb_local_kind(plan.binding.endpoints, abi, plan.profile.capabilities)
@@ -327,6 +332,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                 kind == 'apb_i2c' and row['endpoint_id'] == 'i2c.pins' or
                 kind == 'tlul_gpio' and row['endpoint_id'] == 'gpio.interrupts'
                 and row['direction'] == 'output' and row['width'] == 32 or
+                kind == 'tlul_timer' and row['endpoint_id'] == 'timer.interrupts'
+                and row['direction'] == 'output' and row['width'] == 1 or
                 kind == 'obi_cpu' and row['direction'] == 'input' and row['width'] == 1
                 and row['endpoint_id'] == plan.profile.cpu.irq_entry_endpoint
                 and row['role'] == plan.profile.cpu.irq_entry_role):
@@ -458,24 +465,25 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                          '    .SUPPORTS_PARTIAL_WRITE(0), .HAS_ERR(0),\n'
                          f'    .MAX_WAIT_CYCLES({wait}), .WINDOW_BASE(32\'d0), .WINDOW_SIZE(4)\n'
                          '  ) u_adapter_timer (\n    '+',\n    '.join(f'.{p}({v})' for p,v in pairs.items())+'\n  );')
-    elif kind == 'tlul_gpio':
+    elif kind in ('tlul_gpio', 'tlul_timer'):
         wires = _shape(endpoints[0], _TLUL, abi)
-        beat_ports('gpio', False)
+        channel = 'timer' if kind == 'tlul_timer' else 'gpio'
+        beat_ports(channel, False)
         declared_wait = plan.profile.capabilities['max_wait_cycles']
         if type(declared_wait) is not int or declared_wait < 1:
             raise ValueError('runtime-tlul-wait-bound')
         wait = min(declared_wait, plan.request.max_wait_cycles)
-        pairs = dict(clk='clk', reset='reset', req_valid='gpio_req_valid',
-                     req_ready='gpio_req_ready', write='gpio_req_write',
-                     addr='gpio_req_addr', wdata='gpio_req_wdata', be='gpio_req_be',
-                     rsp_valid='gpio_rsp_valid', rsp_ready='gpio_rsp_ready',
-                     rdata='gpio_rsp_rdata', error='gpio_rsp_error', **wires)
+        pairs = dict(clk='clk', reset='reset', req_valid=channel+'_req_valid',
+                     req_ready=channel+'_req_ready', write=channel+'_req_write',
+                     addr=channel+'_req_addr', wdata=channel+'_req_wdata', be=channel+'_req_be',
+                     rsp_valid=channel+'_rsp_valid', rsp_ready=channel+'_rsp_ready',
+                     rdata=channel+'_rsp_rdata', error=channel+'_rsp_error', **wires)
         instances.append('beat_to_tlul #(\n'
                          '    .ADDRESS_WIDTH(32), .DATA_WIDTH(32), .SIZE_WIDTH(2),\n'
                          '    .SOURCE_WIDTH(8), .SINK_WIDTH(1), .USER_WIDTH(23),\n'
                          '    .DUSER_WIDTH(14), .GEN_INTEGRITY(1), .SOURCE_ID(0),\n'
-                         f'    .MAX_WAIT_CYCLES({wait}), .WINDOW_BASE(32\'d0), .WINDOW_SIZE(128)\n'
-                         '  ) u_adapter_gpio (\n    '+',\n    '.join(f'.{p}({v})' for p,v in pairs.items())+'\n  );')
+                         f'    .MAX_WAIT_CYCLES({wait}), .WINDOW_BASE(32\'d0), .WINDOW_SIZE({expected_window})\n'
+                         f'  ) u_adapter_{channel} (\n    '+',\n    '.join(f'.{p}({v})' for p,v in pairs.items())+'\n  );')
     else:
         wires = _shape(endpoints[0], _APB, abi)
         channel = {'apb_spi': 'spi', 'apb_gpio': 'gpio',
@@ -509,7 +517,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                     module_name=module, plan=plan.document(), structural_abi=copy.deepcopy(structural.abi_document),
                     structural_build=copy.deepcopy(structural.build_document), source_verification=copy.deepcopy(verified),
                     boot_contract=boot,
-                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'apb_i2c', 'tlul_gpio', 'wishbone_timer') else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
+                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'apb_i2c', 'tlul_gpio', 'tlul_timer', 'wishbone_timer') else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
                     runtime_sv_sha256=hashlib.sha256(runtime.encode()).hexdigest(), cpp_sha256=hashlib.sha256(b'').hexdigest(),
                     adapted_endpoint_ids=sorted(adapted), physical_exports=exports, backend_ports=backend,
                     runtime_ports=[dict(name=n,direction=d,width=w) for n,d,w in ports],

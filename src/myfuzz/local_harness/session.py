@@ -28,6 +28,8 @@ _OPERATIONS = {
                  'ACCESS_GPIO': (0xffffffff, 1, 4092, 0xffffffff, 15)},
     'tlul_gpio': {'STEP_TLUL_GPIO': (0xffffffff, 1),
                   'ACCESS_TLUL_GPIO': (0xffffffff, 1, 1, 124, 0xffffffff, 15)},
+    'tlul_timer': {'STEP_TLUL_TIMER': (),
+                   'ACCESS_TLUL_TIMER': (1, 4092, 0xffffffff, 15)},
     'wishbone_timer': {'STEP_WB_TIMER': (),
                        'ACCESS_WB_TIMER': (1, 0, 0xffffffff, 15)},
     'apb_spi': {'STEP_SPI': (1,), 'ACCESS_SPI': (1, 4092, 0xffffffff, 15),
@@ -155,6 +157,7 @@ class GeneratedLocalSession:
                        for value, maximum in zip(fields, maxima))
                 or (operation == 'ACCESS_GPIO' and fields[2] % 4)
                 or (operation == 'ACCESS_TLUL_GPIO' and fields[3] % 4)
+                or (operation == 'ACCESS_TLUL_TIMER' and fields[1] % 4)
                 or (operation == 'ACCESS_SPI' and fields[1] % 4)
                 or (operation == 'ACCESS_TIMER' and fields[1] % 4)
                 or (operation == 'ACCESS_I2C' and fields[1] % 4)

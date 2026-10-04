@@ -30,6 +30,9 @@ def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path) -> di
     if profile.component_id == 'opentitan_gpio_local':
         from .opentitan_gpio_contract import verify_opentitan_gpio_source_contract
         return verify_opentitan_gpio_source_contract(profile, base_dir=base_dir)
+    if profile.component_id == 'opentitan_rv_timer_local':
+        from .opentitan_rv_timer_contract import verify_opentitan_rv_timer_source_contract
+        return verify_opentitan_rv_timer_source_contract(profile, base_dir=base_dir)
     if profile.component_id == 'pulp_spi':
         # The selected APB top has one separately owned RTL dependency. Its
         # profile names exactly the authenticated elaboration union, while the

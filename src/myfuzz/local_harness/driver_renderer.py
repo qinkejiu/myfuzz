@@ -69,6 +69,13 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             raise ValueError('driver-tlul-irq-field')
         fields['interrupt'] = irq[0]['runtime_name']
         allowed_inputs = {fields['gpio_in'], fields['strap_en']}
+    elif kind == 'tlul_timer':
+        irq = [row for row in exports if row['endpoint_id'] == 'timer.interrupts'
+               and row['role'] == 'irq' and row['width'] == 1 and row['direction'] == 'output']
+        if len(irq) != 1:
+            raise ValueError('driver-tlul-timer-irq-field')
+        fields['irq'] = irq[0]['runtime_name']
+        allowed_inputs = set()
     elif kind == 'wishbone_timer':
         irq = [row for row in exports if row['physical_port'] == 'o_int'
                and row['width'] == 1 and row['direction'] == 'output'
@@ -151,7 +158,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     backend_items = ',\n'.join('    {' + _literal(row['name']) + ', ' + signal(row, 'name') + '}' for row in backend)
     physical_items = ',\n'.join('    {' + _literal(row['runtime_name']) + ', ' + signal(row) + '}' for row in exports)
     aliases = ''
-    if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'tlul_gpio',
+    if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'tlul_gpio', 'tlul_timer',
                 'wishbone_timer', 'axi4_lite_uart', 'apb_i2c'):
         by_name = {row['runtime_name']: row for row in exports}
         aliases = ''.join(f'  values[{_literal(alias)}] = {signal(by_name[name])};\n'
@@ -159,6 +166,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                           if (kind in ('apb_gpio', 'tlul_gpio') and alias not in ('gpio_in', 'strap_en'))
                           or kind == 'wishbone_timer'
                           or kind == 'apb_timer'
+                          or kind == 'tlul_timer'
                           or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi')))
                           or (kind == 'axi4_lite_uart' and alias not in ('uart_rx', 'uart_cts_n'))
                           or kind == 'apb_i2c')
@@ -176,6 +184,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         if ((kind in ('apb_gpio', 'tlul_gpio') and alias not in ('gpio_in', 'strap_en'))
                 or kind == 'wishbone_timer'
                 or kind == 'apb_timer'
+                or kind == 'tlul_timer'
                 or (kind == 'apb_spi' and (alias == 'events_o' or not alias.startswith('spi_sdi')))
                 or (kind == 'axi4_lite_uart' and alias not in ('uart_rx', 'uart_cts_n'))
                 or kind == 'apb_i2c'):
@@ -294,10 +303,11 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         operation_check = 'command.operation != "STEP_CPU"'
     else:
         spi = kind == 'apb_spi'
-        timer = kind in ('apb_timer', 'wishbone_timer')
+        timer = kind in ('apb_timer', 'wishbone_timer', 'tlul_timer')
         channel = ('spi' if spi else 'timer' if timer else
                    'i2c' if kind == 'apb_i2c' else 'gpio')
         command_channel = ('TLUL_GPIO' if kind == 'tlul_gpio' else
+                           'TLUL_TIMER' if kind == 'tlul_timer' else
                            'WB_TIMER' if kind == 'wishbone_timer' else channel.upper())
         input_assignment = (f'      dut.{fields["gpio_in"]} = command.fields[0];\n'
                             if kind in ('apb_gpio', 'tlul_gpio') else '')

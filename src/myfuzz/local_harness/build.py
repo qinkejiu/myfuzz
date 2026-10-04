@@ -228,16 +228,18 @@ def _prepare(artifact, base_dir):
     capture(artifact.plan.request.profile_path, artifact.plan.profile_sha256)
     capture('configs/soc/sources.lock.json', verified['lock_sha256'])
     lock = json.loads(snapshots['configs/soc/sources.lock.json'])
-    record_id = ('opentitan_gpio' if artifact.plan.profile.component_id == 'opentitan_gpio_local'
-                 else artifact.plan.profile.component_id)
+    record_id = ({'opentitan_gpio_local': 'opentitan_gpio',
+                  'opentitan_rv_timer_local': 'opentitan_rv_timer'}
+                 .get(artifact.plan.profile.component_id, artifact.plan.profile.component_id))
     record = next(record for record in lock['components'] if record['id'] == record_id)
     evidence = record['elaboration']['evidence']
     capture(evidence, record['elaboration']['evidence_sha256'])
     closure = json.loads(snapshots[evidence])
     for item in closure['closure_files']:
         capture(item['root'] + '/' + item['path'], item['sha256'])
-    if artifact.plan.profile.component_id == 'opentitan_gpio_local':
+    if artifact.plan.profile.component_id in ('opentitan_gpio_local', 'opentitan_rv_timer_local'):
         capture(verified['wrapper_path'], verified['wrapper_sha256'])
+    if artifact.plan.profile.component_id == 'opentitan_gpio_local':
         capture('configs/peripherals/opentitan_gpio/component_profile.json',
                 verified['upstream_profile_sha256'])
     for item in doc['adapter_sources']:
