@@ -55,20 +55,41 @@ def _hash_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def host_source_identity() -> dict:
+def host_source_identity(*, harness_identities: tuple[dict, ...] = ()) -> dict:
     files = []
     for name in HOST_SOURCE_PATHS:
         path = _ROOT / name
         if not path.is_file():
             raise ValueError(f"host source is missing: {name}")
         files.append({"path": name, "sha256": _hash_file(path)})
+    if harness_identities:
+        names = set(HOST_SOURCE_PATHS)
+        for identity in harness_identities:
+            build = identity['build_identity']
+            names.update(row['path'] for row in build['inputs']
+                         if not row['path'].startswith('generated/'))
+        files = []
+        for name in sorted(names):
+            path = _ROOT / name
+            if (not isinstance(name, str) or Path(name).is_absolute()
+                    or '..' in Path(name).parts or not path.resolve().is_relative_to(_ROOT)
+                    or not path.is_file()):
+                raise ValueError('invalid harness host source: ' + str(name))
+            files.append({'path': name, 'sha256': _hash_file(path)})
+        return {'schema_version': 'scenario_harness_host_sources.v2', 'files': files}
     return {"schema_version": "scenario_host_sources.v1", "files": files}
 
 
-def verify_host_source_identity(saved: dict) -> dict:
+def verify_host_source_identity(saved: dict, *, harness_identities: tuple[dict, ...] = ()) -> dict:
     """Reject a missing, reordered, changed, or added semantic source."""
     if not isinstance(saved, dict) or set(saved) != {"schema_version", "files"}:
         raise ValueError("host source identity shape is invalid")
+    if saved['schema_version'] == 'scenario_harness_host_sources.v2':
+        if not harness_identities or saved != host_source_identity(harness_identities=harness_identities):
+            raise ValueError('harness host source identity mismatch')
+        return saved
+    if harness_identities:
+        raise ValueError('generated harness requires host sources v2')
     if saved["schema_version"] != "scenario_host_sources.v1":
         raise ValueError("host source schema_version is unsupported")
     files = saved["files"]

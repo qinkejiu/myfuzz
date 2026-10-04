@@ -56,6 +56,47 @@ def _verify_local_reset_timing(component: str, timing: dict) -> None:
             raise ValueError(f"reset_timings.{component}.{name} disagrees with wrapper")
 
 
+def _verify_generated_session(identity: dict):
+    """Regenerate authenticated bytes and build identity without starting RTL."""
+    from myfuzz.local_harness import (load_local_harness_request, plan_local_harness,
+        render_local_harness, render_local_runtime, verify_local_source_lock)
+    from myfuzz.local_harness.driver_renderer import render_local_driver
+    from myfuzz.local_harness.build import local_build_identity
+    _exact(identity, {'schema_version', 'runtime_artifact', 'build_identity',
+                      'command_timeout_seconds'}, 'generated session identity')
+    if identity['schema_version'] != 'generated_local_session_identity.v1':
+        raise ValueError('unsupported generated session schema')
+    timeout = identity['command_timeout_seconds']
+    if type(timeout) not in (int, float) or not 0 < timeout <= 3600:
+        raise ValueError('invalid generated command timeout')
+    document = identity['runtime_artifact']
+    plan_doc = document['plan']
+    request = load_local_harness_request(dict(schema_version='local_harness.v1',
+        profile_path=plan_doc['profile_path'], instance_id=plan_doc['instance_id'],
+        **plan_doc['timing']))
+    plan = plan_local_harness(request, base_dir=_ROOT)
+    top = render_local_runtime(plan, render_local_harness(plan),
+        verify_local_source_lock(plan.profile, base_dir=_ROOT), base_dir=_ROOT)
+    artifact = render_local_driver(top, base_dir=_ROOT)
+    if document != artifact.runtime_document:
+        raise ValueError('generated runtime artifact identity mismatch')
+    if identity['build_identity'] != local_build_identity(artifact, base_dir=_ROOT):
+        raise ValueError('generated build identity mismatch')
+    return artifact
+
+
+def _verify_generated_reset_timing(component: str, timing: dict, identity: dict) -> None:
+    _exact(timing, {'schema_version', 'artifact_digest', 'driver_sha256',
+                    'hold_cycles', 'release_cycles'}, 'generated reset timing')
+    document = identity['runtime_artifact']
+    reset = document['driver_reset']
+    expected = dict(schema_version='generated_local_reset.v1',
+        artifact_digest=document['artifact_digest'], driver_sha256=document['cpp_sha256'],
+        hold_cycles=reset['reset_assert_ticks'], release_cycles=reset['reset_release_ticks'])
+    if timing != expected or any(type(timing[name]) is not int for name in ('hold_cycles', 'release_cycles')):
+        raise ValueError(f'reset_timings.{component} disagrees with generated driver')
+
+
 def _exact(record: Any, names: set[str], label: str) -> dict:
     if not isinstance(record, dict):
         raise ValueError(f"{label} must be an object")
@@ -330,16 +371,25 @@ class ScenarioManifest:
             if "irq_pulses" in identity:
                 _list(identity["irq_pulses"], "runner_identity.irq_pulses")
             if "host_sources" in identity:
-                verify_host_source_identity(identity["host_sources"])
+                generated = tuple(record['identity'] for record in identity.get('sessions', {}).values()
+                    if record.get('identity', {}).get('schema_version') == 'generated_local_session_identity.v1')
+                verify_host_source_identity(identity["host_sources"], harness_identities=generated)
             identity_core = {key: value for key, value in identity.items()
                              if key not in ("irq_pulses", "host_sources")}
         else:
             identity_core = identity
         _exact(identity_core, {"schema_version", "sessions", "memories", "windows",
                                "ownership", "bindings"}, "runner_identity")
-        if identity["schema_version"] != "scenario_manifest_identity.v1":
+        if identity["schema_version"] not in ("scenario_manifest_identity.v1", "scenario_manifest_identity.v2"):
             raise ValueError("runner_identity.schema_version is unsupported")
         sessions = identity["sessions"]
+        has_generated = isinstance(sessions, dict) and any(
+            isinstance(record, dict) and isinstance(record.get('identity'), dict)
+            and record['identity'].get('schema_version') == 'generated_local_session_identity.v1'
+            for record in sessions.values())
+        if ((identity['schema_version'] == 'scenario_manifest_identity.v2') != has_generated
+                or (has_generated and 'host_sources' not in identity)):
+            raise ValueError('generated runner requires complete v2 host identity')
         if not isinstance(sessions, dict) or not sessions:
             raise ValueError("runner_identity.sessions must be nonempty")
         order = _list(document["schedule_order"], "schedule_order", nonempty=True)
@@ -350,6 +400,13 @@ class ScenarioManifest:
         for component, session in sessions.items():
             _text(component, "session component")
             session = _exact(session, {"type", "identity"}, f"sessions.{component}")
+            if session['identity'].get('schema_version') == 'generated_local_session_identity.v1':
+                if (identity['schema_version'] != 'scenario_manifest_identity.v2'
+                        or session['type'] not in ('myfuzz.local_harness.cpu_session.GeneratedCve2Session',
+                                                  'myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession')):
+                    raise ValueError('generated session type or runner schema mismatch')
+                _verify_generated_session(session['identity'])
+                continue
             if not isinstance(session["type"], str) or not session["type"].startswith(
                     "myfuzz.scenario."):
                 raise ValueError(f"sessions.{component}.type must be an independent harness")
@@ -388,6 +445,10 @@ class ScenarioManifest:
         if not isinstance(timings, dict) or set(timings) != set(sessions):
             raise ValueError("reset_timings must cover every component")
         for component, timing in timings.items():
+            sid = sessions[component]['identity']
+            if sid.get('schema_version') == 'generated_local_session_identity.v1':
+                _verify_generated_reset_timing(component, timing, sid)
+                continue
             timing = _exact(timing, {"hold_cycles", "release_cycles", "source_path",
                                      "source_sha256"}, f"reset_timings.{component}")
             _integer(timing["hold_cycles"], f"reset_timings.{component}.hold_cycles", 1)

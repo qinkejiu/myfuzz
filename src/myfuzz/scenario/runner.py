@@ -471,11 +471,13 @@ class ScenarioRunner:
                      "target_type": (f"{type(window.target).__module__}."
                                      f"{type(window.target).__qualname__}")}
                     for window in router.windows]
-        document = {"schema_version": "scenario_manifest_identity.v1",
+        generated = tuple(record['identity'] for record in sessions.values()
+                          if record['identity'].get('schema_version') == 'generated_local_session_identity.v1')
+        document = {"schema_version": ("scenario_manifest_identity.v2" if generated else "scenario_manifest_identity.v1"),
                     "sessions": sessions, "memories": memories, "windows": windows,
                     "ownership": self.ownership.document(),
                     "bindings": [asdict(binding) for binding in self.bindings],
-                    "host_sources": host_source_identity()}
+                    "host_sources": host_source_identity(harness_identities=generated)}
         if self.independent_baseline:
             document["independent_baseline"] = True
         if self._irq_pulses:
