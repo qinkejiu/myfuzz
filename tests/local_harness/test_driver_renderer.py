@@ -1,5 +1,6 @@
 """Generated C++ driver against original CVE2 and PULP GPIO RTL."""
 from dataclasses import replace
+from copy import deepcopy
 import hashlib
 import importlib.util
 import json
@@ -10,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from myfuzz.local_harness import load_local_harness_request, plan_local_harness, render_local_harness, render_local_runtime, verify_local_source_lock
 from myfuzz.local_harness.driver_renderer import render_local_driver
@@ -91,6 +93,29 @@ class DriverRendererTests(unittest.TestCase):
                 render_local_driver(changed, base_dir=SOURCE_ROOT)
         with self.assertRaises(ValueError):
             render_local_driver(render_local_driver(self.gpio, base_dir=SOURCE_ROOT), base_dir=SOURCE_ROOT)
+
+    def test_i2c_native_irq_is_selected_by_unique_observation_not_port_name(self):
+        top = make_top('configs/peripherals/pulp_i2c/component_profile.json',
+                       'renamed_i2c')
+        document = deepcopy(top.runtime_document)
+        irq = next(row for row in document['physical_exports']
+                   if row['physical_port'] == 'interrupt_o')
+        irq['physical_port'] = 'irq_done_o'
+        renamed = replace(top, runtime_document=document)
+        # Keep the authenticated source gate in production. This unit check
+        # isolates driver field selection after a valid runtime artifact exists.
+        with patch('myfuzz.local_harness.driver_renderer.render_local_runtime',
+                   return_value=renamed):
+            driver = render_local_driver(renamed, base_dir=SOURCE_ROOT)
+        self.assertIn('values["interrupt_o"]', driver.cpp_text)
+        self.assertIn(irq['runtime_name'], driver.cpp_text)
+        document['physical_exports'].append({**irq, 'physical_port': 'irq_other_o',
+                                             'runtime_name': 'rt_other_irq'})
+        ambiguous = replace(top, runtime_document=document)
+        with patch('myfuzz.local_harness.driver_renderer.render_local_runtime',
+                   return_value=ambiguous):
+            with self.assertRaisesRegex(ValueError, 'native-irq-required'):
+                render_local_driver(ambiguous, base_dir=SOURCE_ROOT)
 
     def build_driver(self, top, directory):
         artifact = render_local_driver(top, base_dir=SOURCE_ROOT)

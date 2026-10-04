@@ -126,7 +126,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             if len(rows) != 1 or rows[0]['width'] != 1:
                 raise ValueError('driver-i2c-pin-field:' + role)
             fields[role] = rows[0]['runtime_name']
-        irq = [row for row in exports if row['physical_port'] == 'interrupt_o'
+        irq = [row for row in exports if row['endpoint_id'] is None
                and row['disposition'] == 'observe' and row['direction'] == 'output'
                and row['width'] == 1]
         if len(irq) != 1:
