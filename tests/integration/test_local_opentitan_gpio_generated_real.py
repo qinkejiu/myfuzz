@@ -52,6 +52,9 @@ class GeneratedOpentitanGpioRealTests(unittest.TestCase):
         gpio = self.session('real-gpio')
         gpio.write_register(0x14, 0xa5)
         self.assertEqual(0xa5, gpio.read_register(0x14))
+        with self.assertRaisesRegex(RuntimeError, 'TL-UL write error'):
+            gpio.write_register(0x14, 0xff00, be=0b0010)
+        self.assertEqual(0xa5, gpio.read_register(0x14))
         gpio.write_register(0x20, 0xff)
         observed = gpio.step_local({})
         self.assertEqual((0xa5, 0xff), (observed['gpio_out'], observed['gpio_dir']))
@@ -65,6 +68,8 @@ class GeneratedOpentitanGpioRealTests(unittest.TestCase):
         self.assertEqual(1, gpio.read_register(0x00) & 1)
         gpio.write_register(0x00, 1)  # W1C
         self.assertEqual(0, gpio.step_local({})['irq'] & 1)
+        gpio.write_register(0x0c, 1, be=0b0001)  # ALERT_TEST permits lane 0
+        self.assertEqual(2, gpio.step_local({})['alert_tx_o'])
         self.assertTrue(any(sample['post']['interrupt'] & 1
                             for sample in gpio.drain_tick_samples()))
 
@@ -88,6 +93,13 @@ class GeneratedOpentitanGpioRealTests(unittest.TestCase):
             scheduler_policy_id='stable-local-v1', budget=ResourceBudget(),
             reset_timings={'gpio': timing})
         self.assertEqual('scenario_runtime_manifest.v1', manifest.to_document()['schema_version'])
+        import json
+        import jsonschema
+        schema = json.loads((ROOT / 'schemas/scenario_runtime_manifest.v1.json').read_text())
+        budget_schema = json.loads((ROOT / 'schemas/scenario_manifest.v1.json').read_text())
+        schema['properties']['budget'] = budget_schema['properties']['budget']
+        schema['$defs'].update(budget_schema.get('$defs', {}))
+        jsonschema.Draft202012Validator(schema).validate(manifest.to_document())
         genome = ScenarioGenome(testcase_id='ot-gpio-rising', direction='IP_TO_IP',
             path_id='standalone-tlul-gpio', schedule_order=('gpio',), max_steps=10,
             actions=(Action('rise', 'gpio', 'gpio_in', 1, 'IP_TO_IP', Trigger('START')),

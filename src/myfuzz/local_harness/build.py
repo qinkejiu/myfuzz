@@ -238,6 +238,8 @@ def _prepare(artifact, base_dir):
         capture(item['root'] + '/' + item['path'], item['sha256'])
     if artifact.plan.profile.component_id == 'opentitan_gpio_local':
         capture(verified['wrapper_path'], verified['wrapper_sha256'])
+        capture('configs/peripherals/opentitan_gpio/component_profile.json',
+                verified['upstream_profile_sha256'])
     for item in doc['adapter_sources']:
         capture(item['path'], item['sha256'])
     rows = doc['driver_header_sources']

@@ -13,13 +13,22 @@ from myfuzz.composition.source_crawler import _content_hash
 _WRAPPER = 'src/myfuzz/composition/rtl/soc_opentitan_gpio_local_target.sv'
 _WRAPPER_SHA256 = '8046bc87b17a50e4bc5e6effb1c7d3bd8a588a9099b0ca7d28e07ed231101443'
 _UNION_REVISION = 'sha256:05655bc876b9a2ee767c0fb482b6cc10353de98302349b145708d4576c632a35'
+_PROFILE_SHA256 = '8d60dcab7f1c02989ca2e1cae66217dc77b066b07804df03c852df035cd9b58c'
+_UPSTREAM_PROFILE_SHA256 = '3327d4aaa4fda5376cc014fb10d306256eec7109ef77b3168bf698db5141c46d'
 
 
 def verify_opentitan_gpio_source_contract(profile: ComponentProfile, *, base_dir: Path) -> dict[str, object]:
     """Authenticate upstream lock and immutable local wrapper before runtime admission."""
     root = Path(base_dir).resolve()
     upstream_path = root / 'configs/peripherals/opentitan_gpio/component_profile.json'
-    upstream = load_component_profile(json.loads(upstream_path.read_bytes()))
+    profile_raw = (root / 'configs/peripherals/opentitan_gpio_local/component_profile.json').read_bytes()
+    upstream_raw = upstream_path.read_bytes()
+    if (hashlib.sha256(profile_raw).hexdigest() != _PROFILE_SHA256
+            or hashlib.sha256(upstream_raw).hexdigest() != _UPSTREAM_PROFILE_SHA256):
+        raise ValueError('opentitan-gpio-profile-changed')
+    if load_component_profile(json.loads(profile_raw)) != profile:
+        raise ValueError('opentitan-gpio-profile-object-mismatch')
+    upstream = load_component_profile(json.loads(upstream_raw))
     raw_lock = (root / 'configs/soc/sources.lock.json').read_bytes()
     lock = json.loads(raw_lock)
     script = Path(__file__).resolve().parents[3] / 'scripts/verify_soc_sources.py'
@@ -84,6 +93,7 @@ def verify_opentitan_gpio_source_contract(profile: ComponentProfile, *, base_dir
         'upstream_record': upstream_verified,
         'wrapper_path': _WRAPPER,
         'wrapper_sha256': wrapper_sha,
+        'upstream_profile_sha256': _UPSTREAM_PROFILE_SHA256,
         'profile_union_revision': _UNION_REVISION,
         'closure_sha256': hashlib.sha256(closure_raw).hexdigest(),
         'lock_sha256': hashlib.sha256(raw_lock).hexdigest(),

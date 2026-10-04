@@ -21,6 +21,7 @@ def _uint(value: object, name: str, width: int) -> int:
 class GeneratedOpentitanGpioSession(GeneratedLocalSession):
     """A real GPIO instance; reset only at the declared component reset epoch."""
 
+    artifact_kind = 'tlul_gpio'
     max_local_ticks_per_step = 1
 
     def __init__(self, artifact, *, base_dir, cache_dir,
