@@ -19,14 +19,17 @@
 | ZipCPU axiluart，AXI4-Lite target | 固定五文件源码闭包和 29/29 顶层端口；真实 AW/W/B、AR/R 握手，TX pin 解码 `0x41`，串行 RX 返回 `0x5a`，预算化 fresh replay | UART RTL operational；固定 8N1/波特配置 |
 | PULP I2C master，APB3＋开漏串行 peer | 固定四文件源码闭包和 17/17 顶层端口；testcase 选择 8 位 peer 字节，真实 APB 配置、从设备 ACK、串行读取和原生 IRQ，预算化 fresh replay | I2C RTL operational；固定地址 `0x42` 的单从设备单字节模式 |
 | OpenTitan GPIO，TL-UL | 固定上游源码与完整本地 wrapper 边界；真实寄存器读写、pin 输出、边沿 IRQ、合法及非法部分写响应、预算化证据 fresh replay | GPIO RTL operational；RACL 默认关闭，alert ack peer 未接入 |
+| OpenTitan RV Timer，TL-UL | 固定上游源码、25/25 物理端口与本地标量 wrapper；真实计数、比较 IRQ、停止后的 INTR_STATE W1C 与 fresh replay | Timer RTL operational；CPU 中断入口未验收 |
 | CVE2 ↔ GPIO A ↔ GPIO B | 同一 testcase 两个方向各两轮，4 次真实 GPIO IRQ 和 CPU ISR，RAM 历史为 6、8、11、15；有预算证据包从初态重放一致 | 双向多组件链通过 |
 | CVE2 → PULP SPI → CVE2 RAM | CPU 真实 APB 配置、SPI 外部源真实接收、CPU 读取 RXFIFO 并写入持久 RAM；改变串行源会改变 RAM 与 trace，预算化证据 fresh replay 一致 | 数据闭环通过；CPU IRQ 固定为 0 |
 | CVE2 → OpenTitan GPIO → CVE2 RAM | CPU 真实配置 TL-UL GPIO；外部 pin 在真实输出触发后变化，GPIO RTL 产生中断状态，CPU 真实回读并写 RAM；fresh replay 一致 | 双向数据闭环通过；CPU IRQ 固定为 0 |
 | CVE2 → PULP Timer → CVE2 RAM | CPU 真实配置 APB Timer、读取真实计数并写 RAM；Timer 原生 IRQ 脉冲单独观察，fresh replay 一致 | 数据闭环通过；CPU IRQ 固定为 0 |
 | CVE2 → ZipCPU ziptimer → CVE2 RAM | CPU 真实 MMIO 写入 Wishbone Timer、回读真实计数并存入持久 RAM；原生 IRQ 脉冲逐 tick 观察，fresh replay 一致 | 数据闭环通过；CPU IRQ 固定为 0 |
 | CVE2 → PULP I2C → CVE2 RAM | CPU 真实 APB 配置；两个 testcase 分别选择 peer 响应 `0x5A` 与 `0xA6`，I2C RTL 接收对应串行字节并产生原生 IRQ；IRQ 转交 CPU 输入，CPU 轮询状态、回读真值并写 RAM；两份预算证据 fresh replay 一致 | 源变异与数据闭环通过；CPU 中断处理程序未验收 |
+| CVE2 ↔ ZipCPU axiluart ↔ CVE2 RAM | CPU 真实 AXI4-Lite 写入 `0x41` 后 peer 从 TX 引脚解码该字节；依赖图变异 RX 源 `0x35→0xA6`，UART RTL 接收后 CPU 真实读出并写 RAM；两份 fresh replay 一致 | 双向数据闭环通过；CPU IRQ 固定为 0 |
+| CVE2 → OpenTitan RV Timer → CVE2 RAM | CPU 真实配置 TL-UL Timer、读取真实中断状态和计数并写 RAM；预算化证据 fresh replay 一致 | 数据闭环通过；CPU IRQ 当前固定为 0 |
 
-协议模板注册表列出 CPU OBI、AXI4、AXI4-Lite、Wishbone classic、Pico native Ready/Valid，以及 OpenTitan TL-UL、PULP APB3、ZipCPU Wishbone 和 AXI4-Lite 目标端变体。上表的五种 CPU 协议、PULP APB3 GPIO/SPI/Timer/I2C、OpenTitan TL-UL GPIO 与 ZipCPU Wishbone Timer/AXI4-Lite UART 实例有真实 RTL 运行证据。
+协议模板注册表列出 CPU OBI、AXI4、AXI4-Lite、Wishbone classic、Pico native Ready/Valid，以及 OpenTitan TL-UL、PULP APB3、ZipCPU Wishbone 和 AXI4-Lite 目标端变体。上表的五种 CPU 协议、PULP APB3 GPIO/SPI/Timer/I2C、OpenTitan TL-UL GPIO/RV Timer 与 ZipCPU Wishbone Timer/AXI4-Lite UART 实例有真实 RTL 运行证据。
 
 ## 生成与启动
 
@@ -82,14 +85,16 @@ MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.te
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_scenario_cve2_opentitan_gpio_generated_real -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_local_zip_timer_generated_real tests.integration.test_scenario_cve2_zip_timer_real -v
 MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_local_pulp_i2c_generated_real -v
+MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_local_opentitan_rv_timer_generated_real tests.integration.test_scenario_cve2_opentitan_rv_timer_generated_real -v
+MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integration.test_scenario_cve2_zip_axil_uart_real -v
 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_axil_uart_runtime -v
 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_wishbone_cpu -q
 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_axi4_cpu -q
 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_ibex_obi_runtime -q
 ```
 
-合入五类 CPU 协议与两种 PULP 外设后的全量结果：本地 harness 172 项中 171 通过、1 项未开启真实 RTL 环境门禁；场景回归 365/365。Pico 原生内存真实测试 2/2、AXI4-Lite 真实测试 2/2、Wishbone 专项 6/6、ZipCPU AXI4 突发及 schema 2/2、PULP SPI 预算化证据测试均通过。CVE2 双 GPIO 双向真实场景此前 2/2，预算化证据 fresh replay 一致。若本地缺少某 CPU 的可执行固定源码，只跳过该 CPU 的真实验收并记录 `skipped_unavailable`，不让其他 CPU/IP 或协议等级自动通过。
+2026-10-04 回归结果：场景回归 367/367；OpenTitan RV Timer 独立及 CPU 数据链真实 RTL 测试 3/3。本地 harness 全量回归仍按上面的命令执行，后续增量适配应重新记录当前计数。Pico 原生内存真实测试 2/2、AXI4-Lite 真实测试 2/2、Wishbone 专项 6/6、ZipCPU AXI4 突发及 schema 2/2、PULP SPI 预算化证据测试均通过。CVE2 双 GPIO 双向真实场景此前 2/2，预算化证据 fresh replay 一致。若本地缺少某 CPU 的可执行固定源码，只跳过该 CPU 的真实验收并记录 `skipped_unavailable`，不让其他 CPU/IP 或协议等级自动通过。
 
 ## 尚未满足的验收
 
-五类初始 CPU 协议已有至少一个固定 RTL 实例的生成式运行证据；Ibex 与 CVE2 是两种真实 OBI CPU，证明该特定 OBI 形态可复用同一生成器。双向 CPU/GPIO 首阶段具备连续状态、IRQ、预算化证据和 replay；CPU→PULP SPI→CPU RAM、CPU→OpenTitan GPIO→CPU RAM、CPU→PULP Timer→CPU RAM、CPU→ZipCPU Timer→CPU RAM 与 CPU→PULP I2C→CPU RAM 数据闭环已通过。I2C 原生 IRQ 已真实转交 CPU 输入，CPU 程序仍轮询状态。OpenTitan GPIO 已有生成式 TL-UL 真实运行与 replay，其他 OpenTitan IP 仍待完成。Pico 原生及 AXI4-Lite CPU 接口目前只能测试 RAM/ROM；Wishbone CPU 已服务 RAM 与 GPIO MMIO，但无 IRQ；ZipCPU AXI4 CPU 当前只服务 RAM。PULP SPI 只验收 CLKDIV=1 单次传输，CLKDIV=0 和 CPU 中断链均未验收。ZipCPU ziptimer 的 IRQ 是单周期脉冲，当前 CPU 链未绑定 CPU IRQ。ZipCPU UART 当前固定波特和单帧 8N1，RX 字节支持 Genome 变异；PULP I2C 固定从地址 `0x42`，peer 响应支持单字节 Genome 变异，尚不支持多字节或多个从设备。新 CPU/IP 仍需固定源码、完整端口 profile、已支持的协议形态与必要的声明式微调，不能推断任意同协议 RTL 均可直接运行。
+五类初始 CPU 协议已有至少一个固定 RTL 实例的生成式运行证据；Ibex 与 CVE2 是两种真实 OBI CPU，证明该特定 OBI 形态可复用同一生成器。双向 CPU/GPIO 首阶段具备连续状态、IRQ、预算化证据和 replay；CPU→PULP SPI→CPU RAM、CPU→OpenTitan GPIO→CPU RAM、CPU→OpenTitan RV Timer→CPU RAM、CPU→ZipCPU AXI4-Lite UART→CPU RAM、CPU→PULP Timer→CPU RAM、CPU→ZipCPU Timer→CPU RAM 与 CPU→PULP I2C→CPU RAM 数据闭环已通过。I2C 原生 IRQ 已真实转交 CPU 输入，CPU 程序仍轮询状态。OpenTitan GPIO 与 RV Timer 已有生成式 TL-UL 真实运行与 replay，其余 OpenTitan IP 仍待完成。Pico 原生及 AXI4-Lite CPU 接口目前只能测试 RAM/ROM；Wishbone CPU 已服务 RAM 与 GPIO MMIO，但无 IRQ；ZipCPU AXI4 CPU 当前只服务 RAM。PULP SPI 只验收 CLKDIV=1 单次传输，CLKDIV=0 和 CPU 中断链均未验收。ZipCPU ziptimer 的 IRQ 是单周期脉冲，当前 CPU 链未绑定 CPU IRQ。ZipCPU UART 当前固定波特和单帧 8N1，RX 字节支持 DependencyGraph 引导的 Genome 变异，并已验收真实 CPU 双向数据链；CPU IRQ 尚未绑定。PULP I2C 固定从地址 `0x42`，peer 响应支持单字节 Genome 变异，尚不支持多字节或多个从设备。新 CPU/IP 仍需固定源码、完整端口 profile、已支持的协议形态与必要的声明式微调，不能推断任意同协议 RTL 均可直接运行。
