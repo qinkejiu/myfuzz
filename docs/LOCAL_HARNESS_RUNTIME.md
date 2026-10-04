@@ -31,6 +31,14 @@
 4. `build_local_harness` 重建并逐字节核对上述产物、源码闭包、头文件及构建身份，再执行有界 `verilator --cc --exe --build -j 1`。缓存键由实际构建输入决定。
 5. `GeneratedLocalSession.prepare_local()` 在 testcase 计时前构建；`begin_case()` 启动一个进程并核对 READY 的产物摘要和实测 reset tick；每个命令有执行 ID、单调序列及有界回复期限。一个 testcase 的多个命令共用该进程。只有显式 reset 或 testcase 结束才重新初始化 RTL。
 
+也可将 `local_harness.v1` 请求保存为 JSON，直接生成可审阅文件：
+
+```bash
+python3 scripts/generate_local_harness.py --request request.json --output /tmp/generated_component
+```
+
+输出包含结构 wrapper、运行时顶层、driver、ABI、源码验证回执和产物身份。重复生成同一请求得到相同字节；已有输出目录会被拒绝。可选 `--build-cache /tmp/myfuzz-build-cache` 会编译并返回二进制路径，但**编译成功只表示构建通过**；`RTL operational` 仍要求真实局部事务、状态和 replay 验收。
+
 `GeneratedCve2Session` 只服务真实 OBI 握手接受的取指/数据请求。RAM 用 `PersistentMemory` 保存：写入后的读取得到先前真实写值，byte-enable 只覆盖对应字节；首次未初始化读取会物化并保留。MMIO 请求由 `DataflowRouter` 交给真实 GPIO session，目标读值再返回 CPU。`GeneratedPulpGpioSession` 只接受合法 GPIO 外部 pin 值与全字 APB3 写；已绑定的 pin、CPU IRQ 和 MMIO read data 由上游真实输出或持久状态决定，不能再次随机覆盖。
 
 ### 输入约束的判定
