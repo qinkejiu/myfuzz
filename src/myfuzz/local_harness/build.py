@@ -98,6 +98,7 @@ def _host_sources():
                'src/myfuzz/local_harness/native_session.py', 'scripts/verify_soc_sources.py']
     for name in ('session', 'cpu_session', 'gpio_session',
                  'wishbone_cpu_session', 'axi_lite_session', 'axi4_cpu_session',
+                 'cva6_axi4_session',
                  'spi_session', 'timer_session', 'axil_uart_session', 'i2c_session',
                  'opentitan_spi_host_session', 'opentitan_i2c_session',
                  'opentitan_spi_device_session'):
