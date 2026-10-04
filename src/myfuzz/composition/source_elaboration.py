@@ -379,9 +379,18 @@ class _Reader:
         direction = {"INPUT": "input", "OUTPUT": "output", "INOUT": "inout"}.get(node.get("direction"))
         if direction is None:
             raise ElaborationError(f"port direction is unsupported: {node.get('direction')}")
-        physical = self.physical_type(self.pointer(node, "dtypep"))
+        dtype = self.pointer(node, "dtypep")
+        physical = self.physical_type(dtype)
         if physical.aggregate and not physical.leaves:
-            raise ElaborationError("unsupported top-level aggregate without member paths")
+            # A packed array of packed structures is an integral vector at
+            # the port boundary. Its complete bit width is source-derived;
+            # callers may assign/observe the whole port but no invented
+            # semantic member path is published for an array index.
+            bare = dtype
+            while bare.get("type") in ("REFDTYPE", "PARAMTYPEDTYPE"):
+                bare = self.pointer(bare, "refDTypep" if bare["type"] == "REFDTYPE" else "dtypep")
+            if bare.get("type") != "PACKARRAYDTYPE":
+                raise ElaborationError("unsupported top-level aggregate without member paths")
         members: list[dict[str, object]] = []
         high = physical.width - 1
         for leaf in physical.leaves:

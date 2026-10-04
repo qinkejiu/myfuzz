@@ -349,6 +349,501 @@
       "closure_note": "Explicit source/filelist selection pinned; transitive include/module closure and physical types still require parent elaboration."
     },
     {
+      "id": "ibex_obi_local",
+      "source": {
+        "root": "third_party/rfuzz/upstream/ibex",
+        "revision": "git:34b0705760ef3dfa00e99637432473d2be8f22f3",
+        "top_module": "ibex_top",
+        "files": [
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_util_pkg.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_count_pkg.sv",
+          "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_ram_1p_pkg.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_pkg.sv",
+          "rtl/ibex_pkg.sv",
+          "rtl/ibex_cheriot_pkg.sv",
+          "rtl/ibex_cheriot_ex.sv",
+          "rtl/ibex_alu.sv",
+          "rtl/ibex_branch_predict.sv",
+          "rtl/ibex_compressed_decoder.sv",
+          "rtl/ibex_controller.sv",
+          "rtl/ibex_cs_registers.sv",
+          "rtl/ibex_csr.sv",
+          "rtl/ibex_counter.sv",
+          "rtl/ibex_decoder.sv",
+          "rtl/ibex_ex_block.sv",
+          "rtl/ibex_fetch_fifo.sv",
+          "rtl/ibex_id_stage.sv",
+          "rtl/ibex_if_stage.sv",
+          "rtl/ibex_load_store_unit.sv",
+          "rtl/ibex_multdiv_fast.sv",
+          "rtl/ibex_multdiv_slow.sv",
+          "rtl/ibex_prefetch_buffer.sv",
+          "rtl/ibex_pmp.sv",
+          "rtl/ibex_wb_stage.sv",
+          "rtl/ibex_dummy_instr.sv",
+          "rtl/ibex_register_file_ff.sv",
+          "rtl/ibex_trvk.sv",
+          "rtl/ibex_lockstep.sv",
+          "rtl/ibex_icache.sv",
+          "rtl/ibex_core.sv",
+          "rtl/ibex_top.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_assert.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_cipher_pkg.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_lfsr.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_mubi_pkg.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_mubi4_dec.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+          "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+          "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_buf.sv",
+          "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_clock_gating.sv"
+        ],
+        "include_roots": [
+          "vendor/lowrisc_ip/ip/prim/rtl",
+          "vendor/lowrisc_ip/ip/prim_generic/rtl",
+          "vendor/lowrisc_ip/dv/sv/dv_utils",
+          "vendor/pulp_common_cells/rtl"
+        ],
+        "elaboration": {
+          "frontend": "verilator-json",
+          "parameters": [
+            {
+              "name": "PMPEnable",
+              "value": "0"
+            },
+            {
+              "name": "RV32E",
+              "value": "0"
+            },
+            {
+              "name": "ICache",
+              "value": "0"
+            },
+            {
+              "name": "SecureIbex",
+              "value": "0"
+            }
+          ],
+          "warning_policy": "recorded-nonfatal"
+        }
+      },
+      "artifacts": [
+        {
+          "path": "rtl/ibex_alu.sv",
+          "sha256": "06ce1c3ce30807f715478cf9e3bc279cac1c1cc2fb95d289516169fadcf7b7dc",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_branch_predict.sv",
+          "sha256": "78d4120eac2606e34b9338581eac55e3ba3b48c718799a46a887ac9efab2240e",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_cheriot_ex.sv",
+          "sha256": "9784c9376f8343cf8d435fe4b7ee9eeda02b15df6a5bc1dc6ef6fb1bddb1cba9",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_cheriot_pkg.sv",
+          "sha256": "d8b5b51ce99129ebd0c6436689cd85883760ca98f15f45c8a18b977549d007c4",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_compressed_decoder.sv",
+          "sha256": "bea22598e9e5f734ace93826eafd01914d2b63565ee0b7e8c8deff25369fbfbd",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_controller.sv",
+          "sha256": "bc3211faf87435b07922e3e61646ef83247ab86c5938d4cd2e108802a4357860",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_core.sv",
+          "sha256": "88b8bf3907472f1d413380f62234a7fbf53cb1de392a6660e6ef2d684a2416fd",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_counter.sv",
+          "sha256": "0e953e2e05b5070833029d0f6fed6d3a48fbd3c02dc05785962fb0d451425d8e",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_cs_registers.sv",
+          "sha256": "898d036f141bdf742c0c772a5493b4bccc9636ffd7c57d3cc37011d233954548",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_csr.sv",
+          "sha256": "6533fffc57e233b3961ebd94722a14a1a4320771ce4a76e69481bf2deb1d8514",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_decoder.sv",
+          "sha256": "842b520e4a942b6a27f3c44f7e8784e4a8dd40d7531a0ec3dd338f624be18217",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_dummy_instr.sv",
+          "sha256": "8899ec7fcd6df73d7ea96ad25e73f664ee2ae2a95b2186a36a7ab885e16e292e",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_ex_block.sv",
+          "sha256": "6451d5cd6af214b5fbb70f7499f898de981188cd7a25bf49247c0819b907c90b",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_fetch_fifo.sv",
+          "sha256": "3e0b48b771055ea50356cdff418decae16e7d9586a7f953e6799112b238bb63c",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_icache.sv",
+          "sha256": "7b250650b7cdc056976f13bfa070b6d05eb5febe2e311a7cfa684de1711b91f9",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_id_stage.sv",
+          "sha256": "02b40e46ef92df59a9e1d7b80a8d51a366ece0e8e599ca0744fcdf403ccd3aa8",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_if_stage.sv",
+          "sha256": "8b99f212f06aa942e53e8a768863587ffdc29176f5a486c6e273262311c9f6ae",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_load_store_unit.sv",
+          "sha256": "86e156efaf7ac46a351a405d9d2046b7d2e6a60bd206411ef9ae474666338b35",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_lockstep.sv",
+          "sha256": "ee0fb3df1a86ecb66554a214efae0a7971aa1d5c545b9f7592ca86b780163341",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_multdiv_fast.sv",
+          "sha256": "c86ca819b58b8ce2fc4ff5db887346bcd622b868fb7815fa07dd77119c68c04a",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_multdiv_slow.sv",
+          "sha256": "88b7392d3e2cd1f67f2c39b7425075030c78646cba2409356d6cfce262a46db6",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_pkg.sv",
+          "sha256": "d9bfed30b16dd77981f1850a8daf56fec5ce14043789b4a0a4506c833e9a7d5a",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_pmp.sv",
+          "sha256": "a564fb312d5337b0875d16f434e8b69348e12c2560548fad93f9270f9c4b9176",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_prefetch_buffer.sv",
+          "sha256": "988ca05039f033c0eef9feffba996771c3449f255c64d7d78de04e1984249ccc",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_register_file_ff.sv",
+          "sha256": "cb758da72120fa1ab7c3837408ef10ab96375edf727f6400d606ff5850e68a93",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_top.sv",
+          "sha256": "0db761a029b18d17271200a7ffe438c856db53423efa25912ba7ce60948cdfc5",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_trvk.sv",
+          "sha256": "5a1c0d84473121bbb705ddc096499de76de84eb70c20e37a72ef3237361aca49",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ibex_wb_stage.sv",
+          "sha256": "872d8df3b3f3fd9ba781eabd3897bd3b74d2b3af2d2898ab5799371d05b04e8a",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/dv/sv/dv_utils/dv_fcov_macros.svh",
+          "sha256": "d8d02ae47a12d78f611e15e4ab6e14775b55a0bdbb0815f36fbe8ddb242984ae",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_assert.sv",
+          "sha256": "d717d5dbcba3b5aa8a731ef9f8af18b036b49edef282f0a43a51f5ad2dd9bb40",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_assert_dummy_macros.svh",
+          "sha256": "cac4a930105da662547de873f0b80246074fb22df9a398663e1c8ac3e7998218",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_assert_sec_cm.svh",
+          "sha256": "25db89fe5f250c1bcbd808d0b4808206b9e85ac337b26e4ebb23f2ad569e1a13",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_cipher_pkg.sv",
+          "sha256": "9cd66bdbc64020e3fe1f14a5baee30a93609b7887a9d21df7991929087b0973f",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_count.sv",
+          "sha256": "b48580aefff674a48a674489c9b21a98d5399ca5b4c7623f3a7c907a75d8f0cb",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_count_pkg.sv",
+          "sha256": "8e465ed25b7d59f29faf0f315243a774cf0e50d178ec2068d8c71983cb2f18df",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_fifo_assert.svh",
+          "sha256": "9cd4f9edd759567ff6941618477117765e44e810627480b89f41211ea8ba8517",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_fifo_sync.sv",
+          "sha256": "2655befe56a70ee672c2f1259a82ef2beb2adf429ed0405bcf26bea7c4de3630",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_fifo_sync_cnt.sv",
+          "sha256": "be647efa36aa4228db8a9151ac07c83a95cdd9aef71a4488fa619a876d809fbc",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_flop_macros.sv",
+          "sha256": "2e8e6c2ee484899ae5d0020eaf0c9732c31537c60c30cb2a0a0acd2e92baee03",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_lfsr.sv",
+          "sha256": "c61632878728613ba0403f2d068c03a5103165663b58d8dd50892ef032dec916",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_mubi4_dec.sv",
+          "sha256": "b33530adf41b05849d06424a40db5536dfb5ffd441752bf49af03ad3d7b5f48e",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_mubi_pkg.sv",
+          "sha256": "11a2f1a16ddaf750d859c95e07fc48c54743fe6ad3b5c5eabe2e14a51d9fb1af",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_prince.sv",
+          "sha256": "e3fa14d45eebe18e6404370540648d1037887877dbde4b22fddd83c2b43d1e0d",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_ram_1p_adv.sv",
+          "sha256": "b69410fc7b7aeaa067d080cbd7fd86074456aa0c212779bfbd3b9f5d3abb7fa3",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_ram_1p_scr.sv",
+          "sha256": "823add68b2a538c23a1d7fb05a225ec4a45094508213a65d9ac500ec6fd7eb48",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_22_16_dec.sv",
+          "sha256": "2620fc37a5acfde0d54f0a638d13d3150b3c08acc840ce45a9ae4a24833711ef",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_22_16_enc.sv",
+          "sha256": "b6df81ecfb12826002fa979c1beae2b8b47e8fa33bd465ad7c6e4784657e8ca9",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_28_22_dec.sv",
+          "sha256": "06c0dfdf59f2dbfffa7c73e609ae6361c94927a298f13ac6815c9543633b35a4",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_28_22_enc.sv",
+          "sha256": "15b373e491fba6d6251c241229bd78d2766214771942e3fac0bdbe4cbff720fd",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+          "sha256": "f07f26fd2375952e4ec7cfc1641cebcea373a8030d82dd5977a76f81c430cb12",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+          "sha256": "4588fda3fd5ebdd711c98f6900caaaaddddf1257337c5b931ca86de7fb0ef8ff",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+          "sha256": "e598eef60254ac4a0e6899f6d1e4af5ae5bbd2ac22395ac53ee925296bc8a826",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+          "sha256": "74b3b327047b90682468614708bb4b1104b1f069c0dc3189e2b078622ac566b8",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_hamming_22_16_dec.sv",
+          "sha256": "4fedd80e34009d4e54881ef2358ca3a7fd971acaa8f1621b1832aea6d0aaac3c",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_hamming_22_16_enc.sv",
+          "sha256": "74fc5522c24f1f3505a2dc7f3c34adaac07fdb54dce055268a4e2b3df3d6f416",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_hamming_39_32_dec.sv",
+          "sha256": "975eda8d8623f617f9d4e89b948c44e2d657b000596cdeeb9ed62910f6d1e8f7",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_hamming_39_32_enc.sv",
+          "sha256": "b63ddfd743b51476dea494af1665433747ce021e0933d6e1e6b7a1b2ca5f9d3a",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_secded_pkg.sv",
+          "sha256": "bcbd03333a30e7a1cb01195d1c40c7d0e736f91d9f73c2347ef5b0bd9dc3c82b",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_subst_perm.sv",
+          "sha256": "6cae23ff8a3c6d1dc775c2a55280f532cef98a9a6c787a2d717c50b5854ee3a6",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_util_get_scramble_params.svh",
+          "sha256": "827cfe69062e975e9acc9c15c306c92c41e1d0d487cd197b1350d8bcdb62cca1",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_util_memload.svh",
+          "sha256": "9484798c23f4f441e9e454677429af14bcefcad2d10f74d099acbe4b39475da3",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim/rtl/prim_util_pkg.sv",
+          "sha256": "f71235ef5b92eaa3d2ed5c676f76108082df93b8aae8f9baa816584d1d285208",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_buf.sv",
+          "sha256": "9b00bd8ac203169268262ac9337076781fa962b19beed36f28dde54e360aaaf5",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_clock_gating.sv",
+          "sha256": "b2474320674e645d423f32ba1ce60b25509042d40c2de8fe28dcb7760a8fa882",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_clock_mux2.sv",
+          "sha256": "d0010a7d97322a118a3675fec879bdf59179ea6a1036ab6d0001feeada732f72",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_flop.sv",
+          "sha256": "6645d657b107b024f9211d3a0134890d1e20146f68ba1772bf62575f7b4e5549",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_ram_1p.sv",
+          "sha256": "f407382ba9136ce03d8d734c5279f73d2805f7460820f5498bb07fdb3e627aea",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/lowrisc_ip/ip/prim_generic/rtl/prim_ram_1p_pkg.sv",
+          "sha256": "f51c6a588ec476b5cb2e95d9e8d19a67551732e9661a0c0933c6fccee8e92722",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp_common_cells/rtl/stream_fork.sv",
+          "sha256": "94aceb08b400958fe66285351ff0909b7bdd1a8555613c6aaa443c6f696afe85",
+          "kind": "source"
+        },
+        {
+          "path": "vendor/pulp_common_cells/rtl/stream_join_dynamic.sv",
+          "sha256": "1c3cbfb64869114c36fbadb599379c2d639d8e7d501b983a8fad84e78dd5f128",
+          "kind": "source"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "kind": "license"
+        }
+      ],
+      "selected_content_hash": "sha256:f9c48430be4904095cd1cb069de7ddd9bad82667683b3876e2f43d79895b66a8",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "defines": [],
+      "typed_parameters": [
+        {
+          "name": "PMPEnable",
+          "type": "integer",
+          "value": "0"
+        },
+        {
+          "name": "RV32E",
+          "type": "integer",
+          "value": "0"
+        },
+        {
+          "name": "ICache",
+          "type": "integer",
+          "value": "0"
+        },
+        {
+          "name": "SecureIbex",
+          "type": "integer",
+          "value": "0"
+        }
+      ],
+      "generator": {
+        "status": "not_invoked",
+        "tool_version": null,
+        "name": "none for selected checked-in files"
+      },
+      "dependencies": [],
+      "interface_description": "configs/cpus/ibex/official_core_interface_description.json",
+      "interface_description_sha256": "37ceab3a5c4524ebc5f43d01f549416fc37185564cb9e8778c19da111a1ddff0",
+      "closure_note": "Complete pinned 70-file Verilator read closure for the full physical ibex_top with RVFI disabled and ICache=0.",
+      "elaboration": {
+        "status": "elaboration_verified",
+        "top_module": "ibex_top",
+        "tool": {
+          "name": "verilator",
+          "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "frontend": "verilator-lint"
+        },
+        "evidence": "configs/soc/closures/ibex_obi_local.json",
+        "evidence_sha256": "aacca84f49181e8b2564d3709d3eaa0872ddb7ff24ef5822638b9d40a86d3c4b",
+        "closure_files": 70,
+        "lint": {
+          "errors": 0,
+          "warnings": 3,
+          "exit_code": 0,
+          "log": "runs/soc-source-elaboration/ibex/ibex-obi-local-lint.log"
+        },
+        "capability_findings": 2,
+        "unsupported": 2
+      }
+    },
+    {
       "id": "cva6",
       "source": {
         "root": "third_party/cva6_upstream_reference",

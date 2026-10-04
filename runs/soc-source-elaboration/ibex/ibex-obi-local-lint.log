@@ -1,0 +1,39 @@
+- V e r i l a t i o n   R e p o r t: Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67
+- Verilator: Built from 28.866 MB sources in 65 modules, into 1.414 MB in 4 C++ files needing 0.000 MB
+- Verilator: Walltime 0.583 s (elab=0.165, cvt=0.289, bld=0.000); cpu 0.545 s on 1 threads; allocated 71.621 MB
+%Warning-UNOPTFLAT: third_party/rfuzz/upstream/ibex/rtl/ibex_id_stage.sv:255:16: Signal unoptimizable: Circular combinational logic: 'ibex_top.u_ibex_core.id_stage_i.instr_executing_spec'
+  255 |   logic        instr_executing_spec;
+      |                ^~~~~~~~~~~~~~~~~~~~
+                    ... For warning description see https://verilator.org/warn/UNOPTFLAT?v=5.051
+                    ... Use "/* verilator lint_off UNOPTFLAT */" and lint_on around source to disable this message.
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_id_stage.sv:255:16:      Example path: ibex_top.u_ibex_core.id_stage_i.instr_executing_spec
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_id_stage.sv:877:3:      Example path: ALWAYS
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_id_stage.sv:308:16:      Example path: ibex_top.u_ibex_core.id_stage_i.stall_alu
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:1017:16:      Example path: ASSIGNW
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:163:9:      Example path: ibex_top.u_ibex_core.id_stage_i.controller_i.stall
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:539:3:      Example path: ALWAYS
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:164:9:      Example path: ibex_top.u_ibex_core.id_stage_i.controller_i.halt_if
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:1020:33:      Example path: ASSIGNW
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:1020:33:      Example path: __VdfgRegularize_h6e95ff9d_0_83
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:539:3:      Example path: ALWAYS
+%Warning-UNOPTFLAT: third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:1020:33: Signal unoptimizable: Circular combinational logic: '__VdfgRegularize_h6e95ff9d_0_83'
+ 1020 |   assign id_in_ready_o = ~stall & ~halt_if & ~retain_id;
+      |                                 ^
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:1020:33:      Example path: __VdfgRegularize_h6e95ff9d_0_83
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:539:3:      Example path: ALWAYS
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:164:9:      Example path: ibex_top.u_ibex_core.id_stage_i.controller_i.halt_if
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:1020:33:      Example path: ASSIGNW
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:1020:33:      Example path: __VdfgRegularize_h6e95ff9d_0_83
+%Warning-UNOPTFLAT: third_party/rfuzz/upstream/ibex/rtl/ibex_id_stage.sv:257:16: Signal unoptimizable: Circular combinational logic: 'ibex_top.u_ibex_core.id_stage_i.instr_done'
+  257 |   logic        instr_done;
+      |                ^~~~~~~~~~
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_id_stage.sv:257:16:      Example path: ibex_top.u_ibex_core.id_stage_i.instr_done
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_id_stage.sv:747:22:      Example path: ASSIGNW
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_core.sv:332:16:      Example path: ibex_top.u_ibex_core.csr_op_en
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:293:22:      Example path: ASSIGNW
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:168:9:      Example path: ibex_top.u_ibex_core.id_stage_i.controller_i.special_req
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:539:3:      Example path: ALWAYS
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:164:9:      Example path: ibex_top.u_ibex_core.id_stage_i.controller_i.halt_if
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:1020:33:      Example path: ASSIGNW
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:1020:33:      Example path: __VdfgRegularize_h6e95ff9d_0_83
+                    third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv:539:3:      Example path: ALWAYS
