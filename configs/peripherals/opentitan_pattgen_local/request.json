@@ -1,0 +1,19 @@
+{
+  "schema_version": "local_harness.v2",
+  "profile_path": "configs/peripherals/opentitan_pattgen_local/component_profile.json",
+  "instance_id": "pattgen",
+  "reset_assert_ticks": 2,
+  "reset_release_ticks": 2,
+  "max_wait_cycles": 16,
+  "tuning": {
+    "endpoint_policies": [
+      {
+        "endpoint_id": "opentitan_pattgen.mmio",
+        "template_id": "target.tl-ul",
+        "template_version": "1",
+        "variant_id": "user-integrity",
+        "max_outstanding": 1
+      }
+    ]
+  }
+}

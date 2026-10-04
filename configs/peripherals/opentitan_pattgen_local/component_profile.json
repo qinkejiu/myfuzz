@@ -1,0 +1,596 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "opentitan_pattgen_local",
+  "kind": "peripheral",
+  "description": "Complete pinned OpenTitan pattgen scalar TL-UL boundary with two native pattern channels and completion IRQs.",
+  "source": {
+    "root": ".",
+    "revision": "sha256:0556df8dade8869dde4540eb3f3fb6d719295043c1fb0db5977864d60533a581",
+    "top_module": "soc_opentitan_pattgen_local_target",
+    "top_port_selection": "all",
+    "files": [
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_alert_pkg.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_count_pkg.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_mubi_pkg.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_secded_pkg.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_subreg_pkg.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_util_pkg.sv",
+      "third_party/soc-opentitan/hw/ip/pattgen/rtl/pattgen_reg_pkg.sv",
+      "third_party/soc-opentitan/hw/top_earlgrey/rtl/top_pkg.sv",
+      "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_pkg.sv",
+      "third_party/soc-opentitan/hw/top_earlgrey/rtl/autogen/top_racl_pkg.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_alert_sender.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_arbiter_fixed.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_arbiter_ppc.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_leading_one_ppc.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_arbiter_tree.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_count.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_diff_decode.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_fifo_sync.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_fifo_sync_cnt.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_intr_hw.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_onehot_check.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_onehot_enc.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_packer_fifo.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_racl_error_arb.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_reg_we_check.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_sec_anchor_buf.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_sec_anchor_flop.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_subreg.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_subreg_arb.sv",
+      "third_party/soc-opentitan/hw/ip/prim/rtl/prim_subreg_ext.sv",
+      "third_party/soc-opentitan/hw/ip/prim_generic/rtl/prim_buf.sv",
+      "third_party/soc-opentitan/hw/ip/prim_generic/rtl/prim_flop.sv",
+      "third_party/soc-opentitan/hw/ip/prim_generic/rtl/prim_flop_2sync.sv",
+      "third_party/soc-opentitan/hw/ip/prim_generic/rtl/prim_flop_en.sv",
+      "third_party/soc-opentitan/hw/ip/prim_generic/rtl/prim_xnor2.sv",
+      "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_adapter_racl.sv",
+      "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_adapter_reg.sv",
+      "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_adapter_reg_racl.sv",
+      "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_adapter_sram.sv",
+      "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_adapter_sram_racl.sv",
+      "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_cmd_intg_chk.sv",
+      "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_data_integ_dec.sv",
+      "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_data_integ_enc.sv",
+      "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_err_resp.sv",
+      "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_err.sv",
+      "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_fifo_sync.sv",
+      "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_request_loopback.sv",
+      "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_rsp_intg_gen.sv",
+      "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_socket_1n.sv",
+      "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_socket_m1.sv",
+      "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_sram_byte.sv",
+      "third_party/soc-opentitan/hw/ip/pattgen/rtl/pattgen_ctrl_pkg.sv",
+      "third_party/soc-opentitan/hw/ip/pattgen/rtl/pattgen_reg_top.sv",
+      "third_party/soc-opentitan/hw/ip/pattgen/rtl/pattgen_chan.sv",
+      "third_party/soc-opentitan/hw/ip/pattgen/rtl/pattgen_core.sv",
+      "third_party/soc-opentitan/hw/ip/pattgen/rtl/pattgen.sv",
+      "configs/peripherals/opentitan_pattgen_local/soc_opentitan_pattgen_local_target.sv"
+    ],
+    "include_roots": [
+      "third_party/soc-opentitan/hw/ip/prim/rtl",
+      "third_party/soc-opentitan/hw/ip/prim_generic/rtl",
+      "third_party/soc-opentitan/hw/ip/tlul/rtl",
+      "third_party/soc-opentitan/hw/top_earlgrey/rtl",
+      "third_party/soc-opentitan/hw/top_earlgrey/rtl/autogen"
+    ],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [
+    {
+      "port": "clk_i",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "rst_ni",
+      "domain": "sys_rst",
+      "polarity": "active_low",
+      "synchronous": false,
+      "release": "Single asynchronous active-low reset; deassertion must satisfy clk_i recovery/removal. Pattern pins and IRQ state reset to zero; pin enables are continuously one."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "opentitan_pattgen.mmio",
+      "function": "mmio_slave",
+      "protocol": [
+        "tl-ul",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "a_valid",
+          "width": 1,
+          "direction": "input",
+          "aliases": [
+            "a_valid_i"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "role": "a_opcode",
+          "width": 3,
+          "direction": "input",
+          "aliases": [
+            "a_opcode_i"
+          ],
+          "bit_range": [
+            0,
+            2
+          ]
+        },
+        {
+          "role": "a_param",
+          "width": 3,
+          "direction": "input",
+          "aliases": [
+            "a_param_i"
+          ],
+          "bit_range": [
+            0,
+            2
+          ]
+        },
+        {
+          "role": "a_size",
+          "width": 2,
+          "direction": "input",
+          "aliases": [
+            "a_size_i"
+          ],
+          "bit_range": [
+            0,
+            1
+          ]
+        },
+        {
+          "role": "a_source",
+          "width": 8,
+          "direction": "input",
+          "aliases": [
+            "a_source_i"
+          ],
+          "bit_range": [
+            0,
+            7
+          ]
+        },
+        {
+          "role": "a_address",
+          "width": 32,
+          "direction": "input",
+          "aliases": [
+            "a_address_i"
+          ],
+          "bit_range": [
+            0,
+            31
+          ]
+        },
+        {
+          "role": "a_mask",
+          "width": 4,
+          "direction": "input",
+          "aliases": [
+            "a_mask_i"
+          ],
+          "bit_range": [
+            0,
+            3
+          ]
+        },
+        {
+          "role": "a_data",
+          "width": 32,
+          "direction": "input",
+          "aliases": [
+            "a_data_i"
+          ],
+          "bit_range": [
+            0,
+            31
+          ]
+        },
+        {
+          "role": "a_user",
+          "width": 23,
+          "direction": "input",
+          "aliases": [
+            "a_user_i"
+          ],
+          "bit_range": [
+            0,
+            22
+          ]
+        },
+        {
+          "role": "d_ready",
+          "width": 1,
+          "direction": "input",
+          "aliases": [
+            "d_ready_i"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "role": "a_ready",
+          "width": 1,
+          "direction": "output",
+          "aliases": [
+            "a_ready_o"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "role": "d_valid",
+          "width": 1,
+          "direction": "output",
+          "aliases": [
+            "d_valid_o"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "role": "d_opcode",
+          "width": 3,
+          "direction": "output",
+          "aliases": [
+            "d_opcode_o"
+          ],
+          "bit_range": [
+            0,
+            2
+          ]
+        },
+        {
+          "role": "d_param",
+          "width": 3,
+          "direction": "output",
+          "aliases": [
+            "d_param_o"
+          ],
+          "bit_range": [
+            0,
+            2
+          ]
+        },
+        {
+          "role": "d_size",
+          "width": 2,
+          "direction": "output",
+          "aliases": [
+            "d_size_o"
+          ],
+          "bit_range": [
+            0,
+            1
+          ]
+        },
+        {
+          "role": "d_source",
+          "width": 8,
+          "direction": "output",
+          "aliases": [
+            "d_source_o"
+          ],
+          "bit_range": [
+            0,
+            7
+          ]
+        },
+        {
+          "role": "d_sink",
+          "width": 1,
+          "direction": "output",
+          "aliases": [
+            "d_sink_o"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "role": "d_data",
+          "width": 32,
+          "direction": "output",
+          "aliases": [
+            "d_data_o"
+          ],
+          "bit_range": [
+            0,
+            31
+          ]
+        },
+        {
+          "role": "d_user",
+          "width": 14,
+          "direction": "output",
+          "aliases": [
+            "d_user_o"
+          ],
+          "bit_range": [
+            0,
+            13
+          ]
+        },
+        {
+          "role": "d_error",
+          "width": 1,
+          "direction": "output",
+          "aliases": [
+            "d_error_o"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "pattgen.pins",
+      "function": "external_pins",
+      "fields": [
+        {
+          "role": "cio_pda0_tx_o",
+          "direction": "output",
+          "width": 1,
+          "aliases": [
+            "cio_pda0_tx_o"
+          ]
+        },
+        {
+          "role": "cio_pda0_tx_en_o",
+          "direction": "output",
+          "width": 1,
+          "aliases": [
+            "cio_pda0_tx_en_o"
+          ]
+        },
+        {
+          "role": "cio_pcl0_tx_o",
+          "direction": "output",
+          "width": 1,
+          "aliases": [
+            "cio_pcl0_tx_o"
+          ]
+        },
+        {
+          "role": "cio_pcl0_tx_en_o",
+          "direction": "output",
+          "width": 1,
+          "aliases": [
+            "cio_pcl0_tx_en_o"
+          ]
+        },
+        {
+          "role": "cio_pda1_tx_o",
+          "direction": "output",
+          "width": 1,
+          "aliases": [
+            "cio_pda1_tx_o"
+          ]
+        },
+        {
+          "role": "cio_pda1_tx_en_o",
+          "direction": "output",
+          "width": 1,
+          "aliases": [
+            "cio_pda1_tx_en_o"
+          ]
+        },
+        {
+          "role": "cio_pcl1_tx_o",
+          "direction": "output",
+          "width": 1,
+          "aliases": [
+            "cio_pcl1_tx_o"
+          ]
+        },
+        {
+          "role": "cio_pcl1_tx_en_o",
+          "direction": "output",
+          "width": 1,
+          "aliases": [
+            "cio_pcl1_tx_en_o"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "pattgen.interrupts",
+      "function": "interrupt_source",
+      "fields": [
+        {
+          "role": "done_ch0",
+          "direction": "output",
+          "width": 1,
+          "aliases": [
+            "intr_done_ch0_o"
+          ]
+        },
+        {
+          "role": "done_ch1",
+          "direction": "output",
+          "width": 1,
+          "aliases": [
+            "intr_done_ch1_o"
+          ]
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 32,
+    "data_width": 32,
+    "read": true,
+    "write": true,
+    "byte_enable": true,
+    "partial_write": true,
+    "has_error": true,
+    "integrity": "required",
+    "source_width": 8,
+    "sink_width": 1,
+    "user_width": 23,
+    "size_width": 2,
+    "max_wait_cycles": 16,
+    "max_outstanding": 1,
+    "d_user_width": 14
+  },
+  "address": {
+    "window_size": 64,
+    "alignment": 64,
+    "registers": [
+      {
+        "name": "INTR_STATE",
+        "offset": 0,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "write_one_clears"
+      },
+      {
+        "name": "INTR_ENABLE",
+        "offset": 4,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "INTR_TEST",
+        "offset": 8,
+        "width": 32,
+        "access": "wo",
+        "side_effect": "write_pulses_interrupt_test"
+      },
+      {
+        "name": "ALERT_TEST",
+        "offset": 12,
+        "width": 32,
+        "access": "wo",
+        "side_effect": "write_pulses_alert_test"
+      },
+      {
+        "name": "CTRL",
+        "offset": 16,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "channel_enable_and_idle_polarity"
+      },
+      {
+        "name": "PREDIV_CH0",
+        "offset": 20,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "configuration_latched_while_disabled"
+      },
+      {
+        "name": "PREDIV_CH1",
+        "offset": 24,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "configuration_latched_while_disabled"
+      },
+      {
+        "name": "DATA_CH0_0",
+        "offset": 28,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "configuration_latched_while_disabled"
+      },
+      {
+        "name": "DATA_CH0_1",
+        "offset": 32,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "configuration_latched_while_disabled"
+      },
+      {
+        "name": "DATA_CH1_0",
+        "offset": 36,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "configuration_latched_while_disabled"
+      },
+      {
+        "name": "DATA_CH1_1",
+        "offset": 40,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "configuration_latched_while_disabled"
+      },
+      {
+        "name": "SIZE",
+        "offset": 44,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "configuration_latched_while_disabled"
+      }
+    ]
+  },
+  "interrupts": [
+    {
+      "endpoint_id": "pattgen.interrupts",
+      "role": "done_ch0",
+      "bit": 0,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Native event_done sets INTR_STATE bit 0; INTR_ENABLE masks the held completion IRQ.",
+      "clear": "Write one to INTR_STATE bit 0 or clear INTR_ENABLE bit 0."
+    },
+    {
+      "endpoint_id": "pattgen.interrupts",
+      "role": "done_ch1",
+      "bit": 0,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Native event_done sets INTR_STATE bit 1; INTR_ENABLE masks the held completion IRQ.",
+      "clear": "Write one to INTR_STATE bit 1 or clear INTR_ENABLE bit 1."
+    }
+  ],
+  "port_actions": [
+    {
+      "port": "alert_tx_o",
+      "action": "observe",
+      "reason": "Observe the native differential fatal alert output."
+    }
+  ],
+  "evidence": {
+    "semantics": [
+      "pattgen_reg_pkg.sv defines offsets 0x00..0x2c and two completion IRQ bits.",
+      "pattgen_chan.sv emits DATA least-significant bit first, LEN+1 bits repeated REPS+1 times; each half clock period is PREDIV+1 input clocks.",
+      "Configuration is latched while disabled. Output enables are always one.",
+      "The scalar wrapper fixes alert_rx to prim_alert_pkg::ALERT_RX_DEFAULT and exposes every native output."
+    ],
+    "verified": [
+      "Pinned source manifest authenticates RTL, include files, scalar wrapper and successful Verilator elaboration."
+    ],
+    "unknown": [
+      "Generic session has no external serial peer; channel protocol behavior is checked from native tick receipts in real tests."
+    ]
+  }
+}

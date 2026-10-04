@@ -277,12 +277,17 @@ def _prepare(artifact, base_dir):
                   'opentitan_i2c_local': 'opentitan_i2c',
                   'opentitan_spi_device_local': 'opentitan_spi_device'}
                  .get(artifact.plan.profile.component_id, artifact.plan.profile.component_id))
-    record = next(record for record in lock['components'] if record['id'] == record_id)
+    record = verified.get('closure_record')
+    if record is None:
+        record = next(record for record in lock['components'] if record['id'] == record_id)
     evidence = record['elaboration']['evidence']
     capture(evidence, record['elaboration']['evidence_sha256'])
     closure = json.loads(snapshots[evidence])
     for item in closure['closure_files']:
-        capture(item['root'] + '/' + item['path'], item['sha256'])
+        name = item['path'] if item['root'] == '.' else item['root'] + '/' + item['path']
+        capture(name, item['sha256'])
+    for item in verified.get('authenticated_inputs', []):
+        capture(item['path'], item['sha256'])
     if artifact.plan.profile.component_id in ('opentitan_gpio_local', 'opentitan_rv_timer_local',
                                               'opentitan_uart_local', 'opentitan_i2c_local',
                                               'opentitan_spi_device_local'):
