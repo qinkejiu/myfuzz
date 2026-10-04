@@ -1,0 +1,411 @@
+{
+  "schema_version": "soc_elaboration_closure.v1",
+  "component": "opentitan_sysrst_ctrl",
+  "status": "elaboration_verified",
+  "top_module": "sysrst_ctrl",
+  "root": "third_party/soc-opentitan",
+  "tool": {
+    "name": "verilator",
+    "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "frontend": "verilator-lint"
+  },
+  "command": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "sysrst_ctrl",
+    "-Ithird_party/soc-opentitan/hw/ip/prim/rtl",
+    "-Ithird_party/soc-opentitan/hw/ip/prim_generic/rtl",
+    "-Ithird_party/soc-opentitan/hw/ip/tlul/rtl",
+    "-Ithird_party/soc-opentitan/hw/top_earlgrey/rtl",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_alert_pkg.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_mubi_pkg.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_secded_pkg.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_subreg_pkg.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_util_pkg.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_count_pkg.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_alert_sender.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_diff_decode.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_filter_ctr.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_intr_hw.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_reg_we_check.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_sec_anchor_buf.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_sec_anchor_flop.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_subreg.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_subreg_arb.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_subreg_ext.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_reg_cdc.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_reg_cdc_arb.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_pulse_sync.sv",
+    "third_party/soc-opentitan/hw/ip/prim/rtl/prim_sync_reqack.sv",
+    "third_party/soc-opentitan/hw/ip/prim_generic/rtl/prim_buf.sv",
+    "third_party/soc-opentitan/hw/ip/prim_generic/rtl/prim_flop.sv",
+    "third_party/soc-opentitan/hw/ip/prim_generic/rtl/prim_flop_2sync.sv",
+    "third_party/soc-opentitan/hw/ip/prim_generic/rtl/prim_flop_en.sv",
+    "third_party/soc-opentitan/hw/ip/prim_generic/rtl/prim_xnor2.sv",
+    "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_pkg.sv",
+    "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_adapter_reg.sv",
+    "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_cmd_intg_chk.sv",
+    "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_data_integ_dec.sv",
+    "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_data_integ_enc.sv",
+    "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_err.sv",
+    "third_party/soc-opentitan/hw/ip/tlul/rtl/tlul_rsp_intg_gen.sv",
+    "third_party/soc-opentitan/hw/top_earlgrey/rtl/top_pkg.sv",
+    "third_party/soc-opentitan/hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_reg_pkg.sv",
+    "third_party/soc-opentitan/hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_reg_top.sv",
+    "third_party/soc-opentitan/hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_pkg.sv",
+    "third_party/soc-opentitan/hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_autoblock.sv",
+    "third_party/soc-opentitan/hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_comboact.sv",
+    "third_party/soc-opentitan/hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_pin.sv",
+    "third_party/soc-opentitan/hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_keyintr.sv",
+    "third_party/soc-opentitan/hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_detect.sv",
+    "third_party/soc-opentitan/hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_combo.sv",
+    "third_party/soc-opentitan/hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_ulp.sv",
+    "third_party/soc-opentitan/hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_intr.sv",
+    "third_party/soc-opentitan/hw/ip/sysrst_ctrl/rtl/sysrst_ctrl.sv",
+    "--MMD",
+    "--Mdir",
+    "runs/soc-source-elaboration/opentitan/obj_sysrst_ctrl"
+  ],
+  "include_roots": [
+    "hw/ip/prim/rtl",
+    "hw/ip/prim_generic/rtl",
+    "hw/ip/tlul/rtl",
+    "hw/top_earlgrey/rtl"
+  ],
+  "source_files": [
+    "hw/ip/prim/rtl/prim_alert_pkg.sv",
+    "hw/ip/prim/rtl/prim_mubi_pkg.sv",
+    "hw/ip/prim/rtl/prim_secded_pkg.sv",
+    "hw/ip/prim/rtl/prim_subreg_pkg.sv",
+    "hw/ip/prim/rtl/prim_util_pkg.sv",
+    "hw/ip/prim/rtl/prim_count_pkg.sv",
+    "hw/ip/prim/rtl/prim_alert_sender.sv",
+    "hw/ip/prim/rtl/prim_diff_decode.sv",
+    "hw/ip/prim/rtl/prim_filter_ctr.sv",
+    "hw/ip/prim/rtl/prim_intr_hw.sv",
+    "hw/ip/prim/rtl/prim_reg_we_check.sv",
+    "hw/ip/prim/rtl/prim_sec_anchor_buf.sv",
+    "hw/ip/prim/rtl/prim_sec_anchor_flop.sv",
+    "hw/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+    "hw/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+    "hw/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+    "hw/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+    "hw/ip/prim/rtl/prim_subreg.sv",
+    "hw/ip/prim/rtl/prim_subreg_arb.sv",
+    "hw/ip/prim/rtl/prim_subreg_ext.sv",
+    "hw/ip/prim/rtl/prim_reg_cdc.sv",
+    "hw/ip/prim/rtl/prim_reg_cdc_arb.sv",
+    "hw/ip/prim/rtl/prim_pulse_sync.sv",
+    "hw/ip/prim/rtl/prim_sync_reqack.sv",
+    "hw/ip/prim_generic/rtl/prim_buf.sv",
+    "hw/ip/prim_generic/rtl/prim_flop.sv",
+    "hw/ip/prim_generic/rtl/prim_flop_2sync.sv",
+    "hw/ip/prim_generic/rtl/prim_flop_en.sv",
+    "hw/ip/prim_generic/rtl/prim_xnor2.sv",
+    "hw/ip/tlul/rtl/tlul_pkg.sv",
+    "hw/ip/tlul/rtl/tlul_adapter_reg.sv",
+    "hw/ip/tlul/rtl/tlul_cmd_intg_chk.sv",
+    "hw/ip/tlul/rtl/tlul_data_integ_dec.sv",
+    "hw/ip/tlul/rtl/tlul_data_integ_enc.sv",
+    "hw/ip/tlul/rtl/tlul_err.sv",
+    "hw/ip/tlul/rtl/tlul_rsp_intg_gen.sv",
+    "hw/top_earlgrey/rtl/top_pkg.sv",
+    "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_reg_pkg.sv",
+    "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_reg_top.sv",
+    "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_pkg.sv",
+    "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_autoblock.sv",
+    "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_comboact.sv",
+    "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_pin.sv",
+    "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_keyintr.sv",
+    "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_detect.sv",
+    "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_combo.sv",
+    "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_ulp.sv",
+    "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_intr.sv",
+    "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl.sv"
+  ],
+  "parameters": [],
+  "defines": [],
+  "lint": {
+    "errors": 0,
+    "warnings": 2,
+    "exit_code": 0
+  },
+  "closure_files": [
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_alert_pkg.sv",
+      "sha256": "32d9e1647d61bab570c41c5d61b7464c29925c9d38f03d0648b626e8ce42c1f4"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_alert_sender.sv",
+      "sha256": "288561001fd344dffb0d935cf85de264ca16e1296f1f30fdc8386659a9683b98"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_assert.sv",
+      "sha256": "d717d5dbcba3b5aa8a731ef9f8af18b036b49edef282f0a43a51f5ad2dd9bb40"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_assert_dummy_macros.svh",
+      "sha256": "cac4a930105da662547de873f0b80246074fb22df9a398663e1c8ac3e7998218"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_assert_sec_cm.svh",
+      "sha256": "25db89fe5f250c1bcbd808d0b4808206b9e85ac337b26e4ebb23f2ad569e1a13"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_count_pkg.sv",
+      "sha256": "8e465ed25b7d59f29faf0f315243a774cf0e50d178ec2068d8c71983cb2f18df"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_diff_decode.sv",
+      "sha256": "e3ed6f83329589eed061c893d8b9ad1e00e975e23e9347ed31f68b50f0822d6d"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_filter_ctr.sv",
+      "sha256": "770a3ae13dc5fc389cb0ab513ab2becc9f1521ea83f55ce4eb517c77b1a7dfde"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_flop_macros.sv",
+      "sha256": "2e8e6c2ee484899ae5d0020eaf0c9732c31537c60c30cb2a0a0acd2e92baee03"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_intr_hw.sv",
+      "sha256": "2fb312f9db786982dd4c2bb656f9ba7862637b045dd704ea128a4ce6a4a1f8bc"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_mubi_pkg.sv",
+      "sha256": "11a2f1a16ddaf750d859c95e07fc48c54743fe6ad3b5c5eabe2e14a51d9fb1af"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_onehot_check.sv",
+      "sha256": "97aefa2e7ebd26e12ea9fc691908a62315e2135bdbb127f3c3d640eeb15096ca"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_pulse_sync.sv",
+      "sha256": "1be70031ecf75195f5c4036727626d564e06584da5b510c95e3f295307e2cd6d"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_reg_cdc.sv",
+      "sha256": "be295cb29ace82478f344b8d0fa8fd1f94fe58ebfec1826d44dd450e06027ea9"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_reg_cdc_arb.sv",
+      "sha256": "a09a6f543ec1f1b8052bf953c51664912079c5a08fd7a2dc38568798d56f31ea"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_reg_we_check.sv",
+      "sha256": "0f38519d831f24bb9a1afc1041f6840eb42187a958788a5256aa0c698819af4a"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_sec_anchor_buf.sv",
+      "sha256": "073be7f3daa8a738add627e1055704cc94d82cfb8ff11f6952c644abde20c702"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_sec_anchor_flop.sv",
+      "sha256": "7bb3cb240164715f3956831e35e95f1a3e7e901deae02cc1297669318986d7bf"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+      "sha256": "f07f26fd2375952e4ec7cfc1641cebcea373a8030d82dd5977a76f81c430cb12"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+      "sha256": "4588fda3fd5ebdd711c98f6900caaaaddddf1257337c5b931ca86de7fb0ef8ff"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+      "sha256": "e598eef60254ac4a0e6899f6d1e4af5ae5bbd2ac22395ac53ee925296bc8a826"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+      "sha256": "74b3b327047b90682468614708bb4b1104b1f069c0dc3189e2b078622ac566b8"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_secded_pkg.sv",
+      "sha256": "bcbd03333a30e7a1cb01195d1c40c7d0e736f91d9f73c2347ef5b0bd9dc3c82b"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_subreg.sv",
+      "sha256": "25fb080996e7a9f1a8db6b827d57926850324e254c2758a921f4d67d13445992"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_subreg_arb.sv",
+      "sha256": "16530c91931e97b25e33334bfc5942fd254324189115f942585f26f56d8ae758"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_subreg_ext.sv",
+      "sha256": "dc22ea14c164661970db2a76060fc54cbbe1d432534eaadce0caa8a3a2935ce5"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_subreg_pkg.sv",
+      "sha256": "a38c3243535348fb4b0e5d233c0baa89eea3588b976d8bb050c7de4a2fd09bf0"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_sync_reqack.sv",
+      "sha256": "30329c6e3c7e389c4e85d91846f485ef8810c0ef8a72d71cc37f3cac81bc89a3"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim/rtl/prim_util_pkg.sv",
+      "sha256": "f71235ef5b92eaa3d2ed5c676f76108082df93b8aae8f9baa816584d1d285208"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim_generic/rtl/prim_buf.sv",
+      "sha256": "9b00bd8ac203169268262ac9337076781fa962b19beed36f28dde54e360aaaf5"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim_generic/rtl/prim_flop.sv",
+      "sha256": "6645d657b107b024f9211d3a0134890d1e20146f68ba1772bf62575f7b4e5549"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim_generic/rtl/prim_flop_2sync.sv",
+      "sha256": "5780aef67607c161eb8a4b3326757af5b416eb5337aef0afc457fdebf2891c53"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim_generic/rtl/prim_flop_en.sv",
+      "sha256": "68854581eaa23a57f00c4b49ee0ce972147ffca9f2800da2859d1fe38cc5b476"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/prim_generic/rtl/prim_xnor2.sv",
+      "sha256": "ebdd3179c32a81303227775e3e6ef0afdf8959efebf7a6892d122d4bc6a776c7"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl.sv",
+      "sha256": "3af8a1fed5b2fa14177f66b984a2a0ac5098dec5c9a0e2686fe873540255237c"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_autoblock.sv",
+      "sha256": "6373e2a9db60ae7a0f0165cffe444a8f11fd161c3173a28bc0c5bd8de937c81d"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_combo.sv",
+      "sha256": "07569a3034da540024e83687a16a8a7da6bd577c8b63b98d657c358566e5a133"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_comboact.sv",
+      "sha256": "a2ce7c9f4c3bd500b5007d1600ac0493da9c03e997057ea7163799ed2cc2d342"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_detect.sv",
+      "sha256": "3b1a777123c569e34bd1c16b550bd45248a39ec0b700977e71e8636683ea9a68"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_intr.sv",
+      "sha256": "d00a699a8d49bba1b7ef5512a5b825063e07a990d6486def3442f609bad246d7"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_keyintr.sv",
+      "sha256": "8b5a2ce8ca2b0cad5698b398244cbfb05b3cb330b928daa73fac043bd5f211ef"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_pin.sv",
+      "sha256": "0c716010567b95036ec1a13ed71ca8bd93c27991a63e9865b081be2e0bf8fb7b"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_pkg.sv",
+      "sha256": "dc06ec7e5e08477ad855d804c962e58f4209679b693cd842cfc58fb67ccfea20"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_reg_pkg.sv",
+      "sha256": "7b2d995d79201754594f2818b37ab36fea0bc220a9135dfd8a97d962e7513952"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_reg_top.sv",
+      "sha256": "ba565a3ce52f71cdd965ddf9831c3f7016535b70017731e300562847c4108d83"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_ulp.sv",
+      "sha256": "f9459db71293ae5536d7d9a4705c75e13acc2cf3647a42177476d8977b4768a1"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/tlul/rtl/tlul_adapter_reg.sv",
+      "sha256": "6993b14697bc826c619793697ffaea382d4bba3775c23af3add25ad3914ef531"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/tlul/rtl/tlul_cmd_intg_chk.sv",
+      "sha256": "1b56b9fca7e0b8643110622f6e9d5e6d8bb263bec923a5836748ba3b6f7f76ad"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/tlul/rtl/tlul_data_integ_dec.sv",
+      "sha256": "0df25d94c03bef617e6ef309375c2d40cbc27719a0696fb1119ca53c3a68d2cb"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/tlul/rtl/tlul_data_integ_enc.sv",
+      "sha256": "28567bc5483eddcf20b51890bc82497f32728b6a46b134a43c01f7180a14c7a9"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/tlul/rtl/tlul_err.sv",
+      "sha256": "850cefc36e1a5c6f78161b8bf04786dc72138336a48edaf5ca92242690294462"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/tlul/rtl/tlul_pkg.sv",
+      "sha256": "c8b95a4457bc594031d6b28dec6ba58af44c94ba74580bcdc3ebe5549797040a"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/ip/tlul/rtl/tlul_rsp_intg_gen.sv",
+      "sha256": "673bce2f23ef8e60f95f96f14bb3a71de6e88d788e12f0b3e89bc7125ed7e145"
+    },
+    {
+      "root": "third_party/soc-opentitan",
+      "path": "hw/top_earlgrey/rtl/top_pkg.sv",
+      "sha256": "5f8a0e366b9e6f300dc58552e693342173b4e0a716221b583a2a55550785b55f"
+    }
+  ]
+}

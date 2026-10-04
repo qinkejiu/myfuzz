@@ -31,6 +31,7 @@ from .axil_uart_session import GeneratedAxiLiteUartSession
 from .i2c_session import GeneratedPulpI2cSession
 from .opentitan_i2c_session import GeneratedOpentitanI2cSession
 from .opentitan_spi_device_session import GeneratedOpentitanSpiDeviceSession
+from .opentitan_sysrst_ctrl_session import GeneratedOpentitanSysrstCtrlSession
 
 __all__ = ["LocalHarnessRequest", "load_local_harness_request",
            "LocalHarnessPlan", "plan_local_harness",
@@ -52,4 +53,5 @@ __all__ = ["LocalHarnessRequest", "load_local_harness_request",
            "GeneratedZipTimerSession", "GeneratedCve2Session",
            "GeneratedAxiLiteMemorySession", "GeneratedAxiLiteUartSession",
            "GeneratedPulpI2cSession", "GeneratedOpentitanI2cSession",
-           "GeneratedOpentitanSpiDeviceSession"]
+           "GeneratedOpentitanSpiDeviceSession",
+           "GeneratedOpentitanSysrstCtrlSession"]

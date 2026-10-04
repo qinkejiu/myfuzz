@@ -45,6 +45,9 @@ def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path) -> di
     if profile.component_id == 'opentitan_spi_host_local':
         from .opentitan_spi_host_contract import verify_opentitan_spi_host_source_contract
         return verify_opentitan_spi_host_source_contract(profile, base_dir=base_dir)
+    if profile.component_id == 'opentitan_sysrst_ctrl_local':
+        from .opentitan_sysrst_ctrl_contract import verify_opentitan_sysrst_ctrl_source_contract
+        return verify_opentitan_sysrst_ctrl_source_contract(profile, base_dir=base_dir)
     if profile.component_id == 'opentitan_uart_local':
         from .opentitan_uart_contract import verify_opentitan_uart_source_contract
         return verify_opentitan_uart_source_contract(profile, base_dir=base_dir)

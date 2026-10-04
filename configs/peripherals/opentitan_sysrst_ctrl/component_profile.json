@@ -1,0 +1,598 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "opentitan_sysrst_ctrl",
+  "kind": "peripheral",
+  "description": "Pinned OpenTitan sysrst_ctrl TL-UL target with native 24 MHz configuration and 200 kHz always-on domains, physical event pins, wake/reset requests and aggregate IRQ.",
+  "source": {
+    "root": "third_party/soc-opentitan",
+    "revision": "git:fca045df919a26c47e71616b9dac917b1ea4fd07",
+    "top_module": "sysrst_ctrl",
+    "files": [
+      "hw/ip/prim/rtl/prim_alert_pkg.sv",
+      "hw/ip/prim/rtl/prim_mubi_pkg.sv",
+      "hw/ip/prim/rtl/prim_secded_pkg.sv",
+      "hw/ip/prim/rtl/prim_subreg_pkg.sv",
+      "hw/ip/prim/rtl/prim_util_pkg.sv",
+      "hw/ip/prim/rtl/prim_count_pkg.sv",
+      "hw/ip/prim/rtl/prim_alert_sender.sv",
+      "hw/ip/prim/rtl/prim_diff_decode.sv",
+      "hw/ip/prim/rtl/prim_filter_ctr.sv",
+      "hw/ip/prim/rtl/prim_intr_hw.sv",
+      "hw/ip/prim/rtl/prim_reg_we_check.sv",
+      "hw/ip/prim/rtl/prim_sec_anchor_buf.sv",
+      "hw/ip/prim/rtl/prim_sec_anchor_flop.sv",
+      "hw/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+      "hw/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+      "hw/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+      "hw/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+      "hw/ip/prim/rtl/prim_subreg.sv",
+      "hw/ip/prim/rtl/prim_subreg_arb.sv",
+      "hw/ip/prim/rtl/prim_subreg_ext.sv",
+      "hw/ip/prim/rtl/prim_reg_cdc.sv",
+      "hw/ip/prim/rtl/prim_reg_cdc_arb.sv",
+      "hw/ip/prim/rtl/prim_pulse_sync.sv",
+      "hw/ip/prim/rtl/prim_sync_reqack.sv",
+      "hw/ip/prim_generic/rtl/prim_buf.sv",
+      "hw/ip/prim_generic/rtl/prim_flop.sv",
+      "hw/ip/prim_generic/rtl/prim_flop_2sync.sv",
+      "hw/ip/prim_generic/rtl/prim_flop_en.sv",
+      "hw/ip/prim_generic/rtl/prim_xnor2.sv",
+      "hw/ip/tlul/rtl/tlul_pkg.sv",
+      "hw/ip/tlul/rtl/tlul_adapter_reg.sv",
+      "hw/ip/tlul/rtl/tlul_cmd_intg_chk.sv",
+      "hw/ip/tlul/rtl/tlul_data_integ_dec.sv",
+      "hw/ip/tlul/rtl/tlul_data_integ_enc.sv",
+      "hw/ip/tlul/rtl/tlul_err.sv",
+      "hw/ip/tlul/rtl/tlul_rsp_intg_gen.sv",
+      "hw/top_earlgrey/rtl/top_pkg.sv",
+      "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_reg_pkg.sv",
+      "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_reg_top.sv",
+      "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_pkg.sv",
+      "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_autoblock.sv",
+      "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_comboact.sv",
+      "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_pin.sv",
+      "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_keyintr.sv",
+      "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_detect.sv",
+      "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_combo.sv",
+      "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_ulp.sv",
+      "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl_intr.sv",
+      "hw/ip/sysrst_ctrl/rtl/sysrst_ctrl.sv"
+    ],
+    "include_roots": [
+      "hw/ip/prim/rtl",
+      "hw/ip/prim_generic/rtl",
+      "hw/ip/tlul/rtl",
+      "hw/top_earlgrey/rtl"
+    ]
+  },
+  "clocks": [
+    {
+      "port": "clk_i",
+      "domain": "core",
+      "frequency_hz": 24000000
+    },
+    {
+      "port": "clk_aon_i",
+      "domain": "aon",
+      "frequency_hz": 200000
+    }
+  ],
+  "resets": [
+    {
+      "port": "rst_ni",
+      "domain": "core",
+      "polarity": "active_low",
+      "synchronous": false
+    },
+    {
+      "port": "rst_aon_ni",
+      "domain": "aon",
+      "polarity": "active_low",
+      "synchronous": false
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "opentitan_sysrst_ctrl.mmio",
+      "function": "mmio_slave",
+      "protocol": [
+        "tl-ul",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "a_valid",
+          "width": 1,
+          "direction": "input",
+          "aliases": [
+            "a_valid_i"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "role": "a_opcode",
+          "width": 3,
+          "direction": "input",
+          "aliases": [
+            "a_opcode_i"
+          ],
+          "bit_range": [
+            0,
+            2
+          ]
+        },
+        {
+          "role": "a_param",
+          "width": 3,
+          "direction": "input",
+          "aliases": [
+            "a_param_i"
+          ],
+          "bit_range": [
+            0,
+            2
+          ]
+        },
+        {
+          "role": "a_size",
+          "width": 2,
+          "direction": "input",
+          "aliases": [
+            "a_size_i"
+          ],
+          "bit_range": [
+            0,
+            1
+          ]
+        },
+        {
+          "role": "a_source",
+          "width": 8,
+          "direction": "input",
+          "aliases": [
+            "a_source_i"
+          ],
+          "bit_range": [
+            0,
+            7
+          ]
+        },
+        {
+          "role": "a_address",
+          "width": 32,
+          "direction": "input",
+          "aliases": [
+            "a_address_i"
+          ],
+          "bit_range": [
+            0,
+            31
+          ]
+        },
+        {
+          "role": "a_mask",
+          "width": 4,
+          "direction": "input",
+          "aliases": [
+            "a_mask_i"
+          ],
+          "bit_range": [
+            0,
+            3
+          ]
+        },
+        {
+          "role": "a_data",
+          "width": 32,
+          "direction": "input",
+          "aliases": [
+            "a_data_i"
+          ],
+          "bit_range": [
+            0,
+            31
+          ]
+        },
+        {
+          "role": "a_user",
+          "width": 23,
+          "direction": "input",
+          "aliases": [
+            "a_user_i"
+          ],
+          "bit_range": [
+            0,
+            22
+          ]
+        },
+        {
+          "role": "d_ready",
+          "width": 1,
+          "direction": "input",
+          "aliases": [
+            "d_ready_i"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "role": "a_ready",
+          "width": 1,
+          "direction": "output",
+          "aliases": [
+            "a_ready_o"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "role": "d_valid",
+          "width": 1,
+          "direction": "output",
+          "aliases": [
+            "d_valid_o"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "role": "d_opcode",
+          "width": 3,
+          "direction": "output",
+          "aliases": [
+            "d_opcode_o"
+          ],
+          "bit_range": [
+            0,
+            2
+          ]
+        },
+        {
+          "role": "d_param",
+          "width": 3,
+          "direction": "output",
+          "aliases": [
+            "d_param_o"
+          ],
+          "bit_range": [
+            0,
+            2
+          ]
+        },
+        {
+          "role": "d_size",
+          "width": 2,
+          "direction": "output",
+          "aliases": [
+            "d_size_o"
+          ],
+          "bit_range": [
+            0,
+            1
+          ]
+        },
+        {
+          "role": "d_source",
+          "width": 8,
+          "direction": "output",
+          "aliases": [
+            "d_source_o"
+          ],
+          "bit_range": [
+            0,
+            7
+          ]
+        },
+        {
+          "role": "d_sink",
+          "width": 1,
+          "direction": "output",
+          "aliases": [
+            "d_sink_o"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "role": "d_data",
+          "width": 32,
+          "direction": "output",
+          "aliases": [
+            "d_data_o"
+          ],
+          "bit_range": [
+            0,
+            31
+          ]
+        },
+        {
+          "role": "d_user",
+          "width": 14,
+          "direction": "output",
+          "aliases": [
+            "d_user_o"
+          ],
+          "bit_range": [
+            0,
+            13
+          ]
+        },
+        {
+          "role": "d_error",
+          "width": 1,
+          "direction": "output",
+          "aliases": [
+            "d_error_o"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "opentitan_sysrst_ctrl.irq",
+      "function": "interrupt_source",
+      "fields": [
+        {
+          "role": "irq",
+          "width": 1,
+          "direction": "output",
+          "aliases": [
+            "intr_event_detected_o"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "opentitan_sysrst_ctrl.pins",
+      "function": "external_pins",
+      "fields": [
+        {
+          "role": "ac_present",
+          "width": 1,
+          "direction": "input",
+          "aliases": [
+            "cio_ac_present_i"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "role": "ec_rst_l",
+          "width": 1,
+          "direction": "input",
+          "aliases": [
+            "cio_ec_rst_l_i"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "role": "key0",
+          "width": 1,
+          "direction": "input",
+          "aliases": [
+            "cio_key0_in_i"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "role": "key1",
+          "width": 1,
+          "direction": "input",
+          "aliases": [
+            "cio_key1_in_i"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "role": "key2",
+          "width": 1,
+          "direction": "input",
+          "aliases": [
+            "cio_key2_in_i"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "role": "pwrb",
+          "width": 1,
+          "direction": "input",
+          "aliases": [
+            "cio_pwrb_in_i"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "role": "lid_open",
+          "width": 1,
+          "direction": "input",
+          "aliases": [
+            "cio_lid_open_i"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "role": "flash_wp_l",
+          "width": 1,
+          "direction": "input",
+          "aliases": [
+            "cio_flash_wp_l_i"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "opentitan_sysrst_ctrl.requests",
+      "function": "observation",
+      "fields": [
+        {
+          "role": "wkup_req",
+          "width": 1,
+          "direction": "output",
+          "aliases": [
+            "wkup_req_o"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "role": "rst_req",
+          "width": 1,
+          "direction": "output",
+          "aliases": [
+            "rst_req_o"
+          ],
+          "bit_range": [
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "opentitan_sysrst_ctrl.alert",
+      "function": "observation",
+      "fields": [
+        {
+          "role": "alert_tx",
+          "width": 2,
+          "direction": "output",
+          "aliases": [
+            "alert_tx_o"
+          ],
+          "bit_range": [
+            0,
+            1
+          ]
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 32,
+    "data_width": 32,
+    "read": true,
+    "write": true,
+    "byte_enable": true,
+    "partial_write": true,
+    "has_error": true,
+    "integrity": "required",
+    "source_width": 8,
+    "sink_width": 1,
+    "user_width": 23,
+    "size_width": 2,
+    "max_wait_cycles": 16,
+    "max_outstanding": 1,
+    "d_user_width": 14
+  },
+  "address": {
+    "window_size": 256,
+    "alignment": 256,
+    "registers": [
+      {
+        "name": "INTR_STATE",
+        "offset": 0,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "write_one_clears"
+      },
+      {
+        "name": "INTR_ENABLE",
+        "offset": 4,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "PIN_IN_VALUE",
+        "offset": 64,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "none"
+      },
+      {
+        "name": "KEY_INTR_CTL",
+        "offset": 68,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "KEY_INTR_DEBOUNCE_CTL",
+        "offset": 72,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "none"
+      },
+      {
+        "name": "KEY_INTR_STATUS",
+        "offset": 168,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "write_one_clears"
+      }
+    ]
+  },
+  "interrupts": [
+    {
+      "endpoint_id": "opentitan_sysrst_ctrl.irq",
+      "role": "irq",
+      "bit": 0,
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "The source synchronizes AON event requests to the core clock with prim_sync_reqack, registers per-event status in KEY_INTR_STATUS, and prim_intr_hw drives intr_event_detected_o as the INTR_STATE & INTR_ENABLE aggregate level.",
+      "clear": "Write 1 to the corresponding INTR_STATE bit (W1C) after disabling or clearing the source status as needed."
+    }
+  ],
+  "port_actions": [],
+  "evidence": {
+    "clocks": "sysrst_ctrl.sv declares the independent 24 MHz configuration and 200 kHz AON clock inputs with one reset per domain.",
+    "key0_h2l": "Pinned HJSON and generated register package define KEY_INTR_CTL key0 H2L at 0x44 bit 1, debounce at 0x48, PIN_IN_VALUE at 0x40, and KEY_INTR_STATUS key0 H2L at 0xa8 bit 1.",
+    "irq_cdc": "sysrst_ctrl_intr.sv stages AON key events, sends them through prim_sync_reqack to the core clock, then writes status consumed by the native aggregate interrupt primitive.",
+    "reset_feedback": "rst_req_o is observed as a DUT output; the scalar wrapper does not connect it to either reset input."
+  }
+}
