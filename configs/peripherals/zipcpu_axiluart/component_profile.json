@@ -1,0 +1,352 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "zipcpu_axiluart",
+  "kind": "peripheral",
+  "description": "Pinned axiluart AXI4-Lite slave, serial pins and four UART interrupt outputs; every physical top port is classified.",
+  "source": {
+    "root": "third_party/soc-zipcpu-wbuart",
+    "revision": "git:f43a6b83c3a70fb2ac0696a45c5545b233fb860b",
+    "top_module": "axiluart",
+    "files": [
+      "rtl/axiluart.v",
+      "rtl/ufifo.v",
+      "rtl/rxuart.v",
+      "rtl/txuart.v",
+      "rtl/skidbuffer.v"
+    ],
+    "include_roots": [],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {
+          "name": "INITIAL_SETUP",
+          "value": "25"
+        },
+        {
+          "name": "LGFLEN",
+          "value": "4"
+        },
+        {
+          "name": "HARDWARE_FLOW_CONTROL_PRESENT",
+          "value": "1"
+        },
+        {
+          "name": "C_AXI_ADDR_WIDTH",
+          "value": "4"
+        },
+        {
+          "name": "OPT_SKIDBUFFER",
+          "value": "0"
+        },
+        {
+          "name": "OPT_LOWPOWER",
+          "value": "0"
+        }
+      ],
+      "warning_policy": "recorded-nonfatal"
+    },
+    "top_port_selection": "all"
+  },
+  "clocks": [
+    {
+      "port": "S_AXI_ACLK",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "S_AXI_ARESETN",
+      "domain": "sys_rst",
+      "polarity": "active_low",
+      "synchronous": true,
+      "release": "axiluart.v samples S_AXI_ARESETN on S_AXI_ACLK posedges; hold low through reset and release on clock boundary."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "uart.bus",
+      "function": "mmio_slave",
+      "protocol": [
+        "axi4-lite",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "awvalid",
+          "aliases": [
+            "S_AXI_AWVALID"
+          ]
+        },
+        {
+          "role": "awready",
+          "aliases": [
+            "S_AXI_AWREADY"
+          ]
+        },
+        {
+          "role": "awaddr",
+          "aliases": [
+            "S_AXI_AWADDR"
+          ]
+        },
+        {
+          "role": "awprot",
+          "aliases": [
+            "S_AXI_AWPROT"
+          ]
+        },
+        {
+          "role": "wvalid",
+          "aliases": [
+            "S_AXI_WVALID"
+          ]
+        },
+        {
+          "role": "wready",
+          "aliases": [
+            "S_AXI_WREADY"
+          ]
+        },
+        {
+          "role": "wdata",
+          "aliases": [
+            "S_AXI_WDATA"
+          ]
+        },
+        {
+          "role": "wstrb",
+          "aliases": [
+            "S_AXI_WSTRB"
+          ]
+        },
+        {
+          "role": "bvalid",
+          "aliases": [
+            "S_AXI_BVALID"
+          ]
+        },
+        {
+          "role": "bready",
+          "aliases": [
+            "S_AXI_BREADY"
+          ]
+        },
+        {
+          "role": "bresp",
+          "aliases": [
+            "S_AXI_BRESP"
+          ]
+        },
+        {
+          "role": "arvalid",
+          "aliases": [
+            "S_AXI_ARVALID"
+          ]
+        },
+        {
+          "role": "arready",
+          "aliases": [
+            "S_AXI_ARREADY"
+          ]
+        },
+        {
+          "role": "araddr",
+          "aliases": [
+            "S_AXI_ARADDR"
+          ]
+        },
+        {
+          "role": "arprot",
+          "aliases": [
+            "S_AXI_ARPROT"
+          ]
+        },
+        {
+          "role": "rvalid",
+          "aliases": [
+            "S_AXI_RVALID"
+          ]
+        },
+        {
+          "role": "rready",
+          "aliases": [
+            "S_AXI_RREADY"
+          ]
+        },
+        {
+          "role": "rdata",
+          "aliases": [
+            "S_AXI_RDATA"
+          ]
+        },
+        {
+          "role": "rresp",
+          "aliases": [
+            "S_AXI_RRESP"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "uart.pins",
+      "function": "external_pins",
+      "fields": [
+        {
+          "role": "rx",
+          "direction": "input",
+          "aliases": [
+            "i_uart_rx"
+          ]
+        },
+        {
+          "role": "tx",
+          "direction": "output",
+          "aliases": [
+            "o_uart_tx"
+          ]
+        },
+        {
+          "role": "cts_n",
+          "direction": "input",
+          "aliases": [
+            "i_cts_n"
+          ]
+        },
+        {
+          "role": "rts_n",
+          "direction": "output",
+          "aliases": [
+            "o_rts_n"
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint_id": "uart.interrupts",
+      "function": "interrupt_source",
+      "fields": [
+        {
+          "role": "rx",
+          "aliases": [
+            "o_uart_rx_int"
+          ]
+        },
+        {
+          "role": "rxfifo",
+          "aliases": [
+            "o_uart_rxfifo_int"
+          ]
+        },
+        {
+          "role": "tx",
+          "aliases": [
+            "o_uart_tx_int"
+          ]
+        },
+        {
+          "role": "txfifo",
+          "aliases": [
+            "o_uart_txfifo_int"
+          ]
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 4,
+    "data_width": 32,
+    "read": true,
+    "write": true,
+    "byte_enable": true,
+    "partial_write": true,
+    "has_error": true,
+    "has_address_port": true,
+    "max_wait_cycles": 16,
+    "max_outstanding": 1,
+    "bursts": false,
+    "ids": false,
+    "local_runtime_variant": "axi4_lite_uart"
+  },
+  "address": {
+    "window_size": 16,
+    "alignment": 16,
+    "registers": [
+      {
+        "name": "SETUP",
+        "offset": 0,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "write_resets_uart_state"
+      },
+      {
+        "name": "FIFO_STATUS",
+        "offset": 4,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "none"
+      },
+      {
+        "name": "RXREG",
+        "offset": 8,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "read_pops_rx_fifo"
+      },
+      {
+        "name": "TXREG",
+        "offset": 12,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "write_pushes_tx_fifo"
+      }
+    ]
+  },
+  "interrupts": [
+    {
+      "endpoint_id": "uart.interrupts",
+      "role": "rx",
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Combinational level wired straight to the RX FIFO status bit: `assign o_uart_rx_int = rxf_status[0];` (wbuart.v:212), and ufifo.v:297-303 defines bit 0 as 'the FIFO can be read from' for a receive FIFO. It stays asserted for as long as the RX FIFO is non-empty, and it is not latched or edge-detected.",
+      "clear": "Clears when the condition disappears, i.e. when the RX FIFO is drained by reads of RXREG (wbuart.v:236-239)."
+    },
+    {
+      "endpoint_id": "uart.interrupts",
+      "role": "rxfifo",
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Combinational level: `assign o_uart_rxfifo_int = rxf_status[1];` (wbuart.v:207); ufifo.v:281 assigns w_half_full = r_fill[LGFLEN-1], so bit 1 means the RX FIFO is at least half full.",
+      "clear": "Clears when the RX FIFO drops below half full, i.e. after enough RXREG reads."
+    },
+    {
+      "endpoint_id": "uart.interrupts",
+      "role": "tx",
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Combinational level: `assign o_uart_tx_int = txf_status[0];` (wbuart.v:365); ufifo.v:297-303 defines bit 0 for a non-receive FIFO as 'the FIFO can be written to', so it is asserted while the TX FIFO has at least one free slot.",
+      "clear": "Clears when the TX FIFO becomes full, i.e. after enough TXREG writes; it re-asserts as the transmitter drains the FIFO."
+    },
+    {
+      "endpoint_id": "uart.interrupts",
+      "role": "txfifo",
+      "polarity": "active_high",
+      "trigger": "level",
+      "clock_domain": "core",
+      "hold": "Combinational level: `assign o_uart_txfifo_int = txf_status[1];` (wbuart.v:369), i.e. the TX FIFO is less than half full (ufifo.v:281).",
+      "clear": "Clears when the TX FIFO reaches half full or more."
+    }
+  ],
+  "port_actions": [],
+  "evidence": {
+    "semantics": [
+      "All 29 top ports are physical facts from pinned axiluart Verilator elaboration.",
+      "S_AXI_AWADDR[3:2] and S_AXI_ARADDR[3:2] select four 32-bit registers. AXI responses are distinct B and R channels; S_AXI_BRESP and S_AXI_RRESP are tied to OKAY in the RTL.",
+      "AW and W are independently accepted by the AXI4-Lite target. The local executor must preserve both handshakes and wait for the B response before reporting completion.",
+      "RX and TX remain physical serial pins; host input must come from a bounded declared peer, and output must be sampled from RTL."
+    ]
+  }
+}

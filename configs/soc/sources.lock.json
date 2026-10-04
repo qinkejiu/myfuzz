@@ -5720,6 +5720,125 @@
         "capability_findings": 2,
         "unsupported": 2
       }
+    },
+    {
+      "id": "zipcpu_axiluart",
+      "source": {
+        "root": "third_party/soc-zipcpu-wbuart",
+        "revision": "git:f43a6b83c3a70fb2ac0696a45c5545b233fb860b",
+        "top_module": "axiluart",
+        "files": [
+          "rtl/axiluart.v",
+          "rtl/ufifo.v",
+          "rtl/rxuart.v",
+          "rtl/txuart.v",
+          "rtl/skidbuffer.v"
+        ],
+        "include_roots": [],
+        "top_port_selection": "all"
+      },
+      "artifacts": [
+        {
+          "path": "LICENSE",
+          "sha256": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2",
+          "kind": "license"
+        },
+        {
+          "path": "README.md",
+          "sha256": "02a026e32c4b402739e0383c0578533ee2a73e6ce2d3a5c9b48724810765bcf1",
+          "kind": "provenance"
+        },
+        {
+          "path": "rtl/axiluart.v",
+          "sha256": "0d8463cfcfdf63c429564cd53d07a51b7fe60605fc588627e6f8d8ea9c8d9b2a",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/ufifo.v",
+          "sha256": "83c8894d6b36cebd33ade16d117a0eb6f7dc183e84eb17818edda48330cf0af5",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/rxuart.v",
+          "sha256": "6d7764726b82bf6daa3272f54d1a4e8496baba5501fdadc8095acdef68c27bbd",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/txuart.v",
+          "sha256": "740162a836b695b4cda844c557a6aa94d02c8a0386f4d40d59c77ebf2f850cba",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/skidbuffer.v",
+          "sha256": "fcf15a61b6b4914e2a7311fdb6ea2b08dfdbef07b474962df4f805b8ed5b93c4",
+          "kind": "source"
+        }
+      ],
+      "selected_content_hash": "sha256:9ffe44e53af5ec7a6e3471d6d04cff37d8d037a5c3d1e346c8e214d5df0b9327",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "defines": [],
+      "typed_parameters": [
+        {
+          "name": "INITIAL_SETUP",
+          "type": "integer",
+          "value": "25"
+        },
+        {
+          "name": "LGFLEN",
+          "type": "integer",
+          "value": "4"
+        },
+        {
+          "name": "HARDWARE_FLOW_CONTROL_PRESENT",
+          "type": "integer",
+          "value": "1"
+        },
+        {
+          "name": "C_AXI_ADDR_WIDTH",
+          "type": "integer",
+          "value": "4"
+        },
+        {
+          "name": "OPT_SKIDBUFFER",
+          "type": "integer",
+          "value": "0"
+        },
+        {
+          "name": "OPT_LOWPOWER",
+          "type": "integer",
+          "value": "0"
+        }
+      ],
+      "generator": {
+        "status": "not_invoked",
+        "tool_version": null,
+        "name": "none for selected checked-in files"
+      },
+      "dependencies": [],
+      "closure_note": "All five selected and Verilator-read files are pinned in configs/soc/closures/zipcpu_axiluart.json; complete 29-port physical top selection is separately re-elaborated by the local harness gate.",
+      "elaboration": {
+        "status": "elaboration_verified",
+        "top_module": "axiluart",
+        "tool": {
+          "name": "verilator",
+          "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "frontend": "verilator-lint"
+        },
+        "evidence": "configs/soc/closures/zipcpu_axiluart.json",
+        "evidence_sha256": "80957d3cd737db4f52de771ad2eec555827fd00a9dfd95325d26317892245f88",
+        "closure_files": 5,
+        "lint": {
+          "errors": 0,
+          "warnings": 0,
+          "exit_code": 0,
+          "log": "runs/soc-source-elaboration/zipcpu/axiluart-lint.log"
+        },
+        "capability_findings": 13,
+        "unsupported": 5
+      }
     }
   ]
 }
