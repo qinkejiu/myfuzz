@@ -8,6 +8,7 @@
 |---|---|---|
 | CV32E20/CVE2，OBI 指令与数据端口 | 固定源码、全顶层端口、生成式 wrapper/driver；真实取指、Store/Load、byte-enable、显式 reset 后 RAM 保持 | RTL operational |
 | Ibex，OBI 指令与数据端口 | 66/66 顶层端口、70 个实际读取文件固定；复用 OBI 生成器与 session，真实取指、Store/Load、byte-enable、预算化证据 fresh replay | 第二种 OBI CPU RTL operational |
+| CV32E20/CVE2 RV32E 参数变体，OBI | 仅增加 profile、源码锁和闭包；复用同一 OBI 模板/driver/session，真实 Store/Load、byte-enable 与 fresh replay | 同 CPU 参数复用通过；不代表新 CPU 型号仅靠 profile 接入 |
 | PicoRV32，原生 Ready/Valid 完成式内存端口 | 固定源码、生成式本地 adapter/driver；真实程序连续两轮 Store/Load、持久 RAM、预算化证据与 fresh replay | RAM/ROM RTL operational；暂不支持 MMIO/IRQ |
 | PicoRV32，classic Wishbone | 固定源码、生成式 driver；真实取指、RAM 写入、deferred MMIO 与显式 reset，预算化证据在新进程重放一致 | RTL operational；单 outstanding，无 IRQ |
 | PicoRV32，AXI4-Lite | 固定源码、真实 AW/W/B/AR/R 引脚经本地 adapter；真实程序两轮 Store/Load、持久 RAM、预算化证据 fresh replay | RAM/ROM RTL operational；固定 no-response-code 变体，无 MMIO/IRQ |
@@ -109,7 +110,7 @@ PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_axi4_cpu -q
 PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_ibex_obi_runtime -q
 ```
 
-2026-10-04 回归结果：通用 TL-UL 动态环境源与 SPI Device 合入前，本地 harness 全量 208 项运行、6 项按真实 RTL 环境门禁跳过，无失败；合入后场景回归 367/367。SPI Device 专用真实用例 3/3、通用 TL-UL 动态/固定输入真实及合同用例 9/9 在主线通过；各自能力边界见 `docs/reports/opentitan-spi-device-generated-20261004.md`。Pico 原生内存真实测试 2/2、AXI4-Lite 真实测试 2/2、Wishbone 专项 6/6、ZipCPU AXI4 突发及 schema 2/2、PULP SPI 预算化证据测试均通过。CVE2 双 GPIO 双向真实场景此前 2/2，预算化证据 fresh replay 一致。若本地缺少某 CPU 的可执行固定源码，只跳过该 CPU 的真实验收并记录 `skipped_unavailable`，不让其他 CPU/IP 或协议等级自动通过。
+2026-10-04 回归结果：SPI Device、动态 TL-UL 输入和 UART CPU 链合入后，本地 harness 全量 215 项运行、8 项按真实 RTL 环境门禁跳过，无失败；场景回归 367/367。随后合入的 CVE2 RV32E 参数变体定向真实测试 1/1，通过 fresh replay；源码锁全量校验通过。SPI Device 专用真实用例 3/3、通用 TL-UL 动态/固定输入真实及合同用例 9/9 在主线通过；各自能力边界见 `docs/reports/opentitan-spi-device-generated-20261004.md`。Pico 原生内存真实测试 2/2、AXI4-Lite 真实测试 2/2、Wishbone 专项 6/6、ZipCPU AXI4 突发及 schema 2/2、PULP SPI 预算化证据测试均通过。CVE2 双 GPIO 双向真实场景此前 2/2，预算化证据 fresh replay 一致。若本地缺少某 CPU 的可执行固定源码，只跳过该 CPU 的真实验收并记录 `skipped_unavailable`，不让其他 CPU/IP 或协议等级自动通过。
 
 ## 尚未满足的验收
 

@@ -5,6 +5,7 @@
 | 方向 | 协议 / 组件 | 已验收的真实 RTL 行为 | 主要边界 |
 |---|---|---|---|
 | CPU | OBI：CV32E20/CVE2、Ibex | 两种真实 CPU 复用同一 OBI 生成器；取指、Store/Load、byte enable、持久 RAM、回放 | 已验证的 OBI 形态；新 CPU 须重新核对全部端口和握手变体 |
+| CPU | OBI：CVE2 RV32E 参数变体 | 仅新增 profile/源码锁/闭包，复用生成器并通过真实 Store/Load、byte enable 与 fresh replay | 证明同 CPU 参数复用；不等于新 CPU 型号的 profile-only 验收 |
 | CPU | AXI4：ZipCPU | 五通道、八拍取指突发、RAM 写入和回放 | 只验收当前 RAM 路径，不接受 exclusive 或非 RAM 地址 |
 | CPU | AXI4-Lite：PicoRV32 | 真实取指及两轮 Store/Load、持久 RAM、回放 | 当前 CPU 路径仅 RAM/ROM，无 MMIO/IRQ |
 | CPU | Wishbone classic：PicoRV32 | 真实取指、RAM、deferred GPIO MMIO、reset 和回放 | 单 outstanding，尚无 CPU IRQ |
