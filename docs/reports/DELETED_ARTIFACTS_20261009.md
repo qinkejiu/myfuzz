@@ -20,7 +20,7 @@
 |---|---|
 | `runs/p3-ip-cross-case-20261007-online` | 已按原命令重建；60 例（57/2/1）、`IP_TO_CPU_TO_IP` 跨例 3、`case_gap` p50=max=1，与报告判据一致 |
 | `runs/p3-ram-prereq-20261007-online` | 已重建；运行级与字段级证据均与报告一致（`dynamic_binding` counters 相同，`evidence_ref` = event 17567 的 `commit_id`） |
-| `runs/first-step-reproduction-20261008/` | 五项复现产物全部重建（P1 236 tests OK、P2 exit 0 ready、P3 exit 0 ready、P4 48 passed、P5 6/6） |
+| `runs/first-step-reproduction-20261008/` | **从 `archive/development/first-step-p1-p5/20261008/review-evidence.tar.gz` 逐字节恢复原始版**（归档校验通过；P1 236 tests OK、P2 exit 0、P3 exit 0 ready、P4 48 passed、P5 6/6） |
 
 ## 仍未恢复
 

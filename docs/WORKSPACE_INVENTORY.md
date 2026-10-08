@@ -118,8 +118,11 @@
 
 清理后 `check_doc_links.py` 报出 8 条断链，全部指向被删的 `runs/first-step-reproduction-20261008/` 与 `runs/individual-review-20261008/`（[复现手册](reproduction/first-step-p1-p5-20261008.md) 与 [独立审核](reproduction/first-step-individual-review-20261008.md) 里的产物链接）。
 
-处理（2026-10-09 已完成大部分）：
-- `runs/first-step-reproduction-20261008/` **已按复现手册的命令重建全部五项**：`p1-unittest.txt`（Ran 236 tests，OK，skipped=5）、`p2-report.json`（P2 门禁 exit 0 / ready=true）、`p3-suite.json`（**exit 0 / ready=true，每个关键 P3 项都有声明运行证明**——先重建 `p3-ip-cross-case` 才跑通）、`p4-tests.txt`（48 passed）、`p5-suite.json`（P5 套件 exit 0 / critical 6/6）。
+处理（2026-10-09 完成）：
+
+**关键发现：`archive/development/first-step-p1-p5/20261008/review-evidence.tar.gz` 保存了 2026-10-08 的原始复现产物**（归档 `sha256sum -c` 全部 OK）。因此这五项**不是重建，而是从归档逐字节恢复的原始版**：`p1-unittest.txt`（Ran 236 tests in 6.212s，OK skipped=5）、`p2-report.json`、`p3-suite.json`、`p4-tests.txt`（48 passed）、`p5-suite.json`。我另外生成的"重建版"已用原始版覆盖（两者判据相同，差异只在耗时数字）。
+
+
 - `runs/individual-review-20261008/` 尚未重建，其两条链接仍是断链。
 
 ---
