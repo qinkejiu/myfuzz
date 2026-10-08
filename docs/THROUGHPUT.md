@@ -139,3 +139,11 @@ cases=1 steps=192 elapsed=0.847s => 4.414 ms/step
 | 命令数结构 | `runs/<run>/online_plan.json`（`cases[].advances`）、回执 `local_ticks` |
 | 驱动协议 | `src/myfuzz/local_harness/rtl/local_driver_v1.h`（`STEP_*` 各推进一个 tick）、`src/myfuzz/local_harness/wire.py` |
 | §1.1 对照运行 | `runs/ibex-pulp-online-20261006-balanced-600s`（同结构、无逐例分项计时字段） |
+
+---
+
+## 6. 更正与适用边界（2026-10-09）
+
+1. **24× 对照的基线已被删除**：§1.1 使用的 `runs/ibex-pulp-online-20261006-balanced-600s` 在 2026-10-09 的 `runs/` 清理中被删（它只被本文引用）。因此**那条对比现在无法从原始产物复算**；表格里的数字是本文件写作时的实测记录，仍然有效，但不要再当作可复现的证据。
+2. **吞吐量取决于探针配置**：2026-10-09 重建的 CV32E40P＋双 GPIO 运行（同一套 wiring、无 RVFI 退休探针）在 180.161 有效秒内完成 **133 例 = 0.738 例/s**；而启用了 `--cpu-retirement`（RVFI 逐字退休）的 Ibex 运行是 0.613 例/s。两者结构相同、代码相同，**差异来自每个 tick 要多采一层 RVFI 观察**。所以引用本文数字时必须同时说明探针配置，不能只给一个"吞吐量"。
+3. **每例耗时差异同理**：CV32E40P 例均 1.354 s（180.161/133），Ibex 全探针 1.632 s（600.363/368）——同机同 wiring 下约 17% 的差距来自探针。

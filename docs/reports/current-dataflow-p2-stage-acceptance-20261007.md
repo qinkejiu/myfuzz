@@ -62,3 +62,9 @@ API 级真实门禁（`authority=genome`，真实 `GenomeRecordDecoder` + 真实
 3. 消费跳依赖目标侧观测事件的 `segments[].origin.delivery_event_id`：某 run 若不写目标侧观测（如 `p5-streamed-short`），该边仍如实为 incomplete。
 4. driver 精确切片规则未放宽：若源 `gpio_out` 一直带声明窗以上的位，A→B 边会停在 `missing=[producer,delivery,consumer]`。
 5. 本报告不重推 hop 证据、不跑 RTL；链证书计数由 `analyze_run` 给出并与 P5 报告一致（`cross_check = agree`）。
+
+---
+
+## 2026-10-09 产物重建说明
+
+本报告引用的 `runs/cv32e40p-pulp-online-20261007` 曾在 2026-10-09 的 `runs/` 清理中被误删。**原始参数在文档中没有完整记录**，因此按 Ibex 对照的预算重建（`--seconds 180 --max-tests 200 --seed 20261007 --run-id cv32e40p-pulp-online-20261007 --gpio-consumption`，CV32E40P 无 RVFI 探针）：**133/133 `complete`、180.161 有效秒**，与本文"CV32E40P 复用同一 wiring"的结论一致，但**例数与原始 42/42 不同**（原运行的预算未记录）——本文只主张"该 CPU 复用同一 ownership／窗口／绑定／IRQ 策略／固件／decoder／checker 且真实运行全部 complete"，不主张例数可复现。
