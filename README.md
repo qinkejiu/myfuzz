@@ -17,6 +17,9 @@ relations.
 
 ## Start here
 
+- [Workspace inventory and cleanup record](docs/WORKSPACE_INVENTORY.md): what
+each top-level directory is, what the 2026-10-09 cleanup removed and
+regenerated, and the declared broken-link consequence.
 - [System overview](docs/SYSTEM_OVERVIEW.md): how the current system is layered,
   how one online run proceeds, how it is verified, and what it does not claim.
 - [Testcase and dataflow](docs/TESTCASE_AND_DATAFLOW.md): what one testcase is,

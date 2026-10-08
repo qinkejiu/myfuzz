@@ -84,7 +84,7 @@ PYTHONPATH=src timeout 240s python3 scripts/run_p5_acceptance_suite.py \
   --run paired_cold_start=runs/current-dataflow-p5-paired-20261007-cold-start \
   --run fault_calibration=runs/current-dataflow-p5-fault-calibration-20261007-online@runs/current-dataflow-p5-fault-calibration-20261007-reproduce \
   --run fault_family=runs/current-dataflow-p5-fault-family-all-20261007-online \
-  --run heterogeneous_uart=runs/p5-uart-waveform-gate-20261008-online \
+  --run heterogeneous_uart=runs/p5-uart-routing-gate-20261008-online \
   --artifact long_search=replay=runs/current-dataflow-p5-final-20261007-logs/chain_600s_replay.log \
   > /tmp/myfuzz-stage1-repro/p5-suite.json
 ```
