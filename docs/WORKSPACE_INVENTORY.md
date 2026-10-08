@@ -76,18 +76,27 @@
 | `CPU_TO_IP_TO_CPU` 跨例链 | certified 3、cross_case 1 | **certified 3、cross_case 1** |
 | 复算命令 | `scripts/report_cross_case_chains.py` | exit 0，结果见 `runs/current-dataflow-p5-final-20261007-logs/p3_ip_cross_case_chains_regen.json` |
 
-### 3.3 `p3-ram-prereq-20261007-online`：指标一致，但一个字段不同
+### 3.3 `p3-ram-prereq-20261007-online`：运行级与字段级证据均已复现
 
-| 量 | 报告 | 重建 |
+| 量 | 报告 | 重建（2026-10-09） |
 |---|---|---|
 | 例数／状态 | 40/40 `complete` | **40/40 `complete`** |
 | 有效搜索秒 | 54.422 | 50.121 |
 | 门禁计数 `policy_matched`／`policy_not_matched` | 1／39 | **1／39** |
-| `dynamic_binding{requests:1, bound:1}`（报告第 4 节的绑定证据） | 有 | **回执里没有该字段**（40 条回执均无 `dynamic_binding`；`source_action.evaluation.satisfied` 全为 true，CPU 例的 `matched_evidence_refs` 指向 `online-instruction-slot.v1:0x…`） |
+| `source_action_gate.gate.dynamic_binding.counters` | requests 1／bound 1／unbound 0／refused 0／provenance_records 132 | **完全相同** |
+| 绑定回执 | case 15 的 `matched_evidence_refs` 含 `41fb2ef4…`，且该值等于更早 `memory_write_commit`（event **17567**）的 `commit_id` | **case 15、同一 `evidence_ref`、同一 event 17567**；`memory_id=ram`、`byte_offset=0`、`writer_kinds=STORE`、cell 值 `[1,1,0,0]` |
 
-**结论**：运行级判据（例数、状态、门禁计数）复现；但报告里那条"RAM 字节版本绑定"的**逐例字段级证据没有按原样复现**。这可能是绑定记录所在的文档/字段在之后的重构中改了位置，也可能是本次重建的搜索路径不同。**本文不声称该字段已恢复**；要恢复需先定位当前哪个字段承载该绑定（`source_action` 的 `matched_evidence_refs` 是否包含 `ram_byte_version` 引用），这是一项待办。
+> 说明：本文档早先一版曾写"`dynamic_binding` 字段未复现"，那是**我的检查错误**——该字段位于 `report.json` 的 `source_action_gate.gate`（不是逐例回执），重建运行与报告逐字段一致。
 
-### 3.4 仍未恢复的项
+### 3.4 逐文件审阅产物的恢复情况
+
+| 产物 | 处理 |
+|---|---|
+| `runs/individual-review-20261008/findings.json` | **已重跑重建**：由 `scripts/reproduce_stage1_review_findings.py` 在当前源码上重跑（exit 0），含该脚本可复现的观察项；**不是**原始 10 个观察场景的全量重建 |
+| `runs/individual-review-20261008/file-review-ledger.partial.json` | **部分重建**：原始台账（13 全文＋14 部分、含 SHA256 与已读区间）无法重建；此文件只记录审阅文档引用位置与当前 SHA256，不代表原始进度 |
+| 审阅文档 R1–R7 的文字记录 | 完整保留（7 组判据缺陷，含 `p5_acceptance.py:1509` corpus 未校验、`p5_acceptance.py:1847` 零耗时跳过、`closed_loop_feedback.py:136` 不完整证书通过等） |
+
+### 3.5 仍未恢复的项
 
 | 项 | 恢复方式 | 代价 |
 |---|---|---|

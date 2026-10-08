@@ -1,5 +1,6 @@
 # P5 在线 Runner、Router、Scheduler 内部分项计时短门禁
 
+> **⚠ 复算可用性（2026-10-09 更新）**：本文引用的部分原始产物目录在 2026-10-09 的 `runs/` 清理中被删除，因此文中指向 `runs/` 的链接可能失效。**报告的结论、数字与边界仍然有效**（记录的是当时真实执行的结果），但"从原始产物复算"的能力已不存在。删除范围、已重建项与逐条断链清单见 [已删除的原始产物](DELETED_ARTIFACTS_20261009.md)。
 日期：2026-10-07。本轮在在线 `submit_case` 作用域内记录同步调用的单调时钟耗时。逐例 `receipts.jsonl` 新增 `online_runner_timing_seconds`，包含 `scheduler_batch`、`runner_step`、`router_enqueue`、`router_drain`、`router_transact` 和 `observed_output_route`。观察器通过 `ContextVar` 仅在当前例启用，成功和异常都在 `finally` 中结算；作用域外不记录。每个计时点只更新一个小计数表，没有扫描历史事件或复制 trace。字段只属于诊断回执，不进入事件或语义哈希。
 
 这些计时是**包含子调用的壁钟时间**：`scheduler_batch` 包含 `runner_step`，`runner_step` 包含 Router 与本地命令，`router_drain` 可以包含真实目标的命令往返，`observed_output_route` 是 Runner 对已观察输出的传播处理。它们不能相加，也不能直接从任一项推得纯 RTL 求值时间。已有 `online_submit_timing_seconds.local_command_roundtrip` 也可能落在上述区间内。

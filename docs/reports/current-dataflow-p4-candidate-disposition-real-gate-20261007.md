@@ -1,5 +1,6 @@
 # P4 候选选择与接纳原因：冻结源码真实短门禁
 
+> **⚠ 复算可用性（2026-10-09 更新）**：本文引用的部分原始产物目录在 2026-10-09 的 `runs/` 清理中被删除，因此文中指向 `runs/` 的链接可能失效。**报告的结论、数字与边界仍然有效**（记录的是当时真实执行的结果），但"从原始产物复算"的能力已不存在。删除范围、已重建项与逐条断链清单见 [已删除的原始产物](DELETED_ARTIFACTS_20261009.md)。
 日期：2026-10-07。在线决策和 RFuzz 回执增加三项诊断字段：`source_selection_reason` 区分合法直接源字节与在所选可执行路径内按反馈权重回退选源；`candidate_disposition` 和 `candidate_disposition_reason` 区分已提交、解码拒绝、提交前校验拒绝和提交调用失败或局部生效而结果不确定。这里的“已提交”指在线 case 已由 `submit_case` 返回且 decoder reservation 已提交，不等于源已被真实 RTL 消费或数据流闭环。
 
 测试先暴露一个分类错误：代码在运行时路径校验前就标记 `submit_attempted`，使提交前的校验失败看起来可能有 RTL 副作用。现将标记移到校验后；提交调用一旦开始而未确认 commit，则保守记为 `uncertain/rtl_submit_failed_or_partial`。解码失败记 `rejected/decode_rejected`，提交前校验失败记 `rejected/pre_submit_validation_rejected`。定向测试覆盖上述三类及正常接纳、合法直接选源和非法直接字节的权重回退；`test_scenario_rfuzz_terminal_identity.py`、`test_scenario_online_credit.py`、`test_online_path_first_selection.py` 合计 **39 passed、2 subtests passed**。

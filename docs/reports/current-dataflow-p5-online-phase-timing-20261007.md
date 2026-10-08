@@ -1,5 +1,6 @@
 # P5 在线例分项耗时：冻结源码真实 GPIO 短门禁
 
+> **⚠ 复算可用性（2026-10-09 更新）**：本文引用的部分原始产物目录在 2026-10-09 的 `runs/` 清理中被删除，因此文中指向 `runs/` 的链接可能失效。**报告的结论、数字与边界仍然有效**（记录的是当时真实执行的结果），但"从原始产物复算"的能力已不存在。删除范围、已重建项与逐条断链清单见 [已删除的原始产物](DELETED_ARTIFACTS_20261009.md)。
 日期：2026-10-07。为提高最终 fuzz 门禁的可解释性，在线执行器在每例回执中记录单调时钟分项：选择/解码、真实 RTL `submit_case`、trace 摘要、交互事件摄入、checker、反馈/来源计分、回执构造及总耗时。计时仅作为回执诊断，不进入 SoC 语义 trace。失败例保留已完成分项，未完成分项为 0；因此失败例的全分项时间不能据此分摊。本次聚焦测试先因回执缺字段而失败，接入后 `tests/integration/test_scenario_rfuzz_terminal_identity.py`、`test_rfuzz_runtime_path_preflight.py` 与 `test_scenario_online_credit.py` 合计 **50 passed、7 subtests passed**。
 
 运行绑定独立源码快照 `/home/qinkejiu/myfuzz_snapshot_p5_timing_20261007`。`src/`、`configs/`、`scripts/`、`schemas/`、`tests/` 的 1,805 文件 [SHA-256 清单](../../runs/current-dataflow-p5-timing-snapshot-20261007.sha256) 哈希为 `9e13fc5ed731d7242b2cd2c982a08221c7b66102be8f77f2f47f4778f112af0f`；在线身份 36 个源码文件逐一与快照相同，清单 0 个差异。命令在快照目录执行：

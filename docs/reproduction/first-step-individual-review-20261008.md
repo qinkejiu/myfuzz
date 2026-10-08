@@ -1,8 +1,9 @@
 # 第一步 P1–P5 逐文件审阅记录
 
+> **⚠ 复算可用性（2026-10-09 更新）**：本文引用的部分原始产物目录在 2026-10-09 的 `runs/` 清理中被删除，因此文中指向 `runs/` 的链接可能失效。**报告的结论、数字与边界仍然有效**（记录的是当时真实执行的结果），但"从原始产物复算"的能力已不存在。删除范围、已重建项与逐条断链清单见 [已删除的原始产物](DELETED_ARTIFACTS_20261009.md)。
 本记录针对当前工作树，区别于已经制作的归档快照。范围是 P1–P5 入口、验收判据、会话执行、来源证据和相关文档。本轮没有修改生产逻辑。
 
-**状态：审阅进行中，尚未完成全范围逐文件审阅。** 下表是实际发现，不是待验证猜测；逐文件进度、源码 SHA256 与已读区间见 [`file-review-ledger.json`](../../runs/individual-review-20261008/file-review-ledger.json)。台账中的候选集合还包含共享、历史模块和测试，`pending` 不代表已确认属于第一步，也不代表没有问题。`reviewed_full_text` 仅表示全文读过，不保证代码无缺陷；`reviewed_sections` 表示只核对了指定部分。
+**状态：审阅进行中，尚未完成全范围逐文件审阅。** 下表是实际发现，不是待验证猜测；逐文件进度、源码 SHA256 与已读区间见 [`file-review-ledger.partial.json`](../../runs/individual-review-20261008/file-review-ledger.partial.json)（**部分重建**：原始台账已随 2026-10-09 清理删除且无法重建；本文件只记录本文引用位置与当前 SHA256，不代表原始进度）。台账中的候选集合还包含共享、历史模块和测试，`pending` 不代表已确认属于第一步，也不代表没有问题。`reviewed_full_text` 仅表示全文读过，不保证代码无缺陷；`reviewed_sections` 表示只核对了指定部分。
 
 ## 新发现与复现
 
@@ -16,7 +17,7 @@
 | R6／高 | [`closed_loop_feedback.py:136`](../../src/myfuzz/scenario/closed_loop_feedback.py#L136)，`certificate_hit` 与 ingest 去重 | 校验 hop 顺序和 `missing_hops` 声明，却不要求 certified 证书包含全部必需 hop。完整生产者证书删至首个 hop 后仍输出 `kind=closed_loop`、`reached_terminal_hop=false`。另一次只改同 ID 证书的 evidence 内容，投影后的 hit 相同，静默去重而非拒绝冲突。不能依赖这个消费接口阻止不完整／变更证据进入反馈。此处没有证明真实生产者会自然生成这种坏证书。|
 | R7／中 | [`closed_loop_feedback.py:409`](../../src/myfuzz/scenario/closed_loop_feedback.py#L409)，`ClosedLoopFeedback.ingest` | 文档承诺整批验证后记录，但 ID 冲突检查发生在逐条写入循环。将同 ID、不同 action 的两条证书放在一个新 batch 中，第二条报错后 `certificate_count=1`。失败 batch 已部分改变状态，重试和增量反馈边界可能不一致。|
 
-以上 7 组问题共 10 个观察场景，保存在 [`findings.json`](../../runs/individual-review-20261008/findings.json)。复现脚本复用仓库已有单元样例，临时目录自动删除，不构建 RTL，不写原始运行：
+以上 7 组问题共 10 个观察场景，保存在 [`findings.json`](../../runs/individual-review-20261008/findings.json)（**重跑重建**：由下方脚本在当前源码上重跑得到，只含该脚本可复现的观察项）。复现脚本复用仓库已有单元样例，临时目录自动删除，不构建 RTL，不写原始运行：
 
 ```bash
 ulimit -v 524288

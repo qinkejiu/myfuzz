@@ -1,5 +1,6 @@
 # 当前方案的验收报告入口
 
+> **⚠ 复算可用性（2026-10-09 更新）**：本文引用的部分原始产物目录在 2026-10-09 的 `runs/` 清理中被删除，因此文中指向 `runs/` 的链接可能失效。**报告的结论、数字与边界仍然有效**（记录的是当时真实执行的结果），但"从原始产物复算"的能力已不存在。删除范围、已重建项与逐条断链清单见 [已删除的原始产物](DELETED_ARTIFACTS_20261009.md)。
 先看 [当前工作进度](../CURRENT_PROGRESS.md)，再按下表查对应范围的验收报告。设计见 [当前设计](../CURRENT_DESIGN.md)，待办见 [计划索引](../superpowers/plans/README.md)。
 
 第一步 P1–P5 的命令、原始运行目录和本次只读复核结果集中在[复现手册](../reproduction/first-step-p1-p5-20261008.md)。阶段验收原报告依次为 [P1](current-dataflow-p1-cli-identity-20261006.md)、[P2](current-dataflow-p2-stage-acceptance-20261007.md)、[P3](current-dataflow-p3-stage-acceptance-20261007.md)、[P4](current-dataflow-p4-stage-acceptance-20261008.md)、[P5](current-dataflow-p5-stage-acceptance-20261008.md)。

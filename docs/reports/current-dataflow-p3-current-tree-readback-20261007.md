@@ -1,5 +1,6 @@
 # P3 当前代码时期的 UART→host RAM→退休 Load 短回归
 
+> **⚠ 复算可用性（2026-10-09 更新）**：本文引用的部分原始产物目录在 2026-10-09 的 `runs/` 清理中被删除，因此文中指向 `runs/` 的链接可能失效。**报告的结论、数字与边界仍然有效**（记录的是当时真实执行的结果），但"从原始产物复算"的能力已不存在。删除范围、已重建项与逐条断链清单见 [已删除的原始产物](DELETED_ARTIFACTS_20261009.md)。
 日期：2026-10-07。并行修改中的主工作树先完成 4/4 在线例，但 fresh replay 在启动前报 `online runtime source identity mismatch`；该结果不计验收。随后将当时的 `src/`、`configs/`、`scripts/`、`schemas/`、`tests/` 复制到 `/home/qinkejiu/myfuzz_snapshot_p3_current_20261007`，第三方源码和外部设计也复制到快照，并独立重跑。2,742 个核心文件的 [SHA-256 清单](../../runs/current-progress-p3-current-snapshot-20261007.sha256)自身哈希为 `87f08351ba098aae37c12c3a8db2c0d7a3a23fb656d202f8dac975d57f82d552`；运行及重放后执行 `sha256sum -c --quiet` 退出 0。
 
 从快照运行：

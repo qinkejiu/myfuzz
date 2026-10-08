@@ -1,5 +1,6 @@
 # UART Store 到 host RAM 低字节版本：冻结源码真实门禁
 
+> **⚠ 复算可用性（2026-10-09 更新）**：本文引用的部分原始产物目录在 2026-10-09 的 `runs/` 清理中被删除，因此文中指向 `runs/` 的链接可能失效。**报告的结论、数字与边界仍然有效**（记录的是当时真实执行的结果），但"从原始产物复算"的能力已不存在。删除范围、已重建项与逐条断链清单见 [已删除的原始产物](DELETED_ARTIFACTS_20261009.md)。
 日期：2026-10-07。此报告绑定 `/home/qinkejiu/myfuzz_snapshot_p3_store_20261007`，不自动证明之后的工作区修改。该快照使用 `UartStoreMemoryJoin` 和实际安装的 `MemoryCommitAuthority`，在服务回执 ack 前交付 live token；证书由原始 UART/CPU 事实、同一 Store 的 data request/response 和成功的 host RAM callback 连接。
 
 ## 源码与命令

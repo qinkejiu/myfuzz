@@ -1,5 +1,6 @@
 # P5 长会话事件体积与无损压缩探测
 
+> **⚠ 复算可用性（2026-10-09 更新）**：本文引用的部分原始产物目录在 2026-10-09 的 `runs/` 清理中被删除，因此文中指向 `runs/` 的链接可能失效。**报告的结论、数字与边界仍然有效**（记录的是当时真实执行的结果），但"从原始产物复算"的能力已不存在。删除范围、已重建项与逐条断链清单见 [已删除的原始产物](DELETED_ARTIFACTS_20261009.md)。
 日期：2026-10-07。此报告只读分析 [P3 同快照 600 秒运行](../../runs/current-dataflow-p3-efficiency-review-100-online/report.json)的完整 `online_events.jsonl`。该运行 76/76 例 complete、535,269 个事件，完整 fresh RTL replay 一致；[源码快照身份和长跑边界](current-dataflow-p3-read-issuance-capacity-20261007.md)见 P3 报告。本次没有改变记录格式、回放代码或 RTL 行为。
 
 ## 完整文件的体积分布

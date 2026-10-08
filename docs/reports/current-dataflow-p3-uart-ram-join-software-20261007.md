@@ -1,5 +1,6 @@
 # UART SW 操作数到 host RAM 低字节 writer 的受限 join
 
+> **⚠ 复算可用性（2026-10-09 更新）**：本文引用的部分原始产物目录在 2026-10-09 的 `runs/` 清理中被删除，因此文中指向 `runs/` 的链接可能失效。**报告的结论、数字与边界仍然有效**（记录的是当时真实执行的结果），但"从原始产物复算"的能力已不存在。删除范围、已重建项与逐条断链清单见 [已删除的原始产物](DELETED_ARTIFACTS_20261009.md)。
 日期：2026-10-07。P3 软件链新增 `UartRamCommitJoin`。受限 Runner 回执交接的定向软件测试已通过。后续独立源码快照曾以旧 join 完成 4/4 真实在线与 fresh replay，但迁移审查指出迟到 commit 生命周期缺口；当前主接线已改用 `UartStoreMemoryJoin`，其[新冻结源码真实门禁](current-dataflow-p3-store-real-gate-20261007.md)另行记录。P3 整阶段仍未验收。
 
 ## 证书边界

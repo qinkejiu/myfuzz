@@ -53,3 +53,11 @@ PYTHONPATH=src python3 scripts/run_ibex_pulp_online.py run \
 - 该 run 的**运行身份与既有 bundle 不同**（decoder `mmio_windows` 与 commit stream 身份变化）——旧 bundle 仍按其自身身份 replay，不受影响。
 - 单次 40 例短跑，不是长会话；只观察到 **1** 个"读结果槽"候选被绑定（`policy_matched=1`），样本量小。
 - 本轮未发现自然 RTL 缺陷；0 拒绝、0 unbound。
+
+---
+
+## 2026-10-09 产物重建说明
+
+本报告的原始产物目录曾在 2026-10-09 的 `runs/` 瘦身中被误删，随后**按原命令重建**（`--seconds 60 --max-tests 40 --seed 20261007 --run-id p3-ram-prereq-20261007 --cpu-retirement --gpio-consumption --memory-commit`）。
+
+重建结果与本文全部判据一致：40/40 `complete`；门禁 `policy_matched=1`／`policy_not_matched=39`；`source_action_gate.gate.dynamic_binding.counters` = requests 1／bound 1／unbound 0／refused 0／provenance_records 132；绑定回执仍是 case `online-15-6dcf6e04…`，其 `matched_evidence_refs` 含 `41fb2ef445b775df524f2764d72cd9cb002859e13def50a8eaf8880da6156d9a`，该值精确等于更早 `memory_write_commit`（event **17567**）的 `commit_id`，其 `memory_id=ram`、`byte_offset=0`、`writer_kinds=STORE`、单元值 `[1,1,0,0]`。

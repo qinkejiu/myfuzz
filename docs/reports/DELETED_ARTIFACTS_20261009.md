@@ -19,7 +19,7 @@
 | 运行 | 结果 |
 |---|---|
 | `runs/p3-ip-cross-case-20261007-online` | 已按原命令重建；60 例（57/2/1）、`IP_TO_CPU_TO_IP` 跨例 3、`case_gap` p50=max=1，与报告判据一致 |
-| `runs/p3-ram-prereq-20261007-online` | 已重建；40/40 complete、`policy_matched=1`/`not_matched=39` 一致，但报告所述 `dynamic_binding` 字段未复现 |
+| `runs/p3-ram-prereq-20261007-online` | 已重建；运行级与字段级证据均与报告一致（`dynamic_binding` counters 相同，`evidence_ref` = event 17567 的 `commit_id`） |
 | `runs/first-step-reproduction-20261008/` | 五项复现产物全部重建（P1 236 tests OK、P2 exit 0 ready、P3 exit 0 ready、P4 48 passed、P5 6/6） |
 
 ## 仍未恢复
@@ -27,7 +27,7 @@
 | 项 | 说明 |
 |---|---|
 | `runs/cv32e40p-pulp-online-20261007` | P2 阶段报告的 CV32E40P 复用证据；可用 `scripts/run_cv32e40p_pulp_online.py` 重跑同预算恢复 |
-| `runs/individual-review-20261008/` | 独立审核的两份产物；可按该文档方法重跑（不跑 RTL） |
+| `runs/individual-review-20261008/` | `findings.json` 已重跑重建；原始 `file-review-ledger.json` **不可重建**，已提供 `file-review-ledger.partial.json` |
 | 其余历史 P2/P3 中间产物 | 不可恢复 |
 
 ## 断链明细（按文档）
