@@ -1,8 +1,10 @@
 # CPU + Multi-IP Component Experiment Plan
 
+> 历史实验方案（2026-06-19）：本文件采用简单互连和轻量 IP 行为模型，不定义当前独立真实 CPU/IP harness 数据流方案。当前入口见 [当前设计](CURRENT_DESIGN.md)和[实施计划](superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md)。
+
 生成时间：2026-06-19
 
-本文记录当前新实验方向：把 target 从单个 CPU core 扩展为
+本文记录当时的新实验方向：把 target 从单个 CPU core 扩展为
 `CPU + 多个 IP + 简单互连/中断/外部环境`，并比较“直接切片 baseline”和
 “依赖感知 bit 投影方案”。
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
+
 
 class Uart8N1Peer:
     def __init__(self, source: bytes, *, clocks_per_bit: int = 25):
@@ -14,6 +16,8 @@ class Uart8N1Peer:
 
     def reset_case(self) -> None:
         self.source_start_tick: int | None = None
+        self._source_starts: list[int] = []
+        self._source_segments: list[bytes] = []
         self.last_line = 1
         self.start_tick: int | None = None
         self.next_sample = 0
@@ -25,20 +29,47 @@ class Uart8N1Peer:
         if self.source_start_tick is not None or type(tick) is not int or tick < 0:
             raise ValueError('UART source already scheduled')
         self.source_start_tick = tick
+        self._source_starts.append(tick)
+        self._source_segments.append(self.source)
+
+    def append_source(self, source: bytes, tick: int) -> None:
+        """Schedule another real RX waveform after at least one idle bit."""
+        if (self.source_start_tick is None or not isinstance(source, bytes)
+                or not 1 <= len(source) <= 64 or type(tick) is not int
+                or tick < self.source_end_tick + self.clocks_per_bit):
+            raise ValueError('invalid or overlapping UART source frame')
+        self._source_starts.append(tick)
+        self._source_segments.append(source)
 
     @property
     def source_end_tick(self) -> int:
-        if self.source_start_tick is None:
+        if not self._source_starts:
             return 0
-        return self.source_start_tick + 10 * self.clocks_per_bit * len(self.source)
+        return (self._source_starts[-1]
+                + 10 * self.clocks_per_bit * len(self._source_segments[-1]))
+
+    def source_active(self, tick: int) -> bool:
+        index = bisect_right(self._source_starts, tick) - 1
+        return (index >= 0 and tick < self._source_starts[index]
+                + 10 * self.clocks_per_bit * len(self._source_segments[index]))
+
+    def source_overlaps(self, start: int, end: int) -> bool:
+        """Whether a half-open local tick window intersects an RX waveform."""
+        if start >= end:
+            return False
+        index = bisect_left(self._source_starts, end) - 1
+        return (index >= 0 and self._source_starts[index]
+                + 10 * self.clocks_per_bit * len(self._source_segments[index]) > start)
 
     def drive_rx(self, tick: int) -> int:
-        if self.source_start_tick is None or tick < self.source_start_tick:
+        index = bisect_right(self._source_starts, tick) - 1
+        if index < 0:
             return 1
-        slot = (tick - self.source_start_tick) // self.clocks_per_bit
-        if slot >= 10 * len(self.source):
+        slot = (tick - self._source_starts[index]) // self.clocks_per_bit
+        source = self._source_segments[index]
+        if slot >= 10 * len(source):
             return 1
-        byte = self.source[slot // 10]
+        byte = source[slot // 10]
         bit = slot % 10
         return 0 if bit == 0 else 1 if bit == 9 else (byte >> (bit - 1)) & 1
 

@@ -1,5 +1,7 @@
 # Ibex 协议组合 MVP 验证报告
 
+> 历史协议组合报告。2026-10-06 整理时，文中 60 秒长测的 `runs/ibex_protocol_campaign_soak_final_20260906/` 原始结果在当前工作区不存在；本页数值是当时记录，不作为当前独立 harness 方案的可重放证据。
+
 验证日期：2026-09-06  
 工作区：`/home/qinkejiu/myfuzz/.worktrees/ibex-protocol-longrun`  
 分支：`feature/ibex-protocol-longrun`
@@ -77,8 +79,8 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. python3 scripts/run_ibex_protocol_cam
 
 结果文件：
 
-- 报告：[report.json](../../runs/ibex_protocol_campaign_soak_final_20260906/report.json)
-- 检查点：[checkpoint.json](../../runs/ibex_protocol_campaign_soak_final_20260906/checkpoint.json)
+- 报告原路径：`runs/ibex_protocol_campaign_soak_final_20260906/report.json`（当前工作区缺失）
+- 检查点原路径：`runs/ibex_protocol_campaign_soak_final_20260906/checkpoint.json`（当前工作区缺失）
 
 关键结果：
 

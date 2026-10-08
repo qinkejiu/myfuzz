@@ -390,7 +390,8 @@
     "size_width": 2,
     "max_wait_cycles": 16,
     "max_outstanding": 1,
-    "d_user_width": 14
+    "d_user_width": 14,
+    "local_runtime_variant": "tlul_gpio"
   },
   "address": {
     "window_size": 128,

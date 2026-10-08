@@ -294,6 +294,8 @@ class DispositionLedgerTests(Cva6ProfileFixture):
         self.assertEqual("constant", declared["boot_addr_i"].disposition)
         self.assertEqual(65536, declared["boot_addr_i"].value)
         self.assertEqual((1, 1), (declared["irq_i"].bit_lo, declared["irq_i"].bit_hi))
+        self.assertEqual("fuzz", declared["time_irq_i"].disposition)
+        self.assertEqual("cycle_value", declared["time_irq_i"].strategy)
         self.assertEqual("unconnected", declared["rvfi_probes_o"].disposition)
         self.assertTrue(declared["rvfi_probes_o"].coverage_loss)
         self.assertEqual("observe", declared["cvxif_req_o"].disposition)

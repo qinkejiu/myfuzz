@@ -7,11 +7,15 @@ between calls and routes only values actually observed from a session.
 from __future__ import annotations
 
 from copy import deepcopy
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import asdict, dataclass, is_dataclass
+from functools import wraps
 import json
 from typing import Callable, Mapping, Protocol
 import time
 import uuid
+import weakref
 
 from .ownership import OwnershipMap
 from .contracts import ResourceBudget
@@ -21,6 +25,38 @@ from .state_dependency import StateDependencyTracker
 from .genome import MemoryImage
 from .irq import IrqPulseDelivery
 from .memory import PersistentMemory
+from .event_journal import EventJournal
+
+
+_runtime_timing_observer: ContextVar[Callable[[str, float], None] | None] = (
+    ContextVar("runtime_timing_observer", default=None))
+
+
+@contextmanager
+def observe_runtime_timings(observer: Callable[[str, float], None]):
+    """Observe inclusive call time within one active online case."""
+    token = _runtime_timing_observer.set(observer)
+    try:
+        yield
+    finally:
+        _runtime_timing_observer.reset(token)
+
+
+def timed_runtime_call(name: str):
+    """Add an optional timer without changing the wrapped operation."""
+    def decorate(function):
+        @wraps(function)
+        def measured(*args, **kwargs):
+            observer = _runtime_timing_observer.get()
+            if observer is None:
+                return function(*args, **kwargs)
+            started = time.monotonic()
+            try:
+                return function(*args, **kwargs)
+            finally:
+                observer(name, time.monotonic() - started)
+        return measured
+    return decorate
 
 
 class LocalHarnessSession(Protocol):
@@ -89,14 +125,44 @@ class ScenarioEvidenceRecordViolation(RuntimeError):
     """A local harness produced an event above its declared byte bound."""
 
 
-class _EventLog(list):
+class _EventLog:
     def __init__(self, runner: ScenarioRunner) -> None:
-        super().__init__()
-        self.runner = runner
+        self._runner_ref = weakref.ref(runner)
+        self._records: list[dict] | EventJournal = []
+
+    @property
+    def runner(self) -> ScenarioRunner:
+        runner = self._runner_ref()
+        if runner is None:
+            raise RuntimeError("event log owner no longer exists")
+        return runner
+
+    def enable_journal(self, *, chunk_size: int = 2048) -> None:
+        if self._records:
+            raise ValueError("event journal must be enabled before the first event")
+        self._records = EventJournal(chunk_size=chunk_size)
+
+    def __len__(self) -> int:
+        return len(self._records)
+
+    def __getitem__(self, index):
+        return self._records[index]
+
+    def __iter__(self):
+        return iter(self._records)
+
+    def snapshot(self):
+        if isinstance(self._records, EventJournal):
+            return self._records.snapshot()
+        return deepcopy(tuple(self._records))
+
+    def append_unchecked(self, record: dict) -> None:
+        self._records.append(self.runner._decorate_provenance(record))
 
     def append(self, record: dict) -> None:
         self.runner._ensure_semantic_capacity("append_event")
-        super().append(record)
+        record = self.runner._decorate_provenance(record)
+        self._records.append(record)
         if record.get("kind") in ("memory_read", "memory_write", "mmio_delivery",
                                   "local_register_transaction"):
             self.runner._transaction_count += 1
@@ -167,7 +233,7 @@ class ScenarioRunner:
         self._last_sample_ticks: dict[str, int] = {}
         self._inputs: dict[str, dict[str, int]] = {component: {} for component in self.sessions}
         self._pending_bound_targets: set[str] = set()
-        self._events: list[dict] = _EventLog(self)
+        self._events = _EventLog(self)
         self._transaction_count = 0
         self._resource_budget: ResourceBudget | None = None
         self._evidence_projected_bytes: int | None = None
@@ -199,10 +265,174 @@ class ScenarioRunner:
         self._next_command_sequence = 1
         self._step_commands: dict[tuple[int, int], tuple[str, dict[str, int],
                                                         StepReceipt | None]] = {}
+        self._retired_step_floor: dict[int, int] = {}
+        self._provenance = None
+        self._retirement_delivery_linker = None
+        self._gpio_consumption_tracker = None
+        self._uart_consumption_tracker = None
+        self._native_irq_join = None
+        self._uart_retired_read_linker = None
+        self._uart_operand_seed_tracker = None
+        self._uart_operand_use_tracker = None
+        self._uart_ram_commit_join = None
+        self._memory_commit_authority = None
+        self._uart_store_memory_join = None
+        self._memory_read_authority = None
+        self._uart_memory_readback_join = None
+        self._controlled_irq_bootstrap = None
+        self._controlled_irq_configuration = None
+        self._controlled_irq_entry_join = None
+        self._controlled_irq_images: dict[str, dict] = {}
+        self._native_irq_inputs: dict[str, dict] = {}
+        self._native_cpu_samples: dict[str, tuple[dict, int]] = {}
+        self._uart_command_ticks: dict[str, tuple[dict, dict[int, int | None]]] = {}
+        self._gpio_input_origins: dict[str, list[dict | None]] = {}
+        self._gpio_irq_trigger_refs: dict[tuple[str, int, int, str], dict | None] = {}
+        self._source_transport_scopes: dict[str, dict[str, str]] = {}
+
+    def configure_provenance(self, edge_index) -> None:
+        if self._status != 'created' or self._events or self._provenance is not None:
+            raise ValueError('provenance must be configured once before startup')
+        from .event_provenance import EventProvenance
+        from .memory_service import MemoryService
+        self._provenance = EventProvenance(edge_index)
+        from .cpu_retirement import CpuRetirementMatcher
+        # A persistent online CPU can fetch beyond one case before an older
+        # response retires. Keep the raw matcher and the independent UART
+        # retired-read reconstruction on the same finite instruction budget.
+        self._cpu_retirement_matcher = CpuRetirementMatcher(max_pending=2048)
+        if any(getattr(session, 'routed_register_access_enabled', False)
+               and not getattr(session, 'uart_fifo_observation_enabled', False)
+               for session in self.sessions.values()):
+            from .retirement_delivery import RetirementRouterLinker
+            self._retirement_delivery_linker = RetirementRouterLinker(
+                admission_registry=self._provenance.registry)
+            from .gpio_consumption import GpioConsumptionTracker
+            self._gpio_consumption_tracker = GpioConsumptionTracker(
+                admission_registry=self._provenance.registry, ownership=self.ownership,
+                max_completed_accesses=8192, edge_index=self._provenance.edge_index)
+        if any(getattr(session, 'uart_fifo_observation_enabled', False)
+               for session in self.sessions.values()):
+            from .uart_consumption import UartConsumptionTracker
+            self._uart_consumption_tracker = UartConsumptionTracker(
+                admission_registry=self._provenance.registry, ownership=self.ownership,
+                edge_index=self._provenance.edge_index)
+            if any(getattr(session, 'native_irq_receipts_enabled', False)
+                   for session in self.sessions.values()):
+                from .uart_irq_consumption import UartNativeIrqJoin
+                self._native_irq_join = UartNativeIrqJoin(
+                    admission_registry=self._provenance.registry, ownership=self.ownership,
+                    edge_index=self._provenance.edge_index)
+                from .uart_retired_read import UartRetiredReadLinker
+                self._uart_retired_read_linker = UartRetiredReadLinker(
+                    admission_registry=self._provenance.registry, ownership=self.ownership,
+                    edge_index=self._provenance.edge_index,
+                    max_instruction_witnesses=2048)
+                from .uart_operand_seed import UartOperandSeedTracker
+                self._uart_operand_seed_tracker = UartOperandSeedTracker(
+                    admission_registry=self._provenance.registry, ownership=self.ownership,
+                    edge_index=self._provenance.edge_index,
+                    max_instruction_witnesses=2048)
+                from .uart_operand_use import UartOperandUseTracker
+                self._uart_operand_use_tracker = UartOperandUseTracker(
+                    admission_registry=self._provenance.registry, ownership=self.ownership,
+                    edge_index=self._provenance.edge_index,
+                    max_instruction_witnesses=2048)
+                commit_services = {component: session.service
+                    for component, session in self.sessions.items()
+                    if isinstance(getattr(session, 'service', None), MemoryService)
+                    and session.service.commit_stream_enabled}
+                if commit_services:
+                    from .memory_commit_authority import MemoryCommitAuthority
+                    from .uart_store_memory import UartStoreMemoryJoin
+                    self._memory_commit_authority = MemoryCommitAuthority(
+                        services=commit_services)
+                    self._uart_store_memory_join = UartStoreMemoryJoin(
+                        memory_commit_authority=self._memory_commit_authority,
+                        admission_registry=self._provenance.registry,
+                        ownership=self.ownership, edge_index=self._provenance.edge_index,
+                        max_instruction_witnesses=2048)
+        for session in self.sessions.values():
+            enable = getattr(session, 'enable_source_provenance', None)
+            if callable(enable):
+                enable()
+            service = getattr(session, 'service', None)
+            if isinstance(service, MemoryService):
+                service.include_writer_kinds = True
+        read_sessions = {component: session for component, session in self.sessions.items()
+            if getattr(session, 'memory_readback_receipts_enabled', False)}
+        if read_sessions:
+            if (self._memory_commit_authority is None
+                    or any(not isinstance(getattr(session, 'service', None), MemoryService)
+                           or not session.service.commit_stream_enabled
+                           for session in read_sessions.values())):
+                raise ValueError('UART RAM readback requires live write commits and provenance')
+            from .memory_read_authority import MemoryReadAuthority
+            from .uart_memory_readback import UartMemoryReadbackJoin
+            self._memory_read_authority = MemoryReadAuthority(
+                services={component: session.service
+                          for component, session in read_sessions.items()})
+            for session in read_sessions.values():
+                session.memory_read_authority = self._memory_read_authority
+            self._uart_memory_readback_join = UartMemoryReadbackJoin(
+                memory_commit_authority=self._memory_commit_authority,
+                memory_read_authority=self._memory_read_authority,
+                admission_registry=self._provenance.registry,
+                ownership=self.ownership, edge_index=self._provenance.edge_index,
+                max_instruction_witnesses=2048)
+            self._uart_store_memory_join = None
+
+    @property
+    def provenance_configuration(self) -> dict | None:
+        return deepcopy(self._provenance.configuration) if self._provenance is not None else None
+
+    @property
+    def provenance_enabled(self) -> bool:
+        return self._provenance is not None
+
+    @property
+    def source_admissions(self) -> dict | None:
+        return self._provenance.registry.document() if self._provenance is not None else None
+
+    def set_observation_case(self, case_id: str, case_index: int) -> None:
+        if self._provenance is None:
+            return
+        if type(case_id) is not str or not case_id.strip() or type(case_index) is not int or case_index < 0:
+            raise ValueError('invalid provenance observation case')
+        self._provenance.observed_case = {'case_id': case_id, 'case_index': case_index}
+
+    def clear_observation_case(self) -> None:
+        if self._provenance is not None:
+            self._provenance.observed_case = None
+
+    def register_source_admission(self, admission) -> None:
+        from .source_provenance import SourceAdmission
+        if self._provenance is None or not isinstance(admission, SourceAdmission):
+            raise ValueError('configured provenance and SourceAdmission are required')
+        if (admission.component not in self.sessions
+                or admission.path_id not in self._provenance.configuration['edge_index']['path_ids']):
+            raise ValueError('source admission component/path is outside configured provenance')
+        existing = self._provenance.registry.get(admission.action_id)
+        if existing is not None:
+            self._provenance.registry.register(admission)
+            return
+        self._ensure_semantic_capacity('source_admission')
+        self._provenance.registry.register(admission)
+        self._events.append({'event_id': len(self._events) + 1,
+                             'kind': 'source_admission', 'admission': admission.document()})
+
+    def _decorate_provenance(self, record: dict) -> dict:
+        return self._provenance.decorate(record) if self._provenance is not None else record
 
     @property
     def events(self) -> tuple[dict, ...]:
-        return deepcopy(tuple(self._events))
+        return self._events.snapshot()
+
+    def enable_event_journal(self, *, chunk_size: int = 2048) -> None:
+        """Bound online event memory before any testcase input is admitted."""
+        if self._status != "created" or self._events:
+            raise ValueError("event journal requires a fresh runner")
+        self._events.enable_journal(chunk_size=chunk_size)
 
     @property
     def event_count(self) -> int:
@@ -214,6 +444,24 @@ class ScenarioRunner:
         if type(index) is not int or not 0 <= index <= len(self._events):
             raise ValueError("event index is outside the recorded prefix")
         return deepcopy(tuple(self._events[index:]))
+
+    def event_by_id(self, event_id: int) -> dict | None:
+        """Read one detached event from the authoritative indexed log."""
+        event = self._event_ref_by_id(event_id)
+        return deepcopy(event) if event is not None else None
+
+    def _event_ref_by_id(self, event_id: int) -> dict | None:
+        """Borrow a journal event for trusted synchronous readers only.
+
+        The returned record must never be mutated or retained as mutable
+        state. Public callers use ``event_by_id`` for a detached copy.
+        """
+        if type(event_id) is not int or not 1 <= event_id <= len(self._events):
+            return None
+        event = self._events[event_id - 1]
+        if event.get("event_id") != event_id:
+            raise ValueError("event journal ID/order mismatch")
+        return event
 
     def set_resource_budget(self, budget: ResourceBudget) -> None:
         """Arm an opt-in trace limit before images or RTL have been touched."""
@@ -443,7 +691,7 @@ class ScenarioRunner:
         if prefix_event_count is not None:
             event["prefix_event_count"] = prefix_event_count
             event["prefix_local_ticks"] = dict(self.local_ticks)
-        list.append(self._events, event)
+        self._events.append_unchecked(event)
         raise ScenarioBudgetExhausted(f"{limit} budget exhausted")
 
     def _evidence_final_state_size(self) -> int:
@@ -485,6 +733,19 @@ class ScenarioRunner:
                 for binding, policy in self._irq_pulses.items()]
         return document
 
+    def configure_controlled_irq_bootstrap(self, bootstrap, *, component: str = 'cpu') -> None:
+        if self._status != 'created' or self._events or self._controlled_irq_bootstrap is not None:
+            raise ValueError('controlled bootstrap must be configured once before installation')
+        session = self.sessions.get(component)
+        if not getattr(session, 'native_irq_receipts_enabled', False):
+            raise ValueError('controlled bootstrap requires native CPU receipts')
+        from .uart_irq_entry import controlled_uart_bootstrap_configuration
+        from myfuzz.local_harness.ibex_irq_receipt_contract import ibex_irq_receipt_contract
+        self._controlled_irq_configuration = controlled_uart_bootstrap_configuration(
+            bootstrap, component=component, runtime_artifact=session.artifact.runtime_document,
+            observation_contract=ibex_irq_receipt_contract())
+        self._controlled_irq_bootstrap = deepcopy(bootstrap)
+
     def identity_document(self) -> dict:
         """All declared dataflow and local harness identities before RTL start."""
         component_by_object = {id(session): component
@@ -518,6 +779,9 @@ class ScenarioRunner:
                     "host_sources": host_source_identity(harness_identities=generated)}
         if self.independent_baseline:
             document["independent_baseline"] = True
+        if self._controlled_irq_configuration is not None:
+            document['controlled_uart_bootstrap_configuration'] = deepcopy(
+                self._controlled_irq_configuration)
         if self._irq_pulses:
             document["irq_pulses"] = [
                 {"binding": asdict(binding),
@@ -529,6 +793,8 @@ class ScenarioRunner:
     def begin_test(self, testcase_id: str) -> None:
         if self._status != "created" or not testcase_id:
             raise ValueError("testcase can begin exactly once")
+        if self._controlled_irq_configuration is not None and self._controlled_irq_entry_join is None:
+            raise ValueError('controlled bootstrap images must be installed before startup')
         self.testcase_id = testcase_id
         self.execution_id = uuid.uuid4().hex
         started: list[str] = []
@@ -599,7 +865,7 @@ class ScenarioRunner:
                                started: tuple[str, ...]) -> None:
         self.failure_status = "budget_exhausted"
         self._status = "failed"
-        list.append(self._events, {
+        self._events.append_unchecked({
             "event_id": len(self._events) + 1,
             "kind": "budget_exhausted", "limit": "max_wall_time_ms",
             "phase": phase, "effect_may_have_occurred":
@@ -621,12 +887,43 @@ class ScenarioRunner:
         memory = getattr(self.sessions[image.component], "memory", None)
         if memory is None:
             raise ValueError("local harness has no persistent memory")
+        configuration = self._controlled_irq_configuration
+        controlled_image = False
+        if configuration is not None and image.component == configuration['component']:
+            expected = {row['image_id']: row for row in configuration['images']}
+            if image.image_id in expected:
+                if image.image_id in self._controlled_irq_images:
+                    raise ValueError('controlled image cannot be installed twice')
+                row = expected[image.image_id]
+                if image.address != row['address'] or image.data_hex != row['data_hex']:
+                    raise ValueError('controlled image differs from configured bootstrap')
+                controlled_image = True
         self._ensure_semantic_capacity("before_image")
         memory.preload(image.address, image.data)
-        self._events.append({"event_id": len(self._events) + 1,
+        record = {"event_id": len(self._events) + 1,
                              "kind": "initial_image", "image_id": image.image_id,
                              "component": image.component, "address": image.address,
-                             "data_hex": image.data_hex})
+                             "data_hex": image.data_hex}
+        if controlled_image:
+            memory_id, generation, byte_offset = memory.resolve_span(image.address, 1)
+            record.update(memory_id=memory_id, generation=generation, byte_offset=byte_offset)
+            self._controlled_irq_images[image.image_id] = deepcopy({key: value
+                for key, value in record.items() if key != 'kind'})
+        self._events.append(record)
+        if (configuration is not None and self._controlled_irq_entry_join is None
+                and len(self._controlled_irq_images) == len(configuration['images'])):
+            from .uart_irq_entry import ControlledUartBootstrapRegistry, UartControlledIrqEntryJoin
+            from myfuzz.local_harness.ibex_irq_receipt_contract import ibex_irq_receipt_contract
+            component = configuration['component']
+            registry = ControlledUartBootstrapRegistry.from_bootstrap(
+                self._controlled_irq_bootstrap, component=component,
+                memory_metadata={'images': list(self._controlled_irq_images.values())},
+                runtime_artifact=self.sessions[component].artifact.runtime_document,
+                observation_contract=ibex_irq_receipt_contract())
+            self._controlled_irq_entry_join = UartControlledIrqEntryJoin(bootstrap_registry=registry)
+            self._events.append({'event_id': len(self._events) + 1,
+                'kind': 'controlled_uart_bootstrap_registration', 'component': component,
+                'registry': registry.document()})
 
     def reset_all(self, policy: str) -> ResetResult:
         """Apply an explicit whole-scenario RTL reset and memory resource policy."""
@@ -703,8 +1000,14 @@ class ScenarioRunner:
                                  "active_component": resetting_component,
                                  "completed_components": tuple(cancelled),
                                  "error_type": type(exc).__name__})
+            if self._gpio_consumption_tracker is not None or self._uart_consumption_tracker is not None:
+                self._drain_causal_gpio_events(self._events[-1]['event_id'])
             raise
         self._inputs = {component: {} for component in self.sessions}
+        self._gpio_input_origins.clear()
+        self._gpio_irq_trigger_refs.clear()
+        self._native_irq_inputs.clear()
+        self._native_cpu_samples.clear()
         self._pending_bound_targets.clear()
         for binding, pulse in self._irq_pulses.items():
             pulse.reset(cpu_tick=self.local_ticks[binding.target_component])
@@ -725,8 +1028,12 @@ class ScenarioRunner:
                                  dict(pending_events_after),
                              "cancelled_dataflow_targets": pending_bound_before,
                              "cancelled_irq_pulses": dict(pending_irq_before)})
+        reset_event_id = self._events[-1]['event_id']
+        if self._gpio_consumption_tracker is not None or self._uart_consumption_tracker is not None:
+            for component in sorted(self.sessions):
+                self._append_external_events(component, reset_event_id)
         if policy == "cold_all":
-            barrier_id = self._events[-1]["event_id"]
+            barrier_id = reset_event_id
             for memory_id, generation in old_generations.items():
                 edges = self.state_dependencies.invalidate_generation(
                     memory_id, generation, f"reset:{barrier_id}")
@@ -742,7 +1049,7 @@ class ScenarioRunner:
     def inject_source(self, component: str, port: str, value: int, *,
                       direction: str, bit_offset: int = 0,
                       width: int | None = None,
-                      action_id: str = "") -> None:
+                      action_id: str = "") -> int | None:
         if self._status != "running":
             raise RuntimeError("scenario is not running")
         if component not in self.sessions:
@@ -757,15 +1064,32 @@ class ScenarioRunner:
         mask = ((1 << selected_width) - 1) << bit_offset
         self._ensure_wall_capacity("before_source_injection")
         self._ensure_semantic_capacity("before_source_injection")
+        admit = getattr(self.sessions[component], 'admit_source_event', None)
+        scheduled_tick = None
+        if callable(admit):
+            scheduled_tick = admit(port, value, bit_offset=bit_offset,
+                                   width=selected_width, action_id=action_id)
+            if (scheduled_tick is not None and
+                    (type(scheduled_tick) is not int or scheduled_tick < 0)):
+                raise ValueError('source admission returned invalid local tick')
         old = self._inputs[component].get(port, 0)
         self._inputs[component][port] = (old & ~mask) | (value << bit_offset)
-        self._events.append({"event_id": len(self._events) + 1,
-                             "kind": "source_injection", "action_id": action_id,
-                             "component": component, "port": port,
-                             "source_ref": source_ref, "direction": direction,
-                             "bit_offset": bit_offset, "width": selected_width,
-                             "value": value})
+        if self._gpio_consumption_tracker is not None and port == 'gpio_in':
+            origins = self._gpio_input_origins.setdefault(component, [None] * 32)
+            for bit in range(bit_offset, bit_offset + selected_width):
+                origins[bit] = {'kind': 'source_admission', 'action_id': action_id}
+        event = {"event_id": len(self._events) + 1,
+                 "kind": "source_injection", "action_id": action_id,
+                 "component": component, "port": port,
+                 "source_ref": source_ref, "direction": direction,
+                 "bit_offset": bit_offset, "width": selected_width,
+                 "value": value}
+        if scheduled_tick is not None:
+            event["scheduled_local_tick"] = scheduled_tick
+        self._events.append(event)
+        return scheduled_tick
 
+    @timed_runtime_call("runner_step")
     def step(self, component: str) -> Mapping[str, int]:
         """Advance through the same idempotent command path as transport retries."""
         if component not in self.sessions:
@@ -779,6 +1103,7 @@ class ScenarioRunner:
             expected_inputs=self._effective_inputs(component))
         return receipt.outputs
 
+    @timed_runtime_call("scheduler_batch")
     def step_batch(
             self, schedule: tuple[str, ...], *,
             on_step: Callable[[str, Mapping[str, int]], None] | None = None
@@ -853,9 +1178,12 @@ class ScenarioRunner:
             if name is None:
                 continue
             accesses = getattr(session, "max_mmio_target_accesses_per_step", None)
+            if type(accesses) is not int or accesses < 0:
+                raise ValueError("budgeted MMIO route needs local tick bounds")
+            if accesses == 0:
+                continue
             ticks = getattr(target, "max_local_ticks_per_register_access", None)
-            if (type(accesses) is not int or accesses < 0
-                    or type(ticks) is not int or ticks < 1):
+            if type(ticks) is not int or ticks < 1:
                 raise ValueError("budgeted MMIO route needs local tick bounds")
             bounds[name] = max(bounds.get(name, 0), accesses * ticks)
         for _, queued_router in self._unique_routers():
@@ -871,10 +1199,13 @@ class ScenarioRunner:
         policy = self._irq_pulses[binding]
         offset = self._irq_event_offsets[binding]
         for event in policy.events[offset:]:
+            bits = ({'source_bit_offset': binding.source_bit_offset,
+                     'target_bit_offset': binding.target_bit_offset,
+                     'width': binding.width} if self._provenance is not None else {})
             self._events.append({"event_id": len(self._events) + 1,
                                  "source": (binding.source_component, binding.source_port),
                                  "target": (binding.target_component, binding.target_port),
-                                 **event})
+                                 **event, **bits})
         self._irq_event_offsets[binding] = len(policy.events)
 
     def _step_once(self, component: str) -> Mapping[str, int]:
@@ -888,6 +1219,27 @@ class ScenarioRunner:
         ticks_before_step = dict(self.local_ticks)
         try:
             session = self.sessions[component]
+            stage_irq = getattr(session, 'set_next_irq_input_context', None)
+            if self._native_irq_join is not None and callable(stage_irq):
+                stage_irq(self._native_irq_input_context(component, inputs.get('irq', 0)))
+            stage_gpio = getattr(session, 'set_next_gpio_input_context', None)
+            if (self._gpio_consumption_tracker is not None and callable(stage_gpio)
+                    and getattr(session, 'routed_register_access_enabled', False)):
+                value = inputs.get('gpio_in', 0)
+                segments = []
+                for bit, origin in enumerate(self._gpio_input_origins.get(component, ())):
+                    if origin is None:
+                        continue
+                    origin = deepcopy(origin)
+                    if origin.get('kind') == 'binding':
+                        resources = self._gpio_consumption_tracker.output_resources_at(
+                            origin['source_component'], origin['producer_reset_epoch'],
+                            origin['producer_local_tick'], phase=origin['producer_phase'])
+                        source_bit = origin['source_bit_lo']
+                        origin['producer_resource_refs'] = resources[source_bit:source_bit + 1]
+                    segments.append({'bit_lo': bit, 'width': 1,
+                                     'value': (value >> bit) & 1, 'origin': origin})
+                stage_gpio({'segments': segments})
             routed_step = getattr(session, 'step_local_routed', None)
             if callable(routed_step):
                 names = getattr(session, 'routed_input_names', None)
@@ -928,8 +1280,10 @@ class ScenarioRunner:
                                  "status": ("budget_exhausted" if timed_out
                                             else self.failure_status),
                                  "uncertain_transactions": uncertain})
-            self._append_external_events(component, self._events[-1]["event_id"])
-            self._drain_tick_samples(self._events[-1]["event_id"])
+            failure_event_id = self._events[-1]['event_id']
+            self._drain_causal_gpio_events(failure_event_id, exclude=component)
+            self._append_external_events(component, failure_event_id)
+            self._drain_tick_samples(failure_event_id)
             if timed_out:
                 self.failure_status = "budget_exhausted"
                 marker = {
@@ -942,7 +1296,7 @@ class ScenarioRunner:
                 }
                 if self._active_step_timeout_us is not None:
                     marker["step_timeout_us"] = self._active_step_timeout_us
-                list.append(self._events, marker)
+                self._events.append_unchecked(marker)
             raise
         if getattr(self.sessions[component], "local_ticks", None) is None:
             self.local_ticks[component] += 1
@@ -954,6 +1308,7 @@ class ScenarioRunner:
         self._events.append({"event_id": event_id, "component": component,
                              "local_tick": self.local_ticks[component],
                              "inputs": inputs, "outputs": dict(outputs)})
+        self._drain_causal_gpio_events(event_id, exclude=component)
         self._append_external_events(component, event_id)
         for binding, policy in self._irq_pulses.items():
             if binding.target_component != component:
@@ -969,7 +1324,8 @@ class ScenarioRunner:
                     raise ValueError(f"invalid RTL {name} observation")
             policy.sample_cpu(self.local_ticks[component],
                               masked=None if mask_observed is None else bool(mask_observed),
-                              accepted=None if taken_observed is None else bool(taken_observed))
+                              accepted=None if taken_observed is None else bool(taken_observed),
+                              cpu_step_event_id=event_id)
             self._append_irq_events(binding)
         if not callable(getattr(self.sessions[component], "drain_tick_samples", None)):
             self._route_observed_outputs(component, outputs, event_id,
@@ -983,12 +1339,15 @@ class ScenarioRunner:
                 router.drain_one(component)
             finally:
                 self._sync_session_ticks()
+                self._drain_causal_gpio_events(event_id)
                 self._append_external_events(source_component, event_id)
                 self._drain_tick_samples(event_id)
         return outputs
 
+    @timed_runtime_call("observed_output_route")
     def _route_observed_outputs(self, component: str, outputs: Mapping[str, int],
-                                event_id: int, source_tick: int) -> None:
+                                event_id: int, source_tick: int,
+                                source_phase: str = 'post') -> None:
         for binding in self.bindings:
             if binding.source_component != component \
                     or binding.source_port not in outputs:
@@ -999,8 +1358,13 @@ class ScenarioRunner:
             fragment = value >> binding.source_bit_offset & ((1 << binding.width) - 1)
             if binding in self._irq_pulses:
                 policy = self._irq_pulses[binding]
+                source_trigger = None
+                if fragment == 1 and policy.source_level == 0:
+                    source_trigger = self._gpio_irq_source_trigger(
+                        binding, event_id, source_tick, source_phase)
                 policy.observe_source(fragment, source_tick=source_tick,
-                                      cpu_tick=self.local_ticks[binding.target_component])
+                                      cpu_tick=self.local_ticks[binding.target_component],
+                                      source_trigger=source_trigger)
                 self._append_irq_events(binding)
                 if policy.status != "active":
                     self.failure_status = policy.status
@@ -1013,12 +1377,90 @@ class ScenarioRunner:
             target[binding.target_port] = updated
             if updated != prior:
                 self._pending_bound_targets.add(binding.target_component)
-            self._events.append({"event_id": len(self._events) + 1,
+            delivery_id = len(self._events) + 1
+            self._events.append({"event_id": delivery_id,
                                  "kind": "dataflow_delivery",
                                  "producer_event_id": event_id,
                                  "source": (component, binding.source_port),
                                  "target": (binding.target_component, binding.target_port),
-                                 "value": fragment})
+                                 "value": fragment,
+                                 "source_bit_offset": binding.source_bit_offset,
+                                 "target_bit_offset": binding.target_bit_offset,
+                                 "width": binding.width,
+                                 "target_value": updated})
+            self._route_native_irq_binding(binding, fragment, updated, delivery_id,
+                event_id, source_tick, source_phase)
+            if self._gpio_consumption_tracker is not None and binding.target_port == 'gpio_in':
+                origins = self._gpio_input_origins.setdefault(binding.target_component, [None] * 32)
+                for offset in range(binding.width):
+                    origins[binding.target_bit_offset + offset] = {
+                        'kind': 'binding', 'source_component': component,
+                        'source_port': binding.source_port,
+                        'source_bit_lo': binding.source_bit_offset + offset,
+                        'producer_reset_epoch': getattr(self.sessions[component], 'reset_epoch', 0),
+                        'producer_local_tick': source_tick, 'producer_phase': source_phase,
+                        'delivery_event_id': delivery_id}
+
+    def _native_irq_input_context(self, component: str, value: int) -> dict | None:
+        record = self._native_irq_inputs.get(component)
+        if (record is None or type(value) is not int or record['value'] != value
+                or record['target_epoch'] != getattr(self.sessions[component], 'reset_epoch', 0)):
+            return None
+        return {'schema_version': 'native_irq_input_context.v1',
+                'binding_delivery_event_id': record['event_id'], 'expected_input': value,
+                'source_output_key': deepcopy(record['source_output_key']),
+                'target_component': component, 'target_epoch': record['target_epoch']}
+
+    def _route_native_irq_binding(self, binding: Binding, value: int, target_value: int,
+                                  delivery_id: int, producer_id: int,
+                                  tick: int, phase: str) -> None:
+        if self._native_irq_join is None or binding.target_port != 'irq':
+            return
+        target = binding.target_component
+        # Every applied write replaces prior proof metadata, including equal values.
+        self._native_irq_inputs.pop(target, None)
+        if (binding.source_port != 'uart_rx_watermark' or binding.width != 1
+                or binding.source_bit_offset != 0 or binding.target_bit_offset != 0
+                or not getattr(self.sessions[target], 'native_irq_receipts_enabled', False)
+                or not getattr(self.sessions[binding.source_component], 'uart_fifo_observation_enabled', False)):
+            return
+        epoch = getattr(self.sessions[binding.source_component], 'reset_epoch', 0)
+        source = self._native_irq_join.output_at(binding.source_component, epoch,
+                                                 tick, phase, 'rx_watermark')
+        if not isinstance(source, dict) or type(source.get('value')) is not int or source['value'] != value:
+            return
+        record = {'kind': 'native_irq_binding_delivery',
+            'schema_version': 'native_irq_binding_delivery.v1',
+            'event_id': len(self._events) + 1, 'producer_event_id': producer_id,
+            'dataflow_delivery_event_id': delivery_id,
+            'source_component': binding.source_component, 'source_epoch': epoch,
+            'source_local_tick': tick, 'source_phase': phase, 'irq_class': 'rx_watermark',
+            'source_port': binding.source_port, 'source_output_key': deepcopy(source['source_output_key']),
+            'source_observation_event_id': source['source_observation_event_id'],
+            'source_receipt_ref': deepcopy(source['source_receipt_ref']),
+            'target_component': target, 'target_epoch': getattr(self.sessions[target], 'reset_epoch', 0),
+            'target_port': binding.target_port, 'width': 1,
+            'source_bit_offset': 0, 'target_bit_offset': 0,
+            'value': value, 'target_value': target_value}
+        self._events.append(record)
+        self._native_irq_inputs[target] = deepcopy(record)
+        self._append_native_irq(record)
+
+    def _append_native_irq(self, record: dict) -> None:
+        if self._native_irq_join is None:
+            return
+        for report in self._native_irq_join.consume(record):
+            logged = {**report, 'event_id': len(self._events) + 1,
+                'producer_event_id': record['event_id']}
+            self._events.append(logged)
+            self._append_controlled_irq_entry(logged)
+
+    def _append_controlled_irq_entry(self, record: dict) -> None:
+        if self._controlled_irq_entry_join is None:
+            return
+        for report in self._controlled_irq_entry_join.consume(record):
+            self._events.append({**report, 'event_id': len(self._events) + 1,
+                'producer_event_id': record['event_id']})
 
     def _drain_tick_samples(self, producer_event_id: int) -> None:
         """Route every real receipt phase, including indirectly clocked targets.
@@ -1054,12 +1496,25 @@ class ScenarioRunner:
                                          "producer_event_id": producer_event_id,
                                          "component": component, "local_tick": tick,
                                          "phase": phase, "outputs": dict(observed)})
-                    self._route_observed_outputs(component, outputs, event_id, tick)
+                    self._route_observed_outputs(component, outputs, event_id, tick, phase)
+                    epoch = getattr(session, 'reset_epoch', 0)
+                    if type(epoch) is int:
+                        self._gpio_irq_trigger_refs.pop((component, epoch, tick, phase), None)
                 self._last_sample_ticks[component] = tick
+
+    def _drain_causal_gpio_events(self, event_id: int, *, exclude: str = '') -> None:
+        if self._gpio_consumption_tracker is None and self._uart_consumption_tracker is None:
+            return
+        for component, session in self.sessions.items():
+            if component != exclude and (
+                    getattr(session, 'uart_fifo_observation_enabled', False)
+                    or getattr(session, 'routed_register_access_enabled', False)):
+                self._append_external_events(component, event_id)
 
     def _append_external_events(self, component: str, event_id: int) -> None:
         """Keep facts logged by local services even when the step reply is lost."""
         session = self.sessions[component]
+        drained_streams = []
         for owner, attribute, kind in ((getattr(session, "service", None),
                                         "events", "memory_commit"),
                                        (getattr(session, "router", None),
@@ -1067,14 +1522,43 @@ class ScenarioRunner:
                                        (getattr(session, "router", None),
                                         "deliveries", "mmio_delivery"),
                                        (session, "local_transactions",
-                                        "local_register_transaction")):
+                                        "local_register_transaction"),
+                                       (session, "source_events", "source_observation"),
+                                       (session, "gpio_events", "gpio_observation"),
+                                       (session, "uart_events", "uart_observation"),
+                                       (session, "cpu_events", "cpu_observation")):
             stream = getattr(owner, attribute, None)
             if stream is None:
                 continue
             stream_id = id(stream)
             offset = self._external_offsets.get(stream_id, 0)
-            for item in stream[offset:]:
-                record = dict(item)
+            pending_gpio_tick = None
+            for stream_offset, item in enumerate(stream[offset:], start=offset + 1):
+                record = deepcopy(dict(item))
+                if kind == 'uart_observation':
+                    self._prepare_uart_observation(component, record)
+                if kind == 'cpu_observation' and record.get('kind') in (
+                        'cpu_external_irq_sample', 'cpu_external_irq_taken', 'cpu_irq_notification',
+                        'cpu_retire', 'cpu_native_startup', 'cpu_reset'):
+                    self._prepare_native_cpu_observation(component, record)
+                if kind == 'source_observation' and record.get('kind') in (
+                        'uart_source_frame_end', 'uart_source_frame_cancel'):
+                    # The command parser already binds every raw receipt to the
+                    # current driver nonce. Preserve that distinct process scope
+                    # in replay without comparing random wire UUIDs. Raw session
+                    # evidence remains untouched; sequence numbers stay measured.
+                    witnesses = record.get('bit_witness')
+                    for witness in witnesses if isinstance(witnesses, (list, tuple)) else ():
+                        receipt = witness.get('receipt') if isinstance(witness, dict) else None
+                        if not isinstance(receipt, dict) or receipt.get('execution_scope') == 'parsed_driver_execution':
+                            continue
+                        nonce = receipt.get('execution')
+                        if type(nonce) is str and nonce.strip():
+                            scopes = self._source_transport_scopes.setdefault(component, {})
+                            if nonce not in scopes:
+                                scopes[nonce] = f'local-driver:{component}:{len(scopes) + 1}'
+                            receipt['execution'] = scopes[nonce]
+                            receipt['execution_scope'] = 'parsed_driver_execution'
                 for key, value in tuple(record.items()):
                     if is_dataclass(value):
                         record[key] = asdict(value)
@@ -1092,6 +1576,57 @@ class ScenarioRunner:
                                "producer_event_id": event_id,
                                "component": event_component})
                 self._events.append(record)
+                if kind not in ('cpu_observation', 'uart_observation'):
+                    self._append_uart_ram_commit_join(record)
+                    self._append_uart_store_memory_join(record)
+                self._external_offsets[stream_id] = stream_offset
+                if kind == 'cpu_observation':
+                    if record.get('kind') == 'cpu_external_irq_sample':
+                        self._native_cpu_samples[component] = (
+                            {key: deepcopy(record.get(key)) for key in
+                                ('command_scope', 'receipt_id', 'local_tick', 'reset_epoch')},
+                            record['event_id'])
+                    if record.get('kind') == 'cpu_reset':
+                        self._native_irq_inputs.pop(component, None)
+                        self._native_cpu_samples.pop(component, None)
+                    self._append_controlled_irq_entry(record)
+                    self._append_native_irq(record)
+                    self._append_uart_retired_read(record)
+                if kind == 'uart_observation' and self._uart_consumption_tracker is not None:
+                    self._append_uart_consumption(record)
+                if kind == 'gpio_observation' and self._gpio_consumption_tracker is not None:
+                    if record.get('kind') == 'gpio_input_applied':
+                        self._apply_gpio_receipt_segments(record, pending_gpio_tick)
+                    if pending_gpio_tick is not None:
+                        self._append_gpio_consumption(pending_gpio_tick)
+                        pending_gpio_tick = None
+                    if record.get('kind') == 'gpio_tick_observation':
+                        pending_gpio_tick = record
+                    elif record.get('kind') != 'gpio_input_applied':
+                        self._append_gpio_consumption(record)
+                if kind == 'mmio_delivery' and self._retirement_delivery_linker is not None:
+                    self._append_retirement_deliveries(
+                        self._retirement_delivery_linker.consume_delivery(record), record)
+                if kind == 'cpu_observation' and self._provenance is not None:
+                    if record.get('kind') == 'cpu_reset' and self._retirement_delivery_linker is not None:
+                        self._append_retirement_deliveries(
+                            self._retirement_delivery_linker.consume_reset({name: record.get(name)
+                                for name in ('execution_id', 'source_component', 'source_epoch')}), record)
+                    for match in self._cpu_retirement_matcher.consume(record):
+                        logged_match = {**match, 'kind': 'cpu_retirement_match',
+                            'event_id': len(self._events) + 1,
+                            'producer_event_id': record['event_id'], 'component': component,
+                            'origin_relation': 'retired_instruction_bytes'}
+                        self._events.append(logged_match)
+                        self._append_uart_retired_read(logged_match)
+                        if self._retirement_delivery_linker is not None and match.get('transaction_keys'):
+                            origins = [self._provenance.registry.get(ref)
+                                       for ref in match.get('source_refs', ()) if type(ref) is str]
+                            self._append_retirement_deliveries(
+                                self._retirement_delivery_linker.consume_match(
+                                    self.event_by_id(logged_match['event_id']),
+                                    registered_origins=[origin.document() for origin in origins
+                                                        if origin is not None]), logged_match)
                 if kind == "memory_commit":
                     old_edges = len(self.state_dependencies.edges)
                     self.state_dependencies.ingest((record,))
@@ -1103,6 +1638,365 @@ class ScenarioRunner:
                                             "kind": "state_dependency"})
                         self._events.append(edge_record)
             self._external_offsets[stream_id] = len(stream)
+            if (kind in ('memory_commit', 'cpu_observation', 'uart_observation')
+                    and isinstance(self._events._records, EventJournal)
+                    and type(stream) is list):
+                drained_streams.append((stream_id, stream, len(stream)))
+            if kind == 'memory_commit' and (self._uart_memory_readback_join is not None
+                                            or self._uart_store_memory_join is not None
+                                            or self._uart_ram_commit_join is not None):
+                for issued in owner.drain_commit_events():
+                    commit_id = issued['commit_id']
+                    receipt, actual = owner.lookup_pending_commit(commit_id)
+                    try:
+                        same_issued = (type(actual) is dict and type(issued) is dict
+                            and json.dumps(actual, sort_keys=True, separators=(',', ':'),
+                                           allow_nan=False)
+                            == json.dumps(issued, sort_keys=True, separators=(',', ':'),
+                                          allow_nan=False))
+                    except (TypeError, ValueError):
+                        same_issued = False
+                    if not same_issued:
+                        raise RuntimeError('live memory commit changed during drain')
+                    token = None
+                    if (self._uart_memory_readback_join is not None
+                            or self._uart_store_memory_join is not None):
+                        token = self._memory_commit_authority.stage(
+                            component, owner, owner.ledger, receipt.transaction_id, receipt)
+                    elif not self._uart_ram_commit_join.stage_commit(
+                            component, owner, owner.ledger, receipt.transaction_id, receipt):
+                        raise RuntimeError('live memory commit could not be authenticated')
+                    logged = {**issued, 'event_id': len(self._events) + 1,
+                              'producer_event_id': event_id, 'component': component}
+                    self._events.append(logged)
+                    self._append_uart_store_memory_join(logged, commit_token=token)
+                    owner.ack_commit_events((commit_id,))
+            if (kind == 'memory_commit' and self._uart_memory_readback_join is not None
+                    and self._memory_read_authority is not None):
+                for token, issued in self._memory_read_authority.drain():
+                    if issued['fullkey']['source_component'] != component:
+                        continue
+                    logged = {**issued, 'kind': 'memory_read_issuance',
+                              'status': 'accepted', 'event_id': len(self._events) + 1,
+                              'producer_event_id': event_id, 'component': component}
+                    self._events.append(logged)
+                    self._append_uart_store_memory_join(logged, read_token=token)
+            if pending_gpio_tick is not None:
+                self._append_gpio_consumption(pending_gpio_tick)
+        # The journal owns detached copies of every drained fact. Releasing the
+        # memory/CPU/UART producer lists prevents a long online session from
+        # retaining a second event history alongside the on-disk journal.
+        # Router lists retain len()-based acceptance order and cannot shrink.
+        for stream_id, stream, count in drained_streams:
+            if len(stream) == count:
+                stream.clear()
+                self._external_offsets[stream_id] = 0
+
+    def _prepare_native_cpu_observation(self, component: str, record: dict) -> None:
+        self._normalize_observation_receipts(component, record)
+        if record.get('kind') != 'cpu_external_irq_taken':
+            return
+        record.pop('sample_event_id', None)
+        sample = self._native_cpu_samples.get(component)
+        reference = record.get('sample_ref')
+        if sample is None or not isinstance(reference, dict):
+            return
+        measured, event_id = sample
+        scope, receipt = measured['command_scope'], measured['receipt_id']
+        if (type(scope) is not dict or set(scope) != {'component', 'reset_epoch', 'command_sequence'}
+                or type(scope['component']) is not str or scope['component'] != component
+                or type(scope['reset_epoch']) is not int or scope['reset_epoch'] < 0
+                or type(measured['reset_epoch']) is not int or measured['reset_epoch'] != scope['reset_epoch']
+                or type(scope['command_sequence']) is not int or scope['command_sequence'] <= 0
+                or type(measured['local_tick']) is not int or measured['local_tick'] < 0
+                or type(receipt) is not dict or set(receipt) != {'execution', 'sequence'}
+                or type(receipt['execution']) is not str or not receipt['execution']
+                or type(receipt['sequence']) is not int or receipt['sequence'] != scope['command_sequence']):
+            return
+        expected = {key: record.get(key) for key in measured}
+        expected_ref = {'command_scope': measured['command_scope'],
+                        'local_tick': measured['local_tick']}
+        try:
+            matches = (json.dumps(measured, sort_keys=True, allow_nan=False)
+                       == json.dumps(expected, sort_keys=True, allow_nan=False)
+                       and json.dumps(reference, sort_keys=True, allow_nan=False)
+                       == json.dumps(expected_ref, sort_keys=True, allow_nan=False))
+        except (TypeError, ValueError):
+            matches = False
+        if matches:
+            record['sample_event_id'] = event_id
+
+    def _normalize_observation_receipts(self, component: str, record: dict) -> None:
+        """Preserve parsed process distinctions with deterministic replay scopes."""
+        scopes = self._source_transport_scopes.setdefault(component, {})
+        visited = set()
+
+        def visit(value):
+            if isinstance(value, (dict, list)):
+                if id(value) in visited:
+                    return
+                visited.add(id(value))
+            if isinstance(value, list):
+                for child in value:
+                    visit(child)
+            elif isinstance(value, dict):
+                receipt = value.get('receipt_id')
+                if isinstance(receipt, dict):
+                    nonce = receipt.get('execution')
+                    if type(nonce) is str and nonce.strip() and nonce not in scopes.values():
+                        if nonce not in scopes:
+                            scopes[nonce] = f'local-driver:{component}:{len(scopes) + 1}'
+                        receipt['execution'] = scopes[nonce]
+                action = value.get('action_id')
+                if 'admission_id' in value:
+                    admission = (self._provenance.registry.get(action)
+                        if self._provenance is not None and type(action) is str and action.strip()
+                        else None)
+                    value['admission_id'] = (admission.admission_id if admission is not None
+                        and admission.component == component and admission.input_kind == 'source_event'
+                        else None)
+                for child in value.values():
+                    visit(child)
+
+        visit(record)
+
+    def _prepare_uart_observation(self, component: str, record: dict) -> None:
+        """Bridge measured command receipts without modifying session evidence."""
+        self._normalize_observation_receipts(component, record)
+        if record.get('kind') == 'uart_rdata_access':
+            record.pop('actual_request_event_id', None)
+            record.pop('actual_response_event_id', None)
+        scope = record.get('command_scope')
+        valid = (type(scope) is dict
+            and set(scope) == {'component', 'reset_epoch', 'command_sequence'}
+            and scope['component'] == component
+            and type(scope['reset_epoch']) is int and scope['reset_epoch'] >= 0
+            and scope['reset_epoch'] == record.get('reset_epoch')
+            and type(scope['command_sequence']) is int and scope['command_sequence'] > 0)
+        if not valid:
+            return
+        active = self._uart_command_ticks.get(component)
+        if active is None or active[0] != scope:
+            # A closed command cannot regain a receipt mapping by arriving late.
+            if active is not None and (scope['reset_epoch'], scope['command_sequence']) <= (
+                    active[0]['reset_epoch'], active[0]['command_sequence']):
+                return
+            active = (deepcopy(scope), {})
+            self._uart_command_ticks[component] = active
+        ticks = active[1]
+        if record.get('kind') == 'uart_tick_observation':
+            tick = record.get('local_tick')
+            if type(tick) is int and tick >= 0:
+                if tick in ticks:
+                    ticks[tick] = None
+                elif len(ticks) < 8192:
+                    ticks[tick] = len(self._events) + 1
+        elif record.get('kind') == 'uart_rdata_access':
+            for role, capture in (('request', 'read_capture'), ('response', 'response_capture')):
+                measured = record.get(capture)
+                tick = record.get(role + '_tick')
+                reference = measured.get('actual_receipt_ref') if isinstance(measured, dict) else None
+                reference_scope = reference.get('command_scope') if isinstance(reference, dict) else None
+                if (type(tick) is int and isinstance(measured, dict)
+                    and type(reference) is dict and set(reference) == {'command_scope', 'local_tick'}
+                    and type(reference.get('local_tick')) is int and reference['local_tick'] == tick
+                    and type(reference_scope) is dict and set(reference_scope) == set(scope)
+                    and all(type(reference_scope[key]) is type(scope[key])
+                            and reference_scope[key] == scope[key] for key in scope)
+                    and ticks.get(tick) is not None):
+                    record['actual_' + role + '_event_id'] = ticks[tick]
+
+    def _append_uart_consumption(self, record: dict) -> None:
+        self._append_native_irq(record)
+        self._append_uart_retired_read(record)
+        for report in self._uart_consumption_tracker.consume(record):
+            logged = {**report, 'event_id': len(self._events) + 1,
+                'producer_event_id': record['event_id']}
+            self._events.append(logged)
+            self._append_native_irq(logged)
+            self._append_uart_retired_read(logged)
+
+    def _append_uart_retired_read(self, record: dict) -> None:
+        if self._uart_retired_read_linker is None:
+            return
+        self._append_uart_ram_commit_join(record)
+        self._append_uart_store_memory_join(record)
+        if record.get('kind') in ('uart_retired_read_match', 'uart_operand_seed',
+                                  'uart_operand_use'):
+            return
+        for report in self._uart_retired_read_linker.consume(record):
+            self._events.append({**report, 'event_id': len(self._events) + 1,
+                'producer_event_id': record['event_id']})
+        if self._uart_operand_seed_tracker is not None:
+            for report in self._uart_operand_seed_tracker.consume(record):
+                self._events.append({**report, 'event_id': len(self._events) + 1,
+                    'producer_event_id': record['event_id']})
+        if self._uart_operand_use_tracker is not None:
+            for report in self._uart_operand_use_tracker.consume(record):
+                self._events.append({**report, 'event_id': len(self._events) + 1,
+                    'producer_event_id': record['event_id']})
+
+    def _append_uart_ram_commit_join(self, record: dict) -> None:
+        if self._uart_ram_commit_join is None:
+            return
+        for report in self._uart_ram_commit_join.consume(record):
+            self._events.append({**report, 'event_id': len(self._events) + 1,
+                'producer_event_id': record['event_id']})
+
+    def _append_uart_store_memory_join(self, record: dict, *, commit_token=None,
+                                       read_token=None) -> None:
+        if self._uart_memory_readback_join is not None:
+            reports = self._uart_memory_readback_join.consume(
+                record, commit_token=commit_token, read_token=read_token)
+        elif self._uart_store_memory_join is not None:
+            reports = self._uart_store_memory_join.consume(record, commit_token=commit_token)
+        else:
+            return
+        for report in reports:
+            if report.get('kind') == 'uart_memory_readback':
+                report = {**report,
+                    'load_observed_case': deepcopy(self._provenance.observed_case)}
+            self._events.append({**report, 'event_id': len(self._events) + 1,
+                'producer_event_id': record['event_id']})
+
+    def _append_gpio_consumption(self, record: dict) -> None:
+        if self._gpio_consumption_tracker is None:
+            return
+        for report in self._gpio_consumption_tracker.consume(record):
+            logged = {**report, 'event_id': len(self._events) + 1,
+                'producer_event_id': record['event_id']}
+            self._events.append(logged)
+            self._remember_gpio_irq_trigger(logged)
+
+    def _remember_gpio_irq_trigger(self, report: dict) -> None:
+        """Retain a native rise only with its exact authenticated tick receipt."""
+        if report.get('kind') != 'gpio_irq_trigger':
+            return
+        from .gpio_consumption import is_authenticated_gpio_tick
+        component = report.get('component')
+        epoch = report.get('reset_epoch')
+        tick = report.get('local_tick')
+        phase = report.get('phase')
+        observation_id = report.get('observation_event_id')
+        if (type(component) is not str or type(epoch) is not int
+                or type(tick) is not int or phase not in ('pre', 'post')
+                or type(observation_id) is not int):
+            return
+        key = (component, epoch, tick, phase)
+        raw = self._event_ref_by_id(observation_id)
+        measured = raw.get(phase) if isinstance(raw, dict) else None
+        valid = (report.get('status') == 'observed'
+            and type(report.get('trigger_id')) is str and bool(report['trigger_id'])
+            and type(report.get('mask')) is int and report['mask'] > 0
+            and is_authenticated_gpio_tick(raw)
+            and raw['component'] == component and raw['reset_epoch'] == epoch
+            and raw['local_tick'] == tick and isinstance(measured, dict)
+            and measured.get('gpio_probe_native_irq') == 1
+            and measured.get('gpio_probe_irq_trigger_mask') == report['mask'])
+        if key in self._gpio_irq_trigger_refs:
+            # Duplicate identities cannot nominate either trigger.
+            self._gpio_irq_trigger_refs[key] = None
+        elif valid:
+            if len(self._gpio_irq_trigger_refs) >= 8192:
+                self._gpio_irq_trigger_refs.clear()
+            self._gpio_irq_trigger_refs[key] = {
+                'trigger_id': report['trigger_id'],
+                'trigger_event_id': report['event_id'],
+                'observation_event_id': observation_id}
+
+    def _gpio_irq_source_trigger(self, binding: Binding, sample_event_id: int,
+                                 tick: int, phase: str) -> dict | None:
+        """Join only one matching RTL sample phase to a proven native rise."""
+        from .gpio_consumption import is_authenticated_gpio_tick
+        if (binding.source_port != 'irq' or binding.source_bit_offset != 0
+                or binding.width != 1 or phase not in ('pre', 'post')):
+            return None
+        component = binding.source_component
+        epoch = getattr(self.sessions[component], 'reset_epoch', 0)
+        if type(epoch) is not int:
+            return None
+        key = (component, epoch, tick, phase)
+        ref = self._gpio_irq_trigger_refs.get(key)
+        sample = self._event_ref_by_id(sample_event_id)
+        raw = (self._event_ref_by_id(ref['observation_event_id'])
+               if isinstance(ref, dict) else None)
+        if (not isinstance(ref, dict) or not is_authenticated_gpio_tick(raw)
+                or not isinstance(sample, dict)
+                or sample.get('kind') != 'local_tick_sample'
+                or sample.get('component') != component
+                or sample.get('local_tick') != tick or sample.get('phase') != phase
+                or not isinstance(sample.get('outputs'), dict)
+                or sample['outputs'].get('interrupt') != 1
+                or raw[phase].get('gpio_probe_native_irq') != 1):
+            return None
+        return {**deepcopy(ref), 'sample_event_id': sample_event_id}
+
+    def _apply_gpio_receipt_segments(self, record: dict, tick: dict | None) -> None:
+        from .gpio_consumption import is_authenticated_gpio_tick
+        reference = record.get('actual_receipt_ref')
+        command_scope = record.get('command_scope')
+        valid_scope = (isinstance(command_scope, dict)
+            and set(command_scope) == {'component', 'reset_epoch', 'command_sequence'}
+            and command_scope['component'] == record.get('component')
+            and type(command_scope['reset_epoch']) is int
+            and command_scope['reset_epoch'] >= 0
+            and command_scope['reset_epoch'] == record.get('reset_epoch')
+            and type(command_scope['command_sequence']) is int
+            and command_scope['command_sequence'] > 0)
+        valid = (isinstance(tick, dict) and isinstance(reference, dict)
+            and is_authenticated_gpio_tick(tick)
+            and valid_scope
+            and reference == {'command_scope': tick.get('command_scope'),
+                              'local_tick': tick.get('local_tick')}
+            and record.get('command_scope') == tick.get('command_scope')
+            and record.get('component') == tick.get('component')
+            and record.get('reset_epoch') == tick.get('reset_epoch')
+            and record.get('local_tick') == tick.get('local_tick')
+            and type(record.get('actual_input_value')) is int
+            and all(isinstance(tick.get(phase), dict)
+                    and tick[phase].get('gpio_in') == record['actual_input_value']
+                    for phase in ('pre', 'post'))
+            and isinstance(record.get('segments'), list))
+        if not valid:
+            self._reject_gpio_input_receipt(record)
+            return
+        for segment in record['segments']:
+            if not isinstance(segment, dict) or set(segment) != {'bit_lo', 'width', 'value', 'origin'}:
+                self._reject_gpio_input_receipt(record)
+                return
+        used = 0
+        for segment in record['segments']:
+            lo, width, value = (segment[name] for name in ('bit_lo', 'width', 'value'))
+            if (type(lo) is not int or type(width) is not int or type(value) is not int
+                    or lo < 0 or width < 1 or lo + width > 32
+                    or not 0 <= value < 1 << width or not isinstance(segment['origin'], dict)):
+                self._reject_gpio_input_receipt(record)
+                return
+            mask = ((1 << width) - 1) << lo
+            if used & mask or (record['actual_input_value'] >> lo) & ((1 << width) - 1) != value:
+                self._reject_gpio_input_receipt(record)
+                return
+            used |= mask
+        for segment in record['segments']:
+            fragment = {**record, **deepcopy(segment), 'port': 'gpio_in',
+                'kind': 'gpio_input_applied', 'actual_receipt_event_id': tick['event_id'],
+                'event_id': len(self._events) + 1, 'producer_event_id': record['event_id']}
+            self._events.append({**fragment, 'kind': 'gpio_input_segment_applied'})
+            self._append_gpio_consumption(fragment)
+
+    def _reject_gpio_input_receipt(self, record: dict) -> None:
+        rejected = {key: record.get(key) for key in
+                    ('event_id', 'component', 'reset_epoch', 'local_tick')}
+        rejected.update(kind='gpio_input_applied')
+        self._append_gpio_consumption(rejected)
+
+    def _append_retirement_deliveries(self, reports, producer: dict) -> None:
+        for report in reports:
+            logged = {**report, 'event_id': len(self._events) + 1,
+                'producer_event_id': producer['event_id'],
+                'component': report.get('component') or producer['component']}
+            self._events.append(logged)
+            self._append_gpio_consumption(logged)
 
     def execute_step(self, component: str, *, execution_id: str,
                      command_sequence: int, epoch: int,
@@ -1117,6 +2011,8 @@ class ScenarioRunner:
             raise ValueError("invalid STEP command identity or payload")
         payload = dict(expected_inputs)
         identity = (epoch, command_sequence)
+        if command_sequence <= self._retired_step_floor.get(epoch, 0):
+            raise ValueError("retired_command: STEP receipt was acknowledged and retired")
         previous = self._step_commands.get(identity)
         if previous is not None:
             old_component, old_payload, receipt = previous
@@ -1226,7 +2122,7 @@ class ScenarioRunner:
                     }
                     if self._active_step_timeout_us is not None:
                         marker["step_timeout_us"] = self._active_step_timeout_us
-                    list.append(self._events, marker)
+                    self._events.append_unchecked(marker)
             raise
         finally:
             self._step_in_flight = False
@@ -1239,6 +2135,24 @@ class ScenarioRunner:
                               self.local_ticks[component])
         self._step_commands[identity] = (component, payload, receipt)
         return deepcopy(receipt)
+
+    def retire_step_receipts_through(self, epoch: int, command_sequence: int) -> None:
+        """Release acknowledged online STEP payloads without permitting reexecution."""
+        if (type(epoch) is not int or epoch < 0
+                or type(command_sequence) is not int or command_sequence < 0
+                or epoch > self.command_epoch or self._step_in_flight):
+            raise ValueError("invalid STEP receipt retirement boundary")
+        if epoch == self.command_epoch and command_sequence >= self._next_command_sequence:
+            raise ValueError("cannot retire an unissued STEP command")
+        previous = self._retired_step_floor.get(epoch, 0)
+        if command_sequence < previous:
+            raise ValueError("STEP receipt retirement cannot move backwards")
+        for identity in tuple(self._step_commands):
+            if identity[0] == epoch and previous < identity[1] <= command_sequence:
+                if self._step_commands[identity][2] is None:
+                    raise ValueError("cannot retire an uncertain STEP command")
+                del self._step_commands[identity]
+        self._retired_step_floor[epoch] = command_sequence
 
     def _pending_responses(self) -> dict[str, int]:
         counts: dict[str, int] = {}
@@ -1277,9 +2191,11 @@ class ScenarioRunner:
     def _uncertain_transactions(self) -> tuple[str, ...]:
         keys = set()
         for session in self.sessions.values():
-            ledger = getattr(getattr(session, "service", None), "ledger", None)
-            if ledger is not None:
-                keys.update(str(key) for key in ledger.uncertain_keys)
+            ledgers = (getattr(getattr(session, "service", None), "ledger", None),
+                       getattr(session, "mmio_ledger", None))
+            for ledger in ledgers:
+                if ledger is not None:
+                    keys.update(str(key) for key in ledger.uncertain_keys)
         return tuple(sorted(keys))
 
     def quiesce(self, max_scheduler_steps: int = 4096) -> QuiesceResult:
@@ -1417,7 +2333,7 @@ class ScenarioRunner:
                 pass
             except ScenarioFinalStateGrowthViolation:
                 self.failure_status = "environment_error"
-                list.append(self._events, {
+                self._events.append_unchecked({
                     "event_id": len(self._events) + 1,
                     "kind": "harness_failure",
                     "phase": "finalize",
@@ -1448,10 +2364,10 @@ class ScenarioRunner:
                 marker["finalize_timeout_us"] = finalize_timeout_us
             if prior_failure_status is not None:
                 marker["status_before_finalize"] = prior_failure_status
-            list.append(self._events, marker)
+            self._events.append_unchecked(marker)
         elif cleanup_errors and self.failure_status is None:
             self.failure_status = "environment_error"
-            list.append(self._events, {
+            self._events.append_unchecked({
                 "event_id": len(self._events) + 1,
                 "kind": "harness_failure", "phase": "finalize",
                 "status": "environment_error", "cleanup_errors": cleanup_errors,

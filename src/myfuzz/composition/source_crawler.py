@@ -269,10 +269,29 @@ def _declared_files(
 
     def local_path(parent: Path, raw: str) -> Path:
         if raw.startswith(root_marker):
-            return _safe_child(root, raw[len(root_marker):])
-        # Validate the raw option too: joining an absolute path must not erase it.
-        _safe_child(root, raw)
-        return _safe_child(root, (parent.relative_to(root) / raw).as_posix())
+            parent = root
+            raw = raw[len(root_marker):]
+        # Upstream filelists commonly spell an in-tree sibling path as
+        # ``rtl/../bhv/file.sv``. Normalize those lexical parent segments
+        # before applying the ordinary safe-child checks. In particular, do
+        # not call resolve() on the untrusted path: ``_safe_child`` must still
+        # reject symlinks and any normalized result outside this pinned root.
+        raw_path = Path(raw)
+        if (not raw or "\\" in raw or "\0" in raw
+                or re.match(r"[A-Za-z]:", raw) or raw_path.is_absolute()):
+            raise SourceCrawlError("path-outside-source-root")
+        parts = list(parent.relative_to(root).parts)
+        for part in raw.split("/"):
+            if part in ("", "."):
+                continue
+            if part == "..":
+                if not parts:
+                    raise SourceCrawlError("path-outside-source-root")
+                parts.pop()
+            else:
+                parts.append(part)
+        normalized = "/".join(parts)
+        return _safe_child(root, normalized or ".")
 
     def include_root(parent: Path, raw: str) -> None:
         directory = local_path(parent, raw)

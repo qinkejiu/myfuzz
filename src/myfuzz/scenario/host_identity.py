@@ -50,6 +50,40 @@ HOST_SOURCE_PATHS = (
     "scripts/replay_scenario.py",
 )
 
+# v1 is the historical 34-file path contract. New generated semantics belong
+# to v2, together with their exact per-harness source/build snapshots.
+HARNESS_HOST_SOURCE_PATHS = HOST_SOURCE_PATHS + (
+    'src/myfuzz/scenario/uart_retired_read.py',
+    'src/myfuzz/scenario/uart_operand_seed.py',
+    'src/myfuzz/scenario/uart_operand_use.py',
+    'src/myfuzz/scenario/memory_commit_authority.py',
+    'src/myfuzz/scenario/memory_read_authority.py',
+    'src/myfuzz/scenario/uart_ram_commit_join.py',
+    'src/myfuzz/scenario/uart_store_memory.py',
+    'src/myfuzz/scenario/uart_memory_readback.py',
+    'src/myfuzz/local_harness/cpu_session.py',
+    'src/myfuzz/scenario/uart_irq_entry.py',
+    'src/myfuzz/local_harness/uart_controlled_irq_contract.py',
+    'src/myfuzz/scenario/uart_irq_consumption.py',
+    'src/myfuzz/local_harness/ibex_irq_receipt_contract.py',
+    'src/myfuzz/scenario/cpu_retirement.py',
+    'src/myfuzz/scenario/retirement_delivery.py',
+    'src/myfuzz/scenario/gpio_consumption.py',
+    'src/myfuzz/local_harness/pulp_gpio_probe_contract.py',
+    'src/myfuzz/scenario/evidence_identity.py',
+    'src/myfuzz/scenario/event_provenance.py',
+    'src/myfuzz/scenario/runtime_path_contract.py',
+    'src/myfuzz/scenario/runtime_edge_index.py',
+    'src/myfuzz/scenario/source_provenance.py',
+    'src/myfuzz/scenario/uart_consumption.py',
+    'src/myfuzz/local_harness/opentitan_uart_fifo_contract.py',
+    'src/myfuzz/local_harness/opentitan_uart_session.py',
+    'src/myfuzz/scenario/ibex_uart_online.py',
+    'src/myfuzz/scenario/ibex_uart_online_checker.py',
+    'src/myfuzz/integration/ibex_uart_online.py',
+    'scripts/run_ibex_uart_online.py',
+)
+
 
 def _hash_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -63,7 +97,7 @@ def host_source_identity(*, harness_identities: tuple[dict, ...] = ()) -> dict:
             raise ValueError(f"host source is missing: {name}")
         files.append({"path": name, "sha256": _hash_file(path)})
     if harness_identities:
-        names = set(HOST_SOURCE_PATHS)
+        names = set(HARNESS_HOST_SOURCE_PATHS)
         for identity in harness_identities:
             build = identity['build_identity']
             names.update(row['path'] for row in build['inputs']
@@ -87,6 +121,12 @@ def verify_host_source_identity(saved: dict, *, harness_identities: tuple[dict, 
     if saved['schema_version'] == 'scenario_harness_host_sources.v2':
         if not harness_identities or saved != host_source_identity(harness_identities=harness_identities):
             raise ValueError('harness host source identity mismatch')
+        current_hashes = {row['path']: row['sha256'] for row in saved['files']}
+        for identity in harness_identities:
+            for row in identity['build_identity']['inputs']:
+                if (not row['path'].startswith('generated/')
+                        and row.get('sha256') != current_hashes.get(row['path'])):
+                    raise ValueError('harness build input sha256 mismatch: ' + row['path'])
         return saved
     if harness_identities:
         raise ValueError('generated harness requires host sources v2')

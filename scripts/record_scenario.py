@@ -24,8 +24,7 @@ def _parse_values(raw: str) -> tuple[int, ...]:
     return values
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+def configure_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--genome", required=True, type=Path)
     parser.add_argument("--factory", required=True,
                         help="importable module:function returning a fresh ScenarioRunner")
@@ -42,7 +41,9 @@ def main() -> int:
                         help="comma-separated expected GPIO B external values")
     parser.add_argument("--budget", type=Path,
                         help="explicit JSON ResourceBudget enforced for this testcase")
-    args = parser.parse_args()
+
+
+def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     module_name, separator, function_name = args.factory.partition(":")
     if not separator or not module_name or not function_name:
         parser.error("--factory must have module:function form")
@@ -76,6 +77,12 @@ def main() -> int:
             item["complete"] for item in chain_checks)
     print(json.dumps(report, sort_keys=True, ensure_ascii=False))
     return 0 if report.get("closed_chains_complete", True) else 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    configure_parser(parser)
+    return run(parser.parse_args(argv), parser)
 
 
 if __name__ == "__main__":

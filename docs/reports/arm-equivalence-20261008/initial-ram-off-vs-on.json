@@ -1,0 +1,1490 @@
+{
+  "arms": {
+    "left": {
+      "declared_statuses": {
+        "complete": 94,
+        "input_invalid": 2
+      },
+      "declared_tests": 96,
+      "decoder_manifest_matches_continuous": null,
+      "directory": "runs/current-dataflow-p4-initial-ram-off-20261007-online",
+      "execution_mode": "online_cases",
+      "identity_document_present": true,
+      "identity_document_sha256": "453375c96de064a9c081136d70739fe0461ddd687e67053abb5cc2dbf88de3e0",
+      "label": "initial_ram_off",
+      "receipt_cases": 96,
+      "receipt_cases_match_declared_tests": true,
+      "receipt_status_counts": {
+        "complete": 94,
+        "input_invalid": 2
+      },
+      "run_id": "current-dataflow-p4-initial-ram-off-20261007"
+    },
+    "right": {
+      "declared_statuses": {
+        "complete": 94,
+        "input_invalid": 2
+      },
+      "declared_tests": 96,
+      "decoder_manifest_matches_continuous": null,
+      "directory": "runs/current-dataflow-p4-initial-ram-on-20261007-online",
+      "execution_mode": "online_cases",
+      "identity_document_present": true,
+      "identity_document_sha256": "98076c9d1303d86b3c118d9c8a86fb398d1b9cfec0bd91764bfb61c851f297af",
+      "label": "initial_ram_on",
+      "receipt_cases": 96,
+      "receipt_cases_match_declared_tests": true,
+      "receipt_status_counts": {
+        "complete": 94,
+        "input_invalid": 2
+      },
+      "run_id": "current-dataflow-p4-initial-ram-on-20261007"
+    }
+  },
+  "boundaries": [
+    "an `equivalent` verdict covers only the declared per-case receipt projection inside the shared raw-input window; it says nothing about search quality (target hits, coverage novelty, chain yield, certificates) or about the trace containers, which are never opened",
+    "`output_equivalence.claimed = true` requires the window to cover both arms completely, both arms to have the same receipt case count, no window truncation and every in-scope declared field to be equal; it is never implied by `evidence_status = compared`",
+    "a `not_equivalent` verdict names the exact field(s) and case indexes; a field recorded only by one arm's bookkeeping path (for example the duplicated `applied_source_ids` alias) can produce a real `not_equivalent` verdict without a DUT behaviour difference, so the driving field must be read with the per-field table",
+    "`unknown` is the absence of evidence: a declared field that is null or absent in the window - on one arm or on both - is never counted as equal",
+    "the window is a prefix in receipt order, not a set intersection: cases that match later but not in prefix order stay outside the window",
+    "the window proves *byte-level* raw-input identity, not source or plan identity: the same raw bytes can be produced by a different applied source (the path-switch pair is the concrete case - identical `raw_sha256` and `online_raw_records_hex` at case 0, different `online_source`, `operator_id`, path and direction), which is why the per-field comparison and `outside_declared_projection` must be read together with the window length",
+    "the declared projection fixes the claim, not the record: receipt fields outside it (timing maps, `run_id`/`slot`/`buffer_id` bookkeeping, `semantic_sha256`, interaction deltas) are reported separately under `outside_declared_projection` and a differing `other` field there is a warning that the projection hides part of the case record",
+    "the comparison reads saved artifacts only; no RTL, Verilator, cargo or fuzz client is started and no trace container is opened"
+  ],
+  "budgets": {
+    "budget_fields": [
+      "max_tests",
+      "duration_seconds",
+      "feedback_interval",
+      "search_seed",
+      "global_mutation_seed"
+    ],
+    "declared_tests": {
+      "equal": true,
+      "left": 96,
+      "right": 96
+    },
+    "duration_seconds": {
+      "equal": true,
+      "left": 150.0,
+      "right": 150.0
+    },
+    "feedback_interval": {
+      "equal": true,
+      "left": 16,
+      "right": 16
+    },
+    "global_mutation_seed": {
+      "equal": true,
+      "left": 20261007,
+      "right": 20261007
+    },
+    "left": {
+      "declared_tests": 96,
+      "duration_seconds": 150.0,
+      "effective_search_seconds": 9.13391133800178,
+      "elapsed_seconds": 9.341782363997481,
+      "feedback_interval": 16,
+      "global_mutation_seed": 20261007,
+      "max_tests": 96,
+      "receipt_cases": 96,
+      "run_id": "current-dataflow-p4-initial-ram-off-20261007",
+      "search_seed": 20261007
+    },
+    "max_tests": {
+      "equal": true,
+      "left": 96,
+      "right": 96
+    },
+    "note": "declared budgets are reported, never a refusal reason: two arms under different budgets can still be compared inside the shared window, but they cannot claim output equivalence",
+    "right": {
+      "declared_tests": 96,
+      "duration_seconds": 150.0,
+      "effective_search_seconds": 9.50506738400145,
+      "elapsed_seconds": 9.684287170995958,
+      "feedback_interval": 16,
+      "global_mutation_seed": 20261007,
+      "max_tests": 96,
+      "receipt_cases": 96,
+      "run_id": "current-dataflow-p4-initial-ram-on-20261007",
+      "search_seed": 20261007
+    },
+    "same_declared_budget": true,
+    "same_declared_case_count": true,
+    "search_seed": {
+      "equal": true,
+      "left": 20261007,
+      "right": 20261007
+    },
+    "undecodable_budget_fields": []
+  },
+  "definition": {
+    "comparability_preconditions": "a family whose declared semantics field (record_semantics, total_local_ticks_semantics, clock_model) differs between the arms is `unknown`, never `equivalent`",
+    "family_verdict_rule": "the worst verdict of the family's in-scope verdict-role fields (not_equivalent > unknown > equivalent); context-role fields are reported but cannot define a verdict",
+    "field_verdicts": {
+      "equivalent": "every window case is `equal`",
+      "not_applicable": "the field is null/absent in every window case on both arms and therefore carries no information",
+      "not_equivalent": "at least one window case is `unequal`",
+      "unknown": "no case is `unequal` but at least one case is unreadable, or the window is empty"
+    },
+    "per_case_field_equivalence": "a declared field is `equal` when both arms carry a non-null value and the canonical JSON bytes are identical; it is `unequal` when both carry a value and the canonical bytes differ; any other combination is `missing_left`, `missing_right` or `missing_both` and is never equality",
+    "refusals": [
+      "no_receipts",
+      "empty_receipts",
+      "decoder_manifest_undecodable",
+      "decoder_manifest_inconsistent",
+      "decoder_manifest_mismatch",
+      "source_identity_undecodable",
+      "source_identity_mismatch",
+      "zero_shared_prefix"
+    ],
+    "window": "the shared raw-input prefix computed from receipts by raw_sha256, compared in receipt order"
+  },
+  "evidence_status": "compared",
+  "families": [
+    {
+      "context_differences": [],
+      "declared_context_fields": [],
+      "declared_verdict_fields": [
+        "status"
+      ],
+      "family": "status",
+      "fields": [
+        {
+          "case_indexes_truncated": false,
+          "equal": 96,
+          "in_scope": true,
+          "missing": 0,
+          "missing_both": 0,
+          "missing_case_indexes": [],
+          "missing_left": 0,
+          "missing_right": 0,
+          "name": "status",
+          "reason": "status is identical in all 96 window cases",
+          "role": "verdict",
+          "unequal": 0,
+          "unequal_case_indexes": [],
+          "verdict": "equivalent",
+          "window_cases": 96
+        }
+      ],
+      "reason": "status: status is identical in all 96 window cases",
+      "required_semantics": [
+        "record_semantics"
+      ],
+      "uncomparable_semantics": [],
+      "verdict": "equivalent",
+      "verdict_driver_field": "status",
+      "window_cases": 96
+    },
+    {
+      "context_differences": [],
+      "declared_context_fields": [],
+      "declared_verdict_fields": [
+        "effective_genome_sha256",
+        "genome_sha256"
+      ],
+      "family": "effective_genome",
+      "fields": [
+        {
+          "case_indexes_truncated": false,
+          "equal": 94,
+          "in_scope": true,
+          "missing": 2,
+          "missing_both": 2,
+          "missing_case_indexes": [
+            15,
+            30
+          ],
+          "missing_left": 0,
+          "missing_right": 0,
+          "name": "effective_genome_sha256",
+          "reason": "effective_genome_sha256 is missing (null or absent) in 2 of 96 window cases (left-only 0, right-only 0, both 2)",
+          "role": "verdict",
+          "unequal": 0,
+          "unequal_case_indexes": [],
+          "verdict": "unknown",
+          "window_cases": 96
+        },
+        {
+          "case_indexes_truncated": false,
+          "equal": 94,
+          "in_scope": true,
+          "missing": 2,
+          "missing_both": 2,
+          "missing_case_indexes": [
+            15,
+            30
+          ],
+          "missing_left": 0,
+          "missing_right": 0,
+          "name": "genome_sha256",
+          "reason": "genome_sha256 is missing (null or absent) in 2 of 96 window cases (left-only 0, right-only 0, both 2)",
+          "role": "verdict",
+          "unequal": 0,
+          "unequal_case_indexes": [],
+          "verdict": "unknown",
+          "window_cases": 96
+        }
+      ],
+      "reason": "effective_genome_sha256: effective_genome_sha256 is missing (null or absent) in 2 of 96 window cases (left-only 0, right-only 0, both 2)",
+      "required_semantics": [
+        "record_semantics"
+      ],
+      "uncomparable_semantics": [],
+      "verdict": "unknown",
+      "verdict_driver_field": "effective_genome_sha256",
+      "window_cases": 96
+    },
+    {
+      "context_differences": [],
+      "declared_context_fields": [],
+      "declared_verdict_fields": [
+        "path_id",
+        "applied_path"
+      ],
+      "family": "path",
+      "fields": [
+        {
+          "case_indexes_truncated": false,
+          "equal": 94,
+          "in_scope": true,
+          "missing": 2,
+          "missing_both": 2,
+          "missing_case_indexes": [
+            15,
+            30
+          ],
+          "missing_left": 0,
+          "missing_right": 0,
+          "name": "path_id",
+          "reason": "path_id is missing (null or absent) in 2 of 96 window cases (left-only 0, right-only 0, both 2)",
+          "role": "verdict",
+          "unequal": 0,
+          "unequal_case_indexes": [],
+          "verdict": "unknown",
+          "window_cases": 96
+        },
+        {
+          "case_indexes_truncated": false,
+          "equal": 94,
+          "in_scope": true,
+          "missing": 2,
+          "missing_both": 2,
+          "missing_case_indexes": [
+            15,
+            30
+          ],
+          "missing_left": 0,
+          "missing_right": 0,
+          "name": "applied_path",
+          "reason": "applied_path is missing (null or absent) in 2 of 96 window cases (left-only 0, right-only 0, both 2)",
+          "role": "verdict",
+          "unequal": 0,
+          "unequal_case_indexes": [],
+          "verdict": "unknown",
+          "window_cases": 96
+        }
+      ],
+      "reason": "path_id: path_id is missing (null or absent) in 2 of 96 window cases (left-only 0, right-only 0, both 2)",
+      "required_semantics": [
+        "record_semantics"
+      ],
+      "uncomparable_semantics": [],
+      "verdict": "unknown",
+      "verdict_driver_field": "path_id",
+      "window_cases": 96
+    },
+    {
+      "context_differences": [],
+      "declared_context_fields": [],
+      "declared_verdict_fields": [
+        "direction"
+      ],
+      "family": "direction",
+      "fields": [
+        {
+          "case_indexes_truncated": false,
+          "equal": 96,
+          "in_scope": true,
+          "missing": 0,
+          "missing_both": 0,
+          "missing_case_indexes": [],
+          "missing_left": 0,
+          "missing_right": 0,
+          "name": "direction",
+          "reason": "direction is identical in all 96 window cases",
+          "role": "verdict",
+          "unequal": 0,
+          "unequal_case_indexes": [],
+          "verdict": "equivalent",
+          "window_cases": 96
+        }
+      ],
+      "reason": "direction: direction is identical in all 96 window cases",
+      "required_semantics": [
+        "record_semantics"
+      ],
+      "uncomparable_semantics": [],
+      "verdict": "equivalent",
+      "verdict_driver_field": "direction",
+      "window_cases": 96
+    },
+    {
+      "context_differences": [],
+      "declared_context_fields": [],
+      "declared_verdict_fields": [
+        "applied_sources",
+        "applied_source_ids",
+        "source_id"
+      ],
+      "family": "applied_sources",
+      "fields": [
+        {
+          "case_indexes_truncated": false,
+          "equal": 96,
+          "in_scope": true,
+          "missing": 0,
+          "missing_both": 0,
+          "missing_case_indexes": [],
+          "missing_left": 0,
+          "missing_right": 0,
+          "name": "applied_sources",
+          "reason": "applied_sources is identical in all 96 window cases",
+          "role": "verdict",
+          "unequal": 0,
+          "unequal_case_indexes": [],
+          "verdict": "equivalent",
+          "window_cases": 96
+        },
+        {
+          "case_indexes_truncated": false,
+          "equal": 96,
+          "in_scope": true,
+          "missing": 0,
+          "missing_both": 0,
+          "missing_case_indexes": [],
+          "missing_left": 0,
+          "missing_right": 0,
+          "name": "applied_source_ids",
+          "reason": "applied_source_ids is identical in all 96 window cases",
+          "role": "verdict",
+          "unequal": 0,
+          "unequal_case_indexes": [],
+          "verdict": "equivalent",
+          "window_cases": 96
+        },
+        {
+          "case_indexes_truncated": false,
+          "equal": 96,
+          "in_scope": true,
+          "missing": 0,
+          "missing_both": 0,
+          "missing_case_indexes": [],
+          "missing_left": 0,
+          "missing_right": 0,
+          "name": "source_id",
+          "reason": "source_id is identical in all 96 window cases",
+          "role": "verdict",
+          "unequal": 0,
+          "unequal_case_indexes": [],
+          "verdict": "equivalent",
+          "window_cases": 96
+        }
+      ],
+      "reason": "applied_sources: applied_sources is identical in all 96 window cases",
+      "required_semantics": [
+        "record_semantics"
+      ],
+      "uncomparable_semantics": [],
+      "verdict": "equivalent",
+      "verdict_driver_field": "applied_sources",
+      "window_cases": 96
+    },
+    {
+      "context_differences": [],
+      "declared_context_fields": [
+        "rejection",
+        "error"
+      ],
+      "declared_verdict_fields": [
+        "violations"
+      ],
+      "family": "checker_violations",
+      "fields": [
+        {
+          "case_indexes_truncated": false,
+          "equal": 96,
+          "in_scope": true,
+          "missing": 0,
+          "missing_both": 0,
+          "missing_case_indexes": [],
+          "missing_left": 0,
+          "missing_right": 0,
+          "name": "violations",
+          "reason": "violations is identical in all 96 window cases",
+          "role": "verdict",
+          "unequal": 0,
+          "unequal_case_indexes": [],
+          "verdict": "equivalent",
+          "window_cases": 96
+        },
+        {
+          "case_indexes_truncated": true,
+          "equal": 0,
+          "in_scope": false,
+          "missing": 96,
+          "missing_both": 96,
+          "missing_case_indexes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19
+          ],
+          "missing_left": 0,
+          "missing_right": 0,
+          "name": "rejection",
+          "reason": "rejection is null or absent in all 96 window cases on both arms",
+          "role": "context",
+          "unequal": 0,
+          "unequal_case_indexes": [],
+          "verdict": "not_applicable",
+          "window_cases": 96
+        },
+        {
+          "case_indexes_truncated": true,
+          "equal": 2,
+          "in_scope": true,
+          "missing": 94,
+          "missing_both": 94,
+          "missing_case_indexes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            16,
+            17,
+            18,
+            19,
+            20
+          ],
+          "missing_left": 0,
+          "missing_right": 0,
+          "name": "error",
+          "reason": "error is missing (null or absent) in 94 of 96 window cases (left-only 0, right-only 0, both 94)",
+          "role": "context",
+          "unequal": 0,
+          "unequal_case_indexes": [],
+          "verdict": "unknown",
+          "window_cases": 96
+        }
+      ],
+      "reason": "violations: violations is identical in all 96 window cases",
+      "required_semantics": [
+        "record_semantics"
+      ],
+      "uncomparable_semantics": [],
+      "verdict": "equivalent",
+      "verdict_driver_field": "violations",
+      "window_cases": 96
+    },
+    {
+      "context_differences": [],
+      "declared_context_fields": [],
+      "declared_verdict_fields": [
+        "coverage_hex"
+      ],
+      "family": "coverage",
+      "fields": [
+        {
+          "case_indexes_truncated": false,
+          "equal": 96,
+          "in_scope": true,
+          "missing": 0,
+          "missing_both": 0,
+          "missing_case_indexes": [],
+          "missing_left": 0,
+          "missing_right": 0,
+          "name": "coverage_hex",
+          "reason": "coverage_hex is identical in all 96 window cases",
+          "role": "verdict",
+          "unequal": 0,
+          "unequal_case_indexes": [],
+          "verdict": "equivalent",
+          "window_cases": 96
+        }
+      ],
+      "reason": "coverage_hex: coverage_hex is identical in all 96 window cases",
+      "required_semantics": [
+        "record_semantics"
+      ],
+      "uncomparable_semantics": [],
+      "verdict": "equivalent",
+      "verdict_driver_field": "coverage_hex",
+      "window_cases": 96
+    },
+    {
+      "context_differences": [],
+      "declared_context_fields": [],
+      "declared_verdict_fields": [
+        "local_ticks",
+        "total_local_ticks"
+      ],
+      "family": "local_ticks",
+      "fields": [
+        {
+          "case_indexes_truncated": false,
+          "equal": 94,
+          "in_scope": true,
+          "missing": 2,
+          "missing_both": 2,
+          "missing_case_indexes": [
+            15,
+            30
+          ],
+          "missing_left": 0,
+          "missing_right": 0,
+          "name": "local_ticks",
+          "reason": "local_ticks is missing (null or absent) in 2 of 96 window cases (left-only 0, right-only 0, both 2)",
+          "role": "verdict",
+          "unequal": 0,
+          "unequal_case_indexes": [],
+          "verdict": "unknown",
+          "window_cases": 96
+        },
+        {
+          "case_indexes_truncated": false,
+          "equal": 96,
+          "in_scope": true,
+          "missing": 0,
+          "missing_both": 0,
+          "missing_case_indexes": [],
+          "missing_left": 0,
+          "missing_right": 0,
+          "name": "total_local_ticks",
+          "reason": "total_local_ticks is identical in all 96 window cases",
+          "role": "verdict",
+          "unequal": 0,
+          "unequal_case_indexes": [],
+          "verdict": "equivalent",
+          "window_cases": 96
+        }
+      ],
+      "reason": "local_ticks: local_ticks is missing (null or absent) in 2 of 96 window cases (left-only 0, right-only 0, both 2)",
+      "required_semantics": [
+        "total_local_ticks_semantics",
+        "clock_model"
+      ],
+      "uncomparable_semantics": [],
+      "verdict": "unknown",
+      "verdict_driver_field": "local_ticks",
+      "window_cases": 96
+    }
+  ],
+  "identity": {
+    "compare": {
+      "clock_model": {
+        "decodable_on_both_arms": true,
+        "equal": true,
+        "left": "independent_local_ticks_and_causal_order",
+        "right": "independent_local_ticks_and_causal_order"
+      },
+      "component_identity_sha256": {
+        "decodable_on_both_arms": true,
+        "equal": true,
+        "left": "a6fcb7d9d519d3e2d2d403939369da0193d2e4cf09931622fbb61788ffbbbf05",
+        "right": "a6fcb7d9d519d3e2d2d403939369da0193d2e4cf09931622fbb61788ffbbbf05"
+      },
+      "decoder_manifest_sha256": {
+        "decodable_on_both_arms": true,
+        "equal": true,
+        "left": "625710f477121c08abdae046710efe5e168948f50b073aba6f0e95fd051a0e64",
+        "right": "625710f477121c08abdae046710efe5e168948f50b073aba6f0e95fd051a0e64"
+      },
+      "record_semantics": {
+        "decodable_on_both_arms": true,
+        "equal": true,
+        "left": "mutation_decisions_not_dut_cycles",
+        "right": "mutation_decisions_not_dut_cycles"
+      },
+      "source_files_sha256": {
+        "decodable_on_both_arms": true,
+        "equal": true,
+        "left": "a370e73841a06f04fb273a7354288d3cb6a30c0105256aadd47b5d7c541a0021",
+        "right": "a370e73841a06f04fb273a7354288d3cb6a30c0105256aadd47b5d7c541a0021"
+      },
+      "targets_sha256": {
+        "decodable_on_both_arms": true,
+        "equal": true,
+        "left": "a05828be0b4d0df6730ad7b24cd9ea485609d23a59e18773fefb097ba4a1e87c",
+        "right": "a05828be0b4d0df6730ad7b24cd9ea485609d23a59e18773fefb097ba4a1e87c"
+      },
+      "total_local_ticks_semantics": {
+        "decodable_on_both_arms": true,
+        "equal": true,
+        "left": "sum_of_independent_local_ticks_cost_only",
+        "right": "sum_of_independent_local_ticks_cost_only"
+      }
+    },
+    "context_semantics_equal": {
+      "clock_model": true,
+      "record_semantics": true,
+      "total_local_ticks_semantics": true
+    },
+    "required_identity_decodable_on_both_arms": true,
+    "required_identity_fields": [
+      "decoder_manifest_sha256",
+      "source_files_sha256",
+      "component_identity_sha256"
+    ]
+  },
+  "output_equivalence": {
+    "claim_definition": "output equivalence is claimed only when the shared raw-input window covers both arms completely, both arms have the same receipt case count, the window was not truncated by the case cap, and every in-scope declared field is equal in every window case; a `compared` evidence status never implies it",
+    "claimed": false,
+    "conditions": [
+      {
+        "condition": "window_computable",
+        "detail": "shared raw-input prefix of 96 case(s)",
+        "satisfied": true
+      },
+      {
+        "condition": "same_receipt_case_count",
+        "detail": "left 96, right 96",
+        "satisfied": true
+      },
+      {
+        "condition": "window_covers_left_arm",
+        "detail": "window 96 of left 96",
+        "satisfied": true
+      },
+      {
+        "condition": "window_covers_right_arm",
+        "detail": "window 96 of right 96",
+        "satisfied": true
+      },
+      {
+        "condition": "window_not_truncated",
+        "detail": "the cap was not reached",
+        "satisfied": true
+      },
+      {
+        "condition": "every_inscope_field_equivalent",
+        "detail": "13 in-scope verdict field(s); 0 unequal, 3 family/families unknown",
+        "satisfied": false
+      },
+      {
+        "condition": "every_family_equivalent",
+        "detail": "not_equivalent [], unknown ['effective_genome', 'local_ticks', 'path']",
+        "satisfied": false
+      }
+    ],
+    "does_not_claim": [
+      "an `equivalent` verdict covers only the declared per-case receipt projection inside the shared raw-input window; it says nothing about search quality (target hits, coverage novelty, chain yield, certificates) or about the trace containers, which are never opened",
+      "`output_equivalence.claimed = true` requires the window to cover both arms completely, both arms to have the same receipt case count, no window truncation and every in-scope declared field to be equal; it is never implied by `evidence_status = compared`",
+      "a `not_equivalent` verdict names the exact field(s) and case indexes; a field recorded only by one arm's bookkeeping path (for example the duplicated `applied_source_ids` alias) can produce a real `not_equivalent` verdict without a DUT behaviour difference, so the driving field must be read with the per-field table",
+      "`unknown` is the absence of evidence: a declared field that is null or absent in the window - on one arm or on both - is never counted as equal",
+      "the window is a prefix in receipt order, not a set intersection: cases that match later but not in prefix order stay outside the window",
+      "the window proves *byte-level* raw-input identity, not source or plan identity: the same raw bytes can be produced by a different applied source (the path-switch pair is the concrete case - identical `raw_sha256` and `online_raw_records_hex` at case 0, different `online_source`, `operator_id`, path and direction), which is why the per-field comparison and `outside_declared_projection` must be read together with the window length",
+      "the declared projection fixes the claim, not the record: receipt fields outside it (timing maps, `run_id`/`slot`/`buffer_id` bookkeeping, `semantic_sha256`, interaction deltas) are reported separately under `outside_declared_projection` and a differing `other` field there is a warning that the projection hides part of the case record",
+      "the comparison reads saved artifacts only; no RTL, Verilator, cargo or fuzz client is started and no trace container is opened"
+    ],
+    "family_verdicts": {
+      "applied_sources": "equivalent",
+      "checker_violations": "equivalent",
+      "coverage": "equivalent",
+      "direction": "equivalent",
+      "effective_genome": "unknown",
+      "local_ticks": "unknown",
+      "path": "unknown",
+      "status": "equivalent"
+    },
+    "not_applicable_fields": [
+      "checker_violations.rejection"
+    ],
+    "not_claimed_reasons": [
+      "every_inscope_field_equivalent: 13 in-scope verdict field(s); 0 unequal, 3 family/families unknown",
+      "every_family_equivalent: not_equivalent [], unknown ['effective_genome', 'local_ticks', 'path']"
+    ],
+    "unequal_declared_fields": []
+  },
+  "outside_declared_projection": {
+    "declared_field_count": 15,
+    "definition": "receipt fields present in the window rows that are not part of the declared comparison projection; they are reported for transparency, never define a family verdict and are never part of the output-equivalence claim",
+    "difference_classes": {
+      "other": 0,
+      "run_bookkeeping": 1,
+      "timing": 3
+    },
+    "fields": [
+      {
+        "classification": "other",
+        "equal": 0,
+        "field": "applied_hint_sequence",
+        "in_scope": false,
+        "missing_both": 96,
+        "missing_case_indexes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 94,
+        "field": "applied_template",
+        "in_scope": true,
+        "missing_both": 2,
+        "missing_case_indexes": [
+          15,
+          30
+        ],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "candidate_disposition",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "candidate_disposition_reason",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "closed_loop_certificate_ids",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "closed_loop_credit_totals",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "closed_loop_delta_counts",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "closed_loop_enabled",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "closed_loop_refusals",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "closed_loop_source_credit",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "closed_loop_source_weights",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "closed_loop_status",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "flow_id",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 89,
+        "field": "interaction_deferred",
+        "in_scope": true,
+        "missing_both": 7,
+        "missing_case_indexes": [
+          15,
+          30,
+          31,
+          47,
+          63,
+          79,
+          95
+        ],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 94,
+        "field": "interaction_feature_deltas",
+        "in_scope": true,
+        "missing_both": 2,
+        "missing_case_indexes": [
+          15,
+          30
+        ],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 94,
+        "field": "interaction_new_features",
+        "in_scope": true,
+        "missing_both": 2,
+        "missing_case_indexes": [
+          15,
+          30
+        ],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "interaction_source_gains",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "online_raw_records_hex",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "online_source",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "online_weights",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "operator_id",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "raw_sha256",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 94,
+        "field": "semantic_sha256",
+        "in_scope": true,
+        "missing_both": 2,
+        "missing_case_indexes": [
+          15,
+          30
+        ],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "source_action",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "source_selection_reason",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 96,
+        "field": "target_id",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "other",
+        "equal": 0,
+        "field": "wall_cut",
+        "in_scope": false,
+        "missing_both": 96,
+        "missing_case_indexes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "run_bookkeeping",
+        "equal": 96,
+        "field": "buffer_id",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "run_bookkeeping",
+        "equal": 96,
+        "field": "candidate_id",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "run_bookkeeping",
+        "equal": 96,
+        "field": "case_id",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "run_bookkeeping",
+        "equal": 94,
+        "field": "manifest_sha256",
+        "in_scope": true,
+        "missing_both": 2,
+        "missing_case_indexes": [
+          15,
+          30
+        ],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "run_bookkeeping",
+        "equal": 0,
+        "field": "run_id",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 96,
+        "unequal_case_indexes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ]
+      },
+      {
+        "classification": "run_bookkeeping",
+        "equal": 96,
+        "field": "slot",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 0,
+        "unequal_case_indexes": []
+      },
+      {
+        "classification": "timing",
+        "equal": 0,
+        "field": "online_phase_timing_seconds",
+        "in_scope": true,
+        "missing_both": 0,
+        "missing_case_indexes": [],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 96,
+        "unequal_case_indexes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ]
+      },
+      {
+        "classification": "timing",
+        "equal": 0,
+        "field": "online_runner_timing_seconds",
+        "in_scope": true,
+        "missing_both": 2,
+        "missing_case_indexes": [
+          15,
+          30
+        ],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 94,
+        "unequal_case_indexes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          16,
+          17,
+          18,
+          19,
+          20
+        ]
+      },
+      {
+        "classification": "timing",
+        "equal": 0,
+        "field": "online_submit_timing_seconds",
+        "in_scope": true,
+        "missing_both": 2,
+        "missing_case_indexes": [
+          15,
+          30
+        ],
+        "missing_left": 0,
+        "missing_right": 0,
+        "unequal": 94,
+        "unequal_case_indexes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          16,
+          17,
+          18,
+          19,
+          20
+        ]
+      }
+    ],
+    "fields_with_differences": [
+      "online_phase_timing_seconds",
+      "online_runner_timing_seconds",
+      "online_submit_timing_seconds",
+      "run_id"
+    ],
+    "max_tracked_fields": 64,
+    "note": "`timing` and `run_bookkeeping` differences are expected between two arms; a differing `other` field (for example `semantic_sha256`, `target_id`, interaction deltas) means the declared projection hides part of the case record and must be read before trusting an `equivalent` verdict",
+    "skipped_field_count": 0,
+    "skipped_fields": [],
+    "truncated": false,
+    "window_cases": 96
+  },
+  "read_scope": {
+    "artifacts_read": {
+      "left": [
+        "receipts.jsonl",
+        "report.json",
+        "online_run_identity.json",
+        "decoder_manifest.json"
+      ],
+      "right": [
+        "receipts.jsonl",
+        "report.json",
+        "online_run_identity.json",
+        "decoder_manifest.json"
+      ]
+    },
+    "full_trace_loaded": false,
+    "max_window_cases": 200000,
+    "note": "the comparator opens only receipts.jsonl (streamed line by line), report.json, online_run_identity.json and decoder_manifest.json; trace containers (online_final_trace.json, online_events.jsonl, online_events.zlib) are never opened",
+    "streamed_receipts": true,
+    "window_case_cap_reached": false
+  },
+  "refusal": null,
+  "schema_version": "arm_equivalence.v1",
+  "verdict": {
+    "declared_field_set": {
+      "applied_sources": {
+        "context": [],
+        "verdict": [
+          "applied_sources",
+          "applied_source_ids",
+          "source_id"
+        ]
+      },
+      "checker_violations": {
+        "context": [
+          "rejection",
+          "error"
+        ],
+        "verdict": [
+          "violations"
+        ]
+      },
+      "coverage": {
+        "context": [],
+        "verdict": [
+          "coverage_hex"
+        ]
+      },
+      "direction": {
+        "context": [],
+        "verdict": [
+          "direction"
+        ]
+      },
+      "effective_genome": {
+        "context": [],
+        "verdict": [
+          "effective_genome_sha256",
+          "genome_sha256"
+        ]
+      },
+      "local_ticks": {
+        "context": [],
+        "verdict": [
+          "local_ticks",
+          "total_local_ticks"
+        ]
+      },
+      "path": {
+        "context": [],
+        "verdict": [
+          "path_id",
+          "applied_path"
+        ]
+      },
+      "status": {
+        "context": [],
+        "verdict": [
+          "status"
+        ]
+      }
+    },
+    "equivalent_families": [
+      "applied_sources",
+      "checker_violations",
+      "coverage",
+      "direction",
+      "status"
+    ],
+    "families": {
+      "applied_sources": "equivalent",
+      "checker_violations": "equivalent",
+      "coverage": "equivalent",
+      "direction": "equivalent",
+      "effective_genome": "unknown",
+      "local_ticks": "unknown",
+      "path": "unknown",
+      "status": "equivalent"
+    },
+    "not_equivalent_families": [],
+    "unknown_families": [
+      "effective_genome",
+      "local_ticks",
+      "path"
+    ]
+  },
+  "window": {
+    "computable": true,
+    "covers": {
+      "left": true,
+      "right": true
+    },
+    "definition": "the leading receipt cases whose raw_sha256 is identical in both arms, compared in receipt order; the searches diverge by construction, so this prefix is the only per-case comparable window",
+    "first_divergent_case": null,
+    "left": {
+      "declared_statuses": {
+        "complete": 94,
+        "input_invalid": 2
+      },
+      "declared_tests": 96,
+      "receipt_cases": 96
+    },
+    "not_computable_reason": null,
+    "raw_identity_field": "raw_sha256",
+    "raw_records_cross_check": {
+      "agreed": 96,
+      "compared": 96,
+      "disagreed": 0,
+      "field": "online_raw_records_hex",
+      "first_disagreement_case_index": null
+    },
+    "right": {
+      "declared_statuses": {
+        "complete": 94,
+        "input_invalid": 2
+      },
+      "declared_tests": 96,
+      "receipt_cases": 96
+    },
+    "shared_prefix_cases": 96,
+    "truncated_by_window_case_cap": false,
+    "window_case_cap": 200000
+  }
+}

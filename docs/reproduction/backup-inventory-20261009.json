@@ -1,0 +1,536 @@
+{
+  "date": "2026-10-09",
+  "external_backups": [
+    {
+      "path": "/home/qinkejiu/myfuzz-cleanup-backup-20261006.MjDhe4",
+      "category": "cleanup_recovery",
+      "allocated_bytes": 8675328,
+      "document_references": [
+        "docs/REPOSITORY_ORGANIZATION.md",
+        "docs/reports/current-design-cleanup-source-audit-20261006.md",
+        "docs/superpowers/plans/2026-10-06-current-design-repository-cleanup.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz-document-organization-20261006-5868r5la",
+      "category": "document_recovery",
+      "allocated_bytes": 376832,
+      "document_references": [],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p2_native_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1316458496,
+      "document_references": [],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p2_native_final_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 18542592,
+      "document_references": [],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p2_native_gated_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 18251776,
+      "document_references": [
+        "docs/reports/current-dataflow-p2-native-irq-sampled-receipt-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p2p4_combined_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1313906688,
+      "document_references": [],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p3_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1314115584,
+      "document_references": [
+        "docs/reports/current-dataflow-p3-store-real-gate-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p3_capacity_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1071878144,
+      "document_references": [
+        "docs/reports/current-dataflow-p3-directed-writer-capacity-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p3_current_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1316302848,
+      "document_references": [
+        "docs/reports/current-dataflow-p3-current-tree-readback-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p3_deadline_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 117620736,
+      "document_references": [
+        "docs/reports/current-dataflow-p3-live-duration-buffer-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p3_efficiency_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1316446208,
+      "document_references": [
+        "docs/reports/current-dataflow-p3-read-issuance-capacity-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p3_efficiency_review_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1316446208,
+      "document_references": [
+        "docs/reports/current-dataflow-p3-read-issuance-capacity-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p3_late_readback_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1330733056,
+      "document_references": [],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p3_late_readback_v2_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1325178880,
+      "document_references": [
+        "docs/reports/current-dataflow-p3-late-readback-capacity-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p3_readback_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1314553856,
+      "document_references": [
+        "docs/reports/current-dataflow-p3-host-ram-readback-real-gate-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p3_store_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1313591296,
+      "document_references": [
+        "docs/reports/current-dataflow-p3-store-real-gate-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p3_uart_release_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1316487168,
+      "document_references": [
+        "docs/reports/current-dataflow-p3-read-issuance-capacity-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p3_uart_stream_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1316446208,
+      "document_references": [],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p4_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1313218560,
+      "document_references": [],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p4_candidate_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1313345536,
+      "document_references": [
+        "docs/reports/current-dataflow-p4-candidate-identity-real-gate-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p4_disposition_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1313361920,
+      "document_references": [
+        "docs/reports/current-dataflow-p4-candidate-disposition-real-gate-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p4_old_selector_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1316376576,
+      "document_references": [
+        "docs/reports/current-dataflow-p4-path-selector-paired-1000-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p4_ori_andi_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 100937728,
+      "document_references": [],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p4_path_mix_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 19349504,
+      "document_references": [
+        "docs/reports/current-dataflow-p4-path-entropy-real-gate-20261007.md",
+        "docs/reports/current-dataflow-p4-path-selector-paired-1000-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p4_receipts_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1313210368,
+      "document_references": [
+        "docs/reports/current-dataflow-p4-feedback-real-gate-20261007.md",
+        "docs/reports/current-dataflow-p4-feedback-causal-branch-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p4_sb_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1300344832,
+      "document_references": [
+        "docs/reports/current-dataflow-p4-sb-uart-byte-real-gate-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p4_uart_sb_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 18718720,
+      "document_references": [],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p4_uart_sb_independent_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1316401152,
+      "document_references": [],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p4_xori_retire_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1313927168,
+      "document_references": [
+        "docs/reports/current-dataflow-p3-readback-history-20261007.md",
+        "docs/reports/current-dataflow-p4-xori-retirement-real-gate-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p5_20261006",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 5193662464,
+      "document_references": [
+        "docs/reports/current-dataflow-p2-controlled-entry-read-20261006.md",
+        "docs/reports/current-dataflow-p5-efficiency-profile-20261006.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p5_cold_replay_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1316663296,
+      "document_references": [],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p5_command_timing_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1327341568,
+      "document_references": [
+        "docs/reports/current-dataflow-p5-command-roundtrip-split-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p5_irq_fault_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1313517568,
+      "document_references": [
+        "docs/reports/current-dataflow-p5-controlled-irq-fault-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p5_runner_timing_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1327570944,
+      "document_references": [
+        "docs/reports/current-dataflow-p5-runner-router-scheduler-timing-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p5_runner_zlib_600s_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 18194432,
+      "document_references": [
+        "docs/reports/current-dataflow-p5-runner-zlib-600s-20261007.md",
+        "docs/reports/current-dataflow-p5-same-snapshot-cold-start-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p5_stream_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 19156992,
+      "document_references": [
+        "docs/reports/current-dataflow-p5-streamed-600s-timing-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p5_streamed_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1313632256,
+      "document_references": [
+        "docs/reports/current-dataflow-p5-streamed-final-trace-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p5_submit_split_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 200777728,
+      "document_references": [],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p5_timing_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1313394688,
+      "document_references": [
+        "docs/reports/current-dataflow-p5-online-phase-timing-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p5_uart_read_fault_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 547823616,
+      "document_references": [],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p5_writer_short_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 18214912,
+      "document_references": [
+        "docs/reports/current-dataflow-p5-trace-write-efficiency-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    },
+    {
+      "path": "/home/qinkejiu/myfuzz_snapshot_p5_zlib_chunks_20261007",
+      "category": "frozen_source_for_replay",
+      "allocated_bytes": 1316552704,
+      "document_references": [
+        "docs/reports/current-dataflow-p5-zlib-chunk-trace-20261007.md"
+      ],
+      "decision": "retain_read_only",
+      "reason": "冻结源码快照或恢复备份；未进行全内容去重核验，当前目录不可写。",
+      "contains_git_metadata": false
+    }
+  ],
+  "external_count": 42,
+  "external_allocated_bytes_sum": 42911707136,
+  "size_note": "逐目录 du -sk 的已分配空间之和；跨目录硬链接可能重复计算，不等于可回收空间。",
+  "scratch_archive": [
+    {
+      "path": "archive/development/review-scratch/20261009/collect_now.txt",
+      "bytes": 324840,
+      "sha256": "b4ea819711436a673f46832ad554173f5d89bf372ab29924aed7e2892d0b8115"
+    },
+    {
+      "path": "archive/development/review-scratch/20261009/dump_links.py",
+      "bytes": 4392,
+      "sha256": "aa5c7ab23afeec1120e371124bdb4aced09eb1e3547135b2113b40a17548b0a8"
+    },
+    {
+      "path": "archive/development/review-scratch/20261009/gapA2_red.txt",
+      "bytes": 4907,
+      "sha256": "e5578f271f993431e72581989c13406445a6b43f1bca837deca1c4579636e9b3"
+    },
+    {
+      "path": "archive/development/review-scratch/20261009/gapA_red.txt",
+      "bytes": 966,
+      "sha256": "9d1cbaa0499e174598f11ac414114873c601dbeef626213ae09d2afc99e11c7e"
+    },
+    {
+      "path": "archive/development/review-scratch/20261009/gapB_red.txt",
+      "bytes": 6210,
+      "sha256": "5aa69bb58b2a705632e4d673ebecef2d0ed204c3a463a4b35329af507734cc0c"
+    },
+    {
+      "path": "archive/development/review-scratch/20261009/links.jsonl",
+      "bytes": 1523761,
+      "sha256": "c617eeef49529056c2b43d4575bb6bed1891d827c52964ffd64adc4d795550b5"
+    },
+    {
+      "path": "archive/development/review-scratch/20261009/live_run_witness_crosscheck.json",
+      "bytes": 317152,
+      "sha256": "f070754fde6a839a2eeecd9c466c9800d6fe0f5a9efb1f1ae455ddd0da9665d2"
+    },
+    {
+      "path": "archive/development/review-scratch/20261009/p5_suite_before_out.json",
+      "bytes": 154801,
+      "sha256": "81c708b1ea1ee9812e8133d993e77f480aa21e7bd1aeaa17857da6170599928b"
+    },
+    {
+      "path": "archive/development/review-scratch/20261009/scan_out.jsonl",
+      "bytes": 162602,
+      "sha256": "ddc5223d046f34381f65558e8fe65df2ea237a6a7057ff5df6918cd9764d4fff"
+    },
+    {
+      "path": "archive/development/review-scratch/20261009/scan_uart_events.py",
+      "bytes": 1158,
+      "sha256": "1013eaaf260040297ee4bf659072dae4e9ec31a82dbd70f07608909d1db67e2d"
+    },
+    {
+      "path": "archive/development/review-scratch/20261009/tests_integration.txt",
+      "bytes": 840459,
+      "sha256": "ef4bb06a0c47464279461baa35a845e406364bb70a4aeeb0216fe0b9e04529d4"
+    },
+    {
+      "path": "archive/development/review-scratch/20261009/tests_scenario.txt",
+      "bytes": 12148,
+      "sha256": "f7583cfd4a0ef37e646cb84507569d71aa9e5ca47375d2a242f000a69c1f8cea"
+    },
+    {
+      "path": "archive/development/review-scratch/20261009/uart_event_examples.json",
+      "bytes": 15740,
+      "sha256": "99e5af49f4eb50257fa0cc0f3c734800b6f52a71c68de638d2a2b875b34c9cb4"
+    },
+    {
+      "path": "archive/development/review-scratch/20261009/zlib_crosscheck.json",
+      "bytes": 431894,
+      "sha256": "17ac5e36b093cb234794777be4a0b424465df44034bdc9c76b5d29d0369904a9"
+    }
+  ],
+  "deleted_files": 0,
+  "archive_verification": {
+    "path": "archive/development/first-step-p1-p5/20261008",
+    "packages": 4,
+    "members": 2659,
+    "sha256sum_entries": 11,
+    "passed": true
+  },
+  "limitations": [
+    "只检索 docs 中的直接路径引用；没有引用不证明可以删除。",
+    "未读取备份中的凭据文件；未扫描、压缩或逐字节比较全部外部快照。",
+    "原仓库 .git 和外部备份只读；网络受限。"
+  ]
+}

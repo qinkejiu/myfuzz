@@ -1,0 +1,35 @@
+{
+  "acceptance": {
+    "environment": "MYFUZZ_SOC_REAL=1",
+    "requires_one_ip_per_family_in_mixed": true,
+    "requires_real": true,
+    "requires_three_modes": true,
+    "requires_two_distinct_ips_per_family_cell": true,
+    "runtime_status": "preflight_only"
+  },
+  "cells": [
+    {
+      "cell_id": "ibex-pulp",
+      "config": "configs/soc/ibex-pulp.json",
+      "cpu": "ibex",
+      "distinct_ip_count": 2,
+      "family": "pulp"
+    }
+  ],
+  "cpus": [
+    "ibex"
+  ],
+  "families": [
+    "pulp"
+  ],
+  "matrix_id": "cpu-only-ibex-pulp-20261008",
+  "modes": [
+    "cpu_only"
+  ],
+  "provenance": {
+    "families": "configs/soc/families",
+    "plan": "docs/superpowers/plans/2026-09-14-soc-composition-and-fuzz.md#P12",
+    "sources": "configs/soc/sources.lock.json"
+  },
+  "schema_version": "soc_matrix.v1"
+}

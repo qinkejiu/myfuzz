@@ -9,7 +9,8 @@ from pathlib import Path
 from myfuzz.composition.component_profile import ComponentProfile, _source_locator
 
 
-def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path) -> dict[str, object]:
+def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path,
+                             allow_source_only: bool = False) -> dict[str, object]:
     """Verify one profile against the lock and pinned closure without lint replay.
 
     This is an explicit API; no artifact builder invokes it automatically yet.
@@ -20,13 +21,33 @@ def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path) -> di
     usable for deliberate profile mutations; their output alone carries no
     trusted-source claim. The returned identity describes this verification's
     bytes and must be refreshed before using changed source or lock artifacts.
+
+    ``allow_source_only`` is a narrow opt-in for the exact ``rvx_core`` source
+    selection while its lock has no elaboration evidence. It authenticates the
+    selected source but preserves ``elaboration_unverified``; all other calls
+    retain the strict selected-and-elaboration-verified requirement.
     """
+    if type(allow_source_only) is not bool:
+        raise ValueError('local-source-lock-allow-source-only-bool-required')
     if not isinstance(profile, ComponentProfile):
         raise ValueError('local-source-lock-profile-required')
+    if allow_source_only and profile.component_id != 'rvx_core':
+        raise ValueError('local-source-lock-source-only-component-unsupported')
     # Reuse the profile loader's canonical parsing, including elaboration.
     # Builders consume source, so matching only its retained JSON is insufficient.
     if profile.source != _source_locator(profile.source_document):
         raise ValueError('local-source-lock-profile-source-inconsistent')
+    if allow_source_only and (
+            profile.source_document.get('root') != 'external_designs/rvx'
+            or profile.source_document.get('top_module') != 'rvx_core'
+            or profile.source_document.get('files') != ['hardware/rvx_core.v']):
+        raise ValueError('local-source-lock-source-only-scope-mismatch')
+    if profile.component_id == 'pulp_gpio_causal_local':
+        from .pulp_gpio_probe_contract import verify_pulp_gpio_source_contract
+        return verify_pulp_gpio_source_contract(profile, base_dir=base_dir)
+    if profile.component_id == 'ibex_rvfi_local':
+        from .ibex_rvfi_contract import verify_ibex_rvfi_source_contract
+        return verify_ibex_rvfi_source_contract(profile, base_dir=base_dir)
     if profile.component_id == 'opentitan_pattgen_local':
         from .opentitan_pattgen_contract import verify_opentitan_pattgen_source_contract
         return verify_opentitan_pattgen_source_contract(profile, base_dir=base_dir)
@@ -48,6 +69,9 @@ def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path) -> di
     if profile.component_id == 'opentitan_sysrst_ctrl_local':
         from .opentitan_sysrst_ctrl_contract import verify_opentitan_sysrst_ctrl_source_contract
         return verify_opentitan_sysrst_ctrl_source_contract(profile, base_dir=base_dir)
+    if profile.component_id == 'opentitan_uart_fifo_local':
+        from .opentitan_uart_fifo_contract import verify_opentitan_uart_fifo_source_contract
+        return verify_opentitan_uart_fifo_source_contract(profile, base_dir=base_dir)
     if profile.component_id == 'opentitan_uart_local':
         from .opentitan_uart_contract import verify_opentitan_uart_source_contract
         return verify_opentitan_uart_source_contract(profile, base_dir=base_dir)
@@ -87,6 +111,12 @@ def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path) -> di
     record = matches[0]
     source = dict(profile.source_document)
     locked = record['source']
+    source_only_rvx = allow_source_only
+    if source_only_rvx and (
+            locked.get('root') != 'external_designs/rvx'
+            or locked.get('top_module') != 'rvx_core'
+            or locked.get('files') != ['hardware/rvx_core.v']):
+        raise ValueError('local-source-lock-source-only-scope-mismatch')
     defaults = {'files': [], 'filelist': None, 'include_roots': [],
                 'repositories': [], 'filelist_variables': [], 'top_port_selection': 'all'}
     for name in ('root', 'revision', 'top_module', *defaults):
@@ -113,12 +143,25 @@ def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path) -> di
         locked_defines[name] = value if separator else None
     if defines != locked_defines:
         raise ValueError('local-source-lock-define-mismatch')
-    if (record['closure_status'], record['source_status'], record['elaboration_status']) != (
+    if source_only_rvx:
+        if ((record['closure_status'], record['source_status'], record['elaboration_status']) !=
+                ('selected', 'source_verified', 'elaboration_unverified')
+                or 'elaboration' in record):
+            raise ValueError('local-source-lock-unverified:' + profile.component_id)
+    elif (record['closure_status'], record['source_status'], record['elaboration_status']) != (
             'selected', 'source_verified', 'elaboration_verified'):
         raise ValueError('local-source-lock-unverified:' + profile.component_id)
     result = verifier.verify_record(
         record, root, owners=verifier.document_owners(document, root),
         allowed_roots=verifier.document_roots(document)[record['id']], replay=False)
+    if source_only_rvx:
+        # verify_record authenticated selected source bytes and Git provenance;
+        # its no-evidence result deliberately keeps elaboration unverified.
+        return {
+            **result,
+            'schema_version': 'local_source_lock_verification.v1',
+            'lock_sha256': hashlib.sha256(raw).hexdigest(),
+        }
     # The verifier authenticated this evidence's hash, closure bytes and command.
     evidence_raw = (root / record['elaboration']['evidence']).read_bytes()
     if hashlib.sha256(evidence_raw).hexdigest() != record['elaboration']['evidence_sha256']:

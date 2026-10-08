@@ -1,0 +1,747 @@
+{
+ "runs": [
+  {
+   "events_observed": 118963,
+   "events_rejected": 0,
+   "extended_counts": {
+    "certified": 10,
+    "evicted": 0,
+    "incomplete": 1,
+    "rejected": 0,
+    "total": 11,
+    "unknown": 0
+   },
+   "join": {
+    "appended_edge_keys": [
+     [
+      15,
+      0
+     ],
+     [
+      16,
+      0
+     ]
+    ],
+    "checks": [
+     "recorded_graph_is_exact_prefix_of_wiring_graph",
+     "legacy_contract_edges_unchanged",
+     "appended_rule_indices_beyond_recorded_rules",
+     "declared_resource_component_registered_in_run_topology"
+    ],
+    "contract_sha256": "92a28ec2f9dcd45a35012d6084e122a1990290d2c9b929340c08eaf30679096c",
+    "endpoint_evidence": [
+     {
+      "component": "cpu",
+      "prerequisite": "cpu.online_instruction",
+      "prerequisite_index": 0,
+      "relation": "persistent_state",
+      "resolution": "declaration_endpoints",
+      "resource_id": "ram",
+      "rule_index": 15,
+      "target": "online.cpu.persistent_ram_byte"
+     },
+     {
+      "component": "gpio_a",
+      "prerequisite": "online.gpio_a.isr_padout",
+      "prerequisite_index": 0,
+      "relation": "persistent_state",
+      "resolution": "declaration_endpoints",
+      "resource_id": "out",
+      "rule_index": 16,
+      "target": "online.gpio_a.persistent_register_bit"
+     }
+    ],
+    "graph_sha256": "3bfd62f42a5aaa5b5ce02605cfdd41baf342b868a1837269184e36129fb2af27",
+    "legacy_contract_sha256": "851b74bcdfb3ec7d865d37eef82aa63374ec1b5b4ef676868c7fb1e41a23cdf8",
+    "legacy_edge_keys": [
+     [
+      0,
+      0
+     ],
+     [
+      2,
+      0
+     ],
+     [
+      4,
+      0
+     ],
+     [
+      5,
+      0
+     ],
+     [
+      6,
+      0
+     ],
+     [
+      10,
+      0
+     ],
+     [
+      11,
+      0
+     ],
+     [
+      12,
+      0
+     ],
+     [
+      13,
+      0
+     ]
+    ],
+    "legacy_graph_sha256": "58471d1e3c55652b4570cbdc2a782c060c9ac21427830be22a9ec4a9ce8a48ac",
+    "run_dir": "runs/p4-shift-fuzz-20261007-online"
+   },
+   "legacy_counts": {
+    "certified": 8,
+    "evicted": 0,
+    "incomplete": 1,
+    "rejected": 0,
+    "total": 9,
+    "unknown": 0
+   },
+   "legacy_edges": [
+    {
+     "hops": [
+      {
+       "event_id": 866,
+       "hop_id": "producer"
+      },
+      {
+       "event_id": 890,
+       "hop_id": "delivery"
+      }
+     ],
+     "missing": [],
+     "reason": null,
+     "relation": "mmio_route",
+     "rule_index": 0,
+     "status": "certified"
+    },
+    {
+     "hops": [
+      {
+       "event_id": 20,
+       "hop_id": "producer"
+      },
+      {
+       "event_id": 21,
+       "hop_id": "delivery"
+      }
+     ],
+     "missing": [
+      "consumer"
+     ],
+     "reason": "event_gap_reset",
+     "relation": "direct_binding",
+     "rule_index": 2,
+     "status": "incomplete"
+    },
+    {
+     "hops": [
+      {
+       "event_id": 4490,
+       "hop_id": "producer"
+      },
+      {
+       "event_id": 4491,
+       "hop_id": "delivery"
+      },
+      {
+       "event_id": 4496,
+       "hop_id": "consumer"
+      }
+     ],
+     "missing": [],
+     "reason": null,
+     "relation": "direct_binding",
+     "rule_index": 4,
+     "status": "certified"
+    },
+    {
+     "hops": [
+      {
+       "event_id": 267,
+       "hop_id": "producer"
+      },
+      {
+       "event_id": 313,
+       "hop_id": "delivery"
+      }
+     ],
+     "missing": [],
+     "reason": null,
+     "relation": "mmio_route",
+     "rule_index": 5,
+     "status": "certified"
+    },
+    {
+     "hops": [
+      {
+       "event_id": 267,
+       "hop_id": "producer"
+      },
+      {
+       "event_id": 313,
+       "hop_id": "delivery"
+      }
+     ],
+     "missing": [],
+     "reason": null,
+     "relation": "mmio_route",
+     "rule_index": 6,
+     "status": "certified"
+    },
+    {
+     "hops": [
+      {
+       "event_id": 4490,
+       "hop_id": "producer"
+      },
+      {
+       "event_id": 4491,
+       "hop_id": "delivery"
+      },
+      {
+       "event_id": 4496,
+       "hop_id": "consumer"
+      }
+     ],
+     "missing": [],
+     "reason": null,
+     "relation": "direct_binding",
+     "rule_index": 10,
+     "status": "certified"
+    },
+    {
+     "hops": [
+      {
+       "event_id": 267,
+       "hop_id": "producer"
+      },
+      {
+       "event_id": 313,
+       "hop_id": "delivery"
+      }
+     ],
+     "missing": [],
+     "reason": null,
+     "relation": "mmio_route",
+     "rule_index": 11,
+     "status": "certified"
+    },
+    {
+     "hops": [
+      {
+       "event_id": 267,
+       "hop_id": "producer"
+      },
+      {
+       "event_id": 313,
+       "hop_id": "delivery"
+      }
+     ],
+     "missing": [],
+     "reason": null,
+     "relation": "mmio_route",
+     "rule_index": 12,
+     "status": "certified"
+    },
+    {
+     "hops": [
+      {
+       "event_id": 866,
+       "hop_id": "producer"
+      },
+      {
+       "event_id": 890,
+       "hop_id": "delivery"
+      }
+     ],
+     "missing": [],
+     "reason": null,
+     "relation": "mmio_route",
+     "rule_index": 13,
+     "status": "certified"
+    }
+   ],
+   "legacy_edges_unchanged": true,
+   "persistent_state_edges": [
+    {
+     "hops": [
+      {
+       "event_id": 4967,
+       "hop_id": "producer",
+       "key": "resource_write"
+      },
+      {
+       "event_id": 4967,
+       "hop_id": "delivery",
+       "key": "resource_version"
+      },
+      {
+       "event_id": 6054,
+       "hop_id": "consumer",
+       "key": "writer_version+transaction_key"
+      }
+     ],
+     "missing": [],
+     "persistent_state": {
+      "dropped_anchors": 0,
+      "missing_fields": [],
+      "reader_records": 734,
+      "reader_reference_forms": {
+       "declared_writer_id": 0,
+       "event_id": 0,
+       "placeholder": 0,
+       "transaction_key": 4
+      },
+      "rejected_candidates": [
+       "memory_initialization.byte_offset/width_bytes",
+       "memory_read byte window exceeds memory_write.byte_enable"
+      ],
+      "resource": {
+       "component": "cpu",
+       "resource_id": "ram"
+      },
+      "resource_kind": "memory",
+      "unsupported_shape_reason": null,
+      "writer_records": 92
+     },
+     "reason": null,
+     "references": {
+      "observation_event_id": 6054,
+      "version": [
+       0,
+       7
+      ],
+      "writer_event_id": 4967
+     },
+     "rule_index": 15,
+     "status": "certified"
+    },
+    {
+     "hops": [
+      {
+       "event_id": 12882,
+       "hop_id": "producer",
+       "key": "register_commit"
+      },
+      {
+       "event_id": 12882,
+       "hop_id": "delivery",
+       "key": "register_version"
+      },
+      {
+       "event_id": 14433,
+       "hop_id": "consumer",
+       "key": "register_version_reference"
+      }
+     ],
+     "missing": [],
+     "persistent_state": {
+      "dropped_anchors": 0,
+      "missing_fields": [],
+      "reader_records": 5,
+      "reader_reference_forms": {
+       "declared_writer_id": 0,
+       "event_id": 0,
+       "placeholder": 0,
+       "transaction_key": 0
+      },
+      "rejected_candidates": [],
+      "resource": {
+       "component": "gpio_a",
+       "resource_id": "out"
+      },
+      "resource_kind": "register",
+      "unsupported_shape_reason": null,
+      "writer_records": 29
+     },
+     "reason": null,
+     "references": {
+      "observation_event_id": 14433,
+      "writer_event_id": 12882
+     },
+     "rule_index": 16,
+     "status": "certified"
+    }
+   ],
+   "run_dir": "runs/p4-shift-fuzz-20261007-online"
+  },
+  {
+   "events_observed": 31795,
+   "events_rejected": 0,
+   "extended_counts": {
+    "certified": 10,
+    "evicted": 0,
+    "incomplete": 1,
+    "rejected": 0,
+    "total": 11,
+    "unknown": 0
+   },
+   "join": {
+    "appended_edge_keys": [
+     [
+      15,
+      0
+     ],
+     [
+      16,
+      0
+     ]
+    ],
+    "checks": [
+     "recorded_graph_is_exact_prefix_of_wiring_graph",
+     "legacy_contract_edges_unchanged",
+     "appended_rule_indices_beyond_recorded_rules",
+     "declared_resource_component_registered_in_run_topology"
+    ],
+    "contract_sha256": "92a28ec2f9dcd45a35012d6084e122a1990290d2c9b929340c08eaf30679096c",
+    "endpoint_evidence": [
+     {
+      "component": "cpu",
+      "prerequisite": "cpu.online_instruction",
+      "prerequisite_index": 0,
+      "relation": "persistent_state",
+      "resolution": "declaration_endpoints",
+      "resource_id": "ram",
+      "rule_index": 15,
+      "target": "online.cpu.persistent_ram_byte"
+     },
+     {
+      "component": "gpio_a",
+      "prerequisite": "online.gpio_a.isr_padout",
+      "prerequisite_index": 0,
+      "relation": "persistent_state",
+      "resolution": "declaration_endpoints",
+      "resource_id": "out",
+      "rule_index": 16,
+      "target": "online.gpio_a.persistent_register_bit"
+     }
+    ],
+    "graph_sha256": "3bfd62f42a5aaa5b5ce02605cfdd41baf342b868a1837269184e36129fb2af27",
+    "legacy_contract_sha256": "851b74bcdfb3ec7d865d37eef82aa63374ec1b5b4ef676868c7fb1e41a23cdf8",
+    "legacy_edge_keys": [
+     [
+      0,
+      0
+     ],
+     [
+      2,
+      0
+     ],
+     [
+      4,
+      0
+     ],
+     [
+      5,
+      0
+     ],
+     [
+      6,
+      0
+     ],
+     [
+      10,
+      0
+     ],
+     [
+      11,
+      0
+     ],
+     [
+      12,
+      0
+     ],
+     [
+      13,
+      0
+     ]
+    ],
+    "legacy_graph_sha256": "58471d1e3c55652b4570cbdc2a782c060c9ac21427830be22a9ec4a9ce8a48ac",
+    "run_dir": "runs/current-dataflow-p5-paired-20261007-online"
+   },
+   "legacy_counts": {
+    "certified": 8,
+    "evicted": 0,
+    "incomplete": 1,
+    "rejected": 0,
+    "total": 9,
+    "unknown": 0
+   },
+   "legacy_edges": [
+    {
+     "hops": [
+      {
+       "event_id": 888,
+       "hop_id": "producer"
+      },
+      {
+       "event_id": 913,
+       "hop_id": "delivery"
+      }
+     ],
+     "missing": [],
+     "reason": null,
+     "relation": "mmio_route",
+     "rule_index": 0,
+     "status": "certified"
+    },
+    {
+     "hops": [
+      {
+       "event_id": 22,
+       "hop_id": "producer"
+      },
+      {
+       "event_id": 23,
+       "hop_id": "delivery"
+      }
+     ],
+     "missing": [
+      "consumer"
+     ],
+     "reason": "end_of_journal",
+     "relation": "direct_binding",
+     "rule_index": 2,
+     "status": "incomplete"
+    },
+    {
+     "hops": [
+      {
+       "event_id": 4610,
+       "hop_id": "producer"
+      },
+      {
+       "event_id": 4611,
+       "hop_id": "delivery"
+      },
+      {
+       "event_id": 4617,
+       "hop_id": "consumer"
+      }
+     ],
+     "missing": [],
+     "reason": null,
+     "relation": "direct_binding",
+     "rule_index": 4,
+     "status": "certified"
+    },
+    {
+     "hops": [
+      {
+       "event_id": 275,
+       "hop_id": "producer"
+      },
+      {
+       "event_id": 322,
+       "hop_id": "delivery"
+      }
+     ],
+     "missing": [],
+     "reason": null,
+     "relation": "mmio_route",
+     "rule_index": 5,
+     "status": "certified"
+    },
+    {
+     "hops": [
+      {
+       "event_id": 275,
+       "hop_id": "producer"
+      },
+      {
+       "event_id": 322,
+       "hop_id": "delivery"
+      }
+     ],
+     "missing": [],
+     "reason": null,
+     "relation": "mmio_route",
+     "rule_index": 6,
+     "status": "certified"
+    },
+    {
+     "hops": [
+      {
+       "event_id": 4610,
+       "hop_id": "producer"
+      },
+      {
+       "event_id": 4611,
+       "hop_id": "delivery"
+      },
+      {
+       "event_id": 4617,
+       "hop_id": "consumer"
+      }
+     ],
+     "missing": [],
+     "reason": null,
+     "relation": "direct_binding",
+     "rule_index": 10,
+     "status": "certified"
+    },
+    {
+     "hops": [
+      {
+       "event_id": 275,
+       "hop_id": "producer"
+      },
+      {
+       "event_id": 322,
+       "hop_id": "delivery"
+      }
+     ],
+     "missing": [],
+     "reason": null,
+     "relation": "mmio_route",
+     "rule_index": 11,
+     "status": "certified"
+    },
+    {
+     "hops": [
+      {
+       "event_id": 275,
+       "hop_id": "producer"
+      },
+      {
+       "event_id": 322,
+       "hop_id": "delivery"
+      }
+     ],
+     "missing": [],
+     "reason": null,
+     "relation": "mmio_route",
+     "rule_index": 12,
+     "status": "certified"
+    },
+    {
+     "hops": [
+      {
+       "event_id": 888,
+       "hop_id": "producer"
+      },
+      {
+       "event_id": 913,
+       "hop_id": "delivery"
+      }
+     ],
+     "missing": [],
+     "reason": null,
+     "relation": "mmio_route",
+     "rule_index": 13,
+     "status": "certified"
+    }
+   ],
+   "legacy_edges_unchanged": true,
+   "persistent_state_edges": [
+    {
+     "hops": [
+      {
+       "event_id": 5104,
+       "hop_id": "producer",
+       "key": "resource_write"
+      },
+      {
+       "event_id": 5104,
+       "hop_id": "delivery",
+       "key": "resource_version"
+      },
+      {
+       "event_id": 6216,
+       "hop_id": "consumer",
+       "key": "writer_version+transaction_key"
+      }
+     ],
+     "missing": [],
+     "persistent_state": {
+      "dropped_anchors": 0,
+      "missing_fields": [],
+      "reader_records": 241,
+      "reader_reference_forms": {
+       "declared_writer_id": 0,
+       "event_id": 0,
+       "placeholder": 0,
+       "transaction_key": 4
+      },
+      "rejected_candidates": [
+       "memory_initialization.byte_offset/width_bytes",
+       "memory_read byte window exceeds memory_write.byte_enable"
+      ],
+      "resource": {
+       "component": "cpu",
+       "resource_id": "ram"
+      },
+      "resource_kind": "memory",
+      "unsupported_shape_reason": null,
+      "writer_records": 44
+     },
+     "reason": null,
+     "references": {
+      "observation_event_id": 6216,
+      "version": [
+       0,
+       7
+      ],
+      "writer_event_id": 5104
+     },
+     "rule_index": 15,
+     "status": "certified"
+    },
+    {
+     "hops": [
+      {
+       "event_id": 13236,
+       "hop_id": "producer",
+       "key": "register_commit"
+      },
+      {
+       "event_id": 13236,
+       "hop_id": "delivery",
+       "key": "register_version"
+      },
+      {
+       "event_id": 14825,
+       "hop_id": "consumer",
+       "key": "register_version_reference"
+      }
+     ],
+     "missing": [],
+     "persistent_state": {
+      "dropped_anchors": 0,
+      "missing_fields": [],
+      "reader_records": 2,
+      "reader_reference_forms": {
+       "declared_writer_id": 0,
+       "event_id": 0,
+       "placeholder": 0,
+       "transaction_key": 0
+      },
+      "rejected_candidates": [],
+      "resource": {
+       "component": "gpio_a",
+       "resource_id": "out"
+      },
+      "resource_kind": "register",
+      "unsupported_shape_reason": null,
+      "writer_records": 9
+     },
+     "reason": null,
+     "references": {
+      "observation_event_id": 14825,
+      "writer_event_id": 13236
+     },
+     "rule_index": 16,
+     "status": "certified"
+    }
+   ],
+   "run_dir": "runs/current-dataflow-p5-paired-20261007-online"
+  }
+ ],
+ "schema_version": "persistent_state_provenance_evidence.v1"
+}

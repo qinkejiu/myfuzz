@@ -92,6 +92,32 @@ class GeneratedCpuSessionTests(unittest.TestCase):
         self.assertEqual(0x44bb22dd, loaded['data_rsp_rdata'])
         self.assertEqual(2, loaded['data_rsp_source_sequence'])
 
+    def test_subword_obi_address_uses_aligned_backend_beat_and_keeps_lane(self):
+        self.memory.preload(0x20000, b'\x11\x22\x33\x44')
+
+        self.cpu._serve('data', 1, 0x20001, 0x00005700, 0b0010)
+
+        self.assertEqual(0x44335711, self.memory.read(
+            0x20000, 4, transaction_id='subword-service-check').value)
+        event = next(item for item in self.cpu.service.events
+                     if item['kind'] == 'memory_write')
+        self.assertEqual(0x20000, event['address'])
+        self.assertEqual(0x00005700, event['value'])
+        self.assertEqual(0b0010, event['byte_enable'])
+
+    def test_subword_obi_mmio_uses_register_beat_and_preserves_lane_payload(self):
+        receipt = self.cpu._serve('data', 1, 0x40000001, 0x00005700, 0b0010)
+
+        self.assertIsNone(receipt)
+        self.assertEqual(('gpio_a',), self.router.pending_targets)
+        self.assertTrue(self.router.drain_one('gpio_a'))
+        self.assertEqual([(0, 0x00005700, 0b0010)], self.target.writes)
+        accepted = self.router.acceptances[-1]
+        self.assertEqual(0x40000000, accepted['address'])
+        self.assertEqual(0, accepted['offset'])
+        self.assertEqual(0x00005700, accepted['write_value'])
+        self.assertEqual(0b0010, accepted['byte_enable'])
+
     def test_deferred_mmio_waits_for_target_and_same_value_requests_have_distinct_keys(self):
         for expected in (1, 2):
             self.step(dict(d_req_valid=1, d_req_write=1, d_req_addr=0x4000000c,

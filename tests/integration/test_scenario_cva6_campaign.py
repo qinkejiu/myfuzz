@@ -11,7 +11,8 @@ import unittest
 
 from myfuzz.integration.scenario_campaign import (
     CampaignConfig, IbexTwoGpioBoundProvider, _assess_closed_chain,
-    _campaign_source_identity, campaign_matrix,
+    _campaign_input_stability, _campaign_source_identity, _snapshot_campaign_inputs,
+    campaign_matrix,
 )
 from myfuzz.integration.cva6_scenario_campaign import Cva6TwoGpioBoundProvider
 from myfuzz.scenario.feedback import observed_targets
@@ -46,15 +47,18 @@ class Cva6CampaignTests(unittest.TestCase):
             baseline.write_text(json.dumps({
                 "cpu_seed": bound.name, "reverse_seed": baseline_seed.name}))
             config = CampaignConfig(bound, baseline)
-            first = _campaign_source_identity(config)
+            output = directory / "snapshot"
+            first = _snapshot_campaign_inputs(config, output, Cva6TwoGpioBoundProvider())
+            self.assertTrue(_campaign_input_stability(first, output)["originals_stable"])
             reverse.write_bytes(reverse.read_bytes() + b" ")
-            second = _campaign_source_identity(config)
-            self.assertNotEqual(first, second)
+            second = _campaign_input_stability(first, output)
+            self.assertFalse(second["originals_stable"])
             baseline_seed.write_text("second\n")
-            third = _campaign_source_identity(config)
+            third = _campaign_input_stability(first, output)
             self.assertNotEqual(second, third)
-            self.assertIn("bound_reverse_seed_cva6", third)
-            self.assertIn("independent_reverse_seed", third)
+            self.assertTrue(third["snapshots_stable"])
+            self.assertIn(reverse.name, {row["relative_path"] for row in first["bound"]["files"]})
+            self.assertIn(baseline_seed.name, {row["relative_path"] for row in first["independent"]["files"]})
 
     def test_indirect_seed_path_cannot_escape_manifest_directory(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -64,16 +68,20 @@ class Cva6CampaignTests(unittest.TestCase):
             baseline = directory / BASELINE.name
             baseline.write_text(json.dumps({
                 "cpu_seed": "../outside.json", "reverse_seed": "reverse.json"}))
-            with self.assertRaisesRegex(ValueError, "seed path"):
-                _campaign_source_identity(CampaignConfig(bound, baseline))
+            snapshot = _snapshot_campaign_inputs(
+                CampaignConfig(bound, baseline), directory / "snapshot",
+                Cva6TwoGpioBoundProvider())
+            self.assertIn("seed path", snapshot["independent"]["closure_error"])
             baseline.write_text(json.dumps({
                 "cpu_seed": "outside_alias.json", "reverse_seed": "reverse.json"}))
             outside = directory.parent / (directory.name + "-outside.json")
             outside.write_text("outside\n")
             try:
                 (directory / "outside_alias.json").symlink_to(outside)
-                with self.assertRaisesRegex(ValueError, "seed path"):
-                    _campaign_source_identity(CampaignConfig(bound, baseline))
+                with self.assertRaisesRegex(ValueError, "escapes manifest directory"):
+                    _snapshot_campaign_inputs(
+                        CampaignConfig(bound, baseline), directory / "snapshot2",
+                        Cva6TwoGpioBoundProvider())
             finally:
                 outside.unlink(missing_ok=True)
 

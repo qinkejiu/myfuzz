@@ -22,11 +22,11 @@ class MyfuzzCliTests(unittest.TestCase):
         with patch.dict(os.environ, {"MYFUZZ_SOC_REAL": "1"}), patch(
                 "myfuzz.__main__.subprocess.run",
                 return_value=subprocess.CompletedProcess([], 0)) as run:
-            status = main(["check"])
+            status = main(["compat", "soc", "check"])
         self.assertEqual(0, status)
         self.assertNotIn("MYFUZZ_SOC_REAL", run.call_args.kwargs["env"])
 
-    def test_top_level_help_lists_three_commands(self):
+    def test_top_level_help_lists_current_commands(self):
         process = subprocess.run(
             [sys.executable, "-m", "myfuzz", "--help"],
             cwd=ROOT,
@@ -37,7 +37,9 @@ class MyfuzzCliTests(unittest.TestCase):
             timeout=30,
         )
         self.assertEqual(0, process.returncode, process.stderr)
-        self.assertIn("{check,preflight,run}", process.stdout)
+        self.assertIn("{capabilities,harness,scenario,compat}", process.stdout)
+        self.assertIn("current", process.stdout.lower())
+        self.assertIn("historical", process.stdout.lower())
 
     def test_preflight_forwards_compact_defaults(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -48,7 +50,7 @@ class MyfuzzCliTests(unittest.TestCase):
             }) as run:
                 stdout = io.StringIO()
                 with redirect_stdout(stdout):
-                    status = main(["preflight", "--output", str(output)])
+                    status = main(["compat", "soc", "preflight", "--output", str(output)])
         self.assertEqual(0, status)
         kwargs = run.call_args.kwargs
         self.assertTrue(kwargs["preflight_only"])
@@ -59,7 +61,7 @@ class MyfuzzCliTests(unittest.TestCase):
         stderr = io.StringIO()
         with patch.dict(os.environ, {}, clear=True), patch(
                 "myfuzz.__main__.run_matrix") as run, redirect_stderr(stderr):
-            status = main(["run", "--output", "unused", "--client", "/bin/true"])
+            status = main(["compat", "soc", "run", "--output", "unused", "--client", "/bin/true"])
         self.assertEqual(2, status)
         self.assertFalse(run.called)
         self.assertIn("MYFUZZ_SOC_REAL=1", stderr.getvalue())
@@ -74,7 +76,7 @@ class MyfuzzCliTests(unittest.TestCase):
                     }) as run:
             with redirect_stdout(io.StringIO()):
                 status = main([
-                    "run", "--output", str(Path(temporary) / "run"),
+                    "compat", "soc", "run", "--output", str(Path(temporary) / "run"),
                     "--client", "/bin/true",
                 ])
         self.assertEqual(0, status)

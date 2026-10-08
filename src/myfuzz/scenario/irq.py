@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
+
 
 class IrqPulseDelivery:
     """Map independent source rising edges to fixed CPU-local-tick pulses.
@@ -23,13 +25,16 @@ class IrqPulseDelivery:
         self._source_count = 0
         self._source_event_id: int | None = None
         self._active_source_event_id: int | None = None
+        self._source_trigger: dict | None = None
+        self._active_source_trigger: dict | None = None
         self._pulse_start: int | None = None
         self._pulse_end: int | None = None
         self._last_cpu_tick = 0
         self._all_masked = True
         self._masked_tick_count = 0
 
-    def observe_source(self, level: int, *, source_tick: int, cpu_tick: int) -> None:
+    def observe_source(self, level: int, *, source_tick: int, cpu_tick: int,
+                       source_trigger: dict | None = None) -> None:
         if level not in (0, 1) or isinstance(level, bool):
             raise ValueError("IRQ source level must be one bit")
         if source_tick < 0 or cpu_tick < self._last_cpu_tick:
@@ -40,14 +45,20 @@ class IrqPulseDelivery:
         if level == 0:
             self.events.append({"kind": "source_end", "source_tick": source_tick,
                                 "cpu_tick": cpu_tick,
-                                "source_event_id": self._source_event_id})
+                                "source_event_id": self._source_event_id,
+                                **({"source_trigger": deepcopy(self._source_trigger)}
+                                   if self._source_trigger is not None else {})})
             self._source_event_id = None
+            self._source_trigger = None
             return
         self._source_count += 1
         source_id = self._source_count
         self._source_event_id = source_id
+        self._source_trigger = deepcopy(source_trigger)
         self.events.append({"kind": "source_start", "source_tick": source_tick,
-                            "cpu_tick": cpu_tick, "source_event_id": source_id})
+                            "cpu_tick": cpu_tick, "source_event_id": source_id,
+                            **({"source_trigger": deepcopy(source_trigger)}
+                               if source_trigger is not None else {})})
         if self._pulse_end is not None and cpu_tick < self._pulse_end:
             self.status = "unsupported_irq_overrun"
             self.events.append({"kind": "irq_overrun", "source_tick": source_tick,
@@ -59,13 +70,16 @@ class IrqPulseDelivery:
         if self.status != "active":
             return
         self._active_source_event_id = source_id
+        self._active_source_trigger = deepcopy(source_trigger)
         self._pulse_start = cpu_tick + 1
         self._pulse_end = self._pulse_start + self.width_ticks
         self._all_masked = True
         self._masked_tick_count = 0
         self.events.append({"kind": "pulse_start", "source_event_id": source_id,
                             "start_cpu_tick": self._pulse_start,
-                            "end_cpu_tick_exclusive": self._pulse_end})
+                            "end_cpu_tick_exclusive": self._pulse_end,
+                            **({"source_trigger": deepcopy(source_trigger)}
+                               if source_trigger is not None else {})})
 
     def input_at(self, cpu_tick: int) -> int:
         if cpu_tick < self._last_cpu_tick:
@@ -79,7 +93,8 @@ class IrqPulseDelivery:
         return self._pulse_end is not None
 
     def sample_cpu(self, cpu_tick: int, *, masked: bool | None = None,
-                   accepted: bool | None = None) -> int:
+                   accepted: bool | None = None,
+                   cpu_step_event_id: int | None = None) -> int:
         if cpu_tick <= self._last_cpu_tick:
             raise ValueError("CPU local tick must advance")
         if masked is not None and not isinstance(masked, bool):
@@ -87,9 +102,20 @@ class IrqPulseDelivery:
         if accepted is not None and not isinstance(accepted, bool):
             raise ValueError("CPU acceptance observation must be boolean or unknown")
         value = self.input_at(cpu_tick)
+        if value and cpu_step_event_id is not None:
+            self.events.append({"kind": "cpu_irq_input", "cpu_tick": cpu_tick,
+                                "value": value,
+                                "source_event_id": self._active_source_event_id,
+                                "cpu_step_event_id": cpu_step_event_id,
+                                **({"source_trigger": deepcopy(self._active_source_trigger)}
+                                   if self._active_source_trigger is not None else {})})
         if value and accepted is True:
             self.events.append({"kind": "cpu_irq_taken", "cpu_tick": cpu_tick,
-                                "source_event_id": self._active_source_event_id})
+                                "source_event_id": self._active_source_event_id,
+                                **({"cpu_step_event_id": cpu_step_event_id}
+                                   if cpu_step_event_id is not None else {}),
+                                **({"source_trigger": deepcopy(self._active_source_trigger)}
+                                   if self._active_source_trigger is not None else {})})
         if self._pulse_end is not None and cpu_tick != self._last_cpu_tick + 1:
             self._all_masked = False
         if value:
@@ -107,6 +133,7 @@ class IrqPulseDelivery:
                                 "mask_observation": "masked" if fully_masked
                                 else "unknown_or_unmasked"})
             self._active_source_event_id = None
+            self._active_source_trigger = None
             self._pulse_start = None
             self._pulse_end = None
         self._last_cpu_tick = cpu_tick
@@ -120,6 +147,8 @@ class IrqPulseDelivery:
         self.source_level = 0
         self._source_event_id = None
         self._active_source_event_id = None
+        self._source_trigger = None
+        self._active_source_trigger = None
         self._pulse_start = None
         self._pulse_end = None
         self._last_cpu_tick = cpu_tick

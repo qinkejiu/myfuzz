@@ -1,9 +1,10 @@
 """Transport retries must never repeat a committed CPU memory operation."""
 
+from dataclasses import FrozenInstanceError
 import unittest
 
 from myfuzz.scenario.ledger import TransactionKey, TransactionLedger
-from myfuzz.scenario.memory import MemoryRegion, PersistentMemory
+from myfuzz.scenario.memory import MemoryRegion, PersistentMemory, ReadSnapshot
 from myfuzz.scenario.memory_service import MemoryService
 
 
@@ -112,6 +113,65 @@ class MemoryServiceTests(unittest.TestCase):
                                                          for event in initialized])
         self.assertEqual(2, sum(event["kind"] == "memory_read"
                                 for event in self.service.events))
+
+    def test_writer_kinds_snapshot_preserves_instruction_lanes_after_partial_store(self):
+        self.memory.declare_instruction_slots(0x80000040, 1)
+        self.service.accept_instructions(0x80000040, bytes.fromhex('13000000'),
+                                         source_event_id=str(self.key(2)))
+        original = self.service.read(self.key(1), 0x80000040, width_bytes=4)
+        self.assertEqual(('INSTRUCTION_SOURCE',) * 4, original.writer_kinds)
+        self.service.write(self.key(2), 0x80000040, 0xff0000aa,
+                           width_bytes=4, byte_enable=0b1001)
+        current = self.service.read(self.key(3), 0x80000040, width_bytes=4)
+        self.assertEqual(('STORE', 'INSTRUCTION_SOURCE', 'INSTRUCTION_SOURCE', 'STORE'),
+                         current.writer_kinds)
+        # Identical writer-ID strings cannot erase the typed lane distinction.
+        self.assertEqual((str(self.key(2)),) * 4, current.writer_event_ids)
+        self.assertEqual(('INSTRUCTION_SOURCE',) * 4, original.writer_kinds)
+        self.assertIs(original, self.service.read(self.key(1), 0x80000040, width_bytes=4))
+        with self.assertRaises(FrozenInstanceError):
+            original.writer_kinds = current.writer_kinds
+
+    def test_preload_and_first_read_kinds_come_from_actual_cells(self):
+        self.memory.preload(0x80000040, b'\x01\x02')
+        snapshot = self.memory.read(0x80000040, 4, transaction_id='mixed-preload-read')
+        self.assertEqual(('INITIAL_IMAGE', 'INITIAL_IMAGE', 'FIRST_READ', 'FIRST_READ'),
+                         snapshot.writer_kinds)
+        self.service.write(self.key(1), 0x80000040, 0x11223344,
+                           width_bytes=4, byte_enable=15)
+        self.assertEqual(('STORE',) * 4,
+                         self.memory.read(0x80000040, 4, transaction_id='post-store').writer_kinds)
+        self.assertEqual(('INITIAL_IMAGE', 'INITIAL_IMAGE', 'FIRST_READ', 'FIRST_READ'),
+                         snapshot.writer_kinds)
+
+    def test_opted_in_read_event_logs_writer_kinds_once_and_freezes_them(self):
+        service = MemoryService(self.memory, TransactionLedger(), include_writer_kinds=True)
+        original = service.read(self.key(1), 0x80000040, width_bytes=4)
+        event = service.events[-1]
+        self.assertEqual(('FIRST_READ',) * 4, event['writer_kinds'])
+        service.write(self.key(2), 0x80000040, 0x11223344, width_bytes=4, byte_enable=15)
+        before = len(service.events)
+        self.assertIs(original, service.read(self.key(1), 0x80000040, width_bytes=4))
+        self.assertEqual(before, len(service.events))
+        self.assertEqual(('FIRST_READ',) * 4, event['writer_kinds'])
+        self.assertEqual(original.writer_kinds, event['writer_kinds'])
+        current = service.read(self.key(3), 0x80000040, width_bytes=4)
+        self.assertEqual(('STORE',) * 4, current.writer_kinds)
+        self.assertEqual(current.writer_kinds, service.events[-1]['writer_kinds'])
+        self.assertTrue(all('writer_kinds' not in record for record in service.events
+                            if record['kind'] != 'memory_read'))
+
+    def test_legacy_service_shape_and_manually_constructed_snapshot_remain_compatible(self):
+        snapshot = self.service.read(self.key(1), 0x80000040, width_bytes=4)
+        self.assertEqual(('FIRST_READ',) * 4, snapshot.writer_kinds)
+        self.assertTrue(all('writer_kinds' not in record for record in self.service.events))
+        manual = ReadSnapshot('manual', 'ram', 0, 0, b'\x00', ((0, 1),), ('old-writer',))
+        self.assertEqual((), manual.writer_kinds)
+
+    def test_writer_kind_event_configuration_requires_boolean(self):
+        for invalid in (1, None, 'true'):
+            with self.subTest(value=invalid), self.assertRaises(ValueError):
+                MemoryService(self.memory, TransactionLedger(), include_writer_kinds=invalid)
 
 
 if __name__ == "__main__":

@@ -87,6 +87,39 @@ struct ParseResult {
   std::string detail = "invalid_grammar";
 };
 
+struct AckResult {
+  bool ok = false;
+  std::string execution = "-";
+  std::uint64_t sequence = 0;
+  std::string code = "invalid_ack";
+  std::string detail = "invalid_grammar";
+};
+
+inline AckResult parse_ack(const std::string &line) {
+  AckResult result;
+  if (line.size() > kMaxCommandBytes) return result;
+  std::istringstream input(line);
+  std::string marker, execution, sequence, extra;
+  if (!(input >> marker >> execution >> sequence) || input >> extra ||
+      marker != "ACK" || line != marker + " " + execution + " " + sequence)
+    return result;
+  if (!valid_execution(execution)) {
+    result.code = "invalid_execution";
+    result.detail = "invalid_identity";
+    return result;
+  }
+  result.execution = execution;
+  if (!parse_hex(sequence, std::numeric_limits<std::uint64_t>::max(),
+                 result.sequence) || result.sequence == 0) {
+    result.sequence = 0;
+    result.code = "invalid_sequence";
+    result.detail = "invalid_identity";
+    return result;
+  }
+  result.ok = true;
+  return result;
+}
+
 inline ParseResult parse_command(const std::string &line) {
   ParseResult result;
   if (line.size() > kMaxCommandBytes) {
@@ -134,7 +167,7 @@ inline ParseResult parse_command(const std::string &line) {
     }
   }
   else if (tokens[3] == "STEP_CVA6_AXI4") {
-    maxima = {1, 1, 1, 1, 15, 3,
+    maxima = {1, 1, 1, 1, 1, 15, 3,
               std::numeric_limits<std::uint64_t>::max(),
               1, 1, 15,
               std::numeric_limits<std::uint64_t>::max(),
@@ -144,6 +177,7 @@ inline ParseResult parse_command(const std::string &line) {
   else if (tokens[3] == "STEP_WISHBONE") maxima = {1, word};
   else if (tokens[3] == "STEP_WISHBONE_IRQ") maxima = {1, word, word};
   else if (tokens[3] == "STEP_MEMORY") maxima = {1, 1, word, 1};
+  else if (tokens[3] == "STEP_RVX_MEMORY") maxima = {1, 1, word};
   else if (tokens[3] == "STEP_GPIO") maxima = {word};
   else if (tokens[3] == "ACCESS_GPIO") maxima = {word, 1, 4092, word, 15};
   else if (tokens[3] == "STEP_TLUL_GPIO") maxima = {word, 1};
@@ -258,7 +292,8 @@ struct Admission {
 // Wrap legacy replay verdicts rather than changing exactly-once semantics.
 // Integration: parse -> accept(worst_case_reply_bytes) -> effects -> finish.
 // Fresh reserves request bytes plus the *maximum full terminal line* before
-// effects. finish releases unused reservation; no receipt is ever evicted.
+// effects. finish releases unused reservation. An explicit cumulative ACK
+// retires only fully received receipts, leaving a monotonic exactly-once floor.
 // retained_bytes accounts request/receipt string contents, not allocator/map
 // overhead. The owner must separately budget process memory and command count.
 // Capacity rejection does not consume identity/sequence and advances no DUT.
@@ -317,6 +352,23 @@ class BoundedReplay {
     entry.complete = true;
   }
 
+  // Empty string means ACK accepted. Repeated/older ACKs are idempotent.
+  // Future, stale-execution and unfinished entries leave all state untouched.
+  std::string retire(const std::string &execution, std::uint64_t sequence) {
+    if (execution_.empty() || execution != execution_) return "stale_execution";
+    if (sequence == 0 || sequence >= next_sequence_) return "ack_out_of_order";
+    if (sequence <= retired_through_) return "";
+    for (auto it = entries_.begin(); it != entries_.end() && it->first <= sequence; ++it)
+      if (!it->second.complete) return "ack_incomplete";
+    if (!replay_.retire_through(execution, sequence)) return "ack_incomplete";
+    auto end = entries_.upper_bound(sequence);
+    for (auto it = entries_.begin(); it != end; ++it)
+      retained_bytes_ -= it->second.request_bytes + it->second.reply_bytes;
+    entries_.erase(entries_.begin(), end);
+    retired_through_ = sequence;
+    return "";
+  }
+
   std::size_t retained_bytes() const { return retained_bytes_; }
 
  private:
@@ -337,6 +389,7 @@ class BoundedReplay {
   std::size_t retained_bytes_ = 0;
   std::string execution_;
   std::uint64_t next_sequence_ = 1;
+  std::uint64_t retired_through_ = 0;
 };
 
 }  // namespace local_driver_v1

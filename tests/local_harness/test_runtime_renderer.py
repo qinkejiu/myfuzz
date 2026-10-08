@@ -6,7 +6,8 @@ import subprocess
 from tempfile import TemporaryDirectory
 import unittest
 
-from myfuzz.local_harness import render_local_harness, verify_local_source_lock, render_local_runtime
+from myfuzz.local_harness import (load_local_harness_request, render_local_harness,
+    verify_local_source_lock, render_local_runtime)
 from tests.local_harness.test_renderer import real_plan, ROOT
 
 
@@ -190,3 +191,66 @@ endmodule
         changed = replace(self.cpu, facts=facts, binding=bind_profile(self.cpu.profile, facts), dispositions=entries)
         with self.assertRaisesRegex(ValueError, 'runtime-physical-facts-mismatch'):
             render_local_runtime(changed, render_local_harness(changed), self.verifications[0], base_dir=ROOT)
+
+
+class TlulRuntimeVariantContractTests(unittest.TestCase):
+    """Exercise the v1 TL-UL selector without source elaboration or RTL builds."""
+
+    def setUp(self):
+        self.v1 = load_local_harness_request({
+            'schema_version': 'local_harness.v1',
+            'profile_path': 'configs/peripherals/opentitan_gpio_local/component_profile.json',
+            'instance_id': 'variant_test', 'reset_assert_ticks': 1,
+            'reset_release_ticks': 0, 'max_wait_cycles': 1,
+        })
+        self.v2 = load_local_harness_request({
+            'schema_version': 'local_harness.v2',
+            'profile_path': 'configs/peripherals/opentitan_gpio_local/component_profile.json',
+            'instance_id': 'variant_test', 'reset_assert_ticks': 1,
+            'reset_release_ticks': 0, 'max_wait_cycles': 1, 'tuning': {},
+        })
+
+    def selector(self):
+        from myfuzz.local_harness import runtime_renderer
+        selector = getattr(runtime_renderer, '_tlul_runtime_kind', None)
+        self.assertTrue(callable(selector),
+                        'runtime renderer needs a directly testable TL-UL variant selector')
+        return selector
+
+    def test_v1_tlul_rejects_missing_or_unknown_local_runtime_variant(self):
+        select = self.selector()
+        for variant in (None, 'tlul_not_registered'):
+            with self.subTest(variant=variant), self.assertRaisesRegex(
+                    ValueError, 'runtime-tlul-local-variant'):
+                select(self.v1, variant)
+
+    def test_explicit_v1_tlul_variants_select_their_registered_templates(self):
+        select = self.selector()
+        cases = {
+            'tlul_gpio': 'tlul_gpio',
+            'tlul_timer': 'tlul_timer',
+            'tlul_spi_host': 'tlul_spi_host',
+            'tlul_uart': 'tlul_uart',
+            'tlul_i2c': 'tlul_i2c',
+            'tlul_spi_device': 'tlul_spi_device',
+        }
+        for variant, expected_kind in cases.items():
+            with self.subTest(variant=variant):
+                self.assertEqual(expected_kind, select(self.v1, variant))
+
+    def test_v2_tlul_register_observe_ignores_legacy_variant_selector(self):
+        select = self.selector()
+        for variant in (None, 'unknown_legacy_variant', 'tlul_gpio'):
+            with self.subTest(variant=variant):
+                self.assertEqual('tlul_register_observe', select(self.v2, variant))
+
+    def test_opentitan_gpio_profile_variant_keeps_source_lock_admission(self):
+        from myfuzz.composition.component_profile import load_component_profile
+        profile = load_component_profile(
+            ROOT / 'configs/peripherals/opentitan_gpio_local/component_profile.json')
+        self.assertEqual('tlul_gpio', profile.capabilities['local_runtime_variant'])
+        try:
+            verification = verify_local_source_lock(profile, base_dir=ROOT)
+        except ValueError as error:
+            self.fail(f'profile-only runtime variant change broke source lock: {error}')
+        self.assertEqual('source_verified', verification['source_status'])

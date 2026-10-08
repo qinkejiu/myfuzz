@@ -3,13 +3,76 @@ import copy
 import hashlib
 import importlib
 import json
+from dataclasses import replace
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 from myfuzz.composition.component_profile import load_component_profile, _source_locator
+from myfuzz.local_harness.source_lock import verify_local_source_lock
 from tests.integration import test_soc_source_locks as source_fixtures
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+class RvxSourceOnlyAdmissionTests(unittest.TestCase):
+    def setUp(self):
+        self.profile = load_component_profile(
+            ROOT / 'configs/cpus/rvx_core/component_profile.json')
+
+    def test_default_gate_rejects_rvx_without_verified_closure(self):
+        with self.assertRaisesRegex(ValueError, 'local-source-lock-unverified:rvx_core'):
+            verify_local_source_lock(self.profile, base_dir=ROOT)
+
+    def test_explicit_rvx_source_only_gate_returns_authenticated_identity(self):
+        result = verify_local_source_lock(
+            self.profile, base_dir=ROOT, allow_source_only=True)
+        self.assertEqual(result['schema_version'], 'local_source_lock_verification.v1')
+        self.assertEqual(result['source_status'], 'source_verified')
+        self.assertEqual(result['elaboration_status'], 'elaboration_unverified')
+        self.assertEqual(result['runtime_status'], 'runtime_unverified')
+        self.assertEqual(result['selected_files'], 1)
+        self.assertEqual(result['lock_sha256'], hashlib.sha256(
+            (ROOT / 'configs/soc/sources.lock.json').read_bytes()).hexdigest())
+        self.assertNotIn('closure_sha256', result)
+
+    def test_source_only_gate_requires_literal_boolean(self):
+        for value in (1, 'true', None):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError, 'local-source-lock-allow-source-only-bool-required'):
+                    verify_local_source_lock(
+                        self.profile, base_dir=ROOT, allow_source_only=value)
+
+    def test_source_only_gate_is_limited_to_exact_rvx_source_selection(self):
+        with self.assertRaisesRegex(ValueError, 'source-only-component-unsupported'):
+            verify_local_source_lock(replace(self.profile, component_id='other'),
+                                     base_dir=ROOT, allow_source_only=True)
+        for field, value in (('root', 'external_designs/other'),
+                             ('top_module', 'other_top'),
+                             ('files', ['hardware/other.v'])):
+            source = dict(self.profile.source_document)
+            source[field] = value
+            altered = replace(self.profile, source_document=source,
+                              source=_source_locator(source))
+            with self.subTest(field=field), self.assertRaisesRegex(
+                    ValueError, 'source-only-scope-mismatch'):
+                verify_local_source_lock(altered, base_dir=ROOT,
+                                         allow_source_only=True)
+
+    def test_source_only_gate_rejects_any_elaboration_evidence_block(self):
+        original_loads = json.loads
+
+        def with_evidence(raw, *args, **kwargs):
+            document = original_loads(raw, *args, **kwargs)
+            for record in document.get('components', []):
+                if record.get('id') == 'rvx_core':
+                    record['elaboration'] = None
+            return document
+
+        with patch('myfuzz.local_harness.source_lock.json.loads', side_effect=with_evidence):
+            with self.assertRaisesRegex(ValueError, 'local-source-lock-unverified:rvx_core'):
+                verify_local_source_lock(self.profile, base_dir=ROOT,
+                                         allow_source_only=True)
 
 
 class LocalSourceLockTests(unittest.TestCase):

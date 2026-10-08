@@ -1,6 +1,7 @@
 """A scenario keeps independent harnesses alive and routes observed outputs."""
 
 import unittest
+from types import SimpleNamespace
 
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
 from myfuzz.scenario.runner import Binding, ScenarioRunner
@@ -76,6 +77,21 @@ class RunnerContinuityTests(unittest.TestCase):
         self.gpio.local_ticks = 5  # a delivered MMIO transaction advanced GPIO RTL
         self.runner.step("cpu")
         self.assertEqual(5, self.runner.local_ticks["gpio"])
+
+    def test_reports_uncertain_memory_and_separate_mmio_ledgers(self):
+        from myfuzz.scenario.ledger import TransactionKey
+
+        cpu = RecordingSession()
+        memory_key = TransactionKey("exec", "case", "cpu", 0, "memory", 1)
+        mmio_key = TransactionKey("exec", "case", "cpu", 0, "mmio", 1)
+        cpu.service = SimpleNamespace(ledger=SimpleNamespace(
+            uncertain_keys=(memory_key,)))
+        cpu.mmio_ledger = SimpleNamespace(uncertain_keys=(mmio_key,))
+        runner = ScenarioRunner(sessions={"cpu": cpu},
+            ownership=compile_ownership((), ()), bindings=())
+
+        self.assertEqual(tuple(sorted((str(memory_key), str(mmio_key)))),
+                         runner._uncertain_transactions())
 
 
 if __name__ == "__main__":

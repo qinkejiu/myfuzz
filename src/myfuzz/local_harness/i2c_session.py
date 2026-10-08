@@ -12,6 +12,7 @@ class GeneratedPulpI2cSession(GeneratedLocalSession):
 
     artifact_kind = 'apb_i2c'
     max_local_ticks_per_step = 1
+    _FINAL_IACK_CLEAR_TICK_LIMIT = 8
 
     def __init__(self, artifact, *, base_dir, cache_dir, **kwargs):
         super().__init__(artifact, base_dir=base_dir, cache_dir=cache_dir, **kwargs)
@@ -20,7 +21,8 @@ class GeneratedPulpI2cSession(GeneratedLocalSession):
         wait = artifact.runtime_document['effective_max_wait_cycles']
         if type(wait) is not int or wait < 1:
             raise ValueError('invalid APB wait bound')
-        self.max_local_ticks_per_register_access = 2 * wait + 5
+        self.max_local_ticks_per_register_access = (
+            2 * wait + 5 + self._FINAL_IACK_CLEAR_TICK_LIMIT)
         self._samples: deque[dict[str, object]] = deque()
         self.irq_edges: list[dict[str, int | str]] = []
         self._irq_level = 0
@@ -113,18 +115,28 @@ class GeneratedPulpI2cSession(GeneratedLocalSession):
                     (16, lambda number: number == 0x85),
                     (20, lambda number: number == 0x90),
                     (20, lambda number: number == 1),
-                    (20, lambda number: number == 0x68))
+                    (20, lambda number: number == 0x68),
+                    (20, lambda number: number == 1))
         if (self._write_stage >= len(accepted)
                 or offset != accepted[self._write_stage][0]
                 or not accepted[self._write_stage][1](value)):
             raise ValueError('unsupported PULP I2C single-byte read mode or command order')
         if self._write_stage == 4 and self._irq_level != 1:
             raise ValueError('PULP I2C address completion IRQ is required before IACK')
+        if self._write_stage == 6 and self._irq_level != 1:
+            raise ValueError('PULP I2C native completion IRQ must be high before final IACK')
         if self._write_stage == 5 and self._irq_level != 0:
             raise ValueError('PULP I2C IACK must clear IRQ before read command')
         payload = self._take(self.command('ACCESS_I2C', (1, offset, value, be)))
         if payload['error']:
             raise RuntimeError(f'generated I2C APB write error at {offset:#x}')
+        if self._write_stage == 6:
+            for _ in range(self._FINAL_IACK_CLEAR_TICK_LIMIT):
+                if self._irq_level == 0:
+                    break
+                self.step_local({})
+            if self._irq_level != 0:
+                raise RuntimeError('PULP I2C final IACK did not clear native IRQ')
         self._write_stage += 1
 
     def read_register(self, offset: int) -> int:

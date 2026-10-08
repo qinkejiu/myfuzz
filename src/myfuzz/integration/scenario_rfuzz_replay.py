@@ -11,6 +11,7 @@ from typing import Callable
 from myfuzz.scenario.feedback import CoverageTarget
 from myfuzz.scenario.rfuzz_decoder import GenomeRecordDecoder, RECORD_BYTES
 from myfuzz.scenario.runner import ScenarioRunner
+from myfuzz.scenario.replay import ReplayComparison
 
 from .rfuzz_wire import InputBatch
 from .scenario_rfuzz import ScenarioRfuzzExecutor
@@ -21,6 +22,78 @@ class CorpusReplayResult:
     total_entries: int
     matched_entries: int
     mismatches: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ContinuousReplayResult:
+    """Scope includes case checker replay and trace, plus decoder checker identity.
+
+    RFuzz selection policies, per-candidate coverage and cumulative decoder
+    checker verdicts are retained as evidence, not recomputed by this API.
+    """
+    comparison: ReplayComparison
+    verification_scope: tuple[str, ...] = (
+        "complete_admitted_session_prefix", "session_case_checker",
+        "decoder_checker_identity")
+
+    @property
+    def matches(self) -> bool:
+        return self.comparison.matches
+
+
+def replay_scenario_rfuzz_continuous(
+        output_dir: Path, factory: Callable[[], ScenarioRunner], *,
+        session_checker=None, decoder_checker=None, checker_config=None,
+        checker_identity_target=None) -> ContinuousReplayResult:
+    """Replay an actual continuous admission prefix as one stateful testcase."""
+    from myfuzz.scenario.event_journal import JsonlEventView, ZlibChunkEventView
+    from myfuzz.scenario.replay import ScenarioTrace
+    from myfuzz.scenario.session_runtime import replay_online_session, _checker_identity
+    from .scenario_rfuzz_live import _verify_online_run_identity, _fresh_checker_identity
+
+    output = Path(output_dir)
+    report = json.loads((output / "report.json").read_bytes())
+    if report.get("execution_mode") != "continuous_decoder":
+        raise ValueError("continuous replay requires a saved continuous decoder run")
+    trace_path = output / "online_final_trace.json"
+    if not trace_path.is_file():
+        trace_path = output / "online_final_trace.meta.json"
+    document = json.loads(trace_path.read_bytes())
+    if document.get("schema_version") == "online_trace_jsonl.v1":
+        if document.get("events_file") != "online_events.jsonl":
+            raise ValueError("invalid continuous JSONL trace metadata")
+        document["events"] = JsonlEventView(output / document.pop("events_file"),
+                                           document.pop("event_count"))
+        document.pop("schema_version")
+    elif document.get("schema_version") == "online_trace_zlib_chunks.v1":
+        expected = {"schema_version", "events_file", "event_count",
+                    "genome_sha256", "status", "local_ticks",
+                    "semantic_sha256", "manifest_sha256"}
+        if set(document) != expected or document["events_file"] != "online_events.zlib":
+            raise ValueError("invalid continuous compressed trace metadata")
+        view = ZlibChunkEventView(output / document.pop("events_file"),
+                                  document.pop("event_count"))
+        view.verify_trace_semantic(status=document["status"],
+                                   local_ticks=document["local_ticks"],
+                                   expected_sha256=document["semantic_sha256"])
+        document["events"] = view
+        document.pop("schema_version")
+    reference = ScenarioTrace(**document)
+    plan_path = output / "online_plan.json"
+    identity = _verify_online_run_identity(output, plan_path=plan_path,
+                                         trace_path=trace_path, trace=reference,
+                                         decoder_checker=decoder_checker,
+                                         checker_config=checker_config,
+                                         checker_identity_target=checker_identity_target)
+    if identity is None or identity.get("execution_mode") != "continuous_decoder":
+        raise ValueError("continuous run identity is required")
+    if identity.get("checker") != _checker_identity(session_checker):
+        raise ValueError("continuous session checker identity mismatch")
+    if identity.get("decoder_checker") != _fresh_checker_identity(
+            decoder_checker, config=checker_config, identity_target=checker_identity_target):
+        raise ValueError("continuous decoder checker identity mismatch")
+    return ContinuousReplayResult(replay_online_session(
+        plan_path.read_bytes(), factory, reference, checker=session_checker))
 
 
 def _canonical(value) -> bytes:
@@ -91,8 +164,17 @@ def _wall_cut_mismatch(marker: dict, trace) -> str | None:
 
 def replay_scenario_rfuzz_corpus(
         output_dir: Path, factory: Callable[[], ScenarioRunner], *,
-        checker: Callable | None = None) -> CorpusReplayResult:
+        checker: Callable | None = None,
+        checker_config: dict | None = None,
+        checker_identity_target: Callable | None = None) -> CorpusReplayResult:
     output = Path(output_dir)
+    admission_report = json.loads((output / "report.json").read_bytes())
+    if admission_report.get("execution_mode") == "continuous_decoder":
+        raise ValueError("continuous history requires replay_scenario_rfuzz_continuous")
+    from .scenario_rfuzz_live import _verify_fresh_run_identity
+    run_identity = _verify_fresh_run_identity(
+        output, checker=checker, checker_config=checker_config,
+        checker_identity_target=checker_identity_target)
     report = json.loads((output / "report.json").read_text(encoding="utf-8"))
     manifest = json.loads((output / "decoder_manifest.json").read_text(
         encoding="utf-8"))
@@ -106,6 +188,10 @@ def replay_scenario_rfuzz_corpus(
     executor = ScenarioRfuzzExecutor(run_id="corpus-replay", decoder=decoder,
                                      factory=factory, targets=targets,
                                      checker=checker, replay_only=True)
+    if run_identity is not None:
+        executor._observe_fresh_identity(json.loads(
+            (output / "runner_manifest.json").read_bytes()))
+        executor._install_runtime_replay_identity(run_identity.get("runtime_paths"))
     original: dict[str, dict] = {}
     with (output / "receipts.jsonl").open(encoding="utf-8") as handle:
         for line in handle:
@@ -165,8 +251,12 @@ def replay_scenario_rfuzz_corpus(
             continue
         for key in ("genome_sha256", "path_id", "manifest_sha256",
                     "semantic_sha256", "status",
-                    "total_local_ticks", "coverage_hex"):
-            if getattr(actual, key) != prior[key]:
+                    "total_local_ticks", "coverage_hex", "violations"):
+            actual_value = getattr(actual, key)
+            prior_value = prior.get(key, () if key == "violations" else None)
+            if key == "violations":
+                actual_value, prior_value = tuple(actual_value), tuple(prior_value)
+            if actual_value != prior_value:
                 mismatches.append(f"{path.name}: {key} differs")
                 break
     return CorpusReplayResult(len(entries), len(entries) - len(mismatches),

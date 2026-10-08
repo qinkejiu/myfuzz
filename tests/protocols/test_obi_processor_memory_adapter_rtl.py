@@ -13,6 +13,41 @@ RTL = ROOT / "src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv"
 
 
 class ObiProcessorMemoryAdapterRtlTests(unittest.TestCase):
+    def test_backend_error_fail_stops_when_cpu_has_no_obi_error_channel(self) -> None:
+        iverilog, vvp = shutil.which("iverilog"), shutil.which("vvp")
+        if not iverilog or not vvp:
+            self.skipTest("Icarus Verilog is not installed")
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "no_error.vvp"
+            tb = Path(directory) / "no_error.sv"
+            tb.write_text(textwrap.dedent("""
+                module tb;
+                  logic clk_i=0, rst_ni=0, req_i=0, gnt_o, we_i=0;
+                  logic [31:0] addr_i=0, wdata_i=0;
+                  logic [3:0] be_i=4'hf; logic rvalid_o; logic [31:0] rdata_o; logic error_o;
+                  logic req_valid_o, req_ready_i=1, req_write_o; logic [31:0] req_addr_o;
+                  logic [31:0] req_wdata_o; logic [3:0] req_be_o;
+                  logic rsp_valid_i=0, rsp_ready_o; logic [31:0] rsp_rdata_i=0; logic rsp_error_i=0;
+                  obi_processor_memory_adapter #(.READ_ONLY(0), .HAS_BE(1), .HAS_ERROR(0)) dut (.*);
+                  always #5 clk_i=~clk_i;
+                  initial begin
+                    @(negedge clk_i); rst_ni=1; req_i=1;
+                    @(negedge clk_i); req_i=0; rsp_valid_i=1; rsp_error_i=1;
+                    @(posedge clk_i); #1;
+                    $fatal(1, "backend error was silently accepted");
+                  end
+                endmodule
+            """), encoding="utf-8")
+            compiled = subprocess.run(
+                [iverilog, "-g2012", "-s", "tb", "-o", str(output), str(RTL), str(tb)],
+                cwd=ROOT, text=True, capture_output=True, timeout=20,
+            )
+            self.assertEqual(0, compiled.returncode, compiled.stderr)
+            result = subprocess.run([vvp, str(output)], cwd=ROOT, text=True,
+                                    capture_output=True, timeout=20)
+            self.assertNotEqual(0, result.returncode, result.stdout + result.stderr)
+            self.assertIn("OBI backend error cannot be represented", result.stdout + result.stderr)
+
     def test_read_only_profile_forces_read_and_full_byte_enable(self) -> None:
         iverilog, vvp = shutil.which("iverilog"), shutil.which("vvp")
         if not iverilog or not vvp:

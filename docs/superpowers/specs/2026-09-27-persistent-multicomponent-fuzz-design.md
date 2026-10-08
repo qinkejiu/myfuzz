@@ -1,5 +1,7 @@
 # 多组件持续场景模糊测试：目标系统详细设计
 
+> 历史设计基线：本文件保留当时的持续状态、输入所有权和因果传播契约，但其中“一个 testcase 是整段场景、下一 testcase 获得新状态”的生命周期已被[当前设计](../../CURRENT_DESIGN.md)和[当前实施计划](../plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md)取代。当前要求是**会话初始化一次、多个 testcase 共享真实 RTL/RAM/待处理事件、每例有独立反馈、从会话前缀重放**。最初仅列 OpenTitan 外设、Ibex＋双 OpenTitan GPIO 的范围也已扩展；实测边界见[运行能力表](../../LOCAL_HARNESS_RUNTIME.md)。
+
 版本：1.1｜日期：2026-09-27｜状态：设计与验收契约；部分基础模块实施中
 
 配套文件：`docs/superpowers/plans/2026-09-27-persistent-multicomponent-fuzz-implementation.md`。

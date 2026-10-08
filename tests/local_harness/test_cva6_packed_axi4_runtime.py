@@ -38,7 +38,7 @@ class Cva6PackedAxi4RuntimeAcceptance(unittest.TestCase):
             try:
                 requests = []
                 for _ in range(400):
-                    receipt = session.command('STEP_CVA6_AXI4', (0,) * 14)
+                    receipt = session.command('STEP_CVA6_AXI4', (0,) * 15)
                     self.assertEqual(1, receipt.new_ticks)
                     row = receipt.payload['pre_backend']
                     if row['axi_arvalid']:
@@ -66,6 +66,14 @@ class Cva6PackedAxi4RuntimeAcceptance(unittest.TestCase):
         driver = render_local_driver(top, base_dir=ROOT)
         self.assertEqual('driver_generated', driver.runtime_document['status'])
         self.assertIn('irq_external', driver.runtime_document['driver_field_map'])
+        self.assertIn('irq_timer', driver.runtime_document['driver_field_map'])
+        timer_irq = [row for row in driver.runtime_document['physical_exports']
+                     if row['physical_port'] == 'time_irq_i']
+        self.assertEqual(1, len(timer_irq))
+        self.assertEqual(('input', 1, 'fuzz'),
+            (timer_irq[0]['direction'], timer_irq[0]['width'], timer_irq[0]['disposition']))
+        self.assertEqual(driver.runtime_document['driver_field_map']['irq_timer'],
+                         timer_irq[0]['runtime_name'])
         self.assertIn('STEP_CVA6_AXI4', driver.cpp_text)
 
     def test_single_64_bit_id4_packed_axi4_runtime_top_lints(self):

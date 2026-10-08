@@ -1,12 +1,12 @@
 {
   "schema_version": "interface_description.v1",
   "source": {
-    "root": "third_party/cv32e40p_upstream_reference",
-    "revision": "git:0000000000000000000000000000000000000000",
+    "root": "external_designs/cv32e40p",
+    "revision": "git:6033d2b1be3295ec774d17ac4cf226faacfdeb08",
     "top_module": "cv32e40p_core",
     "filelist": "cv32e40p_manifest.flist",
     "filelist_variables": [{"name": "DESIGN_RTL_DIR", "value": "rtl"}],
-    "include_roots": ["rtl/include"],
+    "include_roots": ["rtl/include", "bhv", "bhv/include", "sva"],
     "elaboration": {"frontend": "verilator-json", "warning_policy": "recorded-nonfatal"}
   },
   "endpoints": [

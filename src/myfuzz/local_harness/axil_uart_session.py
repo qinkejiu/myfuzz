@@ -16,7 +16,8 @@ class GeneratedAxiLiteUartSession(GeneratedLocalSession):
 
     def __init__(self, artifact, *, base_dir, cache_dir,
                  source: bytes | None = b'', startup_writes: tuple[tuple[int, int, int], ...] = (),
-                 read_rx_after_source: bool = False, **kwargs):
+                 read_rx_after_source: bool = False, cpu_routed_mode: bool = False,
+                 **kwargs):
         super().__init__(artifact, base_dir=base_dir, cache_dir=cache_dir, **kwargs)
         if self._expected_ready()[3] != self.artifact_kind:
             raise ValueError('generated AXI4-Lite UART artifact required')
@@ -33,10 +34,15 @@ class GeneratedAxiLiteUartSession(GeneratedLocalSession):
         if (type(read_rx_after_source) is not bool
                 or read_rx_after_source and source == b''):
             raise ValueError('UART RX read requires a serial source')
+        if (type(cpu_routed_mode) is not bool
+                or cpu_routed_mode and (source is not None or startup_writes
+                                        or read_rx_after_source)):
+            raise ValueError('CPU-routed UART requires genome RX and CPU MMIO setup')
         self.source = source
         self.source_mode = 'genome' if source is None else 'constructor'
         self.startup_writes = startup_writes
         self.read_rx_after_source = read_rx_after_source
+        self.cpu_routed_mode = cpu_routed_mode
         self.peer = Uart8N1Peer(source or b'')
         self._started = False
         self._rx_read = False
@@ -49,11 +55,13 @@ class GeneratedAxiLiteUartSession(GeneratedLocalSession):
 
     def identity_document(self):
         return {**super().identity_document(),
-                'axil_uart_service_schema_version': ('generated_axil_uart_8n1.v2'
+                'axil_uart_service_schema_version': ('generated_axil_uart_8n1.v3'
+                    if self.cpu_routed_mode else 'generated_axil_uart_8n1.v2'
                     if self.source_mode == 'genome' else 'generated_axil_uart_8n1.v1'),
                 'source_component': self.artifact.plan.request.instance_id,
                 'source_hex': (self.source or b'').hex(),
                 **({'source_mode': 'genome'} if self.source_mode == 'genome' else {}),
+                **({'cpu_routed_mode': True} if self.cpu_routed_mode else {}),
                 'startup_writes': [list(row) for row in self.startup_writes],
                 'read_rx_after_source': self.read_rx_after_source}
 
@@ -77,7 +85,8 @@ class GeneratedAxiLiteUartSession(GeneratedLocalSession):
             return len(self.startup_writes) + (1 if self.source_mode == 'genome'
                                                else len(self.source))
         return (max(0, self.peer.source_end_tick - self.local_ticks)
-                + int(self.read_rx_after_source and not self._rx_read))
+                + int((self.read_rx_after_source or self.cpu_routed_mode)
+                      and not self._rx_read))
 
     def begin_quiesce(self):
         if self.process is None or self.process.poll() is not None:
@@ -192,7 +201,11 @@ class GeneratedAxiLiteUartSession(GeneratedLocalSession):
         self._access(True, offset, value, be)
 
     def read_register(self, offset: int) -> int:
-        return self._access(False, offset, 0, 15)
+        value = self._access(False, offset, 0, 15)
+        if self.cpu_routed_mode and offset == 8:
+            self._rx_word = value
+            self._rx_read = True
+        return value
 
     def reset_local(self):
         result = super().reset_local()

@@ -1,0 +1,15 @@
+{
+  "aggregation_finished_utc": "2026-10-07T22:56:38Z",
+  "aggregation_started_utc": "2026-10-07T22:53:02Z",
+  "artifact_sha256": "d91e1a6cbfdc1b103a90d65a903ab81ab52224a12d1fc408e4ee9c4dfa8bdb29",
+  "note": "every number in arm_metrics.json was produced by these revisions of the shipped modules; acceptance_metrics.py was modified by a concurrent agent during this session, which changes the invalid/timeout ratio of arms whose receipts carry input_invalid",
+  "revision_sha256": {
+    "scripts/report_p5_arm_metrics.py": "c6ddaac20ee999ed29393f8e4883a0d5955418869ccf3313acc9d31b39a1d980",
+    "src/myfuzz/scenario/acceptance_metrics.py": "6ff4a576d8136056b08ff4da87398da442ed13034aa559cd9c1095b6cd9fa502",
+    "src/myfuzz/scenario/chain_certificates.py": "b0966bb3228b8c3f73f654feadfefe951a500595a821b4a2bf90cc482646b71a",
+    "src/myfuzz/scenario/p5_arm_metrics.py": "d5521adda37d3cc9839be8521e128e89451b19ba4f2d1d3d7dee63018d9409f0",
+    "src/myfuzz/scenario/paired_efficiency.py": "6da581f37a123d6595346d7f3c515e7a746d5ee2b26c610abd4f5e13af2a899a",
+    "tests/scenario/test_p5_arm_metrics.py": "b3152d7a66899865ec733d12e7f9e7cdf486d4a008c8c2a31615618d902423ab"
+  },
+  "schema_version": "p5_arm_metrics_revisions.v1"
+}

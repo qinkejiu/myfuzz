@@ -5437,6 +5437,298 @@
       }
     },
     {
+      "id": "cv32e40p",
+      "source": {
+        "root": "external_designs/cv32e40p",
+        "revision": "git:6033d2b1be3295ec774d17ac4cf226faacfdeb08",
+        "top_module": "cv32e40p_core",
+        "top_port_selection": "all",
+        "filelist": "cv32e40p_manifest.flist",
+        "filelist_variables": [
+          {
+            "name": "DESIGN_RTL_DIR",
+            "value": "rtl"
+          }
+        ],
+        "include_roots": [
+          "rtl/include",
+          "bhv",
+          "bhv/include",
+          "sva"
+        ],
+        "elaboration": {
+          "frontend": "verilator-json",
+          "parameters": [
+            {
+              "name": "COREV_PULP",
+              "value": "0"
+            },
+            {
+              "name": "COREV_CLUSTER",
+              "value": "0"
+            },
+            {
+              "name": "FPU",
+              "value": "0"
+            },
+            {
+              "name": "FPU_ADDMUL_LAT",
+              "value": "0"
+            },
+            {
+              "name": "FPU_OTHERS_LAT",
+              "value": "0"
+            },
+            {
+              "name": "ZFINX",
+              "value": "0"
+            },
+            {
+              "name": "NUM_MHPMCOUNTERS",
+              "value": "1"
+            }
+          ],
+          "warning_policy": "recorded-nonfatal"
+        }
+      },
+      "artifacts": [
+        {
+          "path": "bhv/cv32e40p_sim_clock_gate.sv",
+          "sha256": "6ae2e47b98f8129b67a05494826002d3db71f80a89e9caf038c197df1d548759",
+          "kind": "source"
+        },
+        {
+          "path": "bhv/cv32e40p_tb_wrapper.sv",
+          "sha256": "591124e7637913dacd62424a33910736cec555ad63c8b6c90fca2808a8f6816b",
+          "kind": "source"
+        },
+        {
+          "path": "bhv/include/cv32e40p_tracer_pkg.sv",
+          "sha256": "44f2498df7c028cb07142c9eb875b8499fcc16866d2ff018deb33e1419ad212c",
+          "kind": "source"
+        },
+        {
+          "path": "cv32e40p_manifest.flist",
+          "sha256": "972909c63f626cfbcaa1b02f5c16a5fb2ddaf4980888f69875629612c8c5a826",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_aligner.sv",
+          "sha256": "c78cd8c09fee10e45536dc5b8d1fb17c3a130e2270168279fcaa43a19580e4f3",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_alu.sv",
+          "sha256": "6eca8d4c2e299adcc498417220478360cc22898ba9037cdad6a1b81e80373c7b",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_alu_div.sv",
+          "sha256": "11035bcbb28447fa5a3e40d5cad4f257e763f75e49664ce8098ab6247a9a57cb",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_apu_disp.sv",
+          "sha256": "27931c8004e4d266c6ea02c9d5c19968c67d7e6ab86e57da4088531b13c8c48f",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_compressed_decoder.sv",
+          "sha256": "db90df2f8737aff29d73b3d242dd33aeb6750ae69ae7eb8e118b531180945d7f",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_controller.sv",
+          "sha256": "858b172963e17529de0b40a5be6ddfdadfc60bdca967819e4fc558b0ed6d7b87",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_core.sv",
+          "sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_cs_registers.sv",
+          "sha256": "e2cec8f3d273748783275c60b1ec89101336608638d7e7783b03dd6b9dbb0345",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_decoder.sv",
+          "sha256": "6e12f673e05380e34a35c38d8ee8b6878935d96b6f2dfda72c67f8a6e92a6e4e",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_ex_stage.sv",
+          "sha256": "1510df315721b370c2d86b1c1d134a3ff6beefba2d072de7a4a611e3ecffb753",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_ff_one.sv",
+          "sha256": "6b646e6aa931f8ab56b85ee27549a422450b456270a54d68a4130329823226b6",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_fifo.sv",
+          "sha256": "d910cbd0751f38d349e8975de22b43d0a2937f9e905b0d9b82894fd83c53fe8a",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_hwloop_regs.sv",
+          "sha256": "c2a0787c07bcd6c198b6338c4c6ee372b4bce96ec4a4def467ff0ae03da4e43a",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_id_stage.sv",
+          "sha256": "98b246d9ada45a7073d217d5c3bbc86941ee76bb00e7e0edda61d3bbec83728e",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_if_stage.sv",
+          "sha256": "e2d1cc9bc433a093938f2d4e4268c611f9a9bf199101e85114d417ff04597626",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_int_controller.sv",
+          "sha256": "24df51d9cb33f5c8760a8cfbc7931aafc94c2ab0523c7df55b2635e7778af16f",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_load_store_unit.sv",
+          "sha256": "857962513fc5bd3eb3d6b28c55fdfb15ef53f8ce8a59173a7d583efb8caee66f",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_mult.sv",
+          "sha256": "6a0cf2f15c69886ad5497222aa203f6f5b1fdd004b32a4ab87b36a0960ba2254",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_obi_interface.sv",
+          "sha256": "2b0a58e5c2f758dbe5f6e8f786c547da5508ce466007517434e2f7d817b758ed",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_popcnt.sv",
+          "sha256": "7a2dbeded21929832b40fc8d068b35b7281c75a63c426feed207127d4da08e4e",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_prefetch_buffer.sv",
+          "sha256": "a2fcbe6b783659ebecaf25d105f30c68af9b68c2850b833af64a2cec3ec29262",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_prefetch_controller.sv",
+          "sha256": "66e6078ea3b3acd3ceea4b974c0488d25e02324935532de1f2d39cdc34c875a0",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_register_file_ff.sv",
+          "sha256": "cd04d46afbf778ff3f1573bdd390784e5461a09b33fd670fa126ae7d3c433e89",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_sleep_unit.sv",
+          "sha256": "1cf012a83b54472931ad9944e7774e311222641a0aa026229c19467f90bf5448",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/cv32e40p_top.sv",
+          "sha256": "2467f6b3c2745e687edad1a0c88ab5267b4ba8642c91e1fc0f282cf4223e5dc3",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/include/cv32e40p_apu_core_pkg.sv",
+          "sha256": "33d7c06b0fef3ae2c8814b040abe3cdaa23065cf12643de20e8275f44f97abe1",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/include/cv32e40p_fpu_pkg.sv",
+          "sha256": "ae738f408ba2ade41bfcf0488c8f611a2c39b26915191890dac907b8a7a518e5",
+          "kind": "source"
+        },
+        {
+          "path": "rtl/include/cv32e40p_pkg.sv",
+          "sha256": "3fee39d262ef44bff6ee00b591fe08830e5e35cdd1b9e5eb9eb06da6f6525805",
+          "kind": "source"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "6527a46225891b976fa94f634f6ee0cd22e1c7129d6f11c5c98c997627625fc7",
+          "kind": "license"
+        }
+      ],
+      "selected_content_hash": "sha256:ebc28bb5e5ad525476c61923419225d82f1af8bd222ffc2d39d5d1b8ea8d570b",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "defines": [],
+      "typed_parameters": [
+        {
+          "name": "COREV_PULP",
+          "type": "integer",
+          "value": "0"
+        },
+        {
+          "name": "COREV_CLUSTER",
+          "type": "integer",
+          "value": "0"
+        },
+        {
+          "name": "FPU",
+          "type": "integer",
+          "value": "0"
+        },
+        {
+          "name": "FPU_ADDMUL_LAT",
+          "type": "integer",
+          "value": "0"
+        },
+        {
+          "name": "FPU_OTHERS_LAT",
+          "type": "integer",
+          "value": "0"
+        },
+        {
+          "name": "ZFINX",
+          "type": "integer",
+          "value": "0"
+        },
+        {
+          "name": "NUM_MHPMCOUNTERS",
+          "type": "integer",
+          "value": "1"
+        }
+      ],
+      "generator": {
+        "status": "not_invoked",
+        "tool_version": null,
+        "name": "none for official checked-in source"
+      },
+      "dependencies": [],
+      "interface_description": "configs/cpus/cv32e40p/official_core_interface_description.json",
+      "interface_description_sha256": "a12daaabe3c9dcda661bb275f291d93553d5f61b660e574d76f3a75c7270761c",
+      "closure_note": "Official OpenHW CV32E40P manifest is pinned to the registered gitlink; Verilator lint passed with the exact 31-file dependency read set recorded in configs/soc/closures/cv32e40p.json. Generated local OBI RAM behavior is covered by tests/local_harness/test_cv32e40p_obi_runtime.py and docs/reports/generated-cv32e40p-obi-ram-20261005.md; this local acceptance does not change runtime_status and is not CPU-to-IP SoC integration.",
+      "elaboration": {
+        "status": "elaboration_verified",
+        "top_module": "cv32e40p_core",
+        "tool": {
+          "name": "verilator",
+          "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "frontend": "verilator-lint"
+        },
+        "evidence": "configs/soc/closures/cv32e40p.json",
+        "evidence_sha256": "57b40d48587e339c3c63f90e2b06f1df40d156fa9bcc12fb5ebc718a578243d2",
+        "closure_files": 31,
+        "lint": {
+          "errors": 0,
+          "warnings": 64,
+          "exit_code": 0
+        }
+      }
+    },
+    {
       "id": "picorv32",
       "source": {
         "root": "third_party/picorv32_upstream_reference",
@@ -6674,6 +6966,275 @@
         "sysrst_ctrl_reg_pkg::BlockAw": "8",
         "sysrst_ctrl_reg_pkg::NumAlerts": "1",
         "sysrst_ctrl_reg_pkg::NumKeyIntr": "7"
+      }
+    },
+    {
+      "id": "rvx_core",
+      "source": {
+        "root": "external_designs/rvx",
+        "revision": "git:38bdee0ef8da0b606b7024f85934898e99963756",
+        "top_module": "rvx_core",
+        "top_port_selection": "all",
+        "files": [
+          "hardware/rvx_core.v"
+        ],
+        "elaboration": {
+          "frontend": "verilator-json",
+          "parameters": [
+            {
+              "name": "BOOT_ADDRESS",
+              "value": "0"
+            }
+          ],
+          "warning_policy": "recorded-nonfatal"
+        }
+      },
+      "artifacts": [
+        {
+          "path": "hardware/rvx_core.v",
+          "sha256": "10a5672112eba824989923aeff8d6dccb70709177aee00066835421f610a8da4",
+          "kind": "source"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "27b1478c980aecec9275a2a06b480ff981e94466ca984630136c4c9a478d3877",
+          "kind": "license"
+        }
+      ],
+      "selected_content_hash": "sha256:e62bf4b6f6e0e97adf05c2323b62ad7dec51d38630bb869c5787a30ef7a266ab",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_unverified",
+      "runtime_status": "runtime_unverified",
+      "typed_parameters": [
+        {
+          "name": "BOOT_ADDRESS",
+          "value": "0"
+        }
+      ],
+      "generator": {
+        "status": "not_invoked",
+        "tool_version": null,
+        "name": "none for selected checked-in source"
+      },
+      "dependencies": []
+    },
+    {
+      "id": "pulp_gpio_causal_local",
+      "source": {
+        "root": "third_party/soc-pulp-apb-gpio",
+        "revision": "git:f82caeb7f7d89427f05e9af5ed31e0675efe0d83",
+        "top_module": "apb_gpio",
+        "files": [
+          "rtl/apb_gpio.sv"
+        ],
+        "include_roots": [],
+        "repositories": [],
+        "top_port_selection": "all"
+      },
+      "artifacts": [
+        {
+          "path": "Bender.yml",
+          "sha256": "daf613df168fe9ef65a58919acc1537e42e266c1b520eb861f1b67f485d53b04",
+          "kind": "provenance"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "8632e4ec6001a712686e34f7955879a65d249b43b95b253f29a348f32804487a",
+          "kind": "license"
+        },
+        {
+          "path": "rtl/apb_gpio.sv",
+          "sha256": "1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef",
+          "kind": "source"
+        }
+      ],
+      "selected_content_hash": "sha256:7622917c85229ee645c720309c308a6506c2c547081f8c899d4e9338b4f5c7a9",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "defines": [],
+      "typed_parameters": [
+        {
+          "name": "APB_ADDR_WIDTH",
+          "type": "integer",
+          "value": "12"
+        },
+        {
+          "name": "NBIT_PADCFG",
+          "type": "integer",
+          "value": "4"
+        },
+        {
+          "name": "PAD_NUM",
+          "type": "integer",
+          "value": "32"
+        }
+      ],
+      "generator": {
+        "status": "not_invoked",
+        "tool_version": null,
+        "name": "none for selected checked-in files"
+      },
+      "dependencies": [],
+      "closure_note": "Elaboration closure explicitly selected and hash-pinned in configs/soc/closures/pulp_gpio.json; every file Verilator reads for the top is recorded with its sha256. Explicit source/filelist selection pinned; transitive include/module closure and physical types still require parent elaboration.",
+      "elaboration": {
+        "status": "elaboration_verified",
+        "top_module": "apb_gpio",
+        "tool": {
+          "name": "verilator",
+          "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "frontend": "verilator-lint"
+        },
+        "evidence": "configs/soc/closures/pulp_gpio_causal_local.json",
+        "evidence_sha256": "bcf42dc3b40aa2e61a115c8a3fc874c2ec28a1a4aebe2b6c85f64d331c1563c7",
+        "closure_files": 1,
+        "lint": {
+          "errors": 0,
+          "warnings": 2,
+          "exit_code": 0
+        },
+        "capability_findings": 12,
+        "unsupported": 7
+      }
+    },
+    {
+      "id": "opentitan_uart_fifo_local",
+      "source": {
+        "root": "third_party/soc-opentitan",
+        "revision": "git:fca045df919a26c47e71616b9dac917b1ea4fd07",
+        "top_module": "uart",
+        "files": [
+          "hw/ip/uart/rtl/uart.sv",
+          "hw/ip/uart/rtl/uart_core.sv",
+          "hw/ip/uart/rtl/uart_reg_pkg.sv",
+          "hw/ip/uart/rtl/uart_reg_top.sv",
+          "hw/ip/uart/rtl/uart_rx.sv",
+          "hw/ip/uart/rtl/uart_tx.sv"
+        ],
+        "include_roots": [],
+        "repositories": []
+      },
+      "artifacts": [
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "kind": "license"
+        },
+        {
+          "path": "hw/ip/uart/data/uart.hjson",
+          "sha256": "4960f3f5bac47c62cccaf928dafc1c6c3dc0cf823da6cdf07b46b51e413394bc",
+          "kind": "provenance"
+        },
+        {
+          "path": "hw/ip/uart/rtl/uart.sv",
+          "sha256": "b2ea9b88abb25f8a7cdbe317dfc91e6b2b456647781d2bdc33ef384c526412a5",
+          "kind": "source"
+        },
+        {
+          "path": "hw/ip/uart/rtl/uart_core.sv",
+          "sha256": "4df7acad038cdb06f81e4b7681ddf3b0bc091eb38dae63c385812f980c47d0be",
+          "kind": "source"
+        },
+        {
+          "path": "hw/ip/uart/rtl/uart_reg_pkg.sv",
+          "sha256": "106f8da3d41f8cfe585a58e91c251e23e76c81d25956cb751f61644023dfa01b",
+          "kind": "source"
+        },
+        {
+          "path": "hw/ip/uart/rtl/uart_reg_top.sv",
+          "sha256": "8c40c957fbd7c1155f58d2c7696340b7ea6b82c2b0626ec684463f991538ae27",
+          "kind": "source"
+        },
+        {
+          "path": "hw/ip/uart/rtl/uart_rx.sv",
+          "sha256": "08a72a3f045562eee419f42fe2abb4f68f3282b90bb0a6e268872fd39748782b",
+          "kind": "source"
+        },
+        {
+          "path": "hw/ip/uart/rtl/uart_tx.sv",
+          "sha256": "1cd4f59b8a58bb8e99c2a24081aae093f6528ac1887abb7cb5f31b911f949241",
+          "kind": "source"
+        },
+        {
+          "path": "hw/ip/uart/uart.core",
+          "sha256": "648a036b0f29ff72abfae93ce4edefd6820bf4d7835ff63555c710ce2bbddb04",
+          "kind": "provenance"
+        }
+      ],
+      "selected_content_hash": "sha256:57f93972cd4907c07ac6983b504dbf3b025dfa4913ee83f7eebfefc972ae0322",
+      "closure_status": "selected",
+      "source_status": "source_verified",
+      "elaboration_status": "elaboration_verified",
+      "runtime_status": "runtime_unverified",
+      "defines": [],
+      "typed_parameters": [
+        {
+          "name": "AlertAsyncOn",
+          "type": "string",
+          "value": "1'b1"
+        },
+        {
+          "name": "AlertSkewCycles",
+          "type": "integer",
+          "value": "1"
+        },
+        {
+          "name": "EnableRacl",
+          "type": "string",
+          "value": "1'b0"
+        },
+        {
+          "name": "RaclErrorRsp",
+          "type": "string",
+          "value": "1'b0"
+        },
+        {
+          "name": "RaclPolicySelVec",
+          "type": "string",
+          "value": "'{13{1'b0}}"
+        }
+      ],
+      "generator": {
+        "status": "pending_input_closure_and_reproduction",
+        "tool_version": null,
+        "input_artifacts": [
+          "hw/ip/uart/data/uart.hjson"
+        ],
+        "output_artifacts": [
+          "hw/ip/uart/rtl/uart_reg_pkg.sv",
+          "hw/ip/uart/rtl/uart_reg_top.sv"
+        ],
+        "name": "regtool/topgen"
+      },
+      "dependencies": [],
+      "closure_note": "Inherited official UART source elaboration only. New passive probe hierarchy requires a fresh real elaboration gate; no historical behavior claim is upgraded.",
+      "elaboration": {
+        "status": "elaboration_verified",
+        "top_module": "uart",
+        "tool": {
+          "name": "verilator",
+          "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+          "frontend": "verilator-lint"
+        },
+        "evidence": "configs/soc/closures/opentitan_uart_fifo_local.json",
+        "evidence_sha256": "a056c107fbe5b707d639da4314b71e8f9b3d44a5403398804a7f87942a586290",
+        "closure_files": 48,
+        "lint": {
+          "errors": 0,
+          "warnings": 4,
+          "exit_code": 0
+        },
+        "capability_findings": 16,
+        "unsupported": 5
+      },
+      "generated_constants": {
+        "uart_reg_pkg::BlockAw": "6",
+        "uart_reg_pkg::NumAlerts": "1",
+        "uart_reg_pkg::NumRegs": "13",
+        "uart_reg_pkg::RxFifoDepth": "64",
+        "uart_reg_pkg::TxFifoDepth": "32"
       }
     }
   ]

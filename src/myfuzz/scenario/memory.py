@@ -1,7 +1,7 @@
 """Authoritative byte memory for one continuously running testcase.
 
 This is environment RAM/ROM. Device MMIO must be served by its real RTL.
-Each instance starts at generation zero and is owned by exactly one testcase.
+Each instance starts at generation zero and persists throughout one session.
 """
 
 from __future__ import annotations
@@ -64,10 +64,15 @@ class ReadSnapshot:
     versions: tuple[tuple[int, int], ...]
     writer_event_ids: tuple[str, ...]
     materialized_offsets: tuple[int, ...] = ()
+    writer_kinds: tuple[str, ...] = ()
 
     @property
     def value(self) -> int:
         return int.from_bytes(self.data, "little")
+
+
+class InstructionNotReady(ValueError):
+    """Declared online instruction bytes await their source."""
 
 
 class PersistentMemory:
@@ -100,6 +105,7 @@ class PersistentMemory:
         self.step_count = 0
         self._bytes: dict[tuple[str, int], ByteCell] = {}
         self._initial_images: dict[tuple[str, int], int] = {}
+        self._instruction_slots: set[tuple[str, int]] = set()
         self._commit_sequences = {region.memory_id: 0 for region in regions}
 
     @property
@@ -115,7 +121,8 @@ class PersistentMemory:
         return {"regions": [asdict(region) for region in self._regions],
                 "initialization_seed": self.initialization_seed,
                 "initialization_algorithm": "memory-init-v1",
-                "max_initialized_bytes": self.max_initialized_bytes}
+                "max_initialized_bytes": self.max_initialized_bytes,
+                "instruction_slots": sorted(self._instruction_slots)}
 
     def state_summary(self) -> dict:
         """Digest every persistent byte, writer, and version without reading RAM."""
@@ -130,6 +137,21 @@ class PersistentMemory:
                 "initialized_bytes": self.initialized_bytes,
                 "commit_sequences": dict(self._commit_sequences),
                 "cells_sha256": digest.hexdigest()}
+
+    def determined_bytes(self) -> tuple[tuple[str, int, int, str], ...]:
+        """Every determined byte as ``(memory_id, offset, value, writer_kind)``.
+
+        A read-only view of committed state without reading RAM: a byte a real
+        read, Store or initial image already determined can never be presented
+        to a caller as un-materialized.
+        """
+        return tuple(sorted((memory_id, offset, cell.value, cell.writer_kind)
+                            for (memory_id, offset), cell in self._bytes.items()))
+
+    def reserved_instruction_bytes(self) -> tuple[tuple[str, int], ...]:
+        """Reserved instruction slots a real fetch still has to determine."""
+        return tuple(sorted(key for key in self._instruction_slots
+                            if key not in self._bytes))
 
     def advance_step(self) -> None:
         self.step_count += 1
@@ -180,6 +202,7 @@ class PersistentMemory:
     def validate_read(self, address: int, width_bytes: int) -> None:
         """Reject a read with no state change before its transaction is accepted."""
         region, offset = self._resolve(address, width_bytes, write=False)
+        self._check_instruction_ready(region.memory_id, offset, width_bytes)
         missing = sum((region.memory_id, offset + index) not in self._bytes
                       for index in range(width_bytes))
         if missing and not region.writable:
@@ -207,19 +230,57 @@ class PersistentMemory:
         if offset + len(data) > region.size:
             raise ValueError("preload crosses memory window")
         keys = [(region.memory_id, offset + index) for index in range(len(data))]
-        if any(key in self._bytes for key in keys):
-            raise ValueError("preload would overwrite initialized bytes")
+        if any(key in self._bytes or key in self._instruction_slots for key in keys):
+            raise ValueError("preload would overwrite initialized or reserved instruction bytes")
         self._budget(len(keys))
         for key, value in zip(keys, data):
             self._initial_images[key] = value
             self._bytes[key] = ByteCell(value, (self.generation, 0),
                                         "INITIAL_IMAGE", "initial-image")
 
+    def declare_instruction_slots(self, address: int, count: int = 1) -> None:
+        """Reserve empty aligned words without materializing RAM."""
+        _natural(count, "count")
+        if not count:
+            raise ValueError("instruction slot count must be positive")
+        region, offset = self._resolve(address, 4, write=False)
+        if offset + count * 4 > region.size:
+            raise ValueError("instruction slots cross memory window")
+        keys = {(region.memory_id, offset + lane) for lane in range(count * 4)}
+        if any(key in self._bytes for key in keys):
+            raise ValueError("instruction slots contain determined bytes")
+        self._instruction_slots.update(keys)
+
+    def accept_instructions(self, address: int, data: bytes, *, source_event_id: str) -> None:
+        """Fill reserved words once and record the input source for every byte."""
+        from .rv32i_sources import validate_instruction_bytes
+        validate_instruction_bytes(data)
+        if not isinstance(source_event_id, str) or not source_event_id:
+            raise ValueError("instruction source_event_id must be nonempty")
+        region, offset = self._resolve(address, 4, write=False)
+        if offset + len(data) > region.size:
+            raise ValueError("instruction fragment crosses memory window")
+        keys = [(region.memory_id, offset + lane) for lane in range(len(data))]
+        if any(key not in self._instruction_slots for key in keys):
+            raise ValueError("instruction bytes are outside declared online slots")
+        if any(key in self._bytes for key in keys):
+            raise ValueError("instruction admission would overwrite determined bytes")
+        self._budget(len(keys))
+        version = self._next_version(region.memory_id)
+        for key, value in zip(keys, data):
+            self._bytes[key] = ByteCell(value, version, "INSTRUCTION_SOURCE", source_event_id)
+
+    def _check_instruction_ready(self, memory_id: str, offset: int, width_bytes: int) -> None:
+        if any((memory_id, offset + lane) in self._instruction_slots
+               and (memory_id, offset + lane) not in self._bytes for lane in range(width_bytes)):
+            raise InstructionNotReady("online instruction slot awaits its source")
+
     def read(self, address: int, width_bytes: int, *,
              transaction_id: str) -> ReadSnapshot:
         if not isinstance(transaction_id, str) or not transaction_id:
             raise ValueError("transaction_id must be nonempty")
         region, offset = self._resolve(address, width_bytes, write=False)
+        self._check_instruction_ready(region.memory_id, offset, width_bytes)
         keys = [(region.memory_id, offset + index) for index in range(width_bytes)]
         missing = [key for key in keys if key not in self._bytes]
         if missing and not region.writable:
@@ -235,7 +296,8 @@ class PersistentMemory:
                             offset, bytes(cell.value for cell in cells),
                             tuple(cell.version for cell in cells),
                             tuple(cell.writer_event_id for cell in cells),
-                            tuple(key[1] for key in missing))
+                            tuple(key[1] for key in missing),
+                            writer_kinds=tuple(cell.writer_kind for cell in cells))
 
     def write(self, address: int, value: int, *, width_bytes: int,
               byte_enable: int, writer_event_id: str) -> tuple[int, int] | None:

@@ -101,6 +101,15 @@ _TEMPLATES = (
         optional_facts={'completion_semantics':'completion'},
         limits={'error_response':False,'byte_enable':True,'completion':'valid_and_ready','early_ready':False,
                 'read_zero_strobe':True,'backend_error_policy':'terminate_without_ready'}),
+    _contract('cpu.pipelined-memory', 'single-outstanding-completion-edge',
+        ('pipelined-completion-memory','1'), 'cpu',
+        'addr read_request write_request write_data write_strobe',
+        'read_response read_data write_response', semantics='explicit-only',
+        facts={'completion_semantics':'completion'},
+        limits={'byte_enable':True,'error_response':False,'max_outstanding':1,
+                'pipelining':False,'completion':'registered_completion_next_request_allowed',
+                'request_exclusion':'read_write_mutually_exclusive',
+                'held_request_policy':'single_until_completion'}),
     _contract('target.tl-ul','user-integrity',('tl-ul','1'), 'target',
         'a_valid a_opcode a_param a_size a_source a_address a_mask a_data a_user d_ready',
         'a_ready d_valid d_opcode d_param d_size d_source d_sink d_data d_user d_error',
@@ -133,6 +142,93 @@ def list_template_contracts() -> tuple[ProtocolTemplateContract, ...]:
     return _TEMPLATES
 
 
+# These are identities of existing admitted code branches, not additional
+# generic protocol capabilities. In particular the burst and packed AXI tops
+# cannot truthfully use the declarative single-beat AXI contract above.
+_GENERATED_EXECUTOR_KINDS = frozenset((
+    'obi_cpu', 'native_memory_cpu', 'rvx_memory_cpu', 'wishbone_cpu',
+    'axi4_lite_cpu', 'axi4_cpu', 'cva6_packed_axi4_cpu', 'axi4_lite_uart',
+    'wishbone_register_observe', 'wishbone_timer', 'wishbone_uart',
+    'tlul_register_observe', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host',
+    'tlul_uart', 'tlul_i2c', 'tlul_spi_device', 'apb3_register_observe',
+    'apb_gpio', 'apb_spi', 'apb_timer', 'apb_i2c',
+))
+
+
+def generated_executor_selection(document, endpoints, capabilities, *,
+                                 protocol_templates=(), implementation_sources=()):
+    """Bind a versioned existing top generator to its actual admitted inputs.
+
+    Called only during artifact generation. The enclosing artifact and later
+    build identities continue to authenticate the generated driver and tools.
+    No additional runtime behavior is selected by this declaration.
+    """
+    kind = document['kind']
+    if kind not in _GENERATED_EXECUTOR_KINDS:
+        raise ValueError('template-unregistered-generated-executor')
+    contract = {
+        'schema_version': 'local_generated_executor_contract.v1',
+        'template_id': 'local.generated.' + kind,
+        'template_version': '1', 'variant_id': kind,
+        'scope': 'generated_executor_only',
+        'generation_stage': 'source_admitted_runtime_top',
+        'protocol_capability_claim': False,
+        'dut_semantics_verified': False,
+    }
+    binding = {
+        'profile_sha256': document['plan']['profile_sha256'],
+        'endpoints': [
+            {'endpoint_id': endpoint.endpoint_id, 'function': endpoint.function,
+             'protocol': list(endpoint.protocol),
+             'roles': [{'role': field.role, 'physical_port': field.port,
+                        'member_path': list(field.member_path),
+                        'direction': field.direction, 'width': field.width,
+                        'raw_lo': field.raw_lo, 'raw_hi': field.raw_hi,
+                        'port_width': field.port_width}
+                       for field in sorted(endpoint.fields, key=lambda row: row.role)]}
+            for endpoint in sorted(endpoints, key=lambda row: row.endpoint_id)],
+        'declared_profile_facts': {key: capabilities[key]
+                                   for key in sorted(capabilities) if key != 'evidence'},
+        'parameter_overrides': document['structural_build']['parameter_overrides'],
+        'effective_max_wait_cycles': document['effective_max_wait_cycles'],
+        'boot_contract': document['boot_contract'],
+        'clock_schedule': document['clock_schedule'],
+        'adapter_sources': document['adapter_sources'],
+        'runtime_sv_sha256': document['runtime_sv_sha256'],
+        'implementation_sources': list(implementation_sources),
+        'physical_input_policy': {
+            key: document[key] for key in (
+                'functional_scope', 'fixed_physical_inputs', 'dynamic_physical_inputs',
+                'bound_physical_inputs', 'serial_peer') if key in document},
+    }
+    if 'gpio_observation_contract' in document:
+        from .pulp_gpio_probe_contract import validate_pulp_gpio_observation_contract, pulp_gpio_probe_document
+        validate_pulp_gpio_observation_contract(document['gpio_observation_contract'])
+        if kind != 'apb_gpio' or capabilities.get('gpio_observation_variant') != 'pulp_gpio_causal_v1':
+            raise ValueError('pulp-gpio-observation-executor-selection')
+        contract.update(template_id='pulp.gpio.causal', template_version='1', variant_id='pulp_gpio_causal_v1')
+        binding['gpio_observation_contract'] = document['gpio_observation_contract']
+        binding['gpio_probe_contract'] = pulp_gpio_probe_document()
+    elif capabilities.get('gpio_observation_variant') is not None:
+        raise ValueError('pulp-gpio-observation-executor-contract-required')
+    if 'uart_fifo_observation_contract' in document:
+        from .opentitan_uart_fifo_contract import validate_uart_fifo_observation_contract, uart_fifo_probe_document
+        validate_uart_fifo_observation_contract(document['uart_fifo_observation_contract'])
+        if kind != 'tlul_uart' or capabilities.get('uart_fifo_observation_variant') != 'opentitan_uart_rx_fifo_v1':
+            raise ValueError('uart-fifo-observation-executor-selection')
+        contract.update(template_id='opentitan.uart.rx_fifo', template_version='1', variant_id='opentitan_uart_rx_fifo_v1')
+        binding['uart_fifo_observation_contract'] = document['uart_fifo_observation_contract']
+        binding['uart_fifo_probe_contract'] = uart_fifo_probe_document()
+    elif capabilities.get('uart_fifo_observation_variant') is not None:
+        raise ValueError('uart-fifo-observation-executor-contract-required')
+    result = {'schema_version': 'local_generated_executor_selection.v1',
+              'contract': contract, 'contract_sha256': hashlib.sha256(_canonical(contract)).hexdigest(),
+              'binding': binding, 'protocol_templates': list(protocol_templates),
+              'runtime_effective': False, 'dut_semantics_verified': False}
+    result['identity_sha256'] = hashlib.sha256(_canonical(result)).hexdigest()
+    return result
+
+
 @dataclass(frozen=True, slots=True)
 class SelectedTemplateContract:
     contract: ProtocolTemplateContract
@@ -150,13 +246,13 @@ class SelectedTemplateContract:
 
 
 _CPU_FUNCTIONS = frozenset(('memory_master','processor_memory_master','instruction_memory_master','data_memory_master'))
-_CONTROL = frozenset('req gnt we rvalid error valid ready awvalid awready wvalid wready wlast bvalid bready arvalid arready rvalid rready rlast cyc stb ack err stall psel penable pwrite pready pslverr a_valid a_ready d_valid d_ready d_error'.split())
+_CONTROL = frozenset('req gnt we rvalid error valid ready awvalid awready wvalid wready wlast bvalid bready arvalid arready rvalid rready rlast cyc stb ack err stall psel penable pwrite pready pslverr a_valid a_ready d_valid d_ready d_error read_request read_response write_request write_response'.split())
 _FIXED = {'awlen':8,'arlen':8,'awsize':3,'arsize':3,'awburst':2,'arburst':2,'awlock':1,'arlock':1,
           'bresp':2,'rresp':2,'awprot':3,'arprot':3,'awcache':4,'arcache':4,'awqos':4,'arqos':4,
           'awregion':4,'arregion':4,'awatop':6,'a_opcode':3,'d_opcode':3,'a_param':3,'d_param':3}
-_DATA = frozenset('wdata rdata dat_w dat_r pwdata prdata a_data d_data'.split())
+_DATA = frozenset('wdata rdata dat_w dat_r pwdata prdata a_data d_data read_data write_data'.split())
 _ADDRESS = frozenset('addr adr awaddr araddr paddr a_address'.split())
-_LANES = frozenset(('be','wstrb','sel','a_mask'))
+_LANES = frozenset(('be','wstrb','sel','a_mask','write_strobe'))
 
 
 def _role_shape(role):

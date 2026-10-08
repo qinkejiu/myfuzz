@@ -41,6 +41,10 @@ class GeneratedSessionTests(unittest.TestCase):
             for line in sys.stdin:
                 if line == 'END\\n': break
                 parts = line.strip().split(' ')
+                if parts[0] == 'ACK':
+                    print('ACKED ' + parts[1] + ' ' + parts[2] + ' ' +
+                          format(tick,'x'), flush=True)
+                    continue
                 if mode == 'eof': break
                 if mode == 'stall':
                     sys.stdout.write('RESULT ')
@@ -84,6 +88,17 @@ class GeneratedSessionTests(unittest.TestCase):
         self.assertEqual(2, session.local_ticks)
         self.assertEqual(1, first.payload['observations']['gpio_out'])
         self.assertEqual(2, second.payload['observations']['gpio_out'])
+
+    def test_host_acknowledges_only_parsed_prefix_before_seventeenth_command(self):
+        session = self.make_session()
+        session.begin_case('long-case')
+        for index in range(16):
+            self.assertEqual(index + 1,
+                             session.command('STEP_GPIO', (index,)).tick_after)
+        self.assertEqual(0, session._acknowledged)
+        self.assertEqual(17, session.command('STEP_GPIO', (16,)).tick_after)
+        self.assertEqual(16, session._acknowledged)
+        self.assertEqual(17, session.local_ticks)
 
     def test_wrong_ready_is_rejected_and_process_closed(self):
         session = self.make_session('wrong_ready')

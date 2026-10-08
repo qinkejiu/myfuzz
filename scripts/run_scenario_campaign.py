@@ -43,8 +43,7 @@ def _load_provider(reference: str):
     return provider
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+def configure_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--manifest", required=True, type=Path,
                         help="real-bound scenario manifest")
     parser.add_argument("--baseline-manifest", type=Path,
@@ -56,7 +55,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", required=True, type=Path,
                         help="new campaign output directory")
     parser.add_argument("--provider", help="executable CampaignProvider as module:attribute")
-    args = parser.parse_args(argv)
+
+
+def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     try:
         if not args.manifest.is_file():
             raise ValueError("bound scenario manifest file must exist")
@@ -80,6 +81,12 @@ def main(argv: list[str] | None = None) -> int:
         "report": str(Path(args.output).absolute() / "campaign_report.json"),
     }, sort_keys=True))
     return 0 if report["gate_status"] == "complete" else 2
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    configure_parser(parser)
+    return run(parser.parse_args(argv), parser)
 
 
 if __name__ == "__main__":

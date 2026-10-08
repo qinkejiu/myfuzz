@@ -73,7 +73,7 @@ def _axi4_projected_fields(data_width: int) -> tuple[dict[str, int], dict[str, i
 
 
 class AdditionalProtocolCatalogTest(unittest.TestCase):
-    def test_all_nine_declared_protocol_versions_load(self) -> None:
+    def test_all_declared_protocol_versions_load(self) -> None:
         catalog = load_protocol_catalog(PLUGIN_DIR)
 
         self.assertEqual(
@@ -89,6 +89,7 @@ class AdditionalProtocolCatalogTest(unittest.TestCase):
                 ("ready-valid-mmio", "1"),
                 ("ready-valid-memory", "1"),
                 ("processor-memory-beat", "1"),
+                ("pipelined-completion-memory", "1"),
             },
         )
 

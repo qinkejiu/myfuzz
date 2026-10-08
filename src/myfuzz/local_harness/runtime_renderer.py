@@ -24,9 +24,14 @@ from .wishbone_register_template import register_observe_policy as wishbone_regi
 from .clock_schedule import build_local_clock_schedule
 
 _NATIVE = {'valid': ('output', 1), 'addr': ('output', 32), 'wdata': ('output', 32), 'wstrb': ('output', 4), 'ready': ('input', 1), 'rdata': ('input', 32)}
+_RVX_MEMORY = {'addr': ('output', 32), 'read_request': ('output', 1),
+               'read_response': ('input', 1), 'read_data': ('input', 32),
+               'write_request': ('output', 1), 'write_response': ('input', 1),
+               'write_data': ('output', 32), 'write_strobe': ('output', 4)}
 
-_OBI_READ = {'req': ('output', 1), 'addr': ('output', 32), 'gnt': ('input', 1),
-             'rvalid': ('input', 1), 'rdata': ('input', 32), 'error': ('input', 1)}
+_OBI_READ_BASE = {'req': ('output', 1), 'addr': ('output', 32), 'gnt': ('input', 1),
+                 'rvalid': ('input', 1), 'rdata': ('input', 32)}
+_OBI_READ = {**_OBI_READ_BASE, 'error': ('input', 1)}
 _OBI_WRITE = {**_OBI_READ, 'we': ('output', 1), 'wdata': ('output', 32), 'be': ('output', 4)}
 _APB = {'paddr': ('input', 12), 'psel': ('input', 1), 'penable': ('input', 1),
         'pwrite': ('input', 1), 'pwdata': ('input', 32), 'pready': ('output', 1),
@@ -64,6 +69,24 @@ _TLUL = {
         ('d_size', 2), ('d_source', 8), ('d_sink', 1), ('d_data', 32),
         ('d_user', 14), ('d_error', 1))},
 }
+_TLUL_V1_RUNTIME_KINDS = {
+    'tlul_gpio': 'tlul_gpio',
+    'tlul_timer': 'tlul_timer',
+    'tlul_spi_host': 'tlul_spi_host',
+    'tlul_uart': 'tlul_uart',
+    'tlul_i2c': 'tlul_i2c',
+    'tlul_spi_device': 'tlul_spi_device',
+}
+
+
+def _tlul_runtime_kind(request, variant):
+    """Select a registered v1 TL-UL executor; v2 remains generic."""
+    if isinstance(request, LocalHarnessRequestV2):
+        return 'tlul_register_observe'
+    kind = _TLUL_V1_RUNTIME_KINDS.get(variant)
+    if kind is None:
+        raise ValueError('runtime-tlul-local-variant')
+    return kind
 
 
 def _obi_boot_contract(cpu, address_width, endpoints):
@@ -88,7 +111,9 @@ def _admit(plan, structural, supplied, root):
         raise ValueError('runtime-profile-hash-mismatch')
     if load_component_profile(json.loads(raw)) != plan.profile:
         raise ValueError('runtime-profile-object-mismatch')
-    verified = verify_local_source_lock(plan.profile, base_dir=root)
+    verified = verify_local_source_lock(
+        plan.profile, base_dir=root,
+        allow_source_only=plan.profile.component_id == 'rvx_core')
     if supplied != verified:
         raise ValueError('runtime-source-verification-mismatch')
     if elaborate_profile(plan.profile, base_dir=root) != plan.facts:
@@ -193,6 +218,17 @@ def _shape(endpoint, expected, abi):
     return wires
 
 
+def _obi_shape(endpoint, abi, *, read_only, error_response):
+    """Bind OBI fields from declared endpoint roles and channel capabilities."""
+    if type(read_only) is not bool or type(error_response) is not bool:
+        raise ValueError('runtime-obi-capability-type')
+    expected = dict(_OBI_READ if error_response else _OBI_READ_BASE)
+    if not read_only:
+        expected.update({'we': ('output', 1), 'wdata': ('output', 32),
+                         'be': ('output', 4)})
+    return _shape(endpoint, expected, abi)
+
+
 def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarness,
                          source_verification: dict[str, object], *, base_dir: Path) -> LocalRuntimeArtifact:
     """Authenticate one supplied plan/structure and emit its runtime adapter top.
@@ -225,6 +261,24 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         kind = 'native_memory_cpu'
         boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
         adapters = ['src/myfuzz/protocols/rtl/native_completion_memory_adapter.sv']
+    elif (len(endpoints) == 1 and functions == {'memory_master'}
+          and endpoints[0].protocol == ('pipelined-completion-memory', '1')):
+        from .template_contracts import select_template_contract
+        selected = select_template_contract(endpoints[0], plan.profile.capabilities,
+            template_id='cpu.pipelined-memory', template_version='1',
+            variant_id='single-outstanding-completion-edge')
+        capabilities = plan.profile.capabilities
+        if (capabilities.get('address_width'), capabilities.get('address_units'),
+                capabilities.get('data_width'), capabilities.get('byte_enable'),
+                capabilities.get('max_outstanding'), capabilities.get('error_response'),
+                capabilities.get('completion_semantics')) != (
+                    32, 'byte', 32, True, 1, False, 'completion'):
+            raise ValueError('runtime-pipelined-memory-capabilities')
+        if plan.profile.cpu is None or plan.profile.cpu.extensions != ('i',):
+            raise ValueError('runtime-pipelined-memory-cpu-facts')
+        kind = 'rvx_memory_cpu'
+        boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
+        adapters = []
     elif len(endpoints) == 1 and functions == {'memory_master'} and endpoints[0].protocol == ('wishbone', 'classic'):
         capabilities = plan.profile.capabilities
         if (capabilities.get('address_width'), capabilities.get('data_width'),
@@ -364,12 +418,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
     elif (len(endpoints) == 1 and functions == {'mmio_slave'}
           and endpoints[0].protocol == ('tl-ul', '1')):
         variant = plan.profile.capabilities.get('local_runtime_variant')
-        kind = ('tlul_register_observe' if isinstance(plan.request, LocalHarnessRequestV2) else
-                'tlul_timer' if variant == 'tlul_timer' else
-                'tlul_spi_host' if variant == 'tlul_spi_host' else
-                'tlul_uart' if variant == 'tlul_uart' else
-                'tlul_i2c' if variant == 'tlul_i2c' else
-                'tlul_spi_device' if variant == 'tlul_spi_device' else 'tlul_gpio')
+        kind = _tlul_runtime_kind(plan.request, variant)
         boot = None
         c = plan.profile.capabilities
         if tuple(c.get(k) for k in ('address_width', 'data_width', 'byte_enable',
@@ -520,6 +569,70 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                             'hex_digits': (row['width']+3)//4})
         connections.append(f".{row['wrapper_name']}({name})")
 
+    # The pinned full-top Ibex profile intentionally keeps RVFI disabled.  For
+    # this pilot, expose the same pre-edge controller decision used by the
+    # independently checked local Ibex harness.  These are passive probes of
+    # real RTL; they never drive the core or synthesize an interrupt outcome.
+    if kind == 'obi_cpu' and plan.profile.component_id in ('ibex_obi_local', 'ibex_rvfi_local'):
+        core = ('u_component.u_dut.u_ibex.u_ibex_core' if plan.profile.component_id == 'ibex_rvfi_local'
+                else 'u_component.u_dut.u_ibex_core')
+        controller = core + '.id_stage_i.controller_i'
+        probes = {
+            'irq_masked_pre': (
+                f'~{core}.cs_registers_i.mie_q.irq_external | '
+                f'(({core}.cs_registers_i.priv_lvl_q == 2\'b11) & '
+                f'~{core}.csr_mstatus_mie)'),
+            'irq_taken_pre': (
+                f'{controller}.pc_set_o & {controller}.csr_save_cause_o & '
+                f'({controller}.exc_pc_mux_o == ibex_pkg::EXC_PC_IRQ) & '
+                f'({controller}.exc_cause_o == ibex_pkg::ExcCauseIrqExternalM)'),
+        }
+        for name, expression in probes.items():
+            runtime_name = 'probe_' + name
+            ports.append((runtime_name, 'output', 1))
+            statements.append(f'assign {runtime_name} = {expression};')
+            exports.append(dict(physical_port=name, wrapper_name=runtime_name,
+                                runtime_name=runtime_name, bit_lo=0, bit_hi=0,
+                                width=1, direction='output', endpoint_id=None,
+                                role=None, disposition='observe', encoding='integer',
+                                hex_digits=1))
+
+    gpio_observation = None
+    if plan.profile.component_id == 'pulp_gpio_causal_local':
+        from .pulp_gpio_probe_contract import pulp_gpio_probe_document, pulp_gpio_observation_contract
+        if kind != 'apb_gpio':
+            raise ValueError('pulp-gpio-observation-runtime-kind')
+        gpio_observation = pulp_gpio_observation_contract()
+        for name, probe in pulp_gpio_probe_document()['probes'].items():
+            runtime_name, width = probe['runtime_name'], probe['width']
+            ports.append((runtime_name, 'output', width))
+            statements.append(f"assign {runtime_name} = {probe['expression']};")
+            exports.append(dict(physical_port=probe['physical_port'], wrapper_name=runtime_name,
+                                runtime_name=runtime_name, bit_lo=0, bit_hi=width-1,
+                                width=width, direction='output', endpoint_id=None,
+                                role=None, disposition='observe', encoding='integer',
+                                hex_digits=(width+3)//4))
+    elif plan.profile.capabilities.get('gpio_observation_variant') is not None:
+        raise ValueError('pulp-gpio-observation-profile-required')
+
+    uart_fifo_observation = None
+    if plan.profile.component_id == 'opentitan_uart_fifo_local':
+        from .opentitan_uart_fifo_contract import uart_fifo_probe_document, uart_fifo_observation_contract
+        if kind != 'tlul_uart':
+            raise ValueError('uart-fifo-observation-runtime-kind')
+        uart_fifo_observation = uart_fifo_observation_contract()
+        for name, probe in uart_fifo_probe_document()['probes'].items():
+            runtime_name, width = probe['runtime_name'], probe['width']
+            ports.append((runtime_name, 'output', width))
+            statements.append(f"assign {runtime_name} = {probe['expression']};")
+            exports.append(dict(physical_port=probe['physical_port'], wrapper_name=runtime_name,
+                                runtime_name=runtime_name, bit_lo=0, bit_hi=width-1,
+                                width=width, direction='output', endpoint_id=None,
+                                role=None, disposition='observe', encoding='integer',
+                                hex_digits=(width+3)//4))
+    elif plan.profile.capabilities.get('uart_fifo_observation_variant') is not None:
+        raise ValueError('uart-fifo-observation-profile-required')
+
     def beat_ports(prefix, cpu):
         directions = {'req_valid': 'output' if cpu else 'input', 'req_ready': 'input' if cpu else 'output',
                       'req_write': 'output' if cpu else 'input', 'req_addr': 'output' if cpu else 'input',
@@ -570,6 +683,15 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                                 role=role, channel='axi'))
             statements.append(f'assign {name} = {wires[role]};' if direction == 'output'
                               else f'assign {wires[role]} = {name};')
+    elif kind == 'rvx_memory_cpu':
+        wires = _shape(endpoints[0], _RVX_MEMORY, abi)
+        for role, (direction, width) in _RVX_MEMORY.items():
+            name = 'rvx_' + role
+            ports.append((name, direction, width))
+            backend.append(dict(name=name, direction=direction, width=width,
+                                role=role, channel='rvx_memory'))
+            statements.append(f'assign {name} = {wires[role]};' if direction == 'output'
+                              else f'assign {wires[role]} = {name};')
     elif kind == 'native_memory_cpu':
         wires = _shape(endpoints[0], _NATIVE, abi)
         beat_ports('m', True)
@@ -601,10 +723,18 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             '    .ADDRESS_WIDTH(32), .DATA_WIDTH(32)\n'
             '  ) u_axi_lite (\n    ' + ',\n    '.join(f'.{p}({v})' for p,v in pairs.items()) + '\n  );')
     elif kind == 'obi_cpu':
+        error_response = plan.profile.capabilities.get('error_response')
+        if type(error_response) is not bool:
+            raise ValueError('runtime-obi-error-capability')
         for endpoint in sorted(endpoints, key=lambda e: e.function):
             instruction = endpoint.function == 'instruction_memory_master'
             prefix = 'i' if instruction else 'd'
-            wires = _shape(endpoint, _OBI_READ if instruction else _OBI_WRITE, abi)
+            wires = _obi_shape(endpoint, abi, read_only=instruction,
+                               error_response=error_response)
+            if not error_response:
+                unused_error = 'unused_' + prefix + '_error'
+                locals_.append(f'logic {unused_error};')
+                wires['error'] = unused_error
             beat_ports(prefix, True)
             local_clk, local_reset = endpoint_controls[endpoint.endpoint_id]
             pairs = dict(clk_i=local_clk, rst_ni='~' + local_reset,
@@ -617,7 +747,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                           for row in backend if row['channel'] == prefix for role in [row['role']]})
             instances.append('obi_processor_memory_adapter #(\n'
                              f'    .ADDRESS_WIDTH(32), .DATA_WIDTH(32), .READ_ONLY({int(instruction)}),\n'
-                             f'    .HAS_BE({int(not instruction)}), .HAS_ERROR(1)\n'
+                             f'    .HAS_BE({int(not instruction)}), .HAS_ERROR({int(error_response)})\n'
                              f'  ) u_adapter_{prefix} (\n    ' + ',\n    '.join(f'.{p}({v})' for p,v in pairs.items()) + '\n  );')
     elif kind in ('wishbone_timer', 'wishbone_uart', 'wishbone_register_observe'):
         generic = kind == 'wishbone_register_observe'
@@ -731,6 +861,10 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                     runtime_ports=[dict(name=n,direction=d,width=w) for n,d,w in ports],
                     adapter_sources=adapter_hashes, lint_argv=flags+adapters,
                     wire_schema_version='local_driver.v1', driver_status='not_generated')
+    if uart_fifo_observation is not None:
+        document['uart_fifo_observation_contract'] = uart_fifo_observation
+    if gpio_observation is not None:
+        document['gpio_observation_contract'] = gpio_observation
     if kind in ('tlul_register_observe', 'apb3_register_observe'):
         fixed, dynamic, bound = (register_observe_policy(plan, abi) if kind == 'tlul_register_observe'
                                  else apb3_register_observe_policy(plan, abi))
@@ -775,7 +909,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         document['dynamic_physical_inputs'] = []
         document['bound_physical_inputs'] = []
         document['functional_scope'] = 'wishbone_register_only_pin_observe_no_serial'
-    if kind in ('native_memory_cpu', 'axi4_lite_cpu'):
+    if kind in ('native_memory_cpu', 'axi4_lite_cpu', 'rvx_memory_cpu'):
         document['selected_template'] = selected.document()
     if kind in ('native_memory_cpu', 'wishbone_cpu'):
         marker = plan.profile.capabilities.get('instruction_identity_port')
@@ -788,5 +922,42 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             if len(rows) != 1:
                 raise ValueError('runtime-cpu-instruction-observation')
             document['instruction_identity_observation'] = rows[0]['runtime_name']
+    from .template_contracts import generated_executor_selection, select_template_contract
+    protocol_templates = []
+    if 'selected_template' in document:
+        protocol_templates.append(copy.deepcopy(document['selected_template']))
+    elif kind == 'obi_cpu' and plan.profile.capabilities['error_response']:
+        protocol_templates = [select_template_contract(endpoint, plan.profile.capabilities,
+            template_id='cpu.obi', template_version='1',
+            variant_id=('read-only' if endpoint.function == 'instruction_memory_master'
+                        else 'read-write')).document()
+            for endpoint in sorted(endpoints, key=lambda row: row.endpoint_id)]
+    elif kind == 'wishbone_cpu':
+        protocol_templates = [select_template_contract(endpoints[0], plan.profile.capabilities,
+            template_id='cpu.wishbone', template_version='1',
+            variant_id='no-err-stall').document()]
+    elif kind.startswith('apb') or kind.startswith('tlul') or kind.startswith('wishbone'):
+        protocol_templates = [select_template_contract(endpoints[0],
+            plan.profile.capabilities).document()]
+    implementation_root = Path(__file__).resolve().parents[3]
+    implementation_sources = [
+        {'path': name, 'sha256': hashlib.sha256((implementation_root / name).read_bytes()).hexdigest()}
+        for name in ('src/myfuzz/local_harness/runtime_renderer.py',
+                     'src/myfuzz/local_harness/template_contracts.py')]
+    if gpio_observation is not None:
+        name = 'src/myfuzz/local_harness/pulp_gpio_probe_contract.py'
+        implementation_sources.append({'path':name,'sha256':hashlib.sha256((implementation_root/name).read_bytes()).hexdigest()})
+    if uart_fifo_observation is not None:
+        name = 'src/myfuzz/local_harness/opentitan_uart_fifo_contract.py'
+        implementation_sources.append({'path':name,'sha256':hashlib.sha256((implementation_root/name).read_bytes()).hexdigest()})
+    executor = generated_executor_selection(document, endpoints, plan.profile.capabilities,
+        protocol_templates=protocol_templates, implementation_sources=implementation_sources)
+    if 'selected_template' not in document:
+        document['selected_template'] = {
+            'schema_version': 'local_generated_template_selection.v1',
+            'contract': executor['contract'],
+            'contract_sha256': executor['contract_sha256'],
+            'runtime_effective': False, 'dut_semantics_verified': False}
+    document['selected_template']['executor'] = executor
     document['artifact_digest'] = _sha(document)
     return LocalRuntimeArtifact(copy.deepcopy(plan), copy.deepcopy(structural), copy.deepcopy(verified), runtime, '', document)

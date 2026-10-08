@@ -5,12 +5,14 @@ from dataclasses import dataclass
 import hashlib
 import json
 from pathlib import Path
+import subprocess
 
 from myfuzz.composition.component_profile import (
     ComponentProfile, PhysicalFacts, ProfileBinding, bind_profile,
-    elaborate_profile, load_component_profile,
+    ComponentProfileError, elaborate_profile, load_component_profile,
 )
 from myfuzz.composition.interface_description import SourceLocator
+from myfuzz.composition.source_crawler import SourceCrawlError, _declared_files
 from myfuzz.composition.soc_port_dispositions import (
     DispositionEntry, build_port_dispositions,
 )
@@ -52,6 +54,23 @@ class LocalHarnessPlan:
     elaborated_source: SourceLocator
     parameter_sources: tuple[tuple[str, str], ...] = ()
 
+    @property
+    def source_content_hash(self) -> str:
+        """Stable pinned source identity across elaboration execution modes.
+
+        The source lock is verified at the runtime admission/build boundary.
+        The frontend's elaboration digest is retained separately in ``facts``;
+        it is not a second, mode-dependent name for the same source bytes.
+        """
+        if self.facts.revision != self.profile.source.revision:
+            raise ValueError('local-plan-source-revision-mismatch')
+        return self.profile.source.revision
+
+    @property
+    def elaboration_content_hash(self) -> str:
+        """Frontend evidence digest, which may vary by execution path."""
+        return self.facts.content_hash
+
     def document(self) -> dict[str, object]:
         ports = []
         for entry in sorted(self.dispositions, key=lambda item: (item.port, item.bit_lo)):
@@ -66,7 +85,7 @@ class LocalHarnessPlan:
             'profile_path': self.request.profile_path,
             'profile_sha256': self.profile_sha256,
             'source_revision': self.facts.revision,
-            'source_content_hash': self.facts.content_hash,
+            'source_content_hash': self.source_content_hash,
             'source_files': list(self.facts.files),
             'top': self.facts.top_module,
             'parameter_source_sha256': {name: hashlib.sha256(text.encode()).hexdigest()
@@ -108,21 +127,69 @@ def plan_local_harness(request: LocalHarnessRequest | LocalHarnessRequestV2, *, 
         reset_assert_ticks=request.reset_assert_ticks,
         reset_release_ticks=request.reset_release_ticks)
     parameter_sources = ()
-    if (profile.source.filelist is None and profile.source.elaboration is not None
-            and profile.source.elaboration.parameters):
+    parameter_source_bytes: dict[str, bytes] = {}
+    parameter_source_root: Path | None = None
+    if profile.source.elaboration is not None and profile.source.elaboration.parameters:
         source_root = (root / profile.source.source_root).resolve()
         if not source_root.is_relative_to(root):
             raise ValueError('parameter-source-outside-root')
-        snapshots = []
-        for name in profile.source.files:
-            path = (source_root / name).resolve()
-            if not path.is_relative_to(source_root):
-                raise ValueError('parameter-source-outside-root')
-            snapshots.append((name, path.read_bytes().decode('utf-8')))
-        parameter_sources = tuple(snapshots)
+        parameter_source_root = source_root
+        if profile.source.filelist is not None:
+            owners = [(source_root, profile.source.revision)]
+            for repository in profile.source.repositories:
+                owner = (source_root / repository.path).resolve()
+                if not owner.is_relative_to(source_root):
+                    raise ValueError('parameter-source-outside-root')
+                owners.append((owner, repository.revision))
+
+            def read_pinned(path: Path) -> bytes:
+                content = path.read_bytes()
+                candidates = [(owner, revision) for owner, revision in owners
+                              if owner == path or owner in path.parents]
+                if not candidates:
+                    raise ValueError('parameter-source-owner-missing')
+                owner, revision = max(candidates, key=lambda item: len(item[0].parts))
+                relative = path.relative_to(owner).as_posix()
+                if revision.startswith('git:'):
+                    blob = subprocess.run(
+                        ['git', '-C', str(owner), 'cat-file', 'blob',
+                         revision[4:] + ':' + relative],
+                        capture_output=True, check=False,
+                    )
+                    if blob.returncode or blob.stdout != content:
+                        raise ComponentProfileError('parameter-source-not-pinned:' + relative)
+                parameter_source_bytes[path.relative_to(source_root).as_posix()] = content
+                return content
+
+            try:
+                selected, _, _ = _declared_files(source_root, profile.source, read_pinned)
+            except SourceCrawlError as error:
+                raise ComponentProfileError(
+                    f'parameter-source-snapshot-failed:{profile.component_id}:{error}') from error
+            parameter_sources = tuple(
+                (path.relative_to(source_root).as_posix(),
+                 parameter_source_bytes[path.relative_to(source_root).as_posix()].decode('utf-8'))
+                for path in selected
+            )
+        else:
+            snapshots = []
+            for name in profile.source.files:
+                path = (source_root / name).resolve()
+                if not path.is_relative_to(source_root):
+                    raise ValueError('parameter-source-outside-root')
+                content = path.read_bytes()
+                parameter_source_bytes[name] = content
+                snapshots.append((name, content.decode('utf-8')))
+            parameter_sources = tuple(snapshots)
     facts = elaborate_profile(profile, base_dir=root)
+    if profile.source.filelist is not None and parameter_sources:
+        snapshot_names = tuple(name for name, _ in parameter_sources)
+        if snapshot_names != facts.files:
+            raise ValueError('parameter-source-files-changed-during-elaboration')
     for name, text in parameter_sources:
-        if (source_root / name).read_bytes().decode('utf-8') != text:
+        if parameter_source_root is None:
+            raise ValueError('parameter-source-root-required')
+        if (parameter_source_root / name).read_bytes() != parameter_source_bytes[name]:
             raise ValueError('parameter-source-changed-during-elaboration')
     if facts.selection != 'all':
         raise ValueError('full-top-required')

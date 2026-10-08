@@ -196,8 +196,8 @@ class ScenarioRfuzzLiveClientTests(unittest.TestCase):
             changed = json.loads(entry.read_text())
             changed["entry"]["inputs"].extend([0xAB] * 8)
             entry.write_text(json.dumps(changed))
-            self.assertTrue(replay_scenario_rfuzz_corpus(
-                result.output_dir, factory).mismatches)
+            with self.assertRaisesRegex(ValueError, 'artifact mismatch'):
+                replay_scenario_rfuzz_corpus(result.output_dir, factory)
 
 
 if __name__ == "__main__":

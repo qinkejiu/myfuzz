@@ -47,6 +47,15 @@ def _tree_hash(root: Path, files: tuple[Path, ...]) -> str:
 
 
 class SourceCrawlerTests(unittest.TestCase):
+    def test_source_root_itself_is_a_valid_include_root(self) -> None:
+        temporary, root, source = self.make_source()
+        self.addCleanup(temporary.cleanup)
+        locator = SourceLocator(root.name, source_tree_hash(root, (source,)),
+                                "opaque_tile", files=(source.relative_to(root).as_posix(),),
+                                include_roots=(".",))
+        snapshot = SourceCrawler().crawl(locator, base_dir=root.parent)
+        self.assertEqual((".",), snapshot.effective_include_roots)
+
     def test_filelist_variables_expand_only_declared_braced_names_and_bind_identity(self) -> None:
         temporary, root, source = self.make_source()
         self.addCleanup(temporary.cleanup)
@@ -62,6 +71,39 @@ class SourceCrawlerTests(unittest.TestCase):
             filelist.write_text(text + "\n", encoding="utf-8")
             with self.subTest(text=text), mock.patch.dict("os.environ", {"RTL": ".", "OTHER": "opaque_tile"}), self.assertRaisesRegex(SourceCrawlError, "filelist-variable"):
                 SourceCrawler().crawl(replace(locator, revision=source_tree_hash(root, (source, filelist))), base_dir=root.parent)
+
+    def test_filelist_parent_segments_normalize_inside_source_root_and_reject_escape(self) -> None:
+        temporary, root, source = self.make_source()
+        self.addCleanup(temporary.cleanup)
+        rtl = root / "rtl"
+        rtl.mkdir(exist_ok=True)
+        (rtl / "core.sv").write_text("module core; endmodule\n", encoding="utf-8")
+        bhv = root / "bhv"
+        bhv.mkdir()
+        (bhv / "clock_gate.sv").write_text("module clock_gate; endmodule\n", encoding="utf-8")
+        include = bhv / "include"
+        include.mkdir()
+        (include / "gate.svh").write_text("// pinned simulation gate declarations\n", encoding="utf-8")
+        filelist = root / "core.f"
+        filelist.write_text(
+            "+incdir+${DESIGN_RTL_DIR}/../bhv/include\n"
+            "${DESIGN_RTL_DIR}/core.sv\n"
+            "${DESIGN_RTL_DIR}/../bhv/clock_gate.sv\n",
+            encoding="utf-8",
+        )
+        selected = (rtl / "core.sv", bhv / "clock_gate.sv", filelist)
+        locator = SourceLocator(
+            root.name, source_tree_hash(root, selected), "core",
+            filelist="core.f", filelist_variables=(("DESIGN_RTL_DIR", "rtl"),),
+        )
+        snapshot = SourceCrawler().crawl(locator, base_dir=root.parent)
+        self.assertIn("clock_gate", snapshot.modules)
+        self.assertEqual(("bhv/include",), snapshot.effective_include_roots)
+
+        filelist.write_text("+incdir+${DESIGN_RTL_DIR}/../../outside\n", encoding="utf-8")
+        escaped = replace(locator, revision=source_tree_hash(root, (filelist,)))
+        with self.assertRaisesRegex(SourceCrawlError, "path-outside-source-root"):
+            SourceCrawler().crawl(escaped, base_dir=root.parent)
 
     def test_non_top_unsupported_ports_defer_only_with_elaboration(self) -> None:
         temporary, root, source = self.make_source("module child_width(input logic [W-1:0] a); endmodule\nmodule child_type(input custom_t b); endmodule\nmodule child_unpacked(input logic c[]); endmodule\nmodule top; endmodule\n")

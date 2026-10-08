@@ -1,10 +1,12 @@
 """Fail-closed boundaries of the pinned 64-bit CVA6 AXI4 memory service."""
 import unittest
+from types import SimpleNamespace
 
 from myfuzz.local_harness.cva6_axi4_session import (
-    _check_address, _check_write_strobe,
+    GeneratedCva6Axi4Session, _check_address, _check_write_strobe,
 )
 from myfuzz.scenario.contracts import ProtocolEnvironmentError
+from myfuzz.scenario.ledger import TransactionKey
 
 
 class Cva6Axi4ServiceProtocolTest(unittest.TestCase):
@@ -26,6 +28,22 @@ class Cva6Axi4ServiceProtocolTest(unittest.TestCase):
         row.update(awaddr=0x400, awlen=0, awatop=1)
         with self.assertRaises(ProtocolEnvironmentError):
             _check_address(row, 'aw')
+
+    def test_uncertain_mmio_effect_blocks_reset_without_clearing_runtime(self):
+        key = TransactionKey('exec', 'case', 'cpu', 0, 'mmio', 1)
+        session = object.__new__(GeneratedCva6Axi4Session)
+        session._state = {'read': None, 'write': None, 'wbeats': [], 'b': None}
+        session._queued_mmio = 1
+        session.mmio_ledger = SimpleNamespace(uncertain_keys=(key,))
+
+        class Router:
+            def cancel_for_ledger(self, _ledger):
+                raise AssertionError('uncertain effects must prevent reset')
+
+        session.router = Router()
+        with self.assertRaisesRegex(RuntimeError, 'uncertain MMIO target effect'):
+            session.reset_local()
+        self.assertEqual(1, session._queued_mmio)
 
 
 if __name__ == '__main__':

@@ -62,6 +62,8 @@ module obi_processor_memory_adapter #(
             rdata_q <= '0;
             error_q <= 1'b0;
         end else begin
+            if (HAS_ERROR == 0 && rsp_valid_i && rsp_ready_o && rsp_error_i)
+                $fatal(1, "OBI backend error cannot be represented by this CPU interface");
             rvalid_q <= 1'b0;
             error_q <= 1'b0;
             case (state_q)

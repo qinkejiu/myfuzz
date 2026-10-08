@@ -61,6 +61,18 @@ def parse_driver_ready(line: str, *, digest: str, assert_ticks: int,
     return DriverReady(digest, asserted, released)
 
 
+def parse_driver_ack(line: str, *, execution: str, sequence: int,
+                     current_tick: int) -> None:
+    """Validate cumulative retirement without accepting any local RTL advance."""
+    if (_EXECUTION.fullmatch(execution) is None or type(sequence) is not int
+            or sequence < 1 or type(current_tick) is not int or current_tick < 0):
+        raise ValueError('invalid-expected-driver-ack')
+    parts = _tokens(line, 4)
+    if (parts[0] != 'ACKED' or parts[1] != execution
+            or _hex(parts[2]) != sequence or _hex(parts[3]) != current_tick):
+        raise ValueError('driver-ack-identity-or-tick-mismatch')
+
+
 def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
     result: dict[str, object] = {}
     for key, value in pairs:

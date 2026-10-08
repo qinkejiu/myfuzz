@@ -198,6 +198,8 @@ def assess_cva6_closed_chain(direction: str, events, final_state: Mapping) -> di
 class Cva6TwoGpioBoundProvider(IbexTwoGpioBoundProvider):
     """Three strategies share one CVA6/GPIO local RTL execution pipeline."""
 
+    BOUND_REVERSE_SEED = "cva6_external_two_gpio_campaign_seed.json"
+
     @staticmethod
     def _assess_trace_chain(direction: str, events, final_state: Mapping) -> dict | None:
         return assess_cva6_closed_chain(direction, events, final_state)

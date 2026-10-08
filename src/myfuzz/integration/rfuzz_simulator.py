@@ -6,6 +6,7 @@ Counters count asserted observations after each driven cycle (saturating at
 from dataclasses import asdict, dataclass, replace
 from collections.abc import Mapping, Sequence
 import hashlib
+import json
 import math
 import os
 from pathlib import Path
@@ -36,6 +37,12 @@ from myfuzz.composition.soc_peer_replay import (
 from .rtl_execution_monitor import (
     validate_monitor, monitor_rtl, monitor_output, parse_metrics, validate_execution,
 )
+from .soc_coverage import (
+    FIRST_SEEN_EVIDENCE,
+    FIRST_SEEN_EVENT,
+    FIRST_SEEN_SCHEMA,
+    MAX_FIRST_SEEN_ENTRIES,
+)
 from .campaign import CampaignOptions, run_supervised_command, read_process_group_rss_bytes
 
 MAX_CYCLES = 65536
@@ -47,6 +54,10 @@ MAX_PROJECTION_UNIQUE = 65536
 SIMULATOR_PROTOCOL_VERSION = 2
 MAX_REQUEST_ID = (1 << 64) - 1
 RSS_POLL_SECONDS = 0.1
+#: A newly lit point is written out immediately the first time, then at most
+#: once per interval, so a long campaign does not rewrite the ledger per test
+#: while a killed process still leaves the sightings it already observed.
+FIRST_SEEN_FLUSH_SECONDS = 5.0
 
 
 def real_soc_opt_in(environment: Mapping[str, str] | None = None) -> bool:
@@ -129,6 +140,10 @@ class SimulatorArtifact:
     #: Profile peer slot contracts with raw offsets.  Empty for legacy cells;
     #: populated profile artifacts use it to publish replayable event evidence.
     peer_slots: tuple[Mapping[str, object], ...] = ()
+    #: Where the per-test counter readback records each point's first sighting.
+    #: ``None`` (every non-instrumented artifact) writes no ledger at all, so
+    #: other simulator users keep their exact behaviour.
+    coverage_first_seen_ledger: Path | None = None
 
 
 def checker_feedback_observations(ports: Sequence[Mapping[str, object]],
@@ -655,6 +670,175 @@ def build_simulator(plan, output_dir, *, base_dir, coverage_ports,
     )
 
 
+class CoverageFirstSeenLedger:
+    """Per-point first sighting, derived from the per-test counter readback.
+
+    ``RtlSimulator.run_test`` reads the whole instrumented counter vector back
+    once per RTL test (the harness answers ``RFUZZ_COUNTERS <request id>`` with
+    the counters of that test), so the first readback that shows a point
+    non-zero is a recorded, checkable event - no timestamp has to be invented
+    and no post-run snapshot of surviving inputs is involved.
+
+    The ledger is **identity-bound**: it stores the artifact's exact
+    ``(port, bit)`` list in the same order as the counter vector, so a reader
+    joins entries to points by identity instead of trusting a position, and it
+    is **fail-closed**: a readback whose width does not match the declared list,
+    a non-integer counter, or a port list beyond
+    :data:`~myfuzz.integration.soc_coverage.MAX_FIRST_SEEN_ENTRIES` makes the
+    document explicitly invalid and it is then never written.  A missing or
+    invalid ledger is reported by the reader as *unavailable with a reason*,
+    never as "no point was ever seen".
+    """
+
+    def __init__(self, path, ports, *, coverage_kind: str = "",
+                 bound: int = MAX_FIRST_SEEN_ENTRIES,
+                 session: str | None = None, clock=time.monotonic,
+                 flush_seconds: float = FIRST_SEEN_FLUSH_SECONDS) -> None:
+        self.path = Path(path)
+        self.ports = tuple((str(name), int(bit)) for name, bit in ports)
+        self.coverage_kind = str(coverage_kind)
+        self.bound = int(bound)
+        self.session = session or f"{os.getpid()}-{time.monotonic():.6f}"
+        self.flush_seconds = float(flush_seconds)
+        self._clock = clock
+        self._started = clock()
+        self._last_write = None
+        self._entries: list[dict | None] = [None] * len(self.ports)
+        self._readbacks = 0
+        self._reason = ""
+        if len(self.ports) > self.bound:
+            self._reason = (f"the counter vector holds {len(self.ports)} points, "
+                            f"beyond the first-seen bound {self.bound}")
+
+    # -- reading -----------------------------------------------------------
+
+    @property
+    def valid(self) -> bool:
+        return not self._reason
+
+    @property
+    def reason(self) -> str:
+        return self._reason
+
+    def document(self) -> dict:
+        return {
+            "schema_version": FIRST_SEEN_SCHEMA,
+            "evidence": FIRST_SEEN_EVIDENCE,
+            "event": FIRST_SEEN_EVENT,
+            "coverage_kind": self.coverage_kind,
+            "counter_count": len(self.ports),
+            "bound": self.bound,
+            "points": [[name, bit] for name, bit in self.ports],
+            "entries": [None if item is None else dict(item)
+                        for item in self._entries],
+            "observed_points": sum(1 for item in self._entries if item is not None),
+            "readbacks": self._readbacks,
+            "truncated": False,
+            "valid": self.valid,
+            "reason": self._reason or None,
+            "session": self.session,
+        }
+
+    # -- recording ---------------------------------------------------------
+
+    def observe(self, counters, *, event=None) -> bool:
+        """Record every point this readback lights for the first time.
+
+        Returns ``True`` when the caller should flush the document now (the
+        first sighting of the session, or a later one past the flush interval).
+        The readback is the simulator's own counter vector, in the artifact's
+        port order; a vector that does not match that order is refused rather
+        than reinterpreted.
+        """
+        now = self._clock()
+        values = list(counters)
+        if self._reason:
+            return False
+        self._readbacks += 1
+        if len(values) != len(self.ports):
+            self._reason = (f"the readback carries {len(values)} counters for "
+                            f"{len(self.ports)} declared points")
+            return False
+        for value in values:
+            if type(value) is not int or not 0 <= value <= 255:
+                self._reason = f"counter value {value!r} is not an unsigned byte"
+                return False
+        order = event if event is not None else self._readbacks
+        fresh = False
+        for index, value in enumerate(values):
+            if value > 0 and self._entries[index] is None:
+                # Every entry names its own point, so a reader joins by identity
+                # instead of trusting a position in a list.
+                self._entries[index] = {
+                    "point": [self.ports[index][0], self.ports[index][1]],
+                    "event": order,
+                    "time": round(now - self._started, 6),
+                }
+                fresh = True
+        if not fresh:
+            return False
+        if self._last_write is None or now - self._last_write >= self.flush_seconds:
+            self._last_write = now
+            return True
+        return False
+
+    # -- persistence -------------------------------------------------------
+
+    def write(self) -> str:
+        """Persist the ledger; return ``""`` on success, else the reason.
+
+        Never raises and never clobbers another session's ledger: a run may
+        execute comparison arms against the same build directory, and the arm
+        that did not own the live readback must not rewrite its evidence.
+        """
+        if self._reason:
+            return self._reason
+        existing = None
+        if self.path.exists():
+            try:
+                existing = json.loads(self.path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                return f"the existing first-seen ledger is unreadable: {self.path}"
+            if not isinstance(existing, dict):
+                return f"the existing first-seen ledger is not an object: {self.path}"
+            if existing.get("session") not in (None, self.session):
+                return (f"another coverage session owns the first-seen ledger: "
+                        f"{self.path}")
+        payload = (json.dumps(self.document(), ensure_ascii=True, sort_keys=True,
+                              separators=(",", ":")) + "\n").encode("utf-8")
+        temporary = self.path.with_name(self.path.name + ".tmp")
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            temporary.write_bytes(payload)
+            os.replace(temporary, self.path)
+        except OSError as error:
+            try:
+                temporary.unlink()
+            except OSError:
+                pass
+            return f"first-seen ledger write failed: {type(error).__name__}"
+        return ""
+
+
+def first_seen_ledger_for_artifact(artifact, *, session: str | None = None,
+                                   clock=time.monotonic):
+    """The ledger this artifact asked for, or ``None`` when it asked for none.
+
+    Only the instrumented ``soc_*`` build declares
+    ``coverage_first_seen_ledger``, so every other simulator user (online
+    campaigns, direct replay, comparison arms over non-instrumented artifacts)
+    writes nothing at all.
+    """
+    path = getattr(artifact, "coverage_first_seen_ledger", None)
+    if not isinstance(path, (str, Path)) or not str(path):
+        return None
+    return CoverageFirstSeenLedger(
+        Path(path),
+        tuple(getattr(artifact, "coverage_ports", ()) or ()),
+        coverage_kind=str(getattr(artifact, "coverage_kind", "") or ""),
+        session=session, clock=clock)
+
+
 class RtlSimulator:
     """One private persistent child, with bounded per-test IO and cleanup.
 
@@ -694,6 +878,11 @@ class RtlSimulator:
         }
         self._raw_projection_values: set[int] = set()
         self._projected_values: set[int] = set()
+        # Per-point first-seen evidence, recorded from the readback this class
+        # already owns.  ``None`` for every artifact that does not declare a
+        # ledger, so nothing is written for non-instrumented runs.
+        self.first_seen = first_seen_ledger_for_artifact(artifact)
+        self.first_seen_error = ""
         self._start()
 
     def projection_document(self) -> dict[str, object]:
@@ -909,15 +1098,44 @@ class RtlSimulator:
             counters = bytes.fromhex(reply.decode("ascii"))
             if len(counters) != count:
                 raise ValueError("invalid simulator counter length")
+            self._record_first_seen(counters)
             return counters
         except BaseException:
             self.close()
             raise
 
+    def _record_first_seen(self, counters) -> None:
+        """Add this readback's first sightings to the artifact's ledger.
+
+        Recording is pure bookkeeping next to the readback that already
+        happened: it can never change the counters a caller receives, and a
+        ledger problem is reported through the ledger document instead of
+        failing the test.  If the ledger itself misbehaves, evidence is dropped
+        (and therefore reported as unavailable by the reader) rather than
+        turning an RTL test into a campaign failure.
+        """
+        ledger = self.first_seen
+        if ledger is None:
+            return
+        try:
+            if ledger.observe(counters, event=self._executions):
+                ledger.write()
+        except Exception as error:  # auxiliary evidence, never the run gate
+            self.first_seen_error = f"{type(error).__name__}: {error}"
+            self.first_seen = None
+
     def close(self):
         if self.closed:
             return
         self.closed = True
+        # The readback stream ends here, so the ledger is flushed even when the
+        # campaign was interrupted: the evidence must not exist only in memory.
+        # It must never delay the child cleanup below either.
+        if self.first_seen is not None:
+            try:
+                self.first_seen.write()
+            except Exception as error:  # auxiliary evidence, never the run gate
+                self.first_seen_error = f"{type(error).__name__}: {error}"
         # start_new_session establishes an owned process group. Signal only it,
         # including descendants even when the immediate VVP child exited.
         try:

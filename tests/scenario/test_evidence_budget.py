@@ -408,6 +408,56 @@ class EvidenceBudgetTests(unittest.TestCase):
         finally:
             runner.finalize()
 
+    def test_zero_deferred_mmio_bound_does_not_require_target_access_ticks(self):
+        class Cpu(_Session):
+            max_local_ticks_per_step = 1
+            max_mmio_target_accesses_per_step = 0
+
+            def __init__(self):
+                super().__init__()
+                self.local_ticks = 0
+                self.router = None
+
+            def step_local(self, _inputs):
+                self.local_ticks += 1
+                return {"out": self.local_ticks}
+
+        cpu = Cpu()
+        cpu.router = DataflowRouter((DeviceWindow(
+            "cpu", 0x40000000, 0x1000, cpu),))
+        runner = ScenarioRunner(sessions={"cpu": cpu},
+                                ownership=compile_ownership((), ()), bindings=())
+        runner.set_resource_budget(ResourceBudget(max_local_cycles_per_component=2))
+        runner.begin_test("zero-deferred-mmio-bound")
+        try:
+            self.assertEqual(1, runner.step("cpu")["out"])
+            self.assertEqual({"cpu": 1}, runner.local_ticks)
+        finally:
+            runner.finalize()
+
+    def test_positive_mmio_bound_still_requires_valid_target_tick_bound(self):
+        class Cpu(_Session):
+            max_local_ticks_per_step = 1
+            max_mmio_target_accesses_per_step = 1
+
+            def __init__(self, target):
+                super().__init__()
+                self.router = DataflowRouter((DeviceWindow(
+                    "target", 0x40000000, 0x1000, target),))
+
+        class Target:
+            pass
+
+        target = Target()
+        cpu = Cpu(target)
+        runner = ScenarioRunner(sessions={"cpu": cpu, "target": target},
+                                ownership=compile_ownership((), ()), bindings=())
+        with self.assertRaisesRegex(ValueError, "budgeted MMIO route needs local tick bounds"):
+            runner._step_tick_bounds("cpu")
+        target.max_local_ticks_per_register_access = 0
+        with self.assertRaisesRegex(ValueError, "budgeted MMIO route needs local tick bounds"):
+            runner._step_tick_bounds("cpu")
+
     def test_gpio_checker_findings_consume_execution_evidence_capacity(self):
         genome = replace(self.genome, max_steps=12, actions=())
 

@@ -1,0 +1,34 @@
+{
+  "protocol_id": "pipelined-completion-memory",
+  "version": "1",
+  "legal_adapters": [],
+  "fields": [
+    {"field_id": "addr", "direction": "host_to_device", "width": "address_width", "required": true, "reset_value": 0},
+    {"field_id": "read_request", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "read_response", "direction": "device_to_host", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "read_data", "direction": "device_to_host", "width": "data_width", "required": true, "reset_value": 0, "semantic_role": "data"},
+    {"field_id": "write_request", "direction": "host_to_device", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "write_response", "direction": "device_to_host", "width": "1", "required": true, "reset_value": 0},
+    {"field_id": "write_data", "direction": "host_to_device", "width": "data_width", "required": true, "reset_value": 0, "semantic_role": "data"},
+    {"field_id": "write_strobe", "direction": "host_to_device", "width": "data_width / 8", "required": true, "reset_value": 0, "semantic_role": "byte_enable"}
+  ],
+  "channel_relations": [
+    {"relation_id": 1, "kind": "read_address_before_response", "field_ids": ["read_request", "addr", "read_response", "read_data"]},
+    {"relation_id": 2, "kind": "write_address_and_data_before_response", "field_ids": ["write_request", "addr", "write_data", "write_strobe", "write_response"]}
+  ],
+  "capability_limits": {
+    "max_outstanding": 1,
+    "byte_enable": true,
+    "partial_write": true,
+    "stall_supported": true,
+    "max_wait_cycles": 16,
+    "x-address-unit": "byte",
+    "x-completion-edge-next-request": true,
+    "x-held-request-single-transaction": true,
+    "x-read-data-frozen-on-accept": true
+  },
+  "temporal_rules": [
+    {"rule_id": 1, "kind": "response_after_request", "antecedent_field_id": "read_request", "consequent_field_id": "read_response", "max_cycles": 16},
+    {"rule_id": 2, "kind": "response_after_request", "antecedent_field_id": "write_request", "consequent_field_id": "write_response", "max_cycles": 16}
+  ]
+}

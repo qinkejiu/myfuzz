@@ -62,8 +62,12 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             if len(rows) != 1:
                 raise ValueError('driver-gpio-field:' + role)
             fields[alias] = rows[0]['runtime_name']
-        pulses = [row for row in exports if row['endpoint_id'] is None and
-                  row['disposition'] == 'observe' and row['direction'] == 'output' and row['width'] == 1]
+        # Select the original official IRQ port; passive one-bit internal
+        # probes remain ordinary exports and are never IRQ aliases.
+        pulses = [row for row in exports if row['physical_port'] == 'interrupt'
+                  and row['endpoint_id'] is None and row['disposition'] == 'observe'
+                  and row['direction'] == 'output' and row['width'] == 1
+                  and row['bit_lo'] == 0 and row['bit_hi'] == 0]
         if len(pulses) != 1:
             raise ValueError('driver-gpio-pulse-observation-required')
         fields['interrupt'] = pulses[0]['runtime_name']
@@ -216,6 +220,19 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                 raise ValueError('driver-wishbone-irq-field')
             fields['irq_custom'] = irq[0]['runtime_name']
             allowed_inputs = {fields['irq_custom']}
+    elif kind == 'rvx_memory_cpu':
+        expected = {'addr': ('output', 32), 'read_request': ('output', 1),
+                    'read_response': ('input', 1), 'read_data': ('input', 32),
+                    'write_request': ('output', 1), 'write_response': ('input', 1),
+                    'write_data': ('output', 32), 'write_strobe': ('output', 4)}
+        rows = {row['role']: row for row in backend if row['channel'] == 'rvx_memory'}
+        if (len(rows) != len(backend) or set(rows) != set(expected) or
+                any((row['direction'], row['width']) != expected[role]
+                    or row['name'] != 'rvx_' + role
+                    for role, row in rows.items())):
+            raise ValueError('driver-rvx-memory-backend-shape')
+        fields.update({role: row['name'] for role, row in rows.items()})
+        allowed_inputs = set()
     elif kind in ('native_memory_cpu', 'axi4_lite_cpu', 'axi4_cpu'):
         allowed_inputs = set()
     elif kind == 'cva6_packed_axi4_cpu':
@@ -226,7 +243,13 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         if len(irq) != 1:
             raise ValueError('driver-cva6-irq-field')
         fields['irq_external'] = irq[0]['runtime_name']
-        allowed_inputs = {fields['irq_external']}
+        timer_irq = [row for row in exports if row['physical_port'] == 'time_irq_i'
+                     and row['direction'] == 'input' and row['width'] == 1
+                     and row['disposition'] == 'fuzz']
+        if len(timer_irq) != 1:
+            raise ValueError('driver-cva6-timer-irq-field')
+        fields['irq_timer'] = timer_irq[0]['runtime_name']
+        allowed_inputs = {fields['irq_external'], fields['irq_timer']}
     elif kind == 'obi_cpu':
         cpu = artifact.plan.profile.cpu
         irq = [row for row in exports if row['endpoint_id'] == cpu.irq_entry_endpoint and
@@ -278,7 +301,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
                           or kind in ('apb_i2c', 'tlul_i2c', 'tlul_spi_device'))
 
     max_wait = document['effective_max_wait_cycles']
-    max_samples = (1 if kind in ('obi_cpu', 'native_memory_cpu',
+    max_samples = (1 if kind in ('obi_cpu', 'native_memory_cpu', 'rvx_memory_cpu',
                                 'wishbone_cpu', 'axi4_lite_cpu', 'axi4_cpu',
                                 'cva6_packed_axi4_cpu')
                    else 2 * max_wait + 5)
@@ -367,7 +390,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
 '''
         operation_check = 'command.operation != "STEP_AXI4"'
     elif kind == 'cva6_packed_axi4_cpu':
-        names = (fields['irq_external'], *CVA6_AXI_STEP_PORTS[1:])
+        names = (fields['irq_external'], fields['irq_timer'], *CVA6_AXI_STEP_PORTS[2:])
         assignments = '\n'.join(f'      dut.{name} = command.fields[{index}];'
                                 for index, name in enumerate(names))
         dispatch = assignments + '''
@@ -392,6 +415,27 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         if 'irq_custom' in fields:
             dispatch = f'      dut.{fields["irq_custom"]} = command.fields[2];\n' + dispatch
             operation_check = 'command.operation != "STEP_WISHBONE_IRQ"'
+    elif kind == 'rvx_memory_cpu':
+        expected = {'addr': ('output', 32), 'read_request': ('output', 1),
+                    'read_response': ('input', 1), 'read_data': ('input', 32),
+                    'write_request': ('output', 1), 'write_response': ('input', 1),
+                    'write_data': ('output', 32), 'write_strobe': ('output', 4)}
+        rows = {row['role']: row for row in backend if row['channel'] == 'rvx_memory'}
+        if (len(rows) != len(backend) or set(rows) != set(expected) or
+                any((row['direction'], row['width']) != expected[role]
+                    or row['name'] != 'rvx_' + role
+                    for role, row in rows.items())):
+            raise ValueError('driver-rvx-memory-backend-shape')
+        fields.update({role: row['name'] for role, row in rows.items()})
+        allowed_inputs = set()
+        dispatch = f'''      dut.{fields['read_response']} = command.fields[0];
+      dut.{fields['write_response']} = command.fields[1];
+      dut.{fields['read_data']} = command.fields[2];
+      dut.eval();
+      pre_backend = backend_snapshot(dut);
+      tick(dut, &samples);
+'''
+        operation_check = 'command.operation != "STEP_RVX_MEMORY"'
     elif kind in ('native_memory_cpu', 'axi4_lite_cpu'):
         dispatch = "\n".join(f'      dut.{name} = command.fields[{index}];' for index, name in enumerate([
             'm_req_ready', 'm_rsp_valid', 'm_rsp_rdata', 'm_rsp_error'])) + r'''
@@ -796,6 +840,22 @@ int main(int argc, char **argv) {
     if (!oversize && line == "END") break;
     if (oversize) {
       std::cout << error_reply("-", 0, local_ticks, "command_too_long", "wire_bound") << std::endl;
+      continue;
+    }
+    if (line.rfind("ACK ", 0) == 0) {
+      const auto ack = parse_ack(line);
+      if (!ack.ok) {
+        std::cout << error_reply(ack.execution, ack.sequence, local_ticks,
+                                 ack.code, ack.detail) << std::endl;
+      } else {
+        const auto failure = replay.retire(ack.execution, ack.sequence);
+        if (failure.empty())
+          std::cout << "ACKED " << ack.execution << ' ' << hex_integer(ack.sequence)
+                    << ' ' << hex_integer(local_ticks) << std::endl;
+        else
+          std::cout << error_reply(ack.execution, ack.sequence, local_ticks,
+                                   failure, "ack_rejected") << std::endl;
+      }
       continue;
     }
     const auto parsed = parse_command(line);

@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import copy
+from contextlib import contextmanager
+from contextvars import ContextVar
 import re
 from pathlib import Path
 import subprocess
 import time
 import uuid
+from typing import Callable, Iterator
 
 from myfuzz.scenario.protocol_io import (
     BoundedLineReader, _deadline, command_deadline, end_local_process,
@@ -14,15 +17,34 @@ from myfuzz.scenario.protocol_io import (
 )
 from .build import build_local_harness, local_build_identity
 from .runtime_artifact import LocalRuntimeArtifact
-from .wire import MAX_REPLY_LINE_BYTES, DriverReceipt, parse_driver_ready, parse_driver_receipt
+from .wire import (MAX_REPLY_LINE_BYTES, DriverReceipt, parse_driver_ack,
+                   parse_driver_ready, parse_driver_receipt)
 from .axi4_fields import AXI_STEP_MAXIMA
 from .cva6_axi4_fields import CVA6_AXI_STEP_MAXIMA
+
+
+_command_timing_observer: ContextVar[Callable[[str, float], None] | None] = (
+    ContextVar('local_command_timing_observer', default=None))
+
+
+@contextmanager
+def observe_local_command_timings(observer: Callable[[str, float], None]
+                                  ) -> Iterator[None]:
+    """Observe driver command round trips in this execution context only."""
+    if not callable(observer):
+        raise ValueError('command timing observer must be callable')
+    token = _command_timing_observer.set(observer)
+    try:
+        yield
+    finally:
+        _command_timing_observer.reset(token)
 
 
 _OPERATIONS = {
     'axi4_cpu': {'STEP_AXI4': AXI_STEP_MAXIMA},
     'cva6_packed_axi4_cpu': {'STEP_CVA6_AXI4': CVA6_AXI_STEP_MAXIMA},
     'native_memory_cpu': {'STEP_MEMORY': (1, 1, 0xffffffff, 1)},
+    'rvx_memory_cpu': {'STEP_RVX_MEMORY': (1, 1, 0xffffffff)},
     'wishbone_cpu': {'STEP_WISHBONE': (1, 0xffffffff),
                      'STEP_WISHBONE_IRQ': (1, 0xffffffff, 0xffffffff)},
     'axi4_lite_cpu': {'STEP_MEMORY': (1, 1, 0xffffffff, 1)},
@@ -85,6 +107,7 @@ class GeneratedLocalSession:
         self._reader = BoundedLineReader(max_line_bytes=MAX_REPLY_LINE_BYTES)
         self._execution = ''
         self._sequence = 0
+        self._acknowledged = 0
         self.local_ticks = 0
         self._tick_base = 0
         self.reset_epoch = 0
@@ -154,6 +177,7 @@ class GeneratedLocalSession:
             self.prepare_local()
         self._execution = uuid.uuid4().hex
         self._sequence = 0
+        self._acknowledged = 0
         self._tick_base = self.local_ticks
         self._case_id = testcase_id
         self._reader.reset()
@@ -171,6 +195,21 @@ class GeneratedLocalSession:
             raise
 
     def command(self, operation: str, fields: tuple[int, ...]) -> DriverReceipt:
+        observer = _command_timing_observer.get()
+        if observer is None:
+            return self._command_impl(operation, fields)
+        started = time.monotonic()
+        try:
+            return self._command_impl(operation, fields)
+        finally:
+            # The measurement must never replace a driver receipt or failure.
+            elapsed = time.monotonic() - started
+            try:
+                observer(operation, elapsed)
+            except Exception:
+                pass
+
+    def _command_impl(self, operation: str, fields: tuple[int, ...]) -> DriverReceipt:
         proc = self._process
         if proc is None or proc.poll() is not None or proc.stdin is None or proc.stdout is None:
             raise RuntimeError('generated local process is not running')
@@ -198,6 +237,24 @@ class GeneratedLocalSession:
                 or (operation == 'SOURCE_SPI' and fields[2] == 0)):
             raise ValueError('invalid generated driver command')
         sequence = self._sequence + 1
+        # ACK only receipts that the host already parsed completely. A later
+        # retry of a retired sequence is rejected by the driver's floor.
+        # Sixteen maximal replies fit comfortably below the 64 MiB cache.
+        if self._sequence - self._acknowledged >= 16:
+            try:
+                with command_deadline(time.monotonic() + self.command_timeout_seconds):
+                    write_local_command(proc.stdin,
+                                        f'ACK {self._execution} {self._sequence:x}\n')
+                    acknowledgement = self._reader.readline(proc.stdout)
+                if not acknowledgement:
+                    raise RuntimeError('lost_ack: generated driver stdout EOF')
+                parse_driver_ack(acknowledgement.strip(), execution=self._execution,
+                                 sequence=self._sequence,
+                                 current_tick=self.local_ticks - self._tick_base)
+            except BaseException:
+                self._abort()
+                raise
+            self._acknowledged = self._sequence
         line = (f'CMD {self._execution} {sequence:x} {operation}'
                 + ('' if not fields else ' ' + ' '.join(f'{value:x}' for value in fields))
                 + '\n')

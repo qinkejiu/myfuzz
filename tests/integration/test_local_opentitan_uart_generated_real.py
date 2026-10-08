@@ -91,6 +91,28 @@ class GeneratedOpentitanUartRealTests(unittest.TestCase):
             replay = replay_evidence_bundle(bundle, factory)
             self.assertTrue(replay.matches, replay.difference_context)
 
+    def test_two_rx_frames_share_one_live_uart_instance(self):
+        uart = GeneratedOpentitanUartSession(self.artifact, base_dir=ROOT,
+            cache_dir=self.cache, source=None,
+            startup_writes=((0x10, 0x80000003, 15), (0x04, 0x2, 15)))
+        uart.prepare_local()
+        uart.begin_case('two-rx-frames-one-reset')
+        self.addCleanup(uart.end_case)
+
+        uart.step_local({'uart_rx_byte': 0x5a})
+        while uart.local_ticks < uart.peer.source_end_tick + 50:
+            uart.step_local({'uart_rx_byte': 0x5a})
+        first = uart.read_register(0x18)
+        self.assertEqual(0x5a, first & 0xff)
+
+        second_start = uart.enqueue_rx_byte(0xa6)
+        self.assertGreater(second_start, uart.local_ticks)
+        while uart.local_ticks < uart.peer.source_end_tick + 50:
+            uart.step_local({'uart_rx_byte': 0xa6})
+        second = uart.read_register(0x18)
+        self.assertEqual(0xa6, second & 0xff)
+        self.assertGreater(uart.local_ticks, second_start)
+
 
 if __name__ == '__main__':
     unittest.main()

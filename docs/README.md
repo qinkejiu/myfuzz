@@ -1,62 +1,67 @@
-# Docs
+# 项目文档入口
 
-## 持续多组件 Fuzz 当前方向（2026-09-27）
+## 从这里开始
 
-新方案让 Ibex/CVA6 与 OpenTitan GPIO 等真实 RTL 在各自 harness 中持续运行，跨组件只传递真实观察到的数据和事件，不自动构造具体 SoC 总线。输入由 Fuzzable Source / Bound Input 所有权约束；同一 testcase 内保持内存、事务和局部 RTL 状态。
+- [系统说明](SYSTEM_OVERVIEW.md)：**现有系统的分层结构、一次运行怎么走、验证体系与已知边界**（想先搞清"这套系统长什么样"从这里读）。
+- [组件清单与功能](COMPONENT_REFERENCE.md)：**现有系统各个组件及其功能**（340 个模块按六层分组，逐项职责与证据位置）。
+- [吞吐量是多少（实测）](THROUGHPUT.md)：三个口径的每秒例数、分项拆解、与 2026-10-06 同配置运行的 24× 对照、单命令成本探针与改进路径。
+- [时钟约束是怎么得到的](CLOCK_CONSTRAINTS.md)：profile 声明 → 请求 tick 数 → 规划期校验编译 → driver 生成 → 宿主核对边沿，逐步取证。
+- [四个问题的实证回答](FOUR_QUESTIONS_EVIDENCE.md)：外设事件说明的现状、代码量构成、吞吐瓶颈实测与改进路径、时序处理。
+- [按 testcase 讲：运行手册](TESTCASE_RUNBOOK.md)：**以一次 testcase 为单位**讲数据流动、涉及部件、怎么运行（含命令数、耗时构成、重放路径）。
+- [testcase 的种类与数据流](TESTCASE_TYPES.md)：**testcase 有哪几种、各自数据怎么流**（T1～T8，含真实分布、闭环判据与边界）。
+- [输入的变异依据](INPUT_MUTATION_BASIS.md)：**输入怎么被变异、依据是什么、不允许依据什么**（raw 布局、六道约束闸门、37 拒绝码、反馈权重公式与真实序列）。
+- [testcase 与数据流](TESTCASE_AND_DATAFLOW.md)：**一次 testcase 是什么、内部数据怎么流、经过哪些组件**（带真实事件号的两个完整例子）。
+- [当前工作进度](CURRENT_PROGRESS.md)：已完成范围、正在验证的工作和下一步；最新状态以此页为准。
+- [第一步 P1–P5 复现手册](reproduction/first-step-p1-p5-20261008.md)：按阶段找验收报告、保存运行、可顺序执行的只读命令与本次复核结果。
+- [第一步代码与文档核对](reproduction/first-step-code-doc-audit-20261008.md)：按职责归类当前代码、共享依赖、历史路线和冻结证据，并记录核对发现。
+- [第一步代码与文档归档](reproduction/first-step-archive-20261008.md)：当前文件快照、分包清单、哈希校验和恢复入口。
+- [当前设计](CURRENT_DESIGN.md)：目标和实现边界。
+- [计划索引](superpowers/plans/README.md)：总计划、专题任务与历史路线。
+- [报告与证据索引](reports/README.md)：按验收范围查报告，再进入原始记录与 replay 材料。
+- [快速开始](../QUICKSTART.md)：运行入口；[代码组织](CODE_ORGANIZATION.md)：实现入口。
 
-- [目标设计](superpowers/specs/2026-09-27-persistent-multicomponent-fuzz-design.md)
-- [实施与验收计划](superpowers/plans/2026-09-27-persistent-multicomponent-fuzz-implementation.md)
-- [阶段验收记录](reports/persistent-scenario-acceptance-20260927.md)
+`docs/` 保存面向使用与交接的说明，`docs/superpowers/plans/` 保存计划，`docs/reports/` 保存验收结论。原始运行证据在 `runs/`，当前工作日志与独立审查在 `.superpowers/sdd/`；日志或计划中的待办不等于已通过验收。
 
-本地已保存两方向、每方向两份固定 Genome 的真实 Ibex＋双 OpenTitan GPIO 两轮闭环包。CPU 源为 `case-ibex-two-gpio-closed-two-rounds-v4` 与 `case-ibex-two-gpio-closed-two-rounds-variant-v4`；外部 GPIO 源为 `case-external-gpio-closed-two-rounds-v2` 与 `case-external-gpio-closed-two-rounds-variant-v2`，均位于 `runs/scenario/acceptance/`。四份包各自经过事件级闭环检查、资源预算检查和全新进程重放，末态 IRQ 为低电平且没有待响应。重放 CPU 源包：
+## 当前方案
 
-另有对应的四份 `*-1024ticks-v1` 扩展包，每份 CPU 在两轮真实闭环之后继续运行至 1,040 个局部周期，并独立重放匹配。`case-external-gpio-persistent-accumulation-v2` 记录了同一真实 Ibex testcase 中 RAM S=5→8→17 的持续演化；`case-rep01-combined-ibex-two-gpio-v1` 在同一真实 testcase 中组合首次未知读、部分写、延迟响应、双轮 IRQ 和 warm/cold reset。七份短闭环/切边对照包、四份长包、累加包和 REP-01 包合计 13 份当前源码身份的证据，具体门禁状态见阶段验收记录。
+项目当前主线是在多个独立 CPU/IP harness 中测试真实 RTL。目标是总控环境初始化一次后连续接纳多条 testcase，并让 RTL、RAM 和 pending event 跨例保持；Fuzzer 先选原始 Word 文档中的数据流目标，再按 ISA/协议/组件字段约束变异当前可控的上游源。testcase 是一次指令或外部事件输入及其观察，数据流目标不是 case 边界，真实 RTL 的传播可以跨例继续。现有受限 Ibex＋GPIO/UART 在线 RFuzz 已复用同一 Runner 接纳多例，并保存完整前缀 fresh replay；早期 batch 将多个 source 事件记作一例的入口仍保留。完整逐边来源、通用单指令动作编译及任意组件路径自动绑定仍在实施计划中。
 
-```bash
-PYTHONPATH=src:. python3 scripts/replay_scenario.py \
-  --evidence runs/scenario/acceptance/case-ibex-two-gpio-closed-two-rounds-v4 \
-  --factory myfuzz.scenario.examples:make_ibex_two_gpio_runner \
-  --rebuild --compare-trace
-```
+- [当前设计与实现边界](CURRENT_DESIGN.md)：目标架构、输入约束、运行闭环和已知差距。
+- [快速开始](../QUICKSTART.md)：生成一个独立 IP harness、记录并重放连续 CPU/GPIO 场景。
+- [真实 CPU/IP Harness 运行状态](LOCAL_HARNESS_RUNTIME.md)：已有 profile、协议适配、组合验收和运行限制。
+- [当前实施计划](superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md)：最终功能、原始 Word 的六类数据流、各阶段已实现内容与验收缺口。
+- [代码组织与入口](CODE_ORGANIZATION.md)：当前执行链、共享 helper、历史代码和 CLI 偏差。
+- [持续多组件 Fuzz 设计](superpowers/specs/2026-09-27-persistent-multicomponent-fuzz-design.md)：Dependency Path、Fuzzable Source / Bound Input、状态保持和覆盖反馈。
+- [独立 Harness 扩展设计](superpowers/specs/2026-10-04-generated-local-harness-five-protocol-design.md)：源码事实、协议模板与声明式微调。
+- [阶段验收记录](reports/persistent-scenario-acceptance-20260927.md)：固定场景、状态持久化、依赖和重放证据及限制。
+- [P2 受控 UART 入口与退休读取](reports/current-dataflow-p2-controlled-entry-read-20261006.md)：冻结源码的 2048 门禁证明 taken／受控 entry／retired read 各4条、0 barrier，48,315事件完整 fresh 一致；旧256失败保留，后续 Runner 已变，不代表当前源码重验。
+- [P2 UART 原生 IRQ taken](reports/current-dataflow-p2-uart-native-irq-20261006.md)：实际队列原因、绑定、CPU 输入与 external taken；完整新进程 wire replay 相等，受控 ISR／操作数来源仍待闭合。
+- [P2 UART FIFO 消费验收](reports/current-dataflow-p2-uart-fifo-consumption-20261006.md)：实际 RX 来源、FIFO 留存及完整路由读取身份；738 项软件、2 项真实 RTL、4 例在线与完整 replay 通过。
+- [P2 GPIO 消费验收](reports/current-dataflow-p2-gpio-consumption-20261006.md)：固定 GPIO 寄存器、实际 Binding 输入、同步器、原生 IRQ 与读取资源的定向证据；CPU 操作数来源仍未知。
+- [当前报告索引](reports/README.md)：按持续场景、生成 harness、CPU/IP 闭环检索证据。
+- [计划索引](superpowers/plans/README.md)：当前总计划、专题计划与历史路线。
+- [当前仓库整理计划](superpowers/plans/2026-10-06-current-design-repository-cleanup.md)：文件分类和可恢复清理规则。
+- [仓库引用审计](reports/current-design-cleanup-source-audit-20261006.md)：本轮移出文件、保留依赖和静态检查结果。
 
-该包和当前局部回归不等于 G0～G4 全部通过；剩余门禁见阶段验收记录。以下早期 SoC 组合文档保留为历史资料，不作为本方案的完成状态。
+## 代码导航
 
-## 当前入口（2026-09-25）
+| 目录 | 当前职责 |
+|---|---|
+| `src/myfuzz/scenario/` | Genome、依赖图、Runner、Router、Scheduler、持久状态、checker、coverage 和 replay |
+| `src/myfuzz/local_harness/` | 从已验证组件 profile 建立独立 CPU/IP harness 与本地协议 session |
+| `src/myfuzz/integration/scenario_*` | RFuzz 候选、campaign、反馈传输与场景 replay 接入 |
+| `src/myfuzz/protocols/` | 协议描述、适配与可复用 RTL peer/checker |
+| `configs/cpus/`、`configs/peripherals/` | CPU/IP 源码事实、profile、协议和 harness 微调 |
+| `tests/scenario/`、`tests/local_harness/`、`tests/integration/` | 依赖、协议、真实 RTL 场景与 replay 验收 |
+| `third_party/` | 固定版本的真实 CPU/IP RTL 和依赖，构建/重放需要时保留 |
+| `runs/scenario/acceptance/` | 固定场景证据与 replay 材料；不要当作缓存批量删除 |
 
-- [项目目标](PROJECT_GOALS.md)：SoC 自动组合、输入约束和组件内部缺陷归因的研究目标。
-- [后续实施路线图](superpowers/plans/2026-09-22-soc-next-steps-roadmap.md)：阶段状态、验收边界和仍未完成的任务。
-- [能力矩阵](reports/soc-capability-matrix-20260921.md)：当前支持、拒绝和未评估的协议/机制。
-- [设计验收报告](reports/soc-design-acceptance-20260921.md)：SoC 组合、RFuzz 输入、中断和归因的验收证据与限制。
-- [最新插装审计](reports/verilog-instrumenter-audit-20260925.md)：Verilog 分支插装的实现、修复、验证和未覆盖语法边界。
-- [插装修复计划](superpowers/plans/2026-09-25-verilog-instrumenter-repairs.md)：本轮插装问题修复及待验收项。
-- [中断与输入连接说明](superpowers/specs/2026-09-22-soc-top-interrupt-input-wiring-design.md)：SoC 顶层中断路径及测试输入的数据流。
-- [整理台账](REPOSITORY_ORGANIZATION.md)：目录归档、保留原则和可恢复清理记录。
+## 单独的历史路线
 
-旧验收文档和实施计划保留作历史证据；其状态与结论只适用于文档标注日期，
-不得替代以上最新能力矩阵、验收报告和插装审计。新测试结果继续追加
-`ALL_TEST_RESULTS_MASTER.md`。
+仓库还保留更早的完整 SoC 生成/总线组合、直接组件 fuzz、方案对照和插桩实验。它们用于历史对照或仍被共享工具依赖时继续保留，不代表当前主方案，也不应作为独立 Harness 自动数据流能力的验收证据。
 
-## 历史实现、实验与参考资料
+- [2026-09-14 SoC 组合目标](PROJECT_GOALS.md)：历史规格；当时要求生成具体 SoC 总线和互连。
+- `docs/superpowers/plans/2026-09-*soc*`、`docs/reports/soc-*`：历史计划和验收报告，结论只适用于各自标注的源码身份。
+- [统一历史测试索引](ALL_TEST_RESULTS_MASTER.md)：按日期和实现路线检索旧结果。
 
-- `ALL_TEST_RESULTS_MASTER.md`: unified long/short test results table.
-- `PROJECT_SUMMARY_AND_ARTIFACT_INDEX_20260615.md`: implementation and artifact index.
-- `IBEX_41_PRE_POST_AND_BASELINE_HARNESS_20260616.md`: baseline harness, pre/post variants, and 41-way run summary.
-- `IBEX_SCHEME5_BIT_CONSTRAINTS.md`: scheme5 constraint implementation notes.
-- `MULTICOMPONENT_SCHEME5_TARGETS_AND_CASES_20260617.md`: standalone structured comparison of candidate designs versus `XSTop`, multi-component scheme5 flow, and recommended test cases.
-- `CANDIDATE_COMPONENT_PROJECTS_RVX_COREV_PULP_20260617.md`: local clone and suitability notes for RVX, CV32E40P, CORE-V MCU, PULPissimo, and PULP as scheme5 multi-component targets.
-- `CPU_IP_MULTICOMPONENT_EXPERIMENT_PLAN.md`: current concrete plan for an Ibex + multiple IP target, including the direct-slice baseline, dependency-aware projection variant, dependency manifest, local/remote directory layout, and first smoke-test milestones.
-- `PROTOCOL_CPU_PERIPHERAL_REFERENCE_20260906.md`: protocol contracts, CPU native/integration/bridge boundaries, common peripheral catalog, dependency-aware composition rules, and the fixed RFuzz input ABI.
-- `RISCV_ISA_ENCODING_REFERENCE_20260906.md`: RISC-V CPU profiles plus RV32I/RV64I/M/A/F/D/C instruction names, field layouts, 0/1 encoding rules, privileged/CSR boundaries, and optional B/Z extension catalog.
-- `reports/ibex_protocol_campaign_validation_20260906.md`: complete MVP regression, dependency preflight, low-resource 60-second soak, and evidence audit.
-- `research/protocol-research-notes.md`: source-oriented protocol notes used to cross-check the reference contract.
-- `research/component-rfuzz-research-notes.md`: source-oriented CPU/component, dependency graph, RFuzz ABI, and long-run metadata notes.
-- `generic-composition-usage.md`: source-annotated generic composition smoke, synthetic five-peripheral fixture, fail-closed cases, and the low-resource policy boundary.
-- `系统总览与RFuzz约束组合示例_20260909.md`: current Chinese system overview, protocol layers, automatic composition flow, RFuzz constraint semantics, and a complete Ibex RV32IMC input-to-top example.
-
-## 历史 Task8 boundary（不代表最新验收状态）
-
-The generic smoke validates source analysis, capability matching, generated IR,
-top-level HDL, source list, and input layout. Its low-resource fields are
-returned policy metadata; this smoke does not itself enforce process RSS or
-timeouts and is not RTL simulation or an RFuzz campaign. Native APB/AXI/
-Wishbone/OBI routing and the real 3x300-second campaign remain separate work.
+清理代码前必须检查 imports、配置、CLI、测试及 replay factory。`composition/` 中有独立 Harness 当前共用的源码事实、profile 和端口分析模块；不能仅凭目录名或 `soc_` 前缀删除。

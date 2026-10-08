@@ -1660,6 +1660,28 @@ def supervisor_available() -> tuple[bool, str]:
     return True, ""
 
 
+def _direct_pinned_closure_hash(root: Path, contents: dict[str, bytes],
+                                include_roots: tuple[str, ...], read,
+                                revision: str) -> str:
+    """Reconcile direct elaboration with a pin covering full include roots.
+
+    Most profiles pin their explicit source list. Some generated local target
+    profiles pin the union of that list and every regular include-root file.
+    Try the full closure only when the explicit hash misses; the caller still
+    requires an exact match to the declared SHA-256 revision.
+    """
+    from myfuzz.composition.source_crawler import _content_hash
+
+    content_hash = _content_hash(contents)
+    if revision.startswith("sha256:") and revision != content_hash:
+        for directory in include_roots:
+            for path in sorted((root / directory).rglob("*")):
+                if path.is_file() and not path.is_symlink():
+                    read(path)
+        content_hash = _content_hash(contents)
+    return content_hash
+
+
 def _direct_elaboration(profile: ComponentProfile, *, base_dir: Path,
                         selected_top_ports: tuple[str, ...] | None = None) -> PhysicalFacts:
     """One-shot bounded Verilator elaboration without the RSS supervisor.
@@ -1698,7 +1720,8 @@ def _direct_elaboration(profile: ComponentProfile, *, base_dir: Path,
         raise ComponentProfileError(f"elaboration-failed:{profile.component_id}:{error}") from error
     if locator.elaboration is not None and filelist_defines:
         _error(f"elaboration-filelist-defines-unsupported:{profile.component_id}")
-    content_hash = _content_hash(contents)
+    content_hash = _direct_pinned_closure_hash(
+        root, contents, include_roots, read, locator.revision)
     if locator.revision.startswith("sha256:") and locator.revision != content_hash:
         _error(f"content-hash-mismatch:{profile.component_id}")
     if not files:

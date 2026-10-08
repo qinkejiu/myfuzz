@@ -19,6 +19,7 @@ from .checker import (check_cpu_gpio_closed_chain,
                       check_gpio_direct_out, check_uart_early_irq_chain)
 from .contracts import ResourceBudget, ResourceUsage
 from .feedback import CoverageTarget, observed_targets
+from .evidence_identity import evidence_run_identity
 from .genome import GenomeCodec, ScenarioGenome
 from .host_identity import verify_host_source_identity
 from .replay import (ReplayComparison, ScenarioTrace, _canonical,
@@ -87,17 +88,25 @@ def _factory_identity(factory: Callable) -> dict:
 
 def _evidence_base_bytes(genome: ScenarioGenome, identity: dict,
                          factory_identity: dict,
-                         coverage_targets: tuple[CoverageTarget, ...] = ()) -> int:
+                         coverage_targets: tuple[CoverageTarget, ...] = (),
+                         run_identity: dict | None = None, *,
+                         include_run_identity: bool = True) -> int:
     """Immutable material counted before any RTL process starts."""
     encoded = GenomeCodec.encode(genome)
     coverage_max = _canonical({
         "targets": [asdict(item) for item in coverage_targets],
         "hits": sorted({item.target_id for item in coverage_targets})})
+    run_identity_bytes = 0
+    if include_run_identity:
+        envelope = run_identity if run_identity is not None else evidence_run_identity(
+            identity, factory_identity, encoded,
+            targets=[asdict(item) for item in coverage_targets])
+        run_identity_bytes = len(_canonical(envelope)) + 1
     return (len(_canonical(identity)) + 1
             + len(_canonical(factory_identity)) + 1
             + len(encoded) + len(_canonical(json.loads(encoded))) + 1
             + sum(len(image.data) for image in genome.initial_images)
-            + len(coverage_max) + 1)
+            + len(coverage_max) + 1 + run_identity_bytes)
 
 
 def _event_file_copy_counts() -> dict[str, int]:
@@ -162,7 +171,8 @@ def _checker_future_bytes(checks: tuple[dict, ...] | list[dict],
 
 def _termination_reserve_floor(genome: ScenarioGenome, runner: ScenarioRunner,
                                budget: ResourceBudget,
-                               checks: tuple[dict, ...] | list[dict]) -> int:
+                               checks: tuple[dict, ...] | list[dict], *,
+                               include_run_identity: bool = True) -> int:
     """Reject a tail too small for fixed terminal files before starting RTL.
 
     The index length is exact because every indexed SHA-256 has 64 characters.
@@ -174,6 +184,8 @@ def _termination_reserve_floor(genome: ScenarioGenome, runner: ScenarioRunner,
              "genome.json", "trace.json", "final_state.json",
              "observations.jsonl", "checks.jsonl", "coverage.json",
              "result.json", *_EVENT_FILES}
+    if include_run_identity:
+        names.add('run_identity.json')
     names.update(f"images/{index:04d}.bin"
                  for index in range(len(genome.initial_images)))
     index_bytes = len(_canonical({
@@ -509,7 +521,7 @@ def _save_budgeted_bundle(output: Path, genome: ScenarioGenome,
                           reverse_chain_expected_values: tuple[int, ...] | None,
                           uart_early_irq: bool,
                           state_growth_bound: int,
-                          record_bound: int) -> None:
+                          record_bound: int, run_identity: dict) -> None:
     """Serialize to memory, check exact file bytes, then create the directory."""
     usage = _measured_usage(genome, runner, trace, started_at)
     wall_cut = _wall_cut_event(trace.status, trace.events)
@@ -522,6 +534,7 @@ def _save_budgeted_bundle(output: Path, genome: ScenarioGenome,
     files = {
         "manifest.json": _canonical(identity) + b"\n",
         "factory_source.json": _canonical(factory_identity) + b"\n",
+        "run_identity.json": _canonical(run_identity) + b"\n",
         "genome.bin": encoded_genome,
         "genome.json": _canonical(json.loads(encoded_genome)) + b"\n",
         "trace.json": _canonical(asdict(trace)) + b"\n",
@@ -552,7 +565,8 @@ def _save_budgeted_bundle(output: Path, genome: ScenarioGenome,
         "final_state_sha256": hashlib.sha256(_canonical(final_state)).hexdigest(),
         "event_count": len(trace.events),
         "checker_findings": sum(len(item["findings"]) for item in checks),
-        "coverage_hits": len(hits), "schema_version": "scenario_evidence.v1",
+        "coverage_hits": len(hits), "schema_version": "scenario_evidence.v2",
+        "run_identity_sha256": run_identity['sha256'],
         "resource_budget": budget.to_document(),
         "final_state_growth_bound_bytes": state_growth_bound,
         "evidence_record_bound_bytes": record_bound,
@@ -644,11 +658,13 @@ def _save_evidence_bundle_unstaged(genome: ScenarioGenome,
         runner.set_resource_budget(budget)
     identity = runner.identity_document()
     factory_identity = _factory_identity(factory)
+    declared_checks = _configured_checkers(
+        gpio_check_devices, closed_chain_expected_value,
+        closed_chain_min_rounds, reverse_chain_expected_values, uart_early_irq)
+    run_identity = evidence_run_identity(
+        identity, factory_identity, GenomeCodec.encode(genome), declared_checks,
+        [asdict(item) for item in coverage_targets])
     if budget is not None:
-        declared_checks = _configured_checkers(
-            gpio_check_devices, closed_chain_expected_value,
-            closed_chain_min_rounds, reverse_chain_expected_values,
-            uart_early_irq)
         state_growth_bound = _final_state_growth_bound(genome, runner, budget)
         record_bound = _evidence_record_bound(genome, runner, budget)
         if (budget.evidence_termination_reserve_bytes <
@@ -657,7 +673,7 @@ def _save_evidence_bundle_unstaged(genome: ScenarioGenome,
                 + 2 * state_growth_bound + 3 * record_bound):
             raise ValueError("max_evidence_bytes termination reserve is too small")
         base_bytes = (_evidence_base_bytes(
-            genome, identity, factory_identity, coverage_targets)
+            genome, identity, factory_identity, coverage_targets, run_identity)
             + _checker_config_bytes(declared_checks)
             + _checker_future_bytes(declared_checks, budget))
         if (base_bytes + _initial_image_event_bytes(genome) >
@@ -680,11 +696,12 @@ def _save_evidence_bundle_unstaged(genome: ScenarioGenome,
                               coverage_targets, closed_chain_expected_value,
                               closed_chain_min_rounds,
                               reverse_chain_expected_values, uart_early_irq,
-                              state_growth_bound, record_bound)
+                              state_growth_bound, record_bound, run_identity)
         return trace
     output.mkdir(parents=True)
     _write_json(output / "manifest.json", identity)
     _write_json(output / "factory_source.json", factory_identity)
+    _write_json(output / 'run_identity.json', run_identity)
     encoded_genome = GenomeCodec.encode(genome)
     (output / "genome.bin").write_bytes(encoded_genome)
     _write_json(output / "genome.json", json.loads(encoded_genome))
@@ -721,7 +738,8 @@ def _save_evidence_bundle_unstaged(genome: ScenarioGenome,
         "event_count": len(trace.events),
         "checker_findings": sum(len(item["findings"]) for item in checks),
         "coverage_hits": len(hits),
-        "schema_version": "scenario_evidence.v1"})
+        "schema_version": "scenario_evidence.v2",
+        "run_identity_sha256": run_identity['sha256']})
     hashes = {path.relative_to(output).as_posix(): _sha(path)
               for path in sorted(output.rglob("*")) if path.is_file()}
     _write_json(output / "bundle_index.json", {
@@ -796,6 +814,12 @@ def replay_evidence_bundle(output_dir: Path,
     if expected_semantic != saved["semantic_sha256"]:
         raise ValueError("saved trace semantic hash mismatch")
     result = json.loads((output / "result.json").read_text(encoding="utf-8"))
+    if result.get('schema_version') not in ('scenario_evidence.v1', 'scenario_evidence.v2'):
+        raise ValueError('unsupported evidence result schema')
+    has_run_identity = 'run_identity.json' in index['files']
+    if ((result.get('schema_version') == 'scenario_evidence.v2'
+         or 'run_identity_sha256' in result) and not has_run_identity):
+        raise ValueError('run identity is missing from versioned evidence')
     for key in ("status", "genome_sha256", "manifest_sha256",
                 "semantic_sha256", "local_ticks"):
         if result.get(key) != saved[key]:
@@ -885,6 +909,17 @@ def replay_evidence_bundle(output_dir: Path,
         raise ValueError("result checker or coverage count disagrees")
     saved_factory = json.loads((output / "factory_source.json").read_text(
         encoding="utf-8"))
+    saved_run_identity = None
+    if has_run_identity:
+        saved_run_identity = json.loads((output / 'run_identity.json').read_bytes())
+        declarations = [{field: check[field] for field in
+                         _CHECKER_CONFIG_FIELDS[check['checker']]} for check in checks]
+        expected_identity = evidence_run_identity(
+            identity, saved_factory, genome_bytes, declarations,
+            saved_coverage['targets'])
+        if (saved_run_identity != expected_identity
+                or result.get('run_identity_sha256') != expected_identity['sha256']):
+            raise ValueError('run identity declarations disagree with evidence')
     if not allow_factory_mismatch and saved_factory != _factory_identity(factory):
         raise ValueError("replay factory source identity mismatch")
     runner = factory()
@@ -903,11 +938,14 @@ def replay_evidence_bundle(output_dir: Path,
         if result.get("evidence_record_bound_bytes") != record_bound:
             raise ValueError("evidence record bound mismatch")
         if (budget.evidence_termination_reserve_bytes <
-                _termination_reserve_floor(genome, runner, budget, checks)
+                _termination_reserve_floor(genome, runner, budget, checks,
+                                           include_run_identity=has_run_identity)
                 + 2 * state_growth_bound + 3 * record_bound):
             raise ValueError("max_evidence_bytes termination reserve is too small")
         runner.arm_evidence_meter(
-            (_evidence_base_bytes(genome, identity, saved_factory, targets)
+            (_evidence_base_bytes(genome, identity, saved_factory, targets,
+                                  saved_run_identity,
+                                  include_run_identity=has_run_identity)
             + _checker_config_bytes(checks)
              + _checker_future_bytes(checks, budget)),
             _event_file_copy_counts(),

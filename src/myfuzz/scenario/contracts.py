@@ -78,6 +78,11 @@ def _verify_local_reset_timing(component: str, timing: dict) -> None:
             raise ValueError(f"reset_timings.{component}.{name} disagrees with wrapper")
 
 
+def _strict_generated_json_equal(left, right):
+    return json.dumps(left, sort_keys=True, separators=(',', ':'), allow_nan=False) == json.dumps(
+        right, sort_keys=True, separators=(',', ':'), allow_nan=False)
+
+
 def _verify_generated_session(identity: dict):
     """Regenerate authenticated bytes and build identity without starting RTL."""
     from myfuzz.local_harness import (load_local_harness_request, plan_local_harness,
@@ -87,7 +92,14 @@ def _verify_generated_session(identity: dict):
     base_fields = {'schema_version', 'runtime_artifact', 'build_identity',
                    'command_timeout_seconds'}
     cpu_fields = {'cpu_service_schema_version', 'source_component', 'defer_mmio'}
+    cpu_observation_fields = cpu_fields | {'cpu_observation_schema_version',
+                                          'cpu_retirement_sampling_edge'}
+    cpu_native_irq_fields = cpu_observation_fields | {'cpu_native_irq_receipt_contract'}
+    gpio_observation_fields = {'gpio_target_context_schema_version',
+                              'gpio_observation_contract'}
     native_fields = {'native_service_schema_version', 'source_component', 'memory_policy'}
+    rvx_fields = {'rvx_memory_service_schema_version', 'source_component',
+                  'memory_policy', 'response_latency_ticks'}
     axi_lite_fields = {'axi_lite_service_schema_version', 'source_component', 'memory_policy'}
     spi_fields = {'spi_peer_schema_version', 'source_component', 'chip_select',
                   'source_hex', 'startup_writes', 'read_rx_on_eot'}
@@ -102,15 +114,24 @@ def _verify_generated_session(identity: dict):
                         'source_hex', 'startup_writes', 'read_rx_after_source'}
     tlul_uart_genome_fields = tlul_uart_fields | {'source_mode'}
     tlul_uart_cpu_fields = tlul_uart_genome_fields | {'cpu_routed_mode'}
+    tlul_uart_provenance_variants = tuple(fields | {'uart_source_provenance'}
+        for fields in (tlul_uart_fields, tlul_uart_genome_fields, tlul_uart_cpu_fields))
+    tlul_uart_fifo_variants = tuple(fields | {'uart_fifo_observation_contract'}
+        for fields in tlul_uart_provenance_variants)
     axil_uart_fields = {'axil_uart_service_schema_version', 'source_component',
                         'source_hex', 'startup_writes', 'read_rx_after_source'}
     axil_uart_genome_fields = axil_uart_fields | {'source_mode'}
+    axil_uart_cpu_fields = axil_uart_genome_fields | {'cpu_routed_mode'}
     wb_uart_fields = {'wb_uart_service_schema_version', 'source_component',
                       'source_hex', 'startup_writes', 'read_rx_after_source'}
     wb_uart_genome_fields = wb_uart_fields | {'source_mode'}
     wb_uart_cpu_fields = wb_uart_genome_fields | {'cpu_routed_mode'}
     if not isinstance(identity, dict) or set(identity) not in (
-            base_fields, base_fields | cpu_fields, base_fields | native_fields,
+            base_fields, base_fields | cpu_fields, base_fields | cpu_observation_fields,
+            base_fields | cpu_native_irq_fields,
+            base_fields | gpio_observation_fields,
+            base_fields | native_fields,
+            base_fields | rvx_fields,
             base_fields | axi_lite_fields, base_fields | spi_fields,
             base_fields | axi4_fields, base_fields | tlul_gpio_fields,
             base_fields | tlul_spi_host_fields,
@@ -121,13 +142,40 @@ def _verify_generated_session(identity: dict):
             base_fields | tlul_uart_cpu_fields,
             base_fields | axil_uart_fields,
             base_fields | axil_uart_genome_fields,
+            base_fields | axil_uart_cpu_fields,
             base_fields | wb_uart_fields,
             base_fields | wb_uart_genome_fields,
-            base_fields | wb_uart_cpu_fields):
+            base_fields | wb_uart_cpu_fields,
+            *(base_fields | fields for fields in tlul_uart_provenance_variants),
+            *(base_fields | fields for fields in tlul_uart_fifo_variants)):
 
         raise ValueError('generated session identity has unknown or missing fields')
     if identity['schema_version'] != 'generated_local_session_identity.v1':
         raise ValueError('unsupported generated session schema')
+    if 'cpu_native_irq_receipt_contract' in identity:
+        from myfuzz.local_harness.ibex_irq_receipt_contract import validate_ibex_irq_receipt_contract
+        validate_ibex_irq_receipt_contract(identity['cpu_native_irq_receipt_contract'])
+    if 'gpio_observation_contract' in identity:
+        from myfuzz.local_harness.pulp_gpio_probe_contract import pulp_gpio_observation_contract
+        if (identity['gpio_target_context_schema_version'] != 'pulp_gpio_routed_access.v1'
+                or identity['gpio_observation_contract'] != pulp_gpio_observation_contract()):
+            raise ValueError('generated GPIO observation identity mismatch')
+    if 'uart_source_provenance' in identity:
+        provenance = identity['uart_source_provenance']
+        expected = {'schema_version': 'uart_source_frames.v1',
+                    'frame_semantics': 'cio_rx_drive_8n1', 'clocks_per_bit': 32,
+                    'idle_mark_bits': 17, 'frame_ticks': 320, 'fifo_origin': 'unknown'}
+        if (type(provenance) is not dict or set(provenance) != set(expected)
+                or any(type(provenance[key]) is not type(value) or provenance[key] != value
+                       for key, value in expected.items())):
+            raise ValueError('generated UART source provenance identity mismatch')
+    if 'uart_fifo_observation_contract' in identity:
+        from myfuzz.local_harness.opentitan_uart_fifo_contract import validate_uart_fifo_observation_contract
+        validate_uart_fifo_observation_contract(identity['uart_fifo_observation_contract'])
+    if 'cpu_observation_schema_version' in identity and (
+            identity['cpu_observation_schema_version'] != 'ibex_rvfi_observation.v1'
+            or identity['cpu_retirement_sampling_edge'] != 'post_rising'):
+        raise ValueError('generated CPU observation identity mismatch')
     timeout = identity['command_timeout_seconds']
     if type(timeout) not in (int, float) or not 0 < timeout <= 3600:
         raise ValueError('invalid generated command timeout')
@@ -138,11 +186,34 @@ def _verify_generated_session(identity: dict):
         **plan_doc['timing']))
     plan = plan_local_harness(request, base_dir=_ROOT)
     top = render_local_runtime(plan, render_local_harness(plan),
-        verify_local_source_lock(plan.profile, base_dir=_ROOT), base_dir=_ROOT)
+        verify_local_source_lock(plan.profile, base_dir=_ROOT,
+            allow_source_only=plan.profile.component_id == 'rvx_core'), base_dir=_ROOT)
     artifact = render_local_driver(top, base_dir=_ROOT)
-    if document != artifact.runtime_document:
+    native_cpu_irq = 'cpu_native_irq_receipt_contract' in identity
+    if native_cpu_irq:
+        from myfuzz.local_harness.ibex_irq_receipt_contract import verify_ibex_irq_receipt_artifact
+        verify_ibex_irq_receipt_artifact(artifact, base_dir=_ROOT)
+    fifo_variant = plan.profile.component_id == 'opentitan_uart_fifo_local'
+    fifo_identity = 'uart_fifo_observation_contract' in identity
+    if fifo_variant != fifo_identity:
+        raise ValueError('generated UART FIFO observation profile mismatch')
+    if fifo_variant and (plan.request.profile_path != 'configs/peripherals/opentitan_uart_fifo_local/component_profile.json'
+            or 'uart_source_provenance' not in identity
+            or artifact.runtime_document['kind'] != 'tlul_uart'):
+        raise ValueError('generated UART FIFO observation identity mismatch')
+    if (not _strict_generated_json_equal(document, artifact.runtime_document) if fifo_variant or native_cpu_irq
+            else document != artifact.runtime_document):
         raise ValueError('generated runtime artifact identity mismatch')
-    if artifact.runtime_document['kind'] == 'native_memory_cpu':
+    if artifact.runtime_document['kind'] == 'rvx_memory_cpu':
+        _exact(identity, base_fields | rvx_fields, 'generated RVX memory service identity')
+        latency = identity['response_latency_ticks']
+        if (identity['rvx_memory_service_schema_version'] != 'generated_rvx_memory_service.v1'
+                or identity['source_component'] != artifact.plan.request.instance_id
+                or identity['memory_policy'] != 'ram-rom-only'
+                or type(latency) is not int or not 1 <= latency <=
+                artifact.runtime_document['effective_max_wait_cycles']):
+            raise ValueError('generated RVX memory service identity mismatch')
+    elif artifact.runtime_document['kind'] == 'native_memory_cpu':
         _exact(identity, base_fields | native_fields, 'generated native service identity')
         if (identity['native_service_schema_version'] != 'generated_native_memory_service.v1'
                 or identity['source_component'] != artifact.plan.request.instance_id
@@ -160,7 +231,10 @@ def _verify_generated_session(identity: dict):
                 or identity['source_component'] != artifact.plan.request.instance_id):
             raise ValueError('generated AXI4 CPU service identity mismatch')
     elif artifact.runtime_document['kind'] in ('obi_cpu', 'wishbone_cpu'):
-        _exact(identity, base_fields | cpu_fields, 'generated CPU service identity')
+        observed = artifact.plan.profile.component_id == 'ibex_rvfi_local'
+        _exact(identity, base_fields | (cpu_native_irq_fields if native_cpu_irq else
+                                        cpu_observation_fields if observed else cpu_fields),
+               'generated CPU service identity')
         service_versions = {'obi_cpu': 'generated_obi_cpu_service.v1',
                             'wishbone_cpu': 'generated_wishbone_cpu_service.v1'}
         if (identity['cpu_service_schema_version'] != service_versions[artifact.runtime_document['kind']]
@@ -238,22 +312,29 @@ def _verify_generated_session(identity: dict):
         cpu_routed = identity.get('cpu_routed_mode') is True
         _exact(identity, base_fields | (tlul_uart_cpu_fields if cpu_routed else
                                         tlul_uart_genome_fields if genome_source
-                                        else tlul_uart_fields),
+                                        else tlul_uart_fields) |
+               ({'uart_source_provenance'} if 'uart_source_provenance' in identity else set()) |
+               ({'uart_fifo_observation_contract'} if fifo_variant else set()),
                'generated TL-UL UART service identity')
         source = identity['source_hex']
         writes = identity['startup_writes']
         read_rx = identity['read_rx_after_source']
+        if fifo_variant and (type(writes) is not list or any(
+                type(row) is not list or any(type(value) is not int for value in row)
+                for row in writes)):
+            raise ValueError('generated UART FIFO startup write types mismatch')
         if (identity['tlul_uart_service_schema_version'] !=
-                ('generated_tlul_uart_8n1.v3' if cpu_routed else
-                 'generated_tlul_uart_8n1.v2' if genome_source else
-                 'generated_tlul_uart_8n1.v1')
+                ('generated_tlul_uart_8n1.v4' if cpu_routed else
+                 'generated_tlul_uart_8n1.v3' if genome_source else
+                 'generated_tlul_uart_8n1.v2')
                 or identity['source_component'] != artifact.plan.request.instance_id
                 or type(source) is not str or len(source) not in (0, 2)
                 or any(ch not in '0123456789abcdef' for ch in source)
                 or genome_source and source != ''
                 or type(writes) is not list or len(writes) > 4
                 or any(type(row) is not list or len(row) != 3
-                       or row not in ([0x10, 0x80000003, 15], [0x04, 0x6, 15])
+                       or row not in ([0x10, 0x80000003, 15], [0x04, 0x6, 15],
+                                      [0x04, 0x2, 15])
                        and not (type(row[0]) is int and row[0] == 0x1c
                                 and type(row[1]) is int and 0 <= row[1] <= 255
                                 and type(row[2]) is int and row[2] == 15)
@@ -264,13 +345,16 @@ def _verify_generated_session(identity: dict):
             raise ValueError('generated TL-UL UART service identity mismatch')
     elif artifact.runtime_document['kind'] == 'axi4_lite_uart':
         genome_source = identity.get('source_mode') == 'genome'
-        _exact(identity, base_fields | (axil_uart_genome_fields if genome_source
+        cpu_routed = identity.get('cpu_routed_mode') is True
+        _exact(identity, base_fields | (axil_uart_cpu_fields if cpu_routed else
+                                        axil_uart_genome_fields if genome_source
                                         else axil_uart_fields),
                'generated AXI4-Lite UART service identity')
         source = identity['source_hex']
         writes = identity['startup_writes']
         if (identity['axil_uart_service_schema_version'] !=
-                ('generated_axil_uart_8n1.v2' if genome_source else
+                ('generated_axil_uart_8n1.v3' if cpu_routed else
+                 'generated_axil_uart_8n1.v2' if genome_source else
                  'generated_axil_uart_8n1.v1')
                 or identity['source_component'] != artifact.plan.request.instance_id
                 or type(source) is not str or len(source) not in (0, 2)
@@ -285,7 +369,10 @@ def _verify_generated_session(identity: dict):
                        for row in writes)
                 or type(identity['read_rx_after_source']) is not bool
                 or identity['read_rx_after_source'] and not source
-                   and not genome_source):
+                   and not genome_source
+                or cpu_routed and (not genome_source
+                                   or identity['read_rx_after_source']
+                                   or writes)):
             raise ValueError('generated AXI4-Lite UART service identity mismatch')
     elif artifact.runtime_document['kind'] == 'wishbone_uart':
         genome_source = identity.get('source_mode') == 'genome'
@@ -316,9 +403,18 @@ def _verify_generated_session(identity: dict):
                 or read_rx and not (genome_source or source)
                 or cpu_routed and (not genome_source or read_rx or writes)):
             raise ValueError('generated Wishbone UART service identity mismatch')
+    elif (artifact.runtime_document['kind'] == 'apb_gpio'
+          and artifact.plan.profile.component_id == 'pulp_gpio_causal_local'):
+        _exact(identity, base_fields | gpio_observation_fields,
+               'generated GPIO observation identity')
+        if identity['gpio_observation_contract'] != artifact.runtime_document.get(
+                'gpio_observation_contract'):
+            raise ValueError('generated GPIO observation artifact mismatch')
     else:
         _exact(identity, base_fields, 'generated IP service identity')
-    if identity['build_identity'] != local_build_identity(artifact, base_dir=_ROOT):
+    expected_build = local_build_identity(artifact, base_dir=_ROOT)
+    if (not _strict_generated_json_equal(identity['build_identity'], expected_build) if fifo_variant or native_cpu_irq
+            else identity['build_identity'] != expected_build):
         raise ValueError('generated build identity mismatch')
     return artifact
 
@@ -613,7 +709,8 @@ class ScenarioManifest:
                     if record.get('identity', {}).get('schema_version') == 'generated_local_session_identity.v1')
                 verify_host_source_identity(identity["host_sources"], harness_identities=generated)
             identity_core = {key: value for key, value in identity.items()
-                             if key not in ("irq_pulses", "host_sources")}
+                             if key not in ("irq_pulses", "host_sources",
+                                            "controlled_uart_bootstrap_configuration")}
         else:
             identity_core = identity
         _exact(identity_core, {"schema_version", "sessions", "memories", "windows",
@@ -672,6 +769,26 @@ class ScenarioManifest:
                 if tool["available"] is not True:
                     raise ValueError(f"toolchain.{name} is unavailable")
                 _text(tool["version"], f"toolchain.{name}.version")
+        if 'controlled_uart_bootstrap_configuration' in identity:
+            from .ibex_uart_online import make_ibex_uart_online_bootstrap
+            from .uart_irq_entry import controlled_uart_bootstrap_configuration
+            from myfuzz.local_harness.ibex_irq_receipt_contract import ibex_irq_receipt_contract
+            configuration = identity['controlled_uart_bootstrap_configuration']
+            if not isinstance(configuration, dict):
+                raise ValueError('controlled bootstrap configuration must be an object')
+            component = configuration.get('component')
+            session_identity = sessions.get(component, {}).get('identity', {}) if isinstance(component, str) else {}
+            if 'cpu_native_irq_receipt_contract' not in session_identity:
+                raise ValueError('controlled bootstrap requires authenticated native CPU')
+            bootstrap = make_ibex_uart_online_bootstrap(
+                instruction_start=configuration.get('instruction_start'),
+                instruction_end=configuration.get('instruction_end'),
+                memory_readback='memory_read_issuance' in session_identity)
+            expected = controlled_uart_bootstrap_configuration(bootstrap,
+                component=component, runtime_artifact=session_identity['runtime_artifact'],
+                observation_contract=ibex_irq_receipt_contract())
+            if not _strict_generated_json_equal(configuration, expected):
+                raise ValueError('controlled bootstrap configuration differs from trusted builder')
         reset = _exact(document["reset_policy"],
                        {"initial", "allowed", "scope", "component_timings"}, "reset_policy")
         if reset["scope"] != "all":

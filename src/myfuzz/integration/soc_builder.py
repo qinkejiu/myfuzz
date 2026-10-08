@@ -58,10 +58,23 @@ from myfuzz.composition.soc_peer_replay import (
     PeerRawReplayError,
     decode_peer_raw_events,
 )
+from myfuzz.elaboration_probe import (
+    CLASS_ELABORATED,
+    ElaborationProbeError,
+    classify_planned_points,
+    read_compiled_model,
+    replan_observations,
+)
 
 from .campaign import CampaignLimits, CampaignOptions, run_supervised_command
 from .rtl_execution_monitor import monitor_output, monitor_rtl
 from .soc_coverage import (
+    FIRST_SEEN_EVIDENCE,
+    FIRST_SEEN_EVENT,
+    FIRST_SEEN_LEDGER_NAME,
+    FIRST_SEEN_SCHEMA,
+    MAX_FIRST_SEEN_ENTRIES,
+    SocCoverageError,
     coverage_observation_plan,
     universe_from_instance_bits,
 )
@@ -101,6 +114,9 @@ COVERAGE_SIGNAL = "__vi_coverage"
 COVERAGE_KIND = "source-instrumented-rtl-branch-u8-saturating"
 _COVERAGE_INSTRUMENTER_SCHEMA = "source_branch_instrumenter.v1"
 _COVERAGE_INSTRUMENTER_SETTINGS = {"runtime": {"single_statement": True}}
+#: The per-run first-seen ledger name, declared in the provenance and resolved
+#: against the run's build directory by the report reader.
+COVERAGE_FIRST_SEEN_LEDGER = FIRST_SEEN_LEDGER_NAME
 PROBE_TIMEOUT_SECONDS = 60
 BUILD_TIMEOUT_SECONDS = 600
 #: CPUs whose first fetch is not at the reset vector itself.  Ibex documents
@@ -468,6 +484,58 @@ def _coverage_instrumenter_identity():
     }
 
 
+def coverage_first_seen_evidence(coverage_ports) -> dict:
+    """Declare the per-point first-seen evidence this build will record.
+
+    The declaration is the artifact's own statement of *where* the evidence
+    lives and *what* it is derived from; it is written before the campaign runs,
+    and the ledger itself is written by the readback that owns the counters
+    (:class:`myfuzz.integration.rfuzz_simulator.CoverageFirstSeenLedger`).  A
+    reader that finds no declaration must report ``first_seen`` as unavailable
+    with a reason - never as a zero count - so an artifact built before this
+    existed keeps its old verdict.
+    """
+    ports = tuple(coverage_ports)
+    return {
+        "evidence": FIRST_SEEN_EVIDENCE,
+        "event": FIRST_SEEN_EVENT,
+        "schema_version": FIRST_SEEN_SCHEMA,
+        "ledger": FIRST_SEEN_LEDGER_NAME,
+        "counter_count": len(ports),
+        "bound": MAX_FIRST_SEEN_ENTRIES,
+        "basis": (
+            "the first RTL test whose per-test counter readback shows a point "
+            "non-zero; the entry event is that readback's simulator protocol "
+            "request id and its time is that readback's measured monotonic "
+            "offset, so no timestamp is invented and no post-run snapshot of "
+            "surviving inputs is used"),
+    }
+
+
+def first_seen_ledger_path(build, document) -> Path | None:
+    """Where this build's first-seen ledger belongs, or ``None`` if undeclared.
+
+    Only a bare file name is accepted, and it is resolved against the run's
+    build directory exactly like the observation plan, so a hostile or corrupt
+    declaration can never make the builder (or the reader) touch a path outside
+    the run.
+    """
+    if not isinstance(document, Mapping):
+        return None
+    coverage = document.get("coverage")
+    if not isinstance(coverage, Mapping):
+        coverage = document.get("coverage_instrumentation")
+    if not isinstance(coverage, Mapping):
+        return None
+    declaration = coverage.get("first_seen")
+    if not isinstance(declaration, Mapping):
+        return None
+    name = declaration.get("ledger")
+    if not isinstance(name, str) or not name or Path(name).name != name:
+        return None
+    return Path(build) / name
+
+
 def _profile_build_cache_key(base_identity, instrumenter_identity,
                             instrumented_output_sha256):
     if not isinstance(base_identity, Mapping) or not isinstance(instrumenter_identity, Mapping):
@@ -529,6 +597,120 @@ def _cached_instrumentation_matches(cache_entry, document, instrumenter_identity
     except (OSError, SocBuildError, TypeError, ValueError):
         return False
     return actual == expected
+
+
+def _cached_observation_is_armed(cache_entry, document):
+    """Only reuse a compiled artifact whose own plan proves its counters are armed.
+
+    The observation plan spends a bounded counter budget by ascending coverage
+    bit, which on the ibex cell lands the whole CPU quota on generate branches
+    the compiled model does not contain.  A cache entry written before that was
+    understood carries exactly that dead plan, so reusing it would reproduce the
+    structural zero on every cache hit.  The entry is reusable only when its
+    saved plan records an elaboration probe *and* that record still matches the
+    cached model: every observed point's instance scope must be present in the
+    model header sitting next to it.
+    """
+    plan = _read_json(Path(cache_entry) / "soc_coverage_plan.json",
+                      "cached-coverage-plan")
+    if not isinstance(plan, Mapping):
+        return False
+    observed = plan.get("observed")
+    recorded = plan.get("elaboration")
+    if not isinstance(observed, list) or not observed:
+        return False
+    if not isinstance(recorded, Mapping) or recorded.get("status") not in (
+            "verified", "replanned"):
+        return False
+    branch_ports = document.get("branch_coverage_ports") if isinstance(
+        document, Mapping) else None
+    if not isinstance(branch_ports, list) or len(branch_ports) != len(observed):
+        return False
+    for port, row in zip(branch_ports, observed):
+        if not isinstance(port, (list, tuple)) or len(port) != 2 \
+                or port[1] != row.get("bit"):
+            return False
+    model = read_compiled_model(Path(cache_entry))
+    if not model.present:
+        return False
+    confirmation = recorded.get("post_rebuild_confirmation")
+    probed = (confirmation.get("model")
+              if isinstance(confirmation, Mapping)
+              and isinstance(confirmation.get("model"), Mapping)
+              else recorded.get("model"))
+    probed_digest = str(probed.get("sha256") or "") if isinstance(probed, Mapping) else ""
+    if probed_digest and probed_digest != model.sha256:
+        return False
+    return all(row["classification"] == CLASS_ELABORATED
+               for row in classify_planned_points(observed, model))
+
+
+def _plan_observations_with_elaboration_probe(*, build, plan_document, universe,
+                                              bits, limit, compile_plan, cell_id,
+                                              stage):
+    """Probe the compiled model, re-plan the observation set, rebuild once.
+
+    ``compile_plan(plan_document)`` renders the persistent harness for that plan,
+    compiles it with Verilator, probes the produced executable and returns
+    ``(executable, branch_ports, coverage_ports)``.  This function first compiles
+    the planned set, then drops every point bound to an instance scope the
+    compiled model does not contain (or cannot be probed at all) and re-plans the
+    same counter quota, so the CPU budget lands on points that can actually
+    light.  The harness is rebuilt once if - and only if - the plan changed, and
+    the rebuilt model is re-probed before anything is published.
+
+    Fail closed: an unreadable model, an empty eligible set, or a rebuild whose
+    model still lacks a scope of the new plan raise :class:`SocBuildError`
+    instead of publishing counters that may be structurally dead.
+    """
+    executable, branch_ports, coverage_ports = compile_plan(plan_document)
+    model = read_compiled_model(build)
+    try:
+        outcome = replan_observations(plan=plan_document, universe=universe,
+                                      bits=bits, limit=limit, model=model)
+    except (ElaborationProbeError, SocCoverageError) as error:
+        raise SocBuildError(
+            "%s:%s-coverage-elaboration-probe-failed:%s"
+            % (cell_id, stage, error)) from error
+    final_plan = outcome["plan"]
+    elaboration = outcome["elaboration"]
+    if outcome["changed"]:
+        executable, branch_ports, coverage_ports = compile_plan(final_plan)
+        confirmation = read_compiled_model(build)
+        if not confirmation.present:
+            raise SocBuildError(
+                "%s:%s-coverage-elaboration-probe-failed:"
+                "rebuild-compiled-model-unavailable:%s"
+                % (cell_id, stage, confirmation.reason))
+        rows = classify_planned_points(final_plan["observed"], confirmation)
+        remaining = [row for row in rows if row["classification"] != CLASS_ELABORATED]
+        if remaining:
+            raise SocBuildError(
+                "%s:%s-coverage-elaboration-probe-failed:"
+                "rebuild-still-binds-unelaborated-scope:%s"
+                % (cell_id, stage,
+                   ", ".join(sorted({"%s@%s" % (row["instance_id"], row["bit"])
+                                     for row in remaining})[:5])))
+        elaboration["post_rebuild_confirmation"] = {
+            "model": confirmation.document(),
+            "observations": len(rows),
+            "elaborated": len(rows),
+            "unelaborated_scope": 0,
+            "elaboration_unknown": 0,
+        }
+    # The plan is the saved attestation of which counters this build armed, so
+    # it carries the elaboration verdict in *both* outcomes: a plan that needed
+    # no re-planning is "verified", and a later cache reuse can then prove the
+    # counters it reads instead of being refused for a missing attestation.
+    final_plan["elaboration"] = elaboration
+    (build / "soc_coverage_plan.json").write_bytes(canonical_bytes(final_plan))
+    return {
+        "plan": final_plan,
+        "elaboration": elaboration,
+        "executable": executable,
+        "branch_ports": branch_ports,
+        "coverage_ports": coverage_ports,
+    }
 
 
 def _mode(config):
@@ -1595,6 +1777,7 @@ def _build_profile_campaign_artifact(config, build_dir):
                     and cached_document.get("tool_identity") == tool_identity
                     and _cached_instrumentation_matches(
                         cache_entry, cached_document, instrumenter_identity)
+                    and _cached_observation_is_armed(cache_entry, cached_document)
                     and cached_ports
                     and isinstance(cached_document.get("structure_audit"), Mapping)
                     and cached_document["structure_audit"].get("status") == "pass"
@@ -1688,7 +1871,13 @@ def _build_profile_campaign_artifact(config, build_dir):
                     coverage_kind=str(cached_document["coverage_kind"]),
                     simulator="verilator", simulator_args=simulator_args,
                     isolate_tests=True, build_document=cached_document,
-                    projection_arms=arms, peer_slots=peer_slots)
+                    projection_arms=arms, peer_slots=peer_slots,
+                    # A cache hit publishes whatever the cached document
+                    # declares: an older cache entry declares nothing, so no
+                    # ledger is written for it and the reader keeps reporting
+                    # first_seen as unavailable.
+                    coverage_first_seen_ledger=first_seen_ledger_path(
+                        build, cached_document))
     # Re-elaborate the generated top before compiling it.  This is deliberately
     # independent of the renderer bookkeeping: the audit reads the published
     # source closure and verifies the actual netlist against the plan.  A
@@ -1734,40 +1923,62 @@ def _build_profile_campaign_artifact(config, build_dir):
     if relocated_output_sha256 != instrumentation["instrumented_output_sha256"]:
         raise SocBuildError("profile-instrumented-output-changed-during-relocation")
     instrumentation_stage.cleanup()
-    branch_ports = tuple((COVERAGE_SIGNAL, int(item["bit"]))
-                         for item in instrumentation["plan"]["observed"])
-    coverage_ports = branch_ports + checker_ports + opcode_coverage_ports
     (build / "rfuzz_input_transport.sv").write_text(transport.render_systemverilog())
-    (build / "live_tb.sv").write_text(_testbench(
-        layout, {"unmapped": [field.field_id for field in fields if not field.port]},
-        ports, top_module, coverage_ports,
-        coverage_width=instrumentation["vector_width"], input_defaults=defaults,
-        image_plan=image, image_targets=image_targets,
-        execution_monitor=dict(PROFILE_FABRIC_MONITOR)))
-    documents = {"soc_composition.json": composition_document(plan),
-                 **({} if candidate_program is None else {
-                     "candidate_program.json": candidate_program.document()}),
-                 "input_layout.json": input_layout_document(layout),
-                 "input_policy.json": input_constraint_document(policy),
-                 "image_plan.json": image.document(),
-                 "rfuzz_input_transport.json": transport.document(),
-                 "soc_structure_audit.json": structure_audit,
-                 "soc_coverage_universe.json": instrumentation["universe"],
-                 "soc_coverage_plan.json": instrumentation["plan"]}
-    if checker_manifest is not None:
-        documents["checker_profile.json"] = checker_manifest
-    for name, value in documents.items():
-        (build / name).write_bytes(canonical_bytes(value))
-    command = _compile_command(tool, build, closure, root, top_name,
-                               flist=instrumentation["flist"])
-    result = run_supervised_command(CampaignOptions(
-        command=command, output_dir=build / "build", duration_seconds=BUILD_TIMEOUT_SECONDS,
-        checkpoint_seconds=1, limits=BUILD_MEMORY_LIMITS,
-        env={**tool_env, "JOBS": "1", "MAKEFLAGS": "-j1"}))
-    if result.get("status") != "completed" or result.get("returncode") != 0:
-        raise SocBuildError(f"profile-verilator-build-failed: see {build / 'compiler.log'}")
-    executable = build / "obj_dir" / "Vmyfuzz_live_tb"
-    _probe_executable(executable, simulator_args, request.request_id)
+
+    def _observation_documents(candidate_plan):
+        documents = {"soc_composition.json": composition_document(plan),
+                     **({} if candidate_program is None else {
+                         "candidate_program.json": candidate_program.document()}),
+                     "input_layout.json": input_layout_document(layout),
+                     "input_policy.json": input_constraint_document(policy),
+                     "image_plan.json": image.document(),
+                     "rfuzz_input_transport.json": transport.document(),
+                     "soc_structure_audit.json": structure_audit,
+                     "soc_coverage_universe.json": instrumentation["universe"],
+                     "soc_coverage_plan.json": candidate_plan}
+        if checker_manifest is not None:
+            documents["checker_profile.json"] = checker_manifest
+        return documents
+
+    def render_and_compile(candidate_plan):
+        """Render the harness for one plan, compile it, probe the executable."""
+        branch = tuple((COVERAGE_SIGNAL, int(item["bit"]))
+                       for item in candidate_plan["observed"])
+        plan_ports = branch + checker_ports + opcode_coverage_ports
+        (build / "live_tb.sv").write_text(_testbench(
+            layout, {"unmapped": [field.field_id for field in fields if not field.port]},
+            ports, top_module, plan_ports,
+            coverage_width=instrumentation["vector_width"], input_defaults=defaults,
+            image_plan=image, image_targets=image_targets,
+            execution_monitor=dict(PROFILE_FABRIC_MONITOR)))
+        for name, value in _observation_documents(candidate_plan).items():
+            (build / name).write_bytes(canonical_bytes(value))
+        command = _compile_command(tool, build, closure, root, top_name,
+                                   flist=instrumentation["flist"])
+        result = run_supervised_command(CampaignOptions(
+            command=command, output_dir=build / "build",
+            duration_seconds=BUILD_TIMEOUT_SECONDS, checkpoint_seconds=1,
+            limits=BUILD_MEMORY_LIMITS,
+            env={**tool_env, "JOBS": "1", "MAKEFLAGS": "-j1"}))
+        if result.get("status") != "completed" or result.get("returncode") != 0:
+            raise SocBuildError(
+                f"profile-verilator-build-failed: see {build / 'compiler.log'}")
+        executable = build / "obj_dir" / "Vmyfuzz_live_tb"
+        _probe_executable(executable, simulator_args, request.request_id)
+        return executable, branch, plan_ports
+
+    # A counter slot the compiled model cannot light is not coverage.  The
+    # selector runs before the compile, so this is the first point at which the
+    # design itself can say which of the planned points exist.
+    observation = _plan_observations_with_elaboration_probe(
+        build=build, plan_document=instrumentation["plan"],
+        universe=instrumentation["universe"], bits=instrumentation["bits"],
+        limit=COUNTER_LIMIT, compile_plan=render_and_compile,
+        cell_id=request.request_id, stage="profile")
+    instrumentation["plan"] = observation["plan"]
+    executable = observation["executable"]
+    branch_ports = observation["branch_ports"]
+    coverage_ports = observation["coverage_ports"]
     constraint_hash = content_hash({"policy_hash": policy.policy_hash,
                                     "layout_hash": layout.layout_hash,
                                     "image_plan_hash": image.image_hash,
@@ -1858,6 +2069,10 @@ def _build_profile_campaign_artifact(config, build_dir):
                                   "checker-output-bit-and-rvfi-opcode-events-u8-saturating"
                                   if checker_profile is not None else COVERAGE_KIND),
                 "branch_coverage_ports": [[name, bit] for name, bit in branch_ports],
+                # Every planned point's elaborated/unelaborated verdict, the
+                # points the probe dropped and why, and the confirmation that the
+                # rebuilt harness reads only scopes the model contains.
+                "observation_elaboration": observation["elaboration"],
                 "ibex_instruction_coverage": (None if not opcode_coverage_ports else {
                     "source": "Ibex RVFI valid, non-trapping retirement records",
                     "encoding": "12 one-hot instruction classes from rvfi_insn opcode/funct7",
@@ -1896,6 +2111,9 @@ def _build_profile_campaign_artifact(config, build_dir):
                         instrumentation["instrumented_output_sha256"]),
                     "instrumented_root": instrumentation["instrumented_root"],
                     "instrumented_flist": instrumentation["flist"],
+                    # Per-point first-seen evidence: recorded from the per-test
+                    # counter readback this build's harness feeds.
+                    "first_seen": coverage_first_seen_evidence(coverage_ports),
                 },
                 "structure_audit": {
                     "schema_version": structure_audit.get("schema_version"),
@@ -1945,7 +2163,8 @@ def _build_profile_campaign_artifact(config, build_dir):
         coverage_ports=coverage_ports, projector=arms["dependency_repair"],
         coverage_kind=document["coverage_kind"], simulator="verilator", simulator_args=simulator_args,
         isolate_tests=True, build_document=document, projection_arms=arms,
-        peer_slots=peer_slots)
+        peer_slots=peer_slots,
+        coverage_first_seen_ledger=first_seen_ledger_path(build, document))
 
 
 def build_soc_campaign_artifact(config, build_dir):
@@ -2024,9 +2243,6 @@ def build_soc_campaign_artifact(config, build_dir):
     source_closure = _source_closure(manifest, root, cell_id)
     instrumentation = _instrument_coverage(
         build, root, cell_id, source_closure, rendered, top_name, top_module, manifest)
-    coverage_ports = tuple(
-        (COVERAGE_SIGNAL, int(item["bit"]))
-        for item in instrumentation["plan"]["observed"])
     simulator_args = ()
     boot_document = None
     preloaded = [region for region in plan["address_map"]["memory_regions"]
@@ -2047,31 +2263,49 @@ def build_soc_campaign_artifact(config, build_dir):
             build, plan, cell, cell_path, cpu, cell_id, mode, config, stimulus,
             preloaded)
 
-    (build / "live_tb.sv").write_text(
-        _testbench(layout, mapping, ports, top_module, coverage_ports,
-                   coverage_width=instrumentation["vector_width"]),
-        encoding="utf-8")
-    (build / "soc_coverage_universe.json").write_bytes(
-        canonical_bytes(instrumentation["universe"]))
-    (build / "soc_coverage_plan.json").write_bytes(
-        canonical_bytes(instrumentation["plan"]))
+    legacy_compiled_commands = []
 
-    command = _compile_command(verilator, build, source_closure, root, top_name,
-                               flist=instrumentation["flist"])
-    result = run_supervised_command(CampaignOptions(
-        command=command, output_dir=build / "build",
-        duration_seconds=BUILD_TIMEOUT_SECONDS, checkpoint_seconds=1,
-        limits=BUILD_MEMORY_LIMITS,
-        env={"JOBS": "1", "MAKEFLAGS": "-j1"}))
-    log_path = build / "compiler.log"
-    if result.get("status") != "completed" or result.get("returncode") != 0:
-        raise SocBuildError(
-            "%s:verilator-build-failed:status=%s:rc=%s: see %s"
-            % (cell_id, result.get("status"), result.get("returncode"), log_path))
-    executable = build / "obj_dir" / "Vmyfuzz_live_tb"
-    if not executable.is_file():
-        raise SocBuildError("%s:verilator-did-not-emit:%s" % (cell_id, executable))
-    _probe_executable(executable, simulator_args, cell_id)
+    def render_and_compile(candidate_plan):
+        """Render the harness for one plan, compile it, probe the executable."""
+        plan_ports = tuple((COVERAGE_SIGNAL, int(item["bit"]))
+                           for item in candidate_plan["observed"])
+        (build / "live_tb.sv").write_text(
+            _testbench(layout, mapping, ports, top_module, plan_ports,
+                       coverage_width=instrumentation["vector_width"]),
+            encoding="utf-8")
+        (build / "soc_coverage_universe.json").write_bytes(
+            canonical_bytes(instrumentation["universe"]))
+        (build / "soc_coverage_plan.json").write_bytes(
+            canonical_bytes(candidate_plan))
+        command = _compile_command(verilator, build, source_closure, root, top_name,
+                                   flist=instrumentation["flist"])
+        legacy_compiled_commands.append(tuple(command))
+        result = run_supervised_command(CampaignOptions(
+            command=command, output_dir=build / "build",
+            duration_seconds=BUILD_TIMEOUT_SECONDS, checkpoint_seconds=1,
+            limits=BUILD_MEMORY_LIMITS,
+            env={"JOBS": "1", "MAKEFLAGS": "-j1"}))
+        log_path = build / "compiler.log"
+        if result.get("status") != "completed" or result.get("returncode") != 0:
+            raise SocBuildError(
+                "%s:verilator-build-failed:status=%s:rc=%s: see %s"
+                % (cell_id, result.get("status"), result.get("returncode"), log_path))
+        executable = build / "obj_dir" / "Vmyfuzz_live_tb"
+        if not executable.is_file():
+            raise SocBuildError("%s:verilator-did-not-emit:%s" % (cell_id, executable))
+        _probe_executable(executable, simulator_args, cell_id)
+        return executable, plan_ports, plan_ports
+
+    # A counter slot the compiled model cannot light is not coverage, so the
+    # observed set is re-planned against the elaborated design before the run.
+    observation = _plan_observations_with_elaboration_probe(
+        build=build, plan_document=instrumentation["plan"],
+        universe=instrumentation["universe"], bits=instrumentation["bits"],
+        limit=COUNTER_LIMIT, compile_plan=render_and_compile, cell_id=cell_id,
+        stage="legacy")
+    instrumentation["plan"] = observation["plan"]
+    executable = observation["executable"]
+    coverage_ports = observation["coverage_ports"]
 
     constraint_hash = content_hash({
         "schema_version": "soc_campaign_constraints.v1",
@@ -2135,8 +2369,12 @@ def build_soc_campaign_artifact(config, build_dir):
                 instrumentation["universe"]["categories"].items()},
             "observed_by_category": instrumentation["plan"]["observed_by_category"],
             "unobserved_branch_points": instrumentation["plan"]["unobserved_count"],
+            "observation_elaboration": observation["elaboration"],
             "universe_document": "soc_coverage_universe.json",
             "observation_plan": "soc_coverage_plan.json",
+            # Per-point first-seen evidence: recorded by the same readback that
+            # produces the counters, and read back by the report CLI.
+            "first_seen": coverage_first_seen_evidence(coverage_ports),
         },
         "sources": {
             "runtime_top": source_closure["runtime_top"],
@@ -2170,7 +2408,10 @@ def build_soc_campaign_artifact(config, build_dir):
             "simulator_protocol_version": SIMULATOR_PROTOCOL_VERSION,
             "max_cycles_per_test": MAX_CYCLES,
         },
-        "build_command": list(command),
+        # The compile now happens inside the re-plan closure (which may compile
+        # twice), so the recorded command is the one that produced the final
+        # executable instead of a name that only lived in the closure's scope.
+        "build_command": list(legacy_compiled_commands[-1]),
         "test_isolation": "restart process: source instrumentation contains sticky branch hits",
         "policy": (
             "fail-closed: no behavioural CPU/peripheral fallback; the artifact is "
@@ -2194,6 +2435,7 @@ def build_soc_campaign_artifact(config, build_dir):
         execution_monitor=None,
         build_document=document,
         rendered_files=tuple((item["file"], item["sha256"]) for item in rendered_records),
+        coverage_first_seen_ledger=first_seen_ledger_path(build, document),
     )
 
 
@@ -2448,6 +2690,10 @@ def _instrument_coverage(build, root, cell_id, closure, rendered, top_name,
     return {
         "universe": universe,
         "plan": plan_document,
+        # The raw instance-mapped bits stay with the plan: the build re-plans the
+        # observed set after compiling, which needs every candidate, not only the
+        # ones the first selector chose.
+        "bits": list(bits),
         "flist": str(result["instrumented_flist"]),
         "vector_width": int(result["coverage_vector_width"]),
         "point_count": int(result["coverage_point_count"]),

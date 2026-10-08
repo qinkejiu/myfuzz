@@ -1,4 +1,6 @@
-# 自动组合 SoC 与 RFuzz 输入约束：当前项目目标
+# 历史目标：自动组合 SoC 与 RFuzz 输入约束
+
+> 本文件记录 2026-09-14 的完整 SoC 生成路线，不再定义当前项目主目标。当前独立 CPU/IP harness 数据流方案见 [`CURRENT_DESIGN.md`](CURRENT_DESIGN.md)，当前实现边界见 [`LOCAL_HARNESS_RUNTIME.md`](LOCAL_HARNESS_RUNTIME.md)。本文件及其验收门槛仅用于理解和复现当时的工作。
 
 日期：2026-09-14。状态：目标与实施基线；本文件不代表新目标已经实现。
 2026-09-15 复核：P12 运行时矩阵、P13 插桩覆盖与 P14 官方闭环已按本文件门槛取得实测证据，
@@ -6,7 +8,7 @@
 [验收报告](reports/soc-acceptance-20260915.md)。
 
 实际开发目录为 `/home/qinkejiu/myfuzz/.worktrees/ibex-protocol-longrun`，核对基线为 `029840a`。
-本文件和 [实施计划](superpowers/plans/2026-09-14-soc-composition-and-fuzz.md) 是新工作的入口。
+本文件和 [当时的实施计划](superpowers/plans/2026-09-14-soc-composition-and-fuzz.md) 是该历史 SoC 生成路线的入口；当前工作入口见 [当前实施计划](superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md)。
 7 月和 9 月上旬的计划、报告保留为历史证据；其完成比例不能沿用到本目标。
 
 ## 1. 最终目标

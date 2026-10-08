@@ -95,6 +95,37 @@ class IrqPulseDeliveryTests(unittest.TestCase):
         irq.sample_cpu(2, masked=False)
         self.assertEqual(1, sum(e["kind"] == "cpu_irq_taken" for e in irq.events))
 
+    def test_trigger_identity_survives_source_pulse_and_observed_cpu_take(self):
+        irq = IrqPulseDelivery(width_ticks=2)
+        source = {"trigger_id": "gpio_b:0:trigger:7", "trigger_event_id": 42,
+                  "observation_event_id": 30}
+        irq.observe_source(1, source_tick=9, cpu_tick=3, source_trigger=source)
+        irq.sample_cpu(4, accepted=True, cpu_step_event_id=51)
+        for kind in ("source_start", "pulse_start", "cpu_irq_input", "cpu_irq_taken"):
+            event = next(e for e in irq.events if e["kind"] == kind)
+            self.assertEqual(source, event["source_trigger"])
+        self.assertEqual(51, next(e for e in irq.events if e["kind"] ==
+                                  "cpu_irq_input")["cpu_step_event_id"])
+
+    def test_reset_and_overrun_do_not_transfer_stale_trigger_identity(self):
+        irq = IrqPulseDelivery(width_ticks=3)
+        first = {"trigger_id": "first", "trigger_event_id": 10,
+                 "observation_event_id": 9}
+        second = {"trigger_id": "second", "trigger_event_id": 20,
+                  "observation_event_id": 19}
+        irq.observe_source(1, source_tick=1, cpu_tick=0, source_trigger=first)
+        irq.sample_cpu(1)
+        irq.observe_source(0, source_tick=2, cpu_tick=1)
+        irq.observe_source(1, source_tick=3, cpu_tick=1, source_trigger=second)
+        self.assertEqual("unsupported_irq_overrun", irq.status)
+        irq.sample_cpu(2, accepted=True)
+        taken = next(e for e in irq.events if e["kind"] == "cpu_irq_taken")
+        self.assertEqual(first, taken["source_trigger"])
+        irq.reset(cpu_tick=2)
+        irq.observe_source(1, source_tick=4, cpu_tick=2)
+        irq.sample_cpu(3, accepted=True)
+        self.assertNotIn("source_trigger", irq.events[-1])
+
 
 class RunnerIrqPulseTests(unittest.TestCase):
     def _runner(self, gpio_outputs, *, width=2):
@@ -123,6 +154,78 @@ class RunnerIrqPulseTests(unittest.TestCase):
                          [event["inputs"]["irq"] for event in runner.events
                           if event.get("component") == "cpu" and "inputs" in event])
         self.assertTrue(any(e.get("kind") == "pulse_expired" for e in runner.events))
+
+    def test_authenticated_gpio_trigger_is_joined_to_cpu_take(self):
+        from myfuzz.scenario.gpio_consumption import GpioConsumptionTracker
+        from tests.scenario.test_gpio_consumption_versions import probes, tick
+
+        bit = 1 << 8
+        mode = 1 << 16
+        first_pre = probes(gpioen=bit, inten=bit, inttype=mode,
+                           input_clock_enable=4)
+        first_pre["gpio_in"] = bit
+        first_post = probes(gpioen=bit, inten=bit, inttype=mode,
+                            input_clock_enable=4, sync0=bit)
+        first_post["gpio_in"] = bit
+        pre = dict(first_post)
+        post = probes(gpioen=bit, inten=bit, inttype=mode,
+                      input_clock_enable=4, sync0=bit, sync1=bit,
+                      rise=bit, irq_trigger_mask=bit, native_irq=1)
+        post["gpio_in"] = bit
+
+        class ProbedGpio(RecordingSession):
+            def __init__(self):
+                super().__init__()
+                self.gpio_events = []
+                self.samples = []
+
+            def step_local(self, inputs):
+                self.local_ticks += 1
+                before, after = ((first_pre, first_post) if self.local_ticks == 1
+                                 else (pre, post))
+                self.gpio_events.append(tick(self.local_ticks, before, after,
+                                             component="gpio_b"))
+                self.samples.append({"local_tick": self.local_ticks,
+                                     "pre": {"interrupt": 0},
+                                     "post": {"interrupt": int(self.local_ticks > 1)}})
+                return {"irq": int(self.local_ticks > 1)}
+
+            def drain_tick_samples(self):
+                result, self.samples = self.samples, []
+                return result
+
+        gpio = ProbedGpio()
+        cpu = RecordingSession([{"irq_taken_pre": 1}])
+        binding = Binding("gpio_b", "irq", "cpu", "irq", 1)
+        ownership = compile_ownership(
+            (InputField("cpu", "irq", 1),),
+            (InputOwner("cpu", "irq", 0, 1, "bound", "gpio_b.irq"),))
+        runner = ScenarioRunner(sessions={"cpu": cpu, "gpio_b": gpio},
+                                ownership=ownership, bindings=(binding,),
+                                irq_pulses={binding: 2})
+        runner._gpio_consumption_tracker = GpioConsumptionTracker()
+        runner.begin_test("trigger-identity")
+        runner.step("gpio_b")
+        runner.step("gpio_b")
+        runner.step("cpu")
+        trigger = next(e for e in runner.events if e.get("kind") == "gpio_irq_trigger")
+        taken = next(e for e in runner.events if e.get("kind") == "cpu_irq_taken")
+        self.assertEqual(trigger["trigger_id"], taken["source_trigger"]["trigger_id"])
+        self.assertEqual(trigger["event_id"], taken["source_trigger"]["trigger_event_id"])
+        self.assertEqual(trigger["observation_event_id"],
+                         taken["source_trigger"]["observation_event_id"])
+        delivered = next(e for e in runner.events if e.get("kind") == "cpu_irq_input")
+        step = runner.event_by_id(delivered["cpu_step_event_id"])
+        self.assertEqual(1, step["inputs"]["irq"])
+        self.assertEqual(trigger["trigger_id"], delivered["source_trigger"]["trigger_id"])
+        sample_pre = next(e for e in runner.events
+                          if e.get("kind") == "local_tick_sample"
+                          and e.get("component") == "gpio_b"
+                          and e.get("local_tick") == trigger["local_tick"]
+                          and e.get("phase") == "pre")
+        runner._remember_gpio_irq_trigger(trigger)
+        self.assertIsNone(runner._gpio_irq_source_trigger(
+            binding, sample_pre["event_id"], trigger["local_tick"], "pre"))
 
     def test_reset_cancels_old_pulse_with_policy_receipt(self):
         runner, cpu = self._runner((1, 0, 1), width=3)

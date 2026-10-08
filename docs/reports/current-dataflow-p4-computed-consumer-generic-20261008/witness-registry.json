@@ -1,0 +1,835 @@
+{
+ "absent_witness_kinds": [
+  {
+   "name": "spi_transfer",
+   "note": "declared SPI transfer endpoint; no producer in the studied artifacts",
+   "reason": "declared_witness_kind_absent_from_artifact"
+  },
+  {
+   "name": "timer_tick",
+   "note": "declared timer endpoint; no producer in the studied artifacts",
+   "reason": "declared_witness_kind_absent_from_artifact"
+  }
+ ],
+ "not_proof_of": [
+  "register_file_internal_source_token",
+  "device_internal_register_or_fifo_provenance",
+  "cross_instruction_data_dependency",
+  "computed_value_was_used_by_a_later_instruction",
+  "device_consuming_logic_correctness",
+  "mmio_address_decode_or_route_ownership",
+  "instruction_fetch_or_decode_identity",
+  "per_bit_hardware_cone_of_influence"
+ ],
+ "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+ "schema_version": "computed_consumer_certificate.v1",
+ "witness_registry": [
+  {
+   "allowed_statuses": [
+    "observed"
+   ],
+   "carries_value": true,
+   "components": [
+    "gpio_a",
+    "gpio_b"
+   ],
+   "event_kind": "gpio_register_commit",
+   "identity_keys": [
+    {
+     "field_path": [
+      "fullkey"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "raw_offset"
+     ],
+     "join": "store_offset",
+     "name": "store_offset",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "observation_event_id"
+     ],
+     "join": "certified_upstream_hop_event_id",
+     "name": "certified_upstream_hop_event_id",
+     "required": false,
+     "when": "device_access_hop_present"
+    }
+   ],
+   "joinable": true,
+   "name": "gpio_register_commit",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "GPIO register committed from a real APB write; carries the full key",
+   "observed_in_studied_artifacts": true,
+   "priority": 40,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "write_value"
+    ],
+    [
+     "post_value"
+    ],
+    [
+     "bit_resources",
+     "[]",
+     "value"
+    ]
+   ],
+   "value_semantics": [
+    "word",
+    "word",
+    "bit_list"
+   ]
+  },
+  {
+   "allowed_statuses": [
+    "accepted",
+    "unknown"
+   ],
+   "carries_value": true,
+   "components": [
+    "gpio_a",
+    "gpio_b"
+   ],
+   "event_kind": "gpio_consumption_match",
+   "identity_keys": [
+    {
+     "field_path": [
+      "fullkey"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "raw_offset"
+     ],
+     "join": "store_offset",
+     "name": "store_offset",
+     "required": false,
+     "when": "field_present"
+    }
+   ],
+   "joinable": true,
+   "name": "gpio_consumption_match",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "device-side consumption match row; status accepted/unknown both mean the identity matched (rejected/incomplete never join), while origin lineage status is not part of this proof",
+   "observed_in_studied_artifacts": true,
+   "priority": 35,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "proof_resource",
+     "[]",
+     "value"
+    ]
+   ],
+   "value_semantics": [
+    "bit_list"
+   ]
+  },
+  {
+   "allowed_statuses": [
+    "observed"
+   ],
+   "carries_value": true,
+   "components": [
+    "gpio_a",
+    "gpio_b"
+   ],
+   "event_kind": "gpio_apb_access",
+   "identity_keys": [
+    {
+     "field_path": [
+      "source_transaction"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "raw_offset"
+     ],
+     "join": "store_offset",
+     "name": "store_offset",
+     "required": true,
+     "when": "always"
+    }
+   ],
+   "joinable": true,
+   "name": "gpio_apb_access",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "observed device bus access with the full APB probe set",
+   "observed_in_studied_artifacts": true,
+   "priority": 20,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "wdata"
+    ]
+   ],
+   "value_semantics": [
+    "word"
+   ]
+  },
+  {
+   "allowed_statuses": [
+    "observed"
+   ],
+   "carries_value": true,
+   "components": [
+    "gpio_a",
+    "gpio_b"
+   ],
+   "event_kind": "gpio_register_read",
+   "identity_keys": [
+    {
+     "field_path": [
+      "fullkey"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    }
+   ],
+   "joinable": true,
+   "name": "gpio_register_read",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "register readback witness; the read key must equal the store key",
+   "observed_in_studied_artifacts": true,
+   "priority": 25,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "read_value"
+    ],
+    [
+     "post_value"
+    ]
+   ],
+   "value_semantics": [
+    "word",
+    "word"
+   ]
+  },
+  {
+   "allowed_statuses": [],
+   "carries_value": true,
+   "components": [
+    "uart"
+   ],
+   "event_kind": "uart_tick_observation",
+   "identity_keys": [
+    {
+     "field_path": [
+      "access",
+      "source_transaction"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "access",
+      "delivery_context",
+      "source_transaction"
+     ],
+     "join": "store_transaction_key",
+     "name": "access_delivery_context_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "access",
+      "raw_offset"
+     ],
+     "join": "store_offset",
+     "name": "store_offset",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "access",
+      "delivery_context",
+      "be"
+     ],
+     "join": "store_byte_enable",
+     "name": "store_byte_enable",
+     "required": true,
+     "when": "always"
+    }
+   ],
+   "joinable": true,
+   "name": "uart_tick_observation_access",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "UART tick observation that carries a write access context",
+   "observed_in_studied_artifacts": true,
+   "priority": 30,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "access",
+     "delivery_context",
+     "value"
+    ]
+   ],
+   "value_semantics": [
+    "word"
+   ]
+  },
+  {
+   "allowed_statuses": [],
+   "carries_value": true,
+   "components": [
+    "uart"
+   ],
+   "event_kind": null,
+   "identity_keys": [
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "outputs",
+      "serial_tx_count"
+     ],
+     "join": "serial_counter_increment",
+     "name": "serial_counter_increment",
+     "required": true,
+     "when": "baseline_present"
+    }
+   ],
+   "joinable": true,
+   "name": "uart_serial_observation",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "raw serial sample: carries no store transaction key, so it joins by device identity plus an observed +1 counter step on the lane byte",
+   "observed_in_studied_artifacts": true,
+   "priority": 50,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "raw_peripheral_observation",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "outputs",
+     "serial_tx_last"
+    ]
+   ],
+   "value_semantics": [
+    "lane_byte"
+   ]
+  },
+  {
+   "allowed_statuses": [],
+   "carries_value": true,
+   "components": [
+    "uart"
+   ],
+   "event_kind": "uart_rdata_access",
+   "identity_keys": [
+    {
+     "field_path": [
+      "delivery_context",
+      "source_transaction"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "raw_offset"
+     ],
+     "join": "store_offset",
+     "name": "store_offset",
+     "required": true,
+     "when": "always"
+    }
+   ],
+   "joinable": true,
+   "name": "uart_rdata_access",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "UART data-register read access witness (read direction)",
+   "observed_in_studied_artifacts": true,
+   "priority": 22,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "read_value"
+    ],
+    [
+     "read_capture",
+     "post",
+     "probe_uart_fifo_data"
+    ]
+   ],
+   "value_semantics": [
+    "word",
+    "word"
+   ]
+  },
+  {
+   "allowed_statuses": [],
+   "carries_value": true,
+   "components": [
+    "uart"
+   ],
+   "event_kind": "uart_fifo_pop",
+   "identity_keys": [
+    {
+     "field_path": [
+      "access",
+      "source_transaction"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "access",
+      "raw_offset"
+     ],
+     "join": "store_offset",
+     "name": "store_offset",
+     "required": true,
+     "when": "always"
+    }
+   ],
+   "joinable": true,
+   "name": "uart_fifo_pop",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "device-internal FIFO entry pop; joins on the read access key",
+   "observed_in_studied_artifacts": true,
+   "priority": 15,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "value"
+    ]
+   ],
+   "value_semantics": [
+    "word"
+   ]
+  },
+  {
+   "allowed_statuses": [],
+   "carries_value": true,
+   "components": [
+    "uart"
+   ],
+   "event_kind": "uart_fifo_push",
+   "identity_keys": [
+    {
+     "field_path": [
+      "source_transaction"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    }
+   ],
+   "joinable": false,
+   "name": "uart_fifo_push",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "FIFO push names entry_id/frame_id only; no exact store join exists",
+   "observed_in_studied_artifacts": true,
+   "priority": 15,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": "device_internal_fifo_entry_token_carries_no_store_transaction_key",
+   "value_fields": [
+    [
+     "value"
+    ]
+   ],
+   "value_semantics": [
+    "word"
+   ]
+  },
+  {
+   "allowed_statuses": [],
+   "carries_value": true,
+   "components": [
+    "gpio_a",
+    "gpio_b"
+   ],
+   "event_kind": null,
+   "identity_keys": [
+    {
+     "field_path": [
+      "source_transaction"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    }
+   ],
+   "joinable": false,
+   "name": "gpio_pad_observation",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "raw pad sample: value only, no identity keys at all",
+   "observed_in_studied_artifacts": true,
+   "priority": 10,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "raw_peripheral_observation",
+   "unjoinable_reason": "raw_pad_sample_has_no_transaction_key_adjacency_only",
+   "value_fields": [
+    [
+     "outputs",
+     "gpio_out"
+    ],
+    [
+     "outputs",
+     "rdata"
+    ]
+   ],
+   "value_semantics": [
+    "word",
+    "word"
+   ]
+  },
+  {
+   "allowed_statuses": [],
+   "carries_value": true,
+   "components": [
+    "spi0",
+    "spi",
+    "spi_host",
+    "spi_device"
+   ],
+   "event_kind": "spi_transfer",
+   "identity_keys": [
+    {
+     "field_path": [
+      "source_transaction"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "raw_offset"
+     ],
+     "join": "store_offset",
+     "name": "store_offset",
+     "required": true,
+     "when": "always"
+    }
+   ],
+   "joinable": true,
+   "name": "spi_transfer",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "declared SPI transfer endpoint; no producer in the studied artifacts",
+   "observed_in_studied_artifacts": false,
+   "priority": 30,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "value"
+    ]
+   ],
+   "value_semantics": [
+    "word"
+   ]
+  },
+  {
+   "allowed_statuses": [],
+   "carries_value": true,
+   "components": [
+    "timer",
+    "rv_timer",
+    "timer_interrupt"
+   ],
+   "event_kind": "timer_tick",
+   "identity_keys": [
+    {
+     "field_path": [
+      "source_transaction"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "raw_offset"
+     ],
+     "join": "store_offset",
+     "name": "store_offset",
+     "required": true,
+     "when": "always"
+    }
+   ],
+   "joinable": true,
+   "name": "timer_tick",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "declared timer endpoint; no producer in the studied artifacts",
+   "observed_in_studied_artifacts": false,
+   "priority": 30,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "value"
+    ]
+   ],
+   "value_semantics": [
+    "word"
+   ]
+  }
+ ]
+}

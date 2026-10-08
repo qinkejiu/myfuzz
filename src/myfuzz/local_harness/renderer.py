@@ -62,7 +62,7 @@ def render_local_harness(plan: LocalHarnessPlan) -> RenderedLocalHarness:
                dispositions=[entry.document() for entry in sorted(plan.dispositions, key=lambda e: (e.port, -e.bit_hi))])
     build = dict(schema_version='local_harness_build.v1', status='structural_only',
                  profile_sha256=plan.profile_sha256, source_revision=plan.facts.revision,
-                 source_content_hash=plan.facts.content_hash, source_files=files,
+                 source_content_hash=plan.source_content_hash, source_files=files,
                  include_roots=includes, defines=defines, parameter_overrides=parameters,
                  parameter_evidence=evidence, wrapper_sha256=hashlib.sha256(wrapper.encode()).hexdigest(),
                  lint_argv=['verilator', '--lint-only', '-Wno-fatal', '--top-module', module,

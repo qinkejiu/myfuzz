@@ -1,0 +1,290 @@
+{
+  "schema_version": "soc_elaboration_closure.v1",
+  "component": "cv32e40p",
+  "root": "external_designs/cv32e40p",
+  "top_module": "cv32e40p_core",
+  "tool": {
+    "name": "verilator",
+    "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "frontend": "verilator-lint"
+  },
+  "command": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "cv32e40p_core",
+    "-Iexternal_designs/cv32e40p/rtl/include",
+    "-Iexternal_designs/cv32e40p/bhv",
+    "-Iexternal_designs/cv32e40p/bhv/include",
+    "-Iexternal_designs/cv32e40p/sva",
+    "-GCOREV_CLUSTER=0",
+    "-GCOREV_PULP=0",
+    "-GFPU=0",
+    "-GFPU_ADDMUL_LAT=0",
+    "-GFPU_OTHERS_LAT=0",
+    "-GNUM_MHPMCOUNTERS=1",
+    "-GZFINX=0",
+    "external_designs/cv32e40p/rtl/include/cv32e40p_apu_core_pkg.sv",
+    "external_designs/cv32e40p/rtl/include/cv32e40p_fpu_pkg.sv",
+    "external_designs/cv32e40p/rtl/include/cv32e40p_pkg.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_if_stage.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_cs_registers.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_register_file_ff.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_load_store_unit.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_id_stage.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_aligner.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_decoder.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_compressed_decoder.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_fifo.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_prefetch_buffer.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_hwloop_regs.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_mult.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_int_controller.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_ex_stage.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_alu_div.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_alu.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_ff_one.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_popcnt.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_apu_disp.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_controller.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_obi_interface.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_prefetch_controller.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_sleep_unit.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_core.sv",
+    "external_designs/cv32e40p/rtl/cv32e40p_top.sv",
+    "external_designs/cv32e40p/bhv/cv32e40p_sim_clock_gate.sv",
+    "external_designs/cv32e40p/bhv/include/cv32e40p_tracer_pkg.sv",
+    "external_designs/cv32e40p/bhv/cv32e40p_tb_wrapper.sv"
+  ],
+  "include_roots": [
+    "rtl/include",
+    "bhv",
+    "bhv/include",
+    "sva"
+  ],
+  "defines": [],
+  "parameters": [
+    {
+      "name": "COREV_CLUSTER",
+      "value": "0"
+    },
+    {
+      "name": "COREV_PULP",
+      "value": "0"
+    },
+    {
+      "name": "FPU",
+      "value": "0"
+    },
+    {
+      "name": "FPU_ADDMUL_LAT",
+      "value": "0"
+    },
+    {
+      "name": "FPU_OTHERS_LAT",
+      "value": "0"
+    },
+    {
+      "name": "NUM_MHPMCOUNTERS",
+      "value": "1"
+    },
+    {
+      "name": "ZFINX",
+      "value": "0"
+    }
+  ],
+  "closure_files": [
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "bhv/cv32e40p_sim_clock_gate.sv",
+      "sha256": "6ae2e47b98f8129b67a05494826002d3db71f80a89e9caf038c197df1d548759"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "bhv/cv32e40p_tb_wrapper.sv",
+      "sha256": "591124e7637913dacd62424a33910736cec555ad63c8b6c90fca2808a8f6816b"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "bhv/include/cv32e40p_tracer_pkg.sv",
+      "sha256": "44f2498df7c028cb07142c9eb875b8499fcc16866d2ff018deb33e1419ad212c"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_aligner.sv",
+      "sha256": "c78cd8c09fee10e45536dc5b8d1fb17c3a130e2270168279fcaa43a19580e4f3"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_alu.sv",
+      "sha256": "6eca8d4c2e299adcc498417220478360cc22898ba9037cdad6a1b81e80373c7b"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_alu_div.sv",
+      "sha256": "11035bcbb28447fa5a3e40d5cad4f257e763f75e49664ce8098ab6247a9a57cb"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_apu_disp.sv",
+      "sha256": "27931c8004e4d266c6ea02c9d5c19968c67d7e6ab86e57da4088531b13c8c48f"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_compressed_decoder.sv",
+      "sha256": "db90df2f8737aff29d73b3d242dd33aeb6750ae69ae7eb8e118b531180945d7f"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_controller.sv",
+      "sha256": "858b172963e17529de0b40a5be6ddfdadfc60bdca967819e4fc558b0ed6d7b87"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_core.sv",
+      "sha256": "6a78a0d77d32e6795f63e5149f77b98320ce504c67c44a2e359c9aea70989224"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_cs_registers.sv",
+      "sha256": "e2cec8f3d273748783275c60b1ec89101336608638d7e7783b03dd6b9dbb0345"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_decoder.sv",
+      "sha256": "6e12f673e05380e34a35c38d8ee8b6878935d96b6f2dfda72c67f8a6e92a6e4e"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_ex_stage.sv",
+      "sha256": "1510df315721b370c2d86b1c1d134a3ff6beefba2d072de7a4a611e3ecffb753"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_ff_one.sv",
+      "sha256": "6b646e6aa931f8ab56b85ee27549a422450b456270a54d68a4130329823226b6"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_fifo.sv",
+      "sha256": "d910cbd0751f38d349e8975de22b43d0a2937f9e905b0d9b82894fd83c53fe8a"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_hwloop_regs.sv",
+      "sha256": "c2a0787c07bcd6c198b6338c4c6ee372b4bce96ec4a4def467ff0ae03da4e43a"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_id_stage.sv",
+      "sha256": "98b246d9ada45a7073d217d5c3bbc86941ee76bb00e7e0edda61d3bbec83728e"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_if_stage.sv",
+      "sha256": "e2d1cc9bc433a093938f2d4e4268c611f9a9bf199101e85114d417ff04597626"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_int_controller.sv",
+      "sha256": "24df51d9cb33f5c8760a8cfbc7931aafc94c2ab0523c7df55b2635e7778af16f"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_load_store_unit.sv",
+      "sha256": "857962513fc5bd3eb3d6b28c55fdfb15ef53f8ce8a59173a7d583efb8caee66f"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_mult.sv",
+      "sha256": "6a0cf2f15c69886ad5497222aa203f6f5b1fdd004b32a4ab87b36a0960ba2254"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_obi_interface.sv",
+      "sha256": "2b0a58e5c2f758dbe5f6e8f786c547da5508ce466007517434e2f7d817b758ed"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_popcnt.sv",
+      "sha256": "7a2dbeded21929832b40fc8d068b35b7281c75a63c426feed207127d4da08e4e"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_prefetch_buffer.sv",
+      "sha256": "a2fcbe6b783659ebecaf25d105f30c68af9b68c2850b833af64a2cec3ec29262"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_prefetch_controller.sv",
+      "sha256": "66e6078ea3b3acd3ceea4b974c0488d25e02324935532de1f2d39cdc34c875a0"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_register_file_ff.sv",
+      "sha256": "cd04d46afbf778ff3f1573bdd390784e5461a09b33fd670fa126ae7d3c433e89"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_sleep_unit.sv",
+      "sha256": "1cf012a83b54472931ad9944e7774e311222641a0aa026229c19467f90bf5448"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/cv32e40p_top.sv",
+      "sha256": "2467f6b3c2745e687edad1a0c88ab5267b4ba8642c91e1fc0f282cf4223e5dc3"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/include/cv32e40p_apu_core_pkg.sv",
+      "sha256": "33d7c06b0fef3ae2c8814b040abe3cdaa23065cf12643de20e8275f44f97abe1"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/include/cv32e40p_fpu_pkg.sv",
+      "sha256": "ae738f408ba2ade41bfcf0488c8f611a2c39b26915191890dac907b8a7a518e5"
+    },
+    {
+      "root": "external_designs/cv32e40p",
+      "path": "rtl/include/cv32e40p_pkg.sv",
+      "sha256": "3fee39d262ef44bff6ee00b591fe08830e5e35cdd1b9e5eb9eb06da6f6525805"
+    }
+  ],
+  "status": "elaboration_verified",
+  "lint": {
+    "errors": 0,
+    "warnings": 64,
+    "exit_code": 0
+  },
+  "capability_findings": [
+    {
+      "topic": "split_obi_instruction_and_data_masters",
+      "port_or_field": "instr_req_o/data_req_o",
+      "observed": "The pinned top exposes independent 32-bit instruction and data OBI channels.",
+      "evidence_path": "external_designs/cv32e40p/rtl/cv32e40p_core.sv:56-71",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "byte_enable",
+      "port_or_field": "data_be_o[3:0]",
+      "observed": "The data OBI master exposes four byte-enable lanes.",
+      "evidence_path": "external_designs/cv32e40p/rtl/cv32e40p_core.sv:63-71",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "no_external_obi_error_channel",
+      "port_or_field": "instr_err_i/data_err_i",
+      "observed": "The top has no instruction/data error response ports; internal error inputs are tied low.",
+      "evidence_path": "external_designs/cv32e40p/rtl/cv32e40p_core.sv:449-455,893-897",
+      "provenance": "rtl_read"
+    }
+  ],
+  "unsupported": [
+    {
+      "topic": "obi_backend_error_response",
+      "reason": "The native top cannot receive an OBI error response; the generated harness must fail-stop if its backend reports one.",
+      "evidence_path": "external_designs/cv32e40p/rtl/cv32e40p_core.sv:449-455,893-897"
+    }
+  ]
+}

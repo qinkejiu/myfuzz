@@ -35,7 +35,7 @@ def native():
 class TemplateContractTests(unittest.TestCase):
     def test_inventory_versioned_frozen_and_no_runtime_claim(self):
         contracts = registry().list_template_contracts()
-        self.assertEqual(len(contracts), 10)
+        self.assertEqual(len(contracts), 11)
         ids = [(c.template_id,c.template_version,c.variant_id) for c in contracts]
         self.assertEqual(len(ids),len(set(ids)))
         for contract in contracts:

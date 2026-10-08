@@ -34,8 +34,10 @@ class GeneratedOpentitanUartRoutedIdentityTests(unittest.TestCase):
                 cache_dir=Path(work), source=None, cpu_routed_mode=True)
             identity = session.identity_document()
             self.assertEqual(self.artifact, _verify_generated_session(identity))
-            self.assertEqual('generated_tlul_uart_8n1.v3',
+            self.assertEqual('generated_tlul_uart_8n1.v4',
                              identity['tlul_uart_service_schema_version'])
+            with self.assertRaisesRegex(ValueError, 'unsupported UART register write'):
+                session.write_register(0x00, 0x2)
             for key, replacement in (
                     ('source_hex', '5a'),
                     ('startup_writes', [[0x10, 0x80000003, 15]]),
@@ -49,6 +51,27 @@ class GeneratedOpentitanUartRoutedIdentityTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 GeneratedOpentitanUartSession(self.artifact, base_dir=ROOT,
                     cache_dir=Path(work), source=b'\x5a', cpu_routed_mode=True)
+
+    def test_source_provenance_identity_is_authenticated_and_strict(self):
+        with tempfile.TemporaryDirectory(prefix='myfuzz-ot-uart-provenance-identity-') as work:
+            session = GeneratedOpentitanUartSession(self.artifact, base_dir=ROOT,
+                cache_dir=Path(work), source=None, cpu_routed_mode=True)
+            session.enable_source_provenance()
+            identity = session.identity_document()
+            self.assertEqual(self.artifact, _verify_generated_session(identity))
+            for key, value in (('schema_version', 'wrong'), ('clocks_per_bit', True),
+                               ('idle_mark_bits', 16), ('frame_ticks', 321),
+                               ('frame_semantics', 'fifo_acceptance'),
+                               ('fifo_origin', 'known')):
+                changed = deepcopy(identity)
+                changed['uart_source_provenance'][key] = value
+                with self.subTest(key=key), self.assertRaises(ValueError):
+                    _verify_generated_session(changed)
+            changed = deepcopy(identity)
+            changed['uart_source_provenance']['unexpected'] = 1
+            with self.assertRaises(ValueError):
+                _verify_generated_session(changed)
+
 
 
 if __name__ == '__main__':

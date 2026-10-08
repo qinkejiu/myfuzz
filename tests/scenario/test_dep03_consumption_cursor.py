@@ -7,6 +7,7 @@ from myfuzz.scenario.genome import Action, ResetAction, ScenarioGenome, Trigger
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
 from myfuzz.scenario.runner import ScenarioRunner
 from myfuzz.scenario.scheduler import DependencyScheduler
+from myfuzz.scenario.interaction_feedback import InteractionFeedback
 
 
 class _Levels:
@@ -58,6 +59,33 @@ def _run(levels, actions, *, reset_actions=(), max_steps=None):
 
 
 class Dep03ConsumptionCursorTests(unittest.TestCase):
+    def test_trusted_journal_lookup_survives_spill_and_public_lookup_is_detached(self):
+        runner = ScenarioRunner(
+            sessions={"pulse": _Levels((1, 0, 1))},
+            ownership=compile_ownership((), ()), bindings=())
+        runner.enable_event_journal(chunk_size=2)
+        runner.begin_test("trusted-event-lookup")
+        try:
+            for _ in range(3):
+                runner.step("pulse")
+            self.assertEqual(3, runner.event_count)
+            borrowed = runner._event_ref_by_id(1)
+            self.assertIs(borrowed, runner._events[0])
+            self.assertIsNone(runner._event_ref_by_id(0))
+            self.assertIsNone(runner._event_ref_by_id(4))
+            public = runner.event_by_id(1)
+            self.assertIsNot(public, borrowed)
+            public["outputs"]["irq"] = 99
+            self.assertEqual(1, runner._event_ref_by_id(1)["outputs"]["irq"])
+
+            feedback = InteractionFeedback(event_lookup=runner._event_ref_by_id)
+            feedback.ingest(runner.events_since(0))
+            self.assertEqual(3, feedback.summary()["event_count"])
+            with self.assertRaisesRegex(ValueError, "different evidence"):
+                feedback.ingest([{"event_id": 1, "kind": "wrong"}])
+        finally:
+            runner.finalize()
+
     def test_event_window_is_bounded_read_only_and_deep_copied(self):
         runner = ScenarioRunner(
             sessions={"pulse": _Levels((1,))},

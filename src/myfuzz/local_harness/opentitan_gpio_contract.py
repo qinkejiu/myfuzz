@@ -13,7 +13,7 @@ from myfuzz.composition.source_crawler import _content_hash
 _WRAPPER = 'src/myfuzz/composition/rtl/soc_opentitan_gpio_local_target.sv'
 _WRAPPER_SHA256 = '8046bc87b17a50e4bc5e6effb1c7d3bd8a588a9099b0ca7d28e07ed231101443'
 _UNION_REVISION = 'sha256:05655bc876b9a2ee767c0fb482b6cc10353de98302349b145708d4576c632a35'
-_PROFILE_SHA256 = '8d60dcab7f1c02989ca2e1cae66217dc77b066b07804df03c852df035cd9b58c'
+_PROFILE_SHA256 = '6a3f0b019cec1b5e1df89b0e66c54c6de988e748d1b7e6216797506355e967c5'
 _UPSTREAM_PROFILE_SHA256 = '3327d4aaa4fda5376cc014fb10d306256eec7109ef77b3168bf698db5141c46d'
 
 

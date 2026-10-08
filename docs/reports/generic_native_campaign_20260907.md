@@ -1,5 +1,7 @@
 # 通用组合生成与真实 RTL 长测记录（2026-09-07）
 
+> 历史完整 SoC/合成事务报告。2026-10-06 整理时，下列 `runs/generic_random3_300s_20260907_verified/` 原始结果目录在当前工作区不存在；本页数值保留为当时记录，不能作为当前独立 harness 方案的可重放证据。
+
 工作区：`/home/qinkejiu/myfuzz/.worktrees/ibex-protocol-longrun`。
 
 ## 实现与验证范围
@@ -41,10 +43,9 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 nice -n 15 \
 
 结果目录：`runs/generic_random3_300s_20260907_verified`。总表是 `campaign.json`；各组合保留源文件、pin 描述、生成 IR/layout/top/filelist、build.log、preflight.log、runtime/checkpoint.json 和 runtime/result.json。
 
-- [总表](../../runs/generic_random3_300s_20260907_verified/campaign.json)
-- [第一组结果](../../runs/generic_random3_300s_20260907_verified/combination_1/runtime/result.json)
-- [第二组结果](../../runs/generic_random3_300s_20260907_verified/combination_2/runtime/result.json)
-- [第三组结果](../../runs/generic_random3_300s_20260907_verified/combination_3/runtime/result.json)
+原始路径分别为 `runs/generic_random3_300s_20260907_verified/campaign.json`、
+`combination_1/runtime/result.json`、`combination_2/runtime/result.json`、
+`combination_3/runtime/result.json`；当前工作区无法打开这些文件。
 
 上述峰值是 worker + simulator 所在进程组的 RSS，约 36.2–36.4 MiB，不包含父级编排进程和其他应用。运行中单个 simulator 采样 CPU 约为一个逻辑核的 22%，nice=15；这不是严格 CPU 配额。所有正式组的停止均为预算到期后的进程组清理，不是 DUT 崩溃。
 

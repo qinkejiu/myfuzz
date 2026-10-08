@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from collections.abc import Sequence
 from dataclasses import dataclass
 import hashlib
 import json
@@ -20,7 +21,7 @@ from .scheduler import DependencyScheduler
 class ScenarioTrace:
     genome_sha256: str
     status: str
-    events: tuple[dict, ...]
+    events: Sequence[dict]
     local_ticks: dict[str, int]
     semantic_sha256: str
     manifest_sha256: str = ""
@@ -61,19 +62,37 @@ def _canonical(value: object) -> bytes:
 
 
 def record_scenario(genome: ScenarioGenome,
-                    factory: Callable[[], ScenarioRunner]) -> ScenarioTrace:
+                    factory: Callable[[], ScenarioRunner], *,
+                    identity_observer: Callable[[dict], None] | None = None,
+                    runner_preflight: Callable[[ScenarioRunner], None] | None = None
+                    ) -> ScenarioTrace:
     """Run fresh RTL; the recorded observations are never fed back as inputs."""
     if not isinstance(genome, ScenarioGenome):
         raise ValueError("ScenarioGenome is required")
+    if runner_preflight is not None and not callable(runner_preflight):
+        raise ValueError("runner preflight must be callable")
     runner = factory()
     if not isinstance(runner, ScenarioRunner):
         raise ValueError("factory must return a fresh ScenarioRunner")
-    return _record_with_runner(genome, runner)
+    return _record_with_runner(genome, runner, identity_observer=identity_observer,
+                               runner_preflight=runner_preflight)
 
 
 def _record_with_runner(genome: ScenarioGenome,
-                        runner: ScenarioRunner) -> ScenarioTrace:
-    manifest_sha256 = hashlib.sha256(_canonical(runner.identity_document())).hexdigest()
+                        runner: ScenarioRunner, *,
+                        identity_observer: Callable[[dict], None] | None = None,
+                        runner_preflight: Callable[[ScenarioRunner], None] | None = None
+                        ) -> ScenarioTrace:
+    # Inspect the one actual, unstarted runner. Static rejection avoids both
+    # RTL commands and the source/toolchain scan used to record its identity.
+    if runner_preflight is not None:
+        if not callable(runner_preflight):
+            raise ValueError("runner preflight must be callable")
+        runner_preflight(runner)
+    identity = runner.identity_document()
+    if identity_observer is not None:
+        identity_observer(identity)
+    manifest_sha256 = hashlib.sha256(_canonical(identity)).hexdigest()
     result = DependencyScheduler().run(runner, genome)
     events = deepcopy(runner.events)
     ticks = dict(runner.local_ticks)
@@ -87,9 +106,13 @@ def _record_with_runner(genome: ScenarioGenome,
 
 def replay_scenario(genome: ScenarioGenome,
                     factory: Callable[[], ScenarioRunner],
-                    reference: ScenarioTrace) -> ReplayComparison:
+                    reference: ScenarioTrace, *,
+                    runner_preflight: Callable[[ScenarioRunner], None] | None = None
+                    ) -> ReplayComparison:
     if not isinstance(reference, ScenarioTrace):
         raise ValueError("reference trace is required")
+    if runner_preflight is not None and not callable(runner_preflight):
+        raise ValueError("runner preflight must be callable")
     expected_genome = hashlib.sha256(GenomeCodec.encode(genome)).hexdigest()
     if reference.genome_sha256 != expected_genome:
         raise ValueError("replay genome identity mismatch")
@@ -98,6 +121,8 @@ def replay_scenario(genome: ScenarioGenome,
     runner = factory()
     if not isinstance(runner, ScenarioRunner):
         raise ValueError("factory must return a fresh ScenarioRunner")
+    if runner_preflight is not None:
+        runner_preflight(runner)
     actual_manifest = hashlib.sha256(_canonical(runner.identity_document())).hexdigest()
     if reference.manifest_sha256 != actual_manifest:
         raise ValueError("replay manifest identity mismatch")

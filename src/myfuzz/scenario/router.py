@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Callable, Protocol
 
 from .ledger import TransactionKey, TransactionLedger
+from .runner import timed_runtime_call
 
 
 class RegisterTarget(Protocol):
@@ -50,6 +51,7 @@ class DataflowRouter:
         self.acceptances: list[dict] = []
         self.deliveries: list[dict] = []
         self._target_delivery_counts: dict[str, int] = {}
+        self._delivery_sequence = 0
         self._queued: list[tuple[TransactionLedger, TransactionKey, dict,
                                  DeviceWindow, int, int, int, bool,
                                  Callable[[tuple[int, int]], None]]] = []
@@ -106,6 +108,25 @@ class DataflowRouter:
                    "beat_bytes": beat_bytes}
         return window, lane_be, data32, offset, high_lane, payload
 
+    @staticmethod
+    def _access(window, key, payload, offset, write, data32, lane_be):
+        target = window.target
+        if getattr(target, 'routed_register_access_enabled', False):
+            result = target.routed_register_access(
+                key, address=payload['address'], offset=offset, write=write,
+                value=data32, be=lane_be,
+                delivery_context={'source_transaction': asdict(key),
+                                  'device_id': window.device_id,
+                                  'window_base': window.base, 'window_size': window.size,
+                                  'address': payload['address'], 'offset': offset,
+                                  'write': write, 'value': data32, 'be': lane_be})
+            return result['rdata'], result
+        if write:
+            target.write_register(offset, data32, be=lane_be)
+            return 0, {}
+        return target.read_register(offset), {}
+
+    @timed_runtime_call("router_enqueue")
     def enqueue(self, ledger: TransactionLedger, key: TransactionKey, *,
                 address: int, write: bool, wdata: int, be: int,
                 beat_bytes: int,
@@ -131,6 +152,7 @@ class DataflowRouter:
                                      "write_value": data32 if write else None})
         return fresh
 
+    @timed_runtime_call("router_drain")
     def drain_one(self, device_id: str) -> bool:
         """Execute one accepted request at its declared real RTL target."""
         index = next((i for i, item in enumerate(self._queued)
@@ -142,27 +164,34 @@ class DataflowRouter:
         if not ledger.target_ready(key):
             return False
 
+        pending_delivery = None
+        routed = getattr(window.target, 'routed_register_access_enabled', False)
+
         def deliver() -> tuple[int, int]:
+            nonlocal pending_delivery
+            readback, access = self._access(window, key, payload, offset,
+                                             write, data32, lane_be)
             if write:
-                window.target.write_register(offset, data32, be=lane_be)
                 response = (0, 0)
             else:
-                readback = window.target.read_register(offset)
                 response = (readback << (32 if payload["beat_bytes"] == 8
                                          and bool(payload["address"] & 4) else 0), 0)
             target_order = self._target_delivery_counts.get(window.device_id, 0) + 1
             self._target_delivery_counts[window.device_id] = target_order
-            self.deliveries.append({"source_transaction": key,
+            self._delivery_sequence += 1
+            pending_delivery = {**{k: v for k, v in access.items() if k != "rdata"}, "source_transaction": key,
                                     "device_id": window.device_id,
                                     "source_sequence": key.source_sequence,
-                                    "delivery_order": len(self.deliveries) + 1,
+                                    "delivery_order": self._delivery_sequence,
                                     "target_delivery_order": target_order,
                                     "address": payload["address"],
                                     "beat_bytes": payload["beat_bytes"],
                                     "offset": offset, "write": write,
                                     "byte_enable": lane_be,
                                     "write_value": data32 if write else None,
-                                    "read_value": response[0] if not write else None})
+                                    "read_value": response[0] if not write else None}
+            if not routed:
+                self.deliveries.append(pending_delivery)
             return response
 
         try:
@@ -172,7 +201,20 @@ class DataflowRouter:
                 self._queued.pop(index)
             raise
         self._queued.pop(index)
-        callback(response)
+        try:
+            callback(response)
+        except BaseException:
+            # The actual target receipt remains cached (never re-execute), but
+            # this command has no confirmed source delivery.
+            if not getattr(window.target, 'routed_register_access_enabled', False):
+                raise
+            delivery = pending_delivery or {}
+            terminal = getattr(window.target, 'routed_delivery_failed', None)
+            if getattr(window.target, 'routed_register_access_enabled', False) and callable(terminal):
+                terminal(key, delivery.get('target_access_id'))
+            raise
+        if routed and pending_delivery is not None:
+            self.deliveries.append(pending_delivery)
         return True
 
     def cancel_for_ledger(self, ledger: TransactionLedger) -> tuple[TransactionKey, ...]:
@@ -188,6 +230,7 @@ class DataflowRouter:
         self._queued = remaining
         return tuple(cancelled)
 
+    @timed_runtime_call("router_transact")
     def transact(self, ledger: TransactionLedger, key: TransactionKey, *,
                  address: int, write: bool, wdata: int, be: int,
                  beat_bytes: int) -> tuple[int, int]:
@@ -196,17 +239,18 @@ class DataflowRouter:
             beat_bytes=beat_bytes)
 
         def deliver() -> tuple[int, int]:
+            readback, access = self._access(window, key, payload, offset,
+                                             write, data32, lane_be)
             if write:
-                window.target.write_register(offset, data32, be=lane_be)
                 response = (0, 0)
             else:
-                readback = window.target.read_register(offset)
                 response = (readback << (32 if high_lane else 0), 0)
             target_order = self._target_delivery_counts.get(window.device_id, 0) + 1
             self._target_delivery_counts[window.device_id] = target_order
-            self.deliveries.append({"source_transaction": key, "device_id": window.device_id,
+            self._delivery_sequence += 1
+            self.deliveries.append({**{k: v for k, v in access.items() if k != "rdata"}, "source_transaction": key, "device_id": window.device_id,
                                     "source_sequence": key.source_sequence,
-                                    "delivery_order": len(self.deliveries) + 1,
+                                    "delivery_order": self._delivery_sequence,
                                     "target_delivery_order": target_order,
                                     "address": address,
                                     "beat_bytes": beat_bytes,

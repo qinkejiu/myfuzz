@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -25,11 +26,14 @@ class GenerationCliTests(unittest.TestCase):
             request_path = root / 'request.json'
             request_path.write_text(json.dumps(request))
             outputs = []
-            for suffix in ('first', 'second'):
+            for suffix, entry in (
+                    ('first', (sys.executable, str(SCRIPT))),
+                    ('second', (sys.executable, '-m', 'myfuzz', 'harness', 'generate'))):
                 output = root / suffix
-                subprocess.run((sys.executable, str(SCRIPT), '--request',
+                subprocess.run((*entry, '--request',
                     str(request_path), '--output', str(output)),
-                    cwd=ROOT, check=True, capture_output=True, text=True)
+                    cwd=ROOT, env={**os.environ, 'PYTHONPATH': str(ROOT / 'src')},
+                    check=True, capture_output=True, text=True)
                 outputs.append(output)
             names = {'wrapper.sv', 'runtime.sv', 'driver.cpp', 'artifact.json',
                      'abi.json', 'source_verification.json'}

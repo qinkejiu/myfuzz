@@ -26,6 +26,9 @@ temp/
 /camp-*/
 /archive/
 /deliverables/
+/.scratch/
+*:Zone.Identifier
+/third_party/boom_upstream_reference/
 /trace_hart_0.dasm
 /third_party/rfuzz/upstream/.tools/
 /third_party/rfuzz/upstream/rfuzz_reference/results/

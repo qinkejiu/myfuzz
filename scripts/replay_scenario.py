@@ -11,8 +11,7 @@ from pathlib import Path
 from myfuzz.scenario.evidence import replay_evidence_bundle
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+def configure_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--evidence", required=True, type=Path)
     parser.add_argument("--factory", required=True,
                         help="importable module:function returning a fresh ScenarioRunner")
@@ -24,7 +23,9 @@ def main() -> int:
                         help="diagnostic replay with modified factory code")
     parser.add_argument("--resume", type=Path,
                         help="reserved; RTL checkpoint resume is unsupported")
-    args = parser.parse_args()
+
+
+def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     if args.resume is not None:
         parser.error("unsupported_checkpoint_resume: replay must start fresh RTL")
     module_name, separator, function_name = args.factory.partition(":")
@@ -43,6 +44,12 @@ def main() -> int:
                       "difference_context": comparison.difference_context},
                      sort_keys=True, ensure_ascii=False))
     return 0 if comparison.matches else 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    configure_parser(parser)
+    return run(parser.parse_args(argv), parser)
 
 
 if __name__ == "__main__":

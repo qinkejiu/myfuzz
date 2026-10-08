@@ -1,307 +1,88 @@
-# myfuzz Quickstart
+# myfuzz Quick Start
 
-Run commands from the project root:
+This guide follows the current independent CPU/IP harness path. The intended
+long-running session selects a dataflow goal and accepts successive instruction
+or external-event testcases while RTL and memory state persist. The CPU fetches
+instructions through its local memory interface; real RTL outputs feed bound
+downstream inputs. Components keep their own protocol and local timing.
 
-```bash
-cd /path/to/myfuzz
-```
+Read [the current design](docs/CURRENT_DESIGN.md) and
+[the verified runtime matrix](docs/LOCAL_HARNESS_RUNTIME.md) for scope and
+limits before adding a CPU/IP profile. The [implementation plan](docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md)
+lists the next gates for automatic path binding, instruction-target testcase
+generation and coverage-guided mutation.
 
-## 1. Build The Frontend Component
+For the accepted first-step P1–P5 evidence, use the
+[reproduction runbook](docs/reproduction/first-step-p1-p5-20261008.md). It
+separates current read-only checks from the original RTL runs and replay.
 
-```bash
-env JOBS=1 src/myfuzz/frontend/scripts/build_frontend.sh
-```
+## Record a continuous multi-component testcase
 
-Build output:
+The checked-in Ibex example configures two independent OpenTitan GPIO harnesses.
+It executes the testcase program from the CPU memory image, routes GPIO A's
+real output to GPIO B, delivers GPIO B's real IRQ to Ibex, and keeps scenario
+state across the testcase.
 
-```text
-src/myfuzz/frontend/build/libmyfuzz_frontend.so
-```
-
-`JOBS=1` is intentional for memory-sensitive Ibex/CVA6 runs.
-
-## 2. Run Smoke
-
-```bash
-python3 src/myfuzz/scripts/run_design_flow.py \
-  --config configs/designs/smoke/config.enhanced.json \
-  --stage harness \
-  --force
-```
-
-Expected outputs:
-
-```text
-runs/designs/smoke_enhanced/frontend.json
-runs/designs/smoke_enhanced/instrumented/
-runs/designs/smoke_enhanced/harness/top_VHarness.sv
-```
-
-## 3. Run Ibex
+This command records **one** multi-cycle testcase with several causal actions.
+The fixed Ibex plus PULP GPIO/UART online pilots use separate case identities in
+one persistent Runner; their commands and limitations are linked from the
+[report index](docs/reports/README.md).
 
 ```bash
-python3 src/myfuzz/scripts/run_design_flow.py \
-  --config configs/designs/ibex/config.json \
-  --stage instrument \
-  --force
+MYFUZZ_SCENARIO_REAL=1 PYTHONPATH=src:. python3 -m myfuzz scenario record \
+  --genome configs/scenario/ibex_two_gpio_closed_two_rounds.json \
+  --factory myfuzz.scenario.examples:make_ibex_two_gpio_runner \
+  --output runs/scenario/manual/ibex-two-gpio
 ```
 
-Expected outputs:
+The resulting evidence bundle contains the Genome, runtime manifest, immutable
+run identity, trace, checker results and replay inputs.
 
-```text
-runs/designs/ibex/frontend.json
-runs/designs/ibex/instrumented/
-runs/designs/ibex/instrumented/instrumentation.json
-```
-
-Use this for a short full-flow check:
+## Replay from fresh harnesses
 
 ```bash
-python3 src/myfuzz/scripts/run_design_flow.py \
-  --config configs/designs/ibex/config.json \
-  --stage all \
-  --jobs 1 \
-  --fuzz-seconds 1 \
-  --force
+PYTHONPATH=src:. python3 -m myfuzz scenario replay \
+  --evidence runs/scenario/manual/ibex-two-gpio \
+  --factory myfuzz.scenario.examples:make_ibex_two_gpio_runner \
+  --rebuild --compare-trace
 ```
 
-## 4. Run CVA6
+Replay builds new harness sessions from the selected factory and compares the
+recorded semantic trace. It validates repeatability of this configured
+scenario; it does not establish support for arbitrary component combinations.
+
+## Generate an independent local harness
+
+Use a source-backed `local_harness.v2` request with the registered CPU/IP
+profile, clock/reset facts, interface facts and any required declarative
+tuning:
 
 ```bash
-python3 src/myfuzz/scripts/run_design_flow.py \
-  --config configs/designs/cva6/config.json \
-  --stage instrument \
-  --force
+PYTHONPATH=src python3 -m myfuzz harness generate \
+  --request configs/peripherals/opentitan_pattgen_local/request.json \
+  --output runs/local-harness/opentitan-pattgen
 ```
 
-Expected outputs:
+The generator refuses a request whose source closure, interface facts or
+protocol template cannot be verified. Same-protocol components may still need
+profile-specific tuning. See [the harness extension design](docs/superpowers/specs/2026-10-04-generated-local-harness-five-protocol-design.md).
 
-```text
-runs/designs/cva6/frontend.json
-runs/designs/cva6/instrumented/
-runs/designs/cva6/instrumented/instrumentation.json
-```
-
-## 5. Stages
-
-```text
-frontend -> instrument -> toml -> harness -> server -> fuzz
-```
-
-Examples:
+## Inspect the command options
 
 ```bash
-python3 src/myfuzz/scripts/run_design_flow.py \
-  --config configs/designs/cva6/config.json \
-  --stage frontend \
-  --force
-
-python3 src/myfuzz/scripts/run_design_flow.py \
-  --config configs/designs/cva6/config.json \
-  --stage harness \
-  --jobs 1 \
-  --force
+PYTHONPATH=src python3 -m myfuzz capabilities --match Ibex
+PYTHONPATH=src python3 -m myfuzz scenario record --help
+PYTHONPATH=src python3 -m myfuzz scenario replay --help
+PYTHONPATH=src python3 -m myfuzz scenario campaign --help
+PYTHONPATH=src python3 -m myfuzz harness generate --help
 ```
 
-`frontend` calls the project-local shared library through Python `ctypes`. It
-does not invoke `verilator --xml-only`.
+The standalone scripts use the same parsers and handlers as these module
+commands. Capability results preserve the runtime document's evidence and
+limitations, with `runtime_revalidated=false`.
 
-## 6. Enhanced Instrumentation
-
-Enhanced configs enable additional source-level coverage and metadata:
-
-```bash
-python3 src/myfuzz/scripts/run_design_flow.py \
-  --config configs/designs/ibex/config.enhanced.json \
-  --stage instrument \
-  --force
-
-python3 src/myfuzz/scripts/run_design_flow.py \
-  --config configs/designs/cva6/config.enhanced.json \
-  --stage instrument \
-  --force
-```
-
-## 7. Direct Source Inserter
-
-After a frontend manifest has been generated, the inserter can be run directly:
-
-```bash
-python3 scripts/source_branch_instrumenter.py \
-  --project-root third_party/rfuzz/upstream/ibex \
-  --out-dir /tmp/ibex_instrumented \
-  --flist third_party/rfuzz/upstream/ibex/sources.f \
-  --frontend-json runs/designs/ibex/frontend.json \
-  --top-module ibex_core \
-  --force
-```
-
-The inserter only edits copied files under `--out-dir`.
-
-## 8. Inspect Results
-
-```bash
-jq '{top_modules, coverage_point_count, coverage_by_kind, metadata_point_count, metadata_by_kind, file_count, skipped}' \
-  runs/designs/cva6/instrumented/instrumentation.json
-
-rg "__vi_coverage" runs/designs/cva6/instrumented/core/cva6.sv
-```
-
-Latest checked counts:
-
-```text
-smoke enhanced: 20 coverage points, 18 metadata points
-ibex default:   1050 coverage points
-ibex enhanced:  2905 coverage points, 3362 metadata points
-cva6 default:   2910 coverage points
-cva6 enhanced:  7935 coverage points, 14905 metadata points
-```
-
-## 9. Protocol-Aware Real-CPU RFuzz
-
-The generic processor path automatically composes discovered OBI, AXI4, or
-TL-UL interfaces with memory and execution monitoring. Its checked-in Ibex
-campaign is:
-
-```text
-configs/campaigns/ibex-real-rfuzz.json
-```
-
-Build the RFuzz client from the fixed upstream checkout. Apply the tracked
-client patch once if the checkout does not already contain it:
-
-```bash
-git -C third_party/rfuzz/upstream/rfuzz_reference apply --check \
-  --ignore-space-change \
-  ../../../../patches/rfuzz/0001-bounded-cancel-after-ipc-batch.patch
-
-git -C third_party/rfuzz/upstream/rfuzz_reference apply \
-  --ignore-space-change \
-  ../../../../patches/rfuzz/0001-bounded-cancel-after-ipc-batch.patch
-```
-
-The first command is a preflight: skip the second command when the patch is
-already applied. The exact dependency and simulator build commands, along with
-the captured evidence, are recorded in
-[`docs/reports/task16_processor_rfuzz_regression_20260908.md`](docs/reports/task16_processor_rfuzz_regression_20260908.md).
-
-Run the configured three-campaign acceptance gate with:
-
-```bash
-PYTHONPATH=src JOBS=1 nice -n15 python3 scripts/run_real_cpu_campaigns.py \
-  --config configs/campaigns/ibex-real-rfuzz.json \
-  --client runs/task14_client_cancel_build/debug/kfuzz \
-  --output runs/task15-real-cpu-3x300 \
-  --seconds 300 \
-  --seed 20260908
-```
-
-The runner enforces at least 300 seconds per campaign and executes three
-campaigns sequentially. A 5-second real-Ibex preflight has passed; the full
-three-by-300-second gate has not yet been run and must not be inferred from the
-preflight result. BOOM processor acceptance is currently deferred.
-
-### Two more initiator protocols: classic Wishbone and AXI4-Lite
-
-Besides OBI, AXI4, TL-UL and ready-valid-memory, the CPU-side registry now
-carries `wishbone@classic` (`wishbone_processor_memory_adapter`) and
-`axi4-lite@1` (`axi4_lite_processor_memory_adapter`). Both are single-
-outstanding masters that terminate exactly one beat per bus transaction. Run
-their behavioural benches with:
-
-```bash
-PYTHONPATH=src python3 -m unittest \
-  tests.protocols.test_wishbone_and_axi4_lite_processor_memory_adapters_rtl
-```
-
-Each protocol also has a real-CPU runtime bench that puts actual PicoRV32 RTL
-behind the adapter, once as `picorv32_axi` and once as `picorv32_wb`, with the
-same assembled program and the same beat RAM model:
-
-```bash
-MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest \
-  tests.integration.test_soc_real_picorv32
-```
-
-Wishbone also has a second, unrelated master: a real ZipCPU core from
-`third_party/soc-zipcpu`, which executes a seven-instruction program
-(`LDI/STO/LOD/ADD/STO/HALT`) and must leave `0xbeef` at `0x200` and
-`0xbeef + 1` at `0x204` in RAM before the bus goes quiet:
-
-```bash
-MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest \
-  tests.integration.test_soc_real_zipcpu
-```
-
-ZipCPU's in-tree assembler does not build with a modern toolchain, so its image
-is produced by a Python encoder ported from `zopcodes.cpp` plus `idecode.v`;
-that pair, not `sw/zasm/zparser.cpp`, is the encoding authority.
-
-These benches need `third_party/picorv32_upstream_reference` and
-`third_party/soc-zipcpu`, which are not part of this repository, hence the
-opt-in flag. They compare every retired
-instruction against the committed boot image rather than only checking side
-effects, and they are what exposed the empty-select read refusal that the unit
-benches had encoded as correct. The evidence, the accounting and the limits of
-what these runs prove are recorded in
-[`docs/reports/picorv32-protocol-benches-20260915.md`](docs/reports/picorv32-protocol-benches-20260915.md).
-
-Run the complete Python regression suite with:
-
-```bash
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. JOBS=1 nice -n15 \
-  python3 -m unittest discover -s tests -p 'test_*.py'
-```
-
-## 10. SoC Composition And Real RFuzz Pipeline
-
-The P0-P16 work in
-[docs/PROJECT_GOALS.md](docs/PROJECT_GOALS.md) is a separate pipeline driven by
-`configs/soc/`. Its reproducible commands are:
-
-```bash
-# P1: re-derive every pinned source and elaboration closure, then replay the
-# seven recorded Verilator commands and require the read set to equal the closure
-PYTHONPATH=src python3 scripts/verify_soc_sources.py --elaborate
-
-# P0: read-only inventory of the worktree, and recoverable quarantine
-PYTHONPATH=src python3 scripts/audit_repository.py --output runs/repository-audit/now/inventory.json
-PYTHONPATH=src python3 scripts/audit_repository.py --restore runs/quarantine/<batch>/manifest.json
-
-# P3/P6: the versioned contracts and the SoC fabric plan
-PYTHONPATH=src python3 -m unittest tests.composition.test_soc_contracts tests.composition.test_soc_fabric_plan -v
-
-# P10-P12: render all eight cells from real source-backed closures and elaborate
-MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest tests.integration.test_soc_renderer_cells -v
-
-# P10/P11: the real CPU acceptances (no skips when the flag is set)
-MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest tests.integration.test_soc_real_ibex -v
-MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest tests.integration.test_soc_real_cva6 -v
-
-# P12 runtime half: eight cells x three modes with a real CPU and real peripherals
-MYFUZZ_SOC_REAL=1 PYTHONPATH=src python3 -m unittest \
-  tests.integration.test_soc_matrix_runtime.SocMatrixRuntimeTests
-
-# P13: instrument the eight cells and require a real CPU/IP branch point to reach
-# RFuzz over IPC (short runs; this proves feedback, not coverage)
-MYFUZZ_SOC_REAL=1 MYFUZZ_RFuzz_CLIENT=runs/rfuzz_client_native_build/target/debug/kfuzz \
-  PYTHONPATH=src python3 -m unittest tests.integration.test_soc_coverage_run
-
-# P14: official RFuzz closed loop with retained receipts, corpus and rebuild replay
-MYFUZZ_SOC_REAL=1 MYFUZZ_RFuzz_CLIENT=runs/rfuzz_client_native_build/target/debug/kfuzz \
-  PYTHONPATH=src python3 -m unittest tests.integration.test_soc_rfuzz_build
-
-# P12/P14/P15: plan the 24 main + 8 bias-off tasks without running them
-PYTHONPATH=src nice -n15 python3 scripts/run_soc_campaigns.py \
-  --matrix configs/soc/matrix.json --output runs/soc-acceptance/preflight \
-  --seconds 300 --seed 20260914 --preflight-only
-```
-
-A real campaign additionally needs `MYFUZZ_SOC_REAL=1` and an executable
-official RFuzz client in `MYFUZZ_RFuzz_CLIENT`. The 300-second-per-task budget
-of at least 160 effective minutes has deliberately not been run in this round
-and must not be inferred from the preflight.
-
-The measured results of the commands above are recorded in
-[docs/reports/soc-acceptance-20260915.md](docs/reports/soc-acceptance-20260915.md),
-including why the project is **not** marked complete.
+The old source-instrumentation and full-SoC composition flows remain in the
+repository as separate historical utilities. Their commands and results are
+not evidence that the independent-harness flow supports every CPU, IP or
+protocol. The current evidence and known gaps are listed in
+[`docs/LOCAL_HARNESS_RUNTIME.md`](docs/LOCAL_HARNESS_RUNTIME.md).

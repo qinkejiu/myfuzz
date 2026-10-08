@@ -20,6 +20,10 @@ class LocalCommandReplay {
       reply = "ERROR stale_execution";
       return Decision::Error;
     }
+    if (sequence <= retired_through_) {
+      reply = "ERROR retired_command";
+      return Decision::Error;
+    }
     auto prior = entries_.find(sequence);
     if (prior != entries_.end()) {
       if (prior->second.request != request) {
@@ -49,6 +53,20 @@ class LocalCommandReplay {
     entry.complete = true;
   }
 
+  // The host may retire only a fully received contiguous prefix. A permanent
+  // floor preserves exactly-once after the large request/reply strings go.
+  bool retire_through(const std::string &execution, std::uint64_t sequence) {
+    if (execution_.empty() || execution != execution_ ||
+        sequence >= next_sequence_) return false;
+    if (sequence <= retired_through_) return true;
+    for (auto it = entries_.begin(); it != entries_.end() && it->first <= sequence; ++it)
+      if (!it->second.complete) return false;
+    auto end = entries_.upper_bound(sequence);
+    entries_.erase(entries_.begin(), end);
+    retired_through_ = sequence;
+    return true;
+  }
+
  private:
   struct Entry {
     std::string request;
@@ -57,5 +75,6 @@ class LocalCommandReplay {
   };
   std::string execution_;
   std::uint64_t next_sequence_ = 1;
+  std::uint64_t retired_through_ = 0;
   std::map<std::uint64_t, Entry> entries_;
 };

@@ -280,7 +280,7 @@ class CampaignTests(unittest.TestCase):
         self.assertEqual(64, len(report["campaign_source_identity"][
             "scenario_host_source_identity_sha256"]))
         self.assertEqual({"independent.json"},
-                         {str(manifest) for cell, manifest in provider.searched
+                         {manifest.name for cell, manifest in provider.searched
                           if cell.strategy == "independent_drive"})
 
     def test_provider_cannot_claim_unelapsed_effective_search_time(self):

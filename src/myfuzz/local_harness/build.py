@@ -96,13 +96,15 @@ def _toolchain():
 def _host_sources():
     """Discover the actual Python import closure; leave legacy v1 unchanged."""
     root = _IMPLEMENTATION_ROOT
-    pending = ['src/myfuzz/local_harness/build.py', 'src/myfuzz/local_harness/driver_renderer.py',
+    pending = ['src/myfuzz/scenario/uart_consumption.py',
+               'src/myfuzz/local_harness/build.py', 'src/myfuzz/local_harness/driver_renderer.py',
                'src/myfuzz/local_harness/wire.py',
                'src/myfuzz/local_harness/native_session.py', 'scripts/verify_soc_sources.py']
     for name in ('session', 'cpu_session', 'gpio_session',
                  'wishbone_cpu_session', 'axi_lite_session', 'axi4_cpu_session',
                  'cva6_axi4_session',
                  'spi_session', 'timer_session', 'axil_uart_session', 'i2c_session',
+                 'rvx_memory_session',
                  'opentitan_spi_host_session', 'opentitan_i2c_session',
                  'opentitan_spi_device_session', 'opentitan_sysrst_ctrl_session'):
         path = f'src/myfuzz/local_harness/{name}.py'
@@ -250,7 +252,9 @@ def _prepare(artifact, base_dir):
         current = _prepared_if_current(artifact, root)
         if current is not None:
             return current
-    verified = verify_local_source_lock(artifact.plan.profile, base_dir=root)
+    verified = verify_local_source_lock(
+        artifact.plan.profile, base_dir=root,
+        allow_source_only=artifact.plan.profile.component_id == 'rvx_core')
     if verified != artifact.source_verification:
         raise LocalHarnessBuildError('artifact-source-verification-mismatch')
     baseline = render_local_runtime(artifact.plan, artifact.structural, verified, base_dir=root)
@@ -281,12 +285,27 @@ def _prepare(artifact, base_dir):
     record = verified.get('closure_record')
     if record is None:
         record = next(record for record in lock['components'] if record['id'] == record_id)
-    evidence = record['elaboration']['evidence']
-    capture(evidence, record['elaboration']['evidence_sha256'])
-    closure = json.loads(snapshots[evidence])
-    for item in closure['closure_files']:
-        name = item['path'] if item['root'] == '.' else item['root'] + '/' + item['path']
-        capture(name, item['sha256'])
+    elaboration = record.get('elaboration')
+    if elaboration is None:
+        if (artifact.plan.profile.component_id != 'rvx_core'
+                or verified.get('elaboration_status') != 'elaboration_unverified'
+                or record.get('source', {}).get('root') != 'external_designs/rvx'
+                or record.get('source', {}).get('top_module') != 'rvx_core'
+                or record.get('source', {}).get('files') != ['hardware/rvx_core.v']):
+            raise LocalHarnessBuildError('source-only-build-scope-mismatch')
+        source_hashes = {item['path']: item['sha256'] for item in record['artifacts']
+                         if item['kind'] == 'source'}
+        for name in record['source']['files']:
+            if name not in source_hashes:
+                raise LocalHarnessBuildError('source-only-build-file-unpinned:' + name)
+            capture(record['source']['root'] + '/' + name, source_hashes[name])
+    else:
+        evidence = elaboration['evidence']
+        capture(evidence, elaboration['evidence_sha256'])
+        closure = json.loads(snapshots[evidence])
+        for item in closure['closure_files']:
+            name = item['path'] if item['root'] == '.' else item['root'] + '/' + item['path']
+            capture(name, item['sha256'])
     for item in verified.get('authenticated_inputs', []):
         capture(item['path'], item['sha256'])
     if artifact.plan.profile.component_id in ('opentitan_gpio_local', 'opentitan_rv_timer_local',
@@ -379,7 +398,7 @@ def local_build_identity(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> d
 def _validate_cache(directory, identity):
     try:
         manifest = json.loads((directory / 'manifest.json').read_bytes())
-        if manifest['identity'] != identity:
+        if _canonical(manifest['identity']) != _canonical(identity):
             raise ValueError('identity differs')
         binary = directory / 'harness'
         if binary.is_symlink() or not binary.is_file() or not os.access(binary, os.X_OK) or _digest(binary.read_bytes()) != manifest['binary_sha256']:

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -12,9 +13,10 @@ from myfuzz.local_harness.driver_renderer import render_local_driver
 from myfuzz.local_harness.gpio_session import GeneratedPulpGpioSession
 from myfuzz.scenario.genome import MemoryImage, ScenarioGenome
 from myfuzz.scenario.checker import check_pulp_gpio_irq_chain
+from myfuzz.scenario.contracts import ResourceBudget
+from myfuzz.scenario.evidence import save_evidence_bundle, replay_evidence_bundle
 from myfuzz.scenario.memory import MemoryRegion, PersistentMemory
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
-from myfuzz.scenario.replay import record_scenario, replay_scenario
 from myfuzz.scenario.router import DataflowRouter, DeviceWindow
 from myfuzz.scenario.runner import Binding, ScenarioRunner
 from tests.local_harness.test_renderer import ROOT, real_plan
@@ -120,7 +122,15 @@ class GeneratedIbexTwoPulpGpioRealTests(unittest.TestCase):
             factory, instances = make_factory(Path(os.environ.get(
                 'MYFUZZ_IBEX_GPIO_CACHE', Path(directory) / 'cache')))
             case = genome()
-            trace = record_scenario(case, factory)
+            bundle = Path(os.environ.get('MYFUZZ_IBEX_GPIO_EVIDENCE',
+                                        Path(directory) / 'evidence'))
+            trace = save_evidence_bundle(case, factory, bundle,
+                budget=ResourceBudget(max_materialized_bytes_per_memory=0x20000))
+            run_identity = json.loads((bundle / 'run_identity.json').read_bytes())
+            self.assertEqual(trace.manifest_sha256,
+                             run_identity['identity']['components']['sha256'])
+            self.assertEqual('not_applicable',
+                             run_identity['identity']['dependency_graph']['status'])
             self.assertEqual('complete', trace.status)
             events = trace.events
             self.assertTrue(any(e.get('kind') == 'mmio_delivery' and
@@ -149,7 +159,7 @@ class GeneratedIbexTwoPulpGpioRealTests(unittest.TestCase):
             self.assertFalse(any(e.get('kind') == 'reset_barrier' for e in events))
             report = check_pulp_gpio_irq_chain(events, expected_value=1)
             self.assertTrue(report['complete'], report)
-            replay = replay_scenario(case, factory, trace)
+            replay = replay_evidence_bundle(bundle, factory)
             self.assertTrue(replay.matches, replay)
 
 

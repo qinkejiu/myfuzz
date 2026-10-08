@@ -1,5 +1,7 @@
 # 多组件持续场景模糊测试实施与验收计划
 
+> 历史实施基线：本文件保留 2026-09-27 的详细 RUN/RST/IRQ/REP/FUZ/G0～G4 门禁和当时进度。其中 Runner 属于单个 testcase、下一例重新建立状态的旧生命周期不再适用。当前要求是一个长期会话连续接纳多个 testcase，共享真实 RTL/RAM/待处理事件并逐例反馈；数据流目标可跨例继续。当前跨 OpenTitan/PULP/ZipCPU、生成式独立 harness、变异与路径绑定工作，以 [2026-10-06 当前实施计划](2026-10-06-current-dataflow-fuzz-implementation-plan.md) 为唯一总进度；具体能力查 [运行能力表](../../LOCAL_HARNESS_RUNTIME.md)。
+
 > 下列复选框是完整目标的验收门槛；已完成的局部里程碑以“当前实测边界”和具体测试记录为准。未完成的复选框不能用局部通过代替。
 
 **Goal:** 在现有 myfuzz 基础上建立多个独立真实 RTL harness 的连续 testcase，保持内存、事务、事件和长期依赖，并以 source/path-aware mutation 与完整 replay 验收。

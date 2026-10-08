@@ -1,0 +1,80 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "rvx_core",
+  "kind": "cpu",
+  "description": "Pinned standalone RVX RV32I core with one shared-address completion memory interface.",
+  "source": {
+    "root": "external_designs/rvx",
+    "revision": "git:38bdee0ef8da0b606b7024f85934898e99963756",
+    "top_module": "rvx_core",
+    "top_port_selection": "all",
+    "files": ["hardware/rvx_core.v"],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [{"name": "BOOT_ADDRESS", "value": "0"}],
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [{"port": "clock", "domain": "core", "frequency_hz": 50000000}],
+  "resets": [{
+    "port": "reset",
+    "domain": "sys_rst",
+    "polarity": "active_high",
+    "synchronous": true,
+    "release": "hardware/rvx_core.v samples the active-high reset in posedge clock blocks; release it at the generated local clock boundary."
+  }],
+  "endpoints": [{
+    "endpoint_id": "processor.memory",
+    "function": "memory_master",
+    "protocol": ["pipelined-completion-memory", "1"],
+    "fields": [
+      {"role": "addr", "aliases": ["rw_address"]},
+      {"role": "read_request", "aliases": ["read_request"]},
+      {"role": "read_response", "aliases": ["read_response"]},
+      {"role": "read_data", "aliases": ["read_data"]},
+      {"role": "write_request", "aliases": ["write_request"]},
+      {"role": "write_response", "aliases": ["write_response"]},
+      {"role": "write_data", "aliases": ["write_data"]},
+      {"role": "write_strobe", "aliases": ["write_strobe"]}
+    ]
+  }],
+  "capabilities": {
+    "address_width": 32,
+    "address_units": "byte",
+    "data_width": 32,
+    "byte_enable": true,
+    "max_outstanding": 1,
+    "error_response": false,
+    "completion_semantics": "completion",
+    "evidence": "hardware/rvx_core.v:18-25 declares one 32-bit byte address, separate read/write requests and completions, 32-bit data, and four write strobes. The single outstanding limit is the planned local service contract."
+  },
+  "port_actions": [
+    {"port": "halt", "action": "constant", "value": 0, "reason": "Keep the core running during the local RAM bring-up."},
+    {"port": "irq_external", "action": "constant", "value": 0, "reason": "hardware/rvx_core.v:27-35 permits inactive IRQ inputs; this bring-up does not deliver interrupts."},
+    {"port": "irq_timer", "action": "constant", "value": 0, "reason": "hardware/rvx_core.v:27-35 permits inactive IRQ inputs; this bring-up does not deliver interrupts."},
+    {"port": "irq_software", "action": "constant", "value": 0, "reason": "hardware/rvx_core.v:27-35 permits inactive IRQ inputs; this bring-up does not deliver interrupts."},
+    {"port": "irq_fast", "action": "constant", "value": 0, "reason": "hardware/rvx_core.v:27-35 permits inactive IRQ inputs; this bring-up does not deliver interrupts."},
+    {"port": "real_time_clock", "action": "constant", "value": 0, "reason": "hardware/rvx_core.v:38-40 permits zero when the external real-time clock is unused."},
+    {"port": "irq_external_response", "action": "observe", "reason": "Observe the physical IRQ acknowledgement output without driving it."},
+    {"port": "irq_timer_response", "action": "observe", "reason": "Observe the physical IRQ acknowledgement output without driving it."},
+    {"port": "irq_software_response", "action": "observe", "reason": "Observe the physical IRQ acknowledgement output without driving it."},
+    {"port": "irq_fast_response", "action": "observe", "reason": "Observe the physical IRQ acknowledgement output without driving it."}
+  ],
+  "cpu": {
+    "family": "riscv",
+    "xlen": 32,
+    "extensions": ["i"],
+    "reset_vector": 0,
+    "master_endpoints": ["processor.memory"],
+    "boot_address_required": false
+  },
+  "evidence": {
+    "semantics": [
+      "hardware/rvx_core.v:4-40 declares the complete physical top and BOOT_ADDRESS=0.",
+      "hardware/rvx_core.v:1184 returns MISA=0x40000100, declaring RV32I base ISA only.",
+      "The 50 MHz clock is a local environment setting, not an RTL timing guarantee."
+    ],
+    "verified": ["Source and pin declarations are checked by focused profile elaboration and the source lock verifier."],
+    "unknown": ["Real CPU execution and persistent RAM replay require the separate generated runtime acceptance."]
+  }
+}

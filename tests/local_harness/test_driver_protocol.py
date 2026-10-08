@@ -23,6 +23,24 @@ int main(int argc, char **argv) {
   std::uint64_t ticks = 0;
   std::string line;
   while (std::getline(std::cin, line)) {
+    if (line.rfind("ACK ", 0) == 0) {
+      const auto acknowledgement = parse_ack(line);
+      if (!acknowledgement.ok) {
+        std::cout << error_reply(acknowledgement.execution, acknowledgement.sequence,
+            ticks, acknowledgement.code, acknowledgement.detail) << '\n';
+      } else {
+        const auto result = replay.retire(acknowledgement.execution,
+                                          acknowledgement.sequence);
+        if (result.empty())
+          std::cout << "ACKED " << acknowledgement.execution << ' '
+                    << hex_integer(acknowledgement.sequence) << ' '
+                    << hex_integer(ticks) << '\n';
+        else
+          std::cout << error_reply(acknowledgement.execution,
+              acknowledgement.sequence, ticks, result, "ack_rejected") << '\n';
+      }
+      continue;
+    }
     if (line.rfind("RESERVE ", 0) == 0) {
       reservation = std::stoull(line.substr(8));
       continue;
@@ -106,6 +124,45 @@ class LocalDriverProtocolTests(unittest.TestCase):
         self.assertEqual(f'RESULT {EXECUTION} 1 0 1 00', lines[0])
         self.assertEqual(f'RESULT {EXECUTION} 2 1 2 00', lines[1])
         self.assertEqual('2', lines[-1].split()[1])
+
+    def test_ack_retires_completed_prefix_and_never_reexecutes_old_sequence(self):
+        rows = self.run_driver([command(), command(2), f'ACK {EXECUTION} 1',
+                                command(), command(2), command(3), 'STATS'],
+                               capacity=410)
+        self.assertEqual(f'ACKED {EXECUTION} 1 2', rows[2])
+        self.assertEqual(f'ERROR {EXECUTION} 1 2 retired_command replay_rejected', rows[3])
+        self.assertEqual(rows[1], rows[4])
+        self.assertTrue(rows[5].startswith(f'RESULT {EXECUTION} 3 2 3'))
+        self.assertEqual('3', rows[-1].split()[1])
+
+    def test_ack_rejects_unfinished_future_and_wrong_execution(self):
+        rows = self.run_driver([f'ACK {EXECUTION} 1', command(),
+                                f'ACK {OTHER} 1', f'ACK {EXECUTION} 2',
+                                f'ACK {EXECUTION} 1', f'ACK {EXECUTION} 1',
+                                command(), 'STATS'])
+        self.assertIn('stale_execution', rows[0])
+        self.assertIn('stale_execution', rows[2])
+        self.assertIn('ack_out_of_order', rows[3])
+        self.assertEqual(f'ACKED {EXECUTION} 1 1', rows[4])
+        self.assertEqual(rows[4], rows[5])
+        self.assertIn('retired_command', rows[6])
+        self.assertEqual('STATE 1 0', rows[-1])
+
+    def test_incomplete_receipt_cannot_be_acked_or_reexecuted(self):
+        rows = self.run_driver([command(), f'ACK {EXECUTION} 1', command(),
+                                'STATS'], oversize=True)
+        self.assertIn('uncertain_effect reply_exceeds_reservation', rows[0])
+        self.assertIn('ack_incomplete ack_rejected', rows[1])
+        self.assertIn('uncertain_effect replay_rejected', rows[2])
+        self.assertEqual('1', rows[-1].split()[1])
+
+    def test_malformed_ack_has_no_retirement_effect(self):
+        rows = self.run_driver([command(), f'ACK {EXECUTION} 1 ',
+                                f'ACK {EXECUTION} 0', command(), 'STATS'])
+        self.assertIn('invalid_ack invalid_grammar', rows[1])
+        self.assertIn('invalid_sequence invalid_identity', rows[2])
+        self.assertEqual(rows[0], rows[3])
+        self.assertEqual('1', rows[-1].split()[1])
 
     def test_conflict_stale_and_out_of_order_errors_have_v1_identity(self):
         lines = self.run_driver([command(), command(fields='1'),

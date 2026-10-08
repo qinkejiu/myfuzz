@@ -1,7 +1,8 @@
-"""Small public command line for the source-backed SoC workflow."""
+"""Current independent harness/scenario commands and historical SoC compatibility."""
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import os
 from pathlib import Path
@@ -15,7 +16,10 @@ SRC = ROOT / "src"
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.run_soc_campaigns import run_matrix  # noqa: E402
+def run_matrix(*args, **kwargs):
+    """Load historical integration only when requested."""
+    from scripts.run_soc_campaigns import run_matrix as implementation
+    return implementation(*args, **kwargs)
 
 
 DEFAULT_MATRIX = ROOT / "configs/soc/matrix.json"
@@ -31,15 +35,39 @@ CHECK_MODULES = (
 )
 
 
-def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="python -m myfuzz", description="MyFuzz SoC workflow")
+def _parser(*, capabilities_only: bool = False) -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="python -m myfuzz", description="Current independent harness and scenario workflows; historical SoC matrix commands under compat soc")
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("check", help="run fast correctness checks")
+    script = importlib.import_module("scripts.query_capabilities")
+    capability_parser = commands.add_parser("capabilities", description=script.__doc__,
+                                           help="query documented runtime evidence and limitations")
+    script.configure_parser(capability_parser)
+    capability_parser.set_defaults(handler=script.run, command_parser=capability_parser)
+    if capabilities_only:
+        return parser
+    for group, entries in (
+        ("harness", (("generate", "generate_local_harness"),)),
+        ("scenario", (("record", "record_scenario"),
+                      ("replay", "replay_scenario"),
+                      ("campaign", "run_scenario_campaign"))),
+    ):
+        group_parser = commands.add_parser(group, help=f"current {group} workflow")
+        actions = group_parser.add_subparsers(dest="action", required=True)
+        for action, script_name in entries:
+            script = importlib.import_module("scripts." + script_name)
+            command_parser = actions.add_parser(action, description=script.__doc__)
+            script.configure_parser(command_parser)
+            command_parser.set_defaults(handler=script.run, command_parser=command_parser)
+    compat = commands.add_parser("compat", help="historical workflow compatibility")
+    workflows = compat.add_subparsers(dest="workflow", required=True)
+    soc = workflows.add_parser("soc", help="historical 32-task SoC matrix")
+    soc_commands = soc.add_subparsers(dest="soc_command", required=True)
+    soc_commands.add_parser("check", help="run fast correctness checks")
     for name, help_text in (
         ("preflight", "validate and plan the 32-task matrix"),
         ("run", "run the real 32-task RFuzz matrix"),
     ):
-        command = commands.add_parser(name, help=help_text)
+        command = soc_commands.add_parser(name, help=help_text)
         command.add_argument("--matrix", type=Path, default=DEFAULT_MATRIX)
         command.add_argument("--output", type=Path, required=True)
         command.add_argument("--seconds", type=int, default=DEFAULT_SECONDS)
@@ -62,10 +90,13 @@ def _check() -> int:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
-    if args.command == "check":
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    args = _parser(capabilities_only=bool(arguments and arguments[0] == "capabilities")).parse_args(arguments)
+    if args.command != "compat":
+        return args.handler(args, args.command_parser)
+    if args.soc_command == "check":
         return _check()
-    if args.command == "run" and os.environ.get("MYFUZZ_SOC_REAL") != "1":
+    if args.soc_command == "run" and os.environ.get("MYFUZZ_SOC_REAL") != "1":
         print("error: run requires MYFUZZ_SOC_REAL=1", file=sys.stderr)
         return 2
     try:
@@ -73,7 +104,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.matrix, args.output,
             seconds=args.seconds,
             seed=args.seed,
-            preflight_only=args.command == "preflight",
+            preflight_only=args.soc_command == "preflight",
             root=ROOT,
             client=getattr(args, "client", None),
         )
@@ -85,7 +116,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "tasks": result.get("tasks_planned"),
         "effective_seconds": result.get("effective_budget_seconds"),
     }, sort_keys=True, separators=(",", ":")))
-    expected = "preflight-only" if args.command == "preflight" else "completed"
+    expected = "preflight-only" if args.soc_command == "preflight" else "completed"
     return 0 if result.get("status") == expected else 2
 
 

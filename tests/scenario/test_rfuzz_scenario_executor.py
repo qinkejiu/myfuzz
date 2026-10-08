@@ -149,7 +149,7 @@ class RfuzzScenarioExecutorTests(unittest.TestCase):
             allow_legacy_search=True)
         initial_hint = executor.mutation_hint()
         self.assertEqual(0, initial_hint["template"])
-        self.assertEqual(64, initial_hint["energy"])
+        self.assertEqual(96, initial_hint["energy"])
         no_change = bytes(8)
         flip = bytes((0, 0, 0, 0, 0, 1, 0, 0))
         batch = InputBatch(42, 8, ((no_change,), (flip, no_change)))
@@ -161,7 +161,7 @@ class RfuzzScenarioExecutorTests(unittest.TestCase):
         coverage = executor.execute_batch(batch, on_receipt=on_receipt)
         self.assertEqual((b"\x00", b"\x01"), coverage)
         self.assertEqual([(0, 1, 1), (1, 2, 2)], observed)
-        self.assertEqual(8, executor.mutation_hint()["energy"])
+        self.assertEqual(32, executor.mutation_hint()["energy"])
         self.assertEqual(("complete", "dut_violation"),
                          tuple(receipt.status for receipt in executor.receipts))
         self.assertEqual((0, 1), tuple(receipt.slot for receipt in executor.receipts))
@@ -205,10 +205,14 @@ class RfuzzScenarioExecutorTests(unittest.TestCase):
                     OSError("receipt storage failed")))
         self.assertEqual(prior_receipts + 1, len(executor.receipts))
         self.assertEqual(prior_sessions + 1, len(sessions))
-        self.assertEqual((b"\x00", b"\x01"), executor.execute_batch(interrupted))
+        recovered = []
+        self.assertEqual((b"\x00", b"\x01"), executor.execute_batch(
+            interrupted, on_receipt=recovered.append))
+        self.assertEqual(executor.receipts[-2:], recovered)
         self.assertEqual(prior_sessions + 2, len(sessions))
 
-        marker = {"kind": "budget_exhausted", "limit": "max_wall_time_ms",
+        marker = {"event_id": 1, "kind": "budget_exhausted",
+                  "limit": "max_wall_time_ms",
                   "phase": "before_step", "prefix_local_ticks": {"a": 2, "b": 2}}
         wall_trace = ScenarioTrace("g" * 64, "budget_exhausted", (marker,),
                                    {"a": 2, "b": 2}, "s" * 64, "m" * 64)

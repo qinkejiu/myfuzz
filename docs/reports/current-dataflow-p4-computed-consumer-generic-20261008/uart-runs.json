@@ -1,0 +1,5913 @@
+{
+ "absent_witness_kinds": [
+  {
+   "name": "spi_transfer",
+   "note": "declared SPI transfer endpoint; no producer in the studied artifacts",
+   "reason": "declared_witness_kind_absent_from_artifact"
+  },
+  {
+   "name": "timer_tick",
+   "note": "declared timer endpoint; no producer in the studied artifacts",
+   "reason": "declared_witness_kind_absent_from_artifact"
+  }
+ ],
+ "bounds": {
+  "max_event_gap": 4096,
+  "max_pending": 64,
+  "max_records": 256,
+  "max_value_history": 256
+ },
+ "not_proof_of": [
+  "register_file_internal_source_token",
+  "device_internal_register_or_fifo_provenance",
+  "cross_instruction_data_dependency",
+  "computed_value_was_used_by_a_later_instruction",
+  "device_consuming_logic_correctness",
+  "mmio_address_decode_or_route_ownership",
+  "instruction_fetch_or_decode_identity",
+  "per_bit_hardware_cone_of_influence"
+ ],
+ "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+ "runs": [
+  {
+   "bounds": {
+    "max_event_gap": 4096,
+    "max_pending": 64,
+    "max_records": 256,
+    "max_value_history": 256
+   },
+   "certificates": [
+    {
+     "computed_event_id": 140,
+     "computed_operation": "addi",
+     "computed_value": 2147483651,
+     "device": "uart",
+     "enabled_lanes": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "event_gap": {
+      "retirement_to_store": 30,
+      "store_to_witness": 12
+     },
+     "event_ids": [
+      140,
+      170,
+      172,
+      182,
+      183,
+      191,
+      199,
+      200,
+      235
+     ],
+     "execution": {
+      "execution_id": "local-execution",
+      "source_epoch": 0,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "identity_joins": [
+      {
+       "expected": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 1,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "field_path": [
+        "access",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "note": "",
+       "observed": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 1,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "status": "matched"
+      },
+      {
+       "expected": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 1,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "field_path": [
+        "access",
+        "delivery_context",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "access_delivery_context_key",
+       "note": "the access context must repeat the same transaction",
+       "observed": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 1,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "status": "matched"
+      },
+      {
+       "expected": "uart",
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "note": "",
+       "observed": "uart",
+       "status": "matched"
+      },
+      {
+       "expected": 16,
+       "field_path": [
+        "access",
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "note": "",
+       "observed": 16,
+       "status": "matched"
+      },
+      {
+       "expected": 15,
+       "field_path": [
+        "access",
+        "delivery_context",
+        "be"
+       ],
+       "join": "store_byte_enable",
+       "name": "store_byte_enable",
+       "note": "",
+       "observed": 15,
+       "status": "matched"
+      }
+     ],
+     "lane_values": {
+      "0": 3,
+      "1": 0,
+      "2": 0,
+      "3": 128
+     },
+     "not_proof_of": [
+      "register_file_internal_source_token",
+      "device_internal_register_or_fifo_provenance",
+      "cross_instruction_data_dependency",
+      "computed_value_was_used_by_a_later_instruction",
+      "device_consuming_logic_correctness",
+      "mmio_address_decode_or_route_ownership",
+      "instruction_fetch_or_decode_identity",
+      "per_bit_hardware_cone_of_influence"
+     ],
+     "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+     "store_value": 2147483651,
+     "transaction": {
+      "channel_id": "data",
+      "execution_id": "local-execution",
+      "source_component": "cpu",
+      "source_epoch": 0,
+      "source_sequence": 1,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "witness_event_id": 182,
+     "witness_kind": "uart_tick_observation_access",
+     "witnesses": [
+      {
+       "event_id": 182,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 183,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 191,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 199,
+       "kind": "uart_tick_observation_access"
+      }
+     ]
+    },
+    {
+     "computed_event_id": 269,
+     "computed_operation": "addi",
+     "computed_value": 2,
+     "device": "uart",
+     "enabled_lanes": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "event_gap": {
+      "retirement_to_store": 11,
+      "store_to_witness": 12
+     },
+     "event_ids": [
+      269,
+      280,
+      282,
+      292,
+      293,
+      301,
+      309,
+      310,
+      345
+     ],
+     "execution": {
+      "execution_id": "local-execution",
+      "source_epoch": 0,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "identity_joins": [
+      {
+       "expected": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 2,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "field_path": [
+        "access",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "note": "",
+       "observed": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 2,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "status": "matched"
+      },
+      {
+       "expected": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 2,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "field_path": [
+        "access",
+        "delivery_context",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "access_delivery_context_key",
+       "note": "the access context must repeat the same transaction",
+       "observed": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 2,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "status": "matched"
+      },
+      {
+       "expected": "uart",
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "note": "",
+       "observed": "uart",
+       "status": "matched"
+      },
+      {
+       "expected": 4,
+       "field_path": [
+        "access",
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "note": "",
+       "observed": 4,
+       "status": "matched"
+      },
+      {
+       "expected": 15,
+       "field_path": [
+        "access",
+        "delivery_context",
+        "be"
+       ],
+       "join": "store_byte_enable",
+       "name": "store_byte_enable",
+       "note": "",
+       "observed": 15,
+       "status": "matched"
+      }
+     ],
+     "lane_values": {
+      "0": 2,
+      "1": 0,
+      "2": 0,
+      "3": 0
+     },
+     "not_proof_of": [
+      "register_file_internal_source_token",
+      "device_internal_register_or_fifo_provenance",
+      "cross_instruction_data_dependency",
+      "computed_value_was_used_by_a_later_instruction",
+      "device_consuming_logic_correctness",
+      "mmio_address_decode_or_route_ownership",
+      "instruction_fetch_or_decode_identity",
+      "per_bit_hardware_cone_of_influence"
+     ],
+     "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+     "store_value": 2,
+     "transaction": {
+      "channel_id": "data",
+      "execution_id": "local-execution",
+      "source_component": "cpu",
+      "source_epoch": 0,
+      "source_sequence": 2,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "witness_event_id": 292,
+     "witness_kind": "uart_tick_observation_access",
+     "witnesses": [
+      {
+       "event_id": 292,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 293,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 301,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 309,
+       "kind": "uart_tick_observation_access"
+      }
+     ]
+    },
+    {
+     "computed_event_id": 14496,
+     "computed_operation": "addi",
+     "computed_value": 214151174,
+     "device": "uart",
+     "enabled_lanes": [
+      0
+     ],
+     "event_gap": {
+      "retirement_to_store": 53,
+      "store_to_witness": 3511
+     },
+     "event_ids": [
+      14496,
+      14549,
+      14550,
+      14560,
+      14561,
+      14569,
+      14577,
+      14578,
+      14604,
+      18060
+     ],
+     "execution": {
+      "execution_id": "local-execution",
+      "source_epoch": 0,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "identity_joins": [
+      {
+       "expected": "uart",
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "note": "",
+       "observed": "uart",
+       "status": "matched"
+      },
+      {
+       "expected": 1,
+       "field_path": [
+        "outputs",
+        "serial_tx_count"
+       ],
+       "join": "serial_counter_increment",
+       "name": "serial_counter_increment",
+       "note": "must step exactly +1 from the baseline observed before the delivery",
+       "observed": 1,
+       "status": "matched"
+      }
+     ],
+     "lane_values": {
+      "0": 6
+     },
+     "not_proof_of": [
+      "register_file_internal_source_token",
+      "device_internal_register_or_fifo_provenance",
+      "cross_instruction_data_dependency",
+      "computed_value_was_used_by_a_later_instruction",
+      "device_consuming_logic_correctness",
+      "mmio_address_decode_or_route_ownership",
+      "instruction_fetch_or_decode_identity",
+      "per_bit_hardware_cone_of_influence"
+     ],
+     "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+     "store_value": 214151174,
+     "transaction": {
+      "channel_id": "data",
+      "execution_id": "local-execution",
+      "source_component": "cpu",
+      "source_epoch": 0,
+      "source_sequence": 8,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "witness_event_id": 18060,
+     "witness_kind": "uart_serial_observation",
+     "witnesses": [
+      {
+       "event_id": 14560,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 14561,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 14569,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 14577,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 18060,
+       "kind": "uart_serial_observation"
+      }
+     ]
+    }
+   ],
+   "certificates_truncated": 0,
+   "certified": 3,
+   "certified_kinds": [
+    "uart_serial_observation",
+    "uart_tick_observation_access"
+   ],
+   "counters": {
+    "chains_expired_by_event_gap": 2,
+    "chains_opened": 4,
+    "computed_values_seen": 18,
+    "extension_without_chain": 10,
+    "mmio_hops": 10,
+    "serial_observations": 1822,
+    "terminal_witnesses": 13,
+    "witness_events_without_pending_chain": 1921,
+    "witness_gate_rejections": 1332,
+    "witness_join_failures": 58
+   },
+   "declared_event_count": null,
+   "events": 18620,
+   "events_file": "online_final_trace.json",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "peak_pending": 2,
+   "pipeline_refusals": {
+    "mmio_store_route": 14
+   },
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "reason": null,
+   "refusal_samples": [
+    {
+     "computed_event_id": 18555,
+     "device": "uart",
+     "event_id": 18610,
+     "missing_hop": "device_consumption:uart_serial_observation",
+     "missing_identity": "serial_counter_increment",
+     "reason": "no_observed_serial_baseline",
+     "status": "refused",
+     "transaction": {
+      "channel_id": "data",
+      "execution_id": "local-execution",
+      "source_component": "cpu",
+      "source_epoch": 0,
+      "source_sequence": 9,
+      "testcase_id": "ibex-uart-online-stream"
+     }
+    },
+    {
+     "computed_event_id": 76,
+     "device": null,
+     "event_id": 76,
+     "missing_hop": "mmio_store_route",
+     "missing_identity": "store_transaction_key",
+     "reason": "computed_value_never_reached_a_store",
+     "status": "refused",
+     "transaction": null
+    },
+    {
+     "computed_event_id": 108,
+     "device": null,
+     "event_id": 108,
+     "missing_hop": "mmio_store_route",
+     "missing_identity": "store_transaction_key",
+     "reason": "computed_value_never_reached_a_store",
+     "status": "refused",
+     "transaction": null
+    }
+   ],
+   "refusals_by_missing_hop": {
+    "device_consumption:uart_serial_observation": 1,
+    "mmio_store_route": 14
+   },
+   "refusals_by_missing_identity": {
+    "serial_counter_increment": 1,
+    "store_transaction_key": 14
+   },
+   "refused": 15,
+   "rejected_retirements": {
+    "discarded_zero_register_write": 81,
+    "illegal_computed_value": 0,
+    "retirement_trap_observation_only": 0,
+    "unsupported_instruction_observation_only": 7
+   },
+   "rejections": {
+    "discarded_zero_register_write": 81,
+    "unsupported_instruction_observation_only": 7
+   },
+   "run_dir": "runs/p5-uart-gate2-20261007-online",
+   "rvfi_retirements": 106,
+   "schema_version": "computed_consumer_certificate.v1",
+   "semantic_sha256_matches": true,
+   "status": "ok",
+   "unknown": 0,
+   "unknown_by_reason": {},
+   "unknown_samples": [],
+   "witness_kinds": {
+    "gpio_apb_access": {
+     "allowed_statuses": [
+      "observed"
+     ],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": "gpio_apb_access",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "observed device bus access with the full APB probe set",
+     "observed_in_studied_artifacts": true,
+     "priority": 20,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "wdata"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "gpio_consumption_match": {
+     "allowed_statuses": [
+      "accepted",
+      "unknown"
+     ],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": "gpio_consumption_match",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "fullkey"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": false,
+       "when": "field_present"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "device-side consumption match row; status accepted/unknown both mean the identity matched (rejected/incomplete never join), while origin lineage status is not part of this proof",
+     "observed_in_studied_artifacts": true,
+     "priority": 35,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "proof_resource",
+       "[]",
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "gpio_pad_observation": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": null,
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": false,
+     "note": "raw pad sample: value only, no identity keys at all",
+     "observed_in_studied_artifacts": true,
+     "priority": 10,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "raw_peripheral_observation",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": "raw_pad_sample_has_no_transaction_key_adjacency_only",
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "outputs",
+       "gpio_out"
+      ],
+      [
+       "outputs",
+       "rdata"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "gpio_register_commit": {
+     "allowed_statuses": [
+      "observed"
+     ],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": "gpio_register_commit",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "fullkey"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "observation_event_id"
+       ],
+       "join": "certified_upstream_hop_event_id",
+       "name": "certified_upstream_hop_event_id",
+       "required": false,
+       "when": "device_access_hop_present"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "GPIO register committed from a real APB write; carries the full key",
+     "observed_in_studied_artifacts": true,
+     "priority": 40,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "write_value"
+      ],
+      [
+       "post_value"
+      ],
+      [
+       "bit_resources",
+       "[]",
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "gpio_register_read": {
+     "allowed_statuses": [
+      "observed"
+     ],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": "gpio_register_read",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "fullkey"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "register readback witness; the read key must equal the store key",
+     "observed_in_studied_artifacts": true,
+     "priority": 25,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "read_value"
+      ],
+      [
+       "post_value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "spi_transfer": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "spi0",
+      "spi",
+      "spi_host",
+      "spi_device"
+     ],
+     "event_kind": "spi_transfer",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "declared SPI transfer endpoint; no producer in the studied artifacts",
+     "observed_in_studied_artifacts": false,
+     "priority": 30,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "timer_tick": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "timer",
+      "rv_timer",
+      "timer_interrupt"
+     ],
+     "event_kind": "timer_tick",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "declared timer endpoint; no producer in the studied artifacts",
+     "observed_in_studied_artifacts": false,
+     "priority": 30,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "uart_fifo_pop": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "uart"
+     ],
+     "event_kind": "uart_fifo_pop",
+     "events_seen": 1,
+     "events_without_pending_chain": 1,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "access",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "access",
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "device-internal FIFO entry pop; joins on the read access key",
+     "observed_in_studied_artifacts": true,
+     "priority": 15,
+     "reason": null,
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "uart_fifo_push": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "uart"
+     ],
+     "event_kind": "uart_fifo_push",
+     "events_seen": 1,
+     "events_without_pending_chain": 1,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": false,
+     "note": "FIFO push names entry_id/frame_id only; no exact store join exists",
+     "observed_in_studied_artifacts": true,
+     "priority": 15,
+     "reason": null,
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": "device_internal_fifo_entry_token_carries_no_store_transaction_key",
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "uart_rdata_access": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "uart"
+     ],
+     "event_kind": "uart_rdata_access",
+     "events_seen": 1,
+     "events_without_pending_chain": 1,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "delivery_context",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "UART data-register read access witness (read direction)",
+     "observed_in_studied_artifacts": true,
+     "priority": 22,
+     "reason": null,
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "read_value"
+      ],
+      [
+       "read_capture",
+       "post",
+       "probe_uart_fifo_data"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "uart_serial_observation": {
+     "allowed_statuses": [],
+     "certified": 1,
+     "components": [
+      "uart"
+     ],
+     "event_kind": null,
+     "events_seen": 1822,
+     "events_without_pending_chain": 955,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "outputs",
+        "serial_tx_count"
+       ],
+       "join": "serial_counter_increment",
+       "name": "serial_counter_increment",
+       "required": true,
+       "when": "baseline_present"
+      }
+     ],
+     "join_failures": 54,
+     "join_failures_by_identity": {
+      "serial_counter_increment": 54
+     },
+     "joinable": true,
+     "note": "raw serial sample: carries no store transaction key, so it joins by device identity plus an observed +1 counter step on the lane byte",
+     "observed_in_studied_artifacts": true,
+     "priority": 50,
+     "reason": null,
+     "refused": 1,
+     "refused_by_identity": {
+      "serial_counter_increment": 1,
+      "store_transaction_key": 14
+     },
+     "shape": "raw_peripheral_observation",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "outputs",
+       "serial_tx_last"
+      ]
+     ],
+     "witnesses_joined": 1
+    },
+    "uart_tick_observation_access": {
+     "allowed_statuses": [],
+     "certified": 2,
+     "components": [
+      "uart"
+     ],
+     "event_kind": "uart_tick_observation",
+     "events_seen": 1842,
+     "events_without_pending_chain": 963,
+     "gate_rejections": 1332,
+     "identity_keys": [
+      {
+       "field_path": [
+        "access",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "access",
+        "delivery_context",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "access_delivery_context_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "access",
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "access",
+        "delivery_context",
+        "be"
+       ],
+       "join": "store_byte_enable",
+       "name": "store_byte_enable",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 4,
+     "join_failures_by_identity": {
+      "store_transaction_key": 4
+     },
+     "joinable": true,
+     "note": "UART tick observation that carries a write access context",
+     "observed_in_studied_artifacts": true,
+     "priority": 30,
+     "reason": null,
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "access",
+       "delivery_context",
+       "value"
+      ]
+     ],
+     "witnesses_joined": 12
+    }
+   }
+  },
+  {
+   "bounds": {
+    "max_event_gap": 4096,
+    "max_pending": 64,
+    "max_records": 256,
+    "max_value_history": 256
+   },
+   "certificates": [
+    {
+     "computed_event_id": 140,
+     "computed_operation": "addi",
+     "computed_value": 2147483651,
+     "device": "uart",
+     "enabled_lanes": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "event_gap": {
+      "retirement_to_store": 30,
+      "store_to_witness": 12
+     },
+     "event_ids": [
+      140,
+      170,
+      172,
+      182,
+      183,
+      191,
+      199,
+      200,
+      235
+     ],
+     "execution": {
+      "execution_id": "local-execution",
+      "source_epoch": 0,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "identity_joins": [
+      {
+       "expected": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 1,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "field_path": [
+        "access",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "note": "",
+       "observed": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 1,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "status": "matched"
+      },
+      {
+       "expected": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 1,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "field_path": [
+        "access",
+        "delivery_context",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "access_delivery_context_key",
+       "note": "the access context must repeat the same transaction",
+       "observed": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 1,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "status": "matched"
+      },
+      {
+       "expected": "uart",
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "note": "",
+       "observed": "uart",
+       "status": "matched"
+      },
+      {
+       "expected": 16,
+       "field_path": [
+        "access",
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "note": "",
+       "observed": 16,
+       "status": "matched"
+      },
+      {
+       "expected": 15,
+       "field_path": [
+        "access",
+        "delivery_context",
+        "be"
+       ],
+       "join": "store_byte_enable",
+       "name": "store_byte_enable",
+       "note": "",
+       "observed": 15,
+       "status": "matched"
+      }
+     ],
+     "lane_values": {
+      "0": 3,
+      "1": 0,
+      "2": 0,
+      "3": 128
+     },
+     "not_proof_of": [
+      "register_file_internal_source_token",
+      "device_internal_register_or_fifo_provenance",
+      "cross_instruction_data_dependency",
+      "computed_value_was_used_by_a_later_instruction",
+      "device_consuming_logic_correctness",
+      "mmio_address_decode_or_route_ownership",
+      "instruction_fetch_or_decode_identity",
+      "per_bit_hardware_cone_of_influence"
+     ],
+     "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+     "store_value": 2147483651,
+     "transaction": {
+      "channel_id": "data",
+      "execution_id": "local-execution",
+      "source_component": "cpu",
+      "source_epoch": 0,
+      "source_sequence": 1,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "witness_event_id": 182,
+     "witness_kind": "uart_tick_observation_access",
+     "witnesses": [
+      {
+       "event_id": 182,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 183,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 191,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 199,
+       "kind": "uart_tick_observation_access"
+      }
+     ]
+    },
+    {
+     "computed_event_id": 269,
+     "computed_operation": "addi",
+     "computed_value": 2,
+     "device": "uart",
+     "enabled_lanes": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "event_gap": {
+      "retirement_to_store": 11,
+      "store_to_witness": 12
+     },
+     "event_ids": [
+      269,
+      280,
+      282,
+      292,
+      293,
+      301,
+      309,
+      310,
+      345
+     ],
+     "execution": {
+      "execution_id": "local-execution",
+      "source_epoch": 0,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "identity_joins": [
+      {
+       "expected": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 2,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "field_path": [
+        "access",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "note": "",
+       "observed": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 2,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "status": "matched"
+      },
+      {
+       "expected": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 2,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "field_path": [
+        "access",
+        "delivery_context",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "access_delivery_context_key",
+       "note": "the access context must repeat the same transaction",
+       "observed": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 2,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "status": "matched"
+      },
+      {
+       "expected": "uart",
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "note": "",
+       "observed": "uart",
+       "status": "matched"
+      },
+      {
+       "expected": 4,
+       "field_path": [
+        "access",
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "note": "",
+       "observed": 4,
+       "status": "matched"
+      },
+      {
+       "expected": 15,
+       "field_path": [
+        "access",
+        "delivery_context",
+        "be"
+       ],
+       "join": "store_byte_enable",
+       "name": "store_byte_enable",
+       "note": "",
+       "observed": 15,
+       "status": "matched"
+      }
+     ],
+     "lane_values": {
+      "0": 2,
+      "1": 0,
+      "2": 0,
+      "3": 0
+     },
+     "not_proof_of": [
+      "register_file_internal_source_token",
+      "device_internal_register_or_fifo_provenance",
+      "cross_instruction_data_dependency",
+      "computed_value_was_used_by_a_later_instruction",
+      "device_consuming_logic_correctness",
+      "mmio_address_decode_or_route_ownership",
+      "instruction_fetch_or_decode_identity",
+      "per_bit_hardware_cone_of_influence"
+     ],
+     "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+     "store_value": 2,
+     "transaction": {
+      "channel_id": "data",
+      "execution_id": "local-execution",
+      "source_component": "cpu",
+      "source_epoch": 0,
+      "source_sequence": 2,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "witness_event_id": 292,
+     "witness_kind": "uart_tick_observation_access",
+     "witnesses": [
+      {
+       "event_id": 292,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 293,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 301,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 309,
+       "kind": "uart_tick_observation_access"
+      }
+     ]
+    }
+   ],
+   "certificates_truncated": 0,
+   "certified": 2,
+   "certified_kinds": [
+    "uart_tick_observation_access"
+   ],
+   "counters": {
+    "chains_expired_by_event_gap": 2,
+    "chains_opened": 2,
+    "computed_values_seen": 11,
+    "extension_without_chain": 16,
+    "mmio_hops": 6,
+    "serial_observations": 1636,
+    "terminal_witnesses": 8,
+    "witness_events_without_pending_chain": 2319,
+    "witness_gate_rejections": 946,
+    "witness_join_failures": 6
+   },
+   "declared_event_count": 16492,
+   "events": 16492,
+   "events_file": "online_events.zlib",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "peak_pending": 2,
+   "pipeline_refusals": {
+    "mmio_store_route": 9
+   },
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "reason": null,
+   "refusal_samples": [
+    {
+     "computed_event_id": 76,
+     "device": null,
+     "event_id": 76,
+     "missing_hop": "mmio_store_route",
+     "missing_identity": "store_transaction_key",
+     "reason": "computed_value_never_reached_a_store",
+     "status": "refused",
+     "transaction": null
+    },
+    {
+     "computed_event_id": 108,
+     "device": null,
+     "event_id": 108,
+     "missing_hop": "mmio_store_route",
+     "missing_identity": "store_transaction_key",
+     "reason": "computed_value_never_reached_a_store",
+     "status": "refused",
+     "transaction": null
+    },
+    {
+     "computed_event_id": 379,
+     "device": null,
+     "event_id": 379,
+     "missing_hop": "mmio_store_route",
+     "missing_identity": "store_transaction_key",
+     "reason": "computed_value_never_reached_a_store",
+     "status": "refused",
+     "transaction": null
+    }
+   ],
+   "refusals_by_missing_hop": {
+    "mmio_store_route": 9
+   },
+   "refusals_by_missing_identity": {
+    "store_transaction_key": 9
+   },
+   "refused": 9,
+   "rejected_retirements": {
+    "discarded_zero_register_write": 71,
+    "illegal_computed_value": 0,
+    "retirement_trap_observation_only": 0,
+    "unsupported_instruction_observation_only": 6
+   },
+   "rejections": {
+    "discarded_zero_register_write": 71,
+    "unsupported_instruction_observation_only": 6
+   },
+   "run_dir": "runs/p3-capacity-probe-paired-20261007",
+   "rvfi_retirements": 88,
+   "schema_version": "computed_consumer_certificate.v1",
+   "semantic_sha256_matches": true,
+   "status": "ok",
+   "unknown": 0,
+   "unknown_by_reason": {},
+   "unknown_samples": [],
+   "witness_kinds": {
+    "gpio_apb_access": {
+     "allowed_statuses": [
+      "observed"
+     ],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": "gpio_apb_access",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "observed device bus access with the full APB probe set",
+     "observed_in_studied_artifacts": true,
+     "priority": 20,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "wdata"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "gpio_consumption_match": {
+     "allowed_statuses": [
+      "accepted",
+      "unknown"
+     ],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": "gpio_consumption_match",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "fullkey"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": false,
+       "when": "field_present"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "device-side consumption match row; status accepted/unknown both mean the identity matched (rejected/incomplete never join), while origin lineage status is not part of this proof",
+     "observed_in_studied_artifacts": true,
+     "priority": 35,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "proof_resource",
+       "[]",
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "gpio_pad_observation": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": null,
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": false,
+     "note": "raw pad sample: value only, no identity keys at all",
+     "observed_in_studied_artifacts": true,
+     "priority": 10,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "raw_peripheral_observation",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": "raw_pad_sample_has_no_transaction_key_adjacency_only",
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "outputs",
+       "gpio_out"
+      ],
+      [
+       "outputs",
+       "rdata"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "gpio_register_commit": {
+     "allowed_statuses": [
+      "observed"
+     ],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": "gpio_register_commit",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "fullkey"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "observation_event_id"
+       ],
+       "join": "certified_upstream_hop_event_id",
+       "name": "certified_upstream_hop_event_id",
+       "required": false,
+       "when": "device_access_hop_present"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "GPIO register committed from a real APB write; carries the full key",
+     "observed_in_studied_artifacts": true,
+     "priority": 40,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "write_value"
+      ],
+      [
+       "post_value"
+      ],
+      [
+       "bit_resources",
+       "[]",
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "gpio_register_read": {
+     "allowed_statuses": [
+      "observed"
+     ],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": "gpio_register_read",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "fullkey"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "register readback witness; the read key must equal the store key",
+     "observed_in_studied_artifacts": true,
+     "priority": 25,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "read_value"
+      ],
+      [
+       "post_value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "spi_transfer": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "spi0",
+      "spi",
+      "spi_host",
+      "spi_device"
+     ],
+     "event_kind": "spi_transfer",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "declared SPI transfer endpoint; no producer in the studied artifacts",
+     "observed_in_studied_artifacts": false,
+     "priority": 30,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "timer_tick": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "timer",
+      "rv_timer",
+      "timer_interrupt"
+     ],
+     "event_kind": "timer_tick",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "declared timer endpoint; no producer in the studied artifacts",
+     "observed_in_studied_artifacts": false,
+     "priority": 30,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "uart_fifo_pop": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "uart"
+     ],
+     "event_kind": "uart_fifo_pop",
+     "events_seen": 1,
+     "events_without_pending_chain": 1,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "access",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "access",
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "device-internal FIFO entry pop; joins on the read access key",
+     "observed_in_studied_artifacts": true,
+     "priority": 15,
+     "reason": null,
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "uart_fifo_push": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "uart"
+     ],
+     "event_kind": "uart_fifo_push",
+     "events_seen": 1,
+     "events_without_pending_chain": 1,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": false,
+     "note": "FIFO push names entry_id/frame_id only; no exact store join exists",
+     "observed_in_studied_artifacts": true,
+     "priority": 15,
+     "reason": null,
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": "device_internal_fifo_entry_token_carries_no_store_transaction_key",
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "uart_rdata_access": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "uart"
+     ],
+     "event_kind": "uart_rdata_access",
+     "events_seen": 1,
+     "events_without_pending_chain": 1,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "delivery_context",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "UART data-register read access witness (read direction)",
+     "observed_in_studied_artifacts": true,
+     "priority": 22,
+     "reason": null,
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "read_value"
+      ],
+      [
+       "read_capture",
+       "post",
+       "probe_uart_fifo_data"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "uart_serial_observation": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "uart"
+     ],
+     "event_kind": null,
+     "events_seen": 1636,
+     "events_without_pending_chain": 1154,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "outputs",
+        "serial_tx_count"
+       ],
+       "join": "serial_counter_increment",
+       "name": "serial_counter_increment",
+       "required": true,
+       "when": "baseline_present"
+      }
+     ],
+     "join_failures": 2,
+     "join_failures_by_identity": {
+      "serial_counter_increment": 2
+     },
+     "joinable": true,
+     "note": "raw serial sample: carries no store transaction key, so it joins by device identity plus an observed +1 counter step on the lane byte",
+     "observed_in_studied_artifacts": true,
+     "priority": 50,
+     "reason": null,
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "raw_peripheral_observation",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "outputs",
+       "serial_tx_last"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "uart_tick_observation_access": {
+     "allowed_statuses": [],
+     "certified": 2,
+     "components": [
+      "uart"
+     ],
+     "event_kind": "uart_tick_observation",
+     "events_seen": 1652,
+     "events_without_pending_chain": 1162,
+     "gate_rejections": 946,
+     "identity_keys": [
+      {
+       "field_path": [
+        "access",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "access",
+        "delivery_context",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "access_delivery_context_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "access",
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "access",
+        "delivery_context",
+        "be"
+       ],
+       "join": "store_byte_enable",
+       "name": "store_byte_enable",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 4,
+     "join_failures_by_identity": {
+      "store_transaction_key": 4
+     },
+     "joinable": true,
+     "note": "UART tick observation that carries a write access context",
+     "observed_in_studied_artifacts": true,
+     "priority": 30,
+     "reason": null,
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "access",
+       "delivery_context",
+       "value"
+      ]
+     ],
+     "witnesses_joined": 8
+    }
+   }
+  },
+  {
+   "bounds": {
+    "max_event_gap": 4096,
+    "max_pending": 64,
+    "max_records": 256,
+    "max_value_history": 256
+   },
+   "certificates": [
+    {
+     "computed_event_id": 140,
+     "computed_operation": "addi",
+     "computed_value": 2147483651,
+     "device": "uart",
+     "enabled_lanes": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "event_gap": {
+      "retirement_to_store": 30,
+      "store_to_witness": 12
+     },
+     "event_ids": [
+      140,
+      170,
+      172,
+      182,
+      183,
+      191,
+      199,
+      200,
+      235
+     ],
+     "execution": {
+      "execution_id": "local-execution",
+      "source_epoch": 0,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "identity_joins": [
+      {
+       "expected": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 1,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "field_path": [
+        "access",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "note": "",
+       "observed": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 1,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "status": "matched"
+      },
+      {
+       "expected": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 1,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "field_path": [
+        "access",
+        "delivery_context",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "access_delivery_context_key",
+       "note": "the access context must repeat the same transaction",
+       "observed": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 1,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "status": "matched"
+      },
+      {
+       "expected": "uart",
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "note": "",
+       "observed": "uart",
+       "status": "matched"
+      },
+      {
+       "expected": 16,
+       "field_path": [
+        "access",
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "note": "",
+       "observed": 16,
+       "status": "matched"
+      },
+      {
+       "expected": 15,
+       "field_path": [
+        "access",
+        "delivery_context",
+        "be"
+       ],
+       "join": "store_byte_enable",
+       "name": "store_byte_enable",
+       "note": "",
+       "observed": 15,
+       "status": "matched"
+      }
+     ],
+     "lane_values": {
+      "0": 3,
+      "1": 0,
+      "2": 0,
+      "3": 128
+     },
+     "not_proof_of": [
+      "register_file_internal_source_token",
+      "device_internal_register_or_fifo_provenance",
+      "cross_instruction_data_dependency",
+      "computed_value_was_used_by_a_later_instruction",
+      "device_consuming_logic_correctness",
+      "mmio_address_decode_or_route_ownership",
+      "instruction_fetch_or_decode_identity",
+      "per_bit_hardware_cone_of_influence"
+     ],
+     "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+     "store_value": 2147483651,
+     "transaction": {
+      "channel_id": "data",
+      "execution_id": "local-execution",
+      "source_component": "cpu",
+      "source_epoch": 0,
+      "source_sequence": 1,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "witness_event_id": 182,
+     "witness_kind": "uart_tick_observation_access",
+     "witnesses": [
+      {
+       "event_id": 182,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 183,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 191,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 199,
+       "kind": "uart_tick_observation_access"
+      }
+     ]
+    },
+    {
+     "computed_event_id": 269,
+     "computed_operation": "addi",
+     "computed_value": 2,
+     "device": "uart",
+     "enabled_lanes": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "event_gap": {
+      "retirement_to_store": 11,
+      "store_to_witness": 12
+     },
+     "event_ids": [
+      269,
+      280,
+      282,
+      292,
+      293,
+      301,
+      309,
+      310,
+      345
+     ],
+     "execution": {
+      "execution_id": "local-execution",
+      "source_epoch": 0,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "identity_joins": [
+      {
+       "expected": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 2,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "field_path": [
+        "access",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "note": "",
+       "observed": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 2,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "status": "matched"
+      },
+      {
+       "expected": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 2,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "field_path": [
+        "access",
+        "delivery_context",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "access_delivery_context_key",
+       "note": "the access context must repeat the same transaction",
+       "observed": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 2,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "status": "matched"
+      },
+      {
+       "expected": "uart",
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "note": "",
+       "observed": "uart",
+       "status": "matched"
+      },
+      {
+       "expected": 4,
+       "field_path": [
+        "access",
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "note": "",
+       "observed": 4,
+       "status": "matched"
+      },
+      {
+       "expected": 15,
+       "field_path": [
+        "access",
+        "delivery_context",
+        "be"
+       ],
+       "join": "store_byte_enable",
+       "name": "store_byte_enable",
+       "note": "",
+       "observed": 15,
+       "status": "matched"
+      }
+     ],
+     "lane_values": {
+      "0": 2,
+      "1": 0,
+      "2": 0,
+      "3": 0
+     },
+     "not_proof_of": [
+      "register_file_internal_source_token",
+      "device_internal_register_or_fifo_provenance",
+      "cross_instruction_data_dependency",
+      "computed_value_was_used_by_a_later_instruction",
+      "device_consuming_logic_correctness",
+      "mmio_address_decode_or_route_ownership",
+      "instruction_fetch_or_decode_identity",
+      "per_bit_hardware_cone_of_influence"
+     ],
+     "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+     "store_value": 2,
+     "transaction": {
+      "channel_id": "data",
+      "execution_id": "local-execution",
+      "source_component": "cpu",
+      "source_epoch": 0,
+      "source_sequence": 2,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "witness_event_id": 292,
+     "witness_kind": "uart_tick_observation_access",
+     "witnesses": [
+      {
+       "event_id": 292,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 293,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 301,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 309,
+       "kind": "uart_tick_observation_access"
+      }
+     ]
+    },
+    {
+     "computed_event_id": 25068,
+     "computed_operation": "addi",
+     "computed_value": 12,
+     "device": "uart",
+     "enabled_lanes": [
+      0
+     ],
+     "event_gap": {
+      "retirement_to_store": 53,
+      "store_to_witness": 2881
+     },
+     "event_ids": [
+      25068,
+      25121,
+      25122,
+      25132,
+      25133,
+      25141,
+      25149,
+      25150,
+      25176,
+      28002
+     ],
+     "execution": {
+      "execution_id": "local-execution",
+      "source_epoch": 0,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "identity_joins": [
+      {
+       "expected": "uart",
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "note": "",
+       "observed": "uart",
+       "status": "matched"
+      },
+      {
+       "expected": 1,
+       "field_path": [
+        "outputs",
+        "serial_tx_count"
+       ],
+       "join": "serial_counter_increment",
+       "name": "serial_counter_increment",
+       "note": "must step exactly +1 from the baseline observed before the delivery",
+       "observed": 1,
+       "status": "matched"
+      }
+     ],
+     "lane_values": {
+      "0": 12
+     },
+     "not_proof_of": [
+      "register_file_internal_source_token",
+      "device_internal_register_or_fifo_provenance",
+      "cross_instruction_data_dependency",
+      "computed_value_was_used_by_a_later_instruction",
+      "device_consuming_logic_correctness",
+      "mmio_address_decode_or_route_ownership",
+      "instruction_fetch_or_decode_identity",
+      "per_bit_hardware_cone_of_influence"
+     ],
+     "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+     "store_value": 12,
+     "transaction": {
+      "channel_id": "data",
+      "execution_id": "local-execution",
+      "source_component": "cpu",
+      "source_epoch": 0,
+      "source_sequence": 11,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "witness_event_id": 28002,
+     "witness_kind": "uart_serial_observation",
+     "witnesses": [
+      {
+       "event_id": 25132,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 25133,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 25141,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 25149,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 28002,
+       "kind": "uart_serial_observation"
+      }
+     ]
+    }
+   ],
+   "certificates_truncated": 0,
+   "certified": 3,
+   "certified_kinds": [
+    "uart_serial_observation",
+    "uart_tick_observation_access"
+   ],
+   "counters": {
+    "chains_expired_by_event_gap": 3,
+    "chains_opened": 3,
+    "computed_values_seen": 19,
+    "extension_without_chain": 40,
+    "mmio_hops": 9,
+    "serial_observations": 6660,
+    "terminal_witnesses": 13,
+    "witness_events_without_pending_chain": 10775,
+    "witness_gate_rejections": 1764,
+    "witness_join_failures": 518
+   },
+   "declared_event_count": null,
+   "events": 63830,
+   "events_file": "online_final_trace.json",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "peak_pending": 2,
+   "pipeline_refusals": {
+    "mmio_store_route": 16
+   },
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "reason": null,
+   "refusal_samples": [
+    {
+     "computed_event_id": 76,
+     "device": null,
+     "event_id": 76,
+     "missing_hop": "mmio_store_route",
+     "missing_identity": "store_transaction_key",
+     "reason": "computed_value_never_reached_a_store",
+     "status": "refused",
+     "transaction": null
+    },
+    {
+     "computed_event_id": 108,
+     "device": null,
+     "event_id": 108,
+     "missing_hop": "mmio_store_route",
+     "missing_identity": "store_transaction_key",
+     "reason": "computed_value_never_reached_a_store",
+     "status": "refused",
+     "transaction": null
+    },
+    {
+     "computed_event_id": 379,
+     "device": null,
+     "event_id": 379,
+     "missing_hop": "mmio_store_route",
+     "missing_identity": "store_transaction_key",
+     "reason": "computed_value_never_reached_a_store",
+     "status": "refused",
+     "transaction": null
+    }
+   ],
+   "refusals_by_missing_hop": {
+    "mmio_store_route": 16
+   },
+   "refusals_by_missing_identity": {
+    "store_transaction_key": 16
+   },
+   "refused": 16,
+   "rejected_retirements": {
+    "discarded_zero_register_write": 352,
+    "illegal_computed_value": 0,
+    "retirement_trap_observation_only": 0,
+    "unsupported_instruction_observation_only": 18
+   },
+   "rejections": {
+    "discarded_zero_register_write": 352,
+    "unsupported_instruction_observation_only": 18
+   },
+   "run_dir": "runs/current-dataflow-p4-sb-final-online-20261007",
+   "rvfi_retirements": 389,
+   "schema_version": "computed_consumer_certificate.v1",
+   "semantic_sha256_matches": true,
+   "status": "ok",
+   "unknown": 0,
+   "unknown_by_reason": {},
+   "unknown_samples": [],
+   "witness_kinds": {
+    "gpio_apb_access": {
+     "allowed_statuses": [
+      "observed"
+     ],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": "gpio_apb_access",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "observed device bus access with the full APB probe set",
+     "observed_in_studied_artifacts": true,
+     "priority": 20,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "wdata"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "gpio_consumption_match": {
+     "allowed_statuses": [
+      "accepted",
+      "unknown"
+     ],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": "gpio_consumption_match",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "fullkey"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": false,
+       "when": "field_present"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "device-side consumption match row; status accepted/unknown both mean the identity matched (rejected/incomplete never join), while origin lineage status is not part of this proof",
+     "observed_in_studied_artifacts": true,
+     "priority": 35,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "proof_resource",
+       "[]",
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "gpio_pad_observation": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": null,
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": false,
+     "note": "raw pad sample: value only, no identity keys at all",
+     "observed_in_studied_artifacts": true,
+     "priority": 10,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "raw_peripheral_observation",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": "raw_pad_sample_has_no_transaction_key_adjacency_only",
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "outputs",
+       "gpio_out"
+      ],
+      [
+       "outputs",
+       "rdata"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "gpio_register_commit": {
+     "allowed_statuses": [
+      "observed"
+     ],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": "gpio_register_commit",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "fullkey"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "observation_event_id"
+       ],
+       "join": "certified_upstream_hop_event_id",
+       "name": "certified_upstream_hop_event_id",
+       "required": false,
+       "when": "device_access_hop_present"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "GPIO register committed from a real APB write; carries the full key",
+     "observed_in_studied_artifacts": true,
+     "priority": 40,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "write_value"
+      ],
+      [
+       "post_value"
+      ],
+      [
+       "bit_resources",
+       "[]",
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "gpio_register_read": {
+     "allowed_statuses": [
+      "observed"
+     ],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": "gpio_register_read",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "fullkey"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "register readback witness; the read key must equal the store key",
+     "observed_in_studied_artifacts": true,
+     "priority": 25,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "read_value"
+      ],
+      [
+       "post_value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "spi_transfer": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "spi0",
+      "spi",
+      "spi_host",
+      "spi_device"
+     ],
+     "event_kind": "spi_transfer",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "declared SPI transfer endpoint; no producer in the studied artifacts",
+     "observed_in_studied_artifacts": false,
+     "priority": 30,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "timer_tick": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "timer",
+      "rv_timer",
+      "timer_interrupt"
+     ],
+     "event_kind": "timer_tick",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "declared timer endpoint; no producer in the studied artifacts",
+     "observed_in_studied_artifacts": false,
+     "priority": 30,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "uart_fifo_pop": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "uart"
+     ],
+     "event_kind": "uart_fifo_pop",
+     "events_seen": 5,
+     "events_without_pending_chain": 5,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "access",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "access",
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "device-internal FIFO entry pop; joins on the read access key",
+     "observed_in_studied_artifacts": true,
+     "priority": 15,
+     "reason": null,
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "uart_fifo_push": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "uart"
+     ],
+     "event_kind": "uart_fifo_push",
+     "events_seen": 5,
+     "events_without_pending_chain": 5,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": false,
+     "note": "FIFO push names entry_id/frame_id only; no exact store join exists",
+     "observed_in_studied_artifacts": true,
+     "priority": 15,
+     "reason": null,
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": "device_internal_fifo_entry_token_carries_no_store_transaction_key",
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "uart_rdata_access": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "uart"
+     ],
+     "event_kind": "uart_rdata_access",
+     "events_seen": 5,
+     "events_without_pending_chain": 5,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "delivery_context",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "UART data-register read access witness (read direction)",
+     "observed_in_studied_artifacts": true,
+     "priority": 22,
+     "reason": null,
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "read_value"
+      ],
+      [
+       "read_capture",
+       "post",
+       "probe_uart_fifo_data"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "uart_serial_observation": {
+     "allowed_statuses": [],
+     "certified": 1,
+     "components": [
+      "uart"
+     ],
+     "event_kind": null,
+     "events_seen": 6660,
+     "events_without_pending_chain": 5360,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "outputs",
+        "serial_tx_count"
+       ],
+       "join": "serial_counter_increment",
+       "name": "serial_counter_increment",
+       "required": true,
+       "when": "baseline_present"
+      }
+     ],
+     "join_failures": 514,
+     "join_failures_by_identity": {
+      "serial_counter_increment": 514
+     },
+     "joinable": true,
+     "note": "raw serial sample: carries no store transaction key, so it joins by device identity plus an observed +1 counter step on the lane byte",
+     "observed_in_studied_artifacts": true,
+     "priority": 50,
+     "reason": null,
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "raw_peripheral_observation",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "outputs",
+       "serial_tx_last"
+      ]
+     ],
+     "witnesses_joined": 1
+    },
+    "uart_tick_observation_access": {
+     "allowed_statuses": [],
+     "certified": 2,
+     "components": [
+      "uart"
+     ],
+     "event_kind": "uart_tick_observation",
+     "events_seen": 6712,
+     "events_without_pending_chain": 5400,
+     "gate_rejections": 1764,
+     "identity_keys": [
+      {
+       "field_path": [
+        "access",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "access",
+        "delivery_context",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "access_delivery_context_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "access",
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "access",
+        "delivery_context",
+        "be"
+       ],
+       "join": "store_byte_enable",
+       "name": "store_byte_enable",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 4,
+     "join_failures_by_identity": {
+      "store_transaction_key": 4
+     },
+     "joinable": true,
+     "note": "UART tick observation that carries a write access context",
+     "observed_in_studied_artifacts": true,
+     "priority": 30,
+     "reason": null,
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "access",
+       "delivery_context",
+       "value"
+      ]
+     ],
+     "witnesses_joined": 12
+    }
+   }
+  },
+  {
+   "bounds": {
+    "max_event_gap": 4096,
+    "max_pending": 64,
+    "max_records": 256,
+    "max_value_history": 256
+   },
+   "certificates": [
+    {
+     "computed_event_id": 140,
+     "computed_operation": "addi",
+     "computed_value": 2147483651,
+     "device": "uart",
+     "enabled_lanes": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "event_gap": {
+      "retirement_to_store": 30,
+      "store_to_witness": 12
+     },
+     "event_ids": [
+      140,
+      170,
+      172,
+      182,
+      183,
+      191,
+      199,
+      200,
+      235
+     ],
+     "execution": {
+      "execution_id": "local-execution",
+      "source_epoch": 0,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "identity_joins": [
+      {
+       "expected": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 1,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "field_path": [
+        "access",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "note": "",
+       "observed": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 1,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "status": "matched"
+      },
+      {
+       "expected": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 1,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "field_path": [
+        "access",
+        "delivery_context",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "access_delivery_context_key",
+       "note": "the access context must repeat the same transaction",
+       "observed": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 1,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "status": "matched"
+      },
+      {
+       "expected": "uart",
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "note": "",
+       "observed": "uart",
+       "status": "matched"
+      },
+      {
+       "expected": 16,
+       "field_path": [
+        "access",
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "note": "",
+       "observed": 16,
+       "status": "matched"
+      },
+      {
+       "expected": 15,
+       "field_path": [
+        "access",
+        "delivery_context",
+        "be"
+       ],
+       "join": "store_byte_enable",
+       "name": "store_byte_enable",
+       "note": "",
+       "observed": 15,
+       "status": "matched"
+      }
+     ],
+     "lane_values": {
+      "0": 3,
+      "1": 0,
+      "2": 0,
+      "3": 128
+     },
+     "not_proof_of": [
+      "register_file_internal_source_token",
+      "device_internal_register_or_fifo_provenance",
+      "cross_instruction_data_dependency",
+      "computed_value_was_used_by_a_later_instruction",
+      "device_consuming_logic_correctness",
+      "mmio_address_decode_or_route_ownership",
+      "instruction_fetch_or_decode_identity",
+      "per_bit_hardware_cone_of_influence"
+     ],
+     "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+     "store_value": 2147483651,
+     "transaction": {
+      "channel_id": "data",
+      "execution_id": "local-execution",
+      "source_component": "cpu",
+      "source_epoch": 0,
+      "source_sequence": 1,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "witness_event_id": 182,
+     "witness_kind": "uart_tick_observation_access",
+     "witnesses": [
+      {
+       "event_id": 182,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 183,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 191,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 199,
+       "kind": "uart_tick_observation_access"
+      }
+     ]
+    },
+    {
+     "computed_event_id": 269,
+     "computed_operation": "addi",
+     "computed_value": 2,
+     "device": "uart",
+     "enabled_lanes": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "event_gap": {
+      "retirement_to_store": 11,
+      "store_to_witness": 12
+     },
+     "event_ids": [
+      269,
+      280,
+      282,
+      292,
+      293,
+      301,
+      309,
+      310,
+      345
+     ],
+     "execution": {
+      "execution_id": "local-execution",
+      "source_epoch": 0,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "identity_joins": [
+      {
+       "expected": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 2,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "field_path": [
+        "access",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "note": "",
+       "observed": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 2,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "status": "matched"
+      },
+      {
+       "expected": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 2,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "field_path": [
+        "access",
+        "delivery_context",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "access_delivery_context_key",
+       "note": "the access context must repeat the same transaction",
+       "observed": {
+        "channel_id": "data",
+        "execution_id": "local-execution",
+        "source_component": "cpu",
+        "source_epoch": 0,
+        "source_sequence": 2,
+        "testcase_id": "ibex-uart-online-stream"
+       },
+       "status": "matched"
+      },
+      {
+       "expected": "uart",
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "note": "",
+       "observed": "uart",
+       "status": "matched"
+      },
+      {
+       "expected": 4,
+       "field_path": [
+        "access",
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "note": "",
+       "observed": 4,
+       "status": "matched"
+      },
+      {
+       "expected": 15,
+       "field_path": [
+        "access",
+        "delivery_context",
+        "be"
+       ],
+       "join": "store_byte_enable",
+       "name": "store_byte_enable",
+       "note": "",
+       "observed": 15,
+       "status": "matched"
+      }
+     ],
+     "lane_values": {
+      "0": 2,
+      "1": 0,
+      "2": 0,
+      "3": 0
+     },
+     "not_proof_of": [
+      "register_file_internal_source_token",
+      "device_internal_register_or_fifo_provenance",
+      "cross_instruction_data_dependency",
+      "computed_value_was_used_by_a_later_instruction",
+      "device_consuming_logic_correctness",
+      "mmio_address_decode_or_route_ownership",
+      "instruction_fetch_or_decode_identity",
+      "per_bit_hardware_cone_of_influence"
+     ],
+     "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+     "store_value": 2,
+     "transaction": {
+      "channel_id": "data",
+      "execution_id": "local-execution",
+      "source_component": "cpu",
+      "source_epoch": 0,
+      "source_sequence": 2,
+      "testcase_id": "ibex-uart-online-stream"
+     },
+     "witness_event_id": 292,
+     "witness_kind": "uart_tick_observation_access",
+     "witnesses": [
+      {
+       "event_id": 292,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 293,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 301,
+       "kind": "uart_tick_observation_access"
+      },
+      {
+       "event_id": 309,
+       "kind": "uart_tick_observation_access"
+      }
+     ]
+    }
+   ],
+   "certificates_truncated": 0,
+   "certified": 2,
+   "certified_kinds": [
+    "uart_tick_observation_access"
+   ],
+   "counters": {
+    "chains_expired_by_event_gap": 2,
+    "chains_opened": 3,
+    "computed_values_seen": 18,
+    "extension_without_chain": 24,
+    "mmio_hops": 7,
+    "serial_observations": 4102,
+    "terminal_witnesses": 8,
+    "witness_events_without_pending_chain": 7271,
+    "witness_gate_rejections": 947,
+    "witness_join_failures": 7
+   },
+   "declared_event_count": null,
+   "events": 39677,
+   "events_file": "online_final_trace.json",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "peak_pending": 2,
+   "pipeline_refusals": {
+    "mmio_store_route": 15
+   },
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "reason": null,
+   "refusal_samples": [
+    {
+     "computed_event_id": 39613,
+     "device": "uart",
+     "event_id": 39667,
+     "missing_hop": "device_consumption:uart_serial_observation",
+     "missing_identity": "serial_counter_increment",
+     "reason": "no_observed_serial_baseline",
+     "status": "refused",
+     "transaction": {
+      "channel_id": "data",
+      "execution_id": "local-execution",
+      "source_component": "cpu",
+      "source_epoch": 0,
+      "source_sequence": 15,
+      "testcase_id": "ibex-uart-online-stream"
+     }
+    },
+    {
+     "computed_event_id": 76,
+     "device": null,
+     "event_id": 76,
+     "missing_hop": "mmio_store_route",
+     "missing_identity": "store_transaction_key",
+     "reason": "computed_value_never_reached_a_store",
+     "status": "refused",
+     "transaction": null
+    },
+    {
+     "computed_event_id": 108,
+     "device": null,
+     "event_id": 108,
+     "missing_hop": "mmio_store_route",
+     "missing_identity": "store_transaction_key",
+     "reason": "computed_value_never_reached_a_store",
+     "status": "refused",
+     "transaction": null
+    }
+   ],
+   "refusals_by_missing_hop": {
+    "device_consumption:uart_serial_observation": 1,
+    "mmio_store_route": 15
+   },
+   "refusals_by_missing_identity": {
+    "serial_counter_increment": 1,
+    "store_transaction_key": 15
+   },
+   "refused": 16,
+   "rejected_retirements": {
+    "discarded_zero_register_write": 211,
+    "illegal_computed_value": 0,
+    "retirement_trap_observation_only": 0,
+    "unsupported_instruction_observation_only": 11
+   },
+   "rejections": {
+    "discarded_zero_register_write": 211,
+    "unsupported_instruction_observation_only": 11
+   },
+   "run_dir": "runs/current-dataflow-p4-uart-sb-real-online",
+   "rvfi_retirements": 240,
+   "schema_version": "computed_consumer_certificate.v1",
+   "semantic_sha256_matches": true,
+   "status": "ok",
+   "unknown": 0,
+   "unknown_by_reason": {},
+   "unknown_samples": [],
+   "witness_kinds": {
+    "gpio_apb_access": {
+     "allowed_statuses": [
+      "observed"
+     ],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": "gpio_apb_access",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "observed device bus access with the full APB probe set",
+     "observed_in_studied_artifacts": true,
+     "priority": 20,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "wdata"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "gpio_consumption_match": {
+     "allowed_statuses": [
+      "accepted",
+      "unknown"
+     ],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": "gpio_consumption_match",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "fullkey"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": false,
+       "when": "field_present"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "device-side consumption match row; status accepted/unknown both mean the identity matched (rejected/incomplete never join), while origin lineage status is not part of this proof",
+     "observed_in_studied_artifacts": true,
+     "priority": 35,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "proof_resource",
+       "[]",
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "gpio_pad_observation": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": null,
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": false,
+     "note": "raw pad sample: value only, no identity keys at all",
+     "observed_in_studied_artifacts": true,
+     "priority": 10,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "raw_peripheral_observation",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": "raw_pad_sample_has_no_transaction_key_adjacency_only",
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "outputs",
+       "gpio_out"
+      ],
+      [
+       "outputs",
+       "rdata"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "gpio_register_commit": {
+     "allowed_statuses": [
+      "observed"
+     ],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": "gpio_register_commit",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "fullkey"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "observation_event_id"
+       ],
+       "join": "certified_upstream_hop_event_id",
+       "name": "certified_upstream_hop_event_id",
+       "required": false,
+       "when": "device_access_hop_present"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "GPIO register committed from a real APB write; carries the full key",
+     "observed_in_studied_artifacts": true,
+     "priority": 40,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "write_value"
+      ],
+      [
+       "post_value"
+      ],
+      [
+       "bit_resources",
+       "[]",
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "gpio_register_read": {
+     "allowed_statuses": [
+      "observed"
+     ],
+     "certified": 0,
+     "components": [
+      "gpio_a",
+      "gpio_b"
+     ],
+     "event_kind": "gpio_register_read",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "fullkey"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "register readback witness; the read key must equal the store key",
+     "observed_in_studied_artifacts": true,
+     "priority": 25,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "read_value"
+      ],
+      [
+       "post_value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "spi_transfer": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "spi0",
+      "spi",
+      "spi_host",
+      "spi_device"
+     ],
+     "event_kind": "spi_transfer",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "declared SPI transfer endpoint; no producer in the studied artifacts",
+     "observed_in_studied_artifacts": false,
+     "priority": 30,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "timer_tick": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "timer",
+      "rv_timer",
+      "timer_interrupt"
+     ],
+     "event_kind": "timer_tick",
+     "events_seen": 0,
+     "events_without_pending_chain": 0,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "declared timer endpoint; no producer in the studied artifacts",
+     "observed_in_studied_artifacts": false,
+     "priority": 30,
+     "reason": "declared_witness_kind_absent_from_artifact",
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "absent_from_artifact",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "uart_fifo_pop": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "uart"
+     ],
+     "event_kind": "uart_fifo_pop",
+     "events_seen": 3,
+     "events_without_pending_chain": 3,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "access",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "access",
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "device-internal FIFO entry pop; joins on the read access key",
+     "observed_in_studied_artifacts": true,
+     "priority": 15,
+     "reason": null,
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "uart_fifo_push": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "uart"
+     ],
+     "event_kind": "uart_fifo_push",
+     "events_seen": 3,
+     "events_without_pending_chain": 3,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": false,
+     "note": "FIFO push names entry_id/frame_id only; no exact store join exists",
+     "observed_in_studied_artifacts": true,
+     "priority": 15,
+     "reason": null,
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": "device_internal_fifo_entry_token_carries_no_store_transaction_key",
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "value"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "uart_rdata_access": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "uart"
+     ],
+     "event_kind": "uart_rdata_access",
+     "events_seen": 3,
+     "events_without_pending_chain": 3,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "delivery_context",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 0,
+     "join_failures_by_identity": {},
+     "joinable": true,
+     "note": "UART data-register read access witness (read direction)",
+     "observed_in_studied_artifacts": true,
+     "priority": 22,
+     "reason": null,
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "read_value"
+      ],
+      [
+       "read_capture",
+       "post",
+       "probe_uart_fifo_data"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "uart_serial_observation": {
+     "allowed_statuses": [],
+     "certified": 0,
+     "components": [
+      "uart"
+     ],
+     "event_kind": null,
+     "events_seen": 4102,
+     "events_without_pending_chain": 3619,
+     "gate_rejections": 0,
+     "identity_keys": [
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "outputs",
+        "serial_tx_count"
+       ],
+       "join": "serial_counter_increment",
+       "name": "serial_counter_increment",
+       "required": true,
+       "when": "baseline_present"
+      }
+     ],
+     "join_failures": 3,
+     "join_failures_by_identity": {
+      "serial_counter_increment": 3
+     },
+     "joinable": true,
+     "note": "raw serial sample: carries no store transaction key, so it joins by device identity plus an observed +1 counter step on the lane byte",
+     "observed_in_studied_artifacts": true,
+     "priority": 50,
+     "reason": null,
+     "refused": 1,
+     "refused_by_identity": {
+      "serial_counter_increment": 1,
+      "store_transaction_key": 15
+     },
+     "shape": "raw_peripheral_observation",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "outputs",
+       "serial_tx_last"
+      ]
+     ],
+     "witnesses_joined": 0
+    },
+    "uart_tick_observation_access": {
+     "allowed_statuses": [],
+     "certified": 2,
+     "components": [
+      "uart"
+     ],
+     "event_kind": "uart_tick_observation",
+     "events_seen": 4134,
+     "events_without_pending_chain": 3643,
+     "gate_rejections": 947,
+     "identity_keys": [
+      {
+       "field_path": [
+        "access",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "store_transaction_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "access",
+        "delivery_context",
+        "source_transaction"
+       ],
+       "join": "store_transaction_key",
+       "name": "access_delivery_context_key",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "component"
+       ],
+       "join": "routed_device_component",
+       "name": "routed_device_component",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "access",
+        "raw_offset"
+       ],
+       "join": "store_offset",
+       "name": "store_offset",
+       "required": true,
+       "when": "always"
+      },
+      {
+       "field_path": [
+        "access",
+        "delivery_context",
+        "be"
+       ],
+       "join": "store_byte_enable",
+       "name": "store_byte_enable",
+       "required": true,
+       "when": "always"
+      }
+     ],
+     "join_failures": 4,
+     "join_failures_by_identity": {
+      "store_transaction_key": 4
+     },
+     "joinable": true,
+     "note": "UART tick observation that carries a write access context",
+     "observed_in_studied_artifacts": true,
+     "priority": 30,
+     "reason": null,
+     "refused": 0,
+     "refused_by_identity": {},
+     "shape": "event_kind",
+     "status": "observed",
+     "status_rejections": 0,
+     "unjoinable_reason": null,
+     "unjoinable_rejections": 0,
+     "value_fields": [
+      [
+       "access",
+       "delivery_context",
+       "value"
+      ]
+     ],
+     "witnesses_joined": 8
+    }
+   }
+  }
+ ],
+ "schema_version": "computed_consumer_certificate.v1",
+ "witness_registry": [
+  {
+   "allowed_statuses": [
+    "observed"
+   ],
+   "carries_value": true,
+   "components": [
+    "gpio_a",
+    "gpio_b"
+   ],
+   "event_kind": "gpio_register_commit",
+   "identity_keys": [
+    {
+     "field_path": [
+      "fullkey"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "raw_offset"
+     ],
+     "join": "store_offset",
+     "name": "store_offset",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "observation_event_id"
+     ],
+     "join": "certified_upstream_hop_event_id",
+     "name": "certified_upstream_hop_event_id",
+     "required": false,
+     "when": "device_access_hop_present"
+    }
+   ],
+   "joinable": true,
+   "name": "gpio_register_commit",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "GPIO register committed from a real APB write; carries the full key",
+   "observed_in_studied_artifacts": true,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "write_value"
+    ],
+    [
+     "post_value"
+    ],
+    [
+     "bit_resources",
+     "[]",
+     "value"
+    ]
+   ],
+   "value_semantics": [
+    "word",
+    "word",
+    "bit_list"
+   ]
+  },
+  {
+   "allowed_statuses": [
+    "accepted",
+    "unknown"
+   ],
+   "carries_value": true,
+   "components": [
+    "gpio_a",
+    "gpio_b"
+   ],
+   "event_kind": "gpio_consumption_match",
+   "identity_keys": [
+    {
+     "field_path": [
+      "fullkey"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "raw_offset"
+     ],
+     "join": "store_offset",
+     "name": "store_offset",
+     "required": false,
+     "when": "field_present"
+    }
+   ],
+   "joinable": true,
+   "name": "gpio_consumption_match",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "device-side consumption match row; status accepted/unknown both mean the identity matched (rejected/incomplete never join), while origin lineage status is not part of this proof",
+   "observed_in_studied_artifacts": true,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "proof_resource",
+     "[]",
+     "value"
+    ]
+   ],
+   "value_semantics": [
+    "bit_list"
+   ]
+  },
+  {
+   "allowed_statuses": [
+    "observed"
+   ],
+   "carries_value": true,
+   "components": [
+    "gpio_a",
+    "gpio_b"
+   ],
+   "event_kind": "gpio_apb_access",
+   "identity_keys": [
+    {
+     "field_path": [
+      "source_transaction"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "raw_offset"
+     ],
+     "join": "store_offset",
+     "name": "store_offset",
+     "required": true,
+     "when": "always"
+    }
+   ],
+   "joinable": true,
+   "name": "gpio_apb_access",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "observed device bus access with the full APB probe set",
+   "observed_in_studied_artifacts": true,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "wdata"
+    ]
+   ],
+   "value_semantics": [
+    "word"
+   ]
+  },
+  {
+   "allowed_statuses": [
+    "observed"
+   ],
+   "carries_value": true,
+   "components": [
+    "gpio_a",
+    "gpio_b"
+   ],
+   "event_kind": "gpio_register_read",
+   "identity_keys": [
+    {
+     "field_path": [
+      "fullkey"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    }
+   ],
+   "joinable": true,
+   "name": "gpio_register_read",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "register readback witness; the read key must equal the store key",
+   "observed_in_studied_artifacts": true,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "read_value"
+    ],
+    [
+     "post_value"
+    ]
+   ],
+   "value_semantics": [
+    "word",
+    "word"
+   ]
+  },
+  {
+   "allowed_statuses": [],
+   "carries_value": true,
+   "components": [
+    "uart"
+   ],
+   "event_kind": "uart_tick_observation",
+   "identity_keys": [
+    {
+     "field_path": [
+      "access",
+      "source_transaction"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "access",
+      "delivery_context",
+      "source_transaction"
+     ],
+     "join": "store_transaction_key",
+     "name": "access_delivery_context_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "access",
+      "raw_offset"
+     ],
+     "join": "store_offset",
+     "name": "store_offset",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "access",
+      "delivery_context",
+      "be"
+     ],
+     "join": "store_byte_enable",
+     "name": "store_byte_enable",
+     "required": true,
+     "when": "always"
+    }
+   ],
+   "joinable": true,
+   "name": "uart_tick_observation_access",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "UART tick observation that carries a write access context",
+   "observed_in_studied_artifacts": true,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "access",
+     "delivery_context",
+     "value"
+    ]
+   ],
+   "value_semantics": [
+    "word"
+   ]
+  },
+  {
+   "allowed_statuses": [],
+   "carries_value": true,
+   "components": [
+    "uart"
+   ],
+   "event_kind": null,
+   "identity_keys": [
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "outputs",
+      "serial_tx_count"
+     ],
+     "join": "serial_counter_increment",
+     "name": "serial_counter_increment",
+     "required": true,
+     "when": "baseline_present"
+    }
+   ],
+   "joinable": true,
+   "name": "uart_serial_observation",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "raw serial sample: carries no store transaction key, so it joins by device identity plus an observed +1 counter step on the lane byte",
+   "observed_in_studied_artifacts": true,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "raw_peripheral_observation",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "outputs",
+     "serial_tx_last"
+    ]
+   ],
+   "value_semantics": [
+    "lane_byte"
+   ]
+  },
+  {
+   "allowed_statuses": [],
+   "carries_value": true,
+   "components": [
+    "uart"
+   ],
+   "event_kind": "uart_rdata_access",
+   "identity_keys": [
+    {
+     "field_path": [
+      "delivery_context",
+      "source_transaction"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "raw_offset"
+     ],
+     "join": "store_offset",
+     "name": "store_offset",
+     "required": true,
+     "when": "always"
+    }
+   ],
+   "joinable": true,
+   "name": "uart_rdata_access",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "UART data-register read access witness (read direction)",
+   "observed_in_studied_artifacts": true,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "read_value"
+    ],
+    [
+     "read_capture",
+     "post",
+     "probe_uart_fifo_data"
+    ]
+   ],
+   "value_semantics": [
+    "word",
+    "word"
+   ]
+  },
+  {
+   "allowed_statuses": [],
+   "carries_value": true,
+   "components": [
+    "uart"
+   ],
+   "event_kind": "uart_fifo_pop",
+   "identity_keys": [
+    {
+     "field_path": [
+      "access",
+      "source_transaction"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "access",
+      "raw_offset"
+     ],
+     "join": "store_offset",
+     "name": "store_offset",
+     "required": true,
+     "when": "always"
+    }
+   ],
+   "joinable": true,
+   "name": "uart_fifo_pop",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "device-internal FIFO entry pop; joins on the read access key",
+   "observed_in_studied_artifacts": true,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "value"
+    ]
+   ],
+   "value_semantics": [
+    "word"
+   ]
+  },
+  {
+   "allowed_statuses": [],
+   "carries_value": true,
+   "components": [
+    "uart"
+   ],
+   "event_kind": "uart_fifo_push",
+   "identity_keys": [
+    {
+     "field_path": [
+      "source_transaction"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    }
+   ],
+   "joinable": false,
+   "name": "uart_fifo_push",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "FIFO push names entry_id/frame_id only; no exact store join exists",
+   "observed_in_studied_artifacts": true,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": "device_internal_fifo_entry_token_carries_no_store_transaction_key",
+   "value_fields": [
+    [
+     "value"
+    ]
+   ],
+   "value_semantics": [
+    "word"
+   ]
+  },
+  {
+   "allowed_statuses": [],
+   "carries_value": true,
+   "components": [
+    "gpio_a",
+    "gpio_b"
+   ],
+   "event_kind": null,
+   "identity_keys": [
+    {
+     "field_path": [
+      "source_transaction"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    }
+   ],
+   "joinable": false,
+   "name": "gpio_pad_observation",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "raw pad sample: value only, no identity keys at all",
+   "observed_in_studied_artifacts": true,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "raw_peripheral_observation",
+   "unjoinable_reason": "raw_pad_sample_has_no_transaction_key_adjacency_only",
+   "value_fields": [
+    [
+     "outputs",
+     "gpio_out"
+    ],
+    [
+     "outputs",
+     "rdata"
+    ]
+   ],
+   "value_semantics": [
+    "word",
+    "word"
+   ]
+  },
+  {
+   "allowed_statuses": [],
+   "carries_value": true,
+   "components": [
+    "spi0",
+    "spi",
+    "spi_host",
+    "spi_device"
+   ],
+   "event_kind": "spi_transfer",
+   "identity_keys": [
+    {
+     "field_path": [
+      "source_transaction"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "raw_offset"
+     ],
+     "join": "store_offset",
+     "name": "store_offset",
+     "required": true,
+     "when": "always"
+    }
+   ],
+   "joinable": true,
+   "name": "spi_transfer",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "declared SPI transfer endpoint; no producer in the studied artifacts",
+   "observed_in_studied_artifacts": false,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "value"
+    ]
+   ],
+   "value_semantics": [
+    "word"
+   ]
+  },
+  {
+   "allowed_statuses": [],
+   "carries_value": true,
+   "components": [
+    "timer",
+    "rv_timer",
+    "timer_interrupt"
+   ],
+   "event_kind": "timer_tick",
+   "identity_keys": [
+    {
+     "field_path": [
+      "source_transaction"
+     ],
+     "join": "store_transaction_key",
+     "name": "store_transaction_key",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "component"
+     ],
+     "join": "routed_device_component",
+     "name": "routed_device_component",
+     "required": true,
+     "when": "always"
+    },
+    {
+     "field_path": [
+      "raw_offset"
+     ],
+     "join": "store_offset",
+     "name": "store_offset",
+     "required": true,
+     "when": "always"
+    }
+   ],
+   "joinable": true,
+   "name": "timer_tick",
+   "not_proof_of": [
+    "register_file_internal_source_token",
+    "device_internal_register_or_fifo_provenance",
+    "cross_instruction_data_dependency",
+    "computed_value_was_used_by_a_later_instruction",
+    "device_consuming_logic_correctness",
+    "mmio_address_decode_or_route_ownership",
+    "instruction_fetch_or_decode_identity",
+    "per_bit_hardware_cone_of_influence"
+   ],
+   "note": "declared timer endpoint; no producer in the studied artifacts",
+   "observed_in_studied_artifacts": false,
+   "proof_scope": "exact_value_identity_on_enabled_lanes_from_rvfi_retirement_to_declared_device_witness",
+   "shape": "event_kind",
+   "unjoinable_reason": null,
+   "value_fields": [
+    [
+     "value"
+    ]
+   ],
+   "value_semantics": [
+    "word"
+   ]
+  }
+ ]
+}

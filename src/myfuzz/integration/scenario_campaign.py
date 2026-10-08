@@ -214,40 +214,207 @@ def _campaign_source_identity(config: CampaignConfig) -> dict[str, str | None]:
         path = Path(manifest)
         identity[name] = hashlib.sha256(path.read_bytes()).hexdigest() \
             if path.is_file() else None
-    # The bound reverse fixture and the two independent baseline seeds are
-    # loaded indirectly by the provider. Include their bytes in the frozen
-    # campaign identity so an edit between cells invalidates the report.
-    def hash_indirect_seed(directory: Path, filename: str) -> str | None:
-        path = directory / filename
-        if not path.resolve().is_relative_to(directory.resolve()):
-            raise ValueError("independent or bound seed path escapes manifest directory")
-        return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
-
-    bound_dir = Path(config.bound_manifest).parent
-    for name, filename in (
-            ("bound_reverse_seed_ibex",
-             "external_gpio_ibex_gpio_closed_two_rounds_variant.json"),
-            ("bound_reverse_seed_cva6",
-             "cva6_external_two_gpio_campaign_seed.json")):
-        identity[name] = hash_indirect_seed(bound_dir, filename)
-    baseline = Path(config.independent_manifest)
-    if baseline.is_file():
-        try:
-            baseline_document = json.loads(baseline.read_text(encoding="utf-8"))
-        except (UnicodeError, ValueError) as exc:
-            raise ValueError("independent baseline manifest is not JSON") from exc
-        for key, name in (("cpu_seed", "independent_cpu_seed"),
-                          ("reverse_seed", "independent_reverse_seed")):
-            filename = baseline_document.get(key)
-            if filename is None:
-                identity[name] = None
-                continue
-            if (not isinstance(filename, str) or not filename
-                    or Path(filename).name != filename
-                    or filename in (".", "..")):
-                raise ValueError("independent baseline seed path is invalid")
-            identity[name] = hash_indirect_seed(baseline.parent, filename)
     return identity
+
+
+def _snapshot_campaign_inputs(config: CampaignConfig, output: Path, provider) -> dict:
+    """Freeze provider-declared input closures once before any campaign cell."""
+    inputs = {}
+    declaration = getattr(provider, "campaign_input_files", None)
+    for role, manifest in (("bound", config.bound_manifest),
+                           ("independent", config.independent_manifest)):
+        manifest = Path(manifest).absolute()
+        parent = manifest.parent.resolve()
+        saved_parent = output / "inputs" / role
+        saved_parent.mkdir(parents=True)
+        names = [manifest.name]
+        closure_error = None
+        if callable(declaration):
+            try:
+                declared = declaration(role, manifest)
+                if not isinstance(declared, (tuple, list)):
+                    raise ValueError("campaign input declaration must be a sequence")
+                names.extend(declared)
+            except CampaignBlocked as exc:
+                closure_error = str(exc)
+        records = []
+        for name in names:
+            if (not isinstance(name, str) or not name or Path(name).is_absolute()
+                    or ".." in Path(name).parts or Path(name).as_posix() != name):
+                raise ValueError("campaign input declaration path is invalid")
+        for name in sorted(set(names)):
+            source = manifest.parent / name
+            if not source.resolve().is_relative_to(parent):
+                raise ValueError("campaign input source escapes manifest directory")
+            saved = saved_parent / name
+            exists = source.is_file()
+            payload = source.read_bytes() if exists else None
+            if payload is not None:
+                saved.parent.mkdir(parents=True, exist_ok=True)
+                saved.write_bytes(payload)
+            records.append({"relative_path": name, "original_path": str(source),
+                            "saved_path": saved.relative_to(output).as_posix(),
+                            "status": "snapshotted" if exists else "missing",
+                            "sha256": hashlib.sha256(payload).hexdigest()
+                            if payload is not None else None})
+        inputs[role] = {"original_manifest": str(manifest),
+                        "saved_manifest": (saved_parent / manifest.name).relative_to(output).as_posix(),
+                        "closure_status": "provider_declared" if callable(declaration)
+                        else "manifest_only", "closure_error": closure_error,
+                        "files": records}
+    return inputs
+
+
+def _campaign_input_stability(inputs: dict, output: Path) -> dict:
+    """Check both original sources and the active snapshot against frozen bytes."""
+    records = []
+    for role, closure in inputs.items():
+        for record in closure["files"]:
+            original = Path(record["original_path"])
+            saved = output / record["saved_path"]
+            def digest(path):
+                return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+            original_sha, saved_sha = digest(original), digest(saved)
+            saved_safe = (not saved.is_symlink()
+                          and saved.resolve().is_relative_to(output.resolve() / "inputs" / role))
+            records.append({"role": role, "relative_path": record["relative_path"],
+                            "original_sha256": original_sha, "saved_sha256": saved_sha,
+                            "original_stable": original_sha == record["sha256"],
+                            "snapshot_stable": saved_safe and saved_sha == record["sha256"]})
+    return {"originals_stable": all(r["original_stable"] for r in records),
+            "snapshots_stable": all(r["snapshot_stable"] for r in records),
+            "files": records}
+
+
+def _campaign_run_identity(output: Path, *, inputs: dict, config: CampaignConfig,
+                            cells: list[dict], source_identity: dict,
+                            stability: dict,
+                            requires_execution_identity: bool = False) -> str:
+    """Associate actual cell envelopes and auxiliary evidence with frozen inputs."""
+    from .scenario_rfuzz_live import (_fresh_artifact_names, _online_artifact_names,
+                                     _sha256_file)
+
+    associations = []
+    for cell in cells:
+        cell_output = output / cell["cell_id"]
+        envelopes = []
+        for name, expected_schema, expected_envelope_schema, marker in (
+                ('run_identity.json', 'scenario_fresh_run_identity.v1',
+                 'scenario_fresh_run_identity_envelope.v1', 'run_identity_sha256'),
+                ('online_run_identity.json', 'scenario_online_run_identity.v1',
+                 'scenario_online_run_identity_envelope.v1', 'online_run_identity_sha256'),
+                ('incomplete_run_identity.json', 'scenario_incomplete_run_identity.v1',
+                 'scenario_incomplete_run_identity_envelope.v1', 'incomplete_run_identity_sha256')):
+            path = cell_output / "live" / name
+            if path.is_file():
+                document = {}
+                valid = False
+                try:
+                    parsed = json.loads(path.read_bytes())
+                    if not isinstance(parsed, dict):
+                        raise ValueError("invalid cell envelope")
+                    document = parsed
+                    body = document.get("identity")
+                    live_report = json.loads((cell_output / "live/report.json").read_bytes())
+                    valid = (document.get("schema_version") == expected_envelope_schema
+                             and isinstance(body, dict) and body.get("schema_version") == expected_schema
+                             and body.get("run_config", {}).get("run_id") == cell["cell_id"]
+                             and hashlib.sha256(json.dumps(
+                                 body, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+                                 allow_nan=False).encode()).hexdigest() == document.get("sha256")
+                             and live_report.get(marker) == document.get("sha256"))
+                    artifacts = body.get("artifacts") if isinstance(body, dict) else None
+                    valid = valid and isinstance(artifacts, dict)
+                    if valid:
+                        if name == "run_identity.json":
+                            required = _fresh_artifact_names(cell_output / "live")
+                        elif name == 'online_run_identity.json':
+                            trace_format = body.get("trace_format")
+                            if trace_format == "json.v1" and body.get("trace_file") == "online_final_trace.json":
+                                required = _online_artifact_names(cell_output / 'live', trace_format)
+                            elif trace_format in ("jsonl.v1", "zlib_chunks.v1") and body.get("trace_file") == "online_final_trace.meta.json":
+                                required = _online_artifact_names(cell_output / 'live', trace_format)
+                            else:
+                                required = set()
+                                valid = False
+                        else:
+                            required = {p.relative_to(cell_output / 'live').as_posix()
+                                        for p in (cell_output / 'live').rglob('*')
+                                        if p.is_file() and not p.is_symlink()
+                                        and p.name not in {'report.json', 'incomplete_run_identity.json'}
+                                        and not p.name.startswith('.online-final-')}
+                            valid = valid and body.get('execution_status') == 'incomplete'
+                        valid = valid and set(artifacts) == required
+                    if valid:
+                        for artifact_name, artifact_sha in artifacts.items():
+                            artifact = cell_output / "live" / artifact_name
+                            if (not artifact.is_file() or artifact.is_symlink()
+                                    or not artifact.resolve().is_relative_to((cell_output / "live").resolve())
+                                    or _sha256_file(artifact) != artifact_sha):
+                                valid = False
+                                break
+                except (OSError, ValueError, TypeError, AttributeError):
+                    valid = False
+                envelopes.append({"path": path.relative_to(output).as_posix(),
+                                  "sha256": _sha256_file(path),
+                                  "identity_sha256": document.get("sha256"),
+                                  "status": ('incomplete_envelope' if valid and name == 'incomplete_run_identity.json'
+                                             else "validated_envelope" if valid else "invalid_envelope")})
+                if not valid:
+                    cell["gate_failures"].append("cell_execution_identity_invalid")
+                    if cell["status"] == "complete":
+                        cell["status"] = "incomplete"
+                elif name == 'incomplete_run_identity.json':
+                    cell['gate_failures'].append('cell_execution_incomplete')
+                    if cell['status'] == 'complete':
+                        cell['status'] = 'incomplete'
+        live_report_path = cell_output / 'live/report.json'
+        marked_identity = False
+        if live_report_path.is_file():
+            try:
+                saved_report = json.loads(live_report_path.read_bytes())
+                if not isinstance(saved_report, dict):
+                    raise ValueError('invalid cell report')
+                marked_identity = any(key in saved_report for key in (
+                    'run_identity_schema', 'run_identity_sha256',
+                    'online_run_identity_sha256', 'continuous_run_identity_sha256',
+                    'incomplete_run_identity_sha256'))
+            except (OSError, ValueError):
+                cell['gate_failures'].append('cell_execution_identity_invalid')
+                if cell['status'] == 'complete':
+                    cell['status'] = 'incomplete'
+        required = (marked_identity or
+                    requires_execution_identity and cell['search'] is not None)
+        if required and not envelopes:
+            cell['gate_failures'].append('cell_execution_identity_missing')
+            if cell['status'] == 'complete':
+                cell['status'] = 'incomplete'
+        auxiliaries = {}
+        for name in ("comparison_policy.json", "chain_checks.jsonl", "seed_genome.json",
+                     "baseline_model.json", "mutation_selections.jsonl"):
+            path = cell_output / name
+            if path.is_file():
+                auxiliaries[path.relative_to(output).as_posix()] = _sha256_file(path)
+        associations.append({"cell_id": cell["cell_id"], "strategy": cell["strategy"],
+                             "direction": cell["direction"], "seed": cell["seed"],
+                             "manifest": cell["saved_manifest"],
+                             "execution_identity_required": required,
+                             "execution_identity_status": ("invalid" if any(e["status"] == "invalid_envelope" for e in envelopes)
+                                                           else 'incomplete' if any(e['status'] == 'incomplete_envelope' for e in envelopes)
+                                                           else "available" if envelopes else "unavailable"),
+                             "execution_identities": envelopes, "auxiliary_artifacts": auxiliaries})
+    body = {"schema_version": "scenario_campaign_run_identity.v1",
+            "inputs": inputs, "input_stability": stability,
+            "campaign_sources": source_identity,
+            "configuration": {"seconds": config.seconds, "seeds": list(config.seeds)},
+            "cells": associations}
+    encoded = json.dumps(body, sort_keys=True, separators=(",", ":"),
+                         ensure_ascii=False, allow_nan=False).encode()
+    digest = hashlib.sha256(encoded).hexdigest()
+    (output / "campaign_run_identity.json").write_text(json.dumps({
+        "schema_version": "scenario_campaign_run_identity_envelope.v1",
+        "sha256": digest, "identity": body}, sort_keys=True, indent=2) + "\n")
+    return digest
 
 
 def _assess_closed_chain(direction: str, events, final_state: Mapping) -> dict | None:
@@ -588,10 +755,12 @@ def run_scenario_campaign(config: CampaignConfig, output_dir: Path, *,
         raise ValueError("campaign output directory must be new")
     output.mkdir(parents=True)
     source_identity_start = _campaign_source_identity(config)
+    input_snapshots = _snapshot_campaign_inputs(config, output, provider)
     cells: list[dict] = []
     for cell in campaign_matrix(config):
-        manifest = (config.independent_manifest if cell.strategy == "independent_drive"
-                    else config.bound_manifest)
+        role = "independent" if cell.strategy == "independent_drive" else "bound"
+        input_closure = input_snapshots[role]
+        manifest = output / input_closure["saved_manifest"]
         cell_output = output / cell.cell_id
         search: SearchEvidence | None = None
         replay: ReplayEvidence | None = None
@@ -602,6 +771,8 @@ def run_scenario_campaign(config: CampaignConfig, output_dir: Path, *,
             cell_output.mkdir()
             started = time.monotonic()
             try:
+                if input_closure["closure_error"] is not None:
+                    raise CampaignBlocked(input_closure["closure_error"])
                 search = provider.search(cell, cell_output, Path(manifest))
                 _validated_search(cell, search)
             except CampaignBlocked as exc:
@@ -625,7 +796,8 @@ def run_scenario_campaign(config: CampaignConfig, output_dir: Path, *,
         gate_failures = _gate_failures(cell, search, replay, search_wall)
         cells.append({
             **asdict(cell), "cell_id": cell.cell_id,
-            "manifest": str(manifest),
+            "manifest": input_closure["original_manifest"],
+            "saved_manifest": input_closure["saved_manifest"],
             "status": ("blocked" if provider is None or
                        (error is not None and error.startswith("blocked:")) else
                        "error" if error else
@@ -673,6 +845,18 @@ def run_scenario_campaign(config: CampaignConfig, output_dir: Path, *,
                     for cell in cells)
     source_identity_end = _campaign_source_identity(config)
     source_identity_stable = source_identity_start == source_identity_end
+    input_stability = _campaign_input_stability(input_snapshots, output)
+    for cell in cells:
+        if not input_stability["originals_stable"]:
+            cell["gate_failures"].append("campaign_original_input_changed")
+        if not input_stability["snapshots_stable"]:
+            cell["gate_failures"].append("campaign_input_snapshot_changed")
+        if cell["gate_failures"] and cell["status"] == "complete":
+            cell["status"] = "incomplete"
+    campaign_identity_sha256 = _campaign_run_identity(
+        output, inputs=input_snapshots, config=config, cells=cells,
+        source_identity=source_identity_start, stability=input_stability,
+        requires_execution_identity=getattr(provider, 'requires_execution_identity', False) is True)
     report = {
         "schema_version": "scenario_campaign.v1",
         "gate": "G4",
@@ -689,6 +873,10 @@ def run_scenario_campaign(config: CampaignConfig, output_dir: Path, *,
         "campaign_source_identity": source_identity_start,
         "campaign_source_identity_end": source_identity_end,
         "campaign_source_identity_stable": source_identity_stable,
+        "campaign_inputs": input_snapshots,
+        "campaign_input_stability": input_stability,
+        "campaign_run_identity_schema": "scenario_campaign_run_identity.v1",
+        "campaign_run_identity_sha256": campaign_identity_sha256,
         "actual_source_coverage": source_coverage,
         "cells": cells,
     }
@@ -700,16 +888,51 @@ def run_scenario_campaign(config: CampaignConfig, output_dir: Path, *,
 class IbexTwoGpioBoundProvider:
     """Run the bound fixtures and the explicitly separate independent baseline."""
 
+    requires_execution_identity = True
+
     def __init__(self, client_binary: Path | None = None) -> None:
         root = Path(__file__).resolve().parents[3]
         self.client_binary = (Path(client_binary) if client_binary is not None else
                               root / "third_party/rfuzz/upstream/rfuzz_reference/"
                               "fuzzer/target/release/kfuzz")
 
+    BOUND_REVERSE_SEED = "external_gpio_ibex_gpio_closed_two_rounds_variant.json"
+
+    def campaign_input_files(self, role: str, manifest: Path) -> tuple[str, ...]:
+        """Declare exactly the fixture files this provider loads indirectly."""
+        manifest = Path(manifest)
+        if role == "bound":
+            return (manifest.name, self.BOUND_REVERSE_SEED)
+        if role != "independent":
+            raise ValueError("unknown campaign input role")
+        if not manifest.is_file():
+            return (manifest.name,)
+        try:
+            document = json.loads(manifest.read_bytes())
+        except (ValueError, UnicodeError) as exc:
+            raise CampaignBlocked("independent baseline manifest is not JSON") from exc
+        names = [manifest.name]
+        for key in ("cpu_seed", "reverse_seed"):
+            name = document.get(key)
+            if (not isinstance(name, str) or not name or Path(name).name != name
+                    or name in (".", "..")):
+                raise CampaignBlocked("independent baseline seed path is invalid")
+            names.append(name)
+        return tuple(names)
+
     @staticmethod
     def _assess_trace_chain(direction: str, events, final_state: Mapping) -> dict | None:
         """Preserve the original Ibex checker while allowing CPU-specific evidence."""
         return _assess_closed_chain(direction, events, final_state)
+
+    @staticmethod
+    def _checker_config(cell: CampaignCell) -> dict:
+        return {"schema_version": "scenario_campaign_chain_checker.v1",
+                "strategy": cell.strategy, "direction": cell.direction,
+                "causal_chain_claim": cell.strategy != "independent_drive",
+                "expected_values": "observed_ordered_source_transactions",
+                "required_closed_rounds": 2,
+                "collector_state": "runtime_only"}
 
     @staticmethod
     def _fixture(direction: str, bound_manifest: Path | None = None):
@@ -979,7 +1202,9 @@ class IbexTwoGpioBoundProvider:
 
         executor_kwargs = dict(run_id=cell.cell_id, decoder=decoder,
                                factory=tracked_factory, targets=targets,
-                               checker=assess_trace)
+                               checker=assess_trace,
+                               checker_config=self._checker_config(cell),
+                               checker_identity_target=self._assess_trace_chain)
         executor = (UniformSourceScenarioExecutor(
             **executor_kwargs, search_seed=cell.seed)
             if cell.strategy == "uniform_source" else
@@ -1066,7 +1291,10 @@ class IbexTwoGpioBoundProvider:
             if cell.strategy == "independent_drive" else
             self._fixture(cell.direction, manifest))
         budgeted_factory = _campaign_budgeted_factory(factory)
-        result = replay_scenario_rfuzz_corpus(output / "live", budgeted_factory)
+        result = replay_scenario_rfuzz_corpus(
+            output / "live", budgeted_factory,
+            checker_config=self._checker_config(cell),
+            checker_identity_target=self._assess_trace_chain)
         failure_dir = output / "live" / "failures"
         failures = sorted(failure_dir.glob("*.json")) if failure_dir.exists() else []
         matched_failures = 0

@@ -202,9 +202,17 @@ class MemoryCalibrationTests(unittest.TestCase):
     def test_mem04_all_masks_detect_endian_shift_and_whole_word_faults(self):
         for injection_id in ("endian", "mask_shift", "whole_word"):
             with self.subTest(injection_id=injection_id):
-                with self.assertRaises(AssertionError,
-                                       msg=f"MEM-04 {injection_id} not detected"):
+                # The commit receipt now detects some injected byte effects
+                # before the downstream calibration assertion runs.
+                try:
                     self._byte_enable_matrix(injection_id)
+                except AssertionError:
+                    pass
+                except RuntimeError as error:
+                    self.assertIn('host memory write outcome conflicts with commit',
+                                  str(error))
+                else:
+                    self.fail(f"MEM-04 {injection_id} not detected")
         self._byte_enable_matrix(None)
 
     def _delayed_delivery(self, *, reread_at_delivery):

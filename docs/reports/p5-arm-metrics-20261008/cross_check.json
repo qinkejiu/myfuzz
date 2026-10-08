@@ -1,0 +1,361 @@
+{
+  "acceptance_metrics_fields": [
+    {
+      "acceptance_metrics.analyze_run": 8,
+      "arm": "chain-acceptance-31s",
+      "bit_identical": true,
+      "p5_arm_metrics": 8,
+      "quantity": "certified_chains_per_second.certified_chains"
+    },
+    {
+      "acceptance_metrics.analyze_run": 0.25580727241070267,
+      "arm": "chain-acceptance-31s",
+      "bit_identical": true,
+      "p5_arm_metrics": 0.25580727241070267,
+      "quantity": "certified_chains_per_second.certified_chains_per_second"
+    },
+    {
+      "acceptance_metrics.analyze_run": {
+        "instruction_fetch": 6,
+        "pin8_injection": 10
+      },
+      "arm": "chain-acceptance-31s",
+      "bit_identical": true,
+      "p5_arm_metrics": {
+        "instruction_fetch": 6,
+        "pin8_injection": 10
+      },
+      "quantity": "certified_chains_per_second.first_missing_hop_histogram"
+    },
+    {
+      "acceptance_metrics.analyze_run": {
+        "CPU_TO_IP_TO_CPU": 3,
+        "IP_TO_CPU_TO_IP": 5
+      },
+      "arm": "chain-acceptance-31s",
+      "bit_identical": true,
+      "p5_arm_metrics": {
+        "CPU_TO_IP_TO_CPU": 3,
+        "IP_TO_CPU_TO_IP": 5
+      },
+      "quantity": "certified_chains_per_second.certified_chains_by_direction"
+    },
+    {
+      "acceptance_metrics.analyze_run": 0.12790363620535133,
+      "arm": "chain-acceptance-31s",
+      "bit_identical": true,
+      "p5_arm_metrics": 0.12790363620535133,
+      "quantity": "coverage_novelty.new_target_bits_per_second"
+    },
+    {
+      "acceptance_metrics.analyze_run": 0.28778318146204046,
+      "arm": "chain-acceptance-31s",
+      "bit_identical": true,
+      "p5_arm_metrics": 0.28778318146204046,
+      "quantity": "coverage_novelty.new_witnessed_edges_per_second"
+    },
+    {
+      "acceptance_metrics.analyze_run": 0.7674218172321079,
+      "arm": "chain-acceptance-31s",
+      "bit_identical": true,
+      "p5_arm_metrics": 0.7674218172321079,
+      "quantity": "effective_cases_per_second.effective_cases_per_second"
+    },
+    {
+      "acceptance_metrics.analyze_run": 0.0,
+      "arm": "chain-acceptance-31s",
+      "bit_identical": true,
+      "p5_arm_metrics": 0.0,
+      "quantity": "invalid_or_timeout_ratio.invalid_or_timeout_ratio"
+    },
+    {
+      "acceptance_metrics.analyze_run": {
+        "count": 24,
+        "p50": 1.2965321960000011,
+        "p95": 1.7222636415500077
+      },
+      "arm": "chain-acceptance-31s",
+      "bit_identical": true,
+      "p5_arm_metrics": {
+        "count": 24,
+        "p50": 1.2965321960000011,
+        "p95": 1.7222636415500077
+      },
+      "quantity": "latency_percentiles.per_case_total_seconds"
+    },
+    {
+      "acceptance_metrics.analyze_run": {
+        "complete": 24
+      },
+      "arm": "chain-acceptance-31s",
+      "bit_identical": true,
+      "p5_arm_metrics": {
+        "complete": 24
+      },
+      "quantity": "status_counts.status_counts"
+    }
+  ],
+  "all_acceptance_fields_bit_identical": true,
+  "all_paired_fields_bit_identical": true,
+  "frozen_pair_refusal": {
+    "attempted": true,
+    "compare_runs_refused": true,
+    "reason": "receipt counts differ: continuous=24 cold=15; per-case alignment is undefined"
+  },
+  "paired_efficiency_fields": [
+    {
+      "arm": "continuous",
+      "bit_identical": true,
+      "p5_arm_metrics": 0.12994028444829123,
+      "paired_efficiency": 0.12994028444829123,
+      "quantity": "coverage_novelty.new_target_bits_per_second"
+    },
+    {
+      "arm": "continuous",
+      "bit_identical": true,
+      "p5_arm_metrics": 0.2923656400086553,
+      "paired_efficiency": 0.2923656400086553,
+      "quantity": "coverage_novelty.new_witnessed_edges_per_second"
+    },
+    {
+      "arm": "continuous",
+      "bit_identical": true,
+      "p5_arm_metrics": 9,
+      "paired_efficiency": 9,
+      "quantity": "coverage_novelty.unique_witnessed_edges"
+    },
+    {
+      "arm": "continuous",
+      "bit_identical": true,
+      "p5_arm_metrics": 8,
+      "paired_efficiency": 8,
+      "quantity": "certified_chains_per_second.certified_chains"
+    },
+    {
+      "arm": "continuous",
+      "bit_identical": true,
+      "p5_arm_metrics": 0.25988056889658245,
+      "paired_efficiency": 0.25988056889658245,
+      "quantity": "certified_chains_per_second.certified_chains_per_second"
+    },
+    {
+      "arm": "continuous",
+      "bit_identical": true,
+      "p5_arm_metrics": 16,
+      "paired_efficiency": 16,
+      "quantity": "certified_chains_per_second.incomplete_certificates"
+    },
+    {
+      "arm": "continuous",
+      "bit_identical": true,
+      "p5_arm_metrics": 0.7796417066897474,
+      "paired_efficiency": 0.7796417066897474,
+      "quantity": "effective_cases_per_second.all_receipt_cases_per_second"
+    },
+    {
+      "arm": "continuous",
+      "bit_identical": true,
+      "p5_arm_metrics": 0.7796417066897474,
+      "paired_efficiency": 0.7796417066897474,
+      "quantity": "effective_cases_per_second.effective_cases_per_second"
+    },
+    {
+      "arm": "continuous",
+      "bit_identical": true,
+      "p5_arm_metrics": 0.0,
+      "paired_efficiency": 0.0,
+      "quantity": "invalid_or_timeout_ratio.invalid_or_timeout_ratio"
+    },
+    {
+      "arm": "continuous",
+      "bit_identical": true,
+      "p5_arm_metrics": {
+        "count": 24,
+        "p50": 1.2717864745000043,
+        "p95": 1.6711592015501993
+      },
+      "paired_efficiency": {
+        "count": 24,
+        "p50": 1.2717864745000043,
+        "p95": 1.6711592015501993
+      },
+      "quantity": "latency_percentiles.per_case_total_seconds"
+    },
+    {
+      "arm": "continuous",
+      "bit_identical": true,
+      "p5_arm_metrics": {
+        "identity_write": 0.24603204600043682,
+        "plan_write": 0.0016510390005350928,
+        "session_finish": 5.953963650000333,
+        "total_before_report": 11.279588528999739,
+        "trace_write": 5.015455765000297
+      },
+      "paired_efficiency": {
+        "identity_write": 0.24603204600043682,
+        "plan_write": 0.0016510390005350928,
+        "session_finish": 5.953963650000333,
+        "total_before_report": 11.279588528999739,
+        "trace_write": 5.015455765000297
+      },
+      "quantity": "one_time_compile_init.finalization_timing_seconds"
+    },
+    {
+      "arm": "continuous",
+      "bit_identical": true,
+      "p5_arm_metrics": 24,
+      "paired_efficiency": 24,
+      "quantity": "effective_cases_per_second.complete_status_count"
+    },
+    {
+      "arm": "cold",
+      "bit_identical": true,
+      "p5_arm_metrics": 7.087294324791951,
+      "paired_efficiency": 7.087294324791951,
+      "quantity": "coverage_novelty.new_target_bits_per_second"
+    },
+    {
+      "arm": "cold",
+      "bit_identical": true,
+      "p5_arm_metrics": null,
+      "paired_efficiency": null,
+      "quantity": "coverage_novelty.new_witnessed_edges_per_second"
+    },
+    {
+      "arm": "cold",
+      "bit_identical": true,
+      "p5_arm_metrics": null,
+      "paired_efficiency": null,
+      "quantity": "coverage_novelty.unique_witnessed_edges"
+    },
+    {
+      "arm": "cold",
+      "bit_identical": true,
+      "p5_arm_metrics": null,
+      "paired_efficiency": null,
+      "quantity": "certified_chains_per_second.certified_chains"
+    },
+    {
+      "arm": "cold",
+      "bit_identical": true,
+      "p5_arm_metrics": null,
+      "paired_efficiency": null,
+      "quantity": "certified_chains_per_second.certified_chains_per_second"
+    },
+    {
+      "arm": "cold",
+      "bit_identical": true,
+      "p5_arm_metrics": null,
+      "paired_efficiency": null,
+      "quantity": "certified_chains_per_second.incomplete_certificates"
+    },
+    {
+      "arm": "cold",
+      "bit_identical": true,
+      "p5_arm_metrics": 170.09506379500684,
+      "paired_efficiency": 170.09506379500684,
+      "quantity": "effective_cases_per_second.all_receipt_cases_per_second"
+    },
+    {
+      "arm": "cold",
+      "bit_identical": true,
+      "p5_arm_metrics": 170.09506379500684,
+      "paired_efficiency": 170.09506379500684,
+      "quantity": "effective_cases_per_second.effective_cases_per_second"
+    },
+    {
+      "arm": "cold",
+      "bit_identical": true,
+      "p5_arm_metrics": 0.0,
+      "paired_efficiency": 0.0,
+      "quantity": "invalid_or_timeout_ratio.invalid_or_timeout_ratio"
+    },
+    {
+      "arm": "cold",
+      "bit_identical": true,
+      "p5_arm_metrics": {
+        "count": 24,
+        "p50": 1.0314192495002317,
+        "p95": 1.0696421454495977
+      },
+      "paired_efficiency": {
+        "count": 24,
+        "p50": 1.0314192495002317,
+        "p95": 1.0696421454495977
+      },
+      "quantity": "latency_percentiles.per_case_total_seconds"
+    },
+    {
+      "arm": "cold",
+      "bit_identical": true,
+      "p5_arm_metrics": {
+        "identity_write": 3.6586667630017473,
+        "plan_write": 0.06476361900058691,
+        "session_finish": 9.204309618999105,
+        "total_before_report": 26.291912200002116,
+        "trace_write": 12.351012120998348
+      },
+      "paired_efficiency": {
+        "identity_write": 3.6586667630017473,
+        "plan_write": 0.06476361900058691,
+        "session_finish": 9.204309618999105,
+        "total_before_report": 26.291912200002116,
+        "trace_write": 12.351012120998348
+      },
+      "quantity": "one_time_compile_init.finalization_timing_seconds"
+    },
+    {
+      "arm": "cold",
+      "bit_identical": true,
+      "p5_arm_metrics": 24,
+      "paired_efficiency": 24,
+      "quantity": "effective_cases_per_second.complete_status_count"
+    },
+    {
+      "arm": "cold",
+      "bit_identical": true,
+      "p5_arm_metrics": 18.736193837999963,
+      "paired_efficiency.initialization": 18.736193837999963,
+      "quantity": "one_time_compile_init.cold_start_init_seconds_p50"
+    },
+    {
+      "arm": "cold",
+      "bit_identical": true,
+      "p5_arm_metrics": 19.047626746099375,
+      "paired_efficiency.initialization": 19.047626746099375,
+      "quantity": "one_time_compile_init.cold_start_init_seconds_p95"
+    },
+    {
+      "arm": "cold",
+      "bit_identical": true,
+      "p5_arm_metrics": 24,
+      "paired_efficiency.initialization": 24,
+      "quantity": "one_time_compile_init.cold_start_cases_with_init_seconds"
+    },
+    {
+      "arm": "cold",
+      "bit_identical": true,
+      "p5_arm_metrics": 449.6952181739962,
+      "paired_efficiency.initialization": 449.6952181739962,
+      "quantity": "one_time_compile_init.cold_start_init_seconds_total"
+    },
+    {
+      "arm": "cold",
+      "bit_identical": true,
+      "p5_arm_metrics": 17.589488825550237,
+      "paired_efficiency.initialization": 17.589488825550237,
+      "quantity": "one_time_compile_init.cold_start_share_of_elapsed"
+    }
+  ],
+  "paired_pair": {
+    "cold": "runs/current-dataflow-p5-paired-20261007-cold-start",
+    "continuous": "runs/current-dataflow-p5-paired-20261007-online"
+  },
+  "revision_sha256": {
+    "src/myfuzz/scenario/acceptance_metrics.py": "6ff4a576d8136056b08ff4da87398da442ed13034aa559cd9c1095b6cd9fa502",
+    "src/myfuzz/scenario/chain_certificates.py": "b0966bb3228b8c3f73f654feadfefe951a500595a821b4a2bf90cc482646b71a",
+    "src/myfuzz/scenario/p5_arm_metrics.py": "d5521adda37d3cc9839be8521e128e89451b19ba4f2d1d3d7dee63018d9409f0",
+    "src/myfuzz/scenario/paired_efficiency.py": "6da581f37a123d6595346d7f3c515e7a746d5ee2b26c610abd4f5e13af2a899a"
+  },
+  "schema_version": "p5_arm_metrics_cross_check.v1"
+}

@@ -2,7 +2,7 @@
 
 ## 结论与状态
 
-**当前状态：固定 CVA6 的生成式独立 harness 已通过真实 RTL 的 RAM 取指、Store→Load→Store 和全新会话 evidence replay。** 固定版本的真实 CVA6 RTL 及其嵌套源码在本地可用，故不是 `skipped_unavailable`。验收范围是一个 64 位数据/地址、4 位 ID 的 packed AXI4 主端口及持久 RAM；尚未验收 CVA6 与真实外设之间的数据流、外设中断交付或完整 AXI4 特性，不能称作通用 AXI4 CVA6 接入完成。
+**本报告记录 RAM-only 可行性阶段的状态快照。** 当时固定 CVA6 的生成式独立 harness 已通过真实 RTL 的 RAM 取指、Store→Load→Store 和全新会话 evidence replay，但真实外设路由与中断尚待单独验收。后续的 CVA6→OpenTitan GPIO 与 CVA6→OpenTitan SPI Host 真实 MMIO 闭环已分别验收，详见 [`generated-cva6-opentitan-gpio-20261005.md`](generated-cva6-opentitan-gpio-20261005.md) 和 [`generated-cva6-opentitan-spi-host-20261005.md`](generated-cva6-opentitan-spi-host-20261005.md)。后续验收仍限定于当前 CVA6 的 64 位 packed AXI4、对齐单拍 32 位 MMIO；不代表完整 AXI4 特性、CVA6 中断/ISR 或通用 AXI4 CPU 接入已完成。
 
 ## 初始阻塞点与当前边界
 
@@ -16,7 +16,7 @@
 1. 已在现有源码锁流程内统一 CVA6 profile 与 lock 的 include roots，生成并核对本地 elaboration 证据，将锁状态提升为 `elaboration_verified`。所有完整顶层端口仍由 profile 明确归属；未归属端口应失败关闭。
 2. 已加入针对该固定 CVA6 形态的 `cpu.axi4` 模板变体：一个 64 位 packed AXI4 端点，依据已核实的 member bit range 展开端口；保留 4 位 ID、8 位 strobe、真实 AW/W/B/AR/R 握手。AXI atomic、exclusive、超出支持范围的尺寸/对齐、跨 4K burst 和越界 `WSTRB` 失败关闭。USER/QOS/PROT 等旁带字段作为普通 RAM 服务元数据处理，尚未对其语义做专门验收。
 3. 已加入 64 位持久内存服务和 driver/session 变体；每次握手只提交一次，`WSTRB` 逐字节写入，读响应从同一 testcase 的持久状态取得，读写响应 ID 与 `LAST` 必须匹配真实请求。CVA6 内部行为由 RTL 执行。
-4. 已用固定 RV64 程序验收真实取指、Store→若干周期→Load→Store；evidence bundle 在全新 CVA6 仿真进程 replay 后逐事件匹配。后续仍需补充分离的协议负例、真实 GPIO 中断及 MMIO 路由验收。
+4. 已用固定 RV64 程序验收真实取指、Store→若干周期→Load→Store；evidence bundle 在全新 CVA6 仿真进程 replay 后逐事件匹配。本文初始快照之后，GPIO/SPI Host MMIO 路由已由上述独立验收报告覆盖；CVA6 GPIO 中断/ISR 与额外 AXI4 协议特性仍待验收。
 
 旧 Task 13 记录位于 `third_party/docs/task-13/cva6-fixed/`，`log-summary.txt` 显示 5 次取指、4 个提交 PC、写入通过值及 318 周期退出；它证明该固定 RTL 能在旧 composition/beat backend 下执行，**不证明**新的独立生成式 AXI4 harness 已运行。
 
@@ -43,4 +43,4 @@ PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_cva6_axi4_service_
 Ran 1 test in 178.851s — OK
 ```
 
-`test_cva6_axi4_service_protocol` 额外检查窄写 strobe 的合法 byte lane，以及 atomic/跨 4K 请求失败关闭。当前验证的能力边界是单个 CVA6 独立 harness 与持久 RAM 的连续 testcase；真实 IP MMIO 路由、跨组件事件/中断传播、更多 AXI 旁带语义及多 outstanding 仍待单独验收。生成模板目前仍通过 `component_id == cva6` 选择；尚未证明同协议的新 CPU 只增加 profile 就能复用，因此不能计为通用协议变体或 Stage D 验收完成。
+`test_cva6_axi4_service_protocol` 额外检查窄写 strobe 的合法 byte lane，以及 atomic/跨 4K 请求失败关闭。GPIO 与 SPI Host 后续报告证明了真实 IP MMIO 数据路由，但这些端到端场景使用全字节写；部分 WSTRB 到真实 OpenTitan CSR 的写入尚未验收。跨组件事件/中断传播、更多 AXI 旁带语义及多 outstanding 仍待单独验收。生成模板目前仍通过 `component_id == cva6` 选择；尚未证明同协议的新 CPU 只增加 profile 就能复用，因此不能计为通用协议变体或 Stage D 验收完成。

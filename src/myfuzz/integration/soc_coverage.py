@@ -18,6 +18,42 @@ from myfuzz.contracts import content_hash
 COVERAGE_SCHEMA = "soc_coverage.v1"
 CATEGORIES = ("cpu", "ip", "fabric", "model", "harness", "interaction")
 
+# ---------------------------------------------------------------------------
+# Per-point first-seen evidence.
+#
+# The instrumented campaign reads the whole coverage counter vector back once
+# per RTL test (simulator protocol v2, ``RFUZZ_COUNTERS <request id>``), so the
+# first test whose readback shows a point non-zero *is* that point's first
+# sighting, and the protocol request id is its event identity.  That readback is
+# owned by :mod:`myfuzz.integration.rfuzz_simulator`; it persists one ledger
+# document per run next to the artifact it belongs to, and
+# :mod:`myfuzz.integration.soc_builder` declares the ledger in the run's
+# provenance so a reader never has to guess whether the evidence exists.
+#
+# The ledger is deliberately *not* a self-description and carries no invented
+# timestamp: every entry is the ordinal of a real readback (and, when a clock is
+# available, that readback's measured monotonic offset).  Artifacts written
+# before this existed declare nothing, and a reader must then report
+# ``first_seen`` as unavailable with a reason rather than as zero.
+# ---------------------------------------------------------------------------
+
+#: Ledger file name, resolved against the run's build directory.
+FIRST_SEEN_LEDGER_NAME = "coverage_first_seen.json"
+#: Ledger document schema.
+FIRST_SEEN_SCHEMA = "soc_coverage_first_seen.v1"
+#: What the entries are derived from (never a post-run snapshot of survivors).
+FIRST_SEEN_EVIDENCE = "per-test-counter-readback"
+#: What the entry ``event`` field identifies.
+FIRST_SEEN_EVENT = "simulator-protocol-v2-request-id"
+#: Hard bound on the ledger's per-point list; must equal the checker's bound
+#: (``myfuzz.scenario.rtl_branch_coverage.MAX_FIRST_SEEN_ENTRIES``), so a
+#: recorded ledger can never be refused for size by the shipped checker.
+MAX_FIRST_SEEN_ENTRIES = 1 << 16
+#: Reader-side bound on the ledger file itself, so a corrupt or hostile
+#: artifact cannot make reading the evidence unbounded.  A full ledger of
+#: ``MAX_FIRST_SEEN_ENTRIES`` named entries is well under this.
+MAX_FIRST_SEEN_LEDGER_BYTES = 16 * 1024 * 1024
+
 
 class SocCoverageError(ValueError):
     """Malformed or semantically unsafe coverage evidence."""
@@ -377,7 +413,10 @@ def coverage_observation_plan(universe: Mapping[str, object],
 
 __all__ = [
     "CATEGORIES", "CATEGORY_PRIORITY", "COVERAGE_SCHEMA", "CoveragePoint",
-    "FABRIC_MODULES", "HARNESS_MODULES", "MODEL_MODULES", "SocCoverageError",
+    "FABRIC_MODULES", "FIRST_SEEN_EVIDENCE", "FIRST_SEEN_EVENT",
+    "FIRST_SEEN_LEDGER_NAME", "FIRST_SEEN_SCHEMA", "HARNESS_MODULES",
+    "MAX_FIRST_SEEN_ENTRIES", "MAX_FIRST_SEEN_LEDGER_BYTES", "MODEL_MODULES",
+    "SocCoverageError",
     "build_coverage_universe", "build_soc_coverage_universe", "coverage_category",
     "coverage_delta", "coverage_feedback_document", "coverage_observation_plan",
     "instance_root", "map_rtl_coverage", "observe_rtl_coverage",

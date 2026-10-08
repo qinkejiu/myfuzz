@@ -10,6 +10,7 @@ class GeneratedSessionRegistrationTests(unittest.TestCase):
         expected = {
             'myfuzz.local_harness.cpu_session.GeneratedCve2Session': 'obi_cpu',
             'myfuzz.local_harness.native_session.GeneratedNativeMemorySession': 'native_memory_cpu',
+            'myfuzz.local_harness.rvx_memory_session.GeneratedRvxMemorySession': 'rvx_memory_cpu',
             'myfuzz.local_harness.axi_lite_session.GeneratedAxiLiteMemorySession': 'axi4_lite_cpu',
             'myfuzz.local_harness.wishbone_cpu_session.GeneratedWishboneCpuSession': 'wishbone_cpu',
             'myfuzz.local_harness.axi4_cpu_session.GeneratedAxi4CpuSession': 'axi4_cpu',

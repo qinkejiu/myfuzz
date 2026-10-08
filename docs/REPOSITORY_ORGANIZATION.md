@@ -1,12 +1,46 @@
 # 项目代码与文件整理台账
 
+## 2026-10-08 第一步 P1–P5 归档
+
+代码、文档、配置／测试和复核输出分别保存至 `archive/development/first-step-p1-p5/20261008/` 的四个压缩包；逐文件原路径、职责分类、内容 SHA-256 和 Git 状态随包保存。归档说明见[第一步归档入口](reproduction/first-step-archive-20261008.md)。当前代码、冻结运行与第三方源码保留原位；源文件快照包括未提交内容，构建缓存按清单规则排除。恢复到新空目录并核对清单，避免覆盖当前工作。
+
+## 2026-10-06 当前方案清理边界
+
+当前主方案见 [`CURRENT_DESIGN.md`](CURRENT_DESIGN.md)：总控环境在独立 CPU/IP harness 中运行连续 testcase，输入以程序内存、外部环境源或中断场景表达；Router/Scheduler 传递真实输出并保持跨周期状态。当前实现状态见 [`LOCAL_HARNESS_RUNTIME.md`](LOCAL_HARNESS_RUNTIME.md)。
+
+### 当前保留范围
+
+- `src/myfuzz/scenario/`：Genome、依赖图、Router、Scheduler、持久状态、checker、反馈和 replay。
+- `src/myfuzz/local_harness/`：真实 CPU/IP 的独立 session、协议适配和 harness 生成。
+- `src/myfuzz/protocols/`：协议模板、局部协议适配器和可复用 peer/checker。
+- `configs/cpus/`、`configs/peripherals/`、`third_party/`：当前已登记的真实 CPU/IP profile、源码闭包与构建依赖。
+- 相关 tests、accepted evidence、replay factories 和报告：用于证明组合能力与源码身份，不能因为日期较早或未被当前导航列出就删除。
+
+### 隔离与待审范围
+
+- `configs/soc/`、`scripts/generate_soc.py`、`scripts/run_soc_campaigns.py`、`integration/soc_builder.py` 和 `composition/soc_*` 属于完整 SoC 生成路线；它不定义当前独立 harness 方案。清理前需审计其测试、配置、报告和导入边界。
+- `composition/` 目录包含被独立 harness 复用的源码抓取、profile、接口事实、端口 disposition 和协议资料。文件名含 `soc` 或目录名含 `composition` 不能作为删除依据。
+- `docs/PROJECT_GOALS.md`、旧 SoC 组合计划和报告保留为历史证据，不再作为当前目标入口；当前入口为 [`docs/README.md`](README.md) 与 [`CURRENT_DESIGN.md`](CURRENT_DESIGN.md)。
+- `runs/`、`.downloads/`、`.worktrees/`、`third_party/` 不做目录级清空。它们分别包含验收证据、下载依赖、未登记工作副本或真实 RTL。
+- 删除或移动候选项必须记录路径、Git 状态、用途、引用扫描、SHA-256、恢复目标；有未提交内容或无法证明无依赖时保留原位。
+
+### 当前工作区快照
+
+清理开始前对 tracked diff、untracked 文件和 Git 状态做了外部快照：`/home/qinkejiu/myfuzz-cleanup-backup-20261006.MjDhe4/`。本工作区原有修改和新增文件均属于保留范围，后续清理不得覆盖它们。
+
+本轮已将下列与 RTL fuzz 主线无关且无代码/测试/配置调用点的脚本移出项目；原始内容、执行权限和 SHA-256 保存在外部快照的 `excluded-files/` 与 `excluded-files-manifest.json` 中：三个早期 `scripts/codegen/generate_*_harness.py` 原型，以及 `scripts/delete_codex_conversations_for_workspace.py`、`scripts/maintenance/clear_codex_history.py`。恢复时按 manifest 中的 `source` 和 `backup` 字段还原。root trace 与 Word sidecar 按先前保留规则继续留在工作区。
+
 ## 2026-09-28 根目录与验收目录整理
 
 本轮仅调整三个已核对文件的位置；移动前后内容哈希一致，原路径、目标路径、大小与哈希见 `runs/quarantine/folder-organize-20260928/manifest.json`。根目录新生成的 `trace_hart_0.dasm` 移入该批次的 `files/`，可按 README 恢复。OpenTitan source-lock 补丁和 Git 准备清单从 `runs/scenario/acceptance/` 移入 `patches/opentitan/`；清单中的补丁路径以及相关报告引用同步更新。临时索引门禁结果继续放在验收目录，Git 索引和提交留待后续处理。
 
 根目录交接文档仍有示例和测试按原路径引用，且与 `docs/handover/` 版本内容不同；`SoC内部数据流动与去向.docx` 是用户提供的原件。本轮保留这些入口，不合并、不删除。`configs/`、`src/`、`tests/`、`third_party/` 和已有场景验收包均未移动。
 
-日期：2026-09-14。本轮已执行文档入口整理；代码迁移在实施计划 P0/P2 中按验证门禁逐项执行。
+## 2026-09-14 历史整理记录
+
+以下工作区、分支、目录状态和 P0/P2 编号是当日快照；2026-10-06 的实际工作区状态与清理边界以上文为准。
+
+日期：2026-09-14。当轮已执行文档入口整理；代码迁移在当时实施计划 P0/P2 中按验证门禁逐项执行。
 
 ## 工作区与所有权
 
@@ -31,9 +65,10 @@
 | configs/designs/*scheme*、toy/common IP | 历史实验、fixture | 标为 legacy/fixture；不得计入真实系列验收 |
 | configs/cpus | 既有 profile 混有 reference-only 模板 | P1 检查 source-backed 可用性；状态来自验证结果 |
 | docs/reports、ALL_TEST_RESULTS_MASTER.md | 历史证据 | 保留、追加；新结论注明源码 hash |
-| docs/superpowers/plans/2026-07-*、2026-09-0* | 旧计划 | 历史参考；新目标由 PROJECT_GOALS.md 统领 |
+| docs/superpowers/plans/2026-07-*、2026-09-0* | 旧计划 | 历史参考；当前目标由 CURRENT_DESIGN.md 与 2026-10-06 当前实施计划定义 |
 | runs、artifacts | 可再生产物和保留证据 | 逐目录分类；语料、pin、报告、失败记录先归档 |
-| projects、根目录 PPTX、Zone.Identifier、clear_codex_history.py | 用户素材/独立工具 | 不纳入代码清理删除集合 |
+| projects、根目录 PPTX、Zone.Identifier | 用户素材 | 保留；不属于 fuzz 运行代码候选 |
+| Codex workspace-management scripts | 独立工具；2026-10-06 用户要求仅保留当前系统相关文件 | 原件可恢复副本已移至仓库外清理快照 |
 
 ## 清理执行规则
 

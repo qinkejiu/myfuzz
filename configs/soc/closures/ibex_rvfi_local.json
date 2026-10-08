@@ -1,0 +1,260 @@
+{
+  "schema_version": "ibex_rvfi_local_closure.v1",
+  "component": "ibex_rvfi_local",
+  "official_top": "ibex_top",
+  "official_revision": "git:34b0705760ef3dfa00e99637432473d2be8f22f3",
+  "wrapper": "src/myfuzz/composition/rtl/soc_ibex_rvfi_local.sv",
+  "top_module": "soc_ibex_rvfi_local",
+  "defines": [
+    "RVFI=1"
+  ],
+  "parameters": {
+    "PMPEnable": 0,
+    "RV32E": 0,
+    "ICache": 0,
+    "SecureIbex": 0
+  },
+  "command": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "soc_ibex_rvfi_local",
+    "-DRVFI=1",
+    "-Ithird_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl",
+    "-Ithird_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim_generic/rtl",
+    "-Ithird_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/dv/sv/dv_utils",
+    "-Ithird_party/rfuzz/upstream/ibex/vendor/pulp_common_cells/rtl",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_util_pkg.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_count_pkg.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim_generic/rtl/prim_ram_1p_pkg.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_pkg.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_pkg.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_cheriot_pkg.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_cheriot_ex.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_alu.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_branch_predict.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_compressed_decoder.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_cs_registers.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_csr.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_counter.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_decoder.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_ex_block.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_fetch_fifo.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_id_stage.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_if_stage.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_load_store_unit.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_multdiv_fast.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_multdiv_slow.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_prefetch_buffer.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_pmp.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_wb_stage.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_dummy_instr.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_register_file_ff.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_trvk.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_lockstep.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_icache.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_core.sv",
+    "third_party/rfuzz/upstream/ibex/rtl/ibex_top.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_assert.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_cipher_pkg.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_lfsr.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_mubi_pkg.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_mubi4_dec.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim_generic/rtl/prim_buf.sv",
+    "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim_generic/rtl/prim_clock_gating.sv",
+    "src/myfuzz/composition/rtl/ibex_irq_serial_sideband.sv",
+    "src/myfuzz/composition/rtl/soc_ibex_rvfi_local.sv"
+  ],
+  "lint": {
+    "exit_code": 0,
+    "log": "runs/task4-ibex-retire/rvfi-wrapper-lint.log"
+  },
+  "files": [
+    {
+      "path": "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_util_pkg.sv",
+      "sha256": "f71235ef5b92eaa3d2ed5c676f76108082df93b8aae8f9baa816584d1d285208"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_count_pkg.sv",
+      "sha256": "8e465ed25b7d59f29faf0f315243a774cf0e50d178ec2068d8c71983cb2f18df"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim_generic/rtl/prim_ram_1p_pkg.sv",
+      "sha256": "f51c6a588ec476b5cb2e95d9e8d19a67551732e9661a0c0933c6fccee8e92722"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_pkg.sv",
+      "sha256": "bcbd03333a30e7a1cb01195d1c40c7d0e736f91d9f73c2347ef5b0bd9dc3c82b"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_pkg.sv",
+      "sha256": "d9bfed30b16dd77981f1850a8daf56fec5ce14043789b4a0a4506c833e9a7d5a"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_cheriot_pkg.sv",
+      "sha256": "d8b5b51ce99129ebd0c6436689cd85883760ca98f15f45c8a18b977549d007c4"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_cheriot_ex.sv",
+      "sha256": "9784c9376f8343cf8d435fe4b7ee9eeda02b15df6a5bc1dc6ef6fb1bddb1cba9"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_alu.sv",
+      "sha256": "06ce1c3ce30807f715478cf9e3bc279cac1c1cc2fb95d289516169fadcf7b7dc"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_branch_predict.sv",
+      "sha256": "78d4120eac2606e34b9338581eac55e3ba3b48c718799a46a887ac9efab2240e"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_compressed_decoder.sv",
+      "sha256": "bea22598e9e5f734ace93826eafd01914d2b63565ee0b7e8c8deff25369fbfbd"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_controller.sv",
+      "sha256": "bc3211faf87435b07922e3e61646ef83247ab86c5938d4cd2e108802a4357860"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_cs_registers.sv",
+      "sha256": "898d036f141bdf742c0c772a5493b4bccc9636ffd7c57d3cc37011d233954548"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_csr.sv",
+      "sha256": "6533fffc57e233b3961ebd94722a14a1a4320771ce4a76e69481bf2deb1d8514"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_counter.sv",
+      "sha256": "0e953e2e05b5070833029d0f6fed6d3a48fbd3c02dc05785962fb0d451425d8e"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_decoder.sv",
+      "sha256": "842b520e4a942b6a27f3c44f7e8784e4a8dd40d7531a0ec3dd338f624be18217"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_ex_block.sv",
+      "sha256": "6451d5cd6af214b5fbb70f7499f898de981188cd7a25bf49247c0819b907c90b"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_fetch_fifo.sv",
+      "sha256": "3e0b48b771055ea50356cdff418decae16e7d9586a7f953e6799112b238bb63c"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_id_stage.sv",
+      "sha256": "02b40e46ef92df59a9e1d7b80a8d51a366ece0e8e599ca0744fcdf403ccd3aa8"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_if_stage.sv",
+      "sha256": "8b99f212f06aa942e53e8a768863587ffdc29176f5a486c6e273262311c9f6ae"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_load_store_unit.sv",
+      "sha256": "86e156efaf7ac46a351a405d9d2046b7d2e6a60bd206411ef9ae474666338b35"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_multdiv_fast.sv",
+      "sha256": "c86ca819b58b8ce2fc4ff5db887346bcd622b868fb7815fa07dd77119c68c04a"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_multdiv_slow.sv",
+      "sha256": "88b7392d3e2cd1f67f2c39b7425075030c78646cba2409356d6cfce262a46db6"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_prefetch_buffer.sv",
+      "sha256": "988ca05039f033c0eef9feffba996771c3449f255c64d7d78de04e1984249ccc"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_pmp.sv",
+      "sha256": "a564fb312d5337b0875d16f434e8b69348e12c2560548fad93f9270f9c4b9176"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_wb_stage.sv",
+      "sha256": "872d8df3b3f3fd9ba781eabd3897bd3b74d2b3af2d2898ab5799371d05b04e8a"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_dummy_instr.sv",
+      "sha256": "8899ec7fcd6df73d7ea96ad25e73f664ee2ae2a95b2186a36a7ab885e16e292e"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_register_file_ff.sv",
+      "sha256": "cb758da72120fa1ab7c3837408ef10ab96375edf727f6400d606ff5850e68a93"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_trvk.sv",
+      "sha256": "5a1c0d84473121bbb705ddc096499de76de84eb70c20e37a72ef3237361aca49"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_lockstep.sv",
+      "sha256": "ee0fb3df1a86ecb66554a214efae0a7971aa1d5c545b9f7592ca86b780163341"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_icache.sv",
+      "sha256": "7b250650b7cdc056976f13bfa070b6d05eb5febe2e311a7cfa684de1711b91f9"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_core.sv",
+      "sha256": "88b8bf3907472f1d413380f62234a7fbf53cb1de392a6660e6ef2d684a2416fd"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/rtl/ibex_top.sv",
+      "sha256": "0db761a029b18d17271200a7ffe438c856db53423efa25912ba7ce60948cdfc5"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_assert.sv",
+      "sha256": "d717d5dbcba3b5aa8a731ef9f8af18b036b49edef282f0a43a51f5ad2dd9bb40"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_cipher_pkg.sv",
+      "sha256": "9cd66bdbc64020e3fe1f14a5baee30a93609b7887a9d21df7991929087b0973f"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_lfsr.sv",
+      "sha256": "c61632878728613ba0403f2d068c03a5103165663b58d8dd50892ef032dec916"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_mubi_pkg.sv",
+      "sha256": "11a2f1a16ddaf750d859c95e07fc48c54743fe6ad3b5c5eabe2e14a51d9fb1af"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_mubi4_dec.sv",
+      "sha256": "b33530adf41b05849d06424a40db5536dfb5ffd441752bf49af03ad3d7b5f48e"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_enc.sv",
+      "sha256": "4588fda3fd5ebdd711c98f6900caaaaddddf1257337c5b931ca86de7fb0ef8ff"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_39_32_dec.sv",
+      "sha256": "f07f26fd2375952e4ec7cfc1641cebcea373a8030d82dd5977a76f81c430cb12"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_enc.sv",
+      "sha256": "74b3b327047b90682468614708bb4b1104b1f069c0dc3189e2b078622ac566b8"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim/rtl/prim_secded_inv_64_57_dec.sv",
+      "sha256": "e598eef60254ac4a0e6899f6d1e4af5ae5bbd2ac22395ac53ee925296bc8a826"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim_generic/rtl/prim_buf.sv",
+      "sha256": "9b00bd8ac203169268262ac9337076781fa962b19beed36f28dde54e360aaaf5"
+    },
+    {
+      "path": "third_party/rfuzz/upstream/ibex/vendor/lowrisc_ip/ip/prim_generic/rtl/prim_clock_gating.sv",
+      "sha256": "b2474320674e645d423f32ba1ce60b25509042d40c2de8fe28dcb7760a8fa882"
+    },
+    {
+      "path": "src/myfuzz/composition/rtl/ibex_irq_serial_sideband.sv",
+      "sha256": "516c51bce5a9434e7ea018fe437dc36570677d80c3e3c89b669387e144b65120"
+    },
+    {
+      "path": "src/myfuzz/composition/rtl/soc_ibex_rvfi_local.sv",
+      "sha256": "e9bfa7595201a4205204afc23eff2b904428d2fb53f7f8200743ce4932cbf6c3"
+    }
+  ]
+}
