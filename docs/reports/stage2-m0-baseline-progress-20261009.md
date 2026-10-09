@@ -1,6 +1,6 @@
 # 第二阶段 M0 基线进度（未完成）
 
-日期：2026-10-09。范围：[第二阶段计划](../superpowers/plans/2026-10-09-stage2-declarative-cpu-ip-adaptation.md)的 A 工作包。A1、A3 已登记；A2、A4、A5 增量实施中。B–I 尚未执行，未取得新 L1–L3 或 HMAC 能力。
+日期：2026-10-09。范围：[第二阶段计划](../superpowers/plans/2026-10-09-stage2-declarative-cpu-ip-adaptation.md)的 A 工作包。A1、A3 已登记；A2 的公共问题复核与修复完成，A4/A5 的监督入口和短 smoke 已运行，工作包尚待全路径审计。B–I 尚未执行，未取得新 L1–L3 或 HMAC 能力。
 
 [机器可读验证摘要](stage2-m0-verification-summary-20261009.json)保存测试结果、基线与日志摘要，以及真实启动拒绝的完整回执。
 
@@ -24,23 +24,24 @@ HMAC 原生 RTL 存在，起点没有 peripheral profile。本快照不是 G1 �
 
 ## 资源与清理的已实现范围
 
-[资源策略](../../src/myfuzz/experiments/resource_policy.py)新增共用 heavy process supervisor，已接入首步 `run` 和 `replay`：
+[资源策略](../../src/myfuzz/experiments/resource_policy.py)新增共用 heavy process supervisor；首步 `run`/`replay` 和通用[第二阶段重型任务入口](../../scripts/run_stage2_heavy_task.py)都能使用相同预算、锁和回执：
 
 - 启动可用内存使用 Linux `MemAvailable`，存在 cgroup v2 上限时再取约束后的剩余额度。默认树 RSS 阈值为 `min(4 GiB, available − 2 GiB)`；预算不足 1 GiB 时不创建 worker。
 - 同一仓库锁 `.superpowers/sdd/stage2-heavy-worker.lock` 只允许一个重型 worker。采样间隔 50 ms，记录进程树 RSS 峰值和实际耗时；这是采样后的终止阈值，不是内核分配硬限额。
 - Linux subreaper 收养脱离原 process group 的后代；SIGTERM/HUP/INT 进入清理；任务失败、超预算、超时和正常结束均清理并 reap。恢复调用前信号 handler 与 subreaper 状态。为保证归属，调用者必须是单线程 main process 且没有既有直接子进程；否则启动前拒绝。
 - `budget_terminated`／`startup_refused`／`wall_timeout`／`interrupted` 单列，`dut_finding=false`；不把资源错误记成 RTL finding。未执行时 RSS／耗时为 null，不伪造零性能指标。
-- 首步默认 run/replay 共用 `.superpowers/cache/local-harness`，实际构建仍按现有 build digest 存储、校验 bytes；显式 cache 参数仍可指定，输出目录必须为新目录。
+- 首步默认 run/replay 共用 `.superpowers/cache/local-harness`，实际构建仍按现有 build digest 存储、校验 bytes；显式 cache 参数仍可指定，输出目录必须为新目录。通用入口把 `{run_dir}`/`{cache_dir}` 参数展开，记录完整 stdout/stderr 和哈希，供各 Stage 2 构建／搜索／replay 任务复用。
+- 直接 `java`、SBT、Mill heavy command 必须带唯一且不超过 RSS 阈值的 `-Xmx`／`-J-Xmx`；缺少 heap 或 heap 超预算在创建 worker 前拒绝。此机器没有 Java/SBT/Mill，所以实际 JVM 启动仍未验证。
 
 代码审查发现并通过真实子进程负例修复：默认 SIGTERM 不进入 finally；两次采样之间创建的 setsid 后代逃逸；已有子进程的后代误归属（现改为拒绝这种调用环境）；replay 拒绝丢 run log；零案例验收。最终复审为 Ready，无新增阻挡项。
 
-A4/A5 仍不勾选：全部第二阶段构建／生成／持续运行／replay 入口尚未建立并统一接入 supervisor；JVM 显式 heap 门禁尚未实现，当前也没有可执行 Java 生成工具。不能把首步入口覆盖写成所有入口覆盖。
+A4/A5 仍不勾选：通用入口现已提供串行 worker、共享默认身份缓存、新 run 目录、JVM heap 预检及异常清理；但所有各阶段实际执行命令尚未迁移至该入口，也没有 JVM 工具可做真实生成校验。首步与通用入口的 CLI／资源负例已验证，不能据此写成所有生产路径已覆盖。
 
 ## 本轮验证与真实启动拒绝
 
-最终软件回归 **245 passed、12 subtests passed，30.00 秒，exit 0**。涵盖首步真实分析器编排、配对验收、11 项真实子进程资源测试、replay identity／preflight／wall cut、begin 失败、reset 生命周期、stateful batch、partial replay、链证书与 generated session。日志为 `.superpowers/sdd/stage2-m0-regression-20261009.log`。
+最初 M0 回归 **245 passed、12 subtests passed，30.00 秒，exit 0**，日志 `.superpowers/sdd/stage2-m0-regression-20261009.log`。其后加入 14 项重型任务入口与 JVM heap 检查测试，并将三组互不依赖的 pytest 子进程并行重跑：资源／wrapper 32 passed、首步／P5 100 passed、场景／生命周期 127 passed，另有 12 subtests passed，均 exit 0。分组日志及 SHA-256 由[机器可读验证摘要](stage2-m0-verification-summary-20261009.json)维护。
 
-文档全库检查为 585 个 Markdown／1,267 条链接／83 条断链，exit 1；以 HEAD 的旧 Markdown 内容在相同当前文件集合上重核，断链仍为同一组 83 条，本轮新增断链为 0。这些历史路径主要指向已删除 runs 材料，既有删除说明中已登记；本轮不将全库检查写成通过。增量复核保存在 `.superpowers/sdd/stage2-m0-doc-link-delta-20261009.json`。
+文档全库检查为 585 个 Markdown／1,273 条链接／83 条断链，exit 1；对本轮变更的文档逐项核对，新增断链为 0。这些历史路径主要指向已删除 runs 材料，既有删除说明中已登记；本轮不将全库检查写成通过。先前 HEAD 内容复核也得到相同的 83 条断链，增量复核保存在 `.superpowers/sdd/stage2-m0-doc-link-delta-20261009.json`。
 
 ```bash
 PYTHONPATH=src python3 -m pytest -q \
@@ -56,9 +57,11 @@ PYTHONPATH=src python3 -m pytest -q \
 
 真实 Ibex smoke 尝试使用 2 秒／最多 3 例，启用退休、GPIO 消费及 native IRQ 回执，要求 compressed trace 和完整 fresh replay。启动时可用内存 **3,049,791,488 bytes**，扣除 2 GiB 后阈值 **902,307,840 bytes**，低于 1 GiB；监督器在创建 worker 前拒绝。保存的回执是 `runs/stage2-m0-ibex-smoke-20261009-resource-receipt/first_step_acceptance_run.json`：`command_exit_codes=[]`、`status=startup_refused`、`analysis=null`、`replay=null`。没有 RTL case、构建或 replay 通过，不能登记为 DUT failure 或 smoke success。
 
+随后可用内存恢复到 5,978,308,608 bytes 后，`retry1` 在同一首步入口完成了 3/3 `complete` case，完整 trace 含 5,586 个事件，`effective_search_seconds=2.489692`，fresh replay exit 0 且 `matches=true`。运行树 peak RSS 510,930,944 bytes／额度 3,830,824,960 bytes；replay peak 220,811,264 bytes／额度 3,884,466,176 bytes。计划、运行 identity、session manifest、压缩 events、meta、逐例 receipts、report 和 run/replay logs 的 SHA-256 已保存于 [短 smoke 证据](stage2-m0-ibex-short-smoke-20261009.json)。这只是历史 Ibex＋双 PULP GPIO 首步兼容 smoke，不能给 20 行 Stage 2 矩阵任何一行授级。分析器把 3/3 来源 admissions 都标记为 incomplete，0 条完整认证链（缺口 `instruction_fetch=1`、`pin8_injection=2`）；因此不声称端到端链/s 或已验证功能链。replay 命令的 `matches=true` 代表其固定 replay 比较通过；first-step wrapper 分析仍把比较 JSON 标为 `verified=false`、缺少独立 trace 差分字段，证据边界如实保留。
+
 ## 下一检查点
 
-先把第二阶段重型入口统一接入资源监督并增加显式 JVM heap，再完成 A2 的证据摘要／文件 hash 与证书完整性重核。资源符合计划后，用全新目录执行首步短真实门禁；失败时保留回执并清理，不能调低 2 GiB 主机保留量或伪造可用内存以绕过门禁。通过 M0 后再进入 B/C 的描述、预检和基础事件。
+将每项 Stage 2 重型构建／搜索／replay 命令通过 [stage2 heavy-task 入口](../../scripts/run_stage2_heavy_task.py)启动，并让各自声明的输出与 identity cache 路径接入；复核 A2 对 certificate identity、batch 和 failure cleanup 的剩余证据。legacy Ibex 首步 smoke 已有有效 fresh replay，今后用其作为第一阶段兼容回归。M0 门槛通过后进入 B/C 的声明契约、能力预检与基础事件。
 
 ```bash
 PYTHONPATH=src python3 scripts/run_first_step_acceptance.py run \

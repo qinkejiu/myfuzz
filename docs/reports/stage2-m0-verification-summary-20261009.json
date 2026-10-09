@@ -1,20 +1,62 @@
 {
-  "schema_version": "stage2_m0_verification_summary.v1",
-  "start_head": "4095793d74e0fb516417888cc76e8b8ec35d4897",
-  "milestone_status": "incomplete",
+  "baseline_file_sha256": "22af5e6d45af45370e2dd6d934bf2720f3730454fd8c27012cc6f4fa31f8b882",
   "completed_items": [
     "A1",
     "A3"
   ],
-  "software_regression": {
-    "passed": 245,
-    "subtests_passed": 12,
-    "seconds": 30.0,
-    "exit_code": 0,
-    "log_sha256": "b57d82729b7bd7de7308ccf3440535b943d7f1b1eee600a16446d8f9082edef4"
+  "doc_links": {
+    "current_broken": 83,
+    "exit_code": 1,
+    "files_scanned": 585,
+    "head_documents_on_current_files_broken": 83,
+    "links_checked_current": 1273,
+    "new_broken": [],
+    "note": "HEAD content substituted for modified tracked Markdown; existing deleted-run links remain missing; no files restored"
   },
-  "baseline_file_sha256": "22af5e6d45af45370e2dd6d934bf2720f3730454fd8c27012cc6f4fa31f8b882",
-  "real_startup_receipt_sha256": "2b735cdee35132f31dcfb64557b6b5e9a608f4ed3b88ac744b4b8dd16158f0e3",
+  "milestone_status": "incomplete",
+  "previous_software_regression": {
+    "exit_code": 0,
+    "log_sha256": "b57d82729b7bd7de7308ccf3440535b943d7f1b1eee600a16446d8f9082edef4",
+    "passed": 245,
+    "seconds": 30.0,
+    "subtests_passed": 12
+  },
+  "prior_parallel_software_regression": {
+    "exit_code": 0,
+    "groups": [
+      {
+        "exit_code": 0,
+        "log": ".superpowers/sdd/regression-resource-policy.log",
+        "log_sha256": "214e69221f64512678cc6fd1d9a5c394881f654edd2ca982a871ba194764aa66",
+        "name": "resource_policy_and_stage2_wrapper",
+        "passed": 31,
+        "seconds": 2.12,
+        "subtests_passed": 0
+      },
+      {
+        "exit_code": 0,
+        "log": ".superpowers/sdd/regression-first-step-p5.log",
+        "log_sha256": "e1faaffcf4d60a69c584e3bbe5662f03fa54153af22847a2d9b5b1803e0b512e",
+        "name": "first_step_and_p5",
+        "passed": 100,
+        "seconds": 6.65,
+        "subtests_passed": 0
+      },
+      {
+        "exit_code": 0,
+        "log": ".superpowers/sdd/regression-scenario-lifecycle.log",
+        "log_sha256": "32ba3f7ab56a237505c0790466006d46430460086bd3c7d94aa2118b16dcc9f0",
+        "name": "scenario_and_lifecycle",
+        "passed": 127,
+        "seconds": 21.62,
+        "subtests_passed": 12
+      }
+    ],
+    "longest_group_seconds": 21.62,
+    "mode": "three independent pytest subprocesses ran concurrently",
+    "passed": 258,
+    "subtests_passed": 12
+  },
   "real_startup_receipt": {
     "analysis": null,
     "analysis_command": [
@@ -85,18 +127,62 @@
     "seconds": 2.0,
     "shell": "/usr/bin/python3 /home/qinkejiu/myfuzz/scripts/run_ibex_pulp_online.py run --client-binary /home/qinkejiu/myfuzz/third_party/rfuzz/upstream/rfuzz_reference/fuzzer/target/release/kfuzz --cache-dir /home/qinkejiu/myfuzz/.superpowers/cache/local-harness --output runs/stage2-m0-ibex-smoke-20261009-resource-receipt --seconds 2 --max-tests 3 --run-id stage2-m0-ibex-smoke-20261009-resource-receipt --cpu-retirement --gpio-consumption --native-irq-receipts --compressed-trace && /usr/bin/python3 /home/qinkejiu/myfuzz/scripts/run_ibex_pulp_online.py replay --cache-dir /home/qinkejiu/myfuzz/.superpowers/cache/local-harness --plan runs/stage2-m0-ibex-smoke-20261009-resource-receipt/online_plan.json --trace runs/stage2-m0-ibex-smoke-20261009-resource-receipt/online_final_trace.json"
   },
-  "doc_links": {
-    "current_broken": 83,
-    "head_documents_on_current_files_broken": 83,
-    "new_broken": [],
-    "note": "HEAD content substituted for modified tracked Markdown; existing deleted-run links remain missing; no files restored"
+  "real_startup_receipt_sha256": "2b735cdee35132f31dcfb64557b6b5e9a608f4ed3b88ac744b4b8dd16158f0e3",
+  "review": "Earlier dedicated review of supervisor and first-step changes returned Ready after the recorded cleanup fixes. The generic CLI and JVM heap parser were manually reviewed and regression-tested this round, including a reproduced and fixed misplaced-heap counterexample; the earlier review did not cover this new delta.",
+  "schema_version": "stage2_m0_verification_summary.v1",
+  "software_regression": {
+    "exit_code": 0,
+    "groups": [
+      {
+        "exit_code": 0,
+        "log": ".superpowers/sdd/regression2-resource-policy.log",
+        "log_sha256": "daef98f9c593eadad8e61e1162ba2dd19a4cd9082bda2b5e611eb2728feb63a8",
+        "name": "resource_policy_and_stage2_wrapper",
+        "passed": 32,
+        "seconds": 2.02,
+        "subtests_passed": 0
+      },
+      {
+        "exit_code": 0,
+        "log": ".superpowers/sdd/regression2-first-step-p5.log",
+        "log_sha256": "51bfc7d8b36d11726a8ec3bfff3735bcaa7cc9546e64b75ec729f4881ff9d8c1",
+        "name": "first_step_and_p5",
+        "passed": 100,
+        "seconds": 6.55,
+        "subtests_passed": 0
+      },
+      {
+        "exit_code": 0,
+        "log": ".superpowers/sdd/regression2-scenario-lifecycle.log",
+        "log_sha256": "c87d6cb1639afe7ee4ad30c4f96343dde66c3290c5f5758df8caa6e41c39682a",
+        "name": "scenario_and_lifecycle",
+        "passed": 127,
+        "seconds": 21.25,
+        "subtests_passed": 12
+      }
+    ],
+    "longest_group_seconds": 21.25,
+    "mode": "three independent pytest subprocesses ran concurrently after the JVM option-order fix",
+    "passed": 259,
+    "review_counterexample": "A Java -Xmx after -jar was first observed to reach process launch; parser now stops at the JVM target and the negative test passes by startup refusal.",
+    "subtests_passed": 12
   },
-  "review": "ready after signal, subreaper, ownership, stage-log and empty-case counterexample fixes",
+  "start_head": "4095793d74e0fb516417888cc76e8b8ec35d4897",
+  "successful_smoke": {
+    "cases": 3,
+    "certified_chains": 0,
+    "events": 5586,
+    "evidence_file": "docs/reports/stage2-m0-ibex-short-smoke-20261009.json",
+    "evidence_sha256": "433c7ae2df8ec495534fc9aee3ae4300423e2f0256907a2c4226d6ea8ca30cb5",
+    "fresh_replay_exit_code": 0,
+    "fresh_replay_matches": true,
+    "status": "complete",
+    "verified": false
+  },
   "unverified": [
-    "full heavy entry coverage",
-    "JVM heap enforcement",
-    "remaining A2 file hash / evidence completeness audit",
-    "fresh Ibex smoke/replay",
+    "all production Stage 2 heavy commands migrated to and exercised through the generic wrapper",
+    "real JVM launch and generated-artifact identity check; Java/SBT/Mill are unavailable on this host",
+    "remaining A2 certificate identity / batch / failure-cleanup evidence audit",
     "B-I"
   ]
 }

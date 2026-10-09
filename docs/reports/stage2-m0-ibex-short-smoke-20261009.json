@@ -1,0 +1,55 @@
+{
+  "status": "complete",
+  "scenario_scope": "legacy Ibex + two PULP GPIO first-step compatibility smoke; not a Stage 2 CPU/IP matrix row",
+  "run_identity_sha256": "b0a2c9a2cb7977e194f6d5cea9cc082ca2a916f9295ec829cc65dc43009d25c5",
+  "plan_sha256": "ef65bc8c97face5154ff7b178185be8eea2b199f514b34d15e28c9b91723977f",
+  "manifest_sha256": "a61e01c041a08f754fefcea6c041ac730626c2b6e09cc9b33e7fe81733e96f25",
+  "events": 5586,
+  "event_semantic_sha256": "d791bd029f90805cbed289976142979c043424b4570f55b4e94369f0b8c07ac6",
+  "cases": 3,
+  "case_statuses": {
+    "complete": 3
+  },
+  "session_status": "complete",
+  "effective_search_seconds": 2.489692047999597,
+  "run_wall_seconds": 3.586363422999966,
+  "fresh_replay": {
+    "exit_code": 0,
+    "matches": true,
+    "first_difference": null,
+    "difference_context": null
+  },
+  "run_resource_receipt": {
+    "status": "complete",
+    "available_at_start_bytes": 5978308608,
+    "rss_limit_bytes": 3830824960,
+    "peak_tree_rss_bytes": 510930944,
+    "elapsed_seconds": 45.064670120999835,
+    "workers": 1
+  },
+  "replay_resource_receipt": {
+    "status": "complete",
+    "available_at_start_bytes": 6031949824,
+    "rss_limit_bytes": 3884466176,
+    "peak_tree_rss_bytes": 220811264,
+    "elapsed_seconds": 33.119034522999755,
+    "workers": 1
+  },
+  "analyzer_boundary": {
+    "certified_chains": 0,
+    "incomplete_certificates": 3,
+    "verified": false,
+    "reason": "the 3-case smoke has first missing hops instruction_fetch=1 and pin8_injection=2; no end-to-end chain claim"
+  },
+  "artifacts": {
+    "online_plan.json": "ef65bc8c97face5154ff7b178185be8eea2b199f514b34d15e28c9b91723977f",
+    "online_run_identity.json": "387f4620c39f9ad7dae6cccb72841923ebbcf54282163ea120a4c4ce6e686c61",
+    "online_session_manifest.json": "a1dd7cc516e49e7e22030fae2a53731b19d6fcb984af7b56b508db5b2ed1704e",
+    "online_events.zlib": "1e7198cbe24634ad6cb4038f24e4b57e84a840e7c5a99c6f57487c750237c636",
+    "online_final_trace.meta.json": "3ecb133fd3bb4a2bd1a7cb0a81387dde22bc7a0ad5be2aac28409d8182af928e",
+    "receipts.jsonl": "5ebf48e7b977bb92dd4156d3dc28c9d5785407ff151a871ac18be4a358b2aa49",
+    "report.json": "07c601fa481fefddb23d8c7feb67b4acd0be51f3fbefd43855305ec6d4853772",
+    "first_step_acceptance_run.json": "e52138263fd5e311d7bb9a13f0e57821f503be6f58c95c0a7bab6c85d9ae33ac",
+    "first_step_acceptance_replay.json": "61aac008535cbfc8d243f5680839c705a68e66d327e26ef2e382bd2fd7fdad25"
+  }
+}

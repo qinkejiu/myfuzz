@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import fcntl
 import os
 from pathlib import Path
+import re
 import signal
 import subprocess
 import time
@@ -29,6 +30,52 @@ def heavy_process_budget(available_bytes: int) -> int:
     if budget < 1024**3:
         raise ResourceProfileError('insufficient memory for heavy task')
     return budget
+
+
+def explicit_jvm_heap_bytes(command: Sequence[str], rss_limit_bytes: int) -> int | None:
+    """Require a bounded explicit heap for direct Java/SBT/Mill task commands."""
+    if (isinstance(command, (str, bytes, bytearray))
+            or not isinstance(command, Sequence)
+            or any(not isinstance(token, str) for token in command)):
+        raise ResourceProfileError('heavy command must be an argument array')
+    launcher = Path(command[0]).name.lower() if command else ''
+    java_launchers = {'java', 'java.exe'}
+    build_launchers = {'sbt', 'sbt.bat', 'mill', 'mill.bat'}
+    if launcher not in java_launchers | build_launchers:
+        return None
+    option_tokens = []
+    index = 1
+    if launcher in java_launchers:
+        takes_value = {'-cp', '-classpath', '--class-path', '--module-path', '-p'}
+        while index < len(command):
+            token = command[index]
+            if token in {'-jar', '-m', '--module'}:
+                break
+            if token in takes_value:
+                index += 2
+                continue
+            if not token.startswith('-'):
+                break
+            option_tokens.append(token)
+            index += 1
+        heap_pattern = r'-Xmx([1-9][0-9]*)([kKmMgG])'
+    else:
+        while index < len(command) and command[index].startswith('-'):
+            option_tokens.append(command[index])
+            index += 1
+        heap_pattern = r'-J-Xmx([1-9][0-9]*)([kKmMgG])'
+    matches = []
+    for token in option_tokens:
+        match = re.fullmatch(heap_pattern, token)
+        if match is None:
+            continue
+        scale = {'k': 1024, 'm': 1024**2, 'g': 1024**3}[match.group(2).lower()]
+        matches.append(int(match.group(1)) * scale)
+    if len(matches) != 1:
+        raise ResourceProfileError('heavy JVM command requires one explicit JVM heap limit')
+    if matches[0] > rss_limit_bytes:
+        raise ResourceProfileError('explicit JVM heap exceeds process RSS budget')
+    return matches[0]
 
 
 def available_process_memory() -> int:
@@ -187,10 +234,11 @@ def run_budgeted_process(command: Sequence[str], *, lock_path: Path,
             if type(rss_limit_bytes) is not int or not 0 < rss_limit_bytes <= limit:
                 raise ResourceProfileError('invalid RSS limit')
             limit = rss_limit_bytes
-        return _supervise_process(command, available, limit, timeout_seconds)
+        heap_limit = explicit_jvm_heap_bytes(command, limit)
+        return _supervise_process(command, available, limit, timeout_seconds, heap_limit)
 
 
-def _supervise_process(command, available, limit, timeout_seconds):
+def _supervise_process(command, available, limit, timeout_seconds, heap_limit):
     with _worker_lifecycle() as (existing_children, interrupted):
         started = time.monotonic()
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -230,7 +278,8 @@ def _supervise_process(command, available, limit, timeout_seconds):
                 'status': status, 'workers': 1, 'available_at_start_bytes': available,
                 'rss_limit_bytes': limit, 'peak_tree_rss_bytes': peak,
                 'elapsed_seconds': time.monotonic() - started,
-                'sampling_interval_seconds': .05, 'dut_finding': False}
+                'sampling_interval_seconds': .05, 'dut_finding': False,
+                'jvm_heap_limit_bytes': heap_limit}
             return result
         finally:
             _stop_process_tree(process, tracked, existing_children)

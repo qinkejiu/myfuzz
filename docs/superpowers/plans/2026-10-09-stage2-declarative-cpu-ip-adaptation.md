@@ -235,4 +235,4 @@ CPU 实施顺序 CVA6→CVW→VexiiRiscv→BOOM；后三核工具链／来源条
 
 最终交付：保留既有架构的增量 patch；四核能力／配置；L1–L3 描述及预检；基础／寄存器／功能事件；三类依赖和分离反馈；五族增强及替换证据；HMAC 未知 IP 强制门禁；最多 20 个组合的逐行结果；完整身份／replay／资源报告；缺口清单和最小恢复资料。
 
-**当前状态：**A1、A3 已完成登记：起点 HEAD `4095793`、290 个核心 blob、76 份 profile/closure 摘要和 20 个功能组合＋HMAC 基础行。A2 已修复首步 replay 日志消费和配对验收伪通过；A4/A5 已接入首步入口的单 worker／进程树预算／共享缓存与异常清理，仍须覆盖全部第二阶段重型入口和显式 JVM heap。真实 Ibex 短门禁被启动内存预算拒绝，没有 RTL 运行或 replay 通过证据。M0 保持未完成，B–I 尚未执行。见 [M0 进度报告](../../reports/stage2-m0-baseline-progress-20261009.md)、[起点身份](../../reports/stage2-baseline-20261009.json)和[逐行矩阵](../../STAGE2_ACCEPTANCE_MATRIX.md)。
+**当前状态：**A1、A3 已完成登记：起点 HEAD `4095793`、290 个核心 blob、76 份 profile/closure 摘要和 20 个功能组合＋HMAC 基础行。A2 已修复首步 replay 日志消费和配对验收伪通过，并以 fresh RTL trace 审计首步 counts／identity；A4/A5 新增首步与通用任务入口的单 worker／进程树 RSS 预算／共享身份缓存／新目录／JVM heap 检查及异常清理，通用入口的首次真实执行接入仍待迁移。Ibex retry1 完成 3/3 legacy cases 和 fresh replay，但三条 admission 均 incomplete，不是 Stage 2 矩阵行通过。M0 保持未完成，B–I 尚未执行。见 [M0 进度报告](../../reports/stage2-m0-baseline-progress-20261009.md)、[起点身份](../../reports/stage2-baseline-20261009.json)和[逐行矩阵](../../STAGE2_ACCEPTANCE_MATRIX.md)。

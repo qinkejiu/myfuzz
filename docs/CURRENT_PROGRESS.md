@@ -2,7 +2,7 @@
 
 更新：2026-10-09。本文是仓库当前实施状态的入口；**想先了解"这套系统长什么样、怎么验证的"，读[系统说明](SYSTEM_OVERVIEW.md)**。阶段定义和验收条件以[主实施计划](superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md)为准。本文只记录已验证范围，早期报告保留其写作时的源码和运行身份。
 
-第二阶段已按[声明式 CPU／IP 适配计划](superpowers/plans/2026-10-09-stage2-declarative-cpu-ip-adaptation.md)开始执行 M0。A1 起点身份与 A3 的 [20 个功能组合＋HMAC 基础行](STAGE2_ACCEPTANCE_MATRIX.md)已登记；首步 replay 日志及配对验收伪通过已修复，资源监督和共享缓存已接入首步入口。真实 Ibex 短门禁因启动内存预算不足被拒绝，没有启动 RTL 或新增 replay 通过。M0 尚未完成，L1–L3、新 CPU 与 HMAC 门禁均未验收；[本轮报告](reports/stage2-m0-baseline-progress-20261009.md)记录范围与恢复步骤。下文第一阶段结论按其原始证据身份保留。
+第二阶段已按[声明式 CPU／IP 适配计划](superpowers/plans/2026-10-09-stage2-declarative-cpu-ip-adaptation.md)开始执行 M0。A1 起点身份与 A3 的 [20 个功能组合＋HMAC 基础行](STAGE2_ACCEPTANCE_MATRIX.md)已登记；首步 replay 日志及配对验收伪通过已修复，资源监督和共享缓存已接入首步入口。第一次真实 Ibex 短门禁因内存预算不足被拒绝；随后 retry1 完成 3/3 legacy case 和 fresh replay（5,586 events），但未认证完整依赖链，也没有给 Stage 2 组合授级。通用 Stage 2 单 worker/新目录入口和 JVM heap 预检已加入。M0 尚未完成，L1–L3、新 CPU 与 HMAC 门禁均未验收；[本轮报告](reports/stage2-m0-baseline-progress-20261009.md)记录范围与恢复步骤。下文第一阶段结论按其原始证据身份保留。
 
 ## 阶段状态
 

@@ -2,7 +2,7 @@
 
 更新：2026-10-09。第二阶段实施中；本页只登记新门禁，历史固定场景通过不自动取得 L1–L3 等级。实施起点见[基线身份](reports/stage2-baseline-20261009.json)，步骤见[实施计划](superpowers/plans/2026-10-09-stage2-declarative-cpu-ip-adaptation.md)。
 
-目前尚未进入 B 的等级预检：所有 declared/effective/verified level 都为未确定，L1/L2/L3 门禁均未验证。`pending` 不是 `skipped_unavailable`，后三核是否跳过须在 F 阶段重新核实。
+目前尚未进入 B 的等级预检：legacy Ibex＋双 PULP GPIO 已在 3-case smoke 中完成 fresh replay，但该组合不在本矩阵且没有完整认证链；所有 declared/effective/verified level 都为未确定，L1/L2/L3 门禁均未验证。`pending` 不是 `skipped_unavailable`，后三核是否跳过须在 F 阶段重新核实。
 
 | CPU | 功能族／IP | declared | effective | verified | 独立／8-case | 60 秒＋replay | 600 秒功能＋replay | 状态 |
 |---|---|---|---|---|---|---|---|---|

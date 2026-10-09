@@ -156,3 +156,43 @@ def test_supervisor_refuses_existing_children_without_killing_them(tmp_path):
     finally:
         unrelated.kill()
         unrelated.wait()
+
+
+@pytest.mark.parametrize('command', [
+    ['java', '-jar', 'generator.jar'],
+    ['sbt', 'runMain', 'Generator'],
+    ['mill', 'generator.run'],
+])
+def test_jvm_heavy_command_requires_explicit_heap_before_start(tmp_path, command):
+    with pytest.raises(policy.ResourceProfileError, match='explicit JVM heap'):
+        guarded()(command, lock_path=tmp_path/'worker.lock', available_bytes=5*GIB)
+
+
+@pytest.mark.parametrize(('launcher_name', 'option', 'task', 'expected'), [
+    ('java', '-Xmx1g', '-version', 1024**3),
+    ('java', '-Xmx512m', '-version', 512*1024**2),
+    ('sbt', '-J-Xmx768m', 'compile', 768*1024**2),
+    ('mill', '-J-Xmx524288k', 'generator.run', 512*1024**2),
+])
+def test_jvm_heavy_command_accepts_explicit_heap_below_rss_limit(
+        tmp_path, launcher_name, option, task, expected):
+    launcher = tmp_path/launcher_name
+    launcher.write_text('#!/bin/sh\nprintf "ok\\n"\n')
+    launcher.chmod(0o755)
+    result = guarded()([str(launcher), option, task],
+                       lock_path=tmp_path/'worker.lock', available_bytes=5*GIB)
+    assert result.returncode == 0
+    assert result.stdout.strip() == 'ok'
+    assert result.resource_receipt['jvm_heap_limit_bytes'] == expected
+
+
+def test_jvm_heap_cannot_exceed_process_tree_rss_budget(tmp_path):
+    with pytest.raises(policy.ResourceProfileError, match='exceeds process RSS'):
+        guarded()(['java', '-Xmx4g', '-version'], lock_path=tmp_path/'worker.lock',
+                  available_bytes=5*GIB)
+
+
+def test_jvm_heap_after_java_target_does_not_count_as_launcher_limit(tmp_path):
+    with pytest.raises(policy.ResourceProfileError, match='explicit JVM heap'):
+        guarded()(['java', '-jar', 'generator.jar', '-Xmx1g'],
+                  lock_path=tmp_path/'worker.lock', available_bytes=5*GIB)
