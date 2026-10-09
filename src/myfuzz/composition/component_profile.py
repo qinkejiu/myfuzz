@@ -36,11 +36,12 @@ description.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, fields as dataclass_fields, is_dataclass, replace
 from os import PathLike
 from pathlib import Path
 from types import MappingProxyType
@@ -65,6 +66,14 @@ from .source_crawler import (
 
 COMPONENT_PROFILE_SCHEMA = "component_profile.v1"
 COMPOSITION_REQUEST_SCHEMA = "composition_request.v1"
+_COMPONENT_PROFILE_KEYS = frozenset((
+    "schema_version", "component_id", "kind", "description", "source",
+    "endpoints", "clocks", "resets", "capabilities", "address",
+    "interrupts", "port_actions", "cpu", "evidence",
+    # Kept as an explicitly recognized v1 metadata field for the existing
+    # OpenTitan closure witnesses that bind transparent wrapper bytes.
+    "elaboration_boundary",
+))
 
 COMPONENT_KINDS = ("cpu", "peripheral", "memory")
 PORT_ACTION_KINDS = ("functional", "constant", "fuzz", "observe", "unconnected", "external")
@@ -473,8 +482,24 @@ class ComponentProfile:
     interrupts: tuple[InterruptSource, ...] = ()
     cpu: CpuContract | None = None
     evidence: Mapping[str, object] = field(default_factory=dict)
+    # Raw document identity preserves recognized metadata not projected into
+    # typed fields. The public fingerprint combines it with the current typed
+    # contract, so dataclasses.replace() cannot retain a stale source identity.
+    _profile_document_fingerprint: str = field(default="", repr=False, compare=False)
     source_document: Mapping[str, object] = field(default_factory=dict, repr=False,
                                                   compare=False)
+
+    @property
+    def profile_fingerprint(self) -> str:
+        contract = {
+            item.name: getattr(self, item.name)
+            for item in dataclass_fields(self)
+            if item.name != "_profile_document_fingerprint"
+        }
+        return _fingerprint_json({
+            "document_fingerprint": self._profile_document_fingerprint,
+            "current_contract": contract,
+        })
 
     def endpoint(self, endpoint_id: str) -> EndpointSpec:
         for item in self.endpoints:
@@ -603,6 +628,34 @@ def _document(value: object) -> Mapping[str, object]:
         if isinstance(loaded, Mapping):
             return loaded
     _error("document-must-be-object-or-path")
+
+
+def _canonical_json_value(value: object) -> object:
+    if is_dataclass(value) and not isinstance(value, type):
+        return {
+            item.name: _canonical_json_value(getattr(value, item.name))
+            for item in dataclass_fields(value)
+        }
+    if isinstance(value, Mapping):
+        if any(not isinstance(key, str) for key in value):
+            raise ValueError("profile-object-key-is-not-text")
+        return {key: _canonical_json_value(item) for key, item in value.items()}
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        return [_canonical_json_value(item) for item in value]
+    if value is None or type(value) in (str, bool, int, float):
+        return value
+    raise TypeError(f"unsupported-profile-value:{type(value).__name__}")
+
+
+def _fingerprint_json(value: object) -> str:
+    """Hash a canonical JSON-compatible value."""
+    try:
+        canonical = json.dumps(_canonical_json_value(value), sort_keys=True,
+                               separators=(",", ":"),
+                               ensure_ascii=False, allow_nan=False).encode("utf-8")
+    except (TypeError, ValueError, UnicodeError, RecursionError) as exc:
+        raise ComponentProfileError("profile-not-canonical-json") from exc
+    return "sha256:" + hashlib.sha256(canonical).hexdigest()
 
 
 def _strings(value: object, reason: str) -> tuple[str, ...]:
@@ -1024,6 +1077,10 @@ def load_component_profile(document_or_path: object) -> ComponentProfile:
     """Load and structurally validate one component profile."""
     document = _document(document_or_path)
     _reject_programming_keys(document, "profile")
+    unknown = set(document) - _COMPONENT_PROFILE_KEYS
+    if unknown:
+        key = min((str(item) for item in unknown))
+        _error(f"unknown-profile-field:{key}")
     version = document.get("schema_version")
     if version != COMPONENT_PROFILE_SCHEMA:
         _error(f"unsupported-profile-schema:{version}")
@@ -1071,6 +1128,7 @@ def load_component_profile(document_or_path: object) -> ComponentProfile:
         interrupts=interrupts,
         cpu=cpu,
         evidence=dict(_mapping(document.get("evidence", {}), "invalid-evidence")),
+        _profile_document_fingerprint=_fingerprint_json(document),
         source_document=dict(_mapping(document.get("source"), "invalid-source")),
     )
     _validate_profile_self_consistency(profile)

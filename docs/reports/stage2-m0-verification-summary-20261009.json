@@ -3,18 +3,23 @@
   "completed_items": [
     "A1",
     "A2",
-    "A3"
+    "A3",
+    "A4",
+    "A5",
+    "B1"
   ],
   "doc_links": {
     "current_broken": 83,
     "exit_code": 1,
     "files_scanned": 585,
     "head_documents_on_current_files_broken": 83,
-    "links_checked_current": 1276,
+    "links_checked_current": 1277,
     "new_broken": [],
-    "note": "Latest check: 585 Markdown files / 1276 local links / 83 historical missing-run links / 150 HTTPS links skipped, exit 1. Three local A4/A5 source references were added and all resolve; the broken-link count remains unchanged. Prior HEAD-content substitution found the same 83 links."
+    "fixed_since_previous_scan": [],
+    "note": "Latest check: 585 Markdown files / 1277 local links / 83 historical missing-run links / 150 HTTPS links skipped, exit 1. Compared with the 2026-10-09 scan, the same 83 broken targets remain; no new or fixed broken links. The B1 source reference resolves.",
+    "scan_artifact": ".superpowers/sdd/stage2-m1-b1-doc-links-20261010-final.json"
   },
-  "milestone_status": "incomplete",
+  "milestone_status": "complete",
   "pre_review_fix_software_regression": {
     "exit_code": 0,
     "groups": [
@@ -218,9 +223,9 @@
     "verified": false
   },
   "unverified": [
-    "all future Stage 2 CPU/IP production build, search, and replay commands migrated to and exercised through the generic wrapper",
+    "future Stage 2 CPU/IP production build, search, and replay commands must be integrated with the generic wrapper when those runners are implemented",
     "real JVM-based Stage 2 generator launch and generated-artifact identity check; Java/SBT/Mill are unavailable on this host",
-    "B-I",
+    "B2-I",
     "Mill launcher/JVM option adapter; direct Mill heavy commands currently fail closed until the launcher version and all option sources are pinned"
   ],
   "a2_audit": {
@@ -283,7 +288,7 @@
       ]
     },
     "remaining": [
-      "migrate each Stage 2 CPU/IP build, search, and replay production command once its runner exists",
+      "future Stage 2 CPU/IP build, search, and replay runners must use the shared worker lock, fresh run directories, and identity cache when implemented",
       "verify a JVM-based Stage 2 generator and its generated artifact identity; java, sbt, and mill are unavailable on this host",
       "Mill launcher remains fail-closed until its version and JVM option sources are pinned"
     ]
@@ -314,5 +319,81 @@
       "dut_finding": false
     },
     "scope_limitation": "The fixture test uses a temporary content-addressed cache. Existing legacy Ibex smoke covers use of the shared cache; this does not cover a JVM generator."
+  },
+  "milestone": "M0",
+  "m0_gate_audit": {
+    "status": "passed",
+    "criteria": {
+      "A1": "baseline identity and environment recorded; missing JVM toolchain is an explicit later availability constraint",
+      "A2": "replay, evidence identity, invalid counters, cleanup, certificates, and batch state audited with regression evidence",
+      "A3": "acceptance rows registered for four CPUs, five feature families, and HMAC with capability levels kept distinct",
+      "A4": "one-worker lock, process-tree RSS budget, low-memory startup refusal, non-DUT budget outcomes, Java/SBT heap admission, and Mill fail-closed behavior verified",
+      "A5": "identity-indexed cache, hit integrity, fresh run directories, no repository copy/first-stage overwrite, and process cleanup verified"
+    },
+    "boundary": "No Stage 2 CPU/IP production runner exists yet; integration of future runners and real JVM generator validation remain follow-up obligations, not missing M0 infrastructure criteria."
+  },
+  "b1_contract": {
+    "status": "complete",
+    "schema": "ip_test_capability.v1",
+    "loader": "src/myfuzz/composition/test_capability.py",
+    "legacy_profile_policy": "component_profile.v1 rejects unknown top-level fields; elaboration_boundary remains an explicit known metadata field",
+    "checks": [
+      "requires a ComponentProfile, matching component_id, and the canonical fingerprint of the complete profile document and current typed contract",
+      "strict root and row key sets plus closed operation, observation, access, and side-effect vocabularies drawn from existing component_profile.v1 declarations",
+      "endpoint, register, observation endpoint/role, and evidence reference binding",
+      "register field width, access, mask, reset value, and side-effect agreement with the profile",
+      "observation bit range, endianness, unique mapping identity; signal_change applies to declared input and output roles",
+      "rejects embedded script/callback/program fields and recursively freezes every accepted non-string Sequence in the retained source document"
+    ],
+    "compatibility_check": {
+      "command": [
+        "python3",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/composition/test_component_profile.py",
+        "tests/composition/test_real_peripheral_component_profiles.py",
+        "tests/composition/test_cva6_component_profile.py",
+        "tests/composition/test_test_capability.py"
+      ],
+      "exit_code": 0,
+      "passed": 71,
+      "subtests_passed": 11,
+      "seconds": 60.94,
+      "supervised": true,
+      "run_dir": "runs/stage2-m1-b1-profile-compat-20261010-05",
+      "receipt": "runs/stage2-m1-b1-profile-compat-20261010-05/stage2_heavy_task_receipt.json",
+      "receipt_sha256": "f8fa6940cf06f817e41c1a877b4a29b1e9c31b3010b46eb24fd8d58cdcc5325d",
+      "stdout_sha256": "d87a94c8ac8f52285d62741e28a2e313365acc6033fda3023e77ffdc61c7368f",
+      "resource": {
+        "workers": 1,
+        "status": "complete",
+        "peak_tree_rss_bytes": 546988032,
+        "rss_limit_bytes": 4294967296,
+        "dut_finding": false
+      },
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "test_output": "71 passed, 11 subtests passed in 60.94s",
+      "supervised_stdout_receipt_note": "Run is the latest post-review-fix compatibility suite; all groups passed."
+    },
+    "unrelated_compatibility_diagnostic": {
+      "passed": 95,
+      "subtests_passed": 82,
+      "failed": 5,
+      "cause": "3 ZIPCPU UART local_runtime_variant adapter/evidence allowlist subtests and 2 Ibex elaborated-port-count expectations (expected 62, observed 67) in unchanged baseline data/source/tests; outside the B1 diff."
+    },
+    "profile_identity": "sha256 fingerprint over the original canonical profile document and the current typed contract; it changes for same-name profiles and dataclasses.replace() mutations"
+  },
+  "b1_review": {
+    "status": "Ready",
+    "scope": "read-only review of the B1 code diff against 000ec3b50a4bc59ed1fc37be59e7486f83e958df",
+    "findings": "all four previous findings were fixed; no new Critical, Important, or Minor findings",
+    "independent_validation": {
+      "passed": 64,
+      "subtests_passed": 51,
+      "existing_profile_documents": 44,
+      "baseline_loading_outcomes_preserved": true
+    },
+    "known_unrelated_failures": "Three ZIPCPU local_runtime_variant subtests in a broader diagnostic are baseline failures outside this diff."
   }
 }

@@ -1,6 +1,6 @@
 # 第二阶段：通用 CPU 与 IP 声明式适配实施清单
 
-日期：2026-10-09。状态：实施中，M0 基线门禁尚未全部通过。本文落实用户关于保留架构、基础／功能事件分层、L1–L3 能力、三类依赖、新 IP 验收和 CPU 通用契约的要求，替代此前聊天中以五类功能插件作为 IP 接入前提的方案。
+日期：2026-10-09。状态：实施中，M0 基线门禁已通过，M1 正在执行。本文落实用户关于保留架构、基础／功能事件分层、L1–L3 能力、三类依赖、新 IP 验收和 CPU 通用契约的要求，替代此前聊天中以五类功能插件作为 IP 接入前提的方案。
 
 **目标：**保留现有通用 CPU Session、协议适配器、独立 harness、Scenario／Router／Scheduler、持久状态和反馈机制，使有受信接口描述的未知 IP 能按实际能力参与基础测试，再通过寄存器描述和功能族插件增强测试深度。
 
@@ -92,14 +92,14 @@ reset、覆盖写、证据淘汰或身份冲突使相应实时 witness 失效；
 - [x] A1：冻结实施起点的 Git／第三方／工具链身份及 CPU/IP 能力；核对其他 agent 的已实现部分，按接口兼容增量实施。
 - [x] A2：重核首步 replay 输出、证据摘要、缺失身份、零耗时／验证数、异常清理、证书完整性和 batch 状态问题。公共路径负例已修复，最新并行回归覆盖首步／P5、真实事件 fixture 证书身份、serial token、batch 重放身份与失败清理；详见 M0 进度报告和机器摘要。
 - [x] A3：把 4 CPU×5 功能族登记为单独验收行，并新增 HMAC 基础接入行；L1/L2/L3、可执行／已验证分别报告。
-- [ ] A4：构建／运行采用单 worker；进程树 RSS 上限默认 `min(4 GiB, 启动可用内存－2 GiB)`，可用预算不足 1 GiB 时不启动重型任务。生成 JVM 使用显式 heap；预算终止单列，不记 DUT finding。
-- [ ] A5：单一按身份索引的构建缓存；新 run 使用新目录；不复制整仓库，不覆盖第一阶段材料。启动、运行、replay 任一失败须清理全部组件进程。
+- [x] A4：构建／运行采用单 worker；进程树 RSS 上限默认 `min(4 GiB, 启动可用内存－2 GiB)`，可用预算不足 1 GiB 时不启动重型任务。生成 JVM 使用显式 heap；预算终止单列，不记 DUT finding。首步 smoke、启动拒绝回执、Java/SBT heap 预检和 Mill fail-closed 均有验证证据。
+- [x] A5：单一按身份索引的构建缓存；新 run 使用新目录；不复制整仓库，不覆盖第一阶段材料。启动、运行、replay 任一失败须清理全部组件进程。真实 Verilator cache identity／损坏拒绝测试、fresh output 目录和进程树失败清理均有证据。
 
 **交付与门槛：**起点与能力表、受影响负例结果、资源终止／清理证据、输出规则。基线未达到门槛，不开始长跑。
 
 ### B. 公共 IP 描述与等级预检
 
-- [ ] B1：沿用现有 component profile／request／tuning，增加可选的版本化测试能力、寄存器语义和观察映射描述；旧 schema 不接受新字段，新字段采用明确的 sidecar／新版本契约。
+- [x] B1：沿用现有 component profile／request／tuning，增加可选的版本化测试能力、寄存器语义和观察映射描述；旧 schema 不接受新字段，新字段采用明确的 sidecar／新版本契约。新增 `ip_test_capability.v1` sidecar loader，要求并核对完整 profile 文档的规范化 SHA-256 指纹，再核对端点、字段、寄存器、权限／mask、观察映射及证据引用；现有 `component_profile.v1` 对未知顶层键 fail closed。
 - [ ] B2：实现等级解析和缺口报告，输出 declared／effective／verified level 与 endpoint／operation 支持矩阵，并单列调用方请求的最低等级。
 - [ ] B3：核对所有必需端口、方向、宽度、clock／reset、aperture、输出映射、输入 ownership 和协议子集；功能未知与接口非法分别处理。
 - [ ] B4：L1 无 register map／无插件可运行；L2 应用实际字段权限／mask／副作用规则；L3 插件必须自述需要的观察能力。
@@ -235,4 +235,4 @@ CPU 实施顺序 CVA6→CVW→VexiiRiscv→BOOM；后三核工具链／来源条
 
 最终交付：保留既有架构的增量 patch；四核能力／配置；L1–L3 描述及预检；基础／寄存器／功能事件；三类依赖和分离反馈；五族增强及替换证据；HMAC 未知 IP 强制门禁；最多 20 个组合的逐行结果；完整身份／replay／资源报告；缺口清单和最小恢复资料。
 
-**当前状态：**A1、A2、A3 已完成。A2 已修复首步 replay 日志消费和配对验收伪通过，并审计 fresh RTL trace 的首步 counts／identity、保存 fixture 的证书完整性和精确身份、serial token、batch replay identity 与异常／失败清理。A4/A5 已验证共用单 worker／进程树 RSS 监督器、legacy 首步资源入口、Verilator 的身份索引缓存／污染拒绝及 fresh run 目录；真实 Verilator 缓存身份组 10 passed，三组并行回归共 301 passed、12 subtests passed。仍未完成：未来 Stage 2 构建／搜索／replay 生产命令尚无消费者可迁移，JVM-based generator 校验因 Java/SBT/Mill 不可用而缺失，直接 Mill 命令当前 fail closed。Ibex retry1 完成 3/3 legacy cases 和 fresh replay，但三条 admission 均 incomplete，不是 Stage 2 矩阵行通过。M0 保持未完成，B–I 尚未执行。见 [M0 进度报告](../../reports/stage2-m0-baseline-progress-20261009.md)、[起点身份](../../reports/stage2-baseline-20261009.json)和[逐行矩阵](../../STAGE2_ACCEPTANCE_MATRIX.md)。
+**当前状态：**A1–A5 已完成，M0 基线门禁通过；B1 已完成，M1 正在执行。A2 修复首步 replay 日志消费和配对验收伪通过，并审计 fresh RTL trace counts／identity、证书精确身份、serial token、batch replay identity 与异常清理。A4/A5 的单 worker／进程树 RSS、启动拒绝、heap fail-closed、身份缓存、fresh run 目录与失败清理均有测试或真实 smoke／Verilator 证据。当前尚无 Stage 2 CPU/IP 生产命令消费者；B–I 建立具体重型命令时必须接入同一 worker 与身份缓存，这属于后续工作包的执行约束。Java/SBT/Mill 不可用，直接 Mill 命令 fail closed；不声称真实 JVM generator 已运行。B1 sidecar 有独立版本、闭集字段校验、完整 profile 指纹绑定、引用核对和深度不可变身份。Ibex retry1 的 3/3 legacy cases 与 fresh replay 不能授予 Stage 2 矩阵等级。见 [M0/B1 进度报告](../../reports/stage2-m0-baseline-progress-20261009.md)、[起点身份](../../reports/stage2-baseline-20261009.json)和[逐行矩阵](../../STAGE2_ACCEPTANCE_MATRIX.md)。

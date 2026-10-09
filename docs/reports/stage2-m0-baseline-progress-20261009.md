@@ -1,6 +1,6 @@
-# 第二阶段 M0 基线进度（未完成）
+# 第二阶段 M0 基线与 B1 进度（M0 已通过）
 
-日期：2026-10-09。范围：[第二阶段计划](../superpowers/plans/2026-10-09-stage2-declarative-cpu-ip-adaptation.md)的 A 工作包。A1–A3 已完成登记／审计；A4/A5 的监督入口和 legacy 短 smoke 已运行，但所有 Stage 2 生产路径尚未迁移，真实 JVM／生成器校验缺失，A 工作包仍未完成。B–I 尚未执行，未取得新 L1–L3 或 HMAC 能力。
+更新日期：2026-10-10。范围：[第二阶段计划](../superpowers/plans/2026-10-09-stage2-declarative-cpu-ip-adaptation.md)。A1–A5 已完成，M0 基线门禁通过；B1 已完成，M1 继续执行。尚未取得 Stage 2 矩阵行、L1–L3 能力或 HMAC 接入结论。
 
 [机器可读验证摘要](stage2-m0-verification-summary-20261009.json)保存测试结果、基线与日志摘要，以及真实启动拒绝的完整回执。
 
@@ -41,20 +41,28 @@ A2 的剩余核查已由最新两组回归覆盖：首步／P5 组 100 passed，
 
 最近两轮监督器复审均为 Ready。SBT/JVM 参数与输出日志增量 Ready；其后识别 Mill 隐藏 JVM 参数来源，当前通过启动前 fail closed 消除该绕过，复审确认无 Critical／Important／Minor 新问题。
 
-A4/A5 仍不勾选：通用入口现已提供串行 worker、共享默认身份缓存、新 run 目录、Java/SBT heap 预检及异常清理；但所有各阶段实际执行命令尚未迁移至该入口，也没有 JVM 工具可做真实生成校验。直接 Mill 命令在版本锁定 adapter 完成前会拒绝启动。首步与通用入口的 CLI／资源负例已验证，不能据此写成所有生产路径已覆盖。
+A4/A5 的 M0 基线条件已满足：首步 run/replay 已使用共用资源 supervisor 和 worker 锁；通用 Stage 2 入口已验证单 worker、内存预算、fresh output、heap 预检、异常清理和回执；Verilator 身份缓存有真实编译／命中／污染拒绝证据。A4/A5 的完整判定和边界见下文。未来 Stage 2 CPU/IP 构建、搜索和 replay 命令尚未在 B–I 中实现，因此当前没有生产消费者可迁移；每个后续新增的重型命令仍须在其工作包验收时接入同一入口、worker 锁和身份缓存。此项不是 M0 对未创建命令的虚假通过。
 
 ### A4/A5 当前入口盘点与新增缓存证据
 
 - 现有 legacy [`run_first_step_acceptance.py`](../../scripts/run_first_step_acceptance.py) 的每条 run/replay 子命令都调用共用 supervisor，并与 [`run_stage2_heavy_task.py`](../../scripts/run_stage2_heavy_task.py) 使用同一 `.superpowers/sdd/stage2-heavy-worker.lock`；默认 run/replay 共用 `.superpowers/cache/local-harness`，已有输出目录会被拒绝。它证明当前 legacy 入口受资源控制，但不等于未来 20 行 Stage 2 生产路径已经接入。
-- 仓库调用点扫描中，通用 Stage 2 wrapper 目前没有 Stage 2 生产命令消费者；它是可复用入口，不是已落地的 Stage 2 构建／搜索／replay 管线。待 B–I 建立具体生产命令时，仍须逐项接入并保留共享锁、唯一身份 cache 和新 run 目录。
+- 仓库调用点扫描中，通用 Stage 2 wrapper 目前没有 Stage 2 生产命令消费者；它是可复用入口，不是已落地的 Stage 2 构建／搜索／replay 管线。M0 只验收资源/cache 基础设施；待 B–I 建立具体生产命令时，仍须逐项接入并保留共享锁、唯一身份 cache 和新 run 目录。
 - [`local_harness/build.py`](../../src/myfuzz/local_harness/build.py) 的 `local_harness_build_identity.v1` 将 runtime artifact、工具链、全部输入与生成／host 源码摘要纳入 `build_digest`；缓存目录按该 digest 分区，并在命中时复核 manifest、二进制和物化输入。`tests/local_harness/test_build_identity.py` 在共用重型任务监督器内真实运行，10 passed，包含实际 Verilator 编译、命中已验证缓存、输入／二进制污染拒绝及失败构建不发布。回执：`runs/stage2-m0-a5-build-identity-20261009-01/stage2_heavy_task_receipt.json`；峰值进程树 RSS 478,633,984 bytes／上限 4,294,967,296 bytes，耗时 29.69 秒，worker=1，status=`complete`，receipt SHA-256 `d90c0e596932d0b6de32e83f9074530a7eee8979b56cea4ed190741f47d6de55`。测试本身使用隔离临时 cache；共享默认 cache 的实际 legacy 使用由上面的 Ibex smoke 证据覆盖。
-- 本机有 Verilator，但没有 `java`、`sbt`、`mill` 可执行文件。因此 JVM-based Stage 2 generator 的真实启动和身份校验仍缺证；Mill 当前启动前拒绝仍是正确的 fail-closed 状态。上述真实 Verilator 证据补强了既有 cache 实现，不改变 A4/A5 的未完成状态。
+- 本机有 Verilator，但没有 `java`、`sbt`、`mill` 可执行文件。因此真实 JVM-based Stage 2 generator 启动和 artifact identity 校验尚无证；Java/SBT 显式 heap admission 有软件负例覆盖，Mill 当前启动前拒绝仍是 fail-closed 状态。该工具链限制登记在 A1／BOOM 后续可用性门禁中，不改变 M0 对资源基础设施的通过，也不代表实际 generator 已运行。
+
+## M0 关闭与 B1 进展（2026-10-10）
+
+A4/A5 按计划中明列的资源与清理条件逐项通过：`run_budgeted_process` 的公共锁限制一个 worker，默认 RSS 阈值按 `min(4 GiB, MemAvailable−2 GiB)` 计算且低于 1 GiB 时启动前拒绝；失败／预算终止／wall timeout 独立记录为非 DUT finding；Java/SBT heap 参数无法验证时拒绝，Mill 在 launcher 未固定时 fail closed。保存的启动拒绝回执和 Ibex 3-case smoke 分别覆盖拒绝与通过路径。A5 由 `local_harness_build_identity.v1` 的 `build_digest` 缓存、manifest／二进制／输入复核、new-run-directory 测试、真实 Verilator 缓存测试及异常清理测试覆盖。没有复制仓库或覆盖第一阶段材料。A1–A5 的具体证据见机器摘要；M0 标记完成。
+
+B1 新增 [`test_capability.py`](../../src/myfuzz/composition/test_capability.py) 的独立 `ip_test_capability.v1` sidecar loader。它要求明确传入现有 `ComponentProfile`，以完整 profile 文档及当前 typed contract 的规范化 SHA-256 指纹区分同名 profile，再核对 endpoint/role/register 引用和字段宽度／权限／mask／reset／side-effect 一致性；操作、观察类型、端序与现有 profile 的 side-effect 使用闭集，证据引用必填，脚本／回调／任意键拒绝，返回的原始文档深度不可变。`signal_change` 可映射任何已声明方向的端口。旧 `component_profile.v1` 新增顶层字段闭集，保留既有 `elaboration_boundary` 明确键；在旧 schema 内直接加入 `test_capability` 的负例先失败后通过。最新受监督兼容回归 **71 passed、11 subtests passed**，回执位于 `runs/stage2-m1-b1-profile-compat-20261010-05/`，peak tree RSS 546,988,032 bytes，worker=1，status=`complete`。代码审查 Ready，额外复核 64 tests／51 subtests，未发现 Critical／Important／Minor 问题；44 份现有 profile 的加载结果与基线一致。
+
+同一轮更宽兼容诊断组有 **95 passed、82 subtests、5 failures**。这五项不由 B1 diff 引起，失败路径涉及未修改的既有数据／resolver／测试：ZIPCPU UART 将 `local_runtime_variant` 放在硬件 `capabilities` 中，但 target adapter allowlist 与 evidence semantics 不包含该键（3 个 subtests）；Ibex pinned profile 的测试期待 62 个 elaborated ports，当前同一 pinned checkout 得到 67 个（2 项 disposition/数量断言）。这些问题没有并入 B1 修复，需在后续 profile/adapter 与 CPU source-boundary 检查中单独处理；不把该诊断组写成通过。
 
 ## 本轮验证与真实启动拒绝
 
 最初 M0 回归 **245 passed、12 subtests passed，30.00 秒，exit 0**。真实 Verilator 缓存身份组在资源监督器下 **10 passed，29.51 秒，exit 0**。随后三组互不依赖的 pytest 子进程并行运行：资源／wrapper 74 passed、首步／P5 100 passed、场景／生命周期 127 passed，另有 12 subtests passed；共 **301 passed、12 subtests passed，均 exit 0**。本轮日志为 `.superpowers/sdd/regression6-resource.log`、`regression6-first-step.log` 和 `regression6-scenario.log`，哈希记录在[机器可读验证摘要](stage2-m0-verification-summary-20261009.json)。资源组包括 SBT 参数顺序／隐藏配置、Java heap 数值格式、非法字节输出和 Mill fail-closed 的回归。
 
-文档全库检查为 585 个 Markdown／1,276 条本地链接／83 条断链，另跳过 150 条 HTTPS 链接，exit 1；本轮新增的 A4/A5 源文件引用均有效，断链仍是既有的 83 条历史 run 链接。本轮不将全库检查写成通过。先前 HEAD 内容复核也得到相同的 83 条断链；增量复核保存在 `.superpowers/sdd/stage2-m0-doc-link-delta-20261009.json`，当前原始扫描保存在 `.superpowers/sdd/stage2-m0-doc-link-current-20261009.json`。
+文档全库检查为 585 个 Markdown／1,277 条本地链接／83 条断链，另跳过 150 条 HTTPS 链接，exit 1；本轮新增的源码引用有效，83 条断链与上次扫描完全相同，没有新增或修复。本轮不将全库检查写成通过。增量复核保存在 `.superpowers/sdd/stage2-m1-b1-doc-links-20261010-final.json`，历史扫描在 `.superpowers/sdd/stage2-m0-final-doc-link-check-20261009.json`。
 
 ```bash
 PYTHONPATH=src python3 -m pytest -q \
@@ -74,7 +82,7 @@ PYTHONPATH=src python3 -m pytest -q \
 
 ## 下一检查点
 
-将每项 Stage 2 重型构建／搜索／replay 命令通过 [stage2 heavy-task 入口](../../scripts/run_stage2_heavy_task.py)启动，并让各自声明的输出与 identity cache 路径接入；为 Mill 固定 launcher 版本并实现覆盖其实际 JVM 参数来源的 adapter，或保持当前启动前拒绝。legacy Ibex 首步 smoke 已有有效 fresh replay，今后用其作为第一阶段兼容回归。M0 门槛通过后进入 B/C 的声明契约、能力预检与基础事件。
+继续 B2–B6：能力等级／缺口预检、协议与端口门禁、匿名 IP L1 fixture、最低等级拒绝和名称不推断功能。此后建立任何 Stage 2 重型命令时，必须通过 [stage2 heavy-task 入口](../../scripts/run_stage2_heavy_task.py)，单 worker、fresh run 目录和身份 cache 接入后再验证。Java/SBT/Mill 仍不可用；实际 JVM generator 和 BOOM 转换链按 A1/F8 工具链证据处理，不宣称成功运行。legacy Ibex smoke 继续作为 I1 的兼容证据，不给 Stage 2 矩阵行授级。
 
 ```bash
 PYTHONPATH=src python3 scripts/run_first_step_acceptance.py run \
