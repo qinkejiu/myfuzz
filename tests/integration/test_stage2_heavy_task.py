@@ -64,6 +64,18 @@ def test_stage2_heavy_entry_persists_child_failure(tmp_path, monkeypatch):
     assert receipt['resource']['dut_finding'] is False
 
 
+def test_stage2_heavy_entry_escapes_non_utf8_output_and_hashes_saved_log(
+        tmp_path, monkeypatch):
+    run = tmp_path/'run'
+    module = _load_cli(monkeypatch)
+    command = [sys.executable, '-c', 'import os; os.write(1, bytes([255]))']
+    assert module.main(['--output-dir', str(run), '--', *command]) == 0
+    saved = (run/'stdout.log').read_bytes()
+    receipt = json.loads((run/'stage2_heavy_task_receipt.json').read_text())
+    assert saved == b'\\xff'
+    assert receipt['stdout_sha256'] == hashlib.sha256(saved).hexdigest()
+
+
 def test_stage2_heavy_entry_persists_process_launch_failure(tmp_path, monkeypatch):
     run = tmp_path/'run'
     module = _load_cli(monkeypatch)

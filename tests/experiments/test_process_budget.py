@@ -173,6 +173,8 @@ def test_jvm_heavy_command_requires_explicit_heap_before_start(tmp_path, command
     ('java', '-Xmx512m', '-version', 512*1024**2),
     ('java', '-XX:MaxHeapSize=1g', '-version', 1024**3),
     ('java', '-Xmx1073741824', '-version', 1024**3),
+    ('java', '-Xmx04m', '-version', 4*1024**2),
+    ('java', '-Xmx0x10000000', '-version', 256*1024**2),
     ('sbt', '-J-Xmx768m', 'compile', 768*1024**2),
     ('sbt', '-J-XX:MaxHeapSize=1g', 'compile', 1024**3),
     ('mill', '-J-Xmx524288k', 'generator.run', 512*1024**2),
@@ -217,11 +219,23 @@ def test_jvm_heap_after_value_taking_launcher_option_is_recognized(tmp_path):
     (['java', '-Xmx1g', '-Xmx4294967296', '-version'], None),
     (['java', '-Xmx1g', '@heap.args'], None),
     (['java', '-Xmx1g', '-XX:VMOptionsFile=heap.options', '-version'], None),
+    (['java', '-Xmx1g', '-Xmx04g', '-version'], None),
+    (['java', '-Xmx1g', '-Xmx0x100000000', '-version'], None),
+    (['java', '-Xmx1g', '-Xmx1t', '-version'], None),
     (['java', '-Xmx1g', '-version'], ('JDK_JAVA_OPTIONS', '-XX:MaxHeapSize=4g')),
     (['java', '-Xmx1g', '-version'], ('JDK_JAVA_OPTIONS', '@heap.args')),
     (['java', '-Xmx1g', '-version'], ('JAVA_TOOL_OPTIONS', '-XX:MaxHeapSize=4g')),
     (['java', '-Xmx1g', '-version'], ('_JAVA_OPTIONS', '-XX:MaxHeapSize=4g')),
+    (['java', '-Xmx1g', '-version'], ('_JAVA_OPTIONS', '-Xmx04g')),
+    (['java', '-Xmx1g', '-version'], ('_JAVA_OPTIONS', '-Xmx0x100000000')),
+    (['java', '-Xmx1g', '-version'], ('_JAVA_OPTIONS', '-Xmx1t')),
     (['sbt', '-J-Xmx1g', 'compile'], ('SBT_OPTS', '-J-XX:MaxHeapSize=4g')),
+    (['sbt', '-J-Xmx1g', 'compile', '-J-Xmx4g'], None),
+    (['sbt', '-J-Xmx1g', '-mem', '4096', 'compile'], None),
+    (['sbt', '-J-Xmx1g', 'compile', '--mem', '4096'], None),
+    (['sbt', '-Xmx1g', 'compile'], None),
+    (['sbt', '-J-Xmx1g', 'compile'], ('SBT_OPTS', '-mem 4096')),
+    (['sbt', '-J-Xmx1g', 'compile'], ('SBT_OPTS', '-J-Xmx4g')),
     (['mill', '-J-Xmx1g', 'generator.run'], ('MILL_JVM_OPTS', '-J-XX:MaxHeapSize=4g')),
 ])
 def test_jvm_heap_overrides_from_aliases_argfiles_and_environment_are_refused(
@@ -229,5 +243,42 @@ def test_jvm_heap_overrides_from_aliases_argfiles_and_environment_are_refused(
     if environment is not None:
         monkeypatch.setenv(*environment)
     with pytest.raises(policy.ResourceProfileError,
-                       match='heap|argument files|environment'):
+                       match='heap|argument files|environment|memory'):
         guarded()(command, lock_path=tmp_path/'worker.lock', available_bytes=5*GIB)
+
+
+@pytest.mark.parametrize(('filename', 'contents'), [
+    ('.jvmopts', '-Xmx4g\n'),
+    ('.sbtopts', '-J-Xmx4g\n'),
+    ('.sbtopts', '-mem 4096\n'),
+])
+def test_sbt_project_option_files_cannot_override_bounded_heap(
+        tmp_path, monkeypatch, filename, contents):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path/filename).write_text(contents)
+    with pytest.raises(policy.ResourceProfileError, match='heap|memory|option'):
+        guarded()(['sbt', '-J-Xmx1g', 'compile'],
+                  lock_path=tmp_path/'worker.lock', available_bytes=5*GIB)
+
+
+def test_sbt_global_option_file_cannot_override_bounded_heap(tmp_path, monkeypatch):
+    global_options = tmp_path/'sbtopts'
+    global_options.write_text('-mem 4096\n')
+    monkeypatch.setattr(policy, '_SBT_GLOBAL_OPTIONS_PATH', global_options, raising=False)
+    with pytest.raises(policy.ResourceProfileError, match='memory|option'):
+        guarded()(['sbt', '-J-Xmx1g', 'compile'],
+                  lock_path=tmp_path/'worker.lock', available_bytes=5*GIB)
+
+
+@pytest.mark.parametrize('option', ['-Xmx1p', '-Xmxgarbage', '-XX:MaxHeapSize=wat'])
+def test_malformed_heap_prefixed_option_is_not_ignored(tmp_path, option):
+    with pytest.raises(policy.ResourceProfileError, match='heap'):
+        guarded()(['java', '-Xmx1g', option, '-version'],
+                  lock_path=tmp_path/'worker.lock', available_bytes=5*GIB)
+
+
+@pytest.mark.parametrize('option', ['-Xmx04g', '-Xmx0x100000000', '-Xmx1t'])
+def test_valid_large_heap_formats_are_compared_to_rss_budget(tmp_path, option):
+    with pytest.raises(policy.ResourceProfileError, match='exceeds process RSS'):
+        guarded()(['java', option, '-version'],
+                  lock_path=tmp_path/'worker.lock', available_bytes=5*GIB)

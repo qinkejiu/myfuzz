@@ -17,6 +17,7 @@ import threading
 
 
 _MIB = 1024 * 1024
+_SBT_GLOBAL_OPTIONS_PATH = Path('/etc/sbt/sbtopts')
 
 
 class ResourceProfileError(ValueError):
@@ -51,8 +52,46 @@ def explicit_jvm_heap_bytes(command: Sequence[str], rss_limit_bytes: int) -> int
         return (token.startswith('@') or token == '-XX:VMOptionsFile'
                 or token.startswith('-XX:VMOptionsFile='))
 
-    option_tokens = []
-    index = 1
+    def parse_heap(token: str) -> int | None:
+        if not (token.startswith('-Xmx') or token.startswith('-XX:MaxHeapSize')):
+            return None
+        match = re.fullmatch(
+            r'(?:-Xmx|-XX:MaxHeapSize=)'
+            r'(0[xX][0-9a-fA-F]+|[0-9]+)([kKmMgGtT]?)', token)
+        if match is None:
+            raise ResourceProfileError(f'malformed JVM heap option: {token}')
+        number, unit = match.groups()
+        try:
+            value = int(number[2:], 16) if number.lower().startswith('0x') else int(number, 10)
+        except ValueError as exc:
+            raise ResourceProfileError(f'malformed JVM heap option: {token}') from exc
+        if value <= 0:
+            raise ResourceProfileError(f'malformed JVM heap option: {token}')
+        scale = {'': 1, 'k': 1024, 'm': 1024**2, 'g': 1024**3,
+                 't': 1024**4}[unit.lower()]
+        return value * scale
+
+    def parse_build_heap(token: str) -> int | None:
+        if token.startswith('-J'):
+            token = token[2:]
+        return parse_heap(token)
+
+    def is_sbt_memory_option(token: str) -> bool:
+        return (token in {'-mem', '--mem'} or token.startswith('-mem=')
+                or token.startswith('--mem='))
+
+    def inspect_hidden_options(tokens: Sequence[str], source: str,
+                               *, sbt_options: bool = False) -> None:
+        for token in tokens:
+            if sbt_options and is_sbt_memory_option(token):
+                raise ResourceProfileError(f'{source} cannot override the SBT memory limit')
+            if is_indirect_options_file(token):
+                raise ResourceProfileError(f'{source} cannot include JVM argument files')
+            heap = parse_build_heap(token) if sbt_options else parse_heap(token)
+            if heap is not None:
+                raise ResourceProfileError(f'{source} cannot override the explicit JVM heap')
+
+    matches = []
     if launcher in java_launchers:
         takes_value = {
             '-cp', '-classpath', '--class-path', '--module-path', '-p',
@@ -60,6 +99,7 @@ def explicit_jvm_heap_bytes(command: Sequence[str], rss_limit_bytes: int) -> int
             '--add-exports', '--add-opens', '--add-reads', '--patch-module',
             '--enable-native-access', '--module-source-path', '--source',
         }
+        index = 1
         while index < len(command):
             token = command[index]
             if (token in {'-jar', '-m', '--module'}
@@ -73,9 +113,36 @@ def explicit_jvm_heap_bytes(command: Sequence[str], rss_limit_bytes: int) -> int
                 continue
             if not token.startswith('-'):
                 break
-            option_tokens.append(token)
+            heap = parse_heap(token)
+            if heap is not None:
+                matches.append(heap)
             index += 1
+    elif launcher in {'sbt', 'sbt.bat'}:
+        # The SBT launcher scans the complete argv for -J options, including
+        # arguments after task names, and -mem adjusts its own JVM settings.
+        for token in command[1:]:
+            if is_sbt_memory_option(token):
+                raise ResourceProfileError('SBT -mem cannot override the process memory limit')
+            if is_indirect_options_file(token):
+                raise ResourceProfileError(
+                    'JVM argument files cannot be used with a bounded heap command')
+            if token.startswith('-J'):
+                heap = parse_heap(token[2:])
+                if heap is not None:
+                    matches.append(heap)
+        for options_path in (Path.cwd()/'.jvmopts', Path.cwd()/'.sbtopts',
+                             _SBT_GLOBAL_OPTIONS_PATH):
+            if not options_path.exists():
+                continue
+            try:
+                tokens = shlex.split(options_path.read_text(encoding='utf-8'), comments=True)
+            except (OSError, UnicodeError, ValueError) as exc:
+                raise ResourceProfileError(
+                    f'cannot safely read SBT option file: {options_path}') from exc
+            inspect_hidden_options(tokens, str(options_path), sbt_options=True)
     else:
+        # Mill's -J settings are launcher options before its task name.
+        index = 1
         while index < len(command):
             token = command[index]
             if is_indirect_options_file(token):
@@ -83,22 +150,12 @@ def explicit_jvm_heap_bytes(command: Sequence[str], rss_limit_bytes: int) -> int
                     'JVM argument files cannot be used with a bounded heap command')
             if not token.startswith('-'):
                 break
-            option_tokens.append(token)
+            if token.startswith('-J'):
+                heap = parse_heap(token[2:])
+                if heap is not None:
+                    matches.append(heap)
             index += 1
 
-    def parse_heap(token: str, *, allow_sbt_prefix: bool = False) -> int | None:
-        if allow_sbt_prefix and token.startswith('-J'):
-            token = token[2:]
-        match = re.fullmatch(r'(?:-Xmx|-XX:MaxHeapSize=)([1-9][0-9]*)([kKmMgG]?)', token)
-        if match is None:
-            return None
-        suffix = match.group(2).lower()
-        scale = {'': 1, 'k': 1024, 'm': 1024**2, 'g': 1024**3}[suffix]
-        return int(match.group(1)) * scale
-
-    matches = [heap for token in option_tokens
-               if (heap := parse_heap(token, allow_sbt_prefix=launcher in build_launchers))
-               is not None]
     env_names = ['JDK_JAVA_OPTIONS', 'JAVA_TOOL_OPTIONS', '_JAVA_OPTIONS']
     if launcher in {'sbt', 'sbt.bat'}:
         env_names.extend(['SBT_OPTS', 'JAVA_OPTS'])
@@ -112,10 +169,14 @@ def explicit_jvm_heap_bytes(command: Sequence[str], rss_limit_bytes: int) -> int
             tokens = shlex.split(value)
         except ValueError as exc:
             raise ResourceProfileError(f'{name} contains malformed JVM options') from exc
-        if any(is_indirect_options_file(token) for token in tokens):
-            raise ResourceProfileError(f'{name} cannot include JVM argument files')
-        if any(parse_heap(token, allow_sbt_prefix=True) is not None for token in tokens):
-            raise ResourceProfileError(f'{name} cannot override the explicit JVM heap')
+        for token in tokens:
+            if is_indirect_options_file(token):
+                raise ResourceProfileError(f'{name} cannot include JVM argument files')
+            if launcher in {'sbt', 'sbt.bat'} and name == 'SBT_OPTS' \
+                    and is_sbt_memory_option(token):
+                raise ResourceProfileError(f'{name} cannot override the SBT memory limit')
+            if parse_build_heap(token) is not None:
+                raise ResourceProfileError(f'{name} cannot override the explicit JVM heap')
     if len(matches) != 1:
         raise ResourceProfileError('heavy JVM command requires one explicit JVM heap limit')
     if matches[0] > rss_limit_bytes:
@@ -288,7 +349,8 @@ def _supervise_process(command, available, limit, timeout_seconds, heap_limit):
         started = time.monotonic()
         try:
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                       text=True, start_new_session=True)
+                                       text=True, errors='backslashreplace',
+                                       start_new_session=True)
         except OSError as exc:
             error = ResourceProfileError(f'cannot launch heavy command: {exc}')
             error.resource_receipt = {

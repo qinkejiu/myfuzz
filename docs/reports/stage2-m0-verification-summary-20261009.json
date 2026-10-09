@@ -165,43 +165,43 @@
     "shell": "/usr/bin/python3 /home/qinkejiu/myfuzz/scripts/run_ibex_pulp_online.py run --client-binary /home/qinkejiu/myfuzz/third_party/rfuzz/upstream/rfuzz_reference/fuzzer/target/release/kfuzz --cache-dir /home/qinkejiu/myfuzz/.superpowers/cache/local-harness --output runs/stage2-m0-ibex-smoke-20261009-resource-receipt --seconds 2 --max-tests 3 --run-id stage2-m0-ibex-smoke-20261009-resource-receipt --cpu-retirement --gpio-consumption --native-irq-receipts --compressed-trace && /usr/bin/python3 /home/qinkejiu/myfuzz/scripts/run_ibex_pulp_online.py replay --cache-dir /home/qinkejiu/myfuzz/.superpowers/cache/local-harness --plan runs/stage2-m0-ibex-smoke-20261009-resource-receipt/online_plan.json --trace runs/stage2-m0-ibex-smoke-20261009-resource-receipt/online_final_trace.json"
   },
   "real_startup_receipt_sha256": "2b735cdee35132f31dcfb64557b6b5e9a608f4ed3b88ac744b4b8dd16158f0e3",
-  "review": "Earlier dedicated review of supervisor and first-step changes returned Ready after the recorded cleanup fixes. The generic CLI and JVM heap parser were manually reviewed and regression-tested this round, including a reproduced and fixed misplaced-heap counterexample; the earlier review did not cover this new delta.",
+  "review": "Prior supervisor/first-step and earlier JVM changes were reviewed Ready. The latest SBT argument ordering, hidden option sources, heap-size formats and non-UTF-8 output fixes passed regression and are awaiting focused review.",
   "schema_version": "stage2_m0_verification_summary.v1",
   "software_regression": {
     "exit_code": 0,
     "groups": [
       {
         "exit_code": 0,
-        "log": ".superpowers/sdd/regression3-resource-policy.log",
-        "log_sha256": "6fad1358566db9117992394144b035b7e50a2c2bc70bfbdbd2c6914c792b23fe",
+        "log": ".superpowers/sdd/regression4-resource.log",
+        "log_sha256": "5e2b118ed44a7014d8509af88fe46ff25b3f58100a3dfcbe8c55656646b3ce61",
         "name": "resource_policy_and_stage2_wrapper",
-        "passed": 48,
+        "passed": 73,
         "seconds": 2.04,
         "subtests_passed": 0
       },
       {
         "exit_code": 0,
-        "log": ".superpowers/sdd/regression3-first-step-p5.log",
-        "log_sha256": "c5ff9b3df0dd305278e528b8a0a03227b10b9474cfaaedf70686444906187066",
+        "log": ".superpowers/sdd/regression4-first-step.log",
+        "log_sha256": "bcc5687832f3e1943cb799394bdc28025a5eceecf7efe70d67dd35110df9018d",
         "name": "first_step_and_p5",
         "passed": 100,
-        "seconds": 6.66,
+        "seconds": 6.08,
         "subtests_passed": 0
       },
       {
         "exit_code": 0,
-        "log": ".superpowers/sdd/regression3-scenario-lifecycle.log",
-        "log_sha256": "8e6957bbdb266ef96c59b5ccb89963f744beb6579a4e047aa4b72f0e2b1f14b0",
+        "log": ".superpowers/sdd/regression4-scenario.log",
+        "log_sha256": "3b32d9f3c79bc0c7aff74e795725fb0687b2b60bd5c039b5ecaf811995cdd628",
         "name": "scenario_and_lifecycle",
         "passed": 127,
-        "seconds": 21.21,
+        "seconds": 19.52,
         "subtests_passed": 12
       }
     ],
-    "longest_group_seconds": 21.21,
-    "mode": "three independent pytest subprocesses ran concurrently after review fixes",
-    "passed": 275,
-    "review_counterexamples": "Missing executable now persists launch_failed receipt; Java heap admission rejects MaxHeapSize/Xmx overrides, byte-only and duplicate caps, --module= target ordering, launcher environment heap flags, @argfiles and VMOptionsFile. Value-taking launcher options remain supported.",
+    "longest_group_seconds": 19.52,
+    "mode": "three independent pytest subprocesses ran concurrently after SBT/JVM option and binary-output fixes",
+    "passed": 300,
+    "review_counterexamples": "SBT trailing -J heap flags, -mem/--mem and hidden option files are refused; bare sbt -Xmx does not satisfy the heap cap. Java heap aliases accept leading-zero, hexadecimal and t-unit values while malformed settings fail closed. Invalid child output bytes are escaped and included in the saved-log hash.",
     "subtests_passed": 12
   },
   "start_head": "4095793d74e0fb516417888cc76e8b8ec35d4897",
