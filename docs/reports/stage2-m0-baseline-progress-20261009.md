@@ -1,6 +1,6 @@
 # 第二阶段 M0 基线进度（未完成）
 
-日期：2026-10-09。范围：[第二阶段计划](../superpowers/plans/2026-10-09-stage2-declarative-cpu-ip-adaptation.md)的 A 工作包。A1、A3 已登记；A2 的公共问题复核与修复完成，A4/A5 的监督入口和短 smoke 已运行，工作包尚待全路径审计。B–I 尚未执行，未取得新 L1–L3 或 HMAC 能力。
+日期：2026-10-09。范围：[第二阶段计划](../superpowers/plans/2026-10-09-stage2-declarative-cpu-ip-adaptation.md)的 A 工作包。A1–A3 已完成登记／审计；A4/A5 的监督入口和 legacy 短 smoke 已运行，但所有 Stage 2 生产路径尚未迁移，真实 JVM／生成器校验缺失，A 工作包仍未完成。B–I 尚未执行，未取得新 L1–L3 或 HMAC 能力。
 
 [机器可读验证摘要](stage2-m0-verification-summary-20261009.json)保存测试结果、基线与日志摘要，以及真实启动拒绝的完整回执。
 
@@ -22,6 +22,10 @@ HMAC 原生 RTL 存在，起点没有 peripheral profile。本快照不是 G1 �
 
 原第一阶段 schema／事件未改写，旧报告不回填新字段；本轮修复只改变当前入口和当前只读验收判断，不重新宣称历史证据通过。
 
+## A2 证据与生命周期审计
+
+A2 的剩余核查已由最新两组回归覆盖：首步／P5 组 100 passed，验证 replay 原始输出和资源回执消费、配对验收拒绝缺失身份／零耗时／零验证数及跨文档矛盾；场景／生命周期组 127 passed、12 subtests passed，覆盖真实 163 MiB 事件 fixture 上的证书逐 hop 身份复算、tamper／missing-hop 拒绝、serial-token 与 admission 精确关联、batch 计划身份与边界、partial replay、begin/reset/quiesce 失败清理。两组 exit 0，日志和 SHA-256 见机器摘要。此项是已有保存 trace／fixture 和软件路径的证据审计，不构成新的 Stage 2 RTL 矩阵通过声明。
+
 ## 资源与清理的已实现范围
 
 [资源策略](../../src/myfuzz/experiments/resource_policy.py)新增共用 heavy process supervisor；首步 `run`/`replay` 和通用[第二阶段重型任务入口](../../scripts/run_stage2_heavy_task.py)都能使用相同预算、锁和回执：
@@ -31,9 +35,11 @@ HMAC 原生 RTL 存在，起点没有 peripheral profile。本快照不是 G1 �
 - Linux subreaper 收养脱离原 process group 的后代；SIGTERM/HUP/INT 进入清理；任务失败、超预算、超时和正常结束均清理并 reap。恢复调用前信号 handler 与 subreaper 状态。为保证归属，调用者必须是单线程 main process 且没有既有直接子进程；否则启动前拒绝。
 - `budget_terminated`／`startup_refused`／`wall_timeout`／`interrupted` 单列，`dut_finding=false`；不把资源错误记成 RTL finding。未执行时 RSS／耗时为 null，不伪造零性能指标。
 - 首步默认 run/replay 共用 `.superpowers/cache/local-harness`，实际构建仍按现有 build digest 存储、校验 bytes；显式 cache 参数仍可指定，输出目录必须为新目录。通用入口把 `{run_dir}`/`{cache_dir}` 参数展开，记录完整 stdout/stderr 和哈希，供各 Stage 2 构建／搜索／replay 任务复用。
-- 直接 `java`、SBT heavy command 必须具有唯一且不超过 RSS 阈值的 heap 上限（`-Xmx`／`-XX:MaxHeapSize`，SBT 为 `-J-` 形式）。Java 解析接受十进制前导零、十六进制及 `t` 单位，畸形值拒绝启动；环境注入、`@argfile` 和 `-XX:VMOptionsFile` 在创建 worker 前拒绝。SBT 扫描 task 名之后的所有参数，并拒绝 `-mem`／`--mem`、环境覆写，以及项目 `.jvmopts`／`.sbtopts` 和 `/etc/sbt/sbtopts` 中的隐藏配置；裸 `sbt -Xmx` 不算 JVM 限额。Mill 直接命令暂时 fail closed：官方 launcher 的 JVM 设置还可来自 `JAVA_OPTS`、`.mill-jvm-opts`、`MILL_JVM_OPTS_PATH` 和 build header，当前没有版本锁定且覆盖这些来源的 adapter。孩子进程输出中的非法 UTF-8 字节会转义为可保存、可哈希的日志。此机器没有 Java/SBT/Mill，所以实际 JVM 启动仍未验证。
+- 直接 `java`、SBT heavy command 必须具有唯一且不超过 RSS 阈值的 heap 上限（`-Xmx`／`-XX:MaxHeapSize`，SBT 为 `-J-` 形式）。Java 解析接受十进制前导零、十六进制及 `t` 单位，畸形值拒绝启动；环境注入、`@argfile` 和 `-XX:VMOptionsFile` 在创建 worker 前拒绝。SBT 扫描 task 名之后的所有参数，并拒绝 `-mem`／`--mem`、环境覆写，以及项目 `.jvmopts`／`.sbtopts` 和 `/etc/sbt/sbtopts` 中的隐藏配置；裸 `sbt -Xmx` 不算 JVM 限额。Mill 直接命令暂时 fail closed：官方 [Mill CLI 文档](https://mill-build.org/mill/0.12.x/cli/flags.html)和 [build-header 配置文档](https://mill-build.org/mill/1.0.x/cli/build-header.html)列出 `JAVA_OPTS`、`.mill-jvm-opts`、`MILL_JVM_OPTS_PATH` 与 build header 等 JVM 设置来源，当前没有覆盖这些来源的版本锁定 adapter。孩子进程输出中的非法 UTF-8 字节会转义为可保存、可哈希的日志。此机器没有 Java/SBT/Mill，所以实际 JVM 启动仍未验证。
 
 代码审查发现并通过真实子进程负例修复：默认 SIGTERM 不进入 finally；两次采样之间创建的 setsid 后代逃逸；已有子进程的后代误归属（现改为拒绝这种调用环境）；replay 拒绝丢 run log；零案例验收。最终复审为 Ready，无新增阻挡项。
+
+最近两轮监督器复审均为 Ready。SBT/JVM 参数与输出日志增量 Ready；其后识别 Mill 隐藏 JVM 参数来源，当前通过启动前 fail closed 消除该绕过，复审确认无 Critical／Important／Minor 新问题。
 
 A4/A5 仍不勾选：通用入口现已提供串行 worker、共享默认身份缓存、新 run 目录、Java/SBT heap 预检及异常清理；但所有各阶段实际执行命令尚未迁移至该入口，也没有 JVM 工具可做真实生成校验。直接 Mill 命令在版本锁定 adapter 完成前会拒绝启动。首步与通用入口的 CLI／资源负例已验证，不能据此写成所有生产路径已覆盖。
 
@@ -41,7 +47,7 @@ A4/A5 仍不勾选：通用入口现已提供串行 worker、共享默认身份�
 
 最初 M0 回归 **245 passed、12 subtests passed，30.00 秒，exit 0**。最新三组互不依赖的 pytest 子进程并行运行：资源／wrapper 74 passed、首步／P5 100 passed、场景／生命周期 127 passed，另有 12 subtests passed；共 **301 passed、12 subtests passed，均 exit 0**。资源组包括 SBT 参数顺序／隐藏配置、Java heap 数值格式、非法字节输出和 Mill fail-closed 的回归。分组日志及 SHA-256 由[机器可读验证摘要](stage2-m0-verification-summary-20261009.json)维护。
 
-文档全库检查为 585 个 Markdown／1,273 条链接／83 条断链，exit 1；对本轮变更的文档逐项核对，新增断链为 0。这些历史路径主要指向已删除 runs 材料，既有删除说明中已登记；本轮不将全库检查写成通过。先前 HEAD 内容复核也得到相同的 83 条断链，增量复核保存在 `.superpowers/sdd/stage2-m0-doc-link-delta-20261009.json`。
+文档全库检查为 585 个 Markdown／1,273 条本地链接／83 条断链，另跳过 150 条 HTTPS 链接，exit 1；新增两条官方 Mill 文档引用后，本地断链数仍为 83，没有新增本地断链。这些历史路径主要指向已删除 runs 材料，既有删除说明中已登记；本轮不将全库检查写成通过。先前 HEAD 内容复核也得到相同的 83 条断链，增量复核保存在 `.superpowers/sdd/stage2-m0-doc-link-delta-20261009.json`。
 
 ```bash
 PYTHONPATH=src python3 -m pytest -q \
@@ -61,7 +67,7 @@ PYTHONPATH=src python3 -m pytest -q \
 
 ## 下一检查点
 
-将每项 Stage 2 重型构建／搜索／replay 命令通过 [stage2 heavy-task 入口](../../scripts/run_stage2_heavy_task.py)启动，并让各自声明的输出与 identity cache 路径接入；复核 A2 对 certificate identity、batch 和 failure cleanup 的剩余证据。legacy Ibex 首步 smoke 已有有效 fresh replay，今后用其作为第一阶段兼容回归。M0 门槛通过后进入 B/C 的声明契约、能力预检与基础事件。
+将每项 Stage 2 重型构建／搜索／replay 命令通过 [stage2 heavy-task 入口](../../scripts/run_stage2_heavy_task.py)启动，并让各自声明的输出与 identity cache 路径接入；为 Mill 固定 launcher 版本并实现覆盖其实际 JVM 参数来源的 adapter，或保持当前启动前拒绝。legacy Ibex 首步 smoke 已有有效 fresh replay，今后用其作为第一阶段兼容回归。M0 门槛通过后进入 B/C 的声明契约、能力预检与基础事件。
 
 ```bash
 PYTHONPATH=src python3 scripts/run_first_step_acceptance.py run \

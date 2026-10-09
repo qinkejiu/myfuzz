@@ -2,6 +2,7 @@
   "baseline_file_sha256": "22af5e6d45af45370e2dd6d934bf2720f3730454fd8c27012cc6f4fa31f8b882",
   "completed_items": [
     "A1",
+    "A2",
     "A3"
   ],
   "doc_links": {
@@ -11,7 +12,7 @@
     "head_documents_on_current_files_broken": 83,
     "links_checked_current": 1273,
     "new_broken": [],
-    "note": "Latest check: 585 Markdown files / 1273 links / 83 historical missing-run links, exit 1; this round changed no Markdown link markup. Prior HEAD-content substitution found the same 83 broken links."
+    "note": "Latest check: 585 Markdown files / 1273 local links / 83 historical missing-run links / 150 HTTPS links skipped, exit 1. Two official Mill HTTPS references were added; local broken-link count remains unchanged and no new local broken links were introduced. Prior HEAD-content substitution found the same 83 broken links."
   },
   "milestone_status": "incomplete",
   "pre_review_fix_software_regression": {
@@ -165,7 +166,7 @@
     "shell": "/usr/bin/python3 /home/qinkejiu/myfuzz/scripts/run_ibex_pulp_online.py run --client-binary /home/qinkejiu/myfuzz/third_party/rfuzz/upstream/rfuzz_reference/fuzzer/target/release/kfuzz --cache-dir /home/qinkejiu/myfuzz/.superpowers/cache/local-harness --output runs/stage2-m0-ibex-smoke-20261009-resource-receipt --seconds 2 --max-tests 3 --run-id stage2-m0-ibex-smoke-20261009-resource-receipt --cpu-retirement --gpio-consumption --native-irq-receipts --compressed-trace && /usr/bin/python3 /home/qinkejiu/myfuzz/scripts/run_ibex_pulp_online.py replay --cache-dir /home/qinkejiu/myfuzz/.superpowers/cache/local-harness --plan runs/stage2-m0-ibex-smoke-20261009-resource-receipt/online_plan.json --trace runs/stage2-m0-ibex-smoke-20261009-resource-receipt/online_final_trace.json"
   },
   "real_startup_receipt_sha256": "2b735cdee35132f31dcfb64557b6b5e9a608f4ed3b88ac744b4b8dd16158f0e3",
-  "review": "Earlier supervisor and SBT/JVM changes were reviewed. Review then found documented Mill JVM settings not covered by the parser; direct Mill launchers now fail closed pending a version-locked adapter. The refusal is regression-tested, and this follow-up delta awaits review.",
+  "review": "Ready. Supervisor and SBT/JVM/output changes were reviewed; the follow-up Mill launcher bypass was closed by pre-launch refusal pending a version-locked adapter. Latest review found no Critical, Important or Minor issues.",
   "schema_version": "stage2_m0_verification_summary.v1",
   "software_regression": {
     "exit_code": 0,
@@ -219,8 +220,38 @@
   "unverified": [
     "all production Stage 2 heavy commands migrated to and exercised through the generic wrapper",
     "real JVM launch and generated-artifact identity check; Java/SBT/Mill are unavailable on this host",
-    "remaining A2 certificate identity / batch / failure-cleanup evidence audit",
     "B-I",
     "Mill launcher/JVM option adapter; direct Mill heavy commands currently fail closed until the launcher version and all option sources are pinned"
-  ]
+  ],
+  "a2_audit": {
+    "status": "complete",
+    "limitation": "Audit covers saved trace/fixture and software evidence paths; it is not a new Stage 2 RTL matrix pass.",
+    "evidence_groups": [
+      {
+        "name": "first_step_and_p5",
+        "log": ".superpowers/sdd/regression5-first-step.log",
+        "log_sha256": "7b371f65c3b299087efe2fbee9ccf609afd31ae38f3d418ee7d8f6c7ae49fb16",
+        "passed": 100,
+        "exit_code": 0,
+        "coverage": [
+          "first-step replay output, resource receipts and analysis handling",
+          "paired acceptance rejects missing identity/counts, zero time/counts, and conflicting documents"
+        ]
+      },
+      {
+        "name": "scenario_and_lifecycle",
+        "log": ".superpowers/sdd/regression5-scenario.log",
+        "log_sha256": "1b083b18b77d69d77a07b1d253f09c36a94b49f20993961603930a263414ec42",
+        "passed": 127,
+        "subtests_passed": 12,
+        "exit_code": 0,
+        "coverage": [
+          "saved-trace certificate identities and raw-hop evidence, tamper/missing-hop rejection",
+          "serial-token identity joins and unrelated-admission refusal",
+          "batch replay identity/call boundaries and failure cleanup evidence",
+          "partial replay, begin failure, reset and quiesce lifecycle handling"
+        ]
+      }
+    ]
+  }
 }

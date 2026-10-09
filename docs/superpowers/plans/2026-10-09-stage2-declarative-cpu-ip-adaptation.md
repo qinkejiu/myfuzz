@@ -90,7 +90,7 @@ reset、覆盖写、证据淘汰或身份冲突使相应实时 witness 失效；
 ### A. 基线、已有问题与资源
 
 - [x] A1：冻结实施起点的 Git／第三方／工具链身份及 CPU/IP 能力；核对其他 agent 的已实现部分，按接口兼容增量实施。
-- [ ] A2：重核首步 replay 输出、证据摘要、缺失身份、零耗时／验证数、异常清理、证书完整性和 batch 状态问题。仍存在且阻挡公共路径的先以负例修复；已修复项记录提交，不重复改写。
+- [x] A2：重核首步 replay 输出、证据摘要、缺失身份、零耗时／验证数、异常清理、证书完整性和 batch 状态问题。公共路径负例已修复，最新并行回归覆盖首步／P5、真实事件 fixture 证书身份、serial token、batch 重放身份与失败清理；详见 M0 进度报告和机器摘要。
 - [x] A3：把 4 CPU×5 功能族登记为单独验收行，并新增 HMAC 基础接入行；L1/L2/L3、可执行／已验证分别报告。
 - [ ] A4：构建／运行采用单 worker；进程树 RSS 上限默认 `min(4 GiB, 启动可用内存－2 GiB)`，可用预算不足 1 GiB 时不启动重型任务。生成 JVM 使用显式 heap；预算终止单列，不记 DUT finding。
 - [ ] A5：单一按身份索引的构建缓存；新 run 使用新目录；不复制整仓库，不覆盖第一阶段材料。启动、运行、replay 任一失败须清理全部组件进程。
@@ -235,4 +235,4 @@ CPU 实施顺序 CVA6→CVW→VexiiRiscv→BOOM；后三核工具链／来源条
 
 最终交付：保留既有架构的增量 patch；四核能力／配置；L1–L3 描述及预检；基础／寄存器／功能事件；三类依赖和分离反馈；五族增强及替换证据；HMAC 未知 IP 强制门禁；最多 20 个组合的逐行结果；完整身份／replay／资源报告；缺口清单和最小恢复资料。
 
-**当前状态：**A1、A3 已完成登记：起点 HEAD `4095793`、290 个核心 blob、76 份 profile/closure 摘要和 20 个功能组合＋HMAC 基础行。A2 已修复首步 replay 日志消费和配对验收伪通过，并以 fresh RTL trace 审计首步 counts／identity；A4/A5 新增首步与通用任务入口的单 worker／进程树 RSS 预算／共享身份缓存／新目录／JVM heap 检查及异常清理，通用入口的首次真实执行接入仍待迁移。Ibex retry1 完成 3/3 legacy cases 和 fresh replay，但三条 admission 均 incomplete，不是 Stage 2 矩阵行通过。M0 保持未完成，B–I 尚未执行。见 [M0 进度报告](../../reports/stage2-m0-baseline-progress-20261009.md)、[起点身份](../../reports/stage2-baseline-20261009.json)和[逐行矩阵](../../STAGE2_ACCEPTANCE_MATRIX.md)。
+**当前状态：**A1、A2、A3 已完成。A2 已修复首步 replay 日志消费和配对验收伪通过，并审计 fresh RTL trace 的首步 counts／identity、保存 fixture 的证书完整性和精确身份、serial token、batch replay identity 与异常／失败清理。A4/A5 新增首步与通用任务入口的单 worker／进程树 RSS 预算／共享身份缓存／新目录／Java/SBT heap 检查及异常清理；所有生产重型命令迁移和真实 JVM 生成校验仍待完成，直接 Mill 命令当前 fail closed。Ibex retry1 完成 3/3 legacy cases 和 fresh replay，但三条 admission 均 incomplete，不是 Stage 2 矩阵行通过。M0 保持未完成，B–I 尚未执行。见 [M0 进度报告](../../reports/stage2-m0-baseline-progress-20261009.md)、[起点身份](../../reports/stage2-baseline-20261009.json)和[逐行矩阵](../../STAGE2_ACCEPTANCE_MATRIX.md)。
