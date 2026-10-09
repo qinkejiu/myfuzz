@@ -14,6 +14,43 @@
     "note": "HEAD content substituted for modified tracked Markdown; existing deleted-run links remain missing; no files restored"
   },
   "milestone_status": "incomplete",
+  "pre_review_fix_software_regression": {
+    "exit_code": 0,
+    "groups": [
+      {
+        "exit_code": 0,
+        "log": ".superpowers/sdd/regression2-resource-policy.log",
+        "log_sha256": "daef98f9c593eadad8e61e1162ba2dd19a4cd9082bda2b5e611eb2728feb63a8",
+        "name": "resource_policy_and_stage2_wrapper",
+        "passed": 32,
+        "seconds": 2.02,
+        "subtests_passed": 0
+      },
+      {
+        "exit_code": 0,
+        "log": ".superpowers/sdd/regression2-first-step-p5.log",
+        "log_sha256": "51bfc7d8b36d11726a8ec3bfff3735bcaa7cc9546e64b75ec729f4881ff9d8c1",
+        "name": "first_step_and_p5",
+        "passed": 100,
+        "seconds": 6.55,
+        "subtests_passed": 0
+      },
+      {
+        "exit_code": 0,
+        "log": ".superpowers/sdd/regression2-scenario-lifecycle.log",
+        "log_sha256": "c87d6cb1639afe7ee4ad30c4f96343dde66c3290c5f5758df8caa6e41c39682a",
+        "name": "scenario_and_lifecycle",
+        "passed": 127,
+        "seconds": 21.25,
+        "subtests_passed": 12
+      }
+    ],
+    "longest_group_seconds": 21.25,
+    "mode": "three independent pytest subprocesses ran concurrently after the JVM option-order fix",
+    "passed": 259,
+    "review_counterexample": "A Java -Xmx after -jar was first observed to reach process launch; parser now stops at the JVM target and the negative test passes by startup refusal.",
+    "subtests_passed": 12
+  },
   "previous_software_regression": {
     "exit_code": 0,
     "log_sha256": "b57d82729b7bd7de7308ccf3440535b943d7f1b1eee600a16446d8f9082edef4",
@@ -135,36 +172,36 @@
     "groups": [
       {
         "exit_code": 0,
-        "log": ".superpowers/sdd/regression2-resource-policy.log",
-        "log_sha256": "daef98f9c593eadad8e61e1162ba2dd19a4cd9082bda2b5e611eb2728feb63a8",
+        "log": ".superpowers/sdd/regression3-resource-policy.log",
+        "log_sha256": "6fad1358566db9117992394144b035b7e50a2c2bc70bfbdbd2c6914c792b23fe",
         "name": "resource_policy_and_stage2_wrapper",
-        "passed": 32,
-        "seconds": 2.02,
+        "passed": 48,
+        "seconds": 2.04,
         "subtests_passed": 0
       },
       {
         "exit_code": 0,
-        "log": ".superpowers/sdd/regression2-first-step-p5.log",
-        "log_sha256": "51bfc7d8b36d11726a8ec3bfff3735bcaa7cc9546e64b75ec729f4881ff9d8c1",
+        "log": ".superpowers/sdd/regression3-first-step-p5.log",
+        "log_sha256": "c5ff9b3df0dd305278e528b8a0a03227b10b9474cfaaedf70686444906187066",
         "name": "first_step_and_p5",
         "passed": 100,
-        "seconds": 6.55,
+        "seconds": 6.66,
         "subtests_passed": 0
       },
       {
         "exit_code": 0,
-        "log": ".superpowers/sdd/regression2-scenario-lifecycle.log",
-        "log_sha256": "c87d6cb1639afe7ee4ad30c4f96343dde66c3290c5f5758df8caa6e41c39682a",
+        "log": ".superpowers/sdd/regression3-scenario-lifecycle.log",
+        "log_sha256": "8e6957bbdb266ef96c59b5ccb89963f744beb6579a4e047aa4b72f0e2b1f14b0",
         "name": "scenario_and_lifecycle",
         "passed": 127,
-        "seconds": 21.25,
+        "seconds": 21.21,
         "subtests_passed": 12
       }
     ],
-    "longest_group_seconds": 21.25,
-    "mode": "three independent pytest subprocesses ran concurrently after the JVM option-order fix",
-    "passed": 259,
-    "review_counterexample": "A Java -Xmx after -jar was first observed to reach process launch; parser now stops at the JVM target and the negative test passes by startup refusal.",
+    "longest_group_seconds": 21.21,
+    "mode": "three independent pytest subprocesses ran concurrently after review fixes",
+    "passed": 275,
+    "review_counterexamples": "Missing executable now persists launch_failed receipt; Java heap admission rejects MaxHeapSize/Xmx overrides, byte-only and duplicate caps, --module= target ordering, launcher environment heap flags, @argfiles and VMOptionsFile. Value-taking launcher options remain supported.",
     "subtests_passed": 12
   },
   "start_head": "4095793d74e0fb516417888cc76e8b8ec35d4897",

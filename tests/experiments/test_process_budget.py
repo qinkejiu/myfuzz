@@ -171,7 +171,10 @@ def test_jvm_heavy_command_requires_explicit_heap_before_start(tmp_path, command
 @pytest.mark.parametrize(('launcher_name', 'option', 'task', 'expected'), [
     ('java', '-Xmx1g', '-version', 1024**3),
     ('java', '-Xmx512m', '-version', 512*1024**2),
+    ('java', '-XX:MaxHeapSize=1g', '-version', 1024**3),
+    ('java', '-Xmx1073741824', '-version', 1024**3),
     ('sbt', '-J-Xmx768m', 'compile', 768*1024**2),
+    ('sbt', '-J-XX:MaxHeapSize=1g', 'compile', 1024**3),
     ('mill', '-J-Xmx524288k', 'generator.run', 512*1024**2),
 ])
 def test_jvm_heavy_command_accepts_explicit_heap_below_rss_limit(
@@ -196,3 +199,35 @@ def test_jvm_heap_after_java_target_does_not_count_as_launcher_limit(tmp_path):
     with pytest.raises(policy.ResourceProfileError, match='explicit JVM heap'):
         guarded()(['java', '-jar', 'generator.jar', '-Xmx1g'],
                   lock_path=tmp_path/'worker.lock', available_bytes=5*GIB)
+
+
+def test_jvm_heap_after_value_taking_launcher_option_is_recognized(tmp_path):
+    launcher = tmp_path/'java'
+    launcher.write_text('#!/bin/sh\nprintf "ok\\n"\n')
+    launcher.chmod(0o755)
+    result = guarded()([str(launcher), '--add-modules', 'java.sql', '-Xmx1g', '-version'],
+                       lock_path=tmp_path/'worker.lock', available_bytes=5*GIB)
+    assert result.returncode == 0
+    assert result.resource_receipt['jvm_heap_limit_bytes'] == GIB
+
+
+@pytest.mark.parametrize(('command', 'environment'), [
+    (['java', '-Xmx1g', '-XX:MaxHeapSize=4g', '-version'], None),
+    (['java', '--module=generator/com.Main', '-Xmx1g'], None),
+    (['java', '-Xmx1g', '-Xmx4294967296', '-version'], None),
+    (['java', '-Xmx1g', '@heap.args'], None),
+    (['java', '-Xmx1g', '-XX:VMOptionsFile=heap.options', '-version'], None),
+    (['java', '-Xmx1g', '-version'], ('JDK_JAVA_OPTIONS', '-XX:MaxHeapSize=4g')),
+    (['java', '-Xmx1g', '-version'], ('JDK_JAVA_OPTIONS', '@heap.args')),
+    (['java', '-Xmx1g', '-version'], ('JAVA_TOOL_OPTIONS', '-XX:MaxHeapSize=4g')),
+    (['java', '-Xmx1g', '-version'], ('_JAVA_OPTIONS', '-XX:MaxHeapSize=4g')),
+    (['sbt', '-J-Xmx1g', 'compile'], ('SBT_OPTS', '-J-XX:MaxHeapSize=4g')),
+    (['mill', '-J-Xmx1g', 'generator.run'], ('MILL_JVM_OPTS', '-J-XX:MaxHeapSize=4g')),
+])
+def test_jvm_heap_overrides_from_aliases_argfiles_and_environment_are_refused(
+        tmp_path, monkeypatch, command, environment):
+    if environment is not None:
+        monkeypatch.setenv(*environment)
+    with pytest.raises(policy.ResourceProfileError,
+                       match='heap|argument files|environment'):
+        guarded()(command, lock_path=tmp_path/'worker.lock', available_bytes=5*GIB)

@@ -9,6 +9,7 @@ import fcntl
 import os
 from pathlib import Path
 import re
+import shlex
 import signal
 import subprocess
 import time
@@ -43,14 +44,30 @@ def explicit_jvm_heap_bytes(command: Sequence[str], rss_limit_bytes: int) -> int
     build_launchers = {'sbt', 'sbt.bat', 'mill', 'mill.bat'}
     if launcher not in java_launchers | build_launchers:
         return None
+
+    def is_indirect_options_file(token: str) -> bool:
+        if token.startswith('-J'):
+            token = token[2:]
+        return (token.startswith('@') or token == '-XX:VMOptionsFile'
+                or token.startswith('-XX:VMOptionsFile='))
+
     option_tokens = []
     index = 1
     if launcher in java_launchers:
-        takes_value = {'-cp', '-classpath', '--class-path', '--module-path', '-p'}
+        takes_value = {
+            '-cp', '-classpath', '--class-path', '--module-path', '-p',
+            '--upgrade-module-path', '--add-modules', '--limit-modules',
+            '--add-exports', '--add-opens', '--add-reads', '--patch-module',
+            '--enable-native-access', '--module-source-path', '--source',
+        }
         while index < len(command):
             token = command[index]
-            if token in {'-jar', '-m', '--module'}:
+            if (token in {'-jar', '-m', '--module'}
+                    or token.startswith('--module=')):
                 break
+            if is_indirect_options_file(token):
+                raise ResourceProfileError(
+                    'JVM argument files cannot be used with a bounded heap command')
             if token in takes_value:
                 index += 2
                 continue
@@ -58,19 +75,47 @@ def explicit_jvm_heap_bytes(command: Sequence[str], rss_limit_bytes: int) -> int
                 break
             option_tokens.append(token)
             index += 1
-        heap_pattern = r'-Xmx([1-9][0-9]*)([kKmMgG])'
     else:
-        while index < len(command) and command[index].startswith('-'):
-            option_tokens.append(command[index])
+        while index < len(command):
+            token = command[index]
+            if is_indirect_options_file(token):
+                raise ResourceProfileError(
+                    'JVM argument files cannot be used with a bounded heap command')
+            if not token.startswith('-'):
+                break
+            option_tokens.append(token)
             index += 1
-        heap_pattern = r'-J-Xmx([1-9][0-9]*)([kKmMgG])'
-    matches = []
-    for token in option_tokens:
-        match = re.fullmatch(heap_pattern, token)
+
+    def parse_heap(token: str, *, allow_sbt_prefix: bool = False) -> int | None:
+        if allow_sbt_prefix and token.startswith('-J'):
+            token = token[2:]
+        match = re.fullmatch(r'(?:-Xmx|-XX:MaxHeapSize=)([1-9][0-9]*)([kKmMgG]?)', token)
         if match is None:
+            return None
+        suffix = match.group(2).lower()
+        scale = {'': 1, 'k': 1024, 'm': 1024**2, 'g': 1024**3}[suffix]
+        return int(match.group(1)) * scale
+
+    matches = [heap for token in option_tokens
+               if (heap := parse_heap(token, allow_sbt_prefix=launcher in build_launchers))
+               is not None]
+    env_names = ['JDK_JAVA_OPTIONS', 'JAVA_TOOL_OPTIONS', '_JAVA_OPTIONS']
+    if launcher in {'sbt', 'sbt.bat'}:
+        env_names.extend(['SBT_OPTS', 'JAVA_OPTS'])
+    elif launcher in {'mill', 'mill.bat'}:
+        env_names.extend(['MILL_JVM_OPTS', 'JAVA_OPTS'])
+    for name in env_names:
+        value = os.environ.get(name)
+        if not value:
             continue
-        scale = {'k': 1024, 'm': 1024**2, 'g': 1024**3}[match.group(2).lower()]
-        matches.append(int(match.group(1)) * scale)
+        try:
+            tokens = shlex.split(value)
+        except ValueError as exc:
+            raise ResourceProfileError(f'{name} contains malformed JVM options') from exc
+        if any(is_indirect_options_file(token) for token in tokens):
+            raise ResourceProfileError(f'{name} cannot include JVM argument files')
+        if any(parse_heap(token, allow_sbt_prefix=True) is not None for token in tokens):
+            raise ResourceProfileError(f'{name} cannot override the explicit JVM heap')
     if len(matches) != 1:
         raise ResourceProfileError('heavy JVM command requires one explicit JVM heap limit')
     if matches[0] > rss_limit_bytes:
@@ -241,8 +286,19 @@ def run_budgeted_process(command: Sequence[str], *, lock_path: Path,
 def _supervise_process(command, available, limit, timeout_seconds, heap_limit):
     with _worker_lifecycle() as (existing_children, interrupted):
         started = time.monotonic()
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                   text=True, start_new_session=True)
+        try:
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                       text=True, start_new_session=True)
+        except OSError as exc:
+            error = ResourceProfileError(f'cannot launch heavy command: {exc}')
+            error.resource_receipt = {
+                'schema_version': 'heavy_process_resource_receipt.v1',
+                'status': 'launch_failed', 'workers': 1,
+                'available_at_start_bytes': available, 'rss_limit_bytes': limit,
+                'peak_tree_rss_bytes': None, 'elapsed_seconds': None,
+                'sampling_interval_seconds': .05, 'dut_finding': False,
+                'jvm_heap_limit_bytes': heap_limit}
+            raise error from exc
         tracked = {}
         peak = 0
         status = 'complete'

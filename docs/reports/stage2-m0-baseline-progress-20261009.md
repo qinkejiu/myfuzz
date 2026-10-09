@@ -31,7 +31,7 @@ HMAC 原生 RTL 存在，起点没有 peripheral profile。本快照不是 G1 �
 - Linux subreaper 收养脱离原 process group 的后代；SIGTERM/HUP/INT 进入清理；任务失败、超预算、超时和正常结束均清理并 reap。恢复调用前信号 handler 与 subreaper 状态。为保证归属，调用者必须是单线程 main process 且没有既有直接子进程；否则启动前拒绝。
 - `budget_terminated`／`startup_refused`／`wall_timeout`／`interrupted` 单列，`dut_finding=false`；不把资源错误记成 RTL finding。未执行时 RSS／耗时为 null，不伪造零性能指标。
 - 首步默认 run/replay 共用 `.superpowers/cache/local-harness`，实际构建仍按现有 build digest 存储、校验 bytes；显式 cache 参数仍可指定，输出目录必须为新目录。通用入口把 `{run_dir}`/`{cache_dir}` 参数展开，记录完整 stdout/stderr 和哈希，供各 Stage 2 构建／搜索／replay 任务复用。
-- 直接 `java`、SBT、Mill heavy command 必须带唯一且不超过 RSS 阈值的 `-Xmx`／`-J-Xmx`；缺少 heap 或 heap 超预算在创建 worker 前拒绝。此机器没有 Java/SBT/Mill，所以实际 JVM 启动仍未验证。
+- 直接 `java`、SBT、Mill heavy command 必须在目标程序／模块前带唯一且不超过 RSS 阈值的 heap 上限（`-Xmx`／`-XX:MaxHeapSize`，SBT／Mill 为 `-J-` 形式）；别名重复、module target 后置参数、环境 heap override、`@argfile` 和 `-XX:VMOptionsFile` 均在创建 worker 前拒绝。接受常见带参数的 launcher 选项后再检查 heap。此机器没有 Java/SBT/Mill，所以实际 JVM 启动仍未验证。
 
 代码审查发现并通过真实子进程负例修复：默认 SIGTERM 不进入 finally；两次采样之间创建的 setsid 后代逃逸；已有子进程的后代误归属（现改为拒绝这种调用环境）；replay 拒绝丢 run log；零案例验收。最终复审为 Ready，无新增阻挡项。
 
@@ -39,7 +39,7 @@ A4/A5 仍不勾选：通用入口现已提供串行 worker、共享默认身份�
 
 ## 本轮验证与真实启动拒绝
 
-最初 M0 回归 **245 passed、12 subtests passed，30.00 秒，exit 0**，日志 `.superpowers/sdd/stage2-m0-regression-20261009.log`。其后加入 14 项重型任务入口与 JVM heap 检查测试，并将三组互不依赖的 pytest 子进程并行重跑：资源／wrapper 32 passed、首步／P5 100 passed、场景／生命周期 127 passed，另有 12 subtests passed，均 exit 0。分组日志及 SHA-256 由[机器可读验证摘要](stage2-m0-verification-summary-20261009.json)维护。
+最初 M0 回归 **245 passed、12 subtests passed，30.00 秒，exit 0**，日志 `.superpowers/sdd/stage2-m0-regression-20261009.log`。其后加入 30 项重型任务入口与 JVM heap 检查测试，并将三组互不依赖的 pytest 子进程并行重跑：资源／wrapper 48 passed、首步／P5 100 passed、场景／生命周期 127 passed，另有 12 subtests passed，均 exit 0。分组日志及 SHA-256 由[机器可读验证摘要](stage2-m0-verification-summary-20261009.json)维护。
 
 文档全库检查为 585 个 Markdown／1,273 条链接／83 条断链，exit 1；对本轮变更的文档逐项核对，新增断链为 0。这些历史路径主要指向已删除 runs 材料，既有删除说明中已登记；本轮不将全库检查写成通过。先前 HEAD 内容复核也得到相同的 83 条断链，增量复核保存在 `.superpowers/sdd/stage2-m0-doc-link-delta-20261009.json`。
 

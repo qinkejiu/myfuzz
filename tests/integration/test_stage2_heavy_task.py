@@ -64,6 +64,20 @@ def test_stage2_heavy_entry_persists_child_failure(tmp_path, monkeypatch):
     assert receipt['resource']['dut_finding'] is False
 
 
+def test_stage2_heavy_entry_persists_process_launch_failure(tmp_path, monkeypatch):
+    run = tmp_path/'run'
+    module = _load_cli(monkeypatch)
+    missing = tmp_path/'missing-command'
+    assert module.main(['--output-dir', str(run), '--', str(missing)]) == 1
+    receipt = json.loads((run/'stage2_heavy_task_receipt.json').read_text())
+    assert receipt['status'] == 'launch_failed'
+    assert receipt['command_exit_code'] is None
+    assert receipt['resource']['status'] == 'launch_failed'
+    assert receipt['resource']['dut_finding'] is False
+    assert (run/'stdout.log').is_file()
+    assert (run/'stderr.log').is_file()
+
+
 def test_stage2_heavy_entry_persists_startup_resource_refusal(tmp_path, monkeypatch):
     module = _load_cli(monkeypatch)
     def refuse(*args, **kwargs):
