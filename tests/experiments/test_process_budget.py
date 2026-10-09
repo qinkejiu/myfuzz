@@ -177,7 +177,6 @@ def test_jvm_heavy_command_requires_explicit_heap_before_start(tmp_path, command
     ('java', '-Xmx0x10000000', '-version', 256*1024**2),
     ('sbt', '-J-Xmx768m', 'compile', 768*1024**2),
     ('sbt', '-J-XX:MaxHeapSize=1g', 'compile', 1024**3),
-    ('mill', '-J-Xmx524288k', 'generator.run', 512*1024**2),
 ])
 def test_jvm_heavy_command_accepts_explicit_heap_below_rss_limit(
         tmp_path, launcher_name, option, task, expected):
@@ -268,6 +267,30 @@ def test_sbt_global_option_file_cannot_override_bounded_heap(tmp_path, monkeypat
     with pytest.raises(policy.ResourceProfileError, match='memory|option'):
         guarded()(['sbt', '-J-Xmx1g', 'compile'],
                   lock_path=tmp_path/'worker.lock', available_bytes=5*GIB)
+
+
+@pytest.mark.parametrize(('filename', 'path_env'), [
+    ('.mill-jvm-opts', None),
+    ('external-mill-jvm-opts', 'MILL_JVM_OPTS_PATH'),
+])
+def test_mill_launcher_is_refused_when_jvm_options_are_not_version_locked(
+        tmp_path, monkeypatch, filename, path_env):
+    monkeypatch.chdir(tmp_path)
+    for name in ('JDK_JAVA_OPTIONS', 'JAVA_TOOL_OPTIONS', '_JAVA_OPTIONS',
+                 'JAVA_OPTS', 'MILL_JVM_OPTS'):
+        monkeypatch.delenv(name, raising=False)
+    options = tmp_path/filename
+    options.write_text('-Xmx4g\n')
+    if path_env:
+        monkeypatch.setenv(path_env, str(options))
+    marker = tmp_path/'mill-was-launched'
+    launcher = tmp_path/'mill'
+    launcher.write_text(f'#!/bin/sh\ntouch {str(marker)!r}\n')
+    launcher.chmod(0o755)
+    with pytest.raises(policy.ResourceProfileError, match='Mill.*heap|explicit JVM heap'):
+        guarded()([str(launcher), '-J-Xmx1g', 'generator.run'],
+                  lock_path=tmp_path/'worker.lock', available_bytes=5*GIB)
+    assert not marker.exists()
 
 
 @pytest.mark.parametrize('option', ['-Xmx1p', '-Xmxgarbage', '-XX:MaxHeapSize=wat'])

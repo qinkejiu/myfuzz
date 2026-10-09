@@ -35,16 +35,20 @@ def heavy_process_budget(available_bytes: int) -> int:
 
 
 def explicit_jvm_heap_bytes(command: Sequence[str], rss_limit_bytes: int) -> int | None:
-    """Require a bounded explicit heap for direct Java/SBT/Mill task commands."""
+    """Require a bounded explicit heap for Java/SBT, and refuse unpinned Mill."""
     if (isinstance(command, (str, bytes, bytearray))
             or not isinstance(command, Sequence)
             or any(not isinstance(token, str) for token in command)):
         raise ResourceProfileError('heavy command must be an argument array')
     launcher = Path(command[0]).name.lower() if command else ''
     java_launchers = {'java', 'java.exe'}
-    build_launchers = {'sbt', 'sbt.bat', 'mill', 'mill.bat'}
-    if launcher not in java_launchers | build_launchers:
+    sbt_launchers = {'sbt', 'sbt.bat'}
+    mill_launchers = {'mill', 'mill.bat'}
+    if launcher not in java_launchers | sbt_launchers | mill_launchers:
         return None
+    if launcher in mill_launchers:
+        raise ResourceProfileError(
+            'Mill launcher cannot be admitted without a version-locked explicit JVM heap source')
 
     def is_indirect_options_file(token: str) -> bool:
         if token.startswith('-J'):
@@ -117,7 +121,7 @@ def explicit_jvm_heap_bytes(command: Sequence[str], rss_limit_bytes: int) -> int
             if heap is not None:
                 matches.append(heap)
             index += 1
-    elif launcher in {'sbt', 'sbt.bat'}:
+    elif launcher in sbt_launchers:
         # The SBT launcher scans the complete argv for -J options, including
         # arguments after task names, and -mem adjusts its own JVM settings.
         for token in command[1:]:
@@ -140,27 +144,9 @@ def explicit_jvm_heap_bytes(command: Sequence[str], rss_limit_bytes: int) -> int
                 raise ResourceProfileError(
                     f'cannot safely read SBT option file: {options_path}') from exc
             inspect_hidden_options(tokens, str(options_path), sbt_options=True)
-    else:
-        # Mill's -J settings are launcher options before its task name.
-        index = 1
-        while index < len(command):
-            token = command[index]
-            if is_indirect_options_file(token):
-                raise ResourceProfileError(
-                    'JVM argument files cannot be used with a bounded heap command')
-            if not token.startswith('-'):
-                break
-            if token.startswith('-J'):
-                heap = parse_heap(token[2:])
-                if heap is not None:
-                    matches.append(heap)
-            index += 1
-
     env_names = ['JDK_JAVA_OPTIONS', 'JAVA_TOOL_OPTIONS', '_JAVA_OPTIONS']
-    if launcher in {'sbt', 'sbt.bat'}:
+    if launcher in sbt_launchers:
         env_names.extend(['SBT_OPTS', 'JAVA_OPTS'])
-    elif launcher in {'mill', 'mill.bat'}:
-        env_names.extend(['MILL_JVM_OPTS', 'JAVA_OPTS'])
     for name in env_names:
         value = os.environ.get(name)
         if not value:
@@ -172,7 +158,7 @@ def explicit_jvm_heap_bytes(command: Sequence[str], rss_limit_bytes: int) -> int
         for token in tokens:
             if is_indirect_options_file(token):
                 raise ResourceProfileError(f'{name} cannot include JVM argument files')
-            if launcher in {'sbt', 'sbt.bat'} and name == 'SBT_OPTS' \
+            if launcher in sbt_launchers and name == 'SBT_OPTS' \
                     and is_sbt_memory_option(token):
                 raise ResourceProfileError(f'{name} cannot override the SBT memory limit')
             if parse_build_heap(token) is not None:

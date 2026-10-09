@@ -11,7 +11,7 @@
     "head_documents_on_current_files_broken": 83,
     "links_checked_current": 1273,
     "new_broken": [],
-    "note": "HEAD content substituted for modified tracked Markdown; existing deleted-run links remain missing; no files restored"
+    "note": "Latest check: 585 Markdown files / 1273 links / 83 historical missing-run links, exit 1; this round changed no Markdown link markup. Prior HEAD-content substitution found the same 83 broken links."
   },
   "milestone_status": "incomplete",
   "pre_review_fix_software_regression": {
@@ -165,43 +165,43 @@
     "shell": "/usr/bin/python3 /home/qinkejiu/myfuzz/scripts/run_ibex_pulp_online.py run --client-binary /home/qinkejiu/myfuzz/third_party/rfuzz/upstream/rfuzz_reference/fuzzer/target/release/kfuzz --cache-dir /home/qinkejiu/myfuzz/.superpowers/cache/local-harness --output runs/stage2-m0-ibex-smoke-20261009-resource-receipt --seconds 2 --max-tests 3 --run-id stage2-m0-ibex-smoke-20261009-resource-receipt --cpu-retirement --gpio-consumption --native-irq-receipts --compressed-trace && /usr/bin/python3 /home/qinkejiu/myfuzz/scripts/run_ibex_pulp_online.py replay --cache-dir /home/qinkejiu/myfuzz/.superpowers/cache/local-harness --plan runs/stage2-m0-ibex-smoke-20261009-resource-receipt/online_plan.json --trace runs/stage2-m0-ibex-smoke-20261009-resource-receipt/online_final_trace.json"
   },
   "real_startup_receipt_sha256": "2b735cdee35132f31dcfb64557b6b5e9a608f4ed3b88ac744b4b8dd16158f0e3",
-  "review": "Prior supervisor/first-step and earlier JVM changes were reviewed Ready. The latest SBT argument ordering, hidden option sources, heap-size formats and non-UTF-8 output fixes passed regression and are awaiting focused review.",
+  "review": "Earlier supervisor and SBT/JVM changes were reviewed. Review then found documented Mill JVM settings not covered by the parser; direct Mill launchers now fail closed pending a version-locked adapter. The refusal is regression-tested, and this follow-up delta awaits review.",
   "schema_version": "stage2_m0_verification_summary.v1",
   "software_regression": {
     "exit_code": 0,
     "groups": [
       {
         "exit_code": 0,
-        "log": ".superpowers/sdd/regression4-resource.log",
-        "log_sha256": "5e2b118ed44a7014d8509af88fe46ff25b3f58100a3dfcbe8c55656646b3ce61",
+        "log": ".superpowers/sdd/regression5-resource.log",
+        "log_sha256": "9af5c4c981b726fb939c04bf1965401c747626ae74e2cfbdccdf71d794d81ad9",
         "name": "resource_policy_and_stage2_wrapper",
-        "passed": 73,
+        "passed": 74,
         "seconds": 2.04,
         "subtests_passed": 0
       },
       {
         "exit_code": 0,
-        "log": ".superpowers/sdd/regression4-first-step.log",
-        "log_sha256": "bcc5687832f3e1943cb799394bdc28025a5eceecf7efe70d67dd35110df9018d",
+        "log": ".superpowers/sdd/regression5-first-step.log",
+        "log_sha256": "7b371f65c3b299087efe2fbee9ccf609afd31ae38f3d418ee7d8f6c7ae49fb16",
         "name": "first_step_and_p5",
         "passed": 100,
-        "seconds": 6.08,
+        "seconds": 6.1,
         "subtests_passed": 0
       },
       {
         "exit_code": 0,
-        "log": ".superpowers/sdd/regression4-scenario.log",
-        "log_sha256": "3b32d9f3c79bc0c7aff74e795725fb0687b2b60bd5c039b5ecaf811995cdd628",
+        "log": ".superpowers/sdd/regression5-scenario.log",
+        "log_sha256": "1b083b18b77d69d77a07b1d253f09c36a94b49f20993961603930a263414ec42",
         "name": "scenario_and_lifecycle",
         "passed": 127,
-        "seconds": 19.52,
+        "seconds": 19.42,
         "subtests_passed": 12
       }
     ],
-    "longest_group_seconds": 19.52,
-    "mode": "three independent pytest subprocesses ran concurrently after SBT/JVM option and binary-output fixes",
-    "passed": 300,
-    "review_counterexamples": "SBT trailing -J heap flags, -mem/--mem and hidden option files are refused; bare sbt -Xmx does not satisfy the heap cap. Java heap aliases accept leading-zero, hexadecimal and t-unit values while malformed settings fail closed. Invalid child output bytes are escaped and included in the saved-log hash.",
+    "longest_group_seconds": 19.42,
+    "mode": "three independent pytest subprocesses ran concurrently after Mill launcher admission was made fail-closed",
+    "passed": 301,
+    "review_counterexamples": "SBT trailing -J heap flags, -mem/--mem and hidden option files are refused; bare sbt -Xmx does not satisfy the heap cap. Java heap aliases accept leading-zero, hexadecimal and t-unit values while malformed settings fail closed. Invalid child output bytes are escaped and hashed. Mill launchers are refused until their version-specific JVM option sources and argument semantics are pinned.",
     "subtests_passed": 12
   },
   "start_head": "4095793d74e0fb516417888cc76e8b8ec35d4897",
@@ -220,6 +220,7 @@
     "all production Stage 2 heavy commands migrated to and exercised through the generic wrapper",
     "real JVM launch and generated-artifact identity check; Java/SBT/Mill are unavailable on this host",
     "remaining A2 certificate identity / batch / failure-cleanup evidence audit",
-    "B-I"
+    "B-I",
+    "Mill launcher/JVM option adapter; direct Mill heavy commands currently fail closed until the launcher version and all option sources are pinned"
   ]
 }
