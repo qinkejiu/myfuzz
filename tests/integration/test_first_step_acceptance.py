@@ -934,6 +934,63 @@ def test_cli_run_refuses_existing_output_directory(tmp_path: Path) -> None:
     assert "must be new" in completed.stderr
 
 
+@pytest.mark.parametrize("reply,exit_code", [
+    ('{"matches": true, "first_difference": null}', 0),
+    ('{"matches": false, "first_difference": 4}', 2),
+])
+def test_cli_replay_log_is_consumable_by_real_analyzer(
+        tmp_path: Path, monkeypatch, capsys, reply, exit_code) -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("replay_log_cli", CLI)
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    output = tmp_path / "run"
+    client = tmp_path / "client"
+    client.write_bytes(b"stub")
+
+    def execute(command):
+        if command[2] == "run":
+            _build_run(output)
+            return subprocess.CompletedProcess(command, 0, '{}', '')
+        return subprocess.CompletedProcess(command, exit_code, reply, '')
+
+    monkeypatch.setattr(cli, "_execute", execute)
+    code = cli.main(["run", "--output-dir", str(output),
+                     "--client-binary", str(client), "--seconds", "1",
+                     "--max-tests", "4", "--replay"])
+    assert code == (0 if exit_code == 0 else 1)
+    payload = json.loads(capsys.readouterr().out)
+    comparison = payload["analysis"]["replay"]
+    assert comparison["comparison_matches"] is (exit_code == 0)
+    # An execution log proves the comparison verdict, not artifact equality.
+    assert comparison["verified"] is False
+
+
+@pytest.mark.parametrize("reply", ['{}', 'not json', '{"matches": "true"}'])
+def test_cli_rejects_malformed_successful_replay(tmp_path, monkeypatch, capsys, reply):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("bad_replay_cli", CLI)
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    output = tmp_path / "run"
+    client = tmp_path / "client"
+    client.write_bytes(b"stub")
+
+    def execute(command):
+        if command[2] == "run":
+            _build_run(output)
+            return subprocess.CompletedProcess(command, 0, '{}', '')
+        return subprocess.CompletedProcess(command, 0, reply, '')
+
+    monkeypatch.setattr(cli, "_execute", execute)
+    assert cli.main(["run", "--output-dir", str(output),
+                     "--client-binary", str(client), "--seconds", "1",
+                     "--max-tests", "4", "--replay"]) == 1
+    assert "invalid replay output" in capsys.readouterr().err
+
+
 # --------------------------------------------------------------------------
 # markdown rendering
 # --------------------------------------------------------------------------
@@ -1037,3 +1094,100 @@ def test_cli_run_dry_run_with_acceptance_arguments(tmp_path: Path) -> None:
         " ".join(payload["commands"][0])
     assert payload["analysis_command"][0] == sys.executable
     assert "--run-dir" in payload["analysis_command"]
+
+
+def test_cli_defaults_share_identity_cache_for_run_and_replay(tmp_path):
+    completed = _run_cli('run', '--output-dir', str(tmp_path/'fresh'),
+                         '--seconds', '1', '--max-tests', '1', '--replay', '--dry-run')
+    assert completed.returncode == 0, completed.stderr
+    payload = json.loads(completed.stdout)
+    caches = [command[command.index('--cache-dir')+1] for command in payload['commands']]
+    assert caches[0] == caches[1]
+    assert Path(caches[0]) == ROOT/'.superpowers'/'cache'/'local-harness'
+
+
+def test_cli_heavy_commands_use_supervisor(monkeypatch):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('supervised_cli', CLI)
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    calls = []
+    def supervise(command, **kwargs):
+        calls.append((command, kwargs))
+        return subprocess.CompletedProcess(command, 0, '', '')
+    monkeypatch.setattr(cli, 'run_budgeted_process', supervise, raising=False)
+    cli._execute([sys.executable, '-c', 'pass'])
+    assert len(calls) == 1
+    assert calls[0][1]['lock_path'] == ROOT/'.superpowers'/'sdd'/'stage2-heavy-worker.lock'
+
+
+def test_budget_termination_preserves_infrastructure_receipt(tmp_path, monkeypatch):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('budget_stop_cli', CLI)
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    output = tmp_path/'run'
+    client = tmp_path/'client'
+    client.write_bytes(b'stub')
+    calls = []
+    def execute(command):
+        calls.append(command)
+        result = subprocess.CompletedProcess(command, 124, '', '')
+        result.resource_receipt = {'status': 'budget_terminated', 'dut_finding': False}
+        return result
+    monkeypatch.setattr(cli, '_execute', execute)
+    assert cli.main(['run', '--output-dir', str(output), '--client-binary', str(client),
+                     '--seconds', '1', '--max-tests', '1', '--replay']) == 1
+    assert len(calls) == 1
+    receipt = json.loads((output/'first_step_acceptance_run.json').read_text())
+    assert receipt['resource_receipt']['status'] == 'budget_terminated'
+    assert receipt['analysis'] is None
+    assert receipt['resource_receipt']['dut_finding'] is False
+
+
+def test_startup_resource_refusal_is_saved_without_launch(tmp_path, monkeypatch):
+    from myfuzz.experiments.resource_policy import ResourceProfileError
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('budget_refusal_cli', CLI)
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    output = tmp_path/'run'
+    client = tmp_path/'client'
+    client.write_bytes(b'stub')
+    def execute(command):
+        error = ResourceProfileError('insufficient memory for heavy task')
+        error.resource_receipt = {'status': 'startup_refused', 'dut_finding': False}
+        raise error
+    monkeypatch.setattr(cli, '_execute', execute)
+    assert cli.main(['run', '--output-dir', str(output), '--client-binary', str(client),
+                     '--seconds', '1', '--max-tests', '1']) == 1
+    receipt = json.loads((output/'first_step_acceptance_run.json').read_text())
+    assert receipt['resource_receipt']['status'] == 'startup_refused'
+    assert receipt['analysis'] is None
+
+
+def test_replay_startup_refusal_keeps_successful_run_resource_receipt(tmp_path, monkeypatch):
+    from myfuzz.experiments.resource_policy import ResourceProfileError
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('replay_refusal_cli', CLI)
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    output = tmp_path/'run'
+    client = tmp_path/'client'
+    client.write_bytes(b'stub')
+    def execute(command):
+        if command[2] == 'run':
+            _build_run(output)
+            result = subprocess.CompletedProcess(command, 0, '{}', '')
+            result.resource_receipt = {'status': 'complete', 'peak_tree_rss_bytes': 1234}
+            return result
+        error = ResourceProfileError('insufficient memory for heavy task')
+        error.resource_receipt = {'status': 'startup_refused', 'dut_finding': False}
+        raise error
+    monkeypatch.setattr(cli, '_execute', execute)
+    assert cli.main(['run', '--output-dir', str(output), '--client-binary', str(client),
+                     '--seconds', '1', '--max-tests', '1', '--replay']) == 1
+    receipt = json.loads((output/'first_step_acceptance_run.json').read_text())
+    assert receipt['resource_receipt']['status'] == 'complete'
+    assert receipt['replay']['resource_receipt']['status'] == 'startup_refused'
+    assert receipt['analysis'] is None

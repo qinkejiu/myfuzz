@@ -28,6 +28,8 @@ from myfuzz.scenario.acceptance_metrics import (  # noqa: E402
     analyze_run,
     render_markdown,
 )
+from myfuzz.experiments.resource_policy import (  # noqa: E402
+    ResourceProfileError, run_budgeted_process)
 
 
 ONLINE_RUNNER = ROOT / "scripts" / "run_ibex_pulp_online.py"
@@ -37,6 +39,7 @@ DEFAULT_CLIENT_BINARY = (ROOT / "third_party" / "rfuzz" / "upstream" /
 RUN_PLAN_SCHEMA_VERSION = "first_step_acceptance_run_plan.v1"
 RUN_LOG_NAME = "first_step_acceptance_run.json"
 REPLAY_LOG_NAME = "first_step_acceptance_replay.json"
+DEFAULT_CACHE_DIR = ROOT / ".superpowers" / "cache" / "local-harness"
 
 
 def _dump(document: object) -> str:
@@ -90,7 +93,8 @@ def _trace_path(output_dir: Path) -> Path:
 def _replay_command(args: argparse.Namespace, output_dir: Path) -> list[str]:
     replay_cache = (Path(args.replay_cache_dir)
                     if args.replay_cache_dir is not None
-                    else Path(f"{output_dir}-replay-cache"))
+                    else Path(args.cache_dir) if args.cache_dir is not None
+                    else DEFAULT_CACHE_DIR)
     return [sys.executable, str(ONLINE_RUNNER), "replay",
             "--cache-dir", str(replay_cache),
             "--plan", str(output_dir / "online_plan.json"),
@@ -100,7 +104,7 @@ def _replay_command(args: argparse.Namespace, output_dir: Path) -> list[str]:
 def _run_plan(args: argparse.Namespace) -> dict:
     output_dir = Path(args.output_dir)
     cache_dir = (Path(args.cache_dir) if args.cache_dir is not None
-                 else output_dir.parent / f"{output_dir.name}-cache")
+                 else DEFAULT_CACHE_DIR)
     run_id = args.run_id or output_dir.name
     run_command = [sys.executable, str(ONLINE_RUNNER), "run",
                    "--client-binary", str(args.client_binary),
@@ -144,7 +148,8 @@ def _run_plan(args: argparse.Namespace) -> dict:
 
 def _execute(command: list[str]) -> subprocess.CompletedProcess:
     print(f"$ {shlex.join(command)}", file=sys.stderr, flush=True)
-    return subprocess.run(command, capture_output=True, text=True, check=False)
+    return run_budgeted_process(command,
+        lock_path=ROOT / ".superpowers" / "sdd" / "stage2-heavy-worker.lock")
 
 
 def _run_command(args: argparse.Namespace) -> int:
@@ -161,9 +166,21 @@ def _run_command(args: argparse.Namespace) -> int:
         raise ValueError("output directory must be new")
 
     exit_codes = []
-    run_process = _execute(plan["commands"][0])
+    try:
+        run_process = _execute(plan["commands"][0])
+    except ResourceProfileError as exc:
+        _write_text(output_dir / RUN_LOG_NAME, _dump({
+            **plan, "dry_run": False, "command_exit_codes": [],
+            "resource_receipt": getattr(exc, "resource_receipt", None),
+            "error": str(exc), "replay": None, "analysis": None}) + "\n")
+        raise
     exit_codes.append(run_process.returncode)
     if run_process.returncode != 0:
+        _write_text(output_dir / RUN_LOG_NAME, _dump({
+            **plan, "dry_run": False, "command_exit_codes": exit_codes,
+            "stdout": run_process.stdout, "stderr": run_process.stderr,
+            "resource_receipt": getattr(run_process, "resource_receipt", None),
+            "replay": None, "analysis": None}) + "\n")
         sys.stderr.write(run_process.stdout)
         sys.stderr.write(run_process.stderr)
         raise RuntimeError(
@@ -174,24 +191,58 @@ def _run_command(args: argparse.Namespace) -> int:
 
     replay_dir = None
     replay_record = None
+
+    def save_progress(analysis=None):
+        return _write_text(output_dir / RUN_LOG_NAME, _dump({
+            **plan, "dry_run": False, "command_exit_codes": exit_codes,
+            "resource_receipt": getattr(run_process, "resource_receipt", None),
+            "replay": replay_record, "analysis": analysis}) + "\n")
+
+    save_progress()
     if args.replay:
         resolved_replay = _replay_command(args, output_dir)
         plan["commands"][1] = resolved_replay
         plan["shell"] = " && ".join(shlex.join(command)
                                     for command in plan["commands"])
-        replay_process = _execute(resolved_replay)
+        try:
+            replay_process = _execute(resolved_replay)
+        except ResourceProfileError as exc:
+            replay_record = {"command": resolved_replay, "exit_code": None,
+                             "error": str(exc), "resource_receipt":
+                             getattr(exc, "resource_receipt", None)}
+            _write_text(output_dir / REPLAY_LOG_NAME, _dump(replay_record) + "\n")
+            save_progress()
+            raise
         exit_codes.append(replay_process.returncode)
         replay_record = {
             "command": resolved_replay,
             "exit_code": replay_process.returncode,
             "stdout": replay_process.stdout.strip(),
             "stderr": replay_process.stderr.strip(),
+            "resource_receipt": getattr(replay_process, "resource_receipt", None),
         }
         replay_path = output_dir / REPLAY_LOG_NAME
         _write_text(replay_path, _dump(replay_record) + "\n")
-        if replay_process.returncode == 0:
+        save_progress()
+        # Keep the execution receipt and expose the actual comparison verdict
+        # in the format consumed by the read-only analyzer. Never equate an
+        # exit status with a comparison or with independent artifact equality.
+        if replay_process.returncode in (0, 2):
+            try:
+                comparison = json.loads(replay_process.stdout)
+            except (ValueError, TypeError) as exc:
+                raise ValueError("invalid replay output: expected JSON comparison") from exc
+            if (not isinstance(comparison, dict)
+                    or type(comparison.get("matches")) is not bool
+                    or comparison["matches"] != (replay_process.returncode == 0)):
+                raise ValueError("invalid replay output: verdict and exit status disagree")
+            replay_record.update({"matches": comparison["matches"],
+                                  "first_difference": comparison.get("first_difference"),
+                                  "difference_context": comparison.get("difference_context")})
+            _write_text(replay_path, _dump(replay_record) + "\n")
+            save_progress()
             replay_dir = replay_path
-        else:
+        if replay_process.returncode != 0:
             sys.stderr.write(replay_process.stderr)
 
     report = analyze_run(output_dir, replay_dir=replay_dir,
@@ -205,10 +256,7 @@ def _run_command(args: argparse.Namespace) -> int:
         _write_text(Path(args.json_out), _dump(report) + "\n")
     if args.markdown_out is not None:
         _write_text(Path(args.markdown_out), render_markdown(report))
-    log_path = output_dir / RUN_LOG_NAME
-    _write_text(log_path, _dump({
-        **plan, "dry_run": False, "command_exit_codes": exit_codes,
-        "replay": replay_record, "analysis": report}) + "\n")
+    log_path = save_progress(report)
     print(_dump({**plan, "dry_run": False, "command_exit_codes": exit_codes,
                  "replay": replay_record, "run_log": str(log_path),
                  "analysis": report}))

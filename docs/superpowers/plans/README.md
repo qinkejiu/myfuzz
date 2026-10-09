@@ -6,6 +6,8 @@
 
 ## 仍适用的专题契约
 
+- [第二阶段通用 CPU／IP 声明式适配](2026-10-09-stage2-declarative-cpu-ip-adaptation.md)：保留既有架构，细化 L1–L3、基础／功能事件、三类依赖、四核五类 IP 与未知 HMAC 基础接入门禁；M0 实施中，A1/A3 已登记，真实短门禁被启动内存预算拒绝；不提升能力等级。
+
 - [P2 Task4来源与逐边证据](2026-10-06-source-provenance-task4.md)：来源/见证、真实RVFI退休和UART帧已接入；完整寄存器/FIFO/IRQ因果仍待验收。
 
 - [P2 运行路径契约实施](2026-10-06-runtime-path-contract-implementation.md)：有边身份的路径、显式节点映射、静态预检、新 decoder 与真实逐边证据；实施中，不替代总计划验收。

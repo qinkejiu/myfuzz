@@ -1861,33 +1861,42 @@ def _judge_paired_budget(ctx: _Context, expected_findings: Sequence[str]) -> dic
     continuous_seconds = _finite(report.get("elapsed_seconds"))
     continuous_effective = _finite(report.get("effective_search_seconds"))
     continuous_cases = _integer(report.get("tests"))
-    cold_wall = _finite(cold_report.get("wall_clock_seconds")) or \
-        _finite(cold_document.get("elapsed_seconds"))
-    cold_cases = _integer(cold_document.get("case_count")) or \
-        _integer(cold_report.get("case_count")) or _integer(cold_report.get("tests"))
-    verified = _integer(cold_document.get("verified_case_count")) or \
-        _integer(cold_report.get("verified_case_count"))
+    cold_wall = _finite(cold_report.get("wall_clock_seconds")
+                        if "wall_clock_seconds" in cold_report
+                        else cold_document.get("elapsed_seconds"))
+    case_counts = [_integer(document[key]) for document, key in
+                   ((cold_document, "case_count"), (cold_report, "case_count"),
+                    (cold_report, "tests")) if key in document]
+    cold_cases = case_counts[0] if case_counts else None
+    verification_counts = [_integer(document["verified_case_count"])
+                           for document in (cold_document, cold_report)
+                           if "verified_case_count" in document]
+    verified = verification_counts[0] if verification_counts else None
     init_total = _finite(cold_document.get("init_seconds_total"))
     total_total = _finite(cold_document.get("total_seconds_total"))
     reasons: list[str] = []
-    if continuous_seconds is None:
-        reasons.append("the continuous arm carries no elapsed_seconds")
-    if cold_wall is None:
-        reasons.append("the cold-start arm carries no wall clock "
+    if continuous_seconds is None or continuous_seconds <= 0:
+        reasons.append("the continuous arm carries no positive elapsed_seconds")
+    if cold_wall is None or cold_wall <= 0:
+        reasons.append("the cold-start arm carries no positive wall clock "
                        "(wall_clock_seconds / cold_start.elapsed_seconds)")
     speedup = None
-    if continuous_seconds and cold_wall:
-        if continuous_seconds <= 0:
-            reasons.append("the continuous arm's elapsed_seconds is not positive")
-        else:
-            speedup = cold_wall / continuous_seconds
-            if speedup <= 1.0:
-                reasons.append("the per-case cold start is not slower than the "
-                               f"continuous session (speedup={speedup})")
-    if continuous_cases is None:
-        reasons.append("the continuous arm reports no case count")
-    if cold_cases is None:
-        reasons.append("the cold-start arm reports no case count")
+    if (continuous_seconds is not None and continuous_seconds > 0
+            and cold_wall is not None and cold_wall > 0):
+        speedup = cold_wall / continuous_seconds
+        if speedup <= 1.0:
+            reasons.append("the per-case cold start is not slower than the "
+                           f"continuous session (speedup={speedup})")
+    if continuous_cases is None or continuous_cases <= 0:
+        reasons.append("the continuous arm reports no positive case count")
+    if cold_cases is None or cold_cases <= 0:
+        reasons.append("the cold-start arm reports no positive case count")
+    if case_counts and any(count != cold_cases for count in case_counts):
+        reasons.append("the cold-start case count documents contradict each other")
+    if verified is None or verified <= 0:
+        reasons.append("the cold-start arm reports no positive verified_case_count")
+    if verification_counts and any(count != verified for count in verification_counts):
+        reasons.append("the cold-start verified_case_count documents contradict each other")
     if continuous_cases is not None and cold_cases is not None and \
             continuous_cases != cold_cases:
         reasons.append(f"the arms ran different case counts "

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import pytest
 from pathlib import Path
 import subprocess
 import sys
@@ -1065,3 +1066,56 @@ def test_cli_writes_byte_identical_documents(tmp_path):
     assert first.read_bytes() == second.read_bytes()
     assert json.loads(first.read_text())["schema_version"] == \
         "p5_acceptance_suite.v1"
+
+
+@pytest.mark.parametrize('mutation', ['missing_verified', 'zero_continuous_time',
+                                      'zero_cold_time', 'conflicting_verified'])
+def test_paired_acceptance_rejects_missing_or_contradictory_measurements(tmp_path, mutation):
+    continuous, cold = build_paired(tmp_path)
+    continuous_report = json.loads((continuous/'report.json').read_text())
+    cold_report = json.loads((cold/'report.json').read_text())
+    cold_document = json.loads((cold/'cold_start.json').read_text())
+    if mutation == 'missing_verified':
+        cold_report.pop('verified_case_count')
+        cold_document.pop('verified_case_count')
+    elif mutation == 'zero_continuous_time':
+        continuous_report['elapsed_seconds'] = 0
+    elif mutation == 'zero_cold_time':
+        cold_report['wall_clock_seconds'] = 0
+        cold_document['elapsed_seconds'] = 0
+    else:
+        # A known zero cannot be overwritten by a second document's 24.
+        cold_document['verified_case_count'] = 0
+    _write_json(continuous/'report.json', continuous_report)
+    _write_json(cold/'report.json', cold_report)
+    _write_json(cold/'cold_start.json', cold_document)
+    item = _item(p5_acceptance_report(continuous, compare_run=cold), ITEM_PAIRED_BUDGET)
+    assert item['met'] is False, (mutation, item)
+    assert item['reason']
+
+
+def test_paired_acceptance_rejects_conflicting_case_count(tmp_path):
+    continuous, cold = build_paired(tmp_path)
+    document = json.loads((cold/'cold_start.json').read_text())
+    document['case_count'] = 0
+    _write_json(cold/'cold_start.json', document)
+    item = _item(p5_acceptance_report(continuous, compare_run=cold), ITEM_PAIRED_BUDGET)
+    assert item['met'] is False
+
+
+def test_empty_paired_arms_cannot_pass_with_positive_wall_time(tmp_path):
+    continuous, cold = build_paired(tmp_path)
+    for path in [continuous/'report.json', cold/'report.json', cold/'cold_start.json']:
+        document = json.loads(path.read_text())
+        for key in ['tests', 'case_count', 'published_case_count', 'verified_case_count',
+                    'raw_compatible_count', 'genome_compatible_count', 'path_compatible_count',
+                    'source_compatible_count', 'status_compatible_count']:
+            if key in document:
+                document[key] = 0
+        if 'cases' in document:
+            document['cases'] = []
+        _write_json(path, document)
+    (continuous/'receipts.jsonl').write_text('')
+    (cold/'receipts.jsonl').write_text('')
+    item = _item(p5_acceptance_report(continuous, compare_run=cold), ITEM_PAIRED_BUDGET)
+    assert item['met'] is False

@@ -1,0 +1,102 @@
+{
+  "schema_version": "stage2_m0_verification_summary.v1",
+  "start_head": "4095793d74e0fb516417888cc76e8b8ec35d4897",
+  "milestone_status": "incomplete",
+  "completed_items": [
+    "A1",
+    "A3"
+  ],
+  "software_regression": {
+    "passed": 245,
+    "subtests_passed": 12,
+    "seconds": 30.0,
+    "exit_code": 0,
+    "log_sha256": "b57d82729b7bd7de7308ccf3440535b943d7f1b1eee600a16446d8f9082edef4"
+  },
+  "baseline_file_sha256": "22af5e6d45af45370e2dd6d934bf2720f3730454fd8c27012cc6f4fa31f8b882",
+  "real_startup_receipt_sha256": "2b735cdee35132f31dcfb64557b6b5e9a608f4ed3b88ac744b4b8dd16158f0e3",
+  "real_startup_receipt": {
+    "analysis": null,
+    "analysis_command": [
+      "/usr/bin/python3",
+      "/home/qinkejiu/myfuzz/scripts/run_first_step_acceptance.py",
+      "analyze",
+      "--run-dir",
+      "runs/stage2-m0-ibex-smoke-20261009-resource-receipt",
+      "--max-certificates",
+      "200000"
+    ],
+    "cache_dir": "/home/qinkejiu/myfuzz/.superpowers/cache/local-harness",
+    "command_exit_codes": [],
+    "commands": [
+      [
+        "/usr/bin/python3",
+        "/home/qinkejiu/myfuzz/scripts/run_ibex_pulp_online.py",
+        "run",
+        "--client-binary",
+        "/home/qinkejiu/myfuzz/third_party/rfuzz/upstream/rfuzz_reference/fuzzer/target/release/kfuzz",
+        "--cache-dir",
+        "/home/qinkejiu/myfuzz/.superpowers/cache/local-harness",
+        "--output",
+        "runs/stage2-m0-ibex-smoke-20261009-resource-receipt",
+        "--seconds",
+        "2",
+        "--max-tests",
+        "3",
+        "--run-id",
+        "stage2-m0-ibex-smoke-20261009-resource-receipt",
+        "--cpu-retirement",
+        "--gpio-consumption",
+        "--native-irq-receipts",
+        "--compressed-trace"
+      ],
+      [
+        "/usr/bin/python3",
+        "/home/qinkejiu/myfuzz/scripts/run_ibex_pulp_online.py",
+        "replay",
+        "--cache-dir",
+        "/home/qinkejiu/myfuzz/.superpowers/cache/local-harness",
+        "--plan",
+        "runs/stage2-m0-ibex-smoke-20261009-resource-receipt/online_plan.json",
+        "--trace",
+        "runs/stage2-m0-ibex-smoke-20261009-resource-receipt/online_final_trace.json"
+      ]
+    ],
+    "compressed_trace": true,
+    "dry_run": false,
+    "error": "insufficient memory for heavy task",
+    "max_tests": 3,
+    "replay": null,
+    "replay_requested": true,
+    "replay_trace_resolved_after_run": true,
+    "resource_receipt": {
+      "available_at_start_bytes": 3049791488,
+      "dut_finding": false,
+      "elapsed_seconds": null,
+      "peak_tree_rss_bytes": null,
+      "rss_limit_bytes": 902307840,
+      "schema_version": "heavy_process_resource_receipt.v1",
+      "status": "startup_refused",
+      "workers": 1
+    },
+    "run_dir": "runs/stage2-m0-ibex-smoke-20261009-resource-receipt",
+    "run_id": "stage2-m0-ibex-smoke-20261009-resource-receipt",
+    "schema_version": "first_step_acceptance_run_plan.v1",
+    "seconds": 2.0,
+    "shell": "/usr/bin/python3 /home/qinkejiu/myfuzz/scripts/run_ibex_pulp_online.py run --client-binary /home/qinkejiu/myfuzz/third_party/rfuzz/upstream/rfuzz_reference/fuzzer/target/release/kfuzz --cache-dir /home/qinkejiu/myfuzz/.superpowers/cache/local-harness --output runs/stage2-m0-ibex-smoke-20261009-resource-receipt --seconds 2 --max-tests 3 --run-id stage2-m0-ibex-smoke-20261009-resource-receipt --cpu-retirement --gpio-consumption --native-irq-receipts --compressed-trace && /usr/bin/python3 /home/qinkejiu/myfuzz/scripts/run_ibex_pulp_online.py replay --cache-dir /home/qinkejiu/myfuzz/.superpowers/cache/local-harness --plan runs/stage2-m0-ibex-smoke-20261009-resource-receipt/online_plan.json --trace runs/stage2-m0-ibex-smoke-20261009-resource-receipt/online_final_trace.json"
+  },
+  "doc_links": {
+    "current_broken": 83,
+    "head_documents_on_current_files_broken": 83,
+    "new_broken": [],
+    "note": "HEAD content substituted for modified tracked Markdown; existing deleted-run links remain missing; no files restored"
+  },
+  "review": "ready after signal, subreaper, ownership, stage-log and empty-case counterexample fixes",
+  "unverified": [
+    "full heavy entry coverage",
+    "JVM heap enforcement",
+    "remaining A2 file hash / evidence completeness audit",
+    "fresh Ibex smoke/replay",
+    "B-I"
+  ]
+}

@@ -18,6 +18,7 @@ temp/
 /runs/
 /artifacts/
 /.worktrees/
+/.superpowers/cache/
 
 # Local development inputs and generated evidence; keep these on disk.
 /.downloads/

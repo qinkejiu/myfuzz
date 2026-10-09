@@ -1,8 +1,17 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from contextlib import contextmanager
 import copy
+import ctypes
 from dataclasses import dataclass
+import fcntl
+import os
+from pathlib import Path
+import signal
+import subprocess
+import time
+import threading
 
 
 _MIB = 1024 * 1024
@@ -10,6 +19,224 @@ _MIB = 1024 * 1024
 
 class ResourceProfileError(ValueError):
     """Raised when a low-resource profile cannot be applied safely."""
+
+
+def heavy_process_budget(available_bytes: int) -> int:
+    """Admit a heavy task only after reserving 2 GiB for the host."""
+    if type(available_bytes) is not int or available_bytes < 0:
+        raise ResourceProfileError('available memory must be a non-negative integer')
+    budget = min(4 * 1024**3, available_bytes - 2 * 1024**3)
+    if budget < 1024**3:
+        raise ResourceProfileError('insufficient memory for heavy task')
+    return budget
+
+
+def available_process_memory() -> int:
+    """Linux MemAvailable, constrained by any enclosing cgroup v2 budget."""
+    rows = Path('/proc/meminfo').read_text().splitlines()
+    available = next(int(row.split()[1]) * 1024 for row in rows
+                     if row.startswith('MemAvailable:'))
+    cgroup_root = Path('/sys/fs/cgroup')
+    directories = {cgroup_root}
+    for row in Path('/proc/self/cgroup').read_text().splitlines():
+        if row.startswith('0::'):
+            candidate = (cgroup_root / row[3:].lstrip('/')).resolve()
+            if candidate.is_relative_to(cgroup_root):
+                directories.update([candidate, *candidate.parents])
+    for directory in directories:
+        if not directory.is_relative_to(cgroup_root):
+            continue
+        try:
+            maximum = (directory / 'memory.max').read_text().strip()
+            if maximum != 'max':
+                current = int((directory / 'memory.current').read_text())
+                available = min(available, max(0, int(maximum) - current))
+        except FileNotFoundError:
+            continue
+    return available
+
+
+def _process_snapshot() -> dict[int, tuple[int, int, int, int, int]]:
+    """pid -> (parent, process group, session, birth ticks, resident bytes)."""
+    result = {}
+    page_size = os.sysconf('SC_PAGE_SIZE')
+    for path in Path('/proc').iterdir():
+        if not path.name.isdecimal():
+            continue
+        try:
+            fields = (path / 'stat').read_text().rsplit(') ', 1)[1].split()
+            result[int(path.name)] = (int(fields[1]), int(fields[2]),
+                                     int(fields[3]), int(fields[19]),
+                                     max(0, int(fields[21])) * page_size)
+        except (OSError, ValueError, IndexError):
+            # Processes may disappear between enumeration and stat.
+            continue
+    return result
+
+
+def _process_tree(pid: int, tracked: dict[int, int], snapshot: dict,
+                  existing_children: set[int]) -> set[int]:
+    live = {child for child, birth in tracked.items()
+            if child in snapshot and snapshot[child][3] == birth}
+    live.update(child for child, row in snapshot.items()
+                if child == pid or row[1] == pid or row[2] == pid
+                or (row[0] == os.getpid() and child not in existing_children))
+    while True:
+        descendants = {child for child, row in snapshot.items() if row[0] in live}
+        if descendants <= live:
+            break
+        live.update(descendants)
+    tracked.update({child: snapshot[child][3] for child in live})
+    return live
+
+
+def _stop_process_tree(process: subprocess.Popen, tracked: dict[int, int],
+                       existing_children: set[int]) -> None:
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        snapshot = _process_snapshot()
+        children = _process_tree(process.pid, tracked, snapshot, existing_children)
+        try:
+            os.killpg(process.pid, sig)
+        except ProcessLookupError:
+            pass
+        for child in children:
+            try:
+                os.kill(child, sig)
+            except ProcessLookupError:
+                pass
+        if sig == signal.SIGTERM and children:
+            time.sleep(.05)
+    process.wait(timeout=2)
+    # Reap adopted orphans as well as the direct child. A session-detached
+    # compiler must not escape cleanup when its intermediate parent dies.
+    deadline = time.monotonic() + 1
+    pending = set(tracked) - {process.pid}
+    while pending and time.monotonic() < deadline:
+        for child in list(pending):
+            try:
+                waited, _ = os.waitpid(child, os.WNOHANG)
+                if waited:
+                    pending.remove(child)
+            except ChildProcessError:
+                pending.remove(child)
+        if pending:
+            time.sleep(.01)
+
+
+@contextmanager
+def _worker_lifecycle():
+    """Adopt escaping grandchildren and turn termination into cleanup."""
+    if threading.current_thread() is not threading.main_thread() or threading.active_count() != 1:
+        raise ResourceProfileError('heavy supervisor requires a single-threaded main process')
+    existing_children = {pid for pid, row in _process_snapshot().items()
+                         if row[0] == os.getpid()}
+    if existing_children:
+        # A pre-existing child can fork and exit during supervision. Its newly
+        # adopted descendants cannot be distinguished from the worker's tree.
+        raise ResourceProfileError('heavy supervisor refuses existing child processes')
+    libc = ctypes.CDLL(None, use_errno=True)
+    previous = ctypes.c_int()
+    if libc.prctl(37, ctypes.byref(previous), 0, 0, 0) or libc.prctl(36, 1, 0, 0, 0):
+        raise ResourceProfileError('cannot establish Linux child subreaper')
+    interrupted = [None]
+    def on_signal(signum, frame):
+        interrupted[0] = signum
+    handlers = {sig: signal.getsignal(sig) for sig in
+                (signal.SIGTERM, signal.SIGHUP, signal.SIGINT)}
+    try:
+        for sig in handlers:
+            signal.signal(sig, on_signal)
+        yield existing_children, interrupted
+    finally:
+        for sig, handler in handlers.items():
+            signal.signal(sig, handler)
+        libc.prctl(36, previous.value, 0, 0, 0)
+
+
+def run_budgeted_process(command: Sequence[str], *, lock_path: Path,
+                         available_bytes: int | None = None,
+                         rss_limit_bytes: int | None = None,
+                         timeout_seconds: float | None = None) -> subprocess.CompletedProcess:
+    """Run one heavy worker; measure its tree and clean it on every exit path.
+
+    RSS is sampled every 50 ms, so the cap is a termination threshold rather
+    than an allocation limit. A budget stop is an infrastructure result.
+    """
+    if timeout_seconds is not None and (type(timeout_seconds) not in (int, float)
+                                       or not 0 < timeout_seconds < float('inf')):
+        raise ResourceProfileError('invalid wall timeout')
+    lock_path = Path(lock_path)
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open('a') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise ResourceProfileError('heavy worker busy') from exc
+        available = available_process_memory() if available_bytes is None else available_bytes
+        try:
+            limit = heavy_process_budget(available)
+        except ResourceProfileError as exc:
+            exc.resource_receipt = {
+                'schema_version': 'heavy_process_resource_receipt.v1',
+                'status': 'startup_refused', 'workers': 1,
+                'available_at_start_bytes': available, 'peak_tree_rss_bytes': None,
+                'rss_limit_bytes': max(0, min(4 * 1024**3, available - 2 * 1024**3)),
+                'elapsed_seconds': None, 'dut_finding': False}
+            raise
+        if rss_limit_bytes is not None:
+            if type(rss_limit_bytes) is not int or not 0 < rss_limit_bytes <= limit:
+                raise ResourceProfileError('invalid RSS limit')
+            limit = rss_limit_bytes
+        return _supervise_process(command, available, limit, timeout_seconds)
+
+
+def _supervise_process(command, available, limit, timeout_seconds):
+    with _worker_lifecycle() as (existing_children, interrupted):
+        started = time.monotonic()
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                   text=True, start_new_session=True)
+        tracked = {}
+        peak = 0
+        status = 'complete'
+        try:
+            while True:
+                snapshot = _process_snapshot()
+                tree = _process_tree(process.pid, tracked, snapshot, existing_children)
+                peak = max(peak, sum(snapshot[child][4] for child in tree))
+                if interrupted[0] is not None:
+                    status = 'interrupted'
+                    break
+                if peak > limit:
+                    status = 'budget_terminated'
+                    break
+                if timeout_seconds is not None and time.monotonic() - started >= timeout_seconds:
+                    status = 'wall_timeout'
+                    break
+                if process.poll() is not None:
+                    status = 'complete' if process.returncode == 0 else 'command_failed'
+                    break
+                try:
+                    process.communicate(timeout=.05)
+                except subprocess.TimeoutExpired:
+                    continue
+            _stop_process_tree(process, tracked, existing_children)
+            stdout, stderr = process.communicate(timeout=2)
+            exit_code = (128 + interrupted[0] if status == 'interrupted' else
+                         124 if status in ('budget_terminated', 'wall_timeout')
+                         else process.returncode)
+            result = subprocess.CompletedProcess(command, exit_code, stdout, stderr)
+            result.resource_receipt = {
+                'schema_version': 'heavy_process_resource_receipt.v1',
+                'status': status, 'workers': 1, 'available_at_start_bytes': available,
+                'rss_limit_bytes': limit, 'peak_tree_rss_bytes': peak,
+                'elapsed_seconds': time.monotonic() - started,
+                'sampling_interval_seconds': .05, 'dut_finding': False}
+            return result
+        finally:
+            _stop_process_tree(process, tracked, existing_children)
+            for stream in (process.stdout, process.stderr):
+                if stream is not None:
+                    stream.close()
 
 
 @dataclass(frozen=True, slots=True)

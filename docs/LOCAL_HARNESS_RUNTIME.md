@@ -2,7 +2,7 @@
 
 本页逐组件/组合列出已记录的实际运行能力、命令与限制。统一阶段状态、正在运行的门禁及最新证据入口见 [当前进度](CURRENT_PROGRESS.md)；下一步验收顺序见 [实施计划](superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md)，模块入口见 [代码组织](CODE_ORGANIZATION.md)。
 
-P1 已完成，P2/P3 部分完成，P4～P8 未验收。下表和报告按保存时源码身份解释。v2 CPU POST、RDATA→retired LW 与受控 entry 的2048冻结源门禁得到4／4／4证明、0 barrier和48,315事件完整 fresh 一致；后续 Runner 已变，不表示当前源码重验。最新状态见当前进度页。
+第一阶段 P1–P5 已完成（按各自声明范围），P6–P8 未验收；准确口径见[当前进度](CURRENT_PROGRESS.md)。第二阶段 M0 实施中，[逐组合矩阵](STAGE2_ACCEPTANCE_MATRIX.md)尚未授予 L1–L3 等级。下表和报告按保存时源码身份解释。v2 CPU POST、RDATA→retired LW 与受控 entry 的2048冻结源门禁得到4／4／4证明、0 barrier和48,315事件完整 fresh 一致；后续 Runner 已变，不表示当前源码重验。最新状态见当前进度页。
 
 本系统保持每个真实 CPU/IP RTL 在自己的本地 harness 中运行。测试系统只在事务、事件和数据流层转交真实输出；不生成总线矩阵、桥、仲裁器或一颗具体 SoC，也不推断 DUT 应该给出的结果。
 
