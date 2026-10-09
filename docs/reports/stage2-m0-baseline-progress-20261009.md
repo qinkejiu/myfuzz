@@ -43,11 +43,18 @@ A2 的剩余核查已由最新两组回归覆盖：首步／P5 组 100 passed，
 
 A4/A5 仍不勾选：通用入口现已提供串行 worker、共享默认身份缓存、新 run 目录、Java/SBT heap 预检及异常清理；但所有各阶段实际执行命令尚未迁移至该入口，也没有 JVM 工具可做真实生成校验。直接 Mill 命令在版本锁定 adapter 完成前会拒绝启动。首步与通用入口的 CLI／资源负例已验证，不能据此写成所有生产路径已覆盖。
 
+### A4/A5 当前入口盘点与新增缓存证据
+
+- 现有 legacy [`run_first_step_acceptance.py`](../../scripts/run_first_step_acceptance.py) 的每条 run/replay 子命令都调用共用 supervisor，并与 [`run_stage2_heavy_task.py`](../../scripts/run_stage2_heavy_task.py) 使用同一 `.superpowers/sdd/stage2-heavy-worker.lock`；默认 run/replay 共用 `.superpowers/cache/local-harness`，已有输出目录会被拒绝。它证明当前 legacy 入口受资源控制，但不等于未来 20 行 Stage 2 生产路径已经接入。
+- 仓库调用点扫描中，通用 Stage 2 wrapper 目前没有 Stage 2 生产命令消费者；它是可复用入口，不是已落地的 Stage 2 构建／搜索／replay 管线。待 B–I 建立具体生产命令时，仍须逐项接入并保留共享锁、唯一身份 cache 和新 run 目录。
+- [`local_harness/build.py`](../../src/myfuzz/local_harness/build.py) 的 `local_harness_build_identity.v1` 将 runtime artifact、工具链、全部输入与生成／host 源码摘要纳入 `build_digest`；缓存目录按该 digest 分区，并在命中时复核 manifest、二进制和物化输入。`tests/local_harness/test_build_identity.py` 在共用重型任务监督器内真实运行，10 passed，包含实际 Verilator 编译、命中已验证缓存、输入／二进制污染拒绝及失败构建不发布。回执：`runs/stage2-m0-a5-build-identity-20261009-01/stage2_heavy_task_receipt.json`；峰值进程树 RSS 478,633,984 bytes／上限 4,294,967,296 bytes，耗时 29.69 秒，worker=1，status=`complete`，receipt SHA-256 `d90c0e596932d0b6de32e83f9074530a7eee8979b56cea4ed190741f47d6de55`。测试本身使用隔离临时 cache；共享默认 cache 的实际 legacy 使用由上面的 Ibex smoke 证据覆盖。
+- 本机有 Verilator，但没有 `java`、`sbt`、`mill` 可执行文件。因此 JVM-based Stage 2 generator 的真实启动和身份校验仍缺证；Mill 当前启动前拒绝仍是正确的 fail-closed 状态。上述真实 Verilator 证据补强了既有 cache 实现，不改变 A4/A5 的未完成状态。
+
 ## 本轮验证与真实启动拒绝
 
-最初 M0 回归 **245 passed、12 subtests passed，30.00 秒，exit 0**。最新三组互不依赖的 pytest 子进程并行运行：资源／wrapper 74 passed、首步／P5 100 passed、场景／生命周期 127 passed，另有 12 subtests passed；共 **301 passed、12 subtests passed，均 exit 0**。资源组包括 SBT 参数顺序／隐藏配置、Java heap 数值格式、非法字节输出和 Mill fail-closed 的回归。分组日志及 SHA-256 由[机器可读验证摘要](stage2-m0-verification-summary-20261009.json)维护。
+最初 M0 回归 **245 passed、12 subtests passed，30.00 秒，exit 0**。真实 Verilator 缓存身份组在资源监督器下 **10 passed，29.51 秒，exit 0**。随后三组互不依赖的 pytest 子进程并行运行：资源／wrapper 74 passed、首步／P5 100 passed、场景／生命周期 127 passed，另有 12 subtests passed；共 **301 passed、12 subtests passed，均 exit 0**。本轮日志为 `.superpowers/sdd/regression6-resource.log`、`regression6-first-step.log` 和 `regression6-scenario.log`，哈希记录在[机器可读验证摘要](stage2-m0-verification-summary-20261009.json)。资源组包括 SBT 参数顺序／隐藏配置、Java heap 数值格式、非法字节输出和 Mill fail-closed 的回归。
 
-文档全库检查为 585 个 Markdown／1,273 条本地链接／83 条断链，另跳过 150 条 HTTPS 链接，exit 1；新增两条官方 Mill 文档引用后，本地断链数仍为 83，没有新增本地断链。这些历史路径主要指向已删除 runs 材料，既有删除说明中已登记；本轮不将全库检查写成通过。先前 HEAD 内容复核也得到相同的 83 条断链，增量复核保存在 `.superpowers/sdd/stage2-m0-doc-link-delta-20261009.json`。
+文档全库检查为 585 个 Markdown／1,276 条本地链接／83 条断链，另跳过 150 条 HTTPS 链接，exit 1；本轮新增的 A4/A5 源文件引用均有效，断链仍是既有的 83 条历史 run 链接。本轮不将全库检查写成通过。先前 HEAD 内容复核也得到相同的 83 条断链；增量复核保存在 `.superpowers/sdd/stage2-m0-doc-link-delta-20261009.json`，当前原始扫描保存在 `.superpowers/sdd/stage2-m0-doc-link-current-20261009.json`。
 
 ```bash
 PYTHONPATH=src python3 -m pytest -q \
