@@ -1,0 +1,7 @@
+# Independent review: BOOM IRQ attempt3 controls
+
+Root reviewed06a327c plus8c2dc9c against previously reviewed attempt2 controls and shared-budget source review5d3f290. Spec compliance and source quality approved; no high/medium control blocker. Independent focused pure command over control/test_control.py and control/test_prepare.py:26passed0.13s, exit0.
+
+Only newbase paths and exact two-file replacement preparation differ from reviewed attempt2. Independent source2567 copy remains mandatory; original source and overlay are hashed before/after, full combined map and independent inodes checked before atomic publication. Existing source counts remain2567. Ready pins both overlay bytes/maps, proof, fullsource/freeze/import/control receipts and concrete review5d3f290. Original artifact3f405 remains at its immutable original path. One-shot claims, ancestor/symlink checks, actual child wait/exit, source-first imports and before/after source/tool audits remain intact. No operation is queued or automatically restarted.
+
+Final controller2d73918bf98a7f2317948dc82e642d30f1bec58fce1c9e69cd24d949028af92a; prepare46c5e225d7d2d7e7864141f1e2d6dfeb5d5361a39dcddb74ec0499caa0642881; launch6716b2be1b6d9a2787b358c066881a647e29342cd61b3ea02a140333968e7164. This review authorizes no constructor/model/native. Pure copy/hash preparation may proceed under separate root instruction; actual ready/fullmaps/unusedstate/canonical lock require independent checks before exact native GO.
