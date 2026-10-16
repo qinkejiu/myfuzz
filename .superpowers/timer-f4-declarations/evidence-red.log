@@ -1,0 +1,23 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______ test_source_evidence_covers_actual_ctrl_writer_and_readback_lines _______
+
+    def test_source_evidence_covers_actual_ctrl_writer_and_readback_lines():
+     doc=json.loads((CONFIG/'test_capability.json').read_text())
+     ref=doc['register_semantics'][0]['evidence_ref'];ranges=ref.rsplit(':',1)[1].split(';',1)[0]
+     covered=set()
+     for span in ranges.split(','):
+      bounds=[int(x) for x in span.split('-')]
+      covered.update(range(bounds[0],bounds[-1]+1))
+>    assert {71,89,97,113,121,130,134,139}<=covered
+E    assert {71, 89, 97, ...121, 130, ...} <= {71, 89, 90, 91, 92, 93, ...}
+E      
+E      Extra items in the left set:
+E      97
+E      113
+E      121
+
+tests/integration/test_timer_f4_declarations.py:76: AssertionError
+=========================== short test summary info ============================
+FAILED tests/integration/test_timer_f4_declarations.py::test_source_evidence_covers_actual_ctrl_writer_and_readback_lines
+1 failed, 4 deselected in 0.27s

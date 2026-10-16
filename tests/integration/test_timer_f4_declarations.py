@@ -64,3 +64,16 @@ def test_pinned_timer_source_is_different_rtl_and_no_fallback_without_sidecar():
  path=next(p for p in result['paths'] if p['flow_id']=='F4')
  assert path['status']=='unsupported'
  assert not any(s.get('register')=='TIMER0_COUNT' for s in path['sources'])
+
+
+def test_source_evidence_covers_actual_ctrl_writer_and_readback_lines():
+ doc=json.loads((CONFIG/'test_capability.json').read_text())
+ ref=doc['register_semantics'][0]['evidence_ref'];ranges=ref.rsplit(':',1)[1].split(';',1)[0]
+ covered=set()
+ for span in ranges.split(','):
+  bounds=[int(x) for x in span.split('-')]
+  covered.update(range(bounds[0],bounds[-1]+1))
+ assert {71,89,97,113,121,130,134,139}<=covered
+ lines=(ROOT/'third_party/soc-pulp-apb-timer/src/timer.sv').read_text().splitlines()
+ assert 'regs_n[`REG_TIMER_CTRL] = PWDATA;' in lines[96]
+ assert 'PRDATA = regs_q[`REG_TIMER_CTRL];' in lines[120]

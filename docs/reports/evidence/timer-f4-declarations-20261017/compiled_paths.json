@@ -15,7 +15,7 @@
         "component_id": "pulp_timer",
         "kind": "peripheral",
         "profile_fingerprint": "sha256:29d755de593c02d3771c08363e150ce25133cf341d7d204878647277c6ca46c2",
-        "sidecar_fingerprint": "sha256:08d8534d0739fd2867ccce738696a919f30bb7cfea08868d7377c450570fabc2",
+        "sidecar_fingerprint": "sha256:1690ad232eca36fac9e2bdd1ee3accab3759e9ee60c8ba6a0ca555193608b30e",
         "sidecar_schema_version": "ip_test_capability.v3"
       }
     ],

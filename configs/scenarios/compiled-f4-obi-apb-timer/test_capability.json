@@ -27,7 +27,7 @@
       "write_mask": 4294967295,
       "side_effect": "none",
       "reset_value": 0,
-      "evidence_ref": "rtl:third_party/soc-pulp-apb-timer/src/timer.sv@03eba2e6965f5363df12621882bc70498c551a73:71,89-96,117-120,130-139;sha256=d352fc4476da83658d361e8f500b5a73f857f0a11e9436ab47d5bf0ba0bc7fce"
+      "evidence_ref": "rtl:third_party/soc-pulp-apb-timer/src/timer.sv@03eba2e6965f5363df12621882bc70498c551a73:71,89-97,113-121,130-139;sha256=d352fc4476da83658d361e8f500b5a73f857f0a11e9436ab47d5bf0ba0bc7fce"
     }
   ],
   "observation_mappings": [],
