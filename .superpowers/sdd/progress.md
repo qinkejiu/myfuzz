@@ -4030,3 +4030,10 @@ BOOM cached supplement2a9e4b5 remains prepared-not-run; script/module/binary pin
 - BOOM IRQ gatec6e7994 source-only independentreview53c4b95 twoMedium causalordering+physicalsourcejoin. Owner reproduced7RED/fix30GREEN ongoing additionalmutationcontrols; requirefreeze+rereview before independentruntimeprojectprep/GO. Runtimeuses unchangedartifact-finalized and independentlycopiedrepo, neverfinalizedsource becausematerializationwritesRTL.
 - fullAXI crossEventJournal-drain referencecollision discovered byAHBowner. CurrentCVA650gateordinarylistunaffected; independentfix gate remainsOPEN. Do not upgradeallCPUeventintegration.
 - Whole sixCPU/fourfamily/DMA/newIP/onboarding/events system goal and P6/P7/P8 remainOPEN. Genuine newIP register/reset authority+feedbacksearch missing; do not aliasGPIO/timerandclaimnewIP.
+
+### 2026-10-17 reviewed event fixes and next source increment
+
+- AHB da4605f eventbudget fix independently93a7bda reviewedclean;52purepass1.30s. Owner design080280d recommends AHB-only actualassert/releasebuffer+unchanged5tokenREADY+zero-clock paginated READ_AHB_STARTUP; ROOT approved source-only TDD with strict1MiB/page,8MiBtotal/2048edges bounds, no reset/clock/input behavior changes, allpages verified beforeSTEP, original namespaces preserved and globalbudgetcharged. Ownercpu_axi_events activeimplementation, NO native/elab/buildGO.
+- fullAXI944a888 lifetime_record_count fixes realRunner/EventJournal rawrefcollision; actualRED1>1, final113purepass7s; sourceindependentreviewaaf4134 clean. ArchivedactualCVA6 first/fresh each826records offline reprojection unchanged. Remoteoldfrozenproject untouched; no freshnative claim forfix.
+- BOOM source70fdbcb fixes twoMediums,7RED→43GREEN4.55s; F4owneractivelyre-reviewing. Owner permitted source-onlycontroller/prep andpurecopy/hash afterreviewclean, but NO constructor/model/build/describe/native untilrootexactGO. Existingartifact-finalized immutable.
+- ActualCVA6/fullF4 receipts/docs/rootaudits38014ad; currentprogress/P6reconciled92a2425; whole goal remainsactiveOPEN.
