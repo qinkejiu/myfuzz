@@ -16,6 +16,9 @@
   "observed_cache_jar_count": 278,
   "generated_file": "VexiiRiscv.v",
   "generated_sha256": "2453680b40e427ad51a29a84cd9138b4b608e206fbec5349e67480147806d0a0",
+  "top_port_inventory": "ports.json",
+  "top_port_inventory_sha256": "3644e1357fd2849b689ee6aa414994a65356f09f75e3de0d17f1d7521586aea3",
+  "top_port_count": 48,
   "generator_exit_code": 0,
   "lint": {
     "tool": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",

@@ -1,0 +1,247 @@
+{
+  "schema_version": "generated_cpu_ports.v1",
+  "source_sha256": "2453680b40e427ad51a29a84cd9138b4b608e206fbec5349e67480147806d0a0",
+  "top_module": "VexiiRiscv",
+  "ports": [
+    {
+      "name": "PrivilegedPlugin_logic_rdtime",
+      "direction": "input",
+      "width": 64
+    },
+    {
+      "name": "PrivilegedPlugin_logic_harts_0_int_m_timer",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "PrivilegedPlugin_logic_harts_0_int_m_software",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "PrivilegedPlugin_logic_harts_0_int_m_external",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_aw_valid",
+      "direction": "output",
+      "width": 1
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_aw_ready",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_aw_payload_addr",
+      "direction": "output",
+      "width": 32
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_aw_payload_id",
+      "direction": "output",
+      "width": 1
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_aw_payload_size",
+      "direction": "output",
+      "width": 3
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_aw_payload_cache",
+      "direction": "output",
+      "width": 4
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_aw_payload_prot",
+      "direction": "output",
+      "width": 3
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_w_valid",
+      "direction": "output",
+      "width": 1
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_w_ready",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_w_payload_data",
+      "direction": "output",
+      "width": 32
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_w_payload_strb",
+      "direction": "output",
+      "width": 4
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_w_payload_last",
+      "direction": "output",
+      "width": 1
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_b_valid",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_b_ready",
+      "direction": "output",
+      "width": 1
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_b_payload_id",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_b_payload_resp",
+      "direction": "input",
+      "width": 2
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_ar_valid",
+      "direction": "output",
+      "width": 1
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_ar_ready",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_ar_payload_addr",
+      "direction": "output",
+      "width": 32
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_ar_payload_id",
+      "direction": "output",
+      "width": 1
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_ar_payload_size",
+      "direction": "output",
+      "width": 3
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_ar_payload_cache",
+      "direction": "output",
+      "width": 4
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_ar_payload_prot",
+      "direction": "output",
+      "width": 3
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_r_valid",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_r_ready",
+      "direction": "output",
+      "width": 1
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_r_payload_data",
+      "direction": "input",
+      "width": 32
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_r_payload_id",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_r_payload_resp",
+      "direction": "input",
+      "width": 2
+    },
+    {
+      "name": "LsuCachelessAxi4Plugin_logic_axi_r_payload_last",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "FetchCachelessAxi4Plugin_logic_bridge_axi_ar_valid",
+      "direction": "output",
+      "width": 1
+    },
+    {
+      "name": "FetchCachelessAxi4Plugin_logic_bridge_axi_ar_ready",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "FetchCachelessAxi4Plugin_logic_bridge_axi_ar_payload_addr",
+      "direction": "output",
+      "width": 32
+    },
+    {
+      "name": "FetchCachelessAxi4Plugin_logic_bridge_axi_ar_payload_id",
+      "direction": "output",
+      "width": 1
+    },
+    {
+      "name": "FetchCachelessAxi4Plugin_logic_bridge_axi_ar_payload_size",
+      "direction": "output",
+      "width": 3
+    },
+    {
+      "name": "FetchCachelessAxi4Plugin_logic_bridge_axi_ar_payload_cache",
+      "direction": "output",
+      "width": 4
+    },
+    {
+      "name": "FetchCachelessAxi4Plugin_logic_bridge_axi_ar_payload_prot",
+      "direction": "output",
+      "width": 3
+    },
+    {
+      "name": "FetchCachelessAxi4Plugin_logic_bridge_axi_r_valid",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "FetchCachelessAxi4Plugin_logic_bridge_axi_r_ready",
+      "direction": "output",
+      "width": 1
+    },
+    {
+      "name": "FetchCachelessAxi4Plugin_logic_bridge_axi_r_payload_data",
+      "direction": "input",
+      "width": 32
+    },
+    {
+      "name": "FetchCachelessAxi4Plugin_logic_bridge_axi_r_payload_id",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "FetchCachelessAxi4Plugin_logic_bridge_axi_r_payload_resp",
+      "direction": "input",
+      "width": 2
+    },
+    {
+      "name": "FetchCachelessAxi4Plugin_logic_bridge_axi_r_payload_last",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "clk",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "reset",
+      "direction": "input",
+      "width": 1
+    }
+  ]
+}
