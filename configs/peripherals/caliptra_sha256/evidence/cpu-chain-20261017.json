@@ -1,0 +1,86 @@
+{
+  "artifact_hashes": [
+    "1b416c135164ce42a0d83f7a7311a49ce2abff022d6ad9edce8ae78fa1ddf8bd",
+    "bac887ac76731017a46c4aab3f76e07f6068af4fac17eaa1836fc5001ad76cc1"
+  ],
+  "controls": [
+    "wrong_internal_zero_window_no_target_access_or_RAM_completion",
+    "actual_CPU_SB_be1_rejected_before_target_tick_or_delivery",
+    "partial_and_unaligned_host_access_rejected_without_target_ticks"
+  ],
+  "cpu_widths": {
+    "ahb_address": 34,
+    "ahb_data": 32,
+    "xlen": 32
+  },
+  "current_tree_mismatches": [
+    {
+      "path": "src/myfuzz/integration/compiled_f4.py",
+      "sha256": "e9fc60766463729818e175ee6121386d2bc113bc399fede133dd1027f144866c"
+    },
+    {
+      "path": "src/myfuzz/scenario/runner.py",
+      "sha256": "f6170ee5d4c4d092c1507d4ad8c961f4c240a839b4e6d87e41355898c0b7617d"
+    }
+  ],
+  "date": "2026-10-17",
+  "exit_code": 0,
+  "fresh_directed_traces_equal": true,
+  "fresh_native_execution_ids_differ_for_both": true,
+  "gate": "3 passed in 100.00s",
+  "gate_log_sha256": "f2cfbe148d2502f986bc7097ec96f7738e060fe2a3a949d17be3057548ee434f",
+  "host_sources_per_identity": 312,
+  "job_pid": "134767",
+  "owned_source_sha256": {
+    "src/myfuzz/scenario/cvw_caliptra_example.py": "60f1612380240fd32ea4f02220c710990f3f30d98f93bd10474824be7f2791f1",
+    "tests/integration/test_cvw_cpu_caliptra_chain_real.py": "6ee20fd0eab8bf859dd6610bc256c55380fe136c160db7e5579367c0c18e2e17"
+  },
+  "runs": {
+    "first": {
+      "completion": 1,
+      "cpu_samples": 1248,
+      "digests": [
+        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+        "a52d159f262b2c6ddb724a61840befc36eb30c88877a4030b65cbe86298449c9"
+      ],
+      "executions": [
+        "3a638e0016fe4981be66456d3cd9b101",
+        "25825fbca4094b8ab1ff7b4a3c8a6bc2"
+      ],
+      "path": "runs/cvw-caliptra-chain-20261017/first.json",
+      "pending_responses": 0,
+      "reads": 50,
+      "sha256": "915bac7a714e9a1993dfcbe4ffb4402e687f33b67d7c26ce3d1025888284df19",
+      "status_polls": 34,
+      "target_samples": 336,
+      "transactions": 84,
+      "writes": 34
+    },
+    "fresh": {
+      "completion": 1,
+      "cpu_samples": 1248,
+      "digests": [
+        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+        "a52d159f262b2c6ddb724a61840befc36eb30c88877a4030b65cbe86298449c9"
+      ],
+      "executions": [
+        "ba17b7e8936b4a639c45b706a27983f8",
+        "d084d935f41b43799471253a796a9304"
+      ],
+      "path": "runs/cvw-caliptra-chain-20261017/fresh.json",
+      "pending_responses": 0,
+      "reads": 50,
+      "sha256": "575ce1567aacfe2808bb4f11812a13bf7d2f9ee3432ab0f2b742c99cfc51422f",
+      "status_polls": 34,
+      "target_samples": 336,
+      "transactions": 84,
+      "writes": 34
+    }
+  },
+  "schema_version": "cvw_caliptra_cpu_chain_evidence.v1",
+  "snapshot": "/root/fanzehui/cvw-caliptra-chain-20261017",
+  "target_widths": {
+    "ahb_address": 32,
+    "ahb_data": 32
+  }
+}
