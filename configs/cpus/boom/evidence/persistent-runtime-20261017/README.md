@@ -12,8 +12,10 @@ The CPU writes GPIO PADOUT=53, actual GPIO output/readback equals 53, then the
 CPU writes native RAM readback=53 and branch success=1 at 0x3000/0x3004. Both
 native processes exit 0. Raw CPU and GPIO nonces, OS PIDs and exits are retained.
 The complete event prefixes match after replacing only declared execution and
-stream scope fields. Payloads and arbitrary nested identity-like data remain
-unchanged. Both normalized prefixes hash to
+stream scope fields. Ordinary payload data and payload.execution_id remain unchanged. Reserved
+source_transaction.execution_id and native_acknowledgement execution fields
+are recognized at any nesting depth; arbitrary use of those reserved structures
+in payloads is outside this comparison policy. Both normalized prefixes hash to
 `62891182387db436fbc07210c7a6e9a4615d60725d0015861cf6f9afb2da1141`.
 
 The changed-response environment control preserves real GPIO readback 53 and

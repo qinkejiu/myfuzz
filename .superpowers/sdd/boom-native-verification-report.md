@@ -29,8 +29,10 @@ at native uncached 0x3000/0x3004. Actual accepted A→router source key→physic
 APB/transport access ID→accepted D→CPU result-store bindings are checked.
 Both CPU/GPIO native processes exit0. Both complete event prefixes match after
 normalizing only top-level declared process/stream scope, source_transaction
-execution scope and native reset acknowledgement scope. Arbitrary payload
-fields are unchanged even if their contents equal a nonce. Normalized SHA-256:
+execution scope and native reset acknowledgement scope. Ordinary payload data and payload.execution_id remain unchanged even if
+their contents equal a nonce. Reserved source_transaction and native_acknowledgement
+execution fields are recognized at any nesting depth; adversarial reuse of those
+reserved structures inside payloads is outside this comparison policy. Normalized SHA-256:
 `62891182387db436fbc07210c7a6e9a4615d60725d0015861cf6f9afb2da1141`.
 
 Changed-response control: actual GPIO returns53, the environment offers52,
@@ -77,3 +79,7 @@ and the corresponding remote directory. No real hardware was targeted.
 
 Remaining: separate persistent C/E cached-RAM coverage, warm RAM retention,
 IRQs/probes, source authority/retirement evidence and full P6 acceptance.
+
+Independent primary review found no high/medium issues. Its low comparison-policy
+wording finding is addressed above: the frozen gate was not changed or rerun.
+See boom-primary-native-independent-review.md.
