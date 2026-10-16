@@ -1,0 +1,9 @@
+{
+  "archive_files": 24,
+  "all_file_lengths_and_hashes_match": true,
+  "ready_pins_match": true,
+  "exact_reviewed_replacements": [
+    "src/myfuzz/scenario/boom_gpio_irq_verification.py",
+    "tests/local_harness/test_boom_irq_verification.py"
+  ]
+}
