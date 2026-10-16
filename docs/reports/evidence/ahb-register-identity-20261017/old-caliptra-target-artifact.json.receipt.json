@@ -1,0 +1,7 @@
+{
+  "historical_native_artifact_only": true,
+  "new_native_run": false,
+  "original_sha256": "5884c7933c8305d704f7afdd5aee2264915b09f58e5573fc9c6dfce1d2ee5c7e",
+  "gzip_sha256": "6f2e325a1fa73228cb8ee91efcd4195b548cfc29fdc19eab9f68c3c2a35097b0",
+  "remote_source": "/root/fanzehui/cvw-caliptra-chain-20261017/.superpowers/cvw-caliptra/cache/a3119f52714a7a52df0686c6b5d073ae4192bf836bcef6f762d820ed0aafab46/inputs/generated/artifact.json"
+}

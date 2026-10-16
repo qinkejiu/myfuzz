@@ -1,0 +1,11 @@
+{
+  "grade": "source-only; no native/build/elaboration/model",
+  "source_sha256": {
+    "src/myfuzz/scenario/contracts.py": "9b4338123df915cedfc065d433e0d7beacc44512c927cfff356dae24e2d8b915",
+    "tests/local_harness/test_ahb_register_identity.py": "08985a744ed1330d36df9bd11e815f52c3450c68f0a468f3ad979f084a846847"
+  },
+  "software_results": {
+    "target": "21 passed in 12.23s",
+    "combined": "162 passed in 23.26s"
+  }
+}

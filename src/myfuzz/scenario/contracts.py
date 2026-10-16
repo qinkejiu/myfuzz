@@ -97,9 +97,16 @@ def _verify_generated_session(identity: dict):
     cpu_native_irq_fields = cpu_observation_fields | {'cpu_native_irq_receipt_contract'}
     gpio_observation_fields = {'gpio_target_context_schema_version',
                               'gpio_observation_contract'}
-    apb_register_fields = {'apb3_register_service_schema_version', 'setup_writes',
-                           'probe_offsets', 'dynamic_input_initial_policy',
-                           'bound_input_initial_policy'}
+    register_common_fields = {'setup_writes', 'probe_offsets',
+                              'dynamic_input_initial_policy', 'bound_input_initial_policy'}
+    register_service_schemas = {
+        'apb3_register_observe': ('apb3_register_service_schema_version',
+                                 'generated_apb3_register_observe.v1'),
+        'ahb_lite_register_observe': ('ahb_lite_register_service_schema_version',
+                                     'generated_ahb_lite_register_observe.v1'),
+    }
+    apb_register_fields = register_common_fields | {'apb3_register_service_schema_version'}
+    ahb_register_fields = register_common_fields | {'ahb_lite_register_service_schema_version'}
     native_fields = {'native_service_schema_version', 'source_component', 'memory_policy'}
     ahb_fields = {'ahb_lite_service_schema_version', 'source_component', 'memory_policy',
                   'ahb_observation_contract'}
@@ -136,6 +143,7 @@ def _verify_generated_session(identity: dict):
             base_fields | cpu_native_irq_fields,
             base_fields | gpio_observation_fields,
             base_fields | apb_register_fields,
+            base_fields | ahb_register_fields,
             base_fields | native_fields,
             base_fields | ahb_fields,
             base_fields | rvx_fields,
@@ -267,14 +275,15 @@ def _verify_generated_session(identity: dict):
                 or identity['source_component'] != artifact.plan.request.instance_id
                 or type(identity['defer_mmio']) is not bool):
             raise ValueError('generated CPU service identity mismatch')
-    elif artifact.runtime_document['kind'] == 'apb3_register_observe':
-        _exact(identity, base_fields | apb_register_fields,
-               'generated APB3 register service identity')
+    elif artifact.runtime_document['kind'] in register_service_schemas:
+        service_key, service_schema = register_service_schemas[artifact.runtime_document['kind']]
+        _exact(identity, base_fields | register_common_fields | {service_key},
+               'generated register service identity')
         writes, probes = identity['setup_writes'], identity['probe_offsets']
         window = artifact.plan.profile.address.window_size
         def valid_offset(value):
             return type(value) is int and 0 <= value < window and value % 4 == 0
-        if (identity['apb3_register_service_schema_version'] != 'generated_apb3_register_observe.v1'
+        if (identity[service_key] != service_schema
                 or identity['dynamic_input_initial_policy'] != 'zero_until_first_source_event'
                 or identity['bound_input_initial_policy'] != 'zero_until_first_real_output'
                 or type(writes) is not list or len(writes) > 16
@@ -283,7 +292,7 @@ def _verify_generated_session(identity: dict):
                        or not 0 <= row[1] <= 0xffffffff for row in writes)
                 or type(probes) is not list or len(probes) > 16
                 or any(not valid_offset(offset) for offset in probes)):
-            raise ValueError('generated APB3 register service identity mismatch')
+            raise ValueError('generated register service identity mismatch')
     elif artifact.runtime_document['kind'] == 'apb_spi':
         _exact(identity, base_fields | spi_fields, 'generated SPI service identity')
         source = identity['source_hex']
@@ -456,7 +465,7 @@ def _verify_generated_session(identity: dict):
     else:
         _exact(identity, base_fields, 'generated IP service identity')
     expected_build = local_build_identity(artifact, base_dir=_ROOT)
-    if (not _strict_generated_json_equal(identity['build_identity'], expected_build) if fifo_variant or native_cpu_irq or document.get('kind') in ('ahb_lite_cpu', 'apb3_register_observe')
+    if (not _strict_generated_json_equal(identity['build_identity'], expected_build) if fifo_variant or native_cpu_irq or document.get('kind') in ('ahb_lite_cpu', *register_service_schemas)
             else identity['build_identity'] != expected_build):
         raise ValueError('generated build identity mismatch')
     return artifact
