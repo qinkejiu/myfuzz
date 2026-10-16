@@ -3,9 +3,9 @@
 ## 最新终态补记（2026-10-17）
 
 - **连续 UART RX DMA attempt6 已通过真实门禁：** 1 passed／277.19 秒，native 与 worker exit0；前置软件门 65 passed／70.42 秒。单次 boot 四字节、JSON 往返后的完整 fresh 前缀及 source-bound 失败 fresh 重放均通过。见[报告与原始归档](reports/dma-continuous-runner-20261017.md)。后文 attempt4/5 是历史失败状态，不是当前运行状态；能力仍是 bounded_historical_chain，FIFO 来源 unknown。
-- **F4 当前增量仍未完成原生验收：** adapter 门因缺少 iverilog/vvp 跳过，审计拒绝通过；随后 CV32 boundary 门在原生启动前因源枚举器只接受 files、不接受 filelist 而失败。两次结果保留，正在修复源闭包读取，尚未观测本轮 CV32 错误响应行为。
+- **F4 错误响应边界已有真实增量：** 最初 Icarus adapter 跳过和 CV32 filelist 预启动失败保留；filelist 修复后，实际生成式 CV32 首取指接受后注入 backend ERR，模型命中指定 fatal 并非零退出，控制/源检查/审计 exit0。同一适配器与 testbench 的显式 Verilator 门另为 1 passed／8.03 秒。见[原始证据与范围](reports/obi-no-error-fail-stop-20261017.md)。Ibex 三例连续数据流与两次完整 fresh 门已启动，结果待终态；CV32 连续成功门尚未运行。
 - **BOOM IRQ：** 实际 Verilator 构建及 16 个 VPI 探针清单均 exit0，但最终元数据生成因实际 Syms__Slow.cpp 文件名而失败。精确符号文件闭包修复已完成，恢复工具仍在实现/复核；尚无 IRQ 链通过结果。
-- **CPU 事件：** reduced AXI 观察器已有冻结软件证据；CVA6 full AXI 观察器当前 88 passed＋3 subtests，正在独立复核。后者保存的是明确标记的软件构造模型，不是新的 CVA6 原生轨迹。
+- **CPU 事件：** reduced AXI 观察器已有冻结软件证据；[CVA6 full AXI 观察器](reports/CPU_FULL_AXI_OBSERVER_20261017.md)冻结 `893d255`，99 passed＋3 subtests；独立审查的异常后停止、effects 标记与 post 新 offer 保持三项均修复。后者保存的是明确标记的软件构造模型，不是新的 CVA6 原生轨迹；窄 CPU/RAM 原生门正在准备。
 
 以上分别绑定冻结源码，**整个系统及 P6/P7/P8 保持未验收**。
 
