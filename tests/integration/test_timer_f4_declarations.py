@@ -48,7 +48,9 @@ def test_generic_target_has_no_hidden_pin_source_or_setup():
  from myfuzz.local_harness import load_local_harness_request
  request=load_local_harness_request(json.loads((CONFIG/'requests/peripheral.json').read_text()))
  assert request.profile_path=='configs/peripherals/pulp_timer/component_profile.json'
- assert {r.kind for r in request.tuning.records}=={'endpoint_policies'}
+ assert {r.kind for r in request.tuning.records}=={'endpoint_policies','apb_storage_observations'}
+ assert [r.document() for r in request.tuning.records if r.kind=='apb_storage_observations']==[
+  {'endpoint_id':'timer.bus','contract_id':'pulp-apb-timer.ctrl0.source.v1','register':'TIMER0_CTRL'}]
  supplement=json.loads((CONFIG/'execution_supplement.json').read_text())
  assert supplement['request_supplements']=={} and supplement['ownership']=={'fields':[],'owners':[]}
  assert supplement['physical_port_map']==[]

@@ -1,0 +1,19 @@
+..F..                                                                    [100%]
+=================================== FAILURES ===================================
+____________ test_generic_target_has_no_hidden_pin_source_or_setup _____________
+
+    def test_generic_target_has_no_hidden_pin_source_or_setup():
+     from myfuzz.local_harness import load_local_harness_request
+     request=load_local_harness_request(json.loads((CONFIG/'requests/peripheral.json').read_text()))
+     assert request.profile_path=='configs/peripherals/pulp_timer/component_profile.json'
+>    assert {r.kind for r in request.tuning.records}=={'endpoint_policies','apb_storage_observations'}
+E    AssertionError: assert {'endpoint_policies'} == {'apb_storage...int_policies'}
+E      
+E      Extra items in the right set:
+E      'apb_storage_observations'
+E      Use -v to get more diff
+
+tests/integration/test_timer_f4_declarations.py:51: AssertionError
+=========================== short test summary info ============================
+FAILED tests/integration/test_timer_f4_declarations.py::test_generic_target_has_no_hidden_pin_source_or_setup
+1 failed, 4 passed in 0.29s
