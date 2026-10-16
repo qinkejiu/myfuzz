@@ -46,7 +46,8 @@ The GPIO program records A6/D20 and no C/E. The old one-shot gate passes its
 two matching fresh traces and read-corruption control using its authenticated
 prior executable, after the current generator reproduces source/driver/manager
 identity and prior binary SHA. This is explicitly prior-build provenance.
-A separate cached-RAM probe of the NEW persistent C/E path remains pending.
+The separate NEW persistent C/E cached-RAM supplement now also passes; see
+boom-persistent-coherent-supplement-report.md and the persistent-coherent evidence.
 
 ## Source and focused regressions
 
@@ -77,7 +78,7 @@ failure. Actual authorized native job155524 was recorded before polling.
 Durable state/log/PID files remain in local `.superpowers/boom-verification-20261017`
 and the corresponding remote directory. No real hardware was targeted.
 
-Remaining: separate persistent C/E cached-RAM coverage, warm RAM retention,
+Remaining: warm RAM retention,
 IRQs/probes, source authority/retirement evidence and full P6 acceptance.
 
 Independent primary review found no high/medium issues. Its low comparison-policy

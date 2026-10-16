@@ -1,0 +1,197 @@
+{
+  "schema_version": "boom_persistent_coherent_probe.v1",
+  "pass": true,
+  "raw_bus_prefix_equal": true,
+  "full_measured_edge_prefix_equal": true,
+  "full_scoped_runtime_prefix_equal": true,
+  "one_shot_bus_fields_equal": true,
+  "identities": [
+    {
+      "schema_version": "generated_boom_session.v1",
+      "runtime_kind": "tilelink_coherent_cpu",
+      "derived_source": true,
+      "source_revision": "sha256:4f960fdd6c96dccfe1bb7788fd628e368304b7280e5449cf3ae5463e982f2c30",
+      "source_manifest_sha256": "0e3718bdc000dd2a8b965e20eb4e00b8071a786f7961d62372956f90a6bc6053",
+      "profile_sha256": "344cfcebf31056311021f04cbecef0d1a8819f4befc40c71e380147293620a01",
+      "driver_sha256": "63dcc4f0fc13bc997a9b93fa8dd78f852954698db30815b23be04868c06da466",
+      "manager_sha256": "c40e3b16f492f4f73857950e47604f60e29055f684f46204cdeb685867d095da",
+      "trace_verifier": "/root/fanzehui/boom-verification-20261017/project/configs/cpus/boom/runtime/verify_trace.py",
+      "trace_verifier_sha256": "06b303a065b99baf25d799cd16084ab50d406d8e8c5aa77b77cee96635d8bfcd",
+      "simulator": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+      "physical_ports": 47,
+      "coherent_fields": 39,
+      "B_valid": 0,
+      "external_probes_exercised": false,
+      "generic_router_admitted": false,
+      "command": [
+        "verilator",
+        "--cc",
+        "--exe",
+        "--build",
+        "--top-module",
+        "BoomTile",
+        "--Mdir",
+        "/root/fanzehui/boom-verification-20261017/native/obj",
+        "-Wno-fatal",
+        "--output-split",
+        "20000",
+        "--output-split-cfuncs",
+        "20000",
+        "-j",
+        "2",
+        "-CFLAGS",
+        "-std=c++17 -O1",
+        "/root/fanzehui/boom-verification-20261017/native/EICG_wrapper.v",
+        "/root/fanzehui/boom-verification-20261017/native/chipyard.TestHarness.SmallBoomConfig.top.mems.v",
+        "/root/fanzehui/boom-verification-20261017/native/chipyard.TestHarness.SmallBoomConfig.top.v",
+        "/root/fanzehui/boom-verification-20261017/native/plusarg_reader.v",
+        "/root/fanzehui/boom-verification-20261017/native/driver.cpp"
+      ],
+      "python_session_sha256": "5165fd7565cb6d53e50f8dc86accc0d518b29d223ac76f612101dfac728437bf",
+      "generator_sha256": "e7de94305339e2f6d06a69588875d0b97bf92471832d330c0573bfe97815d977",
+      "session_files": {
+        "driver.cpp": "63dcc4f0fc13bc997a9b93fa8dd78f852954698db30815b23be04868c06da466",
+        "tl_ram.h": "c40e3b16f492f4f73857950e47604f60e29055f684f46204cdeb685867d095da",
+        "obj/VBoomTile": "6f47a6166bb5ef5b515ed256adc721ee5ff6ae43e913883b4bce93ccb15bd44a",
+        "chipyard.TestHarness.SmallBoomConfig.top.v": "78bc69803c7b993cd1ddfcdb585d477bd27a83710bb1ce426e217aedbbdfaced",
+        "plusarg_reader.v": "482a63c1f24a7ac920909620bd0df108e6954eabf9520de6e72334a2b5450efb",
+        "chipyard.TestHarness.SmallBoomConfig.top.mems.v": "97ae4679a1ec21f4f424c56e23b1b1948e77d934c8c11461b56de47160a1a280",
+        "EICG_wrapper.v": "8532a50a212f146f10208717be24168a2de73a9754786da272d0dbfcd556c307"
+      },
+      "transaction_execution_identity": "native_session",
+      "external_range": null,
+      "execution_id": "63749f8b-e624-4685-8ad0-087675877b70",
+      "reset_epoch": 1
+    },
+    {
+      "schema_version": "generated_boom_session.v1",
+      "runtime_kind": "tilelink_coherent_cpu",
+      "derived_source": true,
+      "source_revision": "sha256:4f960fdd6c96dccfe1bb7788fd628e368304b7280e5449cf3ae5463e982f2c30",
+      "source_manifest_sha256": "0e3718bdc000dd2a8b965e20eb4e00b8071a786f7961d62372956f90a6bc6053",
+      "profile_sha256": "344cfcebf31056311021f04cbecef0d1a8819f4befc40c71e380147293620a01",
+      "driver_sha256": "63dcc4f0fc13bc997a9b93fa8dd78f852954698db30815b23be04868c06da466",
+      "manager_sha256": "c40e3b16f492f4f73857950e47604f60e29055f684f46204cdeb685867d095da",
+      "trace_verifier": "/root/fanzehui/boom-verification-20261017/project/configs/cpus/boom/runtime/verify_trace.py",
+      "trace_verifier_sha256": "06b303a065b99baf25d799cd16084ab50d406d8e8c5aa77b77cee96635d8bfcd",
+      "simulator": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+      "physical_ports": 47,
+      "coherent_fields": 39,
+      "B_valid": 0,
+      "external_probes_exercised": false,
+      "generic_router_admitted": false,
+      "command": [
+        "verilator",
+        "--cc",
+        "--exe",
+        "--build",
+        "--top-module",
+        "BoomTile",
+        "--Mdir",
+        "/root/fanzehui/boom-verification-20261017/native/obj",
+        "-Wno-fatal",
+        "--output-split",
+        "20000",
+        "--output-split-cfuncs",
+        "20000",
+        "-j",
+        "2",
+        "-CFLAGS",
+        "-std=c++17 -O1",
+        "/root/fanzehui/boom-verification-20261017/native/EICG_wrapper.v",
+        "/root/fanzehui/boom-verification-20261017/native/chipyard.TestHarness.SmallBoomConfig.top.mems.v",
+        "/root/fanzehui/boom-verification-20261017/native/chipyard.TestHarness.SmallBoomConfig.top.v",
+        "/root/fanzehui/boom-verification-20261017/native/plusarg_reader.v",
+        "/root/fanzehui/boom-verification-20261017/native/driver.cpp"
+      ],
+      "python_session_sha256": "5165fd7565cb6d53e50f8dc86accc0d518b29d223ac76f612101dfac728437bf",
+      "generator_sha256": "e7de94305339e2f6d06a69588875d0b97bf92471832d330c0573bfe97815d977",
+      "session_files": {
+        "driver.cpp": "63dcc4f0fc13bc997a9b93fa8dd78f852954698db30815b23be04868c06da466",
+        "tl_ram.h": "c40e3b16f492f4f73857950e47604f60e29055f684f46204cdeb685867d095da",
+        "obj/VBoomTile": "6f47a6166bb5ef5b515ed256adc721ee5ff6ae43e913883b4bce93ccb15bd44a",
+        "chipyard.TestHarness.SmallBoomConfig.top.v": "78bc69803c7b993cd1ddfcdb585d477bd27a83710bb1ce426e217aedbbdfaced",
+        "plusarg_reader.v": "482a63c1f24a7ac920909620bd0df108e6954eabf9520de6e72334a2b5450efb",
+        "chipyard.TestHarness.SmallBoomConfig.top.mems.v": "97ae4679a1ec21f4f424c56e23b1b1948e77d934c8c11461b56de47160a1a280",
+        "EICG_wrapper.v": "8532a50a212f146f10208717be24168a2de73a9754786da272d0dbfcd556c307"
+      },
+      "transaction_execution_identity": "native_session",
+      "external_range": null,
+      "execution_id": "e3dea235-7d74-4654-99de-2185af51f33a",
+      "reset_epoch": 1
+    }
+  ],
+  "program_sha256": "4ee3acfc3f4f64af93b37a0eaac1e43fe104ffb27c4181fd5580f703ae0f2adf",
+  "summaries": [
+    {
+      "ticks": 599,
+      "values": [
+        291,
+        291,
+        291
+      ],
+      "channels": {
+        "A": 21,
+        "D": 164,
+        "E": 14,
+        "C": 80
+      },
+      "checker": {
+        "schema_version": "coherent_protocol_check.v1",
+        "scope": "single_client_no_external_probes_per_source_manager",
+        "structural_error": false,
+        "stream_closed": true,
+        "pending_sources": 0,
+        "pending_sinks": 0,
+        "observed_events": 279,
+        "runtime_accepted": false,
+        "semantic_accepted": false,
+        "source_authority": false,
+        "stream_id": "7aed837a-47c9-4a0e-aa48-7039a5ae8de6",
+        "stream_poisoned": false,
+        "runtime_record_count": 558,
+        "normalization_poisoned": false
+      },
+      "native_process": {
+        "pid": 180842,
+        "exit": 0
+      }
+    },
+    {
+      "ticks": 599,
+      "values": [
+        291,
+        291,
+        291
+      ],
+      "channels": {
+        "A": 21,
+        "D": 164,
+        "E": 14,
+        "C": 80
+      },
+      "checker": {
+        "schema_version": "coherent_protocol_check.v1",
+        "scope": "single_client_no_external_probes_per_source_manager",
+        "structural_error": false,
+        "stream_closed": true,
+        "pending_sources": 0,
+        "pending_sinks": 0,
+        "observed_events": 279,
+        "runtime_accepted": false,
+        "semantic_accepted": false,
+        "source_authority": false,
+        "stream_id": "e14ce79e-5bee-4465-93d0-148e16d77d5f",
+        "stream_poisoned": false,
+        "runtime_record_count": 558,
+        "normalization_poisoned": false
+      },
+      "native_process": {
+        "pid": 181102,
+        "exit": 0
+      }
+    }
+  ],
+  "generic_admission": false,
+  "full_P6": false
+}

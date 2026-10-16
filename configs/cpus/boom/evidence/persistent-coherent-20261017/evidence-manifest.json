@@ -1,0 +1,70 @@
+{
+  "schema_version": "boom_persistent_coherent_evidence.v1",
+  "same_native_sha256": "6f47a6166bb5ef5b515ed256adc721ee5ff6ae43e913883b4bce93ccb15bd44a",
+  "files": {
+    "coherent/fresh1.edges.jsonl": {
+      "sha256": "abb965aa1ce2ab319d717036c71e03c72e058dda2c4efdec973b0efdc43b5e86",
+      "bytes": 186041
+    },
+    "coherent/fresh1.jsonl": {
+      "sha256": "70b10d8196c331416dce32e728a210f35cf3e2841275e208d8022273ee4754be",
+      "bytes": 28497
+    },
+    "coherent/fresh1.runtime.json": {
+      "sha256": "c181b265b273344e4ced96188ce1670c3159a44c6095b9f4b35289f4e65c3793",
+      "bytes": 454419
+    },
+    "coherent/fresh2.edges.jsonl": {
+      "sha256": "abb965aa1ce2ab319d717036c71e03c72e058dda2c4efdec973b0efdc43b5e86",
+      "bytes": 186041
+    },
+    "coherent/fresh2.jsonl": {
+      "sha256": "70b10d8196c331416dce32e728a210f35cf3e2841275e208d8022273ee4754be",
+      "bytes": 28497
+    },
+    "coherent/fresh2.runtime.json": {
+      "sha256": "f07f485dd208783e84a713a74206f421a63351e212735bd21c42ca8b903e8c6f",
+      "bytes": 454419
+    },
+    "coherent/gate.json": {
+      "sha256": "a9f1082fc62d0ac29a79bf8defcbc6650dce09be6bfdd7df31e3df1c50155115",
+      "bytes": 8193
+    },
+    "coherent/program.hex": {
+      "sha256": "805b3f8b09deefa322f9254c445c9e1c5a158009ba79e728c8cd0af769274091",
+      "bytes": 425
+    },
+    "coherent-probe.sh": {
+      "sha256": "d1e560336bfd9e4f3cefa425def218500f11fb3813f6f0929a1d185d8b58928f",
+      "bytes": 915
+    },
+    "log/coherent-probe.log": {
+      "sha256": "d2cbbbd18928523ce9c77eac51ee0f56f072eb69da156a51798fc1e1720552ee",
+      "bytes": 1238
+    },
+    "native/session-artifact.json": {
+      "sha256": "576e5cc1d93e042fcd23274069e8e4656beaa9626973c928e7e1315bc1982d86",
+      "bytes": 2643
+    },
+    "one-shot/fresh1.jsonl": {
+      "sha256": "0419978db966f7042c9f2458f132b7944debca8e01343e5d5ac26ee142e26257",
+      "bytes": 30528
+    },
+    "project/src/myfuzz/scenario/boom_coherent_verification.py": {
+      "sha256": "0a7fb00b015588e68383febb2a17836be310c0b9612c3094ef52bee1b2fd0bcd",
+      "bytes": 6852
+    },
+    "state/coherent-PID": {
+      "sha256": "b925d5c8f32ba2164cd250a189e58ab20e1ce3523cbbe6f04dae9599ffeac842",
+      "bytes": 7
+    },
+    "state/coherent-stage": {
+      "sha256": "b732798080c047426fb465bdcf16a010a3f71d594f4b0610c337e013f5b9c050",
+      "bytes": 29
+    },
+    "state/coherent.exit": {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    }
+  }
+}

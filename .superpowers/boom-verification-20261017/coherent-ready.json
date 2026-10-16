@@ -1,9 +1,14 @@
 {
-  "stage": "prepared-not-run",
+  "stage": "native-coherent-pass-archived",
   "module_sha256": "0a7fb00b015588e68383febb2a17836be310c0b9612c3094ef52bee1b2fd0bcd",
   "script_sha256": "d1e560336bfd9e4f3cefa425def218500f11fb3813f6f0929a1d185d8b58928f",
   "expected_existing_native_sha256": "6f47a6166bb5ef5b515ed256adc721ee5ff6ae43e913883b4bce93ccb15bd44a",
   "remote_script": "/root/fanzehui/boom-verification-20261017/coherent-probe.sh",
-  "native_gate_not_launched": true,
-  "cli_help_exit": 0
+  "native_gate_not_launched": false,
+  "cli_help_exit": 0,
+  "remote_pid": 180701,
+  "gate_exit": 0,
+  "worker_terminal": true,
+  "canonical_lock_released": true,
+  "archive_sha256": "3f95e0e98a7ae991d71f16aee56a9d90ee5c0f5cb3b096c73483c8296deb2b56"
 }
