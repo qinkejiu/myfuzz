@@ -1,0 +1,381 @@
+Running with RISCV=/root/fanzehui/system-20261016/tools
+mkdir -p /root/fanzehui/system-20261016/chipyard-release-deps/sims/verilator/generated-src/chipyard.TestHarness.SmallBoomConfig
+cd /root/fanzehui/system-20261016/chipyard-release-deps && java -jar /root/fanzehui/system-20261016/tools/sbt-launch-1.10.0.jar  ";project chipyard; runMain chipyard.Generator  --target-dir /root/fanzehui/system-20261016/chipyard-release-deps/sims/verilator/generated-src/chipyard.TestHarness.SmallBoomConfig --name chipyard.TestHarness.SmallBoomConfig --top-module chipyard.TestHarness --legacy-configs chipyard:SmallBoomConfig "
+Picked up JAVA_TOOL_OPTIONS: -Xmx12G -Xss8M -Djava.io.tmpdir=/root/fanzehui/system-20261016/tmp -Dsbt.global.base=/root/fanzehui/system-20261016/cache/boom-sbt/global -Dsbt.boot.directory=/root/fanzehui/system-20261016/cache/boom-sbt/boot -Dsbt.ivy.home=/root/fanzehui/system-20261016/cache/boom-sbt/ivy2
+[info] welcome to sbt 1.5.5 (Ubuntu Java 11.0.32.1)
+[info] loading settings for project chipyard-release-deps-build from plugins.sbt ...
+[info] loading project definition from /root/fanzehui/system-20261016/chipyard-release-deps/project
+[info] loading settings for project chipyardRoot from build.sbt ...
+[info] loading settings for project hardfloat from build.sbt ...
+[info] loading settings for project rocketConfig from build.sbt ...
+[info] loading settings for project testchipip from build.sbt ...
+[info] loading settings for project icenet from build.sbt ...
+[info] loading settings for project hwacha from build.sbt ...
+[info] loading settings for project boom from build.sbt ...
+[info] loading settings for project cva6 from build.sbt ...
+[info] loading settings for project ibex from build.sbt ...
+[info] loading settings for project sodor from build.sbt ...
+[info] loading settings for project gemmini from build.sbt ...
+[info] loading settings for project tapeout from build.sbt ...
+[info] loading settings for project sim-build from plugins.sbt ...
+[info] loading project definition from /root/fanzehui/system-20261016/chipyard-release-deps/sims/firesim/sim/project
+[info] loading settings for project firesim from build.sbt ...
+[info] loading settings for project targetutils from build.sbt ...
+[info] loading settings for project midas from build.sbt ...
+[info] resolving key references (32294 settings) ...
+[info] set current project to chipyardRoot (in build file:/root/fanzehui/system-20261016/chipyard-release-deps/)
+[info] set current project to chipyard (in build file:/root/fanzehui/system-20261016/chipyard-release-deps/)
+[info] compiling 1 Scala source to /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/target/scala-2.12/classes ...
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/HellaCache.scala:331:50: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]   io.resp := tag_array.read(io.read.bits.idx, io.read.fire()).map(rstVal.fromBits(_))
+[warn]                                                  ^
+[warn] there were 11 feature warnings; re-run with -feature for details
+[warn] two warnings found
+[info] done compiling
+[info] compiling 1 Scala source to /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/target/scala-2.12/classes ...
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/NBDcache.scala:114:12: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]   when (io.req.fire()) {
+[warn]            ^
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/NBDcache.scala:119:12: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]   when (io.mem_access.fire()) {
+[warn]            ^
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/NBDcache.scala:130:12: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]   when (io.resp.fire()) {
+[warn]            ^
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/NBDcache.scala:207:12: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]   when (io.mem_acquire.fire()) { // s_refill_req
+[warn]            ^
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/NBDcache.scala:216:12: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]   when (io.wb_req.fire()) { // s_wb_req
+[warn]            ^
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/NBDcache.scala:265:12: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]   when (io.meta_write.fire()) { meta_hazard := 1 }
+[warn]            ^
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/NBDcache.scala:433:21: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]   val free_sdq = io.replay.fire() && isWrite(io.replay.bits.cmd)
+[warn]                     ^
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/NBDcache.scala:463:14: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]     when (io.data_req.fire() && io.meta_read.fire()) {
+[warn]              ^
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/NBDcache.scala:463:36: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]     when (io.data_req.fire() && io.meta_read.fire()) {
+[warn]                                    ^
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/NBDcache.scala:480:12: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]   when (io.req.fire()) {
+[warn]            ^
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/NBDcache.scala:573:12: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]   when (io.req.fire()) {
+[warn]            ^
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/NBDcache.scala:579:12: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]   when (io.meta_read.fire()) {
+[warn]            ^
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/NBDcache.scala:604:12: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]   when (io.wb_req.fire()) {
+[warn]            ^
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/NBDcache.scala:613:12: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]   when (io.meta_write.fire()) {
+[warn]            ^
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/NBDcache.scala:696:34: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]   val s1_valid = Reg(next=io.cpu.req.fire(), init=Bool(false))
+[warn]                                  ^
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/NBDcache.scala:884:18: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]   when (mshrs.io.req.fire()) { replacer.miss }
+[warn]                  ^
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/NBDcache.scala:908:38: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]   mshrs.io.mem_grant.valid := tl_out.d.fire()
+[warn]                                      ^
+[warn] /root/fanzehui/system-20261016/chipyard-release-deps/generators/rocket-chip/src/main/scala/rocket/NBDcache.scala:1013:33: method fire in class AddMethodsToReadyValid is deprecated (since Chisel 3.5): Calling this function with an empty argument list is invalid in Scala 3. Use the form without parentheses instead
+[warn]   io.cpu.perf.tlbMiss := io.ptw.req.fire()
+[warn]                                 ^
+[warn] there were 318 feature warnings; re-run with -feature for details
+[warn] 21 warnings found
+[info] done compiling
+[info] compiling 1 Scala source to /root/fanzehui/system-20261016/chipyard-release-deps/generators/boom/target/scala-2.12/classes ...
+[warn] there were 230 feature warnings; re-run with -feature for details
+[warn] one warning found
+[info] done compiling
+[info] running chipyard.Generator --target-dir /root/fanzehui/system-20261016/chipyard-release-deps/sims/verilator/generated-src/chipyard.TestHarness.SmallBoomConfig --name chipyard.TestHarness.SmallBoomConfig --top-module chipyard.TestHarness --legacy-configs chipyard:SmallBoomConfig
+L2 InclusiveCache Client Map:
+	0 <= serial-tl
+	1 <= Core 0 DCache
+	2 <= Core 0 ICache
+
+[C0] ======BOOM Tile 0 Params======
+
+[C0] ====Overall Frontend Params====
+
+[C0] ==L1-ICache==
+[C0] Fetch bytes   : 8
+[C0] Block bytes   : 64
+[C0] Row bytes     : 8
+[C0] Word bits     : 64
+[C0] Sets          : 64
+[C0] Ways          : 4
+[C0] Refill cycles : 8
+[C0] RAMs          : (64 x 512) using 1 banks
+[C0] Single-banked
+[C0] I-TLB ways    : 32
+
+[C0] ==Branch Predictor Memory Sizes==
+
+[C0] bank0 tage_l2: 128 x 44 = 704
+[C0] bank0 tage_l4: 128 x 44 = 704
+[C0] bank0 tage_l8: 256 x 48 = 1536
+[C0] bank0 tage_l16: 256 x 48 = 1536
+[C0] bank0 tage_l32: 128 x 52 = 832
+[C0] bank0 tage_l64: 128 x 52 = 832
+[C0] bank0 btb_meta_way0: 128 x 124 = 1984
+[C0] bank0 btb_data_way0: 128 x 56 = 896
+[C0] bank0 btb_meta_way1: 128 x 124 = 1984
+[C0] bank0 btb_data_way1: 128 x 56 = 896
+[C0] bank0 ebtb: 128 x 40 = 640
+[C0] bank0 bim: 2048 x 8 = 2048
+[C0] Total bpd size: 14 KB
+
+[C0] ====Overall Core Params====
+
+[C0] ===ExecutionUnits===
+
+[C0] ==1-wide Machine==
+[C0] ==3 Issue==
+
+[C0] ==ExeUnit==
+[C0]  - Mem
+[C0] ==ExeUnit==
+[C0]  - ALU
+[C0]  - Mul
+[C0]  - Div
+[C0]  - IFPU
+
+[C0] ===FP Pipeline===
+
+[C0] ==Floating Point Regfile==
+[C0] Num RF Read Ports     : 3
+[C0] Num RF Write Ports    : 2
+[C0] RF Cost (R+W)*(R+2W)  : 35
+[C0] Bypassable Units      : List(false, false)
+[C0] Num Wakeup Ports      : 2
+[C0] Num Bypass Ports      : 0
+
+[C0] ==ROB==
+[C0] Machine Width      : 1
+[C0] Rob Entries        : 32
+[C0] Rob Rows           : 32
+[C0] Rob Row size       : 5
+[C0] log2Ceil(coreWidth): 0
+[C0] FPU FFlag Ports    : 2
+
+[C0] ===Other Core Params===
+[C0] Fetch Width           : 4
+[C0] Decode Width          : 1
+[C0] Issue Width           : 3
+[C0] ROB Size              : 32
+[C0] Issue Window Size     : List(8, 8, 8) (Age-based Priority)
+[C0] Load/Store Unit Size  : 8/8
+[C0] Num Int Phys Registers: 52
+[C0] Num FP  Phys Registers: 48
+[C0] Max Branch Count      : 8
+[C0] ==Integer Regfile==
+[C0] Num RF Read Ports     : 4
+[C0] Num RF Write Ports    : 2
+[C0] RF Cost (R+W)*(R+2W)  : 48
+[C0] Bypassable Units      : List(true, true)
+
+[C0] Num Slow Wakeup Ports : 2
+[C0] Num Fast Wakeup Ports : 1
+[C0] Num Bypass Ports      : 3
+
+[C0] DCache Ways           : 4
+[C0] DCache Sets           : 64
+[C0] DCache nMSHRs         : 2
+[C0] ICache Ways           : 4
+[C0] ICache Sets           : 64
+[C0] D-TLB Ways            : 8
+[C0] I-TLB Ways            : 32
+[C0] Paddr Bits            : 32
+[C0] Vaddr Bits            : 39
+
+[C0] Using FPU Unit?       : true
+[C0] Using FDivSqrt?       : true
+[C0] Using VM?             : true
+
+
+Interrupt map (2 harts 1 interrupts):
+  [1, 1] => uart_0
+
+<stdin>:124.28-129.5: Warning (simple_bus_reg): /soc/subsystem_mbus_clock: missing or empty reg/ranges property
+<stdin>:130.28-135.5: Warning (simple_bus_reg): /soc/subsystem_pbus_clock: missing or empty reg/ranges property
+Clock subsystem_pbus_0: using diplomatically specified frequency of 100.0.
+Clock subsystem_mbus_0: using diplomatically specified frequency of 100.0.
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "freechips,rocketchip-unknown-dev";
+	model = "freechips,rocketchip-unknown";
+	L24: aliases {
+		serial0 = &L18;
+	};
+	L23: cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		timebase-frequency = <1000000>;
+		L5: cpu@0 {
+			clock-frequency = <0>;
+			compatible = "ucb-bar,boom0", "riscv";
+			d-cache-block-size = <64>;
+			d-cache-sets = <64>;
+			d-cache-size = <16384>;
+			d-tlb-sets = <1>;
+			d-tlb-size = <8>;
+			device_type = "cpu";
+			hardware-exec-breakpoint-count = <0>;
+			i-cache-block-size = <64>;
+			i-cache-sets = <64>;
+			i-cache-size = <16384>;
+			i-tlb-sets = <1>;
+			i-tlb-size = <32>;
+			mmu-type = "riscv,sv39";
+			next-level-cache = <&L3>;
+			reg = <0x0>;
+			riscv,isa = "rv64imafdc";
+			riscv,pmpgranularity = <4>;
+			riscv,pmpregions = <8>;
+			status = "okay";
+			timebase-frequency = <1000000>;
+			tlb-split;
+			L4: interrupt-controller {
+				#interrupt-cells = <1>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+			};
+		};
+	};
+	L25: htif {
+		compatible = "ucb,htif0";
+	};
+	L12: memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x10000000>;
+	};
+	L22: soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "freechips,rocketchip-unknown-soc", "simple-bus";
+		ranges;
+		L15: boot-address-reg@4000 {
+			reg = <0x4000 0x1000>;
+			reg-names = "control";
+		};
+		L3: cache-controller@2010000 {
+			cache-block-size = <64>;
+			cache-level = <2>;
+			cache-sets = <1024>;
+			cache-size = <524288>;
+			cache-unified;
+			compatible = "sifive,inclusivecache0", "cache";
+			next-level-cache = <&L12 &L16 &L17>;
+			reg = <0x2010000 0x1000>;
+			reg-names = "control";
+			sifive,mshr-count = <7>;
+		};
+		L7: clint@2000000 {
+			compatible = "riscv,clint0";
+			interrupts-extended = <&L4 3 &L4 7>;
+			reg = <0x2000000 0x10000>;
+			reg-names = "control";
+		};
+		L19: clock-gater@100000 {
+			reg = <0x100000 0x1000>;
+			reg-names = "control";
+		};
+		L8: debug-controller@0 {
+			compatible = "sifive,debug-013", "riscv,debug-013";
+			debug-attach = "jtag";
+			interrupts-extended = <&L4 65535>;
+			reg = <0x0 0x1000>;
+			reg-names = "control";
+		};
+		L1: error-device@3000 {
+			compatible = "sifive,error0";
+			reg = <0x3000 0x1000>;
+		};
+		L6: interrupt-controller@c000000 {
+			#interrupt-cells = <1>;
+			compatible = "riscv,plic0";
+			interrupt-controller;
+			interrupts-extended = <&L4 11 &L4 9>;
+			reg = <0xc000000 0x4000000>;
+			reg-names = "control";
+			riscv,max-priority = <1>;
+			riscv,ndev = <1>;
+		};
+		L16: lbwif-ram@10000000 {
+			reg = <0x10000000 0x1000>;
+		};
+		L17: lbwif-rom@20000 {
+			reg = <0x20000 0x10000>;
+		};
+		L14: rom@10000 {
+			compatible = "sifive,rom0";
+			reg = <0x10000 0x10000>;
+			reg-names = "mem";
+		};
+		L18: serial@54000000 {
+			clocks = <&L0>;
+			compatible = "sifive,uart0";
+			interrupt-parent = <&L6>;
+			interrupts = <1>;
+			reg = <0x54000000 0x1000>;
+			reg-names = "control";
+		};
+		L2: subsystem_mbus_clock {
+			#clock-cells = <0>;
+			clock-frequency = <100000000>;
+			clock-output-names = "subsystem_mbus_clock";
+			compatible = "fixed-clock";
+		};
+		L0: subsystem_pbus_clock {
+			#clock-cells = <0>;
+			clock-frequency = <100000000>;
+			clock-output-names = "subsystem_pbus_clock";
+			compatible = "fixed-clock";
+		};
+		L20: tile-reset-setter@110000 {
+			reg = <0x110000 0x1000>;
+			reg-names = "control";
+		};
+	};
+};
+
+Generated Address Map
+	       0 -     1000 ARWX  debug-controller@0
+	    3000 -     4000 ARWX  error-device@3000
+	    4000 -     5000 ARW   boot-address-reg@4000
+	   10000 -    20000  R X  rom@10000
+	   20000 -    30000  R XC lbwif-rom@20000
+	  100000 -   101000 ARW   clock-gater@100000
+	  110000 -   111000 ARW   tile-reset-setter@110000
+	 2000000 -  2010000 ARW   clint@2000000
+	 2010000 -  2011000 ARW   cache-controller@2010000
+	 c000000 - 10000000 ARW   interrupt-controller@c000000
+	10000000 - 10001000 ARWXC lbwif-ram@10000000
+	54000000 - 54001000 ARW   serial@54000000
+	80000000 - 90000000 ARWXC memory@80000000
+
+
+buildTopClockGenerator Frequency Summary
+  Input Reference Frequency: 100.0 MHz
+  Output clock subsystem_sbus_0, requested: 100.0 MHz, actual: 100.0 MHz (division of 1)
+  Output clock subsystem_sbus_1, requested: 100.0 MHz, actual: 100.0 MHz (division of 1)
+  Output clock subsystem_pbus_0, requested: 100.0 MHz, actual: 100.0 MHz (division of 1)
+  Output clock subsystem_fbus_0, requested: 100.0 MHz, actual: 100.0 MHz (division of 1)
+  Output clock subsystem_mbus_0, requested: 100.0 MHz, actual: 100.0 MHz (division of 1)
+  Output clock subsystem_cbus_0, requested: 100.0 MHz, actual: 100.0 MHz (division of 1)
+  Output clock implicit_clock, requested: 100.0 MHz, actual: 100.0 MHz (division of 1)
+
+harnessDividerOnlyClockGenerator Frequency Summary
+  Input Reference Frequency: 100.0 MHz
+  Output clock buildtop_reference_clock, requested: 100.0 MHz, actual: 100.0 MHz (division of 1)
+[success] Total time: 58 s, completed Oct 17, 2026, 2:31:27 AM
