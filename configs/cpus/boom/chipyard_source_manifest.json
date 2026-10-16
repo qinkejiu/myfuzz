@@ -1,0 +1,144 @@
+{
+  "schema_version": "boom_chipyard_source.v1",
+  "upstream_boom_reference": {
+    "repository": "https://github.com/riscv-boom/riscv-boom",
+    "commit": "58ef2720eae13be26b3008c02b5a74ce29c61c44",
+    "chipyard_hash": "4180463d52bc0a6b4c004530601ccdabebf0ab7d"
+  },
+  "chipyard": {
+    "repository": "https://github.com/ucb-bar/chipyard",
+    "commit": "4180463d52bc0a6b4c004530601ccdabebf0ab7d",
+    "archive_sha256": "876f36eb5fbd01a4ccc5d96f98f8e59037f418d4dbcf696b1996468e307bc59e"
+  },
+  "checked_out_modules": [
+    {
+      "path": "generators/boom",
+      "repository": "https://github.com/riscv-boom/riscv-boom",
+      "commit": "1ad28828673f2fce7a18f7255facd4705f04a58a",
+      "archive_sha256": "a0071ade9d1eea3f29e0412a26630a1e9e1c53aa23d1b8a9c331f1b77b690087"
+    },
+    {
+      "path": "generators/cva6",
+      "repository": "https://github.com/ucb-bar/cva6-wrapper",
+      "commit": "5d8ece5c21ec201223eee45818d8b088fd62c3fb",
+      "archive_sha256": "cf59cad4dbbe3999c84b65562df550f7a00677c9baceeb335397d53d7bafb2b9"
+    },
+    {
+      "path": "generators/gemmini",
+      "repository": "https://github.com/ucb-bar/gemmini",
+      "commit": "c47cb7f3eb5c18390f176f3a53c43c8546d487d2",
+      "archive_sha256": "1aaafef19741cdd46f64c724b76acceb09fe5ef07d1d49e1ea1848bc015531fe"
+    },
+    {
+      "path": "generators/hwacha",
+      "repository": "https://github.com/ucb-bar/hwacha",
+      "commit": "34aaffd206a3fe07f6bea05588a20862bf95a68b",
+      "archive_sha256": "a0f21cb0c351f7075630c87c98e991dcfc2017f85e5c300343d40d01ebee1f25"
+    },
+    {
+      "path": "generators/ibex",
+      "repository": "https://github.com/ucb-bar/ibex-wrapper",
+      "commit": "1a01a82b6c5fc7565ddb7cf6b58cdac17b1dc9bc",
+      "archive_sha256": "1ff35694651996c33263460942acc5aa7fc49d6ef2ff2b33e0b13204b74cf26d"
+    },
+    {
+      "path": "generators/icenet",
+      "repository": "https://github.com/firesim/icenet",
+      "commit": "af7253dea91c48b13f43f2da5ee2abae170aaa36",
+      "archive_sha256": "06da86affb17dbea0b01a5009dcb760e0ac06a0ab12cd162d0da1e69d5782352"
+    },
+    {
+      "path": "generators/nvdla",
+      "repository": "https://github.com/ucb-bar/nvdla-wrapper",
+      "commit": "e08f18250333cfd16240baeab01d9934e840621d",
+      "archive_sha256": "f8ea8a8fc73137f4f6d9ab1bf4b014c4f022c6adbb19a12b4d60fe249da1c98c"
+    },
+    {
+      "path": "generators/riscv-sodor",
+      "repository": "https://github.com/ucb-bar/riscv-sodor",
+      "commit": "5643a8e245d562647f626295ad2dab9b4d5f6a13",
+      "archive_sha256": "7c6c3b00980789e3dad1c4788429fb70634a9c973898ce1132b117e81ebdffe3"
+    },
+    {
+      "path": "generators/rocket-chip",
+      "repository": "https://github.com/chipsalliance/rocket-chip",
+      "commit": "114325b27cfe5312c86a8a325b187be9455a62af",
+      "archive_sha256": "cfffe72394076e51ede8000727f5b9311d46c46f763ad5412739e1298c3b16ba"
+    },
+    {
+      "path": "generators/sha3",
+      "repository": "https://github.com/ucb-bar/sha3",
+      "commit": "63eda8268c16c502cada9944ae41b584e6e32789",
+      "archive_sha256": "95ae0027ba940487c33d271ec48a2024866e8ae3703cf0aac255823dc72a26ac"
+    },
+    {
+      "path": "generators/sifive-blocks",
+      "repository": "https://github.com/sifive/sifive-blocks",
+      "commit": "545a396f3486132b01ceef3cbce2085608984478",
+      "archive_sha256": "4c5d4e9d51e4581e03258b5be3db013b55ea66bf006404632fb06b4235fa3c50"
+    },
+    {
+      "path": "generators/sifive-cache",
+      "repository": "https://github.com/sifive/block-inclusivecache-sifive",
+      "commit": "e3a3000cc1fd4cdf3a4e638e4d081b8aae94ebf0",
+      "archive_sha256": "43479adf5028035309b8a7e8b53443860747097fc92a8d851749b54d22eaee2f"
+    },
+    {
+      "path": "generators/testchipip",
+      "repository": "https://github.com/ucb-bar/testchipip",
+      "commit": "aaf0cd18100a1b6b11f554b9acfcf2c01c0d40a4",
+      "archive_sha256": "3ac3bb9203487013c6465960fb59f2a2a538b29d6959fad6fa148b691a6bcf74"
+    },
+    {
+      "path": "sims/firesim",
+      "repository": "https://github.com/firesim/firesim",
+      "commit": "6a3dc348d8c0a3ebcf71ce9aeaf062cec04d8b75",
+      "archive_sha256": "17d7652acbb713ee467b0ea3e70dc52ef1115855951fd6b81b23b025588e6b40"
+    },
+    {
+      "path": "tools/api-config-chipsalliance",
+      "repository": "https://github.com/chipsalliance/api-config-chipsalliance",
+      "commit": "fd8df1105a92065425cd353b6855777e35bd79b4",
+      "archive_sha256": "2b60db2875e53a29577109287cb9cebcbf7932c2556da1c948df12cbe20f2d95"
+    },
+    {
+      "path": "tools/barstools",
+      "repository": "https://github.com/ucb-bar/barstools",
+      "commit": "314d80729e7b32e3c10c0da6734bbdc9a867916f",
+      "archive_sha256": "9aa566562e2912963c815919e5aeaffa2e3de1fa164cefc0c824f80a6265bf44"
+    },
+    {
+      "path": "tools/chisel-testers",
+      "repository": "https://github.com/freechipsproject/chisel-testers",
+      "commit": "ce4e027e5f3d871df59236b8471ea3e5be40130e",
+      "archive_sha256": "a47bf999e9c32b2085e756bcb7dbdfbf36ae2a1e277c6f04eaabc74f685b620d"
+    },
+    {
+      "path": "tools/dsptools",
+      "repository": "https://github.com/ucb-bar/dsptools",
+      "commit": "a1809fbae9e49de7213116bbec79252645292e39",
+      "archive_sha256": "5d2a867367042e3baa19bb7acdd1ad47df6ca650a3879c66973be45e34c2a94a"
+    },
+    {
+      "path": "tools/rocket-dsp-utils",
+      "repository": "https://github.com/ucb-bar/rocket-dsp-utils",
+      "commit": "0ffb46ad12d0335a1d44bc283bae596abfd79606",
+      "archive_sha256": "7d8c49bc3d2bedf0802caa9e27217c2ea9157243203141a42a0eaa83f93d9089"
+    },
+    {
+      "path": "generators/rocket-chip/hardfloat",
+      "repository": "https://github.com/ucb-bar/berkeley-hardfloat",
+      "commit": "70455e53f233a06cb5a342d125e22b7b1505c271",
+      "archive_sha256": "6d024dad080d8f61ffb2924bce8dce9a7ea4a187d2907a330f10a33927df18c3"
+    },
+    {
+      "path": "generators/rocket-chip/api-config-chipsalliance",
+      "repository": "https://github.com/chipsalliance/api-config-chipsalliance",
+      "commit": "fd8df1105a92065425cd353b6855777e35bd79b4",
+      "archive_sha256": "2b60db2875e53a29577109287cb9cebcbf7932c2556da1c948df12cbe20f2d95"
+    }
+  ],
+  "chipyard_boom_gitlink": "1ad28828673f2fce7a18f7255facd4705f04a58a",
+  "selected_generation_config": "chipyard.SmallBoomConfig",
+  "generated_rtl_verified": false
+}

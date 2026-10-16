@@ -8,10 +8,54 @@ HDL crawler.
 
 The profile is reference-only. BOOM is normally materialized together with a
 generated Rocket Chip/Chipyard design below `third_party/boom`; replace the
-reserved all-zero `sha256:` placeholder with the verified generated-source
-digest (or a full verified Git commit) before runtime publication. The catalog
-must continue to report the profile as unavailable until annotation and the
-selected integration boundary both validate.
+reserved all-zero `sha256:` placeholder only after a generated RTL closure is
+verified. The catalog must continue to report the profile as unavailable until
+annotation and the selected integration boundary both validate.
+
+## Fixed upstream source and generation attempt (2026-10-17)
+
+`chipyard_source_manifest.json` records the actual source snapshot staged at
+`/root/fanzehui/system-20261016/chipyard-pinned` on the build host. The BOOM
+reference commit `58ef2720eae13be26b3008c02b5a74ce29c61c44` names
+Chipyard `4180463d52bc0a6b4c004530601ccdabebf0ab7d` in `CHIPYARD.hash`.
+The Chipyard Git tree at that exact commit names a different BOOM submodule,
+`1ad28828673f2fce7a18f7255facd4705f04a58a`. The staged source uses the
+Chipyard Git tree and its BOOM gitlink as a self-consistent generation input;
+it does not claim to generate the separate BOOM reference commit. The manifest
+contains the Git commit and SHA-256 of each retrieved source archive, including
+the two required Rocket Chip nested submodules. The main Chipyard archive SHA-256
+is `876f36eb5fbd01a4ccc5d96f98f8e59037f418d4dbcf696b1996468e307bc59e`.
+
+This Chipyard revision defines `chipyard.SmallBoomConfig`; it has no
+`SmallBoomV3Config`. The existing `configs/designs/boom` filelists name
+`SmallBoomV3Config` and cannot be treated as outputs from this revision. The
+bounded upstream generation command is recorded on the build host in
+`/root/fanzehui/system-20261016/evidence/chipyard-smallboom-command.txt`, with
+the corresponding `chipyard-smallboom-firrtl.log` and `.exit` files. The command
+targets `make firrtl CONFIG=SmallBoomConfig` in `sims/verilator`, uses Java 11,
+sbt 1.5.5 from the upstream build definition, and runs under the shared
+`project/.superpowers/heavy-worker.lock`.
+
+The attempt exited 2 while sbt resolved project dependencies. In the log,
+`targetutils` and `iocell` cannot obtain
+`edu.berkeley.cs:chisel3_2.12:3.5-SNAPSHOT`, and `dsptools` cannot obtain
+`edu.berkeley.cs:chisel-iotesters_2.12:2.5-SNAPSHOT`. The configured Maven
+Central and Sonatype snapshot URLs lack these artifacts; a Sonatype release URL
+returns HTTP 402. This is a generator toolchain dependency failure before
+Chisel elaboration. The output directory contains only copied simulation
+resources and boot ROMs, with no `.fir` or generated RTL. The build host also
+records `chipyard-smallboom-toolchain.txt` (Java 11, sbt launcher digest and
+Verilator 5.020). A successful generation would still produce a Chipyard SoC
+boundary, requiring inspection of the physical BOOM/TileLink ports before
+this abstract `boom_tile` interface could be materialized.
+
+An exploratory copy at `/root/fanzehui/system-20261016/chipyard-release-deps`
+replaces the unavailable snapshots with published Chisel 3.5.0, FIRRTL 1.5.0,
+and chisel-iotesters 2.5.0. Its complete diff is saved as
+`/root/fanzehui/system-20261016/evidence/chipyard-release-deps.patch` and its
+own logs use the `chipyard-release-deps-` prefix. This copy may help inspect a
+generated physical boundary, but it is a modified generator input and cannot
+establish generation from the unmodified Chipyard source pin.
 
 There is an additional unavailable dependency. `tilelink@1` is now *declared*
 in the protocol catalog (`src/myfuzz/protocols/plugins/tilelink.json`) and the
