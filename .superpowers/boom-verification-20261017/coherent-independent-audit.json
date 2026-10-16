@@ -1,0 +1,29 @@
+{
+  "scope": "independent saved evidence parsing, not a new native run",
+  "archive_sha256": "3f95e0e98a7ae991d71f16aee56a9d90ee5c0f5cb3b096c73483c8296deb2b56",
+  "manifest_files": 16,
+  "measured_edges": 599,
+  "accepted_rows": 279,
+  "channels": {
+    "A": 21,
+    "D": 164,
+    "E": 14,
+    "C": 80
+  },
+  "runtime_rows": 558,
+  "full_raw_edge_equality": true,
+  "full_raw_bus_equality": true,
+  "full_runtime_equality_after_declared_top_level_execution_and_stream_scope": true,
+  "native_exits": [
+    0,
+    0
+  ],
+  "pass": true,
+  "audit_note": "Initial independent runtime comparison retained local_event_id stream prefix and differed; corrected only the verified declared prefix, preserving all payloads and transaction fields.",
+  "not_claimed": [
+    "external_B_probes",
+    "IRQ",
+    "source_authority",
+    "full_P6"
+  ]
+}
