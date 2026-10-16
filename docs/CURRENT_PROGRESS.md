@@ -10,11 +10,11 @@
 - **标准 Runner 的 UART RX DMA 链：** [最终冻结门](reports/dma-uart-rx-standard-runner-20261017.md)为 1 passed／80.79 秒；串行 `0x5A` 经实际 FIFO、DMA 读取、RAM 写入和 CPU ISR，两个 fresh 的 4,836 事件／1,097 步前缀一致。预算已包含 CPU→DMA→UART 间接时钟；持续搜索和认证前缀仍未验收。
 - **编译 F4 仍在修复：** 首次连续候选与 fresh 前缀运行已有实验结果；独立复核发现编译断言未绑定完整消费链、配置启动基址被当作实际首取指地址，以及调用方输入仍可变化。修复与复核完成前不计入 D4 验收。
 
-### 后续代码接入：尚无新增运行证据
+### 后续代码接入与最新运行状态
 
-- BOOM 已新增持久会话、标准 Runner 工厂与真实 GPIO 排队路由代码：[boom_gpio_runner.py](../src/myfuzz/scenario/boom_gpio_runner.py)。coherent A/C/D/E 观察消费者支持 FIFO 或按来源匹配响应，保留多拍 D、GrantAck 和复位取消关系；它不从普通字典授予原生来源权威。该套新代码未构建或运行，历史 BOOM CPU/RAM 门不能验证它。
-- DMA RX 已新增一次启动、多例不复位的 [continuous runtime](../src/myfuzz/integration/dma_uart_rx_runtime.py)：固定 CPU 程序轮询 FIFO 状态、重装 DMA，ISR 保存实际字节并递增完成计数；记录完整批次并提供 fresh replay。尚未实际运行，不授持续搜索或 P8 验收。
-- 编译 F4 新增 [Ibex 声明式配置](../configs/scenarios/compiled-f4-obi-apb-ibex/README.md)和 [公开文件入口](../scripts/run_compiled_dataflow.py)，消费显式 capability、环境／归属补充声明及 8 字节候选记录。旧 CV32 fixture 因缺少实际原生错误信号而被当前 executor 拒绝；历史通过结果不能验证新 Ibex 配置。该入口限定向连续候选，尚无构建、执行或重放证据，不授覆盖引导搜索或完整 D4。
+- BOOM 持久会话、标准 Runner 工厂与真实 GPIO 排队路由已在冻结提交 `8a3fed3` 完成真实门禁：[证据入口](../configs/cpus/boom/evidence/persistent-runtime-20261017/README.md)。重新构建的持久驱动在两次 fresh 各产生 20,597 条完整事件且规范化前缀相等；实际 GPIO 读值 53 被交付为 52 后，CPU 保存 52 并写失败标志；抑制响应使 CPU 等待。build、gate、旧独立入口回归各自 exit=0。该 GPIO 程序仅出现 A/D；新持久驱动的缓存 RAM C/E 补充门仍待运行。coherent 消费者对已保存真实 A/C/D/E 日志及软件拒绝边界的验证见[报告](reports/coherent-events-verification-20261017.md)，不授原生来源权威。
+- DMA RX 已新增一次启动、多例不复位的 [continuous runtime](../src/myfuzz/integration/dma_uart_rx_runtime.py)：固定 CPU 程序轮询 FIFO 状态、重装 DMA，ISR 保存实际字节并递增完成计数；记录完整批次并提供 fresh replay。实际运行暴露启动先后顺序及全前缀重复拷贝问题，均已修复；当前 `9eeff26` 软件聚焦门 60 passed，保持原 300 秒预算的四字节＋fresh＋失败前缀真实重跑待排队。此前预算失败保留，不计作连续数据流通过，不授持续搜索或 P8 验收。
+- 编译 F4 新增 [Ibex 声明式配置](../configs/scenarios/compiled-f4-obi-apb-ibex/README.md)和 [公开文件入口](../scripts/run_compiled_dataflow.py)，消费显式 capability、环境／归属补充声明及 8 字节候选记录。旧 CV32 fixture 因缺少实际原生错误信号而被当前 executor 拒绝；历史通过结果不能验证新 Ibex 配置。当前软件门 40 passed／1 skipped；真实初始化暴露的 immutable profile 私有复制问题已修复于 `bdeee0b`。第三次实际入口运行已构建并开始执行，首例完成，但三例与两次 fresh 前缀尚未整体终态。不授覆盖引导搜索或完整 D4。
 
 下文保留较早切片的边界；“尚未”以其对应报告的冻结版本解释。
 
