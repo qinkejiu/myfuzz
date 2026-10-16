@@ -227,7 +227,16 @@ def make_boom_gpio_chain(*, repo: Path, cpu_output: Path, cache_dir: Path):
     repo = repo.resolve()
     gpio = GeneratedPulpGpioSession(_gpio_artifact(repo), base_dir=repo,
                                     cache_dir=cache_dir)
-    cpu = GeneratedBoomCpuSession(cpu_output, repo=repo,
-                                 external_range=(GPIO_BASE, GPIO_BASE + 0x1000))
-    router = DataflowRouter((DeviceWindow('gpio', GPIO_BASE, 0x1000, gpio),))
-    return BoomGpioDiagnostic(cpu, gpio, router, TransactionLedger())
+    cpu = None
+    try:
+        cpu = GeneratedBoomCpuSession(cpu_output, repo=repo,
+                                     external_range=(GPIO_BASE, GPIO_BASE + 0x1000))
+        router = DataflowRouter((DeviceWindow('gpio', GPIO_BASE, 0x1000, gpio),))
+        return BoomGpioDiagnostic(cpu, gpio, router, TransactionLedger())
+    except BaseException:
+        try:
+            if cpu is not None:
+                cpu.close()
+        finally:
+            gpio.end_case()
+        raise

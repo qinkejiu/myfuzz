@@ -40,3 +40,9 @@ ScenarioRunner admission or acceptance evidence. Interrupts/probes, denied D
 injection and multiple external outstanding requests are unsupported. Runtime
 verification, two fresh matching runs, negative controls and malformed-shape
 checks remain pending explicit user authorization.
+
+Final source-review cleanup: factory construction now closes an already
+created CPU and ends the GPIO session if CPU/router construction fails.
+External D raw receipts now include the actual driven param and sink fields,
+plus beat zero for the supported single-beat response, matching the coherent
+event consumer's required raw shape. No tests or builds were run.

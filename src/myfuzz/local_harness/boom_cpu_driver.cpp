@@ -80,7 +80,7 @@ int main(int argc,char**argv) {
       unsigned sink=dut.TL(e_bits_sink);
       context.timeInc(1); dut.clock=1; dut.eval(); context.timeInc(1);
       if(d && external_d) {
-        event()<<"{\"channel\":\"D\",\"opcode\":"<<unsigned(dut.TL(d_bits_opcode))<<",\"source\":"<<external_request.source<<",\"size\":"<<external_request.size<<",\"data\":"<<external_data<<",\"external\":true}";
+        event()<<"{\"channel\":\"D\",\"opcode\":"<<unsigned(dut.TL(d_bits_opcode))<<",\"source\":"<<external_request.source<<",\"size\":"<<external_request.size<<",\"param\":"<<unsigned(dut.TL(d_bits_param))<<",\"sink\":"<<unsigned(dut.TL(d_bits_sink))<<",\"beat\":0,\"data\":"<<external_data<<",\"external\":true}";
         pending_external=false; external_response=false; external_selected=false;
       }
       if(d && !external_d) {event()<<"{\"channel\":\"D\",\"opcode\":"<<ram.front().opcode<<",\"size\":"<<ram.front().size<<",\"source\":"<<ram.front().source<<",\"sink\":"<<ram.front().sink<<",\"param\":"<<ram.front().param<<",\"beat\":"<<ram.front().beat<<",\"data\":"<<ram.front_data()<<"}"; ram.accept_d();}
