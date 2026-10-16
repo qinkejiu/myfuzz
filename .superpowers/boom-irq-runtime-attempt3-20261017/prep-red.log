@@ -1,0 +1,146 @@
+FFFFFF                                                                   [100%]
+=================================== FAILURES ===================================
+_____ test_exact_reviewed_two_file_replacement_preserves_finalized_source ______
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-268/test_exact_reviewed_two_file_r0')
+
+    def test_exact_reviewed_two_file_replacement_preserves_finalized_source(tmp_path):
+>       m=module();source,overlay=inputs(tmp_path,m);before=m.control.inventory(source)
+                                  ^^^^^^^^^^^^^^^^^^
+
+.superpowers/boom-irq-runtime-attempt3-20261017/control/test_prepare.py:21: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-268/test_exact_reviewed_two_file_r0')
+m = <module 'irq_attempt3_prepare' from '/home/qinkejiu/myfuzz/.superpowers/boom-irq-runtime-attempt3-20261017/control/prepare.py'>
+
+    def inputs(tmp_path,m):
+        source=tmp_path/'source';overlay=tmp_path/'overlay';source.mkdir();overlay.mkdir()
+>       for name in m.ADDITIONS:
+                    ^^^^^^^^^^^
+E       AttributeError: module 'irq_attempt3_prepare' has no attribute 'ADDITIONS'
+
+.superpowers/boom-irq-runtime-attempt3-20261017/control/test_prepare.py:13: AttributeError
+__________ test_overlay_fault_refuses_before_project_creation[extra] ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-268/test_overlay_fault_refuses_bef0')
+fault = 'extra'
+
+    @pytest.mark.parametrize('fault',['extra','missing','changed','source','symlink'])
+    def test_overlay_fault_refuses_before_project_creation(tmp_path,fault):
+>       m=module();source,overlay=inputs(tmp_path,m);before=m.control.inventory(source);pin=m.control.inventory(overlay)
+                                  ^^^^^^^^^^^^^^^^^^
+
+.superpowers/boom-irq-runtime-attempt3-20261017/control/test_prepare.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-268/test_overlay_fault_refuses_bef0')
+m = <module 'irq_attempt3_prepare' from '/home/qinkejiu/myfuzz/.superpowers/boom-irq-runtime-attempt3-20261017/control/prepare.py'>
+
+    def inputs(tmp_path,m):
+        source=tmp_path/'source';overlay=tmp_path/'overlay';source.mkdir();overlay.mkdir()
+>       for name in m.ADDITIONS:
+                    ^^^^^^^^^^^
+E       AttributeError: module 'irq_attempt3_prepare' has no attribute 'ADDITIONS'
+
+.superpowers/boom-irq-runtime-attempt3-20261017/control/test_prepare.py:13: AttributeError
+_________ test_overlay_fault_refuses_before_project_creation[missing] __________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-268/test_overlay_fault_refuses_bef1')
+fault = 'missing'
+
+    @pytest.mark.parametrize('fault',['extra','missing','changed','source','symlink'])
+    def test_overlay_fault_refuses_before_project_creation(tmp_path,fault):
+>       m=module();source,overlay=inputs(tmp_path,m);before=m.control.inventory(source);pin=m.control.inventory(overlay)
+                                  ^^^^^^^^^^^^^^^^^^
+
+.superpowers/boom-irq-runtime-attempt3-20261017/control/test_prepare.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-268/test_overlay_fault_refuses_bef1')
+m = <module 'irq_attempt3_prepare' from '/home/qinkejiu/myfuzz/.superpowers/boom-irq-runtime-attempt3-20261017/control/prepare.py'>
+
+    def inputs(tmp_path,m):
+        source=tmp_path/'source';overlay=tmp_path/'overlay';source.mkdir();overlay.mkdir()
+>       for name in m.ADDITIONS:
+                    ^^^^^^^^^^^
+E       AttributeError: module 'irq_attempt3_prepare' has no attribute 'ADDITIONS'
+
+.superpowers/boom-irq-runtime-attempt3-20261017/control/test_prepare.py:13: AttributeError
+_________ test_overlay_fault_refuses_before_project_creation[changed] __________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-268/test_overlay_fault_refuses_bef2')
+fault = 'changed'
+
+    @pytest.mark.parametrize('fault',['extra','missing','changed','source','symlink'])
+    def test_overlay_fault_refuses_before_project_creation(tmp_path,fault):
+>       m=module();source,overlay=inputs(tmp_path,m);before=m.control.inventory(source);pin=m.control.inventory(overlay)
+                                  ^^^^^^^^^^^^^^^^^^
+
+.superpowers/boom-irq-runtime-attempt3-20261017/control/test_prepare.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-268/test_overlay_fault_refuses_bef2')
+m = <module 'irq_attempt3_prepare' from '/home/qinkejiu/myfuzz/.superpowers/boom-irq-runtime-attempt3-20261017/control/prepare.py'>
+
+    def inputs(tmp_path,m):
+        source=tmp_path/'source';overlay=tmp_path/'overlay';source.mkdir();overlay.mkdir()
+>       for name in m.ADDITIONS:
+                    ^^^^^^^^^^^
+E       AttributeError: module 'irq_attempt3_prepare' has no attribute 'ADDITIONS'
+
+.superpowers/boom-irq-runtime-attempt3-20261017/control/test_prepare.py:13: AttributeError
+__________ test_overlay_fault_refuses_before_project_creation[source] __________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-268/test_overlay_fault_refuses_bef3')
+fault = 'source'
+
+    @pytest.mark.parametrize('fault',['extra','missing','changed','source','symlink'])
+    def test_overlay_fault_refuses_before_project_creation(tmp_path,fault):
+>       m=module();source,overlay=inputs(tmp_path,m);before=m.control.inventory(source);pin=m.control.inventory(overlay)
+                                  ^^^^^^^^^^^^^^^^^^
+
+.superpowers/boom-irq-runtime-attempt3-20261017/control/test_prepare.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-268/test_overlay_fault_refuses_bef3')
+m = <module 'irq_attempt3_prepare' from '/home/qinkejiu/myfuzz/.superpowers/boom-irq-runtime-attempt3-20261017/control/prepare.py'>
+
+    def inputs(tmp_path,m):
+        source=tmp_path/'source';overlay=tmp_path/'overlay';source.mkdir();overlay.mkdir()
+>       for name in m.ADDITIONS:
+                    ^^^^^^^^^^^
+E       AttributeError: module 'irq_attempt3_prepare' has no attribute 'ADDITIONS'
+
+.superpowers/boom-irq-runtime-attempt3-20261017/control/test_prepare.py:13: AttributeError
+_________ test_overlay_fault_refuses_before_project_creation[symlink] __________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-268/test_overlay_fault_refuses_bef4')
+fault = 'symlink'
+
+    @pytest.mark.parametrize('fault',['extra','missing','changed','source','symlink'])
+    def test_overlay_fault_refuses_before_project_creation(tmp_path,fault):
+>       m=module();source,overlay=inputs(tmp_path,m);before=m.control.inventory(source);pin=m.control.inventory(overlay)
+                                  ^^^^^^^^^^^^^^^^^^
+
+.superpowers/boom-irq-runtime-attempt3-20261017/control/test_prepare.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-268/test_overlay_fault_refuses_bef4')
+m = <module 'irq_attempt3_prepare' from '/home/qinkejiu/myfuzz/.superpowers/boom-irq-runtime-attempt3-20261017/control/prepare.py'>
+
+    def inputs(tmp_path,m):
+        source=tmp_path/'source';overlay=tmp_path/'overlay';source.mkdir();overlay.mkdir()
+>       for name in m.ADDITIONS:
+                    ^^^^^^^^^^^
+E       AttributeError: module 'irq_attempt3_prepare' has no attribute 'ADDITIONS'
+
+.superpowers/boom-irq-runtime-attempt3-20261017/control/test_prepare.py:13: AttributeError
+=========================== short test summary info ============================
+FAILED .superpowers/boom-irq-runtime-attempt3-20261017/control/test_prepare.py::test_exact_reviewed_two_file_replacement_preserves_finalized_source
+FAILED .superpowers/boom-irq-runtime-attempt3-20261017/control/test_prepare.py::test_overlay_fault_refuses_before_project_creation[extra]
+FAILED .superpowers/boom-irq-runtime-attempt3-20261017/control/test_prepare.py::test_overlay_fault_refuses_before_project_creation[missing]
+FAILED .superpowers/boom-irq-runtime-attempt3-20261017/control/test_prepare.py::test_overlay_fault_refuses_before_project_creation[changed]
+FAILED .superpowers/boom-irq-runtime-attempt3-20261017/control/test_prepare.py::test_overlay_fault_refuses_before_project_creation[source]
+FAILED .superpowers/boom-irq-runtime-attempt3-20261017/control/test_prepare.py::test_overlay_fault_refuses_before_project_creation[symlink]
+6 failed in 0.06s
