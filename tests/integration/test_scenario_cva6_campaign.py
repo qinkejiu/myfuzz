@@ -10,7 +10,7 @@ import tempfile
 import unittest
 
 from myfuzz.integration.scenario_campaign import (
-    CampaignConfig, IbexTwoGpioBoundProvider, _assess_closed_chain,
+    CampaignBlocked, CampaignConfig, IbexTwoGpioBoundProvider, _assess_closed_chain,
     _campaign_input_stability, _campaign_source_identity, _snapshot_campaign_inputs,
     campaign_matrix,
 )
@@ -137,6 +137,26 @@ class Cva6CampaignTests(unittest.TestCase):
                 self.assertEqual(direction, genome.direction)
                 self.assertTrue(decoder.trusted_for_search)
                 self.assertEqual(1, len(targets))
+
+    def test_bound_manifest_must_be_this_providers_cpu_seed_in_both_directions(self):
+        """No row may be served by another row's protocol manifest.
+
+        The reverse direction loads its genome from a sibling *file*, so
+        without pinning the supplied manifest an Ibex/OBI manifest placed in
+        the same directory was silently accepted and the reverse cells were
+        saved under a foreign source identity.
+        """
+        ibex_seed = ROOT / "configs/scenario/ibex_two_gpio_closed_two_rounds.json"
+        for provider, foreign, own in (
+                (Cva6TwoGpioBoundProvider(), ibex_seed, BOUND),
+                (IbexTwoGpioBoundProvider(), BOUND, ibex_seed)):
+            for direction in ("CPU_TO_IP_TO_CPU", "IP_TO_CPU_TO_IP"):
+                with self.subTest(provider=type(provider).__name__, direction=direction):
+                    with self.assertRaisesRegex(
+                            CampaignBlocked,
+                            "pinned CPU-direction campaign seed"):
+                        provider._fixture(direction, foreign)
+                    provider._fixture(direction, own)
 
     @unittest.skipUnless(os.environ.get("MYFUZZ_SCENARIO_REAL") == "1",
                          "real CVA6 and OpenTitan RTL are opt-in")

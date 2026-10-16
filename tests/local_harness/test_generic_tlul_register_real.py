@@ -48,6 +48,18 @@ class GenericTlulContractTests(unittest.TestCase):
                                                    ('gpio.pins', 'strap_en', 0))))
         self.assertEqual('tlul_register_observe', timer.runtime_document['kind'])
         self.assertEqual(timer.runtime_document['kind'], gpio.runtime_document['kind'])
+        self.assertEqual('ip_base_event.v1',
+                         timer.runtime_document['base_event_schema_version'])
+        trace = timer.runtime_document['base_protocol_trace']
+        self.assertEqual('tl-ul', trace['protocol'])
+        self.assertEqual('opentitan_rv_timer.mmio', trace['endpoint_id'])
+        self.assertEqual({'a_valid', 'a_ready', 'a_source', 'a_address',
+                          'd_valid', 'd_ready', 'd_source', 'd_error'},
+                         set(trace['signals']) & {'a_valid', 'a_ready', 'a_source',
+                             'a_address', 'd_valid', 'd_ready', 'd_source', 'd_error'})
+        runtime_ports = {row['name'] for row in timer.runtime_document['runtime_ports']}
+        self.assertTrue(set(trace['signals'].values()) <= runtime_ports)
+        self.assertIn('assign trace_a_source =', timer.runtime_sv)
         self.assertEqual([], timer.runtime_document['fixed_physical_inputs'])
         self.assertEqual({'in', 'strap_en'},
                          {row['role'] for row in gpio.runtime_document['fixed_physical_inputs']})

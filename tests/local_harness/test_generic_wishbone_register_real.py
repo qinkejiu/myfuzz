@@ -63,6 +63,16 @@ class GenericWishboneContractTests(unittest.TestCase):
     def test_two_variants_share_one_kind_and_unowned_pins_fail_closed(self):
         timer = artifact(request('zipcpu_timer'))
         self.assertEqual('wishbone_register_observe', timer.runtime_document['kind'])
+        self.assertEqual('ip_base_event.v1',
+                         timer.runtime_document['base_event_schema_version'])
+        trace = timer.runtime_document['base_protocol_trace']
+        self.assertEqual('wishbone', trace['protocol'])
+        self.assertEqual('timer.bus', trace['endpoint_id'])
+        self.assertTrue({'cyc', 'stb', 'we', 'ack', 'stall', 'dat_w', 'sel', 'dat_r'}
+                        <= set(trace['signals']))
+        runtime_ports = {row['name'] for row in timer.runtime_document['runtime_ports']}
+        self.assertTrue(set(trace['signals'].values()) <= runtime_ports)
+        self.assertIn('assign trace_stb =', timer.runtime_sv)
         with self.assertRaisesRegex(ValueError, 'unowned-input'):
             artifact(request('zipcpu_uart'))
         uart = artifact(request('zipcpu_uart', fixed=(

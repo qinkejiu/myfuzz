@@ -835,9 +835,12 @@ def _live_dict_keys(function_name: str, *, marker: str) -> tuple[str, ...]:
     for node in ast.walk(function):
         if not isinstance(node, ast.Dict):
             continue
-        if any(isinstance(key, ast.Constant) and key.value == marker
-               for key in node.keys):
-            return tuple(key.value for key in node.keys)
+        literals = [key for key in node.keys if isinstance(key, ast.Constant)]
+        if any(key.value == marker for key in literals):
+            # A `**mapping` entry has no key in the AST (its slot is None). It is
+            # skipped rather than dereferenced, and the count of skipped entries
+            # is reported so a conditional merge cannot hide a missing literal.
+            return tuple(key.value for key in literals)
     raise AssertionError(f"{function_name} dictionary with {marker!r} was not found")
 
 

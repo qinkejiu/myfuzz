@@ -10,6 +10,7 @@ from myfuzz.composition.component_profile import (
     ComponentProfileError,
     load_component_profile,
 )
+from myfuzz.composition import test_capability as capability_api
 from myfuzz.composition.test_capability import load_ip_test_capability
 
 
@@ -116,7 +117,7 @@ class VersionedCapabilitySidecarTests(unittest.TestCase):
     def test_sidecar_rejects_unknown_version_or_fields(self):
         load = self.loader()
         document = self.document()
-        document['schema_version'] = 'ip_test_capability.v2'
+        document['schema_version'] = 'ip_test_capability.v4'
         with self.assertRaisesRegex(ValueError, 'unsupported-test-capability-schema'):
             load(document, profile=self.profile)
         document = self.document()
@@ -148,6 +149,68 @@ class VersionedCapabilitySidecarTests(unittest.TestCase):
 
         self.assertEqual('signal_change', capability.observation_mappings[0].observation_kind)
 
+    def test_v2_feature_contract_self_declares_required_observation_mappings(self):
+        document = self.document()
+        document['schema_version'] = 'ip_test_capability.v2'
+        document['feature_contract'] = {
+            'provider_id': 'example.sha',
+            'provider_version': '1.0',
+            'operations': [{
+                'endpoint_id': 'uart.bus',
+                'operation': 'completion',
+                'required_observation_mappings': ['uart-rx-sample'],
+                'evidence_ref': 'plugin-manifest:sha256:abc123',
+            }],
+        }
+
+        capability = self.loader()(document, profile=self.profile)
+
+        self.assertEqual(('example.sha', '1.0'),
+                         (capability.feature_contract.provider_id,
+                          capability.feature_contract.provider_version))
+        self.assertEqual(('uart-rx-sample',),
+                         capability.feature_contract.operations[0].required_observation_mappings)
+
+    def test_v2_feature_contract_rejects_missing_or_unbound_observation_mappings(self):
+        document = self.document()
+        document['schema_version'] = 'ip_test_capability.v2'
+        document['feature_contract'] = {
+            'provider_id': 'example.sha', 'provider_version': '1.0',
+            'operations': [{
+                'endpoint_id': 'uart.bus', 'operation': 'completion',
+                'required_observation_mappings': [],
+                'evidence_ref': 'plugin-manifest:sha256:abc123',
+            }],
+        }
+        with self.assertRaisesRegex(ValueError,
+                                    'feature-observation-mappings-required'):
+            self.loader()(document, profile=self.profile)
+
+        document['feature_contract']['operations'][0][
+            'required_observation_mappings'] = ['missing-map']
+        with self.assertRaisesRegex(ValueError,
+                                    'unknown-feature-observation-mapping:missing-map'):
+            self.loader()(document, profile=self.profile)
+
+    def test_v2_feature_contract_rejects_unknown_operations_and_fields(self):
+        document = self.document()
+        document['schema_version'] = 'ip_test_capability.v2'
+        document['feature_contract'] = {
+            'provider_id': 'example.sha', 'provider_version': '1.0',
+            'operations': [{
+                'endpoint_id': 'uart.bus', 'operation': 'guess_result',
+                'required_observation_mappings': ['uart-rx-sample'],
+                'evidence_ref': 'plugin-manifest:sha256:abc123',
+            }],
+        }
+        with self.assertRaisesRegex(ValueError,
+                                    'unsupported-feature-operation:guess_result'):
+            self.loader()(document, profile=self.profile)
+
+        document['feature_contract']['operations'][0]['callback'] = 'run'
+        with self.assertRaisesRegex(ValueError, 'embedded-program'):
+            self.loader()(document, profile=self.profile)
+
     def test_sidecar_refuses_register_semantics_outside_the_profile_contract(self):
         load = self.loader()
         document = self.document()
@@ -176,6 +239,74 @@ class VersionedCapabilitySidecarTests(unittest.TestCase):
 
         capability = self.loader()(document, profile=profile)
         self.assertEqual('read_pops_rx_fifo', capability.register_semantics[0].side_effect)
+
+    def test_l2_register_plan_applies_field_access_masks_and_side_effect_opt_in(self):
+        plan_register_operation = getattr(capability_api, 'plan_register_operation', None)
+        self.assertIsNotNone(plan_register_operation,
+                             'the L2 register action planner must be available')
+        document = self.document()
+        document['register_semantics'] = [
+            {
+                'register': 'CTRL', 'field': 'enable', 'lsb': 0, 'width': 2,
+                'access': 'rw', 'read_mask': 1, 'write_mask': 1,
+                'side_effect': 'none', 'evidence_ref': 'rtl:uart.ctrl.enable',
+            },
+            {
+                'register': 'STATUS', 'field': 'ready', 'lsb': 0, 'width': 1,
+                'access': 'ro', 'read_mask': 1, 'write_mask': 0,
+                'side_effect': 'none', 'evidence_ref': 'rtl:uart.status.ready',
+            },
+            {
+                'register': 'TXDATA', 'field': 'byte', 'lsb': 0, 'width': 8,
+                'access': 'wo', 'read_mask': 0, 'write_mask': 255,
+                'side_effect': 'transmit_byte', 'evidence_ref': 'rtl:uart.txdata',
+            },
+            {
+                'register': 'RXDATA', 'field': 'byte', 'lsb': 0, 'width': 8,
+                'access': 'ro', 'read_mask': 255, 'write_mask': 0,
+                'side_effect': 'read_clears', 'evidence_ref': 'rtl:uart.rxdata',
+            },
+        ]
+        capability = self.loader()(document, profile=self.profile)
+
+        write = plan_register_operation(
+            self.profile, capability, register='CTRL', field='enable',
+            operation='register_write', value=1)
+        self.assertEqual((0, 1, 1, 'none'),
+                         (write.offset, write.bus_mask, write.bus_value,
+                          write.side_effect))
+        read = plan_register_operation(
+            self.profile, capability, register='STATUS', field='ready',
+            operation='register_read')
+        self.assertEqual((4, 1), (read.offset, read.bus_mask))
+
+        with self.assertRaisesRegex(ValueError, 'register-field-value-exceeds-write-mask'):
+            plan_register_operation(
+                self.profile, capability, register='CTRL', field='enable',
+                operation='register_write', value=2)
+        with self.assertRaisesRegex(ValueError, 'register-field-not-writable'):
+            plan_register_operation(
+                self.profile, capability, register='STATUS', field='ready',
+                operation='register_write', value=1)
+        with self.assertRaisesRegex(ValueError,
+                                    'register-side-effect-requires-explicit-authorization:read_clears'):
+            plan_register_operation(
+                self.profile, capability, register='RXDATA', field='byte',
+                operation='register_read')
+        rx = plan_register_operation(
+            self.profile, capability, register='RXDATA', field='byte',
+            operation='register_read', allow_side_effect=True)
+        self.assertEqual('read_clears', rx.side_effect)
+        with self.assertRaisesRegex(ValueError,
+                                    'register-side-effect-requires-explicit-authorization:transmit_byte'):
+            plan_register_operation(
+                self.profile, capability, register='TXDATA', field='byte',
+                operation='register_write', value=65)
+        tx = plan_register_operation(
+            self.profile, capability, register='TXDATA', field='byte',
+            operation='register_write', value=65, allow_side_effect=True)
+        self.assertEqual((8, 255, 65, 'transmit_byte'),
+                         (tx.offset, tx.bus_mask, tx.bus_value, tx.side_effect))
 
     def test_sidecar_accepts_all_current_novauart_register_side_effects(self):
         for register, field, access, read_mask, write_mask, effect in (

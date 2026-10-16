@@ -9,7 +9,7 @@ from myfuzz.components import ComponentDefinitionError, load_builtin_component_c
 from myfuzz.composition import load_interface_description
 from myfuzz.composition.source_crawler import annotate_interfaces, source_tree_hash
 from myfuzz.isa import CpuDefinitionError, load_builtin_cpu_catalog, load_cpu_catalog
-from myfuzz.protocols import load_protocol_catalog
+from myfuzz.protocols import load_builtin_protocol, load_protocol_catalog
 from myfuzz.composition.source_crawler import SourceCrawlError
 
 
@@ -266,8 +266,26 @@ endmodule
                 self.assertFalse(load_cpu_catalog(profiles, root=base).require(profile["cpu_id"]).implemented)
 
     def test_boom_materialized_template_still_requires_tilelink_dependency(self) -> None:
+        """Declaring the TileLink 1.0 role vocabulary is not implementing it.
+
+        ``src/myfuzz/protocols/plugins/tilelink.json`` and the CPU-side
+        ``cpu.tilelink`` contracts are declarative: they name the roles the BOOM
+        interface description declares and nothing else. BOOM therefore still
+        cannot be materialized, because the profile revision is an all-zero
+        placeholder, no ``component_profile.json`` exists, and no TileLink
+        adapter exists at all (the plugin declares ``legal_adapters: []``).
+
+        The placeholder boundary below is degenerate on purpose: it declares
+        every port as an input, which no real ``instruction_memory_master``
+        boundary can be -- a TileLink master drives ``address``/``request``
+        towards the device and receives ``read_data``/``response`` back. With a
+        declared plugin the crawler now binds the declared roles and rejects
+        this placeholder at protocol binding instead of at catalog lookup. The
+        conclusion the regression pins is unchanged: it must still be refused.
+        """
         catalog = load_builtin_cpu_catalog(root=ROOT)
         self.assertEqual((), catalog.compatible_protocols("boom.rv64imafdc"))
+        self.assertEqual((), load_builtin_protocol("tilelink", "1").legal_adapters)
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary)
             tree = base / "source"
@@ -279,8 +297,11 @@ endmodule
             filelist = tree / "sources.f"
             filelist.write_text("tile.sv\n")
             document["source"].update(root="source", revision=source_tree_hash(tree, (hdl, filelist)))
-            with self.assertRaisesRegex(SourceCrawlError, "protocol-unsupported:.*tilelink@1"):
+            with self.assertRaises(SourceCrawlError) as refused:
                 annotate_interfaces(load_interface_description(document), base_dir=base, protocol_catalog=load_protocol_catalog(ROOT / "src/myfuzz/protocols/plugins"))
+            # The declared TileLink endpoint is refused; the placeholder must
+            # not become plannable just because a plugin now exists.
+            self.assertIn("cpu.instruction_memory", str(refused.exception))
             (base / "interface.json").write_text(json.dumps(document))
             profiles = base / "profiles"
             profiles.mkdir()

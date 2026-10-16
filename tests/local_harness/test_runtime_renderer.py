@@ -12,12 +12,17 @@ from tests.local_harness.test_renderer import real_plan, ROOT
 
 
 class RuntimeRendererTests(unittest.TestCase):
-    def test_apb_local_kind_depends_on_pin_roles_not_component_name(self):
+    def test_apb_local_kind_depends_on_pin_roles_not_component_or_endpoint_name(self):
         from myfuzz.local_harness.runtime_renderer import _apb_local_kind
         gpio = real_plan('configs/peripherals/pulp_gpio/component_profile.json', 'renamed_gpio')
         spi = real_plan('configs/peripherals/pulp_spi/local_component_profile.json', 'renamed_spi')
-        self.assertEqual('apb_gpio', _apb_local_kind(gpio.binding.endpoints))
-        self.assertEqual('apb_spi', _apb_local_kind(spi.binding.endpoints))
+
+        def anonymize_endpoint_ids(plan):
+            return tuple(replace(endpoint, endpoint_id=f'opaque_endpoint_{index}')
+                         for index, endpoint in enumerate(plan.binding.endpoints))
+
+        self.assertEqual('apb_gpio', _apb_local_kind(anonymize_endpoint_ids(gpio)))
+        self.assertEqual('apb_spi', _apb_local_kind(anonymize_endpoint_ids(spi)))
 
     @classmethod
     def setUpClass(cls):
@@ -240,9 +245,25 @@ class TlulRuntimeVariantContractTests(unittest.TestCase):
 
     def test_v2_tlul_register_observe_ignores_legacy_variant_selector(self):
         select = self.selector()
-        for variant in (None, 'unknown_legacy_variant', 'tlul_gpio'):
-            with self.subTest(variant=variant):
-                self.assertEqual('tlul_register_observe', select(self.v2, variant))
+        profile_paths = (
+            'configs/peripherals/opentitan_gpio_local/component_profile.json',
+            'configs/peripherals/opentitan_uart_local/component_profile.json',
+            'configs/peripherals/opentitan_spi_host_local/component_profile.json',
+            'configs/peripherals/opentitan_spi_device_local/component_profile.json',
+            'configs/peripherals/opentitan_i2c_local/component_profile.json',
+            'configs/peripherals/opentitan_rv_timer_local/component_profile.json',
+        )
+        variants = (None, 'unknown_legacy_variant', 'tlul_gpio', 'tlul_uart',
+                    'tlul_spi_host', 'tlul_spi_device')
+        for path in profile_paths:
+            request = load_local_harness_request({
+                'schema_version': 'local_harness.v2', 'profile_path': path,
+                'instance_id': 'opaque_component_instance', 'reset_assert_ticks': 1,
+                'reset_release_ticks': 0, 'max_wait_cycles': 1, 'tuning': {},
+            })
+            for variant in variants:
+                with self.subTest(profile_path=path, variant=variant):
+                    self.assertEqual('tlul_register_observe', select(request, variant))
 
     def test_opentitan_gpio_profile_variant_keeps_source_lock_admission(self):
         from myfuzz.composition.component_profile import load_component_profile

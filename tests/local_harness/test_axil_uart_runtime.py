@@ -51,7 +51,15 @@ class AxilUartRuntimeAcceptance(unittest.TestCase):
         self.assertEqual('axi4_lite_uart', artifact.runtime_document['kind'])
         self.assertEqual(29, len(artifact.plan.facts.ports))
         self.assertEqual('all', artifact.plan.facts.selection)
-        self.assertEqual(19, len(artifact.runtime_document['backend_ports']))
+        # 19 driven AXI4-Lite channel roles plus the 19 passive protocol-trace
+        # taps of those same nets. The taps are what lets the component-neutral
+        # protocol-event layer read this endpoint from real RTL samples; they
+        # add no driver-side face, so the physical export list stays at 8.
+        self.assertEqual(38, len(artifact.runtime_document['backend_ports']))
+        self.assertEqual(19, len([row for row in artifact.runtime_document['backend_ports']
+                                  if row.get('channel') == 'ip_protocol_trace']))
+        self.assertEqual(19, len([row for row in artifact.runtime_document['backend_ports']
+                                  if row.get('channel') == 'axil']))
         self.assertEqual(8, len(artifact.runtime_document['physical_exports']))
         session = self.make_session()
         self.assertEqual(artifact, _verify_generated_session(session.identity_document()))

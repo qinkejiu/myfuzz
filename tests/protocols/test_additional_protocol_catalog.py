@@ -76,6 +76,13 @@ class AdditionalProtocolCatalogTest(unittest.TestCase):
     def test_all_declared_protocol_versions_load(self) -> None:
         catalog = load_protocol_catalog(PLUGIN_DIR)
 
+        # ("tilelink", "1") is an intentional inventory change, not drift: the
+        # repository already carried a real TileLink 1.0 declaration -- the BOOM
+        # interface description
+        # (configs/cpus/boom/interface_description.json, protocol
+        # ["tilelink","1"]) -- but no plugin to bind it to.  The plugin declares
+        # that declaration's abstract role vocabulary only; it is not a TileLink
+        # channel implementation and it declares no legal adapter.
         self.assertEqual(
             {(plugin.protocol_id, plugin.version) for plugin in catalog.plugins},
             {
@@ -84,12 +91,18 @@ class AdditionalProtocolCatalogTest(unittest.TestCase):
                 ("axi4-lite", "1"),
                 ("axi4", "1"),
                 ("tl-ul", "1"),
+                ("tilelink", "1"),
                 ("obi", "1"),
                 ("wishbone", "classic"),
                 ("ready-valid-mmio", "1"),
                 ("ready-valid-memory", "1"),
                 ("processor-memory-beat", "1"),
                 ("pipelined-completion-memory", "1"),
+                # ("ahb-lite","1") is likewise an inventory change, not drift:
+                # CVW's real wallypipelinedsoc boundary is the declaration it
+                # binds to, and the plugin declares that boundary's role
+                # vocabulary only (no legal adapter, no elaboration).
+                ("ahb-lite", "1"),
             },
         )
 

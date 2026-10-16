@@ -72,10 +72,23 @@ class GenericApb3RegisterTests(unittest.TestCase):
         timer = artifact(request('timer'))
         self.assertEqual('apb3_register_observe', gpio.runtime_document['kind'])
         self.assertEqual(gpio.runtime_document['kind'], timer.runtime_document['kind'])
+        self.assertEqual('ip_base_event.v1',
+                         gpio.runtime_document['base_event_schema_version'])
+        trace = gpio.runtime_document['base_protocol_trace']
+        self.assertEqual('apb3', trace['protocol'])
+        self.assertEqual('gpio.bus', trace['endpoint_id'])
+        self.assertTrue({'psel', 'penable', 'pready', 'paddr', 'pslverr'}
+                        <= set(trace['signals']))
+        runtime_ports = {row['name'] for row in gpio.runtime_document['runtime_ports']}
+        self.assertTrue(set(trace['signals'].values()) <= runtime_ports)
+        self.assertIn('assign trace_psel =', gpio.runtime_sv)
         self.assertEqual('apb3_register_only_pin_observe_no_peer',
                          gpio.runtime_document['functional_scope'])
         self.assertEqual({'in'}, {row['role'] for row in
                                   gpio.runtime_document['fixed_physical_inputs']})
+        sampled_input = next(row for row in gpio.runtime_document['physical_exports']
+                             if row['direction'] == 'input')
+        self.assertIn('{"' + sampled_input['runtime_name'] + '",', gpio.cpp_text)
         self.assertEqual([], timer.runtime_document['fixed_physical_inputs'])
         with self.assertRaisesRegex(ValueError, 'unowned-input'):
             artifact(request('gpio'))

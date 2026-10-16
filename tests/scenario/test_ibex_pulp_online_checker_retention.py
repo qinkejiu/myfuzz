@@ -40,3 +40,16 @@ class IbexPulpOnlineCheckerRetentionTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_explicit_checker_configuration_identity_survives_consumed_warmup():
+    from myfuzz.scenario.session_runtime import _checker_identity
+    checker = IbexPulpOnlineChecker()
+    identity = _checker_identity(checker, configuration_only=True)
+    assert identity['config'] == {'result_address': 0x10000, 'gpio_settle_ticks': 4}
+    checker(receipt('warmup', ({'event_id': 1, 'kind': 'noop'},)))
+    assert _checker_identity(checker, configuration_only=True) == identity
+    # The legacy contract still includes state without the explicit opt-in.
+    assert _checker_identity(checker)['config']['_last_event_id'] == 1
+    checker.gpio_settle_ticks = 5
+    assert _checker_identity(checker, configuration_only=True) != identity

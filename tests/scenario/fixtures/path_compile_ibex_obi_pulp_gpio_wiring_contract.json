@@ -1,0 +1,40 @@
+{
+  "schema_version": "path_compile_request.v1",
+  "cpu": {
+    "instance_id": "cpu",
+    "profile": "configs/cpus/ibex_obi_local/component_profile.json",
+    "data_endpoint": "processor.data",
+    "instruction_endpoint": "processor.instruction"
+  },
+  "devices": [
+    {
+      "device_id": "gpio",
+      "instance_id": "gpio",
+      "profile": "configs/peripherals/pulp_gpio/component_profile.json",
+      "test_capability": "configs/peripherals/pulp_gpio/test_capability.json"
+    }
+  ],
+  "wiring": {
+    "schema_version": "wiring_contract.v1",
+    "delivery": "transaction_level_explicit",
+    "global_interconnect": false,
+    "cycle_accurate": false,
+    "cpu": {
+      "instance_id": "cpu",
+      "endpoint_id": "processor.data",
+      "template": "obi-processor-memory",
+      "variant_id": "single-outstanding"
+    },
+    "windows": [
+      {
+        "device_id": "gpio",
+        "target_instance": "gpio",
+        "base": 1073741824,
+        "size": 4096,
+        "endpoint_id": "gpio.bus",
+        "template": "apb3-register",
+        "variant_id": "default"
+      }
+    ]
+  }
+}

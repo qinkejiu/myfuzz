@@ -143,7 +143,10 @@ def _frozen_writer_receipt_keys() -> tuple[str, ...]:
                     and inner.func.attr == "dumps"):
                 for argument in inner.args:
                     if isinstance(argument, ast.Dict):
-                        keys = tuple(key.value for key in argument.keys)
+                        # A `**mapping` entry has no key in the AST (its slot is
+                        # None); it is skipped rather than dereferenced.
+                        keys = tuple(key.value for key in argument.keys
+                                     if isinstance(key, ast.Constant))
                         assert len(keys) >= 30, keys
                         return keys
     raise AssertionError("persist_receipt receipt dictionary was not found")

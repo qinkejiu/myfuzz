@@ -158,6 +158,19 @@ class ProfileBindingTests(unittest.TestCase):
             bind_profile(wrong, facts)
         self.assertIn("binding-width-conflict", str(error.exception))
 
+    def test_clock_and_reset_ports_must_be_scalar(self) -> None:
+        profile = _load("novacore")
+        facts = elaborate_profile(profile, base_dir=ROOT)
+        for port_name, binding_name in (("clk_i", "clock"), ("rst_ni", "reset")):
+            broken_facts = replace(facts, ports=tuple(
+                replace(port, width=2) if port.name == port_name else port
+                for port in facts.ports))
+            with self.subTest(binding=binding_name):
+                with self.assertRaisesRegex(
+                        ComponentProfileError,
+                        rf"{binding_name}-port-width-conflict:{port_name}:2!=1"):
+                    bind_profile(profile, broken_facts)
+
     def test_protocol_width_is_checked_independently_of_the_profile(self) -> None:
         """A port that disagrees with the protocol's declared role width fails."""
         profile = _load("novauart")

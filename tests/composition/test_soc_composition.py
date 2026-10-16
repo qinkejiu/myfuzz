@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import unittest
+from dataclasses import replace
 
 from myfuzz.composition.component_profile import (
     ComponentProfileError,
@@ -47,19 +48,64 @@ class PlanTests(unittest.TestCase):
 
     def test_a_fixed_address_that_overlaps_is_rejected(self) -> None:
         document = json.loads((ROOT / "examples/soc_generation/request.json").read_text())
-        document["peripherals"][2]["address"] = 0x80000000
-        request = load_composition_request(document, profiles=example_profiles())
-        with self.assertRaises(CompositionError) as error:
-            build_composition(request, base_dir=ROOT)
+        # Give two fixed MMIO windows the same in-aperture base.
+        document["peripherals"][0]["address"] = 0x40000000
+        document["peripherals"][2]["address"] = 0x40000000
+        with self.assertRaises(ComponentProfileError) as error:
+            load_composition_request(document, profiles=example_profiles())
         self.assertIn("fixed-address-overlap", str(error.exception))
 
     def test_a_misaligned_fixed_address_is_rejected(self) -> None:
         document = json.loads((ROOT / "examples/soc_generation/request.json").read_text())
         document["peripherals"][2]["address"] = 0x40001008
-        request = load_composition_request(document, profiles=example_profiles())
-        with self.assertRaises(CompositionError) as error:
-            build_composition(request, base_dir=ROOT)
+        with self.assertRaises(ComponentProfileError) as error:
+            load_composition_request(document, profiles=example_profiles())
         self.assertIn("fixed-address-misaligned", str(error.exception))
+
+    def test_a_fixed_address_outside_the_declared_mmio_aperture_is_rejected(self) -> None:
+        for address in (0x3FFFF000, 0x40100000):
+            document = json.loads((ROOT / "examples/soc_generation/request.json").read_text())
+            document["peripherals"][2]["address"] = address
+            with self.subTest(address=hex(address)):
+                with self.assertRaises(ComponentProfileError) as error:
+                    load_composition_request(document, profiles=example_profiles())
+                self.assertIn("fixed-address-outside-mmio-aperture", str(error.exception))
+
+    def test_a_fixed_window_may_end_at_the_mmio_aperture_boundary(self) -> None:
+        document = json.loads((ROOT / "examples/soc_generation/request.json").read_text())
+        document["peripherals"][2]["address"] = 0x400FF000
+        request = load_composition_request(document, profiles=example_profiles())
+        self.assertEqual(0x400FF000, request.peripherals[2].address)
+
+    def test_mmio_aperture_cannot_overflow_the_64_bit_address_space(self) -> None:
+        document = json.loads((ROOT / "examples/soc_generation/request.json").read_text())
+        document["address_policy"] = {
+            "mmio_base": (1 << 64) - 0x1000,
+            "mmio_limit": 0x2000,
+            "alignment": 0x1000,
+        }
+        with self.assertRaisesRegex(ComponentProfileError,
+                                    "mmio-aperture-out-of-range"):
+            load_composition_request(document, profiles=example_profiles())
+
+    def test_direct_request_object_cannot_bypass_mmio_aperture_validation(self) -> None:
+        request = _request_with()
+        fixed = request.peripherals[2]
+        invalid = replace(request, peripherals=(
+            request.peripherals[0], request.peripherals[1],
+            replace(fixed, address=0x50000000),
+        ))
+        with self.assertRaisesRegex(CompositionError,
+                                    "fixed-address-outside-mmio-aperture"):
+            build_composition(invalid, base_dir=ROOT)
+
+    def test_auto_allocation_cannot_escape_a_full_mmio_aperture(self) -> None:
+        document = json.loads((ROOT / "examples/soc_generation/request.json").read_text())
+        document["peripherals"][2]["address"] = None
+        document["address_policy"]["mmio_limit"] = 0x2000
+        request = load_composition_request(document, profiles=example_profiles())
+        with self.assertRaisesRegex(CompositionError, "auto-address-space-exhausted"):
+            build_composition(request, base_dir=ROOT)
 
     def test_auto_allocation_order_is_stable_and_independent_of_request_order(self) -> None:
         document = json.loads((ROOT / "examples/soc_generation/request.json").read_text())

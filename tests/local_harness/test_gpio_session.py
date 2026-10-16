@@ -60,6 +60,18 @@ class GeneratedGpioSessionTests(unittest.TestCase):
         self.assertEqual(1, samples[0]['post']['interrupt'])
         self.assertEqual([], session.drain_tick_samples())
 
+    def test_queued_protocol_and_physical_samples_are_detached_from_receipt(self):
+        reply = receipt(1, irq=1)
+        reply.payload['samples'][0]['pre']['backend']['trace_psel'] = 1
+        reply.payload['samples'][0]['pre']['physical']['gpio'] = 7
+        session = self.make_session(reply)
+        session.step_local({'gpio_in': 1})
+        reply.payload['samples'][0]['pre']['backend']['trace_psel'] = 0
+        reply.payload['samples'][0]['pre']['physical']['gpio'] = 0
+        sample = session.drain_tick_samples()[0]
+        self.assertEqual(1, sample['pre']['backend']['trace_psel'])
+        self.assertEqual(7, sample['pre']['physical']['gpio'])
+
     def test_explicit_reset_discards_undelivered_pre_reset_samples(self):
         session = self.make_session(receipt(1, irq=1))
         session.step_local({'gpio_in': 1})

@@ -476,11 +476,14 @@ def decode_gate_layout_accesses(data: bytes, *, window_base: int,
                                 window_size: int) -> list[dict]:
     """Re-implementation of the shipped gate decoder's immediate extraction.
 
-    ``uart_waveform_gate.fragment_mmio_accesses`` reads bits 31:20 as the
-    immediate for every load and store.  That is the I-type layout; for an
-    S-type store the immediate is split (imm[11:5] in bits 31:25, imm[4:0] in
-    bits 11:7), so the two decoders can disagree.  Kept here (not imported) so
-    the disagreement is a first-class result of this verification.
+    Kept here rather than imported so that this script's reading of a fragment
+    is independent of the code it is verifying.  It must therefore mirror the
+    shipped rule exactly: a load carries its offset in the I-type layout (bits
+    31:20), while a store splits it into S-type imm[11:5] (bits 31:25) and
+    imm[4:0] (bits 11:7) with rs2 in between.  The earlier shipped decoder read
+    bits 31:20 for both shapes, which folded rs2 into the low address bits and
+    dropped imm[4:0]; a copy that keeps the old rule would disagree with the
+    shipped decoder on every store and report a defect that no longer exists.
     """
     if not isinstance(data, (bytes, bytearray)) or len(data) % 4:
         raise ValueError("a fragment must be whole 32-bit words")
@@ -499,7 +502,10 @@ def decode_gate_layout_accesses(data: bytes, *, window_base: int,
                      (0x23, 0): "SB"}.get((opcode, funct3))
         if operation is None or rs1 not in bases:
             continue
-        address = (bases[rs1] + _signed_12((word >> 20) & 0xFFF)) & 0xFFFFFFFF
+        stored = opcode == 0x23
+        immediate = ((((word >> 25) & 0x7F) << 5) | ((word >> 7) & 0x1F)
+                     if stored else (word >> 20) & 0xFFF)
+        address = (bases[rs1] + _signed_12(immediate)) & 0xFFFFFFFF
         if window_base <= address < window_base + window_size:
             found.append({"operation": operation, "address": address,
                           "word_offset": offset})

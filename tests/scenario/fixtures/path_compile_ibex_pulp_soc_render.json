@@ -1,0 +1,29 @@
+{
+  "schema_version": "path_compile_request.v1",
+  "cpu": {
+    "instance_id": "ibex",
+    "profile": "configs/cpus/ibex/component_profile.json",
+    "data_endpoint": "processor.data",
+    "instruction_endpoint": "processor.instruction"
+  },
+  "devices": [
+    {
+      "device_id": "pulp_gpio",
+      "instance_id": "pulp_gpio",
+      "profile": "configs/peripherals/pulp_gpio/component_profile.json",
+      "test_capability": "configs/peripherals/pulp_gpio/test_capability.json"
+    },
+    {
+      "device_id": "pulp_spi",
+      "instance_id": "pulp_spi",
+      "profile": "configs/peripherals/pulp_spi/component_profile.json"
+    }
+  ],
+  "wiring": {
+    "source": "configs/soc/ibex-pulp.json"
+  },
+  "memory": [
+    {"resource_id": "rom0", "component_instance": "ibex"},
+    {"resource_id": "ram0", "component_instance": "ibex"}
+  ]
+}

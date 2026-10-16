@@ -1196,6 +1196,8 @@ def test_replay_forwards_the_saved_commit_stream_mode(tmp_path, monkeypatch):
                         factory)
     monkeypatch.setattr(ibex_pulp_online, "_saved_memory_commit_mode",
                         lambda *args, **kwargs: True)
+    monkeypatch.setattr(ibex_pulp_online, "_saved_persistent_memory_mode",
+                        lambda *args, **kwargs: None)
     assert ibex_pulp_online.replay_ibex_pulp_online_files(
         cache_dir=tmp_path / "cache", plan_path=plan, trace_path=trace) == "matched"
     assert captured == {"cpu_retirement": False, "gpio_consumption": False,

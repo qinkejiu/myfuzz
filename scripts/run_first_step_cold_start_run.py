@@ -231,7 +231,12 @@ def frozen_receipt_keys() -> tuple[str, ...]:
             for argument in inner.args:
                 if not isinstance(argument, ast.Dict):
                     continue
-                keys = tuple(key.value for key in argument.keys)
+                # A `**mapping` entry has no key in the AST (its slot is
+                # None). It is skipped rather than dereferenced: the frozen
+                # schema is the literal key set, and a crash here surfaced as a
+                # silently unset measurement instead of a clear failure.
+                keys = tuple(key.value for key in argument.keys
+                             if isinstance(key, ast.Constant))
                 if keys and all(isinstance(key, str) for key in keys):
                     return keys
     raise ColdStartRunError(

@@ -54,11 +54,14 @@ VERIFY = _load_module("verify_p5_uart_routing_witness",
 WINDOW = {"base": 0x40000000, "size": 0x1000}
 UART_ACCESS_ID = "uart-access:uart:0:4"
 #: ``lui x1, 0x40000; sb x2, 2(x1)`` encoded with the real S-type immediate
-#: split (imm in bits 31:25/11:7), which both the shipped ISA decoder and the
-#: verifier's independent decode read as 0x40000002.
+#: split (imm in bits 31:25/11:7), so both the shipped gate decoder and the
+#: verifier's independent decode read 0x40000002.
 SB_WORDS_CORRECT = "b700004023812000"
 #: the words the saved run really carries: an S-type store whose immediate is
-#: 0x1c (TXDATA), which the gate's decoder reads as 0x40000002.
+#: 0x1c (UART TXDATA), so both decoders read 0x4000001c. The shipped gate
+#: decoder used to read bits 31:20 for every load and store - the I-type layout
+#: - which folded rs2 into the low address bits and dropped imm[4:0]; it now
+#: selects the S-type split for stores, so the two decoders agree.
 SB_WORDS_SAVED_RUN = "b7000040238e2000"
 
 
@@ -438,11 +441,13 @@ def test_declared_sb_address_is_recomputed_with_riscv_store_semantics(tmp_path):
                               report_doc=tmp_path / "absent.md")
     claims = _claims(document)
     recorded = claims["declared_accesses_match_witness_json"]
-    assert recorded["agree"] is True  # the JSON really records 0x40000002
+    assert recorded["agree"] is True  # the JSON really records 0x4000001c
     correct = claims["declared_address_is_riscv_correct"]
-    assert correct["agree"] is False
+    # The shipped gate decoder now applies the S-type split to stores, so the
+    # address both layers read is the one real store semantics give.
+    assert correct["agree"] is True
     assert correct["recomputed"] == [0x4000001C]
-    assert correct["reported"] == [0x40000002]
+    assert correct["reported"] == [0x4000001C]
     assert "S-type" in correct["note"]
 
 

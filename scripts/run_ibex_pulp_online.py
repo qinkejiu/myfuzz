@@ -17,6 +17,9 @@ from myfuzz.integration.ibex_pulp_online import (  # noqa: E402
     make_ibex_pulp_online_runtime, replay_ibex_pulp_online_files,
 )
 from myfuzz.integration.scenario_rfuzz_live import run_scenario_rfuzz_live  # noqa: E402
+from myfuzz.integration.ibex_pulp_candidate_replay import replay_ibex_pulp_candidate_files  # noqa: E402
+
+from myfuzz.integration.ibex_pulp_register_replay import replay_ibex_pulp_register_files  # noqa: E402
 
 #: The shipped raw seed of the live RFuzz client
 #: (``run_scenario_rfuzz_live(seed_records=(bytes(8),))``).  The initial RAM
@@ -45,6 +48,8 @@ def main(argv: list[str] | None = None) -> int:
                      help="observe authenticated passive GPIO register and input consumption facts")
     run.add_argument("--memory-commit", action="store_true",
                      help="journal authenticated host-memory commit receipts for cross-case RAM prerequisites")
+    run.add_argument("--persistent-memory-prerequisites", action="store_true",
+                     help="require current authenticated RAM witnesses and instruction slots; requires --memory-commit")
     run.add_argument("--result-slot-byte-store", action="store_true",
                      help="allow one declared SB byte write to the result-slot window "
                           "0x10000 so a partial byte_enable (lane selectivity) can be observed")
@@ -58,13 +63,42 @@ def main(argv: list[str] | None = None) -> int:
                           "(default %(default)s, the shipped seed record)")
     run.add_argument("--compressed-trace", action="store_true",
                      help="save lossless indexed zlib event blocks")
+    run.add_argument('--candidate-exploration', action='store_true',
+                     help='opt in to bounded legal-source candidate exploration; requires matching v2 observations')
+    run.add_argument('--candidate-exploration-max-cases', type=int, default=65536,
+                     help='candidate case capacity, 1..65536 (default %(default)s)')
+    run.add_argument('--classified-feedback', action='store_true', help='report base and verified evidence independently of candidate exploration')
+    run.add_argument('--classified-feedback-max-records', type=int, default=4096, help='classified evidence capacity, 1..65536')
+    run.add_argument('--bootstrap-selector', default=None, metavar='SELECTOR',
+                     help='closed bootstrap selector; omitted keeps the shipped '
+                          'bootstrap byte for byte. The only accepted opt-in value is '
+                          'ibex_pulp_dual_source.minimal_bootstrap.v1 (the declared '
+                          'minimal boot body: no DIR/OUT/gpio_b GPIOEN/B.INTEN write). '
+                          'Any other value is refused before any RTL work instead of '
+                          'falling back to the shipped bootstrap.')
     replay = commands.add_parser("replay", help="compare saved evidence with fresh RTL")
     replay.add_argument("--cache-dir", type=Path, required=True)
     replay.add_argument("--plan", type=Path, required=True)
     replay.add_argument("--trace", type=Path, required=True)
+    candidates = commands.add_parser('replay-candidates', help='recompute candidate or independent classified feedback with fresh RTL')
+    candidates.add_argument('--cache-dir', type=Path, required=True)
+    candidates.add_argument('--run-dir', type=Path, required=True)
+    registers = commands.add_parser('replay-register-programs', help='reconstruct saved directed register requests with fresh installed authority')
+    registers.add_argument('--cache-dir', type=Path, required=True)
+    registers.add_argument('--run-dir', type=Path, required=True)
+    registers.add_argument('--require-register-reset-default', action='store_true',
+                           help='refuse unless the authenticated bundle declares the closed '
+                                'register_reset_default channel; a fail-closed demand only, it '
+                                'can never supply or widen the saved declaration')
     args = parser.parse_args(argv)
     try:
         if args.command == "run":
+            if not 1 <= args.classified_feedback_max_records <= 65536:
+                raise ValueError('classified feedback max records must be 1..65536')
+            if not 1 <= args.candidate_exploration_max_cases <= 65536:
+                raise ValueError('candidate exploration max cases must be 1..65536')
+            if args.persistent_memory_prerequisites and not args.memory_commit:
+                raise ValueError('--persistent-memory-prerequisites requires --memory-commit')
             if args.output.exists() or args.output.is_symlink():
                 raise ValueError("output directory must be new")
             try:
@@ -80,10 +114,19 @@ def main(argv: list[str] | None = None) -> int:
                 gpio_consumption=args.gpio_consumption,
                 initial_ram_data=args.initial_ram_data,
                 initial_ram_record=initial_ram_record,
+                **({'candidate_exploration': True,
+                    'candidate_exploration_max_cases': args.candidate_exploration_max_cases}
+                   if args.candidate_exploration else {}),
+                **({'classified_feedback': True, 'classified_feedback_max_records': args.classified_feedback_max_records}
+                   if args.classified_feedback else {}),
                 **({'native_irq_receipts': True} if args.native_irq_receipts else {}),
                 **({'memory_commit_receipts': True} if args.memory_commit else {}),
+                **({'persistent_memory_prerequisites': True}
+                   if args.persistent_memory_prerequisites else {}),
                 **({'result_slot_byte_store': True}
-                   if args.result_slot_byte_store else {}))
+                   if args.result_slot_byte_store else {}),
+                **({'bootstrap_selector': args.bootstrap_selector}
+                   if args.bootstrap_selector is not None else {}))
             result = run_scenario_rfuzz_live(
                 executor=runtime.executor, client_binary=args.client_binary,
                 output_dir=args.output, duration_seconds=args.seconds,
@@ -100,6 +143,39 @@ def main(argv: list[str] | None = None) -> int:
                               "effective_search_seconds": result.effective_search_seconds},
                              sort_keys=True))
             return 0
+        if args.command == 'replay-register-programs':
+            result = replay_ibex_pulp_register_files(cache_dir=args.cache_dir, output_dir=args.run_dir)
+            document = dict(matches=result.matches, verification_scope=result.verification_scope,
+                event_count=len(result.comparison.actual_trace.events),
+                semantic_sha256=result.comparison.actual_trace.semantic_sha256,
+                first_difference=result.comparison.first_difference,
+                difference_context=result.comparison.difference_context)
+            capability_preflight = getattr(result, 'capability_preflight', None)
+            if capability_preflight is not None:
+                document['capability_preflight'] = capability_preflight
+            ordinary_evidence = getattr(result, 'ordinary_apb_access_evidence', None)
+            if ordinary_evidence is not None:
+                document['ordinary_apb_access_evidence'] = ordinary_evidence
+            register_verifier = getattr(result, 'register_program_verifier', None)
+            if register_verifier is not None:
+                document['register_program_verifier'] = register_verifier
+            reset_default = getattr(result, 'register_reset_default', None)
+            if args.require_register_reset_default and reset_default is None:
+                # A demand is fail-closed: the authenticated bundle remains the
+                # only declaration, and this option can never install authority.
+                raise ValueError('authenticated bundle does not declare register_reset_default')
+            if reset_default is not None:
+                document['register_reset_default'] = reset_default
+            print(json.dumps(document, sort_keys=True))
+            return 0 if result.matches else 2
+        if args.command == 'replay-candidates':
+            result = replay_ibex_pulp_candidate_files(cache_dir=args.cache_dir, output_dir=args.run_dir)
+            comparison = result.comparison
+            print(json.dumps(dict(matches=result.matches, verification_scope=result.verification_scope,
+                event_count=len(comparison.actual_trace.events), semantic_sha256=comparison.actual_trace.semantic_sha256,
+                first_difference=comparison.first_difference, difference_context=comparison.difference_context),
+                sort_keys=True))
+            return 0 if result.matches else 2
         comparison = replay_ibex_pulp_online_files(
             cache_dir=args.cache_dir, plan_path=args.plan, trace_path=args.trace)
         print(json.dumps({"matches": comparison.matches,
