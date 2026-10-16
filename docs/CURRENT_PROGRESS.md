@@ -7,6 +7,7 @@
 - **BOOM 生成式 CPU/RAM：** [受源锁约束的独立入口](../configs/cpus/boom/README.md)已在两个新进程得到相同的 598-cycle 轨迹，14 次 AcquireBlock 与 14 次 GrantAck 排空；fence 后重新获取目标缓存行的实际 D 响应从 `0x123` 替换为 `0x122`，CPU 随后保存 `0x122`，正常成功门拒绝。该入口使用显式派生源码，未接通用 Router 或 CPU/IP。
 - **第四系列真实 CPU 链：** [CVW→Caliptra SHA256→RAM](reports/cvw-caliptra-cpu-chain-20261017.md)的最终门为 3 passed／100.00 秒。32 位 CPU 在一对持续进程计算 `abc`、`abd`，84 条实际寄存器事务与 CPU、Router、AHB 物理采样关联，fresh 轨迹一致；错误窗口和实际 CPU 字节写被拒绝。IRQ、持续搜索与认证前缀仍未覆盖。
 - **真实寄存器前置状态：** [GPIOEN live authority](reports/gpioen-live-register-version-20261017.md)已实现源锁、原生进程／epoch／命令连续性与一次消费 token；保存日志为 4 passed／125.46 秒。它只支持精确的 GPIOEN 来源合同；尚不能独立授予编译 F4 端到端能力。
+- **标准 Runner 的 UART RX DMA 链：** [最终冻结门](reports/dma-uart-rx-standard-runner-20261017.md)为 1 passed／80.79 秒；串行 `0x5A` 经实际 FIFO、DMA 读取、RAM 写入和 CPU ISR，两个 fresh 的 4,836 事件／1,097 步前缀一致。预算已包含 CPU→DMA→UART 间接时钟；持续搜索和认证前缀仍未验收。
 - **编译 F4 仍在修复：** 首次连续候选与 fresh 前缀运行已有实验结果；独立复核发现编译断言未绑定完整消费链、配置启动基址被当作实际首取指地址，以及调用方输入仍可变化。修复与复核完成前不计入 D4 验收。
 
 下文保留较早切片的边界；“尚未”以其对应报告的冻结版本解释。

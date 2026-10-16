@@ -24,7 +24,7 @@ Each positive run has 1,248 CPU samples, 336 SHA target samples and **84 actual
 register transactions**: 34 writes, 34 STATUS polls and 16 digest reads. The two
 hashes finish with 17 actual polls each. The test compares every real accepted
 CPU MMIO request to its router delivery, every target AHB address acceptance and
-separate data phase to that delivery, and each register response to the actual
+separate data phase to that delivery, and each register read response to the actual
 CPU response consumption. RAM contains all sixteen actual digest words followed
 by the CPU's completion store. Expected digests are:
 
