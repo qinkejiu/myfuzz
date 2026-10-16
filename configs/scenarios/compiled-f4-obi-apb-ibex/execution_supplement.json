@@ -1,0 +1,32 @@
+{
+  "schema_version": "compiled_execution_file_supplement.v1",
+  "request_supplements": {
+    "environment_links": [
+      {
+        "link_id": "pins",
+        "component_instance": "peripheral",
+        "endpoint_id": "gpio.pins",
+        "width": 32,
+        "event_kind": "pin_value"
+      }
+    ]
+  },
+  "ownership": {
+    "fields": [
+      {"component_id": "peripheral", "port": "gpio_in", "width": 32}
+    ],
+    "owners": [
+      {
+        "component_id": "peripheral",
+        "port": "gpio_in",
+        "bit_offset": 0,
+        "width": 32,
+        "kind": "source",
+        "producer_ref": "peripheral.in.external"
+      }
+    ]
+  },
+  "physical_port_map": [
+    {"component_id": "peripheral", "port": "gpio_in", "physical_port": "gpio_in"}
+  ]
+}
