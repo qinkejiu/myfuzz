@@ -39,7 +39,7 @@ def _bne(rs1, rs2, offset):
 
 
 def cvw_gpio_program(*, gpio_base=0xCFFF0000) -> bytes:
-    """Two output/readback pairs; only matching readbacks write success=1."""
+    """Two output readbacks and one external input gate the success store."""
     if type(gpio_base) is not int or gpio_base < 0 or gpio_base > 0xfffff000 or gpio_base % 0x1000:
         raise ValueError('GPIO program base must be aligned RV32 address')
     words = [
@@ -48,9 +48,11 @@ def cvw_gpio_program(*, gpio_base=0xCFFF0000) -> bytes:
         _addi(8, 8, 0x400), _addi(2, 0, -1),
         _sw(2, 1, 0), _sw(2, 1, 4),  # PADDIR, GPIOEN
         _addi(2, 0, 0x35), _sw(2, 1, 12),
-        _lw(3, 1, 12), _sw(3, 8, 0), _bne(3, 2, (19-10)*4),
+        _lw(3, 1, 12), _sw(3, 8, 0), _bne(3, 2, (23-10)*4),
         _addi(2, 0, 0x6A), _sw(2, 1, 12),
-        _lw(3, 1, 12), _sw(3, 8, 4), _bne(3, 2, (19-15)*4),
+        _lw(3, 1, 12), _sw(3, 8, 4), _bne(3, 2, (23-15)*4),
+        _lw(5, 1, 8), _sw(5, 8, 12),
+        _addi(2, 0, 0xA5), _bne(5, 2, (23-19)*4),
         _addi(4, 0, 1), _sw(4, 8, 8), 0x0000006F,
         _addi(4, 0, -1), _sw(4, 8, 8), 0x0000006F,
     ]
@@ -86,7 +88,7 @@ def make_cvw_gpio_chain(*, cache_dir: Path, gpio_base=None):
     # This is an initial-image interface, not the online ISA fragment interface.
     # All four padded cache lines exist before the boot word can be released.
     memory.preload(BOOT_BASE, cvw_gpio_program(gpio_base=base))
-    memory.preload(RESULT, bytes(12))
+    memory.preload(RESULT, bytes(16))
     gpio = GeneratedPulpGpioSession(gpio_art, base_dir=ROOT, cache_dir=cache_dir)
     router = DataflowRouter((DeviceWindow('gpio', base, wiring.window_size, gpio),))
     cpu = GeneratedAhbMemorySession(cpu_art, base_dir=ROOT, cache_dir=cache_dir,

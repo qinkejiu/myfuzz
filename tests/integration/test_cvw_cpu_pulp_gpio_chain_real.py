@@ -18,7 +18,8 @@ pytestmark = pytest.mark.skipif(os.environ.get('MYFUZZ_SCENARIO_REAL') != '1',
 BASE = 0xCFFF0000
 EXPECTED = [(0, True, 0xFFFFFFFF), (4, True, 0xFFFFFFFF),
             (12, True, 0x35), (12, False, 0x35),
-            (12, True, 0x6A), (12, False, 0x6A)]
+            (12, True, 0x6A), (12, False, 0x6A),
+            (8, False, 0xA5)]
 
 
 def _run(cache, *, base=BASE, limit=6000):
@@ -26,6 +27,7 @@ def _run(cache, *, base=BASE, limit=6000):
     cpu.prepare_local()
     gpio.prepare_local()
     records, apb, gpio_samples, outputs = [], [], [], []
+    input_applied = False
     try:
         gpio.begin_case('cvw-gpio-directed')
         cpu.begin_case('cvw-gpio-directed')
@@ -50,6 +52,11 @@ def _run(cache, *, base=BASE, limit=6000):
                     assert signals['pslverr'] == 0
                     apb.append((signals['paddr'], bool(signals['pwrite']),
                                 signals['pwdata'] if signals['pwrite'] else signals['prdata']))
+            if (base == BASE and not input_applied
+                    and any(row['offset'] == 4 and row['write'] for row in router.deliveries)):
+                for _ in range(4):
+                    gpio.step_local({'gpio_in': 0xA5})
+                input_applied = True
             writes = [event for event in cpu.service.events
                       if event.get('kind') == 'memory_write' and event['address'] == RESULT+8]
             if writes and cpu.pending_responses == 0:
@@ -63,16 +70,18 @@ def _run(cache, *, base=BASE, limit=6000):
                     'write': pre['m_req_write'], 'value': pre['m_req_wdata'],
                     'be': pre['m_req_be'], 'service_sample': index})
         result = [memory.read(RESULT+n, 4, transaction_id=f'check-{n}').value
-                  for n in (0, 4, 8)]
+                  for n in (0, 4, 8, 12)]
         return {'result': result, 'requests': physical_requests, 'cpu_samples': records,
             'cpu_outputs': outputs, 'gpio_samples': gpio_samples, 'apb': apb,
             'deliveries': [{**row, 'source_transaction': asdict(row['source_transaction'])}
                            for row in router.deliveries],
             'ram_events': copy.deepcopy(cpu.service.events),
+            'input_applied': input_applied,
             'final': final, 'executions': executions,
             'cpu_identity': cpu.identity_document(), 'gpio_identity': gpio.identity_document(),
             'memory_identity': memory.identity_document(),
             'pending_responses': cpu.pending_responses,
+            'gpio_input_runtime_names': [row['runtime_name'] for row in gpio.artifact.runtime_document['physical_exports'] if row['physical_port'] == 'gpio_in'],
             'gpio_output_runtime_names': [row['runtime_name'] for row in gpio.artifact.runtime_document['physical_exports'] if row['physical_port'] == 'gpio_out'],
             'artifact_hashes': (cpu.artifact.runtime_document['artifact_digest'], gpio.artifact.runtime_document['artifact_digest'])}
     finally:
@@ -82,13 +91,14 @@ def _run(cache, *, base=BASE, limit=6000):
 
 def _assert_chain(run):
     assert run['pending_responses'] == 0
-    assert run['result'] == [0x35, 0x6A, 1], 'CPU readbacks/branch-dependent RAM success absent'
+    assert run['result'] == [0x35, 0x6A, 1, 0xA5], 'CPU GPIO readbacks/branch-dependent RAM success absent'
+    assert run['input_applied']
     assert [(r['offset'], r['write'], r['write_value'] if r['write'] else r['read_value'])
             for r in run['deliveries']] == EXPECTED
     assert run['apb'] == EXPECTED, 'exactly one real APB effect per intended access; no adjacent spill'
     assert all(r['byte_enable'] == 15 and r['beat_bytes'] == 4 for r in run['deliveries'])
     keys = [tuple(r['source_transaction'].values()) for r in run['deliveries']]
-    assert len(keys) == len(set(keys)) == 6
+    assert len(keys) == len(set(keys)) == 7
     mmio = [r for r in run['requests'] if BASE <= r['address'] < BASE+0x1000]
     assert [(r['address']-BASE, bool(r['write']), r['value'] if r['write'] else None)
             for r in mmio] == [(a, w, v if w else None) for a, w, v in EXPECTED]
@@ -112,6 +122,10 @@ def _assert_chain(run):
     # The functional member exports the GPIO pins in each APB command sample.
     samples = run['gpio_samples']
     assert samples
+    assert run['gpio_input_runtime_names']
+    assert any(0xA5 == sample[phase]['physical'].get(name)
+               for sample in samples for phase in ('pre', 'post')
+               for name in run['gpio_input_runtime_names'])
     assert run['gpio_output_runtime_names']
     for value in (0x35, 0x6A):
         assert any(value == sample['post']['physical'].get(name)
@@ -130,7 +144,7 @@ def test_real_cpu_gpio_readback_branch_and_fresh_isolated_replay(tmp_path):
     _assert_chain(second)
     assert first['executions'] != second['executions']
     for key in ('cpu_samples', 'cpu_outputs', 'gpio_samples', 'requests', 'apb',
-                'deliveries', 'ram_events', 'result', 'final', 'artifact_hashes',
+                'deliveries', 'ram_events', 'input_applied', 'result', 'final', 'artifact_hashes',
                 'cpu_identity', 'gpio_identity', 'memory_identity'):
         assert first[key] == second[key], f'fresh isolated directed replay differs: {key}'
 

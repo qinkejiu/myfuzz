@@ -13,12 +13,12 @@ def test_boot_image_is_complete_cache_lines_with_real_branches_and_two_outputs()
     assert len(image) == BOOT_BYTES == 256
     words = [int.from_bytes(image[n:n+4], 'little') for n in range(0, len(image), 4)]
     assert words[0] == 0xCFFF00B7
-    assert sum(w & 0x7f == 0x63 for w in words) == 2
-    assert sum(w & 0x7f == 0x03 for w in words) == 2
+    assert sum(w & 0x7f == 0x63 for w in words) == 3
+    assert sum(w & 0x7f == 0x03 for w in words) == 3
     assert words[6] == 0x03500113
     assert words[11] == 0x06A00113
-    assert words[18] == words[21] == 0x0000006F
-    assert set(words[22:]) == {0x00000013}
+    assert words[22] == words[25] == 0x0000006F
+    assert set(words[26:]) == {0x00000013}
     assert cvw_gpio_program(gpio_base=0)[:4] == bytes.fromhex('b7000000')
 
 
@@ -28,7 +28,7 @@ def test_entire_image_is_preloaded_before_cpu_construction(tmp_path):
     def cpu(artifact, **kwargs):
         memory = kwargs['memory']
         assert b''.join(memory.read(BOOT_BASE+n, 4, transaction_id=f'fixture-{n}').data for n in range(0, BOOT_BYTES, 4)) == cvw_gpio_program()
-        assert b''.join(memory.read(RESULT+n, 4, transaction_id=f'result-{n}').data for n in range(0, 12, 4)) == bytes(12)
+        assert b''.join(memory.read(RESULT+n, 4, transaction_id=f'result-{n}').data for n in range(0, 16, 4)) == bytes(16)
         return SimpleNamespace(artifact=artifact, **kwargs)
     with patch(module + '._artifact', side_effect=artifacts), \
          patch(module + '.GeneratedAhbMemorySession', side_effect=cpu), \
