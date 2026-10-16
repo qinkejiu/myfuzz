@@ -1,0 +1,84 @@
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+_ test_scope_guard_rejects_counter_or_process_drift_without_native_fixture[tick] _
+
+change = 'tick'
+
+    @pytest.mark.parametrize('change', ['tick','tick_base','sequence','process','execution','epoch'])
+    def test_scope_guard_rejects_counter_or_process_drift_without_native_fixture(change):
+        """Pure scope calculation only; no build eligibility or token issuance."""
+>       from myfuzz.scenario.apb_storage_register_version import validate_storage_scope
+E       ImportError: cannot import name 'validate_storage_scope' from 'myfuzz.scenario.apb_storage_register_version' (/home/qinkejiu/myfuzz/src/myfuzz/scenario/apb_storage_register_version.py)
+
+tests/scenario/test_apb_storage_register_version.py:161: ImportError
+_ test_scope_guard_rejects_counter_or_process_drift_without_native_fixture[tick_base] _
+
+change = 'tick_base'
+
+    @pytest.mark.parametrize('change', ['tick','tick_base','sequence','process','execution','epoch'])
+    def test_scope_guard_rejects_counter_or_process_drift_without_native_fixture(change):
+        """Pure scope calculation only; no build eligibility or token issuance."""
+>       from myfuzz.scenario.apb_storage_register_version import validate_storage_scope
+E       ImportError: cannot import name 'validate_storage_scope' from 'myfuzz.scenario.apb_storage_register_version' (/home/qinkejiu/myfuzz/src/myfuzz/scenario/apb_storage_register_version.py)
+
+tests/scenario/test_apb_storage_register_version.py:161: ImportError
+_ test_scope_guard_rejects_counter_or_process_drift_without_native_fixture[sequence] _
+
+change = 'sequence'
+
+    @pytest.mark.parametrize('change', ['tick','tick_base','sequence','process','execution','epoch'])
+    def test_scope_guard_rejects_counter_or_process_drift_without_native_fixture(change):
+        """Pure scope calculation only; no build eligibility or token issuance."""
+>       from myfuzz.scenario.apb_storage_register_version import validate_storage_scope
+E       ImportError: cannot import name 'validate_storage_scope' from 'myfuzz.scenario.apb_storage_register_version' (/home/qinkejiu/myfuzz/src/myfuzz/scenario/apb_storage_register_version.py)
+
+tests/scenario/test_apb_storage_register_version.py:161: ImportError
+_ test_scope_guard_rejects_counter_or_process_drift_without_native_fixture[process] _
+
+change = 'process'
+
+    @pytest.mark.parametrize('change', ['tick','tick_base','sequence','process','execution','epoch'])
+    def test_scope_guard_rejects_counter_or_process_drift_without_native_fixture(change):
+        """Pure scope calculation only; no build eligibility or token issuance."""
+>       from myfuzz.scenario.apb_storage_register_version import validate_storage_scope
+E       ImportError: cannot import name 'validate_storage_scope' from 'myfuzz.scenario.apb_storage_register_version' (/home/qinkejiu/myfuzz/src/myfuzz/scenario/apb_storage_register_version.py)
+
+tests/scenario/test_apb_storage_register_version.py:161: ImportError
+_ test_scope_guard_rejects_counter_or_process_drift_without_native_fixture[execution] _
+
+change = 'execution'
+
+    @pytest.mark.parametrize('change', ['tick','tick_base','sequence','process','execution','epoch'])
+    def test_scope_guard_rejects_counter_or_process_drift_without_native_fixture(change):
+        """Pure scope calculation only; no build eligibility or token issuance."""
+>       from myfuzz.scenario.apb_storage_register_version import validate_storage_scope
+E       ImportError: cannot import name 'validate_storage_scope' from 'myfuzz.scenario.apb_storage_register_version' (/home/qinkejiu/myfuzz/src/myfuzz/scenario/apb_storage_register_version.py)
+
+tests/scenario/test_apb_storage_register_version.py:161: ImportError
+_ test_scope_guard_rejects_counter_or_process_drift_without_native_fixture[epoch] _
+
+change = 'epoch'
+
+    @pytest.mark.parametrize('change', ['tick','tick_base','sequence','process','execution','epoch'])
+    def test_scope_guard_rejects_counter_or_process_drift_without_native_fixture(change):
+        """Pure scope calculation only; no build eligibility or token issuance."""
+>       from myfuzz.scenario.apb_storage_register_version import validate_storage_scope
+E       ImportError: cannot import name 'validate_storage_scope' from 'myfuzz.scenario.apb_storage_register_version' (/home/qinkejiu/myfuzz/src/myfuzz/scenario/apb_storage_register_version.py)
+
+tests/scenario/test_apb_storage_register_version.py:161: ImportError
+_________ test_scope_guard_initial_state_does_not_heal_missing_history _________
+
+    def test_scope_guard_initial_state_does_not_heal_missing_history():
+>       from myfuzz.scenario.apb_storage_register_version import validate_storage_scope
+E       ImportError: cannot import name 'validate_storage_scope' from 'myfuzz.scenario.apb_storage_register_version' (/home/qinkejiu/myfuzz/src/myfuzz/scenario/apb_storage_register_version.py)
+
+tests/scenario/test_apb_storage_register_version.py:172: ImportError
+=========================== short test summary info ============================
+FAILED tests/scenario/test_apb_storage_register_version.py::test_scope_guard_rejects_counter_or_process_drift_without_native_fixture[tick]
+FAILED tests/scenario/test_apb_storage_register_version.py::test_scope_guard_rejects_counter_or_process_drift_without_native_fixture[tick_base]
+FAILED tests/scenario/test_apb_storage_register_version.py::test_scope_guard_rejects_counter_or_process_drift_without_native_fixture[sequence]
+FAILED tests/scenario/test_apb_storage_register_version.py::test_scope_guard_rejects_counter_or_process_drift_without_native_fixture[process]
+FAILED tests/scenario/test_apb_storage_register_version.py::test_scope_guard_rejects_counter_or_process_drift_without_native_fixture[execution]
+FAILED tests/scenario/test_apb_storage_register_version.py::test_scope_guard_rejects_counter_or_process_drift_without_native_fixture[epoch]
+FAILED tests/scenario/test_apb_storage_register_version.py::test_scope_guard_initial_state_does_not_heal_missing_history
+7 failed, 47 deselected in 0.08s

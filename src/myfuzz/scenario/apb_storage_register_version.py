@@ -73,6 +73,22 @@ def validate_routed_context(context, *, operation, fields, sequence, execution, 
 
 _ROUTED_VALIDATOR=(validate_routed_context,validate_routed_context.__code__)
 
+def validate_storage_scope(state, scope, *, process, execution, epoch, tick_base, sequence, tick, allow_initial=False):
+    """Pure consistency guard, not native eligibility or an issuance API."""
+    if (type(allow_initial) is not bool or process is None or type(execution) is not str or not execution
+            or any(type(value) is not int or value<0 for value in (epoch,tick_base,sequence,tick))):
+        raise ValueError('storage-version-scope-types')
+    current=(process,execution,epoch,tick_base)
+    if state is None:
+        if not allow_initial or scope is not None or sequence!=0 or tick!=tick_base:
+            raise ValueError('storage-version-history-unavailable')
+    elif (type(scope) is not tuple or len(scope)!=4 or scope[0] is not process
+            or scope!=current or state['sequence']!=sequence or state['tick']!=tick):
+        raise ValueError('storage-version-current-scope-drift')
+
+
+_SCOPE_VALIDATOR=(validate_storage_scope,validate_storage_scope.__code__)
+
 _AUTHORITIES=WeakKeyDictionary();_LIVE=WeakKeyDictionary();_TOKENS=WeakKeyDictionary()
 _REGISTRIES=(_AUTHORITIES,_LIVE,_TOKENS)
 _REDUCER=(reduce_storage_samples,reduce_storage_samples.__code__)
@@ -103,6 +119,7 @@ class ApbStorageRegisterVersionAuthority:
                 or _LIVE[self]['bad'] or self.target.artifact is not self.artifact
                 or any(type(value) is not int or value<0 for value in (self.target.reset_epoch,self.target._sequence,self.target.local_ticks,self.target._tick_base))
                 or any(name in vars(self) or getattr(_TYPE,name) is not method or method.__code__ is not code for name,(method,code) in _METHODS.items())
+                or validate_storage_scope is not _SCOPE_VALIDATOR[0] or validate_storage_scope.__code__ is not _SCOPE_VALIDATOR[1]
                 or validate_routed_context is not _ROUTED_VALIDATOR[0] or validate_routed_context.__code__ is not _ROUTED_VALIDATOR[1]
                 or reduce_storage_samples is not _REDUCER[0] or reduce_storage_samples.__code__ is not _REDUCER[1]):
             raise ValueError('storage-version-authority-drift-or-revoked')
@@ -140,9 +157,10 @@ class ApbStorageRegisterVersionAuthority:
             live=_LIVE[self]
             if live.get('build_digest',build_digest)!=build_digest:raise ValueError('storage-version-build-drift')
             live['build_digest']=build_digest
-            scope=(target.process,target._execution,target.reset_epoch)
-            if (live['pending'] is not None or live['scope'] is not None and live['scope']!=scope
-                    or live['state'] is None and target._sequence!=0):raise ValueError('storage-version-history-unavailable')
+            scope=(target.process,target._execution,target.reset_epoch,target._tick_base)
+            _SCOPE_VALIDATOR[0](live['state'],live['scope'],process=target.process,execution=target._execution,epoch=target.reset_epoch,
+                tick_base=target._tick_base,sequence=target._sequence,tick=target.local_ticks,allow_initial=True)
+            if live['pending'] is not None:raise ValueError('storage-version-pending-command')
             live['scope']=scope
             context=_ROUTED_VALIDATOR[0](target._storage_active_context,operation=operation,fields=fields,sequence=target._sequence+1,execution=target._execution,epoch=target.reset_epoch,window=target._window)
             live['pending']=(operation,fields,target._sequence+1,target.local_ticks,context)
@@ -157,7 +175,7 @@ class ApbStorageRegisterVersionAuthority:
         self._frame(target,'_command_impl',receipt)
         try:
             self._validate(native=True);live=_LIVE[self];pending=live['pending']
-            if (pending is None or live['scope']!=(target.process,target._execution,target.reset_epoch)
+            if (pending is None or live['scope']!=(target.process,target._execution,target.reset_epoch,target._tick_base)
                     or json.dumps(target._storage_active_context,sort_keys=True,allow_nan=False)!=json.dumps(pending[4],sort_keys=True,allow_nan=False)
                     or pending[:3]!=(operation,fields,receipt.sequence)
                     or receipt.status!='result' or receipt.payload is None or receipt.payload['error']!=0
@@ -189,8 +207,10 @@ class ApbStorageRegisterVersionAuthority:
             raise ValueError('storage-version-independent-entry-origin-required')
         try:
             self._validate(native=True);t=self.target;live=_LIVE[self];state=live['state']
+            _SCOPE_VALIDATOR[0](state,live['scope'],process=t.process,execution=t._execution,epoch=t.reset_epoch,
+                tick_base=t._tick_base,sequence=t._sequence,tick=t.local_ticks)
             if (register!='TIMER0_CTRL' or type(reset_epoch) is not int or reset_epoch!=t.reset_epoch
-                    or state is None or live['pending'] is not None or live['scope']!=(t.process,t._execution,t.reset_epoch)
+                    or state is None or live['pending'] is not None or live['scope']!=(t.process,t._execution,t.reset_epoch,t._tick_base)
                     or t.process is None or t.process.poll() is not None or state['sequence']!=t._sequence):raise ValueError('storage-version-current-state-unavailable')
             if len(_TOKENS[self])>=live['limits'][2]:raise ValueError('storage-version-token-capacity')
             doc=t._artifact_document;probe=doc['storage_observation']
@@ -213,7 +233,9 @@ class ApbStorageRegisterVersionAuthority:
             raise ValueError('storage-version-independent-entry-origin-required')
         try:
             self._validate(native=True);t=self.target;live=_LIVE[self];state=live['state']
-            if (state is None or live['pending'] is not None or live['scope']!=(t.process,t._execution,t.reset_epoch)
+            _SCOPE_VALIDATOR[0](state,live['scope'],process=t.process,execution=t._execution,epoch=t.reset_epoch,
+                tick_base=t._tick_base,sequence=t._sequence,tick=t.local_ticks)
+            if (state is None or live['pending'] is not None or live['scope']!=(t.process,t._execution,t.reset_epoch,t._tick_base)
                     or t.process is None or t.process.poll() is not None or state['sequence']!=t._sequence):raise ValueError('storage-version-stale-scope')
             witness=_TOKENS[self].pop(token,None)
             if witness is None:raise ValueError('storage-version-token-invalid')

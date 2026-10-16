@@ -153,3 +153,38 @@ def test_bool_counter_cannot_match_integer_scope(storage,field):
     authority=ApbStorageRegisterVersionAuthority(storage)
     setattr(storage,field,False)
     with pytest.raises(ValueError,match='authority-drift'):authority._validate()
+
+
+@pytest.mark.parametrize('change', ['tick','tick_base','sequence','process','execution','epoch'])
+def test_scope_guard_rejects_counter_or_process_drift_without_native_fixture(change):
+    """Pure scope calculation only; no build eligibility or token issuance."""
+    from myfuzz.scenario.apb_storage_register_version import validate_storage_scope
+    process=object()
+    args=dict(process=process,execution='nonce',epoch=0,tick_base=7,sequence=3,tick=12)
+    state=dict(tick=12,sequence=3,value=9,reset_waveform_observed=False)
+    scope=(process,'nonce',0,7)
+    validate_storage_scope(state,scope,**args)
+    args[change]=object() if change=='process' else 'other' if change=='execution' else args[change]+1
+    with pytest.raises(ValueError):validate_storage_scope(state,scope,**args)
+
+
+def test_scope_guard_initial_state_does_not_heal_missing_history():
+    from myfuzz.scenario.apb_storage_register_version import validate_storage_scope
+    args=dict(process=object(),execution='nonce',epoch=0,tick_base=0,sequence=0,tick=0)
+    validate_storage_scope(None,None,allow_initial=True,**args)
+    with pytest.raises(ValueError):validate_storage_scope(None,None,**args)
+    with pytest.raises(ValueError):validate_storage_scope(None,None,allow_initial=True,**dict(args,tick=1))
+
+
+def test_all_live_scope_guards_poison_on_failure_source_control():
+    """No native-eligible fixture: prove shared guard is inside revoking paths."""
+    import ast,inspect,textwrap
+    from myfuzz.scenario.apb_storage_register_version import ApbStorageRegisterVersionAuthority
+    for name in ('_actual_begin','issue','consume'):
+        tree=ast.parse(textwrap.dedent(inspect.getsource(getattr(ApbStorageRegisterVersionAuthority,name))))
+        protected=[node for node in ast.walk(tree) if isinstance(node,ast.Try) and any(
+            isinstance(call,ast.Call) and isinstance(call.func,ast.Subscript) and isinstance(call.func.value,ast.Name) and call.func.value.id=='_SCOPE_VALIDATOR'
+            for part in node.body for call in ast.walk(part))]
+        assert len(protected)==1
+        assert any(isinstance(call,ast.Call) and isinstance(call.func,ast.Attribute) and call.func.attr=='_revoke'
+                   for handler in protected[0].handlers for call in ast.walk(handler))

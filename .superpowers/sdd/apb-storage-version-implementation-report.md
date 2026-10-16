@@ -42,3 +42,7 @@ Per root adjudication, module-private journal/token contents are trusted Python 
 A final strict counter control additionally rejects bool-valued epoch/sequence/tick fields rather than letting Python bool==int hide scope drift. This changed C bytes after the241/46 run; final source freeze and final3 receipt below supersede that run for current-byte acceptance.
 
 **Current-byte final acceptance:** `pure-final3.log` **245passed,50explicit skips,28.54s**, actual pytest.main/controller exit0, PID495021. `pure-final3-process-receipt.json.gz` losslessly retains exact selectors and9032 subprocess argv; executable basenames again exactly git/mechanical-apb-peer.py/wire-worker.py. Raw JSON remains local; compressed JSON receipts are committed. `source-freeze.json` now pins current six source/test/control files. The two explicit real-native tests remain skipped, never claimed passed. No C implementation byte changed during final3. This replaces prior final2/current-byte receipt assertions above.
+
+## C clock-scope follow-up
+
+Independent review b48c199 identified missing last-measured-tick/current-tick and fixed process tick-base checks. The separate `apb-storage-C-scope-fix-report.md` records the minimum fix and current253/50actual-exit0 receipt. Prior cadaa75 source freeze and245/50 receipts above remain historical, not current-byte acceptance for that fix.

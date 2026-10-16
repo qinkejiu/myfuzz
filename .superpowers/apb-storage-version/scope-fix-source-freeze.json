@@ -1,0 +1,8 @@
+{
+  "src/myfuzz/scenario/apb_storage_register_version.py": "fb1a5849cbffafa9679cc13cf6119976aaa618953b32423fae9fac83eee73b05",
+  "src/myfuzz/local_harness/session.py": "2e80c998d08b2a44d743438bfd9735315f47b73e6ddec7f9088e04f9dffafc35",
+  "src/myfuzz/local_harness/apb3_register_session.py": "69b6462bb5bc42f40d1e9e517047b3126d15e94152c1bdef02bb22d27674c80d",
+  "src/myfuzz/local_harness/native_reset_producer_contract.py": "b62ad39d41f19e0810103bb7d066cd05b5dcbed2c7a516d8380d65bbc8ce3602",
+  "tests/scenario/test_apb_storage_register_version.py": "24edeae1cc3f2caea394a7964d298f626eb33ec51ed11557cbc484d7183fd694",
+  ".superpowers/apb-storage-version/run_saved_facts_controls.py": "91cb71e67a5b07a6b7a3967d48a6e5c868dd7263d07ca0a401451d54b096f4f3"
+}
