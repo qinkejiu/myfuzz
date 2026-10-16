@@ -1,0 +1,76 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+________ test_startup_abort_keeps_observed_pid_and_actual_close_result _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73c6c1fe0c50>
+
+    def test_startup_abort_keeps_observed_pid_and_actual_close_result(monkeypatch):
+     g=gate()
+     from myfuzz.local_harness.session import GeneratedLocalSession
+     class Process:
+      pid=123;args=('software-fixture',);returncode=None
+      def poll(self):return self.returncode
+     def abort(cpu):cpu._process.returncode=-9;cpu._process=None
+     monkeypatch.setattr(GeneratedLocalSession,'_abort',abort)
+     monkeypatch.setattr(g.subprocess,'Popen',Process)
+     cls=g._capturing_session_class();cpu=object.__new__(cls)
+     cpu._process=Process();cpu._execution='a'*32;cpu.gate_lifecycles=[]
+     cpu._abort()
+>    assert cpu.gate_lifecycles[0]['pid']==123
+            ^^^^^^^^^^^^^^^^^^^^^^
+E    IndexError: list index out of range
+
+tests/local_harness/test_cva6_full_axi_gate.py:161: IndexError
+________ test_failure_collection_retains_raw_even_if_ram_readback_fails ________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-109/test_failure_collection_retain0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73c6bfeef260>
+
+    def test_failure_collection_retains_raw_even_if_ram_readback_fails(tmp_path,monkeypatch):
+     import gzip
+     from types import SimpleNamespace
+     import myfuzz.scenario.memory as mem
+     import myfuzz.scenario.runner as runner_module
+     import myfuzz.scenario.replay as replay_module
+     g=gate()
+     class Memory:
+      def __init__(self,**kw):pass
+      def read(self,*a,**kw):raise ValueError('software readback collection failed')
+     class Cpu:
+      def __init__(self,*a,**kw):
+       self.gate_lifecycles=[];self.gate_driver_receipts=[]
+       self.runtime_events=[{'kind':'full_axi_raw','raw_sample':{'original_failure_edge':9}}]
+       self._execution='a'*32;self._axi_observer=SimpleNamespace(accepted={},pending={})
+       self.write_beats=self.read_beats=0
+      def end_case(self):pass
+     class Runner:
+      def __init__(self,**kw):self.events=[]
+      def set_resource_budget(self,budget):pass
+      def identity_document(self):return {'provenance':'software_fixture'}
+     def failed_record(*a):raise OSError('software native-step failure fixture')
+     monkeypatch.setattr(g,'_capturing_session_class',lambda:Cpu)
+     monkeypatch.setattr(mem,'PersistentMemory',Memory)
+     monkeypatch.setattr(runner_module,'ScenarioRunner',Runner)
+     monkeypatch.setattr(replay_module,'_record_with_runner',failed_record)
+     with pytest.raises(RuntimeError,match='first native gate failed'):
+>     g._run_one(None,tmp_path,tmp_path,'first',b'fixture')
+
+tests/local_harness/test_cva6_full_axi_gate.py:194: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/verify_cva6_full_axi_observer.py:244: in _run_one
+    'ram_values':[memory.read(address,4,transaction_id='gate-readback').value for address in (0x400,0x404)],
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <test_cva6_full_axi_gate.test_failure_collection_retains_raw_even_if_ram_readback_fails.<locals>.Memory object at 0x73c6c0156750>
+a = (1024, 4), kw = {'transaction_id': 'gate-readback'}
+
+>   def read(self,*a,**kw):raise ValueError('software readback collection failed')
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ValueError: software readback collection failed
+
+tests/local_harness/test_cva6_full_axi_gate.py:176: ValueError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_startup_abort_keeps_observed_pid_and_actual_close_result
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_failure_collection_retains_raw_even_if_ram_readback_fails
+2 failed, 14 deselected in 0.21s

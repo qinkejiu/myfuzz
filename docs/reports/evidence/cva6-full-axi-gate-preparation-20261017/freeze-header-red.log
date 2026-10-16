@@ -1,0 +1,17 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___________ test_freeze_header_cannot_redeclare_fixed_native_budget ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-118/test_freeze_header_cannot_rede0')
+
+    def test_freeze_header_cannot_redeclare_fixed_native_budget(tmp_path):
+     g=gate();(tmp_path/'file').write_bytes(b'fixture')
+     freeze={'schema_version':g.FREEZE_SCHEMA,'source_only':True,'native_run':False,'steps':650,'memory_seed':0,'files':{'file':g.sha(b'fixture')}}
+     for key,value in (('steps',1),('memory_seed',1),('source_only',False),('native_run',True)):
+>     with pytest.raises(ValueError,match='freeze'):g.verify_freeze(tmp_path,freeze|{key:value},required={'file'})
+E     Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_cva6_full_axi_gate.py:287: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_freeze_header_cannot_redeclare_fixed_native_budget
+1 failed, 24 deselected in 0.06s

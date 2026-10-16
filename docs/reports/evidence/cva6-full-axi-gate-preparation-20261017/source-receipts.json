@@ -1,0 +1,17 @@
+{
+  "native_run": false,
+  "source_only": true,
+  "software_result": "25 passed in 5.68s",
+  "files": {
+    "scripts/verify_cva6_full_axi_observer.py": "4a60dd527ab412472d9d866ded9d492a870875130bd7d0fdccce9040fdd16a49",
+    "tests/local_harness/test_cva6_full_axi_gate.py": "0278d6a5e448b3f02f6672503c8ff02ceb6ced89c8b8ea4bf48fd22d58691b3c",
+    "docs/reports/evidence/cva6-full-axi-gate-preparation-20261017/collector-budget-red.log": "087678462920aa7a5b44da50b5cd1aa7e578e63f62593fe76230638d991ca33b",
+    "docs/reports/evidence/cva6-full-axi-gate-preparation-20261017/failure-capture-red.log": "4d296a56aa29c962fe91856117cb8652514963397cb7aba56e81be5723d25809",
+    "docs/reports/evidence/cva6-full-axi-gate-preparation-20261017/freeze-header-red.log": "e288433424a54ee78589ec622b85d4aacef22e35c374a6b35a831f711daeba58",
+    "docs/reports/evidence/cva6-full-axi-gate-preparation-20261017/lifecycle-binding-red.log": "0882437d205fa2dd313b2a5aba10f532dc6de5c731f36e73e8d7e430c49a44b7",
+    "docs/reports/evidence/cva6-full-axi-gate-preparation-20261017/scope-binary-red.log": "2b9195184f872d75cbb875514988ef7ebea8595d3bfd14f8c8b0850f43d31d8a",
+    "docs/reports/evidence/cva6-full-axi-gate-preparation-20261017/software-green.log": "ba7bfdb7c9951e853f7393fde7a8db49ebbcdc697a5e65a2ed8adac62777ce14",
+    "docs/reports/evidence/cva6-full-axi-gate-preparation-20261017/software-red.log": "dbf33386c232d9b9b694ee0487602e4b92022c11cb463aacd1afdc85f02331cc",
+    "docs/reports/evidence/cva6-full-axi-gate-preparation-20261017/wire-scope-binary-red.log": "1ccd0790675ae6467e06ca19055f0d3c9335de36433cbeb47b5cfe7defc0a70f"
+  }
+}

@@ -1,0 +1,534 @@
+FFFFFFFFFFFF                                                             [100%]
+=================================== FAILURES ===================================
+______________ test_only_declared_execution_paths_are_normalized _______________
+
+    def gate():
+>    try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:10: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'scripts.verify_cva6_full_axi_observer'
+import_ = <function _gcd_import at 0x79fcb55a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'scripts.verify_cva6_full_axi_observer'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_only_declared_execution_paths_are_normalized():
+>    g=gate();execution='a'*32
+       ^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:15: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def gate():
+     try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+>    except ModuleNotFoundError:pytest.fail('native gate source is missing')
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: native gate source is missing
+
+tests/local_harness/test_cva6_full_axi_gate.py:11: Failed
+_______________ test_runner_stream_import_must_be_exact_and_once _______________
+
+    def gate():
+>    try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:10: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'scripts.verify_cva6_full_axi_observer'
+import_ = <function _gcd_import at 0x79fcb55a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'scripts.verify_cva6_full_axi_observer'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_runner_stream_import_must_be_exact_and_once():
+>    g=gate();events=[{'schema_version':'bounded_full_axi_observation.v1','kind':'full_axi_raw','raw_sample':{'data':9}}]
+       ^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def gate():
+     try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+>    except ModuleNotFoundError:pytest.fail('native gate source is missing')
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: native gate source is missing
+
+tests/local_harness/test_cva6_full_axi_gate.py:11: Failed
+________ test_actual_close_document_must_show_successful_reap[change0] _________
+
+    def gate():
+>    try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:10: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'scripts.verify_cva6_full_axi_observer'
+import_ = <function _gcd_import at 0x79fcb55a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'scripts.verify_cva6_full_axi_observer'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+change = {'returncode': None}
+
+    @pytest.mark.parametrize('change',[{'returncode':None},{'poll_after_close':None},{'pid':0},{'closed':False},{'returncode':-9,'poll_after_close':-9}])
+    def test_actual_close_document_must_show_successful_reap(change):
+>    g=gate();row=dict(pid=123,returncode=0,poll_after_close=0,closed=True)
+       ^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:41: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def gate():
+     try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+>    except ModuleNotFoundError:pytest.fail('native gate source is missing')
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: native gate source is missing
+
+tests/local_harness/test_cva6_full_axi_gate.py:11: Failed
+________ test_actual_close_document_must_show_successful_reap[change1] _________
+
+    def gate():
+>    try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:10: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'scripts.verify_cva6_full_axi_observer'
+import_ = <function _gcd_import at 0x79fcb55a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'scripts.verify_cva6_full_axi_observer'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+change = {'poll_after_close': None}
+
+    @pytest.mark.parametrize('change',[{'returncode':None},{'poll_after_close':None},{'pid':0},{'closed':False},{'returncode':-9,'poll_after_close':-9}])
+    def test_actual_close_document_must_show_successful_reap(change):
+>    g=gate();row=dict(pid=123,returncode=0,poll_after_close=0,closed=True)
+       ^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:41: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def gate():
+     try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+>    except ModuleNotFoundError:pytest.fail('native gate source is missing')
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: native gate source is missing
+
+tests/local_harness/test_cva6_full_axi_gate.py:11: Failed
+________ test_actual_close_document_must_show_successful_reap[change2] _________
+
+    def gate():
+>    try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:10: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'scripts.verify_cva6_full_axi_observer'
+import_ = <function _gcd_import at 0x79fcb55a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'scripts.verify_cva6_full_axi_observer'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+change = {'pid': 0}
+
+    @pytest.mark.parametrize('change',[{'returncode':None},{'poll_after_close':None},{'pid':0},{'closed':False},{'returncode':-9,'poll_after_close':-9}])
+    def test_actual_close_document_must_show_successful_reap(change):
+>    g=gate();row=dict(pid=123,returncode=0,poll_after_close=0,closed=True)
+       ^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:41: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def gate():
+     try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+>    except ModuleNotFoundError:pytest.fail('native gate source is missing')
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: native gate source is missing
+
+tests/local_harness/test_cva6_full_axi_gate.py:11: Failed
+________ test_actual_close_document_must_show_successful_reap[change3] _________
+
+    def gate():
+>    try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:10: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'scripts.verify_cva6_full_axi_observer'
+import_ = <function _gcd_import at 0x79fcb55a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'scripts.verify_cva6_full_axi_observer'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+change = {'closed': False}
+
+    @pytest.mark.parametrize('change',[{'returncode':None},{'poll_after_close':None},{'pid':0},{'closed':False},{'returncode':-9,'poll_after_close':-9}])
+    def test_actual_close_document_must_show_successful_reap(change):
+>    g=gate();row=dict(pid=123,returncode=0,poll_after_close=0,closed=True)
+       ^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:41: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def gate():
+     try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+>    except ModuleNotFoundError:pytest.fail('native gate source is missing')
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: native gate source is missing
+
+tests/local_harness/test_cva6_full_axi_gate.py:11: Failed
+________ test_actual_close_document_must_show_successful_reap[change4] _________
+
+    def gate():
+>    try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:10: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'scripts.verify_cva6_full_axi_observer'
+import_ = <function _gcd_import at 0x79fcb55a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'scripts.verify_cva6_full_axi_observer'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+change = {'returncode': -9, 'poll_after_close': -9}
+
+    @pytest.mark.parametrize('change',[{'returncode':None},{'poll_after_close':None},{'pid':0},{'closed':False},{'returncode':-9,'poll_after_close':-9}])
+    def test_actual_close_document_must_show_successful_reap(change):
+>    g=gate();row=dict(pid=123,returncode=0,poll_after_close=0,closed=True)
+       ^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:41: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def gate():
+     try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+>    except ModuleNotFoundError:pytest.fail('native gate source is missing')
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: native gate source is missing
+
+tests/local_harness/test_cva6_full_axi_gate.py:11: Failed
+_______________ test_gzip_is_lossless_exclusive_and_symlink_safe _______________
+
+    def gate():
+>    try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:10: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'scripts.verify_cva6_full_axi_observer'
+import_ = <function _gcd_import at 0x79fcb55a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'scripts.verify_cva6_full_axi_observer'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-106/test_gzip_is_lossless_exclusiv0')
+
+    def test_gzip_is_lossless_exclusive_and_symlink_safe(tmp_path):
+     import gzip
+>    g=gate();p=tmp_path/'raw.json.gz';value={'data':2**63,'payload':{'execution_id':'do-not-rewrite'}}
+       ^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def gate():
+     try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+>    except ModuleNotFoundError:pytest.fail('native gate source is missing')
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: native gate source is missing
+
+tests/local_harness/test_cva6_full_axi_gate.py:11: Failed
+__________ test_confinement_rejects_ancestor_symlink_and_outside_root __________
+
+    def gate():
+>    try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:10: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'scripts.verify_cva6_full_axi_observer'
+import_ = <function _gcd_import at 0x79fcb55a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'scripts.verify_cva6_full_axi_observer'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-106/test_confinement_rejects_ances0')
+
+    def test_confinement_rejects_ancestor_symlink_and_outside_root(tmp_path):
+>    g=gate();root=tmp_path/'allowed';root.mkdir();outside=tmp_path/'outside';outside.mkdir()
+       ^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:59: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def gate():
+     try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+>    except ModuleNotFoundError:pytest.fail('native gate source is missing')
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: native gate source is missing
+
+tests/local_harness/test_cva6_full_axi_gate.py:11: Failed
+_______ test_freeze_checks_full_source_set_and_no_payload_normalization ________
+
+    def gate():
+>    try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:10: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'scripts.verify_cva6_full_axi_observer'
+import_ = <function _gcd_import at 0x79fcb55a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'scripts.verify_cva6_full_axi_observer'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-106/test_freeze_checks_full_source0')
+
+    def test_freeze_checks_full_source_set_and_no_payload_normalization(tmp_path):
+>    g=gate();repo=tmp_path/'source';repo.mkdir();(repo/'file.py').write_text('source')
+       ^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:67: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def gate():
+     try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+>    except ModuleNotFoundError:pytest.fail('native gate source is missing')
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: native gate source is missing
+
+tests/local_harness/test_cva6_full_axi_gate.py:11: Failed
+_________ test_default_cli_does_not_construct_artifact_or_start_native _________
+
+    def gate():
+>    try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:10: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'scripts.verify_cva6_full_axi_observer'
+import_ = <function _gcd_import at 0x79fcb55a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'scripts.verify_cva6_full_axi_observer'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x79fcb3da0ec0>
+capsys = <_pytest.capture.CaptureFixture object at 0x79fcb3da1430>
+
+    def test_default_cli_does_not_construct_artifact_or_start_native(monkeypatch,capsys):
+>    g=gate()
+       ^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:76: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def gate():
+     try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+>    except ModuleNotFoundError:pytest.fail('native gate source is missing')
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: native gate source is missing
+
+tests/local_harness/test_cva6_full_axi_gate.py:11: Failed
+_ test_prefix_compare_keeps_raw_payload_and_requires_distinct_process_identity _
+
+    def gate():
+>    try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_cva6_full_axi_gate.py:10: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'scripts.verify_cva6_full_axi_observer'
+import_ = <function _gcd_import at 0x79fcb55a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'scripts.verify_cva6_full_axi_observer'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_prefix_compare_keeps_raw_payload_and_requires_distinct_process_identity():
+>    g=gate();a={'samples':[{'data':17}],'runtime_events':[], 'runner_events':[], 'driver_receipts':[],
+       ^^^^^^
+     'accepted':{'aw':2},'pending':{'read':1},'native_execution':'a'*32,'lifecycle':[dict(pid=11,closed=True,returncode=0,poll_after_close=0)]}
+
+tests/local_harness/test_cva6_full_axi_gate.py:83: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def gate():
+     try:return importlib.import_module('scripts.verify_cva6_full_axi_observer')
+>    except ModuleNotFoundError:pytest.fail('native gate source is missing')
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: native gate source is missing
+
+tests/local_harness/test_cva6_full_axi_gate.py:11: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_only_declared_execution_paths_are_normalized
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_runner_stream_import_must_be_exact_and_once
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_actual_close_document_must_show_successful_reap[change0]
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_actual_close_document_must_show_successful_reap[change1]
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_actual_close_document_must_show_successful_reap[change2]
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_actual_close_document_must_show_successful_reap[change3]
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_actual_close_document_must_show_successful_reap[change4]
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_gzip_is_lossless_exclusive_and_symlink_safe
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_confinement_rejects_ancestor_symlink_and_outside_root
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_freeze_checks_full_source_set_and_no_payload_normalization
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_default_cli_does_not_construct_artifact_or_start_native
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_prefix_compare_keeps_raw_payload_and_requires_distinct_process_identity
+12 failed in 0.10s

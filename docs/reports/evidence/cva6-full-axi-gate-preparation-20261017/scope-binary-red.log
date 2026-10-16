@@ -1,0 +1,44 @@
+.FFF                                                                     [100%]
+=================================== FAILURES ===================================
+____ test_wrong_observer_and_runner_scope_cannot_hide_behind_normalization _____
+
+software_prefix = {'provenance': 'constructed_software_fixture_not_native', 'status': 'complete', 'samples': [{'local_tick': 1, 'pre': {...'status': 'result', 'execution': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'sequence': 6, 'tick_before': 5, ...}}, ...], ...}
+
+    def test_wrong_observer_and_runner_scope_cannot_hide_behind_normalization(software_prefix):
+     g=gate();bad=copy.deepcopy(software_prefix)
+     for collection in ('runtime_events','runner_events'):
+      for event in bad[collection]:event['scope']['execution_id']='b'*32
+>    with pytest.raises(ValueError,match='scope'):g.validate_native_run(bad)
+E    Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_cva6_full_axi_gate.py:213: Failed
+______________ test_wrong_fixed_case_epoch_component_are_rejected ______________
+
+software_prefix = {'provenance': 'constructed_software_fixture_not_native', 'status': 'complete', 'samples': [{'local_tick': 1, 'pre': {...'status': 'result', 'execution': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'sequence': 6, 'tick_before': 5, ...}}, ...], ...}
+
+    def test_wrong_fixed_case_epoch_component_are_rejected(software_prefix):
+     g=gate()
+     for key,value in (('testcase_id','other-case'),('reset_epoch',1),('source_component','other-source')):
+      bad=copy.deepcopy(software_prefix)
+      for collection in ('runtime_events','runner_events'):
+       for event in bad[collection]:event['scope'][key]=value
+>     with pytest.raises(ValueError,match='scope'):g.validate_native_run(bad)
+E     Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_cva6_full_axi_gate.py:223: Failed
+_________ test_missing_actual_binary_build_manifest_crosslink_refuses __________
+
+software_prefix = {'provenance': 'constructed_software_fixture_not_native', 'status': 'complete', 'samples': [{'local_tick': 1, 'pre': {...'status': 'result', 'execution': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'sequence': 6, 'tick_before': 5, ...}}, ...], ...}
+
+    def test_missing_actual_binary_build_manifest_crosslink_refuses(software_prefix):
+     g=gate();bad=copy.deepcopy(software_prefix)
+     bad.pop('executable',None);bad.pop('build_manifest',None)
+>    with pytest.raises(ValueError,match='binary'):g.validate_native_run(bad)
+E    Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_cva6_full_axi_gate.py:229: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_wrong_observer_and_runner_scope_cannot_hide_behind_normalization
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_wrong_fixed_case_epoch_component_are_rejected
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_missing_actual_binary_build_manifest_crosslink_refuses
+3 failed, 1 passed, 16 deselected in 1.09s

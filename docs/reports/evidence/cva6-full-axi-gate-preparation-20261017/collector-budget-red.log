@@ -1,0 +1,27 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_collector_command_limit_blocks_before_super_and_retains_failed_byte_edge _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f0950f0f380>
+software_prefix = {'executable': {'path': 'software-fixture-binary', 'sha256': 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffff...ss_build_cache.v1"}', 'build_manifest_sha256': 'e07a3a43533b8f817d25ae2c55fe5caa3705ea8aa53c74c1c90deabe7ff21814', ...}
+
+    def test_collector_command_limit_blocks_before_super_and_retains_failed_byte_edge(monkeypatch,software_prefix):
+     from myfuzz.local_harness.session import GeneratedLocalSession
+     from myfuzz.local_harness.wire import DriverReceipt
+     g=gate();calls=[]
+     receipt=DriverReceipt(**software_prefix['driver_receipts'][0]['receipt'])
+     def command(cpu,operation,fields):calls.append(operation);return receipt
+     monkeypatch.setattr(GeneratedLocalSession,'command',command)
+     cls=g._capturing_session_class();cpu=object.__new__(cls)
+     cpu.gate_driver_receipts=[];cpu._gate_bytes=64*1024*1024;cpu._gate_failed=False
+     with pytest.raises(RuntimeError,match='byte budget'):cpu.command('STEP_CVA6_AXI4',())
+     assert len(cpu.gate_driver_receipts)==1 and len(calls)==1
+     with pytest.raises(RuntimeError):cpu.command('STEP_CVA6_AXI4',())
+>    assert len(calls)==1
+E    AssertionError: assert 2 == 1
+E     +  where 2 = len(['STEP_CVA6_AXI4', 'STEP_CVA6_AXI4'])
+
+tests/local_harness/test_cva6_full_axi_gate.py:259: AssertionError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_collector_command_limit_blocks_before_super_and_retains_failed_byte_edge
+1 failed, 21 deselected in 0.40s

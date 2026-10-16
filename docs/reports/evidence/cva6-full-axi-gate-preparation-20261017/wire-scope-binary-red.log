@@ -1,0 +1,207 @@
+F...........F.FFFFFF                                                     [100%]
+=================================== FAILURES ===================================
+______________ test_only_declared_execution_paths_are_normalized _______________
+
+    def test_only_declared_execution_paths_are_normalized():
+     g=gate();execution='a'*32
+     event={'schema_version':'bounded_full_axi_observation.v1','kind':'full_axi_raw',
+      'scope':dict(execution_id=execution,testcase_id='case',reset_epoch=0,source_component='cpu'),
+      'raw_sample':{'execution_id':execution,'payload':execution},'payload':{'execution_id':execution}}
+>    normalized=g.normalize_events([event],execution)[0]
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    TypeError: normalize_events() takes 1 positional argument but 2 were given
+
+tests/local_harness/test_cva6_full_axi_gate.py:19: TypeError
+_________ test_actual_shape_prefix_checker_controls_are_software_only __________
+
+software_prefix = {'provenance': 'constructed_software_fixture_not_native', 'status': 'complete', 'samples': [{'local_tick': 1, 'pre': {...'status': 'result', 'execution': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'sequence': 6, 'tick_before': 5, ...}}, ...], ...}
+
+    def test_actual_shape_prefix_checker_controls_are_software_only(software_prefix):
+     g=gate();document=copy.deepcopy(software_prefix)
+>    g.validate_native_run(document)
+
+tests/local_harness/test_cva6_full_axi_gate.py:128: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+document = {'provenance': 'constructed_software_fixture_not_native', 'status': 'complete', 'samples': [{'local_tick': 1, 'pre': {...'status': 'result', 'execution': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'sequence': 6, 'tick_before': 5, ...}}, ...], ...}
+
+    def validate_native_run(document):
+     from myfuzz.local_harness.cva6_axi4_fields import CVA6_AXI_STEP_PORTS
+     validate_lifecycle(document['lifecycle'])
+     if (document['status']!='complete' or len(document['samples'])!=STEPS
+         or len(document['driver_receipts'])!=STEPS or document['write_beats']!=2
+         or document['read_beats']<2 or document['ram_values']!=[0x600dcafe]*2):
+      raise ValueError('native fixed-program/step/result gate failed')
+     if not re.fullmatch('[0-9a-f]{32}',document['native_execution']):
+      raise ValueError('actual native execution nonce missing')
+     for i,(sample,record) in enumerate(zip(document['samples'],document['driver_receipts']),1):
+      receipt=record['receipt'];row=sample['pre']['backend']
+      fields=[0,0,*[row[name] for name in CVA6_AXI_STEP_PORTS[2:]]]
+      if (record['operation']!='STEP_CVA6_AXI4' or record['fields']!=fields
+          or receipt['status']!='ok' or receipt['execution']!=document['native_execution']
+          or receipt['sequence']!=i or receipt['tick_before']!=i-1
+          or receipt['tick_after']!=i or receipt['new_ticks']!=1
+          or receipt['payload']['samples']!=[sample]
+          or receipt['payload']['pre_backend']!=row):
+>      raise ValueError('actual native receipt/sample edge binding differs')
+E      ValueError: actual native receipt/sample edge binding differs
+
+scripts/verify_cva6_full_axi_observer.py:166: ValueError
+________ test_startup_abort_keeps_observed_pid_and_actual_close_result _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7478065567e0>
+
+    def test_startup_abort_keeps_observed_pid_and_actual_close_result(monkeypatch):
+     g=gate()
+     from myfuzz.local_harness.session import GeneratedLocalSession
+     class Process:
+      pid=123;args=('software-fixture',);returncode=None
+      def poll(self):return self.returncode
+     def abort(cpu):cpu._process.returncode=-9;cpu._process=None
+     monkeypatch.setattr(GeneratedLocalSession,'_abort',abort)
+     monkeypatch.setattr(g.subprocess,'Popen',Process)
+     cls=g._capturing_session_class();cpu=object.__new__(cls)
+     cpu._process=Process();cpu._execution='a'*32;cpu.gate_lifecycles=[]
+     cpu._abort()
+>    assert cpu.gate_lifecycles[0]['pid']==123
+            ^^^^^^^^^^^^^^^^^^^^^^
+E    IndexError: list index out of range
+
+tests/local_harness/test_cva6_full_axi_gate.py:164: IndexError
+________ test_failure_collection_retains_raw_even_if_ram_readback_fails ________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-112/test_failure_collection_retain0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74780640bfe0>
+
+    def test_failure_collection_retains_raw_even_if_ram_readback_fails(tmp_path,monkeypatch):
+     import gzip
+     from types import SimpleNamespace
+     import myfuzz.scenario.memory as mem
+     import myfuzz.scenario.runner as runner_module
+     import myfuzz.scenario.replay as replay_module
+     g=gate()
+     class Memory:
+      def __init__(self,**kw):pass
+      def read(self,*a,**kw):raise ValueError('software readback collection failed')
+     class Cpu:
+      def __init__(self,*a,**kw):
+       self.gate_lifecycles=[];self.gate_driver_receipts=[]
+       self.runtime_events=[{'kind':'full_axi_raw','raw_sample':{'original_failure_edge':9}}]
+       self._execution='a'*32;self._axi_observer=SimpleNamespace(accepted={},pending={})
+       self.write_beats=self.read_beats=0
+      def end_case(self):pass
+     class Runner:
+      def __init__(self,**kw):self.events=[]
+      def set_resource_budget(self,budget):pass
+      def identity_document(self):return {'provenance':'software_fixture'}
+     def failed_record(*a):raise OSError('software native-step failure fixture')
+     monkeypatch.setattr(g,'_capturing_session_class',lambda:Cpu)
+     monkeypatch.setattr(mem,'PersistentMemory',Memory)
+     monkeypatch.setattr(runner_module,'ScenarioRunner',Runner)
+     monkeypatch.setattr(replay_module,'_record_with_runner',failed_record)
+     with pytest.raises(RuntimeError,match='first native gate failed'):
+>     g._run_one(None,tmp_path,tmp_path,'first',b'fixture')
+
+tests/local_harness/test_cva6_full_axi_gate.py:197: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/verify_cva6_full_axi_observer.py:244: in _run_one
+    'ram_values':[memory.read(address,4,transaction_id='gate-readback').value for address in (0x400,0x404)],
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <test_cva6_full_axi_gate.test_failure_collection_retains_raw_even_if_ram_readback_fails.<locals>.Memory object at 0x74780640ae70>
+a = (1024, 4), kw = {'transaction_id': 'gate-readback'}
+
+>   def read(self,*a,**kw):raise ValueError('software readback collection failed')
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ValueError: software readback collection failed
+
+tests/local_harness/test_cva6_full_axi_gate.py:179: ValueError
+___________________ test_real_wire_result_status_is_admitted ___________________
+
+software_prefix = {'provenance': 'constructed_software_fixture_not_native', 'status': 'complete', 'samples': [{'local_tick': 1, 'pre': {...'status': 'result', 'execution': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'sequence': 6, 'tick_before': 5, ...}}, ...], ...}
+
+    def test_real_wire_result_status_is_admitted(software_prefix):
+     assert software_prefix['driver_receipts'][0]['receipt']['status']=='result'
+>    gate().validate_native_run(copy.deepcopy(software_prefix))
+
+tests/local_harness/test_cva6_full_axi_gate.py:206: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+document = {'provenance': 'constructed_software_fixture_not_native', 'status': 'complete', 'samples': [{'local_tick': 1, 'pre': {...'status': 'result', 'execution': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'sequence': 6, 'tick_before': 5, ...}}, ...], ...}
+
+    def validate_native_run(document):
+     from myfuzz.local_harness.cva6_axi4_fields import CVA6_AXI_STEP_PORTS
+     validate_lifecycle(document['lifecycle'])
+     if (document['status']!='complete' or len(document['samples'])!=STEPS
+         or len(document['driver_receipts'])!=STEPS or document['write_beats']!=2
+         or document['read_beats']<2 or document['ram_values']!=[0x600dcafe]*2):
+      raise ValueError('native fixed-program/step/result gate failed')
+     if not re.fullmatch('[0-9a-f]{32}',document['native_execution']):
+      raise ValueError('actual native execution nonce missing')
+     for i,(sample,record) in enumerate(zip(document['samples'],document['driver_receipts']),1):
+      receipt=record['receipt'];row=sample['pre']['backend']
+      fields=[0,0,*[row[name] for name in CVA6_AXI_STEP_PORTS[2:]]]
+      if (record['operation']!='STEP_CVA6_AXI4' or record['fields']!=fields
+          or receipt['status']!='ok' or receipt['execution']!=document['native_execution']
+          or receipt['sequence']!=i or receipt['tick_before']!=i-1
+          or receipt['tick_after']!=i or receipt['new_ticks']!=1
+          or receipt['payload']['samples']!=[sample]
+          or receipt['payload']['pre_backend']!=row):
+>      raise ValueError('actual native receipt/sample edge binding differs')
+E      ValueError: actual native receipt/sample edge binding differs
+
+scripts/verify_cva6_full_axi_observer.py:166: ValueError
+____ test_wrong_observer_and_runner_scope_cannot_hide_behind_normalization _____
+
+software_prefix = {'provenance': 'constructed_software_fixture_not_native', 'status': 'complete', 'samples': [{'local_tick': 1, 'pre': {...'status': 'result', 'execution': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'sequence': 6, 'tick_before': 5, ...}}, ...], ...}
+
+    def test_wrong_observer_and_runner_scope_cannot_hide_behind_normalization(software_prefix):
+     g=gate();bad=copy.deepcopy(software_prefix)
+     for collection in ('runtime_events','runner_events'):
+      for event in bad[collection]:event['scope']['execution_id']='b'*32
+>    with pytest.raises(ValueError,match='scope'):g.validate_native_run(bad)
+E    AssertionError: Regex pattern did not match.
+E      Expected regex: 'scope'
+E      Actual message: 'actual native receipt/sample edge binding differs'
+
+tests/local_harness/test_cva6_full_axi_gate.py:213: AssertionError
+______________ test_wrong_fixed_case_epoch_component_are_rejected ______________
+
+software_prefix = {'provenance': 'constructed_software_fixture_not_native', 'status': 'complete', 'samples': [{'local_tick': 1, 'pre': {...'status': 'result', 'execution': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'sequence': 6, 'tick_before': 5, ...}}, ...], ...}
+
+    def test_wrong_fixed_case_epoch_component_are_rejected(software_prefix):
+     g=gate()
+     for key,value in (('testcase_id','other-case'),('reset_epoch',1),('source_component','other-source')):
+      bad=copy.deepcopy(software_prefix)
+      for collection in ('runtime_events','runner_events'):
+       for event in bad[collection]:event['scope'][key]=value
+>     with pytest.raises(ValueError,match='scope'):g.validate_native_run(bad)
+E     AssertionError: Regex pattern did not match.
+E       Expected regex: 'scope'
+E       Actual message: 'actual native receipt/sample edge binding differs'
+
+tests/local_harness/test_cva6_full_axi_gate.py:223: AssertionError
+_________ test_missing_actual_binary_build_manifest_crosslink_refuses __________
+
+software_prefix = {'provenance': 'constructed_software_fixture_not_native', 'status': 'complete', 'samples': [{'local_tick': 1, 'pre': {...'status': 'result', 'execution': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'sequence': 6, 'tick_before': 5, ...}}, ...], ...}
+
+    def test_missing_actual_binary_build_manifest_crosslink_refuses(software_prefix):
+     g=gate();bad=copy.deepcopy(software_prefix)
+     bad.pop('executable',None);bad.pop('build_manifest',None)
+>    with pytest.raises(ValueError,match='binary'):g.validate_native_run(bad)
+E    AssertionError: Regex pattern did not match.
+E      Expected regex: 'binary'
+E      Actual message: 'actual native receipt/sample edge binding differs'
+
+tests/local_harness/test_cva6_full_axi_gate.py:229: AssertionError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_only_declared_execution_paths_are_normalized
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_actual_shape_prefix_checker_controls_are_software_only
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_startup_abort_keeps_observed_pid_and_actual_close_result
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_failure_collection_retains_raw_even_if_ram_readback_fails
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_real_wire_result_status_is_admitted
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_wrong_observer_and_runner_scope_cannot_hide_behind_normalization
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_wrong_fixed_case_epoch_component_are_rejected
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_missing_actual_binary_build_manifest_crosslink_refuses
+8 failed, 12 passed in 1.27s

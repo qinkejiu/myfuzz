@@ -1,0 +1,15 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_issued_execution_must_also_match_the_process_lifecycle __________
+
+software_prefix = {'executable': {'path': 'software-fixture-binary', 'sha256': 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffff...ss_build_cache.v1"}', 'build_manifest_sha256': 'e07a3a43533b8f817d25ae2c55fe5caa3705ea8aa53c74c1c90deabe7ff21814', ...}
+
+    def test_issued_execution_must_also_match_the_process_lifecycle(software_prefix):
+     g=gate();bad=copy.deepcopy(software_prefix);bad['lifecycle'][0]['execution']='b'*32
+>    with pytest.raises(ValueError,match='execution'):g.validate_native_run(bad)
+E    Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_cva6_full_axi_gate.py:280: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cva6_full_axi_gate.py::test_issued_execution_must_also_match_the_process_lifecycle
+1 failed, 23 deselected in 0.64s
