@@ -74,7 +74,8 @@ class GeneratedBoomScenarioSession:
         self._stream = CoherentAcceptedEventStream(
             component_id='boom', instance_id=source_component,
             endpoint_id='coherent', clock_domain='clock',
-            address_bits=32, beat_bytes=8, max_records=200000,
+            address_bits=32, source_bits=3, sink_bits=3,
+            beat_bytes=8, max_records=200000,
             manager_order='per_source')
         self.runtime_events = self._stream.runtime_events
         self.source_events = []
@@ -263,6 +264,9 @@ class GeneratedBoomScenarioSession:
                     previous_status=self._active['status'], reason='reset')
             result = self._native.reset_local()
             self.reset_epoch = self._native.reset_epoch
+            self._stream.acknowledge_reset(result,
+                execution_id=self._native.execution_id,
+                reset_epoch=self.reset_epoch, local_tick=self.local_ticks)
             self._active = None
             self._quiescing = False
             self.last_samples = ()

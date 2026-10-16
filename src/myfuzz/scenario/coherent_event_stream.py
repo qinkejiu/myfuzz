@@ -58,6 +58,53 @@ class CoherentAcceptedEventStream:
             self._fail('record-bound-exceeded')
         self._records.append(record)
 
+    def acknowledge_reset(self, acknowledgement: Mapping[str, object], *,
+                          execution_id: str, reset_epoch: int, local_tick: int):
+        """Journal confirmed native reset completion and close old identities.
+
+        Caller invokes this only after native reset returns successfully. The
+        lifetime local tick does not advance: a reset is not a CPU clock edge.
+        """
+        if self._failed:
+            raise ValueError('coherent-stream-already-invalid')
+        if (not isinstance(acknowledgement, Mapping)
+                or type(execution_id) is not str or not execution_id
+                or type(reset_epoch) is not int or reset_epoch < 0
+                or type(local_tick) is not int or local_tick < 0
+                or local_tick != self._tick
+                or self._epoch is not None and (
+                    reset_epoch != self._epoch + 1 or execution_id == self._execution)):
+            self._fail('reset-acknowledgement-invalid')
+        state = self._normalizer.report()
+        # Conservative reservation prevents partial cancellation publication.
+        needed = 1 + state['pending_sources'] + state['pending_sinks']
+        if len(self._records) + needed > self._max_records:
+            self._fail('record-bound-exceeded')
+        self._raw_sequence += 1
+        ref = self._raw_sequence
+        context = {'raw_event_scope': self.stream_id,
+                   'execution_id': execution_id, 'reset_epoch': reset_epoch,
+                   'local_tick': local_tick, 'authority': 'observation_only',
+                   'source_authority': False, 'runtime_accepted': False,
+                   'semantic_accepted': False}
+        before = len(self._records)
+        self._append({**context, 'kind': 'coherent_native_reset_acknowledgement',
+            'schema_version': 'coherent_native_reset_acknowledgement.v1',
+            'raw_event_id': ref, 'native_acknowledgement': deepcopy(dict(acknowledgement)),
+            'previous_execution_id': self._execution, 'previous_reset_epoch': self._epoch})
+        try:
+            events = self._normalizer.acknowledge_reset(
+                raw_event_ref=ref, reset_epoch=reset_epoch)
+        except ValueError:
+            self._checker_failed = True
+            raise
+        for event in events:
+            projected = {**context, **event, 'kind': event['event_type']}
+            projected['local_event_id'] = self.stream_id + '|' + event['local_event_id']
+            self._append(projected)
+        self._execution, self._epoch = execution_id, reset_epoch
+        return tuple(deepcopy(self._records[before:]))
+
     def consume_step(self, accepted_events: Sequence[Mapping[str, object]], *,
                      execution_id: str, reset_epoch: int, local_tick: int):
         if self._failed:
@@ -70,11 +117,12 @@ class CoherentAcceptedEventStream:
                 or any(not isinstance(row, Mapping) for row in accepted_events)):
             self._fail('receipt-shape-invalid')
         if self._epoch is not None:
-            if reset_epoch < self._epoch:
-                self._fail('epoch-regressed')
-            if reset_epoch == self._epoch:
-                if execution_id != self._execution or local_tick <= self._tick:
-                    self._fail('execution-or-tick-changed-within-epoch')
+            if reset_epoch != self._epoch:
+                self._fail('epoch-change-requires-reset-acknowledgement')
+            if execution_id != self._execution or local_tick != self._tick + 1:
+                self._fail('execution-or-tick-changed-within-epoch')
+        elif local_tick != 1:
+            self._fail('initial-tick-invalid')
         self._execution, self._epoch, self._tick = execution_id, reset_epoch, local_tick
         before = len(self._records)
         for row in accepted_events:

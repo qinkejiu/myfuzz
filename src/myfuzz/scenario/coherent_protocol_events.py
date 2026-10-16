@@ -95,6 +95,49 @@ class CoherentProtocolEventNormalizer:
             'authority': 'observation_only', 'payload': deepcopy(payload),
         }
 
+    def _cancel_epoch(self, raw_event_ref, reset_epoch):
+        emitted = []
+        states = list(self._pending) + list(self._sinks.values())
+        if self._release is not None:
+            states.append(self._release)
+        seen = set()
+        for state in states:
+            if state['ref'] in seen:
+                continue
+            seen.add(state['ref'])
+            event = self._event('transaction_cancel', raw_event_ref,
+                {'reason': 'reset_epoch_changed',
+                 'to_reset_epoch': reset_epoch}, state)
+            event['local_event_id'] += f"|{state['ref']}"
+            emitted.append(event)
+        self._counts['reset_cancellations'] += len(seen)
+        self._pending.clear()
+        self._active_d = None
+        self._sources.clear()
+        self._sinks.clear()
+        self._release = None
+        return emitted
+
+    def acknowledge_reset(self, *, raw_event_ref: int, reset_epoch: int):
+        """Cancel identities on a recorded native reset acknowledgement.
+
+        This is reset bookkeeping, never an accepted TileLink handshake.
+        Error history is retained, including an already poisoned checker.
+        """
+        if (type(raw_event_ref) is not int or raw_event_ref < 1
+                or raw_event_ref in self._refs
+                or type(reset_epoch) is not int or reset_epoch < 0
+                or self._epoch is not None and reset_epoch != self._epoch + 1):
+            self._fail('reset-barrier-identity-invalid')
+        if len(self._refs) >= self.max_events:
+            self._fail('event-bound-exceeded')
+        self._ordinal += 1
+        emitted = self._cancel_epoch(raw_event_ref, reset_epoch)
+        self._epoch = reset_epoch
+        self._refs.add(raw_event_ref)
+        self._counts['reset_barriers'] += 1
+        return tuple(emitted)
+
     def consume_accepted(self, raw_event: Mapping[str, object], *,
                          raw_event_ref: int, reset_epoch: int = 0):
         if self._failed:
@@ -110,25 +153,7 @@ class CoherentProtocolEventNormalizer:
             self._fail('epoch-regressed')
         emitted = []
         if self._epoch is not None and reset_epoch != self._epoch:
-            states = list(self._pending) + list(self._sinks.values())
-            if self._release is not None:
-                states.append(self._release)
-            seen = set()
-            for state in states:
-                if state['ref'] in seen:
-                    continue
-                seen.add(state['ref'])
-                event = self._event('transaction_cancel', raw_event_ref,
-                    {'reason': 'reset_epoch_changed',
-                     'to_reset_epoch': reset_epoch}, state)
-                event['local_event_id'] += f"|{state['ref']}"
-                emitted.append(event)
-            self._counts['reset_cancellations'] += len(seen)
-            self._pending.clear()
-            self._active_d = None
-            self._sources.clear()
-            self._sinks.clear()
-            self._release = None
+            emitted = self._cancel_epoch(raw_event_ref, reset_epoch)
         self._epoch = reset_epoch
         self._refs.add(raw_event_ref)
         self._ordinal += 1
