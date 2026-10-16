@@ -1,0 +1,158 @@
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+___ test_actual_temporal_chain_refuses_reordered_evidence[mret_before_trap] ____
+
+software_chain = {'error': None, 'status': 'complete', 'identities': {'cpu_execution': 'cpu-uuid'}, 'lifecycles': {'cpu': [{'pid': 11, ...ed': True, 'exit': 0}, {'pid': 12, 'closed': True, 'exit': 0}], 'gpio': [{'pid': 13, 'closed': True, 'exit': 0}]}, ...}
+mutation = 'mret_before_trap'
+
+    @pytest.mark.parametrize('mutation',['mret_before_trap','isr_store_after_return','late_initial_clear','isr_read_before_trap'])
+    def test_actual_temporal_chain_refuses_reordered_evidence(software_chain,mutation):
+        g=gate();run=copy.deepcopy(software_chain)
+        if mutation=='mret_before_trap':
+            for phase in ('probes_pre','probes_post'):
+                saved=copy.deepcopy(run['cpu_samples'][79][phase]);run['cpu_samples'][79][phase]['system_return']=0
+                run['cpu_samples'][1][phase].update({k:saved[k] for k in ('system_return','csr_cmd','csr_addr','csr_evec','mepc')})
+        if mutation=='isr_store_after_return':
+            for s in run['cpu_samples']:
+                selected=[r for r in s['events'] if r['channel']=='A' and r.get('address')==0x3028]
+                s['events']=[r for r in s['events'] if r not in selected]
+                run['cpu_samples'][90]['events'].extend(selected)
+        # Existing baseline's initial0 readtick11 and ISR resultstores82>MRET80
+        # already exhibit the other two order defects; retain without inventing data.
+        _sync_transport(run)
+>       with pytest.raises(ValueError):g.validate_run(run,suppressed=False)
+E       Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_boom_irq_verification.py:259: Failed
+_ test_actual_temporal_chain_refuses_reordered_evidence[isr_store_after_return] _
+
+software_chain = {'error': None, 'status': 'complete', 'identities': {'cpu_execution': 'cpu-uuid'}, 'lifecycles': {'cpu': [{'pid': 11, ...ed': True, 'exit': 0}, {'pid': 12, 'closed': True, 'exit': 0}], 'gpio': [{'pid': 13, 'closed': True, 'exit': 0}]}, ...}
+mutation = 'isr_store_after_return'
+
+    @pytest.mark.parametrize('mutation',['mret_before_trap','isr_store_after_return','late_initial_clear','isr_read_before_trap'])
+    def test_actual_temporal_chain_refuses_reordered_evidence(software_chain,mutation):
+        g=gate();run=copy.deepcopy(software_chain)
+        if mutation=='mret_before_trap':
+            for phase in ('probes_pre','probes_post'):
+                saved=copy.deepcopy(run['cpu_samples'][79][phase]);run['cpu_samples'][79][phase]['system_return']=0
+                run['cpu_samples'][1][phase].update({k:saved[k] for k in ('system_return','csr_cmd','csr_addr','csr_evec','mepc')})
+        if mutation=='isr_store_after_return':
+            for s in run['cpu_samples']:
+                selected=[r for r in s['events'] if r['channel']=='A' and r.get('address')==0x3028]
+                s['events']=[r for r in s['events'] if r not in selected]
+                run['cpu_samples'][90]['events'].extend(selected)
+        # Existing baseline's initial0 readtick11 and ISR resultstores82>MRET80
+        # already exhibit the other two order defects; retain without inventing data.
+        _sync_transport(run)
+>       with pytest.raises(ValueError):g.validate_run(run,suppressed=False)
+E       Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_boom_irq_verification.py:259: Failed
+__ test_actual_temporal_chain_refuses_reordered_evidence[late_initial_clear] ___
+
+software_chain = {'error': None, 'status': 'complete', 'identities': {'cpu_execution': 'cpu-uuid'}, 'lifecycles': {'cpu': [{'pid': 11, ...ed': True, 'exit': 0}, {'pid': 12, 'closed': True, 'exit': 0}], 'gpio': [{'pid': 13, 'closed': True, 'exit': 0}]}, ...}
+mutation = 'late_initial_clear'
+
+    @pytest.mark.parametrize('mutation',['mret_before_trap','isr_store_after_return','late_initial_clear','isr_read_before_trap'])
+    def test_actual_temporal_chain_refuses_reordered_evidence(software_chain,mutation):
+        g=gate();run=copy.deepcopy(software_chain)
+        if mutation=='mret_before_trap':
+            for phase in ('probes_pre','probes_post'):
+                saved=copy.deepcopy(run['cpu_samples'][79][phase]);run['cpu_samples'][79][phase]['system_return']=0
+                run['cpu_samples'][1][phase].update({k:saved[k] for k in ('system_return','csr_cmd','csr_addr','csr_evec','mepc')})
+        if mutation=='isr_store_after_return':
+            for s in run['cpu_samples']:
+                selected=[r for r in s['events'] if r['channel']=='A' and r.get('address')==0x3028]
+                s['events']=[r for r in s['events'] if r not in selected]
+                run['cpu_samples'][90]['events'].extend(selected)
+        # Existing baseline's initial0 readtick11 and ISR resultstores82>MRET80
+        # already exhibit the other two order defects; retain without inventing data.
+        _sync_transport(run)
+>       with pytest.raises(ValueError):g.validate_run(run,suppressed=False)
+E       Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_boom_irq_verification.py:259: Failed
+_ test_actual_temporal_chain_refuses_reordered_evidence[isr_read_before_trap] __
+
+software_chain = {'error': None, 'status': 'complete', 'identities': {'cpu_execution': 'cpu-uuid'}, 'lifecycles': {'cpu': [{'pid': 11, ...ed': True, 'exit': 0}, {'pid': 12, 'closed': True, 'exit': 0}], 'gpio': [{'pid': 13, 'closed': True, 'exit': 0}]}, ...}
+mutation = 'isr_read_before_trap'
+
+    @pytest.mark.parametrize('mutation',['mret_before_trap','isr_store_after_return','late_initial_clear','isr_read_before_trap'])
+    def test_actual_temporal_chain_refuses_reordered_evidence(software_chain,mutation):
+        g=gate();run=copy.deepcopy(software_chain)
+        if mutation=='mret_before_trap':
+            for phase in ('probes_pre','probes_post'):
+                saved=copy.deepcopy(run['cpu_samples'][79][phase]);run['cpu_samples'][79][phase]['system_return']=0
+                run['cpu_samples'][1][phase].update({k:saved[k] for k in ('system_return','csr_cmd','csr_addr','csr_evec','mepc')})
+        if mutation=='isr_store_after_return':
+            for s in run['cpu_samples']:
+                selected=[r for r in s['events'] if r['channel']=='A' and r.get('address')==0x3028]
+                s['events']=[r for r in s['events'] if r not in selected]
+                run['cpu_samples'][90]['events'].extend(selected)
+        # Existing baseline's initial0 readtick11 and ISR resultstores82>MRET80
+        # already exhibit the other two order defects; retain without inventing data.
+        _sync_transport(run)
+>       with pytest.raises(ValueError):g.validate_run(run,suppressed=False)
+E       Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_boom_irq_verification.py:259: Failed
+________ test_pulse_must_bind_actual_gpio_producer_identity[source_id] _________
+
+software_chain = {'error': None, 'status': 'complete', 'identities': {'cpu_execution': 'cpu-uuid'}, 'lifecycles': {'cpu': [{'pid': 11, ...ed': True, 'exit': 0}, {'pid': 12, 'closed': True, 'exit': 0}], 'gpio': [{'pid': 13, 'closed': True, 'exit': 0}]}, ...}
+mutation = 'source_id'
+
+    @pytest.mark.parametrize('mutation',['source_id','binding','trigger'])
+    def test_pulse_must_bind_actual_gpio_producer_identity(software_chain,mutation):
+        g=gate();run=copy.deepcopy(software_chain)
+        pulse=next(r for r in run['events'] if r.get('kind')=='pulse_start')
+        source=next(r for r in run['events'] if r.get('kind')=='source_start')
+        if mutation=='source_id':source['source_event_id']=1;pulse['source_event_id']=2
+        if mutation=='binding':pulse['source']=['unrelated','irq']
+        if mutation=='trigger':pulse['source_trigger']={'sample_event_id':999}
+>       with pytest.raises(ValueError):g.validate_run(run,suppressed=False)
+E       Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_boom_irq_verification.py:270: Failed
+_________ test_pulse_must_bind_actual_gpio_producer_identity[binding] __________
+
+software_chain = {'error': None, 'status': 'complete', 'identities': {'cpu_execution': 'cpu-uuid'}, 'lifecycles': {'cpu': [{'pid': 11, ...ed': True, 'exit': 0}, {'pid': 12, 'closed': True, 'exit': 0}], 'gpio': [{'pid': 13, 'closed': True, 'exit': 0}]}, ...}
+mutation = 'binding'
+
+    @pytest.mark.parametrize('mutation',['source_id','binding','trigger'])
+    def test_pulse_must_bind_actual_gpio_producer_identity(software_chain,mutation):
+        g=gate();run=copy.deepcopy(software_chain)
+        pulse=next(r for r in run['events'] if r.get('kind')=='pulse_start')
+        source=next(r for r in run['events'] if r.get('kind')=='source_start')
+        if mutation=='source_id':source['source_event_id']=1;pulse['source_event_id']=2
+        if mutation=='binding':pulse['source']=['unrelated','irq']
+        if mutation=='trigger':pulse['source_trigger']={'sample_event_id':999}
+>       with pytest.raises(ValueError):g.validate_run(run,suppressed=False)
+E       Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_boom_irq_verification.py:270: Failed
+_________ test_pulse_must_bind_actual_gpio_producer_identity[trigger] __________
+
+software_chain = {'error': None, 'status': 'complete', 'identities': {'cpu_execution': 'cpu-uuid'}, 'lifecycles': {'cpu': [{'pid': 11, ...ed': True, 'exit': 0}, {'pid': 12, 'closed': True, 'exit': 0}], 'gpio': [{'pid': 13, 'closed': True, 'exit': 0}]}, ...}
+mutation = 'trigger'
+
+    @pytest.mark.parametrize('mutation',['source_id','binding','trigger'])
+    def test_pulse_must_bind_actual_gpio_producer_identity(software_chain,mutation):
+        g=gate();run=copy.deepcopy(software_chain)
+        pulse=next(r for r in run['events'] if r.get('kind')=='pulse_start')
+        source=next(r for r in run['events'] if r.get('kind')=='source_start')
+        if mutation=='source_id':source['source_event_id']=1;pulse['source_event_id']=2
+        if mutation=='binding':pulse['source']=['unrelated','irq']
+        if mutation=='trigger':pulse['source_trigger']={'sample_event_id':999}
+>       with pytest.raises(ValueError):g.validate_run(run,suppressed=False)
+E       Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_boom_irq_verification.py:270: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_boom_irq_verification.py::test_actual_temporal_chain_refuses_reordered_evidence[mret_before_trap]
+FAILED tests/local_harness/test_boom_irq_verification.py::test_actual_temporal_chain_refuses_reordered_evidence[isr_store_after_return]
+FAILED tests/local_harness/test_boom_irq_verification.py::test_actual_temporal_chain_refuses_reordered_evidence[late_initial_clear]
+FAILED tests/local_harness/test_boom_irq_verification.py::test_actual_temporal_chain_refuses_reordered_evidence[isr_read_before_trap]
+FAILED tests/local_harness/test_boom_irq_verification.py::test_pulse_must_bind_actual_gpio_producer_identity[source_id]
+FAILED tests/local_harness/test_boom_irq_verification.py::test_pulse_must_bind_actual_gpio_producer_identity[binding]
+FAILED tests/local_harness/test_boom_irq_verification.py::test_pulse_must_bind_actual_gpio_producer_identity[trigger]
+7 failed, 23 deselected in 0.29s

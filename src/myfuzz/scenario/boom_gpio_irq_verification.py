@@ -142,6 +142,108 @@ def validate_transport(run):
             raise ValueError('actual passive samples differ')
 
 
+def source_witness(run,rise,start,end):
+    events=run['events']
+    if [r.get('event_id') for r in events]!=list(range(1,len(events)+1)):
+        raise ValueError('actual Runner event identity sequence differs')
+    sources=[r for r in events if r.get('kind')=='source_start']
+    pulses=[r for r in events if r.get('kind')=='pulse_start']
+    if len(sources)!=1 or len(pulses)!=1:raise ValueError('source/pulse uniqueness differs')
+    source,pulse=sources[0],pulses[0]
+    for row in (source,pulse):
+        if list(row.get('source',()))!=['gpio','irq'] or list(row.get('target',()))!=['cpu','irq']:
+            raise ValueError('actual IRQ binding differs')
+    if (type(source.get('source_event_id')) is not int or source['source_event_id']<=0
+        or source['source_event_id']!=pulse.get('source_event_id')
+        or source['source_tick']!=rise['local_tick'] or source['cpu_tick']+1!=start
+        or pulse['start_cpu_tick']!=start or pulse['end_cpu_tick_exclusive']!=end
+        or pulse['event_id']!=source['event_id']+1):raise ValueError('pulse identity/order differs from source')
+    index=source['event_id']-1
+    producer=events[index-1] if index else {}
+    if (producer.get('kind')!='local_tick_sample' or producer.get('component')!='gpio'
+        or producer.get('local_tick')!=rise['local_tick'] or producer.get('phase')!='post'
+        or producer.get('outputs',{}).get('interrupt')!=1):
+        raise ValueError('actual GPIO source producer sample differs')
+    injection=[r for r in events if r.get('kind')=='source_injection' and r.get('action_id')=='pin-rise']
+    if len(injection)!=1 or not injection[0]['event_id']<producer['event_id']:
+        raise ValueError('actual injection does not precede source producer')
+    scope=rise['command_scope']
+    if scope['component']!='gpio' or scope['reset_epoch']!=rise['reset_epoch']:
+        raise ValueError('GPIO source command scope differs')
+    commands=[r for r in run['gpio_commands'] if r.get('receipt',{}).get('sequence')==scope['command_sequence']]
+    if len(commands)!=1 or commands[0]['receipt']['execution']!=run['identities']['gpio_execution']:
+        raise ValueError('GPIO producer actual command identity differs')
+    samples=[r for r in commands[0]['receipt']['payload']['samples'] if r['local_tick']==rise['local_tick']]
+    if len(samples)!=1 or samples[0]['post']!=producer['outputs']:
+        raise ValueError('GPIO producer phase differs from parsed native receipt')
+    exports=run['identity']['sessions']['gpio']['identity']['runtime_artifact']['physical_exports']
+    for phase in ('pre','post'):
+        raw=samples[0][phase]['physical']
+        physical={row['physical_port']:raw[row['runtime_name']] for row in exports if row['runtime_name'] in raw}
+        if physical!=rise[phase]:raise ValueError('GPIO physical phase does not bind producer command')
+    if ('source_trigger' in source)!=('source_trigger' in pulse) or source.get('source_trigger')!=pulse.get('source_trigger'):
+        raise ValueError('source/pulse trigger identity differs')
+    trigger=source.get('source_trigger')
+    tracker=run['gpio_trigger_tracker_installed']
+    if type(tracker) is not bool:raise ValueError('GPIO tracker state missing')
+    if tracker:
+        if not isinstance(trigger,dict) or trigger.get('sample_event_id')!=producer['event_id']:
+            raise ValueError('actual tracker producer reference differs')
+        by_id={r['event_id']:r for r in events}
+        observation=by_id.get(trigger.get('observation_event_id'),{})
+        record=by_id.get(trigger.get('trigger_event_id'),{})
+        if (observation.get('kind')!='gpio_tick_observation' or observation.get('local_tick')!=rise['local_tick']
+            or observation.get('command_scope')!=scope or observation.get('post')!=rise['post']
+            or record.get('kind')!='gpio_irq_trigger' or record.get('trigger_id')!=trigger.get('trigger_id')
+            or record.get('observation_event_id')!=observation.get('event_id')):
+            raise ValueError('actual tracker source reference differs')
+    elif trigger is not None:
+        raise ValueError('uninstalled GPIO tracker cannot provide trigger provenance')
+    return dict(source_event_id=source['source_event_id'],source_runner_event_id=source['event_id'],
+                pulse_runner_event_id=pulse['event_id'],producer_event_id=producer['event_id'],injection_event_id=injection[0]['event_id'],
+                gpio_command_sequence=scope['command_sequence'],gpio_local_tick=rise['local_tick'],
+                source_cpu_tick=source['cpu_tick'],source_trigger=deepcopy(trigger),tracker_installed=tracker,
+                authority='observation_only',source_authority=False,
+                trigger_boundary='actual_tracker_reference' if tracker else 'no_tracker_raw_phase_join_only')
+
+
+def temporal_witness(run,read_links,source,mret_tick,rob_point,csr_point):
+    initial,asserted,cleared=read_links
+    rob_tick,rob_phase=rob_point
+    csr_tick,csr_phase=csr_point
+    if rob_point>csr_point:raise ValueError('actual ROB/CSR phase order differs')
+    if not initial['gpio_tick']<source['gpio_local_tick']<asserted['gpio_tick']<cleared['gpio_tick']:
+        raise ValueError('actual GPIO clear/edge/ISR phase order differs')
+    source_cpu=source['source_cpu_tick']
+    boot=[r for r in run['events'] if r.get('component')=='cpu'
+          and r.get('outputs',{}).get('boot_ready')==1
+          and r['event_id']<source['injection_event_id']]
+    if not any(initial['d_tick']<r.get('local_tick',-1)<=source_cpu for r in boot):
+        raise ValueError('initial clear does not precede actual boot/source')
+    if not (rob_tick<=csr_tick<asserted['a_tick']<asserted['d_tick']<cleared['a_tick']<cleared['d_tick']<mret_tick):
+        raise ValueError('actual trap/status request/response/return order differs')
+    rows=[r for r in run['runtime_events'] if r.get('kind')=='coherent_accepted_raw']
+    expected={0x3010:CAUSE,0x3018:run['last_cpu_outputs']['ram_3018'],0x3020:1,0x3024:0,0x3028:1,0x302c:1}
+    stores={}
+    for address,value in expected.items():
+        matches=[r for r in rows if r['native_event']['channel']=='A'
+                 and r['native_event'].get('opcode') in (0,1) and r['native_event'].get('address')==address
+                 and (r['native_event']['data']==value if address in (0x3010,0x3018) else _word(r['native_event'])==value)]
+        if len(matches)!=1:raise ValueError('selected result store is missing/ambiguous')
+        row=matches[0]
+        stores[address]=dict(raw_event_id=row['raw_event_id'],local_tick=row['local_tick'])
+    if any(not csr_tick<stores[a]['local_tick']<mret_tick for a in (0x3010,0x3018,0x3020,0x3024,0x3028)):
+        raise ValueError('actual ISR result acceptance not between trap and MRET')
+    if not (asserted['d_tick']<stores[0x3020]['local_tick']
+            and cleared['d_tick']<stores[0x3024]['local_tick']
+            and max(stores[0x3020]['local_tick'],stores[0x3024]['local_tick'])<stores[0x3028]['local_tick']
+            and mret_tick<stores[0x302c]['local_tick']):
+        raise ValueError('actual status/result/return/foreground acceptance order differs')
+    return dict(rob_tick=rob_tick,rob_phase='pre' if rob_phase==0 else 'post',csr_tick=csr_tick,csr_phase='pre' if csr_phase==0 else 'post',mret_pre_tick=mret_tick,
+                acceptance_phase='pre_handshake_at_rising_edge',same_edge_ordering_admitted=False,
+                raw_reference_namespace='this_run.runtime_events.raw_event_id',status_accesses=read_links,result_acceptances={format(a,'x'):r for a,r in stores.items()})
+
+
 def validate_run(run,*,suppressed):
     """Refuse incomplete chains. Saved samples are observations, not authority."""
     try:
@@ -167,6 +269,7 @@ def validate_run(run,*,suppressed):
         if len(rises)!=1 or rises[0]['post'].get('gpio_in')!=1:raise ValueError('one actual GPIO IRQ edge required')
         source=[r for r in run['events'] if r.get('kind')=='source_start']
         if len(source)!=1 or source[0]['source_tick']!=rises[0]['local_tick']:raise ValueError('GPIO/binding tick differs')
+        origin=source_witness(run,rises[0],start,end)
         deliveries=run['delivery_control']
         if len(deliveries)!=len(samples) or sum(r['requested_irq'] for r in deliveries)!=64:
             raise ValueError('delivery control prefix differs')
@@ -181,7 +284,10 @@ def validate_run(run,*,suppressed):
         native_a=[r for r in native_rows if r['channel']=='A' and 0x4000<=r.get('address',0)<0x5000]
         native_d=[r for r in native_rows if r['channel']=='D' and r.get('external') is True]
         if len(native_a)!=len(queued) or len(native_d)!=len(consumed):raise ValueError('actual external A/D count differs')
-        for a,q,c,d,actual_a,actual_d in zip(accesses,queued,consumed,run['router_deliveries'],native_a,native_d):
+        raw_a=[r for r in run['runtime_events'] if r.get('kind')=='coherent_accepted_raw' and r['native_event']['channel']=='A' and 0x4000<=r['native_event'].get('address',0)<0x5000]
+        raw_d=[r for r in run['runtime_events'] if r.get('kind')=='coherent_accepted_raw' and r['native_event']['channel']=='D' and r['native_event'].get('external') is True]
+        read_links=[]
+        for index,(a,q,c,d,actual_a,actual_d) in enumerate(zip(accesses,queued,consumed,run['router_deliveries'],native_a,native_d)):
             key=q['source_transaction'];request=q['native_request'];response=c['native_response']
             if (any(request.get(k)!=v for k,v in actual_a.items()) or response!=actual_d
                 or key!=a['source_transaction'] or key!=c['source_transaction'] or key!=d['source_transaction']
@@ -190,6 +296,13 @@ def validate_run(run,*,suppressed):
                 or a['status']!='observed' or response['source']!=request['source'] or response['size']!=request['size']
                 or response['data']!=(0 if a['write'] else d['read_value'])):
                 raise ValueError('actual source/target/response identity differs')
+            ar,dr=raw_a[index],raw_d[index]
+            if q['local_tick']!=ar['local_tick'] or c['local_tick']!=dr['local_tick'] or not ar['local_tick']<dr['local_tick']:
+                raise ValueError('actual queued/accepted edge ticks differ')
+            if a['write'] is False and a['decoded_offset']==0x24:
+                read_links.append(dict(source_transaction=deepcopy(key),target_access_id=a['access_id'],
+                    gpio_tick=a['local_tick'],gpio_phase=a['phase'],a_tick=ar['local_tick'],d_tick=dr['local_tick'],
+                    a_raw_event_id=ar['raw_event_id'],d_raw_event_id=dr['raw_event_id']))
         reads=[r for r in accesses if r['write'] is False and r['decoded_offset']==0x24]
         expected=[0] if suppressed else [0,1,0]
         if [r['read_rdata'] for r in reads]!=expected:raise ValueError('actual GPIO status/clear reads differ')
@@ -198,7 +311,11 @@ def validate_run(run,*,suppressed):
         probe_rows=[(s['cycle'],phase,s[phase]) for s in samples for phase in ('probes_pre','probes_post')]
         interrupts=[(tick,p) for tick,_,p in probe_rows if (p['rob_exception'] and p['rob_cause']==CAUSE) or (p['csr_exception'] and p['csr_cause']==CAUSE)]
         mrets=[(tick,p) for tick,phase,p in probe_rows if phase=='probes_pre' and qualified_return(p,outputs.get('ram_3018'))]
+        timing=None
         if suppressed:
+            boot=[r for r in run['events'] if r.get('component')=='cpu' and r.get('outputs',{}).get('boot_ready')==1 and r['event_id']<origin['injection_event_id']]
+            if not any(read_links[0]['d_tick']<r.get('local_tick',-1)<=origin['source_cpu_tick'] for r in boot):
+                raise ValueError('suppressed initial clear not before source')
             if interrupts or mrets or stores or outputs.get('ram_3028')!=0 or outputs.get('ram_3020')!=0:
                 raise ValueError('suppressed delivery unexpectedly reached ISR')
         else:
@@ -206,11 +323,12 @@ def validate_run(run,*,suppressed):
             if (outputs.get('ram_3010')!=CAUSE or outputs.get('ram_3020')!=1
                 or outputs.get('ram_3028')!=(1<<32)|1 or not 0x80000000<=mepc<ISR):
                 raise ValueError('actual ISR RAM/foreground result differs')
-            rob=[t for t,_,p in probe_rows if p['rob_exception'] and p['rob_cause']==CAUSE]
-            csr=[t for t,_,p in probe_rows if p['csr_exception'] and p['csr_cause']==CAUSE and p['csr_evec']==ISR]
-            if not rob or not csr or not mrets or len(mrets)!=1 or not start<=min(rob)<=end or min(csr)<min(rob):
+            rob=[(t,0 if phase=='probes_pre' else 1) for t,phase,p in probe_rows if p['rob_exception'] and p['rob_cause']==CAUSE]
+            csr=[(t,0 if phase=='probes_pre' else 1) for t,phase,p in probe_rows if p['csr_exception'] and p['csr_cause']==CAUSE and p['csr_evec']==ISR]
+            if not rob or not csr or not mrets or len(mrets)!=1 or not start<=min(rob)[0] or min(csr)<min(rob):
                 raise ValueError('actual trap/qualified MRET chain missing')
             tick=mrets[0][0]
+            timing=temporal_witness(run,read_links,origin,tick,min(rob),min(csr))
             if not any(t>tick and 0x80000000<=p['csr_pc']<ISR for t,_,p in probe_rows):
                 raise ValueError('actual foreground PC after return missing')
             if not any(r['address']==0x3010 and r['data']==CAUSE for r in stores) or not any(r['address']==0x3018 and r['data']==mepc for r in stores):
@@ -220,7 +338,7 @@ def validate_run(run,*,suppressed):
             expected_words={0x3020:1,0x3024:0,0x3028:1,0x302c:1}
             if any(not any(r['address']==addr and _word(r)==value for r in stores) for addr,value in expected_words.items()):
                 raise ValueError('actual accepted ISR/foreground stores missing')
-        return dict(suppressed=suppressed,pulse_start=start,pulse_end=end,status_reads=expected)
+        return dict(suppressed=suppressed,pulse_start=start,pulse_end=end,status_reads=expected,source_witness=origin,temporal_witness=timing)
     except (KeyError,TypeError,IndexError) as error:
         raise ValueError('actual IRQ evidence chain missing') from error
 
@@ -390,7 +508,7 @@ def _run_one(*,repo,cpu_output,cache_dir,suppressed=False):
         _CAPTURE_LOCK.release()
     return plain(dict(schema_version='boom_irq_gate_run.v1',error=error,
         status=None if trace is None else trace.status,fault_mode='suppressed_delivery' if suppressed else 'positive',
-        controlled_environment_fault=suppressed,identities=identities,identity=identity,lifecycles=lives,
+        controlled_environment_fault=suppressed,gpio_trigger_tracker_installed=False if runner is None else runner._gpio_consumption_tracker is not None,identities=identities,identity=identity,lifecycles=lives,
         cpu_commands=commands,cpu_transport_reads=reads,gpio_commands=gpio_commands,gpio_transport_reads=gpio_reads,
         cpu_samples=[r['response'] for r in commands if r['operation']=='STEP_IRQ' and 'response' in r],
         gpio_samples=[s for r in gpio_commands for s in r.get('receipt',{}).get('payload',{}).get('samples',[])],
@@ -436,7 +554,8 @@ def verify(*,repo,cpu_output,cache_dir,output,freeze_path,freeze_sha256,artifact
             for name,suppressed in [('first',False),('fresh',False),('suppressed',True)]:
                 run=_run_one(repo=repo,cpu_output=cpu_output,cache_dir=cache_dir,suppressed=suppressed)
                 save_run(output/(name+'.json.gz'),run)
-                validate_run(run,suppressed=suppressed);runs[name]=run
+                check=validate_run(run,suppressed=suppressed)
+                write_new(output/(name+'.check.json'),encoded(check));runs[name]=run
             compare_fresh(runs['first'],runs['fresh'])
             verify_freeze(repo,json.loads(raw))
             if (cpu_output/'irq-session-artifact.json').read_bytes()!=artifact or any(sha((cpu_output/n).read_bytes())!=h for n,h in before.items()):

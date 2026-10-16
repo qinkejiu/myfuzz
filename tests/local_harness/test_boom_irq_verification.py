@@ -113,34 +113,42 @@ def test_fresh_prefix_preserves_nested_data_and_retains_startup_process():
 @pytest.fixture
 def software_chain():
     from myfuzz.local_harness.boom_irq_contract import PROBES
-    g=gate();samples=[];events=[];source=[]
+    g=gate();samples=[];source=[]
     for tick in range(1,101):
-        p={name:0 for name in PROBES};p.update(meip=int(3<=tick<67),mepc=0x80000054,csr_pc=0x80000054)
-        if tick==5:p.update(rob_exception=1,rob_cause=g.CAUSE,csr_exception=1,csr_cause=g.CAUSE,csr_evec=g.ISR)
+        p={name:0 for name in PROBES};p.update(meip=int(4<=tick<68),mepc=0x80000054,csr_pc=0x80000054)
+        if tick==6:p.update(rob_exception=1,rob_cause=g.CAUSE,csr_exception=1,csr_cause=g.CAUSE,csr_evec=g.ISR)
         if tick==80:p.update(system_return=1,csr_cmd=4,csr_addr=0x302,csr_evec=0x80000054)
-        s=dict(cycle=tick,irq_input=p['meip'],events=[],probes_pre=copy.deepcopy(p),probes_post=copy.deepcopy(p));samples.append(s)
-        source.append(dict(kind='boom_irq_passive_sample',local_tick=tick,irq_input=p['meip'],probes_pre=copy.deepcopy(p),probes_post=copy.deepcopy(p)))
-    run=dict(error=None,status='complete',identities={'cpu_execution':'cpu-uuid'},
+        sample=dict(cycle=tick,irq_input=p['meip'],events=[],probes_pre=copy.deepcopy(p),probes_post=copy.deepcopy(p));samples.append(sample)
+    raw_pre=dict(interrupt=0,physical={'interrupt':0,'gpio_in':1})
+    raw_post=dict(interrupt=1,physical={'interrupt':1,'gpio_in':1})
+    run=dict(error=None,status='complete',identities={'cpu_execution':'cpu-uuid','gpio_execution':'gpio-uuid'},
+        identity={'sessions':{'gpio':{'identity':{'runtime_artifact':{'physical_exports':[dict(physical_port=n,runtime_name=n) for n in ('interrupt','gpio_in')]}}}}},
+        gpio_trigger_tracker_installed=False,
         lifecycles={'cpu':[dict(pid=11,closed=True,exit=0),dict(pid=12,closed=True,exit=0)],'gpio':[dict(pid=13,closed=True,exit=0)]},
         coherent_report=dict(structural_error=False,stream_closed=True),uncertain_keys=[],cpu_samples=samples,
-        events=[dict(component='cpu',outputs={'boot_ready':1}),dict(kind='source_injection',action_id='pin-rise',component='gpio',port='gpio_in',value=1),dict(kind='pulse_start',start_cpu_tick=3,end_cpu_tick_exclusive=67),dict(kind='source_start',source_tick=8)],
-        gpio_events=[dict(kind='gpio_tick_observation',local_tick=8,pre={'interrupt':0},post={'interrupt':1,'gpio_in':1})],
+        events=[dict(component='cpu',local_tick=3,outputs={'boot_ready':1}),
+            dict(kind='source_injection',action_id='pin-rise',component='gpio',port='gpio_in',value=1),
+            dict(kind='local_tick_sample',component='gpio',local_tick=8,phase='post',outputs=copy.deepcopy(raw_post)),
+            dict(kind='source_start',source_tick=8,cpu_tick=3,source_event_id=1,source=['gpio','irq'],target=['cpu','irq']),
+            dict(kind='pulse_start',start_cpu_tick=4,end_cpu_tick_exclusive=68,source_event_id=1,source=['gpio','irq'],target=['cpu','irq'])],
+        gpio_events=[dict(kind='gpio_tick_observation',local_tick=8,reset_epoch=0,
+            command_scope=dict(component='gpio',reset_epoch=0,command_sequence=1),pre={'interrupt':0,'gpio_in':1},post={'interrupt':1,'gpio_in':1})],
+        gpio_commands=[dict(receipt=dict(sequence=1,execution='gpio-uuid',payload={'samples':[dict(local_tick=8,pre=raw_pre,post=raw_post)]}))],
         delivery_control=[dict(cycle=s['cycle'],requested_irq=s['irq_input'],delivered_irq=s['irq_input']) for s in samples],
         source_events=source,runtime_events=[],router_deliveries=[],
         last_cpu_outputs=dict(ram_3010=g.CAUSE,ram_3018=0x80000054,ram_3020=1,ram_3028=(1<<32)|1))
-    for i,value in enumerate((0,1,0)):
+    for i,(value,at,dt,gt) in enumerate(((0,1,2,4),(1,20,21,10),(0,30,31,20))):
         key=dict(execution_id='cpu-uuid',source_sequence=i+1);request=dict(channel='A',opcode=4,size=2,source=i,address=0x4024,mask=0xf0,data=0)
         response=dict(channel='D',opcode=1,size=2,source=i,data=value<<32,external=True)
-        samples[10+i*10]['events']=[request,response]
-        access=dict(kind='gpio_apb_access',source_transaction=copy.deepcopy(key),access_id=i+1,status='observed',write=False,decoded_offset=0x24,read_rdata=value)
+        samples[at-1]['events']=[copy.deepcopy(request)];samples[dt-1]['events']=[copy.deepcopy(response)]
+        access=dict(kind='gpio_apb_access',source_transaction=copy.deepcopy(key),access_id=i+1,status='observed',write=False,decoded_offset=0x24,read_rdata=value,local_tick=gt,phase='pre')
         run['gpio_events'].append(access)
-        source.extend([dict(kind='boom_external_a_queued',source_transaction=copy.deepcopy(key),native_request=copy.deepcopy(request)),dict(kind='boom_external_d_accepted',source_transaction=copy.deepcopy(key),native_response=copy.deepcopy(response))])
+        source.extend([dict(kind='boom_external_a_queued',local_tick=at,source_transaction=copy.deepcopy(key),native_request=copy.deepcopy(request)),dict(kind='boom_external_d_accepted',local_tick=dt,source_transaction=copy.deepcopy(key),native_response=copy.deepcopy(response))])
         run['router_deliveries'].append(dict(source_transaction=copy.deepcopy(key),target_access_id=i+1,target_apb_access=copy.deepcopy(access),read_value=value<<32))
-    for address,value in ((0x3010,g.CAUSE),(0x3018,0x80000054),(0x3020,1),(0x3024,0),(0x3028,1),(0x302c,1)):
-        samples[81]['events'].append(dict(channel='A',opcode=0,address=address,data=value<<((address&7)*8)))
-    for s in samples:
-        run['runtime_events'].extend(dict(kind='coherent_accepted_raw',execution_id='cpu-uuid',local_tick=s['cycle'],native_event=copy.deepcopy(e)) for e in s['events'])
-    run['cpu_commands']=[dict(operation='STEP_IRQ',execution_id='cpu-uuid',args=[s['irq_input']],response=copy.deepcopy(s)) for s in samples]
+    for tick,address,value in ((10,0x3010,g.CAUSE),(12,0x3018,0x80000054),(40,0x3020,1),(41,0x3024,0),(42,0x3028,1),(82,0x302c,1)):
+        samples[tick-1]['events'].append(dict(channel='A',opcode=0,address=address,data=value<<((address&7)*8)))
+    for index,row in enumerate(run['events'],1):row['event_id']=index
+    _sync_transport(run)
     return run
 
 
@@ -153,6 +161,7 @@ def _sync_transport(run):
     routing=[r for r in run['source_events'] if r['kind']!='boom_irq_passive_sample']
     run['source_events']=[dict(kind='boom_irq_passive_sample',local_tick=s['cycle'],irq_input=s['irq_input'],probes_pre=copy.deepcopy(s['probes_pre']),probes_post=copy.deepcopy(s['probes_post'])) for s in run['cpu_samples']]+routing
     run['runtime_events']=[dict(kind='coherent_accepted_raw',execution_id='cpu-uuid',local_tick=s['cycle'],native_event=copy.deepcopy(e)) for s in run['cpu_samples'] for e in s['events']]
+    for i,row in enumerate(run['runtime_events'],1):row['raw_event_id']=i
     run['cpu_commands']=[dict(operation='STEP_IRQ',execution_id='cpu-uuid',args=[s['irq_input']],response=copy.deepcopy(s)) for s in run['cpu_samples']]
 
 
@@ -209,7 +218,7 @@ def test_suppression_requires_real_source_but_no_isr_and_same_requested_pattern(
         s['irq_input']=0
         for phase in ('probes_pre','probes_post'):
             s[phase].update(meip=0,rob_exception=0,csr_exception=0,system_return=0)
-        if s['cycle'] in (21,31,82):s['events']=[]
+        s['events']=[e for e in s['events'] if not (e.get('source') in (1,2) or (e.get('address',0)>=0x3010 and e.get('address',0)<0x3030))]
     for r in run['delivery_control']:r['delivered_irq']=0
     run['last_cpu_outputs'].update(ram_3010=0,ram_3018=0,ram_3020=0,ram_3028=0)
     run['gpio_events']=run['gpio_events'][:2]
@@ -217,10 +226,12 @@ def test_suppression_requires_real_source_but_no_isr_and_same_requested_pattern(
     routing=[r for r in run['source_events'] if r['kind']!='boom_irq_passive_sample'][:2]
     run['source_events']=[dict(kind='boom_irq_passive_sample',local_tick=s['cycle'],irq_input=0,probes_pre=copy.deepcopy(s['probes_pre']),probes_post=copy.deepcopy(s['probes_post'])) for s in run['cpu_samples']]+routing
     run['runtime_events']=[dict(kind='coherent_accepted_raw',execution_id='cpu-uuid',local_tick=s['cycle'],native_event=copy.deepcopy(e)) for s in run['cpu_samples'] for e in s['events']]
+    for i,row in enumerate(run['runtime_events'],1):row['raw_event_id']=i
     run['cpu_commands']=[dict(operation='STEP_IRQ',execution_id='cpu-uuid',args=[0],response=copy.deepcopy(s)) for s in run['cpu_samples']]
+    _sync_transport(run)
     assert g.validate_run(run,suppressed=True)['suppressed']
     with pytest.raises(ValueError):g.validate_run(run,suppressed=False)
-    run['delivery_control'][2]['requested_irq']=0;run['delivery_control'][70]['requested_irq']=1
+    run['delivery_control'][3]['requested_irq']=0;run['delivery_control'][70]['requested_irq']=1
     with pytest.raises(ValueError):g.validate_run(run,suppressed=True)
 
 
@@ -239,3 +250,88 @@ def test_gpio_wire_normalizes_only_typed_protocol_execution_slot():
     assert result[0]['raw_line']=='RESULT declared:gpio_execution 1 0 1 7b7d\n'
     assert result[1]['raw_line']==rows[1]['raw_line']
     with pytest.raises(ValueError):g.normalize_gpio_wire([dict(execution_id='a'*32,raw_line='ACKED '+'b'*32+' 1 0\n')],ids)
+
+
+@pytest.mark.parametrize('mutation',['mret_before_trap','isr_store_after_return','late_initial_clear','isr_read_before_trap'])
+def test_actual_temporal_chain_refuses_reordered_evidence(software_chain,mutation):
+    g=gate();run=copy.deepcopy(software_chain)
+    if mutation=='mret_before_trap':
+        for phase in ('probes_pre','probes_post'):
+            saved=copy.deepcopy(run['cpu_samples'][79][phase]);run['cpu_samples'][79][phase]['system_return']=0
+            run['cpu_samples'][1][phase].update({k:saved[k] for k in ('system_return','csr_cmd','csr_addr','csr_evec','mepc')})
+    if mutation=='isr_store_after_return':
+        for s in run['cpu_samples']:
+            selected=[r for r in s['events'] if r['channel']=='A' and r.get('address')==0x3028]
+            s['events']=[r for r in s['events'] if r not in selected]
+            run['cpu_samples'][90]['events'].extend(selected)
+    if mutation in ('late_initial_clear','isr_read_before_trap'):
+        pair=0 if mutation=='late_initial_clear' else 1
+        at,dt=(14,15) if pair==0 else (4,5)
+        rows=[r for r in run['source_events'] if r['kind'] in ('boom_external_a_queued','boom_external_d_accepted')]
+        q,c=rows[pair*2:pair*2+2]
+        for sample in run['cpu_samples']:
+            sample['events']=[e for e in sample['events'] if not ((e['channel']=='A' and e.get('source')==pair and e.get('address')==0x4024) or (e['channel']=='D' and e.get('source')==pair))]
+        run['cpu_samples'][at-1]['events'].append(copy.deepcopy(q['native_request']))
+        run['cpu_samples'][dt-1]['events'].append(copy.deepcopy(c['native_response']))
+        q['local_tick']=at;c['local_tick']=dt
+    _sync_transport(run)
+    with pytest.raises(ValueError):g.validate_run(run,suppressed=False)
+
+
+@pytest.mark.parametrize('mutation',['source_id','binding','trigger'])
+def test_pulse_must_bind_actual_gpio_producer_identity(software_chain,mutation):
+    g=gate();run=copy.deepcopy(software_chain)
+    pulse=next(r for r in run['events'] if r.get('kind')=='pulse_start')
+    source=next(r for r in run['events'] if r.get('kind')=='source_start')
+    if mutation=='source_id':source['source_event_id']=1;pulse['source_event_id']=2
+    if mutation=='binding':pulse['source']=['unrelated','irq']
+    if mutation=='trigger':pulse['source_trigger']={'sample_event_id':999}
+    with pytest.raises(ValueError):g.validate_run(run,suppressed=False)
+
+
+@pytest.mark.parametrize('mutation',['producer_tick','producer_phase','producer_value','gpio_command','gpio_phase','source_route','target_port','source_cpu_tick','optional_absence','tracker_claim'])
+def test_exact_physical_producer_and_binding_controls(software_chain,mutation):
+    g=gate();run=copy.deepcopy(software_chain)
+    producer=next(r for r in run['events'] if r.get('kind')=='local_tick_sample')
+    source=next(r for r in run['events'] if r.get('kind')=='source_start')
+    pulse=next(r for r in run['events'] if r.get('kind')=='pulse_start')
+    if mutation=='producer_tick':producer['local_tick']+=1
+    if mutation=='producer_phase':producer['phase']='pre'
+    if mutation=='producer_value':producer['outputs']['interrupt']=0
+    if mutation=='gpio_command':run['gpio_events'][0]['command_scope']['command_sequence']=2
+    if mutation=='gpio_phase':run['gpio_commands'][0]['receipt']['payload']['samples'][0]['post']['physical']['interrupt']=0
+    if mutation=='source_route':source['source']=['unrelated','irq']
+    if mutation=='target_port':pulse['target']=['cpu','wrong']
+    if mutation=='source_cpu_tick':source['cpu_tick']+=1
+    if mutation=='optional_absence':source['source_trigger']=None
+    if mutation=='tracker_claim':run['gpio_trigger_tracker_installed']=True
+    with pytest.raises(ValueError):g.validate_run(run,suppressed=False)
+
+
+def test_source_and_temporal_witnesses_retain_actual_refs(software_chain):
+    g=gate();result=g.validate_run(software_chain,suppressed=False)
+    source=result['source_witness'];timing=result['temporal_witness']
+    assert source['producer_event_id']==3 and source['source_trigger'] is None and not source['tracker_installed']
+    assert timing['csr_tick']==6 and timing['mret_pre_tick']==80
+    assert timing['status_accesses'][1]['a_tick']==20
+    assert timing['result_acceptances']['3028']['local_tick']==42
+    assert all(type(r['raw_event_id']) is int for r in timing['result_acceptances'].values())
+
+
+def test_rob_csr_pre_post_order_is_measured_not_guessed(software_chain):
+    g=gate();run=copy.deepcopy(software_chain)
+    run['cpu_samples'][5]['probes_pre']['rob_exception']=0
+    run['cpu_samples'][5]['probes_post']['csr_exception']=0
+    _sync_transport(run)
+    with pytest.raises(ValueError):g.validate_run(run,suppressed=False)
+    run['cpu_samples'][5]['probes_pre']['csr_exception']=0
+    run['cpu_samples'][5]['probes_post']['csr_exception']=1
+    _sync_transport(run)
+    assert g.validate_run(run,suppressed=False)['temporal_witness']['csr_phase']=='post'
+
+
+def test_initial_gpio_clear_must_precede_real_gpio_edge(software_chain):
+    g=gate();run=copy.deepcopy(software_chain)
+    run['gpio_events'][1]['local_tick']=9
+    run['router_deliveries'][0]['target_apb_access']['local_tick']=9
+    with pytest.raises(ValueError):g.validate_run(run,suppressed=False)
