@@ -1,5 +1,7 @@
 # 当前方案的验收报告入口
 
+2026-10-17 ZipCPU `wbdmac`：[真实 RAM→RAM 定向报告](zipcpu-wbdmac-real-ram-20261017.md)。两次独立 pinned RTL 进程各完成四读四写、四笔目的 RAM 提交及末次 ACK 同边沿原生 IRQ；CPU MMIO 配置与 ISR 尚未接入，当前环境有明确 ACK 延迟限制。
+
 2026-10-17 VexiiRiscv：[固定生成 RTL 的双 AXI 定向 RAM 报告](vexiiriscv-direct-axi-ram-20261017.md)。两次独立真实 CPU 运行 `[53,54]`，替换唯一 LSU 读响应的因果对照 `[53,1]`；仅 CPU/RAM 定向等级，尚无生成式 profile 或外设组合。
 
 2026-10-17 CVW／PULP GPIO 后续双向定向门：[完整报告](cvw-pulp-gpio-bidirectional-directed-20261017.md)。固定外部 `gpio_in=0xa5` 经真实 PADIN 进入 CPU/RAM；两次独立正例的七笔 APB 和 `[0x35,0x6a,1,0xa5]` 一致（127.52 秒），旧窗口负例通过（64.46 秒）。仍无该输入的绑定来源/在线变异、独立 AHB 引脚相位证据或 P6 整行验收。DMA Slice B 已生成双接口 Wishbone 单边沿 transport，但尚无 DMA RTL 事务运行。

@@ -240,4 +240,6 @@
 
 VexiiRiscv 的固定生成 RTL 已取得定向 fetch AXI/LSU AXI→RAM 一读两写证据与读响应因果对照，见 [报告](../../reports/vexiiriscv-direct-axi-ram-20261017.md)；尚无生成式 profile、CPU/IP 路由、持续会话或 P6 协议行验收。
 
+F6/P8 方向已有独立真实 DMA master 定向证据：固定 ZipCPU `wbdmac` 两次新进程各四读四写、四笔目的 RAM 提交及原生 IRQ，详见 [DMA 报告](../../reports/zipcpu-wbdmac-real-ram-20261017.md)。配置仍来自主机，六目标 CPU→DMA 与 IRQ→CPU、负例、持续搜索未完成；这不授予任何 P6 协议整行或 P8 通过。
+
 VexiiRiscv 的固定源码与 SpinalHDL 子模块已生成 563119 字节的 RV32 双 AXI Verilog，lint 退出 0（3 项警告），48 个顶层端口已记录于 `configs/cpus/vexiiriscv/generated`；无可运行 session，不能记真实 CPU 事务。BOOM 仍缺固定 Chipyard 生成闭包。ZipCPU DMA 和 Caliptra AHB-Lite SHA256 已有静态源锁/闭包/profile，但两者都未运行真实事务，F6 与第四系列的运行验收仍开放。

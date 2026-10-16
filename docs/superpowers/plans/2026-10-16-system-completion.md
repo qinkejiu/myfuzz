@@ -70,3 +70,5 @@
 2026-10-17 定向双向增量：CVW CPU 还从真实 PULP GPIO PADIN 读取固定外部物理输入 `0xa5`，RAM 结果 `[0x35,0x6a,1,0xa5]`；两次独立进程七笔 APB/路由交付与物理采样一致（正例 127.52s，旧窗口负例 64.46s）。该输入尚未纳入来源绑定和在线变异。ZipCPU `wbdmac` 的双接口生成式 pipelined Wishbone 单边沿 transport 已提交（`0093b7c`），真实 RTL 仅静态展开；自主 DMA session、RAM→RAM 与 IRQ 仍未实测。P7 D3 新增对真实 artifact／编译声明／物理归属的一致性核对（`a14d8e1`），D4 执行消费尚未完成。
 
 VexiiRiscv 固定生成 RTL 已通过独立定向 CPU/RAM 运行：两次真实 fetch AXI/LSU AXI 运行得 `[53,54]`，替换唯一 LSU 读响应的对照得 `[53,1]`，每次 75 tick；仍需受信 profile、生成式 runtime、外设和在线接入。详见 [实测报告](../../reports/vexiiriscv-direct-axi-ram-20261017.md)。
+
+DMA 首个真实 RAM→RAM 门通过：`8b3f38a` 的生成式 session 连接固定 `wbdmac` RTL，两次新进程各完成四读四写、四笔目的 RAM 账本提交及末次 ACK 同边沿 IRQ；真实门 `4 passed in 15.79s`。当前由主机配置 DMA，写 burst 尾 ACK 时序有受限策略，CPU 配置/ISR、负例和在线 P8 仍开放。见 [DMA 实测报告](../../reports/zipcpu-wbdmac-real-ram-20261017.md)。
