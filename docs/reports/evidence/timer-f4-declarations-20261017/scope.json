@@ -1,0 +1,16 @@
+{
+  "scope": "declarative_D3_only_not_native_or_storage_authority",
+  "compiler_counts": {
+    "executable": 4,
+    "unsupported": 2,
+    "total": 6
+  },
+  "f4_candidate_bytes": 4,
+  "selected_register": "TIMER0_CTRL",
+  "new_to_compiled_F4": true,
+  "new_to_repository": false,
+  "native_run": false,
+  "source_authority": false,
+  "register_version_authenticated": false,
+  "runtime_admitted": false
+}

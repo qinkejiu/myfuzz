@@ -1,0 +1,103 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+_______ test_real_timer_declaration_has_only_its_own_four_byte_candidate _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78918ce2baa0>
+
+    def test_real_timer_declaration_has_only_its_own_four_byte_candidate(monkeypatch):
+     monkeypatch.setattr(subprocess,'Popen',lambda *a,**kw:pytest.fail('D3 declaration must not run tools/models'))
+>    result=compile_paths(load_path_compile_request(declared(),base_dir=ROOT))
+                                                    ^^^^^^^^^^
+
+tests/integration/test_timer_f4_declarations.py:17: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_timer_f4_declarations.py:12: in declared
+    def declared():return json.loads((CONFIG/'path_compile_request.json').read_text())
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/pathlib.py:1029: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/home/qinkejiu/myfuzz/configs/scenarios/compiled-f4-obi-apb-timer/path_compile_request.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/qinkejiu/myfuzz/configs/scenarios/compiled-f4-obi-apb-timer/path_compile_request.json'
+
+/usr/lib/python3.12/pathlib.py:1015: FileNotFoundError
+___ test_timer_capability_does_not_borrow_gpio_or_autonomous_count_semantics ___
+
+    def test_timer_capability_does_not_borrow_gpio_or_autonomous_count_semantics():
+     from myfuzz.composition.component_profile import load_component_profile
+     from myfuzz.composition.test_capability import load_ip_test_capability
+>    doc=json.loads((CONFIG/'test_capability.json').read_text())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_timer_f4_declarations.py:37: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/pathlib.py:1029: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/home/qinkejiu/myfuzz/configs/scenarios/compiled-f4-obi-apb-timer/test_capability.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/qinkejiu/myfuzz/configs/scenarios/compiled-f4-obi-apb-timer/test_capability.json'
+
+/usr/lib/python3.12/pathlib.py:1015: FileNotFoundError
+____________ test_generic_target_has_no_hidden_pin_source_or_setup _____________
+
+    def test_generic_target_has_no_hidden_pin_source_or_setup():
+     from myfuzz.local_harness import load_local_harness_request
+>    request=load_local_harness_request(json.loads((CONFIG/'requests/peripheral.json').read_text()))
+                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_timer_f4_declarations.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/pathlib.py:1029: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/home/qinkejiu/myfuzz/configs/scenarios/compiled-f4-obi-apb-timer/requests/peripheral.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/qinkejiu/myfuzz/configs/scenarios/compiled-f4-obi-apb-timer/requests/peripheral.json'
+
+/usr/lib/python3.12/pathlib.py:1015: FileNotFoundError
+=========================== short test summary info ============================
+FAILED tests/integration/test_timer_f4_declarations.py::test_real_timer_declaration_has_only_its_own_four_byte_candidate
+FAILED tests/integration/test_timer_f4_declarations.py::test_timer_capability_does_not_borrow_gpio_or_autonomous_count_semantics
+FAILED tests/integration/test_timer_f4_declarations.py::test_generic_target_has_no_hidden_pin_source_or_setup
+3 failed in 0.33s
