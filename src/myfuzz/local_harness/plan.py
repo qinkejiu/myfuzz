@@ -219,6 +219,8 @@ def plan_local_harness(request: LocalHarnessRequest | LocalHarnessRequestV2, *, 
             from .apb3_register_template import register_observe_policy
         elif protocols == {('wishbone', 'classic')}:
             from .wishbone_register_template import register_observe_policy
+        elif protocols == {('ahb-lite', '1')}:
+            from .ahb_lite_register_template import register_observe_policy
         elif protocols == {('axi4-lite', '1')}:
             from .axi4lite_register_template import register_observe_policy
         else:

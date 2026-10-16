@@ -17,6 +17,7 @@ from .runtime_artifact import LocalRuntimeArtifact
 from .source_lock import verify_local_source_lock
 from .axi4_fields import AXI_SHAPE
 from .cva6_axi4_fields import CVA6_AXI_SHAPE
+from .ahb_lite_register_template import register_observe_policy as ahb_register_policy, BUS_SHAPE as _AHB_TARGET
 from .request import LocalHarnessRequestV2
 from .tlul_register_template import register_observe_policy, serial_peer_policy
 from .apb3_register_template import register_observe_policy as apb3_register_observe_policy
@@ -346,6 +347,12 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         kind = 'wishbone_register_observe'
         boot = None
         adapters = ['src/myfuzz/protocols/rtl/beat_to_wishbone.sv']
+    elif (len(endpoints) == 1 and functions == {'mmio_slave'}
+          and endpoints[0].protocol == ('ahb-lite', '1')):
+        ahb_register_policy(plan, abi)
+        kind = 'ahb_lite_register_observe'
+        boot = None
+        adapters = ['src/myfuzz/protocols/rtl/ahb_lite_mmio_target.sv']
     elif (len(endpoints) == 1 and functions == {'memory_master'}
           and endpoints[0].protocol == ('ahb-lite', '1')):
         # AHB-Lite CPU with one *unified* memory port.  CVW (CORE-V Wally) is the
@@ -607,7 +614,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                 kind == 'tlul_register_observe' and row['direction'] == 'output' or
                 kind == 'apb3_register_observe' and row['direction'] == 'output' or
                 kind == 'wishbone_register_observe' and row['direction'] == 'output' or
-                kind == 'axi4lite_register_observe' and row['direction'] == 'output' or
+                kind in ('axi4lite_register_observe', 'ahb_lite_register_observe') and row['direction'] == 'output' or
                 kind == 'apb_spi' and row['endpoint_id'] == 'spi.pins' or
                 kind == 'axi4_lite_uart' and row['endpoint_id'] in
                 ('uart.pins', 'uart.interrupts') or
@@ -881,6 +888,20 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         instances.append('axi4_lite_processor_memory_adapter #(\n'
             '    .ADDRESS_WIDTH(32), .DATA_WIDTH(32)\n'
             '  ) u_axi_lite (\n    ' + ',\n    '.join(f'.{p}({v})' for p,v in pairs.items()) + '\n  );')
+    elif kind == 'ahb_lite_register_observe':
+        wires = _shape(endpoints[0], _AHB_TARGET, abi)
+        base_protocol_trace = _expose_protocol_trace('ahb-lite', endpoints[0],
+            clock_schedule['primary_clock_domain'], _AHB_TARGET, wires, ports, statements, backend)
+        beat_ports('reg', False)
+        local_clk, local_reset = endpoint_controls[endpoints[0].endpoint_id]
+        wait = min(plan.request.max_wait_cycles, plan.profile.capabilities['max_wait_cycles'])
+        pairs = dict(clk_i=local_clk, rst_ni='~'+local_reset,
+            req_valid_i='reg_req_valid', req_write_i='reg_req_write',
+            req_addr_i='reg_req_addr', req_wdata_i='reg_req_wdata', req_be_i='reg_req_be',
+            req_ready_o='reg_req_ready', rsp_valid_o='reg_rsp_valid', rsp_ready_i='reg_rsp_ready',
+            rsp_rdata_o='reg_rsp_rdata', rsp_error_o='reg_rsp_error', **wires)
+        instances.append('ahb_lite_mmio_target #(.MAX_WAIT_CYCLES('+str(wait)+')) u_ahb_register (\n    '
+            + ',\n    '.join(f'.{p}({v})' for p,v in pairs.items()) + '\n  );')
     elif kind == 'ahb_lite_cpu':
         # AHB-Lite CPU (CVW).  CVW is the AHB *manager*, so the harness needs a
         # subordinate: ahb_lite_memory_target answers the CPU's transfers.  The
@@ -1088,7 +1109,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                     structural_build=copy.deepcopy(structural.build_document), source_verification=copy.deepcopy(verified),
                     boot_contract=boot,
                     clock_schedule=artifact_clock_schedule,
-                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'apb_i2c', 'apb3_register_observe', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host', 'tlul_uart', 'tlul_i2c', 'tlul_register_observe', 'tlul_spi_device', 'wishbone_timer', 'wishbone_uart', 'wishbone_register_observe', 'axi4lite_register_observe') else native_wait if kind == 'native_memory_cpu' else min(plan.request.max_wait_cycles, plan.profile.capabilities.get('max_wait_cycles', plan.request.max_wait_cycles)) if kind == 'axi4_lite_uart' else plan.request.max_wait_cycles),
+                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'apb_i2c', 'apb3_register_observe', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host', 'tlul_uart', 'tlul_i2c', 'tlul_register_observe', 'tlul_spi_device', 'wishbone_timer', 'wishbone_uart', 'wishbone_register_observe', 'axi4lite_register_observe', 'ahb_lite_register_observe') else native_wait if kind == 'native_memory_cpu' else min(plan.request.max_wait_cycles, plan.profile.capabilities.get('max_wait_cycles', plan.request.max_wait_cycles)) if kind == 'axi4_lite_uart' else plan.request.max_wait_cycles),
                     runtime_sv_sha256=hashlib.sha256(runtime.encode()).hexdigest(), cpp_sha256=hashlib.sha256(b'').hexdigest(),
                     adapted_endpoint_ids=sorted(adapted), physical_exports=exports, backend_ports=backend,
                     runtime_ports=[dict(name=n,direction=d,width=w) for n,d,w in ports],
@@ -1112,7 +1133,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             }
     if (isinstance(plan.request, LocalHarnessRequestV2)
             and kind in ('tlul_register_observe', 'apb3_register_observe',
-                         'wishbone_register_observe', 'axi4lite_register_observe',
+                         'wishbone_register_observe', 'axi4lite_register_observe', 'ahb_lite_register_observe',
                          'axi4_lite_uart')):
         document['base_event_schema_version'] = 'ip_base_event.v1'
         document['raw_observation_schema_version'] = 'ip_raw_observation.v1'
@@ -1127,7 +1148,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
     if gpio_observation is not None:
         document['gpio_observation_contract'] = gpio_observation
     if kind in ('tlul_register_observe', 'apb3_register_observe',
-                'axi4lite_register_observe'):
+                'axi4lite_register_observe', 'ahb_lite_register_observe'):
         # The AXI4-Lite member additionally admits a declared serial peer, so
         # it reports two more facts: the peer document and its startup writes.
         axi4lite_peer = None
@@ -1136,6 +1157,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             fixed, dynamic, bound = register_observe_policy(plan, abi)
         elif kind == 'apb3_register_observe':
             fixed, dynamic, bound = apb3_register_observe_policy(plan, abi)
+        elif kind == 'ahb_lite_register_observe':
+            fixed, dynamic, bound = ahb_register_policy(plan, abi)
         else:
             fixed, dynamic, bound, axi4lite_peer, axi4lite_startup = (
                 axi4lite_register_policy(plan, abi))
@@ -1178,6 +1201,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             if kind == 'tlul_register_observe' else
             'axi4lite_register_only_pin_observe_no_serial'
             if kind == 'axi4lite_register_observe' else
+            'ahb_lite_register_only_pin_observe_no_peer'
+            if kind == 'ahb_lite_register_observe' else
             'apb3_register_only_pin_observe_no_peer')
     if kind == 'wishbone_register_observe':
         fixed = wishbone_register_policy(plan, abi)

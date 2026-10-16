@@ -260,6 +260,11 @@ _TEMPLATES = (
     # response codes, while the CPU-side contract declares neither. A write is
     # two independently handshaken channels, so neither AW alone nor W alone is
     # a write the slave could act on.
+    _contract('target.ahb-lite','full-word-single',('ahb-lite','1'),'target',
+        'haddr hwdata hsel hwrite hreadyin htrans hsize','hresp hreadyout hrdata',
+        facts={'data_width':32,'address_width':32,'byte_enable':False,
+               'partial_write':False,'has_error':False,'max_outstanding':1},
+        limits={'byte_enable':False,'partial_write':False,'request_phase':'address_then_data'}),
     _contract('target.axi4-lite','single-outstanding-error-codes',('axi4-lite','1'),'target',
         'awvalid awaddr awprot wvalid wdata wstrb bready arvalid araddr arprot rready',
         'awready wready bvalid bresp arready rvalid rdata rresp',
@@ -299,7 +304,7 @@ _GENERATED_EXECUTOR_KINDS = frozenset((
     'wishbone_register_observe', 'wishbone_timer', 'wishbone_uart',
     'tlul_register_observe', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host',
     'tlul_uart', 'tlul_i2c', 'tlul_spi_device', 'apb3_register_observe',
-    'axi4lite_register_observe',
+    'axi4lite_register_observe', 'ahb_lite_register_observe',
     'apb_gpio', 'apb_spi', 'apb_timer', 'apb_i2c',
 ))
 
@@ -406,7 +411,7 @@ _CONTROL = frozenset('req gnt we rvalid error valid ready awvalid awready wvalid
 #   * ``haddr``/``hwdata``/``hwstrb`` reuse the generic addr/data/lane roles
 #     (the declaration maps HADDR/HWDATA/HWSTRB onto them), so they are already
 #     covered by ``_ADDRESS``/``_DATA``/``_LANES`` above.
-_CONTROL = _CONTROL | frozenset(('hready', 'hwrite', 'hresp'))
+_CONTROL = _CONTROL | frozenset(('hready', 'hreadyin', 'hreadyout', 'hsel', 'hwrite', 'hresp'))
 # AHB-native data/address/lane roles reuse the generic width classes below.
 _FIXED = {'awlen':8,'arlen':8,'awsize':3,'arsize':3,'awburst':2,'arburst':2,'awlock':1,'arlock':1,
           'bresp':2,'rresp':2,'awprot':3,'arprot':3,'awcache':4,'arcache':4,'awqos':4,'arqos':4,

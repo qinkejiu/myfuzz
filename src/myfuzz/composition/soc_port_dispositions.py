@@ -287,6 +287,14 @@ def build_port_dispositions(instance_id: str, binding: ProfileBinding, *,
     for endpoint in binding.endpoints:
         function = endpoint_functions[endpoint.endpoint_id]
         for field in endpoint.fields:
+            # A declared configuration input may also have an explicit whole-port
+            # constant action. The action is its sole owner, not a second driver.
+            if (function == 'configuration' and field.direction == 'input'
+                    and field.raw_lo == 0 and field.raw_hi == (field.port_width or field.width) - 1
+                    and any(action.port == field.port and action.action == 'constant'
+                            and not action.member_path and not action.bits
+                            for action in profile_port_actions)):
+                continue
             entries.append(_field_entry(instance_id, binding, function, field,
                                         clock_domain, reset_domain, peer_endpoints))
     for _binding_record, field in binding.clocks:

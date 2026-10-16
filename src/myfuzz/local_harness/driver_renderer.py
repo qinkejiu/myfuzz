@@ -48,7 +48,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     exports = document['physical_exports']
     backend = document['backend_ports']
     fields = {}
-    if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe', 'axi4lite_register_observe'):
+    if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe', 'axi4lite_register_observe', 'ahb_lite_register_observe'):
         fixed = document['fixed_physical_inputs']
         dynamic = document.get('dynamic_physical_inputs', [])
         bound = document.get('bound_physical_inputs', [])
@@ -283,7 +283,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     ports = document['runtime_ports']
     fixed_at_reset = ({row['runtime_name']: row['value']
                        for row in document['fixed_physical_inputs']}
-                      if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe', 'axi4lite_register_observe') else {})
+                      if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe', 'axi4lite_register_observe', 'ahb_lite_register_observe') else {})
     initializers = '\n'.join(
         f'  dut.{row["name"]} = {fixed_at_reset.get(row["name"], 0)};'
         for row in ports if row['direction'] == 'input')
@@ -517,7 +517,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     else:
         spi = kind == 'apb_spi'
         timer = kind in ('apb_timer', 'wishbone_timer', 'tlul_timer')
-        channel = ('reg' if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe', 'axi4lite_register_observe') else
+        channel = ('reg' if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe', 'axi4lite_register_observe', 'ahb_lite_register_observe') else
                    'spi' if spi else 'timer' if timer else
                    'uart' if kind == 'wishbone_uart' else
                    'spi_host' if kind == 'tlul_spi_host' else
@@ -527,6 +527,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         command_channel = ('WB_REG' if kind == 'wishbone_register_observe' else
                            'TLUL_REG' if kind == 'tlul_register_observe' else
                            'APB3_REG' if kind == 'apb3_register_observe' else
+                           'AHB_REG' if kind == 'ahb_lite_register_observe' else
                            'AXIL_REG' if kind == 'axi4lite_register_observe' else
                            'TLUL_GPIO' if kind == 'tlul_gpio' else
                            'TLUL_TIMER' if kind == 'tlul_timer' else
@@ -547,7 +548,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             input_assignment = f'      dut.{fields["sd_i"]} = command.fields[0];\n'
         if kind == 'tlul_uart':
             input_assignment += f'      dut.{fields["uart_rx"]} = command.fields[0];\n'
-        if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe', 'axi4lite_register_observe'):
+        if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe', 'axi4lite_register_observe', 'ahb_lite_register_observe'):
             input_assignment = ''.join(
                 f'      dut.{row["runtime_name"]} = {row["value"]};\n'
                 for row in document['fixed_physical_inputs'])
@@ -575,8 +576,9 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         if kind == 'tlul_i2c':
             source_branch = source_branch.replace('SOURCE_I2C', 'SOURCE_TLUL_I2C')
         if kind in ('tlul_register_observe', 'apb3_register_observe',
-                    'axi4lite_register_observe'):
+                    'axi4lite_register_observe', 'ahb_lite_register_observe'):
             register_command = ('TLUL_REG' if kind == 'tlul_register_observe' else
+                                'AHB_REG' if kind == 'ahb_lite_register_observe' else
                                 'APB3_REG' if kind == 'apb3_register_observe'
                                 else 'AXIL_REG')
             source_cases = ''.join(
@@ -638,7 +640,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         dut.{channel}_rsp_ready = 0;
         dut.eval();
       }}
-''' + ('      }\n' if spi or kind in ('apb_i2c', 'tlul_i2c', 'tlul_register_observe', 'apb3_register_observe', 'axi4lite_register_observe') else '')
+''' + ('      }\n' if spi or kind in ('apb_i2c', 'tlul_i2c', 'tlul_register_observe', 'apb3_register_observe', 'axi4lite_register_observe', 'ahb_lite_register_observe') else '')
         # The accepted command set comes from the session registry, so a kind
         # that does not offer SOURCE_/BIND_ is refused because it truly has no
         # such operation, not because a second hand-kept list forgot it.

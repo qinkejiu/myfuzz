@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
 from myfuzz.scenario.runner import Binding
 
+from .ahb_lite_register_session import GeneratedAhbLiteRegisterSession
 from .apb3_register_session import GeneratedApb3RegisterSession
 from .axi4lite_register_template import (
     register_observe_policy as axi4lite_register_policy)
@@ -18,7 +19,7 @@ from .wishbone_register_session import GeneratedWishboneRegisterSession
 
 
 _KINDS = frozenset(('tlul_register_observe', 'apb3_register_observe',
-                    'wishbone_register_observe', 'axi4lite_register_observe'))
+                    'wishbone_register_observe', 'axi4lite_register_observe', 'ahb_lite_register_observe'))
 
 
 def _document(artifact):
@@ -50,6 +51,9 @@ def create_generated_register_session(artifact, *, base_dir, cache_dir,
                                         cache_dir=cache_dir,
                                         setup_writes=setup_writes,
                                         probe_offsets=probe_offsets)
+    if kind == 'ahb_lite_register_observe':
+        return GeneratedAhbLiteRegisterSession(artifact, base_dir=base_dir, cache_dir=cache_dir,
+            setup_writes=setup_writes, probe_offsets=probe_offsets)
     cls = (GeneratedApb3RegisterSession if kind == 'apb3_register_observe'
            else GeneratedWishboneRegisterSession)
     return cls(artifact, base_dir=base_dir, cache_dir=cache_dir,

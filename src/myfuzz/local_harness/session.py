@@ -75,6 +75,10 @@ _OPERATIONS = {
                               'ACCESS_TLUL_REG': (1, 8188, 0xffffffff, 15),
                               'SOURCE_TLUL_REG': (63, 0xffffffffffffffff),
                               'BIND_TLUL_REG': (63, 0xffffffffffffffff)},
+    'ahb_lite_register_observe': {'STEP_AHB_REG': (),
+        'ACCESS_AHB_REG': (1, 4092, 0xffffffff, 15),
+        'SOURCE_AHB_REG': (63, 0xffffffffffffffff),
+        'BIND_AHB_REG': (63, 0xffffffffffffffff)},
     'apb3_register_observe': {'STEP_APB3_REG': (),
                               'ACCESS_APB3_REG': (1, 4092, 0xffffffff, 15),
                               'SOURCE_APB3_REG': (63, 0xffffffffffffffff),
@@ -318,7 +322,7 @@ class GeneratedLocalSession:
                 or (operation == 'ACCESS_TLUL_TIMER' and fields[1] % 4)
                 or (operation == 'ACCESS_TLUL_REG' and
                     (fields[1] % 4 or fields[1] >= self.artifact.plan.profile.address.window_size))
-                or (operation == 'ACCESS_APB3_REG' and
+                or (operation in ('ACCESS_APB3_REG', 'ACCESS_AHB_REG') and
                     (fields[1] % 4 or fields[1] >= self.artifact.plan.profile.address.window_size
                      or fields[3] != 15))
                 or (operation == 'ACCESS_WB_UART' and fields[3] % 4)

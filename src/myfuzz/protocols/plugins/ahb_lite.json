@@ -194,6 +194,20 @@
       "required": true,
       "reset_value": 1,
       "x-alias-of": "ready"
+    },
+    {
+      "field_id": "hreadyin",
+      "direction": "host_to_device",
+      "width": "control_width",
+      "required": false,
+      "reset_value": 0
+    },
+    {
+      "field_id": "hreadyout",
+      "direction": "device_to_host",
+      "width": "control_width",
+      "required": false,
+      "reset_value": 0
     }
   ],
   "channel_relations": [
