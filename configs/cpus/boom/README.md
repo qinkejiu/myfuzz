@@ -123,3 +123,12 @@ results pass. Changed/missing actual target response controls are rejected.
 The GPIO program covers A/D only; persistent C/E coverage is tracked separately.
 The native build and both new/preserved gate commands exit 0. This evidence
 does not grant generic runtime admission or full P6 acceptance.
+
+The separate prepared `myfuzz.scenario.boom_coherent_verification` supplement
+loads the fenced cached-RAM program into the same persistent executable and
+requires two complete fresh edge/runtime traces plus A/C/D/E and dirty writeback.
+Its old one-shot bus-field comparison is separate. Only CLI import/help has
+been checked; the supplement has not run yet. Once the heavy window is granted,
+run it under the shared lock with `--repo`, `--cpu-output`, `--output`, and
+optionally `--one-shot-trace`; ready pins/launch state are in
+`.superpowers/sdd/boom-persistent-coherent-supplement-report.md`.
