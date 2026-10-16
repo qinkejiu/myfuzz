@@ -1,0 +1,4 @@
+5017afa6e6990d464949d1610a128dc4f04ef747376cd952b0038af5cf56dbf0  .superpowers/f4-abi-verification-20261017-59f6fa4/run_gate.sh
+e5b33ae21e29214004dade957c28916ee3ae8911380c00b9f719fba5c25547bd  .superpowers/f4-abi-verification-20261017-59f6fa4/verify_snapshot.py
+26e8f02c4975386a3b3082ef864e33f2545ca3e01f3480d6351744d0a04416f7  .superpowers/f4-abi-verification-20261017-59f6fa4/validate_gate.py
+76b897916308f3ce6847ae64abf156ccea15d5c077dd30f143685ef1307259b4  .superpowers/f4-abi-verification-20261017-59f6fa4/source_manifest.json
