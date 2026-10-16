@@ -2059,9 +2059,9 @@
       "evidence_path": "configs/cpus/cvw/cvw_ahb_cpu_top.sv"
     },
     {
-      "topic": "no_harness_or_adapter_binding",
-      "reason": "No local harness, adapter binding or generated artifact was produced for this boundary, and no AHB-Lite transaction has been run against the real RTL.",
-      "evidence_path": "configs/cpus/cvw/component_profile.json"
+      "topic": "directed_ip_execution_under_current_identity_unverified",
+      "reason": "The AHB-Lite runtime renderer, subordinate adapter and GeneratedAhbMemorySession exist. This closure authenticates elaboration of the current no-D-cache configuration; it does not establish a real CPU-to-GPIO/FIFO execution chain under this identity. The directed gate must run and preserve physical transaction and target-effect evidence before acceptance.",
+      "evidence_path": "tests/integration/test_cvw_cpu_pulp_gpio_chain_real.py"
     },
     {
       "topic": "uncore_pins_tied_off_in_wrapper",
@@ -2069,9 +2069,9 @@
       "evidence_path": "configs/cpus/cvw/cvw_ahb_cpu_top.sv"
     },
     {
-      "topic": "renderer_shape_direction_frame",
-      "reason": "runtime_renderer._AHB_LITE states the manager-driven roles as input while the bound endpoint carries the extractor's real directions (haddr/htrans/... output, hrdata/hready/hresp input); calling _shape(bound_endpoint, _AHB_LITE, []) refuses with 'runtime-endpoint-width-direction:cpu.external_bus:haddr'. Reconciling that frame is the remaining plumbing step before the AHB runtime branch could run.",
-      "evidence_path": "src/myfuzz/local_harness/runtime_renderer.py (measured on this bound profile)"
+      "topic": "persistent_online_assembly_undeclared",
+      "reason": "The runtime renderer now admits the real manager-driven AHB-Lite shape. Persistent online CVW boot image, trusted online decoder and runner assembly remain undeclared; the family explicitly refuses cvw-online-assembly-undeclared. A directed static-image test does not close that online requirement.",
+      "evidence_path": "src/myfuzz/integration/cvw_pulp_online.py"
     }
   ],
   "configuration_refresh": {
