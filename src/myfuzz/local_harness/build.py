@@ -319,9 +319,22 @@ def _prepare(artifact, base_dir, _host_context=_HOST_SOURCE_SCOPE):
     doc = artifact.runtime_document
     if not isinstance(doc, dict) or not isinstance(artifact.runtime_sv, str):
         raise LocalHarnessBuildError('invalid-runtime-artifact')
+    ahb_startup = doc.get('kind') == 'ahb_lite_cpu'
+    driver_schema = ('local_driver_generation.ahb_startup.v2' if ahb_startup
+                     else 'local_driver_generation.v1')
     if (doc.get('status'), doc.get('driver_status'), doc.get('driver_schema_version')) != (
-            'driver_generated', 'generated', 'local_driver_generation.v1'):
+            'driver_generated', 'generated', driver_schema):
         raise LocalHarnessBuildError('generated-driver-schema-required')
+    driver_keys = _DRIVER_KEYS
+    if ahb_startup:
+        from .ahb_startup import contract_from_document
+        try:
+            contract_from_document(doc)
+        except (ValueError, KeyError, TypeError) as error:
+            raise LocalHarnessBuildError('ahb-startup-contract-required') from error
+        driver_keys = _DRIVER_KEYS | {'ahb_startup_contract'}
+    elif 'ahb_startup_contract' in doc:
+        raise LocalHarnessBuildError('ahb-startup-contract-wrong-runtime')
     if doc.get('cpp_sha256') != _digest(artifact.cpp_text.encode()) or doc.get('runtime_sv_sha256') != _digest(artifact.runtime_sv.encode()):
         raise LocalHarnessBuildError('artifact-text-hash-mismatch')
     unsigned = {key: value for key, value in doc.items() if key != 'artifact_digest'}
@@ -341,7 +354,7 @@ def _prepare(artifact, base_dir, _host_context=_HOST_SOURCE_SCOPE):
     if verified != artifact.source_verification:
         raise LocalHarnessBuildError('artifact-source-verification-mismatch')
     baseline = render_local_runtime(artifact.plan, artifact.structural, verified, base_dir=root)
-    if (artifact.runtime_sv != baseline.runtime_sv or set(doc) != set(baseline.runtime_document) | _DRIVER_KEYS
+    if (artifact.runtime_sv != baseline.runtime_sv or set(doc) != set(baseline.runtime_document) | driver_keys
             or any(doc[key] != value for key, value in baseline.runtime_document.items() if key not in _DRIVER_CHANGES)):
         raise LocalHarnessBuildError('artifact-runtime-identity-mismatch')
     _driver_shape(artifact)

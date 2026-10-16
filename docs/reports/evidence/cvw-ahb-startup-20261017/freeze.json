@@ -3,18 +3,19 @@
   "dut_build": false,
   "elaboration": false,
   "standalone_cpp_parser_control": true,
-  "software_result": "96 passed in 3.40s",
+  "software_result": "103 passed in 5.17s",
   "source_sha256": {
     "src/myfuzz/local_harness/ahb_startup.py": "aadbc364ae0bc018da38274c7f7583bf2c69501fa4942a09a2ae734356822a16",
     "src/myfuzz/local_harness/driver_renderer.py": "3476adca07542d3ad84c8a64c84c439a1e1813a2694ee8ca26ec9158f89687c7",
     "src/myfuzz/local_harness/rtl/local_driver_v1.h": "d96ec4b3bbef11d536caa2c8d4b5ca01feb83808f360784d46038fc3926047ba",
-    "src/myfuzz/local_harness/session.py": "e91163043d9b168074a87869bce868c7fd082633a71d480299f791a4eed266f2",
+    "src/myfuzz/local_harness/session.py": "c73f1ce8083a79d65345e80277d4e028c87947643914f5dd32f998d6df2c35bf",
     "src/myfuzz/local_harness/ahb_lite_session.py": "3ca679df6b29c5389d1e7917b3ea1eb6948fb1cc9c8e1785c6733b609cca4410",
     "src/myfuzz/scenario/ahb_cpu_events.py": "abe9d4bf4157a77430740b57d7d6800994ba9c95c23fe528ab6df7b8e1b3fdc1",
     "src/myfuzz/scenario/contracts.py": "597ca4559055a00fa65d515a0bde6d31291557ca0a8f9331c51f01f3e07a93a4",
-    "tests/local_harness/test_ahb_startup.py": "12bef222959085622beda956131d9f2089f163ffc5d9590e79bf8a553480e2d0",
+    "tests/local_harness/test_ahb_startup.py": "ac22ed44663276aeb351990847bc98e5c85412d2b4d6ae0bb776fbd494c65035",
     "tests/local_harness/test_ahb_cpu_contract.py": "ce5d86f95146c9233444137d9856261df49311cecaccc67b294cb5bc99c3ae95",
-    "tests/local_harness/test_ahb_cpu_observer.py": "b630f99dce685828f6671f9ed7e7f3f9513c2546153d5bd741d14d50a49f49d9"
+    "tests/local_harness/test_ahb_cpu_observer.py": "b630f99dce685828f6671f9ed7e7f3f9513c2546153d5bd741d14d50a49f49d9",
+    "src/myfuzz/local_harness/build.py": "c231bcc909d7f39e76ce1059571cf90f72553e95a0877e31462c0f4d637aa296"
   },
   "dependency_sha256": {
     "src/myfuzz/local_harness/runtime_renderer.py": "ac7bc8f40431e8114e22b9ac8a95c2e348bca382be6831c5d84069b3474b8617"
@@ -32,8 +33,11 @@
     "docs/reports/evidence/cvw-ahb-startup-20261017/page-failure-red.log": "3da3b5886e3c8c9877ff9c8ecba7a675fc5d2cbf0e693b28c38714d304dd7d2a",
     "docs/reports/evidence/cvw-ahb-startup-20261017/prefix-integrity-green.log": "74033e4282553f082620e714a9f1ead512b9595ed9a943a5f9bf76e4af17b88d",
     "docs/reports/evidence/cvw-ahb-startup-20261017/prefix-integrity-red.log": "a20cbe067af55ec4f504101ab2361cc346dbe4f5e5da810616bafbebf907b3da",
+    "docs/reports/evidence/cvw-ahb-startup-20261017/real-admission-green.log": "a84476875af3d44eb9fe1c875489993034101cf9d9b4d0e4eb28da4a9aba38a0",
+    "docs/reports/evidence/cvw-ahb-startup-20261017/real-admission-red.log": "a81278d47d4a9c94c5dbb91cd0230498f216f1bfd899b4b7e57ab057be6eab06",
     "docs/reports/evidence/cvw-ahb-startup-20261017/receipt-budget-green.log": "b005eb10c68815d38a7b900bd9895b066f0dbd798dacf7724b930b5c0ec98ae6",
     "docs/reports/evidence/cvw-ahb-startup-20261017/receipt-budget-red.log": "719fb807a87ebc9eddfe942fab1453e4473bb5020ba676443c804e06db434f7e",
+    "docs/reports/evidence/cvw-ahb-startup-20261017/software-green-final.log": "fa0b7bab32db8adce80cadb20cf995b24b8b5eb6265940dc355e233939abbbff",
     "docs/reports/evidence/cvw-ahb-startup-20261017/software-green.log": "bcd96f2d85c4c72bd97b18fbff9b864ae6e829db8aff6c386e8ac6ede08e0392",
     "docs/reports/evidence/cvw-ahb-startup-20261017/startup-red.log": "4700ffec97b302c8b4612c64d3f725ce33fd8aedc15406c62487f0f717ab1824"
   }

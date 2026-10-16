@@ -213,11 +213,19 @@ class GeneratedLocalSession:
     def _expected_ready(self) -> tuple[str, int, int, str]:
         self._check_artifact_stable()
         document = self._artifact_document
+        ahb_startup = document.get('kind') == 'ahb_lite_cpu'
+        driver_schema = ('local_driver_generation.ahb_startup.v2' if ahb_startup
+                         else 'local_driver_generation.v1')
         if (document.get('schema_version') != 'local_runtime_artifact.v1'
-                or document.get('driver_schema_version') != 'local_driver_generation.v1'
+                or document.get('driver_schema_version') != driver_schema
                 or document.get('status') != 'driver_generated'
                 or document.get('driver_status') != 'generated'):
             raise ValueError('generated driver artifact is not admitted')
+        if ahb_startup:
+            from .ahb_startup import contract_from_document
+            contract_from_document(document)
+        elif 'ahb_startup_contract' in document:
+            raise ValueError('AHB startup contract on another runtime kind')
         digest = document.get('artifact_digest')
         kind = document.get('kind')
         reset = document.get('driver_reset')
@@ -229,7 +237,7 @@ class GeneratedLocalSession:
         if (type(digest) is not str or _DIGEST.fullmatch(digest) is None
                 or kind not in _OPERATIONS
                 or type(asserted) is not int or asserted < 1
-                or type(released) is not int or released < 1):
+                or type(released) is not int or released < (0 if ahb_startup else 1)):
             raise ValueError('invalid generated driver reset or identity contract')
         return digest, asserted, released, kind
 

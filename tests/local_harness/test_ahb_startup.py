@@ -414,3 +414,61 @@ def test_startup_raw_tick_must_match_native_index():
  o.begin_startup(startup_contract(assert_ticks=1,release_ticks=0,snapshot_max={}))
  r=record(1);r['sample']['local_tick']=2
  with pytest.raises(ValueError):o.observe_startup(r,rows={p:r['sample'][p]['protocol_taps'] for p in ('pre','post')})
+
+
+def test_real_ready_admission_accepts_only_ahb_version(generated):
+ artifact,cpu=generated
+ assert cpu._expected_ready()==(artifact.runtime_document['artifact_digest'],8,8,'ahb_lite_cpu')
+ for change in ({'driver_schema_version':'local_driver_generation.v1'}, {'kind':'native_memory_cpu'}):
+  original=cpu._artifact_document
+  cpu._artifact_document=copy.deepcopy(original);cpu._artifact_document.update(change)
+  from dataclasses import replace
+  original_artifact=cpu.artifact
+  cpu.artifact=replace(original_artifact,runtime_document=copy.deepcopy(cpu._artifact_document))
+  with pytest.raises(ValueError):cpu._expected_ready()
+  cpu.artifact=original_artifact;cpu._artifact_document=original
+
+
+@pytest.mark.parametrize('generated',[(1,0)],indirect=True)
+def test_real_ahb_ready_allows_declared_zero_release(generated):
+ artifact,cpu=generated
+ assert cpu._expected_ready()[1:3]==(1,0)
+
+
+def test_real_build_prepare_schema_keys_and_generated_reconstruction(generated,monkeypatch):
+ from myfuzz.local_harness import build
+ artifact,cpu=generated
+ monkeypatch.setattr(build,'_toolchain',lambda:dict(verilator=dict(path='software_verilator'),cxx=dict(path='software_cxx'),ar=dict(path='software_ar')))
+ identity,snapshots=build._prepare(artifact,cpu.base_dir)
+ assert identity['artifact_digest']==artifact.runtime_document['artifact_digest']
+ assert json.loads(snapshots['generated/artifact.json'])['ahb_startup_contract']==cpu._ahb_startup_contract
+ assert snapshots['generated/driver.cpp']==artifact.cpp_text.encode()
+ assert any(r['path']=='src/myfuzz/local_harness/ahb_startup.py' for r in identity['host_sources']['files'])
+ # Identity is a source-only software tool fixture, never a compiled artifact.
+ assert identity['toolchain']['verilator']['path']=='software_verilator'
+
+
+@pytest.mark.parametrize('change',[
+ {'driver_schema_version':'local_driver_generation.v1'},
+ {'kind':'native_memory_cpu'},
+ {'kind':'native_memory_cpu','driver_schema_version':'local_driver_generation.v1'},
+])
+def test_real_build_refuses_downgrade_and_other_kind_startup_key(generated,monkeypatch,change):
+ from dataclasses import replace
+ from myfuzz.local_harness import build
+ from myfuzz.local_harness.renderer import _sha
+ artifact,cpu=generated;document=copy.deepcopy(artifact.runtime_document);document.update(change)
+ document['artifact_digest']=_sha({k:v for k,v in document.items() if k!='artifact_digest'})
+ changed=replace(artifact,runtime_document=document)
+ monkeypatch.setattr(build,'_toolchain',lambda:pytest.fail('tool reached for invalid schema'))
+ with pytest.raises(build.LocalHarnessBuildError):build._prepare(changed,cpu.base_dir)
+
+
+def test_real_ready_rejects_foreign_startup_key_but_keeps_standard_version(generated):
+ from dataclasses import replace
+ artifact,cpu=generated;document=copy.deepcopy(cpu._artifact_document)
+ document.update(kind='native_memory_cpu',driver_schema_version='local_driver_generation.v1')
+ cpu._artifact_document=document;cpu.artifact=replace(artifact,runtime_document=copy.deepcopy(document))
+ with pytest.raises(ValueError,match='another runtime'):cpu._expected_ready()
+ del document['ahb_startup_contract'];cpu.artifact=replace(artifact,runtime_document=copy.deepcopy(document))
+ assert cpu._expected_ready()[3]=='native_memory_cpu'

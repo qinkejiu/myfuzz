@@ -1,0 +1,90 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+______________ test_real_ready_admission_accepts_only_ahb_version ______________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profi...bfd9f3240b76ead0d95745a'}), <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x7de83e5e3ad0>)
+
+    def test_real_ready_admission_accepts_only_ahb_version(generated):
+     artifact,cpu=generated
+>    assert cpu._expected_ready()==(artifact.runtime_document['artifact_digest'],8,8,'ahb_lite_cpu')
+            ^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_ahb_startup.py:421: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x7de83e5e3ad0>
+
+    def _expected_ready(self) -> tuple[str, int, int, str]:
+        self._check_artifact_stable()
+        document = self._artifact_document
+        if (document.get('schema_version') != 'local_runtime_artifact.v1'
+                or document.get('driver_schema_version') != 'local_driver_generation.v1'
+                or document.get('status') != 'driver_generated'
+                or document.get('driver_status') != 'generated'):
+>           raise ValueError('generated driver artifact is not admitted')
+E           ValueError: generated driver artifact is not admitted
+
+src/myfuzz/local_harness/session.py:220: ValueError
+_________ test_real_ahb_ready_allows_declared_zero_release[generated0] _________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profi...1143e2fc5d9fd08f9402ca0'}), <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x7de83e907560>)
+
+    @pytest.mark.parametrize('generated',[(1,0)],indirect=True)
+    def test_real_ahb_ready_allows_declared_zero_release(generated):
+     artifact,cpu=generated
+>    assert cpu._expected_ready()[1:3]==(1,0)
+            ^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_ahb_startup.py:435: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x7de83e907560>
+
+    def _expected_ready(self) -> tuple[str, int, int, str]:
+        self._check_artifact_stable()
+        document = self._artifact_document
+        if (document.get('schema_version') != 'local_runtime_artifact.v1'
+                or document.get('driver_schema_version') != 'local_driver_generation.v1'
+                or document.get('status') != 'driver_generated'
+                or document.get('driver_status') != 'generated'):
+>           raise ValueError('generated driver artifact is not admitted')
+E           ValueError: generated driver artifact is not admitted
+
+src/myfuzz/local_harness/session.py:220: ValueError
+_______ test_real_build_prepare_schema_keys_and_generated_reconstruction _______
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profi...bfd9f3240b76ead0d95745a'}), <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x7de83f890b00>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7de83e4e86b0>
+
+    def test_real_build_prepare_schema_keys_and_generated_reconstruction(generated,monkeypatch):
+     from myfuzz.local_harness import build
+     artifact,cpu=generated
+     monkeypatch.setattr(build,'_toolchain',lambda:dict(verilator=dict(path='software_verilator'),cxx=dict(path='software_cxx'),ar=dict(path='software_ar')))
+>    identity,snapshots=build._prepare(artifact,cpu.base_dir)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_ahb_startup.py:442: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+artifact = LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profil...ured_reset_to_command_prefix'}, 'artifact_digest': '8ed30e8bf5790ef5b88ed546f086f4071b3a78a6bbfd9f3240b76ead0d95745a'})
+base_dir = PosixPath('/home/qinkejiu/myfuzz')
+_host_context = <ContextVar name='myfuzz_host_source_discovery' default=None at 0x7de83e83ec00>
+
+    def _prepare(artifact, base_dir, _host_context=_HOST_SOURCE_SCOPE):
+        if (not isinstance(artifact, LocalRuntimeArtifact) or not isinstance(artifact.cpp_text, str)
+                or not artifact.cpp_text.strip()):
+            raise LocalHarnessBuildError('generated-driver-required')
+        doc = artifact.runtime_document
+        if not isinstance(doc, dict) or not isinstance(artifact.runtime_sv, str):
+            raise LocalHarnessBuildError('invalid-runtime-artifact')
+        if (doc.get('status'), doc.get('driver_status'), doc.get('driver_schema_version')) != (
+                'driver_generated', 'generated', 'local_driver_generation.v1'):
+>           raise LocalHarnessBuildError('generated-driver-schema-required')
+E           myfuzz.local_harness.build.LocalHarnessBuildError: generated-driver-schema-required
+
+src/myfuzz/local_harness/build.py:324: LocalHarnessBuildError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_ahb_startup.py::test_real_ready_admission_accepts_only_ahb_version
+FAILED tests/local_harness/test_ahb_startup.py::test_real_ahb_ready_allows_declared_zero_release[generated0]
+FAILED tests/local_harness/test_ahb_startup.py::test_real_build_prepare_schema_keys_and_generated_reconstruction
+3 failed, 30 deselected in 0.39s

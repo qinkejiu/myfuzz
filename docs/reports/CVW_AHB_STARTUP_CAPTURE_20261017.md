@@ -1,6 +1,6 @@
 # Measured AHB startup capture software increment
 
-2026-10-17. Software freeze for independent review. **96 passed in3.40s**:30 startup controls,52 steady AHB controls and14 preexisting Standard mini-driver controls. No DUT build, model, elaboration or native execution; remote frozen copies untouched. Only the explicitly authorized standalone C++ parser and protocol mini-driver were compiled/executed, without DUT/simulator dependencies.
+2026-10-17. Software freeze for independent review. **103 passed in5.17s** after independent review correction:37 startup controls,52 steady AHB controls and14 preexisting Standard mini-driver controls. Initial96-control receipt remains preserved and superseded. No DUT build, model, elaboration or native execution; remote frozen copies untouched. Only the explicitly authorized standalone C++ parser and protocol mini-driver were compiled/executed, without DUT/simulator dependencies.
 
 ## Actual generated capture
 
@@ -31,3 +31,11 @@ Global observer_record_index remains independent of Runner list clearing. Actual
 Independent source review, a new immutable source snapshot, and root's exact authorization for a new generated native CVW/Caliptra or RAM gate remain required. Historical first/fresh has only3 ordinary physical bits and cannot substitute for new13-role startup evidence. The future gate must archive startup pages/receipts, command raw, full observer/Runner stream, replay/fresh equality and actual source/binary/PID/reaped exit. No new native pass or complete CPU protocol acceptance follows from these software controls.
 
 Receipts/source pins: `evidence/cvw-ahb-startup-20261017/`. Prior steady-state source/review: da4605f/93a7bda. Design080280d is amended by root's shared CommandSet opt-in interface decision described above; the READY-altering and duplicated-parser alternatives were not implemented.
+
+## Independent review correction: actual admission path
+
+The reviewer found that the original startup v2 generator was not yet admitted by real GeneratedLocalSession._expected_ready/build._prepare, which still accepted only v1 and excluded the startup contract key. The initial source fixtures replaced build tool identity and begin transport and therefore did not expose that real rejection. This was an actual integration blocker, not a native result.
+
+New RED controls call real _expected_ready and real _prepare through their exact schema/key/generator reconstruction checks. Only frontend saved-port/readset and toolchain discovery remain explicit software fixtures; no admission/schema/key checks are replaced. The full actual _prepare now returns exact generated snapshots and complete real host input closure without executing its planned build argv.
+
+Admission now requires AHB's exact v2 plus recomputed code-owned startup contract; only that kind receives the single startup metadata key. Other kinds keep v1, reject v2 and reject the foreign startup key. AHB's declared zero release ticks are accepted without changing other kinds' prior reset minimum. Downgrade/wrong kind/startup-key controls refuse before tool discovery. Final103 controls pass; re-review remains required before the native gate.
