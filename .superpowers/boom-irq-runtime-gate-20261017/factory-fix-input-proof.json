@@ -1,0 +1,41 @@
+{
+  "proof_kind": "pure_byte_comparison_not_native",
+  "effective_input_count": 12,
+  "effective_inputs": {
+    "driver.cpp": "7d49358b639d70847a2d3ef9985bfbe293d349543e68bd9a8936123277945afb",
+    "tl_ram.h": "c40e3b16f492f4f73857950e47604f60e29055f684f46204cdeb685867d095da",
+    "boom_irq_probes.h": "df0d36273acd74bb330d748bec9ce711e27566709a9651ddf17cceedd7c04cea",
+    "EICG_wrapper.v": "8532a50a212f146f10208717be24168a2de73a9754786da272d0dbfcd556c307",
+    "chipyard.TestHarness.SmallBoomConfig.top.mems.v": "97ae4679a1ec21f4f424c56e23b1b1948e77d934c8c11461b56de47160a1a280",
+    "chipyard.TestHarness.SmallBoomConfig.top.v": "78bc69803c7b993cd1ddfcdb585d477bd27a83710bb1ce426e217aedbbdfaced",
+    "plusarg_reader.v": "482a63c1f24a7ac920909620bd0df108e6954eabf9520de6e72334a2b5450efb",
+    "passive_probes.vlt": "4938742fe73092838a6a742074420b0e445af74e2c3155563d3130f641a44836",
+    "irq-profile.json": "99f5236a3566c9421cf74851ea7f69ab479e1082cf2ce8fb07923a4f0de4385f",
+    "probe_contract.json": "5642594ca95afe5c9633628fdf50e1c01a38b77133ae19520747f015b7270f34",
+    "irq-interface.json": "d91a5ba6c33bd83884e4170ab80dbbee279e710f08a2e28fd028eaf0237f0404",
+    "boom_irq_probe_specs.h": "ee8d05ca40b23034a928eb6373f0552d5b622ea650beb0a9e3f138f495a9e612"
+  },
+  "effective_inputs_byte_equal": true,
+  "implementation_hashes_unchanged": {
+    "boom_irq_generation.py": "c6004d8832f01fd9e9559bed6fd59b3568658101cf119af10e41c6965f653b4f",
+    "boom_irq_contract.py": "7f8e349e0f21de4ba349fc072442fd26590d3f80cc988f2bbda0cf7e6e4ae435",
+    "boom_irq_cpu_session.py": "e207cfc75975f1c14ef02e696d68d40e3486e8e4e77eb016181ac57ecba51a44",
+    "boom_irq_cpu_driver.cpp": "7d49358b639d70847a2d3ef9985bfbe293d349543e68bd9a8936123277945afb",
+    "boom_irq_probes.h": "df0d36273acd74bb330d748bec9ce711e27566709a9651ddf17cceedd7c04cea",
+    "boom_irq_scenario_session.py": "b945a9002ce39118df38ebd81d6e9a1514f861b147f2809ba94a82c906e267db",
+    "boom_irq_recovery.py": "a6bbd17117a0973e4e67bc599b0e4cd7daa277449d4be9de3dfea0db294db3a8",
+    "tilelink_coherent_cpu_session.py": "e7de94305339e2f6d06a69588875d0b97bf92471832d330c0573bfe97815d977"
+  },
+  "factory_old_sha256": "1de87df95d1f10b44dd5848cc19afd9432527cf3b088103fa67f0883db8b0e09",
+  "factory_new_sha256": "0af5037e8282c232c672a0251e2c8f579d4f1f6edde793bc51e20854f8f1e77e",
+  "factory_exact_owner_string_delta": true,
+  "program_sha256": "acecf7cb717ea5fee1791e14313a8b66d94b96ac2c4b63a6c53645892f28ae39",
+  "historical_binary_sha256": "6367b592b743f935cb2de04bc6dfc4ac54c9ec8cf5dce4eb6545b140971e6c90",
+  "historical_build_exit": 0,
+  "historical_probe_exit": 0,
+  "historical_failed_stage_exit": 1,
+  "constructor_executed": false,
+  "generator_executed": false,
+  "tool_executed": false,
+  "model_executed": false
+}

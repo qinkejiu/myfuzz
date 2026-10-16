@@ -1,0 +1,141 @@
+FF.                                                                      [100%]
+=================================== FAILURES ===================================
+_______ test_factory_passes_actual_runner_binding_and_router_validation ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c84723d310>
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-186/test_factory_passes_actual_run0')
+
+    def test_factory_passes_actual_runner_binding_and_router_validation(monkeypatch,tmp_path):
+        from myfuzz.scenario.runner import ScenarioRunner,Binding
+>       runner,ended=assembled(monkeypatch,tmp_path)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_boom_irq_factory_binding.py:28: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/local_harness/test_boom_irq_factory_binding.py:23: in assembled
+    return factory.make_boom_gpio_irq_runner(repo=tmp_path,cpu_output=tmp_path/'artifact',cache_dir=tmp_path/'cache'),ended
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/scenario/boom_gpio_irq_runner.py:81: in make_boom_gpio_irq_runner
+    return ScenarioRunner(sessions={'cpu':cpu,'gpio':gpio},ownership=ownership,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <myfuzz.scenario.runner.ScenarioRunner object at 0x75c846887fb0>
+sessions = {'cpu': namespace(router=<myfuzz.scenario.router.DataflowRouter object at 0x75c846bda240>, program=b'sp\x040s\x10@0s\x...ls>.<lambda> at 0x75c8468953a0>), 'gpio': namespace(end_case=<function assembled.<locals>.<lambda> at 0x75c8468951c0>)}
+ownership = <myfuzz.scenario.ownership.OwnershipMap object at 0x75c846887ec0>
+bindings = (Binding(source_component='gpio', source_port='irq', target_component='cpu', target_port='irq', width=1, source_bit_offset=0, target_bit_offset=0),)
+irq_pulses = {Binding(source_component='gpio', source_port='irq', target_component='cpu', target_port='irq', width=1, source_bit_offset=0, target_bit_offset=0): 64}
+independent_baseline = False
+
+    def __init__(self, *, sessions: Mapping[str, LocalHarnessSession],
+                 ownership: OwnershipMap, bindings: tuple[Binding, ...],
+                 irq_pulses: Mapping[Binding, int] | None = None,
+                 independent_baseline: bool = False) -> None:
+        if not sessions:
+            raise ValueError("at least one local harness is required")
+        if not isinstance(independent_baseline, bool):
+            raise ValueError("independent_baseline must be boolean")
+        if independent_baseline and (bindings or irq_pulses):
+            raise ValueError("independent baseline cannot have cross-component bindings")
+        if independent_baseline and any(
+                owner["kind"] == "bound" for owner in ownership.document()["owners"]):
+            raise ValueError("independent baseline cannot own bound inputs")
+        self.sessions = dict(sessions)
+        for component in self.sessions:
+            self._declared_indirect_tick_bounds(component)
+        self.ownership = ownership
+        self.bindings = bindings
+        for component, session in self.sessions.items():
+            validate = getattr(session, 'validate_scenario_ownership', None)
+            if callable(validate):
+                validate(component, ownership)
+        self.independent_baseline = independent_baseline
+        self._irq_pulses: dict[Binding, IrqPulseDelivery] = {}
+        for binding, width in (irq_pulses or {}).items():
+            if binding not in bindings or binding.width != 1:
+                raise ValueError("IRQ pulse must select a declared one-bit binding")
+            self._irq_pulses[binding] = IrqPulseDelivery(width_ticks=width)
+        self._irq_event_offsets = {binding: 0 for binding in self._irq_pulses}
+        for binding in bindings:
+            if binding.source_component not in self.sessions \
+                    or binding.target_component not in self.sessions:
+                raise ValueError("binding references unknown local harness")
+            expected = f"{binding.source_component}.{binding.source_port}"
+            actual = ownership.binding_producer(
+                binding.target_component, binding.target_port,
+                binding.target_bit_offset, binding.width)
+            if actual != expected:
+>               raise ValueError("binding producer does not match input ownership")
+E               ValueError: binding producer does not match input ownership
+
+src/myfuzz/scenario/runner.py:216: ValueError
+_____ test_factory_ownership_has_one_pin_source_and_exclusive_irq_binding ______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c846886690>
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-186/test_factory_ownership_has_one0')
+
+    def test_factory_ownership_has_one_pin_source_and_exclusive_irq_binding(monkeypatch,tmp_path):
+>       runner,_=assembled(monkeypatch,tmp_path)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_boom_irq_factory_binding.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/local_harness/test_boom_irq_factory_binding.py:23: in assembled
+    return factory.make_boom_gpio_irq_runner(repo=tmp_path,cpu_output=tmp_path/'artifact',cache_dir=tmp_path/'cache'),ended
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/scenario/boom_gpio_irq_runner.py:81: in make_boom_gpio_irq_runner
+    return ScenarioRunner(sessions={'cpu':cpu,'gpio':gpio},ownership=ownership,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <myfuzz.scenario.runner.ScenarioRunner object at 0x75c84723f200>
+sessions = {'cpu': namespace(router=<myfuzz.scenario.router.DataflowRouter object at 0x75c846885190>, program=b'sp\x040s\x10@0s\x...ls>.<lambda> at 0x75c8468976a0>), 'gpio': namespace(end_case=<function assembled.<locals>.<lambda> at 0x75c846895260>)}
+ownership = <myfuzz.scenario.ownership.OwnershipMap object at 0x75c846fa8c80>
+bindings = (Binding(source_component='gpio', source_port='irq', target_component='cpu', target_port='irq', width=1, source_bit_offset=0, target_bit_offset=0),)
+irq_pulses = {Binding(source_component='gpio', source_port='irq', target_component='cpu', target_port='irq', width=1, source_bit_offset=0, target_bit_offset=0): 64}
+independent_baseline = False
+
+    def __init__(self, *, sessions: Mapping[str, LocalHarnessSession],
+                 ownership: OwnershipMap, bindings: tuple[Binding, ...],
+                 irq_pulses: Mapping[Binding, int] | None = None,
+                 independent_baseline: bool = False) -> None:
+        if not sessions:
+            raise ValueError("at least one local harness is required")
+        if not isinstance(independent_baseline, bool):
+            raise ValueError("independent_baseline must be boolean")
+        if independent_baseline and (bindings or irq_pulses):
+            raise ValueError("independent baseline cannot have cross-component bindings")
+        if independent_baseline and any(
+                owner["kind"] == "bound" for owner in ownership.document()["owners"]):
+            raise ValueError("independent baseline cannot own bound inputs")
+        self.sessions = dict(sessions)
+        for component in self.sessions:
+            self._declared_indirect_tick_bounds(component)
+        self.ownership = ownership
+        self.bindings = bindings
+        for component, session in self.sessions.items():
+            validate = getattr(session, 'validate_scenario_ownership', None)
+            if callable(validate):
+                validate(component, ownership)
+        self.independent_baseline = independent_baseline
+        self._irq_pulses: dict[Binding, IrqPulseDelivery] = {}
+        for binding, width in (irq_pulses or {}).items():
+            if binding not in bindings or binding.width != 1:
+                raise ValueError("IRQ pulse must select a declared one-bit binding")
+            self._irq_pulses[binding] = IrqPulseDelivery(width_ticks=width)
+        self._irq_event_offsets = {binding: 0 for binding in self._irq_pulses}
+        for binding in bindings:
+            if binding.source_component not in self.sessions \
+                    or binding.target_component not in self.sessions:
+                raise ValueError("binding references unknown local harness")
+            expected = f"{binding.source_component}.{binding.source_port}"
+            actual = ownership.binding_producer(
+                binding.target_component, binding.target_port,
+                binding.target_bit_offset, binding.width)
+            if actual != expected:
+>               raise ValueError("binding producer does not match input ownership")
+E               ValueError: binding producer does not match input ownership
+
+src/myfuzz/scenario/runner.py:216: ValueError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_boom_irq_factory_binding.py::test_factory_passes_actual_runner_binding_and_router_validation
+FAILED tests/local_harness/test_boom_irq_factory_binding.py::test_factory_ownership_has_one_pin_source_and_exclusive_irq_binding
+2 failed, 1 passed in 0.27s

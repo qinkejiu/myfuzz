@@ -76,7 +76,7 @@ def make_boom_gpio_irq_runner(*, repo: Path, cpu_output: Path,
         ownership = compile_ownership((InputField('gpio','gpio_in',32),InputField('cpu','irq',1)),
             (InputOwner('gpio','gpio_in',0,1,'source','external_pin'),
              InputOwner('gpio','gpio_in',1,31,'fixed','constant_zero'),
-             InputOwner('cpu','irq',0,1,'bound','gpio_irq')))
+             InputOwner('cpu','irq',0,1,'bound','gpio.irq')))
         binding = Binding('gpio','irq','cpu','irq',1)
         return ScenarioRunner(sessions={'cpu':cpu,'gpio':gpio},ownership=ownership,
             bindings=(binding,),irq_pulses={binding:IRQ_WIDTH_CPU_TICKS})
