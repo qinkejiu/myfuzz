@@ -4,7 +4,9 @@ This adapter admits one RV32I instruction image and a source pinned GPIOEN
 producer. Other flows and producer contracts are explicitly unsupported.
 """
 from copy import deepcopy
-from dataclasses import asdict
+from dataclasses import asdict, fields, is_dataclass
+from collections.abc import Mapping
+from types import MappingProxyType
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -44,6 +46,37 @@ def _input_identity(inputs, artifacts):
         physical_ports=sorted((list(key), value) for key, value in inputs['physical_port_map'].items()),
         artifacts={name:{key:sha256(value).hexdigest() for key,value in _artifact_files(artifact).items()}
                    for name,artifact in artifacts.items()}))
+
+
+def _private_admission_snapshot(artifacts, inputs, base_dir):
+    """Copy admitted data, including independent immutable profile proxies.
+
+    MappingProxyType deliberately cannot be pickled by deepcopy. Pre-populate
+    its copy memo with new immutable proxies over privately copied dictionaries;
+    the remaining admitted dataclasses then use normal deepcopy semantics.
+    No source reread, frontend process or native execution is needed to copy
+    the exact already-issued declaration bytes.
+    """
+    issued_identity=_input_identity(inputs,artifacts)
+    memo={};visited=set()
+    def proxies(value):
+        if id(value) in visited:return
+        visited.add(id(value))
+        if isinstance(value,Mapping):
+            for key,item in value.items():proxies(key);proxies(item)
+            if isinstance(value,MappingProxyType):
+                memo[id(value)]=MappingProxyType(deepcopy(dict(value),memo))
+        elif is_dataclass(value) and not isinstance(value,type):
+            for field in fields(value):proxies(getattr(value,field.name))
+        elif isinstance(value,(list,tuple,set,frozenset)):
+            for item in value:proxies(item)
+    proxies(artifacts);proxies(inputs)
+    private_artifacts=deepcopy(dict(artifacts),memo)
+    private_inputs=deepcopy(inputs,memo)
+    if _input_identity(private_inputs,private_artifacts)!=issued_identity:
+        raise ValueError('compiled-F4-private-reconstruction-mismatch')
+    admit_f4(artifacts=private_artifacts,compiled_inputs=private_inputs)
+    return private_artifacts,private_inputs
 
 
 def _f4_edges(compiled, image, access):
@@ -288,7 +321,7 @@ class CompiledF4Runtime:
             raise ValueError('compiled-F4-budget-invalid')
         self._caller_inputs=compiled_inputs;self._caller_artifacts=artifacts
         self._input_digest=_input_identity(compiled_inputs,artifacts)
-        self.artifacts=deepcopy(dict(artifacts));self.inputs=deepcopy(compiled_inputs)
+        self.artifacts,self.inputs=_private_admission_snapshot(artifacts,compiled_inputs,Path(base_dir))
         compiled_inputs=self.inputs;artifacts=self.artifacts
         self.base_dir=Path(base_dir);self.cache_dir=Path(cache_dir);self.run_id=run_id
         self.rounds=rounds_per_case;self.max_cases=max_cases;self.records=[];self.finished=False

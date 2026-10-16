@@ -80,3 +80,21 @@ def test_real_continuous_compiled_f4_and_two_fresh_prefixes(tmp_path):
         (evidence/'events.json').write_text(json.dumps(list(runtime.trace.events),indent=2))
     finally:
         if not runtime.finished:runtime.finish()
+
+
+def test_actual_ibex_private_snapshot_reconstructs_immutable_profile_mappings(tmp_path):
+    from myfuzz.integration.compiled_f4 import _private_admission_snapshot, _input_identity
+    artifacts,inputs=loaded(tmp_path)
+    with patch('subprocess.Popen',side_effect=AssertionError('pure private snapshot')):
+        private_artifacts,private_inputs=_private_admission_snapshot(artifacts,inputs,ROOT)
+        assert _input_identity(private_inputs,private_artifacts)==_input_identity(inputs,artifacts)
+        assert admit_f4(artifacts=private_artifacts,compiled_inputs=private_inputs)['flow_id']=='F4'
+    assert private_artifacts['processor'] is not artifacts['processor']
+    assert private_inputs['request'] is not inputs['request']
+    assert private_inputs['ownership'] is not inputs['ownership']
+    inputs['ownership']._bits.clear()
+    inputs['physical_port_map'].clear()
+    artifacts['processor'].runtime_document['kind']='changed'
+    assert private_inputs['ownership'].document()['owners']
+    assert private_inputs['physical_port_map']
+    assert private_artifacts['processor'].runtime_document['kind']=='obi_cpu'
