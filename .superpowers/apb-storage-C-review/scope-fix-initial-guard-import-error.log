@@ -1,0 +1,37 @@
+
+==================================== ERRORS ====================================
+_____ ERROR collecting tests/scenario/test_apb_storage_register_version.py _____
+tests/scenario/test_apb_storage_register_version.py:48: in <module>
+    from tests.local_harness.test_native_reset_producer_contract import storage
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1331: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:935: in _load_unlocked
+    ???
+../.local/lib/python3.12/site-packages/_pytest/assertion/rewrite.py:188: in exec_module
+    exec(co, module.__dict__)
+tests/local_harness/test_native_reset_producer_contract.py:5: in <module>
+    from tests.local_harness.test_apb_storage_probe_generation import selected
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1331: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:935: in _load_unlocked
+    ???
+../.local/lib/python3.12/site-packages/_pytest/assertion/rewrite.py:188: in exec_module
+    exec(co, module.__dict__)
+tests/local_harness/test_apb_storage_probe_generation.py:3: in <module>
+    from myfuzz.local_harness.tuning import load_local_harness_tuning
+src/myfuzz/local_harness/__init__.py:9: in <module>
+    from .driver_renderer import render_local_driver
+src/myfuzz/local_harness/driver_renderer.py:12: in <module>
+    from .session import registered_operations
+src/myfuzz/local_harness/session.py:475: in <module>
+    _NATIVE_RESET_POPEN_METHODS = {name:(getattr(subprocess.Popen,name),getattr(subprocess.Popen,name).__code__)
+                                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'method-wrapper' object has no attribute '__code__'. Did you mean: '__call__'?
+=========================== short test summary info ============================
+ERROR tests/scenario/test_apb_storage_register_version.py - AttributeError: '...
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.32s

@@ -1,0 +1,14 @@
+{
+  "reviewed_commit": "053ff9c",
+  "six_live_pins_match": true,
+  "focused_pytest_exit": 2,
+  "focused_subprocess_commands": [],
+  "owner_receipt_exit": 0,
+  "owner_argv_count": 9032,
+  "owner_argv_basename_counts": {
+    "git": 9007,
+    "wire-worker.py": 23,
+    "mechanical-apb-peer.py": 2
+  },
+  "native_executed": false
+}
