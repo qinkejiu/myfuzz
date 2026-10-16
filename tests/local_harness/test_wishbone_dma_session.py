@@ -166,6 +166,73 @@ def test_master_target_delivery_preserves_native_step_receipt(artifact, tmp_path
     assert session.memory_service.events == []
 
 
+def test_master_uart_rdata_uses_target_receipt_as_actual_ack_data(artifact, tmp_path, monkeypatch):
+    from myfuzz.local_harness.wire import DriverReceipt
+    from myfuzz.scenario.ledger import TransactionKey
+
+    class Target:
+        local_ticks = 0
+        uart_events = ()
+
+        def read_register(self, offset):
+            assert offset == 0x18
+            self.local_ticks = 3
+            observation = {'kind': 'uart_rdata_access',
+                'access_id': 'uart-read-1', 'status': 'observed',
+                'source_transaction': None, 'read_value': 0x5a,
+                'read_capture': {'pre': {'probe_uart_fifo_rvalid': 1,
+                    'probe_uart_fifo_rdata_re': 1,
+                    'probe_uart_fifo_under_rst': 0}}}
+            self.uart_events = (observation,)
+            return 0x5a
+
+        def write_register(self, offset, value, *, be):
+            raise AssertionError('DMA read must not write UART')
+
+        def identity_document(self):
+            return {'component': 'test-target'}
+
+    memory = PersistentMemory(initialization_seed=1, max_initialized_bytes=16,
+        regions=(MemoryRegion('ram', 0x1000, 16),))
+    target = Target()
+    with pytest.raises(ValueError, match='invalid DMA master target window'):
+        MasterTargetWindow('uart', 0x50000000, 0x1000, target,
+            (), (), readable_offsets=(0x20,))
+    window = MasterTargetWindow('uart', 0x50000000, 0x1000, target,
+        (), (), readable_offsets=(0x18,))
+    session = GeneratedWishboneDmaSession(artifact, base_dir=ROOT,
+        cache_dir=tmp_path, memory=memory, master_targets=(window,))
+    session._execution = 'software-contract'
+    session._case_id = 'rdata'
+    fields_seen = []
+    payload = {'observations': {'backend': {'mwb_stb': 0}},
+        'pre_backend': dict(mwb_cyc=1, mwb_stb=1, mwb_we=0,
+            mwb_adr=0x50000018 >> 2, mwb_dat_w=0)}
+
+    def command(op, fields):
+        fields_seen.append(fields)
+        return DriverReceipt('result', 'software-contract', len(fields_seen),
+            len(fields_seen)-1, len(fields_seen), 1, payload=payload)
+
+    monkeypatch.setattr(session, 'command', command)
+    returned = session.step_local()
+    assert returned.status == 'result' and returned.new_ticks == 1
+    delivery = session.events[0]['accepted']['target_delivery']
+    assert delivery['write'] is False and delivery['value'] == 0x5a
+    assert delivery['target_access_id'] == 'uart-read-1'
+    assert delivery['source_transaction'] == session.events[0]['accepted']['transaction']
+    assert delivery['target_uart_access']['source_transaction'] is None
+    assert session.pending_responses == 1
+    session.step_local()
+    assert fields_seen[1][6:9] == (1, 0x5a, 0)
+    assert session.memory_service.events == []
+    next_key = TransactionKey('software-contract', 'rdata', 'dma', 0,
+        'dma-memory', 2)
+    session.memory_service.write(next_key, 0x1000, 0x5a,
+        width_bytes=4, byte_enable=15)
+    assert memory.read(0x1000, 4, transaction_id='assert').value == 0x5a
+
+
 def test_routed_access_retains_cpu_identity_and_actual_edge_range(artifact,tmp_path,monkeypatch):
     from myfuzz.scenario.ledger import TransactionKey
     memory = PersistentMemory(initialization_seed=1,max_initialized_bytes=16,

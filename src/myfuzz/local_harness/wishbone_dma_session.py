@@ -1,7 +1,7 @@
-"""Measured dual-role wbdmac edges with a one-outstanding RAM environment.
+"""Measured dual-role wbdmac edges with one outstanding master response.
 
-Register accesses advance the same real DMA process. RAM writes use only the
-accepted RTL master payload; this helper does not implement a copy operation.
+Register accesses advance the same real DMA process. RAM and declared UART
+target effects use only accepted RTL master payloads.
 """
 from dataclasses import asdict, dataclass
 from copy import deepcopy
@@ -22,6 +22,7 @@ class MasterTargetWindow:
     writable_offsets: tuple[int, ...]
     accepted_write_values: tuple[int, ...] | range
     byte_enable: int = 15
+    readable_offsets: tuple[int, ...] = ()
 
     def __post_init__(self):
         if (type(self.component) is not str or not self.component
@@ -30,13 +31,22 @@ class MasterTargetWindow:
                 or self.size < 4 or self.size % 4
                 or self.base + self.size > 1 << 64
                 or type(self.writable_offsets) is not tuple
-                or not self.writable_offsets
                 or any(type(offset) is not int or offset < 0
                        or offset % 4 or offset + 4 > self.size
                        for offset in self.writable_offsets)
                 or len(set(self.writable_offsets)) != len(self.writable_offsets)
+                or type(self.readable_offsets) is not tuple
+                or any(type(offset) is not int or offset < 0
+                       or offset % 4 or offset + 4 > self.size
+                       for offset in self.readable_offsets)
+                or len(set(self.readable_offsets)) != len(self.readable_offsets)
+                or not (self.writable_offsets or self.readable_offsets)
+                or (self.readable_offsets and
+                    (self.component != 'uart' or self.readable_offsets != (0x18,)
+                     or not callable(getattr(self.endpoint,
+                         'read_register', None))))
                 or not isinstance(self.accepted_write_values, (tuple, range))
-                or not self.accepted_write_values
+                or bool(self.accepted_write_values) != bool(self.writable_offsets)
                 or any(type(value) is not int or not 0 <= value <= 0xffffffff
                        for value in self.accepted_write_values)
                 or type(self.byte_enable) is not int or self.byte_enable != 15
@@ -47,17 +57,18 @@ class MasterTargetWindow:
         return self.base <= address and address + 4 <= self.base + self.size
 
     def accepts(self, address, write, value, byte_enable):
-        return (self.contains(address) and write and
-                address - self.base in self.writable_offsets and
-                value in self.accepted_write_values and
-                byte_enable == self.byte_enable)
+        return (self.contains(address) and byte_enable == self.byte_enable and
+                ((write and address - self.base in self.writable_offsets and
+                  value in self.accepted_write_values) or
+                 (not write and address - self.base in self.readable_offsets)))
 
     def identity_document(self):
         values = self.accepted_write_values
         return dict(component=self.component, base=self.base, size=self.size,
             writable_offsets=list(self.writable_offsets),
             accepted_write_values=([values.start, values.stop - 1]
-                if isinstance(values, range) else list(values)),
+                if isinstance(values, range) and values else list(values)),
+            readable_offsets=list(self.readable_offsets),
             byte_enable=self.byte_enable,
             endpoint_identity=self.endpoint.identity_document())
 
@@ -117,6 +128,43 @@ class GeneratedWishboneDmaSession(GeneratedLocalSession):
     def begin_quiesce(self):
         self._quiescing = True
 
+    def _deliver_target(self, key, target, address, write, value):
+        before_tick = target.endpoint.local_ticks
+        before_events = len(target.endpoint.uart_events)
+        rdata = 0
+        if write:
+            target.endpoint.write_register(address-target.base, value, be=15)
+        else:
+            rdata = target.endpoint.read_register(address-target.base)
+            new_reads = [row for row in target.endpoint.uart_events[before_events:]
+                if row.get('kind') == 'uart_rdata_access']
+            observation = new_reads[0] if len(new_reads) == 1 else None
+            if (type(rdata) is not int or not 0 <= rdata <= 255
+                    or type(observation) is not dict
+                    or observation.get('status') != 'observed'
+                    or observation.get('read_value') != rdata
+                    or type(observation.get('access_id')) is not str
+                    or not observation['access_id']
+                    or observation.get('read_capture', {}).get('pre', {}).get(
+                        'probe_uart_fifo_rvalid') != 1
+                    or observation.get('read_capture', {}).get('pre', {}).get(
+                        'probe_uart_fifo_rdata_re') != 1
+                    or observation.get('read_capture', {}).get('pre', {}).get(
+                        'probe_uart_fifo_under_rst') != 0):
+                raise RuntimeError('DMA UART RDATA read lacks real FIFO pop proof')
+        target_receipt = dict(source_transaction=asdict(key),
+            target_component=target.component, address=address,
+            offset=address-target.base, write=write,
+            value=value if write else rdata, byte_enable=15,
+            target_tick_before=before_tick,
+            target_tick_after=target.endpoint.local_ticks,
+            target_event_range=[before_events,
+                len(target.endpoint.uart_events)])
+        if not write:
+            target_receipt['target_access_id'] = observation['access_id']
+            target_receipt['target_uart_access'] = observation
+        return rdata, target_receipt
+
     def step_local(self, *, cyc=0, stb=0, we=0, adr=0, data=0):
         if len(self.events) >= self.max_events:
             raise RuntimeError('DMA edge event capacity exhausted')
@@ -171,18 +219,15 @@ class GeneratedWishboneDmaSession(GeneratedLocalSession):
             rdata = 0
             if not invalid:
                 if target is not None:
-                    before_tick = target.endpoint.local_ticks
-                    before_events = len(target.endpoint.uart_events)
-                    target.endpoint.write_register(address-target.base,
-                        pre['mwb_dat_w'], be=15)
-                    target_receipt = dict(source_transaction=asdict(key),
-                        target_component=target.component, address=address,
-                        offset=address-target.base, write=True,
-                        value=pre['mwb_dat_w'], byte_enable=15,
-                        target_tick_before=before_tick,
-                        target_tick_after=target.endpoint.local_ticks,
-                        target_event_range=[before_events,
-                            len(target.endpoint.uart_events)])
+                    write = bool(pre['mwb_we'])
+                    target_payload = dict(op='master_target_write' if write
+                        else 'master_target_read', address=address,
+                        value=pre['mwb_dat_w'] if write else 0,
+                        byte_enable=15, target_component=target.component,
+                        target_offset=address-target.base)
+                    rdata, target_receipt = self.memory_service.ledger.execute_once(
+                        key, target_payload, lambda: self._deliver_target(
+                            key, target, address, write, pre['mwb_dat_w']))
                     accepted['target_delivery'] = target_receipt
                     event['target_delivery'] = target_receipt
                 elif pre['mwb_we']:
