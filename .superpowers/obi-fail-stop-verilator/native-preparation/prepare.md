@@ -1,0 +1,5 @@
+# Standalone native preparation
+
+Source implementation434a4e8, test source reviewe849298. Remote pristine new root /root/fanzehui/obi-fail-stop-verilator-20261017-434a4e8. Two code files plus pinned pytest.ini, all remote hashes/source inodes verified. Initial control review identified ambient pytest configuration injection; v2 disables plugin autoload, clears ADDOPTS/PLUGINS and uses pinned minimal config/--noconftest/exact selector. Independent v2 review clean. Both preparation versions retained. This is not a full repository checkout or production F4 executor validation.
+
+Remote paths including TMPDIR are entirely under fanzehui; Verilator is inherited from prescribed environment. No model has run at preparation time. Next root command, only when canonical lock is independently free: bash /root/fanzehui/obi-fail-stop-verilator-20261017-434a4e8/run.sh. Wrapper refuses reuse, holds canonical nonblocking fd9, preserves waited pytest result and actual native binary return/stdout/stderr via test JSON, validates skip/fatal/hash status and sourceafter. Any retry requires fresh identity/outputs. No silent Icarus fallback.

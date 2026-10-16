@@ -1,0 +1,1 @@
+{"source_match": true, "files": {"src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv": "59730c6742a85351d6e2cbf284d88185c874080274f323f2364268f2da3440df", "tests/protocols/test_obi_processor_memory_adapter_rtl.py": "3c8aa3aa243edcb8e28754635ca76342c2c75c52232bc3430c29ced54b48f1ff"}, "native_executed": false}
