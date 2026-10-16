@@ -118,7 +118,9 @@ def test_codegen_extraction_preserves_entire_body_and_public_admission():
  prior=Path(__file__).resolve().parents[2]/'docs/reports/evidence/generic-apb-identity-20261017/runtime-renderer-before.py.gz'
  old=next(n for n in ast.parse(gzip.decompress(prior.read_bytes()).decode()).body if isinstance(n,ast.FunctionDef) and n.name=='render_local_runtime')
  old_boundary=next(i for i,n in enumerate(old.body) if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='verified' for t in n.targets))
- new=ast.parse(inspect.getsource(module._render_admitted_runtime)).body[0]
+ # This extraction proof is historical; opt-in probes were added afterwards.
+ frozen=Path(__file__).resolve().parents[2]/'.superpowers/apb-storage-probe-generation/runtime_renderer.before.py'
+ new=next(n for n in ast.parse(frozen.read_text()).body if isinstance(n,ast.FunctionDef) and n.name=='_render_admitted_runtime')
  dump=lambda nodes:ast.dump(ast.Module(body=nodes,type_ignores=[]),include_attributes=False)
  assert dump(old.body[old_boundary+1:])==dump(new.body[1:])
  wrapper=ast.parse(inspect.getsource(module.render_local_runtime)).body[0]

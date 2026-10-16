@@ -172,7 +172,7 @@ def verify_apb_register_trace(artifact):
             artifact.source_verification, Path(__file__).resolve().parents[3], native_raw=False)
         if expected.runtime_sv != artifact.runtime_sv:
             raise ValueError('runtime-projection')
-        for key in ('base_protocol_trace', 'backend_ports', 'runtime_ports',
+        for key in ('storage_observation', 'storage_probe_ports', 'base_protocol_trace', 'backend_ports', 'runtime_ports',
                     'structural_abi', 'clock_schedule', 'physical_exports',
                     'fixed_physical_inputs', 'dynamic_physical_inputs',
                     'bound_physical_inputs', 'functional_scope',

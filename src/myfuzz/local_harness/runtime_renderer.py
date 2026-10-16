@@ -1172,6 +1172,14 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
                          '    .SUPPORTS_PARTIAL_WRITE(0), .HAS_PSLVERR(1),\n'
                          f"    .MAX_WAIT_CYCLES({wait}), .WINDOW_BASE(32'd0), .WINDOW_SIZE(4096)\n"
                          f'  ) u_adapter_{channel} (\n    '+',\n    '.join(f'.{p}({v})' for p,v in pairs.items())+'\n  );')
+    storage_probe = None
+    if kind == 'apb3_register_observe':
+        from .apb_storage_probe_contract import generate_storage_probe
+        storage_probe = generate_storage_probe(plan, wires, base_dir=root)
+        if storage_probe is not None:
+            for row in storage_probe['ports']:
+                ports.append((row['name'], 'output', row['width']))
+                statements.append(f"assign {row['name']} = {row['expression']};")
     module = 'local_runtime_' + plan.request.instance_id
     declarations = [f'{direction} logic [{width-1}:0] {name}' for name,direction,width in ports]
     runtime = ('module ' + module + ' (\n  ' + ',\n  '.join(declarations) + '\n);\n'
@@ -1198,6 +1206,9 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
                     runtime_ports=[dict(name=n,direction=d,width=w) for n,d,w in ports],
                     adapter_sources=adapter_hashes, lint_argv=flags+adapters,
                     wire_schema_version='local_driver.v1', driver_status='not_generated')
+    if storage_probe is not None:
+        document['storage_observation'] = storage_probe
+        document['storage_probe_ports'] = storage_probe['ports']
     if cpu_protocol_traces:
         document['base_protocol_traces'] = dict(schema_version='ip_protocol_trace_set.v1',
             sampling='pre_post', sample_group='protocol_taps', traces=cpu_protocol_traces)
@@ -1348,6 +1359,10 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
         {'path': name, 'sha256': hashlib.sha256((implementation_root / name).read_bytes()).hexdigest()}
         for name in ('src/myfuzz/local_harness/runtime_renderer.py',
                      'src/myfuzz/local_harness/template_contracts.py')]
+    if storage_probe is not None:
+        for name in ('src/myfuzz/local_harness/apb_storage_source_contract.py',
+                     'src/myfuzz/local_harness/apb_storage_probe_contract.py'):
+            implementation_sources.append({'path':name,'sha256':hashlib.sha256((implementation_root/name).read_bytes()).hexdigest()})
     if kind == 'wishbone_dma':
         for name in ('src/myfuzz/local_harness/wishbone_dma_template.py',
                      'src/myfuzz/local_harness/wishbone_dma_fields.py',

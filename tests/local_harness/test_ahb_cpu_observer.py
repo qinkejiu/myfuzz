@@ -29,7 +29,12 @@ def test_renderer_exports_actual_wires_only():
 
 def test_renderer_other_code_ast_unchanged():
  before=gzip.decompress(Path('docs/reports/evidence/cvw-ahb-implementation-20261017/runtime-renderer-before.py.gz').read_bytes()).decode()
- after=Path(renderer.__file__).read_text()
+ # Preserve this historical AHB extraction proof against the pre-storage increment.
+ after=Path('.superpowers/apb-storage-probe-generation/runtime_renderer.before.py').read_text()
+ current=ast.parse(Path(renderer.__file__).read_text())
+ pinned=ast.parse(after)
+ get_ahb=lambda tree:next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='_expose_cpu_ahb_trace')
+ assert ast.dump(get_ahb(current),include_attributes=False)==ast.dump(get_ahb(pinned),include_attributes=False)
  tree=ast.parse(after)
  wrapper=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='render_local_runtime')
  helper=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='_render_admitted_runtime')

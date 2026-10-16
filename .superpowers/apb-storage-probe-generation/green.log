@@ -1,0 +1,25 @@
+..............................................F....                      [100%]
+=================================== FAILURES ===================================
+______ test_codegen_extraction_preserves_entire_body_and_public_admission ______
+
+    def test_codegen_extraction_preserves_entire_body_and_public_admission():
+     import ast,gzip,inspect
+     from pathlib import Path
+     from myfuzz.local_harness import runtime_renderer as module
+     prior=Path(__file__).resolve().parents[2]/'docs/reports/evidence/generic-apb-identity-20261017/runtime-renderer-before.py.gz'
+     old=next(n for n in ast.parse(gzip.decompress(prior.read_bytes()).decode()).body if isinstance(n,ast.FunctionDef) and n.name=='render_local_runtime')
+     old_boundary=next(i for i,n in enumerate(old.body) if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='verified' for t in n.targets))
+     new=ast.parse(inspect.getsource(module._render_admitted_runtime)).body[0]
+     dump=lambda nodes:ast.dump(ast.Module(body=nodes,type_ignores=[]),include_attributes=False)
+>    assert dump(old.body[old_boundary+1:])==dump(new.body[1:])
+E    AssertionError: assert 'Module(body=...e_ignores=[])' == 'Module(body=...e_ignores=[])'
+E      
+E      Skipping 187648 identical leading characters in diff, use -v to show
+E      - [Name(id='storage_probe', ctx=Store())], value=Constant(value=None)), If(test=Compare(left=Name(id='kind', ctx=Load()), ops=[Eq()], comparators=[Constant(value='apb3_register_observe')]), body=[ImportFrom(module='apb_storage_probe_contract', names=[alias(name='generate_storage_probe')], level=1), Assign(targets=[Name(id='storage_probe', ctx=Store())], value=Call(func=Name(id='generate_storage_probe', ctx=Load()), args=[Name(id='plan', ctx=Load()), Name(id='wires', ctx=Load())], keywords=[keyword(arg='...
+E      
+E      ...Full output truncated (2 lines hidden), use '-vv' to show
+
+tests/local_harness/test_generic_apb_trace_verification.py:123: AssertionError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_generic_apb_trace_verification.py::test_codegen_extraction_preserves_entire_body_and_public_admission
+1 failed, 50 passed in 5.58s

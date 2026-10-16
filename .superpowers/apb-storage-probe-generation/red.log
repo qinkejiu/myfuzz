@@ -1,0 +1,32 @@
+F.F                                                                      [100%]
+=================================== FAILURES ===================================
+_______________________ test_optional_selector_roundtrip _______________________
+
+    def test_optional_selector_roundtrip():
+>       tuning = load_local_harness_tuning({'apb_storage_observations': [SELECTOR]})
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_apb_storage_probe_generation.py:9: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+document = {'apb_storage_observations': [{'endpoint_id': 'timer.bus', 'contract_id': 'pulp-apb-timer.ctrl0.source.v1', 'register': 'TIMER0_CTRL'}]}
+
+    def load_local_harness_tuning(document: Mapping[str, object]) -> LocalHarnessTuning:
+        if not isinstance(document, Mapping):
+            raise ValueError('invalid-tuning-document')
+        if set(document) - set(_SCHEMAS):
+>           raise ValueError('unexpected-tuning-fields')
+E           ValueError: unexpected-tuning-fields
+
+src/myfuzz/local_harness/tuning.py:132: ValueError
+____________ test_probe_consumer_rejects_missing_bool_and_overflow _____________
+
+    def test_probe_consumer_rejects_missing_bool_and_overflow():
+>       from myfuzz.local_harness.apb_storage_probe_contract import validate_storage_probe_sample
+E       ModuleNotFoundError: No module named 'myfuzz.local_harness.apb_storage_probe_contract'
+
+tests/local_harness/test_apb_storage_probe_generation.py:21: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_apb_storage_probe_generation.py::test_optional_selector_roundtrip
+FAILED tests/local_harness/test_apb_storage_probe_generation.py::test_probe_consumer_rejects_missing_bool_and_overflow
+2 failed, 1 passed in 0.19s
