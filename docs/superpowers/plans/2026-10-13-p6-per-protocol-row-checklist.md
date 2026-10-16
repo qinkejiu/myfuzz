@@ -169,15 +169,15 @@
 | Pico Wishbone ↔ OpenTitan GPIO TL-UL | **已有**（`gpio_in` 变异 `0x01→0x81`、真实 pin0 上升沿＋sticky IRQ 绑 `irq[3]`、custom0 ISR 读状态/数据、W1C、`retirq`） |
 | Pico Wishbone ↔ ZipCPU wbuart RX IRQ | **已有**（`uart_rx_byte` 变异 `0x35→0xa6`、真实 SETUP 先于 8N1 RX、RX FIFO level IRQ 绑 `irq[3]`、ISR 读 RXREG、FIFO pop 后 IRQ 撤销） |
 | **复用逐例搜索与依赖边反馈** | **缺，但缺口比原记录更窄（2026-10-15 实测更正）** —— campaign 框架已具备（`run_scenario_campaign` ＋ `CampaignProvider`，行 2／行 3 已各用它跑通 18/18 格）；而 **Wishbone 的 CPU 会话本身已存在且已具备 MMIO 路由**：`GeneratedWishboneCpuSession`（`wishbone_cpu`、`max_local_ticks_per_step=1`）**构造即强制要求** `memory` 与 `router`，内部已实现 `router.owns/enqueue/transact` 与 `max_mmio_target_accesses_per_step = 0 if defer_mmio else 1`；真实 RTL 也已在用：`tests/integration/test_scenario_picorv32_wb_opentitan_gpio_irq_real.py` 现场组装 `ScenarioRunner(sessions={'cpu': cpu, 'gpio': gpio}, …)` 跑通。**故真正缺的只有三件**：① **scenario 层 fixture**——`myfuzz.scenario` 下**没有** `make_picorv32_wb_*` runner 工厂（上述测试是在测试文件里内联组装的）；② 一个 **`CampaignProvider`**（现有：`IbexTwoGpioBoundProvider`＝行 1、`Cva6TwoGpioBoundProvider`＝行 2，行 3 的 `AxilUartCpuBoundProvider` 为本轮新增）；③ 一份**保留 Pico `custom0` IRQ ABI**（getq/maskirq/retirq，非标准 machine-mode CSR）的闭环 checker，外加 bound／independent 两份 manifest。 |
-| **本行结论** | **未通过。** 本地与双向路径、ISR 全部已有且证据扎实，**只差接进持续会话框架并保留自定义 IRQ ABI** |
+| **本行结论（2026-10-15 更新）** | **未通过，缺口已收窄为三件具体东西** —— 本地验收、双向路径与真实 ISR 全部已有；campaign 框架已具备（行 2／行 3 各跑通 18/18），**Wishbone CPU 会话也已存在且已具备 MMIO 路由**（`GeneratedWishboneCpuSession` 构造即强制要求 `memory`＋`router`，内部已实现 `owns/enqueue/transact`）。**真正缺的只有**：① scenario 层 fixture（`myfuzz.scenario` 下没有 `make_picorv32_wb_*` 工厂，现有真 RTL 测试是在测试文件里内联组装的）；② 一个 `CampaignProvider`；③ 一份**保留 Pico `custom0` IRQ ABI**（getq/maskirq/retirq，非 machine-mode CSR）的闭环 checker，外加两份 manifest。 |
 
 ### 行 5：Pico 原生 Ready/Valid Memory ｜ 首选 CPU：PicoRV32 native ｜ 首选 IP：PULP APB3 GPIO 或 OpenTitan TL-UL GPIO
 
 | 项 | 状态 |
 |---|---|
 | PicoRV32 native 的 CPU RAM/ROM | **已有**（`ready-valid-memory/1`，真实两轮 Store/Load、持久 RAM、fresh replay） |
-| **新增受约束 MMIO 目标与真实 IP 消费链** | **缺** —— 当前 `picorv32` profile **只有 1 个 `memory_master` 端点、无任何 MMIO 窗口**；该协议形态尚无 MMIO 路由器 |
-| **本行结论** | **未通过，且缺口最大。** 需要**新增**：该协议形态下的受约束 MMIO 目标、地址窗口声明、以及到真实 GPIO 的消费链。这是五行中唯一需要**新增协议能力**而非"接线已有能力"的一行 |
+| **新增受约束 MMIO 目标与真实 IP 消费链** | **已有（2026-10-15 真实 RTL 双向，Root 复跑核对）** —— `GeneratedNativeMemorySession` 新增**可选** `DataflowRouter`：落在已声明设备窗口内的 beat 交给**真实目标**应答、窗口外仍走 RAM、**无 router 时逐字节不变**（旧路径分毫未动）；有 router 时才声明 `max_mmio_target_accesses_per_step = 1`。真实 RTL 事实（pinned `picorv32` ＋ pinned PULP APB3 GPIO，91 个 CPU tick）：`deliveries=[(0x40000000,W,0xffffffff),(0x40000004,W,0xffffffff),(0x4000000c,W,0x5a),(0x40000008,R,0x5a)]`、mmio 写/读=3/1、设备回读 `PADIN=0x5a`／`PADOUT=0x5a`、**真实引脚** `gpio_out=0x5a`／`gpio_dir=0xffffffff`／`gpio_in_sync=0x5a`、CPU 把设备值存回 RAM（`RAM[0x100]=0x5a`）；并有 `ScenarioRunner`＋记录/重放的单例 `status=complete`、`replay matches=True`。测试 `tests/local_harness/test_native_mmio_routing.py`（9）＋`tests/integration/test_native_cpu_pulp_gpio_chain_real.py`（6），本轮 Root 复跑 **15 passed**；RED 能力由两份 scratch 变异给出（禁用 router 分支 → 6 failed；忽略窗口边界 → 4 failed）。 |
+| **本行结论（2026-10-15 更新）** | **原缺口已闭合，但本行不升级为「通过」** —— 原记「缺口最大」是因为**该协议形态下没有受约束 MMIO 目标、没有地址窗口声明、也没有到真实 GPIO 的消费链**；这三项已由上一格的真实 RTL 双向证据补齐，并有 RED 守卫。**仍未做**：多例持续会话＋逐例双侧源、四类反馈边（stage/edge/state/closed-loop hit）、IRQ→handler（该 profile `ENABLE_IRQ=0`）、本组合的受控错误负例、`defer_mmio` 排队式 MMIO、路由状态入身份（被身份闭集挡住）。**故按本清单口径仍记「未通过」**，但不再是「缺口最大」。 |
 
 ### 额外：计划要求"至少一个非 Ibex＋非 GPIO 组合证明受控错误由 checker 捕获"
 
