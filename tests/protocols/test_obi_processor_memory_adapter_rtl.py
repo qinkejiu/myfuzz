@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import shutil
 import subprocess
 import tempfile
@@ -12,15 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 RTL = ROOT / "src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv"
 
 
-class ObiProcessorMemoryAdapterRtlTests(unittest.TestCase):
-    def test_backend_error_fail_stops_when_cpu_has_no_obi_error_channel(self) -> None:
-        iverilog, vvp = shutil.which("iverilog"), shutil.which("vvp")
-        if not iverilog or not vvp:
-            self.skipTest("Icarus Verilog is not installed")
-        with tempfile.TemporaryDirectory() as directory:
-            output = Path(directory) / "no_error.vvp"
-            tb = Path(directory) / "no_error.sv"
-            tb.write_text(textwrap.dedent("""
+NO_ERROR_TESTBENCH = textwrap.dedent("""
                 module tb;
                   logic clk_i=0, rst_ni=0, req_i=0, gnt_o, we_i=0;
                   logic [31:0] addr_i=0, wdata_i=0;
@@ -37,7 +31,18 @@ class ObiProcessorMemoryAdapterRtlTests(unittest.TestCase):
                     $fatal(1, "backend error was silently accepted");
                   end
                 endmodule
-            """), encoding="utf-8")
+            """)
+
+
+class ObiProcessorMemoryAdapterRtlTests(unittest.TestCase):
+    def test_backend_error_fail_stops_when_cpu_has_no_obi_error_channel(self) -> None:
+        iverilog, vvp = shutil.which("iverilog"), shutil.which("vvp")
+        if not iverilog or not vvp:
+            self.skipTest("Icarus Verilog is not installed")
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "no_error.vvp"
+            tb = Path(directory) / "no_error.sv"
+            tb.write_text(NO_ERROR_TESTBENCH, encoding="utf-8")
             compiled = subprocess.run(
                 [iverilog, "-g2012", "-s", "tb", "-o", str(output), str(RTL), str(tb)],
                 cwd=ROOT, text=True, capture_output=True, timeout=20,
@@ -45,6 +50,32 @@ class ObiProcessorMemoryAdapterRtlTests(unittest.TestCase):
             self.assertEqual(0, compiled.returncode, compiled.stderr)
             result = subprocess.run([vvp, str(output)], cwd=ROOT, text=True,
                                     capture_output=True, timeout=20)
+            self.assertNotEqual(0, result.returncode, result.stdout + result.stderr)
+            self.assertIn("OBI backend error cannot be represented", result.stdout + result.stderr)
+
+    def test_backend_error_fail_stops_when_cpu_has_no_obi_error_channel_verilator(self) -> None:
+        """Explicit tool variant: identical RTL, stimulus and fatal assertions."""
+        verilator = shutil.which("verilator")
+        if not verilator:
+            self.skipTest("Verilator is not installed")
+        with tempfile.TemporaryDirectory(prefix="obi-no-error-verilator-") as directory:
+            work = Path(directory)
+            tb = work / "no_error.sv"
+            tb.write_text(NO_ERROR_TESTBENCH, encoding="utf-8")
+            command = [verilator, "--binary", "--timing", "--assert", "-Wno-fatal",
+                       "--top-module", "tb", "--Mdir", str(work / "obj"),
+                       "-j", "1", "-o", "no_error", str(RTL), str(tb)]
+            compiled = subprocess.run(command, cwd=work, text=True,
+                                      capture_output=True, timeout=180)
+            print("OBI_FAIL_STOP_BUILD " + json.dumps(dict(command=command,
+                adapter_sha256=hashlib.sha256(RTL.read_bytes()).hexdigest(),
+                testbench_sha256=hashlib.sha256(tb.read_bytes()).hexdigest(),
+                returncode=compiled.returncode, stdout=compiled.stdout, stderr=compiled.stderr)))
+            self.assertEqual(0, compiled.returncode, compiled.stdout + compiled.stderr)
+            result = subprocess.run([str(work / "obj/no_error")], cwd=work,
+                                    text=True, capture_output=True, timeout=20)
+            print("OBI_FAIL_STOP_RESULT " + json.dumps(dict(returncode=result.returncode,
+                stdout=result.stdout, stderr=result.stderr)))
             self.assertNotEqual(0, result.returncode, result.stdout + result.stderr)
             self.assertIn("OBI backend error cannot be represented", result.stdout + result.stderr)
 

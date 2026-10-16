@@ -1,0 +1,111 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+_________ test_same_tb_verilator_build_and_nonzero_fatal_are_required __________
+
+capsys = <_pytest.capture.CaptureFixture object at 0x7c97b4de5460>
+
+    def test_same_tb_verilator_build_and_nonzero_fatal_are_required(capsys):
+>       calls=invoke().call_args_list
+              ^^^^^^^^
+
+tests/protocols/test_obi_fail_stop_verilator_control.py:18: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+compile_rc = 0, native_rc = 134
+native_text = 'OBI backend error cannot be represented'
+
+    def invoke(compile_rc=0, native_rc=134, native_text='OBI backend error cannot be represented'):
+        case=adapter_tests.ObiProcessorMemoryAdapterRtlTests()
+        replies=[subprocess.CompletedProcess([],compile_rc,'compile stdout','compile stderr'),
+                 subprocess.CompletedProcess([],native_rc,native_text,'native stderr')]
+        with patch('shutil.which',return_value='/tools/verilator'),patch('subprocess.run',side_effect=replies) as run:
+>           case.test_backend_error_fail_stops_when_cpu_has_no_obi_error_channel_verilator()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'ObiProcessorMemoryAdapterRtlTests' object has no attribute 'test_backend_error_fail_stops_when_cpu_has_no_obi_error_channel_verilator'
+
+tests/protocols/test_obi_fail_stop_verilator_control.py:13: AttributeError
+_ test_build_failure_zero_exit_and_wrong_fatal_are_not_passes[1-134-OBI backend error cannot be represented] _
+
+compile_rc = 1, native_rc = 134
+text = 'OBI backend error cannot be represented'
+
+    @pytest.mark.parametrize('compile_rc,native_rc,text',[(1,134,'OBI backend error cannot be represented'),
+        (0,0,'OBI backend error cannot be represented'),(0,134,'backend error was silently accepted')])
+    def test_build_failure_zero_exit_and_wrong_fatal_are_not_passes(compile_rc,native_rc,text):
+>       with pytest.raises(AssertionError):invoke(compile_rc,native_rc,text)
+                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/protocols/test_obi_fail_stop_verilator_control.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+compile_rc = 1, native_rc = 134
+native_text = 'OBI backend error cannot be represented'
+
+    def invoke(compile_rc=0, native_rc=134, native_text='OBI backend error cannot be represented'):
+        case=adapter_tests.ObiProcessorMemoryAdapterRtlTests()
+        replies=[subprocess.CompletedProcess([],compile_rc,'compile stdout','compile stderr'),
+                 subprocess.CompletedProcess([],native_rc,native_text,'native stderr')]
+        with patch('shutil.which',return_value='/tools/verilator'),patch('subprocess.run',side_effect=replies) as run:
+>           case.test_backend_error_fail_stops_when_cpu_has_no_obi_error_channel_verilator()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'ObiProcessorMemoryAdapterRtlTests' object has no attribute 'test_backend_error_fail_stops_when_cpu_has_no_obi_error_channel_verilator'
+
+tests/protocols/test_obi_fail_stop_verilator_control.py:13: AttributeError
+_ test_build_failure_zero_exit_and_wrong_fatal_are_not_passes[0-0-OBI backend error cannot be represented] _
+
+compile_rc = 0, native_rc = 0, text = 'OBI backend error cannot be represented'
+
+    @pytest.mark.parametrize('compile_rc,native_rc,text',[(1,134,'OBI backend error cannot be represented'),
+        (0,0,'OBI backend error cannot be represented'),(0,134,'backend error was silently accepted')])
+    def test_build_failure_zero_exit_and_wrong_fatal_are_not_passes(compile_rc,native_rc,text):
+>       with pytest.raises(AssertionError):invoke(compile_rc,native_rc,text)
+                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/protocols/test_obi_fail_stop_verilator_control.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+compile_rc = 0, native_rc = 0
+native_text = 'OBI backend error cannot be represented'
+
+    def invoke(compile_rc=0, native_rc=134, native_text='OBI backend error cannot be represented'):
+        case=adapter_tests.ObiProcessorMemoryAdapterRtlTests()
+        replies=[subprocess.CompletedProcess([],compile_rc,'compile stdout','compile stderr'),
+                 subprocess.CompletedProcess([],native_rc,native_text,'native stderr')]
+        with patch('shutil.which',return_value='/tools/verilator'),patch('subprocess.run',side_effect=replies) as run:
+>           case.test_backend_error_fail_stops_when_cpu_has_no_obi_error_channel_verilator()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'ObiProcessorMemoryAdapterRtlTests' object has no attribute 'test_backend_error_fail_stops_when_cpu_has_no_obi_error_channel_verilator'
+
+tests/protocols/test_obi_fail_stop_verilator_control.py:13: AttributeError
+_ test_build_failure_zero_exit_and_wrong_fatal_are_not_passes[0-134-backend error was silently accepted] _
+
+compile_rc = 0, native_rc = 134, text = 'backend error was silently accepted'
+
+    @pytest.mark.parametrize('compile_rc,native_rc,text',[(1,134,'OBI backend error cannot be represented'),
+        (0,0,'OBI backend error cannot be represented'),(0,134,'backend error was silently accepted')])
+    def test_build_failure_zero_exit_and_wrong_fatal_are_not_passes(compile_rc,native_rc,text):
+>       with pytest.raises(AssertionError):invoke(compile_rc,native_rc,text)
+                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/protocols/test_obi_fail_stop_verilator_control.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+compile_rc = 0, native_rc = 134
+native_text = 'backend error was silently accepted'
+
+    def invoke(compile_rc=0, native_rc=134, native_text='OBI backend error cannot be represented'):
+        case=adapter_tests.ObiProcessorMemoryAdapterRtlTests()
+        replies=[subprocess.CompletedProcess([],compile_rc,'compile stdout','compile stderr'),
+                 subprocess.CompletedProcess([],native_rc,native_text,'native stderr')]
+        with patch('shutil.which',return_value='/tools/verilator'),patch('subprocess.run',side_effect=replies) as run:
+>           case.test_backend_error_fail_stops_when_cpu_has_no_obi_error_channel_verilator()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'ObiProcessorMemoryAdapterRtlTests' object has no attribute 'test_backend_error_fail_stops_when_cpu_has_no_obi_error_channel_verilator'
+
+tests/protocols/test_obi_fail_stop_verilator_control.py:13: AttributeError
+=========================== short test summary info ============================
+FAILED tests/protocols/test_obi_fail_stop_verilator_control.py::test_same_tb_verilator_build_and_nonzero_fatal_are_required
+FAILED tests/protocols/test_obi_fail_stop_verilator_control.py::test_build_failure_zero_exit_and_wrong_fatal_are_not_passes[1-134-OBI backend error cannot be represented]
+FAILED tests/protocols/test_obi_fail_stop_verilator_control.py::test_build_failure_zero_exit_and_wrong_fatal_are_not_passes[0-0-OBI backend error cannot be represented]
+FAILED tests/protocols/test_obi_fail_stop_verilator_control.py::test_build_failure_zero_exit_and_wrong_fatal_are_not_passes[0-134-backend error was silently accepted]
+4 failed in 0.04s
