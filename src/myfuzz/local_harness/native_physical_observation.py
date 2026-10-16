@@ -154,7 +154,9 @@ def verify_apb_register_trace(artifact):
     if kind != 'apb3_register_observe':
         return False
     from .apb3_register_template import register_observe_policy
-    from .runtime_renderer import _APB
+    from .runtime_renderer import _APB, _render_admitted_runtime
+    from .renderer import render_local_harness
+    from pathlib import Path
     import re
     try:
         if (document.get('base_event_schema_version') != 'ip_base_event.v1'
@@ -163,6 +165,21 @@ def verify_apb_register_trace(artifact):
                 or document.get('runtime_sv_sha256') != hashlib.sha256(artifact.runtime_sv.encode()).hexdigest()):
             raise ValueError('schema')
         register_observe_policy(artifact.plan, artifact.structural.abi_document['ports'])
+        expected_structure = render_local_harness(artifact.plan)
+        if expected_structure != artifact.structural:
+            raise ValueError('structural-projection')
+        expected = _render_admitted_runtime(artifact.plan, expected_structure,
+            artifact.source_verification, Path(__file__).resolve().parents[3], native_raw=False)
+        if expected.runtime_sv != artifact.runtime_sv:
+            raise ValueError('runtime-projection')
+        for key in ('base_protocol_trace', 'backend_ports', 'runtime_ports',
+                    'structural_abi', 'clock_schedule', 'physical_exports',
+                    'fixed_physical_inputs', 'dynamic_physical_inputs',
+                    'bound_physical_inputs', 'functional_scope',
+                    'effective_max_wait_cycles', 'boot_contract', 'plan'):
+            if json.dumps(document.get(key), sort_keys=True, allow_nan=False) != json.dumps(
+                    expected.runtime_document.get(key), sort_keys=True, allow_nan=False):
+                raise ValueError('metadata-projection:' + key)
         _verify_native_apb_trace(artifact)
         # JSON equality preserves bool/int distinctions and catches duplicate
         # runtime declarations. The existing trace validator checks backend rows.

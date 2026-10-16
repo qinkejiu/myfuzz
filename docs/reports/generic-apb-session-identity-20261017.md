@@ -19,3 +19,11 @@
 后续新增 `verify_apb_register_trace`，对 generic APB 会话从模板/结构 ABI 重建8个原生 APB role 的实际 `link_*` 线网、时钟、等待界限、trace/backend/runtime 端口与唯一 assign，并核对生成 runtime 字节哈希。保留原生 GPIO 现有校验入口；没有给 generic 会话伪造 IRQ 别名、GPIO probe 或 native observation contract。
 
 定向 writer 的诊断路径现可消费 `apb3_register_observe`，仍逐跳要求实际 CPU 接受、Router 交付、同 producer_event 的原生 APB pre 样本、真实读回以及随后 RAM commit。结果继续 `runtime_admitted=false`、`register_version_authenticated=false`；这个只读事件关联不能充当 live prerequisite。新增软件控制先4项 RED，再与身份控制一起70项通过8.41秒；后补第二驱动且重算 hash、legacy verifier dispatch 控制的最终结果见对应 source receipt。未运行新的原生 GPIO/timer CPU 链。
+
+## 独立审查修复：必须重建完整生成文本
+
+审查发现中等级缺口：调用者可把期待的 `assign trace_psel` 留在注释里、另用 procedural 常量驱动，再重算公开 hash；初版文字计数仍接受。根代理又复现实际组件连接脱离但保留 trace link 名字的反例，合计4项 RED，均为软件构造攻击，不是 DUT finding。
+
+修复把运行期渲染器在既有 `_admit` 之后的生成主体原样提取到私有纯函数。公共入口的完整原 admission 前缀与生成主体 AST 逐项相等；公开 source/参数/事实验证未跳过。诊断校验从已获准的 plan 重建结构 wrapper、完整 runtime SV 和规范 trace/端口/输入归属投影，拒绝注释伪装、procedural 假抽头和 DUT 连接篡改。纯重投影不重新调用 `_admit` 或 frontend，也不授予 source status；独立严格会话重建仍负责验证实际来源与构建身份。
+
+最终82项纯软件控制通过9.61秒，包含两类4项反例、完整生成主体/公共 admission 不变控制、wrapper 篡改拒绝及不调用 frontend 控制。旧 native 证据仍分别绑定其原始源码；当前修复没有被记成新的原生门。

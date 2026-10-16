@@ -87,3 +87,56 @@ def test_legacy_gpio_dispatch_keeps_existing_native_verifier(monkeypatch):
  calls=[]
  monkeypatch.setattr(module,'verify_native_physical_observation',lambda actual:calls.append(actual) or True)
  assert module.verify_apb_register_trace(artifact) is True and calls==[artifact]
+
+
+def test_commented_expected_assign_cannot_hide_procedural_fake_tap(generated):
+ import hashlib,re
+ artifact,_=generated
+ assignment=re.search(r'assign trace_psel = [^;]+;',artifact.runtime_sv).group()
+ text=artifact.runtime_sv.replace(assignment,"// "+assignment+"\nalways_comb trace_psel = 1'b0;",1)
+ doc=copy.deepcopy(artifact.runtime_document);doc['runtime_sv_sha256']=hashlib.sha256(text.encode()).hexdigest()
+ with pytest.raises(ValueError):verifier()(replace(artifact,runtime_document=doc,runtime_sv=text))
+
+
+def test_trace_cannot_preserve_name_while_detaching_native_component(generated):
+ import hashlib
+ artifact,_=generated
+ # The trace still sees the named link, but the generated component's input is
+ # detached. A caller-recomputed JSON checksum cannot authenticate this text.
+ import re
+ match=re.search(r'\.([A-Za-z0-9_]+)\((link_[A-Za-z0-9_]+)\)',artifact.runtime_sv)
+ assert match
+ text=artifact.runtime_sv[:match.start()]+'.'+match.group(1)+"('0)"+artifact.runtime_sv[match.end():]
+ doc=copy.deepcopy(artifact.runtime_document);doc['runtime_sv_sha256']=hashlib.sha256(text.encode()).hexdigest()
+ with pytest.raises(ValueError):verifier()(replace(artifact,runtime_document=doc,runtime_sv=text))
+
+
+def test_codegen_extraction_preserves_entire_body_and_public_admission():
+ import ast,gzip,inspect
+ from pathlib import Path
+ from myfuzz.local_harness import runtime_renderer as module
+ prior=Path(__file__).resolve().parents[2]/'docs/reports/evidence/generic-apb-identity-20261017/runtime-renderer-before.py.gz'
+ old=next(n for n in ast.parse(gzip.decompress(prior.read_bytes()).decode()).body if isinstance(n,ast.FunctionDef) and n.name=='render_local_runtime')
+ old_boundary=next(i for i,n in enumerate(old.body) if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='verified' for t in n.targets))
+ new=ast.parse(inspect.getsource(module._render_admitted_runtime)).body[0]
+ dump=lambda nodes:ast.dump(ast.Module(body=nodes,type_ignores=[]),include_attributes=False)
+ assert dump(old.body[old_boundary+1:])==dump(new.body[1:])
+ wrapper=ast.parse(inspect.getsource(module.render_local_runtime)).body[0]
+ assert dump(wrapper.body[:-1])==dump(old.body[:old_boundary+1])
+ assert isinstance(wrapper.body[-1],ast.Return)
+ assert wrapper.body[-1].value.func.id=='_render_admitted_runtime'
+
+
+def test_trace_reprojection_never_calls_frontend_or_readmits(generated,monkeypatch):
+ from myfuzz.local_harness import runtime_renderer as module
+ artifact,_=generated
+ def forbidden(*a,**kw):raise AssertionError('trace projection must not invoke admission/frontend')
+ monkeypatch.setattr(module,'_admit',forbidden)
+ monkeypatch.setattr(module,'elaborate_profile',forbidden)
+ assert verifier()(artifact) is True
+
+
+def test_trace_reprojection_refuses_altered_structural_wrapper(generated):
+ artifact,_=generated
+ changed=replace(artifact.structural,wrapper_sv=artifact.structural.wrapper_sv+'\n// changed\n')
+ with pytest.raises(ValueError):verifier()(replace(artifact,structural=changed))

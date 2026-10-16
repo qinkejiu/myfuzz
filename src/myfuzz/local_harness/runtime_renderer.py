@@ -300,6 +300,16 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
     from .native_physical_observation import native_physical_observation_requested
     native_raw = native_physical_observation_requested(plan.request)
     verified = _admit(plan, structural, source_verification, root)
+    return _render_admitted_runtime(plan, structural, verified, root, native_raw=native_raw)
+
+
+def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
+    """Pure code generation from admitted values; this grants no source status.
+
+    Keep admission in render_local_runtime. Consumers may reproduce the exact
+    generated projection without repeating frontend/tool work, but must obtain
+    their plan/structural/source facts through the normal admission boundary.
+    """
     clock_schedule = build_local_clock_schedule(plan.profile.clocks, plan.profile.resets,
         reset_assert_ticks=plan.request.reset_assert_ticks,
         reset_release_ticks=plan.request.reset_release_ticks)

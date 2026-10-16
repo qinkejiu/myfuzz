@@ -1,0 +1,72 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+____ test_commented_expected_assign_cannot_hide_procedural_fake_tap[timer] _____
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequestV2(profile_path='configs/peripherals/pulp_timer...dad670adbe734ce'}), <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x7cecb91dcc50>)
+
+    def test_commented_expected_assign_cannot_hide_procedural_fake_tap(generated):
+     import hashlib,re
+     artifact,_=generated
+     assignment=re.search(r'assign trace_psel = [^;]+;',artifact.runtime_sv).group()
+     text=artifact.runtime_sv.replace(assignment,"// "+assignment+"\nalways_comb trace_psel = 1'b0;",1)
+     doc=copy.deepcopy(artifact.runtime_document);doc['runtime_sv_sha256']=hashlib.sha256(text.encode()).hexdigest()
+>    with pytest.raises(ValueError):verifier()(replace(artifact,runtime_document=doc,runtime_sv=text))
+E    Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_generic_apb_trace_verification.py:98: Failed
+_____ test_commented_expected_assign_cannot_hide_procedural_fake_tap[gpio] _____
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequestV2(profile_path='configs/peripherals/pulp_gpio/...1846fd2739ddbbd'}), <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x7cecb9055f40>)
+
+    def test_commented_expected_assign_cannot_hide_procedural_fake_tap(generated):
+     import hashlib,re
+     artifact,_=generated
+     assignment=re.search(r'assign trace_psel = [^;]+;',artifact.runtime_sv).group()
+     text=artifact.runtime_sv.replace(assignment,"// "+assignment+"\nalways_comb trace_psel = 1'b0;",1)
+     doc=copy.deepcopy(artifact.runtime_document);doc['runtime_sv_sha256']=hashlib.sha256(text.encode()).hexdigest()
+>    with pytest.raises(ValueError):verifier()(replace(artifact,runtime_document=doc,runtime_sv=text))
+E    Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_generic_apb_trace_verification.py:98: Failed
+___ test_trace_cannot_preserve_name_while_detaching_native_component[timer] ____
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequestV2(profile_path='configs/peripherals/pulp_timer...dad670adbe734ce'}), <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x7cecb90ac950>)
+
+    def test_trace_cannot_preserve_name_while_detaching_native_component(generated):
+     import hashlib
+     artifact,_=generated
+     # The trace still sees the named link, but the generated component's input is
+     # detached. A caller-recomputed JSON checksum cannot authenticate this text.
+     import re
+     match=re.search(r'\.([A-Za-z0-9_]+)\((link_[A-Za-z0-9_]+)\)',artifact.runtime_sv)
+     assert match
+     text=artifact.runtime_sv[:match.start()]+'.'+match.group(1)+"('0)"+artifact.runtime_sv[match.end():]
+     doc=copy.deepcopy(artifact.runtime_document);doc['runtime_sv_sha256']=hashlib.sha256(text.encode()).hexdigest()
+>    with pytest.raises(ValueError):verifier()(replace(artifact,runtime_document=doc,runtime_sv=text))
+E    Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_generic_apb_trace_verification.py:111: Failed
+____ test_trace_cannot_preserve_name_while_detaching_native_component[gpio] ____
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequestV2(profile_path='configs/peripherals/pulp_gpio/...1846fd2739ddbbd'}), <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x7cecb8fd4590>)
+
+    def test_trace_cannot_preserve_name_while_detaching_native_component(generated):
+     import hashlib
+     artifact,_=generated
+     # The trace still sees the named link, but the generated component's input is
+     # detached. A caller-recomputed JSON checksum cannot authenticate this text.
+     import re
+     match=re.search(r'\.([A-Za-z0-9_]+)\((link_[A-Za-z0-9_]+)\)',artifact.runtime_sv)
+     assert match
+     text=artifact.runtime_sv[:match.start()]+'.'+match.group(1)+"('0)"+artifact.runtime_sv[match.end():]
+     doc=copy.deepcopy(artifact.runtime_document);doc['runtime_sv_sha256']=hashlib.sha256(text.encode()).hexdigest()
+>    with pytest.raises(ValueError):verifier()(replace(artifact,runtime_document=doc,runtime_sv=text))
+E    Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_generic_apb_trace_verification.py:111: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_generic_apb_trace_verification.py::test_commented_expected_assign_cannot_hide_procedural_fake_tap[timer]
+FAILED tests/local_harness/test_generic_apb_trace_verification.py::test_commented_expected_assign_cannot_hide_procedural_fake_tap[gpio]
+FAILED tests/local_harness/test_generic_apb_trace_verification.py::test_trace_cannot_preserve_name_while_detaching_native_component[timer]
+FAILED tests/local_harness/test_generic_apb_trace_verification.py::test_trace_cannot_preserve_name_while_detaching_native_component[gpio]
+4 failed, 35 deselected in 0.54s
