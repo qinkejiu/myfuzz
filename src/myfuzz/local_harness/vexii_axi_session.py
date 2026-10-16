@@ -12,6 +12,7 @@ from .runtime_artifact import LocalRuntimeArtifact
 from .session import GeneratedLocalSession
 from .vexii_axi_fields import SHAPES, STEP_PORTS
 from myfuzz.scenario.router import DataflowRouter
+from myfuzz.scenario.reduced_axi_events import ReducedAxiObserver
 
 
 class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
@@ -54,6 +55,9 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
         return () if router is None else router.cancel_for_ledger(self.service.ledger)
 
     def _clear(self):
+        if not hasattr(self, '_axi_observer'):
+            self._axi_observer = ReducedAxiObserver(component_id=self.source_component)
+            self.runtime_events = self._axi_observer.events
         self._state = {p: {'read': None, 'aw': None, 'w': None, 'b': None}
                        for p in SHAPES}
         self._sequences = {'i': 0, 'd': 0}
@@ -64,12 +68,15 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
         return {**super().identity_document(),
                 'cpu_service_schema_version': 'generated_reduced_dual_axi_queued_mmio.v2',
                 'source_component': self.source_component,
+                'axi_observation_contract': copy.deepcopy(self._axi_observer.contract),
                 'transaction_execution_identity': 'native_session',
                 'mmio_delivery': 'externally_scheduled' if getattr(self, 'mmio_router', None) else 'disabled'}
 
     def begin_case(self, testcase_id):
         super().begin_case(testcase_id)
         self._clear()
+        self._axi_observer.begin_scope(execution_id=self._execution,
+            testcase_id=self._case_id, reset_epoch=self.reset_epoch)
 
     @property
     def pending_responses(self):
@@ -80,6 +87,7 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
         self._quiescing = True
 
     def reset_local(self):
+        self._axi_observer.end_scope()
         cancelled = self.pending_responses
         cancelled_targets = self.cancel_mmio()
         self._clear()
@@ -119,6 +127,13 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
     def step_local(self, inputs: Mapping[str, int]):
         if not isinstance(inputs, Mapping) or inputs:
             raise ValueError('reduced AXI RAM session accepts no external inputs')
+        if self._axi_observer.scope is None:
+            self._axi_observer.begin_scope(execution_id=self._execution,
+                testcase_id=self._case_id, reset_epoch=self.reset_epoch)
+        try:
+            self._axi_observer.require_active()
+        except ValueError as exc:
+            raise ProtocolEnvironmentError(str(exc)) from exc
         values = self._ready_inputs()
         receipt = self.command('STEP_REDUCED_AXI', tuple(values[name] for name in STEP_PORTS))
         if receipt.status == 'error':
@@ -138,6 +153,10 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
                 or payload['samples'][0].get('pre', {}).get('backend') != pre):
             raise ProtocolEnvironmentError('invalid reduced AXI physical observation')
         self.last_samples = tuple(copy.deepcopy(payload['samples']))
+        try:
+            self._axi_observer.observe(self.last_samples[0])
+        except ValueError as exc:
+            raise ProtocolEnvironmentError(str(exc)) from exc
         observed = {}
         for prefix, shape in SHAPES.items():
             row = {role: pre[prefix+'_'+role] for role in shape}

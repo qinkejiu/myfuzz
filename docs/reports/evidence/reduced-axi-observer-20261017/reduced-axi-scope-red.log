@@ -1,0 +1,26 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________________ test_scope_budget_bounds_reset_only_stream __________________
+
+    def test_scope_budget_bounds_reset_only_stream():
+>    o=observer(max_scopes=1)
+       ^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:153: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {'max_scopes': 1}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+      pytest.fail('receipt-bound reduced AXI observer is missing')
+>    return axi.ReducedAxiObserver(component_id='renamed-source', **kw)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    TypeError: ReducedAxiObserver.__init__() got an unexpected keyword argument 'max_scopes'
+
+tests/scenario/test_reduced_axi_events.py:28: TypeError
+=========================== short test summary info ============================
+FAILED tests/scenario/test_reduced_axi_events.py::test_scope_budget_bounds_reset_only_stream
+1 failed, 25 deselected in 0.21s

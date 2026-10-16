@@ -1,0 +1,1193 @@
+FFFFFFFFFFFFFFFFFFFFFF                                                   [100%]
+=================================== FAILURES ===================================
+_______________________ test_saved_native_prefix[first] ________________________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+name = 'first'
+
+    @pytest.mark.parametrize('name',SHA)
+    def test_saved_native_prefix(name):
+>    o=replay(name)
+       ^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:30: in replay
+    d=saved(name);o=observer();o.begin_scope(execution_id=d['execution'],testcase_id='case',reset_epoch=0)
+                    ^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+_______________________ test_saved_native_prefix[fresh] ________________________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+name = 'fresh'
+
+    @pytest.mark.parametrize('name',SHA)
+    def test_saved_native_prefix(name):
+>    o=replay(name)
+       ^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:30: in replay
+    d=saved(name);o=observer();o.begin_scope(execution_id=d['execution'],testcase_id='case',reset_epoch=0)
+                    ^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+_______________________ test_saved_native_prefix[fault] ________________________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+name = 'fault'
+
+    @pytest.mark.parametrize('name',SHA)
+    def test_saved_native_prefix(name):
+>    o=replay(name)
+       ^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:30: in replay
+    d=saved(name);o=observer();o.begin_scope(execution_id=d['execution'],testcase_id='case',reset_epoch=0)
+                    ^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+_____________________ test_saved_native_prefix[mmio-first] _____________________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+name = 'mmio-first'
+
+    @pytest.mark.parametrize('name',SHA)
+    def test_saved_native_prefix(name):
+>    o=replay(name)
+       ^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:30: in replay
+    d=saved(name);o=observer();o.begin_scope(execution_id=d['execution'],testcase_id='case',reset_epoch=0)
+                    ^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+_____________________ test_saved_native_prefix[mmio-fresh] _____________________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+name = 'mmio-fresh'
+
+    @pytest.mark.parametrize('name',SHA)
+    def test_saved_native_prefix(name):
+>    o=replay(name)
+       ^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:30: in replay
+    d=saved(name);o=observer();o.begin_scope(execution_id=d['execution'],testcase_id='case',reset_epoch=0)
+                    ^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+_____________________ test_saved_native_prefix[mmio-fault] _____________________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+name = 'mmio-fault'
+
+    @pytest.mark.parametrize('name',SHA)
+    def test_saved_native_prefix(name):
+>    o=replay(name)
+       ^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:30: in replay
+    d=saved(name);o=observer();o.begin_scope(execution_id=d['execution'],testcase_id='case',reset_epoch=0)
+                    ^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+_______ test_full_prefix_fresh_equivalence_only_execution_scope_differs ________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_full_prefix_fresh_equivalence_only_execution_scope_differs():
+>    a,b=replay('first'),replay('fresh')
+         ^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:30: in replay
+    d=saved(name);o=observer();o.begin_scope(execution_id=d['execution'],testcase_id='case',reset_epoch=0)
+                    ^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+_____ test_real_response_mutation_keeps_failure_edge[i_rid-0-response_id] ______
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+field = 'i_rid', value = 0, reason = 'response_id'
+
+    @pytest.mark.parametrize('field,value,reason',[('i_rid',0,'response_id'),('i_rlast',0,'last'),('i_rresp',1,'exclusive_response_unsupported')])
+    def test_real_response_mutation_keeps_failure_edge(field,value,reason):
+     samples=copy.deepcopy(saved('first')['samples']);i=next(i for i,s in enumerate(samples) if s['pre']['backend']['i_rvalid'] and s['pre']['backend']['i_rready'] and s['pre']['backend']['i_rid']==1)
+     samples[i]['pre']['backend'][field]=value
+>    o=observer();o.begin_scope(execution_id='x',testcase_id='c',reset_epoch=0)
+       ^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:65: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+________ test_real_response_mutation_keeps_failure_edge[i_rlast-0-last] ________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+field = 'i_rlast', value = 0, reason = 'last'
+
+    @pytest.mark.parametrize('field,value,reason',[('i_rid',0,'response_id'),('i_rlast',0,'last'),('i_rresp',1,'exclusive_response_unsupported')])
+    def test_real_response_mutation_keeps_failure_edge(field,value,reason):
+     samples=copy.deepcopy(saved('first')['samples']);i=next(i for i,s in enumerate(samples) if s['pre']['backend']['i_rvalid'] and s['pre']['backend']['i_rready'] and s['pre']['backend']['i_rid']==1)
+     samples[i]['pre']['backend'][field]=value
+>    o=observer();o.begin_scope(execution_id='x',testcase_id='c',reset_epoch=0)
+       ^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:65: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+_ test_real_response_mutation_keeps_failure_edge[i_rresp-1-exclusive_response_unsupported] _
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+field = 'i_rresp', value = 1, reason = 'exclusive_response_unsupported'
+
+    @pytest.mark.parametrize('field,value,reason',[('i_rid',0,'response_id'),('i_rlast',0,'last'),('i_rresp',1,'exclusive_response_unsupported')])
+    def test_real_response_mutation_keeps_failure_edge(field,value,reason):
+     samples=copy.deepcopy(saved('first')['samples']);i=next(i for i,s in enumerate(samples) if s['pre']['backend']['i_rvalid'] and s['pre']['backend']['i_rready'] and s['pre']['backend']['i_rid']==1)
+     samples[i]['pre']['backend'][field]=value
+>    o=observer();o.begin_scope(execution_id='x',testcase_id='c',reset_epoch=0)
+       ^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:65: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+_____________________ test_response_status_is_preserved[0] _____________________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+resp = 0
+
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_response_status_is_preserved(resp):
+>    o=run(edge(i_arvalid=1,i_arready=1,i_arid=1,i_arsize=2),edge(2,i_rvalid=1,i_rready=1,i_rid=1,i_rlast=1,i_rresp=resp))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:73: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:37: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+_____________________ test_response_status_is_preserved[2] _____________________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+resp = 2
+
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_response_status_is_preserved(resp):
+>    o=run(edge(i_arvalid=1,i_arready=1,i_arid=1,i_arsize=2),edge(2,i_rvalid=1,i_rready=1,i_rid=1,i_rlast=1,i_rresp=resp))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:73: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:37: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+_____________________ test_response_status_is_preserved[3] _____________________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+resp = 3
+
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_response_status_is_preserved(resp):
+>    o=run(edge(i_arvalid=1,i_arready=1,i_arid=1,i_arsize=2),edge(2,i_rvalid=1,i_rready=1,i_rid=1,i_rlast=1,i_rresp=resp))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:73: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:37: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+___________ test_w_before_aw_overlapping_read_and_independent_source ___________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_w_before_aw_overlapping_read_and_independent_source():
+>    o=run(edge(d_wvalid=1,d_wready=1,d_wlast=1,d_wstrb=15,d_arvalid=1,d_arready=1,d_arid=1,d_arsize=2,i_arvalid=1,i_arready=1,i_arsize=2),edge(2,d_awvalid=1,d_awready=1,d_awid=1,d_awsize=2),edge(3,d_bvalid=1,d_bready=1,d_bid=1,d_rvalid=1,d_rready=1,d_rid=1,d_rlast=1,i_rvalid=1,i_rready=1,i_rlast=1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:78: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:37: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+______________ test_orphan_and_shape_controls[signals0-orphan_b] _______________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+signals = {'d_bvalid': 1, 'd_bready': 1}, reason = 'orphan_b'
+
+    @pytest.mark.parametrize('signals,reason', [({'d_bvalid':1,'d_bready':1},'orphan_b'),({'i_rvalid':1,'i_rready':1,'i_rlast':1},'orphan_r'),({'d_wvalid':1,'d_wready':1},'last'),({'i_arvalid':1,'i_arready':1,'i_arsize':3},'size_alignment')])
+    def test_orphan_and_shape_controls(signals,reason):
+>    with pytest.raises(ValueError,match=reason):run(edge(**signals))
+                                                 ^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:37: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+______________ test_orphan_and_shape_controls[signals1-orphan_r] _______________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+signals = {'i_rvalid': 1, 'i_rready': 1, 'i_rlast': 1}, reason = 'orphan_r'
+
+    @pytest.mark.parametrize('signals,reason', [({'d_bvalid':1,'d_bready':1},'orphan_b'),({'i_rvalid':1,'i_rready':1,'i_rlast':1},'orphan_r'),({'d_wvalid':1,'d_wready':1},'last'),({'i_arvalid':1,'i_arready':1,'i_arsize':3},'size_alignment')])
+    def test_orphan_and_shape_controls(signals,reason):
+>    with pytest.raises(ValueError,match=reason):run(edge(**signals))
+                                                 ^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:37: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+________________ test_orphan_and_shape_controls[signals2-last] _________________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+signals = {'d_wvalid': 1, 'd_wready': 1}, reason = 'last'
+
+    @pytest.mark.parametrize('signals,reason', [({'d_bvalid':1,'d_bready':1},'orphan_b'),({'i_rvalid':1,'i_rready':1,'i_rlast':1},'orphan_r'),({'d_wvalid':1,'d_wready':1},'last'),({'i_arvalid':1,'i_arready':1,'i_arsize':3},'size_alignment')])
+    def test_orphan_and_shape_controls(signals,reason):
+>    with pytest.raises(ValueError,match=reason):run(edge(**signals))
+                                                 ^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:37: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+___________ test_orphan_and_shape_controls[signals3-size_alignment] ____________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+signals = {'i_arvalid': 1, 'i_arready': 1, 'i_arsize': 3}
+reason = 'size_alignment'
+
+    @pytest.mark.parametrize('signals,reason', [({'d_bvalid':1,'d_bready':1},'orphan_b'),({'i_rvalid':1,'i_rready':1,'i_rlast':1},'orphan_r'),({'d_wvalid':1,'d_wready':1},'last'),({'i_arvalid':1,'i_arready':1,'i_arsize':3},'size_alignment')])
+    def test_orphan_and_shape_controls(signals,reason):
+>    with pytest.raises(ValueError,match=reason):run(edge(**signals))
+                                                 ^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:37: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+___________ test_hold_checks_post_and_next_pre_without_double_accept ___________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_hold_checks_post_and_next_pre_without_double_accept():
+     e=edge(i_arvalid=1,i_arsize=2);e['post']['backend']['i_araddr']=4
+>    with pytest.raises(ValueError,match='hold'):run(e)
+                                                 ^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:88: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:37: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+____________ test_reset_cancels_pending_immediately_preserving_list ____________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_reset_cancels_pending_immediately_preserving_list():
+>    o=run(edge(i_arvalid=1,i_arready=1,i_arsize=2,d_wvalid=1,d_wready=1,d_wlast=1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:94: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:37: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+________________ test_budget_and_tick_fail_closed_and_keep_raw _________________
+
+kw = {'max_edges': 1}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_budget_and_tick_fail_closed_and_keep_raw():
+>    o=run(edge(),max_edges=1)
+       ^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:101: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:37: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {'max_edges': 1}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+________________ test_missing_post_and_fabricated_len_rejected _________________
+
+kw = {}
+
+    def observer(**kw):
+     try:
+>     axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.reduced_axi_events'
+import_ = <function _gcd_import at 0x750464fa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.reduced_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_missing_post_and_fabricated_len_rejected():
+     e=edge();del e['post']
+>    with pytest.raises(ValueError,match='shape'):run(e)
+                                                  ^^^^^^
+
+tests/scenario/test_reduced_axi_events.py:108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_reduced_axi_events.py:37: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try:
+      axi=importlib.import_module('myfuzz.scenario.reduced_axi_events')
+     except ModuleNotFoundError:
+>     pytest.fail('receipt-bound reduced AXI observer is missing')
+E     Failed: receipt-bound reduced AXI observer is missing
+
+tests/scenario/test_reduced_axi_events.py:27: Failed
+=========================== short test summary info ============================
+FAILED tests/scenario/test_reduced_axi_events.py::test_saved_native_prefix[first]
+FAILED tests/scenario/test_reduced_axi_events.py::test_saved_native_prefix[fresh]
+FAILED tests/scenario/test_reduced_axi_events.py::test_saved_native_prefix[fault]
+FAILED tests/scenario/test_reduced_axi_events.py::test_saved_native_prefix[mmio-first]
+FAILED tests/scenario/test_reduced_axi_events.py::test_saved_native_prefix[mmio-fresh]
+FAILED tests/scenario/test_reduced_axi_events.py::test_saved_native_prefix[mmio-fault]
+FAILED tests/scenario/test_reduced_axi_events.py::test_full_prefix_fresh_equivalence_only_execution_scope_differs
+FAILED tests/scenario/test_reduced_axi_events.py::test_real_response_mutation_keeps_failure_edge[i_rid-0-response_id]
+FAILED tests/scenario/test_reduced_axi_events.py::test_real_response_mutation_keeps_failure_edge[i_rlast-0-last]
+FAILED tests/scenario/test_reduced_axi_events.py::test_real_response_mutation_keeps_failure_edge[i_rresp-1-exclusive_response_unsupported]
+FAILED tests/scenario/test_reduced_axi_events.py::test_response_status_is_preserved[0]
+FAILED tests/scenario/test_reduced_axi_events.py::test_response_status_is_preserved[2]
+FAILED tests/scenario/test_reduced_axi_events.py::test_response_status_is_preserved[3]
+FAILED tests/scenario/test_reduced_axi_events.py::test_w_before_aw_overlapping_read_and_independent_source
+FAILED tests/scenario/test_reduced_axi_events.py::test_orphan_and_shape_controls[signals0-orphan_b]
+FAILED tests/scenario/test_reduced_axi_events.py::test_orphan_and_shape_controls[signals1-orphan_r]
+FAILED tests/scenario/test_reduced_axi_events.py::test_orphan_and_shape_controls[signals2-last]
+FAILED tests/scenario/test_reduced_axi_events.py::test_orphan_and_shape_controls[signals3-size_alignment]
+FAILED tests/scenario/test_reduced_axi_events.py::test_hold_checks_post_and_next_pre_without_double_accept
+FAILED tests/scenario/test_reduced_axi_events.py::test_reset_cancels_pending_immediately_preserving_list
+FAILED tests/scenario/test_reduced_axi_events.py::test_budget_and_tick_fail_closed_and_keep_raw
+FAILED tests/scenario/test_reduced_axi_events.py::test_missing_post_and_fabricated_len_rejected
+22 failed in 0.37s

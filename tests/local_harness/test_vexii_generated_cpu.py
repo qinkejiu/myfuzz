@@ -129,7 +129,10 @@ def fake_cpu():
     cpu._case_id, cpu.source_component, cpu.reset_epoch = 'test', 'renamed-cpu', 0
     cpu.read_beats = cpu.write_beats = cpu.write_responses = 0
     cpu._clear()
+    edge_tick = 0
     def edge(**outputs):
+        nonlocal edge_tick
+        edge_tick += 1
         def command(operation, fields):
             assert operation == 'STEP_REDUCED_AXI'
             row = {p+'_'+role: 0 for p, shape in SHAPES.items() for role in shape}
@@ -137,7 +140,8 @@ def fake_cpu():
             row.update(outputs)
             return SimpleNamespace(status='ok', new_ticks=1, payload={
                 'kind':cpu.artifact_kind, 'pre_backend':row,
-                'samples':[{'pre':{'backend':row}}], 'observations':{'physical':{}}})
+                'samples':[{'local_tick':edge_tick, 'pre':{'backend':row},
+                            'post':{'backend':copy.deepcopy(row)}}], 'observations':{'physical':{}}})
         cpu.command = command
         return cpu.step_local({})
     return cpu, edge
@@ -274,3 +278,33 @@ def test_real_generated_vexii_gpio_two_fresh_runs_and_substitution(tmp_path):
         for name,value in [('mmio-first',first),('mmio-fresh',fresh),('mmio-fault',fault),('mmio-artifact',a.runtime_document)]:
             (directory/(name+'.json')).write_text(json.dumps(value,indent=2,sort_keys=True,
                 default=lambda x:asdict(x) if is_dataclass(x) else str(x))+'\n')
+
+
+def test_runtime_observer_uses_actual_receipt_and_preserves_failed_edge():
+    cpu, edge = fake_cpu()
+    edge(i_arvalid=1, i_araddr=BOOT, i_arsize=2, i_arid=1)
+    stream = cpu.runtime_events
+    assert stream[-1]['kind'] == 'reduced_axi_accept'
+    assert stream[-1]['payload']['arid'] == 1
+    assert stream[-2]['raw_sample'] == cpu.last_samples[0]
+    from myfuzz.scenario.contracts import ProtocolEnvironmentError
+    with pytest.raises(ProtocolEnvironmentError, match='(last|LAST)'):
+        edge(d_wvalid=1, d_wlast=0)
+    assert cpu.runtime_events is stream
+    assert stream[-1]['kind'] == 'reduced_axi_violation'
+    assert stream[-2]['raw_sample'] == cpu.last_samples[0]
+
+
+def test_observer_failure_blocks_later_native_commands():
+    from myfuzz.scenario.contracts import ProtocolEnvironmentError
+    cpu, edge = fake_cpu()
+    with pytest.raises(ProtocolEnvironmentError, match='last'):
+        edge(d_wvalid=1, d_wlast=0)
+    calls = []
+    def forbidden_command(*args):
+        calls.append(args)
+        raise AssertionError('poisoned observer must block before native edge')
+    cpu.command = forbidden_command
+    with pytest.raises(ProtocolEnvironmentError, match='scope_not_active'):
+        cpu.step_local({})
+    assert calls == []

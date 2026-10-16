@@ -1,0 +1,15 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____ test_runtime_observer_uses_actual_receipt_and_preserves_failed_edge ______
+
+    def test_runtime_observer_uses_actual_receipt_and_preserves_failed_edge():
+        cpu, edge = fake_cpu()
+        edge(i_arvalid=1, i_araddr=BOOT, i_arsize=2, i_arid=1)
+>       stream = cpu.runtime_events
+                 ^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'GeneratedReducedAxiCpuSession' object has no attribute 'runtime_events'
+
+tests/local_harness/test_vexii_generated_cpu.py:282: AttributeError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_vexii_generated_cpu.py::test_runtime_observer_uses_actual_receipt_and_preserves_failed_edge
+1 failed, 10 deselected in 0.20s

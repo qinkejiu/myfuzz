@@ -1,0 +1,35 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______________ test_observer_failure_blocks_later_native_commands ______________
+
+    def test_observer_failure_blocks_later_native_commands():
+        from myfuzz.scenario.contracts import ProtocolEnvironmentError
+        cpu, edge = fake_cpu()
+        with pytest.raises(ProtocolEnvironmentError, match='last'):
+            edge(d_wvalid=1, d_wlast=0)
+        calls = []
+        def forbidden_command(*args):
+            calls.append(args)
+            raise AssertionError('poisoned observer must block before native edge')
+        cpu.command = forbidden_command
+        with pytest.raises(ProtocolEnvironmentError, match='scope_not_active'):
+>           cpu.step_local({})
+
+tests/local_harness/test_vexii_generated_cpu.py:309: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/vexii_axi_session.py:131: in step_local
+    receipt = self.command('STEP_REDUCED_AXI', tuple(values[name] for name in STEP_PORTS))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+args = ('STEP_REDUCED_AXI', (1, 0, 0, 0, 0, 0, ...))
+
+    def forbidden_command(*args):
+        calls.append(args)
+>       raise AssertionError('poisoned observer must block before native edge')
+E       AssertionError: poisoned observer must block before native edge
+
+tests/local_harness/test_vexii_generated_cpu.py:306: AssertionError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_vexii_generated_cpu.py::test_observer_failure_blocks_later_native_commands
+1 failed, 11 deselected in 0.21s

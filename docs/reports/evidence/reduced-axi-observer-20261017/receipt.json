@@ -1,0 +1,444 @@
+{
+  "contract": {
+    "absent_roles": {
+      "arburst": "not_exposed",
+      "arlen": "not_exposed",
+      "arlock": "not_exposed",
+      "arqos": "not_exposed",
+      "awburst": "not_exposed",
+      "awlen": "not_exposed",
+      "awlock": "not_exposed",
+      "awqos": "not_exposed"
+    },
+    "authority": "observation_only",
+    "budgets": {
+      "beats_per_transaction": 1,
+      "max_edges": 100000,
+      "max_events_per_edge": 11,
+      "max_raw_bytes": 67108864,
+      "max_records": 1101026,
+      "max_scopes": 1024,
+      "read_per_face": 1,
+      "write_contexts": 1
+    },
+    "raw_reference_namespace": "observer_stream_local_record_index",
+    "response_status": {
+      "0": "okay",
+      "1": "exclusive_response_unsupported",
+      "2": "slave_error",
+      "3": "decode_error"
+    },
+    "sampling": "pre_acceptance_post_hold_only",
+    "schema_version": "reduced_axi_observation.v1",
+    "signal_shapes": {
+      "d": {
+        "araddr": {
+          "direction": "output",
+          "width": 32
+        },
+        "arcache": {
+          "direction": "output",
+          "width": 4
+        },
+        "arid": {
+          "direction": "output",
+          "width": 1
+        },
+        "arprot": {
+          "direction": "output",
+          "width": 3
+        },
+        "arready": {
+          "direction": "input",
+          "width": 1
+        },
+        "arsize": {
+          "direction": "output",
+          "width": 3
+        },
+        "arvalid": {
+          "direction": "output",
+          "width": 1
+        },
+        "awaddr": {
+          "direction": "output",
+          "width": 32
+        },
+        "awcache": {
+          "direction": "output",
+          "width": 4
+        },
+        "awid": {
+          "direction": "output",
+          "width": 1
+        },
+        "awprot": {
+          "direction": "output",
+          "width": 3
+        },
+        "awready": {
+          "direction": "input",
+          "width": 1
+        },
+        "awsize": {
+          "direction": "output",
+          "width": 3
+        },
+        "awvalid": {
+          "direction": "output",
+          "width": 1
+        },
+        "bid": {
+          "direction": "input",
+          "width": 1
+        },
+        "bready": {
+          "direction": "output",
+          "width": 1
+        },
+        "bresp": {
+          "direction": "input",
+          "width": 2
+        },
+        "bvalid": {
+          "direction": "input",
+          "width": 1
+        },
+        "rdata": {
+          "direction": "input",
+          "width": 32
+        },
+        "rid": {
+          "direction": "input",
+          "width": 1
+        },
+        "rlast": {
+          "direction": "input",
+          "width": 1
+        },
+        "rready": {
+          "direction": "output",
+          "width": 1
+        },
+        "rresp": {
+          "direction": "input",
+          "width": 2
+        },
+        "rvalid": {
+          "direction": "input",
+          "width": 1
+        },
+        "wdata": {
+          "direction": "output",
+          "width": 32
+        },
+        "wlast": {
+          "direction": "output",
+          "width": 1
+        },
+        "wready": {
+          "direction": "input",
+          "width": 1
+        },
+        "wstrb": {
+          "direction": "output",
+          "width": 4
+        },
+        "wvalid": {
+          "direction": "output",
+          "width": 1
+        }
+      },
+      "i": {
+        "araddr": {
+          "direction": "output",
+          "width": 32
+        },
+        "arcache": {
+          "direction": "output",
+          "width": 4
+        },
+        "arid": {
+          "direction": "output",
+          "width": 1
+        },
+        "arprot": {
+          "direction": "output",
+          "width": 3
+        },
+        "arready": {
+          "direction": "input",
+          "width": 1
+        },
+        "arsize": {
+          "direction": "output",
+          "width": 3
+        },
+        "arvalid": {
+          "direction": "output",
+          "width": 1
+        },
+        "rdata": {
+          "direction": "input",
+          "width": 32
+        },
+        "rid": {
+          "direction": "input",
+          "width": 1
+        },
+        "rlast": {
+          "direction": "input",
+          "width": 1
+        },
+        "rready": {
+          "direction": "output",
+          "width": 1
+        },
+        "rresp": {
+          "direction": "input",
+          "width": 2
+        },
+        "rvalid": {
+          "direction": "input",
+          "width": 1
+        }
+      }
+    },
+    "variant": "reduced_dual_single_beat.v1"
+  },
+  "first_fresh_scope_normalized_equal": true,
+  "independent_physical_tap_verifier": false,
+  "native_run": false,
+  "samples": {
+    "fault": {
+      "accepted": {
+        "d_ar": 1,
+        "d_aw": 2,
+        "d_b": 2,
+        "d_r": 1,
+        "d_w": 2,
+        "i_ar": 11,
+        "i_r": 10
+      },
+      "compressed_sha256": "0dbefcea97ebccf0f71f06ee3a26581b9f6bd6f7049e862373a213fb13228963",
+      "normalized_event_sha256": "45271d1873889040939363325aa3b08503433c97d86cd0b4b9eb7b7c7ef89cd2",
+      "observed_ids": {
+        "d": [
+          1
+        ],
+        "i": [
+          0,
+          1
+        ]
+      },
+      "pending": {
+        "d": {
+          "aw": false,
+          "read": false,
+          "w": false,
+          "write": false
+        },
+        "i": {
+          "aw": false,
+          "read": true,
+          "w": false,
+          "write": false
+        }
+      },
+      "records": 86,
+      "samples": 55
+    },
+    "first": {
+      "accepted": {
+        "d_ar": 1,
+        "d_aw": 2,
+        "d_b": 2,
+        "d_r": 1,
+        "d_w": 2,
+        "i_ar": 11,
+        "i_r": 10
+      },
+      "compressed_sha256": "892c2a50dbf730a2ae5f81bd7835020e816f18139479cb57c388ecd9172e1b63",
+      "normalized_event_sha256": "7c6098dddc618ff7729321458d07707017acd65230cf52134838ec6d270cb541",
+      "observed_ids": {
+        "d": [
+          1
+        ],
+        "i": [
+          0,
+          1
+        ]
+      },
+      "pending": {
+        "d": {
+          "aw": false,
+          "read": false,
+          "w": false,
+          "write": false
+        },
+        "i": {
+          "aw": false,
+          "read": true,
+          "w": false,
+          "write": false
+        }
+      },
+      "records": 86,
+      "samples": 55
+    },
+    "fresh": {
+      "accepted": {
+        "d_ar": 1,
+        "d_aw": 2,
+        "d_b": 2,
+        "d_r": 1,
+        "d_w": 2,
+        "i_ar": 11,
+        "i_r": 10
+      },
+      "compressed_sha256": "fd3fd5642f3a815ef0d58a9d13ea4e3acae36c59ad493c85628e026834445dd4",
+      "normalized_event_sha256": "7c6098dddc618ff7729321458d07707017acd65230cf52134838ec6d270cb541",
+      "observed_ids": {
+        "d": [
+          1
+        ],
+        "i": [
+          0,
+          1
+        ]
+      },
+      "pending": {
+        "d": {
+          "aw": false,
+          "read": false,
+          "w": false,
+          "write": false
+        },
+        "i": {
+          "aw": false,
+          "read": true,
+          "w": false,
+          "write": false
+        }
+      },
+      "records": 86,
+      "samples": 55
+    },
+    "mmio-fault": {
+      "accepted": {
+        "d_ar": 1,
+        "d_aw": 1,
+        "d_b": 1,
+        "d_r": 0,
+        "d_w": 1,
+        "i_ar": 7,
+        "i_r": 7
+      },
+      "compressed_sha256": "a5b20a745882ac21adf39d288e7fe9bb0bcfe74ec39480490786ee00ad2bc889",
+      "normalized_event_sha256": "fcbdfa15863c2efcb1f7ee7472e09bcff216f2edd7b0e720fdc68006abb8157c",
+      "observed_ids": {
+        "d": [
+          1
+        ],
+        "i": [
+          0,
+          1
+        ]
+      },
+      "pending": {
+        "d": {
+          "aw": false,
+          "read": true,
+          "w": false,
+          "write": false
+        },
+        "i": {
+          "aw": false,
+          "read": false,
+          "w": false,
+          "write": false
+        }
+      },
+      "records": 59,
+      "samples": 40
+    },
+    "mmio-first": {
+      "accepted": {
+        "d_ar": 1,
+        "d_aw": 2,
+        "d_b": 2,
+        "d_r": 1,
+        "d_w": 2,
+        "i_ar": 11,
+        "i_r": 10
+      },
+      "compressed_sha256": "5e31249cbae9f4bffecc8c08ca2796554c5628493cc238665a87f6b3370b8112",
+      "normalized_event_sha256": "973dd5046395c9d588e4dd45f7fdd39b22914faa8187dc62ad252e6b55867db1",
+      "observed_ids": {
+        "d": [
+          1
+        ],
+        "i": [
+          0,
+          1
+        ]
+      },
+      "pending": {
+        "d": {
+          "aw": false,
+          "read": false,
+          "w": false,
+          "write": false
+        },
+        "i": {
+          "aw": false,
+          "read": true,
+          "w": false,
+          "write": false
+        }
+      },
+      "records": 83,
+      "samples": 52
+    },
+    "mmio-fresh": {
+      "accepted": {
+        "d_ar": 1,
+        "d_aw": 2,
+        "d_b": 2,
+        "d_r": 1,
+        "d_w": 2,
+        "i_ar": 11,
+        "i_r": 10
+      },
+      "compressed_sha256": "4dc89f1e50881293cea55984bf37a5b97231bfc3cbe47932e368c77575169171",
+      "normalized_event_sha256": "973dd5046395c9d588e4dd45f7fdd39b22914faa8187dc62ad252e6b55867db1",
+      "observed_ids": {
+        "d": [
+          1
+        ],
+        "i": [
+          0,
+          1
+        ]
+      },
+      "pending": {
+        "d": {
+          "aw": false,
+          "read": false,
+          "w": false,
+          "write": false
+        },
+        "i": {
+          "aw": false,
+          "read": true,
+          "w": false,
+          "write": false
+        }
+      },
+      "records": 83,
+      "samples": 52
+    }
+  },
+  "schema_version": "reduced_axi_offline_receipt.v1",
+  "scope": "software_only_saved_native_replay"
+}

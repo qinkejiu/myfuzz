@@ -1,0 +1,14 @@
+{
+  "docs/reports/CPU_REDUCED_AXI_OBSERVER_20261017.md": "ed16b4fea03b1489c1b483dba43b680b2fb64f9f1cd679a6d8b23d2a97de6379",
+  "docs/reports/evidence/reduced-axi-observer-20261017/receipt.json": "4969cdd3d9a60b13d0a0d1dc9cc79c4792f6784267c0430bb791117c5a8ce8ef",
+  "docs/reports/evidence/reduced-axi-observer-20261017/reduced-axi-global-budget-red.log": "2d0d92c12554adfbab77bc397433d6a6eab625aa310acb2c08a374014eef3c4b",
+  "docs/reports/evidence/reduced-axi-observer-20261017/reduced-axi-red.log": "949c0a77e065e224b49081ff4a35a218c16ac5c947940bc25758a5bf8ae06ee1",
+  "docs/reports/evidence/reduced-axi-observer-20261017/reduced-axi-scope-red.log": "ff541bfb339f53c7e5412da7a0ee1273cebb41b7a78bbaf7002daeb6c185b669",
+  "docs/reports/evidence/reduced-axi-observer-20261017/reduced-axi-session-red.log": "c8ef92850e5b897f932b44abdd1ba7d42fef8af768287b345630a10a7c8d6752",
+  "docs/reports/evidence/reduced-axi-observer-20261017/session-poison-red.log": "a9ea43633b29606af64916510dddc4e93465da2a16712ac9800120b96c6e4c07",
+  "docs/reports/evidence/reduced-axi-observer-20261017/software-green.log": "070353c6fd13c133d256c6dd45abb25bf2706a99660724b5fd987eca23955442",
+  "src/myfuzz/local_harness/vexii_axi_session.py": "9bd2abc5873133c441cd2874ff1bec122e0d8d43a2c416f5346d75ed9ef16ad8",
+  "src/myfuzz/scenario/reduced_axi_events.py": "133f4fca2bf2e7ed4de888b1f7e7a1571b7d3c9bf7016c053be8b456505292b0",
+  "tests/local_harness/test_vexii_generated_cpu.py": "0352266f70a84f93f8e715ee95b8091b82eb53ee45a22f9752a067472b18dc54",
+  "tests/scenario/test_reduced_axi_events.py": "2467c55db8b60b5bae2653d427fa9c422005fe7bfb2f3f68aa6b73eb4d45c951"
+}

@@ -1,0 +1,15 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_global_stream_budget_cannot_be_reopened_by_reset _____________
+
+    def test_global_stream_budget_cannot_be_reopened_by_reset():
+     o=run(edge(),max_edges=1)
+     with pytest.raises(ValueError,match='budget'):o.observe(edge(2))
+     o.end_scope()
+>    with pytest.raises(ValueError,match='budget'):
+E    Failed: DID NOT RAISE ValueError
+
+tests/scenario/test_reduced_axi_events.py:164: Failed
+=========================== short test summary info ============================
+FAILED tests/scenario/test_reduced_axi_events.py::test_global_stream_budget_cannot_be_reopened_by_reset
+1 failed, 26 deselected in 0.21s
