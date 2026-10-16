@@ -1,0 +1,39 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_actual_failure_builder_preserves_source_bytes_through_json ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71892d111d90>
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-82/test_actual_failure_builder_pr0')
+
+    def test_actual_failure_builder_preserves_source_bytes_through_json(monkeypatch, tmp_path):
+        runner = SimpleNamespace(set_resource_budget=lambda budget: None)
+    
+        class Recorder:
+            _finished = False
+            commands = ()
+    
+            def __init__(self, template, selected):
+                assert selected is runner
+    
+            def begin(self):
+                raise RuntimeError('deliberate pre-transport failure')
+    
+        def capture(recorder, selected, cases, budget, phase, index, error, source_pins):
+            recorder._finished = True
+            return SimpleNamespace(error=dict(error))
+    
+        monkeypatch.setattr(runtime, 'ScenarioBatchRecorder', Recorder)
+        monkeypatch.setattr(runtime, '_capture', capture)
+        with pytest.raises(runtime.ContinuousRxFailure) as caught:
+            runtime.run_continuous_uart_rx((0x33,), cache_dir=tmp_path, factory=lambda: runner)
+        error = caught.value.result.error
+        assert error['message'] == 'deliberate pre-transport failure'
+>       assert error['requested_source_bytes'] == [0x33]
+E       assert (51,) == [51]
+E         
+E         Use -v to get more diff
+
+tests/integration/test_dma_uart_rx_failure_document.py:33: AssertionError
+=========================== short test summary info ============================
+FAILED tests/integration/test_dma_uart_rx_failure_document.py::test_actual_failure_builder_preserves_source_bytes_through_json
+1 failed in 0.31s

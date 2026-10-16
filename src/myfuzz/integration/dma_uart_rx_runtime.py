@@ -346,7 +346,7 @@ def run_continuous_uart_rx(source_bytes, *, cache_dir: Path,
         diagnostic = dict(type=type(exc).__name__, message=str(exc),
             command_count=len(recorder.commands), case_start=case_start,
             max_rounds_per_case=max_rounds_per_case, max_source_ticks=max_source_ticks,
-            requested_source_bytes=values)
+            requested_source_bytes=list(values))
         result = _capture(recorder, runner, cases, selected_budget, phase, case_index, diagnostic, source_pins)
         raise ContinuousRxFailure(result) from exc
     finally:

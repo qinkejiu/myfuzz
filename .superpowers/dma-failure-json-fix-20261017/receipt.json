@@ -1,0 +1,22 @@
+{
+  "scope": "canonical JSON list for requested_source_bytes at original failure creation; strict replay equality retained",
+  "red": {
+    "exit": 1,
+    "result": "1 failed in 0.31s"
+  },
+  "green": {
+    "exit": 0,
+    "result": "6 passed, 1 skipped in 0.34s"
+  },
+  "regression": {
+    "exit": 0,
+    "result": "65 passed, 1 skipped in 32.95s"
+  },
+  "source_sha256": {
+    "src/myfuzz/integration/dma_uart_rx_runtime.py": "ac42397cec75b177eb40e76ba2186776736c4b28376dd9cb39c72cc62e731dba",
+    "tests/integration/test_dma_uart_rx_failure_document.py": "4800016c35185b9d96e82e3bace4e044fdfa3e32a31f42066abb9797fbe8eba1"
+  },
+  "original_native_attempt5_exit": 1,
+  "original_native_attempt5_result": "1 failed in 294.36s; last error comparison is list51 versus tuple51",
+  "new_native_gate_run": false
+}

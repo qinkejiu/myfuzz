@@ -1,0 +1,73 @@
+{
+  "scope": "attempt5 original fourbyte/fresh and actual failed-prefix/fresh outputs preserved; whole test remains failed",
+  "source_commit": "9125484",
+  "worker_exit": 1,
+  "native_exit": 1,
+  "native_seconds": 294.36,
+  "last_failure": "requested_source_bytes tuple in original in-memory diagnostic versus list after JSON roundtrip",
+  "all_four_output_documents_preserved": true,
+  "new_json_format_fix_not_run": true,
+  "archive_sha256": "ad5a90f7844b2ae993e9d496fb582ed7cba44fcf3b2af9a7045687019ee9ffe3",
+  "files": {
+    "attempt5/native.exit": {
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    "attempt5/focused.exit": {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "attempt5/root-fix-receipt.json": {
+      "bytes": 1493,
+      "sha256": "7815a50ea20ad6f6b2e9ebfb0f628fcf5e62f70e6830c67a523055f6a0c8569e"
+    },
+    "attempt5/source-preflight.json": {
+      "bytes": 50319,
+      "sha256": "bf115cb26ace9b81c8a1c0e424e02e5afe6cac2be3089568d5016026207d3d55"
+    },
+    "attempt5/worker.sh": {
+      "bytes": 1898,
+      "sha256": "cd874a3fd210ff35b00a065fd8f425b46fde875ff9489e89dde964c74f22789a"
+    },
+    "attempt5/state": {
+      "bytes": 9,
+      "sha256": "161069badc0cc23058b13d7c068e45205f4333aa15fd78db9d68f5c9f1ae8983"
+    },
+    "attempt5/worker.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "attempt5/worker.exit": {
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    "attempt5/focused.log": {
+      "bytes": 110,
+      "sha256": "3a493b6e91b0129e67ee1fbafc0a92aa782a4268b220ee3006b0b68f4e313ca0"
+    },
+    "attempt5/evidence/failure.json.gz": {
+      "bytes": 269918,
+      "sha256": "456a9560b0e5f1744a2fb8f93eb656e5e07d1982ae479d6f8f9de2f3cbc919aa"
+    },
+    "attempt5/evidence/failure-fresh.json.gz": {
+      "bytes": 269921,
+      "sha256": "3d6f8529e4ca6e3cd31c534d479477b27609409bba953ead000b262c80037c78"
+    },
+    "attempt5/evidence/positive.json.gz": {
+      "bytes": 11304241,
+      "sha256": "0346d10f59ca80d0d3eff5e390c6ebf68a117d4d42e075722bb6a0fd740300d6"
+    },
+    "attempt5/evidence/fresh.json.gz": {
+      "bytes": 11304252,
+      "sha256": "55402a8f86f1a1e827924deb2890ad29cbe01c2525409ca3bc5fd6fce4c58dfb"
+    },
+    "attempt5/worker.pid": {
+      "bytes": 7,
+      "sha256": "0e1eb69b8a862230a4311b80797bbc638ed2b527d1aa71f079bed49b311b6b32"
+    },
+    "attempt5/native.log": {
+      "bytes": 5483,
+      "sha256": "24a408cfd5758dad6bf714a595c70fe942b7c8d32e4ceecf4d69a0ceca995ba7"
+    }
+  }
+}
