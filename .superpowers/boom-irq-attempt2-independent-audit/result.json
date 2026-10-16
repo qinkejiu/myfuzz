@@ -1,0 +1,25 @@
+{
+  "archive_files": 396,
+  "all_file_hashes_match": true,
+  "controller_pid": 268173,
+  "gate_pid": 268183,
+  "controller_exit": 1,
+  "gate_exit": 1,
+  "actual_status": "budget_exhausted",
+  "actual_error": null,
+  "full_gate_pass": false,
+  "fresh_and_suppression_executed": false,
+  "source_artifact_tools_unchanged": true,
+  "cpu_samples": 2988,
+  "gpio_samples": 3012,
+  "total_actual_steps": 6000,
+  "actual_pulse": [
+    221,
+    285
+  ],
+  "actual_qualified_mret_ticks": [
+    429
+  ],
+  "transport_streams_validated": true,
+  "scope": "independent_saved_observations_only_no_source_or_retirement_authority"
+}

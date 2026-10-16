@@ -1,0 +1,32 @@
+terminal
+1
+{
+  "pid": 268183,
+  "args": [
+    "/usr/bin/python3",
+    "-u",
+    "-m",
+    "myfuzz.scenario.boom_gpio_irq_verification",
+    "--run-native",
+    "--repo",
+    "/root/fanzehui/boom-irq-runtime-attempt2-20261017/project",
+    "--cpu-output",
+    "/root/fanzehui/boom-irq-factory-fix-20261017/artifact-finalized",
+    "--cache-dir",
+    "/root/fanzehui/boom-irq-runtime-attempt2-20261017/gpio-cache",
+    "--output",
+    "/root/fanzehui/boom-irq-runtime-attempt2-20261017/gate-output",
+    "--freeze-path",
+    "/root/fanzehui/boom-irq-runtime-attempt2-20261017/source-freeze.json",
+    "--freeze-sha256",
+    "ff5470d2345868bb6f7452b58e38e2ad279c3fc99a66573a3e13cee2e8870167",
+    "--artifact-sha256",
+    "3f405a57322a697f0dfee4004ef15e9c3c5c849bf1fc360b0dd0d087f2bbf89d",
+    "--heavy-lock",
+    "/root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock"
+  ],
+  "exit": 1,
+  "poll": 1
+}
+{"error":{"detail":"run did not complete","type":"ValueError"},"full_P6":false,"isa_retirement_authority":false,"new_cpp_build":false,"schema_version":"boom_irq_native_gate.v1","source_authority":false,"status":"failed"}
+    PID    PPID STAT     ELAPSED COMMAND

@@ -1,0 +1,5 @@
+268173
+native-child-live
+268183
+    PID    PPID STAT     ELAPSED COMMAND
+ 268173       1 S          00:29 python3 -u /root/fanzehui/boom-irq-runtime-attempt2-20261017/control/controller.py --run-native-once
