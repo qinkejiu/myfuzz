@@ -3985,3 +3985,12 @@ The subsequent explicit verification instruction authorized targeted software/RT
 - F4 private immutable profile copy fixed bdeee0b; refreshed software40passed/1skip. Native attempt3 active, first actual candidate certified; full3candidate/2fresh result outstanding. Prior lock refusal and mappingproxy initialization failures preserved.
 - Continuous DMA startup and incremental ISR journal cursor9eeff26, focused60passed. Prior real runs exposed missing initial genome and unchanged300s budget exhaustion. Attempt4 frozen/ready, not launched. Native queue after F4: short BOOM cached supplement then DMA4, each explicit root GO and canonical lock.
 - Progress docs fff42ce updated with bounded current status. Full-system combinedHEAD, sustained search, generic onboarding and P6/P7/P8 acceptance remain open.
+
+
+### 2026-10-17 declaration-driven candidate layout and verified native wait
+
+Previous goal turn classified progress: primary BOOM source/evidence frozen and independently audited; documents reconciled historical availability and new bounded evidence. Current F4 PID159074 directly observed live at elapsed13:01, canonical lock held, replay1 matches=true with full semantic568802e6...d09d7fa; replay2 not yet terminal, do not restart.
+
+New pure candidate module07f2da6 (not production integrated) binds D3 source slices/digest/masks/ranges/ownership, 12passed16.50s. Root independent1280 roundtrips across all32 pin widths passed15.884s; durable receipt8f65b13. Independent reviewer identified a real empty legal-domain admission gap (mask/range/alignment intersection), plus total layout budget/JSON diagnostics/test boundaries. Implementer p7_candidate_layout is fixing via bounded32bit satisfiability and explicit budgets; must re-review before production integration. An initial GREEN is not acceptance when this Important finding remains.
+
+BOOM cached supplement2a9e4b5 remains prepared-not-run; script/module/binary pins in .superpowers/boom-verification-20261017/coherent-ready.json. DMA4 remains next after that short gate. All user dirt protected, whole-system scope/P6P7P8 open.
