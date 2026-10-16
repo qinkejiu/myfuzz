@@ -13,7 +13,8 @@ from myfuzz.scenario.compiled_paths import load_path_compile_request,compile_pat
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
 
 ROOT=Path(__file__).resolve().parents[2]
-CONFIG=ROOT/'configs/scenarios/compiled-f4-obi-apb'
+# Current native-error admission targets Ibex; historical CV32 evidence is separate.
+CONFIG=ROOT/'configs/scenarios/compiled-f4-obi-apb-ibex'
 
 
 def loaded(directory):
