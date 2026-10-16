@@ -3921,3 +3921,26 @@ uart0 : class=AxilUartPeerSession                     # ← 注意：是 **peer*
 5. **开跑前先确认**：`_step_tick_bounds` 对该对是否自洽（这是行 3 第一版失败的原因——**会话的 `max_mmio_target_accesses_per_step` 必须真的被声明到**，构造时就带 router）；跑一次**单格**确认 `receipts` 状态是 `complete` 而**不是** `uncertain_effect`，再开 18 格。
 6. **审计**：照 `test_cva6_campaign_saved_run_audit.py`／`test_axil_campaign_saved_run_audit.py` 写一份**从 receipts／chain_checks／mutation_selections／corpus／run_identity 逐项复算**的审计（默认指向新 bundle，可经环境变量指向别的 bundle），并**在任一被钉定输入字节移动时变红**。
 7. **注意代价**：`scenario_rfuzz.py` 等 campaign 源文件**每改一次**都会让**已交付的 bundle** 失效（本轮已亲历：我为行 3 修一行，行 2 的 bundle 立刻变红，只能在静止树上整跑一次重建）。故**先把所有框架改动做完并冻结，再依次跑各行的 campaign**。
+
+### 2026-10-17 DMA RX directed slice
+
+Task DMA RX: complete for single-byte directed scope (commit 414d257; spec and quality review clean, `.superpowers/sdd/dma-rx-414d257-review.md`). RX real 2 passed/278.74s, TX regression 3 passed/287.64s; P8 remains open for sustained search, generic provenance and authenticated-prefix replay. Docs updated 9e276b3.
+
+Active follow-ups: finish_obi_join owns Runner same-run protocol association; finish_d3_writer owns exact GPIOEN writer and explicit per-instance observation selection; unblock_boom investigates actual Chisel elaboration failure. Preserve agent.md and pre-existing dirty submodules.
+
+### 2026-10-17 system continuation, authoritative new increments
+
+- DMA ERR recovery: complete bounded slice `5ca5a61`, independent spec/quality review clean (`dma-error-and-d3-writer-review.md`), real same-process error then legal copy 2 passed/11.67s.
+- Exact D3 GPIOEN diagnostic writer: complete bounded slice `e6ecb18`, same independent review clean; real 8 passed/132.21s. Full D3 still refused; no register-version/checker grant from that diagnostic.
+- CPU raw OBI→adapter→Router→native GPIO APB association: complete bounded slice `d294553`, final real1passed60.64s/focused49passed; review clean (`runtime-integrations-review-20261017.md`). No semantic grants.
+- BOOM derived generation: commits `49b2937`/`5923fa4`; direct coherent CPU/RAM `9d123bb`, actual555cycles/269acceptedA,C,D,Eevents, drained13Acquire/13E, expected0x123. Review clean. Generic generated adapter NOT yet complete at this entry.
+- Vexii CPU/IP directed generated runtime: `1b5efe8`, real9passed1skip97.42s, fresh raw samples match and target response substitution refused; review clean. IRQ/search/authenticated replay remain open.
+- Standard Runner CPU/DMA RAM flow: `ed729a5`/`55bdd13`, real1passed54.07s, two fresh full256step/1682eventprefixes equal; warmreset sample ticks monotonic. Review clean. FIFO master targets refused in this initial Runner interface; sustained DMA search and authenticated replay still open.
+- Docs current-progress/local-runtime/report index updated `8f83be2`. P6/P7/P8 remain unaccepted; never infer overall completion from these slices or historical ledger claims.
+
+Current independent tasks (may need recreation if agents disappear):
+1. `boom_generated_adapter`: owns configs/cpus/boom profile/interface/generated, new tilelink_coherent_cpu_session.py + tilelink-coherent plugin/tests. Fetch4actualRTL and sourcepinnedarchive done; dedicated generated session twofresh pass555cycles; strengthening actual read-fault with ordered CPU reload. Consult its durable .superpowers state before any rerun.
+2. `compiled_f4_runtime`: owns source-pinned live GPIOEN authority, session.py actualparsedreceipt hook, gpio_session producerpin, generated_register_writer ancillary and tests. Real initial authority2passed45.24s; hardeningfinalgate pending under remote unifiedlock. Must not count old verifier readback as prereqauthority.
+3. `compiled_f4_executor`: new generic exactD2/D3 F4 runtime/compose/tests + admission/projection integration. Coordinates live authority; goal actual admitted path with compiledsource/prereq/checker and continuous/freshprefix, not another diagnostic-only writer. No component-name dispatch.
+
+Remote agent.md rules unchanged: all file operations only /root/fanzehui, jumpserver transit only, unified project/.superpowers/heavy-worker.lock. Preserve user's agent.md and submodule dirty state. Use frozen snapshots; /tmp is ephemeral across continuation. All earlier evidence is source-pinned, not current-HEAD joint verification.
