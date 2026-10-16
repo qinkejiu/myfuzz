@@ -1,0 +1,21 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_snapshot_delta_is_exact_existing_factory_plus_new_test __________
+
+    def test_snapshot_delta_is_exact_existing_factory_plus_new_test():
+>       m=module();old={m.control.FACTORY:m.control.OLD_FACTORY,'unchanged':'abc'}
+          ^^^^^^^^
+
+.superpowers/boom-irq-factory-fix-20261017/test_prepare.py:14: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def module():
+        path=Path(__file__).with_name('prepare.py')
+>       if not path.exists():pytest.fail('factory metadata preparation source missing')
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: factory metadata preparation source missing
+
+.superpowers/boom-irq-factory-fix-20261017/test_prepare.py:8: Failed
+=========================== short test summary info ============================
+FAILED .superpowers/boom-irq-factory-fix-20261017/test_prepare.py::test_snapshot_delta_is_exact_existing_factory_plus_new_test
+1 failed in 0.03s

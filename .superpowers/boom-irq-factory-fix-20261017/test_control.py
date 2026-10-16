@@ -78,3 +78,21 @@ def test_host_factory_delta_and_native_implementation_contract(tmp_path):
     with pytest.raises(ValueError,match='implementation'):module.host_factory_contract(artifact)
     native.write_text('unchanged native fixture');new.write_bytes(new.read_bytes()+b' extra behavior')
     with pytest.raises(ValueError,match='exact owner'):module.host_factory_contract(artifact)
+
+
+def test_state_symlink_refused_before_any_history_write(tmp_path):
+    module=load(tmp_path);old=tmp_path/'old-history';old.mkdir();(old/'receipt').write_text('preserve')
+    (module.BASE/'state').rmdir();(module.BASE/'state').symlink_to(old,target_is_directory=True)
+    before=snapshot(old)
+    assert module.main()==125
+    assert snapshot(old)==before
+
+
+def test_receipt_symlink_or_existing_file_is_not_overwritten(tmp_path):
+    module=load(tmp_path);old=tmp_path/'old-receipt';old.write_text('preserve')
+    target=module.BASE/'state/source-before.json';target.symlink_to(old)
+    with pytest.raises((ValueError,FileExistsError)):module.save('source-before.json',{'new':1})
+    assert old.read_text()=='preserve'
+    target.unlink();target.write_text('first receipt')
+    with pytest.raises(FileExistsError):module.save('source-before.json',{'new':2})
+    assert target.read_text()=='first receipt'

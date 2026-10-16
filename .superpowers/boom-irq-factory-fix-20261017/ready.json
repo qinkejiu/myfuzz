@@ -1,0 +1,33 @@
+{
+  "schema_version": "boom_irq_factory_fix_metadata_ready.v1",
+  "operation_executed": false,
+  "exact_go_required": true,
+  "old_factory_sha256": "1de87df95d1f10b44dd5848cc19afd9432527cf3b088103fa67f0883db8b0e09",
+  "new_factory_sha256": "0af5037e8282c232c672a0251e2c8f579d4f1f6edde793bc51e20854f8f1e77e",
+  "helper_sha256": "a6bbd17117a0973e4e67bc599b0e4cd7daa277449d4be9de3dfea0db294db3a8",
+  "unchanged_effective_input_count": 12,
+  "future_stage": "metadata_only_with_actual_version_query_no_build_or_model",
+  "control_hashes": {
+    "control.py": "2d1879526d53d7159dc9001491a6f2a2742cdd75ad12a9968a13d63b1c57824b",
+    "run-control.sh": "b3d43ecfbae4480fbe960e4d5ff7f7fb89386bd1ad8313d4ab77248f7f9ac2df",
+    "test_control.py": "312147217716b4cd29b6053ca5bcc5ee91d7f60f27dcab2bfdc70bca7a9c0141",
+    "prepare.py": "f710f6eba37d66b4bb9c3002ed25ff1db9aa6e3a74e03e9977e7f357de3b4a62",
+    "test_prepare.py": "3661a88df70485467c90c5946db853d11ac03aa358981a43e6277f3d77df95e9",
+    "old-runtime-source-files.json": "252547586247dd07eec522dd7cc1b2d90104d2257908bf1dfc2e34f975474c9e",
+    "protected-expected.json": "70cb3ecd4180883f61c838b6966c3b77b9cb6b30c3325ef10b5f0156cb5ebc07",
+    "original-build-pins.json": "33787e741e55b21cb46c58fb97fc47680eb138237750a9ae13f376f2957c6189",
+    "overlay-files.json": "9ee607f67f43a12ed4488a972ce3f04a0d36dd801b5efd6a026f71989b5277ff",
+    "overlay/src/myfuzz/scenario/boom_gpio_irq_runner.py": "0af5037e8282c232c672a0251e2c8f579d4f1f6edde793bc51e20854f8f1e77e",
+    "overlay/tests/local_harness/test_boom_irq_factory_binding.py": "742c22501846d419f44b776ef636f2d27fd277f1a9f1cf8d83cb6f89971a1982",
+    "preparation-input-pins.json": "577fbd58b11d4806d13ea94828349d4f891e0bb4a01f9e4ebf8516c23b8aeabe",
+    "source-destination.json": "fe1e5e78ce598b9e4a164520bfe60955778e0a82faa89479783c2acbef6428f8",
+    "protected-preparation-pins.json": "fee703cf47e8691e03054af1a63eb566469f462093d6924ea191b58b8bba2dc3",
+    "state/preparation-imports.json": "4c7459031a1e78014f91205f0628648938132b3b6f2a4b699587e558b1064ab5",
+    "state/protected-after-preparation.json": "309abb5121b4b77ab608fc30e291ead8190a2d8a71b175b4bbdd76f05c08ed3d",
+    "state/original-build-preparation.json": "672ab23cd3abc425ea072951f0e9f9385d80eef5c0a4f731eebe9e876a025fb0",
+    "state/preparation.json": "cee19a041082b9c93f9d128223c1a79eaabf8a7d012f375a6674d6222280743e",
+    "archives/attempt2-evidence.tar.gz": "559b5faf59607120ffabb59dc1ada694da9cf365b263e967d3cac154d3fee58a",
+    "archives/attempt2-build-closure.tar.gz": "e9a019a75fa4518cd620dc0519ce680b70d9c8c5ab5ba9c12ef1fbcc39082577",
+    "archives/attempt2-command-tool.tar.gz": "0fa6d68c4e70195e382a01e255a84952a5e200aea29c20c96cebe2e47a1133ec"
+  }
+}

@@ -18,7 +18,22 @@ HELPER='a6bbd17117a0973e4e67bc599b0e4cd7daa277449d4be9de3dfea0db294db3a8'
 
 
 def digest(path):return hashlib.sha256(path.read_bytes()).hexdigest()
-def save(name,value):(BASE/'state'/name).write_text(json.dumps(value,indent=2)+'\n')
+def checked_path(path):
+    path=Path(path).absolute()
+    if any(p.is_symlink() for p in (path,*path.parents)):raise ValueError('control path symlink')
+    if path.exists() and path.is_file() and path.stat().st_nlink!=1:raise ValueError('control path shared inode')
+    return path
+
+def save(name,value):
+    if Path(name).is_absolute() or '..' in Path(name).parts:raise ValueError('unsafe receipt path')
+    with checked_path(BASE/'state'/name).open('x') as stream:stream.write(json.dumps(value,indent=2)+'\n')
+
+def stage(value):
+    path=checked_path(BASE/'state/stage')
+    with path.open('w') as stream:stream.write(value)
+
+def fresh_text(path,value):
+    with checked_path(path).open('x') as stream:stream.write(value)
 def source_inventory(root):
     result={}
     for scope in SCOPES:
@@ -47,10 +62,11 @@ def tools(receipt):
 
 def claim():
     state=BASE/'state'
-    conflicts=(state/'PID',state/'launcher-PID',state/'worker.exit',state/'operation.claim',PROJECT,OUTPUT)
+    checked_path(state)
+    conflicts=(state/'stage',state/'result.json',state/'failure.json',state/'imports.json',state/'PID',state/'launcher-PID',state/'worker.exit',state/'operation.claim',PROJECT,OUTPUT)
     if any(path.exists() or path.is_symlink() for path in conflicts):
         raise ValueError('metadata operation already claimed or used; no state changed')
-    with (state/'operation.claim').open('x') as stream:
+    with checked_path(state/'operation.claim').open('x') as stream:
         stream.write(json.dumps({'pid':os.getpid(),'argv':sys.argv})+'\n')
 
 
@@ -99,8 +115,8 @@ def main():
     except (ValueError,FileExistsError) as error:
         print(str(error),file=sys.stderr)
         return 125
-    with (state/'PID').open('x') as stream:stream.write(str(os.getpid())+'\n')
-    (state/'stage').write_text('live-source-origin-check\n')
+    with checked_path(state/'PID').open('x') as stream:stream.write(str(os.getpid())+'\n')
+    stage('live-source-origin-check\n')
     files=origin=None
     before=tools_before=result=None
     protected_before=None
@@ -134,7 +150,7 @@ def main():
         if not matches:raise ValueError('original artifact drift')
         tools_before=tools(origin['tool_identity'])
         save('tools-before.json',tools_before)
-        (state/'stage').write_text('metadata-only-independent-copy-and-finalize\n')
+        stage('metadata-only-independent-copy-and-finalize\n')
         artifact=api.recover_metadata(repo=SOURCE,original_output=ORIGINAL,
             project_destination=PROJECT,output_destination=OUTPUT,archives=BASE/'archives')
         artifact_created=True
@@ -150,7 +166,7 @@ def main():
         copied=source_inventory(PROJECT)
         save('copied-source.json',{'files':copied,'match_prepared':copied==expected})
         if copied!=expected:
-            (OUTPUT/'.recovery-incomplete.json').write_text('control copied-source audit failed\n')
+            checked_path(OUTPUT/'.recovery-incomplete.json').write_text('control copied-source audit failed\n')
             raise ValueError('copied source mismatch')
         shared=[name for name in expected if os.path.samestat((SOURCE/name).stat(),(PROJECT/name).stat())]
         if shared:raise ValueError('shared source inode')
@@ -194,9 +210,9 @@ def main():
             result['worker_exit']=status
             save('result.json',result)
         if status and artifact_created:
-            (OUTPUT/'.recovery-incomplete.json').write_text('controller audit incomplete or failed\n')
-        (state/'worker.exit').write_text(str(status)+'\n')
-        (state/'stage').write_text('terminal\n')
+            checked_path(OUTPUT/'.recovery-incomplete.json').write_text('controller audit incomplete or failed\n')
+        fresh_text(state/'worker.exit',str(status)+'\n')
+        stage('terminal\n')
     return status
 
 
