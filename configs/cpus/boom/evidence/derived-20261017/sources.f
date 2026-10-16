@@ -1,0 +1,12 @@
+/root/fanzehui/system-20261016/chipyard-release-deps/sims/verilator/generated-src/chipyard.TestHarness.SmallBoomConfig/ClockDividerN.sv
+/root/fanzehui/system-20261016/chipyard-release-deps/sims/verilator/generated-src/chipyard.TestHarness.SmallBoomConfig/EICG_wrapper.v
+/root/fanzehui/system-20261016/chipyard-release-deps/sims/verilator/generated-src/chipyard.TestHarness.SmallBoomConfig/IOCell.v
+/root/fanzehui/system-20261016/chipyard-release-deps/sims/verilator/generated-src/chipyard.TestHarness.SmallBoomConfig/SimDRAM.v
+/root/fanzehui/system-20261016/chipyard-release-deps/sims/verilator/generated-src/chipyard.TestHarness.SmallBoomConfig/SimJTAG.v
+/root/fanzehui/system-20261016/chipyard-release-deps/sims/verilator/generated-src/chipyard.TestHarness.SmallBoomConfig/SimSerial.v
+/root/fanzehui/system-20261016/chipyard-release-deps/sims/verilator/generated-src/chipyard.TestHarness.SmallBoomConfig/SimUART.v
+/root/fanzehui/system-20261016/chipyard-release-deps/sims/verilator/generated-src/chipyard.TestHarness.SmallBoomConfig/chipyard.TestHarness.SmallBoomConfig.harness.mems.v
+/root/fanzehui/system-20261016/chipyard-release-deps/sims/verilator/generated-src/chipyard.TestHarness.SmallBoomConfig/chipyard.TestHarness.SmallBoomConfig.harness.v
+/root/fanzehui/system-20261016/chipyard-release-deps/sims/verilator/generated-src/chipyard.TestHarness.SmallBoomConfig/chipyard.TestHarness.SmallBoomConfig.top.mems.v
+/root/fanzehui/system-20261016/chipyard-release-deps/sims/verilator/generated-src/chipyard.TestHarness.SmallBoomConfig/chipyard.TestHarness.SmallBoomConfig.top.v
+/root/fanzehui/system-20261016/chipyard-release-deps/sims/verilator/generated-src/chipyard.TestHarness.SmallBoomConfig/plusarg_reader.v

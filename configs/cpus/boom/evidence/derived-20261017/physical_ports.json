@@ -1,0 +1,2055 @@
+{
+  "derived_source": true,
+  "configuration": "chipyard.SmallBoomConfig",
+  "semantic_adapter_verified": false,
+  "modules": {
+    "TestHarness": {
+      "file": "chipyard.TestHarness.SmallBoomConfig.harness.v",
+      "ports": [
+        {
+          "name": "clock",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "reset",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_success",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        }
+      ]
+    },
+    "BoomCore": {
+      "file": "chipyard.TestHarness.SmallBoomConfig.top.v",
+      "ports": [
+        {
+          "name": "clock",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "reset",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_hartid",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_interrupts_debug",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_interrupts_mtip",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_interrupts_msip",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_interrupts_meip",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_interrupts_seip",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_fetchpacket_ready",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_fetchpacket_valid",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_fetchpacket_bits_uops_0_valid",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_fetchpacket_bits_uops_0_bits_inst",
+          "direction": "input",
+          "width": 32,
+          "packed_range": "[31:0]"
+        },
+        {
+          "name": "io_ifu_fetchpacket_bits_uops_0_bits_debug_inst",
+          "direction": "input",
+          "width": 32,
+          "packed_range": "[31:0]"
+        },
+        {
+          "name": "io_ifu_fetchpacket_bits_uops_0_bits_is_rvc",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_fetchpacket_bits_uops_0_bits_is_sfb",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_fetchpacket_bits_uops_0_bits_ftq_idx",
+          "direction": "input",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "io_ifu_fetchpacket_bits_uops_0_bits_edge_inst",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_fetchpacket_bits_uops_0_bits_pc_lob",
+          "direction": "input",
+          "width": 6,
+          "packed_range": "[5:0]"
+        },
+        {
+          "name": "io_ifu_fetchpacket_bits_uops_0_bits_taken",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_fetchpacket_bits_uops_0_bits_xcpt_pf_if",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_fetchpacket_bits_uops_0_bits_xcpt_ae_if",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_fetchpacket_bits_uops_0_bits_bp_debug_if",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_fetchpacket_bits_uops_0_bits_bp_xcpt_if",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_fetchpacket_bits_uops_0_bits_debug_fsrc",
+          "direction": "input",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_ifu_get_pc_0_ftq_idx",
+          "direction": "output",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "io_ifu_get_pc_0_entry_cfi_idx_valid",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_get_pc_0_entry_cfi_idx_bits",
+          "direction": "input",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_ifu_get_pc_0_entry_ras_idx",
+          "direction": "input",
+          "width": 5,
+          "packed_range": "[4:0]"
+        },
+        {
+          "name": "io_ifu_get_pc_0_entry_start_bank",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_get_pc_0_pc",
+          "direction": "input",
+          "width": 40,
+          "packed_range": "[39:0]"
+        },
+        {
+          "name": "io_ifu_get_pc_0_com_pc",
+          "direction": "input",
+          "width": 40,
+          "packed_range": "[39:0]"
+        },
+        {
+          "name": "io_ifu_get_pc_0_next_val",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_get_pc_0_next_pc",
+          "direction": "input",
+          "width": 40,
+          "packed_range": "[39:0]"
+        },
+        {
+          "name": "io_ifu_get_pc_1_ftq_idx",
+          "direction": "output",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "io_ifu_get_pc_1_entry_cfi_idx_bits",
+          "direction": "input",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_ifu_get_pc_1_entry_br_mask",
+          "direction": "input",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "io_ifu_get_pc_1_entry_cfi_is_call",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_get_pc_1_entry_cfi_is_ret",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_get_pc_1_entry_start_bank",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_get_pc_1_ghist_old_history",
+          "direction": "input",
+          "width": 64,
+          "packed_range": "[63:0]"
+        },
+        {
+          "name": "io_ifu_get_pc_1_ghist_current_saw_branch_not_taken",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_get_pc_1_ghist_new_saw_branch_not_taken",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_get_pc_1_ghist_new_saw_branch_taken",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_get_pc_1_ghist_ras_idx",
+          "direction": "input",
+          "width": 5,
+          "packed_range": "[4:0]"
+        },
+        {
+          "name": "io_ifu_get_pc_1_pc",
+          "direction": "input",
+          "width": 40,
+          "packed_range": "[39:0]"
+        },
+        {
+          "name": "io_ifu_sfence_valid",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_sfence_bits_rs1",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_sfence_bits_rs2",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_sfence_bits_addr",
+          "direction": "output",
+          "width": 39,
+          "packed_range": "[38:0]"
+        },
+        {
+          "name": "io_ifu_brupdate_b2_uop_ftq_idx",
+          "direction": "output",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "io_ifu_brupdate_b2_uop_pc_lob",
+          "direction": "output",
+          "width": 6,
+          "packed_range": "[5:0]"
+        },
+        {
+          "name": "io_ifu_brupdate_b2_mispredict",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_brupdate_b2_taken",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_redirect_flush",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_redirect_val",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_redirect_pc",
+          "direction": "output",
+          "width": 40,
+          "packed_range": "[39:0]"
+        },
+        {
+          "name": "io_ifu_redirect_ftq_idx",
+          "direction": "output",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "io_ifu_redirect_ghist_old_history",
+          "direction": "output",
+          "width": 64,
+          "packed_range": "[63:0]"
+        },
+        {
+          "name": "io_ifu_redirect_ghist_current_saw_branch_not_taken",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_redirect_ghist_new_saw_branch_not_taken",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_redirect_ghist_new_saw_branch_taken",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_redirect_ghist_ras_idx",
+          "direction": "output",
+          "width": 5,
+          "packed_range": "[4:0]"
+        },
+        {
+          "name": "io_ifu_commit_valid",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_commit_bits",
+          "direction": "output",
+          "width": 16,
+          "packed_range": "[15:0]"
+        },
+        {
+          "name": "io_ifu_flush_icache",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_perf_acquire",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ifu_perf_tlbMiss",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_ptbr_mode",
+          "direction": "output",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "io_ptw_ptbr_ppn",
+          "direction": "output",
+          "width": 44,
+          "packed_range": "[43:0]"
+        },
+        {
+          "name": "io_ptw_sfence_valid",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_sfence_bits_rs1",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_sfence_bits_rs2",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_sfence_bits_addr",
+          "direction": "output",
+          "width": 39,
+          "packed_range": "[38:0]"
+        },
+        {
+          "name": "io_ptw_status_debug",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_status_dprv",
+          "direction": "output",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_ptw_status_prv",
+          "direction": "output",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_ptw_status_mxr",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_status_sum",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_0_cfg_l",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_0_cfg_a",
+          "direction": "output",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_ptw_pmp_0_cfg_x",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_0_cfg_w",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_0_cfg_r",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_0_addr",
+          "direction": "output",
+          "width": 30,
+          "packed_range": "[29:0]"
+        },
+        {
+          "name": "io_ptw_pmp_0_mask",
+          "direction": "output",
+          "width": 32,
+          "packed_range": "[31:0]"
+        },
+        {
+          "name": "io_ptw_pmp_1_cfg_l",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_1_cfg_a",
+          "direction": "output",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_ptw_pmp_1_cfg_x",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_1_cfg_w",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_1_cfg_r",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_1_addr",
+          "direction": "output",
+          "width": 30,
+          "packed_range": "[29:0]"
+        },
+        {
+          "name": "io_ptw_pmp_1_mask",
+          "direction": "output",
+          "width": 32,
+          "packed_range": "[31:0]"
+        },
+        {
+          "name": "io_ptw_pmp_2_cfg_l",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_2_cfg_a",
+          "direction": "output",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_ptw_pmp_2_cfg_x",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_2_cfg_w",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_2_cfg_r",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_2_addr",
+          "direction": "output",
+          "width": 30,
+          "packed_range": "[29:0]"
+        },
+        {
+          "name": "io_ptw_pmp_2_mask",
+          "direction": "output",
+          "width": 32,
+          "packed_range": "[31:0]"
+        },
+        {
+          "name": "io_ptw_pmp_3_cfg_l",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_3_cfg_a",
+          "direction": "output",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_ptw_pmp_3_cfg_x",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_3_cfg_w",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_3_cfg_r",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_3_addr",
+          "direction": "output",
+          "width": 30,
+          "packed_range": "[29:0]"
+        },
+        {
+          "name": "io_ptw_pmp_3_mask",
+          "direction": "output",
+          "width": 32,
+          "packed_range": "[31:0]"
+        },
+        {
+          "name": "io_ptw_pmp_4_cfg_l",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_4_cfg_a",
+          "direction": "output",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_ptw_pmp_4_cfg_x",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_4_cfg_w",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_4_cfg_r",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_4_addr",
+          "direction": "output",
+          "width": 30,
+          "packed_range": "[29:0]"
+        },
+        {
+          "name": "io_ptw_pmp_4_mask",
+          "direction": "output",
+          "width": 32,
+          "packed_range": "[31:0]"
+        },
+        {
+          "name": "io_ptw_pmp_5_cfg_l",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_5_cfg_a",
+          "direction": "output",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_ptw_pmp_5_cfg_x",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_5_cfg_w",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_5_cfg_r",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_5_addr",
+          "direction": "output",
+          "width": 30,
+          "packed_range": "[29:0]"
+        },
+        {
+          "name": "io_ptw_pmp_5_mask",
+          "direction": "output",
+          "width": 32,
+          "packed_range": "[31:0]"
+        },
+        {
+          "name": "io_ptw_pmp_6_cfg_l",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_6_cfg_a",
+          "direction": "output",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_ptw_pmp_6_cfg_x",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_6_cfg_w",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_6_cfg_r",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_6_addr",
+          "direction": "output",
+          "width": 30,
+          "packed_range": "[29:0]"
+        },
+        {
+          "name": "io_ptw_pmp_6_mask",
+          "direction": "output",
+          "width": 32,
+          "packed_range": "[31:0]"
+        },
+        {
+          "name": "io_ptw_pmp_7_cfg_l",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_7_cfg_a",
+          "direction": "output",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_ptw_pmp_7_cfg_x",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_7_cfg_w",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_7_cfg_r",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_ptw_pmp_7_addr",
+          "direction": "output",
+          "width": 30,
+          "packed_range": "[29:0]"
+        },
+        {
+          "name": "io_ptw_pmp_7_mask",
+          "direction": "output",
+          "width": 32,
+          "packed_range": "[31:0]"
+        },
+        {
+          "name": "io_ptw_perf_l2miss",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_req_valid",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_uop_ctrl_is_load",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_uop_ctrl_is_sta",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_uop_ctrl_is_std",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_uop_br_mask",
+          "direction": "output",
+          "width": 8,
+          "packed_range": "[7:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_uop_rob_idx",
+          "direction": "output",
+          "width": 5,
+          "packed_range": "[4:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_uop_ldq_idx",
+          "direction": "output",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_uop_stq_idx",
+          "direction": "output",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_uop_pdst",
+          "direction": "output",
+          "width": 6,
+          "packed_range": "[5:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_uop_mem_cmd",
+          "direction": "output",
+          "width": 5,
+          "packed_range": "[4:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_uop_mem_size",
+          "direction": "output",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_uop_mem_signed",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_uop_is_fence",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_uop_is_amo",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_uop_uses_ldq",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_uop_uses_stq",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_uop_fp_val",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_data",
+          "direction": "output",
+          "width": 64,
+          "packed_range": "[63:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_addr",
+          "direction": "output",
+          "width": 40,
+          "packed_range": "[39:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_mxcpt_valid",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_sfence_valid",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_sfence_bits_rs1",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_sfence_bits_rs2",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_req_bits_sfence_bits_addr",
+          "direction": "output",
+          "width": 39,
+          "packed_range": "[38:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_iresp_valid",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_iresp_bits_uop_rob_idx",
+          "direction": "input",
+          "width": 5,
+          "packed_range": "[4:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_iresp_bits_uop_pdst",
+          "direction": "input",
+          "width": 6,
+          "packed_range": "[5:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_iresp_bits_uop_is_amo",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_iresp_bits_uop_uses_stq",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_iresp_bits_uop_dst_rtype",
+          "direction": "input",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_iresp_bits_data",
+          "direction": "input",
+          "width": 64,
+          "packed_range": "[63:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_fresp_valid",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_fresp_bits_uop_uopc",
+          "direction": "input",
+          "width": 7,
+          "packed_range": "[6:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_fresp_bits_uop_br_mask",
+          "direction": "input",
+          "width": 8,
+          "packed_range": "[7:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_fresp_bits_uop_rob_idx",
+          "direction": "input",
+          "width": 5,
+          "packed_range": "[4:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_fresp_bits_uop_stq_idx",
+          "direction": "input",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_fresp_bits_uop_pdst",
+          "direction": "input",
+          "width": 6,
+          "packed_range": "[5:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_fresp_bits_uop_mem_size",
+          "direction": "input",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_fresp_bits_uop_is_amo",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_fresp_bits_uop_uses_stq",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_fresp_bits_uop_dst_rtype",
+          "direction": "input",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_lsu_exe_0_fresp_bits_uop_fp_val",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_exe_0_fresp_bits_data",
+          "direction": "input",
+          "width": 65,
+          "packed_range": "[64:0]"
+        },
+        {
+          "name": "io_lsu_dis_uops_0_valid",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_dis_uops_0_bits_uopc",
+          "direction": "output",
+          "width": 7,
+          "packed_range": "[6:0]"
+        },
+        {
+          "name": "io_lsu_dis_uops_0_bits_br_mask",
+          "direction": "output",
+          "width": 8,
+          "packed_range": "[7:0]"
+        },
+        {
+          "name": "io_lsu_dis_uops_0_bits_rob_idx",
+          "direction": "output",
+          "width": 5,
+          "packed_range": "[4:0]"
+        },
+        {
+          "name": "io_lsu_dis_uops_0_bits_ldq_idx",
+          "direction": "output",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "io_lsu_dis_uops_0_bits_stq_idx",
+          "direction": "output",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "io_lsu_dis_uops_0_bits_pdst",
+          "direction": "output",
+          "width": 6,
+          "packed_range": "[5:0]"
+        },
+        {
+          "name": "io_lsu_dis_uops_0_bits_exception",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_dis_uops_0_bits_mem_cmd",
+          "direction": "output",
+          "width": 5,
+          "packed_range": "[4:0]"
+        },
+        {
+          "name": "io_lsu_dis_uops_0_bits_mem_size",
+          "direction": "output",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_lsu_dis_uops_0_bits_mem_signed",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_dis_uops_0_bits_is_fence",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_dis_uops_0_bits_is_amo",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_dis_uops_0_bits_uses_ldq",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_dis_uops_0_bits_uses_stq",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_dis_uops_0_bits_dst_rtype",
+          "direction": "output",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "io_lsu_dis_uops_0_bits_fp_val",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_dis_ldq_idx_0",
+          "direction": "input",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "io_lsu_dis_stq_idx_0",
+          "direction": "input",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "io_lsu_ldq_full_0",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_stq_full_0",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_fp_stdata_ready",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_fp_stdata_valid",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_fp_stdata_bits_uop_br_mask",
+          "direction": "output",
+          "width": 8,
+          "packed_range": "[7:0]"
+        },
+        {
+          "name": "io_lsu_fp_stdata_bits_uop_rob_idx",
+          "direction": "output",
+          "width": 5,
+          "packed_range": "[4:0]"
+        },
+        {
+          "name": "io_lsu_fp_stdata_bits_uop_stq_idx",
+          "direction": "output",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "io_lsu_fp_stdata_bits_data",
+          "direction": "output",
+          "width": 64,
+          "packed_range": "[63:0]"
+        },
+        {
+          "name": "io_lsu_commit_valids_0",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_commit_uops_0_uses_ldq",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_commit_uops_0_uses_stq",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_commit_load_at_rob_head",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_clr_bsy_0_valid",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_clr_bsy_0_bits",
+          "direction": "input",
+          "width": 5,
+          "packed_range": "[4:0]"
+        },
+        {
+          "name": "io_lsu_clr_bsy_1_valid",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_clr_bsy_1_bits",
+          "direction": "input",
+          "width": 5,
+          "packed_range": "[4:0]"
+        },
+        {
+          "name": "io_lsu_fence_dmem",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_spec_ld_wakeup_0_valid",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_spec_ld_wakeup_0_bits",
+          "direction": "input",
+          "width": 6,
+          "packed_range": "[5:0]"
+        },
+        {
+          "name": "io_lsu_ld_miss",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_brupdate_b1_resolve_mask",
+          "direction": "output",
+          "width": 8,
+          "packed_range": "[7:0]"
+        },
+        {
+          "name": "io_lsu_brupdate_b1_mispredict_mask",
+          "direction": "output",
+          "width": 8,
+          "packed_range": "[7:0]"
+        },
+        {
+          "name": "io_lsu_brupdate_b2_uop_ldq_idx",
+          "direction": "output",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "io_lsu_brupdate_b2_uop_stq_idx",
+          "direction": "output",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "io_lsu_brupdate_b2_mispredict",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_rob_head_idx",
+          "direction": "output",
+          "width": 5,
+          "packed_range": "[4:0]"
+        },
+        {
+          "name": "io_lsu_exception",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_fencei_rdy",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_lxcpt_valid",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_lxcpt_bits_uop_br_mask",
+          "direction": "input",
+          "width": 8,
+          "packed_range": "[7:0]"
+        },
+        {
+          "name": "io_lsu_lxcpt_bits_uop_rob_idx",
+          "direction": "input",
+          "width": 5,
+          "packed_range": "[4:0]"
+        },
+        {
+          "name": "io_lsu_lxcpt_bits_cause",
+          "direction": "input",
+          "width": 5,
+          "packed_range": "[4:0]"
+        },
+        {
+          "name": "io_lsu_lxcpt_bits_badvaddr",
+          "direction": "input",
+          "width": 40,
+          "packed_range": "[39:0]"
+        },
+        {
+          "name": "io_lsu_perf_acquire",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_perf_release",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "io_lsu_perf_tlbMiss",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        }
+      ]
+    },
+    "BoomTile": {
+      "file": "chipyard.TestHarness.SmallBoomConfig.top.v",
+      "ports": [
+        {
+          "name": "clock",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "reset",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_int_local_in_3_0",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_int_local_in_2_0",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_int_local_in_1_0",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_int_local_in_1_1",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_int_local_in_0_0",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_hartid_in",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_tl_other_masters_out_a_ready",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_tl_other_masters_out_a_valid",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_tl_other_masters_out_a_bits_opcode",
+          "direction": "output",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_a_bits_param",
+          "direction": "output",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_a_bits_size",
+          "direction": "output",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_a_bits_source",
+          "direction": "output",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_a_bits_address",
+          "direction": "output",
+          "width": 32,
+          "packed_range": "[31:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_a_bits_mask",
+          "direction": "output",
+          "width": 8,
+          "packed_range": "[7:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_a_bits_data",
+          "direction": "output",
+          "width": 64,
+          "packed_range": "[63:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_b_ready",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_tl_other_masters_out_b_valid",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_tl_other_masters_out_b_bits_opcode",
+          "direction": "input",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_b_bits_param",
+          "direction": "input",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_b_bits_size",
+          "direction": "input",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_b_bits_source",
+          "direction": "input",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_b_bits_address",
+          "direction": "input",
+          "width": 32,
+          "packed_range": "[31:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_b_bits_mask",
+          "direction": "input",
+          "width": 8,
+          "packed_range": "[7:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_b_bits_corrupt",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_tl_other_masters_out_c_ready",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_tl_other_masters_out_c_valid",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_tl_other_masters_out_c_bits_opcode",
+          "direction": "output",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_c_bits_param",
+          "direction": "output",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_c_bits_size",
+          "direction": "output",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_c_bits_source",
+          "direction": "output",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_c_bits_address",
+          "direction": "output",
+          "width": 32,
+          "packed_range": "[31:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_c_bits_data",
+          "direction": "output",
+          "width": 64,
+          "packed_range": "[63:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_d_ready",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_tl_other_masters_out_d_valid",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_tl_other_masters_out_d_bits_opcode",
+          "direction": "input",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_d_bits_param",
+          "direction": "input",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_d_bits_size",
+          "direction": "input",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_d_bits_source",
+          "direction": "input",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_d_bits_sink",
+          "direction": "input",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_d_bits_denied",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_tl_other_masters_out_d_bits_data",
+          "direction": "input",
+          "width": 64,
+          "packed_range": "[63:0]"
+        },
+        {
+          "name": "auto_tl_other_masters_out_d_bits_corrupt",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_tl_other_masters_out_e_ready",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_tl_other_masters_out_e_valid",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "auto_tl_other_masters_out_e_bits_sink",
+          "direction": "output",
+          "width": 3,
+          "packed_range": "[2:0]"
+        }
+      ]
+    },
+    "ChipTop": {
+      "file": "chipyard.TestHarness.SmallBoomConfig.top.v",
+      "ports": [
+        {
+          "name": "jtag_TCK",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "jtag_TMS",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "jtag_TDI",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "jtag_TDO",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "serial_tl_clock",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "serial_tl_bits_in_ready",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "serial_tl_bits_in_valid",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "serial_tl_bits_in_bits",
+          "direction": "input",
+          "width": 32,
+          "packed_range": "[31:0]"
+        },
+        {
+          "name": "serial_tl_bits_out_ready",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "serial_tl_bits_out_valid",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "serial_tl_bits_out_bits",
+          "direction": "output",
+          "width": 32,
+          "packed_range": "[31:0]"
+        },
+        {
+          "name": "custom_boot",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "clock_clock",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "reset",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "axi4_mem_0_clock",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "axi4_mem_0_reset",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "axi4_mem_0_bits_aw_ready",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "axi4_mem_0_bits_aw_valid",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "axi4_mem_0_bits_aw_bits_id",
+          "direction": "output",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_aw_bits_addr",
+          "direction": "output",
+          "width": 32,
+          "packed_range": "[31:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_aw_bits_len",
+          "direction": "output",
+          "width": 8,
+          "packed_range": "[7:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_aw_bits_size",
+          "direction": "output",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_aw_bits_burst",
+          "direction": "output",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_aw_bits_lock",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "axi4_mem_0_bits_aw_bits_cache",
+          "direction": "output",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_aw_bits_prot",
+          "direction": "output",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_aw_bits_qos",
+          "direction": "output",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_w_ready",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "axi4_mem_0_bits_w_valid",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "axi4_mem_0_bits_w_bits_data",
+          "direction": "output",
+          "width": 64,
+          "packed_range": "[63:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_w_bits_strb",
+          "direction": "output",
+          "width": 8,
+          "packed_range": "[7:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_w_bits_last",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "axi4_mem_0_bits_b_ready",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "axi4_mem_0_bits_b_valid",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "axi4_mem_0_bits_b_bits_id",
+          "direction": "input",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_b_bits_resp",
+          "direction": "input",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_ar_ready",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "axi4_mem_0_bits_ar_valid",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "axi4_mem_0_bits_ar_bits_id",
+          "direction": "output",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_ar_bits_addr",
+          "direction": "output",
+          "width": 32,
+          "packed_range": "[31:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_ar_bits_len",
+          "direction": "output",
+          "width": 8,
+          "packed_range": "[7:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_ar_bits_size",
+          "direction": "output",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_ar_bits_burst",
+          "direction": "output",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_ar_bits_lock",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "axi4_mem_0_bits_ar_bits_cache",
+          "direction": "output",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_ar_bits_prot",
+          "direction": "output",
+          "width": 3,
+          "packed_range": "[2:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_ar_bits_qos",
+          "direction": "output",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_r_ready",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "axi4_mem_0_bits_r_valid",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "axi4_mem_0_bits_r_bits_id",
+          "direction": "input",
+          "width": 4,
+          "packed_range": "[3:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_r_bits_data",
+          "direction": "input",
+          "width": 64,
+          "packed_range": "[63:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_r_bits_resp",
+          "direction": "input",
+          "width": 2,
+          "packed_range": "[1:0]"
+        },
+        {
+          "name": "axi4_mem_0_bits_r_bits_last",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "uart_0_txd",
+          "direction": "output",
+          "width": 1,
+          "packed_range": null
+        },
+        {
+          "name": "uart_0_rxd",
+          "direction": "input",
+          "width": 1,
+          "packed_range": null
+        }
+      ]
+    }
+  }
+}

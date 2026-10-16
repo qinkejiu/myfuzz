@@ -77,10 +77,79 @@ The remote evidence hashes are:
 | `chipyard-release-deps-firrtl-attempt1.log` | `0d34c2c55cfd144f240c36ca5d25be4ea8c0238a98ff6a252ab3ffade7caa744` |
 | `chipyard-release-deps-firrtl.log` | `8aefa8cd28ba0a3b969317bf1a62a5e5d7e584408a48d7a148af8ff4610fa4e9` |
 
+## Derived source compatibility repair
+
+The NPE is caused by IO construction order in Rocket Chip, rather than a
+missing BOOM cache parameter. `L1MetadataArray` extends `L1HellaCacheModule`,
+which imports legacy `Chisel.Module`. Its first statement evaluates
+`rstVal = onReset()` before `val io` is initialized. BOOM supplies
+`L1Metadata(0.U, ClientMetadata.onReset)` as that callback. In published
+Chisel 3.5.0, the callback's Wire construction reaches `Data.ref`, which
+triggers legacy automatic IO wrapping; reflection finds the still-null `io`
+value and fails. The preserved original stack explicitly shows that chain.
+
+The derived tree now changes this one module to `chisel3.Module with
+HasL1HellaCacheParameters`, with `implicit val p` and explicit `IO(new
+Bundle {...})`. The reset expression, storage and handshake logic remain the
+same. Reproducible patches with relative paths are in `patches/`, applied
+in the order documented there. The fixed upstream checkout remains preserved.
+
+The same `make firrtl CONFIG=SmallBoomConfig` command, with the same published
+dependencies and under the unified heavy lock, now exits **0**. The generator
+reports 58 seconds and writes a **36,351,476 byte** FIRRTL circuit. The full
+successful log, command and exit code are committed under
+`evidence/derived-20261017/`. This establishes successful elaboration of the
+derived source and confirms that changing this module's IO binding resolves
+the previously observed NPE.
+
+The emitted FIRRTL has `BoomTile`, `ChipTop`, and `TestHarness` modules.
+`BoomTile` has one coherent TileLink master with all A/B/C/D/E channels,
+32-bit addresses, 64-bit data, 3-bit source IDs and 3-bit sink IDs. It also has
+a 32-bit reset vector, hart ID, local interrupts, NMI and trace ports.
+`ChipTop` instead exports AXI4 memory (32-bit address, 64-bit data, 4-bit ID),
+serial TileLink, JTAG and UART. The abstract instruction/data memory split in
+the semantic reference is not a physical mapping of this generated tile.
+
+## Successful derived Verilog generation
+
+The existing `make verilog CONFIG=SmallBoomConfig` run completed with exit
+**0**. `evidence/derived-20261017/verilog-command.sh`, `verilog.log` and
+`verilog.exit` preserve the command, complete output and status. It used the
+same shared heavy worker lock and a 900-second timeout. No second lowering
+was launched. Barstools emitted both top and harness Verilog and compiled the
+sequential memory descriptions into flop based Verilog models.
+
+`capture_generation.py` ran on the completed output directory. Its checked-in
+`generated_artifact_manifest.json` records SHA-256 and byte length for 35
+FIRRTL, JSON, filelist and Verilog artifacts. `sources.f` enumerates the 12
+Verilog/SystemVerilog files on the build host; it is a generation inventory,
+not a portable CPU materialization filelist. The main top Verilog is
+17,963,255 bytes, SHA-256
+`78bc69803c7b993cd1ddfcdb585d477bd27a83710bb1ce426e217aedbbdfaced`.
+The top memory model is 101,191 bytes, SHA-256
+`97ae4679a1ec21f4f424c56e23b1b1948e77d934c8c11461b56de47160a1a280`.
+The manifest gives identities for the remaining files. Generated RTL remains
+on the build host rather than being copied into the source repository.
+
+`physical_ports.json` records actual lowered Verilog module headers:
+`BoomTile` has 47 ports, `BoomCore` 233, `ChipTop` 55 and `TestHarness` 3.
+The lowered `BoomTile` retains the coherent A/B/C/D/E master and five local
+interrupt inputs. Unlike the earlier FIRRTL boundary, its reset vector, NMI
+and trace ports have been removed by specialization/optimization; a runtime
+driver must use the actual emitted boundary. `ChipTop` retains the AXI4 memory,
+serial TileLink, JTAG and UART boundary described above.
+
+The generated ChipTop's boot ROM deliberately waits in WFI for the serial
+interface to load a program and raise MSIP. On that interrupt it loads the
+boot address register at 0x4000 and enters the program. Connecting an AXI RAM
+responder alone is insufficient to establish execution. The source is
+`generators/testchipip/bootrom/bootrom.S` in the derived tree.
+
 ## Remaining boundary
 
 The existing `interface_description.json` still has a zero source digest and
-an abstract `boom_tile` boundary. There is no verified `sources.f`, physical
-port map, or coherent TileLink A/B/C/D/E adapter. The existing
+an abstract `boom_tile` boundary. The captured generation inventory and port
+map have not been admitted as its CPU materialization. There is no verified
+coherent TileLink A/B/C/D/E adapter. The existing
 `configs/designs/boom` entries cite `SmallBoomV3Config`, absent from this
 Chipyard revision. BOOM therefore remains unavailable for runtime execution.

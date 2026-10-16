@@ -58,11 +58,11 @@ generated physical boundary, but it is a modified generator input and cannot
 establish generation from the unmodified Chipyard source pin.
 
 The derived build passed dependency resolution and compiled the Scala source,
-then exited 2 during `chipyard.Generator` elaboration. A
+then originally exited 2 during `chipyard.Generator` elaboration. A
 `NullPointerException` originates in Chisel's
 `LegacyModule._compatAutoWrapPorts`/`reflectivelyFindValIO`, through Rocket
 Chip `ClientMetadata` and `BoomNonBlockingDCacheModule.onReset`. It produced no
-FIRRTL or RTL either. Exact commands, source identities, output checks, and
+FIRRTL or RTL in that first dependency-only attempt. Exact commands, source identities, output checks, and
 failure locations are recorded in `generation_evidence_20261017.md`.
 
 There is an additional unavailable dependency. `tilelink@1` is now *declared*
@@ -90,5 +90,30 @@ capabilities, or supply a separately verified boundary converter and describe
 its supported protocol honestly. Keep `implemented=false` and
 `available=false` until those dependencies exist. A regression test provides
 pinned synthetic RTL and verifies that annotation still rejects the missing
-`tilelink@1` dependency. This iteration does not download Chipyard or claim
-BOOM runtime support.
+`tilelink@1` dependency. The fixed and derived Chipyard sources are staged on the build host. BOOM
+runtime support remains unverified.
+
+## Derived source repair and successful elaboration
+
+A minimal compatibility repair in `patches/explicit-metadata-io.patch`
+replaces legacy automatic IO wrapping in Rocket `L1MetadataArray` with explicit
+Chisel 3 IO binding. Together with `patches/published-dependencies.patch`, the
+derived source now successfully elaborates `chipyard.SmallBoomConfig` into a
+36,351,476-byte FIRRTL circuit. The original source and failures remain
+preserved. See `generation_evidence_20261017.md` for root cause, successful
+command and scope; committed logs are under `evidence/derived-20261017/`.
+
+The actual `BoomTile` boundary uses a unified coherent TileLink A/B/C/D/E
+master. The semantic reference's separate instruction/data roles do not map
+directly onto its ports. CPU admission must wait for a verified adapter and
+runtime evidence at a selected generated boundary.
+
+The derived `make verilog` also completed with exit 0, emitting top, harness
+and sequential memory Verilog. The committed artifact manifest captures 35
+files and a 12-file RTL inventory. `physical_ports.json` captures the emitted
+`BoomTile` (47 ports), `BoomCore` (233), `ChipTop` (55) and `TestHarness` (3).
+These are evidence from the derived generator, with runtime verification
+still false. Lowering specializes away the FIRRTL tile reset-vector/NMI/trace
+ports, so runtime integration must follow the emitted Verilog port map.
+The generated boot ROM requires serial TileLink program loading and an MSIP
+interrupt before entering RAM. See the generation evidence for that boundary.

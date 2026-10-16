@@ -1,0 +1,184 @@
+{
+  "schema_version": "boom_generation_artifacts.v1",
+  "derived_source": true,
+  "generated_root": "/root/fanzehui/system-20261016/chipyard-release-deps/sims/verilator/generated-src/chipyard.TestHarness.SmallBoomConfig",
+  "configuration": "chipyard.SmallBoomConfig",
+  "runtime_verified": false,
+  "files": [
+    {
+      "path": "ClockDividerN.sv",
+      "bytes": 1566,
+      "sha256": "9cec3b1acb58749f5b63285af95f80804bf1072a031fc999fc8556be132cac31"
+    },
+    {
+      "path": "EICG_wrapper.v",
+      "bytes": 297,
+      "sha256": "8532a50a212f146f10208717be24168a2de73a9754786da272d0dbfcd556c307"
+    },
+    {
+      "path": "IOCell.v",
+      "bytes": 599,
+      "sha256": "cdd037ff6feb70b2a3899d7111d3c437e3d0d80d9ca090ad0e0d35d4e4276245"
+    },
+    {
+      "path": "SimDRAM.v",
+      "bytes": 6279,
+      "sha256": "7d14c670cb94465027e9efee0e5ebb26311b29e8432190719d7e781296154708"
+    },
+    {
+      "path": "SimJTAG.v",
+      "bytes": 2458,
+      "sha256": "3a5df6035e4658031b96dc27155086425fdf50af4e86e1e33036f2acd04eacf3"
+    },
+    {
+      "path": "SimSerial.v",
+      "bytes": 1689,
+      "sha256": "642cfc8f70e502ae5192e4c9ef115f159ac81f56ac25d5cca52af92e9907c3fc"
+    },
+    {
+      "path": "SimUART.v",
+      "bytes": 1902,
+      "sha256": "2ed4bc8c7fd371ff3a2df390b3e28a89b2ab526087338b4ae2d7dbba30d5f0c8"
+    },
+    {
+      "path": "TestHarness.anno.json",
+      "bytes": 1735058,
+      "sha256": "fa3c83fe69ff8c149196e9ed8137f598da844848767586aac945bd664909f698"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.0x0.0.regmap.json",
+      "bytes": 36053,
+      "sha256": "4a7f767c401a4acbf2ad89ac13eae9473e7d639ce43c8aa3c7b7901cb8b7b2cd"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.0x0.1.regmap.json",
+      "bytes": 296939,
+      "sha256": "1f3b77349d0924788e44711f985f21d43063c08a195486d54b27f70f1cf5feb3"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.0x100000.0.regmap.json",
+      "bytes": 1007,
+      "sha256": "08d704121b52c9d6de5b4614ff9f2fe3fcad6b383902c496204755678b2d11b3"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.0x110000.0.regmap.json",
+      "bytes": 245,
+      "sha256": "8e6b6e702d245a2553e9da20c3d41e82423d25678a3885c295764456033782d0"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.0x2000000.0.regmap.json",
+      "bytes": 4524,
+      "sha256": "ccf826bef6702c337b2edb821979951fac9b9f693ad5eb82b0e68ecf1aef4433"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.0x2010000.0.regmap.json",
+      "bytes": 1891,
+      "sha256": "ef7bbfc57fc6e7e7ab7356fb1c4c403854ef45845cf2fde935e28edf5fd1d992"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.0x40.0.regmap.json",
+      "bytes": 4942,
+      "sha256": "40bfbcb388ef9b601004f1ac65cb2f473eed70194aafdc1bba0dd9ac53c1e40e"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.0x4000.0.regmap.json",
+      "bytes": 1135,
+      "sha256": "7b414d3e4d5e3a9670979737f96f6d691ad9291dac7029b77ea88a97ba1e6679"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.0x54000000.0.regmap.json",
+      "bytes": 4474,
+      "sha256": "d8c0621e0e6bf7c81548bd6bb3b790cd3d7416ba1959c94077c6bfc975cd457e"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.0xc000000.0.regmap.json",
+      "bytes": 4268,
+      "sha256": "c610aedf33f82838504c70c9478f8737b345d596b68927150797a9cb2ebee9e8"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.anno.json",
+      "bytes": 1735058,
+      "sha256": "fa3c83fe69ff8c149196e9ed8137f598da844848767586aac945bd664909f698"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.fir",
+      "bytes": 36351476,
+      "sha256": "bf383005274380d3bf86e2e80b397f00b31167bcef29408aac16d3e903166c9c"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.harness.anno.json",
+      "bytes": 791741,
+      "sha256": "a17fd4351620b71bdceb76c10e52e6eb331dbffd7c838de6c0bca371077fa59e"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.harness.fir",
+      "bytes": 756417,
+      "sha256": "3966e33d4776deb37b40153806f7b13d639341c6a1e0ab9a00cfe0d0abc9220e"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.harness.mems.v",
+      "bytes": 9934,
+      "sha256": "eb5691f768f3fcbf8574f87e69e6292b5015aeae320e96a63a7036b9f51bdb9b"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.harness.v",
+      "bytes": 1131055,
+      "sha256": "63ea67d4fbdd63987a9885def7c6624da4697be6d87d6c5d1a15dd754833c2cd"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.json",
+      "bytes": 4056,
+      "sha256": "47c9988955bd0ac8b6692a4f210a9e921b13541e85228a23dc4011804b063d98"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.l2.json",
+      "bytes": 875,
+      "sha256": "e5a5e4551dfcae5dc4b217a80c534fa3d6124c576e782b763049f866f419754a"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.memmap.json",
+      "bytes": 1593,
+      "sha256": "e0ec7b49a3902e9ad712438c9870544f13ac8b914ba0f0e299c4d633b124a648"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.top.anno.json",
+      "bytes": 837035,
+      "sha256": "fb377931bc3e2842713ea7930f6229bd45aa0df859dcae4fcffa96b3090d50c0"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.top.fir",
+      "bytes": 16643171,
+      "sha256": "d5ea6e36a64c0e43a2e748384c0678dc513f30d65d9acc7464a310ff2e6724ed"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.top.mems.v",
+      "bytes": 101191,
+      "sha256": "97ae4679a1ec21f4f424c56e23b1b1948e77d934c8c11461b56de47160a1a280"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.top.v",
+      "bytes": 17963255,
+      "sha256": "78bc69803c7b993cd1ddfcdb585d477bd27a83710bb1ce426e217aedbbdfaced"
+    },
+    {
+      "path": "firrtl_black_box_resource_files.harness.f",
+      "bytes": 1834,
+      "sha256": "b7c6509eb31742db25d9751c4c3dc5505ef65494101085119acd03eb70578114"
+    },
+    {
+      "path": "firrtl_black_box_resource_files.top.f",
+      "bytes": 400,
+      "sha256": "0bb59a5b25e260022422d8ff066e67672a6f8fd16e11b7409db4f9a875bfc470"
+    },
+    {
+      "path": "plusarg_reader.v",
+      "bytes": 596,
+      "sha256": "482a63c1f24a7ac920909620bd0df108e6954eabf9520de6e72334a2b5450efb"
+    },
+    {
+      "path": "sim_files.f",
+      "bytes": 1905,
+      "sha256": "0dec59d78e5fe451747439cacd531a665aa7205ae8db2493a07c0b90e4093ae2"
+    }
+  ]
+}

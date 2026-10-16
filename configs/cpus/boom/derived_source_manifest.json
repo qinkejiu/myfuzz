@@ -1,0 +1,40 @@
+{
+  "schema_version": "boom_derived_source.v1",
+  "base_manifest": "chipyard_source_manifest.json",
+  "base_chipyard_commit": "4180463d52bc0a6b4c004530601ccdabebf0ab7d",
+  "boom_gitlink": "1ad28828673f2fce7a18f7255facd4705f04a58a",
+  "derived_root": "/root/fanzehui/system-20261016/chipyard-release-deps",
+  "patches": [
+    {
+      "path": "patches/published-dependencies.patch",
+      "sha256": "574cbd40e7253b769f68b41494f90c63be87e32f5869359c35537be5b610020f"
+    },
+    {
+      "path": "patches/explicit-metadata-io.patch",
+      "sha256": "53c4421232e92e72596c8fd16e4c5c06035140ee9491c466c68301e71542609e"
+    }
+  ],
+  "verified_patched_files": {
+    "generators/rocket-chip/src/main/scala/rocket/HellaCache.scala": "61822932ac09ca13ad16eddef34d49474fee001907a455c449248ea3d5d97f15",
+    "build.sbt": "fe81553ef850cb4c59fdac176ea1c35e34762f71da4914fb4df387652a4ee6af",
+    "generators/rocket-chip/build.sbt": "a9563f4b3310fdc99fa62e78bf6ad00fc29b64ba482e2c7dc686a74e18c13447",
+    "sims/firesim/sim/build.sbt": "24f4e62e42755ee1ab04e18969a6a7ad9e5c4d00c0ac9fcc9b6e382816a20c94",
+    "tools/chisel-testers/build.sbt": "21fe292d7fba26e9dfb8c96ce73909befa4eec4cb29fa3d2d269dae46637b967",
+    "tools/barstools/build.sbt": "763e224f1dd6ef8202a7afbee0442056b83477d2e93548dad59db15e303c9f58",
+    "tools/dsptools/build.sbt": "d18ef88367a5b7e3d88525450993ce3d4a1b2d5482b88a39ffed83fef1d5dae4"
+  },
+  "dependencies": {
+    "chisel3": "3.5.0",
+    "firrtl": "1.5.0",
+    "chisel-iotesters": "2.5.0"
+  },
+  "runtime_verified": false,
+  "generation_evidence": "evidence/derived-20261017/generated_artifact_manifest.json",
+  "physical_ports": "evidence/derived-20261017/physical_ports.json",
+  "generation": {
+    "firrtl_exit": 0,
+    "verilog_exit": 0,
+    "configuration": "chipyard.SmallBoomConfig",
+    "unmodified_upstream": false
+  }
+}

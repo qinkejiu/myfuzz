@@ -1,0 +1,76 @@
+--- a/build.sbt	2022-01-25 09:52:10.000000000 +0800
++++ b/build.sbt	2026-10-17 01:09:10.589512746 +0800
+@@ -60,17 +60,17 @@
+   new Group(test.name, Seq(test), SubProcess(options))
+ } toSeq
+ 
+-val chiselVersion = "3.5-SNAPSHOT"
++val chiselVersion = "3.5.0"
+ 
+ lazy val chiselSettings = Seq(
+   libraryDependencies ++= Seq("edu.berkeley.cs" %% "chisel3" % chiselVersion),
+   addCompilerPlugin("edu.berkeley.cs" % "chisel3-plugin" % chiselVersion cross CrossVersion.full))
+ 
+-val firrtlVersion = "1.5-SNAPSHOT"
++val firrtlVersion = "1.5.0"
+ 
+ lazy val firrtlSettings = Seq(libraryDependencies ++= Seq("edu.berkeley.cs" %% "firrtl" % firrtlVersion))
+ 
+-val chiselTestVersion = "2.5-SNAPSHOT"
++val chiselTestVersion = "2.5.0"
+ 
+ lazy val chiselTestSettings = Seq(libraryDependencies ++= Seq("edu.berkeley.cs" %% "chisel-iotesters" % chiselTestVersion))
+ 
+--- a/sims/firesim/sim/build.sbt	2022-01-25 06:55:09.000000000 +0800
++++ b/sims/firesim/sim/build.sbt	2026-10-17 01:11:27.037953212 +0800
+@@ -1,6 +1,6 @@
+ import Tests._
+ 
+-val chiselVersion = "3.5-SNAPSHOT"
++val chiselVersion = "3.5.0"
+ 
+ // This is set by CI and should otherwise be unmodified
+ val apiDirectory = settingKey[String]("The site directory into which the published scaladoc should placed.")
+--- a/tools/chisel-testers/build.sbt	2020-12-29 03:50:51.000000000 +0800
++++ b/tools/chisel-testers/build.sbt	2026-10-17 01:11:27.038216092 +0800
+@@ -45,10 +45,10 @@
+ // Provide a managed dependency on X if -DXVersion="" is supplied on the command line.
+ // The following are the default development versions, not the "release" versions.
+ val defaultVersions = Map(
+-  "chisel3" -> "3.5-SNAPSHOT",
+-  "firrtl" -> "1.5-SNAPSHOT",
+-  "firrtl-interpreter" -> "1.5-SNAPSHOT",
+-  "treadle" -> "1.5-SNAPSHOT"
++  "chisel3" -> "3.5.0",
++  "firrtl" -> "1.5.0",
++  "firrtl-interpreter" -> "1.5.0",
++  "treadle" -> "1.5.0"
+   )
+ 
+ libraryDependencies ++= Seq("chisel3","firrtl","firrtl-interpreter", "treadle").map { dep: String =>
+--- a/tools/barstools/build.sbt	2021-08-19 00:19:26.000000000 +0800
++++ b/tools/barstools/build.sbt	2026-10-17 01:11:27.038392888 +0800
+@@ -1,8 +1,8 @@
+ // See LICENSE for license details.
+ 
+ val defaultVersions = Map(
+-  "chisel3" -> "3.5-SNAPSHOT",
+-  "chisel-iotesters" -> "2.5-SNAPSHOT"
++  "chisel3" -> "3.5.0",
++  "chisel-iotesters" -> "2.5.0"
+ )
+ 
+ lazy val commonSettings = Seq(
+--- a/tools/dsptools/build.sbt	2022-01-13 02:15:20.000000000 +0800
++++ b/tools/dsptools/build.sbt	2026-10-17 01:11:27.038577367 +0800
+@@ -5,8 +5,8 @@
+ enablePlugins(GhpagesPlugin)
+ 
+ val defaultVersions = Map(
+-  "chisel-iotesters" -> "2.5-SNAPSHOT",
+-  "chisel3" -> "3.5-SNAPSHOT",
++  "chisel-iotesters" -> "2.5.0",
++  "chisel3" -> "3.5.0",
+ )
+ 
+ name := "dsptools"

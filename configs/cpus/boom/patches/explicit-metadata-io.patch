@@ -1,0 +1,19 @@
+--- a/generators/rocket-chip/src/main/scala/rocket/HellaCache.scala	2022-01-18 08:02:04.000000000 +0800
++++ b/generators/rocket-chip/src/main/scala/rocket/HellaCache.scala	2026-10-17 02:29:28.987379313 +0800
+@@ -307,13 +307,13 @@
+   val data = new L1Metadata
+ }
+ 
+-class L1MetadataArray[T <: L1Metadata](onReset: () => T)(implicit p: Parameters) extends L1HellaCacheModule()(p) {
++class L1MetadataArray[T <: L1Metadata](onReset: () => T)(implicit val p: Parameters) extends chisel3.Module with HasL1HellaCacheParameters {
+   val rstVal = onReset()
+-  val io = new Bundle {
++  val io = IO(new Bundle {
+     val read = Decoupled(new L1MetaReadReq).flip
+     val write = Decoupled(new L1MetaWriteReq).flip
+     val resp = Vec(nWays, rstVal.cloneType).asOutput
+-  }
++  })
+   val rst_cnt = Reg(init=UInt(0, log2Up(nSets+1)))
+   val rst = rst_cnt < UInt(nSets)
+   val waddr = Mux(rst, rst_cnt, io.write.bits.idx)
