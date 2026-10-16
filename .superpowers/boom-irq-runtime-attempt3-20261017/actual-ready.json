@@ -1,0 +1,32 @@
+{
+  "schema_version": "boom_irq_runtime_ready.v1",
+  "native_executed": false,
+  "exact_go_required": true,
+  "gate_source_commit": "2c28758",
+  "baseline_gate_review_commit": "869c70b",
+  "budget_fix_review_commit": "5d3f290",
+  "metadata_evidence_commit": "64026db",
+  "factory_fix_commit": "15bc4cb",
+  "artifact_path": "/root/fanzehui/boom-irq-factory-fix-20261017/artifact-finalized",
+  "artifact_sha256": "3f405a57322a697f0dfee4004ef15e9c3c5c849bf1fc360b0dd0d087f2bbf89d",
+  "freeze_sha256": "d0eb71f1cfaa7a6db158f3c9211249c03e7703b89519a94db42cfd8317f0803e",
+  "control_hashes": {
+    "control/controller.py": "2d73918bf98a7f2317948dc82e642d30f1bec58fce1c9e69cd24d949028af92a",
+    "control/launch.sh": "6716b2be1b6d9a2787b358c066881a647e29342cd61b3ea02a140333968e7164",
+    "control/prepare.py": "46c5e225d7d2d7e7864141f1e2d6dfeb5d5361a39dcddb74ec0499caa0642881",
+    "control/test_control.py": "5c64420ea9fefd195a66dcb398cca1b92277a00f780acdc59db27f1fd2f8872f",
+    "control/test_prepare.py": "01cd9054391efee467a3d56e9866e6bab03296e8ba3d6238bf598c14b5368509",
+    "overlay-files.json": "8e4b013ca2993d5d2c7016919964b3c17bfc0ee7b7580c1aaefd130594213c67",
+    "implementation-input-proof.json": "cf5d2bb605805e901c18c46463890f93414becc4b343bbb0e8205f77d51a183e",
+    "baseline-source-files.json": "05392549962d51717ed7030c855788d6e66a9085b5a851e6bc4873617d5a9a28",
+    "baseline-artifact-files.json": "9ac136ccc7557146fff56e8a8267a483b65994ce045133c1a80d9651f7f660b7",
+    "project-files.json": "7dba2f52cc8a714467f639c6dd69ee3ce84480adcc7cf6cdb6b056f600dad6a4",
+    "original-source-files.json": "05392549962d51717ed7030c855788d6e66a9085b5a851e6bc4873617d5a9a28",
+    "original-artifact-files.json": "9ac136ccc7557146fff56e8a8267a483b65994ce045133c1a80d9651f7f660b7",
+    "source-freeze.json": "d0eb71f1cfaa7a6db158f3c9211249c03e7703b89519a94db42cfd8317f0803e",
+    "state/preparation-imports.json": "ffbdc3afa81a88a36ffdc2e4f77ed219a1e6716297b8dd4bb29ad5c04f3ba61f",
+    "state/preparation.json": "375a9a955ce068eb9849fdb2c785f7679236e592a33ec56c3457836378668e5c",
+    "overlay/src/myfuzz/scenario/boom_gpio_irq_verification.py": "d199fb5d49a52e978990a4b963ae877d159548ec2f42cf7765bbdaf1662bfd9b",
+    "overlay/tests/local_harness/test_boom_irq_verification.py": "8a14e7a9653ec7a8d55d608d2e080251ba192efb658bc30ea44edfdb051f3d20"
+  }
+}

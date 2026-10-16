@@ -1,0 +1,98 @@
+{
+  "control/prepare.py": {
+    "bytes": 6977,
+    "sha256": "46c5e225d7d2d7e7864141f1e2d6dfeb5d5361a39dcddb74ec0499caa0642881"
+  },
+  "control/launch.sh": {
+    "bytes": 733,
+    "sha256": "6716b2be1b6d9a2787b358c066881a647e29342cd61b3ea02a140333968e7164"
+  },
+  "control/test_prepare.py": {
+    "bytes": 2331,
+    "sha256": "01cd9054391efee467a3d56e9866e6bab03296e8ba3d6238bf598c14b5368509"
+  },
+  "control/controller.py": {
+    "bytes": 9829,
+    "sha256": "2d73918bf98a7f2317948dc82e642d30f1bec58fce1c9e69cd24d949028af92a"
+  },
+  "control/test_control.py": {
+    "bytes": 7275,
+    "sha256": "5c64420ea9fefd195a66dcb398cca1b92277a00f780acdc59db27f1fd2f8872f"
+  },
+  "overlay/src/myfuzz/scenario/boom_gpio_irq_verification.py": {
+    "bytes": 41482,
+    "sha256": "d199fb5d49a52e978990a4b963ae877d159548ec2f42cf7765bbdaf1662bfd9b"
+  },
+  "overlay/tests/local_harness/test_boom_irq_verification.py": {
+    "bytes": 26344,
+    "sha256": "8a14e7a9653ec7a8d55d608d2e080251ba192efb658bc30ea44edfdb051f3d20"
+  },
+  "state/preparation-imports.json": {
+    "bytes": 2545,
+    "sha256": "ffbdc3afa81a88a36ffdc2e4f77ed219a1e6716297b8dd4bb29ad5c04f3ba61f"
+  },
+  "state/preparation.claim": {
+    "bytes": 7,
+    "sha256": "3813c30e17e25ff2a0dfc83593e699bf6d8d51676d8b74698278593f9811ea03"
+  },
+  "state/preparation-launcher-PID": {
+    "bytes": 7,
+    "sha256": "00f5f905bf11e76a2f8d70bd393c5b3466abcf4b1ee9ce3c0b0ae536aa3e710d"
+  },
+  "state/preparation.json": {
+    "bytes": 1967,
+    "sha256": "375a9a955ce068eb9849fdb2c785f7679236e592a33ec56c3457836378668e5c"
+  },
+  "state/preparation.exit": {
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "logs/preparation.log": {
+    "bytes": 151,
+    "sha256": "11fe0a3e7253db7ae143d8fc8b9064303c91c139440510c3a0900668bd5c38c0"
+  },
+  "logs/preparation-launcher.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "ready.json": {
+    "bytes": 2346,
+    "sha256": "96f5e22f37ccc574f5b8ba55b46a132afb4d0f845949d394ff76fedce0d39685"
+  },
+  "baseline-source-files.json": {
+    "bytes": 326778,
+    "sha256": "05392549962d51717ed7030c855788d6e66a9085b5a851e6bc4873617d5a9a28"
+  },
+  "baseline-artifact-files.json": {
+    "bytes": 8958,
+    "sha256": "9ac136ccc7557146fff56e8a8267a483b65994ce045133c1a80d9651f7f660b7"
+  },
+  "overlay-files.json": {
+    "bytes": 270,
+    "sha256": "8e4b013ca2993d5d2c7016919964b3c17bfc0ee7b7580c1aaefd130594213c67"
+  },
+  "implementation-input-proof.json": {
+    "bytes": 2775,
+    "sha256": "cf5d2bb605805e901c18c46463890f93414becc4b343bbb0e8205f77d51a183e"
+  },
+  "project-files.json": {
+    "bytes": 326778,
+    "sha256": "7dba2f52cc8a714467f639c6dd69ee3ce84480adcc7cf6cdb6b056f600dad6a4"
+  },
+  "original-source-files.json": {
+    "bytes": 326778,
+    "sha256": "05392549962d51717ed7030c855788d6e66a9085b5a851e6bc4873617d5a9a28"
+  },
+  "original-artifact-files.json": {
+    "bytes": 8958,
+    "sha256": "9ac136ccc7557146fff56e8a8267a483b65994ce045133c1a80d9651f7f660b7"
+  },
+  "source-freeze.json": {
+    "bytes": 46674,
+    "sha256": "d0eb71f1cfaa7a6db158f3c9211249c03e7703b89519a94db42cfd8317f0803e"
+  },
+  "run-preparation.sh": {
+    "bytes": 627,
+    "sha256": "37a4a5be1cc8316372aabfc2a548b6fe2ac80011657f0f63f61a57b108d585e6"
+  }
+}
