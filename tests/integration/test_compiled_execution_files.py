@@ -138,3 +138,57 @@ def test_exact_native_hop_consumer_refuses_independent_missing_or_changed_hops(m
         next(e for e in events if e.get('kind')=='mmio_delivery')['source_transaction']['source_sequence']=9
     with pytest.raises(ValueError,match='compiled-F4-'):
         check_f4_exact_hops(**fixture)
+
+
+@pytest.mark.parametrize('mutation',['missing','wrong_tick','wrong_context','wrong_value'])
+def test_f4_chain_refuses_missing_or_mismatched_native_target_commit(mutation):
+    from types import SimpleNamespace
+    from myfuzz.integration.compiled_f4 import CompiledF4Runtime
+    transaction=dict(execution_id='local-execution',testcase_id='unit',source_component='processor',
+                     source_epoch=0,channel_id='data',source_sequence=1)
+    context=dict(source_transaction=transaction,address=0x40001004,offset=4,write=True,value=85,be=15,
+                 command_scope=dict(component='peripheral',reset_epoch=0,command_sequence=10))
+    commit=dict(context=context,before=0,after=85,epoch=0,tick=11,command_sequence=10)
+    writes=[commit]
+    if mutation=='missing':writes=[]
+    elif mutation=='wrong_tick':commit['tick']=12
+    elif mutation=='wrong_context':context['source_transaction']={**transaction,'source_sequence':2}
+    elif mutation=='wrong_value':commit['after']=86
+    runtime=SimpleNamespace(target_id='peripheral',artifacts={'peripheral':object()},
+        access=dict(address=0x40001004,register_offset=4),authority=SimpleNamespace(writes=lambda:writes))
+    receipt=SimpleNamespace(events=[dict(event_id=2,source_transaction=transaction),dict(event_id=3,local_tick=11)])
+    observed=dict(joins=[dict(delivery_event=2,native_APB_event=3)])
+    with patch('myfuzz.integration.compiled_f4.check_writer_observation',return_value=observed):
+        with pytest.raises(ValueError,match='compiled-F4-'):
+            CompiledF4Runtime._check_chain(runtime,receipt,dict(candidate=dict(value=85)),
+                                          dict(value=0,reset_epoch=0),0)
+
+
+@pytest.mark.parametrize('scope',['caller','private'])
+@pytest.mark.parametrize('mutation',['ownership','physical_map','request','compiled','artifact'])
+def test_post_start_input_identity_drift_refused_before_native_tick(scope,mutation):
+    from copy import deepcopy
+    from types import SimpleNamespace
+    from myfuzz.integration.compiled_f4 import CompiledF4Runtime, _input_identity
+    from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
+    owner=InputOwner('peripheral','gpio_in',0,1,'source','peripheral.in.external')
+    inputs=dict(request=SimpleNamespace(document={'declared':1}),compiled={'compiled':1},
+        ownership=compile_ownership((InputField('peripheral','gpio_in',1),),(owner,)),
+        physical_port_map={('peripheral','gpio_in'):'gpio_in'})
+    artifacts={'processor':SimpleNamespace(payload=b'admitted')}
+    private_inputs=deepcopy(inputs);private_artifacts=deepcopy(artifacts)
+    with patch('myfuzz.integration.compiled_f4.compile_paths',return_value={'compiled':1}), \
+         patch('myfuzz.local_harness.generated_artifact_admission._artifact_files',side_effect=lambda a:{'source':a.payload}), \
+         patch('subprocess.Popen',side_effect=AssertionError('no native tick permitted')):
+        runtime=SimpleNamespace(finished=False,_caller_inputs=inputs,_caller_artifacts=artifacts,
+            inputs=private_inputs,artifacts=private_artifacts,_input_digest=_input_identity(inputs,artifacts))
+        changed_inputs=inputs if scope=='caller' else private_inputs
+        changed_artifacts=artifacts if scope=='caller' else private_artifacts
+        if mutation=='ownership':
+            changed_inputs['ownership']._bits[('peripheral','gpio_in')]=(InputOwner('peripheral','gpio_in',0,1,'fixed','fixed'),)
+        elif mutation=='physical_map':changed_inputs['physical_port_map'][('peripheral','gpio_in')]='other'
+        elif mutation=='request':changed_inputs['request']=SimpleNamespace(document={'declared':2})
+        elif mutation=='compiled':changed_inputs['compiled']={'compiled':2}
+        elif mutation=='artifact':changed_artifacts['processor']=SimpleNamespace(payload=b'changed')
+        with pytest.raises(ValueError,match='input-identity-changed'):
+            CompiledF4Runtime._stable(runtime)
