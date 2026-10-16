@@ -22,6 +22,25 @@ SCHEMA='boom_irq_gate_source.v1'
 _CAPTURE_LOCK=threading.Lock()
 
 
+def shared_resource_budget():
+    """All actual local steps share this cap, including nested target work."""
+    from myfuzz.scenario.contracts import ResourceBudget
+    return ResourceBudget(max_wall_time_ms=300000,max_scheduler_steps=STEPS+QUIESCE,
+        max_quiesce_steps=QUIESCE,max_local_cycles_per_component=20000)
+
+
+def step_accounting(events,local_ticks):
+    """Report actual global clock counts; quiesce has no private reservation."""
+    cut=next((i for i,row in enumerate(events) if row.get('kind')=='quiesce_start'),len(events))
+    direct=lambda rows:sum('kind' not in row and 'component' in row and 'local_tick' in row and 'outputs' in row for row in rows)
+    main=direct(events[:cut]);quiesce=direct(events[cut:]);total=sum(local_ticks.values())
+    return dict(main_direct_steps=main,quiesce_direct_steps=quiesce,
+        indirect_steps=total-main-quiesce,total_local_steps=total,
+        local_ticks=dict(local_ticks),shared_total_limit=STEPS+QUIESCE,
+        requested_main_outer_steps=STEPS,max_quiesce_steps=QUIESCE,
+        unconditional_quiesce_reservation=False)
+
+
 def plain(value):
     if is_dataclass(value):return plain(asdict(value))
     if isinstance(value,dict):return {k:plain(v) for k,v in value.items()}
@@ -393,7 +412,6 @@ def _run_one(*,repo,cpu_output,cache_dir,suppressed=False):
     """
     from myfuzz.local_harness import boom_irq_scenario_session as adapter_module
     from myfuzz.scenario import boom_gpio_irq_runner as factory_module
-    from myfuzz.scenario.contracts import ResourceBudget
     from myfuzz.scenario.replay import _record_with_runner
     from myfuzz.local_harness.boom_irq_contract import validate_probe_inventory
     commands=[];gpio_commands=[];reads=[];gpio_reads=[];lives={'cpu':[],'gpio':[]};delivery=[];outputs=[]
@@ -494,8 +512,7 @@ def _run_one(*,repo,cpu_output,cache_dir,suppressed=False):
                               gpio_execution=gpio._execution,runner_execution=runner.execution_id)
             return value
         cpu.step_local=measured
-        runner.set_resource_budget(ResourceBudget(max_wall_time_ms=300000,max_scheduler_steps=STEPS,
-            max_quiesce_steps=QUIESCE,max_local_cycles_per_component=20000))
+        runner.set_resource_budget(shared_resource_budget())
         identity=runner.identity_document()
         trace=_record_with_runner(factory_module.make_boom_gpio_irq_genome(max_steps=STEPS),runner)
     except BaseException as exc:error=dict(type=type(exc).__name__,detail=str(exc))
@@ -513,6 +530,7 @@ def _run_one(*,repo,cpu_output,cache_dir,suppressed=False):
         cpu_samples=[r['response'] for r in commands if r['operation']=='STEP_IRQ' and 'response' in r],
         gpio_samples=[s for r in gpio_commands for s in r.get('receipt',{}).get('payload',{}).get('samples',[])],
         delivery_control=delivery,cpu_outputs=outputs,last_cpu_outputs=outputs[-1] if outputs else {},
+        step_accounting={} if runner is None else step_accounting(runner.events,runner.local_ticks),
         events=[] if runner is None else list(runner.events),
         runtime_events=[] if cpu is None else cpu.runtime_events,
         source_events=[] if cpu is None else cpu.source_events,

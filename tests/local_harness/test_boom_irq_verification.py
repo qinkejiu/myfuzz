@@ -335,3 +335,81 @@ def test_initial_gpio_clear_must_precede_real_gpio_edge(software_chain):
     run['gpio_events'][1]['local_tick']=9
     run['router_deliveries'][0]['target_apb_access']['local_tick']=9
     with pytest.raises(ValueError):g.validate_run(run,suppressed=False)
+
+
+def test_shared_budget_counts_nested_real_router_steps():
+    from tests.scenario.test_generated_gpio_tick_delivery import ReceiptDeliveryTests
+    from myfuzz.scenario.genome import ScenarioGenome
+    from myfuzz.scenario.scheduler import DependencyScheduler
+    from tests.scenario.test_irq_delivery import RecordingSession
+    g=gate();runner,cpu,gpio=ReceiptDeliveryTests().make_runner(begin=False)
+    cpu.max_transaction_events_per_step=4;cpu.max_mmio_target_accesses_per_step=1;gpio.max_local_ticks_per_register_access=3
+    original=cpu.step_local
+    def once(inputs):
+        result=original(inputs)
+        cpu.step_local=lambda value:RecordingSession.step_local(cpu,value)
+        return result
+    cpu.step_local=once
+    runner.set_resource_budget(g.shared_resource_budget())
+    genome=ScenarioGenome(testcase_id='samples',direction='CPU_TO_IP',path_id='budget',
+        schedule_order=('gpio','cpu','sink'),max_steps=g.STEPS,quiesce_steps=g.QUIESCE,encoding_version=3,actions=())
+    result=DependencyScheduler().run(runner,genome)
+    assert result.status=='complete'
+    assert sum(runner.local_ticks.values())==g.STEPS+3
+    assert sum(runner.local_ticks.values())<=g.STEPS+g.QUIESCE
+
+
+def test_shared_budget_is_fixed_total_without_unconditional_quiesce_reserve():
+    g=gate();budget=g.shared_resource_budget()
+    assert budget.max_scheduler_steps==6512
+    assert budget.max_quiesce_steps==512 and budget.max_wall_time_ms==300000
+    assert g.STEPS==6000 and g.QUIESCE==512
+
+
+@pytest.mark.parametrize('prefix,expected',[(6507,'drained'),(6508,'budget_exhausted')])
+def test_nested_router_and_quiesce_share_near_cap_without_overshoot(prefix,expected):
+    from tests.scenario.test_generated_gpio_tick_delivery import SampleGpio
+    from tests.scenario.test_irq_delivery import RecordingSession
+    from myfuzz.scenario.runner import ScenarioRunner
+    from myfuzz.scenario.router import DataflowRouter,DeviceWindow
+    from myfuzz.scenario.ledger import TransactionKey,TransactionLedger
+    from myfuzz.scenario.ownership import compile_ownership
+    g=gate();cpu=RecordingSession();target=SampleGpio()
+    target.max_local_ticks_per_register_access=3
+    cpu.max_mmio_target_accesses_per_step=1;cpu.max_transaction_events_per_step=4
+    cpu.router=DataflowRouter((DeviceWindow('gpio',0x1000,4096,target),));ledger=TransactionLedger()
+    def nested(inputs):
+        cpu.local_ticks+=1
+        cpu.router.transact(ledger,TransactionKey('exec','cap','cpu',0,'data',1),
+            address=0x1000,write=True,wdata=1,be=15,beat_bytes=4)
+        cpu.max_mmio_target_accesses_per_step=0;cpu.pending_responses=1
+        def drain(inputs):
+            cpu.local_ticks+=1;cpu.pending_responses=0;return {}
+        cpu.step_local=drain
+        return {}
+    cpu.step_local=nested
+    runner=ScenarioRunner(sessions={'cpu':cpu,'gpio':target},ownership=compile_ownership((),()),bindings=())
+    runner.set_resource_budget(g.shared_resource_budget());runner.begin_test('cap')
+    try:
+        for _ in range(prefix):runner.step('gpio')
+        runner.step('cpu')
+        before=sum(runner.local_ticks.values())
+        if expected=='drained':
+            result=runner.quiesce(g.QUIESCE)
+            assert result.status=='drained' and result.steps==1
+        else:
+            with pytest.raises(Exception,match='max_scheduler_steps'):runner.quiesce(g.QUIESCE)
+            assert runner.failure_status=='budget_exhausted'
+        total=sum(runner.local_ticks.values())
+        assert before==prefix+4 and total==6512
+        assert total<=g.STEPS+g.QUIESCE
+    finally:runner.finalize()
+
+
+def test_step_counters_separate_main_indirect_and_quiesce_without_reserving():
+    g=gate();event=lambda tick:dict(component='cpu',local_tick=tick,outputs={})
+    rows=[event(1),event(2),{'kind':'quiesce_start'},event(6)]
+    report=g.step_accounting(rows,{'cpu':3,'gpio':4})
+    assert (report['main_direct_steps'],report['indirect_steps'],report['quiesce_direct_steps'])==(2,4,1)
+    assert report['total_local_steps']==7 and report['shared_total_limit']==6512
+    assert report['unconditional_quiesce_reservation'] is False

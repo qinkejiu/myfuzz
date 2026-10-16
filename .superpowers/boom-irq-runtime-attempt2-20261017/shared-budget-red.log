@@ -1,0 +1,33 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+______________ test_shared_budget_counts_nested_real_router_steps ______________
+
+    def test_shared_budget_counts_nested_real_router_steps():
+        from tests.scenario.test_generated_gpio_tick_delivery import ReceiptDeliveryTests
+        from myfuzz.scenario.genome import ScenarioGenome
+        from myfuzz.scenario.scheduler import DependencyScheduler
+        from tests.scenario.test_irq_delivery import RecordingSession
+        g=gate();runner,cpu,gpio=ReceiptDeliveryTests().make_runner(begin=False)
+        original=cpu.step_local
+        def once(inputs):
+            result=original(inputs)
+            cpu.step_local=lambda value:RecordingSession.step_local(cpu,value)
+            return result
+        cpu.step_local=once
+>       runner.set_resource_budget(g.shared_resource_budget())
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'myfuzz.scenario.boom_gpio_irq_verification' has no attribute 'shared_resource_budget'
+
+tests/local_harness/test_boom_irq_verification.py:352: AttributeError
+___ test_shared_budget_is_fixed_total_without_unconditional_quiesce_reserve ____
+
+    def test_shared_budget_is_fixed_total_without_unconditional_quiesce_reserve():
+>       g=gate();budget=g.shared_resource_budget()
+                        ^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'myfuzz.scenario.boom_gpio_irq_verification' has no attribute 'shared_resource_budget'
+
+tests/local_harness/test_boom_irq_verification.py:362: AttributeError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_boom_irq_verification.py::test_shared_budget_counts_nested_real_router_steps
+FAILED tests/local_harness/test_boom_irq_verification.py::test_shared_budget_is_fixed_total_without_unconditional_quiesce_reserve
+2 failed, 43 deselected in 0.10s

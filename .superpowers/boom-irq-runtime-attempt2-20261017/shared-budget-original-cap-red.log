@@ -1,0 +1,187 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+______________ test_shared_budget_counts_nested_real_router_steps ______________
+
+    def test_shared_budget_counts_nested_real_router_steps():
+        from tests.scenario.test_generated_gpio_tick_delivery import ReceiptDeliveryTests
+        from myfuzz.scenario.genome import ScenarioGenome
+        from myfuzz.scenario.scheduler import DependencyScheduler
+        from tests.scenario.test_irq_delivery import RecordingSession
+        g=gate();runner,cpu,gpio=ReceiptDeliveryTests().make_runner(begin=False)
+        cpu.max_transaction_events_per_step=4;cpu.max_mmio_target_accesses_per_step=1;gpio.max_local_ticks_per_register_access=3
+        original=cpu.step_local
+        def once(inputs):
+            result=original(inputs)
+            cpu.step_local=lambda value:RecordingSession.step_local(cpu,value)
+            return result
+        cpu.step_local=once
+        runner.set_resource_budget(g.shared_resource_budget())
+        genome=ScenarioGenome(testcase_id='samples',direction='CPU_TO_IP',path_id='budget',
+            schedule_order=('gpio','cpu','sink'),max_steps=g.STEPS,quiesce_steps=g.QUIESCE,encoding_version=3,actions=())
+        result=DependencyScheduler().run(runner,genome)
+>       assert result.status=='complete'
+E       AssertionError: assert 'budget_exhausted' == 'complete'
+E         
+E         - complete
+E         + budget_exhausted
+
+tests/local_harness/test_boom_irq_verification.py:357: AssertionError
+___ test_shared_budget_is_fixed_total_without_unconditional_quiesce_reserve ____
+
+    def test_shared_budget_is_fixed_total_without_unconditional_quiesce_reserve():
+        g=gate();budget=g.shared_resource_budget()
+>       assert budget.max_scheduler_steps==6512
+E       assert 6000 == 6512
+E        +  where 6000 = ResourceBudget(max_local_cycles_per_component=20000, max_scheduler_steps=6000, max_materialized_bytes_per_memory=65536...ination_reserve_bytes=8388608, max_wall_time_ms=300000, max_quiesce_steps=512, build_workers=1, waveform_enabled=False).max_scheduler_steps
+
+tests/local_harness/test_boom_irq_verification.py:364: AssertionError
+_ test_nested_router_and_quiesce_share_near_cap_without_overshoot[6507-drained] _
+
+prefix = 6507, expected = 'drained'
+
+    @pytest.mark.parametrize('prefix,expected',[(6507,'drained'),(6508,'budget_exhausted')])
+    def test_nested_router_and_quiesce_share_near_cap_without_overshoot(prefix,expected):
+        from tests.scenario.test_generated_gpio_tick_delivery import SampleGpio
+        from tests.scenario.test_irq_delivery import RecordingSession
+        from myfuzz.scenario.runner import ScenarioRunner
+        from myfuzz.scenario.router import DataflowRouter,DeviceWindow
+        from myfuzz.scenario.ledger import TransactionKey,TransactionLedger
+        from myfuzz.scenario.ownership import compile_ownership
+        g=gate();cpu=RecordingSession();target=SampleGpio()
+        target.max_local_ticks_per_register_access=3
+        cpu.max_mmio_target_accesses_per_step=1;cpu.max_transaction_events_per_step=4
+        cpu.router=DataflowRouter((DeviceWindow('gpio',0x1000,4096,target),));ledger=TransactionLedger()
+        def nested(inputs):
+            cpu.local_ticks+=1
+            cpu.router.transact(ledger,TransactionKey('exec','cap','cpu',0,'data',1),
+                address=0x1000,write=True,wdata=1,be=15,beat_bytes=4)
+            cpu.max_mmio_target_accesses_per_step=0;cpu.pending_responses=1
+            def drain(inputs):
+                cpu.local_ticks+=1;cpu.pending_responses=0;return {}
+            cpu.step_local=drain
+            return {}
+        cpu.step_local=nested
+        runner=ScenarioRunner(sessions={'cpu':cpu,'gpio':target},ownership=compile_ownership((),()),bindings=())
+        runner.set_resource_budget(g.shared_resource_budget());runner.begin_test('cap')
+        try:
+>           for _ in range(prefix):runner.step('gpio')
+                                   ^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_boom_irq_verification.py:394: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/scenario/runner.py:53: in measured
+    return function(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/scenario/runner.py:1414: in step
+    receipt = self.execute_step(
+src/myfuzz/scenario/runner.py:2810: in execute_step
+    self._exhaust_budget("max_scheduler_steps", "before_step")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <myfuzz.scenario.runner.ScenarioRunner object at 0x74f1646cba70>
+limit = 'max_scheduler_steps', phase = 'before_step'
+effect_may_have_occurred = None, prefix_event_count = None
+
+    def _exhaust_budget(self, limit: str, phase: str, *,
+                        effect_may_have_occurred: bool | None = None,
+                        prefix_event_count: int | None = None) -> None:
+        self.failure_status = "budget_exhausted"
+        self._status = "failed"
+        if limit == "max_wall_time_ms" and prefix_event_count is None:
+            prefix_event_count = len(self._events)
+        event = {
+            "event_id": len(self._events) + 1,
+            "kind": "budget_exhausted",
+            "limit": limit,
+            "phase": phase,
+            "effect_may_have_occurred": (
+                self._step_in_flight if effect_may_have_occurred is None
+                else effect_may_have_occurred),
+            "local_ticks": dict(self.local_ticks),
+        }
+        if prefix_event_count is not None:
+            event["prefix_event_count"] = prefix_event_count
+            event["prefix_local_ticks"] = dict(self.local_ticks)
+        self._events.append_unchecked(event)
+>       raise ScenarioBudgetExhausted(f"{limit} budget exhausted")
+E       myfuzz.scenario.runner.ScenarioBudgetExhausted: max_scheduler_steps budget exhausted
+
+src/myfuzz/scenario/runner.py:966: ScenarioBudgetExhausted
+_ test_nested_router_and_quiesce_share_near_cap_without_overshoot[6508-budget_exhausted] _
+
+prefix = 6508, expected = 'budget_exhausted'
+
+    @pytest.mark.parametrize('prefix,expected',[(6507,'drained'),(6508,'budget_exhausted')])
+    def test_nested_router_and_quiesce_share_near_cap_without_overshoot(prefix,expected):
+        from tests.scenario.test_generated_gpio_tick_delivery import SampleGpio
+        from tests.scenario.test_irq_delivery import RecordingSession
+        from myfuzz.scenario.runner import ScenarioRunner
+        from myfuzz.scenario.router import DataflowRouter,DeviceWindow
+        from myfuzz.scenario.ledger import TransactionKey,TransactionLedger
+        from myfuzz.scenario.ownership import compile_ownership
+        g=gate();cpu=RecordingSession();target=SampleGpio()
+        target.max_local_ticks_per_register_access=3
+        cpu.max_mmio_target_accesses_per_step=1;cpu.max_transaction_events_per_step=4
+        cpu.router=DataflowRouter((DeviceWindow('gpio',0x1000,4096,target),));ledger=TransactionLedger()
+        def nested(inputs):
+            cpu.local_ticks+=1
+            cpu.router.transact(ledger,TransactionKey('exec','cap','cpu',0,'data',1),
+                address=0x1000,write=True,wdata=1,be=15,beat_bytes=4)
+            cpu.max_mmio_target_accesses_per_step=0;cpu.pending_responses=1
+            def drain(inputs):
+                cpu.local_ticks+=1;cpu.pending_responses=0;return {}
+            cpu.step_local=drain
+            return {}
+        cpu.step_local=nested
+        runner=ScenarioRunner(sessions={'cpu':cpu,'gpio':target},ownership=compile_ownership((),()),bindings=())
+        runner.set_resource_budget(g.shared_resource_budget());runner.begin_test('cap')
+        try:
+>           for _ in range(prefix):runner.step('gpio')
+                                   ^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_boom_irq_verification.py:394: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/scenario/runner.py:53: in measured
+    return function(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/scenario/runner.py:1414: in step
+    receipt = self.execute_step(
+src/myfuzz/scenario/runner.py:2810: in execute_step
+    self._exhaust_budget("max_scheduler_steps", "before_step")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <myfuzz.scenario.runner.ScenarioRunner object at 0x74f1640fee70>
+limit = 'max_scheduler_steps', phase = 'before_step'
+effect_may_have_occurred = None, prefix_event_count = None
+
+    def _exhaust_budget(self, limit: str, phase: str, *,
+                        effect_may_have_occurred: bool | None = None,
+                        prefix_event_count: int | None = None) -> None:
+        self.failure_status = "budget_exhausted"
+        self._status = "failed"
+        if limit == "max_wall_time_ms" and prefix_event_count is None:
+            prefix_event_count = len(self._events)
+        event = {
+            "event_id": len(self._events) + 1,
+            "kind": "budget_exhausted",
+            "limit": limit,
+            "phase": phase,
+            "effect_may_have_occurred": (
+                self._step_in_flight if effect_may_have_occurred is None
+                else effect_may_have_occurred),
+            "local_ticks": dict(self.local_ticks),
+        }
+        if prefix_event_count is not None:
+            event["prefix_event_count"] = prefix_event_count
+            event["prefix_local_ticks"] = dict(self.local_ticks)
+        self._events.append_unchecked(event)
+>       raise ScenarioBudgetExhausted(f"{limit} budget exhausted")
+E       myfuzz.scenario.runner.ScenarioBudgetExhausted: max_scheduler_steps budget exhausted
+
+src/myfuzz/scenario/runner.py:966: ScenarioBudgetExhausted
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_boom_irq_verification.py::test_shared_budget_counts_nested_real_router_steps
+FAILED tests/local_harness/test_boom_irq_verification.py::test_shared_budget_is_fixed_total_without_unconditional_quiesce_reserve
+FAILED tests/local_harness/test_boom_irq_verification.py::test_nested_router_and_quiesce_share_near_cap_without_overshoot[6507-drained]
+FAILED tests/local_harness/test_boom_irq_verification.py::test_nested_router_and_quiesce_share_near_cap_without_overshoot[6508-budget_exhausted]
+4 failed, 44 deselected in 1.35s
