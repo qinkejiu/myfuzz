@@ -1,0 +1,1861 @@
+{
+  "schema_version": "soc_elaboration_closure.v1",
+  "component": "cvw",
+  "root": ".",
+  "top_module": "cvw_ahb_cpu_top",
+  "tool": {
+    "name": "verilator",
+    "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "frontend": "verilator-json"
+  },
+  "command": [
+    "verilator",
+    "--json-only",
+    "--no-std-package",
+    "-Wno-fatal",
+    "--json-only-output",
+    "runs/soc-source-elaboration/cvw/ports.tree.json",
+    "--json-only-meta-output",
+    "runs/soc-source-elaboration/cvw/ports.meta.json",
+    "--MMD",
+    "--Mdir",
+    "runs/soc-source-elaboration/cvw/mdir",
+    "--top-module",
+    "cvw_ahb_cpu_top",
+    "-Ithird_party/cvw_upstream_reference/config/shared",
+    "-Ithird_party/cvw_upstream_reference/config/rv32imc",
+    "-Ithird_party/cvw_upstream_reference/src",
+    "third_party/cvw_upstream_reference/src/cvw.sv",
+    "third_party/cvw_upstream_reference/src/cache/cache.sv",
+    "third_party/cvw_upstream_reference/src/cache/cacheLRU.sv",
+    "third_party/cvw_upstream_reference/src/cache/cachefsm.sv",
+    "third_party/cvw_upstream_reference/src/cache/cacheway.sv",
+    "third_party/cvw_upstream_reference/src/cache/subcachelineread.sv",
+    "third_party/cvw_upstream_reference/src/ebu/ahbcacheinterface.sv",
+    "third_party/cvw_upstream_reference/src/ebu/ahbinterface.sv",
+    "third_party/cvw_upstream_reference/src/ebu/buscachefsm.sv",
+    "third_party/cvw_upstream_reference/src/ebu/busfsm.sv",
+    "third_party/cvw_upstream_reference/src/ebu/controllerinput.sv",
+    "third_party/cvw_upstream_reference/src/ebu/ebu.sv",
+    "third_party/cvw_upstream_reference/src/ebu/ebufsmarb.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fclassify.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fcmp.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fctrl.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fcvt.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrt.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtcycles.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtexpcalc.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtfgen2.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtfgen4.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtfsm.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtiter.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtpostproc.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtpreproc.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtstage2.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtstage4.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuotfc2.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuotfc4.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuslc2.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuslc4.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuslc4cmp.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fhazard.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fli.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fma/fma.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fma/fmaadd.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fma/fmaalign.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fma/fmaexpadd.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fma/fmalza.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fma/fmamult.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fma/fmasign.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fmtparams.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fpu.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fregfile.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fround.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fsgninj.sv",
+    "third_party/cvw_upstream_reference/src/fpu/packoutput.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/cvtshiftcalc.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/divshiftcalc.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/flags.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/fmashiftcalc.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/negateintres.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/normshift.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/postprocess.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/resultsign.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/round.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/roundsign.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/shiftcorrection.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/specialcase.sv",
+    "third_party/cvw_upstream_reference/src/fpu/unpack.sv",
+    "third_party/cvw_upstream_reference/src/fpu/unpackinput.sv",
+    "third_party/cvw_upstream_reference/src/generic/adder.sv",
+    "third_party/cvw_upstream_reference/src/generic/aplusbeq0.sv",
+    "third_party/cvw_upstream_reference/src/generic/arrs.sv",
+    "third_party/cvw_upstream_reference/src/generic/binencoder.sv",
+    "third_party/cvw_upstream_reference/src/generic/counter.sv",
+    "third_party/cvw_upstream_reference/src/generic/csa.sv",
+    "third_party/cvw_upstream_reference/src/generic/decoder.sv",
+    "third_party/cvw_upstream_reference/src/generic/flop/flop.sv",
+    "third_party/cvw_upstream_reference/src/generic/flop/flopen.sv",
+    "third_party/cvw_upstream_reference/src/generic/flop/flopenl.sv",
+    "third_party/cvw_upstream_reference/src/generic/flop/flopenr.sv",
+    "third_party/cvw_upstream_reference/src/generic/flop/flopenrc.sv",
+    "third_party/cvw_upstream_reference/src/generic/flop/flopr.sv",
+    "third_party/cvw_upstream_reference/src/generic/flop/synchronizer.sv",
+    "third_party/cvw_upstream_reference/src/generic/lzc.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwbe.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwbe_64x128.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwbe_64x22.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwbe_64x44.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwe.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_1024x36.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_1024x68.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_128x64.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_2048x64.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_64x32.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/rom1p1r.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/rom1p1r_128x32.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/rom1p1r_128x64.sv",
+    "third_party/cvw_upstream_reference/src/generic/mux.sv",
+    "third_party/cvw_upstream_reference/src/generic/neg.sv",
+    "third_party/cvw_upstream_reference/src/generic/onehotdecoder.sv",
+    "third_party/cvw_upstream_reference/src/generic/or_rows.sv",
+    "third_party/cvw_upstream_reference/src/generic/priorityonehot.sv",
+    "third_party/cvw_upstream_reference/src/generic/prioritythermometer.sv",
+    "third_party/cvw_upstream_reference/src/hazard/hazard.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aes32d.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aes32e.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aes64d.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aes64e.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aes64ks1i.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aes64ks2.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aesinvmixcolumns32.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aesinvmixcolumns8.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aesinvsbox64.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aesinvsbox8.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aesinvshiftrows64.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aesmixcolumns32.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aesmixcolumns8.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aessbox32.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aessbox8.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aesshiftrows64.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/galoismultforward8.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/galoismultinverse8.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/rconlut32.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/rotate.sv",
+    "third_party/cvw_upstream_reference/src/ieu/alu.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/bitmanipalu.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/bitreverse.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/bmuctrl.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/byteop.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/clmul.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/cnt.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/ext.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/popcnt.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/zbb.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/zbc.sv",
+    "third_party/cvw_upstream_reference/src/ieu/comparator.sv",
+    "third_party/cvw_upstream_reference/src/ieu/controller.sv",
+    "third_party/cvw_upstream_reference/src/ieu/datapath.sv",
+    "third_party/cvw_upstream_reference/src/ieu/extend.sv",
+    "third_party/cvw_upstream_reference/src/ieu/ieu.sv",
+    "third_party/cvw_upstream_reference/src/ieu/kmu/packer.sv",
+    "third_party/cvw_upstream_reference/src/ieu/kmu/zbkb.sv",
+    "third_party/cvw_upstream_reference/src/ieu/kmu/zbkx.sv",
+    "third_party/cvw_upstream_reference/src/ieu/kmu/zipper.sv",
+    "third_party/cvw_upstream_reference/src/ieu/kmu/zknde32.sv",
+    "third_party/cvw_upstream_reference/src/ieu/kmu/zknde64.sv",
+    "third_party/cvw_upstream_reference/src/ieu/kmu/zknh32.sv",
+    "third_party/cvw_upstream_reference/src/ieu/kmu/zknh64.sv",
+    "third_party/cvw_upstream_reference/src/ieu/regfile.sv",
+    "third_party/cvw_upstream_reference/src/ieu/sha/sha256.sv",
+    "third_party/cvw_upstream_reference/src/ieu/sha/sha512_32.sv",
+    "third_party/cvw_upstream_reference/src/ieu/sha/sha512_64.sv",
+    "third_party/cvw_upstream_reference/src/ieu/shifter.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/RASPredictor.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/bpred.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/btb.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/gshare.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/gsharebasic.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/icpred.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/localaheadbp.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/localbpbasic.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/localrepairbp.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/satCounter2.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/twoBitPredictor.sv",
+    "third_party/cvw_upstream_reference/src/ifu/decompress.sv",
+    "third_party/cvw_upstream_reference/src/ifu/ifu.sv",
+    "third_party/cvw_upstream_reference/src/ifu/irom.sv",
+    "third_party/cvw_upstream_reference/src/ifu/spill.sv",
+    "third_party/cvw_upstream_reference/src/lsu/align.sv",
+    "third_party/cvw_upstream_reference/src/lsu/amoalu.sv",
+    "third_party/cvw_upstream_reference/src/lsu/atomic.sv",
+    "third_party/cvw_upstream_reference/src/lsu/dtim.sv",
+    "third_party/cvw_upstream_reference/src/lsu/endianswap.sv",
+    "third_party/cvw_upstream_reference/src/lsu/lrsc.sv",
+    "third_party/cvw_upstream_reference/src/lsu/lsu.sv",
+    "third_party/cvw_upstream_reference/src/lsu/subwordread.sv",
+    "third_party/cvw_upstream_reference/src/lsu/subwordwrite.sv",
+    "third_party/cvw_upstream_reference/src/lsu/swbytemask.sv",
+    "third_party/cvw_upstream_reference/src/mdu/div.sv",
+    "third_party/cvw_upstream_reference/src/mdu/divstep.sv",
+    "third_party/cvw_upstream_reference/src/mdu/mdu.sv",
+    "third_party/cvw_upstream_reference/src/mdu/mul.sv",
+    "third_party/cvw_upstream_reference/src/mmu/adrdec.sv",
+    "third_party/cvw_upstream_reference/src/mmu/adrdecs.sv",
+    "third_party/cvw_upstream_reference/src/mmu/hptw.sv",
+    "third_party/cvw_upstream_reference/src/mmu/mmu.sv",
+    "third_party/cvw_upstream_reference/src/mmu/pmachecker.sv",
+    "third_party/cvw_upstream_reference/src/mmu/pmpadrdec.sv",
+    "third_party/cvw_upstream_reference/src/mmu/pmpchecker.sv",
+    "third_party/cvw_upstream_reference/src/mmu/tlb/tlb.sv",
+    "third_party/cvw_upstream_reference/src/mmu/tlb/tlbcam.sv",
+    "third_party/cvw_upstream_reference/src/mmu/tlb/tlbcamline.sv",
+    "third_party/cvw_upstream_reference/src/mmu/tlb/tlbcontrol.sv",
+    "third_party/cvw_upstream_reference/src/mmu/tlb/tlblru.sv",
+    "third_party/cvw_upstream_reference/src/mmu/tlb/tlbmixer.sv",
+    "third_party/cvw_upstream_reference/src/mmu/tlb/tlbram.sv",
+    "third_party/cvw_upstream_reference/src/mmu/tlb/tlbramline.sv",
+    "third_party/cvw_upstream_reference/src/mmu/tlb/vm64check.sv",
+    "third_party/cvw_upstream_reference/src/privileged/csr.sv",
+    "third_party/cvw_upstream_reference/src/privileged/csrc.sv",
+    "third_party/cvw_upstream_reference/src/privileged/csri.sv",
+    "third_party/cvw_upstream_reference/src/privileged/csrm.sv",
+    "third_party/cvw_upstream_reference/src/privileged/csrs.sv",
+    "third_party/cvw_upstream_reference/src/privileged/csrsr.sv",
+    "third_party/cvw_upstream_reference/src/privileged/csru.sv",
+    "third_party/cvw_upstream_reference/src/privileged/privdec.sv",
+    "third_party/cvw_upstream_reference/src/privileged/privileged.sv",
+    "third_party/cvw_upstream_reference/src/privileged/privmode.sv",
+    "third_party/cvw_upstream_reference/src/privileged/privpiperegs.sv",
+    "third_party/cvw_upstream_reference/src/privileged/trap.sv",
+    "third_party/cvw_upstream_reference/src/rvvi/csrindextoaddr.sv",
+    "third_party/cvw_upstream_reference/src/rvvi/packetizer.sv",
+    "third_party/cvw_upstream_reference/src/rvvi/priorityaomux.sv",
+    "third_party/cvw_upstream_reference/src/rvvi/regchangedetect.sv",
+    "third_party/cvw_upstream_reference/src/rvvi/rvvisynth.sv",
+    "third_party/cvw_upstream_reference/src/rvvi/triggergen.sv",
+    "third_party/cvw_upstream_reference/src/uncore/ahbapbbridge.sv",
+    "third_party/cvw_upstream_reference/src/uncore/clint_apb.sv",
+    "third_party/cvw_upstream_reference/src/uncore/gpio_apb.sv",
+    "third_party/cvw_upstream_reference/src/uncore/plic_apb.sv",
+    "third_party/cvw_upstream_reference/src/uncore/pwm_apb.sv",
+    "third_party/cvw_upstream_reference/src/uncore/ram_ahb.sv",
+    "third_party/cvw_upstream_reference/src/uncore/rom_ahb.sv",
+    "third_party/cvw_upstream_reference/src/uncore/spi_apb.sv",
+    "third_party/cvw_upstream_reference/src/uncore/spi_controller.sv",
+    "third_party/cvw_upstream_reference/src/uncore/spi_fifo.sv",
+    "third_party/cvw_upstream_reference/src/uncore/trickbox_apb.sv",
+    "third_party/cvw_upstream_reference/src/uncore/uartPC16550D.sv",
+    "third_party/cvw_upstream_reference/src/uncore/uart_apb.sv",
+    "third_party/cvw_upstream_reference/src/uncore/uncore.sv",
+    "third_party/cvw_upstream_reference/src/wally/wallypipelinedcore.sv",
+    "third_party/cvw_upstream_reference/src/wally/wallypipelinedsoc.sv",
+    "configs/cpus/cvw/cvw_ahb_cpu_top.sv"
+  ],
+  "include_roots": [
+    "third_party/cvw_upstream_reference/config/shared",
+    "third_party/cvw_upstream_reference/config/rv32gc",
+    "third_party/cvw_upstream_reference/src"
+  ],
+  "defines": [],
+  "parameters": [],
+  "closure_files": [
+    {
+      "root": ".",
+      "path": "configs/cpus/cvw/config_extmem/config.vh",
+      "sha256": "69d7d6e05ad64dd09df8640fc5bf8b82bc401aab29d5e57de229656c9d8edf76"
+    },
+    {
+      "root": ".",
+      "path": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+      "sha256": "792f2d6a8ff71b959253b8e36c9fcb7c728c0702500d09550915762e55ebdba8"
+    },
+    {
+      "root": ".",
+      "path": "src/myfuzz/protocols/rtl/ahb_lite_memory_target.sv",
+      "sha256": "c577139848a9e11b3df7ecd62152a2126ced6b26c7935309382e14ec76e8c2a8"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/config/rv32gc/act/cvw-rv32gc.yaml",
+      "sha256": "3aec03217ffaadfd0241cfbdabcec573f33b0205986f79543620c2e47cc4dcd1"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/config/rv32gc/act/run_cmd.txt",
+      "sha256": "21b6e34371e7d1f12a3a691e5f949f3e0fdc52a393686abdd3e96765d245ab52"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/config/rv32gc/act/sail.json",
+      "sha256": "343ec16012e0efb3c7135d2515df598087c7e643462fb396c1250cee0870942b"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/config/rv32gc/act/test_config.yaml",
+      "sha256": "19f55cab44253c5e3a19d7dd918a951951e811d81d2a1fd4164a1503bb728303"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/config/rv32gc/config.vh",
+      "sha256": "fe5ffc9b87647f7deb7128bcdacb34c73a4978b8c32f5741c606e89faae0af9b"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/config/rv32gc/coverage.svh",
+      "sha256": "c3f756cebccfb63b9e1d06987fd7005ba8c1382b99eab2eaf9ac59769434e263"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/config/rv32gc/imperas.ic",
+      "sha256": "ef2a6b9cb54bf53b88c31958f4d75f6f1958d101efbb5a6bd1dcf8f6eebdd4b8"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/config/rv64gc/act/link.ld",
+      "sha256": "fa3b9053ea81c62d15807d0dff7be9e181256dbe1e6acae42c9a46cd033cf584"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/config/rv64gc/act/rvmodel_macros.h",
+      "sha256": "a66a4ea492457217be7e1b62a2ebd4760cc8836967e01d6121aa22d6bcf4f930"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/config/shared/BranchPredictorType.vh",
+      "sha256": "34ccbe14b8006fdc84e3c467f3db89c7a4cb7509c2c8891fd4e883f43f68b4fd"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/config/shared/README",
+      "sha256": "3508a65726b37edfb6a64013c20692f2a7a7136cfd24050491bfa61aae71442a"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/config/shared/config-shared.vh",
+      "sha256": "2f10c70f1d8dcaa83edc8450856fbc4681516352404316f41919755babe48934"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/config/shared/imperas-shared.ic",
+      "sha256": "2666d9d097151381c6ec311469c1ac3ee1ff9b4f4a4013cd0efb64237b658876"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/config/shared/parameter-defs.vh",
+      "sha256": "c408e0b7fd4a482b963393d770621839ad1e1da613451f44642ccb1abe237df5"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/cache/cache.sv",
+      "sha256": "5eba13ea6671040c13aa3e2cfbf0aa5cef28236454106450cb6665c7d94ca4e2"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/cache/cacheLRU.sv",
+      "sha256": "7331681d487ca3fb32d4e075780909fadd8b2ea4ef42fb2d1d9a7bcea0583dff"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/cache/cachefsm.sv",
+      "sha256": "504ee1429d0486f472a778c5f5707c443085fc1f41b94b670dc7fece7b8edbdd"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/cache/cacheway.sv",
+      "sha256": "af261e1d2cb158bdf0903797624439b36b8a58fb20e996819533903076b62b49"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/cache/subcachelineread.sv",
+      "sha256": "2ef0db14ed541dc843989d325a68c960e0464aa44894260728ab5bff860d16db"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/cvw.sv",
+      "sha256": "833016a2f680640fd024fc8fd03a6d56d770dfb0bdd83ec9077108c4a4aec5d2"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ebu/ahbcacheinterface.sv",
+      "sha256": "b9423600e469dfdbd991bb122f3190399e9604e0ade5573872d1cf2fe086176c"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ebu/ahbinterface.sv",
+      "sha256": "26b35f2161bac680222e81dfbe3dbb638ccc04a9595ad06cf65eb7bdd2f95303"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ebu/buscachefsm.sv",
+      "sha256": "0a8b2e30d52afcb198bca28c5a09e24523c789bc49467120f88ca55c7e3b7283"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ebu/busfsm.sv",
+      "sha256": "06c93f69fbe494f8f6a0b10c599975b81caf35b82c5fc6f350634771adf452b6"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ebu/controllerinput.sv",
+      "sha256": "ecc0ba8a634683bd952b15bf40078a9a0dee3d7864b4ee426287dcd12f1082d5"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ebu/ebu.sv",
+      "sha256": "67f9219e131540a0e2734e805cf03622271a6dca0b858ad573902a05558a8434"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ebu/ebufsmarb.sv",
+      "sha256": "50f8a7f3233205bf5576fe87920dd1b29669844c1f476e1f5b4855f188444dfb"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fclassify.sv",
+      "sha256": "4c238d872b9b1ffa70935fb1e7655f8be34b784f711d48b5228752d1ba8899ee"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fcmp.sv",
+      "sha256": "a3d0284b92e558061b77b0d19dfb7a17ea91c1fc06588f72aa32695fa323dc9e"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fctrl.sv",
+      "sha256": "3169714d6dedfc9baf48082c6f6b4915ebef6f0ba1745c6b11d5fd40ac37eb75"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fcvt.sv",
+      "sha256": "128ecb076170a6e93e98add790cc995b776393df1bd5248658bc34db760c1fa6"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrt.sv",
+      "sha256": "d1902dbe20fa60293afa4957f3d0ad90c98c484b48228a5917a8a7698665cc2a"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtcycles.sv",
+      "sha256": "b7661180860e03485a6e231613e27f5906d94d650cb9f932643d1ccbf034de9d"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtexpcalc.sv",
+      "sha256": "e5c6053dfe586a99ce43c06d398cd80147b8b54df1b5da37c150ab0b93763115"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtfgen2.sv",
+      "sha256": "665c06a106b32e07672d40f5d9cbe065807d51f63a227f70deddb63550cfd89a"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtfgen4.sv",
+      "sha256": "23407bb5032bf4f2bfebbc9e1723355c76a8b6be6812f7e1e5b9a0b81136bcd5"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtfsm.sv",
+      "sha256": "58c3e13f1a45cddd9da95a3ab13fb793b370eb4d323f3f077d6ada0c9687e517"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtiter.sv",
+      "sha256": "a59da029269ee5730702eba6e4a1c9cda0517480e9394a443f793aa3e91c5724"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtpostproc.sv",
+      "sha256": "848543c0221a8c34fad10b09b374bbf70dbd1526b2e6e3a5fbea77b5e22bef24"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtpreproc.sv",
+      "sha256": "e8f26d4514d4fc6cfb8d0c56b8f497ca3015d73c5ec9ac4635a4f4eb14ca916f"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtstage2.sv",
+      "sha256": "a4b14dade06d6b7fcf3da0fdec376804d623f9aaad302925083fb985b1c65abf"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtstage4.sv",
+      "sha256": "2f5216d55af1fbc7921f2b272af125caa4084658ac3b12222d74067b078490bf"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuotfc2.sv",
+      "sha256": "231eb55fa203067fd2c08e6ff0da4a6b3ff7e11a278bf6f7dbdb50c15244d54c"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuotfc4.sv",
+      "sha256": "d764322f7acf06004a2aaeaeb6adf547841b59d7519225e3d9a6a42ea7ecb99f"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuslc2.sv",
+      "sha256": "98530a69767072d94a28614bd9305badcbffd7ce792f408c9a0a1eaceafc6e22"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuslc4.sv",
+      "sha256": "2898eead6abfbcbb3685b47c18b0454f4b6ef5f289fe16da925afc364e2a2e87"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuslc4cmp.sv",
+      "sha256": "4721d6a72d32ce213e23b190c57c40dbc0f808953b09e3d5955893d2ebda16d5"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fhazard.sv",
+      "sha256": "8ef4eddbec2c12aa4604bc5d4d7f8d7a24c1c0c3706b11be0b94d1f476a73508"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fli.sv",
+      "sha256": "4df78a42734a2042172d23763a47290a0d726e09cc8811e36c2259308152b562"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fma/fma.sv",
+      "sha256": "f52b7760689586711a4ee5d9c62f362e451ba35cc5749149ed3bf0946eb82bdd"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fma/fmaadd.sv",
+      "sha256": "2ce9c3ede690c85be5cb722edd37f3646eb381fc169806235c9cec8aabc92e59"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fma/fmaalign.sv",
+      "sha256": "91f6d0a10fe6bf9c0454d5fdb7ff188385ea3609fa677ffc8b0a3c56739a54f8"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fma/fmaexpadd.sv",
+      "sha256": "29adbe93a4b2fcfb00b29478dccdd1951d4ed5987531129b978a8f9b4784e063"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fma/fmalza.sv",
+      "sha256": "9d91880587626e35ea3fd09c8da6a2ea0f16bcec7e98f0bfc1d5592ef9aa7932"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fma/fmamult.sv",
+      "sha256": "44f503737dde411bc65798d9136cc5c7af568c44fbeea27e877322b6214b8b6c"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fma/fmasign.sv",
+      "sha256": "c51c264235fd48be21b259445f7694ec2a94aed8b557b3994bbf8a549d254567"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fmtparams.sv",
+      "sha256": "3a4ddf0470c4509b9ceab9e1a6995a3f215640ebf2da74a91b9a49a8b68ab150"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fpu.sv",
+      "sha256": "45c9f19ef1b4e10a417514201e7f63124184a3b278206fae50cfadd36f07d2be"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fregfile.sv",
+      "sha256": "b5f16298521867e8d3a55667459cd6b0a8e0e9f9f4d9e6d04cfd335ca28fadff"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fround.sv",
+      "sha256": "b58453d408678fe7ad0f22bd26d4b9fde33d1ab00fc8f3c1da821f37626d7e6a"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/fsgninj.sv",
+      "sha256": "7fe2a33c2304e6283ddc3e2f1b014e7241400eb0d5862bbda334bbdb63523fe1"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/packoutput.sv",
+      "sha256": "8d68a3b0f6a51e7e9b3b6b3d76c52ec5120f1b7c847fc18c50870f8dbf0b1f44"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/postproc/cvtshiftcalc.sv",
+      "sha256": "5739f2edd0c5a70d06cca002b4a48bf7fd29932fefbbb28d7b440f853e905484"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/postproc/divshiftcalc.sv",
+      "sha256": "a3e73c30f088aa1a28b205b3dc9d180a3bbd965aab3be4a474d56e9dc27e80ff"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/postproc/flags.sv",
+      "sha256": "731ce48bc97bdb9707b941923256d073448ae58441bc87d694d51d9bd37d9feb"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/postproc/fmashiftcalc.sv",
+      "sha256": "b10a009b1230626dfeefe9b324ce216664daf9e44fd6810b37841d0d9e2b52e4"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/postproc/negateintres.sv",
+      "sha256": "59b082b021379f03ebd4d4ddf153b3197445ff7f6ba395121a96051e99b915b7"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/postproc/normshift.sv",
+      "sha256": "92e6713cd15b57cadb3c43da4f71a047ea915bef9e01283e148a8a529578f5ac"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/postproc/postprocess.sv",
+      "sha256": "63d988ee11a1173f9cbc1d98b0e949b9b7b4d0bfd43e00241b6ee12a195fb8ac"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/postproc/resultsign.sv",
+      "sha256": "8d772e1f1bea64dc302fa4a0e5f59f83f8ac4a5a0686a0fbec540e3f8ec862b6"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/postproc/round.sv",
+      "sha256": "0c1a6ae6c51005d5bd56f4f586a429a2f14796c00aa42f3e00b83ffe9518c677"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/postproc/roundsign.sv",
+      "sha256": "8b57c095ac7473946ab41c1f86097a8c966a624c166e0aa17b9aa8d502d30c16"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/postproc/shiftcorrection.sv",
+      "sha256": "77c51f5fa605dd5ee9d3e52e161a400253d6553ed540a72d66362a07875fdb05"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/postproc/specialcase.sv",
+      "sha256": "e8b6e2fc7aaf91f0490ec598eca27916f098de7eda6eceaf15a1e43eeaeec36b"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/unpack.sv",
+      "sha256": "a8f55a19da00c9a3c8b2a054cc3a1b17f3f4f9f4a5d5ee4cc920dad28d0189b9"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/fpu/unpackinput.sv",
+      "sha256": "f92294b4d9ff4a6a5feeb15915f2bddb1bcf3a348d055f0499305d29d11d2eb9"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/adder.sv",
+      "sha256": "790de3d4f6137226f2e358f790c338ee09240b4f4bd86401b510e6e30f203186"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/aplusbeq0.sv",
+      "sha256": "d7fce983a3517862fef1c6f7716242d9f0236595b3c28aee22400ed8fd9d2261"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/arrs.sv",
+      "sha256": "f094a997cd22f9bad56df2ba7f9f5e8f3f8d4f85a3c5a28508820efb2d5f432d"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/binencoder.sv",
+      "sha256": "388d9c9eb02e45e4640d498e3ab9dde1824f090c926ada33b80a05c7e46fdeac"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/counter.sv",
+      "sha256": "502c75edc310f5b04882f07b947fbb56075bbf200988b2e8e102870e273ae41c"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/csa.sv",
+      "sha256": "59484d6660c37d042af801408cd2b163fe2e3facba1b88dc515b08a7e33f79b3"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/decoder.sv",
+      "sha256": "a463ce75ee0b75ca1171db099e53f59ed848eddc20d11e7b0bcec812c5da66a2"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/flop/flop.sv",
+      "sha256": "86c715cf676f2d77abca4301e0fc3976dc3efa042c59f85466807f9dce96f39d"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/flop/flopen.sv",
+      "sha256": "2ec05b8f0dfef222ae300256a4ea9486f58fd748e73dd328850f5f4855c4f105"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/flop/flopenl.sv",
+      "sha256": "0bb807c09929cefdf7db3c0097a7ed6b5d87c0478d6f580671faf21554de4e41"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/flop/flopenr.sv",
+      "sha256": "0ca1649fd477ae085c60fdb6550bcae6b9b265acf96f266975f64ccae2d3fbd3"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/flop/flopenrc.sv",
+      "sha256": "2b578aa121bfec84554037ba69c99ffbe599b32fc651c899a85166c6ad58fc0c"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/flop/flopr.sv",
+      "sha256": "070c132f1806ba5d174f0bd049bc9fe292c3fe1ba29a4a3529afc43c20f6d964"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/flop/synchronizer.sv",
+      "sha256": "c9e5fe7e28f9a8a40c0cdc0d226a236348126f07ef8f217b5fb8cfc31d7a6b27"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/lzc.sv",
+      "sha256": "8fffa36419b7802d9351afee1870f84b7601e1e6b4e1f2c10097f8d9f12b00bf"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwbe.sv",
+      "sha256": "ae07c7915c7953add8b0859a941997a1b1350d464190819b8a7a72e036216e88"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwbe_64x128.sv",
+      "sha256": "a1ec45bfad459fb1edb5d2c4bf856ca4518b870c9e6da79990745e53d523434d"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwbe_64x22.sv",
+      "sha256": "680be4583eef5f6afde412e92b600c006f7f2ac63d17d1136ac26af9330300c7"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwbe_64x44.sv",
+      "sha256": "43e6801c47415fba6c84d4abed707c9a112601cb14e4e2cd43625297c3a01a26"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwe.sv",
+      "sha256": "1086ac6c63e9af143a57ef4676abe5e7425c11ab2337dabb9cfb12c6818ca2ab"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe.sv",
+      "sha256": "2d6f2942c5ac17045a199e2c331b4c8ee66c891eb7a40180950aef4acb89ced7"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_1024x36.sv",
+      "sha256": "122f3d9abf6f260faa0df3b11e9ef790e6169220c248055639fe7a30f43fd04e"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_1024x68.sv",
+      "sha256": "6d513f2e43925c906fb632ee11837fb0fdadb3dc114082a62dae3909475647fe"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_128x64.sv",
+      "sha256": "d4320d83841a802678921078cb98b6e69376ecae2c3c09fcf12e2143747dc30b"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_2048x64.sv",
+      "sha256": "68bfba1567b558bd0354d8bc7a567bd68db0a95acca281d132f70c9dcbdbf861"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_64x32.sv",
+      "sha256": "c9043f4928767577f316af6f64b089a7042586ab5a3b2f37e5c1f614d9f200c8"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/mem/rom1p1r.sv",
+      "sha256": "19255a44280986e0ddc97ad93460f32074a83cbc062aea8bd9764640ac73c98f"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/mem/rom1p1r_128x32.sv",
+      "sha256": "6ce9658f6bf70baa22ae05df3e7e47ed06a31d184b260941513c7b3925d1c664"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/mem/rom1p1r_128x64.sv",
+      "sha256": "588e7528487d674512b6e8bd1bab43651569f229b54baa0247e0be9c5a5749e3"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/mux.sv",
+      "sha256": "0aaad11592b1de367406202a4863a760c1e6743fb7b29b208efc473e01496835"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/neg.sv",
+      "sha256": "c232dd6a1dcb01f2446e6c0f40e5431631950afd9ac1b3936252a9a87f796237"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/onehotdecoder.sv",
+      "sha256": "4a63b2d7914c6435110023d3f86d69ce4a53076ec46350975a449bb35c5c337f"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/or_rows.sv",
+      "sha256": "c3f72767104477a14a284d341d427b891dc72c68d39658c1ad9cf9e5e5bc1201"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/priorityonehot.sv",
+      "sha256": "62e64a7e1ccd56048534289d28dc9202aa9fdea5055206513bfde79fbe595f7a"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/generic/prioritythermometer.sv",
+      "sha256": "857f1a169bd0587955b1f5273ac884296d1522e9ccb8393e819d664c131ac5e8"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/hazard/hazard.sv",
+      "sha256": "c55594a578e50ae249ba01f42af53d76382cb4eb7cc9ecef1a682ca3c9cf3073"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/aes32d.sv",
+      "sha256": "ae378db647f8dc3b3011327ba4e34167ffff25f6109919d0c4995078d763c8cc"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/aes32e.sv",
+      "sha256": "c16d3ddac689aa8d7ebae65a2dc7c1c2e861bceba716acea8d52f59a94dadd9a"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/aes64d.sv",
+      "sha256": "9368a2b2ab995ea470c73652ca2317c287a204ce97469257df6e7fa21926ebb1"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/aes64e.sv",
+      "sha256": "3d3c9fe346ffef81a2de03e695b617f68adfecfee8a1f9c5c7142d46966ee6e1"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/aes64ks1i.sv",
+      "sha256": "e70ca524c7cc944206d8dd6f7d89012af847442e2cf7df6f271ad0eaec5e2d6f"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/aes64ks2.sv",
+      "sha256": "86bfda21ef69e0b8f18cbff1e996b4b6014b32df45643c7f58f99d46d8835653"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/aesinvmixcolumns32.sv",
+      "sha256": "a2a22a480d1806c343dee7af8db835da758673b752162758ce6aad8ddd4e3c22"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/aesinvmixcolumns8.sv",
+      "sha256": "de2a6335ac2a9eb532a62ba34fc5fdd29ebed2e26c5298a1d01ce916be005f5f"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/aesinvsbox64.sv",
+      "sha256": "196f94458eb9e1f07ee816e56132418b06bb621dcec33617f8dea01741d7e57f"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/aesinvsbox8.sv",
+      "sha256": "e023a146503f00fad40193e72a9b58e5e4f1f23cb00756b5f134e864eddc06e9"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/aesinvshiftrows64.sv",
+      "sha256": "74a45796ed9fb0c59f143919a6cc180e592af1b02836eca5b2d7a1bc91e860b3"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/aesmixcolumns32.sv",
+      "sha256": "2266a0f601bc40b6cbb63f6c7c40a50396498ea34f5405f70c88605cbb14fb98"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/aesmixcolumns8.sv",
+      "sha256": "2f310557b5c637c052f254252c87c0a0a34dc9af3220d3e20ff30449a64b6f78"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/aessbox32.sv",
+      "sha256": "35d20d9f8d43ec8a03e2d2bcfbecf7a8bf84a512fafb919ddf5517287557410f"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/aessbox8.sv",
+      "sha256": "ff367c8e01457ab5010ec99ca380766ffd474cba0b72e1bd23b0f1e1069df18f"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/aesshiftrows64.sv",
+      "sha256": "3cdd63defa1c2e27a0469b641692e3422113c2873ced9c69b2fe7335487129cd"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/galoismultforward8.sv",
+      "sha256": "82b8f6443ce9e0bae445fed1c45fcbe11492e6fccbcd8791b2b0155f4fa4366e"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/galoismultinverse8.sv",
+      "sha256": "ba07ac32e3160ed9acd1b4912d5acac7efcf0daf442755b37453fc3a98124f5c"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/rconlut32.sv",
+      "sha256": "94a96c4fbaffb5f1a0a655678de58961b74a8755cbf2706b919cf7eae54d7f12"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/aes/rotate.sv",
+      "sha256": "b01fc3b8794178c4263b65c9968588efdaa344f0698270d1c1f577cf9ba3f55b"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/alu.sv",
+      "sha256": "716abd2851a58859ccf6754ac69778270651b03a25e877cb1c70223c91d06153"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/bmu/bitmanipalu.sv",
+      "sha256": "60f1aca36012140d33c4c45f21da90bde7b7f39f0b8ffc08a5b57b21d2211d8b"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/bmu/bitreverse.sv",
+      "sha256": "2186f1ced6bf85857fb5eb4245e083b6c4488e3a4518ec3d8040c4a0f40669fc"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/bmu/bmuctrl.sv",
+      "sha256": "1751b09fddb8629679d5f5787e27e7bc57c5c446e9eb93488c2d8d03a830fdd1"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/bmu/byteop.sv",
+      "sha256": "5eea3e529565962c9da39d5a36d76783f28de963b656056aff40beb5ce94f9ad"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/bmu/clmul.sv",
+      "sha256": "9f03a86fe95d85ad33770f4117aa862b6f4b9a1cf3b83f0f6e6661f2f0ec5ea4"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/bmu/cnt.sv",
+      "sha256": "1fe0119d50cde48b61fd8c4a211d0069d4ef4a23c653890f659a028436ce6fe0"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/bmu/ext.sv",
+      "sha256": "07b59e0d61ab64d12fbdc40aa2b7122f022a213f7b010e9016f090c0fccea742"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/bmu/popcnt.sv",
+      "sha256": "51f1a8b49bac640c02c3f50fdb40b60cbdd0df833d9519740149778b787664e0"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/bmu/zbb.sv",
+      "sha256": "4c71556b5d7ba31887db147518c0c65db9ee8f3814d1d696e0427802e875a7a9"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/bmu/zbc.sv",
+      "sha256": "78bc0e72779f2ecdad7c57f2935f02f40314cd11cfa819184736429361beb60b"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/comparator.sv",
+      "sha256": "afabf71d155ec7442f4741c55d966cbf0211d94bd19c479e99b1a2e21f2c1464"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/controller.sv",
+      "sha256": "9912fe4e6b05955d78d46d7bd2ea90cdc96e52b0bf937bde2e055c12b9dcdc49"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/datapath.sv",
+      "sha256": "5c02c26c1150e53f84254ab30a3053371a7fc73f6ecb5236054d6d947c96bd81"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/extend.sv",
+      "sha256": "b89ef0fd6ffc3bc107a98f28c47ec5fadf9d357c53798f8c7b1766a481d881aa"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/ieu.sv",
+      "sha256": "591af51468817ac5ea35233fd7583956c453252a3887e0a1f474d250419aa6e5"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/kmu/packer.sv",
+      "sha256": "1bd6429d24bdabce4d191c5ebe15621c8ab6e7f008c071bcc5b40e28e71c1f20"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/kmu/zbkb.sv",
+      "sha256": "88288f3f0ba46e4c4d5935df9f5e169476d839f7a6b4fc58039cdabc93ab5026"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/kmu/zbkx.sv",
+      "sha256": "8733ae6dc5b193f64b18555475f50c36d9c7eaf3e7824535fdef331084f0f06d"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/kmu/zipper.sv",
+      "sha256": "8cff20f86951d02a8b704a16d50b030fd1b11c96bd5f62ba7d71b1166275d069"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/kmu/zknde32.sv",
+      "sha256": "76b3527a1d41d2af287c28b7ff970418942b7491a98ea694f1611cd3962ee3a8"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/kmu/zknde64.sv",
+      "sha256": "9fc0f591487c6bf3a0817c03cba200f6de5000f97c0ad175fa105fc68453b57e"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/kmu/zknh32.sv",
+      "sha256": "3520876e7b6a9d79f0f1b5f5d16f74695cfbc730c1989a7170aecb1c41288b1a"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/kmu/zknh64.sv",
+      "sha256": "c2a336bdb18e0e365932d44b1f4d4396226da2083c5fcbef695893682789d75c"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/regfile.sv",
+      "sha256": "5335fc33bbc8cd4a788323f2b1a8696beb407b71246da07d1fed9ab64022a522"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/sha/sha256.sv",
+      "sha256": "850c04c382e7a2411d8032ab481e96a066dd9dd4ee611aba95ae8f3487c05ed6"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/sha/sha512_32.sv",
+      "sha256": "a8564e01783f30f2081acd272c95a192eef8630fc9ddf77590cc22a8696e43a6"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/sha/sha512_64.sv",
+      "sha256": "692114040f6f8035cfa77755b92b0bc5bf9b470995b6c7f793a371ce4d087484"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ieu/shifter.sv",
+      "sha256": "a2178b897601f0d33e096139df0ad16abc4a5270cc49d93b0de710da7453df4d"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ifu/bpred/RASPredictor.sv",
+      "sha256": "dce246c42205335ab39cc8e669f0a5e49533c8f15e95190bd14d5b295b453c58"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ifu/bpred/bpred.sv",
+      "sha256": "5a9ea7499727db9d90278a058c821384d829da4e0feb15dd46ed0c29c8055f11"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ifu/bpred/btb.sv",
+      "sha256": "7221119090505dcd62dc2ec5b145f7f26a6324d201f5ce5f576496b133b58495"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ifu/bpred/gshare.sv",
+      "sha256": "60061a03532b148a0803ed5de07219f14a85dc40c410076b1e2bcd98104f81e9"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ifu/bpred/gsharebasic.sv",
+      "sha256": "e6e3c1a30b8aca61f323555022c17e8014affe15ea110a6ad9b4a8ca9cd7d880"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ifu/bpred/icpred.sv",
+      "sha256": "81b867a255ec197cf2d83df433e41b5a6a0e3c4cb7782562d3a980c8e84ac36e"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ifu/bpred/localaheadbp.sv",
+      "sha256": "77769a8b5f16746ebddb52b655abe3dbe38fd2576a4b5534e3ccc8b3ee553d04"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ifu/bpred/localbpbasic.sv",
+      "sha256": "756429c3ac231bb399ad32af82185df8c1b9634007c772e242152a79e945580a"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ifu/bpred/localrepairbp.sv",
+      "sha256": "244f1468bb8f8e4d43520b16d2c2645fe3e6ea7f496de2391cebdf6514491160"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ifu/bpred/satCounter2.sv",
+      "sha256": "62b789bfb6bc091b2b21f9a31c7a87b760d320b0ee327aef0e12b25efc3095d4"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ifu/bpred/twoBitPredictor.sv",
+      "sha256": "c2a1e4a86cf36223c29e413b12153ca7773bcb9becc9e2ea783fa78936520b99"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ifu/decompress.sv",
+      "sha256": "678a5846d6597060d44c9a99b22a9ae85248b1330d8e042c90a70626ef02d16d"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ifu/ifu.sv",
+      "sha256": "9ef4094a7ae9da5754d5da1f51699766c5074d13e03f1ff98046a88bd41638ae"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ifu/irom.sv",
+      "sha256": "d9ba9e29192d971264a62269c97d9e861315a0d217956b3f8e0f9e721b81ad12"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/ifu/spill.sv",
+      "sha256": "1f6973c6a702a8c92b4671242785a3e5be925fc4605079949aaa5133313a228c"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/lsu/align.sv",
+      "sha256": "064314de79a33d2be2b1bd6c40150f3edf0d273048a154fdd24ac179f4e852fb"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/lsu/amoalu.sv",
+      "sha256": "3147d761b76ecee76a2d1ad1440b674632151ca3f131fceb2b3ece41c0b4dac8"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/lsu/atomic.sv",
+      "sha256": "0483386a41452a607eabb15a1f005b1f1f33ae6cb22fcf565e8e5d81e11bb4ba"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/lsu/dtim.sv",
+      "sha256": "b1bb6826f703e1bf842f6f0b69054063a326c759a88242d96b7fe928591fddc8"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/lsu/endianswap.sv",
+      "sha256": "31faaeb9ed0e6522bd8557eeae347bba21c59d25e80d0a62775b10560f88acb7"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/lsu/lrsc.sv",
+      "sha256": "8ed6d75ff3fe2aa16d7a1e6c97133c9f92528d2b2fbaf0259cfd483fdea94bc7"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/lsu/lsu.sv",
+      "sha256": "7bc32bacc089332cd9206ed02c397383cb5540870792ea44f03a4568764321d9"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/lsu/subwordread.sv",
+      "sha256": "b892d113ea15781ae4c83d8a1ef370c3e63f81fbc97c0aa250d2b377047706d6"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/lsu/subwordwrite.sv",
+      "sha256": "ad462e853d050e9502425201e9cfe7a3ff6cfbce4401855523011d461d6e2f45"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/lsu/swbytemask.sv",
+      "sha256": "09f8038ed73b7b99f378710042c3d9d994921e3b13715e2f86cd8e7e07318e8b"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mdu/div.sv",
+      "sha256": "01ea634b649b591d5147e4e79c2b9d38b84d90144e4e15c4eb784178d663d65c"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mdu/divstep.sv",
+      "sha256": "a6a782056ccb5d8c7242999a9494476903a7c90fa17812d033a7a0e63d5a1616"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mdu/mdu.sv",
+      "sha256": "98c429d9b44822eed3d19bb61fdbeb1ee0e633ba5060949da514c2d3e579119f"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mdu/mul.sv",
+      "sha256": "0b2b451cfafe9eade318a7166ce4154d38fa1ecbe331af09bc50d33ebf8bd00d"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mmu/adrdec.sv",
+      "sha256": "f9ae69e12f7003d8ab576085db676eb8cf78fa4707b8eb8b904c5cf4885c7b79"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mmu/adrdecs.sv",
+      "sha256": "76df85de507d2eb3bd661790d4cb768a7c676e135f45c21bd5ebb1b13e199ce7"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mmu/hptw.sv",
+      "sha256": "bea30581e43ca1bd3ed4111444d679f12ecd3772abe2fca5f520929d21c615cc"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mmu/mmu.sv",
+      "sha256": "4c2ef5a074849c39e82a9ac0273899410e90e6273d27fc5372439cc6dd927f94"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mmu/pmachecker.sv",
+      "sha256": "0542501fb13f5bc4c151f16c9a822c987d6ad5dd9526edb466a541e0bdbaec4a"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mmu/pmpadrdec.sv",
+      "sha256": "ccfe5dd6d3ab78b552eaed18876753532a3bda4bfb74a77255bd1a1fe79d4c4e"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mmu/pmpchecker.sv",
+      "sha256": "704ee4021a7a8e99a90709b997f03b712ae166f74bafed56b8c529cfc72c3144"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mmu/tlb/tlb.sv",
+      "sha256": "056088190e508936ed9c929f501d712c5905e8471c982021c41c82bbd8b54e80"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mmu/tlb/tlbcam.sv",
+      "sha256": "b0a2318d1cb73f35094e3d80b9c6f3e3aca166e0403a7f504fea2baf85c28f6d"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mmu/tlb/tlbcamline.sv",
+      "sha256": "92dee33d64ec6afb5e3a2bc8d151359489580a18e819bf83ef08ae2a5f3dc2c0"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mmu/tlb/tlbcontrol.sv",
+      "sha256": "c14a261e5b9a6cbac1c62ddb1afa5a05dbea3cec562572c592006090aed057da"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mmu/tlb/tlblru.sv",
+      "sha256": "bccb7ac6a48e40ba26ec927030cc357b97dc01cbc1094f996d1e352c74fb0991"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mmu/tlb/tlbmixer.sv",
+      "sha256": "e90ec631ea5709c6006742159b0e5e81ada9f6eec25103fd20cace73f1f07ed8"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mmu/tlb/tlbram.sv",
+      "sha256": "93c7920252161ca923290a26255a7058d32a3d75001b3cb0bef87354367ee408"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mmu/tlb/tlbramline.sv",
+      "sha256": "f79b80d6827c832f977831a6f7653e3843d1c38af1ddf1f9c0831dca28fda527"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/mmu/tlb/vm64check.sv",
+      "sha256": "022b9f2d81915d8091bcaacb2b0f0dd60dac5cbaf14856796884eb0b6930bbf0"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/privileged/csr.sv",
+      "sha256": "97419c01fa720a826712951ca84adda400b68c337fd2c665d0a28f79fe748d0b"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/privileged/csrc.sv",
+      "sha256": "4474c4344227a3a74e78dafadaa649fb375a9d49072c53d3529e271032f11349"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/privileged/csri.sv",
+      "sha256": "52615b4476bdd4533918a1e60e91aae1ff0bb2a44c17499e281e1dc3f9f69ee1"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/privileged/csrm.sv",
+      "sha256": "7368c61ef9e0fe3eff90e99f9598c021c8d1cf34c126681267c0b4335671f950"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/privileged/csrs.sv",
+      "sha256": "aed64ea7e55f47c44b229bf386e66337ef30af52a00accc6abb520ea627045ec"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/privileged/csrsr.sv",
+      "sha256": "6e35964679296dae821e2d56c1eeda6d23d1b2fa806fde46455c652f0ac850de"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/privileged/csru.sv",
+      "sha256": "130d0068a1b24924819376873e913ba53e0573bcec6ad231f0a8640d85163790"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/privileged/privdec.sv",
+      "sha256": "ea02cb7a9e25c880d9e615554072c8c731c7ded123f30c185c20559bbc9b3685"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/privileged/privileged.sv",
+      "sha256": "14f244b254ed02e22be55a853baf87e40d24257c8566eee939b31f09c0406754"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/privileged/privmode.sv",
+      "sha256": "acc711cea3139b871a20aa84cb16a39b04d613e88b1e7fefa096d6e8a5d2fccd"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/privileged/privpiperegs.sv",
+      "sha256": "6046c96c74b55059569cccc13e639740c8fd8e82e99798a14fd65e4f79155b3a"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/privileged/trap.sv",
+      "sha256": "9459484721048b9821e072e285703f6cc9c9f011f057069b7d97ee8bdb32833f"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/rvvi/csrindextoaddr.sv",
+      "sha256": "f05fe57b32c7e6a88c5d0d0881b8781f7a6e0cef7684e9550c7bcda201356e2a"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/rvvi/packetizer.sv",
+      "sha256": "c77b385bf5f52696109ab76d94c7292deda0223a33603223c52b75de32d451b1"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/rvvi/priorityaomux.sv",
+      "sha256": "0e02709101636ce300244e60197d4508393ec4aa48f5ee39cd6cba75165c27af"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/rvvi/regchangedetect.sv",
+      "sha256": "f02d045ad6a1c351cb22c382a831cb53a6fc60cc3d77fb330e2804b5e608016d"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/rvvi/rvvisynth.sv",
+      "sha256": "139dabf4202f91449920f246836d9892d7ed687d7fe75cd79876aa76d488a534"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/rvvi/triggergen.sv",
+      "sha256": "11df5a6ece8ce2752cae84f2dfbe74ec33dbc996ab37616727b7ad180fc79c67"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/uncore/ahbapbbridge.sv",
+      "sha256": "6cf09c5b75e39c9cfa6a98e43a470585cb4c2d577d1be2da893956faf2465260"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/uncore/clint_apb.sv",
+      "sha256": "d500e7f3643d4a32ef3420e6b26c4876daa68cdeb065ee05f2e9a632da191c51"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/uncore/gpio_apb.sv",
+      "sha256": "2252560306902ad7ff6d9dbe0c272668f09f5b6ed3253c8c34521271526028fb"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/uncore/plic_apb.sv",
+      "sha256": "7fe9224433b462d61a14de1bc9fbdcbff83817b2af47cbc772e723d3b29dc609"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/uncore/pwm_apb.sv",
+      "sha256": "8611c5b77273710759b052f611c98ba09ff5c5ca507c8d8f1096f075b0fab855"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/uncore/ram_ahb.sv",
+      "sha256": "b34c593347b7e95058dc870fc07aabe9a25b29d0ca3ba61c3682441163e973fc"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/uncore/rom_ahb.sv",
+      "sha256": "be87e01dec927a58dd4491eda91b386b0e8b1e4738193f8cc5a649b8c921dc93"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/uncore/spi_apb.sv",
+      "sha256": "f0d5dad1104663404f475db01b3ebb3a81c2f8ec60da53ccb3f19e0e91e986a6"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/uncore/spi_controller.sv",
+      "sha256": "7d90d228ffc5759e4657f67f057b4baeee505b888753185afe8bf3fc36e02d78"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/uncore/spi_fifo.sv",
+      "sha256": "a69b39ba375eb6c83db4dd8e6862a947936580d7bab62458fc2e3ff37a29e5f1"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/uncore/trickbox_apb.sv",
+      "sha256": "cdce99f18cfc3733a08e9417c99774ad29ecb3aaeafaa738bfbaa74eed4d004d"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/uncore/uartPC16550D.sv",
+      "sha256": "3e5daa6c2b02a5b0878f8460b9ff489317e5465b5c431c5e1956ae4c9828e92c"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/uncore/uart_apb.sv",
+      "sha256": "1b45140d06dce66507ecd7dbab71374e4825b5a73564406575315afa4081d176"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/uncore/uncore.sv",
+      "sha256": "3360e779c0394adef08925918ce3ab5663db00bb0d402411588d008451f608a7"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/wally/wallypipelinedcore.sv",
+      "sha256": "3dccbf42b6e114f91d277961b05e68b81e8bada57c09c2047d2ce0f0933e9ac1"
+    },
+    {
+      "root": ".",
+      "path": "third_party/cvw_upstream_reference/src/wally/wallypipelinedsoc.sv",
+      "sha256": "1a48dc12f349595eeb848a42794375d2edd2efcc48f4fff52ad97e9df15d5be4"
+    }
+  ],
+  "status": "elaboration_verified",
+  "lint": {
+    "errors": 0,
+    "warnings": 0,
+    "exit_code": 0,
+    "log": "runs/soc-source-elaboration/cvw/json-elaboration.log"
+  },
+  "wrapper_elaboration": {
+    "command": [
+      "verilator",
+      "--lint-only",
+      "--quiet",
+      "--top-module",
+      "cvw_ahb_cpu_top",
+      "-Ithird_party/cvw_upstream_reference/config/shared",
+      "-Ithird_party/cvw_upstream_reference/config/rv32imc",
+      "-Ithird_party/cvw_upstream_reference/src",
+      "third_party/cvw_upstream_reference/src/cvw.sv",
+      "[225 src/*.sv]",
+      "configs/cpus/cvw/cvw_ahb_cpu_top.sv"
+    ],
+    "exit_code": 0,
+    "warnings": 0,
+    "log": "runs/soc-source-elaboration/cvw/wrapper-lint.log",
+    "observed": "the whole 242-module design plus the wrapper elaborates with no warning"
+  },
+  "boundary": {
+    "wrapper": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+    "fixed_inputs": [
+      "TIMECLK=0",
+      "ExternalStall=0",
+      "GPIOIN=0",
+      "UARTSin=1",
+      "SPIIn=0",
+      "SDCIn=0"
+    ],
+    "native_outputs": [
+      "HADDR",
+      "HWDATA",
+      "HWSTRB",
+      "HWRITE",
+      "HSIZE",
+      "HBURST",
+      "HPROT",
+      "HTRANS",
+      "HMASTLOCK",
+      "HREADY",
+      "HSELEXT",
+      "HCLK",
+      "HRESETn"
+    ],
+    "not_exported": [
+      "GPIO",
+      "UART",
+      "SPI",
+      "SDC",
+      "PWM",
+      "ExternalStall",
+      "TIMECLK",
+      "reset"
+    ],
+    "wrapper_sha256": "792f2d6a8ff71b959253b8e36c9fcb7c728c0702500d09550915762e55ebdba8"
+  },
+  "source_files": [
+    "configs/cpus/cvw/config_extmem/config.vh",
+    "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+    "src/myfuzz/protocols/rtl/ahb_lite_memory_target.sv",
+    "third_party/cvw_upstream_reference/config/rv32gc/act/cvw-rv32gc.yaml",
+    "third_party/cvw_upstream_reference/config/rv32gc/act/run_cmd.txt",
+    "third_party/cvw_upstream_reference/config/rv32gc/act/sail.json",
+    "third_party/cvw_upstream_reference/config/rv32gc/act/test_config.yaml",
+    "third_party/cvw_upstream_reference/config/rv32gc/config.vh",
+    "third_party/cvw_upstream_reference/config/rv32gc/coverage.svh",
+    "third_party/cvw_upstream_reference/config/rv32gc/imperas.ic",
+    "third_party/cvw_upstream_reference/config/rv64gc/act/link.ld",
+    "third_party/cvw_upstream_reference/config/rv64gc/act/rvmodel_macros.h",
+    "third_party/cvw_upstream_reference/config/shared/BranchPredictorType.vh",
+    "third_party/cvw_upstream_reference/config/shared/README",
+    "third_party/cvw_upstream_reference/config/shared/config-shared.vh",
+    "third_party/cvw_upstream_reference/config/shared/imperas-shared.ic",
+    "third_party/cvw_upstream_reference/config/shared/parameter-defs.vh",
+    "third_party/cvw_upstream_reference/src/cache/cache.sv",
+    "third_party/cvw_upstream_reference/src/cache/cacheLRU.sv",
+    "third_party/cvw_upstream_reference/src/cache/cachefsm.sv",
+    "third_party/cvw_upstream_reference/src/cache/cacheway.sv",
+    "third_party/cvw_upstream_reference/src/cache/subcachelineread.sv",
+    "third_party/cvw_upstream_reference/src/cvw.sv",
+    "third_party/cvw_upstream_reference/src/ebu/ahbcacheinterface.sv",
+    "third_party/cvw_upstream_reference/src/ebu/ahbinterface.sv",
+    "third_party/cvw_upstream_reference/src/ebu/buscachefsm.sv",
+    "third_party/cvw_upstream_reference/src/ebu/busfsm.sv",
+    "third_party/cvw_upstream_reference/src/ebu/controllerinput.sv",
+    "third_party/cvw_upstream_reference/src/ebu/ebu.sv",
+    "third_party/cvw_upstream_reference/src/ebu/ebufsmarb.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fclassify.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fcmp.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fctrl.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fcvt.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrt.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtcycles.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtexpcalc.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtfgen2.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtfgen4.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtfsm.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtiter.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtpostproc.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtpreproc.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtstage2.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtstage4.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuotfc2.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuotfc4.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuslc2.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuslc4.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuslc4cmp.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fhazard.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fli.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fma/fma.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fma/fmaadd.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fma/fmaalign.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fma/fmaexpadd.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fma/fmalza.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fma/fmamult.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fma/fmasign.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fmtparams.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fpu.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fregfile.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fround.sv",
+    "third_party/cvw_upstream_reference/src/fpu/fsgninj.sv",
+    "third_party/cvw_upstream_reference/src/fpu/packoutput.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/cvtshiftcalc.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/divshiftcalc.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/flags.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/fmashiftcalc.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/negateintres.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/normshift.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/postprocess.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/resultsign.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/round.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/roundsign.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/shiftcorrection.sv",
+    "third_party/cvw_upstream_reference/src/fpu/postproc/specialcase.sv",
+    "third_party/cvw_upstream_reference/src/fpu/unpack.sv",
+    "third_party/cvw_upstream_reference/src/fpu/unpackinput.sv",
+    "third_party/cvw_upstream_reference/src/generic/adder.sv",
+    "third_party/cvw_upstream_reference/src/generic/aplusbeq0.sv",
+    "third_party/cvw_upstream_reference/src/generic/arrs.sv",
+    "third_party/cvw_upstream_reference/src/generic/binencoder.sv",
+    "third_party/cvw_upstream_reference/src/generic/counter.sv",
+    "third_party/cvw_upstream_reference/src/generic/csa.sv",
+    "third_party/cvw_upstream_reference/src/generic/decoder.sv",
+    "third_party/cvw_upstream_reference/src/generic/flop/flop.sv",
+    "third_party/cvw_upstream_reference/src/generic/flop/flopen.sv",
+    "third_party/cvw_upstream_reference/src/generic/flop/flopenl.sv",
+    "third_party/cvw_upstream_reference/src/generic/flop/flopenr.sv",
+    "third_party/cvw_upstream_reference/src/generic/flop/flopenrc.sv",
+    "third_party/cvw_upstream_reference/src/generic/flop/flopr.sv",
+    "third_party/cvw_upstream_reference/src/generic/flop/synchronizer.sv",
+    "third_party/cvw_upstream_reference/src/generic/lzc.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwbe.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwbe_64x128.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwbe_64x22.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwbe_64x44.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwe.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_1024x36.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_1024x68.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_128x64.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_2048x64.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_64x32.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/rom1p1r.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/rom1p1r_128x32.sv",
+    "third_party/cvw_upstream_reference/src/generic/mem/rom1p1r_128x64.sv",
+    "third_party/cvw_upstream_reference/src/generic/mux.sv",
+    "third_party/cvw_upstream_reference/src/generic/neg.sv",
+    "third_party/cvw_upstream_reference/src/generic/onehotdecoder.sv",
+    "third_party/cvw_upstream_reference/src/generic/or_rows.sv",
+    "third_party/cvw_upstream_reference/src/generic/priorityonehot.sv",
+    "third_party/cvw_upstream_reference/src/generic/prioritythermometer.sv",
+    "third_party/cvw_upstream_reference/src/hazard/hazard.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aes32d.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aes32e.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aes64d.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aes64e.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aes64ks1i.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aes64ks2.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aesinvmixcolumns32.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aesinvmixcolumns8.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aesinvsbox64.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aesinvsbox8.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aesinvshiftrows64.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aesmixcolumns32.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aesmixcolumns8.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aessbox32.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aessbox8.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/aesshiftrows64.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/galoismultforward8.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/galoismultinverse8.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/rconlut32.sv",
+    "third_party/cvw_upstream_reference/src/ieu/aes/rotate.sv",
+    "third_party/cvw_upstream_reference/src/ieu/alu.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/bitmanipalu.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/bitreverse.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/bmuctrl.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/byteop.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/clmul.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/cnt.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/ext.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/popcnt.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/zbb.sv",
+    "third_party/cvw_upstream_reference/src/ieu/bmu/zbc.sv",
+    "third_party/cvw_upstream_reference/src/ieu/comparator.sv",
+    "third_party/cvw_upstream_reference/src/ieu/controller.sv",
+    "third_party/cvw_upstream_reference/src/ieu/datapath.sv",
+    "third_party/cvw_upstream_reference/src/ieu/extend.sv",
+    "third_party/cvw_upstream_reference/src/ieu/ieu.sv",
+    "third_party/cvw_upstream_reference/src/ieu/kmu/packer.sv",
+    "third_party/cvw_upstream_reference/src/ieu/kmu/zbkb.sv",
+    "third_party/cvw_upstream_reference/src/ieu/kmu/zbkx.sv",
+    "third_party/cvw_upstream_reference/src/ieu/kmu/zipper.sv",
+    "third_party/cvw_upstream_reference/src/ieu/kmu/zknde32.sv",
+    "third_party/cvw_upstream_reference/src/ieu/kmu/zknde64.sv",
+    "third_party/cvw_upstream_reference/src/ieu/kmu/zknh32.sv",
+    "third_party/cvw_upstream_reference/src/ieu/kmu/zknh64.sv",
+    "third_party/cvw_upstream_reference/src/ieu/regfile.sv",
+    "third_party/cvw_upstream_reference/src/ieu/sha/sha256.sv",
+    "third_party/cvw_upstream_reference/src/ieu/sha/sha512_32.sv",
+    "third_party/cvw_upstream_reference/src/ieu/sha/sha512_64.sv",
+    "third_party/cvw_upstream_reference/src/ieu/shifter.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/RASPredictor.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/bpred.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/btb.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/gshare.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/gsharebasic.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/icpred.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/localaheadbp.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/localbpbasic.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/localrepairbp.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/satCounter2.sv",
+    "third_party/cvw_upstream_reference/src/ifu/bpred/twoBitPredictor.sv",
+    "third_party/cvw_upstream_reference/src/ifu/decompress.sv",
+    "third_party/cvw_upstream_reference/src/ifu/ifu.sv",
+    "third_party/cvw_upstream_reference/src/ifu/irom.sv",
+    "third_party/cvw_upstream_reference/src/ifu/spill.sv",
+    "third_party/cvw_upstream_reference/src/lsu/align.sv",
+    "third_party/cvw_upstream_reference/src/lsu/amoalu.sv",
+    "third_party/cvw_upstream_reference/src/lsu/atomic.sv",
+    "third_party/cvw_upstream_reference/src/lsu/dtim.sv",
+    "third_party/cvw_upstream_reference/src/lsu/endianswap.sv",
+    "third_party/cvw_upstream_reference/src/lsu/lrsc.sv",
+    "third_party/cvw_upstream_reference/src/lsu/lsu.sv",
+    "third_party/cvw_upstream_reference/src/lsu/subwordread.sv",
+    "third_party/cvw_upstream_reference/src/lsu/subwordwrite.sv",
+    "third_party/cvw_upstream_reference/src/lsu/swbytemask.sv",
+    "third_party/cvw_upstream_reference/src/mdu/div.sv",
+    "third_party/cvw_upstream_reference/src/mdu/divstep.sv",
+    "third_party/cvw_upstream_reference/src/mdu/mdu.sv",
+    "third_party/cvw_upstream_reference/src/mdu/mul.sv",
+    "third_party/cvw_upstream_reference/src/mmu/adrdec.sv",
+    "third_party/cvw_upstream_reference/src/mmu/adrdecs.sv",
+    "third_party/cvw_upstream_reference/src/mmu/hptw.sv",
+    "third_party/cvw_upstream_reference/src/mmu/mmu.sv",
+    "third_party/cvw_upstream_reference/src/mmu/pmachecker.sv",
+    "third_party/cvw_upstream_reference/src/mmu/pmpadrdec.sv",
+    "third_party/cvw_upstream_reference/src/mmu/pmpchecker.sv",
+    "third_party/cvw_upstream_reference/src/mmu/tlb/tlb.sv",
+    "third_party/cvw_upstream_reference/src/mmu/tlb/tlbcam.sv",
+    "third_party/cvw_upstream_reference/src/mmu/tlb/tlbcamline.sv",
+    "third_party/cvw_upstream_reference/src/mmu/tlb/tlbcontrol.sv",
+    "third_party/cvw_upstream_reference/src/mmu/tlb/tlblru.sv",
+    "third_party/cvw_upstream_reference/src/mmu/tlb/tlbmixer.sv",
+    "third_party/cvw_upstream_reference/src/mmu/tlb/tlbram.sv",
+    "third_party/cvw_upstream_reference/src/mmu/tlb/tlbramline.sv",
+    "third_party/cvw_upstream_reference/src/mmu/tlb/vm64check.sv",
+    "third_party/cvw_upstream_reference/src/privileged/csr.sv",
+    "third_party/cvw_upstream_reference/src/privileged/csrc.sv",
+    "third_party/cvw_upstream_reference/src/privileged/csri.sv",
+    "third_party/cvw_upstream_reference/src/privileged/csrm.sv",
+    "third_party/cvw_upstream_reference/src/privileged/csrs.sv",
+    "third_party/cvw_upstream_reference/src/privileged/csrsr.sv",
+    "third_party/cvw_upstream_reference/src/privileged/csru.sv",
+    "third_party/cvw_upstream_reference/src/privileged/privdec.sv",
+    "third_party/cvw_upstream_reference/src/privileged/privileged.sv",
+    "third_party/cvw_upstream_reference/src/privileged/privmode.sv",
+    "third_party/cvw_upstream_reference/src/privileged/privpiperegs.sv",
+    "third_party/cvw_upstream_reference/src/privileged/trap.sv",
+    "third_party/cvw_upstream_reference/src/rvvi/csrindextoaddr.sv",
+    "third_party/cvw_upstream_reference/src/rvvi/packetizer.sv",
+    "third_party/cvw_upstream_reference/src/rvvi/priorityaomux.sv",
+    "third_party/cvw_upstream_reference/src/rvvi/regchangedetect.sv",
+    "third_party/cvw_upstream_reference/src/rvvi/rvvisynth.sv",
+    "third_party/cvw_upstream_reference/src/rvvi/triggergen.sv",
+    "third_party/cvw_upstream_reference/src/uncore/ahbapbbridge.sv",
+    "third_party/cvw_upstream_reference/src/uncore/clint_apb.sv",
+    "third_party/cvw_upstream_reference/src/uncore/gpio_apb.sv",
+    "third_party/cvw_upstream_reference/src/uncore/plic_apb.sv",
+    "third_party/cvw_upstream_reference/src/uncore/pwm_apb.sv",
+    "third_party/cvw_upstream_reference/src/uncore/ram_ahb.sv",
+    "third_party/cvw_upstream_reference/src/uncore/rom_ahb.sv",
+    "third_party/cvw_upstream_reference/src/uncore/spi_apb.sv",
+    "third_party/cvw_upstream_reference/src/uncore/spi_controller.sv",
+    "third_party/cvw_upstream_reference/src/uncore/spi_fifo.sv",
+    "third_party/cvw_upstream_reference/src/uncore/trickbox_apb.sv",
+    "third_party/cvw_upstream_reference/src/uncore/uartPC16550D.sv",
+    "third_party/cvw_upstream_reference/src/uncore/uart_apb.sv",
+    "third_party/cvw_upstream_reference/src/uncore/uncore.sv",
+    "third_party/cvw_upstream_reference/src/wally/wallypipelinedcore.sv",
+    "third_party/cvw_upstream_reference/src/wally/wallypipelinedsoc.sv"
+  ],
+  "capability_findings": [
+    {
+      "topic": "role_vocabulary_bridge",
+      "port_or_field": "htrans/haddr/... vs address/request/...",
+      "observed": "The pinned ahb-lite plugin declares both vocabularies (13 CVW-named fields plus the 12 generic ids) and an x-role-alias-table mapping them, so an endpoint using the declaration's role names binds: this profile's 13 roles bound cleanly through P7-A.",
+      "evidence_path": "src/myfuzz/protocols/plugins/ahb_lite.json (x-role-alias-table)",
+      "provenance": "profile_binding"
+    },
+    {
+      "topic": "ahb_lite_cpu_boundary",
+      "port_or_field": "HADDR/HWDATA/HWSTRB/HWRITE/HSIZE/HBURST/HPROT/HTRANS/HMASTLOCK/HREADY/HSELEXT + HRDATAEXT/HREADYEXT/HRESPEXT",
+      "observed": "The elaborated top exposes exactly the declaration's AHB-Lite roles; the manager-driven roles are outputs and the subordinate's completion is input.",
+      "evidence_path": "runs/soc-source-elaboration/cvw/ports.tree.json (extract_physical_ports), configs/cpus/cvw/interface_description.json",
+      "provenance": "elaborated_ports"
+    },
+    {
+      "topic": "address_data_width_asymmetry",
+      "port_or_field": "HADDR=34, HWDATA=HRDATAEXT=32, HWSTRB=4",
+      "observed": "PA_BITS=34 for XLEN=32, so the address port is two bits wider than the data ports; a contract that tied the address width to the data width would be wrong.",
+      "evidence_path": "third_party/cvw_upstream_reference/config/shared/config-shared.vh:18 (PA_BITS), config/rv32imc/config.vh (AHBW=XLEN=32)",
+      "provenance": "rtl_read+elaborated_ports"
+    },
+    {
+      "topic": "read_data_is_hrdataext",
+      "port_or_field": "HRDATAEXT",
+      "observed": "Read data arrives at the CPU boundary as HRDATAEXT; src/ebu/ebu.sv has no HRDATA port.",
+      "evidence_path": "third_party/cvw_upstream_reference/src/ebu/ebu.sv (port list)",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "struct_parameter_requires_typed_top",
+      "port_or_field": "wallypipelinedsoc #(parameter cvw_t P)",
+      "observed": "Elaborating the real module directly is impossible: verilator --lint-only --top-module wallypipelinedsoc over the full src tree exits 1 with 50 errors whose first is \"Parameter without default value is never given value (IEEE 1800-2023 6.20.1): 'P'\". The repository-authored typed top cvw_ahb_cpu_top includes the configuration headers and instantiates the SoC with #(P).",
+      "evidence_path": "runs/soc-source-elaboration/cvw/wallypipelinedsoc-direct-probe.log, configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+      "provenance": "measured"
+    },
+    {
+      "topic": "source_order_cvw_package_first",
+      "port_or_field": "src/cvw.sv",
+      "observed": "src/cvw.sv (the cvw package with the cvw_t typedef) must be compiled before the wrapper; with the wrapper first, Verilator fails with \"Reference to 'cvw_t' before declaration\".",
+      "evidence_path": "runs/soc-source-elaboration/cvw/json-elaboration.log",
+      "provenance": "measured"
+    },
+    {
+      "topic": "reset_vector",
+      "port_or_field": "RESET_VECTOR",
+      "observed": "rv32imc sets RESET_VECTOR = 64'h80000000; the boundary has no boot-address port.",
+      "evidence_path": "third_party/cvw_upstream_reference/config/rv32imc/config.vh:146",
+      "provenance": "rtl_read"
+    }
+  ],
+  "unsupported": [
+    {
+      "topic": "repo_authored_wrapper_not_in_upstream_pin",
+      "reason": "configs/cpus/cvw/cvw_ahb_cpu_top.sv is verification code written in this repository; it is not part of git:2f2ddfd, so the source-lock verifier cannot authenticate its bytes against the pinned revision.",
+      "evidence_path": "configs/cpus/cvw/cvw_ahb_cpu_top.sv"
+    },
+    {
+      "topic": "no_harness_or_adapter_binding",
+      "reason": "No local harness, adapter binding or generated artifact was produced for this boundary, and no AHB-Lite transaction has been run against the real RTL.",
+      "evidence_path": "configs/cpus/cvw/component_profile.json"
+    },
+    {
+      "topic": "uncore_pins_tied_off_in_wrapper",
+      "reason": "The wrapper does not export the integrated uncore's GPIO/UART/SPI/SDC/PWM pins, ExternalStall, TIMECLK or the internal reset output; it drives fixed values for the inputs. That is a wrapper-level environment choice, not an upstream fact.",
+      "evidence_path": "configs/cpus/cvw/cvw_ahb_cpu_top.sv"
+    },
+    {
+      "topic": "renderer_shape_direction_frame",
+      "reason": "runtime_renderer._AHB_LITE states the manager-driven roles as input while the bound endpoint carries the extractor's real directions (haddr/htrans/... output, hrdata/hready/hresp input); calling _shape(bound_endpoint, _AHB_LITE, []) refuses with 'runtime-endpoint-width-direction:cpu.external_bus:haddr'. Reconciling that frame is the remaining plumbing step before the AHB runtime branch could run.",
+      "evidence_path": "src/myfuzz/local_harness/runtime_renderer.py (measured on this bound profile)"
+    }
+  ]
+}

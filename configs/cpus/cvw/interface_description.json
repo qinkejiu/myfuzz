@@ -1,0 +1,109 @@
+{
+  "schema_version": "interface_description.v1",
+  "source": {
+    "root": "third_party/cvw_upstream_reference",
+    "revision": "2f2ddfd4c3c7f5d3a655e4488831d9277673105a",
+    "top_module": "wallypipelinedsoc",
+    "filelist": "src/wally/wallypipelinedsoc.sv"
+  },
+  "notes": [
+    "CORE-V Wally (CVW) exposes one AHB-Lite external bus, driven by the EBU (external bus unit) after arbitrating the IFU and LSU controllers. The port names and directions below are taken verbatim from the module port list of src/wally/wallypipelinedsoc.sv (sha256 1a48dc12f349595eeb848a42794375d2) and cross-checked against src/uncore/uncore.sv (sha256 67f9219e131540a0e2734e805cf03622), which consumes exactly these signals.",
+    "Read data arrives at the CPU boundary as HRDATAEXT, not HRDATA: src/ebu/ebu.sv deliberately has no HRDATA port (its comment reads 'HRDATA is sent to all controllers at the core level'), so ebu is not the complete CPU boundary. A contract written from a textbook AHB-Lite signal list would name HRDATA and be wrong here.",
+    "HSELEXT is a CVW extension: an external-memory chip select driven by the uncore, not part of AHB-Lite. It is recorded so the boundary is complete, and it is not modelled as a bus response.",
+    "Widths are parameterised inside CVW's cvw_t struct (AHBW, PA_BITS, XLEN are int fields of the P parameter, set by the chosen config), so this declaration deliberately states no width: the contract derived from it claims a role shape and a parameterised width range, not concrete numbers.",
+    "This is a reference-level declaration pinned to real source. It is not a trusted component profile: there is no component_profile.json for CVW yet, no source lock, and no Verilator elaboration has been run against this boundary.",
+    "clock and reset are deliberately not endpoint roles: every real CPU profile in this repository declares them at harness level (clocks/resets blocks), not as bus roles, and the selector treats a non-host-driven role as device->host. They are HCLK/HRESETn on the real boundary and are recorded in this note.",
+    "Role names use AHB-Lite's own vocabulary rather than the generic request/address roles: this repository's generic 'req' role is a 1-bit request line (OBI), while HTRANS is a 2-bit transfer type, and role names are matched by name. Reusing 'req' would force HTRANS to the wrong width.",
+    "The AHB-Lite external bus is declared as function 'memory_master', not 'data_memory_master': it is a single unified port. The EBU arbitrates the IFU and LSU controllers onto it, so instruction fetches and data accesses both leave through this one endpoint (see the note above about EBU). Declaring it as a data master would tell every consumer of this description that the core has no instruction path, and the planner refuses such a profile for exactly that reason ('cpu-instruction-master-ambiguous'). 'memory_master' is this repository's existing vocabulary for a unified memory port: picorv32 declares its single ready/valid memory port the same way."
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "cpu.external_bus",
+      "function": "memory_master",
+      "protocol": [
+        "ahb-lite",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "htrans",
+          "aliases": [
+            "HTRANS"
+          ]
+        },
+        {
+          "role": "haddr",
+          "aliases": [
+            "HADDR"
+          ]
+        },
+        {
+          "role": "hwrite",
+          "aliases": [
+            "HWRITE"
+          ]
+        },
+        {
+          "role": "hwdata",
+          "aliases": [
+            "HWDATA"
+          ]
+        },
+        {
+          "role": "hwstrb",
+          "aliases": [
+            "HWSTRB"
+          ]
+        },
+        {
+          "role": "hsize",
+          "aliases": [
+            "HSIZE"
+          ]
+        },
+        {
+          "role": "hburst",
+          "aliases": [
+            "HBURST"
+          ]
+        },
+        {
+          "role": "hprot",
+          "aliases": [
+            "HPROT"
+          ]
+        },
+        {
+          "role": "hmastlock",
+          "aliases": [
+            "HMASTLOCK"
+          ]
+        },
+        {
+          "role": "hsel",
+          "aliases": [
+            "HSELEXT"
+          ]
+        },
+        {
+          "role": "hrdata",
+          "aliases": [
+            "HRDATAEXT"
+          ]
+        },
+        {
+          "role": "hresp",
+          "aliases": [
+            "HRESPEXT"
+          ]
+        },
+        {
+          "role": "hready",
+          "aliases": [
+            "HREADYEXT"
+          ]
+        }
+      ]
+    }
+  ]
+}

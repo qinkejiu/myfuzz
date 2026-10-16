@@ -1,0 +1,1 @@
+{"cpu_irq":"constant_zero","cpu_seed":"axil_picorv32_uart_campaign_seed.json","cross_component_bindings":[],"local_response_model":"persistent_shadow_registers","reverse_seed":"axil_picorv32_uart_independent_ip_seed.json","schema_version":"scenario_independent_baseline.v1","uart_local_window":{"base":262144,"size":4096}}

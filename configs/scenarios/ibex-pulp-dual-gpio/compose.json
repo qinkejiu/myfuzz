@@ -1,0 +1,38 @@
+{
+  "schema_version": "harness_compose.v1",
+  "cpu": {
+    "instance_id": "cpu",
+    "request": "requests/cpu.json",
+    "data_endpoint": "processor.data"
+  },
+  "devices": [
+    {
+      "device_id": "gpio_a",
+      "instance_id": "gpio_a",
+      "request": "requests/gpio_a.json",
+      "bus_endpoint": "gpio.bus",
+      "base": 1073745920,
+      "size": 4096
+    },
+    {
+      "device_id": "gpio_b",
+      "instance_id": "gpio_b",
+      "request": "requests/gpio_b.json",
+      "bus_endpoint": "gpio.bus",
+      "base": 1073741824,
+      "size": 4096
+    }
+  ],
+  "memory": [
+    {
+      "resource_id": "ram",
+      "component_instance": "cpu",
+      "base": 65536,
+      "size": 196608,
+      "read": true,
+      "write": true,
+      "execute": true,
+      "initialization_policy": "preload"
+    }
+  ]
+}

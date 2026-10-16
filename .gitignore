@@ -53,3 +53,9 @@ temp/
 /.superpowers/rfuzz-*/
 /.superpowers/ahb/
 /.superpowers/patched/
+
+# Scratch profile directories that scenario tests create under configs/ via
+# TemporaryDirectory(prefix='.alias-test-').  A test run that is interrupted
+# leaves them behind; they are fixtures of no run, so they are neither tracked
+# nor kept.
+/configs/.alias-test-*/

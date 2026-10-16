@@ -1,0 +1,483 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "cvw",
+  "kind": "cpu",
+  "description": "CORE-V Wally (CVW) at the pinned upstream revision, declared at its AHB-Lite external bus. The CPU is the AHB manager: it drives HADDR/HWDATA/HWSTRB/HTRANS/HSIZE/HBURST/HPROT/HWRITE/HMASTLOCK and receives the subordinate's completion on HREADYEXT/HRDATAEXT/HRESPEXT. Read data is HRDATAEXT and not HRDATA because src/ebu/ebu.sv deliberately has no HRDATA port (\"HRDATA is sent to all controllers at the core level\"). HADDR is 34 bits while the data path is 32, so the address width is deliberately not the data width. The boundary is elaborated through the repository-authored typed top configs/cpus/cvw/cvw_ahb_cpu_top.sv, required because wallypipelinedsoc takes #(parameter cvw_t P) - a struct-typed localparam that cannot be overridden from the Verilator command line - and because CVW's own testbench/wallywrapper.sv declares these signals as internal wires instead of ports. Every port, width and direction below was produced by myfuzz.composition.source_elaboration.extract_physical_ports over the Verilator JSON run recorded in configs/soc/closures/cvw.json; none was written by hand. No harness has been generated or bound for this boundary and no real AHB-Lite transaction has been run.",
+  "source": {
+    "root": ".",
+    "revision": "sha256:43cf5a40ef15ed26a574c8b9861ef20b1cd386aea7095f97a091dec40aedfeb2",
+    "top_module": "cvw_ahb_cpu_top",
+    "top_port_selection": "all",
+    "filelist": null,
+    "filelist_variables": [],
+    "include_roots": [
+      "configs/cpus/cvw/config_extmem",
+      "third_party/cvw_upstream_reference/config/shared",
+      "third_party/cvw_upstream_reference/config/rv32gc",
+      "third_party/cvw_upstream_reference/src"
+    ],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [],
+      "warning_policy": "recorded-nonfatal"
+    },
+    "files": [
+      "third_party/cvw_upstream_reference/src/cvw.sv",
+      "third_party/cvw_upstream_reference/src/cache/cache.sv",
+      "third_party/cvw_upstream_reference/src/cache/cacheLRU.sv",
+      "third_party/cvw_upstream_reference/src/cache/cachefsm.sv",
+      "third_party/cvw_upstream_reference/src/cache/cacheway.sv",
+      "third_party/cvw_upstream_reference/src/cache/subcachelineread.sv",
+      "third_party/cvw_upstream_reference/src/ebu/ahbcacheinterface.sv",
+      "third_party/cvw_upstream_reference/src/ebu/ahbinterface.sv",
+      "third_party/cvw_upstream_reference/src/ebu/buscachefsm.sv",
+      "third_party/cvw_upstream_reference/src/ebu/busfsm.sv",
+      "third_party/cvw_upstream_reference/src/ebu/controllerinput.sv",
+      "third_party/cvw_upstream_reference/src/ebu/ebu.sv",
+      "third_party/cvw_upstream_reference/src/ebu/ebufsmarb.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fclassify.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fcmp.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fctrl.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fcvt.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrt.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtcycles.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtexpcalc.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtfgen2.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtfgen4.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtfsm.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtiter.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtpostproc.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtpreproc.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtstage2.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtstage4.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuotfc2.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuotfc4.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuslc2.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuslc4.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fdivsqrt/fdivsqrtuslc4cmp.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fhazard.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fli.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fma/fma.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fma/fmaadd.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fma/fmaalign.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fma/fmaexpadd.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fma/fmalza.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fma/fmamult.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fma/fmasign.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fmtparams.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fpu.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fregfile.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fround.sv",
+      "third_party/cvw_upstream_reference/src/fpu/fsgninj.sv",
+      "third_party/cvw_upstream_reference/src/fpu/packoutput.sv",
+      "third_party/cvw_upstream_reference/src/fpu/postproc/cvtshiftcalc.sv",
+      "third_party/cvw_upstream_reference/src/fpu/postproc/divshiftcalc.sv",
+      "third_party/cvw_upstream_reference/src/fpu/postproc/flags.sv",
+      "third_party/cvw_upstream_reference/src/fpu/postproc/fmashiftcalc.sv",
+      "third_party/cvw_upstream_reference/src/fpu/postproc/negateintres.sv",
+      "third_party/cvw_upstream_reference/src/fpu/postproc/normshift.sv",
+      "third_party/cvw_upstream_reference/src/fpu/postproc/postprocess.sv",
+      "third_party/cvw_upstream_reference/src/fpu/postproc/resultsign.sv",
+      "third_party/cvw_upstream_reference/src/fpu/postproc/round.sv",
+      "third_party/cvw_upstream_reference/src/fpu/postproc/roundsign.sv",
+      "third_party/cvw_upstream_reference/src/fpu/postproc/shiftcorrection.sv",
+      "third_party/cvw_upstream_reference/src/fpu/postproc/specialcase.sv",
+      "third_party/cvw_upstream_reference/src/fpu/unpack.sv",
+      "third_party/cvw_upstream_reference/src/fpu/unpackinput.sv",
+      "third_party/cvw_upstream_reference/src/generic/adder.sv",
+      "third_party/cvw_upstream_reference/src/generic/aplusbeq0.sv",
+      "third_party/cvw_upstream_reference/src/generic/arrs.sv",
+      "third_party/cvw_upstream_reference/src/generic/binencoder.sv",
+      "third_party/cvw_upstream_reference/src/generic/counter.sv",
+      "third_party/cvw_upstream_reference/src/generic/csa.sv",
+      "third_party/cvw_upstream_reference/src/generic/decoder.sv",
+      "third_party/cvw_upstream_reference/src/generic/flop/flop.sv",
+      "third_party/cvw_upstream_reference/src/generic/flop/flopen.sv",
+      "third_party/cvw_upstream_reference/src/generic/flop/flopenl.sv",
+      "third_party/cvw_upstream_reference/src/generic/flop/flopenr.sv",
+      "third_party/cvw_upstream_reference/src/generic/flop/flopenrc.sv",
+      "third_party/cvw_upstream_reference/src/generic/flop/flopr.sv",
+      "third_party/cvw_upstream_reference/src/generic/flop/synchronizer.sv",
+      "third_party/cvw_upstream_reference/src/generic/lzc.sv",
+      "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwbe.sv",
+      "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwbe_64x128.sv",
+      "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwbe_64x22.sv",
+      "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwbe_64x44.sv",
+      "third_party/cvw_upstream_reference/src/generic/mem/ram1p1rwe.sv",
+      "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe.sv",
+      "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_1024x36.sv",
+      "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_1024x68.sv",
+      "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_128x64.sv",
+      "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_2048x64.sv",
+      "third_party/cvw_upstream_reference/src/generic/mem/ram2p1r1wbe_64x32.sv",
+      "third_party/cvw_upstream_reference/src/generic/mem/rom1p1r.sv",
+      "third_party/cvw_upstream_reference/src/generic/mem/rom1p1r_128x32.sv",
+      "third_party/cvw_upstream_reference/src/generic/mem/rom1p1r_128x64.sv",
+      "third_party/cvw_upstream_reference/src/generic/mux.sv",
+      "third_party/cvw_upstream_reference/src/generic/neg.sv",
+      "third_party/cvw_upstream_reference/src/generic/onehotdecoder.sv",
+      "third_party/cvw_upstream_reference/src/generic/or_rows.sv",
+      "third_party/cvw_upstream_reference/src/generic/priorityonehot.sv",
+      "third_party/cvw_upstream_reference/src/generic/prioritythermometer.sv",
+      "third_party/cvw_upstream_reference/src/hazard/hazard.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/aes32d.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/aes32e.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/aes64d.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/aes64e.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/aes64ks1i.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/aes64ks2.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/aesinvmixcolumns32.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/aesinvmixcolumns8.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/aesinvsbox64.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/aesinvsbox8.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/aesinvshiftrows64.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/aesmixcolumns32.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/aesmixcolumns8.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/aessbox32.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/aessbox8.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/aesshiftrows64.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/galoismultforward8.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/galoismultinverse8.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/rconlut32.sv",
+      "third_party/cvw_upstream_reference/src/ieu/aes/rotate.sv",
+      "third_party/cvw_upstream_reference/src/ieu/alu.sv",
+      "third_party/cvw_upstream_reference/src/ieu/bmu/bitmanipalu.sv",
+      "third_party/cvw_upstream_reference/src/ieu/bmu/bitreverse.sv",
+      "third_party/cvw_upstream_reference/src/ieu/bmu/bmuctrl.sv",
+      "third_party/cvw_upstream_reference/src/ieu/bmu/byteop.sv",
+      "third_party/cvw_upstream_reference/src/ieu/bmu/clmul.sv",
+      "third_party/cvw_upstream_reference/src/ieu/bmu/cnt.sv",
+      "third_party/cvw_upstream_reference/src/ieu/bmu/ext.sv",
+      "third_party/cvw_upstream_reference/src/ieu/bmu/popcnt.sv",
+      "third_party/cvw_upstream_reference/src/ieu/bmu/zbb.sv",
+      "third_party/cvw_upstream_reference/src/ieu/bmu/zbc.sv",
+      "third_party/cvw_upstream_reference/src/ieu/comparator.sv",
+      "third_party/cvw_upstream_reference/src/ieu/controller.sv",
+      "third_party/cvw_upstream_reference/src/ieu/datapath.sv",
+      "third_party/cvw_upstream_reference/src/ieu/extend.sv",
+      "third_party/cvw_upstream_reference/src/ieu/ieu.sv",
+      "third_party/cvw_upstream_reference/src/ieu/kmu/packer.sv",
+      "third_party/cvw_upstream_reference/src/ieu/kmu/zbkb.sv",
+      "third_party/cvw_upstream_reference/src/ieu/kmu/zbkx.sv",
+      "third_party/cvw_upstream_reference/src/ieu/kmu/zipper.sv",
+      "third_party/cvw_upstream_reference/src/ieu/kmu/zknde32.sv",
+      "third_party/cvw_upstream_reference/src/ieu/kmu/zknde64.sv",
+      "third_party/cvw_upstream_reference/src/ieu/kmu/zknh32.sv",
+      "third_party/cvw_upstream_reference/src/ieu/kmu/zknh64.sv",
+      "third_party/cvw_upstream_reference/src/ieu/regfile.sv",
+      "third_party/cvw_upstream_reference/src/ieu/sha/sha256.sv",
+      "third_party/cvw_upstream_reference/src/ieu/sha/sha512_32.sv",
+      "third_party/cvw_upstream_reference/src/ieu/sha/sha512_64.sv",
+      "third_party/cvw_upstream_reference/src/ieu/shifter.sv",
+      "third_party/cvw_upstream_reference/src/ifu/bpred/RASPredictor.sv",
+      "third_party/cvw_upstream_reference/src/ifu/bpred/bpred.sv",
+      "third_party/cvw_upstream_reference/src/ifu/bpred/btb.sv",
+      "third_party/cvw_upstream_reference/src/ifu/bpred/gshare.sv",
+      "third_party/cvw_upstream_reference/src/ifu/bpred/gsharebasic.sv",
+      "third_party/cvw_upstream_reference/src/ifu/bpred/icpred.sv",
+      "third_party/cvw_upstream_reference/src/ifu/bpred/localaheadbp.sv",
+      "third_party/cvw_upstream_reference/src/ifu/bpred/localbpbasic.sv",
+      "third_party/cvw_upstream_reference/src/ifu/bpred/localrepairbp.sv",
+      "third_party/cvw_upstream_reference/src/ifu/bpred/satCounter2.sv",
+      "third_party/cvw_upstream_reference/src/ifu/bpred/twoBitPredictor.sv",
+      "third_party/cvw_upstream_reference/src/ifu/decompress.sv",
+      "third_party/cvw_upstream_reference/src/ifu/ifu.sv",
+      "third_party/cvw_upstream_reference/src/ifu/irom.sv",
+      "third_party/cvw_upstream_reference/src/ifu/spill.sv",
+      "third_party/cvw_upstream_reference/src/lsu/align.sv",
+      "third_party/cvw_upstream_reference/src/lsu/amoalu.sv",
+      "third_party/cvw_upstream_reference/src/lsu/atomic.sv",
+      "third_party/cvw_upstream_reference/src/lsu/dtim.sv",
+      "third_party/cvw_upstream_reference/src/lsu/endianswap.sv",
+      "third_party/cvw_upstream_reference/src/lsu/lrsc.sv",
+      "third_party/cvw_upstream_reference/src/lsu/lsu.sv",
+      "third_party/cvw_upstream_reference/src/lsu/subwordread.sv",
+      "third_party/cvw_upstream_reference/src/lsu/subwordwrite.sv",
+      "third_party/cvw_upstream_reference/src/lsu/swbytemask.sv",
+      "third_party/cvw_upstream_reference/src/mdu/div.sv",
+      "third_party/cvw_upstream_reference/src/mdu/divstep.sv",
+      "third_party/cvw_upstream_reference/src/mdu/mdu.sv",
+      "third_party/cvw_upstream_reference/src/mdu/mul.sv",
+      "third_party/cvw_upstream_reference/src/mmu/adrdec.sv",
+      "third_party/cvw_upstream_reference/src/mmu/adrdecs.sv",
+      "third_party/cvw_upstream_reference/src/mmu/hptw.sv",
+      "third_party/cvw_upstream_reference/src/mmu/mmu.sv",
+      "third_party/cvw_upstream_reference/src/mmu/pmachecker.sv",
+      "third_party/cvw_upstream_reference/src/mmu/pmpadrdec.sv",
+      "third_party/cvw_upstream_reference/src/mmu/pmpchecker.sv",
+      "third_party/cvw_upstream_reference/src/mmu/tlb/tlb.sv",
+      "third_party/cvw_upstream_reference/src/mmu/tlb/tlbcam.sv",
+      "third_party/cvw_upstream_reference/src/mmu/tlb/tlbcamline.sv",
+      "third_party/cvw_upstream_reference/src/mmu/tlb/tlbcontrol.sv",
+      "third_party/cvw_upstream_reference/src/mmu/tlb/tlblru.sv",
+      "third_party/cvw_upstream_reference/src/mmu/tlb/tlbmixer.sv",
+      "third_party/cvw_upstream_reference/src/mmu/tlb/tlbram.sv",
+      "third_party/cvw_upstream_reference/src/mmu/tlb/tlbramline.sv",
+      "third_party/cvw_upstream_reference/src/mmu/tlb/vm64check.sv",
+      "third_party/cvw_upstream_reference/src/privileged/csr.sv",
+      "third_party/cvw_upstream_reference/src/privileged/csrc.sv",
+      "third_party/cvw_upstream_reference/src/privileged/csri.sv",
+      "third_party/cvw_upstream_reference/src/privileged/csrm.sv",
+      "third_party/cvw_upstream_reference/src/privileged/csrs.sv",
+      "third_party/cvw_upstream_reference/src/privileged/csrsr.sv",
+      "third_party/cvw_upstream_reference/src/privileged/csru.sv",
+      "third_party/cvw_upstream_reference/src/privileged/privdec.sv",
+      "third_party/cvw_upstream_reference/src/privileged/privileged.sv",
+      "third_party/cvw_upstream_reference/src/privileged/privmode.sv",
+      "third_party/cvw_upstream_reference/src/privileged/privpiperegs.sv",
+      "third_party/cvw_upstream_reference/src/privileged/trap.sv",
+      "third_party/cvw_upstream_reference/src/rvvi/csrindextoaddr.sv",
+      "third_party/cvw_upstream_reference/src/rvvi/packetizer.sv",
+      "third_party/cvw_upstream_reference/src/rvvi/priorityaomux.sv",
+      "third_party/cvw_upstream_reference/src/rvvi/regchangedetect.sv",
+      "third_party/cvw_upstream_reference/src/rvvi/rvvisynth.sv",
+      "third_party/cvw_upstream_reference/src/rvvi/triggergen.sv",
+      "third_party/cvw_upstream_reference/src/uncore/ahbapbbridge.sv",
+      "third_party/cvw_upstream_reference/src/uncore/clint_apb.sv",
+      "third_party/cvw_upstream_reference/src/uncore/gpio_apb.sv",
+      "third_party/cvw_upstream_reference/src/uncore/plic_apb.sv",
+      "third_party/cvw_upstream_reference/src/uncore/pwm_apb.sv",
+      "third_party/cvw_upstream_reference/src/uncore/ram_ahb.sv",
+      "third_party/cvw_upstream_reference/src/uncore/rom_ahb.sv",
+      "third_party/cvw_upstream_reference/src/uncore/spi_apb.sv",
+      "third_party/cvw_upstream_reference/src/uncore/spi_controller.sv",
+      "third_party/cvw_upstream_reference/src/uncore/spi_fifo.sv",
+      "third_party/cvw_upstream_reference/src/uncore/trickbox_apb.sv",
+      "third_party/cvw_upstream_reference/src/uncore/uartPC16550D.sv",
+      "third_party/cvw_upstream_reference/src/uncore/uart_apb.sv",
+      "third_party/cvw_upstream_reference/src/uncore/uncore.sv",
+      "third_party/cvw_upstream_reference/src/wally/wallypipelinedcore.sv",
+      "third_party/cvw_upstream_reference/src/wally/wallypipelinedsoc.sv",
+      "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+      "src/myfuzz/protocols/rtl/ahb_lite_memory_target.sv"
+    ]
+  },
+  "clocks": [
+    {
+      "port": "clk",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "reset_ext",
+      "domain": "sys_rst",
+      "polarity": "active_high",
+      "synchronous": false,
+      "release": "wallypipelinedsoc feeds reset_ext into the internal synchronizer (synchronizer resetsync(.clk, .d(reset_ext), .q(reset))), so the pin is the asynchronous external reset and release is synchronized inside the SoC."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "cpu.external_bus",
+      "function": "memory_master",
+      "protocol": [
+        "ahb-lite",
+        "1"
+      ],
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "htrans",
+          "aliases": [
+            "HTRANS"
+          ],
+          "direction": "output",
+          "width": 2
+        },
+        {
+          "role": "haddr",
+          "aliases": [
+            "HADDR"
+          ],
+          "direction": "output",
+          "width": 34
+        },
+        {
+          "role": "hwrite",
+          "aliases": [
+            "HWRITE"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "hwdata",
+          "aliases": [
+            "HWDATA"
+          ],
+          "direction": "output",
+          "width": 32
+        },
+        {
+          "role": "hwstrb",
+          "aliases": [
+            "HWSTRB"
+          ],
+          "direction": "output",
+          "width": 4
+        },
+        {
+          "role": "hsize",
+          "aliases": [
+            "HSIZE"
+          ],
+          "direction": "output",
+          "width": 3
+        },
+        {
+          "role": "hburst",
+          "aliases": [
+            "HBURST"
+          ],
+          "direction": "output",
+          "width": 3
+        },
+        {
+          "role": "hprot",
+          "aliases": [
+            "HPROT"
+          ],
+          "direction": "output",
+          "width": 4
+        },
+        {
+          "role": "hmastlock",
+          "aliases": [
+            "HMASTLOCK"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "hsel",
+          "aliases": [
+            "HSELEXT"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "hrdata",
+          "aliases": [
+            "HRDATAEXT"
+          ],
+          "direction": "input",
+          "width": 32
+        },
+        {
+          "role": "hresp",
+          "aliases": [
+            "HRESPEXT"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "hready",
+          "aliases": [
+            "HREADYEXT"
+          ],
+          "direction": "input",
+          "width": 1
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "data_width": 32,
+    "address_width": 34,
+    "byte_lane_width": 4,
+    "control_width": 1,
+    "transfer_type_width": 2,
+    "transfer_size_width": 3,
+    "burst_width": 3,
+    "protection_width": 4,
+    "byte_enable": true,
+    "max_outstanding": 1,
+    "error_response": true,
+    "max_wait_cycles": 16,
+    "evidence": "data_width 32 / address_width 34 / byte_lane_width 4 are the extracted widths of HWDATA-HRDATAEXT (32), HADDR (34) and HWSTRB (4); the remaining width symbols are the ahb-lite plugin's own expressions resolved to the extracted widths 2/3/3/4/1. byte_enable is true because HWSTRB is a real byte-lane output; error_response is true because HRESPEXT is a real response input the CPU can represent; max_outstanding 1 and max_wait_cycles 16 are the pinned plugin's own capability_limits. XLEN=32 is corroborated by HWSTRB=XLEN/8=4."
+  },
+  "port_actions": [
+    {
+      "port": "HCLK",
+      "action": "observe",
+      "reason": "SoC clock output of the AHB boundary; exported for passive monitoring, never driven."
+    },
+    {
+      "port": "HRESETn",
+      "action": "observe",
+      "reason": "active-low reset output of the AHB boundary; exported for passive monitoring, never driven."
+    },
+    {
+      "port": "HREADY",
+      "action": "observe",
+      "reason": "CPU-side ready output; the declaration's hready role binds HREADYEXT (the subordinate's ready input), so this output is observed only."
+    }
+  ],
+  "elaboration_boundary": {
+    "wrapper": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+    "fixed_inputs": [
+      "TIMECLK=0",
+      "ExternalStall=0",
+      "GPIOIN=0",
+      "UARTSin=1",
+      "SPIIn=0",
+      "SDCIn=0"
+    ],
+    "native_outputs": [
+      "HADDR",
+      "HWDATA",
+      "HWSTRB",
+      "HWRITE",
+      "HSIZE",
+      "HBURST",
+      "HPROT",
+      "HTRANS",
+      "HMASTLOCK",
+      "HREADY",
+      "HSELEXT",
+      "HCLK",
+      "HRESETn"
+    ],
+    "not_exported": [
+      "GPIO",
+      "UART",
+      "SPI",
+      "SDC",
+      "PWM",
+      "ExternalStall",
+      "TIMECLK",
+      "reset"
+    ],
+    "wrapper_sha256": "792f2d6a8ff71b959253b8e36c9fcb7c728c0702500d09550915762e55ebdba8",
+    "ports": 18
+  },
+  "cpu": {
+    "family": "riscv",
+    "xlen": 32,
+    "extensions": [
+      "i",
+      "m",
+      "c"
+    ],
+    "reset_vector": 3221225472,
+    "master_endpoints": [
+      "cpu.external_bus"
+    ],
+    "boot_address_required": false,
+    "evidence": "xlen 32 comes from the selected configuration configs/cpus/cvw/config_extmem/config.vh (XLEN=32). extensions is the configuration's own extension set, not a port fact. reset_vector is that derived configuration's RESET_VECTOR = 64'hC0000000: upstream ships 0x80000000, which UNCORE_RAM also answers, so the core would boot out of the core's own RAM and the AHB boundary would never see a fetch. The derived configuration moves the reset vector into the external-memory region so the harness's memory service supplies the boot program. boot_address_required is false because the elaborated boundary has no boot-address port: CVW bakes the reset vector into the configuration."
+  },
+  "evidence": {
+    "elaboration": "configs/soc/closures/cvw.json",
+    "ports_command": "verilator --json-only --no-std-package -Wno-fatal --json-only-output runs/soc-source-elaboration/cvw/ports.tree.json --json-only-meta-output runs/soc-source-elaboration/cvw/ports.meta.json --MMD --Mdir runs/soc-source-elaboration/cvw/mdir --top-module cvw_ahb_cpu_top -Ithird_party/cvw_upstream_reference/config/shared -Ithird_party/cvw_upstream_reference/config/rv32imc -Ithird_party/cvw_upstream_reference/src third_party/cvw_upstream_reference/src/cvw.sv <225 src/*.sv> configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+    "extractor": "myfuzz.composition.source_elaboration.extract_physical_ports",
+    "pin_convention": "root '.' with the union sha256 pin over the declared files and every file under the declared include roots, the same convention as configs/peripherals/opentitan_spi_host_local",
+    "upstream_pin": "git:2f2ddfd4c3c7f5d3a655e4488831d9277673105a (CVW_v0.9)",
+    "declaration": "configs/cpus/cvw/interface_description.json",
+    "wrapper_is_not_upstream": "configs/cpus/cvw/cvw_ahb_cpu_top.sv is repository-authored verification code, not upstream CVW source at git:2f2ddfd; it is not covered by the upstream pin"
+  }
+}

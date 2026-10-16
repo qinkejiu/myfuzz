@@ -13,11 +13,18 @@ digest (or a full verified Git commit) before runtime publication. The catalog
 must continue to report the profile as unavailable until annotation and the
 selected integration boundary both validate.
 
-There is an additional unavailable dependency: `tilelink@1` is not implemented
-in the protocol catalog. Downloading or generating BOOM sources alone cannot
-make this profile executable. The abstract instruction/data aliases are role
-placeholders, not a complete TileLink channel mapping. TL-UL support does not
-provide BOOM TileLink/coherence support.
+There is an additional unavailable dependency. `tilelink@1` is now *declared*
+in the protocol catalog (`src/myfuzz/protocols/plugins/tilelink.json`) and the
+CPU-side contract `cpu.tilelink` accepts exactly the two endpoint shapes this
+description declares (`declared-four-role` for `cpu.instruction_memory`,
+`declared-five-role-write-capable` for `cpu.data_memory`). What is still
+missing is an *implementation*: the plugin declares no legal adapter because
+this repository has no TileLink RTL adapter, and this profile has no
+`component_profile.json`. Downloading or generating BOOM sources alone
+therefore still cannot make this profile executable. The abstract
+instruction/data roles are the declared vocabulary, not a complete TileLink
+A/B/C/D/E channel mapping - the contract deliberately does not claim one. TL-UL
+support does not provide BOOM TileLink/coherence support.
 
 The explicit materialization entry is `third_party/boom/sources.f`. It must
 list generated RTL and its dependencies, including an exported `boom_tile`

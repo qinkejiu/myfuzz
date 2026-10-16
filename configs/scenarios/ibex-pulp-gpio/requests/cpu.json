@@ -1,0 +1,8 @@
+{
+  "schema_version": "local_harness.v1",
+  "profile_path": "configs/cpus/ibex_obi_local/component_profile.json",
+  "instance_id": "cpu",
+  "reset_assert_ticks": 8,
+  "reset_release_ticks": 8,
+  "max_wait_cycles": 16
+}
