@@ -1,0 +1,21 @@
+# Compiled F4 review fixes — 2026-10-17
+
+## Scope and changes
+
+The installed executor remains an experimental eight-byte-record RV32I writer for one native OBI CPU and one source-pinned PULP GPIO GPIOEN register. Instruction bytes come from the fixed writer template; the record selects the register value and external input pins. This is not a full P7 or general instruction-search implementation.
+
+`compiled_f4.py` now contains a code-owned consumer for the selected F4 contract. Admission maps the two declared F4 runtime edges exactly (program image persistence and MMIO route) and refuses other shapes. The consumer joins instruction-source identity and bytes to authoritative live memory snapshots, byte versions and recorded instruction memory reads, then to native CPU-side OBI acceptance/response samples. Native signals come from the renderer's `cpu_physical_abi` `protocol_taps`; legacy beat backend summaries cannot satisfy this check. All eight functional instructions must be consumed. Each routed SW/LW joins its complete source transaction, native CPU request and response, declared device/address/offset, and the existing native APB checker. The authenticated GPIOEN commit must match the native APB tick and actual target command identity, prior value, epoch, routed transaction and postcondition. Assertion results include their observed evidence and selected declared edge IDs.
+
+The fixed-topology `ChainCertificates` producer is not reused: it implements different CPU/IP round-trip chains with fixture-specific extra hops. The added consumer implements the selected F4 consumption contract and explicitly discloses its proof scope; it does not claim instruction retirement. Missing joins refuse candidate certification.
+
+First fetch is observed at the native OBI interface while the declared instruction image remains unmaterialized. The first candidate is installed at that actual address. An unaligned/outside-image first fetch is refused, accommodating boot-base offsets without assuming reset-vector equality. The declared image must contain an explicitly readable and writable result word before any child process starts.
+
+The runtime privately copies requests, compiled declarations, per-bit ownership, physical mappings and generated artifacts. Identity checks include per-bit owners and generated source bytes. Caller and private identities are checked and the private contract is re-admitted before startup, bootstrap advances, every source submission and finish/replay. Changing caller ownership, mappings, declarations or artifact bytes refuses further admitted execution. Teardown still closes child processes after an identity refusal.
+
+Unknown source kinds and unsupported constraint rules are refused. External pins support only declared full masks of 1–32 bits, offset zero, alignment one and no further range. The only supported compiled runtime rule is the exact reachable-window controller-MMIO rule whose base, size and device match the actual admitted route. Register-word candidates continue through the compiled register validator. The explicit support API discloses the narrow scope and runtime first-fetch requirement; generic execution remains refused.
+
+## Evidence and verification status
+
+No tests were added or run for these changes pending explicit user authorization, as directed by the parent. Source review inspected the frozen evidence's native CPU samples and matching GPIOEN/APB tick identities; this is format evidence, not a new execution gate. Existing `.superpowers/compiled-f4/snapshot` and `evidence` were preserved. Their older passing gate cannot validate the modified executor or concurrently modified runner.
+
+Proposed authorized verification: pure admission/source-shape/constraint controls; synthetic exact-hop controls independently removing/changing native instruction consumption, CPU data acceptance/response, router transaction/device identity and native target commit; post-start caller/private input mutation controls; then the existing isolated real three-candidate continuous run with two fresh prefix replays. The heavy gate must hold `.superpowers/heavy-worker.lock`; any remote execution must use `ssh jumpserver` then the target and stay under `/root/fanzehui`.

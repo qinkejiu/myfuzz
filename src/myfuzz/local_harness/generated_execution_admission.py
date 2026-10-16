@@ -116,3 +116,16 @@ def runtime_projection_gaps(compiled):
         rows.append(dict(path_id=path['path_id'],flow_id=path['flow_id'],
             runtime_admitted=False,gaps=gaps))
     return rows
+
+
+def create_compiled_execution(*, artifacts, compiled_inputs, executor, **runtime_options):
+    """Construct the explicitly selected code-owned compiled executor.
+
+    Unlike the fixed factories this route consumes compiled source, constraint,
+    prerequisite and checker mappings. Constructor startup is authorized by the
+    caller; unsupported executors retain the default refusal.
+    """
+    if executor!='compiled_f4_obi_apb':
+        raise GeneratedExecutionRefused('compiled-executor-unsupported','/executor')
+    from myfuzz.integration.compiled_f4 import CompiledF4Runtime
+    return CompiledF4Runtime(artifacts=artifacts,compiled_inputs=compiled_inputs,**runtime_options)

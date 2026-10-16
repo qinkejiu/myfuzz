@@ -141,3 +141,22 @@ def assess_compiled_execution(*,artifacts,compiled_inputs,runtime_declaration,
         report['paths'].append(row)
     report['status']='unsupported'
     return report
+
+
+def assess_compiled_f4_support(*,artifacts,compiled_inputs):
+    """Inspect the installed executor without granting live execution authority."""
+    from myfuzz.integration.compiled_f4 import admit_f4
+    try:
+        selected=admit_f4(artifacts=artifacts,compiled_inputs=compiled_inputs)
+    except ValueError as error:
+        return dict(schema_version='compiled_F4_support.v1',execution_supported=0,
+            runtime_admitted=False,status='unsupported',reason=str(error))
+    return dict(schema_version='compiled_F4_support.v1',execution_supported=1,
+        runtime_admitted=False,status='supported_requires_actual_startup',
+        executor='compiled_f4_obi_apb',path_id=selected['path_id'],
+        support_scope='experimental_RV32I_writer_GPIOEN_with_native_OBI_APB_and_live_versions',
+        startup_requires=['native_first_fetch_inside_instruction_image',
+                          'exact_private_input_readmission', 'writable_instruction_image_result_word'],
+        unsupported_paths=[dict(path_id=p['path_id'],flow_id=p['flow_id'],
+            reason='compiled-executor-flow-unsupported') for p in compiled_inputs['compiled']['paths']
+            if p['path_id']!=selected['path_id']])
