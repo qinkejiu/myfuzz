@@ -1,0 +1,93 @@
+- V e r i l a t i o n   R e p o r t: Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67
+- Verilator: Built from 0.816 MB sources in 11 modules, into 0.000 MB in 0 C++ files needing 0.000 MB
+- Verilator: Walltime 0.041 s (elab=0.011, cvt=0.005, bld=0.000); cpu 0.041 s on 1 threads; allocated 27.504 MB
+%Warning-WIDTHEXPAND: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv:105:79: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'cpuif_addr' generates 12 bits.
+                                                                                                 : ... note: In instance 'sha256_ctrl.sha256_inst.i_sha256_reg'
+  105 |             decoded_reg_strb.SHA256_NAME[i0] = cpuif_req_masked & (cpuif_addr == 12'h0 + i0*12'h4);
+      |                                                                               ^~
+                      ... For warning description see https://verilator.org/warn/WIDTHEXPAND?v=5.051
+                      ... Use "/* verilator lint_off WIDTHEXPAND */" and lint_on around source to disable this message.
+%Warning-WIDTHEXPAND: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv:105:88: Operator ADD expects 32 bits on the LHS, but LHS's CONST '12'h0' generates 12 bits.
+                                                                                                 : ... note: In instance 'sha256_ctrl.sha256_inst.i_sha256_reg'
+  105 |             decoded_reg_strb.SHA256_NAME[i0] = cpuif_req_masked & (cpuif_addr == 12'h0 + i0*12'h4);
+      |                                                                                        ^
+%Warning-WIDTHEXPAND: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv:108:82: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'cpuif_addr' generates 12 bits.
+                                                                                                 : ... note: In instance 'sha256_ctrl.sha256_inst.i_sha256_reg'
+  108 |             decoded_reg_strb.SHA256_VERSION[i0] = cpuif_req_masked & (cpuif_addr == 12'h8 + i0*12'h4);
+      |                                                                                  ^~
+%Warning-WIDTHEXPAND: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv:108:91: Operator ADD expects 32 bits on the LHS, but LHS's CONST '12'h8' generates 12 bits.
+                                                                                                 : ... note: In instance 'sha256_ctrl.sha256_inst.i_sha256_reg'
+  108 |             decoded_reg_strb.SHA256_VERSION[i0] = cpuif_req_masked & (cpuif_addr == 12'h8 + i0*12'h4);
+      |                                                                                           ^
+%Warning-WIDTHEXPAND: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv:113:80: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'cpuif_addr' generates 12 bits.
+                                                                                                 : ... note: In instance 'sha256_ctrl.sha256_inst.i_sha256_reg'
+  113 |             decoded_reg_strb.SHA256_BLOCK[i0] = cpuif_req_masked & (cpuif_addr == 12'h80 + i0*12'h4);
+      |                                                                                ^~
+%Warning-WIDTHEXPAND: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv:113:90: Operator ADD expects 32 bits on the LHS, but LHS's CONST '12'h80' generates 12 bits.
+                                                                                                 : ... note: In instance 'sha256_ctrl.sha256_inst.i_sha256_reg'
+  113 |             decoded_reg_strb.SHA256_BLOCK[i0] = cpuif_req_masked & (cpuif_addr == 12'h80 + i0*12'h4);
+      |                                                                                          ^
+%Warning-WIDTHEXPAND: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv:116:81: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'cpuif_addr' generates 12 bits.
+                                                                                                 : ... note: In instance 'sha256_ctrl.sha256_inst.i_sha256_reg'
+  116 |             decoded_reg_strb.SHA256_DIGEST[i0] = cpuif_req_masked & (cpuif_addr == 12'h100 + i0*12'h4);
+      |                                                                                 ^~
+%Warning-WIDTHEXPAND: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv:116:92: Operator ADD expects 32 bits on the LHS, but LHS's CONST '12'h100' generates 12 bits.
+                                                                                                 : ... note: In instance 'sha256_ctrl.sha256_inst.i_sha256_reg'
+  116 |             decoded_reg_strb.SHA256_DIGEST[i0] = cpuif_req_masked & (cpuif_addr == 12'h100 + i0*12'h4);
+      |                                                                                            ^
+%Warning-WIDTHEXPAND: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv:1191:40: Operator GT expects 33 bits on the RHS, but RHS's CONST '32'hffffffff' generates 32 bits.
+                                                                                                  : ... note: In instance 'sha256_ctrl.sha256_inst.i_sha256_reg'
+ 1191 |             if(((33)'(next_c) + 32'h1) > 32'hffffffff) begin
+      |                                        ^
+%Warning-WIDTHEXPAND: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv:1225:40: Operator GT expects 33 bits on the RHS, but RHS's CONST '32'hffffffff' generates 32 bits.
+                                                                                                  : ... note: In instance 'sha256_ctrl.sha256_inst.i_sha256_reg'
+ 1225 |             if(((33)'(next_c) + 32'h1) > 32'hffffffff) begin
+      |                                        ^
+%Warning-WIDTHEXPAND: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv:1259:40: Operator GT expects 33 bits on the RHS, but RHS's CONST '32'hffffffff' generates 32 bits.
+                                                                                                  : ... note: In instance 'sha256_ctrl.sha256_inst.i_sha256_reg'
+ 1259 |             if(((33)'(next_c) + 32'h1) > 32'hffffffff) begin
+      |                                        ^
+%Warning-WIDTHEXPAND: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv:1293:40: Operator GT expects 33 bits on the RHS, but RHS's CONST '32'hffffffff' generates 32 bits.
+                                                                                                  : ... note: In instance 'sha256_ctrl.sha256_inst.i_sha256_reg'
+ 1293 |             if(((33)'(next_c) + 32'h1) > 32'hffffffff) begin
+      |                                        ^
+%Warning-WIDTHEXPAND: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv:1327:40: Operator GT expects 33 bits on the RHS, but RHS's CONST '32'hffffffff' generates 32 bits.
+                                                                                                  : ... note: In instance 'sha256_ctrl.sha256_inst.i_sha256_reg'
+ 1327 |             if(((33)'(next_c) + 32'h1) > 32'hffffffff) begin
+      |                                        ^
+%Warning-ASCRANGE: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256.sv:89:7: Ascending bit range vector: left < right of bit range: [0:7]
+                                                                                        : ... note: In instance 'sha256_ctrl.sha256_inst'
+   89 |   reg [0 : 7][31 : 0] digest_reg;
+      |       ^
+                   ... For warning description see https://verilator.org/warn/ASCRANGE?v=5.051
+                   ... Use "/* verilator lint_off ASCRANGE */" and lint_on around source to disable this message.
+%Warning-ASCRANGE: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256.sv:90:7: Ascending bit range vector: left < right of bit range: [0:7]
+                                                                                        : ... note: In instance 'sha256_ctrl.sha256_inst'
+   90 |   reg [0 : 7][31 : 0] get_mask;
+      |       ^
+%Warning-ASCRANGE: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256.sv:103:8: Ascending bit range vector: left < right of bit range: [0:7]
+                                                                                         : ... note: In instance 'sha256_ctrl.sha256_inst'
+  103 |   wire [0:7][31:0]  core_digest;
+      |        ^
+%Warning-CMPCONST: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv:1200:19: Comparison is constant due to limited range
+                                                                                               : ... note: In instance 'sha256_ctrl.sha256_inst.i_sha256_reg'
+ 1200 |         if(next_c > 32'hffffffff) begin
+      |                   ^
+                   ... For warning description see https://verilator.org/warn/CMPCONST?v=5.051
+                   ... Use "/* verilator lint_off CMPCONST */" and lint_on around source to disable this message.
+%Warning-CMPCONST: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv:1234:19: Comparison is constant due to limited range
+                                                                                               : ... note: In instance 'sha256_ctrl.sha256_inst.i_sha256_reg'
+ 1234 |         if(next_c > 32'hffffffff) begin
+      |                   ^
+%Warning-CMPCONST: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv:1268:19: Comparison is constant due to limited range
+                                                                                               : ... note: In instance 'sha256_ctrl.sha256_inst.i_sha256_reg'
+ 1268 |         if(next_c > 32'hffffffff) begin
+      |                   ^
+%Warning-CMPCONST: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv:1302:19: Comparison is constant due to limited range
+                                                                                               : ... note: In instance 'sha256_ctrl.sha256_inst.i_sha256_reg'
+ 1302 |         if(next_c > 32'hffffffff) begin
+      |                   ^
+%Warning-CMPCONST: third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv:1336:19: Comparison is constant due to limited range
+                                                                                               : ... note: In instance 'sha256_ctrl.sha256_inst.i_sha256_reg'
+ 1336 |         if(next_c > 32'hffffffff) begin
+      |                   ^

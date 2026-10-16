@@ -1,0 +1,25 @@
+{
+  "schema_version": "caliptra_sha256_reset_policy.v1",
+  "runtime_status": "unsupported_ahb_lite_register_runtime",
+  "initial_asserted": {
+    "reset_n": 0,
+    "cptra_pwrgood": 0
+  },
+  "released": {
+    "reset_n": 1,
+    "cptra_pwrgood": 1
+  },
+  "minimum_asserted_clock_edges": 8,
+  "minimum_release_clock_edges": 8,
+  "debugUnlock_or_scan_mode_switch": 0,
+  "scope": "Initial compatible shared reset sequence; actual reset/readback acceptance not yet run. Independent warm/power reset sequencing unsupported.",
+  "semantics": {
+    "reset_n": "algorithm/AHB/general hwif.reset_b active-low asynchronous reset",
+    "cptra_pwrgood": "error hwif.error_reset_b active-low asynchronous reset"
+  },
+  "evidence": [
+    "src/sha256/rtl/sha256.sv:432-433",
+    "src/sha256/rtl/sha256_reg.sv:947-948",
+    "src/libs/rtl/ahb_slv_sif.sv:116-117"
+  ]
+}

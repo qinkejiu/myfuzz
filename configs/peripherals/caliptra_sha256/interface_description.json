@@ -1,0 +1,168 @@
+{
+  "schema_version": "interface_description.v1",
+  "source": {
+    "root": "third_party/caliptra_upstream_reference",
+    "revision": "git:49370266d12cb0c4a8f71b3a0ff7e54ba7d4866e",
+    "top_module": "sha256_ctrl",
+    "files": [
+      "src/libs/rtl/caliptra_sva.svh",
+      "src/libs/rtl/ahb_defines_pkg.sv",
+      "src/sha256/rtl/sha256_reg_pkg.sv",
+      "src/sha256/rtl/sha256_params_pkg.sv",
+      "src/libs/rtl/ahb_slv_sif.sv",
+      "src/sha256/rtl/sha256_reg.sv",
+      "src/sha256/rtl/sha256_k_constants.v",
+      "src/sha256/rtl/sha256_w_mem.v",
+      "src/sha256/rtl/sha256_core.v",
+      "src/sha256/rtl/sha256.sv",
+      "src/sha256/rtl/sha256_ctrl.sv"
+    ],
+    "include_roots": [
+      "src/integration/rtl",
+      "src/libs/rtl",
+      "src/sha256/rtl"
+    ]
+  },
+  "notes": [
+    "Caliptra v2.1.2; selected sha256_ctrl only. Every physical width/direction extracted from actual Verilator JSON.",
+    "Both reset_n and cptra_pwrgood must be low during initialization. cptra_pwrgood drives generated error_reset_b, not ordinary constant configuration.",
+    "debugUnlock_or_scan_mode_switch fixed zero. Error/notification pins passive only.",
+    "Only aligned full-word single outstanding accesses. No slave byte enables; do not emulate partial writes with read-modify-write.",
+    "sha256_ctrl ties ahb_slv_sif err=0/hld=0; internal sha256_err is not connected to bus response. Invalid offsets need not produce HRESP.",
+    "Static closure only; no register/algorithm transaction acceptance or runtime admission."
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "sha256.bus",
+      "function": "mmio_slave",
+      "protocol": [
+        "ahb-lite",
+        "1"
+      ],
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "haddr",
+          "aliases": [
+            "haddr_i"
+          ],
+          "direction": "input",
+          "width": 32
+        },
+        {
+          "role": "hwdata",
+          "aliases": [
+            "hwdata_i"
+          ],
+          "direction": "input",
+          "width": 32
+        },
+        {
+          "role": "hsel",
+          "aliases": [
+            "hsel_i"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "hwrite",
+          "aliases": [
+            "hwrite_i"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "hreadyin",
+          "aliases": [
+            "hready_i"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "htrans",
+          "aliases": [
+            "htrans_i"
+          ],
+          "direction": "input",
+          "width": 2
+        },
+        {
+          "role": "hsize",
+          "aliases": [
+            "hsize_i"
+          ],
+          "direction": "input",
+          "width": 3
+        },
+        {
+          "role": "hresp",
+          "aliases": [
+            "hresp_o"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "hreadyout",
+          "aliases": [
+            "hreadyout_o"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "hrdata",
+          "aliases": [
+            "hrdata_o"
+          ],
+          "direction": "output",
+          "width": 32
+        }
+      ]
+    },
+    {
+      "endpoint_id": "sha256.debug",
+      "function": "configuration",
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "debug_unlock",
+          "aliases": [
+            "debugUnlock_or_scan_mode_switch"
+          ],
+          "direction": "input",
+          "width": 1
+        }
+      ]
+    },
+    {
+      "endpoint_id": "sha256.interrupt_observation",
+      "function": "observation",
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "error",
+          "aliases": [
+            "error_intr"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "notification",
+          "aliases": [
+            "notif_intr"
+          ],
+          "direction": "output",
+          "width": 1
+        }
+      ]
+    }
+  ]
+}

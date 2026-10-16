@@ -1,0 +1,185 @@
+{
+  "schema_version": "soc_elaboration_closure.v1",
+  "component": "caliptra_sha256",
+  "root": "third_party/caliptra_upstream_reference",
+  "top_module": "sha256_ctrl",
+  "tool": {
+    "name": "verilator",
+    "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "frontend": "verilator-lint"
+  },
+  "command": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "sha256_ctrl",
+    "-GAHB_DATA_WIDTH=32",
+    "-GAHB_ADDR_WIDTH=32",
+    "-Ithird_party/caliptra_upstream_reference/src/integration/rtl",
+    "-Ithird_party/caliptra_upstream_reference/src/libs/rtl",
+    "-Ithird_party/caliptra_upstream_reference/src/sha256/rtl",
+    "--MMD",
+    "--Mdir",
+    "configs/peripherals/caliptra_sha256/evidence/lint-work",
+    "third_party/caliptra_upstream_reference/src/libs/rtl/caliptra_sva.svh",
+    "third_party/caliptra_upstream_reference/src/libs/rtl/ahb_defines_pkg.sv",
+    "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg_pkg.sv",
+    "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_params_pkg.sv",
+    "third_party/caliptra_upstream_reference/src/libs/rtl/ahb_slv_sif.sv",
+    "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv",
+    "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_k_constants.v",
+    "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_w_mem.v",
+    "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_core.v",
+    "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256.sv",
+    "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv"
+  ],
+  "include_roots": [
+    "src/integration/rtl",
+    "src/libs/rtl",
+    "src/sha256/rtl"
+  ],
+  "defines": [],
+  "parameters": [
+    {
+      "name": "AHB_DATA_WIDTH",
+      "value": "32"
+    },
+    {
+      "name": "AHB_ADDR_WIDTH",
+      "value": "32"
+    }
+  ],
+  "closure_files": [
+    {
+      "root": "third_party/caliptra_upstream_reference",
+      "path": "src/libs/rtl/ahb_defines_pkg.sv",
+      "sha256": "371c9d35ed3c6fa24c923c31cb0832868cb51a313e10fa256a4b7faaa5def188"
+    },
+    {
+      "root": "third_party/caliptra_upstream_reference",
+      "path": "src/libs/rtl/ahb_slv_sif.sv",
+      "sha256": "9c7801b819e2970df219bc26dbd0ae924645642ef94c913070dac9068a6bd0e2"
+    },
+    {
+      "root": "third_party/caliptra_upstream_reference",
+      "path": "src/libs/rtl/caliptra_sva.svh",
+      "sha256": "4822d70ecf29721a5f660c5e47cc257624a47d99b675f953980b038a96e4dddf"
+    },
+    {
+      "root": "third_party/caliptra_upstream_reference",
+      "path": "src/sha256/rtl/sha256.sv",
+      "sha256": "556650ef04155dce2e2c3d81f58aed4f48c3ed6fac77234a6614ee9e21011011"
+    },
+    {
+      "root": "third_party/caliptra_upstream_reference",
+      "path": "src/sha256/rtl/sha256_core.v",
+      "sha256": "5baa7f845ddc080383d13f588500a6fa69461443e1f498b1737b728b58781b73"
+    },
+    {
+      "root": "third_party/caliptra_upstream_reference",
+      "path": "src/sha256/rtl/sha256_ctrl.sv",
+      "sha256": "d646de1f97b260f336377700cc4efff8c44779691d9fb61fa58aaa365b91d0a0"
+    },
+    {
+      "root": "third_party/caliptra_upstream_reference",
+      "path": "src/sha256/rtl/sha256_k_constants.v",
+      "sha256": "6a7f72df8b2771419431274e0edbecf7c1fb946a613c71407c63f4ddfdc7e254"
+    },
+    {
+      "root": "third_party/caliptra_upstream_reference",
+      "path": "src/sha256/rtl/sha256_params_pkg.sv",
+      "sha256": "2f32be755f3b1d321cf2e660f1cf88bb8a940cf5ffcaf13d60e0aa75bd52a37e"
+    },
+    {
+      "root": "third_party/caliptra_upstream_reference",
+      "path": "src/sha256/rtl/sha256_reg.sv",
+      "sha256": "eb76fdd5d9cf5c37fa9facb613b04a6e97a73c7ec9012985a161938a06be85d3"
+    },
+    {
+      "root": "third_party/caliptra_upstream_reference",
+      "path": "src/sha256/rtl/sha256_reg_pkg.sv",
+      "sha256": "85b5baf6e6ea30949a2739c1fc1732a442f7c9b6d05a9f4c7f39243b11b4e90b"
+    },
+    {
+      "root": "third_party/caliptra_upstream_reference",
+      "path": "src/sha256/rtl/sha256_w_mem.v",
+      "sha256": "19ce65fd0519a39d1ee0c96498806c540ee59d088a4fc62d78d77270ee2f0cdb"
+    }
+  ],
+  "status": "elaboration_verified",
+  "lint": {
+    "errors": 0,
+    "warnings": 21,
+    "exit_code": 0,
+    "log": "configs/peripherals/caliptra_sha256/evidence/lint.log",
+    "warning_classes": {
+      "WIDTHEXPAND": 13,
+      "ASCRANGE": 3,
+      "CMPCONST": 5
+    }
+  },
+  "physical_elaboration": {
+    "command": [
+      "verilator",
+      "--json-only",
+      "--no-std-package",
+      "-Wno-fatal",
+      "--top-module",
+      "sha256_ctrl",
+      "-GAHB_DATA_WIDTH=32",
+      "-GAHB_ADDR_WIDTH=32",
+      "-Ithird_party/caliptra_upstream_reference/src/integration/rtl",
+      "-Ithird_party/caliptra_upstream_reference/src/libs/rtl",
+      "-Ithird_party/caliptra_upstream_reference/src/sha256/rtl",
+      "--json-only-output",
+      "configs/peripherals/caliptra_sha256/evidence/ports.tree.json",
+      "--json-only-meta-output",
+      "configs/peripherals/caliptra_sha256/evidence/ports.meta.json",
+      "third_party/caliptra_upstream_reference/src/libs/rtl/caliptra_sva.svh",
+      "third_party/caliptra_upstream_reference/src/libs/rtl/ahb_defines_pkg.sv",
+      "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg_pkg.sv",
+      "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_params_pkg.sv",
+      "third_party/caliptra_upstream_reference/src/libs/rtl/ahb_slv_sif.sv",
+      "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_reg.sv",
+      "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_k_constants.v",
+      "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_w_mem.v",
+      "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_core.v",
+      "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256.sv",
+      "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv"
+    ],
+    "returncode": 0,
+    "ports": 16,
+    "evidence": "configs/peripherals/caliptra_sha256/evidence/elaborated_ports.json",
+    "sha256": "42d7d65f66d338fed63d89a6d2cf7bec9b91573b6e230ec66623221fc4824237",
+    "log": "configs/peripherals/caliptra_sha256/evidence/ports.log"
+  },
+  "capability_findings": [
+    {
+      "topic": "dual_reset",
+      "observed": "reset_n drives hwif.reset_b; cptra_pwrgood independently drives error_reset_b; both are async active low in generated registers. Shared initial assertion policy declared, execution unverified.",
+      "evidence_path": "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256.sv:432-433",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "bus_error_not_forwarded",
+      "observed": "AHB slave err tied 0, hld tied 0; sha256_err ignored by bus wrapper. Invalid register accesses need not return HRESP error.",
+      "evidence_path": "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv:116-117",
+      "provenance": "rtl_read"
+    }
+  ],
+  "unsupported": [
+    {
+      "topic": "register_runtime",
+      "reason": "Dedicated target AHB-Lite full-word template/manager transport/session and reset acceptance are not implemented."
+    },
+    {
+      "topic": "algorithm_acceptance",
+      "reason": "No known-answer transaction, IRQ, CPU consumption or fresh real execution replay is claimed."
+    },
+    {
+      "topic": "optional_features",
+      "reason": "No Winternitz, key-vault, full SoC, formal/UVM models or independent warm/power reset sequencing in this scope."
+    }
+  ]
+}

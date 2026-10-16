@@ -1,0 +1,443 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "caliptra_sha256",
+  "kind": "peripheral",
+  "description": "Unmodified Caliptra v2.1.2 sha256_ctrl, full-word aligned 32-bit AHB-Lite target. Static source/physical declaration only; dedicated AHB register-target runtime unsupported. reset_n and cptra_pwrgood are independent active-low asynchronous reset inputs and must both be asserted during initialization. Error/notification outputs are passive observations; no IRQ trigger/capture contract is granted. Wrapper ties AHB err=0/hld=0: internal register errors do not imply HRESP errors. Debug/scan input fixed zero.",
+  "source": {
+    "root": "third_party/caliptra_upstream_reference",
+    "revision": "git:49370266d12cb0c4a8f71b3a0ff7e54ba7d4866e",
+    "top_module": "sha256_ctrl",
+    "files": [
+      "src/libs/rtl/caliptra_sva.svh",
+      "src/libs/rtl/ahb_defines_pkg.sv",
+      "src/sha256/rtl/sha256_reg_pkg.sv",
+      "src/sha256/rtl/sha256_params_pkg.sv",
+      "src/libs/rtl/ahb_slv_sif.sv",
+      "src/sha256/rtl/sha256_reg.sv",
+      "src/sha256/rtl/sha256_k_constants.v",
+      "src/sha256/rtl/sha256_w_mem.v",
+      "src/sha256/rtl/sha256_core.v",
+      "src/sha256/rtl/sha256.sv",
+      "src/sha256/rtl/sha256_ctrl.sv"
+    ],
+    "include_roots": [
+      "src/integration/rtl",
+      "src/libs/rtl",
+      "src/sha256/rtl"
+    ],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {
+          "name": "AHB_DATA_WIDTH",
+          "value": "32"
+        },
+        {
+          "name": "AHB_ADDR_WIDTH",
+          "value": "32"
+        }
+      ],
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [
+    {
+      "port": "clk",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "reset_n",
+      "domain": "sys_rst",
+      "polarity": "active_low",
+      "synchronous": false,
+      "release": "Reset algorithm, AHB state and normal hwif registers; assert low with cptra_pwrgood initially then release only after clocked initialization."
+    },
+    {
+      "port": "cptra_pwrgood",
+      "domain": "power_rst",
+      "polarity": "active_low",
+      "synchronous": false,
+      "release": "Power-good is the separate error_reset_b reset. Must go low during initialization; never tied high from time zero. Assert together with reset_n for initial scoped policy."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "sha256.bus",
+      "function": "mmio_slave",
+      "protocol": [
+        "ahb-lite",
+        "1"
+      ],
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "haddr",
+          "aliases": [
+            "haddr_i"
+          ],
+          "direction": "input",
+          "width": 32
+        },
+        {
+          "role": "hwdata",
+          "aliases": [
+            "hwdata_i"
+          ],
+          "direction": "input",
+          "width": 32
+        },
+        {
+          "role": "hsel",
+          "aliases": [
+            "hsel_i"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "hwrite",
+          "aliases": [
+            "hwrite_i"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "hreadyin",
+          "aliases": [
+            "hready_i"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "htrans",
+          "aliases": [
+            "htrans_i"
+          ],
+          "direction": "input",
+          "width": 2
+        },
+        {
+          "role": "hsize",
+          "aliases": [
+            "hsize_i"
+          ],
+          "direction": "input",
+          "width": 3
+        },
+        {
+          "role": "hresp",
+          "aliases": [
+            "hresp_o"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "hreadyout",
+          "aliases": [
+            "hreadyout_o"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "hrdata",
+          "aliases": [
+            "hrdata_o"
+          ],
+          "direction": "output",
+          "width": 32
+        }
+      ]
+    },
+    {
+      "endpoint_id": "sha256.debug",
+      "function": "configuration",
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "debug_unlock",
+          "aliases": [
+            "debugUnlock_or_scan_mode_switch"
+          ],
+          "direction": "input",
+          "width": 1
+        }
+      ]
+    },
+    {
+      "endpoint_id": "sha256.interrupt_observation",
+      "function": "observation",
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "error",
+          "aliases": [
+            "error_intr"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "notification",
+          "aliases": [
+            "notif_intr"
+          ],
+          "direction": "output",
+          "width": 1
+        }
+      ]
+    }
+  ],
+  "port_actions": [
+    {
+      "port": "debugUnlock_or_scan_mode_switch",
+      "action": "constant",
+      "value": 0,
+      "reason": "Disable debug/scan side effects in initial fixed environment"
+    }
+  ],
+  "capabilities": {
+    "address_width": 32,
+    "data_width": 32,
+    "read": true,
+    "write": true,
+    "byte_enable": false,
+    "partial_write": false,
+    "has_error": false,
+    "max_outstanding": 1,
+    "max_wait_cycles": 16,
+    "ahb_data_phase_required": true
+  },
+  "address": {
+    "window_size": 4096,
+    "alignment": 4096,
+    "registers": [
+      {
+        "name": "NAME0",
+        "offset": 0,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "none"
+      },
+      {
+        "name": "NAME1",
+        "offset": 4,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "none"
+      },
+      {
+        "name": "VERSION0",
+        "offset": 8,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "none"
+      },
+      {
+        "name": "VERSION1",
+        "offset": 12,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "none"
+      },
+      {
+        "name": "CTRL",
+        "offset": 16,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "algorithm_control"
+      },
+      {
+        "name": "STATUS",
+        "offset": 24,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "none"
+      },
+      {
+        "name": "BLOCK0",
+        "offset": 128,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "hash_block_input"
+      },
+      {
+        "name": "BLOCK1",
+        "offset": 132,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "hash_block_input"
+      },
+      {
+        "name": "BLOCK2",
+        "offset": 136,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "hash_block_input"
+      },
+      {
+        "name": "BLOCK3",
+        "offset": 140,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "hash_block_input"
+      },
+      {
+        "name": "BLOCK4",
+        "offset": 144,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "hash_block_input"
+      },
+      {
+        "name": "BLOCK5",
+        "offset": 148,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "hash_block_input"
+      },
+      {
+        "name": "BLOCK6",
+        "offset": 152,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "hash_block_input"
+      },
+      {
+        "name": "BLOCK7",
+        "offset": 156,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "hash_block_input"
+      },
+      {
+        "name": "BLOCK8",
+        "offset": 160,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "hash_block_input"
+      },
+      {
+        "name": "BLOCK9",
+        "offset": 164,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "hash_block_input"
+      },
+      {
+        "name": "BLOCK10",
+        "offset": 168,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "hash_block_input"
+      },
+      {
+        "name": "BLOCK11",
+        "offset": 172,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "hash_block_input"
+      },
+      {
+        "name": "BLOCK12",
+        "offset": 176,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "hash_block_input"
+      },
+      {
+        "name": "BLOCK13",
+        "offset": 180,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "hash_block_input"
+      },
+      {
+        "name": "BLOCK14",
+        "offset": 184,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "hash_block_input"
+      },
+      {
+        "name": "BLOCK15",
+        "offset": 188,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "hash_block_input"
+      },
+      {
+        "name": "DIGEST0",
+        "offset": 256,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "hash_digest_output"
+      },
+      {
+        "name": "DIGEST1",
+        "offset": 260,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "hash_digest_output"
+      },
+      {
+        "name": "DIGEST2",
+        "offset": 264,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "hash_digest_output"
+      },
+      {
+        "name": "DIGEST3",
+        "offset": 268,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "hash_digest_output"
+      },
+      {
+        "name": "DIGEST4",
+        "offset": 272,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "hash_digest_output"
+      },
+      {
+        "name": "DIGEST5",
+        "offset": 276,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "hash_digest_output"
+      },
+      {
+        "name": "DIGEST6",
+        "offset": 280,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "hash_digest_output"
+      },
+      {
+        "name": "DIGEST7",
+        "offset": 284,
+        "width": 32,
+        "access": "ro",
+        "side_effect": "hash_digest_output"
+      }
+    ]
+  },
+  "evidence": {
+    "elaboration": "configs/soc/closures/caliptra_sha256.json",
+    "physical_ports": "configs/peripherals/caliptra_sha256/evidence/elaborated_ports.json",
+    "reset_policy": "configs/peripherals/caliptra_sha256/reset_policy.json",
+    "runtime_status": "unsupported_ahb_lite_register_runtime",
+    "register_map": "src/sha256/tb/sha256_ctrl_tb.sv and src/sha256/rtl/sha256_reg.sv; selected algorithm subset only, not full Winternitz/interrupt register coverage"
+  }
+}

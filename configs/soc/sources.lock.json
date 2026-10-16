@@ -7315,6 +7315,139 @@
     "capability_findings": 2,
     "unsupported": 2
    }
+  },
+  {
+   "id": "caliptra_sha256",
+   "source": {
+    "root": "third_party/caliptra_upstream_reference",
+    "revision": "git:49370266d12cb0c4a8f71b3a0ff7e54ba7d4866e",
+    "top_module": "sha256_ctrl",
+    "files": [
+     "src/libs/rtl/caliptra_sva.svh",
+     "src/libs/rtl/ahb_defines_pkg.sv",
+     "src/sha256/rtl/sha256_reg_pkg.sv",
+     "src/sha256/rtl/sha256_params_pkg.sv",
+     "src/libs/rtl/ahb_slv_sif.sv",
+     "src/sha256/rtl/sha256_reg.sv",
+     "src/sha256/rtl/sha256_k_constants.v",
+     "src/sha256/rtl/sha256_w_mem.v",
+     "src/sha256/rtl/sha256_core.v",
+     "src/sha256/rtl/sha256.sv",
+     "src/sha256/rtl/sha256_ctrl.sv"
+    ],
+    "include_roots": [
+     "src/integration/rtl",
+     "src/libs/rtl",
+     "src/sha256/rtl"
+    ],
+    "repositories": []
+   },
+   "artifacts": [
+    {
+     "path": "LICENSE",
+     "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+     "kind": "license"
+    },
+    {
+     "path": "src/libs/rtl/caliptra_sva.svh",
+     "sha256": "4822d70ecf29721a5f660c5e47cc257624a47d99b675f953980b038a96e4dddf",
+     "kind": "source"
+    },
+    {
+     "path": "src/libs/rtl/ahb_defines_pkg.sv",
+     "sha256": "371c9d35ed3c6fa24c923c31cb0832868cb51a313e10fa256a4b7faaa5def188",
+     "kind": "source"
+    },
+    {
+     "path": "src/sha256/rtl/sha256_reg_pkg.sv",
+     "sha256": "85b5baf6e6ea30949a2739c1fc1732a442f7c9b6d05a9f4c7f39243b11b4e90b",
+     "kind": "source"
+    },
+    {
+     "path": "src/sha256/rtl/sha256_params_pkg.sv",
+     "sha256": "2f32be755f3b1d321cf2e660f1cf88bb8a940cf5ffcaf13d60e0aa75bd52a37e",
+     "kind": "source"
+    },
+    {
+     "path": "src/libs/rtl/ahb_slv_sif.sv",
+     "sha256": "9c7801b819e2970df219bc26dbd0ae924645642ef94c913070dac9068a6bd0e2",
+     "kind": "source"
+    },
+    {
+     "path": "src/sha256/rtl/sha256_reg.sv",
+     "sha256": "eb76fdd5d9cf5c37fa9facb613b04a6e97a73c7ec9012985a161938a06be85d3",
+     "kind": "source"
+    },
+    {
+     "path": "src/sha256/rtl/sha256_k_constants.v",
+     "sha256": "6a7f72df8b2771419431274e0edbecf7c1fb946a613c71407c63f4ddfdc7e254",
+     "kind": "source"
+    },
+    {
+     "path": "src/sha256/rtl/sha256_w_mem.v",
+     "sha256": "19ce65fd0519a39d1ee0c96498806c540ee59d088a4fc62d78d77270ee2f0cdb",
+     "kind": "source"
+    },
+    {
+     "path": "src/sha256/rtl/sha256_core.v",
+     "sha256": "5baa7f845ddc080383d13f588500a6fa69461443e1f498b1737b728b58781b73",
+     "kind": "source"
+    },
+    {
+     "path": "src/sha256/rtl/sha256.sv",
+     "sha256": "556650ef04155dce2e2c3d81f58aed4f48c3ed6fac77234a6614ee9e21011011",
+     "kind": "source"
+    },
+    {
+     "path": "src/sha256/rtl/sha256_ctrl.sv",
+     "sha256": "d646de1f97b260f336377700cc4efff8c44779691d9fb61fa58aaa365b91d0a0",
+     "kind": "source"
+    }
+   ],
+   "selected_content_hash": "sha256:f5e310d22f668076fb4401e09063248cd01811f7a646b39e670df6b857994a83",
+   "closure_status": "selected",
+   "source_status": "source_verified",
+   "elaboration_status": "elaboration_verified",
+   "runtime_status": "runtime_unverified",
+   "defines": [],
+   "typed_parameters": [
+    {
+     "name": "AHB_ADDR_WIDTH",
+     "type": "integer",
+     "value": "32"
+    },
+    {
+     "name": "AHB_DATA_WIDTH",
+     "type": "integer",
+     "value": "32"
+    }
+   ],
+   "generator": {
+    "status": "not_invoked",
+    "tool_version": null,
+    "name": "none for selected checked-in files"
+   },
+   "dependencies": [],
+   "closure_note": "Eleven measured non-UVM source/header inputs, reduced from upstream sha256_ctrl.vf by actual lint dependency report. Runtime unsupported.",
+   "elaboration": {
+    "status": "elaboration_verified",
+    "top_module": "sha256_ctrl",
+    "tool": {
+     "name": "verilator",
+     "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+     "frontend": "verilator-lint"
+    },
+    "evidence": "configs/soc/closures/caliptra_sha256.json",
+    "evidence_sha256": "53525acc33bc62b627de2f80a20ec3fd196ef2e502b71b62a643d52690fb657e",
+    "closure_files": 11,
+    "lint": {
+     "errors": 0,
+     "warnings": 21,
+     "exit_code": 0
+    },
+    "capability_findings": 2,
+    "unsupported": 3
+   }
   }
  ]
 }

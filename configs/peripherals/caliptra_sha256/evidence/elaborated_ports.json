@@ -1,0 +1,198 @@
+{
+  "ports": [
+    {
+      "direction": "input",
+      "members": [],
+      "name": "clk",
+      "signed": false,
+      "source": {
+        "column": 26,
+        "file": "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv",
+        "line": 30
+      },
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "reset_n",
+      "signed": false,
+      "source": {
+        "column": 26,
+        "file": "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv",
+        "line": 31
+      },
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "cptra_pwrgood",
+      "signed": false,
+      "source": {
+        "column": 26,
+        "file": "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv",
+        "line": 32
+      },
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "haddr_i",
+      "signed": false,
+      "source": {
+        "column": 38,
+        "file": "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv",
+        "line": 35
+      },
+      "width": 32
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "hwdata_i",
+      "signed": false,
+      "source": {
+        "column": 38,
+        "file": "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv",
+        "line": 36
+      },
+      "width": 32
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "hsel_i",
+      "signed": false,
+      "source": {
+        "column": 17,
+        "file": "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv",
+        "line": 37
+      },
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "hwrite_i",
+      "signed": false,
+      "source": {
+        "column": 17,
+        "file": "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv",
+        "line": 38
+      },
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "hready_i",
+      "signed": false,
+      "source": {
+        "column": 17,
+        "file": "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv",
+        "line": 39
+      },
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "htrans_i",
+      "signed": false,
+      "source": {
+        "column": 23,
+        "file": "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv",
+        "line": 40
+      },
+      "width": 2
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "hsize_i",
+      "signed": false,
+      "source": {
+        "column": 23,
+        "file": "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv",
+        "line": 41
+      },
+      "width": 3
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "hresp_o",
+      "signed": false,
+      "source": {
+        "column": 18,
+        "file": "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv",
+        "line": 43
+      },
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "hreadyout_o",
+      "signed": false,
+      "source": {
+        "column": 18,
+        "file": "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv",
+        "line": 44
+      },
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "hrdata_o",
+      "signed": false,
+      "source": {
+        "column": 39,
+        "file": "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv",
+        "line": 45
+      },
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "error_intr",
+      "signed": false,
+      "source": {
+        "column": 18,
+        "file": "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv",
+        "line": 48
+      },
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "notif_intr",
+      "signed": false,
+      "source": {
+        "column": 18,
+        "file": "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv",
+        "line": 49
+      },
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "debugUnlock_or_scan_mode_switch",
+      "signed": false,
+      "source": {
+        "column": 18,
+        "file": "third_party/caliptra_upstream_reference/src/sha256/rtl/sha256_ctrl.sv",
+        "line": 50
+      },
+      "width": 1
+    }
+  ],
+  "schema_version": "elaborated_ports.v1",
+  "top_module": "sha256_ctrl"
+}
