@@ -2,7 +2,9 @@
 
 2026-10-17 Caliptra SHA256：[生成式 AHB-Lite target 真实 RTL 报告](caliptra-sha256-ahb-target-20261017.md)。两个独立进程各完成 91 次 AHB 寄存器访问，`abc`／`abd` 的真实摘要匹配参考值；每次 273 个通用协议事件、checker 零违约。当前仅为局部 RTL operational，尚未接 CPU／IRQ、完整证据消费者、持续搜索或认证前缀 replay。AHB 证据消费者另有原始握手／投影一致与篡改拒绝的软件门禁。
 
-2026-10-17 ZipCPU `wbdmac`：[真实 RAM→RAM 定向报告](zipcpu-wbdmac-real-ram-20261017.md)。两次独立 pinned RTL 进程各完成四读四写、四笔目的 RAM 提交及末次 ACK 同边沿原生 IRQ；CPU MMIO 配置与 ISR 尚未接入，当前环境有明确 ACK 延迟限制。
+2026-10-17 Ibex＋ZipCPU `wbdmac`：[CPU 配置、真实 DMA 搬运和 ISR 定向闭环报告](ibex-zipcpu-dma-irq-isr-directed-20261017.md)。两组全新 Ibex／DMA 进程各观察 CPU 自写源字、真实 OBI 配置、DMA 四读四写、原生 IRQ 经过显式挂起锁存、CPU 真实 ISR 保存状态和目的值，完整规范化轨迹一致；范围限 RAM→RAM 定向链。
+
+2026-10-17 ZipCPU `wbdmac`：[独立 DMA RAM→RAM 定向报告](zipcpu-wbdmac-real-ram-20261017.md)。两次独立 pinned RTL 进程各完成四读四写、四笔目的 RAM 提交及末次 ACK 同边沿原生 IRQ；这条较早局部证据未接 CPU，当前环境有明确 ACK 延迟限制。
 
 2026-10-17 VexiiRiscv：[固定生成 RTL 的双 AXI 定向 RAM 报告](vexiiriscv-direct-axi-ram-20261017.md)。两次独立真实 CPU 运行 `[53,54]`，替换唯一 LSU 读响应的因果对照 `[53,1]`；仅 CPU/RAM 定向等级，尚无生成式 profile 或外设组合。
 
