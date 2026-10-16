@@ -370,6 +370,12 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             release_ticks=artifact.plan.request.reset_release_ticks,
             snapshot_max=maximum_snapshot)
         reservation = max(reservation, 2 * ahb_startup['page_json_bound_bytes'] + 512)
+    storage_startup = None
+    if 'storage_startup_selection' in document:
+        from .apb_storage_startup import contract_for_snapshot
+        storage_startup=contract_for_snapshot(document,maximum_snapshot,
+            artifact.plan.request.reset_assert_ticks,artifact.plan.request.reset_release_ticks)
+        reservation=max(reservation,2*storage_startup['page_json_bound_bytes']+512)
     if reservation > 2 * 1024 * 1024 + 512:
         raise ValueError('driver-result-reservation-too-large')
 
@@ -800,6 +806,21 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         clock_edge_snapshot = ('static std::string clock_edge_snapshot() {\n'
             '  return object({\n' + edge_fields + '\n  });\n}\n')
         clock_edge_sample_entry = '{"clock_edges", clock_edge_snapshot()}, '
+    if storage_startup:
+        operation_check='('+operation_check+') && command.operation != "READ_APB_STORAGE_STARTUP"'
+        dispatch=(r'''      if (command.operation == "READ_APB_STORAGE_STARTUP") {
+        pre_backend = backend_snapshot(dut);
+        if (local_ticks != 0 || command.fields[0] != storage_startup_next_page) {
+          terminal = error_reply(command.execution, command.sequence, local_ticks,
+                                 "protocol_environment", "storage_startup_page_order");
+        } else {
+          observations_override = object({{"storage_startup", storage_startup_page(command.fields[0])}});
+        }
+      } else if (storage_startup_next_page != @PAGES@) {
+        terminal = error_reply(command.execution, command.sequence, local_ticks,
+                               "protocol_environment", "storage_startup_incomplete");
+      } else {
+''' + dispatch + '\n      }').replace('@PAGES@',str(storage_startup['page_count']))
     template = r'''#include "V@MODULE@.h"
 #include "verilated.h"
 #include "local_driver_v1.h"
@@ -1052,6 +1073,13 @@ int main(int argc, char **argv) {
         AHB_STARTUP_FINISH=('      if (command.operation == \"READ_AHB_STARTUP\" && terminal.rfind(\"RESULT \", 0) == 0) ++ahb_startup_next_page;\n' if ahb_startup else ''),
         AHB_STARTUP_VARIABLE='    std::string observations_override;\n' if ahb_startup else '',
         OBSERVATIONS_EXPRESSION='(observations_override.empty() ? snapshot(dut) : observations_override)' if ahb_startup else 'snapshot(dut)')
+    if storage_startup:
+        from .apb_storage_startup import render_startup_helpers as render_storage_helpers
+        values.update(AHB_STARTUP_HELPERS=render_storage_helpers(storage_startup),
+            STARTUP_TICK='capture_storage_startup(dut);',COMMAND_SET=', CommandSet::ApbStorageStartup',
+            AHB_STARTUP_FINISH='      if (command.operation == "READ_APB_STORAGE_STARTUP" && terminal.rfind("RESULT ", 0) == 0) ++storage_startup_next_page;\n',
+            AHB_STARTUP_VARIABLE='    std::string observations_override;\n',
+            OBSERVATIONS_EXPRESSION='(observations_override.empty() ? snapshot(dut) : observations_override)')
     cpp = template
     for key, value in values.items():
         cpp = cpp.replace('@' + key + '@', value)
@@ -1073,6 +1101,9 @@ int main(int argc, char **argv) {
     if ahb_startup:
         document['ahb_startup_contract'] = ahb_startup
         document['driver_schema_version'] = 'local_driver_generation.ahb_startup.v2'
+    if storage_startup:
+        document['storage_startup_capture']=storage_startup
+        document['driver_schema_version']='local_driver_generation.apb_storage_startup.v2'
     document.pop('artifact_digest')
     document['artifact_digest'] = _sha(document)
     return replace(copy.deepcopy(artifact), cpp_text=cpp, runtime_document=document)

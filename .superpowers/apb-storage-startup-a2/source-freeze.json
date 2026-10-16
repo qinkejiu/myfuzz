@@ -1,0 +1,16 @@
+{
+  "scope": "source_only_a2_generation",
+  "files": {
+    "src/myfuzz/local_harness/apb_storage_startup.py": "2097cd6c4fb0c57443f969edd685a5ca2477d6b71ed3dbc1421c21ab999b1bb1",
+    "src/myfuzz/local_harness/tuning.py": "5732b4d499fef54cd239e4e0c0b11f7e08ef39581c32747d2b8425dd45c78a0a",
+    "src/myfuzz/local_harness/apb3_register_template.py": "3d664e5d4c3c1f57a964b512b6dbbc0c13d5dd5c33e9fe511b45955ba972e153",
+    "src/myfuzz/local_harness/runtime_renderer.py": "1e57ca3b15377f15dd5cb44be513684cba346825cd728bfd910fb2cf6e1a1a9e",
+    "src/myfuzz/local_harness/driver_renderer.py": "f87b9020a277447dd87fdc205f5cbd33d5798af37c041affd3703cb3fba34c6b",
+    "src/myfuzz/local_harness/rtl/local_driver_v1.h": "563ef324cd926d095ac6b43e9e100d77e111b7e74c0185ad29fdae02af991f88",
+    "src/myfuzz/local_harness/build.py": "4e75fd190e29a72de5acb0801b94d87bcbea09f9fafa32b67f6fa76169738e18",
+    "src/myfuzz/local_harness/native_physical_observation.py": "689e466a45fe64b19c78a8e472b0f13aa725511de2dff2280bc2a2e82ce8bc2e",
+    "tests/local_harness/test_apb_storage_startup.py": "56345216bdc56f357a49df109562c13dd925d9e205f954d51946ca2c220ae715"
+  },
+  "session_consumer_integrated": false,
+  "native_verified": false
+}

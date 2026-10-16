@@ -27,7 +27,7 @@ def register_observe_policy(plan, abi=None):
     environment = [r.document() for r in rows if r.kind == 'environment_bindings']
     bound_rows = [r.document() for r in rows if r.kind == 'bound_bindings']
     if any(r.kind not in ('endpoint_policies', 'fixed_inputs', 'environment_bindings',
-                          'bound_bindings', 'apb_storage_observations') for r in rows):
+                          'bound_bindings', 'apb_storage_observations', 'apb_storage_startup') for r in rows):
         raise ValueError('apb3-register-unsupported-tuning')
     endpoints = [e for e in plan.binding.endpoints if e.protocol is not None]
     if len(endpoints) != 1 or endpoints[0].protocol != ('apb', '3') or endpoints[0].function != 'mmio_slave':

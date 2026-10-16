@@ -172,7 +172,7 @@ def verify_apb_register_trace(artifact):
             artifact.source_verification, Path(__file__).resolve().parents[3], native_raw=False)
         if expected.runtime_sv != artifact.runtime_sv:
             raise ValueError('runtime-projection')
-        for key in ('storage_observation', 'storage_probe_ports', 'base_protocol_trace', 'backend_ports', 'runtime_ports',
+        for key in ('storage_startup_selection', 'storage_observation', 'storage_probe_ports', 'base_protocol_trace', 'backend_ports', 'runtime_ports',
                     'structural_abi', 'clock_schedule', 'physical_exports',
                     'fixed_physical_inputs', 'dynamic_physical_inputs',
                     'bound_physical_inputs', 'functional_scope',
@@ -180,6 +180,11 @@ def verify_apb_register_trace(artifact):
             if json.dumps(document.get(key), sort_keys=True, allow_nan=False) != json.dumps(
                     expected.runtime_document.get(key), sort_keys=True, allow_nan=False):
                 raise ValueError('metadata-projection:' + key)
+        if document.get('storage_startup_selection') is not None and document.get('driver_status')=='generated':
+            from .apb_storage_startup import contract_from_document
+            contract_from_document(document)
+        elif ('storage_startup_capture' in document or document.get('driver_schema_version')=='local_driver_generation.apb_storage_startup.v2'):
+            raise ValueError('storage-startup-driver-projection')
         _verify_native_apb_trace(artifact)
         # JSON equality preserves bool/int distinctions and catches duplicate
         # runtime declarations. The existing trace validator checks backend rows.

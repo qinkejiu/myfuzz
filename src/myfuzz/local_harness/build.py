@@ -320,7 +320,9 @@ def _prepare(artifact, base_dir, _host_context=_HOST_SOURCE_SCOPE):
     if not isinstance(doc, dict) or not isinstance(artifact.runtime_sv, str):
         raise LocalHarnessBuildError('invalid-runtime-artifact')
     ahb_startup = doc.get('kind') == 'ahb_lite_cpu'
+    storage_startup = 'storage_startup_selection' in doc
     driver_schema = ('local_driver_generation.ahb_startup.v2' if ahb_startup
+                     else 'local_driver_generation.apb_storage_startup.v2' if storage_startup
                      else 'local_driver_generation.v1')
     if (doc.get('status'), doc.get('driver_status'), doc.get('driver_schema_version')) != (
             'driver_generated', 'generated', driver_schema):
@@ -335,6 +337,14 @@ def _prepare(artifact, base_dir, _host_context=_HOST_SOURCE_SCOPE):
         driver_keys = _DRIVER_KEYS | {'ahb_startup_contract'}
     elif 'ahb_startup_contract' in doc:
         raise LocalHarnessBuildError('ahb-startup-contract-wrong-runtime')
+    if storage_startup:
+        from .apb_storage_startup import contract_from_document
+        try:contract_from_document(doc)
+        except (ValueError,KeyError,TypeError) as error:
+            raise LocalHarnessBuildError('storage-startup-contract-required') from error
+        driver_keys=driver_keys | {'storage_startup_capture'}
+    elif 'storage_startup_capture' in doc:
+        raise LocalHarnessBuildError('storage-startup-contract-wrong-runtime')
     if doc.get('cpp_sha256') != _digest(artifact.cpp_text.encode()) or doc.get('runtime_sv_sha256') != _digest(artifact.runtime_sv.encode()):
         raise LocalHarnessBuildError('artifact-text-hash-mismatch')
     unsigned = {key: value for key, value in doc.items() if key != 'artifact_digest'}

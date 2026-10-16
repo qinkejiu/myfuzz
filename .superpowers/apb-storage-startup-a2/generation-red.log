@@ -1,0 +1,63 @@
+F.Fs                                                                     [100%]
+=================================== FAILURES ===================================
+_____ test_generation_optin_explicit_parser_and_zero_clock_dispatch[timer] _____
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequestV2(profile_path='configs/peripherals/pulp_timer...8f9286130a6e842'}), <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x7ebb68ce8230>)
+
+    def test_generation_optin_explicit_parser_and_zero_clock_dispatch(generated):
+        from myfuzz.local_harness.driver_renderer import render_local_driver
+        if generated[0].plan.profile.source.top_module!='apb_timer':
+            with pytest.raises(ValueError):selected_startup(generated)
+            return
+>       runtime=selected_startup(generated);driver=render_local_driver(runtime,base_dir=ROOT)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_apb_storage_startup.py:76: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/local_harness/test_apb_storage_startup.py:67: in selected_startup
+    plan=replace(base.plan,request=replace(base.plan.request,tuning=load_local_harness_tuning(doc)))
+                                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+document = {'endpoint_policies': [{'endpoint_id': 'timer.bus', 'max_outstanding': 1, 'template_id': 'target.apb3', 'template_version': '1', ...}], 'optional_signals': [], 'fixed_inputs': [], 'reset_policies': [], ...}
+
+    def load_local_harness_tuning(document: Mapping[str, object]) -> LocalHarnessTuning:
+        if not isinstance(document, Mapping):
+            raise ValueError('invalid-tuning-document')
+        if set(document) - set(_SCHEMAS):
+>           raise ValueError('unexpected-tuning-fields')
+E           ValueError: unexpected-tuning-fields
+
+src/myfuzz/local_harness/tuning.py:133: ValueError
+___________ test_rehashed_startup_selection_mutation_refused[timer] ____________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequestV2(profile_path='configs/peripherals/pulp_timer...8f9286130a6e842'}), <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x7ebb68bf0c20>)
+
+    def test_rehashed_startup_selection_mutation_refused(generated):
+        from dataclasses import replace
+        from myfuzz.local_harness.native_physical_observation import verify_apb_register_trace
+        if generated[0].plan.profile.source.top_module!='apb_timer':pytest.skip('timer source only')
+>       artifact=selected_startup(generated);doc=copy.deepcopy(artifact.runtime_document)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_apb_storage_startup.py:102: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/local_harness/test_apb_storage_startup.py:67: in selected_startup
+    plan=replace(base.plan,request=replace(base.plan.request,tuning=load_local_harness_tuning(doc)))
+                                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+document = {'endpoint_policies': [{'endpoint_id': 'timer.bus', 'max_outstanding': 1, 'template_id': 'target.apb3', 'template_version': '1', ...}], 'optional_signals': [], 'fixed_inputs': [], 'reset_policies': [], ...}
+
+    def load_local_harness_tuning(document: Mapping[str, object]) -> LocalHarnessTuning:
+        if not isinstance(document, Mapping):
+            raise ValueError('invalid-tuning-document')
+        if set(document) - set(_SCHEMAS):
+>           raise ValueError('unexpected-tuning-fields')
+E           ValueError: unexpected-tuning-fields
+
+src/myfuzz/local_harness/tuning.py:133: ValueError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_apb_storage_startup.py::test_generation_optin_explicit_parser_and_zero_clock_dispatch[timer]
+FAILED tests/local_harness/test_apb_storage_startup.py::test_rehashed_startup_selection_mutation_refused[timer]
+2 failed, 1 passed, 1 skipped, 10 deselected in 0.62s

@@ -1,0 +1,355 @@
+FFFFFFFF                                                                 [100%]
+=================================== FAILURES ===================================
+____________ test_contract_closed_identity_and_zero_clock_rendering ____________
+
+    def helper():
+>       try:return importlib.import_module('myfuzz.local_harness.apb_storage_startup')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_apb_storage_startup.py:7: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.local_harness.apb_storage_startup'
+import_ = <function _gcd_import at 0x751d8a3a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.local_harness.apb_storage_startup'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_contract_closed_identity_and_zero_clock_rendering():
+>       h=helper();c=contract();assert h.validate_startup_contract(c)==c
+          ^^^^^^^^
+
+tests/local_harness/test_apb_storage_startup.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def helper():
+        try:return importlib.import_module('myfuzz.local_harness.apb_storage_startup')
+>       except ModuleNotFoundError:pytest.fail('A2 helper absent')
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: A2 helper absent
+
+tests/local_harness/test_apb_storage_startup.py:8: Failed
+__________________________ test_timing_bounds[True-1] __________________________
+
+    def helper():
+>       try:return importlib.import_module('myfuzz.local_harness.apb_storage_startup')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_apb_storage_startup.py:7: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.local_harness.apb_storage_startup'
+import_ = <function _gcd_import at 0x751d8a3a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.local_harness.apb_storage_startup'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+asserted = True, released = 1
+
+    @pytest.mark.parametrize('asserted,released',[(True,1),(0,1),(1025,1),(1,-1),(1,1025)])
+    def test_timing_bounds(asserted,released):
+>       h=helper();c=contract()
+          ^^^^^^^^
+
+tests/local_harness/test_apb_storage_startup.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def helper():
+        try:return importlib.import_module('myfuzz.local_harness.apb_storage_startup')
+>       except ModuleNotFoundError:pytest.fail('A2 helper absent')
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: A2 helper absent
+
+tests/local_harness/test_apb_storage_startup.py:8: Failed
+___________________________ test_timing_bounds[0-1] ____________________________
+
+    def helper():
+>       try:return importlib.import_module('myfuzz.local_harness.apb_storage_startup')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_apb_storage_startup.py:7: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.local_harness.apb_storage_startup'
+import_ = <function _gcd_import at 0x751d8a3a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.local_harness.apb_storage_startup'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+asserted = 0, released = 1
+
+    @pytest.mark.parametrize('asserted,released',[(True,1),(0,1),(1025,1),(1,-1),(1,1025)])
+    def test_timing_bounds(asserted,released):
+>       h=helper();c=contract()
+          ^^^^^^^^
+
+tests/local_harness/test_apb_storage_startup.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def helper():
+        try:return importlib.import_module('myfuzz.local_harness.apb_storage_startup')
+>       except ModuleNotFoundError:pytest.fail('A2 helper absent')
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: A2 helper absent
+
+tests/local_harness/test_apb_storage_startup.py:8: Failed
+__________________________ test_timing_bounds[1025-1] __________________________
+
+    def helper():
+>       try:return importlib.import_module('myfuzz.local_harness.apb_storage_startup')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_apb_storage_startup.py:7: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.local_harness.apb_storage_startup'
+import_ = <function _gcd_import at 0x751d8a3a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.local_harness.apb_storage_startup'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+asserted = 1025, released = 1
+
+    @pytest.mark.parametrize('asserted,released',[(True,1),(0,1),(1025,1),(1,-1),(1,1025)])
+    def test_timing_bounds(asserted,released):
+>       h=helper();c=contract()
+          ^^^^^^^^
+
+tests/local_harness/test_apb_storage_startup.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def helper():
+        try:return importlib.import_module('myfuzz.local_harness.apb_storage_startup')
+>       except ModuleNotFoundError:pytest.fail('A2 helper absent')
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: A2 helper absent
+
+tests/local_harness/test_apb_storage_startup.py:8: Failed
+___________________________ test_timing_bounds[1--1] ___________________________
+
+    def helper():
+>       try:return importlib.import_module('myfuzz.local_harness.apb_storage_startup')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_apb_storage_startup.py:7: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.local_harness.apb_storage_startup'
+import_ = <function _gcd_import at 0x751d8a3a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.local_harness.apb_storage_startup'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+asserted = 1, released = -1
+
+    @pytest.mark.parametrize('asserted,released',[(True,1),(0,1),(1025,1),(1,-1),(1,1025)])
+    def test_timing_bounds(asserted,released):
+>       h=helper();c=contract()
+          ^^^^^^^^
+
+tests/local_harness/test_apb_storage_startup.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def helper():
+        try:return importlib.import_module('myfuzz.local_harness.apb_storage_startup')
+>       except ModuleNotFoundError:pytest.fail('A2 helper absent')
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: A2 helper absent
+
+tests/local_harness/test_apb_storage_startup.py:8: Failed
+__________________________ test_timing_bounds[1-1025] __________________________
+
+    def helper():
+>       try:return importlib.import_module('myfuzz.local_harness.apb_storage_startup')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_apb_storage_startup.py:7: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.local_harness.apb_storage_startup'
+import_ = <function _gcd_import at 0x751d8a3a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.local_harness.apb_storage_startup'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+asserted = 1, released = 1025
+
+    @pytest.mark.parametrize('asserted,released',[(True,1),(0,1),(1025,1),(1,-1),(1,1025)])
+    def test_timing_bounds(asserted,released):
+>       h=helper();c=contract()
+          ^^^^^^^^
+
+tests/local_harness/test_apb_storage_startup.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def helper():
+        try:return importlib.import_module('myfuzz.local_harness.apb_storage_startup')
+>       except ModuleNotFoundError:pytest.fail('A2 helper absent')
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: A2 helper absent
+
+tests/local_harness/test_apb_storage_startup.py:8: Failed
+___________ test_page_requires_actual_storage_reset_and_exact_widths ___________
+
+    def helper():
+>       try:return importlib.import_module('myfuzz.local_harness.apb_storage_startup')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_apb_storage_startup.py:7: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.local_harness.apb_storage_startup'
+import_ = <function _gcd_import at 0x751d8a3a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.local_harness.apb_storage_startup'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_page_requires_actual_storage_reset_and_exact_widths():
+>       h=helper();c=contract();ports=[dict(name='storage_value',width=32),dict(name='storage_reset',width=1)]
+          ^^^^^^^^
+
+tests/local_harness/test_apb_storage_startup.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def helper():
+        try:return importlib.import_module('myfuzz.local_harness.apb_storage_startup')
+>       except ModuleNotFoundError:pytest.fail('A2 helper absent')
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: A2 helper absent
+
+tests/local_harness/test_apb_storage_startup.py:8: Failed
+________________ test_buffer_bound_rejects_excessive_snapshots _________________
+
+    def helper():
+>       try:return importlib.import_module('myfuzz.local_harness.apb_storage_startup')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_apb_storage_startup.py:7: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.local_harness.apb_storage_startup'
+import_ = <function _gcd_import at 0x751d8a3a40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.local_harness.apb_storage_startup'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_buffer_bound_rejects_excessive_snapshots():
+>       h=helper();c=contract()
+          ^^^^^^^^
+
+tests/local_harness/test_apb_storage_startup.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def helper():
+        try:return importlib.import_module('myfuzz.local_harness.apb_storage_startup')
+>       except ModuleNotFoundError:pytest.fail('A2 helper absent')
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: A2 helper absent
+
+tests/local_harness/test_apb_storage_startup.py:8: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_apb_storage_startup.py::test_contract_closed_identity_and_zero_clock_rendering
+FAILED tests/local_harness/test_apb_storage_startup.py::test_timing_bounds[True-1]
+FAILED tests/local_harness/test_apb_storage_startup.py::test_timing_bounds[0-1]
+FAILED tests/local_harness/test_apb_storage_startup.py::test_timing_bounds[1025-1]
+FAILED tests/local_harness/test_apb_storage_startup.py::test_timing_bounds[1--1]
+FAILED tests/local_harness/test_apb_storage_startup.py::test_timing_bounds[1-1025]
+FAILED tests/local_harness/test_apb_storage_startup.py::test_page_requires_actual_storage_reset_and_exact_widths
+FAILED tests/local_harness/test_apb_storage_startup.py::test_buffer_bound_rejects_excessive_snapshots
+8 failed in 0.23s

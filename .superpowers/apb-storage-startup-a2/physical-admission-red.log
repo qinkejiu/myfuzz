@@ -1,0 +1,22 @@
+Fs                                                                       [100%]
+=================================== FAILURES ===================================
+____ test_physical_verifier_refuses_rehashed_driver_capture_contract[timer] ____
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequestV2(profile_path='configs/peripherals/pulp_timer...c487d14e6fe83f9'}), <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x72aa8ee4f410>)
+
+    def test_physical_verifier_refuses_rehashed_driver_capture_contract(generated):
+        from dataclasses import replace
+        from myfuzz.local_harness.driver_renderer import render_local_driver
+        from myfuzz.local_harness.native_physical_observation import verify_apb_register_trace
+        from myfuzz.local_harness.renderer import _sha
+        if generated[0].plan.profile.source.top_module!='apb_timer':pytest.skip('timer source only')
+        artifact=render_local_driver(selected_startup(generated),base_dir=ROOT);doc=copy.deepcopy(artifact.runtime_document)
+        doc['storage_startup_capture']['native_verified']=True
+        doc['artifact_digest']=_sha({k:v for k,v in doc.items() if k!='artifact_digest'})
+>       with pytest.raises(ValueError):verify_apb_register_trace(replace(artifact,runtime_document=doc))
+E       Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_apb_storage_startup.py:185: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_apb_storage_startup.py::test_physical_verifier_refuses_rehashed_driver_capture_contract[timer]
+1 failed, 1 skipped, 31 deselected in 0.45s

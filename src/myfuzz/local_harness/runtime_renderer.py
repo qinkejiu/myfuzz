@@ -1209,6 +1209,10 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
     if storage_probe is not None:
         document['storage_observation'] = storage_probe
         document['storage_probe_ports'] = storage_probe['ports']
+    from .apb_storage_startup import startup_selection
+    startup = startup_selection(plan,storage_probe)
+    if startup is not None:
+        document['storage_startup_selection'] = startup
     if cpu_protocol_traces:
         document['base_protocol_traces'] = dict(schema_version='ip_protocol_trace_set.v1',
             sampling='pre_post', sample_group='protocol_taps', traces=cpu_protocol_traces)
@@ -1363,6 +1367,9 @@ def _render_admitted_runtime(plan, structural, verified, root, *, native_raw):
         for name in ('src/myfuzz/local_harness/apb_storage_source_contract.py',
                      'src/myfuzz/local_harness/apb_storage_probe_contract.py'):
             implementation_sources.append({'path':name,'sha256':hashlib.sha256((implementation_root/name).read_bytes()).hexdigest()})
+    if startup is not None:
+        name='src/myfuzz/local_harness/apb_storage_startup.py'
+        implementation_sources.append({'path':name,'sha256':hashlib.sha256((implementation_root/name).read_bytes()).hexdigest()})
     if kind == 'wishbone_dma':
         for name in ('src/myfuzz/local_harness/wishbone_dma_template.py',
                      'src/myfuzz/local_harness/wishbone_dma_fields.py',

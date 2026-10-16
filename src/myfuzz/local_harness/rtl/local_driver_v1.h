@@ -120,7 +120,7 @@ inline AckResult parse_ack(const std::string &line) {
   return result;
 }
 
-enum class CommandSet { Standard, AhbStartup };
+enum class CommandSet { Standard, AhbStartup, ApbStorageStartup };
 
 inline ParseResult parse_command(const std::string &line,
                                  CommandSet command_set = CommandSet::Standard) {
@@ -183,6 +183,7 @@ inline ParseResult parse_command(const std::string &line,
   else if (tokens[3] == "STEP_WISHBONE_IRQ") maxima = {1, word, word};
   else if (tokens[3] == "STEP_MEMORY") maxima = {1, 1, word, 1};
   else if (command_set == CommandSet::AhbStartup && tokens[3] == "READ_AHB_STARTUP") maxima = {63};
+  else if (command_set == CommandSet::ApbStorageStartup && tokens[3] == "READ_APB_STORAGE_STARTUP") maxima = {63};
   else if (tokens[3] == "STEP_RVX_MEMORY") maxima = {1, 1, word};
   else if (tokens[3] == "STEP_GPIO") maxima = {word};
   else if (tokens[3] == "ACCESS_GPIO") maxima = {word, 1, 4092, word, 15};
@@ -250,7 +251,7 @@ inline ParseResult parse_command(const std::string &line,
     }
     result.command.fields.push_back(value);
   }
-  if (tokens[3] == "READ_AHB_STARTUP" &&
+  if ((tokens[3] == "READ_AHB_STARTUP" || tokens[3] == "READ_APB_STORAGE_STARTUP") &&
       tokens[4] != hex_integer(result.command.fields[0])) {
     result.code = "invalid_fields";
     result.detail = "field_range_or_encoding";

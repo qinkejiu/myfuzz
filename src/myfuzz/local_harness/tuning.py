@@ -10,6 +10,7 @@ import re
 
 # Every value is a bounded integer, token or closed enum; no expression language.
 _SCHEMAS = {
+    'apb_storage_startup': {'endpoint_id': 'token', 'contract_id': 'token', 'register': 'token'},
     'apb_storage_observations': {'endpoint_id': 'token', 'contract_id': 'token', 'register': 'token'},
     'raw_tick_stream': {'sampling': ('pre_post',)},
     'endpoint_policies': {'endpoint_id': 'token', 'template_id': 'token', 'template_version': 'token',
@@ -37,7 +38,7 @@ _SCHEMAS = {
                         'half_period': 'spi_half_period'},
     'startup_writes': {'sequence': 'positive', 'offset': 'unsigned', 'value': 'unsigned'},
 }
-_KEYS = {'apb_storage_observations': ('endpoint_id',), 'endpoint_policies': ('endpoint_id',), 'optional_signals': ('endpoint_id', 'role'),
+_KEYS = {'apb_storage_startup': ('endpoint_id',), 'apb_storage_observations': ('endpoint_id',), 'endpoint_policies': ('endpoint_id',), 'optional_signals': ('endpoint_id', 'role'),
          'raw_tick_stream': ('sampling',),
          'fixed_inputs': ('endpoint_id', 'role'),
          'reset_policies': ('domain',), 'irq_delivery': ('endpoint_id', 'role'),
@@ -74,7 +75,7 @@ class LocalHarnessTuning:
         # serial-peer records are absent.
         result = {kind: [] for kind in _SCHEMAS
                   if kind not in ('boot', 'uart_8n1_peers', 'spi_mode0_peers',
-                                  'startup_writes', 'raw_tick_stream', 'apb_storage_observations')}
+                                  'startup_writes', 'raw_tick_stream', 'apb_storage_observations', 'apb_storage_startup')}
         for row in self.records:
             if row.kind == 'boot':
                 result['boot'] = row.document()
@@ -224,7 +225,7 @@ def validate_local_harness_tuning(tuning: LocalHarnessTuning, *, profile, bindin
             continue
         if kind in ('boot', 'peer_bindings', 'optional_signals', 'fixed_inputs',
                     'uart_8n1_peers', 'spi_mode0_peers', 'startup_writes',
-                    'apb_storage_observations'):
+                    'apb_storage_observations', 'apb_storage_startup'):
             raise ValueError('local-tuning-capability-unverified:' + kind)
         if kind == 'reset_policies':
             resets = [reset for reset, _ in binding.resets if reset.domain == value['domain']]
