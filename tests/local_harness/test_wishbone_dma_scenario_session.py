@@ -46,3 +46,55 @@ def test_runner_step_preserves_native_sample_and_actual_irq(artifact, tmp_path, 
     assert session.drain_tick_samples() == ()
     samples[0]['post']['physical'][irq_name] = 0
     assert session.runtime_events[0]['payload']['samples'][0]['post']['physical'][irq_name] == 1
+
+
+def test_declared_master_ip_accesses_have_scheduler_tick_bounds(artifact, tmp_path):
+    from myfuzz.local_harness.wishbone_dma_session import MasterTargetWindow
+    from myfuzz.scenario.ownership import compile_ownership
+    from myfuzz.scenario.runner import ScenarioRunner
+
+    class Target:
+        max_local_ticks_per_register_access = 37
+
+        def write_register(self, *args, **kwargs):
+            raise AssertionError('construction cannot clock the target')
+
+    target = Target()
+    window = MasterTargetWindow('uart', 0x50000000, 0x1000, target,
+        (0x1c,), range(256))
+    session = GeneratedWishboneDmaScenarioSession(artifact, base_dir=ROOT,
+        cache_dir=tmp_path, master_targets=(window,),
+        memory=PersistentMemory(initialization_seed=1, max_initialized_bytes=16,
+            regions=(MemoryRegion('ram', 0x1000, 16),)))
+    runner = ScenarioRunner(sessions={'dma': session, 'uart': target},
+        ownership=compile_ownership((), ()), bindings=())
+    assert runner._step_tick_bounds('dma') == {'dma': 1, 'uart': 33*37}
+    from types import SimpleNamespace
+    from myfuzz.scenario.router import DataflowRouter, DeviceWindow
+    cpu = SimpleNamespace(router=DataflowRouter((DeviceWindow('dma', 0x40000000, 16, session),)),
+        max_mmio_target_accesses_per_step=1)
+    immediate = ScenarioRunner(sessions={'cpu': cpu, 'dma': session, 'uart': target},
+        ownership=compile_ownership((), ()), bindings=())
+    assert immediate._step_tick_bounds('cpu') == {'cpu': 1, 'dma': 32, 'uart': 33*37}
+    with pytest.raises(ValueError, match='registered indirect target'):
+        ScenarioRunner(sessions={'dma': session, 'uart': Target()},
+            ownership=compile_ownership((), ()), bindings=())._step_tick_bounds('dma')
+    with pytest.raises(ValueError, match='multiple instance names'):
+        ScenarioRunner(sessions={'dma': session, 'alias': session, 'uart': target},
+            ownership=compile_ownership((), ()), bindings=())
+
+
+def test_one_dma_control_target_cannot_have_two_source_routers(artifact, tmp_path):
+    from types import SimpleNamespace
+    from myfuzz.scenario.ownership import compile_ownership
+    from myfuzz.scenario.router import DataflowRouter, DeviceWindow
+    from myfuzz.scenario.runner import ScenarioRunner
+
+    dma = GeneratedWishboneDmaScenarioSession(artifact, base_dir=ROOT,
+        cache_dir=tmp_path, memory=PersistentMemory(initialization_seed=1,
+            max_initialized_bytes=16, regions=(MemoryRegion('ram', 0x1000, 16),)))
+    cpus = {name: SimpleNamespace(router=DataflowRouter((
+        DeviceWindow('dma', 0x40000000, 16, dma),))) for name in ('cpu_a', 'cpu_b')}
+    with pytest.raises(ValueError, match='shared target router'):
+        ScenarioRunner(sessions={**cpus, 'dma': dma},
+            ownership=compile_ownership((), ()), bindings=())

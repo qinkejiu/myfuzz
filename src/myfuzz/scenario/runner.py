@@ -189,6 +189,8 @@ class ScenarioRunner:
                 owner["kind"] == "bound" for owner in ownership.document()["owners"]):
             raise ValueError("independent baseline cannot own bound inputs")
         self.sessions = dict(sessions)
+        for component in self.sessions:
+            self._declared_indirect_tick_bounds(component)
         self.ownership = ownership
         self.bindings = bindings
         for component, session in self.sessions.items():
@@ -1475,6 +1477,28 @@ class ScenarioRunner:
                 routers.append((component, router))
         return tuple(routers)
 
+    def _declared_indirect_tick_bounds(self, component: str) -> dict[str, int]:
+        declaration = getattr(self.sessions[component], 'indirect_step_tick_bounds', None)
+        if declaration is None:
+            return {}
+        if sum(s is self.sessions[component] for s in self.sessions.values()) != 1:
+            raise ValueError('indirect source session cannot have multiple instance names')
+        rows = declaration()
+        if not isinstance(rows, Mapping):
+            raise ValueError('indirect tick bounds must be a mapping')
+        bounds = {}
+        for name, row in rows.items():
+            if (not isinstance(row, tuple) or len(row) != 2
+                    or name not in self.sessions or row[0] is not self.sessions[name]
+                    or sum(s is row[0] for s in self.sessions.values()) != 1
+                    or name == component):
+                raise ValueError('registered indirect target does not match tick bound')
+            ticks = row[1]
+            if type(ticks) is not int or ticks < 1:
+                raise ValueError('indirect target tick bound must be positive')
+            bounds[name] = ticks
+        return bounds
+
     def _step_tick_bounds(self, component: str) -> dict[str, int]:
         """Worst local clock advances from one selected harness step."""
         session = self.sessions[component]
@@ -1482,6 +1506,7 @@ class ScenarioRunner:
         if type(own) is not int or own < 1:
             raise ValueError("invalid maximum local ticks per step")
         bounds = {component: own}
+        bounds.update(self._declared_indirect_tick_bounds(component))
         router = getattr(session, "router", None)
         windows = getattr(router, "windows", ())
         targets = {id(target): name for name, target in self.sessions.items()}
@@ -1499,6 +1524,10 @@ class ScenarioRunner:
             if type(ticks) is not int or ticks < 1:
                 raise ValueError("budgeted MMIO route needs local tick bounds")
             bounds[name] = max(bounds.get(name, 0), accesses * ticks)
+            # A synchronous target call can itself advance other registered
+            # processes (for example DMA servicing a real FIFO master beat).
+            for indirect, nested_ticks in self._declared_indirect_tick_bounds(name).items():
+                bounds[indirect] = max(bounds.get(indirect, 0), accesses * nested_ticks)
         for _, queued_router in self._unique_routers():
             if component not in getattr(queued_router, "ready_targets", ()):
                 continue

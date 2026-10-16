@@ -20,8 +20,12 @@ class GeneratedWishboneDmaScenarioSession(GeneratedWishboneDmaSession):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.master_targets:
-            raise ValueError('scenario DMA IP master targets require explicit scheduler bounds')
+        if self.max_control_edges > 4096:
+            raise ValueError('scenario DMA control edge bound exceeds 4096')
+        for window in self.master_targets:
+            ticks = getattr(window.endpoint, 'max_local_ticks_per_register_access', None)
+            if type(ticks) is not int or ticks < 1:
+                raise ValueError('scenario DMA master target needs a register tick bound')
         exports = [p for p in self.artifact.runtime_document['physical_exports']
             if p['direction'] == 'output' and p['role'] == 'irq'
             and p['width'] == 1 and p['disposition'] == 'functional']
@@ -45,6 +49,22 @@ class GeneratedWishboneDmaScenarioSession(GeneratedWishboneDmaSession):
         samples = tuple(self._scenario_samples)
         self._scenario_samples.clear()
         return samples
+
+    def indirect_step_tick_bounds(self):
+        """Include master IP effects during idle and queued control edges.
+
+        One scheduler step may execute its own DMA edge and then one CPU
+        register access, which itself advances at most max_control_edges. Each
+        edge can admit at most one master request to one declared target.
+        """
+        result = {}
+        for window in self.master_targets:
+            ticks = (self.max_control_edges + 1) * window.endpoint.max_local_ticks_per_register_access
+            previous = result.get(window.component)
+            if previous is not None and previous[0] is not window.endpoint:
+                raise ValueError('scenario DMA indirect target instance is ambiguous')
+            result[window.component] = (window.endpoint, ticks)
+        return result
 
     def step_local(self, inputs=None, **control):
         scheduler_step = inputs is not None
@@ -75,6 +95,7 @@ class GeneratedWishboneDmaScenarioSession(GeneratedWishboneDmaSession):
     def identity_document(self):
         return {**super().identity_document(), 'scenario_dma_interface': dict(
             schema_version='scenario_dma_interface.v1',
-            master_targets='RAM_only', irq_runtime_name=self._irq_runtime_name,
+            master_targets='declared_RAM_and_IP_windows' if self.master_targets else 'RAM_only',
+            irq_runtime_name=self._irq_runtime_name,
             max_control_edges=self.max_control_edges,
             raw_samples='all_control_and_scheduler_edges_pre_post')}
