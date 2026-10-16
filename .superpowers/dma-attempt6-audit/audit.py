@@ -7,11 +7,13 @@ def digest(v):
  for r in v:
   h.update(json.dumps(r,sort_keys=True,separators=(',',':')).encode()); h.update(b'\n')
  return h.hexdigest()
+preflight=json.loads((root/'source-preflight.json').read_text())
 report={'scope':'independent saved-data audit; no simulator commands','runs':{}}
 for name in ('positive','fresh','failure','failure-fresh'):
  p=root/'evidence'/(name+'.json.gz'); raw=p.read_bytes(); x=json.loads(gzip.decompress(raw)); del raw
+ assert x['source_pins']==preflight['source_files'], 'saved source pins differ from preflight'
  row={k:x[k] for k in ('phase','case_index','cases','error','local_ticks','execution_ids','budget')}
- row.update(events=len(x['events']),normalized_event_sha256=digest(_normalize(x['events'],x['execution_ids'])),status=x['trace']['status'],commands=len(x['plan']['commands']),plan_sha256=digest([x['plan']]),source_pins_sha256=digest([x['source_pins']]),uncertain_sha256=digest([_normalize(x['uncertain_status'],x['execution_ids'])]))
+ row.update(source_preflight_exact_match=True,source_file_count=len(x['source_pins']),events=len(x['events']),normalized_event_sha256=digest(_normalize(x['events'],x['execution_ids'])),status=x['trace']['status'],commands=len(x['plan']['commands']),plan_sha256=digest([x['plan']]),source_pins_sha256=digest([x['source_pins']]),uncertain_sha256=digest([_normalize(x['uncertain_status'],x['execution_ids'])]))
  report['runs'][name]=row
  del x;gc.collect()
 for a,b in [('positive','fresh'),('failure','failure-fresh')]:

@@ -13,7 +13,7 @@
 - [完整 attempt6 归档](evidence/dma-continuous-20261017/attempt6-complete.tar)
 - [归档与逐文件 SHA256](evidence/dma-continuous-20261017/attempt6-complete.manifest.json)
 
-归档包含 worker、源码预检、修复收据、完整日志、退出状态以及四份 gzip 原始 JSON。[独立保存数据复核](evidence/dma-continuous-20261017/attempt6-independent-audit.json)逐份读取本次四个原始结果，使用冻结实现的类型限定归一器重新计算完整事件摘要。positive/fresh 各 **34,794** 条事件、4,774 条命令，CPU/DMA/UART ticks 为 **1314/1394/4790**；全事件摘要均为 `d1c1b2f7672d2a3d8c95b7a79c645d6a5e75577dc03a154cac0061073bef5919`。failure/failure-fresh 各 **200** 条事件、18 条命令、ticks **16/16/5**，全事件摘要均为 `b342064365dce6b9aee2464cea83225da98f047a20094268fe4653467f2a59de`。两对的 cases、失败诊断、预算、状态、源 pin 摘要及归一 uncertain 状态均相等，原/fresh 的实际执行身份集合互不相交。该审计仅操作保存数据，没有启动模型。
+归档包含 worker、源码预检、修复收据、完整日志、退出状态以及四份 gzip 原始 JSON。[独立保存数据复核](evidence/dma-continuous-20261017/attempt6-independent-audit.json)逐份读取本次四个原始结果，使用冻结实现的类型限定归一器重新计算完整事件摘要。positive/fresh 各 **34,794** 条事件、4,774 条命令，CPU/DMA/UART ticks 为 **1314/1394/4790**；全事件摘要均为 `d1c1b2f7672d2a3d8c95b7a79c645d6a5e75577dc03a154cac0061073bef5919`。failure/failure-fresh 各 **200** 条事件、18 条命令、ticks **16/16/5**，全事件摘要均为 `b342064365dce6b9aee2464cea83225da98f047a20094268fe4653467f2a59de`。两对的 cases、失败诊断、预算、状态、源 pin 摘要及归一 uncertain 状态均相等，原/fresh 的实际执行身份集合互不相交。四份结果的完整 source_pins 映射还逐项等于归档内 426 文件预检映射。该审计仅操作保存数据，没有启动模型。
 
 受控失败的 `trace.status=complete` 表示已记录的命令前缀执行完毕；失败仍由 `phase=source` 与真实错误诊断表明，不能据此前缀状态把失败用例描述为业务成功。
 

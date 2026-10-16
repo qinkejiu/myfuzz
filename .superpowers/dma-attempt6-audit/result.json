@@ -112,6 +112,8 @@
         "max_wall_time_ms": 300000,
         "waveform_enabled": false
       },
+      "source_preflight_exact_match": true,
+      "source_file_count": 426,
       "events": 34794,
       "normalized_event_sha256": "d1c1b2f7672d2a3d8c95b7a79c645d6a5e75577dc03a154cac0061073bef5919",
       "status": "complete",
@@ -231,6 +233,8 @@
         "max_wall_time_ms": 300000,
         "waveform_enabled": false
       },
+      "source_preflight_exact_match": true,
+      "source_file_count": 426,
       "events": 34794,
       "normalized_event_sha256": "d1c1b2f7672d2a3d8c95b7a79c645d6a5e75577dc03a154cac0061073bef5919",
       "status": "complete",
@@ -279,6 +283,8 @@
         "max_wall_time_ms": 300000,
         "waveform_enabled": false
       },
+      "source_preflight_exact_match": true,
+      "source_file_count": 426,
       "events": 200,
       "normalized_event_sha256": "b342064365dce6b9aee2464cea83225da98f047a20094268fe4653467f2a59de",
       "status": "complete",
@@ -327,6 +333,8 @@
         "max_wall_time_ms": 300000,
         "waveform_enabled": false
       },
+      "source_preflight_exact_match": true,
+      "source_file_count": 426,
       "events": 200,
       "normalized_event_sha256": "b342064365dce6b9aee2464cea83225da98f047a20094268fe4653467f2a59de",
       "status": "complete",
