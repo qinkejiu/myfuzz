@@ -1,0 +1,30 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+________ test_generic_identity_cannot_downgrade_to_bare_session[timer] _________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequestV2(profile_path='configs/peripherals/pulp_timer...6158df34dc86225'}), <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x7760400fb080>)
+
+    def test_generic_identity_cannot_downgrade_to_bare_session(generated):
+     from myfuzz.scenario.contracts import _verify_generated_session
+     _,target=generated;identity=target.identity_document()
+     identity={k:v for k,v in identity.items() if k in ('schema_version','runtime_artifact','build_identity','command_timeout_seconds')}
+>    with pytest.raises(ValueError):_verify_generated_session(identity)
+E    Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_generic_apb_identity.py:91: Failed
+_________ test_generic_identity_cannot_downgrade_to_bare_session[gpio] _________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequestV2(profile_path='configs/peripherals/pulp_gpio/...f761bc771f8690b'}), <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x77603fade600>)
+
+    def test_generic_identity_cannot_downgrade_to_bare_session(generated):
+     from myfuzz.scenario.contracts import _verify_generated_session
+     _,target=generated;identity=target.identity_document()
+     identity={k:v for k,v in identity.items() if k in ('schema_version','runtime_artifact','build_identity','command_timeout_seconds')}
+>    with pytest.raises(ValueError):_verify_generated_session(identity)
+E    Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_generic_apb_identity.py:91: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_generic_apb_identity.py::test_generic_identity_cannot_downgrade_to_bare_session[timer]
+FAILED tests/local_harness/test_generic_apb_identity.py::test_generic_identity_cannot_downgrade_to_bare_session[gpio]
+2 failed, 36 deselected in 0.49s
