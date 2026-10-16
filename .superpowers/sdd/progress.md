@@ -3944,3 +3944,24 @@ Current independent tasks (may need recreation if agents disappear):
 3. `compiled_f4_executor`: new generic exactD2/D3 F4 runtime/compose/tests + admission/projection integration. Coordinates live authority; goal actual admitted path with compiledsource/prereq/checker and continuous/freshprefix, not another diagnostic-only writer. No component-name dispatch.
 
 Remote agent.md rules unchanged: all file operations only /root/fanzehui, jumpserver transit only, unified project/.superpowers/heavy-worker.lock. Preserve user's agent.md and submodule dirty state. Use frozen snapshots; /tmp is ephemeral across continuation. All earlier evidence is source-pinned, not current-HEAD joint verification.
+
+### 2026-10-17 continued parallel implementation (latest)
+
+- BOOM generated dedicated coherent CPU/RAM: complete bounded slice941d9be; 598cycles fresh pair and fenced reacquire fault causal, no generic Router/CPUIP admission.
+- GPIOEN source-authenticated live register authority: d368c9e and reportfa865af/6fde7cc; reviewed clean, native4passed125.46s (pytest exit not separately captured; report discloses), not compiled F4 acceptance.
+- CVW→Caliptra fourth-series actual CPUchain0032242:3passed100.00s,84physical joins, abc/abd and fresh equality. Independent review clean .superpowers/sdd/cvw-caliptra-chain-review.md. Minor tracked: test should assert each native process freshness separately; saved evidence already satisfies it. Report read-response wording narrowed.
+- UART RX→DMA→RAM→Ibex ISR standardRunner998ea20:1passed80.79s,4836events/1097steps full fresh equality; includes CPU→DMA→UART nested clock bound. Final independent review in progress.
+- Active: fix_f4_executor owns compiled_f4.py/config/test exacthop checker, actualfirstfetch and immutableadmission fixes. Prior1passed301.86s is experimental and does NOT certify compiled assertions. Review findings in compiled-f4-first-review.md.
+- Active: boom_persistent_router owns new native persistentBOOM/session/actualIP join, brief .superpowers/sdd/briefs/boom-persistent-router.md.
+- P6/P7/P8 still unaccepted. Current docs b676f31 retain source-pinned scope; combinedHEAD gate still outstanding.
+
+- UART RX standardRunner998ea20 final independent spec/quality review clean: .superpowers/sdd/dma-rx-runner-final-review.md. Review independently rehashed4source pins and full4836event journals. Known report limits retained.
+- Active BOOM implementation agent now boom_simulation_session (previous request was automatically flagged before work); new explicit hardware-simulation task accepted. coherent_cpu_events separately owns new event consumer only.
+- Explicit user verification request pending; no new tests added/run by current agents while waiting, per current developer constraint.
+
+### 2026-10-17 parallel source implementation pending authorized verification
+
+- F4 experimental executor sourcea398208/1f8ffc5/ebc94f5/21802fa: exact declared edge consumer, actualfirstfetch, perbitownership/input re-admission, nativeOBI error observation. Independent source review .superpowers/sdd/f4-fix-source-review.md resolved important findings. NO tests/builds run for newsource. Old CV32 fixture now refused (no native errorrole); oldprototypegreen cannot validate newcode. Need supported actualerrorrole CPU configuration and freshgate before anyruntime claim.
+- BOOM persistent session20259fc + directed GPIO sourcea5047c6: heldD arbitration, fullcanonicalsourcefile set, epoch/sequence callbacks, actualhighlane32bit MMIO and branchcontrolledresult code. Source review .superpowers/sdd/boom-session-source-review.md resolves majorfindings. Finalcleanup + externalDrecordfields fix pending boom_simulation_session. NO build/run; no actualCPUIP acceptance yet. Existing historical598cycleCPU/RAM evidence appliesoldsource only.
+- Coherent acceptedA/C/D/E observation-only eventconsumer8f310f1/f746340: bounded source/sink/multibeat/order, width/alignment/mask/data checks, epochcancel, no authority fromdicts. Root independent source inspection requested and confirmed corresponding fixes; NO tests/runs. Singleclient FIFOmanager/noBprobe subset explicitly limited.
+- Explicit user verification answer remains pending; per developer no newtests or testexecution before response. Existing historical real gates (CVWCaliptra3passed100s, standardRunnerRX1passed80.79s) retained. CurrentHEAD combinedverification and fullsixCPU/fourseries/search/onboarding/P6P7P8 remain outstanding.
