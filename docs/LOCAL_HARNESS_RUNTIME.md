@@ -28,6 +28,7 @@
 | ZipCPU axiluart，AXI4-Lite target | 固定五文件源码闭包和 29/29 顶层端口；真实 AW/W/B、AR/R 握手，TX pin 解码 `0x41`，串行 RX 返回 `0x5a`，预算化 fresh replay | UART RTL operational；固定 8N1/波特配置 |
 | ZipCPU wbuart，Wishbone target | 固定四文件源码闭包和 19/19 顶层端口；2 位 word 地址、byte select、注册 ACK；真实 TX `0x41`、两种 RX 源值及原生 IRQ 均可 fresh replay | UART RTL operational；固定 8N1、单字节，CPU 数据链已验收 |
 | PULP I2C master，APB3＋开漏串行 peer | 固定四文件源码闭包和 17/17 顶层端口；testcase 选择 8 位 peer 字节，真实 APB 配置、从设备 ACK、串行读取和原生 IRQ，预算化 fresh replay | I2C RTL operational；固定地址 `0x42` 的单从设备单字节模式 |
+| Caliptra SHA256，AHB-Lite target | 固定源码与生成式 full-word AHB target；两次独立真实 RTL 运行各完成 91 次寄存器访问，同会话 `abc`/`abd` 两个块的真实摘要均匹配参考值；每次 273 个通用协议投影事件、checker 零违约 | 单块 SHA256 与寄存器目标 RTL operational；尚未接 CPU、IRQ、持续搜索或认证前缀 replay；见[实测报告](reports/caliptra-sha256-ahb-target-20261017.md) |
 | OpenTitan GPIO，TL-UL | 固定上游源码与完整本地 wrapper 边界；真实寄存器读写、pin 输出、边沿 IRQ、合法及非法部分写响应、预算化证据 fresh replay | GPIO RTL operational；RACL 默认关闭，alert ack peer 未接入 |
 | OpenTitan RV Timer，TL-UL | 固定上游源码、25/25 物理端口与本地标量 wrapper；真实计数、比较 IRQ、停止后的 INTR_STATE W1C 与 fresh replay | Timer RTL operational；该 standalone 行不包含 CPU；Ibex 与 CVA6 的独立集成分别验收了 IRQ/ISR 闭环 |
 | OpenTitan sysrst_ctrl，TL-UL，24 MHz/200 kHz | 固定上游闭包与全顶层端口；两域各自复位和时钟；通过真实 CSR 配置 key0 H2L，PIN_IN_VALUE 观察到 high `0xc2`→low `0xc0`，真实 KEY_INTR_STATUS=`2`、INTR_STATE=`1`、native IRQ 上升；完整 ScenarioTrace fresh replay 一致 | 一个 key0 H2L 场景 RTL operational；无 reset/wakeup 回接、无 PLIC/完整 SoC |
@@ -227,7 +228,7 @@ PYTHONPATH=src:. python3 -m unittest tests.local_harness.test_ibex_obi_runtime -
 
 ## 尚未满足的验收
 
-F6 DMA 数据流尚未实现：当前没有真实 DMA master harness、DMA 独立读写事务路由，或 CPU 配置→DMA→RAM/IP→IRQ→CPU 的 fresh replay 闭环。DMA 能力归当前总计划 P8，不计入已验收组件和组合。
+F6 DMA 已有真实 ZipCPU `wbdmac` 主设备 harness 与持久 RAM→RAM 四字定向传输：两次新进程各观察到四读、四写、四笔目的 RAM 提交及原生完成 IRQ。该证据本身尚未证明 CPU 配置和消费、含真实 IP FIFO 的方向、在线持续搜索或 P8 整阶段验收；见[真实 DMA RAM 报告](reports/zipcpu-wbdmac-real-ram-20261017.md)。
 
 2026-10-17 新增 CVW→PULP GPIO 定向实测：派生 `rv32gc` 配置关闭 D/Zcd，使关闭 D-cache 时的 `LLEN=XLEN=AHBW=32`；保留 F 与 I-cache。远端真实用例 `test_cvw_cpu_pulp_gpio_chain_real.py::test_real_cpu_gpio_readback_branch_and_fresh_isolated_replay` 在两个新进程中通过（`1 passed in 153.24s`）：CPU 从会话预装的 256 字节程序取指，接受的 AHB 桥接 beat 对 GPIO 偏移 0/4/12 产生四次全字写（BE 均为 15），两次 GPIO PADOUT 读回为 `0x35` 和 `0x6a`，CPU 分支后 RAM 结果为 `[0x35,0x6a,1]`，APB 样本与路由交付恰好六笔且两次运行逐项一致。旧地址窗口 `base=0` 负例另跑通过（`1 passed in 59.17s`），没有 GPIO 交付。证据在远端 `/root/fanzehui/system-20261016/evidence/cvw-gpio-run-llen32/{first,fresh}.json` 和对应 `cvw-gpio-*-llen32.log`。此为静态初始程序的定向链，不是在线逐例 campaign；当前 v1 产物未被动导出已适配的 AHB 原始引脚，故不声称独立的 AHB 逐相位物理 trace、FIFO、IRQ 或 P6 整行通过。
 
