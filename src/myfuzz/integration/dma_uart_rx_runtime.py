@@ -5,17 +5,18 @@ This directed runtime has no search or live-authority admission claim.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+import hashlib
 import json
 from itertools import islice
 from pathlib import Path
 from typing import Callable
 
 from myfuzz.scenario.batch import (BatchAdvance, BatchSourceEvent,
-    ScenarioBatchPlan, ScenarioBatchRecorder)
+    ScenarioBatchCodec, ScenarioBatchPlan, ScenarioBatchRecorder)
 from myfuzz.scenario.contracts import ResourceBudget
 from myfuzz.scenario.genome import ScenarioGenome
-from myfuzz.scenario.ibex_dma_example import DESTINATION, RESULT
+from myfuzz.scenario.ibex_dma_example import DMA_BASE, DESTINATION, ISR, RESULT, ROOT
 from myfuzz.scenario.ibex_dma_uart_rx_continuous import (
     COMPLETED, UART_STATUS_OFFSET, UART_RXEMPTY_MASK,
     make_continuous_uart_rx_runner)
@@ -27,10 +28,98 @@ from myfuzz.scenario.runner import ScenarioRunner
 @dataclass(frozen=True)
 class ContinuousRxResult:
     plan: ScenarioBatchPlan
-    trace: ScenarioTrace
+    trace: ScenarioTrace | None
     cases: tuple[dict, ...]
     identities: dict
     execution_ids: dict
+    budget: ResourceBudget
+    phase: str
+    case_index: int
+    error: dict | None
+    events: tuple[dict, ...]
+    local_ticks: dict
+    uncertain_status: dict
+    source_pins: dict
+
+    def to_document(self):
+        """Portable diagnostic bundle; serialized claims convey no authority."""
+        return dict(schema_version='continuous_dma_rx_diagnostic.v1',
+            plan=json.loads(ScenarioBatchCodec.encode(self.plan)),
+            trace=asdict(self.trace) if self.trace is not None else None,
+            cases=self.cases, identities=self.identities, execution_ids=self.execution_ids,
+            budget=self.budget.to_document(), phase=self.phase, case_index=self.case_index,
+            error=self.error, events=self.events, local_ticks=self.local_ticks,
+            uncertain_status=self.uncertain_status, source_pins=self.source_pins)
+
+    def save_bundle(self, path: Path):
+        Path(path).write_text(json.dumps(self.to_document(), sort_keys=True,
+            allow_nan=False), encoding='utf-8')
+
+    @classmethod
+    def load_bundle(cls, path: Path):
+        return cls.from_document(json.loads(Path(path).read_text(encoding='utf-8')))
+
+    @classmethod
+    def from_document(cls, document):
+        if document.get('schema_version') != 'continuous_dma_rx_diagnostic.v1':
+            raise ValueError('unsupported continuous RX diagnostic bundle')
+        return cls(ScenarioBatchCodec.decode(json.dumps(document['plan']).encode()),
+            ScenarioTrace(**document['trace']) if document['trace'] is not None else None,
+            tuple(document['cases']), document['identities'], document['execution_ids'],
+            ResourceBudget.from_document(document['budget']), document['phase'],
+            document['case_index'], document['error'], tuple(document['events']),
+            document['local_ticks'], document['uncertain_status'], document['source_pins'])
+
+
+class ContinuousRxFailure(RuntimeError):
+    """Failure with the original source/command prefix and finalized diagnostics."""
+    def __init__(self, result):
+        self.result = result
+        super().__init__(str(result.error))
+
+
+def _source_pins():
+    names = sorted(str(p.relative_to(ROOT))
+        for p in (ROOT / 'src/myfuzz').rglob('*.py'))
+    return {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in names}
+
+
+def _capture(recorder, runner, cases, budget, phase, case_index, error=None, source_pins=None):
+    # Preserve issuance-time identities before end_case closes transport peers.
+    identities, ids = _identities(runner)
+    pending_before = runner._uncertain_transactions()
+    trace = None
+    cleanup_error = None
+    try:
+        if not recorder._finished:
+            trace = recorder.finish()
+        else:
+            trace = recorder.trace
+    except Exception as exc:
+        cleanup_error = dict(type=type(exc).__name__, message=str(exc))
+        _close(runner)
+    if error is None and (cleanup_error is not None or trace is None or trace.status != 'complete'):
+        phase = 'finalize'
+        error = dict(type='FinalizationFailure', message=str(cleanup_error or
+            (trace.status if trace is not None else 'trace_unavailable')),
+            command_count=len(recorder.commands), case_start=runner.event_count)
+    drift = source_pins is not None and source_pins != _source_pins()
+    if error is None and drift:
+        phase = 'finalize'
+        error = dict(type='SourceDrift', message='host source changed during execution',
+            command_count=len(recorder.commands), case_start=runner.event_count)
+    events = tuple(runner.events)
+    uncertain = dict(runner_failure=runner.failure_status,
+        pending_before_finalize=pending_before,
+        pending_after_finalize=runner._uncertain_transactions(),
+        source_drift=drift,
+        cleanup_error=cleanup_error,
+        markers=[e for e in events if e.get('kind') in
+            ('budget_exhausted', 'command_failed', 'runtime_failure')
+            or e.get('uncertain_transactions') or e.get('cleanup_errors')])
+    return ContinuousRxResult(ScenarioBatchPlan(recorder.template, recorder.commands),
+        trace, tuple(cases), identities, ids, budget, phase, case_index, error,
+        events, dict(runner.local_ticks), uncertain, source_pins or _source_pins())
 
 
 def _positive(value, name, maximum):
@@ -38,10 +127,11 @@ def _positive(value, name, maximum):
         raise ValueError(f'{name} must be in 1..{maximum}')
 
 
-def _case_evidence(rows, expected, counter):
-    """Correlate native read/pop, DMA write version, CPU load and ISR commit."""
+def _case_evidence(rows, expected, counter, action_id):
+    """Historical joins; frame-to-FIFO origin remains explicitly unknown."""
     frames = [e for e in rows if e.get('kind') == 'uart_frame_validation'
-        and e.get('waveform_matched') and e.get('byte') == expected]
+        and e.get('waveform_matched') and e.get('byte') == expected
+        and e.get('action_id') == action_id]
     if len(frames) != 1:
         raise RuntimeError('case needs one matching native serial frame')
     reads = [e for e in rows if e.get('kind') == 'dma_edge'
@@ -99,7 +189,55 @@ def _case_evidence(rows, expected, counter):
             < irqs[0]['event_id'] < cause['event_id'] < status['event_id']
             < loads[0]['event_id'] < value['event_id'] < completed['event_id'])):
         raise RuntimeError('case native FIFO/DMA/IRQ/ISR ordering is incomplete')
+    starts = [e for e in rows if e.get('kind') == 'source_start'
+        and tuple(e.get('source', ())) == ('dma', 'irq')
+        and tuple(e.get('target', ())) == ('cpu', 'irq')]
+    taken = [e for e in rows if e.get('kind') == 'cpu_irq_taken'
+        and tuple(e.get('source', ())) == ('dma', 'irq')
+        and tuple(e.get('target', ())) == ('cpu', 'irq')
+        and e.get('cpu_tick') == irqs[0].get('local_tick')]
+    if len(starts) != 1 or len(taken) != 1 or starts[0]['source_event_id'] != taken[0]['source_event_id']:
+        raise RuntimeError('CPU native take is not joined to the DMA bound pulse')
+    irq_edges = [e for e in rows if e.get('kind') == 'dma_edge'
+        and e.get('native_local_tick') == starts[0]['source_tick']
+        and any(e.get('payload', {}).get('observations', {}).get('physical', {}).values())
+        and e.get('payload', {}).get('pre_backend', {}).get('mwb_ack') == 1
+        and e.get('payload', {}).get('pre_backend', {}).get('mwb_we') == 1
+        and e.get('payload', {}).get('pre_backend', {}).get('mwb_err') == 0]
+    if len(irq_edges) != 1 or not write['event_id'] < irq_edges[0]['event_id'] < irqs[0]['event_id']:
+        raise RuntimeError('DMA completion ACK/native IRQ does not match bound source tick')
+    status_reads = [e for e in rows if e.get('kind') == 'mmio_delivery'
+        and e.get('device_id') == 'dma' and e.get('address') == DMA_BASE
+        and e.get('write') is False and e.get('read_value') == 0
+        and cause['event_id'] < e['event_id'] < status['event_id']]
+    if len(status_reads) != 1:
+        raise RuntimeError('ISR status store lacks native DMA status MMIO delivery')
+    status_key = status_reads[0]['source_transaction']
+    responses = [e for e in rows if e.get('kind') == 'data_response'
+        and e.get('transaction') == status_key and e.get('rdata') == 0]
+    status_loads = [e for e in rows if e.get('kind') == 'cpu_retire'
+        and e.get('pc_rdata') == ISR + 8 and e.get('mem_addr') == DMA_BASE
+        and e.get('mem_rmask') == 15 and e.get('mem_rdata') == 0
+        and e.get('rd_addr') == 7 and e.get('rd_wdata') == 0]
+    status_stores = [e for e in rows if e.get('kind') == 'cpu_retire'
+        and e.get('pc_rdata') == ISR + 12 and e.get('mem_addr') == RESULT + 4
+        and e.get('mem_wmask') == 15 and e.get('mem_wdata') == 0
+        and e.get('rs2_addr') == 7 and e.get('rs2_rdata') == 0]
+    if len(responses) != 1 or len(status_loads) != 1 or len(status_stores) != 1:
+        raise RuntimeError('DMA status lacks native CPU response/load/store register flow')
+    # CPU memory service commits stores before retirement; do not equate those
+    # event orders. Require response/load before the native store retirement.
+    if not (responses[0]['event_id'] <= status_loads[0]['event_id'] < status_stores[0]['event_id']):
+        raise RuntimeError('native status register flow is out of order')
     return dict(counter=counter, source_byte=expected,
+        action_id=action_id, frame_id=frames[0].get('frame_id'),
+        dma_irq_edge_event_id=irq_edges[0]['event_id'],
+        bound_source_event_id=starts[0]['event_id'], bound_take_event_id=taken[0]['event_id'],
+        status_delivery_event_id=status_reads[0]['event_id'],
+        status_cpu_load_event_id=status_loads[0]['event_id'],
+        status_cpu_store_event_id=status_stores[0]['event_id'],
+        fifo_origin='unknown', proof_grade='bounded_historical_chain',
+        status_register_flow='native_cpu_rvfi_historical',
         fifo_read_event_id=reads[0]['event_id'], dma_write_event_id=write['event_id'],
         cpu_load_event_id=loads[0]['event_id'], irq_event_id=irqs[0]['event_id'],
         completed_event_id=completed['event_id'])
@@ -107,7 +245,7 @@ def _case_evidence(rows, expected, counter):
 
 def _identities(runner):
     return ({n: s.identity_document() for n, s in runner.sessions.items()},
-        {**{n: s._execution for n, s in runner.sessions.items()},
+        {**{n: getattr(s, '_execution', None) for n, s in runner.sessions.items()},
          'runner': runner.execution_id})
 
 
@@ -137,13 +275,16 @@ def run_continuous_uart_rx(source_bytes, *, cache_dir: Path,
         raise ValueError('source bytes must be integers in 0..255')
     _positive(max_rounds_per_case, 'max_rounds_per_case', 4096)
     _positive(max_source_ticks, 'max_source_ticks', 4096)
+    source_pins = _source_pins()
     runner = factory() if factory else make_continuous_uart_rx_runner(cache_dir=cache_dir)
-    runner.set_resource_budget(budget or ResourceBudget(max_wall_time_ms=300000))
+    selected_budget = budget or ResourceBudget(max_wall_time_ms=300000)
+    runner.set_resource_budget(selected_budget)
     template = ScenarioGenome('continuous-dma-uart-rx', 'IP_TO_CPU',
         'uart-fifo-dma-ram-cpu-isr', ('dma', 'cpu', 'uart'),
         3 * 512 + len(values) * (max_source_ticks + 3 * max_rounds_per_case), ())
     recorder = ScenarioBatchRecorder(template, runner)
     cases = []
+    phase, case_index, case_start = 'boot', 0, 0
     try:
         recorder.begin()
         uart = runner.sessions['uart']
@@ -157,7 +298,8 @@ def run_continuous_uart_rx(source_bytes, *, cache_dir: Path,
         else:
             raise RuntimeError('CPU UART initialization exceeded boot bound')
         for index, source in enumerate(values, 1):
-            start = runner.event_count
+            case_index, phase = index, 'source'
+            start = case_start = runner.event_count
             action_id = f'continuous-rx-{index}'
             recorder.submit_source_event(BatchSourceEvent(action_id,
                 'uart', 'uart_rx_byte', source, width=8))
@@ -170,6 +312,7 @@ def run_continuous_uart_rx(source_bytes, *, cache_dir: Path,
                     break
             else:
                 raise RuntimeError('native serial frame exceeded source bound')
+            phase = 'isr'
             for _ in range(max_rounds_per_case):
                 recorder.advance(('dma', 'cpu', 'uart'))
                 # A native CPU store is the completion signal, never a host write.
@@ -179,74 +322,169 @@ def run_continuous_uart_rx(source_bytes, *, cache_dir: Path,
                 if commits:
                     if len(commits) != 1 or commits[0].get('value') != index:
                         raise RuntimeError('CPU completed-case counter is not monotonic')
-                    cases.append(_case_evidence(runner.events_since(start), source, index))
+                    phase = 'case_check'
+                    cases.append(_case_evidence(runner.events_since(start), source, index, action_id))
                     break
             else:
                 raise RuntimeError('CPU ISR completion exceeded per-case bound')
-        identities, execution_ids = _identities(runner)
-        trace = recorder.finish()
-        if trace.status != 'complete':
-            raise RuntimeError(f'continuous RX terminal status: {trace.status}')
-        return ContinuousRxResult(recorder.plan, trace, tuple(cases), identities, execution_ids)
+        result = _capture(recorder, runner, cases, selected_budget, 'complete', case_index,
+            source_pins=source_pins)
+        if (result.error is not None or result.trace is None
+                or result.trace.status != 'complete' or result.uncertain_status['source_drift']):
+            raise ContinuousRxFailure(result)
+        return result
+    except ContinuousRxFailure:
+        raise
+    except Exception as exc:
+        diagnostic = dict(type=type(exc).__name__, message=str(exc),
+            command_count=len(recorder.commands), case_start=case_start,
+            max_rounds_per_case=max_rounds_per_case, max_source_ticks=max_source_ticks,
+            requested_source_bytes=values)
+        result = _capture(recorder, runner, cases, selected_budget, phase, case_index, diagnostic, source_pins)
+        raise ContinuousRxFailure(result) from exc
     finally:
         if not recorder._finished:
             _close(runner)
 
 
 def _normalize(events, execution_ids):
-    serialized = json.dumps(events, sort_keys=True)
-    for component, value in execution_ids.items():
-        if type(value) is not str or not value:
-            raise ValueError('missing native execution identity')
-        serialized = serialized.replace(value, 'execution:' + component)
-    return json.loads(serialized)
+    """Normalize only explicit execution fields and ledger writer-key fields."""
+    import re
+    if set(execution_ids) != {'cpu', 'dma', 'uart', 'runner'}:
+        raise ValueError('execution IDs must identify CPU, DMA, UART and Runner')
+    issued = {n: v for n, v in execution_ids.items() if v is not None}
+    if (len(set(issued.values())) != len(issued)
+            or any(type(v) is not str or re.fullmatch(r'[0-9a-f]{32}', v) is None
+                for v in issued.values())):
+        raise ValueError('execution IDs must be distinct native UUID hex strings')
+    mapping = {v: 'execution:' + n for n, v in issued.items()}
+    def visit(value, field=None):
+        if isinstance(value, dict):
+            return {key: visit(item, key) for key, item in value.items()}
+        if isinstance(value, (tuple, list)):
+            return [visit(item, field) for item in value]
+        if type(value) is str:
+            if field in ('execution', 'execution_id'):
+                return mapping.get(value, value)
+            if field in ('writer_event_id', 'writer_event_ids'):
+                # Producer stores TransactionKey repr in these fields. Match
+                # only its leading execution token; retain the entire suffix.
+                match = re.fullmatch(r"TransactionKey\(execution_id='([0-9a-f]{32})', (.*)\)", value)
+                if match and match[1] in mapping:
+                    return "TransactionKey(execution_id='" + mapping[match[1]] + "', " + match[2] + ')'
+        return value
+    return visit(events)
+
+
+def _host_failure_still_present(reference, runner):
+    """Re-evaluate host bounds/checks after replaying the exact command prefix."""
+    phase = reference.phase
+    rows = runner.events_since(reference.error.get('case_start', 0))
+    if phase == 'boot':
+        return not any(d['device_id'] == 'uart' and d['offset'] == 0x10
+            and d['write'] for d in runner.sessions['cpu'].router.deliveries)
+    sources = [c for c in reference.plan.commands if isinstance(c, BatchSourceEvent)]
+    if not sources:
+        return False
+    source = sources[-1]
+    if phase == 'source':
+        uart = runner.sessions['uart']
+        return not (any(e.get('kind') == 'uart_source_frame_end'
+            and e.get('action_id') == source.action_id and e.get('waveform_matched')
+            for e in uart.source_events) and uart.register_access_conflict() is None)
+    if phase == 'isr':
+        commits = [e for e in rows if e.get('kind') == 'memory_write'
+            and e.get('component') == 'cpu' and e.get('address') == COMPLETED]
+        return not commits or len(commits) != 1 or commits[0].get('value') != reference.case_index
+    if phase == 'case_check':
+        try:
+            _case_evidence(rows, source.value, reference.case_index, source.action_id)
+        except RuntimeError as exc:
+            return type(exc).__name__ == reference.error['type'] and str(exc) == reference.error['message']
+    return False
 
 
 def replay_continuous_uart_rx(reference: ContinuousRxResult, *, cache_dir: Path,
         budget: ResourceBudget | None = None,
         factory: Callable[[], ScenarioRunner] | None = None) -> ContinuousRxResult:
-    """Replay the original sources and all recorded boundaries in fresh peers.
+    """Fresh reconstruction of successful or failed original command prefixes.
 
-    Compare the full finalized journal, normalizing only declared execution
-    identities, and recheck every case from the original source records.
+    Source/build identities and host source pins must match. Serialized bundles
+    are diagnostics supplied by the caller, never source or execution authority.
+    Native command exceptions must recur at the same attempted command boundary;
+    host bound/check failures must recur under their original predicate.
     """
+    if _source_pins() != reference.source_pins:
+        raise ValueError('continuous RX host source pins differ')
+    if budget is not None and budget != reference.budget:
+        raise ValueError('replay budget must equal the recorded original budget')
     runner = factory() if factory else make_continuous_uart_rx_runner(cache_dir=cache_dir)
-    runner.set_resource_budget(budget or ResourceBudget(max_wall_time_ms=300000))
+    runner.set_resource_budget(reference.budget)
+    if reference.trace is not None:
+        from myfuzz.scenario.replay import _install_batch_wall_cut
+        _install_batch_wall_cut(runner, reference.trace)
     recorder = ScenarioBatchRecorder(reference.plan.template, runner)
-    cases = []
+    caught = None
+    command_count = 0
     try:
-        recorder.begin()
-        identities, execution_ids = _identities(runner)
-        if identities != reference.identities:
+        try:
+            recorder.begin()
+            identities, execution_ids = _identities(runner)
+            if identities != reference.identities:
+                raise ValueError('fresh native identity documents differ')
+            for name, previous in reference.execution_ids.items():
+                if previous is not None and execution_ids[name] == previous:
+                    raise ValueError('replay requires fresh native processes and Runner')
+            for command in reference.plan.commands:
+                command_count += 1
+                if isinstance(command, BatchSourceEvent):
+                    recorder.submit_source_event(command)
+                elif isinstance(command, BatchAdvance):
+                    recorder.advance(command.schedule)
+                else:
+                    raise ValueError('unknown batch command')
+        except Exception as exc:
+            caught = dict(type=type(exc).__name__, message=str(exc), command_count=command_count)
+        if caught is not None:
+            if (reference.error is None or caught['type'] != reference.error['type']
+                    or caught['message'] != reference.error['message']
+                    or caught['command_count'] != reference.error['command_count']):
+                raise RuntimeError('fresh replay command failure differs from original')
+        elif (reference.error is not None and reference.phase != 'finalize'
+                and not _host_failure_still_present(reference, runner)):
+            raise RuntimeError('original host bound/check failure did not recur')
+        actual = _capture(recorder, runner, [], reference.budget,
+            reference.phase, reference.case_index, reference.error if caught is None else
+            {**reference.error, **caught}, source_pins=reference.source_pins)
+        if actual.identities != reference.identities:
             raise RuntimeError('fresh native identity documents differ')
-        if any(execution_ids[n] == reference.execution_ids[n] for n in execution_ids):
-            raise RuntimeError('replay requires fresh native processes and Runner')
-        for command in reference.plan.commands:
-            if isinstance(command, BatchSourceEvent):
-                recorder.submit_source_event(command)
-            elif isinstance(command, BatchAdvance):
-                recorder.advance(command.schedule)
-            else:
-                raise ValueError('unknown batch command')
-        trace = recorder.finish()
-        if (trace.status != reference.trace.status
-                or trace.local_ticks != reference.trace.local_ticks
-                or _normalize(trace.events, execution_ids)
-                != _normalize(reference.trace.events, reference.execution_ids)):
-            raise RuntimeError('fresh replay differs from the complete original journal')
-        sources = [e for e in trace.events if e.get('kind') == 'source_injection']
+        if (actual.local_ticks != reference.local_ticks
+                or _normalize(actual.events, actual.execution_ids)
+                != _normalize(reference.events, reference.execution_ids)
+                or _normalize(actual.uncertain_status, actual.execution_ids)
+                != _normalize(reference.uncertain_status, reference.execution_ids)
+                or (actual.trace.status if actual.trace else None)
+                != (reference.trace.status if reference.trace else None)):
+            raise RuntimeError('fresh replay differs from full finalized original prefix')
+        # Recheck all completed cases against the original source records. A
+        # terminal failed case is retained as diagnostics, never graded complete.
+        sources = [e for e in actual.events if e.get('kind') == 'source_injection']
         original = [c for c in reference.plan.commands if isinstance(c, BatchSourceEvent)]
-        if len(sources) != len(original):
-            raise RuntimeError('replay source count differs')
-        for i, (event, command) in enumerate(zip(sources, original)):
+        cases = []
+        for i, expected_case in enumerate(reference.cases):
+            event, command = sources[i], original[i]
             if event.get('value') != command.value or event.get('action_id') != command.action_id:
                 raise RuntimeError('replay source differs from original record')
             end = sources[i + 1]['event_id'] if i + 1 < len(sources) else float('inf')
-            rows = [e for e in trace.events if event['event_id'] <= e['event_id'] < end]
-            cases.append(_case_evidence(rows, command.value, i + 1))
-        if tuple(cases) != reference.cases:
-            raise RuntimeError('replay per-case causal evidence differs')
-        return ContinuousRxResult(recorder.plan, trace, tuple(cases), identities, execution_ids)
+            rows = [e for e in actual.events if event['event_id'] <= e['event_id'] < end]
+            case = _case_evidence(rows, command.value, i + 1, command.action_id)
+            if case != expected_case:
+                raise RuntimeError('replay per-case causal evidence differs')
+            cases.append(case)
+        return ContinuousRxResult(actual.plan, actual.trace, tuple(cases), actual.identities,
+            actual.execution_ids, actual.budget, actual.phase, actual.case_index,
+            actual.error, actual.events, actual.local_ticks, actual.uncertain_status,
+            actual.source_pins)
     finally:
         if not recorder._finished:
             _close(runner)
