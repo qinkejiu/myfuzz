@@ -57,6 +57,14 @@ own logs use the `chipyard-release-deps-` prefix. This copy may help inspect a
 generated physical boundary, but it is a modified generator input and cannot
 establish generation from the unmodified Chipyard source pin.
 
+The derived build passed dependency resolution and compiled the Scala source,
+then exited 2 during `chipyard.Generator` elaboration. A
+`NullPointerException` originates in Chisel's
+`LegacyModule._compatAutoWrapPorts`/`reflectivelyFindValIO`, through Rocket
+Chip `ClientMetadata` and `BoomNonBlockingDCacheModule.onReset`. It produced no
+FIRRTL or RTL either. Exact commands, source identities, output checks, and
+failure locations are recorded in `generation_evidence_20261017.md`.
+
 There is an additional unavailable dependency. `tilelink@1` is now *declared*
 in the protocol catalog (`src/myfuzz/protocols/plugins/tilelink.json`) and the
 CPU-side contract `cpu.tilelink` accepts exactly the two endpoint shapes this
