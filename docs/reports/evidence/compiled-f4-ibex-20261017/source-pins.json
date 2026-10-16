@@ -1,0 +1,18 @@
+{
+  "source_git_head": "bdeee0b957a104b9e66abab52e219e15d0fee62e",
+  "source_file_count": 32608,
+  "full_manifest_sha256": "eb5d2bc471900de9143bfb31fbf8d7bd287f1afa962367861cd0138a542e3788",
+  "selected_source_sha256": {
+    "src/myfuzz/integration/compiled_f4.py": "b9a24e7f30c7f9e2cdcced671ed918b932300b1485f11190e5c9d1777100e4b8",
+    "src/myfuzz/integration/compiled_execution_files.py": "848c11a9e40b2730fab13ff56c2d260e118c07f5e412c757f59833d09192fbe4",
+    "src/myfuzz/scenario/runner.py": "2e716a0e60fa52e8d0baea15134ed55c70965f5571a34cc627df3a28d8b9982d",
+    "scripts/run_compiled_dataflow.py": "b67d14cab0721dc6f1b01e846c444de4934621460519cc86c612e3b95b851e79",
+    "configs/scenarios/compiled-f4-obi-apb-ibex/compose.json": "7e15a217aaffef3664d1e1e54c4e4300a39880669b0b042334cb1af8d10cfbdd",
+    "configs/scenarios/compiled-f4-obi-apb-ibex/execution_supplement.json": "755111c855efcef8c1c0c9c7436ce11346eb7fc84d704c6e3137bb3bd636394c"
+  },
+  "local_snapshot": "/home/qinkejiu/myfuzz/.superpowers/f4-verification-20261017/snapshot-attempt3",
+  "remote_snapshot": "/root/fanzehui/f4-verification-20261017/project-attempt3",
+  "source_verification_before_and_after": true,
+  "process_exit": 0,
+  "true_exit_path": "/root/fanzehui/f4-verification-20261017/logs/entry-attempt3.exit"
+}
