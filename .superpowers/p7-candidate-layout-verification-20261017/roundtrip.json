@@ -1,0 +1,11 @@
+{
+  "roundtrips": 1280,
+  "pin_widths": [
+    1,
+    32
+  ],
+  "pass": true,
+  "wall_seconds": 15.884183655000015,
+  "module_sha256": "cd2f28c6384bf08fae006cc926f3ce2ec637f65bf80e1966858fded2db4d531e",
+  "scope": "pure layout with real D3 declaration; no native runtime"
+}
