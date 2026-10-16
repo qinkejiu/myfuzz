@@ -1,0 +1,27 @@
+..............FF                                                         [100%]
+=================================== FAILURES ===================================
+____________ test_receipt_symlink_refused_without_touching_old_data ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-213/test_receipt_symlink_refused_w0')
+
+    def test_receipt_symlink_refused_without_touching_old_data(tmp_path):
+        module=load(tmp_path);old=tmp_path/'old';old.write_text('preserve')
+        (module.BASE/'state/before.json').symlink_to(old)
+>       with pytest.raises((ValueError,FileExistsError)):module.save('before.json',{'new':1})
+E       Failed: DID NOT RAISE any of (ValueError, FileExistsError)
+
+.superpowers/boom-irq-runtime-attempt2-20261017/control/test_control.py:83: Failed
+_________ test_receipts_are_exclusive_and_state_parent_symlink_refused _________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-213/test_receipts_are_exclusive_an0')
+
+    def test_receipts_are_exclusive_and_state_parent_symlink_refused(tmp_path):
+        module=load(tmp_path);module.save('receipt.json',{'old':1})
+>       with pytest.raises(FileExistsError):module.save('receipt.json',{'new':1})
+E       Failed: DID NOT RAISE FileExistsError
+
+.superpowers/boom-irq-runtime-attempt2-20261017/control/test_control.py:89: Failed
+=========================== short test summary info ============================
+FAILED .superpowers/boom-irq-runtime-attempt2-20261017/control/test_control.py::test_receipt_symlink_refused_without_touching_old_data
+FAILED .superpowers/boom-irq-runtime-attempt2-20261017/control/test_control.py::test_receipts_are_exclusive_and_state_parent_symlink_refused
+2 failed, 14 passed in 0.07s

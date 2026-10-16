@@ -1,0 +1,42 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+___________ test_copy_requires_exact_new_finalized_source_no_overlay ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-221/test_copy_requires_exact_new_f0')
+
+    def test_copy_requires_exact_new_finalized_source_no_overlay(tmp_path):
+>       m=module();source=tmp_path/'finalized';source.mkdir();(source/'file').write_text('frozen source')
+          ^^^^^^^^
+
+.superpowers/boom-irq-runtime-attempt2-20261017/control/test_prepare.py:14: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def module():
+        path=Path(__file__).with_name('prepare.py')
+>       if not path.exists():pytest.fail('attempt2 preparation source missing')
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: attempt2 preparation source missing
+
+.superpowers/boom-irq-runtime-attempt2-20261017/control/test_prepare.py:8: Failed
+_____________ test_wrong_source_rejected_without_creating_project ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-221/test_wrong_source_rejected_wit0')
+
+    def test_wrong_source_rejected_without_creating_project(tmp_path):
+>       m=module();source=tmp_path/'source';source.mkdir();(source/'file').write_text('different')
+          ^^^^^^^^
+
+.superpowers/boom-irq-runtime-attempt2-20261017/control/test_prepare.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def module():
+        path=Path(__file__).with_name('prepare.py')
+>       if not path.exists():pytest.fail('attempt2 preparation source missing')
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: attempt2 preparation source missing
+
+.superpowers/boom-irq-runtime-attempt2-20261017/control/test_prepare.py:8: Failed
+=========================== short test summary info ============================
+FAILED .superpowers/boom-irq-runtime-attempt2-20261017/control/test_prepare.py::test_copy_requires_exact_new_finalized_source_no_overlay
+FAILED .superpowers/boom-irq-runtime-attempt2-20261017/control/test_prepare.py::test_wrong_source_rejected_without_creating_project
+2 failed in 0.03s
