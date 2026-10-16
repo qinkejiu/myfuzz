@@ -1,0 +1,17 @@
+{
+  "source_only": true,
+  "native_run": false,
+  "sha256": {
+    "archive-receipt.json": "7ab78878314023791a55e9a6effa904fd250a3f520fea06f7915bfb5f59dbfa0",
+    "control--control-manifest.json.gz": "d2f21429e3b435cbd17d72ffd8108ae9e2efb9b50d580373c4a9068353614a06",
+    "control--ready.json.gz": "2853eacc32df9dc2bef48604fbc6434dea0abace49e5c8218c94fd64aad4d966",
+    "control--validate-preparation.py.gz": "90065efdeadafe8a3ca6f17114f96aefe7a7a66d7804d264cf9df28167c5fda6",
+    "preparation-receipt.json": "983faa8163f2c3561076ddbf53d5579f26476a26b59d7d98ddf371bed4b0c3a0",
+    "preparation.started.json.gz": "83474b68c0e832a274c04abacb2a0034a6bbc98ac210e90e29e1322ffca1a240",
+    "remote-transfer.log": "8a45ff45d14694f24ed7d90c6fbed7c0cd72c9b86dcf887cf0612485086cee42",
+    "remote-validation.log": "cf4f9e71fac8319d479f1264978c26e60faf57c6499af273639154016381eecb",
+    "transfer-receipt.json.gz": "2636bc9bacfeefc838a1fa576818db5bb26e0e2cb3cb1eb4fec7a227d334259f",
+    "upload_cvw_ahb_preparation.py": "194005e22a188275ca7d7c32598b76855363289749e07f53376afaf1d5178925",
+    "validate_cvw_ahb_preparation.py": "84e8d2276f06974504c0edf4334fa7ccc231d63628ecc52e57b9733ef77aae54"
+  }
+}

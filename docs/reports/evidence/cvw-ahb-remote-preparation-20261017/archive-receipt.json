@@ -1,0 +1,34 @@
+{
+  "source_only": true,
+  "native_run": false,
+  "remote_base": "/root/fanzehui/cvw-ahb-observer-20261017-attempt1",
+  "same_actual_preparation_pid": 272111,
+  "actual_ssh_exit": 0,
+  "receipts": {
+    "control/ready.json": {
+      "original_bytes": 48480,
+      "original_sha256": "5cff1fcf5c9ea37821e273c25aa6857eb3dad18db6ec26c097b931b95d04b105",
+      "gzip_sha256": "2853eacc32df9dc2bef48604fbc6434dea0abace49e5c8218c94fd64aad4d966"
+    },
+    "transfer-receipt.json": {
+      "original_bytes": 227,
+      "original_sha256": "3c0f0daae309ad23f3069647bdd764122f58d3e90e71cf9c31901e6e702a3d32",
+      "gzip_sha256": "2636bc9bacfeefc838a1fa576818db5bb26e0e2cb3cb1eb4fec7a227d334259f"
+    },
+    "preparation.started.json": {
+      "original_bytes": 137,
+      "original_sha256": "62f20d333b764d7d778f39a482695467df1736df1ec1ea67b6676a9c71b8f698",
+      "gzip_sha256": "83474b68c0e832a274c04abacb2a0034a6bbc98ac210e90e29e1322ffca1a240"
+    },
+    "control/control-manifest.json": {
+      "original_bytes": 2574,
+      "original_sha256": "ede5f73d9cad83d99bdf28e7c66d72c0ef77ef082677ef7577fe1096d1b347dc",
+      "gzip_sha256": "d2f21429e3b435cbd17d72ffd8108ae9e2efb9b50d580373c4a9068353614a06"
+    },
+    "control/validate-preparation.py": {
+      "original_bytes": 4619,
+      "original_sha256": "d80242b6b81d1c0794aaaf71f8051d810d993b31e52faf86ed93c317c4f299dd",
+      "gzip_sha256": "90065efdeadafe8a3ca6f17114f96aefe7a7a66d7804d264cf9df28167c5fda6"
+    }
+  }
+}

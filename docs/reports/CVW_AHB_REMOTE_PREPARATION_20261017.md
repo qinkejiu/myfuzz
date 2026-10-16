@@ -1,0 +1,15 @@
+# CVW AHB pure remote preparation
+
+Root authorized only independent copy/hash/import preparation after gate/controller source reviews (`ebeed69`, `c827992`). No native GO was issued and no launcher, constructor, frontend, version query, build or model was executed.
+
+The new exclusive base is `/root/fanzehui/cvw-ahb-observer-20261017-attempt1`. The exact isolated tree and finalized controls were transferred in a 455408122-byte archive, SHA256 `dc4dc8f32e93655d8bea529b5f851638b4932ce232581fa0e189cf0578f9d8c4`. The receiver refused an existing base, checked the archive SHA, validated all member paths/link targets and rejected hardlinks/special files before extraction. Original modes were preserved with independent root-owned files. Both local and remote original archives remain retained.
+
+The source contains 11421 mapped entries / 576886434 regular-file bytes. Complete source-map SHA is `75244d6c7b7e6490ece1c70c20d3e143f9791804dd8f2a247f6e4d088af0dce9`; the 335-file host freeze is `c02134412a742eccde99746af5487f81c2f77f09a7cf20250ce37f2077762e8f`. Actual modes, internal links and all bytes matched. No hardlinks, external links or Git alternates were present. Main/CVW/Caliptra Git HEADs matched the isolated copy. Profile/closure/lock read sets matched all 243 CVW and 38 Caliptra paths, including the real pinned Caliptra LICENSE.
+
+Only the preparation Python process ran: actual remote PID `272111`, recorded before exec and preserved into the validator, then exited zero. Local validation wrapper PID was `465350`, SSH child `465354`. No retry, restart or kill occurred. The preparation guard allowed only three exact Git `rev-parse HEAD` metadata commands, using the new base's empty global configuration and disabling system configuration/optional writes. Source-first imports were checked without session construction or tool discovery.
+
+Before/after complete source and control file maps (including modes) matched; the ready receipt explicitly excludes only its own subsequent new file. Allowed prior wrapper hashes matched before/after: C++ `4273bc2b00f2ac5d0affb4b364868a891f455b68785fa68ff9430c556c2ef7d6`, Verilator `fb2cc573b1055cf096c90e1efc9966fe56bdb4b265c83590cf2a49f7a0defcdf`. System AR was not read; it remains an environment dependency. These are wrapper byte hashes, not version queries or selection/source authority.
+
+Ready is `/root/fanzehui/cvw-ahb-observer-20261017-attempt1/control/ready.json`, original SHA256 `5cff1fcf5c9ea37821e273c25aa6857eb3dad18db6ec26c097b931b95d04b105`. The native controller operation state is **unused**, no run directory exists, and the canonical heavy lock was not acquired. Root independent live preflight and exact native GO remain required.
+
+Original ready/transfer/start/control-manifest/validator bytes are archived as deterministic gzip files with original and gzip SHA receipts in `evidence/cvw-ahb-remote-preparation-20261017/`. This is pure preparation evidence and grants no CPU protocol prefix, native pass, retirement or source authority.

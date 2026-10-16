@@ -1,0 +1,34 @@
+{
+  "source_only": true,
+  "native_run": false,
+  "remote_base": "/root/fanzehui/cvw-ahb-observer-20261017-attempt1",
+  "remote_preparation_pid": 272111,
+  "actual_exit": 0,
+  "local_validation_wrapper_pid": 465350,
+  "actual_validation_ssh_pid": 465354,
+  "archive": {
+    "bytes": 455408122,
+    "sha256": "dc4dc8f32e93655d8bea529b5f851638b4932ce232581fa0e189cf0578f9d8c4",
+    "local_path": "/tmp/cvw-ahb-reviewed-preparation-20261017.tar.gz",
+    "remote_path": "/root/fanzehui/cvw-ahb-observer-20261017-attempt1/prepared-source-control.tar.gz"
+  },
+  "ready_sha256": "5cff1fcf5c9ea37821e273c25aa6857eb3dad18db6ec26c097b931b95d04b105",
+  "source_map_sha256": "75244d6c7b7e6490ece1c70c20d3e143f9791804dd8f2a247f6e4d088af0dce9",
+  "source_freeze_sha256": "c02134412a742eccde99746af5487f81c2f77f09a7cf20250ce37f2077762e8f",
+  "source_files": 11421,
+  "source_bytes": 576886434,
+  "host_files": 335,
+  "source_before_after_equal": true,
+  "control_before_after_equal": true,
+  "tools_before_after_equal": true,
+  "profile_readset_counts": {
+    "configs/cpus/cvw/component_profile.json": 243,
+    "configs/peripherals/caliptra_sha256/component_profile.json": 38
+  },
+  "operation_state": "unused",
+  "native_go": false,
+  "canonical_lock_acquired": false,
+  "tool_version_query": false,
+  "source_authority": false,
+  "retirement_verified": false
+}
