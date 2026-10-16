@@ -1,0 +1,6 @@
+{
+  "status": "superseded_not_operational",
+  "reason": "required scripts/verify_soc_sources.py absent from original copy scopes",
+  "native_executed": false,
+  "recovery_executed": false
+}

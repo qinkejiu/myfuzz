@@ -226,3 +226,11 @@ def test_physical_recovery_state_cannot_downgrade_by_stripping_origin(tmp_path,p
     stripped={'session_files':{}}
     with pytest.raises(ValueError,match='complete origin'):
         recovery.validate_recovery_origin(output,stripped)
+
+
+def test_copied_project_retains_generic_gpio_host_discovery_script(origin_fixture):
+    recovery,repo,original,project,output,*_=origin_fixture
+    script=repo/'scripts/verify_soc_sources.py';script.parent.mkdir(exist_ok=True)
+    script.write_bytes(b'# software fixture of required host source dependency\n')
+    invoke(origin_fixture)
+    assert (project/'scripts/verify_soc_sources.py').read_bytes()==script.read_bytes()

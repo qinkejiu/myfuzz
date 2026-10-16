@@ -26,7 +26,7 @@ RTL=('EICG_wrapper.v','chipyard.TestHarness.SmallBoomConfig.top.mems.v',
 INPUTS=('driver.cpp','tl_ram.h',*RTL,'boom_irq_probes.h','boom_irq_probe_specs.h',
         'passive_probes.vlt','irq-profile.json','probe_contract.json','irq-interface.json')
 RECEIPTS=tuple('recovery-receipts/'+name for name in ARCHIVES)
-SCOPES=('src','configs','tests','third_party/soc-pulp-apb-gpio')
+SCOPES=('src','configs','tests','scripts','third_party/soc-pulp-apb-gpio')
 
 
 def sha(data): return hashlib.sha256(data).hexdigest()

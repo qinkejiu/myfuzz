@@ -119,3 +119,20 @@ exit0, **89 passed in20.83s**. Source pins refreshed. No operational recovery,
 remote source overlay, model/describe/build or heavy lock was used. This is
 still local integrity and explicit recovery provenance, not signed immutable
 filesystem history or source authority. Reverse reviewer receives this freeze.
+
+## Required copied-project script dependency
+
+Preparation identified that generic GPIO host discovery explicitly seeds
+`scripts/verify_soc_sources.py`, while original copy SCOPES omitted scripts.
+Root approved the narrow BOOM helper correction: add scripts to copy scopes.
+A precise temporary-fixture test first failed because the new project lacked
+the file, then passed after the one-line scope addition. Final combined command
+actual exit0: **90 passed in21.27s** (software-green.log under new metadata
+preparation directory). Real current source authentication still matches every
+original effective compiled input; no C++/RTL/profile/probeconfig change.
+
+The original2460-file local-only preparation is preserved under
+`boom-irq-metadata-recovery-20261017/superseded-first`, explicitly superseded,
+never uploaded or operationally run. New snapshot will include scripts and
+PULP's actual independent.git objects. Operational recovery remains unauthorized
+until exact parent GO and reviewed controls.
