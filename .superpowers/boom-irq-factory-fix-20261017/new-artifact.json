@@ -1,0 +1,455 @@
+{
+  "B_valid": 0,
+  "auxiliary_hashes": {
+    "boom_irq_probe_specs.h": "ee8d05ca40b23034a928eb6373f0552d5b622ea650beb0a9e3f138f495a9e612",
+    "boom_irq_probes.h": "df0d36273acd74bb330d748bec9ce711e27566709a9651ddf17cceedd7c04cea",
+    "irq-interface.json": "d91a5ba6c33bd83884e4170ab80dbbee279e710f08a2e28fd028eaf0237f0404",
+    "irq-profile.json": "99f5236a3566c9421cf74851ea7f69ab479e1082cf2ce8fb07923a4f0de4385f",
+    "passive_probes.vlt": "4938742fe73092838a6a742074420b0e445af74e2c3155563d3130f641a44836",
+    "probe_contract.json": "5642594ca95afe5c9633628fdf50e1c01a38b77133ae19520747f015b7270f34"
+  },
+  "base_profile_sha256": "344cfcebf31056311021f04cbecef0d1a8819f4befc40c71e380147293620a01",
+  "build_origin": {
+    "archives": {
+      "attempt2-build-closure.tar.gz": "e9a019a75fa4518cd620dc0519ce680b70d9c8c5ab5ba9c12ef1fbcc39082577",
+      "attempt2-command-tool.tar.gz": "0fa6d68c4e70195e382a01e255a84952a5e200aea29c20c96cebe2e47a1133ec",
+      "attempt2-evidence.tar.gz": "559b5faf59607120ffabb59dc1ada694da9cf365b263e967d3cac154d3fee58a"
+    },
+    "binary_sha256": "6367b592b743f935cb2de04bc6dfc4ac54c9ec8cf5dce4eb6545b140971e6c90",
+    "build_exit": 0,
+    "effective_inputs": {
+      "EICG_wrapper.v": "8532a50a212f146f10208717be24168a2de73a9754786da272d0dbfcd556c307",
+      "boom_irq_probe_specs.h": "ee8d05ca40b23034a928eb6373f0552d5b622ea650beb0a9e3f138f495a9e612",
+      "boom_irq_probes.h": "df0d36273acd74bb330d748bec9ce711e27566709a9651ddf17cceedd7c04cea",
+      "chipyard.TestHarness.SmallBoomConfig.top.mems.v": "97ae4679a1ec21f4f424c56e23b1b1948e77d934c8c11461b56de47160a1a280",
+      "chipyard.TestHarness.SmallBoomConfig.top.v": "78bc69803c7b993cd1ddfcdb585d477bd27a83710bb1ce426e217aedbbdfaced",
+      "driver.cpp": "7d49358b639d70847a2d3ef9985bfbe293d349543e68bd9a8936123277945afb",
+      "irq-interface.json": "d91a5ba6c33bd83884e4170ab80dbbee279e710f08a2e28fd028eaf0237f0404",
+      "irq-profile.json": "99f5236a3566c9421cf74851ea7f69ab479e1082cf2ce8fb07923a4f0de4385f",
+      "passive_probes.vlt": "4938742fe73092838a6a742074420b0e445af74e2c3155563d3130f641a44836",
+      "plusarg_reader.v": "482a63c1f24a7ac920909620bd0df108e6954eabf9520de6e72334a2b5450efb",
+      "probe_contract.json": "5642594ca95afe5c9633628fdf50e1c01a38b77133ae19520747f015b7270f34",
+      "tl_ram.h": "c40e3b16f492f4f73857950e47604f60e29055f684f46204cdeb685867d095da"
+    },
+    "failed_stage_exit": 1,
+    "historical_receipt_hashes": {
+      "artifact/EICG_wrapper.v": "8532a50a212f146f10208717be24168a2de73a9754786da272d0dbfcd556c307",
+      "artifact/artifact.json": "8be84ffe2927bc191df4c5489fe0d94d0e500b95d727df00e733a5b9407a8ea5",
+      "artifact/boom_irq_probe_specs.h": "ee8d05ca40b23034a928eb6373f0552d5b622ea650beb0a9e3f138f495a9e612",
+      "artifact/boom_irq_probes.h": "df0d36273acd74bb330d748bec9ce711e27566709a9651ddf17cceedd7c04cea",
+      "artifact/build.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "artifact/build.log": "1f1c37028574ff10c3522b0522f9e9b60ec8db0e88ed24fb0ff62ac66fc52adb",
+      "artifact/chipyard.TestHarness.SmallBoomConfig.top.mems.v": "97ae4679a1ec21f4f424c56e23b1b1948e77d934c8c11461b56de47160a1a280",
+      "artifact/chipyard.TestHarness.SmallBoomConfig.top.v": "78bc69803c7b993cd1ddfcdb585d477bd27a83710bb1ce426e217aedbbdfaced",
+      "artifact/driver.cpp": "7d49358b639d70847a2d3ef9985bfbe293d349543e68bd9a8936123277945afb",
+      "artifact/generated-probes.json": "98a6cdb033550a126f52d14620b4c180ff5aa25b47f9f9d5c39cd77d03764eb8",
+      "artifact/irq-interface.json": "d91a5ba6c33bd83884e4170ab80dbbee279e710f08a2e28fd028eaf0237f0404",
+      "artifact/irq-profile.json": "99f5236a3566c9421cf74851ea7f69ab479e1082cf2ce8fb07923a4f0de4385f",
+      "artifact/obj/VBoomTile": "6367b592b743f935cb2de04bc6dfc4ac54c9ec8cf5dce4eb6545b140971e6c90",
+      "artifact/obj/VBoomTile__Syms.h": "dc3bb6f677e641cb0b5aaaa42e8e96a2bee1bee579831c1925cf3becd5b9d32b",
+      "artifact/obj/VBoomTile__Syms__Slow.cpp": "bb8f5de56b07e2bd7faab6f96061486c45c16582f2373fd7a5b62c92a3febd21",
+      "artifact/obj/VBoomTile__Syms__Slow.d": "775dc51bfabf0f72f05900b6e8dc14bc84307091c47479f47458b2afbb21a2b8",
+      "artifact/obj/VBoomTile__pch.h": "f14576ba833962201317c30c734c7273083ee9edfad683a72be6997ac9abe2b5",
+      "artifact/obj/VBoomTile__verFiles.dat": "fc4b36607081552a884bc1b5b73d6e5faa65c6fd4c4d8beb4a498acd0e72e86c",
+      "artifact/obj/VBoomTile_classes.mk": "28f777ae84e884d2e52786ffa28ad7f9494dd2812176dcdc768ce11d239cdb9b",
+      "artifact/passive_probes.vlt": "4938742fe73092838a6a742074420b0e445af74e2c3155563d3130f641a44836",
+      "artifact/plusarg_reader.v": "482a63c1f24a7ac920909620bd0df108e6954eabf9520de6e72334a2b5450efb",
+      "artifact/probe-describe.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "artifact/probe-describe.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "artifact/probe-describe.stdout": "33455b6a0be32768ea35ab361f90dd196d2f9393214d6f45e0ad01398fcdeb27",
+      "artifact/probe_contract.json": "5642594ca95afe5c9633628fdf50e1c01a38b77133ae19520747f015b7270f34",
+      "artifact/tl_ram.h": "c40e3b16f492f4f73857950e47604f60e29055f684f46204cdeb685867d095da",
+      "attempt2/state/PID": "7822e5bd71801aade679e52dd395c07655c40ee1ac05ece4141d76813ca3feaf",
+      "attempt2/state/build-and-probes.exit": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "attempt2/state/launch.exit": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "attempt2/state/preparation.json": "957bec44d713b180f910217ae7689d09ab42fc7c4940e9a26bddbbf195e188f2",
+      "attempt2/state/source-check-before-build.json": "8aeaeb4fdcd1e1c9cd7ffe371e2dc0d18103a8b443b37547fac37a860d5d30f8",
+      "attempt2/state/stage": "770b1fadc4019d4de6b2fd32561beaa2c8cffa7837f43c85cbeff1e211c60702"
+    },
+    "inventory": [
+      {
+        "id": "meip",
+        "path": "TOP.BoomTile.core.csr_io_interrupts_meip",
+        "width": 1
+      },
+      {
+        "id": "rob_exception",
+        "path": "TOP.BoomTile.core.rob_io_com_xcpt_valid",
+        "width": 1
+      },
+      {
+        "id": "rob_cause",
+        "path": "TOP.BoomTile.core.rob_io_com_xcpt_bits_cause",
+        "width": 64
+      },
+      {
+        "id": "csr_exception",
+        "path": "TOP.BoomTile.core.csr_io_exception",
+        "width": 1
+      },
+      {
+        "id": "csr_cause",
+        "path": "TOP.BoomTile.core.csr_io_cause",
+        "width": 64
+      },
+      {
+        "id": "csr_pc",
+        "path": "TOP.BoomTile.core.csr_io_pc",
+        "width": 40
+      },
+      {
+        "id": "csr_evec",
+        "path": "TOP.BoomTile.core.csr_io_evec",
+        "width": 40
+      },
+      {
+        "id": "mie",
+        "path": "TOP.BoomTile.core.csr.reg_mie",
+        "width": 64
+      },
+      {
+        "id": "global_mie",
+        "path": "TOP.BoomTile.core.csr.reg_mstatus_mie",
+        "width": 1
+      },
+      {
+        "id": "privilege",
+        "path": "TOP.BoomTile.core.csr.reg_mstatus_prv",
+        "width": 2
+      },
+      {
+        "id": "mtvec",
+        "path": "TOP.BoomTile.core.csr.reg_mtvec",
+        "width": 32
+      },
+      {
+        "id": "mcause",
+        "path": "TOP.BoomTile.core.csr.reg_mcause",
+        "width": 64
+      },
+      {
+        "id": "mepc",
+        "path": "TOP.BoomTile.core.csr.reg_mepc",
+        "width": 40
+      },
+      {
+        "id": "system_return",
+        "path": "TOP.BoomTile.core.csr.insn_ret",
+        "width": 1
+      },
+      {
+        "id": "csr_addr",
+        "path": "TOP.BoomTile.core.csr.io_rw_addr",
+        "width": 12
+      },
+      {
+        "id": "csr_cmd",
+        "path": "TOP.BoomTile.core.csr.io_rw_cmd",
+        "width": 3
+      }
+    ],
+    "original_python_hashes": {
+      "src/myfuzz/local_harness/boom_irq_cpu_session.py": "872d1cca743023c396af2755d63bf618ed87db041efc2d770ceda82241a6f7ae",
+      "src/myfuzz/local_harness/boom_irq_generation.py": "6ccb1a107330d3ad4c9b54b89d46444eb301a74e9691d92df16c506f7f7ad89e"
+    },
+    "probe_exit": 0,
+    "recorded_build_command": "C \"--vpi /root/fanzehui/boom-irq-verification-20261017/artifact/passive_probes.vlt --cc --exe --build --top-module BoomTile --Mdir /root/fanzehui/boom-irq-verification-20261017/artifact/obj -Wno-fatal --output-split 20000 --output-split-cfuncs 20000 -j 2 -CFLAGS -std=c++17 -O1 /root/fanzehui/boom-irq-verification-20261017/artifact/EICG_wrapper.v /root/fanzehui/boom-irq-verification-20261017/artifact/chipyard.TestHarness.SmallBoomConfig.top.mems.v /root/fanzehui/boom-irq-verification-20261017/artifact/chipyard.TestHarness.SmallBoomConfig.top.v /root/fanzehui/boom-irq-verification-20261017/artifact/plusarg_reader.v /root/fanzehui/boom-irq-verification-20261017/artifact/driver.cpp\"",
+    "schema_version": "boom_irq_attempt2_origin.v1",
+    "source_manifest_sha256": "f7ab4b657052afc5e594c56529337a6401f81691bf2edb395877335f75d035ec",
+    "tool_identity": {
+      "tools": {
+        "verilator": {
+          "path": "/root/fanzehui/myfuzz/.tools/verilator-5.051-e413e67/bin/verilator",
+          "resolved_path": "/root/fanzehui/myfuzz/.tools/verilator-5.051-e413e67/bin/verilator",
+          "sha256": "fb2cc573b1055cf096c90e1efc9966fe56bdb4b265c83590cf2a49f7a0defcdf"
+        },
+        "verilator_bin": {
+          "path": "/root/fanzehui/myfuzz/.tools/verilator-5.051-e413e67/bin/verilator_bin",
+          "resolved_path": "/root/fanzehui/myfuzz/.tools/verilator-5.051-e413e67/bin/verilator_bin",
+          "sha256": "ad3ad4d5653e9431eb907c31e5a7bfad3cd4ae59469b0f8e7c63403521225579"
+        }
+      },
+      "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67"
+    }
+  },
+  "coherent_fields": 39,
+  "command": [
+    "verilator",
+    "--vpi",
+    "/root/fanzehui/boom-irq-verification-20261017/artifact/passive_probes.vlt",
+    "--cc",
+    "--exe",
+    "--build",
+    "--top-module",
+    "BoomTile",
+    "--Mdir",
+    "/root/fanzehui/boom-irq-verification-20261017/artifact/obj",
+    "-Wno-fatal",
+    "--output-split",
+    "20000",
+    "--output-split-cfuncs",
+    "20000",
+    "-j",
+    "2",
+    "-CFLAGS",
+    "-std=c++17 -O1",
+    "/root/fanzehui/boom-irq-verification-20261017/artifact/EICG_wrapper.v",
+    "/root/fanzehui/boom-irq-verification-20261017/artifact/chipyard.TestHarness.SmallBoomConfig.top.mems.v",
+    "/root/fanzehui/boom-irq-verification-20261017/artifact/chipyard.TestHarness.SmallBoomConfig.top.v",
+    "/root/fanzehui/boom-irq-verification-20261017/artifact/plusarg_reader.v",
+    "/root/fanzehui/boom-irq-verification-20261017/artifact/driver.cpp"
+  ],
+  "derived_source": true,
+  "driver_sha256": "7d49358b639d70847a2d3ef9985bfbe293d349543e68bd9a8936123277945afb",
+  "external_probes_exercised": false,
+  "generated_probes": [
+    {
+      "id": "meip",
+      "path": "TOP.BoomTile.core.csr_io_interrupts_meip",
+      "width": 1
+    },
+    {
+      "id": "rob_exception",
+      "path": "TOP.BoomTile.core.rob_io_com_xcpt_valid",
+      "width": 1
+    },
+    {
+      "id": "rob_cause",
+      "path": "TOP.BoomTile.core.rob_io_com_xcpt_bits_cause",
+      "width": 64
+    },
+    {
+      "id": "csr_exception",
+      "path": "TOP.BoomTile.core.csr_io_exception",
+      "width": 1
+    },
+    {
+      "id": "csr_cause",
+      "path": "TOP.BoomTile.core.csr_io_cause",
+      "width": 64
+    },
+    {
+      "id": "csr_pc",
+      "path": "TOP.BoomTile.core.csr_io_pc",
+      "width": 40
+    },
+    {
+      "id": "csr_evec",
+      "path": "TOP.BoomTile.core.csr_io_evec",
+      "width": 40
+    },
+    {
+      "id": "mie",
+      "path": "TOP.BoomTile.core.csr.reg_mie",
+      "width": 64
+    },
+    {
+      "id": "global_mie",
+      "path": "TOP.BoomTile.core.csr.reg_mstatus_mie",
+      "width": 1
+    },
+    {
+      "id": "privilege",
+      "path": "TOP.BoomTile.core.csr.reg_mstatus_prv",
+      "width": 2
+    },
+    {
+      "id": "mtvec",
+      "path": "TOP.BoomTile.core.csr.reg_mtvec",
+      "width": 32
+    },
+    {
+      "id": "mcause",
+      "path": "TOP.BoomTile.core.csr.reg_mcause",
+      "width": 64
+    },
+    {
+      "id": "mepc",
+      "path": "TOP.BoomTile.core.csr.reg_mepc",
+      "width": 40
+    },
+    {
+      "id": "system_return",
+      "path": "TOP.BoomTile.core.csr.insn_ret",
+      "width": 1
+    },
+    {
+      "id": "csr_addr",
+      "path": "TOP.BoomTile.core.csr.io_rw_addr",
+      "width": 12
+    },
+    {
+      "id": "csr_cmd",
+      "path": "TOP.BoomTile.core.csr.io_rw_cmd",
+      "width": 3
+    }
+  ],
+  "generated_symbol_files": [
+    "obj/VBoomTile__Syms__Slow.cpp",
+    "obj/VBoomTile__Syms.h",
+    "obj/VBoomTile_classes.mk",
+    "obj/VBoomTile__Syms__Slow.d"
+  ],
+  "generic_router_admitted": false,
+  "gpio_irq_policy": "actual rising edge, fixed 64 CPU ticks, no extension",
+  "implementation_source_hashes": {
+    "boom_irq_contract.py": "7f8e349e0f21de4ba349fc072442fd26590d3f80cc988f2bbda0cf7e6e4ae435",
+    "boom_irq_cpu_driver.cpp": "7d49358b639d70847a2d3ef9985bfbe293d349543e68bd9a8936123277945afb",
+    "boom_irq_cpu_session.py": "e207cfc75975f1c14ef02e696d68d40e3486e8e4e77eb016181ac57ecba51a44",
+    "boom_irq_generation.py": "c6004d8832f01fd9e9559bed6fd59b3568658101cf119af10e41c6965f653b4f",
+    "boom_irq_probes.h": "df0d36273acd74bb330d748bec9ce711e27566709a9651ddf17cceedd7c04cea",
+    "boom_irq_recovery.py": "a6bbd17117a0973e4e67bc599b0e4cd7daa277449d4be9de3dfea0db294db3a8",
+    "boom_irq_scenario_session.py": "b945a9002ce39118df38ebd81d6e9a1514f861b147f2809ba94a82c906e267db",
+    "tilelink_coherent_cpu_session.py": "e7de94305339e2f6d06a69588875d0b97bf92471832d330c0573bfe97815d977"
+  },
+  "manager_sha256": "c40e3b16f492f4f73857950e47604f60e29055f684f46204cdeb685867d095da",
+  "metadata_finalization": {
+    "build_origin_sha256": "82f3632ca60e27e231e07d8052f1442dacbf2d938138e88ce94fe2819f9a6add",
+    "current_python_hashes": {
+      "boom_irq_contract.py": "7f8e349e0f21de4ba349fc072442fd26590d3f80cc988f2bbda0cf7e6e4ae435",
+      "boom_irq_cpu_driver.cpp": "7d49358b639d70847a2d3ef9985bfbe293d349543e68bd9a8936123277945afb",
+      "boom_irq_cpu_session.py": "e207cfc75975f1c14ef02e696d68d40e3486e8e4e77eb016181ac57ecba51a44",
+      "boom_irq_generation.py": "c6004d8832f01fd9e9559bed6fd59b3568658101cf119af10e41c6965f653b4f",
+      "boom_irq_probes.h": "df0d36273acd74bb330d748bec9ce711e27566709a9651ddf17cceedd7c04cea",
+      "boom_irq_recovery.py": "a6bbd17117a0973e4e67bc599b0e4cd7daa277449d4be9de3dfea0db294db3a8",
+      "boom_irq_scenario_session.py": "b945a9002ce39118df38ebd81d6e9a1514f861b147f2809ba94a82c906e267db",
+      "tilelink_coherent_cpu_session.py": "e7de94305339e2f6d06a69588875d0b97bf92471832d330c0573bfe97815d977"
+    },
+    "helper_sha256": "a6bbd17117a0973e4e67bc599b0e4cd7daa277449d4be9de3dfea0db294db3a8",
+    "new_cpp_build": false,
+    "reused_binary": true,
+    "runtime_verified": false,
+    "schema_version": "boom_irq_metadata_finalization.v1",
+    "source_authority": false
+  },
+  "passive_probe_contract": {
+    "confirmation": "actual generated VPI handle/fullname/size before READY; candidates are not runtime evidence",
+    "probes": [
+      {
+        "id": "meip",
+        "path": "TOP.BoomTile.core.csr_io_interrupts_meip",
+        "width": 1
+      },
+      {
+        "id": "rob_exception",
+        "path": "TOP.BoomTile.core.rob_io_com_xcpt_valid",
+        "width": 1
+      },
+      {
+        "id": "rob_cause",
+        "path": "TOP.BoomTile.core.rob_io_com_xcpt_bits_cause",
+        "width": 64
+      },
+      {
+        "id": "csr_exception",
+        "path": "TOP.BoomTile.core.csr_io_exception",
+        "width": 1
+      },
+      {
+        "id": "csr_cause",
+        "path": "TOP.BoomTile.core.csr_io_cause",
+        "width": 64
+      },
+      {
+        "id": "csr_pc",
+        "path": "TOP.BoomTile.core.csr_io_pc",
+        "width": 40
+      },
+      {
+        "id": "csr_evec",
+        "path": "TOP.BoomTile.core.csr_io_evec",
+        "width": 40
+      },
+      {
+        "id": "mie",
+        "path": "TOP.BoomTile.core.csr.reg_mie",
+        "width": 64
+      },
+      {
+        "id": "global_mie",
+        "path": "TOP.BoomTile.core.csr.reg_mstatus_mie",
+        "width": 1
+      },
+      {
+        "id": "privilege",
+        "path": "TOP.BoomTile.core.csr.reg_mstatus_prv",
+        "width": 2
+      },
+      {
+        "id": "mtvec",
+        "path": "TOP.BoomTile.core.csr.reg_mtvec",
+        "width": 32
+      },
+      {
+        "id": "mcause",
+        "path": "TOP.BoomTile.core.csr.reg_mcause",
+        "width": 64
+      },
+      {
+        "id": "mepc",
+        "path": "TOP.BoomTile.core.csr.reg_mepc",
+        "width": 40
+      },
+      {
+        "id": "system_return",
+        "path": "TOP.BoomTile.core.csr.insn_ret",
+        "width": 1
+      },
+      {
+        "id": "csr_addr",
+        "path": "TOP.BoomTile.core.csr.io_rw_addr",
+        "width": 12
+      },
+      {
+        "id": "csr_cmd",
+        "path": "TOP.BoomTile.core.csr.io_rw_cmd",
+        "width": 3
+      }
+    ],
+    "schema_version": "boom_irq_passive_probes.v1"
+  },
+  "physical_ports": 47,
+  "probes_runtime_confirmed": true,
+  "profile_sha256": "99f5236a3566c9421cf74851ea7f69ab479e1082cf2ce8fb07923a4f0de4385f",
+  "runtime_kind": "tilelink_coherent_cpu_irq",
+  "runtime_verified": false,
+  "scenario_factory_sha256": "0af5037e8282c232c672a0251e2c8f579d4f1f6edde793bc51e20854f8f1e77e",
+  "schema_version": "generated_boom_irq_session.v1",
+  "session_files": {
+    "EICG_wrapper.v": "8532a50a212f146f10208717be24168a2de73a9754786da272d0dbfcd556c307",
+    "artifact.json": "8be84ffe2927bc191df4c5489fe0d94d0e500b95d727df00e733a5b9407a8ea5",
+    "boom_irq_probe_specs.h": "ee8d05ca40b23034a928eb6373f0552d5b622ea650beb0a9e3f138f495a9e612",
+    "boom_irq_probes.h": "df0d36273acd74bb330d748bec9ce711e27566709a9651ddf17cceedd7c04cea",
+    "build.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "build.log": "1f1c37028574ff10c3522b0522f9e9b60ec8db0e88ed24fb0ff62ac66fc52adb",
+    "chipyard.TestHarness.SmallBoomConfig.top.mems.v": "97ae4679a1ec21f4f424c56e23b1b1948e77d934c8c11461b56de47160a1a280",
+    "chipyard.TestHarness.SmallBoomConfig.top.v": "78bc69803c7b993cd1ddfcdb585d477bd27a83710bb1ce426e217aedbbdfaced",
+    "driver.cpp": "7d49358b639d70847a2d3ef9985bfbe293d349543e68bd9a8936123277945afb",
+    "generated-probes.json": "98a6cdb033550a126f52d14620b4c180ff5aa25b47f9f9d5c39cd77d03764eb8",
+    "irq-interface.json": "d91a5ba6c33bd83884e4170ab80dbbee279e710f08a2e28fd028eaf0237f0404",
+    "irq-profile.json": "99f5236a3566c9421cf74851ea7f69ab479e1082cf2ce8fb07923a4f0de4385f",
+    "obj/VBoomTile": "6367b592b743f935cb2de04bc6dfc4ac54c9ec8cf5dce4eb6545b140971e6c90",
+    "obj/VBoomTile__Syms.h": "dc3bb6f677e641cb0b5aaaa42e8e96a2bee1bee579831c1925cf3becd5b9d32b",
+    "obj/VBoomTile__Syms__Slow.cpp": "bb8f5de56b07e2bd7faab6f96061486c45c16582f2373fd7a5b62c92a3febd21",
+    "obj/VBoomTile__Syms__Slow.d": "775dc51bfabf0f72f05900b6e8dc14bc84307091c47479f47458b2afbb21a2b8",
+    "obj/VBoomTile__pch.h": "f14576ba833962201317c30c734c7273083ee9edfad683a72be6997ac9abe2b5",
+    "obj/VBoomTile__verFiles.dat": "fc4b36607081552a884bc1b5b73d6e5faa65c6fd4c4d8beb4a498acd0e72e86c",
+    "obj/VBoomTile_classes.mk": "28f777ae84e884d2e52786ffa28ad7f9494dd2812176dcdc768ce11d239cdb9b",
+    "passive_probes.vlt": "4938742fe73092838a6a742074420b0e445af74e2c3155563d3130f641a44836",
+    "plusarg_reader.v": "482a63c1f24a7ac920909620bd0df108e6954eabf9520de6e72334a2b5450efb",
+    "probe-describe.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "probe-describe.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "probe-describe.stdout": "33455b6a0be32768ea35ab361f90dd196d2f9393214d6f45e0ad01398fcdeb27",
+    "probe_contract.json": "5642594ca95afe5c9633628fdf50e1c01a38b77133ae19520747f015b7270f34",
+    "recovery-receipts/attempt2-build-closure.tar.gz": "e9a019a75fa4518cd620dc0519ce680b70d9c8c5ab5ba9c12ef1fbcc39082577",
+    "recovery-receipts/attempt2-command-tool.tar.gz": "0fa6d68c4e70195e382a01e255a84952a5e200aea29c20c96cebe2e47a1133ec",
+    "recovery-receipts/attempt2-evidence.tar.gz": "559b5faf59607120ffabb59dc1ada694da9cf365b263e967d3cac154d3fee58a",
+    "tl_ram.h": "c40e3b16f492f4f73857950e47604f60e29055f684f46204cdeb685867d095da"
+  },
+  "simulator": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+  "source_authority": false,
+  "source_manifest_sha256": "0e3718bdc000dd2a8b965e20eb4e00b8071a786f7961d62372956f90a6bc6053",
+  "source_revision": "sha256:4f960fdd6c96dccfe1bb7788fd628e368304b7280e5449cf3ae5463e982f2c30",
+  "trace_verifier": "/root/fanzehui/boom-irq-factory-fix-20261017/project-finalized/configs/cpus/boom/runtime/verify_trace.py",
+  "trace_verifier_sha256": "06b303a065b99baf25d799cd16084ab50d406d8e8c5aa77b77cee96635d8bfcd"
+}
