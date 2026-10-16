@@ -1,0 +1,151 @@
+{
+  "focused": {
+    "exit_code": 0,
+    "passed": 28,
+    "seconds": 0.13
+  },
+  "new_native_execution": false,
+  "schema_version": "coherent_event_verification.v1",
+  "scope": "current_software_controls_and_offline_saved_native_trace_projection",
+  "selected_regression": {
+    "exit_code": 0,
+    "passed": 168,
+    "seconds": 0.56,
+    "subtests_passed": 67
+  },
+  "source_pins": {
+    "src/myfuzz/scenario/coherent_event_stream.py": "9726eb8d6451b1a37ba472ed93fd54fc37c8474d43bdf9638118cbb21ddc4c19",
+    "src/myfuzz/scenario/coherent_protocol_events.py": "1055c4c8fe0b5592bc76c994a62b8b2a86f3ed7e2bc21411ce802f9e220356c4",
+    "tests/scenario/test_coherent_event_stream.py": "3a3d20c16e1064455f342f659b34b5e5948673f625d59fcf1d82f4574ec6c7d4",
+    "tests/scenario/test_coherent_protocol_events.py": "a5c3bcf78d30fd71e8c13dde603f83ec7197b92052d3d4ba417c34a9dacdb830"
+  },
+  "stage_accepted": false,
+  "traces": {
+    "fault_read": {
+      "coverage": {
+        "authority": "observation_only",
+        "counts": {
+          "A": 21,
+          "A.opcode.0": 2,
+          "A.opcode.4": 5,
+          "A.opcode.6": 14,
+          "A.size.2": 2,
+          "A.size.6": 19,
+          "C": 80,
+          "C.opcode.7": 80,
+          "C.size.6": 80,
+          "D": 164,
+          "D.multibeat_observations": 152,
+          "D.opcode.0": 2,
+          "D.opcode.1": 40,
+          "D.opcode.5": 112,
+          "D.opcode.6": 10,
+          "D.size.2": 2,
+          "D.size.6": 162,
+          "E": 14,
+          "completed_requests": 31
+        },
+        "schema_version": "coherent_protocol_coverage.v1",
+        "scope": "single_client_no_external_probes_per_source_manager"
+      },
+      "path": "configs/cpus/boom/evidence/generated-runtime-20261017/fault_read.jsonl",
+      "report": {
+        "observed_events": 279,
+        "pending_sinks": 0,
+        "pending_sources": 0,
+        "runtime_accepted": false,
+        "schema_version": "coherent_protocol_check.v1",
+        "scope": "single_client_no_external_probes_per_source_manager",
+        "semantic_accepted": false,
+        "source_authority": false,
+        "stream_closed": true,
+        "structural_error": false
+      },
+      "sha256": "531e73b8f9c68e9b592c4658bc00a3447018f36a9b52193ad0a612af741f2726"
+    },
+    "fresh1": {
+      "coverage": {
+        "authority": "observation_only",
+        "counts": {
+          "A": 21,
+          "A.opcode.0": 2,
+          "A.opcode.4": 5,
+          "A.opcode.6": 14,
+          "A.size.2": 2,
+          "A.size.6": 19,
+          "C": 80,
+          "C.opcode.7": 80,
+          "C.size.6": 80,
+          "D": 164,
+          "D.multibeat_observations": 152,
+          "D.opcode.0": 2,
+          "D.opcode.1": 40,
+          "D.opcode.5": 112,
+          "D.opcode.6": 10,
+          "D.size.2": 2,
+          "D.size.6": 162,
+          "E": 14,
+          "completed_requests": 31
+        },
+        "schema_version": "coherent_protocol_coverage.v1",
+        "scope": "single_client_no_external_probes_per_source_manager"
+      },
+      "path": "configs/cpus/boom/evidence/generated-runtime-20261017/fresh1.jsonl",
+      "report": {
+        "observed_events": 279,
+        "pending_sinks": 0,
+        "pending_sources": 0,
+        "runtime_accepted": false,
+        "schema_version": "coherent_protocol_check.v1",
+        "scope": "single_client_no_external_probes_per_source_manager",
+        "semantic_accepted": false,
+        "source_authority": false,
+        "stream_closed": true,
+        "structural_error": false
+      },
+      "sha256": "0419978db966f7042c9f2458f132b7944debca8e01343e5d5ac26ee142e26257"
+    },
+    "fresh2": {
+      "coverage": {
+        "authority": "observation_only",
+        "counts": {
+          "A": 21,
+          "A.opcode.0": 2,
+          "A.opcode.4": 5,
+          "A.opcode.6": 14,
+          "A.size.2": 2,
+          "A.size.6": 19,
+          "C": 80,
+          "C.opcode.7": 80,
+          "C.size.6": 80,
+          "D": 164,
+          "D.multibeat_observations": 152,
+          "D.opcode.0": 2,
+          "D.opcode.1": 40,
+          "D.opcode.5": 112,
+          "D.opcode.6": 10,
+          "D.size.2": 2,
+          "D.size.6": 162,
+          "E": 14,
+          "completed_requests": 31
+        },
+        "schema_version": "coherent_protocol_coverage.v1",
+        "scope": "single_client_no_external_probes_per_source_manager"
+      },
+      "path": "configs/cpus/boom/evidence/generated-runtime-20261017/fresh2.jsonl",
+      "report": {
+        "observed_events": 279,
+        "pending_sinks": 0,
+        "pending_sources": 0,
+        "runtime_accepted": false,
+        "schema_version": "coherent_protocol_check.v1",
+        "scope": "single_client_no_external_probes_per_source_manager",
+        "semantic_accepted": false,
+        "source_authority": false,
+        "stream_closed": true,
+        "structural_error": false
+      },
+      "sha256": "0419978db966f7042c9f2458f132b7944debca8e01343e5d5ac26ee142e26257"
+    }
+  }
+}
