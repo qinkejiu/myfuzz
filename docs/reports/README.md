@@ -1,3 +1,5 @@
+2026-10-17 后续冻结增量：[CVW→Caliptra SHA256→RAM](cvw-caliptra-cpu-chain-20261017.md)（3 passed／100.00 秒）、[标准 Runner UART RX→DMA→RAM→Ibex ISR](dma-uart-rx-standard-runner-20261017.md)（1 passed／80.79 秒，4,836 事件 fresh 前缀一致）、[GPIOEN 原生版本 authority](gpioen-live-register-version-20261017.md)，以及[BOOM 生成式 CPU/RAM 与 fence 后响应替换对照](../../configs/cpus/boom/README.md)。各自限报告声明范围；编译 F4 完整断言与 BOOM 通用 CPU/IP 接入仍在施工，P6/P7/P8 尚未验收。
+
 2026-10-17 新增[标准 Runner DMA 与 fresh 完整前缀](dma-standard-runner-20261017.md)、[Vexii 真实 CPU/IP 链](vexiiriscv-generated-cpu-ip-20261017.md)、[原始 OBI→真实 APB 同次关联](evidence/cpu-ip-join-20261017/README.md)，以及[BOOM coherent TileLink CPU/RAM 直接运行](../../configs/cpus/boom/runtime/README.md)。对应冻结源码上的真实门和独立复核已完成；完整 P6/P7/P8 仍开放。
 
 2026-10-17 [精确 D3 GPIOEN writer](p7-d3-directed-register-writer-20261017.md)：真实 CV32E40P 执行 `0x55`／`0xaa` 候选，原生 APB、读回和 RAM 均有观察，完整 fresh 匹配；缺版本前置条件与编译 checker，完整 D3 继续拒绝。另有[DMA ERR 后同进程继续搬运](dma-error-recovery-20261017.md)真实门 2 passed，补齐错误事务在账本中的序号。
