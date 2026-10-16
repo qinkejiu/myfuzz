@@ -1,0 +1,10 @@
+{
+  "source_only": true,
+  "native_run": false,
+  "full_host_freeze_eligible": false,
+  "reason": "Concurrent authorized storage-probe shared source edits; full host freeze must be regenerated after their freeze before remote preparation.",
+  "sha256": {
+    "scripts/verify_cvw_ahb_startup.py": "06f8ecf2a9c69a218c1537d114578574c142c5c9a2050bd773470cbda59ae9c2",
+    "tests/local_harness/test_cvw_ahb_gate.py": "e6ea4a40700aeff1533479452b695a3a2bba36a580f456e6285d38db0a49eabd"
+  }
+}

@@ -1,0 +1,134 @@
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+___________ test_default_source_freeze_does_not_construct_or_execute ___________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7c17722131d0>
+
+    def test_default_source_freeze_does_not_construct_or_execute(monkeypatch):
+        import subprocess
+        def refuse(*a,**k):raise AssertionError('source-only subprocess')
+        monkeypatch.setattr(subprocess,'Popen',refuse)
+>       g=gate();doc=g.prepare_freeze(SCRIPT.parents[1])
+          ^^^^^^
+
+tests/local_harness/test_cvw_ahb_gate.py:18: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/local_harness/test_cvw_ahb_gate.py:11: in gate
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap_external>:991: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1128: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x7c17722124b0>
+path = '/home/qinkejiu/myfuzz/scripts/verify_cvw_ahb_startup.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/home/qinkejiu/myfuzz/scripts/verify_cvw_ahb_startup.py'
+
+<frozen importlib._bootstrap_external>:1186: FileNotFoundError
+______ test_only_cpu_is_advanced_and_stop_requires_flag_and_backend_empty ______
+
+    def test_only_cpu_is_advanced_and_stop_requires_flag_and_backend_empty():
+>       g=gate()
+          ^^^^^^
+
+tests/local_harness/test_cvw_ahb_gate.py:26: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/local_harness/test_cvw_ahb_gate.py:11: in gate
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap_external>:991: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1128: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x7c1772211d60>
+path = '/home/qinkejiu/myfuzz/scripts/verify_cvw_ahb_startup.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/home/qinkejiu/myfuzz/scripts/verify_cvw_ahb_startup.py'
+
+<frozen importlib._bootstrap_external>:1186: FileNotFoundError
+________ test_scope_normalization_rejects_unknown_and_preserves_payload ________
+
+    def test_scope_normalization_rejects_unknown_and_preserves_payload():
+>       g=gate();nonce='a'*32
+          ^^^^^^
+
+tests/local_harness/test_cvw_ahb_gate.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/local_harness/test_cvw_ahb_gate.py:11: in gate
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap_external>:991: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1128: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x7c1772162840>
+path = '/home/qinkejiu/myfuzz/scripts/verify_cvw_ahb_startup.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/home/qinkejiu/myfuzz/scripts/verify_cvw_ahb_startup.py'
+
+<frozen importlib._bootstrap_external>:1186: FileNotFoundError
+___________________ test_runner_exactly_once_and_global_refs ___________________
+
+    def test_runner_exactly_once_and_global_refs():
+>       g=gate();row={'schema_version':g.EVENT_SCHEMA,'observer_record_index':3}
+          ^^^^^^
+
+tests/local_harness/test_cvw_ahb_gate.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/local_harness/test_cvw_ahb_gate.py:11: in gate
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap_external>:991: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1128: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x7c1772160890>
+path = '/home/qinkejiu/myfuzz/scripts/verify_cvw_ahb_startup.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/home/qinkejiu/myfuzz/scripts/verify_cvw_ahb_startup.py'
+
+<frozen importlib._bootstrap_external>:1186: FileNotFoundError
+________ test_standard_historical_three_pin_raw_cannot_pass_projection _________
+
+    def test_standard_historical_three_pin_raw_cannot_pass_projection():
+>       g=gate()
+          ^^^^^^
+
+tests/local_harness/test_cvw_ahb_gate.py:56: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/local_harness/test_cvw_ahb_gate.py:11: in gate
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap_external>:991: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1128: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x7c177213aae0>
+path = '/home/qinkejiu/myfuzz/scripts/verify_cvw_ahb_startup.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/home/qinkejiu/myfuzz/scripts/verify_cvw_ahb_startup.py'
+
+<frozen importlib._bootstrap_external>:1186: FileNotFoundError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cvw_ahb_gate.py::test_default_source_freeze_does_not_construct_or_execute
+FAILED tests/local_harness/test_cvw_ahb_gate.py::test_only_cpu_is_advanced_and_stop_requires_flag_and_backend_empty
+FAILED tests/local_harness/test_cvw_ahb_gate.py::test_scope_normalization_rejects_unknown_and_preserves_payload
+FAILED tests/local_harness/test_cvw_ahb_gate.py::test_runner_exactly_once_and_global_refs
+FAILED tests/local_harness/test_cvw_ahb_gate.py::test_standard_historical_three_pin_raw_cannot_pass_projection
+5 failed in 0.04s

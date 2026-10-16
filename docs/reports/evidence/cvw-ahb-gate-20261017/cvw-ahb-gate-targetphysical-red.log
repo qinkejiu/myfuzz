@@ -1,0 +1,76 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+_ test_saved_actual_target_physical_roles_bind_deliveries_and_reject_tamper[haddr] _
+
+role = 'haddr'
+
+    @pytest.mark.parametrize('role',['haddr','hwdata','hrdata','hresp'])
+    def test_saved_actual_target_physical_roles_bind_deliveries_and_reject_tamper(role):
+        import gzip,json
+        g=gate();root=SCRIPT.parents[1]
+        historical=json.loads(gzip.decompress((root/'docs/reports/evidence/cvw-ahb-source-audit-20261017/first.json.gz').read_bytes()))
+        artifact=json.loads(gzip.decompress((root/'docs/reports/evidence/ahb-register-identity-20261017/old-caliptra-target-artifact.json.gz').read_bytes()))
+        document=dict(target_artifact=artifact,deliveries=historical['deliveries'],
+                      target_driver_receipts=[{'receipt':{'payload':{'samples':historical['sha_samples']}}}])
+>       g.validate_target_physical(document)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'cvw_ahb_gate' has no attribute 'validate_target_physical'. Did you mean: 'validate_target_receipts'?
+
+tests/local_harness/test_cvw_ahb_gate.py:308: AttributeError
+_ test_saved_actual_target_physical_roles_bind_deliveries_and_reject_tamper[hwdata] _
+
+role = 'hwdata'
+
+    @pytest.mark.parametrize('role',['haddr','hwdata','hrdata','hresp'])
+    def test_saved_actual_target_physical_roles_bind_deliveries_and_reject_tamper(role):
+        import gzip,json
+        g=gate();root=SCRIPT.parents[1]
+        historical=json.loads(gzip.decompress((root/'docs/reports/evidence/cvw-ahb-source-audit-20261017/first.json.gz').read_bytes()))
+        artifact=json.loads(gzip.decompress((root/'docs/reports/evidence/ahb-register-identity-20261017/old-caliptra-target-artifact.json.gz').read_bytes()))
+        document=dict(target_artifact=artifact,deliveries=historical['deliveries'],
+                      target_driver_receipts=[{'receipt':{'payload':{'samples':historical['sha_samples']}}}])
+>       g.validate_target_physical(document)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'cvw_ahb_gate' has no attribute 'validate_target_physical'. Did you mean: 'validate_target_receipts'?
+
+tests/local_harness/test_cvw_ahb_gate.py:308: AttributeError
+_ test_saved_actual_target_physical_roles_bind_deliveries_and_reject_tamper[hrdata] _
+
+role = 'hrdata'
+
+    @pytest.mark.parametrize('role',['haddr','hwdata','hrdata','hresp'])
+    def test_saved_actual_target_physical_roles_bind_deliveries_and_reject_tamper(role):
+        import gzip,json
+        g=gate();root=SCRIPT.parents[1]
+        historical=json.loads(gzip.decompress((root/'docs/reports/evidence/cvw-ahb-source-audit-20261017/first.json.gz').read_bytes()))
+        artifact=json.loads(gzip.decompress((root/'docs/reports/evidence/ahb-register-identity-20261017/old-caliptra-target-artifact.json.gz').read_bytes()))
+        document=dict(target_artifact=artifact,deliveries=historical['deliveries'],
+                      target_driver_receipts=[{'receipt':{'payload':{'samples':historical['sha_samples']}}}])
+>       g.validate_target_physical(document)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'cvw_ahb_gate' has no attribute 'validate_target_physical'. Did you mean: 'validate_target_receipts'?
+
+tests/local_harness/test_cvw_ahb_gate.py:308: AttributeError
+_ test_saved_actual_target_physical_roles_bind_deliveries_and_reject_tamper[hresp] _
+
+role = 'hresp'
+
+    @pytest.mark.parametrize('role',['haddr','hwdata','hrdata','hresp'])
+    def test_saved_actual_target_physical_roles_bind_deliveries_and_reject_tamper(role):
+        import gzip,json
+        g=gate();root=SCRIPT.parents[1]
+        historical=json.loads(gzip.decompress((root/'docs/reports/evidence/cvw-ahb-source-audit-20261017/first.json.gz').read_bytes()))
+        artifact=json.loads(gzip.decompress((root/'docs/reports/evidence/ahb-register-identity-20261017/old-caliptra-target-artifact.json.gz').read_bytes()))
+        document=dict(target_artifact=artifact,deliveries=historical['deliveries'],
+                      target_driver_receipts=[{'receipt':{'payload':{'samples':historical['sha_samples']}}}])
+>       g.validate_target_physical(document)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'cvw_ahb_gate' has no attribute 'validate_target_physical'. Did you mean: 'validate_target_receipts'?
+
+tests/local_harness/test_cvw_ahb_gate.py:308: AttributeError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cvw_ahb_gate.py::test_saved_actual_target_physical_roles_bind_deliveries_and_reject_tamper[haddr]
+FAILED tests/local_harness/test_cvw_ahb_gate.py::test_saved_actual_target_physical_roles_bind_deliveries_and_reject_tamper[hwdata]
+FAILED tests/local_harness/test_cvw_ahb_gate.py::test_saved_actual_target_physical_roles_bind_deliveries_and_reject_tamper[hrdata]
+FAILED tests/local_harness/test_cvw_ahb_gate.py::test_saved_actual_target_physical_roles_bind_deliveries_and_reject_tamper[hresp]
+4 failed, 34 deselected in 0.14s

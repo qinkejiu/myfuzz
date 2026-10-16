@@ -1,0 +1,16 @@
+........F                                                                [100%]
+=================================== FAILURES ===================================
+______________ test_native_entry_requires_explicit_canonical_lock ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-218/test_native_entry_requires_exp0')
+
+    def test_native_entry_requires_explicit_canonical_lock(tmp_path):
+        g=gate()
+>       with pytest.raises(ValueError):g.validate_native_paths(tmp_path,tmp_path/'out',tmp_path/'lock')
+                                       ^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'cvw_ahb_gate' has no attribute 'validate_native_paths'
+
+tests/local_harness/test_cvw_ahb_gate.py:135: AttributeError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cvw_ahb_gate.py::test_native_entry_requires_explicit_canonical_lock
+1 failed, 8 passed in 4.30s

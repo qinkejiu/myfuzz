@@ -1,0 +1,30 @@
+.....F                                                                   [100%]
+=================================== FAILURES ===================================
+_________ test_receipt_bound_software_prefix_replay_and_fault_controls _________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profi...bfd9f3240b76ead0d95745a'}), <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x7db97281cb90>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7db97274be30>
+
+    def test_receipt_bound_software_prefix_replay_and_fault_controls(generated,monkeypatch):
+        from tests.local_harness.test_ahb_startup import transport_fixture
+        from dataclasses import asdict
+        artifact,cpu=generated;g=gate();transport_fixture(cpu,monkeypatch,pipeline=True)
+        records=[];original=cpu.command
+        def command(operation,fields):
+            receipt=original(operation,fields)
+            records.append(dict(operation=operation,fields=list(fields),receipt=asdict(receipt)))
+            return receipt
+        cpu.command=command
+        cpu.begin_case(g.CASE_ID)
+        for _ in range(3):cpu.step_local({})
+        document=dict(native_execution=cpu._execution,artifact=artifact.runtime_document,
+                      driver_receipts=records,runtime_events=copy.deepcopy(cpu.runtime_events),
+                      counts=copy.deepcopy(cpu._ahb_observer.counts),pending=cpu._ahb_observer.pending)
+>       g.replay_actual_prefix(document)
+        ^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'cvw_ahb_gate' has no attribute 'replay_actual_prefix'
+
+tests/local_harness/test_cvw_ahb_gate.py:79: AttributeError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cvw_ahb_gate.py::test_receipt_bound_software_prefix_replay_and_fault_controls
+1 failed, 5 passed in 4.32s

@@ -1,0 +1,32 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____ test_step_failure_preserves_original_exception_partial_rows_and_poison ____
+
+    def test_step_failure_preserves_original_exception_partial_rows_and_poison():
+        from types import SimpleNamespace
+        from dataclasses import dataclass
+        g=gate();failure=OSError('software injected service failure after receipt')
+        @dataclass
+        class Receipt:execution:str='a'*32
+        class Session:
+            _process=None;local_ticks=1;runtime_events=[]
+            def __init__(self):self.service=SimpleNamespace(events=[]);self.calls=0
+            def command(self,*args):self.calls+=1;return Receipt()
+            def begin_case(self,*args):pass
+            def end_case(self):pass
+            def _abort(self):pass
+            def step_local(self,inputs):
+                self.command('STEP_MEMORY',(1,0,0,0))
+                self.service.events.append({'kind':'memory_write','address':g.RESULT+64})
+                raise failure
+        session=Session();shared={'failed':False};capture=g.Capture(session,'cpu',shared)
+        with pytest.raises(OSError) as caught:session.step_local({})
+        assert caught.value is failure and len(capture.service_events)==1
+        assert capture.stream_contexts[0]['receipt_index']==0
+>       with pytest.raises(RuntimeError):session.command('STEP_MEMORY',(1,0,0,0))
+E       Failed: DID NOT RAISE RuntimeError
+
+tests/local_harness/test_cvw_ahb_gate.py:266: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cvw_ahb_gate.py::test_step_failure_preserves_original_exception_partial_rows_and_poison
+1 failed, 24 deselected in 0.05s

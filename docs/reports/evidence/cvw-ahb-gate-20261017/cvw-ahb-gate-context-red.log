@@ -1,0 +1,17 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_original_stream_context_is_current_cpu_receipt_not_old_flag _______
+
+    def test_original_stream_context_is_current_cpu_receipt_not_old_flag():
+        g=gate();document=dict(service_events=[{'kind':'memory_write'}],deliveries=[],acceptances=[],
+          driver_receipts=[{'receipt':{'payload':{'samples':[]},'tick_after':0}},
+                           {'receipt':{'payload':{'samples':[{}]},'tick_after':1}}],
+          stream_contexts=[dict(stream='service_events',stream_index=0,step_index=1,local_tick=1,receipt_index=1)])
+>       g.validate_stream_contexts(document)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'cvw_ahb_gate' has no attribute 'validate_stream_contexts'
+
+tests/local_harness/test_cvw_ahb_gate.py:241: AttributeError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cvw_ahb_gate.py::test_original_stream_context_is_current_cpu_receipt_not_old_flag
+1 failed, 23 deselected in 0.05s

@@ -1,0 +1,36 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_actual_two_session_manifest_entry_without_frontend_or_build _______
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profi...bfd9f3240b76ead0d95745a'}), <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x7429f3593590>)
+target = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequestV2(profile_path='configs/peripherals/caliptra_s...216dd3ed'}), <myfuzz.local_harness.ahb_lite_register_session.GeneratedAhbLiteRegisterSession object at 0x7429f367e0c0>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7429f3f088c0>
+
+    def test_actual_two_session_manifest_entry_without_frontend_or_build(generated,target,monkeypatch):
+        import hashlib
+        from myfuzz.local_harness import build,session,plan,runtime_renderer
+        from myfuzz.composition.component_profile import PhysicalFacts
+        from myfuzz.composition.source_crawler import ElaboratedPortFact
+        from myfuzz.scenario.runner import ScenarioRunner
+        from myfuzz.scenario.ownership import compile_ownership
+        from myfuzz.scenario.contracts import ResourceBudget
+        g=gate();cpu_art,cpu=generated;target_art,sha=target
+        facts={art.plan.profile.source.top_module:art.plan.facts for art in (cpu_art,target_art)}
+        def source_identity(artifact,**kw):
+            return dict(software_fixture=True,artifact_digest=artifact.runtime_document['artifact_digest'],
+              inputs=[dict(path=p,sha256=hashlib.sha256((SCRIPT.parents[1]/p).read_bytes()).hexdigest())
+                      for p in sorted(build._discover_host_sources())])
+        monkeypatch.setattr(build,'local_build_identity',source_identity)
+        monkeypatch.setattr(session,'local_build_identity',source_identity)
+        monkeypatch.setattr(plan,'elaborate_profile',lambda profile,**kw:facts[profile.source.top_module])
+        monkeypatch.setattr(runtime_renderer,'elaborate_profile',lambda profile,**kw:facts[profile.source.top_module])
+        runner=ScenarioRunner(sessions={'cpu':cpu,'sha':sha},ownership=compile_ownership((),()),bindings=())
+        runner.set_resource_budget(ResourceBudget())
+>       manifest=g.manifest_for_runner(runner,runner.identity_document())
+                 ^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'cvw_ahb_gate' has no attribute 'manifest_for_runner'
+
+tests/local_harness/test_cvw_ahb_gate.py:233: AttributeError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cvw_ahb_gate.py::test_actual_two_session_manifest_entry_without_frontend_or_build
+1 failed, 22 deselected in 0.47s

@@ -1,0 +1,23 @@
+...........F                                                             [100%]
+=================================== FAILURES ===================================
+___ test_historical_saved_chain_payload_binding_only_not_new_13tap_evidence ____
+
+    def test_historical_saved_chain_payload_binding_only_not_new_13tap_evidence():
+        import gzip,json
+        g=gate();path=SCRIPT.parents[1]/'docs/reports/evidence/cvw-ahb-source-audit-20261017/first.json.gz'
+        historical=json.loads(gzip.decompress(path.read_bytes()))
+        document={**historical,'backend_pending':historical['pending_responses'],'stop_reached':True,
+          'driver_receipts':[{'receipt':{'payload':{'samples':[s]}}} for s in historical['cpu_samples']]}
+        g.validate_chain(document)
+        bad=copy.deepcopy(document);bad['outputs'][0]['data_rsp_rdata']^=1
+        # Select an actual MMIO read response, rather than changing an unrelated RAM beat.
+        sequence=next(d['source_sequence'] for d in bad['deliveries'] if not d['write'])
+        output=next(o for o in bad['outputs'] if o['data_rsp_consumed'] and o['data_rsp_source_sequence']==sequence)
+        output['data_rsp_rdata']^=1
+>       with pytest.raises(ValueError):g.validate_chain(bad)
+E       Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_cvw_ahb_gate.py:174: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cvw_ahb_gate.py::test_historical_saved_chain_payload_binding_only_not_new_13tap_evidence
+1 failed, 11 passed in 4.33s

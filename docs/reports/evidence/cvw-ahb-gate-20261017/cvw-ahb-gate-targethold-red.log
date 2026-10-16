@@ -1,0 +1,31 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______ test_target_physical_wait_data_and_same_edge_next_address_controls ______
+
+    def test_target_physical_wait_data_and_same_edge_next_address_controls():
+        import gzip,json
+        g=gate();root=SCRIPT.parents[1]
+        artifact=json.loads(gzip.decompress((root/'docs/reports/evidence/ahb-register-identity-20261017/old-caliptra-target-artifact.json.gz').read_bytes()))
+        pins=artifact['base_protocol_trace']['signals']
+        def sample(tick,**changes):
+            row=dict.fromkeys(pins,0);row.update(hreadyin=1,hreadyout=1,hsize=2);row.update(changes)
+            data={'backend':{pins[role]:value for role,value in row.items()}}
+            return dict(local_tick=tick,pre=data,post=copy.deepcopy(data))
+        samples=[sample(1,hsel=1,htrans=2,haddr=0x80,hwrite=1),
+          sample(2,hreadyin=0,hreadyout=0,hwdata=42),
+          sample(3,hwdata=42,hsel=1,htrans=2,haddr=0x100,hwrite=0),
+          sample(4,hrdata=7)]
+        document=dict(target_artifact=artifact,deliveries=[dict(offset=0x80,write=True,write_value=42),dict(offset=0x100,write=False,read_value=7)],
+          target_driver_receipts=[{'receipt':{'payload':{'samples':samples}}}])
+        assert len(g.validate_target_physical(document))==2
+        stalled=copy.deepcopy(document)
+        bad_sample=sample(3,hreadyin=0,hreadyout=0,hwdata=43)
+        stalled['target_driver_receipts'][0]['receipt']['payload']['samples'].insert(2,bad_sample)
+        for i,row in enumerate(stalled['target_driver_receipts'][0]['receipt']['payload']['samples'],1):row['local_tick']=i
+>       with pytest.raises(ValueError):g.validate_target_physical(stalled)
+E       Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_cvw_ahb_gate.py:336: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cvw_ahb_gate.py::test_target_physical_wait_data_and_same_edge_next_address_controls
+1 failed, 38 deselected in 0.22s

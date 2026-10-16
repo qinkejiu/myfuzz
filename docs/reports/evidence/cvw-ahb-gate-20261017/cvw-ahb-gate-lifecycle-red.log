@@ -1,0 +1,16 @@
+......F                                                                  [100%]
+=================================== FAILURES ===================================
+_____________ test_lifecycle_and_typed_receipt_comparison_controls _____________
+
+    def test_lifecycle_and_typed_receipt_comparison_controls():
+        g=gate();execution='a'*32
+        receipt=dict(execution=execution,status='result',payload={'literal':execution})
+        rows=[dict(operation='ACCESS_AHB_REG',fields=[0,0,0,15],receipt=receipt)]
+>       normalized=g.normalize_receipts(rows,execution,'sha')
+                   ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'cvw_ahb_gate' has no attribute 'normalize_receipts'
+
+tests/local_harness/test_cvw_ahb_gate.py:94: AttributeError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cvw_ahb_gate.py::test_lifecycle_and_typed_receipt_comparison_controls
+1 failed, 6 passed in 4.27s

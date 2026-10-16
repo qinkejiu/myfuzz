@@ -1,0 +1,9 @@
+{
+  "source_only": true,
+  "native_run": false,
+  "sha256": {
+    "scripts/verify_cvw_ahb_startup.py": "dd6732976e2d554027b4a907986e38a41e5b30ece9423b165f5925f85a8af27b",
+    "tests/local_harness/test_cvw_ahb_gate.py": "f1c926d29775fee4463279816a7453c9f7ee9201472b070a9a2fbfab91c8e95c",
+    "docs/reports/evidence/cvw-ahb-gate-20261017/source-freeze.json": "0ba2e7a7d8a8b9c9907602859600934cbcea13659ebcefa0eff9b7551671674e"
+  }
+}
