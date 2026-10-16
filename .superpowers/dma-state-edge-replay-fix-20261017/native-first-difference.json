@@ -1,0 +1,40 @@
+{
+  "scope": "observation of unchanged frozen implementation; not a passing gate",
+  "reference_sha256": "fb44d211a11d3d34d966ccd5a480c3c0518a227831e67833240aa4cc131dd735",
+  "error": {
+    "type": "RuntimeError",
+    "message": "fresh replay differs from full finalized original prefix"
+  },
+  "expected_event_count": 34794,
+  "actual_event_count": 34794,
+  "expected_ticks": {
+    "cpu": 1314,
+    "dma": 1394,
+    "uart": 4790
+  },
+  "actual_ticks": {
+    "cpu": 1314,
+    "dma": 1394,
+    "uart": 4790
+  },
+  "expected_status": "complete",
+  "actual_status": "complete",
+  "expected_execution_ids": {
+    "cpu": "5545d71d1e0b4031a1af7c3efa661aba",
+    "dma": "4ab654cf02284d9b932d084852b8e8d2",
+    "runner": "38f7bc7166234a8baa4c211e89b0fbc3",
+    "uart": "77e09aa644eb4869a1e339257bd2d934"
+  },
+  "actual_execution_ids": {
+    "cpu": "8b9cb19ca71d448983dc66cbb3feb0e3",
+    "dma": "e928e189993a47a091dc2458b4f40811",
+    "uart": "1aa9b79ccb844de0a47cf07dc115ee93",
+    "runner": "4807af68ca494c65a9e0c7c37f36dc59"
+  },
+  "events_first_difference": {
+    "path": "$[4822].source",
+    "expected": "TransactionKey(execution_id='4ab654cf02284d9b932d084852b8e8d2', testcase_id='continuous-dma-uart-rx', source_component='dma', source_epoch=0, channel_id='dma-memory', source_sequence=2)",
+    "actual": "TransactionKey(execution_id='e928e189993a47a091dc2458b4f40811', testcase_id='continuous-dma-uart-rx', source_component='dma', source_epoch=0, channel_id='dma-memory', source_sequence=2)"
+  },
+  "uncertain_first_difference": null
+}

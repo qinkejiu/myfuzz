@@ -1,0 +1,36 @@
+{
+  "scope": "typed root state_dependency source/target execution nonce comparison only",
+  "source_sha256": {
+    "src/myfuzz/integration/dma_uart_rx_runtime.py": "cbc59d31e20f6f9e151ff18473ea5874cec93973a93f2b0bb25937b081b7e816",
+    "tests/integration/test_dma_uart_rx_replay_state_edges.py": "ec183260041d5818299652ae8a2ad534a2628a7896268f9dcbcd1840036f808d"
+  },
+  "red": {
+    "exit": 1,
+    "result": "1 failed, 3 passed in 0.26s"
+  },
+  "green": {
+    "exit": 0,
+    "result": "5 passed, 1 skipped in 0.29s"
+  },
+  "regression": {
+    "exit": 0,
+    "result": "64 passed, 1 skipped in 32.07s"
+  },
+  "saved_data_audit": {
+    "scope": "offline frozen raw data comparison with proposed typed normalization; not new native gate",
+    "source_normalizer_sha256": "31b49c7d5a405c1bf6df6da5a410d95c98fbd6158bf86436c920dc53cbddfa5d",
+    "original_events": 34794,
+    "actual_events": 34794,
+    "differing_event_indexes": [],
+    "events_equal": true,
+    "expected_normalized_record_digest": "d1c1b2f7672d2a3d8c95b7a79c645d6a5e75577dc03a154cac0061073bef5919",
+    "actual_normalized_record_digest": "d1c1b2f7672d2a3d8c95b7a79c645d6a5e75577dc03a154cac0061073bef5919",
+    "ticks_equal": true,
+    "uncertain_equal": true,
+    "original_status": "complete",
+    "actual_status": "complete"
+  },
+  "new_native_gate_run": false,
+  "original_attempt4_native_exit": 1,
+  "next_gate": "new independent snapshot attempt5; original budget300s; all4bytes plus fresh and actualbound failure/fresh"
+}

@@ -1,0 +1,17 @@
+F...                                                                     [100%]
+=================================== FAILURES ===================================
+____________ test_fresh_state_dependency_source_scope_is_structural ____________
+
+    def test_fresh_state_dependency_source_scope_is_structural():
+        original, fresh = identities(), identities(20)
+>       assert _normalize([edge(original['dma'])], original) == _normalize([edge(fresh['dma'])], fresh)
+E       assert [{'kind': 'st...: 'RAW', ...}] == [{'kind': 'st...: 'RAW', ...}]
+E         
+E         At index 0 diff: {'kind': 'state_dependency', 'event_id': 4823, 'producer_event_id': 4822, 'edge_kind': 'RAW', 'memory_id': 'ram', 'generation': 0, 'byte_offset': 77824, 'version': [0, 1], 'source': "TransactionKey(execution_id='00000000000000000000000000000002', testcase_id='continuous-dma-uart-rx', source_component='dma', source_epoch=0, channel_id='dma-memory', source_sequence=2)", 'target': "TransactionKey(execution_id='local-execution', source_sequence=12)"} != {'kind': 'state_dependency', 'event_id': 4823, 'producer_event_id': 4822, 'edge_kind': 'RAW', 'memory_id'...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+tests/integration/test_dma_uart_rx_replay_state_edges.py:27: AssertionError
+=========================== short test summary info ============================
+FAILED tests/integration/test_dma_uart_rx_replay_state_edges.py::test_fresh_state_dependency_source_scope_is_structural
+1 failed, 3 passed in 0.26s
