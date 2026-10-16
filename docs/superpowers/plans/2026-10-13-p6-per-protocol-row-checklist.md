@@ -245,3 +245,15 @@ F6/P8 方向已有独立真实 DMA master 定向证据：固定 ZipCPU `wbdmac` 
 VexiiRiscv 的固定源码与 SpinalHDL 子模块已生成 563119 字节的 RV32 双 AXI Verilog，lint 退出 0（3 项警告），48 个顶层端口已记录于 `configs/cpus/vexiiriscv/generated`；无可运行 session，不能记真实 CPU 事务。BOOM 仍缺固定 Chipyard 生成闭包。ZipCPU DMA 和 Caliptra AHB-Lite SHA256 已有静态源锁/闭包/profile，但两者都未运行真实事务，F6 与第四系列的运行验收仍开放。
 
 以上最后一段保留为早期资产盘点，现由如下实测状态覆盖：VexiiRiscv 已有受限双 AXI 生成式 profile/driver/session，远端真实 CPU/RAM 门禁 9 passed，两个 fresh 进程均完成 11 次取指、1 次 LSU 读和 2 次写响应，读响应替换改变程序结果；见[生成式报告](../../reports/vexiiriscv-generated-harness-20261017.md)。ZipCPU `wbdmac` 已有[Ibex 实际配置、真实 RAM→RAM 搬运及 ISR 定向闭环](../../reports/ibex-zipcpu-dma-irq-isr-directed-20261017.md)。第四系列 Caliptra SHA256 已有[真实 AHB-Lite 寄存器事务与摘要](../../reports/caliptra-sha256-ahb-target-20261017.md)，离线协议证据消费者对两进程各复核 91 条事务。BOOM 的固定 Chipyard/BOOM 源码闭包已钉定，但真实生成仍被历史 `chisel3_2.12:3.5-SNAPSHOT`、`chisel-iotesters_2.12:2.5-SNAPSHOT` 缺失阻断，见[构建证据](../../../configs/cpus/boom/generation_evidence_20261017.md)。这些增量均未满足上文八格整行验收，P6 仍未通过。
+
+
+### 2026-10-17 后续冻结证据：六 CPU 均已有各自定向真实 CPU/IP 链
+
+本节覆盖此前“BOOM 仍不能生成”及“VexiiRiscv 尚无 CPU/IP”的历史可用性描述，不把定向链升级为上述八格整行通过。
+
+- BOOM 的显式派生源码已生成真实 RTL；冻结 `8a3fed3` 又重新构建持久驱动，通过标准 Runner/Router→PULP GPIO→CPU 读回/分支→原生 RAM。两次 fresh 完整 20,597 事件前缀一致；实际读值 53 改交付 52 后 CPU 保存 52 并进入失败分支，抑制响应使 CPU 等待。独立证据复核无高/中问题。见[源码与证据入口](../../../configs/cpus/boom/README.md)。GPIO 程序仅覆盖 A/D，不能证明新持久驱动的 C/E；旧独立缓存 RAM 门属于另一份驱动证据。新 C/E 补充、IRQ、双侧搜索与来源权威仍开放。
+- VexiiRiscv 已有[生成式真实 CPU/IP 链](../../reports/vexiiriscv-generated-cpu-ip-20261017.md)：CPU 写 GPIO 53、读回后保存 RAM 54，完整 fresh 原始采样一致，目标读响应替换被拒绝。实际配置采用受限双 AXI，不能把该证据登记成 Vexii TileLink 协议验收。
+- CVW 已有[Caliptra SHA256→RAM 真实链](../../reports/cvw-caliptra-cpu-chain-20261017.md)，最终 3 passed／100 秒，CPU 计算 abc/abd 两份摘要，84 条实际 MMIO 与 fresh 相等；错误窗口和 CPU 字节写负例被拒绝。
+- DMA 已有[标准 Runner UART RX→DMA→RAM→Ibex ISR](../../reports/dma-uart-rx-standard-runner-20261017.md)的单例完整 fresh 证明。多例连续 runtime 已实际暴露启动顺序和重复拷贝瓶颈并修复，当前四字节连续成功/失败前缀真实重跑仍未验收。
+
+Ibex、CVA6、CV32E40P 的既有范围仍按各自冻结报告判定。六 CPU 的定向真实链不等于六 CPU 的同等在线能力；当前源码联合验收、所有协议整行、P6/P7/P8 均保持开放。
