@@ -12,6 +12,7 @@ from itertools import islice
 from pathlib import Path
 from typing import Callable
 
+from myfuzz.local_harness.build import host_source_discovery_scope
 from myfuzz.scenario.batch import (BatchAdvance, BatchSourceEvent,
     ScenarioBatchCodec, ScenarioBatchPlan, ScenarioBatchRecorder)
 from myfuzz.scenario.contracts import ResourceBudget
@@ -258,6 +259,7 @@ def _close(runner):
             pass
 
 
+@host_source_discovery_scope()
 def run_continuous_uart_rx(source_bytes, *, cache_dir: Path,
         max_rounds_per_case=4096, max_source_ticks=2048,
         budget: ResourceBudget | None = None,
@@ -289,11 +291,13 @@ def run_continuous_uart_rx(source_bytes, *, cache_dir: Path,
         recorder.begin()
         uart = runner.sessions['uart']
         router = runner.sessions['cpu'].router
-        # Only boot: wait for the CPU's actual UART CTRL acceptance/delivery.
+        # A genome-owned UART cannot take its first step without an admitted
+        # byte. Boot CPU/DMA until the actual CTRL request is queued; the first
+        # source admission then starts UART and its idle margin lets that real
+        # CTRL transaction finish before the serial waveform starts.
         for _ in range(512):
-            recorder.advance(('dma', 'cpu', 'uart'))
-            if any(d['device_id'] == 'uart' and d['offset'] == 0x10
-                    and d['write'] for d in router.deliveries):
+            recorder.advance(('dma', 'cpu'))
+            if 'uart' in router.ready_targets:
                 break
         else:
             raise RuntimeError('CPU UART initialization exceeded boot bound')
@@ -313,10 +317,13 @@ def run_continuous_uart_rx(source_bytes, *, cache_dir: Path,
             else:
                 raise RuntimeError('native serial frame exceeded source bound')
             phase = 'isr'
+            poll_cursor = start
             for _ in range(max_rounds_per_case):
                 recorder.advance(('dma', 'cpu', 'uart'))
                 # A native CPU store is the completion signal, never a host write.
-                commits = [e for e in runner.events_since(start)
+                new_rows = runner.events_since(poll_cursor)
+                poll_cursor = runner.event_count
+                commits = [e for e in new_rows
                     if e.get('kind') == 'memory_write' and e.get('component') == 'cpu'
                     and e.get('address') == COMPLETED]
                 if commits:
@@ -384,8 +391,7 @@ def _host_failure_still_present(reference, runner):
     phase = reference.phase
     rows = runner.events_since(reference.error.get('case_start', 0))
     if phase == 'boot':
-        return not any(d['device_id'] == 'uart' and d['offset'] == 0x10
-            and d['write'] for d in runner.sessions['cpu'].router.deliveries)
+        return 'uart' not in runner.sessions['cpu'].router.ready_targets
     sources = [c for c in reference.plan.commands if isinstance(c, BatchSourceEvent)]
     if not sources:
         return False
@@ -407,6 +413,7 @@ def _host_failure_still_present(reference, runner):
     return False
 
 
+@host_source_discovery_scope()
 def replay_continuous_uart_rx(reference: ContinuousRxResult, *, cache_dir: Path,
         budget: ResourceBudget | None = None,
         factory: Callable[[], ScenarioRunner] | None = None) -> ContinuousRxResult:
