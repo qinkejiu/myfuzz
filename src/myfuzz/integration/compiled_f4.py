@@ -142,7 +142,8 @@ def check_f4_exact_hops(*, events, declaration, image, stream, traces, address, 
     for offset in range(0,32,4):
         rows=[e for e in events if e.get('kind')=='memory_read' and e.get('component')==cpu
               and e.get('address')==address+offset and e.get('transaction',{}).get('channel_id')=='instr'
-              and e.get('writer_event_ids')==[source_event_id]*4
+              and isinstance(e.get('writer_event_ids'),(list,tuple))
+              and tuple(e['writer_event_ids'])==(source_event_id,)*4
               and e.get('data_hex')==code[offset:offset+4].hex()]
         if len(rows)!=1:raise ValueError('compiled-F4-instruction-version-hop-missing')
         read=rows[0];transaction=read['transaction']
