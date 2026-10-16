@@ -1,0 +1,222 @@
+{
+  "ports": [
+    {
+      "direction": "input",
+      "members": [],
+      "name": "clk",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+        "line": 54
+      },
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "reset_ext",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+        "line": 55
+      },
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "HRDATAEXT",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+        "line": 61
+      },
+      "width": 32
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "HREADYEXT",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+        "line": 62
+      },
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "HRESPEXT",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+        "line": 63
+      },
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "HCLK",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+        "line": 64
+      },
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "HRESETn",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+        "line": 65
+      },
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "HADDR",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+        "line": 66
+      },
+      "width": 34
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "HWDATA",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+        "line": 67
+      },
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "HWSTRB",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+        "line": 68
+      },
+      "width": 4
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "HWRITE",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+        "line": 69
+      },
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "HSIZE",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+        "line": 70
+      },
+      "width": 3
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "HBURST",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+        "line": 71
+      },
+      "width": 3
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "HPROT",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+        "line": 72
+      },
+      "width": 4
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "HTRANS",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+        "line": 73
+      },
+      "width": 2
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "HMASTLOCK",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+        "line": 74
+      },
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "HREADY",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+        "line": 75
+      },
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "HSELEXT",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "configs/cpus/cvw/cvw_ahb_cpu_top.sv",
+        "line": 76
+      },
+      "width": 1
+    }
+  ],
+  "schema_version": "elaborated_ports.v1",
+  "top_module": "cvw_ahb_cpu_top"
+}

@@ -190,3 +190,19 @@ def test_contract_refuses_data_cache_even_if_config_hash_matches(monkeypatch):
     profile = load_component_profile(json.loads(PROFILE.read_text()))
     with pytest.raises(ValueError, match='cvw-config-data-cache-enabled'):
         cvw_contract.verify_cvw_source_contract(profile, base_dir=ROOT)
+
+
+def test_recorded_elaboration_is_portable_and_has_committed_evidence():
+    closure = json.loads((ROOT / 'configs/soc/closures/cvw.json').read_text())
+    command = closure['command']
+    assert command[0] == 'verilator'
+    for argument in command[1:]:
+        assert not argument.startswith('/')
+        assert not argument.startswith('-I/')
+        assert '/home/' not in argument
+    evidence = closure['configuration_refresh']
+    manifest = ROOT / evidence['manifest']
+    assert manifest.is_file()
+    assert hashlib.sha256(manifest.read_bytes()).hexdigest() == evidence['manifest_sha256']
+    assert (ROOT / closure['lint']['log']).is_file()
+    assert evidence['relocation_replay']['returncode'] == 0
