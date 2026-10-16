@@ -1,0 +1,27 @@
+{
+  "schema_version": "boom_irq_runtime_ready.v1",
+  "native_executed": false,
+  "exact_go_required": true,
+  "gate_source_commit": "70fdbcb",
+  "independent_review_commit": "869c70b",
+  "metadata_evidence_commit": "64026db",
+  "factory_fix_commit": "15bc4cb",
+  "artifact_path": "/root/fanzehui/boom-irq-factory-fix-20261017/artifact-finalized",
+  "artifact_sha256": "3f405a57322a697f0dfee4004ef15e9c3c5c849bf1fc360b0dd0d087f2bbf89d",
+  "freeze_sha256": "ff5470d2345868bb6f7452b58e38e2ad279c3fc99a66573a3e13cee2e8870167",
+  "control_hashes": {
+    "control/controller.py": "f7257fd406a292319125f60a8b8ffe1d6e15716af727044cfed4b8d0a1f6f332",
+    "control/launch.sh": "021d2dda7cb1693e054d89e2e3c68b77cf88122bebe8054be784d2d07f19457a",
+    "control/prepare.py": "bb87aa2adf6733bac29fde0dca401c3df27d01cff67affdd545a77aac3c0caf3",
+    "control/test_control.py": "5c64420ea9fefd195a66dcb398cca1b92277a00f780acdc59db27f1fd2f8872f",
+    "control/test_prepare.py": "8aef51fd10c17e4081ffad4d090f4802c07d966e205cccb372822a75a9be9238",
+    "baseline-source-files.json": "05392549962d51717ed7030c855788d6e66a9085b5a851e6bc4873617d5a9a28",
+    "baseline-artifact-files.json": "9ac136ccc7557146fff56e8a8267a483b65994ce045133c1a80d9651f7f660b7",
+    "project-files.json": "05392549962d51717ed7030c855788d6e66a9085b5a851e6bc4873617d5a9a28",
+    "original-source-files.json": "05392549962d51717ed7030c855788d6e66a9085b5a851e6bc4873617d5a9a28",
+    "original-artifact-files.json": "9ac136ccc7557146fff56e8a8267a483b65994ce045133c1a80d9651f7f660b7",
+    "source-freeze.json": "ff5470d2345868bb6f7452b58e38e2ad279c3fc99a66573a3e13cee2e8870167",
+    "state/preparation-imports.json": "218688e8a9acb146cc891f006e0048e613c30ef730783e70a542cecb6a1a44a3",
+    "state/preparation.json": "6462acdc5aa763d159ca802197585e68441f67913e75104eb509d56d11336f25"
+  }
+}

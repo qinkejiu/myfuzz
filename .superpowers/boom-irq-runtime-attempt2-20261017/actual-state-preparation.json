@@ -1,0 +1,35 @@
+{
+  "status": "prepared_not_executed",
+  "files": 2567,
+  "baseline_source_files": 2567,
+  "protected_artifact_files": 88,
+  "added_files": [],
+  "shared_source_inodes": [],
+  "all_links_one": true,
+  "original_source_unchanged": true,
+  "original_artifact_unchanged": true,
+  "pulp_git_is_directory": true,
+  "pulp_git_files": 39,
+  "source_freeze_files": 389,
+  "tools": {
+    "which_verilator": "/root/fanzehui/myfuzz/.tools/verilator-5.051-e413e67/bin/verilator",
+    "files": {
+      "verilator": {
+        "path": "/root/fanzehui/myfuzz/.tools/verilator-5.051-e413e67/bin/verilator",
+        "resolved_path": "/root/fanzehui/myfuzz/.tools/verilator-5.051-e413e67/bin/verilator",
+        "sha256": "fb2cc573b1055cf096c90e1efc9966fe56bdb4b265c83590cf2a49f7a0defcdf"
+      },
+      "verilator_bin": {
+        "path": "/root/fanzehui/myfuzz/.tools/verilator-5.051-e413e67/bin/verilator_bin",
+        "resolved_path": "/root/fanzehui/myfuzz/.tools/verilator-5.051-e413e67/bin/verilator_bin",
+        "sha256": "ad3ad4d5653e9431eb907c31e5a7bfad3cd4ae59469b0f8e7c63403521225579"
+      }
+    }
+  },
+  "constructor_executed": false,
+  "model_executed": false,
+  "build_executed": false,
+  "describe_executed": false,
+  "whole_head_reviewed": false,
+  "source_authority": false
+}
