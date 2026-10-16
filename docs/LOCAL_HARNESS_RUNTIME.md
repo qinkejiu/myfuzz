@@ -234,7 +234,7 @@ F6 DMA 已有真实 ZipCPU `wbdmac` 主设备 harness 与持久 RAM→RAM 四字
 
 后续定向双向增量（提交 `3dbbbb8`）：CPU 再读外部 `gpio_in=0xa5` 经 GPIO 同步后的 PADIN，并将读值写入 RAM；两份独立进程的结果均为 `[0x35,0x6a,1,0xa5]`，七笔 APB/路由交付逐项一致。正例 `1 passed in 127.52s`，旧零窗口负例 `1 passed in 64.46s`。外部值由测试直接驱动，尚无绑定来源事件或在线变异。远端日志与完整证据、快照边界见 [CVW／PULP GPIO 双向定向报告](reports/cvw-pulp-gpio-bidirectional-directed-20261017.md)。
 
-VexiiRiscv 固定生成 RTL 的定向 RAM 运行也已实测：fetch AXI 取指、LSU AXI 一读两写，两个新进程都在 75 tick 得 `[53,54]`；将唯一读响应改为 0 的对照得到 `[53,1]`。该证据仍缺生成式 profile、local harness 和外设组合，见 [VexiiRiscv 定向 RAM 报告](reports/vexiiriscv-direct-axi-ram-20261017.md)。
+VexiiRiscv 固定生成 RTL 的双 AXI 定向 RAM 运行已实测，随后受限双 AXI 生成式 profile、driver 和 session 也完成独立门禁：两次 fresh 进程各在 55 个实测边沿完成 11 次 fetch、1 次 LSU 读、2 次写响应，RAM 得 `[53,54]`；替换唯一读响应的对照得到 `[53,1]`，原始样本及构建身份相同、执行 ID 不同。该能力仅为生成式 CPU/RAM 定向，不含 CPU/IP、IRQ、证据消费者/coverage、认证前缀 replay 或在线变异；见 [生成式 VexiiRiscv 报告](reports/vexiiriscv-generated-harness-20261017.md)。
 
 ZipCPU `wbdmac` 已在真实生成式 session 中完成两次独立四字 RAM→RAM 传输：每次四读四写、四笔目的 RAM 提交、第 34 边沿真实 IRQ，完整轨迹归一化进程 UUID 后一致。这一局部运行没有 CPU 配置或消费 IRQ；实测环境对写 burst 尾 ACK 使用一边沿额外延迟，任意延迟稳健性未证。详见 [真实 DMA RAM 报告](reports/zipcpu-wbdmac-real-ram-20261017.md)。
 

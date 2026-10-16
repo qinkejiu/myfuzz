@@ -42,7 +42,7 @@ tree after the final run (zero stale files).
 ```sh
 cd /root/fanzehui/system-20261016/project
 . /root/fanzehui/system-20261016/environment.sh
-flock -n /root/fanzehui/system-20261016/heavy-worker.lock env \
+flock -n /root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock env \
  MYFUZZ_VEXII_REAL=1 \
  MYFUZZ_VEXII_CACHE=/root/fanzehui/system-20261016/cache/vexii-generated \
  MYFUZZ_VEXII_EVIDENCE=/root/fanzehui/system-20261016/evidence/vexii-generated-current-20261017 \
