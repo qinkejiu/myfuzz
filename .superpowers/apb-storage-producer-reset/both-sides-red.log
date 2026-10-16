@@ -1,0 +1,24 @@
+Fs                                                                       [100%]
+=================================== FAILURES ===================================
+____ test_replacing_both_class_and_table_pin_sides_cannot_rebaseline[timer] ____
+
+storage = <myfuzz.local_harness.apb3_register_session.Alternate object at 0x78e959ef58b0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78e959ffe390>
+
+    def test_replacing_both_class_and_table_pin_sides_cannot_rebaseline(storage,monkeypatch):
+        from types import MappingProxyType
+        from myfuzz.local_harness import apb3_register_session as module
+        original=type(storage)
+        alternate=type('Alternate',(original,),{key:value for key,value in vars(original).items() if key not in ('__dict__','__weakref__')})
+        declarations=MappingProxyType(dict(vars(alternate)))
+        resolved=MappingProxyType({name:(getattr(alternate,name),getattr(alternate,name).__code__) for name in dir(alternate) if hasattr(getattr(alternate,name),'__code__')})
+        for name,value in [('GeneratedApb3RegisterSession',alternate),('_NATIVE_RESET_APB_CLASS',alternate),('_NATIVE_RESET_APB_DECLARATIONS',declarations),('_NATIVE_RESET_APB_DECLARATIONS_PIN',declarations),('_NATIVE_RESET_APB_RESOLVED',resolved),('_NATIVE_RESET_APB_RESOLVED_PIN',resolved)]:
+            monkeypatch.setattr(module,name,value)
+        storage.__class__=alternate
+>       with pytest.raises(ValueError):storage.configure_native_reset_observation()
+E       Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_native_reset_producer_contract.py:110: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_native_reset_producer_contract.py::test_replacing_both_class_and_table_pin_sides_cannot_rebaseline[timer]
+1 failed, 1 skipped, 46 deselected in 0.43s

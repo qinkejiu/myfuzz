@@ -155,6 +155,14 @@ class GeneratedApb3RegisterSession(GeneratedLocalSession):
         return 0 if self._started else len(self.setup_writes) + len(self.probe_offsets)
 
     def _take(self, reply, *, step=False):
+        try:
+            return self._take_impl(reply, step=step)
+        except BaseException:
+            if self._native_reset_observation is not None:
+                self._native_reset_observation._consumer_failed(self, 'apb_take_failed_after_parse')
+            raise
+
+    def _take_impl(self, reply, *, step=False):
         if reply.status != 'result' or reply.payload is None:
             raise RuntimeError(f'{self.transport_error_label} transport error: ' + str(reply.error_code))
         payload = reply.payload
@@ -267,3 +275,15 @@ class GeneratedApb3RegisterSession(GeneratedLocalSession):
         self._dynamic_values = {name: 0 for name in self._dynamic}
         self._bound_values = {name: 0 for name in self._bound}
         return result
+
+# Exact declaration/resolved code baseline established at class definition time.
+from types import MappingProxyType as _ResetMappingProxyType
+_NATIVE_RESET_APB_CLASS = GeneratedApb3RegisterSession
+_NATIVE_RESET_APB_DECLARATIONS = _ResetMappingProxyType(dict(vars(GeneratedApb3RegisterSession)))
+_NATIVE_RESET_APB_DECLARATIONS_PIN = _NATIVE_RESET_APB_DECLARATIONS
+_NATIVE_RESET_APB_RESOLVED = _ResetMappingProxyType({name: (getattr(GeneratedApb3RegisterSession,name), getattr(GeneratedApb3RegisterSession,name).__code__)
+    for name in dir(GeneratedApb3RegisterSession) if hasattr(getattr(GeneratedApb3RegisterSession,name), '__code__')})
+_NATIVE_RESET_APB_RESOLVED_PIN = _NATIVE_RESET_APB_RESOLVED
+
+from .native_reset_producer_contract import _seal_code_owned_producer
+_seal_code_owned_producer(GeneratedApb3RegisterSession)

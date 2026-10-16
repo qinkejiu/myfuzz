@@ -35,14 +35,13 @@ class NativeResetPrivateState:
 
 class NativeResetObservation:
     def __init__(self, owner, *, max_lifecycles=256, max_commands=4096):
-        from .gpio_session import GeneratedPulpGpioSession
         from .session import _NATIVE_RESET_CHECK_PRODUCERS
-        if (type(owner) is not GeneratedPulpGpioSession or owner._process is not None
+        if (owner._process is not None
                 or owner._case_id is not None or owner._execution or owner.reset_epoch
                 or owner._native_reset_observation is not None
                 or type(max_lifecycles) is not int or not 1<=max_lifecycles<=65536
                 or type(max_commands) is not int or not 1<=max_commands<=65536):
-            raise ValueError('native reset observation requires fresh actual GPIO')
+            raise ValueError('native reset observation requires fresh registered actual producer')
         _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
         self._owner=owner
         self._limits=(max_lifecycles,max_commands)
@@ -66,7 +65,11 @@ class NativeResetObservation:
         self._sources={str(Path(module.__file__).resolve()):hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest()
             for module in __import__('sys').modules.values() if module is not None
             and getattr(module,'__name__','') in ('myfuzz.local_harness.session','myfuzz.local_harness.gpio_session',
-                'myfuzz.local_harness.native_reset_observation','myfuzz.local_harness.build','myfuzz.local_harness.wire')}
+                'myfuzz.local_harness.native_reset_observation','myfuzz.local_harness.build','myfuzz.local_harness.wire',
+                'myfuzz.local_harness.apb3_register_session','myfuzz.local_harness.native_reset_producer_contract',
+                'myfuzz.local_harness.apb_storage_probe_contract','myfuzz.local_harness.apb_storage_source_contract',
+                'myfuzz.local_harness.native_physical_observation','myfuzz.local_harness.runtime_renderer',
+                'myfuzz.local_harness.renderer','myfuzz.local_harness.apb3_register_template')}
         self._configuration=dict(schema_version='native_reset_observation_configuration.v1',
             target_instance=owner._artifact_document['plan']['instance_id'],max_lifecycles=max_lifecycles,max_commands=max_commands,
             source_files=self._sources,artifact_sha256=hashlib.sha256(self._artifact_json.encode()).hexdigest(),

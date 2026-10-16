@@ -463,6 +463,12 @@ _NATIVE_RESET_OBSERVER_FUNCTIONS = MappingProxyType({name:(getattr(_NATIVE_RESET
 _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN = _NATIVE_RESET_OBSERVER_FUNCTIONS
 _NATIVE_RESET_OBSERVER_MODULE_PIN = _NATIVE_RESET_OBSERVER_MODULE
 
+from . import native_reset_producer_contract as _NATIVE_RESET_PRODUCER_MODULE
+_NATIVE_RESET_PRODUCER_PIN = (_NATIVE_RESET_PRODUCER_MODULE,
+    _NATIVE_RESET_PRODUCER_MODULE.check_producer, _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__,
+    _NATIVE_RESET_PRODUCER_MODULE._check_origin, _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__,
+    _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN, _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES)
+
 def _native_reset_check_producers(owner):
     from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
     if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
@@ -483,14 +489,21 @@ def _native_reset_check_producers(owner):
         raise ValueError('native reset build registry drift')
     if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
         raise ValueError('native reset GPIO pin table drift')
-    if type(owner) is not GeneratedPulpGpioSession:
-        raise ValueError('native reset requires actual GPIO producer')
+    if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+            or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+            or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+            or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+            or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+            or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+            or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+        raise ValueError('native reset producer registry drift')
+    producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
     for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
         if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
-                or name in vars(owner) or name != 'reset_local' and getattr(type(owner),name) is not method):
+                or name in vars(owner)):
             raise ValueError('native reset producer method drift:'+name)
     for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
-        if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or name in vars(owner):
+        if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
             raise ValueError('native reset GPIO producer method drift:'+name)
     for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
         if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
@@ -534,7 +547,8 @@ _NATIVE_RESET_WIRE_FUNCTIONS=MappingProxyType(_NATIVE_RESET_WIRE_FUNCTIONS)
 _NATIVE_RESET_POPEN_METHODS=MappingProxyType(_NATIVE_RESET_POPEN_METHODS)
 _NATIVE_RESET_PIN_TABLES=MappingProxyType({name:globals()[name] for name in
     ('_NATIVE_RESET_SESSION_FUNCTIONS','_NATIVE_RESET_BUILD_FUNCTIONS','_NATIVE_RESET_WIRE_FUNCTIONS',
-     '_NATIVE_RESET_POPEN_METHODS','_NATIVE_RESET_OBSERVER_FUNCTIONS','_NATIVE_RESET_OBSERVER_MODULE')})
+     '_NATIVE_RESET_POPEN_METHODS','_NATIVE_RESET_OBSERVER_FUNCTIONS','_NATIVE_RESET_OBSERVER_MODULE',
+     '_NATIVE_RESET_PRODUCER_PIN')})
 
 def _native_reset_owner_guard(owner, *, allow_incomplete=False):
     observer=owner._native_reset_observation

@@ -1,0 +1,56 @@
+FFFFssss                                                                 [100%]
+=================================== FAILURES ===================================
+___ test_empty_nonmapping_cannot_impersonate_input_registry[timer-_dynamic] ____
+
+storage = <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x7d65fe34d640>
+field = '_dynamic'
+
+    @pytest.mark.parametrize('field', ['_dynamic','_bound','_dynamic_values','_bound_values'])
+    def test_empty_nonmapping_cannot_impersonate_input_registry(storage,field):
+        setattr(storage,field,None)
+>       with pytest.raises(ValueError):storage.configure_native_reset_observation()
+E       Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_native_reset_producer_contract.py:165: Failed
+____ test_empty_nonmapping_cannot_impersonate_input_registry[timer-_bound] _____
+
+storage = <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x7d65ff956270>
+field = '_bound'
+
+    @pytest.mark.parametrize('field', ['_dynamic','_bound','_dynamic_values','_bound_values'])
+    def test_empty_nonmapping_cannot_impersonate_input_registry(storage,field):
+        setattr(storage,field,None)
+>       with pytest.raises(ValueError):storage.configure_native_reset_observation()
+E       Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_native_reset_producer_contract.py:165: Failed
+_ test_empty_nonmapping_cannot_impersonate_input_registry[timer-_dynamic_values] _
+
+storage = <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x7d65fe017e00>
+field = '_dynamic_values'
+
+    @pytest.mark.parametrize('field', ['_dynamic','_bound','_dynamic_values','_bound_values'])
+    def test_empty_nonmapping_cannot_impersonate_input_registry(storage,field):
+        setattr(storage,field,None)
+>       with pytest.raises(ValueError):storage.configure_native_reset_observation()
+E       Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_native_reset_producer_contract.py:165: Failed
+_ test_empty_nonmapping_cannot_impersonate_input_registry[timer-_bound_values] _
+
+storage = <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x7d65fdd315b0>
+field = '_bound_values'
+
+    @pytest.mark.parametrize('field', ['_dynamic','_bound','_dynamic_values','_bound_values'])
+    def test_empty_nonmapping_cannot_impersonate_input_registry(storage,field):
+        setattr(storage,field,None)
+>       with pytest.raises(ValueError):storage.configure_native_reset_observation()
+E       Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_native_reset_producer_contract.py:165: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_native_reset_producer_contract.py::test_empty_nonmapping_cannot_impersonate_input_registry[timer-_dynamic]
+FAILED tests/local_harness/test_native_reset_producer_contract.py::test_empty_nonmapping_cannot_impersonate_input_registry[timer-_bound]
+FAILED tests/local_harness/test_native_reset_producer_contract.py::test_empty_nonmapping_cannot_impersonate_input_registry[timer-_dynamic_values]
+FAILED tests/local_harness/test_native_reset_producer_contract.py::test_empty_nonmapping_cannot_impersonate_input_registry[timer-_bound_values]
+4 failed, 4 skipped, 54 deselected in 1.19s

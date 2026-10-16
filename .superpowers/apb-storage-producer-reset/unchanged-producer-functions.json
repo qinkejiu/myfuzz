@@ -1,0 +1,38 @@
+{
+  "src/myfuzz/local_harness/session.py:prepare_local": {
+    "exact_AST_equal": true,
+    "sha256": "4329d2e505aeac6b2326eb7aba00bbd2d97ee0cee123db4c7258e9c63999a5a3"
+  },
+  "src/myfuzz/local_harness/session.py:begin_case": {
+    "exact_AST_equal": true,
+    "sha256": "0b733c89898df80b3510ee75040c458d9f3851c5464ac1e47b80c6b7f9d9217a"
+  },
+  "src/myfuzz/local_harness/session.py:_command_impl": {
+    "exact_AST_equal": true,
+    "sha256": "9587adea904292338180893a2d86e0f695626b285e1ce4d098ea1be769ab3c48"
+  },
+  "src/myfuzz/local_harness/session.py:_abort": {
+    "exact_AST_equal": true,
+    "sha256": "e5229709467fc3b0914f8881381fe2cc34d1c7e0bb0ca274f4b6e094db9cb2fd"
+  },
+  "src/myfuzz/local_harness/session.py:reset_local": {
+    "exact_AST_equal": true,
+    "sha256": "0dc128aae3a62a07581aa7b42a340df039ce7d56c156e892cbb43d3e356c44b7"
+  },
+  "src/myfuzz/local_harness/session.py:end_case": {
+    "exact_AST_equal": true,
+    "sha256": "9d281b08618a015d704c1580ef01b2f961b509616eb15ef5eda0f30bf2860dfb"
+  },
+  "src/myfuzz/local_harness/session.py:_native_reset_native_eligible": {
+    "exact_AST_equal": true,
+    "sha256": "ef1a31fe642d293cdea90a9a1c6a8b1a559a20a0d980baf5f14047f98c8e1ca9"
+  },
+  "src/myfuzz/local_harness/native_reset_observation.py:_actual_producer_frame": {
+    "exact_AST_equal": true,
+    "sha256": "0494a8be8c4df7a07cd26c2e216a90f1272b865553c6e595aef536216c4771c5"
+  },
+  "src/myfuzz/local_harness/native_reset_observation.py:_actual_fact_origin": {
+    "exact_AST_equal": true,
+    "sha256": "cb36a6dd4c17792f6a159f332a373d0c44638a607dcc35b4606512c8c873c1b1"
+  }
+}

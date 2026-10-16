@@ -1,0 +1,8 @@
+{
+  "src/myfuzz/local_harness/native_reset_producer_contract.py": "5156f95d51a26639adb66f792286c148f5b9d15002f62ff4222d7d7aa83333e1",
+  "src/myfuzz/local_harness/session.py": "9ad3ac2f87f59ffedb6a48c3dad022852acb7af14cf380cfb74e15e30ce6c1b0",
+  "src/myfuzz/local_harness/gpio_session.py": "794ac575d155d7983ed6698aac91472ec1f8a2676f8ef6e91ae10ed7ff30a440",
+  "src/myfuzz/local_harness/apb3_register_session.py": "81ef6ad6762b0438a8227b6ec8c76c5c351c392fdd0282e203a7911161b3b73e",
+  "src/myfuzz/local_harness/native_reset_observation.py": "5cd877af12c9a7d43a075c413f06511752c790400b66f641d238d3ce5bc0a762",
+  "tests/local_harness/test_native_reset_producer_contract.py": "dc912fe0741ac3ee198731ee61ec4d7dd8b038095f36e8f8d1d35510837060e9"
+}

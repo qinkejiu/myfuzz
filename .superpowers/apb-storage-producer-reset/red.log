@@ -1,0 +1,37 @@
+Fs....ssss..........ssssssssss.s                                         [100%]
+=================================== FAILURES ===================================
+____ test_registered_generic_can_observe_but_has_no_native_issuance[timer] _____
+
+storage = <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x7922ed961f10>
+
+    def test_registered_generic_can_observe_but_has_no_native_issuance(storage):
+        from myfuzz.local_harness.session import _native_reset_native_eligible
+>       config=storage.configure_native_reset_observation()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_native_reset_producer_contract.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <myfuzz.local_harness.native_reset_observation.NativeResetObservation object at 0x7922eddf7860>
+owner = <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x7922ed961f10>
+max_lifecycles = 256, max_commands = 4096
+
+    def __init__(self, owner, *, max_lifecycles=256, max_commands=4096):
+        from .gpio_session import GeneratedPulpGpioSession
+        from .session import _NATIVE_RESET_CHECK_PRODUCERS
+        if (type(owner) is not GeneratedPulpGpioSession or owner._process is not None
+                or owner._case_id is not None or owner._execution or owner.reset_epoch
+                or owner._native_reset_observation is not None
+                or type(max_lifecycles) is not int or not 1<=max_lifecycles<=65536
+                or type(max_commands) is not int or not 1<=max_commands<=65536):
+>           raise ValueError('native reset observation requires fresh actual GPIO')
+E           ValueError: native reset observation requires fresh actual GPIO
+
+src/myfuzz/local_harness/native_reset_observation.py:45: ValueError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_native_reset_producer_contract.py::test_registered_generic_can_observe_but_has_no_native_issuance[timer]
+1 failed, 15 passed, 16 skipped in 3.57s

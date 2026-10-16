@@ -475,3 +475,15 @@ _NATIVE_RESET_GPIO_FUNCTIONS = MappingProxyType({name: (getattr(GeneratedPulpGpi
     getattr(GeneratedPulpGpioSession,name).__code__) for name in
     ('_take','_take_impl','_normalized_physical','write_register','read_register','step_local','reset_local')})
 _NATIVE_RESET_GPIO_FUNCTIONS_PIN = _NATIVE_RESET_GPIO_FUNCTIONS
+
+# Exact declaration/resolved code baseline established at class definition time.
+from types import MappingProxyType as _ResetMappingProxyType
+_NATIVE_RESET_GPIO_CLASS = GeneratedPulpGpioSession
+_NATIVE_RESET_GPIO_DECLARATIONS = _ResetMappingProxyType(dict(vars(GeneratedPulpGpioSession)))
+_NATIVE_RESET_GPIO_DECLARATIONS_PIN = _NATIVE_RESET_GPIO_DECLARATIONS
+_NATIVE_RESET_GPIO_RESOLVED = _ResetMappingProxyType({name: (getattr(GeneratedPulpGpioSession,name), getattr(GeneratedPulpGpioSession,name).__code__)
+    for name in dir(GeneratedPulpGpioSession) if hasattr(getattr(GeneratedPulpGpioSession,name), '__code__')})
+_NATIVE_RESET_GPIO_RESOLVED_PIN = _NATIVE_RESET_GPIO_RESOLVED
+
+from .native_reset_producer_contract import _seal_code_owned_producer
+_seal_code_owned_producer(GeneratedPulpGpioSession)

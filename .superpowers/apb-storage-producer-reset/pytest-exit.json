@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "tests/local_harness/test_native_reset_observation.py",
+    "tests/local_harness/test_native_reset_observation_boundaries.py",
+    "tests/local_harness/test_native_reset_producer_contract.py",
+    "tests/local_harness/test_apb_storage_probe_generation.py",
+    "tests/local_harness/test_generic_apb_identity.py",
+    "tests/local_harness/test_generic_apb_trace_verification.py"
+  ],
+  "returncode": 0
+}
