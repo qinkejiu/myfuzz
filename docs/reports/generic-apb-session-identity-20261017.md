@@ -13,3 +13,9 @@
 ## 仍需完成
 
 该入口只允许对实际 generic transport 的严格身份与配置复核，不授予 live register version、reset/source authority、编译F4完整执行或 P7 正式验收。后续真正新 IP 路径仍需受信的内部存储 producer、版本令牌与实际 CPU→IP 原生/fresh 门。
+
+## 通用 APB 被动 trace 与 writer 诊断
+
+后续新增 `verify_apb_register_trace`，对 generic APB 会话从模板/结构 ABI 重建8个原生 APB role 的实际 `link_*` 线网、时钟、等待界限、trace/backend/runtime 端口与唯一 assign，并核对生成 runtime 字节哈希。保留原生 GPIO 现有校验入口；没有给 generic 会话伪造 IRQ 别名、GPIO probe 或 native observation contract。
+
+定向 writer 的诊断路径现可消费 `apb3_register_observe`，仍逐跳要求实际 CPU 接受、Router 交付、同 producer_event 的原生 APB pre 样本、真实读回以及随后 RAM commit。结果继续 `runtime_admitted=false`、`register_version_authenticated=false`；这个只读事件关联不能充当 live prerequisite。新增软件控制先4项 RED，再与身份控制一起70项通过8.41秒；后补第二驱动且重算 hash、legacy verifier dispatch 控制的最终结果见对应 source receipt。未运行新的原生 GPIO/timer CPU 链。

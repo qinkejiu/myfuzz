@@ -140,6 +140,45 @@ def _verify_native_apb_trace(artifact):
         raise ValueError('native-physical-observation-contract-mismatch') from exc
 
 
+def verify_apb_register_trace(artifact):
+    """Verify generated APB wire projection, without granting live authority.
+
+    Generic register sessions have no synthetic IRQ alias or GPIO storage
+    contract. Their already-declared passive bus taps are checked directly
+    against the admitted endpoint ABI. Execution and storage are separate facts.
+    """
+    document = artifact.runtime_document
+    kind = document.get('kind')
+    if kind == 'apb_gpio':
+        return verify_native_physical_observation(artifact)
+    if kind != 'apb3_register_observe':
+        return False
+    from .apb3_register_template import register_observe_policy
+    from .runtime_renderer import _APB
+    import re
+    try:
+        if (document.get('base_event_schema_version') != 'ip_base_event.v1'
+                or document.get('raw_observation_schema_version') != 'ip_raw_observation.v1'
+                or document.get('functional_scope') != 'apb3_register_only_pin_observe_no_peer'
+                or document.get('runtime_sv_sha256') != hashlib.sha256(artifact.runtime_sv.encode()).hexdigest()):
+            raise ValueError('schema')
+        register_observe_policy(artifact.plan, artifact.structural.abi_document['ports'])
+        _verify_native_apb_trace(artifact)
+        # JSON equality preserves bool/int distinctions and catches duplicate
+        # runtime declarations. The existing trace validator checks backend rows.
+        for role, (_, width) in _APB.items():
+            name = 'trace_' + role
+            actual = [r for r in document['runtime_ports'] if r['name'] == name]
+            expected = [dict(name=name, direction='output', width=width)]
+            if json.dumps(actual, sort_keys=True) != json.dumps(expected, sort_keys=True):
+                raise ValueError('runtime-port')
+            if len(re.findall(r'\bassign\s+' + re.escape(name) + r'\s*=', artifact.runtime_sv)) != 1:
+                raise ValueError('multiple-trace-drivers')
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        raise ValueError('generic-APB-register-trace-mismatch') from exc
+    return True
+
+
 def physical_observation_parameters(artifact):
     """Return the exact projector configuration shared by Runner and preflight."""
     document, profile = artifact.runtime_document, artifact.plan.profile

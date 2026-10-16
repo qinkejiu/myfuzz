@@ -76,11 +76,11 @@ def writer_case(runtime, declaration, *, request, compiled):
     cpu_artifact=runtime.session.runner.sessions[access['source_component']].artifact
     target_artifact=runtime.session.runner.sessions[access['target_component']].artifact
     if (cpu_artifact.runtime_document.get('kind')!='obi_cpu'
-            or target_artifact.runtime_document.get('kind')!='apb_gpio'):
+            or target_artifact.runtime_document.get('kind') not in ('apb_gpio','apb3_register_observe')):
         raise ValueError('generated-writer-runtime-protocol-unsupported')
-    from myfuzz.local_harness.native_physical_observation import verify_native_physical_observation
+    from myfuzz.local_harness.native_physical_observation import verify_apb_register_trace
     target=runtime.session.runner.sessions[access['target_component']]
-    if verify_native_physical_observation(target.artifact) is not True:
+    if verify_apb_register_trace(target.artifact) is not True:
         raise ValueError('generated-writer-native-APB-observation-required')
     router=runtime.session.runner.sessions[access['source_component']].router
     # Actual immutable routing declarations, never profile-name inference.
@@ -110,8 +110,8 @@ def check_writer_observation(declaration, receipt, *, target_artifact):
     This event check is diagnostic, not a live receipt registry or a storage
     version authority. It intentionally cannot make runtime_admitted true.
     """
-    from myfuzz.local_harness.native_physical_observation import verify_native_physical_observation
-    if verify_native_physical_observation(target_artifact) is not True:
+    from myfuzz.local_harness.native_physical_observation import verify_apb_register_trace
+    if verify_apb_register_trace(target_artifact) is not True:
         raise ValueError('generated-writer-native-APB-observation-required')
     trace=target_artifact.runtime_document.get('base_protocol_trace',{})
     if trace.get('protocol')!='apb3':raise ValueError('generated-writer-native-APB-protocol-mismatch')

@@ -1,0 +1,126 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+______________ test_generic_trace_uses_actual_resolved_abi[timer] ______________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequestV2(profile_path='configs/peripherals/pulp_timer...dad670adbe734ce'}), <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x7926872057c0>)
+
+    def test_generic_trace_uses_actual_resolved_abi(generated):
+     artifact,_=generated
+>    assert verifier()(artifact) is True
+            ^^^^^^^^^^
+
+tests/local_harness/test_generic_apb_trace_verification.py:16: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def verifier():
+>    from myfuzz.local_harness.native_physical_observation import verify_apb_register_trace
+E    ImportError: cannot import name 'verify_apb_register_trace' from 'myfuzz.local_harness.native_physical_observation' (/home/qinkejiu/myfuzz/src/myfuzz/local_harness/native_physical_observation.py)
+
+tests/local_harness/test_generic_apb_trace_verification.py:10: ImportError
+______________ test_generic_trace_uses_actual_resolved_abi[gpio] _______________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequestV2(profile_path='configs/peripherals/pulp_gpio/...1846fd2739ddbbd'}), <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x7926870bb020>)
+
+    def test_generic_trace_uses_actual_resolved_abi(generated):
+     artifact,_=generated
+>    assert verifier()(artifact) is True
+            ^^^^^^^^^^
+
+tests/local_harness/test_generic_apb_trace_verification.py:16: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def verifier():
+>    from myfuzz.local_harness.native_physical_observation import verify_apb_register_trace
+E    ImportError: cannot import name 'verify_apb_register_trace' from 'myfuzz.local_harness.native_physical_observation' (/home/qinkejiu/myfuzz/src/myfuzz/local_harness/native_physical_observation.py)
+
+tests/local_harness/test_generic_apb_trace_verification.py:10: ImportError
+___________ test_actual_generic_trace_join_remains_diagnostic[timer] ___________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequestV2(profile_path='configs/peripherals/pulp_timer...dad670adbe734ce'}), <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x7926875c75c0>)
+
+    def test_actual_generic_trace_join_remains_diagnostic(generated):
+     from myfuzz.integration.generated_register_writer import check_writer_observation
+     artifact,_=generated;trace=artifact.runtime_document['base_protocol_trace'];signals=trace['signals']
+     access=dict(source_component='processor',target_component='target',device_id='window',address=0x40001004,register_offset=4)
+     value=0x55;events=[]
+     for write,base in ((True,0),(False,4)):
+      transaction=dict(source_component='processor',source_sequence=base+1)
+      events.append(dict(kind='mmio_acceptance',component='processor',source_transaction=transaction,address=access['address'],write=write,event_id=base+1))
+      payload=dict(psel=1,penable=1,pready=1,pwrite=int(write),paddr=4,pslverr=0)
+      payload['pwdata' if write else 'prdata']=value
+      events.append(dict(kind='local_tick_sample',component='target',phase='pre',producer_event_id=base+3,event_id=base+2,outputs=dict(backend={signals[k]:v for k,v in payload.items()})))
+      delivery=dict(kind='mmio_delivery',component='processor',device_id='window',address=access['address'],write=write,event_id=base+3,producer_event_id=base+3,source_transaction=transaction,byte_enable=15)
+      delivery['write_value' if write else 'read_value']=value;events.append(delivery)
+     events.append(dict(kind='memory_write',component='processor',address=0x100fc,value=value,byte_enable=15,event_id=8,transaction={'actual_fixture':'software_only'}))
+     receipt=SimpleNamespace(events=events,case_id='software_fixture')
+     declaration=dict(candidate=dict(access=access,value=value),result_address=0x100fc,refusals=['register-version-unavailable'])
+>    result=check_writer_observation(declaration,receipt,target_artifact=artifact)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_generic_apb_trace_verification.py:68: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+declaration = {'candidate': {'access': {'source_component': 'processor', 'target_component': 'target', 'device_id': 'window', 'address': 1073745924, ...}, 'value': 85}, 'result_address': 65788, 'refusals': ['register-version-unavailable']}
+receipt = namespace(events=[{'kind': 'mmio_acceptance', 'component': 'processor', 'source_transaction': {'source_component': 'pr...85, 'byte_enable': 15, 'event_id': 8, 'transaction': {'actual_fixture': 'software_only'}}], case_id='software_fixture')
+target_artifact = LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequestV2(profile_path='configs/peripherals/pulp_timer/...'max_samples_per_command': 37}, 'artifact_digest': '3826ba9e3f03feeee313f70d15c9cdb5f91f4464cda8b2054dad670adbe734ce'})
+
+    def check_writer_observation(declaration, receipt, *, target_artifact):
+        """Join accepted CPU data requests to actual routed write/read deliveries.
+    
+        This event check is diagnostic, not a live receipt registry or a storage
+        version authority. It intentionally cannot make runtime_admitted true.
+        """
+        from myfuzz.local_harness.native_physical_observation import verify_native_physical_observation
+        if verify_native_physical_observation(target_artifact) is not True:
+>           raise ValueError('generated-writer-native-APB-observation-required')
+E           ValueError: generated-writer-native-APB-observation-required
+
+src/myfuzz/integration/generated_register_writer.py:115: ValueError
+___________ test_actual_generic_trace_join_remains_diagnostic[gpio] ____________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequestV2(profile_path='configs/peripherals/pulp_gpio/...1846fd2739ddbbd'}), <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x792687133710>)
+
+    def test_actual_generic_trace_join_remains_diagnostic(generated):
+     from myfuzz.integration.generated_register_writer import check_writer_observation
+     artifact,_=generated;trace=artifact.runtime_document['base_protocol_trace'];signals=trace['signals']
+     access=dict(source_component='processor',target_component='target',device_id='window',address=0x40001004,register_offset=4)
+     value=0x55;events=[]
+     for write,base in ((True,0),(False,4)):
+      transaction=dict(source_component='processor',source_sequence=base+1)
+      events.append(dict(kind='mmio_acceptance',component='processor',source_transaction=transaction,address=access['address'],write=write,event_id=base+1))
+      payload=dict(psel=1,penable=1,pready=1,pwrite=int(write),paddr=4,pslverr=0)
+      payload['pwdata' if write else 'prdata']=value
+      events.append(dict(kind='local_tick_sample',component='target',phase='pre',producer_event_id=base+3,event_id=base+2,outputs=dict(backend={signals[k]:v for k,v in payload.items()})))
+      delivery=dict(kind='mmio_delivery',component='processor',device_id='window',address=access['address'],write=write,event_id=base+3,producer_event_id=base+3,source_transaction=transaction,byte_enable=15)
+      delivery['write_value' if write else 'read_value']=value;events.append(delivery)
+     events.append(dict(kind='memory_write',component='processor',address=0x100fc,value=value,byte_enable=15,event_id=8,transaction={'actual_fixture':'software_only'}))
+     receipt=SimpleNamespace(events=events,case_id='software_fixture')
+     declaration=dict(candidate=dict(access=access,value=value),result_address=0x100fc,refusals=['register-version-unavailable'])
+>    result=check_writer_observation(declaration,receipt,target_artifact=artifact)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_generic_apb_trace_verification.py:68: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+declaration = {'candidate': {'access': {'source_component': 'processor', 'target_component': 'target', 'device_id': 'window', 'address': 1073745924, ...}, 'value': 85}, 'result_address': 65788, 'refusals': ['register-version-unavailable']}
+receipt = namespace(events=[{'kind': 'mmio_acceptance', 'component': 'processor', 'source_transaction': {'source_component': 'pr...85, 'byte_enable': 15, 'event_id': 8, 'transaction': {'actual_fixture': 'software_only'}}], case_id='software_fixture')
+target_artifact = LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequestV2(profile_path='configs/peripherals/pulp_gpio/c...'max_samples_per_command': 37}, 'artifact_digest': '30ba7e535c0120fa7548cd9a26e3042fc06d1d1e4e63ff2771846fd2739ddbbd'})
+
+    def check_writer_observation(declaration, receipt, *, target_artifact):
+        """Join accepted CPU data requests to actual routed write/read deliveries.
+    
+        This event check is diagnostic, not a live receipt registry or a storage
+        version authority. It intentionally cannot make runtime_admitted true.
+        """
+        from myfuzz.local_harness.native_physical_observation import verify_native_physical_observation
+        if verify_native_physical_observation(target_artifact) is not True:
+>           raise ValueError('generated-writer-native-APB-observation-required')
+E           ValueError: generated-writer-native-APB-observation-required
+
+src/myfuzz/integration/generated_register_writer.py:115: ValueError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_generic_apb_trace_verification.py::test_generic_trace_uses_actual_resolved_abi[timer]
+FAILED tests/local_harness/test_generic_apb_trace_verification.py::test_generic_trace_uses_actual_resolved_abi[gpio]
+FAILED tests/local_harness/test_generic_apb_trace_verification.py::test_actual_generic_trace_join_remains_diagnostic[timer]
+FAILED tests/local_harness/test_generic_apb_trace_verification.py::test_actual_generic_trace_join_remains_diagnostic[gpio]
+4 failed, 28 deselected in 0.70s
