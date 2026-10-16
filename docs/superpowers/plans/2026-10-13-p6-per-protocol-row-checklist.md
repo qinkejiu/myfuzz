@@ -263,3 +263,12 @@ Ibex、CVA6、CV32E40P 的既有范围仍按各自冻结报告判定。六 CPU �
 [标准 Runner 连续 UART RX DMA attempt6](../../reports/dma-continuous-runner-20261017.md)实际 1 passed／277.19 秒，native/worker exit0，软件前置 65 passed／70.42 秒。一次 boot 四字节及其完整 JSON fresh 前缀、实际 source-bound 失败及失败 fresh 均通过；根代理独立重算四份原始保存数据，正例各 34,794 事件、负例各 200 事件，对应完整摘要与状态一致。原 300 秒预算保持不变。该结果只接受已测试的 bounded_historical_chain；FIFO origin 仍为 unknown，不授予六 CPU 任意 DMA 提供者、持续搜索或整行/P8 完成。
 
 当前 F4 新 source 的 adapter 门因缺失 Icarus 跳过且审计拒绝；CV32 boundary 门因 filelist 源枚举错误在模型启动前失败。BOOM IRQ 已真实 build/probe inventory，但元数据最终化尚未完成；无 IRQ 链通过。CVA6 full AXI 新观察器仍是软件证据/待独立审查。以上不修改 P6/P7/P8 未验收结论。
+
+
+## 2026-10-17 后续 CPU 事件与定向 F4 证据补记
+
+- CVA6 full AXI 的[实际有界 CPU/RAM 观察门](../../reports/cva6-full-axi-native-20261017.md)两新进程各650样本、826观察记录、2923 Runner 事件全前缀匹配，独立审计及保存采样离线复投影通过；source_authority/retirement/protocol_completion 均false。不能替代五行协议的通用 IP 验收。
+- [Ibex](../../reports/compiled-f4-ibex-current-20261017.md)与[CV32](../../reports/compiled-f4-cv32-current-20261017.md)当前编译 F4 三定向例＋两完整 fresh 均实际exit0，根代理独立核对每份7351保存事件与完整候选前缀。它们仍限定 APB GPIOEN 来源合同；同协议任意新IP/覆盖引导搜索未完成。
+- [AHB CPU 观察器](../../reports/CVW_AHB_CPU_OBSERVER_20261017.md)源码与严格会话身份、13物理role tap、一次drain、全局事件预算已实现且52项纯软件控制通过。旧CVW采样缺13role；当前启动首地址缺口明确 prefix_unknown，尚未新跑原生门，不授完整前缀。
+
+本补记不升级 P6/P7/P8 整阶段状态。

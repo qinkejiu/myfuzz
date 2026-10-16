@@ -20,4 +20,4 @@
 - [独立保存数据审计](evidence/cva6-full-axi-native-20261017/independent-audit.json)。
 - [原始采样离线复投影](evidence/cva6-full-axi-native-20261017/raw-reprojection.json)。
 
-这是固定650步 CPU/RAM 的 bounded_full_axi_observation.v1 原生门。source_authority、retirement_verified、protocol_completion_certified 均为 false；`no_pending_observed` 只描述该有界前缀。未授予任意同协议 IP 接入、覆盖引导反馈搜索或 P6/P7/P8 整阶段验收。后续仍需单独修复观察器在可清空 EventJournal 中跨 drain 的全局引用编号问题；本门保存的普通 list 路径不受该问题影响。
+这是固定650步 CPU/RAM 的 bounded_full_axi_observation.v1 原生门。source_authority、retirement_verified、protocol_completion_certified 均为 false；`no_pending_observed` 只描述该有界前缀。未授予任意同协议 IP 接入、覆盖引导反馈搜索或 P6/P7/P8 整阶段验收。随后源码944a888已修复观察器在可清空 EventJournal 中跨 drain 的全局引用编号问题，独立审查aaf4134通过，113项纯软件控制通过；从本归档两份真实样本离线重放各826记录保持完全一致。该修复未另跑新的原生门，本门原始冻结源码与普通 list 路径证据保持原样。
