@@ -1,0 +1,18 @@
+{
+  "schema_version": "cvw_ahb_gate_control_review_freeze.v1",
+  "source_only": true,
+  "native_run": false,
+  "controller_commit": "3b9c447",
+  "sha256": {
+    "scripts/cvw_ahb_gate_control.py": "bb1b121327b52ae26e4b64d57d5b5cd5676c7ae3f1a208d891a3009e622f9ebd",
+    "tests/local_harness/test_cvw_ahb_gate_control.py": "776cdb5f05248d4330038b4a23e75bd211cbac3fcf1a02aa69926f710c723289",
+    "docs/reports/CVW_AHB_GATE_CONTROLLER_SOURCE_20261017.md": "375a665dbc33332be1edcb179e170bd88c07e452da17cf5408246811d2599847",
+    "docs/reports/evidence/cvw-ahb-control-20261017/run-controlled.sh": "ce931d7ba7ffe2391b3fc155056402d95178349078a764d5168e873801867a1f",
+    "docs/reports/evidence/cvw-ahb-control-20261017/plan.json": "4e55f2faf957bb82d5797be0d4cb3c56bd2f3078753f39673064976236cd2566",
+    "docs/reports/evidence/cvw-ahb-control-20261017/source-pins.json": "38d42b85dce9f50e60c616199e967c02273540930a7c94c78aa3422a6d951e74",
+    "docs/reports/evidence/cvw-ahb-gate-20261017/stable-host-source-freeze.json": "c02134412a742eccde99746af5487f81c2f77f09a7cf20250ce37f2077762e8f",
+    "docs/reports/evidence/cvw-ahb-gate-20261017/local-independent-source-map.json.gz": "71a4de30c1939c4eb411ed7813dc5f8ab25940e97c42bc8af88dd8e578a193cd",
+    "docs/reports/evidence/cvw-ahb-gate-20261017/local-snapshot-receipt.json": "1bbf1d4e298417a17a5027924753a8e0c54f572ede15a04c6c36a0e81430335a",
+    "docs/reports/evidence/cvw-ahb-gate-20261017/copied-profile-readsets.json": "29ddd381e8f9b21ade74d885d3783307d3703894b926a2cd5aff1618bd8a2107"
+  }
+}
