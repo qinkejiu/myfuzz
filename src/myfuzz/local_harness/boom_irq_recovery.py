@@ -111,7 +111,12 @@ def _metadata(artifact,origin):
 
 
 def validate_recovery_origin(output,artifact):
-    if 'build_origin' not in artifact and 'metadata_finalization' not in artifact: return ()
+    markers=('recovery-receipts','.recovery-incomplete.json','.irq-session-artifact.pending')
+    physical=any((output/name).exists() or (output/name).is_symlink() for name in markers)
+    declared='build_origin' in artifact or 'metadata_finalization' in artifact
+    if not physical and not declared: return ()
+    if not isinstance(artifact.get('build_origin'),dict) or not isinstance(artifact.get('metadata_finalization'),dict):
+        raise ValueError('physical or declared recovery requires complete origin metadata')
     files,origin=load_origin(output/'recovery-receipts')
     if encoded(artifact.get('build_origin'))!=encoded(origin) or encoded(artifact.get('metadata_finalization'))!=encoded(_metadata(artifact,origin)):
         raise ValueError('recovery origin/metadata contract mismatch')

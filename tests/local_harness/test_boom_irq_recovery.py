@@ -165,6 +165,17 @@ def test_real_current_source_authentication_matches_saved_compiled_inputs(origin
     monkeypatch.setattr(native.subprocess,'Popen',lambda *a,**k:pytest.fail('bad origin launched model'))
     with pytest.raises(ValueError,match='origin/metadata'):
         native.GeneratedBoomIrqCpuSession(output,repo=project)
+    # Strip provenance and trim to the normal manifest closure: physical
+    # receipts must still force the recovery contract before native launch.
+    stripped=dict(artifact)
+    for key in ('build_origin','metadata_finalization','runtime_verified','source_authority'):
+        stripped.pop(key,None)
+    normal={'driver.cpp','tl_ram.h','obj/VBoomTile',*recovery.RTL,*generation.AUXILIARY,
+            'generated-probes.json',*artifact['generated_symbol_files']}
+    stripped['session_files']={name:artifact['session_files'][name] for name in normal}
+    (output/'irq-session-artifact.json').write_text(json.dumps(stripped))
+    with pytest.raises(ValueError,match='complete origin'):
+        native.GeneratedBoomIrqCpuSession(output,repo=project)
 
 
 @pytest.mark.parametrize('name',['driver.cpp','tl_ram.h','EICG_wrapper.v','irq-profile.json',
@@ -203,3 +214,15 @@ def test_pinned_archive_tamper_refused_without_model(tmp_path):
     from myfuzz.local_harness import boom_irq_recovery as recovery
     (tmp_path/'attempt2-evidence.tar.gz').write_bytes(b'forged')
     with pytest.raises(ValueError,match='archive'):recovery.load_origin(tmp_path)
+
+
+@pytest.mark.parametrize('physical',['recovery-receipts','.recovery-incomplete.json','.irq-session-artifact.pending'])
+def test_physical_recovery_state_cannot_downgrade_by_stripping_origin(tmp_path,physical):
+    from myfuzz.local_harness import boom_irq_recovery as recovery
+    output=tmp_path/'output';output.mkdir()
+    if physical=='recovery-receipts':(output/physical).mkdir()
+    else:(output/physical).write_text('historical recovery state')
+    # Even a caller trimming session_files back to normal cannot bypass this.
+    stripped={'session_files':{}}
+    with pytest.raises(ValueError,match='complete origin'):
+        recovery.validate_recovery_origin(output,stripped)

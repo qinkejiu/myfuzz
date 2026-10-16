@@ -101,3 +101,21 @@ inputs. No implicit builder retry/fallback, describe-probes rerun or model clock
 After metadata readback audit, runtime state still unverified. New identity needs
 its actual session/startup, GPIO→MEIP→ROB/CSR→ISR→exactMRET/return/foreground,
 fresh prefixes and missing/changed controls in a later scheduled native window.
+
+## Independent review correction — origin stripping
+
+Reviewer found that removing both origin fields and trimming session_files to
+the ordinary manifest could bypass the JSON-key-only provenance check while
+physical recovery-receipts remained. The physical output now independently
+triggers mandatory complete origin: recovery-receipts directory, incomplete
+marker or pending-manifest marker. Either declared origin field also triggers
+the full contract. Missing/incomplete origin refuses before native launch.
+
+Three targeted filesystem cases first failed, then passed after the minimal
+guard. The real constructor software test additionally strips origin/runtime/
+source claims and trims session_files to normal, while retaining actual saved
+receipts; it now refuses before Popen. Final combined command above: actual
+exit0, **89 passed in20.83s**. Source pins refreshed. No operational recovery,
+remote source overlay, model/describe/build or heavy lock was used. This is
+still local integrity and explicit recovery provenance, not signed immutable
+filesystem history or source authority. Reverse reviewer receives this freeze.
