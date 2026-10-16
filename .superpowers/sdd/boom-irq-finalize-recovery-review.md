@@ -29,3 +29,9 @@ Re-read the minimal fix and constructor control, without executing tests or reco
 Recomputed updated helper SHA `dcf7c096058053cea959e9dd08f9c350cad994dba07df1536bd13c80a0d6f22e` and test SHA `f1a0b6de468015ed502d90e71277dea97bb08a6758ab4be8e85dd1aeefd97c1b` match the updated freeze pins. Generator and session source hashes remain the previous reviewed values. The owner reports 89 software tests passed; this reviewer did not rerun them.
 
 The medium origin-stripping finding is resolved for the stated local integrity contract. No remaining high or medium finding within this review scope. Removing every provenance field and every physical recovery trace cannot be cryptographically distinguished from an ordinary unsigned local artifact; this design continues to make no signed build or source authority claim. This review grants no operational recovery/native permission or runtime acceptance.
+
+## Dependency follow-up: `3e9c07bdda1fef4aa972f625c19255ac40033819`
+
+Read the one-line addition of `scripts` to the copied source scopes and its exact `scripts/verify_soc_sources.py` preservation control. The existing host source discovery explicitly seeds that script, so retaining it is necessary for the independent project's later GPIO identity scan. The same symlink rejection, distinct-file copy and byte comparison applies to the added scope. This changes copied Python/script dependencies and current metadata identity; it does not change effective compiled CPU inputs or grant a new C++ build.
+
+Recomputed helper SHA `a6bbd17117a0973e4e67bc599b0e4cd7daa277449d4be9de3dfea0db294db3a8` and test SHA `c9d7dbbd0cb072586e405e46ee3aece3348e213e9bfb08ef65e32b6f88941a83` identify this follow-up. No additional high/medium finding. Owner reports 90 software tests passed; no tests or operational action were performed by this re-review. Earlier preparation paths remain superseded, not operationally accepted.
