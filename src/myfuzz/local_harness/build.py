@@ -385,7 +385,14 @@ def _prepare(artifact, base_dir, _host_context=_HOST_SOURCE_SCOPE):
         capture(evidence, elaboration['evidence_sha256'])
         closure = json.loads(snapshots[evidence])
         for item in closure['closure_files']:
-            name = item['path'] if item['root'] == '.' else item['root'] + '/' + item['path']
+            item_root = item.get('root')
+            if item_root is None:
+                # Repository-wide generated closures already record each path
+                # relative to the checkout and declare that convention once.
+                if closure.get('root') != '.':
+                    raise LocalHarnessBuildError('closure-file-root-missing')
+                item_root = '.'
+            name = item['path'] if item_root == '.' else item_root + '/' + item['path']
             capture(name, item['sha256'])
     for item in verified.get('authenticated_inputs', []):
         capture(item['path'], item['sha256'])
