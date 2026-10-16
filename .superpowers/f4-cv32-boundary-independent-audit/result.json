@@ -1,0 +1,18 @@
+{
+  "audit_scope": "independent saved archive only",
+  "archive_sha256": "1740273dd460dfa1326576b66f4306a28157e9fb3066980b1d75f12be39e8170",
+  "accepted_address": 65536,
+  "accepted_sequence": 1,
+  "error_sequence": 2,
+  "result_reply_count": 1,
+  "native_pid": 214926,
+  "actual_native_close_returncode": 1,
+  "physical_error_role_exposed": false,
+  "artifact_digest": "46671cd291ce1eb33aaf589b4a7048e25ec2a89537d5169ab290af6f2e7f3274",
+  "binary_sha256": "7505bc4dbb1ecd96d5f9d747035d0753961e8e4146dc9e738cf3a427281bb018",
+  "controlling_exit": 0,
+  "source_after_exit": 0,
+  "audit_exit": 0,
+  "source_file_count": 37528,
+  "native_or_compiler_invoked_by_audit": false
+}
