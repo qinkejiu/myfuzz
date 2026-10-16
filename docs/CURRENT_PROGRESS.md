@@ -10,6 +10,12 @@
 - **标准 Runner 的 UART RX DMA 链：** [最终冻结门](reports/dma-uart-rx-standard-runner-20261017.md)为 1 passed／80.79 秒；串行 `0x5A` 经实际 FIFO、DMA 读取、RAM 写入和 CPU ISR，两个 fresh 的 4,836 事件／1,097 步前缀一致。预算已包含 CPU→DMA→UART 间接时钟；持续搜索和认证前缀仍未验收。
 - **编译 F4 仍在修复：** 首次连续候选与 fresh 前缀运行已有实验结果；独立复核发现编译断言未绑定完整消费链、配置启动基址被当作实际首取指地址，以及调用方输入仍可变化。修复与复核完成前不计入 D4 验收。
 
+### 后续代码接入：尚无新增运行证据
+
+- BOOM 已新增持久会话、标准 Runner 工厂与真实 GPIO 排队路由代码：[boom_gpio_runner.py](../src/myfuzz/scenario/boom_gpio_runner.py)。coherent A/C/D/E 观察消费者支持 FIFO 或按来源匹配响应，保留多拍 D、GrantAck 和复位取消关系；它不从普通字典授予原生来源权威。该套新代码未构建或运行，历史 BOOM CPU/RAM 门不能验证它。
+- DMA RX 已新增一次启动、多例不复位的 [continuous runtime](../src/myfuzz/integration/dma_uart_rx_runtime.py)：固定 CPU 程序轮询 FIFO 状态、重装 DMA，ISR 保存实际字节并递增完成计数；记录完整批次并提供 fresh replay。尚未实际运行，不授持续搜索或 P8 验收。
+- 编译 F4 新增 [Ibex 声明式配置](../configs/scenarios/compiled-f4-obi-apb-ibex/README.md)和 [公开文件入口](../scripts/run_compiled_dataflow.py)，消费显式 capability、环境／归属补充声明及 8 字节候选记录。旧 CV32 fixture 因缺少实际原生错误信号而被当前 executor 拒绝；历史通过结果不能验证新 Ibex 配置。该入口限定向连续候选，尚无构建、执行或重放证据，不授覆盖引导搜索或完整 D4。
+
 下文保留较早切片的边界；“尚未”以其对应报告的冻结版本解释。
 
 2026-10-17 本次六 CPU／四外设系列与 F6 增量：Ibex、CVA6、CV32E40P 已有各自生成式 CPU/外设真实链；CVW→PULP GPIO 已有双向定向真实链；VexiiRiscv 的受限双 AXI 生成式 profile/session 已通过真实 CPU/RAM 定向门禁，两次 fresh 运行 `[53,54]`，读响应替换对照 `[53,1]`，见[生成式报告](reports/vexiiriscv-generated-harness-20261017.md)；随后[Vexii 真实 CPU/IP 门](reports/vexiiriscv-generated-cpu-ip-20261017.md)已验证 CPU 写 GPIO `53`、读回后保存 RAM `54`，两次 fresh 原始样本一致，替换目标响应被拒绝；IRQ 与在线搜索仍待接入。BOOM 固定源构建仍受历史 SNAPSHOT 依赖阻断；显式派生的依赖与 Rocket IO 兼容修正已生成真实 Verilog，并通过[完整 coherent TileLink 直接 CPU/RAM 运行](../configs/cpus/boom/runtime/README.md)：555 cycles、13 AcquireBlock／10 ReleaseData／13 GrantAck 排空，CPU 读回、重载及 RAM 写回均为 `0x123`；其通用生成式 runtime 与 CPU/IP 组合仍待接入，见[源码与构建报告](../configs/cpus/boom/generation_evidence_20261017.md)。外设第四系列选 Caliptra SHA256（AHB-Lite），其生成式目标在两个新进程各完成 91 次寄存器访问，`abc`／`abd` 真实摘要正确，273 个通用协议事件、零 checker 违约，仅达局部 RTL operational，见[报告](reports/caliptra-sha256-ahb-target-20261017.md)。OpenTitan、PULP、ZipCPU 既有真实实例的能力仍按各自报告逐项判定。
