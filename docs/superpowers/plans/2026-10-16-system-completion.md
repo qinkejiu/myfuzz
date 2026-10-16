@@ -64,3 +64,5 @@
 2026-10-16 初始核对：远端约 123 GiB 可用内存，Verilator 5.020、Java 11；现有 `/root/fanzehui/myfuzz` 是旧版非 Git 目录。P6/P7/DMA 只读核对报告暂存 `/tmp/myfuzz-{p6,p7,dma}-audit-20261016.md`，其中事实需结合代码与后续实际运行解释。
 
 2026-10-17 进度：ZipCPU `wbdmac` 已建立 21 端口源锁、闭包和静态 profile（`debcc5d`，runtime_unverified）；Caliptra v2.1.2 `sha256_ctrl` 已建立 11 文件、16 端口闭包及双复位 profile（`e3e6c7c`，runtime_unverified）。两者均未取得真实事务或 DMA 数据流。VexiiRiscv 固定源码与 SpinalHDL 子模块生成了 RV32 双 AXI Verilog，保存命令、生成物、依赖哈希和 48 端口清单（`379600d`、`e926056`、`5410d4f`）；Verilator lint 退出 0，有 3 项上游警告，尚无 CPU session。CVW 首次真实 CPU→GPIO 运行暴露 `rv32gc` 的 64 位 LLEN/32 位 AHB 掩码截断：地址偏移 4 的实际存储 BE 为 0，路由器正确拒绝；派生配置修复和重新运行仍在进行，不能将该用例标为通过。真实运行日志在远端隔离目录 `/root/fanzehui/system-20261016/evidence/cvw-gpio-real.log`。
+
+2026-10-17 后续实测：CVW 派生配置关闭 D/Zcd 后 `FLEN=LLEN=XLEN=AHBW=32`，真实 CPU→PULP GPIO 正例 `1 passed in 153.24s`，旧零窗口负例 `1 passed in 59.17s`；两次正例进程的六笔 APB 访问、全字 BE、GPIO 引脚输出、两次 CPU 读回及 RAM 结果逐项一致。源闭包重定位与构建器仓库相对路径修复也通过。仍为定向静态程序，不升级 P6 整行或在线 campaign。P7 已新增生成物可信加载切片（`311f25d`，D2）；D3 编译语义和 D4 执行消费仍开放。

@@ -231,3 +231,9 @@
 - **不宣称任意同协议组件即插即测**；每行只按实际通过的局部交易与跨组件路径登记能力。
 - **五行全部通过才等于 P6 通过**；单行通过只更新该行。
 - **P7 依赖本清单**：P7 的自动接入范围上限＝本清单已验收的协议形态（详见 [P7 实现文档](2026-10-13-p7-automatic-onboarding-implementation.md)）。
+
+## 7. 2026-10-17 新证据与仍开放的门
+
+§6 对 CVW 与 VexiiRiscv 的可用性描述是 2026-10-13/14 的历史状态。当前 CVW 的派生配置已让外部 AHB 窗口可达，并关闭 D/Zcd 以使无 D-cache 的整数数据通路 `LLEN=XLEN=AHBW=32`；真实 CPU→PULP GPIO 定向链及旧零地址窗口负例均通过。正例的两次独立进程输出为 `PADOUT=0x35`、`PADOUT=0x6a`、CPU RAM 结果 `[0x35,0x6a,1]`，六次路由交付与 APB 访问逐一对应，MMIO 写 BE 均为 15。远端日志：`/root/fanzehui/system-20261016/evidence/cvw-gpio-positive-after-buildfix.log`（1 passed/153.24s）和 `cvw-gpio-negative-llen32.log`（1 passed/59.17s）。这只提升 CVW↔GPIO 的定向真实数据链，不完成本清单的持续在线、双侧变异、四类反馈、FIFO、IRQ、独立 AHB 引脚相位证据或整行验收。
+
+VexiiRiscv 的固定源码与 SpinalHDL 子模块已生成 563119 字节的 RV32 双 AXI Verilog，lint 退出 0（3 项警告），48 个顶层端口已记录于 `configs/cpus/vexiiriscv/generated`；无可运行 session，不能记真实 CPU 事务。BOOM 仍缺固定 Chipyard 生成闭包。ZipCPU DMA 和 Caliptra AHB-Lite SHA256 已有静态源锁/闭包/profile，但两者都未运行真实事务，F6 与第四系列的运行验收仍开放。
