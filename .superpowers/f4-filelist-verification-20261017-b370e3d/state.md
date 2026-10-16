@@ -14,3 +14,6 @@ Fixed newbase/run_gate.sh ibex, original three8-byte declared records, rounds128
 
 ## Ibex terminal
 Actual logs/ibex.exit=0; source-after.exit=0; audit.exit=0. Three certified cases, both fresh matches=true. Controller216282 absent; canonical terminal flock-n probe0. Public report docs/reports/compiled-f4-ibex-current-20261017.md. No CV32 launch.
+
+## CV32 terminal
+Actual logs/cv32.exit=0; source-after.exit=0; audit.exit=0. Three certified cases, two full fresh matches=true/null difference. Controller238665 absent; canonical terminal probe0. Public report docs/reports/compiled-f4-cv32-current-20261017.md. No subsequent native authorized/launched.
