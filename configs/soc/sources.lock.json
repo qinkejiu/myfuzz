@@ -7236,6 +7236,85 @@
     "uart_reg_pkg::RxFifoDepth": "64",
     "uart_reg_pkg::TxFifoDepth": "32"
    }
+  },
+  {
+   "id": "zipcpu_wbdmac",
+   "source": {
+    "root": "third_party/soc-zipcpu",
+    "revision": "git:42606d2d6ef55df313772232977621b2d72f0159",
+    "top_module": "wbdmac",
+    "files": [
+     "rtl/peripherals/wbdmac.v"
+    ],
+    "include_roots": [],
+    "repositories": []
+   },
+   "artifacts": [
+    {
+     "path": "doc/src/gpl-3.0.tex",
+     "sha256": "4e6c3af9bf75ed66080c9a46aafe9842c8c9a572d8612871d4c5ad5e790e7f3c",
+     "kind": "license"
+    },
+    {
+     "path": "rtl/peripherals/wbdmac.v",
+     "sha256": "a948bab4a155ddc42be1d9b2ee588c1b8b9c9ab587d9e5125e24870c2169aacd",
+     "kind": "source"
+    }
+   ],
+   "selected_content_hash": "sha256:9e9e9afdc98be32a30328009b5aa419f336e801495b9ca113c1cffd1c905fe99",
+   "closure_status": "selected",
+   "source_status": "source_verified",
+   "elaboration_status": "elaboration_verified",
+   "runtime_status": "runtime_unverified",
+   "defines": [],
+   "typed_parameters": [
+    {
+     "name": "ADDRESS_WIDTH",
+     "type": "integer",
+     "value": "30"
+    },
+    {
+     "name": "BUS_WIDTH",
+     "type": "integer",
+     "value": "32"
+    },
+    {
+     "name": "LGMEMLEN",
+     "type": "integer",
+     "value": "10"
+    },
+    {
+     "name": "SLV_WIDTH",
+     "type": "integer",
+     "value": "32"
+    }
+   ],
+   "generator": {
+    "status": "not_invoked",
+    "tool_version": null,
+    "name": "none for selected checked-in files"
+   },
+   "dependencies": [],
+   "closure_note": "One self-contained non-FORMAL RTL file, measured by JSON elaboration and lint; composite DMA runtime unsupported.",
+   "elaboration": {
+    "status": "elaboration_verified",
+    "top_module": "wbdmac",
+    "tool": {
+     "name": "verilator",
+     "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+     "frontend": "verilator-lint"
+    },
+    "evidence": "configs/soc/closures/zipcpu_wbdmac.json",
+    "evidence_sha256": "0f4c30ad9c7f427d300d34046e71ea6efe417eba8ed71fa012e8dc6757f9b1f3",
+    "closure_files": 1,
+    "lint": {
+     "errors": 0,
+     "warnings": 0,
+     "exit_code": 0
+    },
+    "capability_findings": 2,
+    "unsupported": 2
+   }
   }
  ]
 }

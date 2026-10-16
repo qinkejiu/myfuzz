@@ -1,0 +1,304 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "zipcpu_wbdmac",
+  "kind": "peripheral",
+  "description": "Pinned unmodified ZipCPU wbdmac: autonomous pipelined Wishbone memory master plus pipelined registered-ack control target. Static physical/source declaration only. Composite runtime, driver and session are unsupported pending DMA Slice B/C. Master addresses are 30-bit words; no SEL pin exists on either interface. Immediate trigger pins fixed zero in initial environment; no DMA data or IRQ simulated. Executable RTL start key is 0xfed, not stale header 0x3db.",
+  "source": {
+    "root": "third_party/soc-zipcpu",
+    "revision": "git:42606d2d6ef55df313772232977621b2d72f0159",
+    "top_module": "wbdmac",
+    "files": [
+      "rtl/peripherals/wbdmac.v"
+    ],
+    "include_roots": [],
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [
+        {
+          "name": "ADDRESS_WIDTH",
+          "value": "30"
+        },
+        {
+          "name": "BUS_WIDTH",
+          "value": "32"
+        },
+        {
+          "name": "SLV_WIDTH",
+          "value": "32"
+        },
+        {
+          "name": "LGMEMLEN",
+          "value": "10"
+        }
+      ],
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [
+    {
+      "port": "i_clk",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "i_reset",
+      "domain": "sys_rst",
+      "polarity": "active_high",
+      "synchronous": true,
+      "release": "Assert synchronously for at least one edge; no transfer accepted during reset."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "dma.control",
+      "function": "mmio_slave",
+      "protocol": [
+        "wishbone",
+        "pipelined"
+      ],
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "cyc",
+          "aliases": [
+            "i_swb_cyc"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "stb",
+          "aliases": [
+            "i_swb_stb"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "we",
+          "aliases": [
+            "i_swb_we"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "adr",
+          "aliases": [
+            "i_swb_addr"
+          ],
+          "direction": "input",
+          "width": 2
+        },
+        {
+          "role": "dat_w",
+          "aliases": [
+            "i_swb_data"
+          ],
+          "direction": "input",
+          "width": 32
+        },
+        {
+          "role": "stall",
+          "aliases": [
+            "o_swb_stall"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "ack",
+          "aliases": [
+            "o_swb_ack"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "dat_r",
+          "aliases": [
+            "o_swb_data"
+          ],
+          "direction": "output",
+          "width": 32
+        }
+      ]
+    },
+    {
+      "endpoint_id": "dma.memory",
+      "function": "memory_master",
+      "protocol": [
+        "wishbone",
+        "pipelined"
+      ],
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "cyc",
+          "aliases": [
+            "o_mwb_cyc"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "stb",
+          "aliases": [
+            "o_mwb_stb"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "we",
+          "aliases": [
+            "o_mwb_we"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "adr",
+          "aliases": [
+            "o_mwb_addr"
+          ],
+          "direction": "output",
+          "width": 30
+        },
+        {
+          "role": "dat_w",
+          "aliases": [
+            "o_mwb_data"
+          ],
+          "direction": "output",
+          "width": 32
+        },
+        {
+          "role": "stall",
+          "aliases": [
+            "i_mwb_stall"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "ack",
+          "aliases": [
+            "i_mwb_ack"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "dat_r",
+          "aliases": [
+            "i_mwb_data"
+          ],
+          "direction": "input",
+          "width": 32
+        },
+        {
+          "role": "err",
+          "aliases": [
+            "i_mwb_err"
+          ],
+          "direction": "input",
+          "width": 1
+        }
+      ]
+    },
+    {
+      "endpoint_id": "dma.triggers",
+      "function": "configuration",
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "device_interrupts",
+          "aliases": [
+            "i_dev_ints"
+          ],
+          "direction": "input",
+          "width": 32
+        }
+      ]
+    },
+    {
+      "endpoint_id": "dma.interrupt",
+      "function": "interrupt_source",
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "irq",
+          "aliases": [
+            "o_interrupt"
+          ],
+          "direction": "output",
+          "width": 1
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 2,
+    "data_width": 32,
+    "read": true,
+    "write": true,
+    "byte_enable": false,
+    "partial_write": false,
+    "has_error": false,
+    "address_units": "word",
+    "master_address_width": 30,
+    "master_address_units": "word",
+    "master_has_error": true,
+    "master_byte_enable": false,
+    "master_fixed_byte_enable": 15,
+    "wishbone_flavour": "pipelined",
+    "dma_composite_runtime": false
+  },
+  "address": {
+    "window_size": 16,
+    "alignment": 16,
+    "registers": [
+      {
+        "name": "CONTROL_STATUS",
+        "offset": 0,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "keyed_start_or_abort"
+      },
+      {
+        "name": "TOTAL_LENGTH",
+        "offset": 4,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "word_count"
+      },
+      {
+        "name": "SOURCE",
+        "offset": 8,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "byte_address_to_master_word_address"
+      },
+      {
+        "name": "DESTINATION",
+        "offset": 12,
+        "width": 32,
+        "access": "rw",
+        "side_effect": "byte_address_to_master_word_address"
+      }
+    ]
+  },
+  "evidence": {
+    "elaboration": "configs/soc/closures/zipcpu_wbdmac.json",
+    "physical_ports": "configs/peripherals/zipcpu_wbdmac/evidence/elaborated_ports.json",
+    "runtime_status": "unsupported_composite_dma_runtime",
+    "requires": "Dedicated composite target/master template and edge transport; do not admit through classic CPU or single-target register templates."
+  }
+}

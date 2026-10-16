@@ -1,0 +1,54 @@
+{
+  "schema_version": "wbdmac_directed_config.v1",
+  "runtime_status": "unsupported_composite_dma_runtime",
+  "total_length_words": 4,
+  "block_words": 4,
+  "start_control": 267190276,
+  "source_byte_address": 4096,
+  "destination_byte_address": 8192,
+  "master_address_translation": "zero_extend(word_address) << 2",
+  "master_fixed_byte_enable": 15,
+  "device_interrupts": 0,
+  "increment_source": true,
+  "increment_destination": true,
+  "wait_for_device_interrupt": false,
+  "control_byte_offsets": {
+    "control": 0,
+    "length": 4,
+    "source": 8,
+    "destination": 12
+  },
+  "ownership": {
+    "i_dev_ints": "fixed_zero",
+    "i_reset": "harness_reset",
+    "slave_request_inputs": "session_control_target",
+    "master_response_inputs": "session_memory_environment",
+    "master_request_outputs": "dut_only",
+    "o_interrupt": "dut_observed_only"
+  },
+  "unsupported": [
+    "partial/unaligned accesses",
+    "DMA runtime/session/driver",
+    "shared CPU memory scheduling",
+    "CPU interrupt delivery",
+    "FIFO directions"
+  ],
+  "notes": [
+    "This is configuration, not a recorded DMA execution. Total length is words, not bytes.",
+    "Control writes must be acknowledged from actual RTL and must not repeat due to held STB."
+  ],
+  "input_ownership": {
+    "i_clk": "harness_clock",
+    "i_reset": "harness_reset",
+    "i_dev_ints": "fixed_zero",
+    "i_swb_cyc": "session_control_request",
+    "i_swb_stb": "session_control_request",
+    "i_swb_we": "session_control_request",
+    "i_swb_addr": "session_control_request",
+    "i_swb_data": "session_control_request",
+    "i_mwb_stall": "session_memory_response",
+    "i_mwb_ack": "session_memory_response",
+    "i_mwb_data": "session_memory_response",
+    "i_mwb_err": "session_memory_response"
+  }
+}

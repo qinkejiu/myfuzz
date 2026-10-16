@@ -1,0 +1,213 @@
+{
+  "schema_version": "interface_description.v1",
+  "source": {
+    "root": "third_party/soc-zipcpu",
+    "revision": "git:42606d2d6ef55df313772232977621b2d72f0159",
+    "top_module": "wbdmac",
+    "files": [
+      "rtl/peripherals/wbdmac.v"
+    ],
+    "include_roots": []
+  },
+  "notes": [
+    "Source and parameters are authenticated by component_profile and closure. Each field width/direction comes from actual Verilator JSON elaboration.",
+    "Control register offsets in CPU bytes 0/4/8/12 map to two-bit word indices. No slave byte select: reject partial control writes before effect.",
+    "Master accepts on cyc && stb && !stall; completes on cyc && (ack || err). Address is zero-extended then shifted left by two; no SEL pin, fixed four byte lanes.",
+    "Host session owns all control request and master response inputs. Initial i_dev_ints=0; IRQ is native output observation, never synthetic success.",
+    "Start uses RTL key 0xfed in [27:16], zero bits31:30, nonzero total word count. Runtime unimplemented."
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "dma.control",
+      "function": "mmio_slave",
+      "protocol": [
+        "wishbone",
+        "pipelined"
+      ],
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "cyc",
+          "aliases": [
+            "i_swb_cyc"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "stb",
+          "aliases": [
+            "i_swb_stb"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "we",
+          "aliases": [
+            "i_swb_we"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "adr",
+          "aliases": [
+            "i_swb_addr"
+          ],
+          "direction": "input",
+          "width": 2
+        },
+        {
+          "role": "dat_w",
+          "aliases": [
+            "i_swb_data"
+          ],
+          "direction": "input",
+          "width": 32
+        },
+        {
+          "role": "stall",
+          "aliases": [
+            "o_swb_stall"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "ack",
+          "aliases": [
+            "o_swb_ack"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "dat_r",
+          "aliases": [
+            "o_swb_data"
+          ],
+          "direction": "output",
+          "width": 32
+        }
+      ]
+    },
+    {
+      "endpoint_id": "dma.memory",
+      "function": "memory_master",
+      "protocol": [
+        "wishbone",
+        "pipelined"
+      ],
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "cyc",
+          "aliases": [
+            "o_mwb_cyc"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "stb",
+          "aliases": [
+            "o_mwb_stb"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "we",
+          "aliases": [
+            "o_mwb_we"
+          ],
+          "direction": "output",
+          "width": 1
+        },
+        {
+          "role": "adr",
+          "aliases": [
+            "o_mwb_addr"
+          ],
+          "direction": "output",
+          "width": 30
+        },
+        {
+          "role": "dat_w",
+          "aliases": [
+            "o_mwb_data"
+          ],
+          "direction": "output",
+          "width": 32
+        },
+        {
+          "role": "stall",
+          "aliases": [
+            "i_mwb_stall"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "ack",
+          "aliases": [
+            "i_mwb_ack"
+          ],
+          "direction": "input",
+          "width": 1
+        },
+        {
+          "role": "dat_r",
+          "aliases": [
+            "i_mwb_data"
+          ],
+          "direction": "input",
+          "width": 32
+        },
+        {
+          "role": "err",
+          "aliases": [
+            "i_mwb_err"
+          ],
+          "direction": "input",
+          "width": 1
+        }
+      ]
+    },
+    {
+      "endpoint_id": "dma.triggers",
+      "function": "configuration",
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "device_interrupts",
+          "aliases": [
+            "i_dev_ints"
+          ],
+          "direction": "input",
+          "width": 32
+        }
+      ]
+    },
+    {
+      "endpoint_id": "dma.interrupt",
+      "function": "interrupt_source",
+      "clock": "core",
+      "reset": "sys_rst",
+      "fields": [
+        {
+          "role": "irq",
+          "aliases": [
+            "o_interrupt"
+          ],
+          "direction": "output",
+          "width": 1
+        }
+      ]
+    }
+  ]
+}

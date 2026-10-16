@@ -1,0 +1,105 @@
+{
+  "schema_version": "soc_elaboration_closure.v1",
+  "component": "zipcpu_wbdmac",
+  "root": "third_party/soc-zipcpu",
+  "top_module": "wbdmac",
+  "tool": {
+    "name": "verilator",
+    "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "frontend": "verilator-lint"
+  },
+  "command": [
+    "verilator",
+    "--lint-only",
+    "-Wno-fatal",
+    "--top-module",
+    "wbdmac",
+    "-GADDRESS_WIDTH=30",
+    "-GBUS_WIDTH=32",
+    "-GSLV_WIDTH=32",
+    "-GLGMEMLEN=10",
+    "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v"
+  ],
+  "include_roots": [],
+  "defines": [],
+  "parameters": [
+    {
+      "name": "ADDRESS_WIDTH",
+      "value": "30"
+    },
+    {
+      "name": "BUS_WIDTH",
+      "value": "32"
+    },
+    {
+      "name": "SLV_WIDTH",
+      "value": "32"
+    },
+    {
+      "name": "LGMEMLEN",
+      "value": "10"
+    }
+  ],
+  "closure_files": [
+    {
+      "root": "third_party/soc-zipcpu",
+      "path": "rtl/peripherals/wbdmac.v",
+      "sha256": "a948bab4a155ddc42be1d9b2ee588c1b8b9c9ab587d9e5125e24870c2169aacd"
+    }
+  ],
+  "status": "elaboration_verified",
+  "lint": {
+    "errors": 0,
+    "warnings": 0,
+    "exit_code": 0,
+    "log": "configs/peripherals/zipcpu_wbdmac/evidence/lint.log"
+  },
+  "physical_elaboration": {
+    "command": [
+      "verilator",
+      "--json-only",
+      "--no-std-package",
+      "-Wno-fatal",
+      "--top-module",
+      "wbdmac",
+      "-GADDRESS_WIDTH=30",
+      "-GBUS_WIDTH=32",
+      "-GSLV_WIDTH=32",
+      "-GLGMEMLEN=10",
+      "--json-only-output",
+      "configs/peripherals/zipcpu_wbdmac/evidence/ports.tree.json",
+      "--json-only-meta-output",
+      "configs/peripherals/zipcpu_wbdmac/evidence/ports.meta.json",
+      "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v"
+    ],
+    "returncode": 0,
+    "ports": 21,
+    "evidence": "configs/peripherals/zipcpu_wbdmac/evidence/elaborated_ports.json",
+    "sha256": "07bae8b9d37832758d20088d9e1a5e398cf63dd2c07184d7a267db5f03f8cd3f",
+    "log": "configs/peripherals/zipcpu_wbdmac/evidence/ports.log"
+  },
+  "capability_findings": [
+    {
+      "topic": "executable_start_key",
+      "observed": "s_data[27:16] == 12'hfed; header 0x3db is stale",
+      "evidence_path": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v:258-263",
+      "provenance": "rtl_read"
+    },
+    {
+      "topic": "dual_role_pipelined_wishbone",
+      "observed": "Control target and autonomous memory master; both expose STB/ACK/STALL; master ERR supported, no SEL on either interface. Fixed full-word initial environment.",
+      "evidence_path": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v:120-148",
+      "provenance": "elaborated_ports+rtl_read"
+    }
+  ],
+  "unsupported": [
+    {
+      "topic": "composite_runtime",
+      "reason": "No DMA template, driver edge command, autonomous master session, shared scheduling or IRQ delivery is implemented. Static elaboration does not establish Generated/admitted or executable status."
+    },
+    {
+      "topic": "formal_only_dependencies",
+      "reason": "FORMAL is not defined; fwb_master/fwb_slave formal proof modules are not part of synthesizable closure."
+    }
+  ]
+}

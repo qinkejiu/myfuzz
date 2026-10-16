@@ -1,0 +1,258 @@
+{
+  "ports": [
+    {
+      "direction": "input",
+      "members": [],
+      "name": "i_clk",
+      "signed": false,
+      "source": {
+        "column": 15,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 123
+      },
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "i_reset",
+      "signed": false,
+      "source": {
+        "column": 22,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 123
+      },
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "i_swb_cyc",
+      "signed": false,
+      "source": {
+        "column": 15,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 127
+      },
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "i_swb_stb",
+      "signed": false,
+      "source": {
+        "column": 26,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 127
+      },
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "i_swb_we",
+      "signed": false,
+      "source": {
+        "column": 37,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 127
+      },
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "i_swb_addr",
+      "signed": false,
+      "source": {
+        "column": 20,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 128
+      },
+      "width": 2
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "i_swb_data",
+      "signed": false,
+      "source": {
+        "column": 32,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 129
+      },
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "o_swb_stall",
+      "signed": false,
+      "source": {
+        "column": 16,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 131
+      },
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "o_swb_ack",
+      "signed": false,
+      "source": {
+        "column": 15,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 132
+      },
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "o_swb_data",
+      "signed": false,
+      "source": {
+        "column": 32,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 133
+      },
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "o_mwb_cyc",
+      "signed": false,
+      "source": {
+        "column": 17,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 137
+      },
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "o_mwb_stb",
+      "signed": false,
+      "source": {
+        "column": 28,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 137
+      },
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "o_mwb_we",
+      "signed": false,
+      "source": {
+        "column": 39,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 137
+      },
+      "width": 1
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "o_mwb_addr",
+      "signed": false,
+      "source": {
+        "column": 26,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 138
+      },
+      "width": 30
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "o_mwb_data",
+      "signed": false,
+      "source": {
+        "column": 32,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 139
+      },
+      "width": 32
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "i_mwb_stall",
+      "signed": false,
+      "source": {
+        "column": 16,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 141
+      },
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "i_mwb_ack",
+      "signed": false,
+      "source": {
+        "column": 29,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 141
+      },
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "i_mwb_data",
+      "signed": false,
+      "source": {
+        "column": 32,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 142
+      },
+      "width": 32
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "i_mwb_err",
+      "signed": false,
+      "source": {
+        "column": 16,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 143
+      },
+      "width": 1
+    },
+    {
+      "direction": "input",
+      "members": [],
+      "name": "i_dev_ints",
+      "signed": false,
+      "source": {
+        "column": 22,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 146
+      },
+      "width": 32
+    },
+    {
+      "direction": "output",
+      "members": [],
+      "name": "o_interrupt",
+      "signed": false,
+      "source": {
+        "column": 16,
+        "file": "third_party/soc-zipcpu/rtl/peripherals/wbdmac.v",
+        "line": 148
+      },
+      "width": 1
+    }
+  ],
+  "schema_version": "elaborated_ports.v1",
+  "top_module": "wbdmac"
+}
