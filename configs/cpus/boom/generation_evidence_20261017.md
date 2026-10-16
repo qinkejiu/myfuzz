@@ -152,4 +152,46 @@ an abstract `boom_tile` boundary. The captured generation inventory and port
 map have not been admitted as its CPU materialization. There is no verified
 coherent TileLink A/B/C/D/E adapter. The existing
 `configs/designs/boom` entries cite `SmallBoomV3Config`, absent from this
-Chipyard revision. BOOM therefore remains unavailable for runtime execution.
+Chipyard revision. The reference CPU profile therefore remains unavailable for generic runtime execution.
+
+
+## Direct emitted BoomTile CPU/RAM execution
+
+A separate direct tile probe now executes the actual generated `BoomTile`
+with a host RAM manager. Source and the exact build command are in `runtime/`;
+trace, exit status and initial failed attempt are in
+`evidence/runtime-20261017/`. It uses the generated top Verilog and SRAM
+models above, with no synthetic CPU master. Verilator is 5.020. Compilation
+and execution run under the same shared heavy worker lock.
+
+The program fetches at the fixed reset address 0x10040, jumps to code in RAM
+at 0x80000000, stores 0x123 into cached RAM at 0x80001000, loads it, and writes
+the loaded value to an uncached RAM location. It then stores into twelve
+conflicting cache lines, causing dirty releases, and reloads the original
+line from backing RAM before reporting the second result. The report
+locations 0x4000 and 0x4008 are legal uncached addresses in the emitted tile's
+map; this isolated RAM responder supplies them instead of the full SoC's
+boot address register.
+
+The final run exits **0**, after **555 cycles**, with both CPU result words
+and backing RAM writeback equal to **291 (0x123)**. Accepted traffic comprises
+5 A Get, 13 A AcquireBlock, 2 A Put, 10 C ReleaseData (80 beats), 156 D beats
+and 13 E GrantAck. All queued responses, partial transfers and allocated
+sinks are drained. The independent `verify_trace.py` replays all **269**
+accepted channel events and checks response opcode/size/source, multibeat
+order, permission parameter, sink identity and complete grant before E.
+The standalone host manager test also exercises AcquirePerm, Release,
+masked/block Put and stable D data under backpressure.
+
+The first probe stopped at BOOM's pipeline watchdog after its initial reset
+fetch. Its RV64 LUI trampoline sign extended the RAM physical address. The
+corrected program explicitly constructs zero extended 32-bit addresses;
+the CPU then executes the RAM sequence. The original program, failure trace
+and exit 134 remain captured as `attempt1.*`. No generator or CPU logic was
+changed for that correction.
+
+This proves isolated emitted BOOM CPU/RAM execution with a coherent RAM
+manager. B.valid stays zero because the environment has no other coherent
+clients; no external probes are claimed. It does not enable the abstract
+reference profile, provide a generic TileLink adapter, demonstrate full
+Chipyard serial boot, or demonstrate CPU-to-IP protocol joining.

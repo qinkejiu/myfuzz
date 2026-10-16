@@ -1,0 +1,85 @@
+{
+  "schema_version": "boom_direct_tile_runtime.v1",
+  "scope": "isolated generated BoomTile with host coherent RAM manager",
+  "configuration": "chipyard.SmallBoomConfig",
+  "top_module": "BoomTile",
+  "rtl_derived_source": true,
+  "runtime_verified": true,
+  "generic_semantic_profile_admitted": false,
+  "cpu_ip_join_verified": false,
+  "remote_root": "/root/fanzehui/system-20261016/evidence/boom-tile-ram",
+  "simulator": "Verilator 5.020 2024-01-01 rev (Debian 5.020-1)",
+  "executable_sha256": "eeec6e666f459615794bdfa97554313aa37fbd877754226e60ed2a6db6a1c246",
+  "rtl_inputs": [
+    {
+      "path": "EICG_wrapper.v",
+      "bytes": 297,
+      "sha256": "8532a50a212f146f10208717be24168a2de73a9754786da272d0dbfcd556c307"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.top.mems.v",
+      "bytes": 101191,
+      "sha256": "97ae4679a1ec21f4f424c56e23b1b1948e77d934c8c11461b56de47160a1a280"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.top.v",
+      "bytes": 17963255,
+      "sha256": "78bc69803c7b993cd1ddfcdb585d477bd27a83710bb1ce426e217aedbbdfaced"
+    },
+    {
+      "path": "plusarg_reader.v",
+      "bytes": 596,
+      "sha256": "482a63c1f24a7ac920909620bd0df108e6954eabf9520de6e72334a2b5450efb"
+    }
+  ],
+  "source_sha256": {
+    "runtime/README.md": "a467695a4008f674fc1570fc56b5bdedad8354571db7cdd10b1531ef829639d3",
+    "runtime/boom_tile_ram.cpp": "9c59cb40b4fafac5be762ce1dbaf15fb6eb397c34000b88251eb6324f2960676",
+    "runtime/build_and_run.sh": "c0ce522c2b0d18c97e9ce9ab318f722bf48d9298a14fd55a8c3cecbe4a60835a",
+    "runtime/tl_ram.h": "c40e3b16f492f4f73857950e47604f60e29055f684f46204cdeb685867d095da",
+    "runtime/tl_ram_test.cpp": "c9d3f88d2da9bdddb41114dc76a82ed1e9aaed398e3ce9660154809f283e7edb",
+    "runtime/verify_trace.py": "06b303a065b99baf25d799cd16084ab50d406d8e8c5aa77b77cee96635d8bfcd"
+  },
+  "evidence_sha256": {
+    "attempt1.cpp": "c33342982c48b3526931d2909e0bacad45b614b4715b3e7ba18b67aaf4bbf929",
+    "attempt1.exit": "e726b440cc164001999e718b51780d80314709efe06e7857282377be9111127b",
+    "attempt1.jsonl": "e2bdddb0ecde6ca771002f8b428d349e3728939af6db1af239a64d73b9c375c8",
+    "attempt1.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build.log": "7ffdececdf871cb072cbe4a25f4f88756a22e63c11341bd24016bfe19247d7f8",
+    "launcher.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "runtime.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "runtime.jsonl": "8091410be37e8f5a9f49f7a1fc179e0956d307f35894e8ee8c21039b69f96a4b",
+    "runtime.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "trace_verification.json": "84571b4ae2db845e29f26ff1b359310fe0c8e4d2f9414ce6af335881532b186b"
+  },
+  "verification": {
+    "checked_events": 269,
+    "channel_events": {
+      "A": 20,
+      "D": 156,
+      "E": 13,
+      "C": 80
+    },
+    "result": {
+      "result": "pass",
+      "cycles": 555,
+      "A_Get": 5,
+      "A_Acquire": 13,
+      "A_Put": 2,
+      "C_ReleaseData": 10,
+      "D_beats": 156,
+      "E_GrantAck": 13,
+      "cached_ram_value": 291,
+      "first_load_result": 291,
+      "reload_result": 291,
+      "B_valid": 0
+    }
+  },
+  "environment": {
+    "B_valid": 0,
+    "other_coherent_clients": 0,
+    "external_probes_exercised": false,
+    "responses_drained": true,
+    "grant_sinks_drained": true
+  }
+}

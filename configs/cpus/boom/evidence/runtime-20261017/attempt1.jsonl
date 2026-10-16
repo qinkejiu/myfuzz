@@ -1,0 +1,4 @@
+{"channel":"A","opcode":4,"size":6,"source":4,"address":65600,"data":0}
+[16479] %Fatal: chipyard.TestHarness.SmallBoomConfig.top.v:285517: Assertion failed in TOP.BoomTile.core
+%Error: /root/fanzehui/system-20261016/chipyard-release-deps/sims/verilator/generated-src/chipyard.TestHarness.SmallBoomConfig/chipyard.TestHarness.SmallBoomConfig.top.v:285517: Verilog $stop
+Aborting...

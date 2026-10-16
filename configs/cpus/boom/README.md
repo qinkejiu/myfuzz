@@ -90,8 +90,8 @@ capabilities, or supply a separately verified boundary converter and describe
 its supported protocol honestly. Keep `implemented=false` and
 `available=false` until those dependencies exist. A regression test provides
 pinned synthetic RTL and verifies that annotation still rejects the missing
-`tilelink@1` dependency. The fixed and derived Chipyard sources are staged on the build host. BOOM
-runtime support remains unverified.
+`tilelink@1` dependency. The fixed and derived Chipyard sources are staged on the build host. Generic BOOM
+runtime admission remains unverified.
 
 ## Derived source repair and successful elaboration
 
@@ -112,8 +112,21 @@ The derived `make verilog` also completed with exit 0, emitting top, harness
 and sequential memory Verilog. The committed artifact manifest captures 35
 files and a 12-file RTL inventory. `physical_ports.json` captures the emitted
 `BoomTile` (47 ports), `BoomCore` (233), `ChipTop` (55) and `TestHarness` (3).
-These are evidence from the derived generator, with runtime verification
-still false. Lowering specializes away the FIRRTL tile reset-vector/NMI/trace
+These are evidence from the derived generator, with generic runtime admission
+still unavailable. Lowering specializes away the FIRRTL tile reset-vector/NMI/trace
 ports, so runtime integration must follow the emitted Verilog port map.
 The generated boot ROM requires serial TileLink program loading and an MSIP
 interrupt before entering RAM. See the generation evidence for that boundary.
+
+
+## Verified direct CPU/RAM probe
+
+`runtime/` now builds the emitted `BoomTile` with a coherent host RAM manager.
+The real CPU executes cached stores and loads, evicts dirty lines to backing
+RAM and reloads the expected value. The captured run exits 0 in 555 cycles,
+with 13 AcquireBlock, 10 ReleaseData and 13 GrantAck, all drained. Both CPU
+result words and RAM writeback equal 0x123. An independent trace replay checks
+all 269 accepted A/C/D/E events. Evidence is under
+`evidence/runtime-20261017/`; B remains inactive in this single CPU environment.
+This isolated execution does not admit the generic semantic CPU profile or
+establish a CPU-to-IP join. See the runtime README for reproduction and scope.

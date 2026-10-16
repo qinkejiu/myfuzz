@@ -1,0 +1,4 @@
+make: Entering directory '/root/fanzehui/system-20261016/evidence/boom-tile-ram/obj'
+g++  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -std=c++17 -O1   -Os -c -o boom_tile_ram.o /root/fanzehui/system-20261016/evidence/boom-tile-ram/boom_tile_ram.cpp
+g++     boom_tile_ram.o verilated.o verilated_threads.o VBoomTile__ALL.a    -pthread -lpthread -latomic   -o VBoomTile
+make: Leaving directory '/root/fanzehui/system-20261016/evidence/boom-tile-ram/obj'

@@ -28,7 +28,7 @@
     "firrtl": "1.5.0",
     "chisel-iotesters": "2.5.0"
   },
-  "runtime_verified": false,
+  "runtime_verified": true,
   "generation_evidence": "evidence/derived-20261017/generated_artifact_manifest.json",
   "physical_ports": "evidence/derived-20261017/physical_ports.json",
   "generation": {
@@ -36,5 +36,8 @@
     "verilog_exit": 0,
     "configuration": "chipyard.SmallBoomConfig",
     "unmodified_upstream": false
-  }
+  },
+  "runtime_scope": "isolated generated BoomTile with host coherent RAM manager",
+  "runtime_evidence": "evidence/runtime-20261017/runtime_manifest.json",
+  "generic_semantic_profile_admitted": false
 }

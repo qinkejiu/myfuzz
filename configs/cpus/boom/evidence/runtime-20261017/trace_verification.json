@@ -1,0 +1,23 @@
+{
+  "checked_events": 269,
+  "channel_events": {
+    "A": 20,
+    "D": 156,
+    "E": 13,
+    "C": 80
+  },
+  "result": {
+    "result": "pass",
+    "cycles": 555,
+    "A_Get": 5,
+    "A_Acquire": 13,
+    "A_Put": 2,
+    "C_ReleaseData": 10,
+    "D_beats": 156,
+    "E_GrantAck": 13,
+    "cached_ram_value": 291,
+    "first_load_result": 291,
+    "reload_result": 291,
+    "B_valid": 0
+  }
+}
