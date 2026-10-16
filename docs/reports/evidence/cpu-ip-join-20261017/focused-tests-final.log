@@ -1,0 +1,5 @@
+Command: PYTHONPATH=src python3 -m pytest tests/scenario/test_cpu_ip_protocol_join.py tests/scenario/test_ordinary_apb_access_cpu_handoff.py tests/scenario/test_ordinary_apb_access_runner.py tests/scenario/test_ordinary_apb_access_router.py tests/scenario/test_ordinary_apb_access_evidence_boundaries.py -q
+49 passed in 56.18s
+Exit status: 0
+
+Initial command without PYTHONPATH failed collection: ModuleNotFoundError: myfuzz. Corrected invocation above passed.

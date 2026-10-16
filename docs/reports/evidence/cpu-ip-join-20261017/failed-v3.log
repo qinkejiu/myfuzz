@@ -1,0 +1,57 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_real_cpu_obi_router_apb_associations_and_mutation ____________
+
+tmp_path = PosixPath('/root/fanzehui/system-20261016/tmp/pytest-of-root/pytest-14/test_real_cpu_obi_router_apb_a0')
+
+    @pytest.mark.skipif(os.environ.get('MYFUZZ_OBI_GPIO_JOIN_REAL')!='1',reason='explicit same-run real CPU/IP gate')
+    def test_real_cpu_obi_router_apb_associations_and_mutation(tmp_path):
+        from myfuzz.scenario.ibex_pulp_dual_source import make_ibex_pulp_dual_source_factory
+        cache=Path(os.environ.get('MYFUZZ_OBI_GPIO_JOIN_CACHE',str(tmp_path/'cache')))
+        factory=make_ibex_pulp_dual_source_factory(cache,physical_observations=True)
+        runner=factory();cpu=runner.sessions['cpu']
+        program=(0x400010b7,0x03500113,0x0020a623,0x00c0a183,0x00020237,0x00322023,0x0000006f)
+        cpu.memory.preload(0x10080,b''.join(w.to_bytes(4,'little') for w in program))
+        for target in ('gpio_a','gpio_b'):
+            runner.sessions[target].configure_ordinary_apb_access_receipts(max_records=8)
+        runner.install_ordinary_apb_access_evidence(max_records=8)
+        try:
+            runner.begin_test('same-run-obi-gpio-join')
+            for _ in range(70):
+                for component in ('cpu','gpio_a','gpio_b'):runner.step(component)
+            assert cpu.memory.read(0x20000,4,transaction_id='verify-gpio-readback').value==53
+            joined=runner.cpu_ip_protocol_joins(max_records=8)
+            assert not joined['gaps'], joined
+            assert len(joined['records'])==2
+            assert all(r['status']=='actual_protocol_handoff_associated' for r in joined['records'])
+            assert not joined['grants_verified'] and not joined['grants_functional']
+            # Mutate only the router's journal key; the live seal and native raw
+            # evidence retain the original key. Address/timing similarity is useless.
+            records=runner._events._records
+            delivery=next(r for r in records if r.get('kind')=='mmio_delivery')
+            original=copy.deepcopy(delivery['source_transaction'])
+            delivery['source_transaction']['source_sequence']+=100
+            rejected=runner.cpu_ip_protocol_joins(max_records=8)
+            assert len(rejected['records'])==1 and rejected['gaps']
+            delivery['source_transaction']=original
+            assert runner.cpu_ip_protocol_joins(max_records=8)==joined
+            target_raw=next(r for r in records if r.get('kind')=='local_tick_sample'
+                and r.get('ordinary_apb_access_ref'))
+            original_outputs=copy.deepcopy(target_raw['outputs'])
+            target_raw['outputs']['backend']['trace_pwdata'] ^= 1
+            target_rejected=runner.cpu_ip_protocol_joins(max_records=8)
+            assert target_rejected['gaps']
+            target_raw['outputs']=original_outputs
+            controls={}
+            for field in ('execution_id','source_epoch','source_sequence'):
+                old=copy.deepcopy(delivery['source_transaction'])
+                delivery['source_transaction'][field]=('another-run' if field=='execution_id' else old[field]+1)
+                controls[field]=runner.cpu_ip_protocol_joins(max_records=8)
+>               assert controls[field]['gaps'] and len(controls[field]['records'])==1
+E               AssertionError: assert ([{'source_transaction': {'channel_id': 'data', 'execution_id': 'local-execution', 'source_component': 'cpu', 'source_e...nent': 'cpu', 'source_epoch': 0, ...}, 'target_access_id': 'ordinary-apb:gpio_a:2', 'reason': 'router_key_not_unique'}] and 0 == 1)
+E                +  where 0 = len([])
+
+tests/integration/test_cpu_obi_gpio_join_real.py:54: AssertionError
+=========================== short test summary info ============================
+FAILED tests/integration/test_cpu_obi_gpio_join_real.py::test_real_cpu_obi_router_apb_associations_and_mutation
+1 failed in 94.88s (0:01:34)

@@ -1,0 +1,269 @@
+{
+  "original": {
+    "schema_version": "cpu_ip_protocol_join_gap.v1",
+    "origin_ref": {
+      "trace": {
+        "source_path": "runs/scenario/acceptance/ibex-two-pulp-gpio-optimized-10min-20261005/case-0152/trace.json",
+        "sha256": "f74ee6739857bfe123070cc22cbb19c1d4dbabccd3313ca76934a5971ca5dcc1",
+        "archive_path": "docs/reports/evidence/cpu-ip-join-20261017/old-gpio-trace.json.gz",
+        "archive_sha256": "1b13b4b08d4a5a85de5edbd97a59abb073a59170836864dfdb03ff1ee0b3f250"
+      },
+      "manifest": {
+        "source_path": "runs/scenario/acceptance/ibex-two-pulp-gpio-optimized-10min-20261005/case-0152/manifest.json",
+        "sha256": "6bbff87827113de2e1726453c7323dfa2ad047faae3219458ec91cdcf1621061",
+        "archive_path": "docs/reports/evidence/cpu-ip-join-20261017/old-gpio-manifest.json.gz",
+        "archive_sha256": "72aa3536936bad3182903777ec0ac5098661cd03e6edeef0b783f219c89c8cb6"
+      }
+    },
+    "status": "gap",
+    "missing_links": [
+      "missing_live_handoff_authority",
+      "missing_cpu_raw_obi_taps",
+      "missing_cpu_adapter_raw_samples",
+      "missing_target_raw_protocol_taps"
+    ],
+    "router_pair_candidates": [
+      {
+        "source_transaction": {
+          "channel_id": "data",
+          "execution_id": "local-execution",
+          "source_component": "cpu",
+          "source_epoch": 0,
+          "source_sequence": 1,
+          "testcase_id": "ibex-generated-two-pulp-gpio-irq-bd"
+        },
+        "acceptance_event_ref": 131,
+        "delivery_event_refs": [
+          140
+        ],
+        "status": "matching_declared_host_key_only"
+      },
+      {
+        "source_transaction": {
+          "channel_id": "data",
+          "execution_id": "local-execution",
+          "source_component": "cpu",
+          "source_epoch": 0,
+          "source_sequence": 2,
+          "testcase_id": "ibex-generated-two-pulp-gpio-irq-bd"
+        },
+        "acceptance_event_ref": 195,
+        "delivery_event_refs": [
+          204
+        ],
+        "status": "matching_declared_host_key_only"
+      },
+      {
+        "source_transaction": {
+          "channel_id": "data",
+          "execution_id": "local-execution",
+          "source_component": "cpu",
+          "source_epoch": 0,
+          "source_sequence": 3,
+          "testcase_id": "ibex-generated-two-pulp-gpio-irq-bd"
+        },
+        "acceptance_event_ref": 250,
+        "delivery_event_refs": [
+          259
+        ],
+        "status": "matching_declared_host_key_only"
+      },
+      {
+        "source_transaction": {
+          "channel_id": "data",
+          "execution_id": "local-execution",
+          "source_component": "cpu",
+          "source_epoch": 0,
+          "source_sequence": 4,
+          "testcase_id": "ibex-generated-two-pulp-gpio-irq-bd"
+        },
+        "acceptance_event_ref": 512,
+        "delivery_event_refs": [
+          518
+        ],
+        "status": "matching_declared_host_key_only"
+      },
+      {
+        "source_transaction": {
+          "channel_id": "data",
+          "execution_id": "local-execution",
+          "source_component": "cpu",
+          "source_epoch": 0,
+          "source_sequence": 5,
+          "testcase_id": "ibex-generated-two-pulp-gpio-irq-bd"
+        },
+        "acceptance_event_ref": 584,
+        "delivery_event_refs": [
+          590
+        ],
+        "status": "matching_declared_host_key_only"
+      },
+      {
+        "source_transaction": {
+          "channel_id": "data",
+          "execution_id": "local-execution",
+          "source_component": "cpu",
+          "source_epoch": 0,
+          "source_sequence": 6,
+          "testcase_id": "ibex-generated-two-pulp-gpio-irq-bd"
+        },
+        "acceptance_event_ref": 722,
+        "delivery_event_refs": [
+          731
+        ],
+        "status": "matching_declared_host_key_only"
+      },
+      {
+        "source_transaction": {
+          "channel_id": "data",
+          "execution_id": "local-execution",
+          "source_component": "cpu",
+          "source_epoch": 0,
+          "source_sequence": 8,
+          "testcase_id": "ibex-generated-two-pulp-gpio-irq-bd"
+        },
+        "acceptance_event_ref": 832,
+        "delivery_event_refs": [
+          841
+        ],
+        "status": "matching_declared_host_key_only"
+      }
+    ],
+    "grants_verified": false,
+    "grants_storage": false,
+    "grants_functional": false
+  },
+  "source_key_mutation": {
+    "schema_version": "cpu_ip_protocol_join_gap.v1",
+    "origin_ref": {
+      "trace": {
+        "source_path": "runs/scenario/acceptance/ibex-two-pulp-gpio-optimized-10min-20261005/case-0152/trace.json",
+        "sha256": "f74ee6739857bfe123070cc22cbb19c1d4dbabccd3313ca76934a5971ca5dcc1",
+        "archive_path": "docs/reports/evidence/cpu-ip-join-20261017/old-gpio-trace.json.gz",
+        "archive_sha256": "1b13b4b08d4a5a85de5edbd97a59abb073a59170836864dfdb03ff1ee0b3f250"
+      },
+      "manifest": {
+        "source_path": "runs/scenario/acceptance/ibex-two-pulp-gpio-optimized-10min-20261005/case-0152/manifest.json",
+        "sha256": "6bbff87827113de2e1726453c7323dfa2ad047faae3219458ec91cdcf1621061",
+        "archive_path": "docs/reports/evidence/cpu-ip-join-20261017/old-gpio-manifest.json.gz",
+        "archive_sha256": "72aa3536936bad3182903777ec0ac5098661cd03e6edeef0b783f219c89c8cb6"
+      }
+    },
+    "status": "gap",
+    "missing_links": [
+      "missing_live_handoff_authority",
+      "missing_cpu_raw_obi_taps",
+      "missing_cpu_adapter_raw_samples",
+      "missing_target_raw_protocol_taps",
+      "router_key_not_unique_or_missing"
+    ],
+    "router_pair_candidates": [
+      {
+        "source_transaction": {
+          "channel_id": "data",
+          "execution_id": "local-execution",
+          "source_component": "cpu",
+          "source_epoch": 0,
+          "source_sequence": 1,
+          "testcase_id": "ibex-generated-two-pulp-gpio-irq-bd"
+        },
+        "acceptance_event_ref": 131,
+        "delivery_event_refs": [],
+        "status": "gap"
+      },
+      {
+        "source_transaction": {
+          "channel_id": "data",
+          "execution_id": "local-execution",
+          "source_component": "cpu",
+          "source_epoch": 0,
+          "source_sequence": 2,
+          "testcase_id": "ibex-generated-two-pulp-gpio-irq-bd"
+        },
+        "acceptance_event_ref": 195,
+        "delivery_event_refs": [
+          204
+        ],
+        "status": "matching_declared_host_key_only"
+      },
+      {
+        "source_transaction": {
+          "channel_id": "data",
+          "execution_id": "local-execution",
+          "source_component": "cpu",
+          "source_epoch": 0,
+          "source_sequence": 3,
+          "testcase_id": "ibex-generated-two-pulp-gpio-irq-bd"
+        },
+        "acceptance_event_ref": 250,
+        "delivery_event_refs": [
+          259
+        ],
+        "status": "matching_declared_host_key_only"
+      },
+      {
+        "source_transaction": {
+          "channel_id": "data",
+          "execution_id": "local-execution",
+          "source_component": "cpu",
+          "source_epoch": 0,
+          "source_sequence": 4,
+          "testcase_id": "ibex-generated-two-pulp-gpio-irq-bd"
+        },
+        "acceptance_event_ref": 512,
+        "delivery_event_refs": [
+          518
+        ],
+        "status": "matching_declared_host_key_only"
+      },
+      {
+        "source_transaction": {
+          "channel_id": "data",
+          "execution_id": "local-execution",
+          "source_component": "cpu",
+          "source_epoch": 0,
+          "source_sequence": 5,
+          "testcase_id": "ibex-generated-two-pulp-gpio-irq-bd"
+        },
+        "acceptance_event_ref": 584,
+        "delivery_event_refs": [
+          590
+        ],
+        "status": "matching_declared_host_key_only"
+      },
+      {
+        "source_transaction": {
+          "channel_id": "data",
+          "execution_id": "local-execution",
+          "source_component": "cpu",
+          "source_epoch": 0,
+          "source_sequence": 6,
+          "testcase_id": "ibex-generated-two-pulp-gpio-irq-bd"
+        },
+        "acceptance_event_ref": 722,
+        "delivery_event_refs": [
+          731
+        ],
+        "status": "matching_declared_host_key_only"
+      },
+      {
+        "source_transaction": {
+          "channel_id": "data",
+          "execution_id": "local-execution",
+          "source_component": "cpu",
+          "source_epoch": 0,
+          "source_sequence": 8,
+          "testcase_id": "ibex-generated-two-pulp-gpio-irq-bd"
+        },
+        "acceptance_event_ref": 832,
+        "delivery_event_refs": [
+          841
+        ],
+        "status": "matching_declared_host_key_only"
+      }
+    ],
+    "grants_verified": false,
+    "grants_storage": false,
+    "grants_functional": false
+  }
+}

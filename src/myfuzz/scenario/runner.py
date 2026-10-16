@@ -2077,6 +2077,11 @@ class ScenarioRunner:
         self._protocol_trace_sets[component] = observer
         return observer
 
+    def cpu_ip_protocol_joins(self, *, max_records=256):
+        """Associate current live boundary handoffs without semantic grants."""
+        from .cpu_ip_protocol_join import runner_cpu_ip_protocol_joins
+        return runner_cpu_ip_protocol_joins(self, max_records=max_records)
+
     def protocol_trace_set_reports(self):
         """Bounded boundary proofs and coverage from this Runner's raw journal."""
         return {component: observer.report(self._events)
