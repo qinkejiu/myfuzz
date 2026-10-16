@@ -1,0 +1,10 @@
+{
+  "status": "prepared_not_executed",
+  "native_state_absent": true,
+  "protected_source_files": 2564,
+  "protected_artifact_files": 88,
+  "runtime_source_files": 2566,
+  "zero_shared_inodes": true,
+  "constructor_executed": false,
+  "model_executed": false
+}

@@ -1,0 +1,258 @@
+FFFFFFFFFFFF                                                             [100%]
+=================================== FAILURES ===================================
+______________ test_reuse_refuses_without_modifying_history[PID] _______________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_reuse_refuses_without_mod0')
+name = 'PID'
+
+    @pytest.mark.parametrize('name',['PID','launcher-PID','worker.exit','operation.claim','gate-output','gpio-cache'])
+    def test_reuse_refuses_without_modifying_history(tmp_path,name):
+>       module=load(tmp_path)
+               ^^^^^^^^^^^^^^
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_reuse_refuses_without_mod0')
+
+    def load(tmp_path):
+        path=Path(__file__).with_name('controller.py')
+>       if not path.exists():pytest.fail('runtime controller missing')
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: runtime controller missing
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:10: Failed
+__________ test_reuse_refuses_without_modifying_history[launcher-PID] __________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_reuse_refuses_without_mod1')
+name = 'launcher-PID'
+
+    @pytest.mark.parametrize('name',['PID','launcher-PID','worker.exit','operation.claim','gate-output','gpio-cache'])
+    def test_reuse_refuses_without_modifying_history(tmp_path,name):
+>       module=load(tmp_path)
+               ^^^^^^^^^^^^^^
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_reuse_refuses_without_mod1')
+
+    def load(tmp_path):
+        path=Path(__file__).with_name('controller.py')
+>       if not path.exists():pytest.fail('runtime controller missing')
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: runtime controller missing
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:10: Failed
+__________ test_reuse_refuses_without_modifying_history[worker.exit] ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_reuse_refuses_without_mod2')
+name = 'worker.exit'
+
+    @pytest.mark.parametrize('name',['PID','launcher-PID','worker.exit','operation.claim','gate-output','gpio-cache'])
+    def test_reuse_refuses_without_modifying_history(tmp_path,name):
+>       module=load(tmp_path)
+               ^^^^^^^^^^^^^^
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_reuse_refuses_without_mod2')
+
+    def load(tmp_path):
+        path=Path(__file__).with_name('controller.py')
+>       if not path.exists():pytest.fail('runtime controller missing')
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: runtime controller missing
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:10: Failed
+________ test_reuse_refuses_without_modifying_history[operation.claim] _________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_reuse_refuses_without_mod3')
+name = 'operation.claim'
+
+    @pytest.mark.parametrize('name',['PID','launcher-PID','worker.exit','operation.claim','gate-output','gpio-cache'])
+    def test_reuse_refuses_without_modifying_history(tmp_path,name):
+>       module=load(tmp_path)
+               ^^^^^^^^^^^^^^
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_reuse_refuses_without_mod3')
+
+    def load(tmp_path):
+        path=Path(__file__).with_name('controller.py')
+>       if not path.exists():pytest.fail('runtime controller missing')
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: runtime controller missing
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:10: Failed
+__________ test_reuse_refuses_without_modifying_history[gate-output] ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_reuse_refuses_without_mod4')
+name = 'gate-output'
+
+    @pytest.mark.parametrize('name',['PID','launcher-PID','worker.exit','operation.claim','gate-output','gpio-cache'])
+    def test_reuse_refuses_without_modifying_history(tmp_path,name):
+>       module=load(tmp_path)
+               ^^^^^^^^^^^^^^
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_reuse_refuses_without_mod4')
+
+    def load(tmp_path):
+        path=Path(__file__).with_name('controller.py')
+>       if not path.exists():pytest.fail('runtime controller missing')
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: runtime controller missing
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:10: Failed
+___________ test_reuse_refuses_without_modifying_history[gpio-cache] ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_reuse_refuses_without_mod5')
+name = 'gpio-cache'
+
+    @pytest.mark.parametrize('name',['PID','launcher-PID','worker.exit','operation.claim','gate-output','gpio-cache'])
+    def test_reuse_refuses_without_modifying_history(tmp_path,name):
+>       module=load(tmp_path)
+               ^^^^^^^^^^^^^^
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_reuse_refuses_without_mod5')
+
+    def load(tmp_path):
+        path=Path(__file__).with_name('controller.py')
+>       if not path.exists():pytest.fail('runtime controller missing')
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: runtime controller missing
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:10: Failed
+_____________________________ test_exclusive_claim _____________________________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_exclusive_claim0')
+
+    def test_exclusive_claim(tmp_path):
+>       module=load(tmp_path);module.claim();before=snapshot(module.BASE)
+               ^^^^^^^^^^^^^^
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:35: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_exclusive_claim0')
+
+    def load(tmp_path):
+        path=Path(__file__).with_name('controller.py')
+>       if not path.exists():pytest.fail('runtime controller missing')
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: runtime controller missing
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:10: Failed
+___________ test_origin_and_hash_checked_before_returning_native_api ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_origin_and_hash_checked_b0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x775ed42243e0>
+
+    def test_origin_and_hash_checked_before_returning_native_api(tmp_path,monkeypatch):
+>       module=load(tmp_path)
+               ^^^^^^^^^^^^^^
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:41: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_origin_and_hash_checked_b0')
+
+    def load(tmp_path):
+        path=Path(__file__).with_name('controller.py')
+>       if not path.exists():pytest.fail('runtime controller missing')
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: runtime controller missing
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:10: Failed
+_____________ test_inventory_rejects_symlinks_and_preserves_hashes _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_inventory_rejects_symlink0')
+
+    def test_inventory_rejects_symlinks_and_preserves_hashes(tmp_path):
+>       module=load(tmp_path);root=tmp_path/'source';root.mkdir();(root/'a').write_text('value')
+               ^^^^^^^^^^^^^^
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_inventory_rejects_symlink0')
+
+    def load(tmp_path):
+        path=Path(__file__).with_name('controller.py')
+>       if not path.exists():pytest.fail('runtime controller missing')
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: runtime controller missing
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:10: Failed
+______ test_launcher_is_source_first_and_has_no_build_or_overwriting_pid _______
+
+    def test_launcher_is_source_first_and_has_no_build_or_overwriting_pid():
+        path=Path(__file__).with_name('launch.sh')
+>       if not path.exists():pytest.fail('runtime launcher missing')
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: runtime launcher missing
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:57: Failed
+______________________ test_copy_is_independent_and_exact ______________________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_copy_is_independent_and_e0')
+
+    def test_copy_is_independent_and_exact(tmp_path):
+>       module=load(tmp_path);source=tmp_path/'source';source.mkdir();(source/'file').write_text('fixture')
+               ^^^^^^^^^^^^^^
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:65: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_copy_is_independent_and_e0')
+
+    def load(tmp_path):
+        path=Path(__file__).with_name('controller.py')
+>       if not path.exists():pytest.fail('runtime controller missing')
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: runtime controller missing
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:10: Failed
+___________ test_tool_hash_scope_does_not_read_outside_allowed_root ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_tool_hash_scope_does_not_0')
+
+    def test_tool_hash_scope_does_not_read_outside_allowed_root(tmp_path):
+>       module=load(tmp_path)
+               ^^^^^^^^^^^^^^
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:75: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-152/test_tool_hash_scope_does_not_0')
+
+    def load(tmp_path):
+        path=Path(__file__).with_name('controller.py')
+>       if not path.exists():pytest.fail('runtime controller missing')
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: runtime controller missing
+
+.superpowers/boom-irq-runtime-gate-20261017/control/test_control.py:10: Failed
+=========================== short test summary info ============================
+FAILED .superpowers/boom-irq-runtime-gate-20261017/control/test_control.py::test_reuse_refuses_without_modifying_history[PID]
+FAILED .superpowers/boom-irq-runtime-gate-20261017/control/test_control.py::test_reuse_refuses_without_modifying_history[launcher-PID]
+FAILED .superpowers/boom-irq-runtime-gate-20261017/control/test_control.py::test_reuse_refuses_without_modifying_history[worker.exit]
+FAILED .superpowers/boom-irq-runtime-gate-20261017/control/test_control.py::test_reuse_refuses_without_modifying_history[operation.claim]
+FAILED .superpowers/boom-irq-runtime-gate-20261017/control/test_control.py::test_reuse_refuses_without_modifying_history[gate-output]
+FAILED .superpowers/boom-irq-runtime-gate-20261017/control/test_control.py::test_reuse_refuses_without_modifying_history[gpio-cache]
+FAILED .superpowers/boom-irq-runtime-gate-20261017/control/test_control.py::test_exclusive_claim
+FAILED .superpowers/boom-irq-runtime-gate-20261017/control/test_control.py::test_origin_and_hash_checked_before_returning_native_api
+FAILED .superpowers/boom-irq-runtime-gate-20261017/control/test_control.py::test_inventory_rejects_symlinks_and_preserves_hashes
+FAILED .superpowers/boom-irq-runtime-gate-20261017/control/test_control.py::test_launcher_is_source_first_and_has_no_build_or_overwriting_pid
+FAILED .superpowers/boom-irq-runtime-gate-20261017/control/test_control.py::test_copy_is_independent_and_exact
+FAILED .superpowers/boom-irq-runtime-gate-20261017/control/test_control.py::test_tool_hash_scope_does_not_read_outside_allowed_root
+12 failed in 0.07s
