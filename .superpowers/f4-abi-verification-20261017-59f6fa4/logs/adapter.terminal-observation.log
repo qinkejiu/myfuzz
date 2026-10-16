@@ -1,0 +1,15 @@
+211683
+0
+1
+0
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /root/fanzehui/f4-abi-verification-20261017-59f6fa4/project
+collecting ... collected 1 item
+
+tests/protocols/test_obi_processor_memory_adapter_rtl.py::ObiProcessorMemoryAdapterRtlTests::test_backend_error_fail_stops_when_cpu_has_no_obi_error_channel SKIPPED
+
+============================== 1 skipped in 0.02s ==============================
+adapter gate must actually pass, not skip
+LOCK_PROBE_EXIT=0
