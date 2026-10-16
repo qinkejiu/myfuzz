@@ -1,6 +1,8 @@
+2026-10-17 [真实 UART RX FIFO→DMA→RAM→Ibex ISR](ibex-zipcpu-dma-uart-rx-fifo-directed-20261017.md)：远端真实门 2 passed／278.74 秒，两个 fresh 完整规范化轨迹一致，非法源偏移不弹出 FIFO；相同修正源码的 TX 回归 3 passed／287.64 秒。持续搜索、通用来源链与认证前缀 replay 尚未验收。
+
 # 当前方案的验收报告入口
 
-2026-10-17 Ibex＋ZipCPU `wbdmac`＋OpenTitan UART：[真实 RAM→UART TX FIFO、DMA IRQ→ISR 报告](ibex-zipcpu-dma-uart-fifo-directed-20261017.md)。修正版远端真实门 3 passed；两次 fresh 串行均发出 `0xA5`、ISR 保存状态与成功标记，非法目标地址及超宽 WDATA 均由环境返回 ERR 且无 UART 输出。IP FIFO→RAM、持续搜索与认证前缀 replay 仍未完成。
+2026-10-17 Ibex＋ZipCPU `wbdmac`＋OpenTitan UART：[真实 RAM→UART TX FIFO、DMA IRQ→ISR 报告](ibex-zipcpu-dma-uart-fifo-directed-20261017.md)。修正版远端真实门 3 passed；两次 fresh 串行均发出 `0xA5`、ISR 保存状态与成功标记，非法目标地址及超宽 WDATA 均由环境返回 ERR 且无 UART 输出。后续 RX 方向定向证据见上方报告；持续搜索与认证前缀 replay 仍未完成。
 
 2026-10-17 P7 D4：[精确 D2 产物消费、严格 D3 拒绝与真实 CV32E40P 双 GPIO 子集报告](p7-d4-bounded-artifact-execution-20261017.md)。本地隔离真实门 2 passed，八例连续会话及 4,021 事件 fresh 全量重放匹配；编译路径语义映射缺失，自动 D3 执行仍拒绝。
 
