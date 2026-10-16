@@ -25,20 +25,26 @@ class CoherentProtocolEventNormalizer:
                  endpoint_id: str, clock_domain: str, beat_bytes: int = 8,
                  max_size: int = 12, max_outstanding: int = 64,
                  max_events: int = 100000, manager_order: str = 'fifo',
-                 single_client: bool = True, external_probes: bool = False):
+                 single_client: bool = True, external_probes: bool = False,
+                 address_bits: int = 64, source_bits: int = 16,
+                 sink_bits: int = 16):
         if any(type(x) is not str or not x for x in
                (component_id, instance_id, endpoint_id, clock_domain)):
             raise ValueError('coherent-component-identity-required')
         if (type(beat_bytes) is not int or beat_bytes < 1
                 or beat_bytes & (beat_bytes - 1)
                 or any(type(x) is not int or x < 1 for x in
-                       (max_size, max_outstanding, max_events))):
+                       (max_size, max_outstanding, max_events,
+                        address_bits, source_bits, sink_bits))
+                or max_size > 20 or beat_bytes > 128
+                or max(address_bits, source_bits, sink_bits) > 128):
             raise ValueError('coherent-bounds-invalid')
         if manager_order != 'fifo' or single_client is not True or external_probes is not False:
             raise ValueError('coherent-subset-scope-unsupported')
         self.component_id, self.instance_id = component_id, instance_id
         self.endpoint_id, self.clock_domain = endpoint_id, clock_domain
         self.beat_bytes, self.max_size = beat_bytes, max_size
+        self.address_bits, self.source_bits, self.sink_bits = address_bits, source_bits, sink_bits
         self.max_outstanding, self.max_events = max_outstanding, max_events
         self._epoch = None
         self._refs = set()
@@ -58,6 +64,12 @@ class CoherentProtocolEventNormalizer:
         value = row.get(name)
         if type(value) is not int or value < 0:
             self._fail('field-invalid:' + name)
+        return value
+
+    def _unsigned(self, row, name, bits):
+        value = self._integer(row, name)
+        if value >= (1 << bits):
+            self._fail('field-width-exceeded:' + name)
         return value
 
     def _beats(self, size):
@@ -96,7 +108,6 @@ class CoherentProtocolEventNormalizer:
             self._fail('epoch-regressed')
         emitted = []
         if self._epoch is not None and reset_epoch != self._epoch:
-            cancelled = len(self._sources) + len(self._sinks)
             states = list(self._pending) + list(self._sinks.values())
             if self._release is not None:
                 states.append(self._release)
@@ -110,7 +121,7 @@ class CoherentProtocolEventNormalizer:
                      'to_reset_epoch': reset_epoch}, state)
                 event['local_event_id'] += f"|{state['ref']}"
                 emitted.append(event)
-            self._counts['reset_cancellations'] += cancelled
+            self._counts['reset_cancellations'] += len(seen)
             self._pending.clear()
             self._sources.clear()
             self._sinks.clear()
@@ -124,7 +135,7 @@ class CoherentProtocolEventNormalizer:
             self._fail('channel-outside-no-probe-subset')
         request = None
         if channel == 'E':
-            sink = self._integer(row, 'sink')
+            sink = self._unsigned(row, 'sink', self.sink_bits)
             request = self._sinks.get(sink)
             if request is None or not request['complete']:
                 self._fail('grantack-without-complete-grant')
@@ -133,12 +144,29 @@ class CoherentProtocolEventNormalizer:
         else:
             opcode = self._integer(row, 'opcode')
             size = self._integer(row, 'size')
-            source = self._integer(row, 'source')
+            source = self._unsigned(row, 'source', self.source_bits)
             param = self._integer(row, 'param')
             if size > self.max_size:
                 self._fail('size-bound-exceeded')
+            if ((channel == 'A' and opcode in (0, 1))
+                    or (channel == 'C' and opcode == 7)
+                    or (channel == 'D' and opcode in (1, 5))
+                    or 'data' in row):
+                self._unsigned(row, 'data', self.beat_bytes * 8)
             if channel in ('A', 'C'):
-                address = self._integer(row, 'address')
+                address = self._unsigned(row, 'address', self.address_bits)
+                if address % (1 << size):
+                    self._fail('request-address-unaligned')
+                if channel == 'A':
+                    mask = self._unsigned(row, 'mask', self.beat_bytes)
+                    lanes = min(1 << size, self.beat_bytes)
+                    expected_mask = ((1 << lanes) - 1) << (address % self.beat_bytes)
+                    if (mask & ~expected_mask or
+                            (opcode != 1 and mask != expected_mask)):
+                        self._fail('a-mask-outside-transfer')
+                elif 'mask' in row:
+                    # C has no native mask; retain transport metadata only.
+                    self._unsigned(row, 'mask', self.beat_bytes)
                 namespace = (channel, source)
                 if channel == 'A':
                     if opcode not in (0, 1, 4, 6, 7) or (opcode in (0, 1) and (1 << size) > self.beat_bytes):
@@ -183,9 +211,11 @@ class CoherentProtocolEventNormalizer:
                 beat = self._integer(row, 'beat')
                 if (opcode, size, source, param, beat) != (request['d_opcode'], request['size'], request['source'], request['d_param'], request['received']):
                     self._fail('fifo-response-identity-or-beat-mismatch')
-                if 'address' in row and row['address'] != request['address']:
-                    self._fail('response-address-mismatch')
-                sink = self._integer(row, 'sink')
+                if 'address' in row:
+                    address = self._unsigned(row, 'address', self.address_bits)
+                    if address != request['address']:
+                        self._fail('response-address-mismatch')
+                sink = self._unsigned(row, 'sink', self.sink_bits)
                 if opcode in (4, 5):
                     if beat == 0:
                         if sink in self._sinks or len(self._sinks) >= self.max_outstanding:
