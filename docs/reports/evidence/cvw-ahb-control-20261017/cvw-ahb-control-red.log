@@ -1,0 +1,116 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+_____________ test_default_plan_is_source_only_and_never_executes ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7df85cc02e70>
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-265/test_default_plan_is_source_on0')
+
+    def test_default_plan_is_source_only_and_never_executes(monkeypatch,tmp_path):
+     def refuse(*a,**kw):raise AssertionError('no child/tool/remote')
+     monkeypatch.setattr(subprocess,'Popen',refuse)
+>    c=control();path=tmp_path/'plan.json'
+       ^^^^^^^^^
+
+tests/local_harness/test_cvw_ahb_gate_control.py:16: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/local_harness/test_cvw_ahb_gate_control.py:11: in control
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap_external>:991: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1128: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x7df85cc02c30>
+path = '/home/qinkejiu/myfuzz/scripts/cvw_ahb_gate_control.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/home/qinkejiu/myfuzz/scripts/cvw_ahb_gate_control.py'
+
+<frozen importlib._bootstrap_external>:1186: FileNotFoundError
+____ test_snapshot_map_rejects_symlink_and_hardlink_and_detects_exact_bytes ____
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-265/test_snapshot_map_rejects_syml0')
+
+    def test_snapshot_map_rejects_symlink_and_hardlink_and_detects_exact_bytes(tmp_path):
+     import os
+>    c=control();source=tmp_path/'source';source.mkdir();(source/'a').write_text('A')
+       ^^^^^^^^^
+
+tests/local_harness/test_cvw_ahb_gate_control.py:26: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/local_harness/test_cvw_ahb_gate_control.py:11: in control
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap_external>:991: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1128: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x7df85cc21f70>
+path = '/home/qinkejiu/myfuzz/scripts/cvw_ahb_gate_control.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/home/qinkejiu/myfuzz/scripts/cvw_ahb_gate_control.py'
+
+<frozen importlib._bootstrap_external>:1186: FileNotFoundError
+________________ test_one_shot_claim_refuses_repeat_and_symlink ________________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-265/test_one_shot_claim_refuses_re0')
+
+    def test_one_shot_claim_refuses_repeat_and_symlink(tmp_path):
+>    c=control();path=tmp_path/'state.json'
+       ^^^^^^^^^
+
+tests/local_harness/test_cvw_ahb_gate_control.py:36: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/local_harness/test_cvw_ahb_gate_control.py:11: in control
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap_external>:991: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1128: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x7df85cc22a80>
+path = '/home/qinkejiu/myfuzz/scripts/cvw_ahb_gate_control.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/home/qinkejiu/myfuzz/scripts/cvw_ahb_gate_control.py'
+
+<frozen importlib._bootstrap_external>:1186: FileNotFoundError
+____________________ test_source_first_environment_is_exact ____________________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-265/test_source_first_environment_0')
+
+    def test_source_first_environment_is_exact(tmp_path):
+>    c=control();base=tmp_path;project=base/'project';(base/'tmp').mkdir()
+       ^^^^^^^^^
+
+tests/local_harness/test_cvw_ahb_gate_control.py:44: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/local_harness/test_cvw_ahb_gate_control.py:11: in control
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap_external>:991: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1128: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x7df85cb4a7e0>
+path = '/home/qinkejiu/myfuzz/scripts/cvw_ahb_gate_control.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/home/qinkejiu/myfuzz/scripts/cvw_ahb_gate_control.py'
+
+<frozen importlib._bootstrap_external>:1186: FileNotFoundError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cvw_ahb_gate_control.py::test_default_plan_is_source_only_and_never_executes
+FAILED tests/local_harness/test_cvw_ahb_gate_control.py::test_snapshot_map_rejects_symlink_and_hardlink_and_detects_exact_bytes
+FAILED tests/local_harness/test_cvw_ahb_gate_control.py::test_one_shot_claim_refuses_repeat_and_symlink
+FAILED tests/local_harness/test_cvw_ahb_gate_control.py::test_source_first_environment_is_exact
+4 failed in 0.05s

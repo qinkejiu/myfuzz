@@ -1,0 +1,27 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_real_cvw_include_readset_keeps_bounded_internal_links __________
+
+    def test_real_cvw_include_readset_keeps_bounded_internal_links():
+>    c=control();rows=c.profile_read_set(SCRIPT.parents[1],'configs/cpus/cvw/component_profile.json')
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_cvw_ahb_gate_control.py:204: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/cvw_ahb_gate_control.py:89: in profile_read_set
+    path=_no_links(path)
+         ^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/home/qinkejiu/myfuzz/third_party/cvw_upstream_reference/config/rv32gc/act/link.ld')
+
+    def _no_links(path):
+     path=Path(path).absolute()
+>    if any(p.is_symlink() for p in (path,*path.parents)):raise ValueError('controller path contains symlink')
+                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    ValueError: controller path contains symlink
+
+scripts/cvw_ahb_gate_control.py:27: ValueError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cvw_ahb_gate_control.py::test_real_cvw_include_readset_keeps_bounded_internal_links
+1 failed, 16 deselected in 0.06s

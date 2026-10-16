@@ -1,0 +1,114 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+______ test_observation_timeout_waits_same_handle_without_kill_or_restart ______
+
+self = <test_cvw_ahb_gate_control.test_observation_timeout_waits_same_handle_without_kill_or_restart.<locals>.Process object at 0x7088c3a15820>
+timeout = 1800
+
+    def wait(self,timeout=None):
+     self.waits+=1
+>    if self.waits==1:raise subprocess.TimeoutExpired(self.args,timeout)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    subprocess.TimeoutExpired: Command '['software-model-child']' timed out after 1800 seconds
+
+tests/local_harness/test_cvw_ahb_gate_control.py:152: TimeoutExpired
+
+During handling of the above exception, another exception occurred:
+
+a = (123, <Signals.SIGKILL: 9>), kw = {}
+
+>   def no_kill(*a,**kw):raise AssertionError('observation cannot kill actual child')
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: observation cannot kill actual child
+
+tests/local_harness/test_cvw_ahb_gate_control.py:155: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-292/test_observation_timeout_waits0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7088c39ddf40>
+
+    def test_observation_timeout_waits_same_handle_without_kill_or_restart(tmp_path,monkeypatch):
+     from types import SimpleNamespace
+     c=control();instances=[]
+     class Process:
+      pid=123;returncode=None
+      def __init__(self,args,**kw):self.args=args;self.waits=0;instances.append(self)
+      def wait(self,timeout=None):
+       self.waits+=1
+       if self.waits==1:raise subprocess.TimeoutExpired(self.args,timeout)
+       self.returncode=0;return 0
+      def poll(self):return self.returncode
+     def no_kill(*a,**kw):raise AssertionError('observation cannot kill actual child')
+     monkeypatch.setattr(c,'subprocess',SimpleNamespace(Popen=Process,TimeoutExpired=subprocess.TimeoutExpired))
+     monkeypatch.setattr(c.os,'killpg',no_kill)
+>    receipt=c.run_child_once(tmp_path,['software-model-child'],cwd=tmp_path,environment={})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_cvw_ahb_gate_control.py:158: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/cvw_ahb_gate_control.py:122: in run_child_once
+    os.killpg(process.pid,signal.SIGKILL);process.wait();status='aborted'
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+a = (123, <Signals.SIGKILL: 9>), kw = {}
+
+>   def no_kill(*a,**kw):raise AssertionError('observation cannot kill actual child')
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: observation cannot kill actual child
+
+tests/local_harness/test_cvw_ahb_gate_control.py:155: AssertionError
+____ test_started_receipt_failure_preserves_exception_and_waits_same_child _____
+
+path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-292/test_started_receipt_failure_p0/child.started.json')
+document = {'controller_pid': 413560, 'child_pid': 456, 'command': ['software-model-child'], 'phase': 'started'}
+
+    def claim(path,document):
+>    if path.name=='child.started.json':raise failure
+                                        ^^^^^^^^^^^^^
+E    OSError: software receipt write fault
+
+tests/local_harness/test_cvw_ahb_gate_control.py:176: OSError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-292/test_started_receipt_failure_p0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7088c3a15b50>
+
+    def test_started_receipt_failure_preserves_exception_and_waits_same_child(tmp_path,monkeypatch):
+     from types import SimpleNamespace
+     c=control();instances=[];failure=OSError('software receipt write fault')
+     class Process:
+      pid=456;returncode=None
+      def __init__(self,args,**kw):self.args=args;self.waits=0;instances.append(self)
+      def wait(self,timeout=None):self.waits+=1;self.returncode=7;return 7
+      def poll(self):return self.returncode
+     original=c.claim_state
+     def claim(path,document):
+      if path.name=='child.started.json':raise failure
+      return original(path,document)
+     monkeypatch.setattr(c,'claim_state',claim)
+     monkeypatch.setattr(c,'subprocess',SimpleNamespace(Popen=Process,TimeoutExpired=subprocess.TimeoutExpired))
+     monkeypatch.setattr(c.os,'killpg',lambda *a:pytest.fail('receipt failure cannot kill'))
+>    with pytest.raises(OSError) as caught:c.run_child_once(tmp_path,['software-model-child'],cwd=tmp_path,environment={})
+                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_cvw_ahb_gate_control.py:181: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/cvw_ahb_gate_control.py:122: in run_child_once
+    os.killpg(process.pid,signal.SIGKILL);process.wait();status='aborted'
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+a = (456, <Signals.SIGKILL: 9>)
+
+>   monkeypatch.setattr(c.os,'killpg',lambda *a:pytest.fail('receipt failure cannot kill'))
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: receipt failure cannot kill
+
+tests/local_harness/test_cvw_ahb_gate_control.py:180: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cvw_ahb_gate_control.py::test_observation_timeout_waits_same_handle_without_kill_or_restart
+FAILED tests/local_harness/test_cvw_ahb_gate_control.py::test_started_receipt_failure_preserves_exception_and_waits_same_child
+2 failed, 12 deselected in 0.07s

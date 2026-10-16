@@ -1,0 +1,48 @@
+{
+  "authorization": {
+    "build": false,
+    "elaboration": false,
+    "model": false,
+    "native": false,
+    "remote_preparation": false,
+    "tool_query": false
+  },
+  "base": "/root/fanzehui/cvw-ahb-observer-20261017-attempt1",
+  "canonical_heavy_lock": "/root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock",
+  "control": "/root/fanzehui/cvw-ahb-observer-20261017-attempt1/control",
+  "controller": {
+    "actual_child_pid": true,
+    "actual_exit": true,
+    "archives": [
+      "original startup pages",
+      "all original CPU thirteen-role samples",
+      "all target receipts/raw",
+      "observer and Runner once-only stream",
+      "first/fresh full prefixes",
+      "both binary/cache identities",
+      "actual process READY/close/reap",
+      "allowed-wrapper tool hashes"
+    ],
+    "launch_environment": "source-first imports; PYTHONOPTIMIZE=0",
+    "one_shot": "exclusive state creation before any child",
+    "source_maps": "full before and after, including Git metadata; differences are retained"
+  },
+  "environment": "/root/fanzehui/system-20261016/environment.sh",
+  "lock_owner": "gate_only_once_nonblocking",
+  "native_run": false,
+  "project": "/root/fanzehui/cvw-ahb-observer-20261017-attempt1/project",
+  "schema_version": "cvw_ahb_startup_controller_plan.v1",
+  "snapshot": {
+    "git_preserved": true,
+    "hardlinks_allowed": false,
+    "nested_git": [
+      "third_party/cvw_upstream_reference",
+      "third_party/caliptra_upstream_reference"
+    ],
+    "strategy": "independent Git metadata/file copies (or --no-hardlinks clones) plus exact reviewed working-tree overlays",
+    "validation": "full no-link source map plus generated host/profile/closure freeze; clone HEAD alone is insufficient"
+  },
+  "source_freeze_status": "requires_shared_source_stable_then_regeneration_and_review",
+  "source_only": true,
+  "tmp": "/root/fanzehui/cvw-ahb-observer-20261017-attempt1/tmp"
+}

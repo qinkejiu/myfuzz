@@ -1,0 +1,10 @@
+{
+  "source_only": true,
+  "native_run": false,
+  "sha256": {
+    "scripts/cvw_ahb_gate_control.py": "bb1b121327b52ae26e4b64d57d5b5cd5676c7ae3f1a208d891a3009e622f9ebd",
+    "tests/local_harness/test_cvw_ahb_gate_control.py": "776cdb5f05248d4330038b4a23e75bd211cbac3fcf1a02aa69926f710c723289"
+  },
+  "isolated_host_freeze_sha256": "c02134412a742eccde99746af5487f81c2f77f09a7cf20250ce37f2077762e8f",
+  "isolated_complete_map_sha256": "75244d6c7b7e6490ece1c70c20d3e143f9791804dd8f2a247f6e4d088af0dce9"
+}

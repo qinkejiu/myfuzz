@@ -1,0 +1,20 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___________ test_gate_archive_integrity_is_separate_from_child_exit ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-299/test_gate_archive_integrity_is0')
+
+    def test_gate_archive_integrity_is_separate_from_child_exit(tmp_path):
+     c=control();(tmp_path/'first.json.gz').write_bytes(b'first archive fixture')
+     (tmp_path/'fresh.json.gz').write_bytes(b'fresh archive fixture')
+     receipt=dict(schema_version='cvw_ahb_startup_gate_pass.v1',grade='actual_generated_native_observation_only',
+       source_authority=False,retirement_verified=False,protocol_completion_certified=False,
+       first_sha256=c.sha((tmp_path/'first.json.gz').read_bytes()),fresh_sha256=c.sha((tmp_path/'fresh.json.gz').read_bytes()))
+>    (tmp_path/'pass.json').write_bytes(c.encoded(receipt));c.validate_gate_archive(tmp_path)
+                                                            ^^^^^^^^^^^^^^^^^^^^^^^
+E    AttributeError: module 'cvw_control' has no attribute 'validate_gate_archive'
+
+tests/local_harness/test_cvw_ahb_gate_control.py:192: AttributeError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cvw_ahb_gate_control.py::test_gate_archive_integrity_is_separate_from_child_exit
+1 failed, 14 deselected in 0.06s

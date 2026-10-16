@@ -1,0 +1,30 @@
+......FF                                                                 [100%]
+=================================== FAILURES ===================================
+____________ test_actual_small_software_child_pid_exit_and_one_shot ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-278/test_actual_small_software_chi0')
+
+    def test_actual_small_software_child_pid_exit_and_one_shot(tmp_path):
+     import os,sys
+     c=control();command=[sys.executable,'-c','import sys;print("software-only-control");sys.exit(7)']
+>    receipt=c.run_child_once(tmp_path,command,cwd=tmp_path,environment=dict(os.environ))
+             ^^^^^^^^^^^^^^^^
+E    AttributeError: module 'cvw_control' has no attribute 'run_child_once'
+
+tests/local_harness/test_cvw_ahb_gate_control.py:68: AttributeError
+_____________ test_failed_spawn_records_terminal_without_fake_pid ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-278/test_failed_spawn_records_term0')
+
+    def test_failed_spawn_records_terminal_without_fake_pid(tmp_path):
+     import os
+     c=control()
+>    with pytest.raises(OSError):c.run_child_once(tmp_path,['/nonexistent/software-control'],cwd=tmp_path,environment=dict(os.environ))
+                                 ^^^^^^^^^^^^^^^^
+E    AttributeError: module 'cvw_control' has no attribute 'run_child_once'
+
+tests/local_harness/test_cvw_ahb_gate_control.py:79: AttributeError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cvw_ahb_gate_control.py::test_actual_small_software_child_pid_exit_and_one_shot
+FAILED tests/local_harness/test_cvw_ahb_gate_control.py::test_failed_spawn_records_terminal_without_fake_pid
+2 failed, 6 passed in 0.06s

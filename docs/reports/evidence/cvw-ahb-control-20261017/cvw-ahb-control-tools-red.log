@@ -1,0 +1,33 @@
+........FF                                                               [100%]
+=================================== FAILURES ===================================
+____________ test_allowed_tool_hashes_never_read_system_dependency _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-283/test_allowed_tool_hashes_never0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f130c11e270>
+
+    def test_allowed_tool_hashes_never_read_system_dependency(tmp_path,monkeypatch):
+     c=control();wrapper=tmp_path/'bin/c++';wrapper.parent.mkdir();wrapper.write_bytes(b'wrapper')
+     original=Path.read_bytes
+     def guarded(path):
+      if str(path).startswith('/usr/'):raise AssertionError('system dependency must not be read')
+      return original(path)
+     monkeypatch.setattr(Path,'read_bytes',guarded)
+>    rows=c.tool_file_map([str(wrapper),'/usr/bin/x86_64-linux-gnu-ar'],allowed_root=tmp_path)
+          ^^^^^^^^^^^^^^^
+E    AttributeError: module 'cvw_control' has no attribute 'tool_file_map'
+
+tests/local_harness/test_cvw_ahb_gate_control.py:91: AttributeError
+_______ test_before_after_code_changes_reject_but_git_delta_is_retained ________
+
+    def test_before_after_code_changes_reject_but_git_delta_is_retained():
+     c=control();before={'code.py':{'sha256':'a'},'.git/index':{'sha256':'one'}}
+     after={'code.py':{'sha256':'a'},'.git/index':{'sha256':'two'}}
+>    assert c.source_differences(before,after)==['.git/index']
+            ^^^^^^^^^^^^^^^^^^^^
+E    AttributeError: module 'cvw_control' has no attribute 'source_differences'
+
+tests/local_harness/test_cvw_ahb_gate_control.py:98: AttributeError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cvw_ahb_gate_control.py::test_allowed_tool_hashes_never_read_system_dependency
+FAILED tests/local_harness/test_cvw_ahb_gate_control.py::test_before_after_code_changes_reject_but_git_delta_is_retained
+2 failed, 8 passed in 0.09s

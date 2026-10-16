@@ -1,0 +1,66 @@
+......................E................                                  [100%]
+==================================== ERRORS ====================================
+_ ERROR at setup of test_actual_two_session_manifest_entry_without_frontend_or_build _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x732d64364b00>
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-305/test_actual_two_session_manife0')
+
+    @pytest.fixture
+    def target(monkeypatch,tmp_path):
+     from myfuzz.composition.component_profile import PhysicalFacts,load_component_profile
+     from myfuzz.composition.source_crawler import ElaboratedPortFact
+     from myfuzz.local_harness import plan as planning,runtime_renderer,session,build
+     from myfuzz.local_harness import load_local_harness_request,render_local_harness,verify_local_source_lock
+     from myfuzz.local_harness.driver_renderer import render_local_driver
+     from myfuzz.local_harness.ahb_lite_register_session import GeneratedAhbLiteRegisterSession
+     path='configs/peripherals/caliptra_sha256/component_profile.json';profile=load_component_profile(ROOT/path)
+     raw=gzip.decompress((ROOT/'docs/reports/evidence/ahb-register-identity-20261017/old-caliptra-target-artifact.json.gz').read_bytes())
+     saved=json.loads(raw)
+     rows=sorted({(r['port'],r['direction'],r['port_width']) for r in saved['plan']['ports']})
+     ports=tuple(ElaboratedPortFact(name=n,direction=d,width=w,signed=False,source_file=profile.source.files[-1],line=1,column=1) for n,d,w in rows)
+     facts=PhysicalFacts(top_module=profile.source.top_module,ports=ports,content_hash='saved_abi_software_fixture_not_new_elaboration',revision=profile.source.revision,files=profile.source.files,include_roots=profile.source.include_roots)
+     monkeypatch.setattr(planning,'elaborate_profile',lambda *a,**kw:facts)
+     monkeypatch.setattr(runtime_renderer,'elaborate_profile',lambda *a,**kw:facts)
+     actual_popen=subprocess.Popen
+     def guard(argv,*a,**kw):
+      if Path(argv[0]).name!='git':raise AssertionError('no frontend/model/build '+str(argv))
+      return actual_popen(argv,*a,**kw)
+     monkeypatch.setattr(subprocess,'Popen',guard)
+     identity=lambda artifact,**kw:dict(software_fixture=True,artifact_digest=artifact.runtime_document['artifact_digest'])
+     monkeypatch.setattr(build,'local_build_identity',identity);monkeypatch.setattr(session,'local_build_identity',identity)
+     request=load_local_harness_request(dict(schema_version='local_harness.v2',profile_path=path,instance_id='sha',reset_assert_ticks=8,reset_release_ticks=8,max_wait_cycles=16,tuning={'endpoint_policies':[dict(endpoint_id='sha256.bus',template_id='target.ahb-lite',template_version='1',variant_id='full-word-single',max_outstanding=1)]}))
+     plan=planning.plan_local_harness(request,base_dir=ROOT)
+>    artifact=render_local_driver(runtime_renderer.render_local_runtime(plan,render_local_harness(plan),verify_local_source_lock(profile,base_dir=ROOT),base_dir=ROOT),base_dir=ROOT)
+                                                                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+/tmp/cvw-ahb-gate-frozen-20261017-source/tests/local_harness/test_ahb_register_identity.py:37: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/cvw-ahb-gate-frozen-20261017-source/src/myfuzz/local_harness/source_lock.py:163: in verify_local_source_lock
+    result = verifier.verify_record(
+/tmp/cvw-ahb-gate-frozen-20261017-source/scripts/verify_soc_sources.py:444: in verify_record
+    content = path.read_bytes()
+              ^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/pathlib.py:1021: in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/tmp/cvw-ahb-gate-frozen-20261017-source/third_party/caliptra_upstream_reference/LICENSE')
+mode = 'rb', buffering = -1, encoding = None, errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/cvw-ahb-gate-frozen-20261017-source/third_party/caliptra_upstream_reference/LICENSE'
+
+/usr/lib/python3.12/pathlib.py:1015: FileNotFoundError
+=========================== short test summary info ============================
+ERROR ../../../tmp/cvw-ahb-gate-frozen-20261017-source/tests/local_harness/test_cvw_ahb_gate.py::test_actual_two_session_manifest_entry_without_frontend_or_build
+38 passed, 1 error in 9.45s

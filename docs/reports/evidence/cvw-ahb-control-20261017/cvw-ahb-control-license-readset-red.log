@@ -1,0 +1,14 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_profile_readset_includes_real_caliptra_license_not_just_rtl _______
+
+    def test_profile_readset_includes_real_caliptra_license_not_just_rtl():
+     c=control();root=SCRIPT.parents[1]
+>    rows=c.profile_read_set(root,'configs/peripherals/caliptra_sha256/component_profile.json')
+          ^^^^^^^^^^^^^^^^^^
+E    AttributeError: module 'cvw_control' has no attribute 'profile_read_set'
+
+tests/local_harness/test_cvw_ahb_gate_control.py:198: AttributeError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cvw_ahb_gate_control.py::test_profile_readset_includes_real_caliptra_license_not_just_rtl
+1 failed, 15 deselected in 0.05s

@@ -1,0 +1,20 @@
+{
+  "closure_license_supplement": {
+    "path": "third_party/caliptra_upstream_reference/LICENSE",
+    "reason": "real saved source-lock artifacts admission RED",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  "exact_host_file_match": true,
+  "full_source_map_bytes": 576886434,
+  "full_source_map_gzip_sha256": "71a4de30c1939c4eb411ed7813dc5f8ab25940e97c42bc8af88dd8e578a193cd",
+  "full_source_map_rows": 11421,
+  "full_source_map_sha256": "75244d6c7b7e6490ece1c70c20d3e143f9791804dd8f2a247f6e4d088af0dce9",
+  "git_copy": "main cp -a --reflink=auto; nested shutil.copytree; no hardlinks",
+  "native_run": false,
+  "remote_operation": false,
+  "snapshot": "/tmp/cvw-ahb-gate-frozen-20261017-source",
+  "source_freeze_sha256": "c02134412a742eccde99746af5487f81c2f77f09a7cf20250ce37f2077762e8f",
+  "source_head": "dc14fa398adac70f60048a91195eedd60e531866",
+  "source_only": true,
+  "unreviewed_controller_files_excluded": true
+}

@@ -1,0 +1,46 @@
+....FF                                                                   [100%]
+=================================== FAILURES ===================================
+______ test_internal_link_is_documented_without_following_external_target ______
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-272/test_internal_link_is_document0')
+
+    def test_internal_link_is_documented_without_following_external_target(tmp_path):
+     c=control();(tmp_path/'data').write_bytes(b'known');(tmp_path/'alias').symlink_to('data')
+>    rows=c.source_map(tmp_path)
+          ^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_cvw_ahb_gate_control.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-qinkejiu/pytest-272/test_internal_link_is_document0')
+
+    def source_map(root):
+     """Full independent snapshot map, including .git; no link traversal."""
+     root=_no_links(root);result={}
+     for directory,dirs,files in os.walk(root,followlinks=False):
+      for name in dirs:
+       if (Path(directory)/name).is_symlink():raise ValueError('source directory symlink')
+      for name in files:
+       path=Path(directory)/name
+>      if path.is_symlink() or not path.is_file():raise ValueError('source file symlink or special file')
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E      ValueError: source file symlink or special file
+
+scripts/cvw_ahb_gate_control.py:37: ValueError
+____________ test_git_metadata_is_self_contained_and_no_alternates _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-272/test_git_metadata_is_self_cont0')
+
+    def test_git_metadata_is_self_contained_and_no_alternates(tmp_path):
+     c=control();project=tmp_path/'project';project.mkdir()
+     for name in ('.git','third_party/cvw_upstream_reference/.git','third_party/caliptra_upstream_reference/.git'):
+      git=project/name;(git/'objects/info').mkdir(parents=True);(git/'HEAD').write_text('ref: refs/heads/main\n')
+>    c.validate_git_metadata(project)
+     ^^^^^^^^^^^^^^^^^^^^^^^
+E    AttributeError: module 'cvw_control' has no attribute 'validate_git_metadata'
+
+tests/local_harness/test_cvw_ahb_gate_control.py:61: AttributeError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cvw_ahb_gate_control.py::test_internal_link_is_documented_without_following_external_target
+FAILED tests/local_harness/test_cvw_ahb_gate_control.py::test_git_metadata_is_self_contained_and_no_alternates
+2 failed, 4 passed in 0.06s
