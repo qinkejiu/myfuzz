@@ -14,7 +14,7 @@ import uuid
 import tempfile
 
 from myfuzz.scenario.protocol_io import (
-    BoundedLineReader, command_deadline, end_local_process, write_local_command,
+    BoundedLineReader, command_deadline, end_local_process, write_local_command, _deadline,
 )
 from .tilelink_coherent_cpu_session import digest, generate
 
@@ -116,7 +116,7 @@ class GeneratedBoomCpuSession:
         self._external_pending = None
         self._external_response_submitted = False
         try:
-            with command_deadline(time.monotonic() + self.timeout):
+            with command_deadline(self._bounded_deadline()):
                 ready = self._read()
             if ready != {'ready': True}:
                 raise RuntimeError('BOOM session did not become ready')
@@ -126,6 +126,11 @@ class GeneratedBoomCpuSession:
             self.close()
             raise
 
+    def _bounded_deadline(self):
+        deadline = time.monotonic() + self.timeout
+        enclosing = _deadline.get()
+        return deadline if enclosing is None else min(deadline, enclosing)
+
     def _read(self):
         return json.loads(self._reader.readline(self._process.stdout))
 
@@ -133,7 +138,7 @@ class GeneratedBoomCpuSession:
         if self._process is None:
             raise RuntimeError('BOOM session is closed')
         try:
-            with command_deadline(time.monotonic() + self.timeout):
+            with command_deadline(self._bounded_deadline()):
                 write_local_command(self._process.stdin,
                                     ' '.join(map(str, (operation, *args))) + '\n')
                 return self._read()
