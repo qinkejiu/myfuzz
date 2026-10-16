@@ -9,10 +9,16 @@ Arena permissions and space for the actual writer remain admission checks.
 Callers must separately authenticate D3 against the original compile request,
 validate runtime rules and physical ownership, and admit an actual CPU writer.
 """
+from bisect import bisect_left
 from dataclasses import dataclass
 from hashlib import sha256
 import json
 from collections.abc import Mapping
+
+
+MAX_LAYOUT_SOURCES = 64  # Includes the derived instruction image.
+MAX_CANDIDATE_BITS = 1024
+LAYOUT_SCHEMA = "compiled_candidate_layout.v1"
 
 
 class CandidateLayoutError(ValueError):
@@ -110,6 +116,46 @@ def _integer(value, low, high):
     return type(value) is int and low <= value <= high
 
 
+
+def _submasks(mask):
+    """Enumerate one 16 bit half, including zero (at most 65536 values)."""
+    value = mask
+    while True:
+        yield value
+        if value == 0:
+            return
+        value = (value - 1) & mask
+
+
+def _domain_nonempty(mask, minimum, maximum, alignment):
+    """Exact 32 bit mask/range/modulus intersection, without a 2**32 scan.
+
+    The two halves enumerate at most 2 * 65536 submasks. Low halves are
+    grouped by remainder and sorted, then each high half does one binary
+    search in the complementary remainder group. Memory is at most 65536
+    low values; runtime is O(2**16 * log(2**16)) per constrained source.
+    """
+    if minimum == 0:
+        return True
+    if mask == 0xffffffff:
+        return ((minimum + alignment - 1) // alignment) * alignment <= maximum
+    groups = {}
+    for low in _submasks(mask & 0xffff):
+        groups.setdefault(low % alignment, []).append(low)
+    for values in groups.values():
+        values.sort()
+    for upper in _submasks(mask >> 16):
+        high = upper << 16
+        if high > maximum or high + 0xffff < minimum:
+            continue
+        values = groups.get((-high) % alignment)
+        if values:
+            index = bisect_left(values, minimum - high)
+            if index < len(values) and values[index] <= maximum - high:
+                return True
+    return False
+
+
 def compile_candidate_layout(path):
     """Compile the supported D3 F4 subset, refusing unimplemented semantics.
 
@@ -131,6 +177,7 @@ def compile_candidate_layout(path):
     mirrors = constraints.get('source_constraints', [])
     _require(isinstance(sources, list) and isinstance(mirrors, list)
              and len(sources) == len(mirrors), 'constraint-mismatch')
+    _require(len(sources) <= MAX_LAYOUT_SOURCES, 'source-budget', '/sources')
     keys = ('source_id', 'origin', 'kind', 'width', 'bit_offset', 'mask',
             'alignment', 'range', 'constraint_basis', 'register_access')
     seen = set(); slices = []; offset = 0; images = []; streams = []; pin_owners = []
@@ -195,6 +242,8 @@ def compile_candidate_layout(path):
             packed_width = width
         else:
             raise CandidateLayoutError('source-kind-unsupported', pointer)
+        _require(offset + packed_width <= MAX_CANDIDATE_BITS, 'raw-bit-budget', pointer)
+        _require(_domain_nonempty(mask, minimum, maximum, alignment), 'source-domain-empty', pointer)
         slices.append(CandidateSlice(identity, kind, source['component'], source['endpoint_id'],
             source.get('port'), offset, packed_width, bit, mask, minimum, maximum, alignment))
         offset += packed_width
@@ -209,5 +258,10 @@ def compile_candidate_layout(path):
              and bounds[0] % 4 == 0 and bounds[1] >= bounds[0]
              and image.get('width') == (bounds[1] - bounds[0] + 1) * 8,
              'derived-image-unsupported')
-    canonical = json.dumps(path, sort_keys=True, separators=(',', ':'), allow_nan=False)
+    try:
+        canonical = json.dumps(dict(schema_version=LAYOUT_SCHEMA,
+            max_sources=MAX_LAYOUT_SOURCES, max_candidate_bits=MAX_CANDIDATE_BITS,
+            path=path), sort_keys=True, separators=(',', ':'), allow_nan=False)
+    except (TypeError, ValueError, RecursionError) as error:
+        raise CandidateLayoutError('declaration-json-invalid', '/') from error
     return CandidateLayout(tuple(slices), sha256(canonical.encode()).hexdigest(), image['source_id'])

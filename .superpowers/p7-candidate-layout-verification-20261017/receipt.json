@@ -1,0 +1,16 @@
+{
+  "schema_version": "software_verification_receipt.v1",
+  "date": "2026-10-17",
+  "scope": "P7 bounded candidate layout local software review fixes only",
+  "command": "PYTHONPATH=src pytest -q tests/integration/test_compiled_candidate_layout.py",
+  "red": {"log": "red.log", "exit_code": 1, "result": "9 failed, 16 passed in 16.40s", "note": "Before implementation: empty domains, budgets, JSON errors and exhaustive-reference disagreements. Final suite additionally checks MITM enumeration bound and fast paths."},
+  "green": {"log": "green.log", "exit_code": 0, "result": "26 passed in 16.24s"},
+  "source_sha256": "bd5a794708cafbe9745c43a9ac35222b2a2a4e241d845cf7b0d20bdbed8fcb08",
+  "tests_sha256": "00a4410a2e98507a3baeba27db0df6b04dc6a34e39c8a4450920750f89bbc60a",
+  "red_sha256": "c6d77ae558181e1cafc23719f621a119294a126890a2a03a5f5ea09cf865bbe7",
+  "green_sha256": "d8162e6fe2f44d753d855f02be927d544fb75461b4fb86422d68e5d2ec92f87c",
+  "domain_algorithm": "Exact 16+16 bit meet-in-the-middle; at most 65536 submasks per half, grouped low remainders and binary search, constant-work zero/full-mask shortcuts",
+  "max_sources_including_derived_image": 64,
+  "max_candidate_bits": 1024,
+  "not_claimed": ["production submit integration", "RTL execution", "remote execution", "P7 acceptance", "runtime rule satisfaction", "live authority"]
+}

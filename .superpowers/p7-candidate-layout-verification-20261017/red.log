@@ -1,0 +1,295 @@
+............FFFF....FFFFF                                                [100%]
+=================================== FAILURES ===================================
+________________ test_empty_source_domains_refused[1-bounds0-1] ________________
+
+compiled_path = {'path_id': 'F4:ram.image', 'flow_id': 'F4', 'flow_name': 'mmio_control_stream', 'definition': {'name': 'mmio_control_...IP RTL 执行/响应。', 'authority': 'docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:80'}, ...}
+mask = 1, bounds = [2, 3], alignment = 1
+
+    @pytest.mark.parametrize('mask,bounds,alignment', [(1, [2, 3], 1), (3, [1, 1], 2),
+        (0x80000001, [0x80000000, 0x80000001], 5),
+        (0xffffffff, [0xfffffffe, 0xffffffff], 0x80000001)])
+    def test_empty_source_domains_refused(compiled_path, mask, bounds, alignment):
+        p = _pin_domain(compiled_path, width=32 if mask > 3 else 2,
+                        mask=mask, bounds=bounds, alignment=alignment)
+>       with pytest.raises(CandidateLayoutError, match='source-domain-empty') as caught:
+E       Failed: DID NOT RAISE CandidateLayoutError
+
+tests/integration/test_compiled_candidate_layout.py:103: Failed
+________________ test_empty_source_domains_refused[3-bounds1-2] ________________
+
+compiled_path = {'path_id': 'F4:ram.image', 'flow_id': 'F4', 'flow_name': 'mmio_control_stream', 'definition': {'name': 'mmio_control_...IP RTL 执行/响应。', 'authority': 'docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:80'}, ...}
+mask = 3, bounds = [1, 1], alignment = 2
+
+    @pytest.mark.parametrize('mask,bounds,alignment', [(1, [2, 3], 1), (3, [1, 1], 2),
+        (0x80000001, [0x80000000, 0x80000001], 5),
+        (0xffffffff, [0xfffffffe, 0xffffffff], 0x80000001)])
+    def test_empty_source_domains_refused(compiled_path, mask, bounds, alignment):
+        p = _pin_domain(compiled_path, width=32 if mask > 3 else 2,
+                        mask=mask, bounds=bounds, alignment=alignment)
+>       with pytest.raises(CandidateLayoutError, match='source-domain-empty') as caught:
+E       Failed: DID NOT RAISE CandidateLayoutError
+
+tests/integration/test_compiled_candidate_layout.py:103: Failed
+___________ test_empty_source_domains_refused[2147483649-bounds2-5] ____________
+
+compiled_path = {'path_id': 'F4:ram.image', 'flow_id': 'F4', 'flow_name': 'mmio_control_stream', 'definition': {'name': 'mmio_control_...IP RTL 执行/响应。', 'authority': 'docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:80'}, ...}
+mask = 2147483649, bounds = [2147483648, 2147483649], alignment = 5
+
+    @pytest.mark.parametrize('mask,bounds,alignment', [(1, [2, 3], 1), (3, [1, 1], 2),
+        (0x80000001, [0x80000000, 0x80000001], 5),
+        (0xffffffff, [0xfffffffe, 0xffffffff], 0x80000001)])
+    def test_empty_source_domains_refused(compiled_path, mask, bounds, alignment):
+        p = _pin_domain(compiled_path, width=32 if mask > 3 else 2,
+                        mask=mask, bounds=bounds, alignment=alignment)
+>       with pytest.raises(CandidateLayoutError, match='source-domain-empty') as caught:
+E       Failed: DID NOT RAISE CandidateLayoutError
+
+tests/integration/test_compiled_candidate_layout.py:103: Failed
+_______ test_empty_source_domains_refused[4294967295-bounds3-2147483649] _______
+
+compiled_path = {'path_id': 'F4:ram.image', 'flow_id': 'F4', 'flow_name': 'mmio_control_stream', 'definition': {'name': 'mmio_control_...IP RTL 执行/响应。', 'authority': 'docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:80'}, ...}
+mask = 4294967295, bounds = [4294967294, 4294967295], alignment = 2147483649
+
+    @pytest.mark.parametrize('mask,bounds,alignment', [(1, [2, 3], 1), (3, [1, 1], 2),
+        (0x80000001, [0x80000000, 0x80000001], 5),
+        (0xffffffff, [0xfffffffe, 0xffffffff], 0x80000001)])
+    def test_empty_source_domains_refused(compiled_path, mask, bounds, alignment):
+        p = _pin_domain(compiled_path, width=32 if mask > 3 else 2,
+                        mask=mask, bounds=bounds, alignment=alignment)
+>       with pytest.raises(CandidateLayoutError, match='source-domain-empty') as caught:
+E       Failed: DID NOT RAISE CandidateLayoutError
+
+tests/integration/test_compiled_candidate_layout.py:103: Failed
+_____________ test_source_count_and_raw_bits_have_explicit_budgets _____________
+
+compiled_path = {'path_id': 'F4:ram.image', 'flow_id': 'F4', 'flow_name': 'mmio_control_stream', 'definition': {'name': 'mmio_control_...IP RTL 执行/响应。', 'authority': 'docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:80'}, ...}
+
+    def test_source_count_and_raw_bits_have_explicit_budgets(compiled_path):
+>       from myfuzz.integration.compiled_candidate_layout import MAX_LAYOUT_SOURCES, MAX_CANDIDATE_BITS
+E       ImportError: cannot import name 'MAX_LAYOUT_SOURCES' from 'myfuzz.integration.compiled_candidate_layout' (/home/qinkejiu/myfuzz/src/myfuzz/integration/compiled_candidate_layout.py)
+
+tests/integration/test_compiled_candidate_layout.py:133: ImportError
+______________ test_non_json_metadata_has_layout_diagnostic[nan] _______________
+
+compiled_path = {'path_id': 'F4:ram.image', 'flow_id': 'F4', 'flow_name': 'mmio_control_stream', 'definition': {'name': 'mmio_control_...IP RTL 执行/响应。', 'authority': 'docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:80'}, ...}
+metadata = nan
+
+    @pytest.mark.parametrize('metadata', [float('nan'), object(), {1, 2}])
+    def test_non_json_metadata_has_layout_diagnostic(compiled_path, metadata):
+        p = deepcopy(compiled_path); p['metadata'] = metadata
+        with pytest.raises(CandidateLayoutError, match='declaration-json-invalid'):
+>           compile_candidate_layout(p)
+
+tests/integration/test_compiled_candidate_layout.py:148: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/integration/compiled_candidate_layout.py:212: in compile_candidate_layout
+    canonical = json.dumps(path, sort_keys=True, separators=(',', ':'), allow_nan=False)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/json/__init__.py:238: in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+/usr/lib/python3.12/json/encoder.py:200: in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.encoder.JSONEncoder object at 0x74982a72fe60>
+o = {'path_id': 'F4:ram.image', 'flow_id': 'F4', 'flow_name': 'mmio_control_stream', 'definition': {'name': 'mmio_control_...IP RTL 执行/响应。', 'authority': 'docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:80'}, ...}
+_one_shot = True
+
+    def iterencode(self, o, _one_shot=False):
+        """Encode the given object and yield each string
+        representation as available.
+    
+        For example::
+    
+            for chunk in JSONEncoder().iterencode(bigobject):
+                mysocket.write(chunk)
+    
+        """
+        if self.check_circular:
+            markers = {}
+        else:
+            markers = None
+        if self.ensure_ascii:
+            _encoder = encode_basestring_ascii
+        else:
+            _encoder = encode_basestring
+    
+        def floatstr(o, allow_nan=self.allow_nan,
+                _repr=float.__repr__, _inf=INFINITY, _neginf=-INFINITY):
+            # Check for specials.  Note that this type of test is processor
+            # and/or platform-specific, so do tests which don't depend on the
+            # internals.
+    
+            if o != o:
+                text = 'NaN'
+            elif o == _inf:
+                text = 'Infinity'
+            elif o == _neginf:
+                text = '-Infinity'
+            else:
+                return _repr(o)
+    
+            if not allow_nan:
+                raise ValueError(
+                    "Out of range float values are not JSON compliant: " +
+                    repr(o))
+    
+            return text
+    
+    
+        if (_one_shot and c_make_encoder is not None
+                and self.indent is None):
+            _iterencode = c_make_encoder(
+                markers, self.default, _encoder, self.indent,
+                self.key_separator, self.item_separator, self.sort_keys,
+                self.skipkeys, self.allow_nan)
+        else:
+            _iterencode = _make_iterencode(
+                markers, self.default, _encoder, self.indent, floatstr,
+                self.key_separator, self.item_separator, self.sort_keys,
+                self.skipkeys, _one_shot)
+>       return _iterencode(o, 0)
+               ^^^^^^^^^^^^^^^^^
+E       ValueError: Out of range float values are not JSON compliant: nan
+
+/usr/lib/python3.12/json/encoder.py:258: ValueError
+___________ test_non_json_metadata_has_layout_diagnostic[metadata1] ____________
+
+compiled_path = {'path_id': 'F4:ram.image', 'flow_id': 'F4', 'flow_name': 'mmio_control_stream', 'definition': {'name': 'mmio_control_...IP RTL 执行/响应。', 'authority': 'docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:80'}, ...}
+metadata = <object object at 0x74982d4af8d0>
+
+    @pytest.mark.parametrize('metadata', [float('nan'), object(), {1, 2}])
+    def test_non_json_metadata_has_layout_diagnostic(compiled_path, metadata):
+        p = deepcopy(compiled_path); p['metadata'] = metadata
+        with pytest.raises(CandidateLayoutError, match='declaration-json-invalid'):
+>           compile_candidate_layout(p)
+
+tests/integration/test_compiled_candidate_layout.py:148: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/integration/compiled_candidate_layout.py:212: in compile_candidate_layout
+    canonical = json.dumps(path, sort_keys=True, separators=(',', ':'), allow_nan=False)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/json/__init__.py:238: in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+/usr/lib/python3.12/json/encoder.py:200: in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/json/encoder.py:258: in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.encoder.JSONEncoder object at 0x74982ac3db80>
+o = <object object at 0x74982d4af8d0>
+
+    def default(self, o):
+        """Implement this method in a subclass such that it returns
+        a serializable object for ``o``, or calls the base implementation
+        (to raise a ``TypeError``).
+    
+        For example, to support arbitrary iterators, you could
+        implement default like this::
+    
+            def default(self, o):
+                try:
+                    iterable = iter(o)
+                except TypeError:
+                    pass
+                else:
+                    return list(iterable)
+                # Let the base class default method raise the TypeError
+                return super().default(o)
+    
+        """
+>       raise TypeError(f'Object of type {o.__class__.__name__} '
+                        f'is not JSON serializable')
+E       TypeError: Object of type object is not JSON serializable
+
+/usr/lib/python3.12/json/encoder.py:180: TypeError
+___________ test_non_json_metadata_has_layout_diagnostic[metadata2] ____________
+
+compiled_path = {'path_id': 'F4:ram.image', 'flow_id': 'F4', 'flow_name': 'mmio_control_stream', 'definition': {'name': 'mmio_control_...IP RTL 执行/响应。', 'authority': 'docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:80'}, ...}
+metadata = {1, 2}
+
+    @pytest.mark.parametrize('metadata', [float('nan'), object(), {1, 2}])
+    def test_non_json_metadata_has_layout_diagnostic(compiled_path, metadata):
+        p = deepcopy(compiled_path); p['metadata'] = metadata
+        with pytest.raises(CandidateLayoutError, match='declaration-json-invalid'):
+>           compile_candidate_layout(p)
+
+tests/integration/test_compiled_candidate_layout.py:148: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/integration/compiled_candidate_layout.py:212: in compile_candidate_layout
+    canonical = json.dumps(path, sort_keys=True, separators=(',', ':'), allow_nan=False)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/json/__init__.py:238: in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+/usr/lib/python3.12/json/encoder.py:200: in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/json/encoder.py:258: in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.encoder.JSONEncoder object at 0x74982ab54740>, o = {1, 2}
+
+    def default(self, o):
+        """Implement this method in a subclass such that it returns
+        a serializable object for ``o``, or calls the base implementation
+        (to raise a ``TypeError``).
+    
+        For example, to support arbitrary iterators, you could
+        implement default like this::
+    
+            def default(self, o):
+                try:
+                    iterable = iter(o)
+                except TypeError:
+                    pass
+                else:
+                    return list(iterable)
+                # Let the base class default method raise the TypeError
+                return super().default(o)
+    
+        """
+>       raise TypeError(f'Object of type {o.__class__.__name__} '
+                        f'is not JSON serializable')
+E       TypeError: Object of type set is not JSON serializable
+
+/usr/lib/python3.12/json/encoder.py:180: TypeError
+________________ test_small_domains_match_exhaustive_reference _________________
+
+compiled_path = {'path_id': 'F4:ram.image', 'flow_id': 'F4', 'flow_name': 'mmio_control_stream', 'definition': {'name': 'mmio_control_...IP RTL 执行/响应。', 'authority': 'docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:80'}, ...}
+
+    def test_small_domains_match_exhaustive_reference(compiled_path):
+        import random
+        randomizer = random.Random(17)
+        for _ in range(160):
+            mask = randomizer.randrange(1, 64)
+            low = randomizer.randrange(64); high = randomizer.randrange(low, 64)
+            alignment = randomizer.randrange(1, 65)
+            p = _pin_domain(compiled_path, width=6, mask=mask, bounds=[low, high], alignment=alignment)
+            possible = any(v & ~mask == 0 and v % alignment == 0 for v in range(low, high+1))
+            if possible:
+                compile_candidate_layout(p)
+            else:
+>               with pytest.raises(CandidateLayoutError, match='source-domain-empty'):
+E               Failed: DID NOT RAISE CandidateLayoutError
+
+tests/integration/test_compiled_candidate_layout.py:163: Failed
+=========================== short test summary info ============================
+FAILED tests/integration/test_compiled_candidate_layout.py::test_empty_source_domains_refused[1-bounds0-1]
+FAILED tests/integration/test_compiled_candidate_layout.py::test_empty_source_domains_refused[3-bounds1-2]
+FAILED tests/integration/test_compiled_candidate_layout.py::test_empty_source_domains_refused[2147483649-bounds2-5]
+FAILED tests/integration/test_compiled_candidate_layout.py::test_empty_source_domains_refused[4294967295-bounds3-2147483649]
+FAILED tests/integration/test_compiled_candidate_layout.py::test_source_count_and_raw_bits_have_explicit_budgets
+FAILED tests/integration/test_compiled_candidate_layout.py::test_non_json_metadata_has_layout_diagnostic[nan]
+FAILED tests/integration/test_compiled_candidate_layout.py::test_non_json_metadata_has_layout_diagnostic[metadata1]
+FAILED tests/integration/test_compiled_candidate_layout.py::test_non_json_metadata_has_layout_diagnostic[metadata2]
+FAILED tests/integration/test_compiled_candidate_layout.py::test_small_domains_match_exhaustive_reference
+9 failed, 16 passed in 16.40s
