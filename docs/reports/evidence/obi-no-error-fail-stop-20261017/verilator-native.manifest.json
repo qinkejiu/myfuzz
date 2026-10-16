@@ -1,0 +1,89 @@
+{
+  "archive_sha256": "9ad1c9903a3f04ea6b8a8e7050cd58038ddeedb6daa2d42dd081337ae9403a1e",
+  "files": {
+    "obi-fail-stop-verilator-20261017-434a4e8/source.tar": {
+      "size": 30720,
+      "sha256": "9566d9a28866d57a3062a32bdfd79f3e916c4e68e4b3004813529851a3e4dff8"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/native.exit": {
+      "size": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/run.sh": {
+      "size": 1703,
+      "sha256": "ba2b25b4694a7b522343d6430ba488b3f4a0fa69d281af84a98653c209df07b3"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/source-after.exit": {
+      "size": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/source-after.json": {
+      "size": 398,
+      "sha256": "5be39e5bf13c3330c4d9a7ae7fef3d0ce484775fe7236b3671ed5eae7cc8bdde"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/audit.json": {
+      "size": 5327,
+      "sha256": "6e7c5a078271c92859c4e136f75ab37e35ab5bb983aeecdd9b2193181105e963"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/worker.exit": {
+      "size": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/native.pid": {
+      "size": 7,
+      "sha256": "f152028201310f1702cc64be5ceae4d783ca78d6d0b15dbbb9ce4dfff28b7c86"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/source-before.json": {
+      "size": 398,
+      "sha256": "5be39e5bf13c3330c4d9a7ae7fef3d0ce484775fe7236b3671ed5eae7cc8bdde"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/launched": {
+      "size": 7,
+      "sha256": "4fcd192c46ce8217541551c81b359ba515f7c26b8cedc1d9eb98062a17d78846"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/source-manifest.json": {
+      "size": 347,
+      "sha256": "7fc87a28bbd1e4264be7750627719651303e37e02934b54ecf42951eaf8566aa"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/audit.py": {
+      "size": 1263,
+      "sha256": "879c3c4bc2388c1cb5275cfe0691978907a219f95e97e36075bef6f0da53436e"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/native.log": {
+      "size": 5575,
+      "sha256": "5ecfa39c27c9a692e05b8649adf3350e2f2ab0afa18bf7421a583a6f54374e7a"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/project/.pytest_cache/v/cache/nodeids": {
+      "size": 174,
+      "sha256": "eaba1ca30b74291f1ad5a2a51a68cfb7b0fefd497c48be74f7a6290b7ae44d38"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/project/.pytest_cache/CACHEDIR.TAG": {
+      "size": 191,
+      "sha256": "37dc88ef9a0abeddbe81053a6dd8fdfb13afb613045ea1eb4a5c815a74a3bde4"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/project/.pytest_cache/README.md": {
+      "size": 302,
+      "sha256": "73fd6fccdd802c419a6b2d983d6c3173b7da97558ac4b589edec2dfe443db9ad"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/project/.pytest_cache/.gitignore": {
+      "size": 37,
+      "sha256": "3ed731b65d06150c138e2dadb0be0697550888a6b47eb8c45ecc9adba8b8e9bd"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/project/src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv": {
+      "size": 3713,
+      "sha256": "59730c6742a85351d6e2cbf284d88185c874080274f323f2364268f2da3440df"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/project/tests/protocols/test_obi_processor_memory_adapter_rtl.py": {
+      "size": 10572,
+      "sha256": "3c8aa3aa243edcb8e28754635ca76342c2c75c52232bc3430c29ced54b48f1ff"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/project/pytest.ini": {
+      "size": 9,
+      "sha256": "8250d20f42b419af40706490ead78aabab9feba93eab09a3f626e3de5256e1f4"
+    },
+    "obi-fail-stop-verilator-20261017-434a4e8/verify.py": {
+      "size": 516,
+      "sha256": "068df8c8f217b7b8978e762ab58f277688b40d7ca9359b2981a1904acaa6de14"
+    }
+  }
+}
