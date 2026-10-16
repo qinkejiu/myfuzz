@@ -33,8 +33,8 @@
 
 ## 执行顺序与验收
 
-1. [ ] 远程隔离快照与工具链准备；验证源锁及最小真实 CPU/IP 构建。
-2. [ ] Wishbone 场景入口：把已有 Pico custom0 IRQ/GPIO 真实组装提取为生产 factory，测试继续覆盖原始链。
+1. [x] 远程隔离快照与工具链准备；验证源锁及最小真实 CPU/IP 构建。远端 `/root/fanzehui/system-20261016` 的固定快照通过 `scripts/verify_soc_sources.py`；下述真实 Wishbone 用例完成首次构建及运行。
+2. [x] Wishbone 场景入口：把已有 Pico custom0 IRQ/GPIO 真实组装提取为生产 factory，测试继续覆盖原始链。提交 `bfa9d0a`；本地四项软件合同通过，远端原真实用例 `1 passed, 2 subtests passed in 165.04s`，独立审查无阻断发现。
 3. [ ] Wishbone 双向源、独立 custom0 checker、provider 与两份 manifest；先验证单格，随后验证持续在线版本，不能靠 fresh campaign 宣布 P6 通过。
 4. [ ] 补完成式内存及 Wishbone 的在线取指接纳/等待、持久状态、路由身份；接逐例双侧源、四类反馈、checker 和完整前缀 replay。
 5. [ ] CVA6、AXI4-Lite 持续在线接入，CVW 的 boot_image、online_decoder、runner_factory；逐组合补缺失的协议、IRQ 与受控错误证据。
@@ -53,11 +53,11 @@
 
 **步骤：**
 
-- [ ] 增加 API 合同测试并确认入口缺失导致失败。
-- [ ] 提取原程序和组装，保持源、地址、预算、IRQ bit3、custom0 ABI 与 `defer_mmio=True`。
-- [ ] 原真实测试改调生产 API，保留其因果、引脚、IRQ、EOI、handler、RAM 和 fresh replay 断言。
-- [ ] 跑聚焦软件测试；远程源码快照准备好后跑真实测试。
-- [ ] 独立审阅 diff，修复发现后记录 commit、命令与结果。此任务不授予 P6 campaign 或持续在线等级。
+- [x] 增加 API 合同测试并确认入口缺失导致失败。
+- [x] 提取原程序和组装，保持源、地址、预算、IRQ bit3、custom0 ABI 与 `defer_mmio=True`。
+- [x] 原真实测试改调生产 API，保留其因果、引脚、IRQ、EOI、handler、RAM 和 fresh replay 断言。
+- [x] 跑聚焦软件测试；远程源码快照准备好后跑真实测试。
+- [x] 独立审阅 diff，记录 commit、命令与结果。此任务不授予 P6 campaign 或持续在线等级。
 
 ## 进度依据
 
