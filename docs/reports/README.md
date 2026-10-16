@@ -1,10 +1,14 @@
 # 当前方案的验收报告入口
 
+2026-10-17 Ibex＋ZipCPU `wbdmac`＋OpenTitan UART：[真实 RAM→UART TX FIFO、DMA IRQ→ISR 报告](ibex-zipcpu-dma-uart-fifo-directed-20261017.md)。修正版远端真实门 3 passed；两次 fresh 串行均发出 `0xA5`、ISR 保存状态与成功标记，非法目标地址及超宽 WDATA 均由环境返回 ERR 且无 UART 输出。IP FIFO→RAM、持续搜索与认证前缀 replay 仍未完成。
+
 2026-10-17 P7 D4：[精确 D2 产物消费、严格 D3 拒绝与真实 CV32E40P 双 GPIO 子集报告](p7-d4-bounded-artifact-execution-20261017.md)。本地隔离真实门 2 passed，八例连续会话及 4,021 事件 fresh 全量重放匹配；编译路径语义映射缺失，自动 D3 执行仍拒绝。
 
 2026-10-17 P7 D3：[执行可行性与真实生产者证据报告](p7-d3-execution-feasibility-20261017.md)。四条声明可执行路径目前均不具备完整运行映射；F1 缺认证退休，F4 的 GPIOEN 编译源与固定 PADOUT 候选窗口不一致，真实 GPIOEN 写为启动动作。CLI 保留机器可读拒绝，D2-only 真实八例与 fresh replay 仍通过。
 
-2026-10-17 OBI CPU 事件：[通用协议事件、检查器和证据合成门报告](obi-protocol-events-20261017.md)先通过 224 passed、67 subtests；随后[Ibex 原始 OBI 被动 tap 真实门](ibex-raw-obi-protocol-20261017.md)通过 2 passed，两次 fresh 各由 100 个原始边沿样本认证 52 条事务，篡改响应被拒。Runner 多端点接入及 CPU/IP 事务关联仍待实现。
+2026-10-17 OBI CPU 事件：[通用协议事件、检查器和证据合成门报告](obi-protocol-events-20261017.md)先通过 224 passed、67 subtests；随后[Ibex 原始 OBI 被动 tap 真实门](ibex-raw-obi-protocol-20261017.md)通过 2 passed，两次 fresh 各由 100 个原始边沿样本认证 52 条事务，篡改响应被拒。其后的 Runner 离线复投影见下一条；CPU/IP 事务关联仍待实现。
+
+2026-10-17 Runner 双端点 OBI：[保存的真实 Ibex 原始收据离线 Runner 复投影报告](runner-obi-trace-set-20261017.md)。Runner 从 100 个保存的边沿样本产出 52 条认证及数据端读写覆盖，单端点篡改不污染另一端点；本次无新 RTL 构建，CPU/IP 事务关联和在线反馈仍待实现。
 
 2026-10-17 VexiiRiscv：[受限双 AXI 生成式 CPU/RAM 报告](vexiiriscv-generated-harness-20261017.md)。远端真实门禁 9 passed；两次 fresh 进程各完成 55 边沿、11 次 fetch、1 次 LSU 读和 2 次写响应，读响应替换的因果对照改变结果；仅生成式 CPU/RAM 定向等级。
 

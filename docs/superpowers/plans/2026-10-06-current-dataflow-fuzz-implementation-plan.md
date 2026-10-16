@@ -352,9 +352,9 @@ MYFUZZ_SCENARIO_RFUZZ_REAL=1 PYTHONPATH=src:. python3 -m unittest tests.integrat
 
 第三步的端到端入口按 `受信源码/profile → 端口及协议事实核对 → 选择已验收模板及声明式微调 → 分别生成 CPU/IP harness → 编译可用路径/输入归属/ISA 与外设约束 → 初始化一次会话 → 逐例双侧变异与反馈 → 断言/保存 → fresh replay` 执行。自动编译的输出必须列出每条可执行路径、每个可变源及被拒绝的路径理由；例如缺少 IP peer 模型时，相关 IP→CPU 路径标为不可用而非由 Fuzzer 随机制造 IP 结果。验收使用新增的同协议 CPU 和新增 IP 各一个，同时保留一个旧组件负例，确认生成器没有因名称相似错误套用模板。
 
-### P8：真实 DMA 主设备搬运流——未验收；定向 RAM→RAM 主链已实测
+### P8：真实 DMA 主设备搬运流——未验收；定向 RAM→RAM 和 RAM→IP TX FIFO 已实测
 
-**当前情况（2026-10-17）：** 固定 ZipCPU `wbdmac` 已有独立生成式主设备 harness；Ibex 真实 OBI 事务配置 DMA，DMA 真实请求完成四字 RAM→RAM 搬运，原生完成脉冲经显式 pending-level latch 交付真实 Ibex 中断输入，ISR 读取状态及目的数据并写成功标记。两个新进程的完整规范化定向轨迹一致。此证据使用有界 host 事务调度，尚未覆盖含真实 IP FIFO 方向、非法输入、持续 testcase 变异、通用 ScenarioRunner 接入或认证前缀 replay，故 P8 整阶段未验收；见[定向报告](../../reports/ibex-zipcpu-dma-irq-isr-directed-20261017.md)。
+**当前情况（2026-10-17）：** 固定 ZipCPU `wbdmac` 已有独立生成式主设备 harness；Ibex 真实 OBI 事务配置 DMA，DMA 真实请求完成四字 RAM→RAM 搬运，原生完成脉冲经显式 pending-level latch 交付真实 Ibex 中断输入，ISR 读取状态及目的数据并写成功标记。两个新进程的完整规范化定向轨迹一致，见[RAM→RAM 报告](../../reports/ibex-zipcpu-dma-irq-isr-directed-20261017.md)。其后 RAM→真实 OpenTitan UART TX FIFO 定向链也在修正版远端门 3 passed：DMA 真实读 CPU 写入的 `0xA5` 并写 UART WDATA，串行端发出 `0xA5`，原生 IRQ 使 Ibex ISR 写成功标记；非法目标偏移、超宽 WDATA 由声明环境返回 ERR 且 UART 不发送，见[RAM→UART 报告](../../reports/ibex-zipcpu-dma-uart-fifo-directed-20261017.md)。两条链均使用有界 host 事务调度，尚缺 IP FIFO→RAM、持续 testcase 变异、通用 ScenarioRunner 来源链和认证前缀 replay，故 P8 整阶段未验收。
 
 **前置：** P2 的逐边路径契约、P3 的持续资源/事务身份；DMA 源码与主设备协议 profile 可并行准备。**主要文件：** 新增 `configs/peripherals/<dma>/` profile、`src/myfuzz/local_harness/` 的 DMA master session/协议模板，以及 `src/myfuzz/scenario/{router,scheduler,memory_service,ledger,irq,evidence,replay}.py` 的多主事务来源、提交顺序和证据接口。具体 DMA 候选先固定真实源码和其读写/IRQ 端口，再登记能力；源码不可执行时记录 `skipped_unavailable`。
 
