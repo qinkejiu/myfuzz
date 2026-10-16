@@ -10,3 +10,5 @@
 - [证据范围](evidence/timer-f4-declarations-20261017/scope.json)
 
 该 IP 对编译F4支持集是新的，对仓库不是新的。实际 storage/reset/command producer、版本令牌和原生CPU/fresh门仍缺；当前live F4 admission继续拒绝generic目标，不以声明或读回替代ip_register_version。P6/P7/P8未因此升级。
+
+独立审查发现来源行范围未包含实际 writer97/readback121；已修正为71,89–97,113–121,130–139，新增范围与实际代码行控制先RED后通过，最终5项纯软件控制通过0.25秒。下一存储producer设计另记录真实地址别名：CTRL0按PADDR[4:2]==1选中，不能只统计offset4写入而漏掉上位地址别名。见[后续设计](../superpowers/specs/2026-10-17-generic-apb-storage-producer-design.md)。
