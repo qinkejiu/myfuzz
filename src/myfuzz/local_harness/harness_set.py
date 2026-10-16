@@ -270,6 +270,8 @@ def generate_component(request_path, *, base_dir, output, build_cache=None):
     runtime = render_local_runtime(plan, structural, verified, base_dir=base_dir)
     artifact = render_local_driver(runtime, base_dir=base_dir)
     files = {
+        # Persist the exact admitted request for independent loading/replay.
+        'request.json': _json_bytes(document),
         'wrapper.sv': structural.wrapper_sv.encode('utf-8'),
         'runtime.sv': artifact.runtime_sv.encode('utf-8'),
         'driver.cpp': artifact.cpp_text.encode('utf-8'),
