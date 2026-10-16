@@ -206,12 +206,21 @@ def plan_local_harness(request: LocalHarnessRequest | LocalHarnessRequestV2, *, 
     if isinstance(request, LocalHarnessRequestV2):
         protocols = {endpoint.protocol for endpoint in binding.endpoints
                      if endpoint.protocol is not None}
+        from .native_physical_observation import native_physical_observation_requested
+        if native_physical_observation_requested(request):
+            if protocols not in ({('obi', '1')}, {('apb', '3')}):
+                raise ValueError('native-physical-observation-protocol-unsupported')
+            # Physical/source ownership is already fully planned above.
+            # The native renderer must still admit its exact executor shape.
+            return plan
         if protocols == {('tl-ul', '1')}:
             from .tlul_register_template import register_observe_policy
         elif protocols == {('apb', '3')}:
             from .apb3_register_template import register_observe_policy
         elif protocols == {('wishbone', 'classic')}:
             from .wishbone_register_template import register_observe_policy
+        elif protocols == {('axi4-lite', '1')}:
+            from .axi4lite_register_template import register_observe_policy
         else:
             raise ValueError('v2-register-template-protocol-unsupported')
         register_observe_policy(plan)

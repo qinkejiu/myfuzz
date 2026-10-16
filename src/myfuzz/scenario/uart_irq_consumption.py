@@ -21,6 +21,17 @@ def _same(left, right):
     return json.dumps(left, sort_keys=True, allow_nan=False) == json.dumps(right, sort_keys=True, allow_nan=False)
 
 
+def _boundary_detail_bounded(value, depth=0):
+    if depth > 6: return False
+    if type(value) is dict:
+        return len(value) <= 32 and all(type(k) is str and len(k) <= 128
+            and _boundary_detail_bounded(v, depth + 1) for k, v in value.items())
+    if type(value) is list:
+        return len(value) <= 16 and all(_boundary_detail_bounded(v, depth + 1) for v in value)
+    return value is None or type(value) is bool or _uint(value) or (
+        type(value) is str and 0 < len(value) <= 1024)
+
+
 def _entry(value, component, epoch):
     return (type(value) is list and len(value) == 4 and value[0] == component
             and type(value[1]) is int and value[1] == epoch
@@ -29,7 +40,7 @@ def _entry(value, component, epoch):
 
 class UartNativeIrqJoin:
     def __init__(self, *, ownership, admission_registry, edge_index=None,
-                 max_components=16, max_entry_refs=1024):
+                 max_components=16, max_entry_refs=1024, enable_boundary_evidence=False):
         from .ownership import OwnershipMap
         from .source_provenance import AdmissionRegistry
         from .runtime_edge_index import RuntimeEdgeIndex
@@ -39,6 +50,10 @@ class UartNativeIrqJoin:
             raise ValueError('invalid IRQ graph authority')
         if any(type(value) is not int or value < 1 for value in (max_components, max_entry_refs)):
             raise ValueError('IRQ capacities must be positive integers')
+        if type(enable_boundary_evidence) is not bool:
+            raise ValueError('IRQ boundary export flag must be boolean')
+        self._enable_boundary_evidence = enable_boundary_evidence
+        self._boundary_evidence = []
         self.ownership, self.registry, self.edge_index = ownership, admission_registry, edge_index
         self.max_components, self.max_entry_refs = max_components, max_entry_refs
         self._sources = {}
@@ -58,6 +73,45 @@ class UartNativeIrqJoin:
         self._global_pending = set()
         self._cause_proven = set()
         self._take_proven = set()
+
+    def drain_boundary_evidence(self):
+        """One-shot measured boundary facts, independent of source cause proof."""
+        records = tuple(deepcopy(self._boundary_evidence))
+        self._boundary_evidence.clear()
+        return records
+
+    def _boundary(self, sample, *, take=None):
+        if not self._enable_boundary_evidence or self._global_bad:
+            return
+        delivery = self._deliveries.get(sample.get('binding_delivery_event_id'))
+        if delivery is None:
+            return
+        cpu = self._cpus.get(sample['component'])
+        source = self._sources.get(delivery['source_component'])
+        if cpu is None or source is None or cpu['bad'] or source['bad']:
+            return
+        if len(self._boundary_evidence) >= self.max_entry_refs:
+            self._boundary_evidence.clear()
+            self._global_bad = True
+            return
+        record = dict(proof_scope='irq_acceptance' if take is not None else 'irq_delivery',
+            validity='historical', source_origin='unknown',
+            source_component=delivery['source_component'], source_epoch=delivery['source_epoch'],
+            target_component=sample['component'], target_epoch=sample['reset_epoch'],
+            source_observation_event_id=delivery['source_observation_event_id'],
+            binding_delivery_event_id=delivery['event_id'], sample_event_id=sample['event_id'],
+            source_output_key=deepcopy(delivery['source_output_key']),
+            sampled_value=sample['actual_pre_input'],
+            receipt_id=deepcopy(sample['receipt_id']), command_scope=deepcopy(sample['command_scope']))
+        if take is not None:
+            record.update(take_event_id=take['event_id'], take_key=deepcopy(take['take_key']),
+                serial_decision_consistent=_same(sample.get('irq_serial_observation'),
+                                                 take.get('irq_serial_observation')))
+        if not _boundary_detail_bounded(record):
+            self._boundary_evidence.clear()
+            self._global_bad = True
+            return
+        self._boundary_evidence.append(record)
 
     def _record(self, event, kind='uart_consumption_match', **fields):
         return deepcopy(dict(kind=kind, schema_version=kind + '.v1',
@@ -456,6 +510,7 @@ class UartNativeIrqJoin:
         if not _same(event.get('source_output_key'), delivery['source_output_key']):
             return self._fail(event, 'actual_irq_input_version_mismatch')
         self._bounded(self._samples, event['event_id'], event)
+        self._boundary(event)
         self._gc()
         return ()
 
@@ -484,6 +539,7 @@ class UartNativeIrqJoin:
             return (self._record(event, status='incomplete', reason='unproven_native_irq_binding',
                                  proof_scope='cpu_external_irq_taken'),)
         self._bounded(self._takes, event['event_id'], event)
+        self._boundary(sample, take=event)
         records = tuple(self._promote(event))
         self._gc()
         return records

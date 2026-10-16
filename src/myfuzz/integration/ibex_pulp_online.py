@@ -114,9 +114,10 @@ class IbexPulpOnlineRuntime:
                ) -> ReplayComparison:
         """Re-run the complete admitted prefix with fresh CPU and IP RTL.
 
-        Gate state is run state: the saved plan already records every admitted
-        case, so replay rebuilds the same admissions without a prerequisite
-        gate and no gate counter or reservation enters the compared identity.
+        Gate state is rebuilt for the fresh run. Trusted plans record each
+        admission declaration; replay registers it against fresh actual RAM
+        and slot witnesses before submitting the case. Saved decisions do not
+        supply runtime authority.
         """
         if self.custom_checker and checker is None:
             raise ValueError("custom online checker needs a fresh replay checker")
@@ -259,6 +260,61 @@ def _saved_memory_commit_mode(output: Path, verified_identity: dict | None) -> b
         raise ValueError('saved CPU memory commit mode is malformed') from exc
 
 
+def _saved_persistent_memory_mode(output: Path, verified_identity: dict | None) -> str | None:
+    """Select the exact trusted factory configuration from verified bytes only."""
+    if verified_identity is None:
+        return None
+    output = Path(output).resolve()
+    path = output / 'online_session_manifest.json'
+    if path.is_symlink() or not path.is_file() or not path.resolve().is_relative_to(output):
+        raise ValueError('saved persistent memory manifest path mismatch')
+    raw = path.read_bytes()
+    artifacts = verified_identity.get('artifacts') if type(verified_identity) is dict else None
+    if (type(artifacts) is not dict or hashlib.sha256(raw).hexdigest()
+            != artifacts.get('online_session_manifest.json')):
+        raise ValueError('saved persistent memory manifest changed after verification')
+    from myfuzz.scenario.ibex_pulp_dual_source import (
+        make_pulp_dual_source_source_action_gate, pulp_live_memory_policy_declaration,
+        result_slot_ram_location, dual_source_wiring, CPU_PROFILE)
+    import re
+    try:
+        document = json.loads(raw)
+        runner = document['runner']
+        if type(runner) is not dict:
+            raise ValueError('invalid saved persistent memory runner')
+        if 'persistent_memory_prerequisites' not in runner:
+            return None
+        configuration = runner['memory_dependency_evidence']
+        contract = configuration['runtime_contract_sha256']
+        if type(contract) is not str or re.fullmatch('[0-9a-f]{64}', contract) is None:
+            raise ValueError('invalid saved persistent memory contract')
+        if document['runtime_paths']['contract_sha256'] != contract:
+            raise ValueError('saved persistent memory runtime contract mismatch')
+        component = dual_source_wiring(cpu_profile=CPU_PROFILE).memory_component
+        expected_evidence = dict(schema_version='memory_dependency_configuration.v1',
+            runtime_contract_sha256=contract, components=[component], max_records=256,
+            max_writer_versions=4096, max_event_gap=4096)
+        memory_id, offset = result_slot_ram_location()
+        expected_gate = dict(schema_version='persistent_memory_prerequisite_configuration.v1',
+            max_actions=256,
+            instruction_slot_policy=make_pulp_dual_source_source_action_gate(component=component).declaration(),
+            dynamic_ram_policy=pulp_live_memory_policy_declaration(component=component,
+                memory_id=memory_id, byte_offset=offset))
+        canonical = lambda value: json.dumps(value, sort_keys=True, separators=(',', ':'))
+        if (canonical(configuration) != canonical(expected_evidence)
+                or canonical(runner['persistent_memory_prerequisites']) != canonical(expected_gate)):
+            raise ValueError('unsupported saved persistent memory policy')
+        identity = runner['sessions'][component]['identity']
+        if (canonical(identity['memory_commit_stream']) != canonical(dict(
+                schema_version='memory_write_commit_stream.v1', capacity=256))
+                or canonical(identity['memory_read_issuance']) != canonical(dict(
+                    schema_version='memory_read_authority.v1', capacity=256))):
+            raise ValueError('saved persistent memory authorities mismatch')
+        return contract
+    except (KeyError, TypeError) as exc:
+        raise ValueError('saved persistent memory configuration incomplete') from exc
+
+
 def replay_pulp_dual_source_online_files(
         *, cache_dir: Path, plan_path: Path, trace_path: Path,
         factory_builder: Callable[..., Callable[[], ScenarioRunner]]
@@ -324,10 +380,13 @@ def replay_pulp_dual_source_online_files(
     native_irq_receipts = _saved_pin8_native_irq_mode(trace_path.parent, verified_identity)
     memory_commit_receipts = _saved_memory_commit_mode(trace_path.parent,
                                                        verified_identity)
+    persistent_memory_contract = _saved_persistent_memory_mode(trace_path.parent, verified_identity)
     return replay_online_session(
         plan, factory_builder(Path(cache_dir),
             cpu_retirement=cpu_retirement, gpio_consumption=gpio_consumption,
             **({'native_irq_receipts': True} if native_irq_receipts else {}),
+            **({'persistent_memory_runtime_contract_sha256': persistent_memory_contract,
+                'source_actions': True} if persistent_memory_contract is not None else {}),
             **({'memory_commit_receipts': True} if memory_commit_receipts else {})),
         reference, checker=IbexPulpOnlineChecker())
 
@@ -373,7 +432,14 @@ def make_pulp_dual_source_online_runtime(
         prerequisite_gate: InstructionSlotReservationGate | None = None,
         source_actions: bool = False,
         initial_ram_data: bool | None = None,
-        initial_ram_record: bytes | None = None) -> IbexPulpOnlineRuntime:
+        initial_ram_record: bytes | None = None,
+        candidate_exploration: bool = False,
+        candidate_exploration_max_cases: int = 65536,
+        classified_feedback: bool = False,
+        classified_feedback_max_records: int = 4096,
+        closed_loop_energy: bool | None = None,
+        path_switch: bool | None = None,
+        initial_ram_data_resolution: tuple[bool, str] | None = None) -> IbexPulpOnlineRuntime:
     """Start one real RTL session; caller feeds many RFuzz slots until stop.
 
     The caller supplies the firmware bootstrap, its online decoder and the
@@ -406,16 +472,39 @@ def make_pulp_dual_source_online_runtime(
     from; the live CLI passes the same eight bytes it gives the RFuzz client as
     its seed, which the run stores verbatim in ``seed.bin``.
     """
+    _validate_candidate_options(candidate_exploration, candidate_exploration_max_cases)
+    if type(classified_feedback) is not bool or type(classified_feedback_max_records) is not int or not 1 <= classified_feedback_max_records <= 65536:
+        raise ValueError('classified feedback options invalid')
     if type(max_warmup_rounds) is not int or max_warmup_rounds < 1:
         raise ValueError("max_warmup_rounds must be positive")
     if type(source_actions) is not bool:
         raise ValueError("source_actions must be boolean")
-    initial_ram_enabled, initial_ram_source = resolve_initial_ram_data_switch(
-        initial_ram_data, online=True)
+    for name, value in (('closed_loop_energy', closed_loop_energy), ('path_switch', path_switch)):
+        if value is not None and type(value) is not bool:
+            raise ValueError(name + ' must be boolean')
+    if initial_ram_data_resolution is None:
+        initial_ram_enabled, initial_ram_source = resolve_initial_ram_data_switch(
+            initial_ram_data, online=True)
+    else:
+        if (type(initial_ram_data_resolution) is not tuple
+                or len(initial_ram_data_resolution) != 2
+                or type(initial_ram_data_resolution[0]) is not bool
+                or type(initial_ram_data_resolution[1]) is not str
+                or initial_ram_data_resolution[1] not in ('default', 'constructor', 'environment')
+                or initial_ram_data_resolution == (True, 'default')
+                or initial_ram_data is not None):
+            raise ValueError('invalid resolved initial RAM declaration')
+        initial_ram_enabled, initial_ram_source = initial_ram_data_resolution
     if initial_ram_record is None:
         initial_ram_record = bytes(RECORD_BYTES)
     if not isinstance(initial_ram_record, bytes) or not initial_ram_record:
         raise ValueError("initial RAM data requires a nonempty raw record")
+    runner = factory()
+    trusted_gate = getattr(runner, 'persistent_memory_prerequisite_gate', None)
+    if trusted_gate is not None:
+        if prerequisite_gate is not None and prerequisite_gate is not trusted_gate:
+            raise ValueError('online runtime must use the installed trusted prerequisite gate')
+        prerequisite_gate = trusted_gate
     if prerequisite_gate is None and source_actions:
         declared = getattr(factory, "new_source_action_gate", None)
         if callable(declared):
@@ -425,12 +514,31 @@ def make_pulp_dual_source_online_runtime(
             # window, so a caller-supplied factory cannot silently drop it.
             prerequisite_gate = _declared_source_action_gate(bootstrap, decoder)
     session = ScenarioSession(
-        bootstrap.template, factory(), checker=checker if checker is not None else IbexPulpOnlineChecker(),
-        prerequisite_gate=prerequisite_gate)
+        bootstrap.template, runner, checker=checker if checker is not None else IbexPulpOnlineChecker(),
+        prerequisite_gate=prerequisite_gate,
+        **({'checker_configuration_only': True} if candidate_exploration or classified_feedback else {}))
     session.declare_instruction_slots(
         "cpu", bootstrap.instruction_start, bootstrap.instruction_count)
     session.configure_runtime_paths(decoder.graph, decoder.runtime_contract,
                                     decoder.runtime_paths, source_ownership=decoder.ownership)
+    targets = (
+        CoverageTarget("gpio_a_output_bit0", "gpio_a", "gpio_out", 1, 1),
+        CoverageTarget("gpio_b_irq", "gpio_b", "irq", 1, 1),
+        CoverageTarget("cpu_external_irq_vector_fetch", "cpu", "instr_addr",
+                       0xffffffff, 0x1012c),
+        CoverageTarget("cpu_data_write", "cpu", "data_write", 1, 1),
+    )
+    if candidate_exploration or classified_feedback:
+        # Full actual-runner admission before begin/preload/bootstrap. This
+        # object executes nothing and its scoring state is discarded; the
+        # returned executor below starts afresh after the completed bootstrap.
+        ScenarioRfuzzExecutor(run_id=run_id, online_decoder=decoder, session=session,
+            factory=factory, targets=targets, feedback_interval=feedback_interval,
+            candidate_exploration=candidate_exploration,
+            classified_feedback=classified_feedback,
+            classified_feedback_max_records=classified_feedback_max_records,
+            candidate_exploration_max_cases=candidate_exploration_max_cases,
+            closed_loop_energy=False, path_switch=False)
     if initial_ram_source != "default":
         # The operator was declared: it runs before the session starts, and a
         # disabled declaration still states itself in the run's own report.
@@ -438,8 +546,8 @@ def make_pulp_dual_source_online_runtime(
             declaration=declared_initial_ram_data_window(bootstrap),
             raw=initial_ram_record, enabled=initial_ram_enabled,
             source=initial_ram_source)
-    session.begin()
     try:
+        session.begin()
         for _ in range(max_warmup_rounds):
             if (session.runner.sessions["cpu"].waiting_instruction_address
                     == bootstrap.instruction_start):
@@ -449,25 +557,64 @@ def make_pulp_dual_source_online_runtime(
                 raise RuntimeError("fixed dual-source bootstrap stopped before online fetch")
         else:
             raise RuntimeError("fixed dual-source bootstrap did not reach online instruction slot")
+        executor = ScenarioRfuzzExecutor(
+            run_id=run_id, online_decoder=decoder, session=session,
+            factory=factory, targets=targets, evidence_dir=evidence_dir,
+            feedback_interval=feedback_interval,
+            **({'closed_loop_energy': closed_loop_energy} if closed_loop_energy is not None else {}),
+            **({'path_switch': path_switch} if path_switch is not None else {}),
+            **({'candidate_exploration': True,
+                'candidate_exploration_max_cases': candidate_exploration_max_cases}
+               if candidate_exploration else {}),
+            **({'classified_feedback': True, 'classified_feedback_max_records': classified_feedback_max_records}
+               if classified_feedback else {}))
     except BaseException:
         try:
             session.finish()
         except Exception:
             pass
         raise
-    targets = (
-        CoverageTarget("gpio_a_output_bit0", "gpio_a", "gpio_out", 1, 1),
-        CoverageTarget("gpio_b_irq", "gpio_b", "irq", 1, 1),
-        CoverageTarget("cpu_external_irq_vector_fetch", "cpu", "instr_addr",
-                       0xffffffff, 0x1012c),
-        CoverageTarget("cpu_data_write", "cpu", "data_write", 1, 1),
-    )
-    executor = ScenarioRfuzzExecutor(
-        run_id=run_id, online_decoder=decoder, session=session,
-        factory=factory, targets=targets, evidence_dir=evidence_dir,
-        feedback_interval=feedback_interval)
     return IbexPulpOnlineRuntime(session, decoder, executor, factory,
                                 checker is not None)
+
+
+def _validate_candidate_options(enabled, max_cases):
+    if type(enabled) is not bool:
+        raise ValueError('candidate exploration must be boolean')
+    if type(max_cases) is not int or not 1 <= max_cases <= 65536:
+        raise ValueError('candidate exploration max cases must be 1..65536')
+
+
+def select_ibex_pulp_dual_source_bootstrap(
+        selector: str | None = None):
+    """Rebuild exactly the bootstrap one closed selector names.
+
+    ``None`` is the shipped bootstrap and stays the default: every identity,
+    plan, reservation and comparison built from the result is then the shipped
+    one, byte for byte, so a caller that does not ask selects what it always
+    selected.  The only other accepted value is
+    :data:`myfuzz.scenario.ibex_pulp_dual_source.MINIMAL_BOOTSTRAP_SELECTOR`;
+    every other value is refused here instead of silently falling back, and the
+    selector is never inferred from a path, a name or saved bytes.
+
+    The minimal branch re-decodes the bytes it just produced through
+    :func:`myfuzz.scenario.ibex_pulp_dual_source.minimal_bootstrap_declaration`,
+    which raises when the fixture writes a removed GPIO word or differs from the
+    declared write sets.  A selector that cannot deliver the declared fixture
+    therefore fails closed rather than running the shipped image under the
+    minimal name.
+    """
+    from myfuzz.scenario.ibex_pulp_dual_source import (
+        MINIMAL_BOOTSTRAP_SELECTOR,
+        make_ibex_pulp_dual_source_minimal_bootstrap,
+        minimal_bootstrap_declaration)
+    if selector is None:
+        return make_ibex_pulp_dual_source_stream_bootstrap()
+    if selector != MINIMAL_BOOTSTRAP_SELECTOR:
+        raise ValueError('online runtime bootstrap selector is not declared')
+    bootstrap = make_ibex_pulp_dual_source_minimal_bootstrap()
+    minimal_bootstrap_declaration(bootstrap)
+    return bootstrap
 
 
 def make_ibex_pulp_online_runtime(
@@ -480,10 +627,16 @@ def make_ibex_pulp_online_runtime(
         native_irq_receipts: bool = False,
         source_actions: bool = True,
         memory_commit_receipts: bool = False,
+        persistent_memory_prerequisites: bool = False,
         ip_cross_case: bool | None = None,
         result_slot_byte_store: bool = False,
         initial_ram_data: bool | None = None,
-        initial_ram_record: bytes | None = None) -> IbexPulpOnlineRuntime:
+        initial_ram_record: bytes | None = None,
+        candidate_exploration: bool = False,
+        candidate_exploration_max_cases: int = 65536,
+        classified_feedback: bool = False,
+        classified_feedback_max_records: int = 4096,
+        bootstrap_selector: str | None = None) -> IbexPulpOnlineRuntime:
     """The Ibex instance of the shared online runtime assembly.
 
     ``source_actions`` is the shipped cross-case prerequisite policy and is on
@@ -499,6 +652,10 @@ def make_ibex_pulp_online_runtime(
     (``result_slot_readback=True``), because this entry point *is* the Ibex
     dual-source online campaign; the shared and second-CPU builders keep their
     previous declaration.
+
+    ``persistent_memory_prerequisites`` enables the trusted current-memory
+    gate using this decoder's runtime contract identity. It requires explicit
+    source actions and commit receipts and remains disabled by default.
 
     ``ip_cross_case`` is the opt-in per-case budget declaration that lets an
     ``IP_TO_CPU_TO_IP`` admission be accepted in a later case than the one it
@@ -527,7 +684,18 @@ def make_ibex_pulp_online_runtime(
     Off, nothing is declared and no artifact, manifest or candidate identity
     changes; on, the adopted byte is one more initial image of the saved plan
     and the run's own report states the declaration and the decision.
+
+    ``bootstrap_selector`` is the closed bootstrap selector of
+    :func:`select_ibex_pulp_dual_source_bootstrap` and stays ``None`` by
+    default: off, the shipped bootstrap, its reservation and every identity
+    below it are exactly what they were.  On -- only
+    ``MINIMAL_BOOTSTRAP_SELECTOR`` is accepted -- the declared minimal fixture
+    is rebuilt and re-decoded before use; an unknown value is refused rather
+    than silently falling back to the shipped bytes.
     """
+    _validate_candidate_options(candidate_exploration, candidate_exploration_max_cases)
+    if type(classified_feedback) is not bool or type(classified_feedback_max_records) is not int or not 1 <= classified_feedback_max_records <= 65536:
+        raise ValueError('classified feedback options invalid')
     if type(gpio_consumption) is not bool:
         raise ValueError('gpio_consumption must be boolean')
     if type(native_irq_receipts) is not bool or (native_irq_receipts and not cpu_retirement):
@@ -538,10 +706,13 @@ def make_ibex_pulp_online_runtime(
         raise ValueError('source_actions must be boolean')
     if type(memory_commit_receipts) is not bool:
         raise ValueError('memory_commit_receipts must be boolean')
+    if (type(persistent_memory_prerequisites) is not bool
+            or persistent_memory_prerequisites and (not source_actions or not memory_commit_receipts)):
+        raise ValueError('persistent memory prerequisites require source actions and commit receipts')
     if type(result_slot_byte_store) is not bool:
         raise ValueError('result_slot_byte_store must be boolean')
     ip_cross_case = resolve_ip_cross_case(ip_cross_case)
-    bootstrap = make_ibex_pulp_dual_source_stream_bootstrap()
+    bootstrap = select_ibex_pulp_dual_source_bootstrap(bootstrap_selector)
     decoder = make_ibex_pulp_dual_source_online_decoder(
         bootstrap=bootstrap, result_slot_readback=True,
         ip_cross_case=ip_cross_case,
@@ -549,12 +720,50 @@ def make_ibex_pulp_online_runtime(
     factory = make_ibex_pulp_dual_source_factory(Path(cache_dir),
         cpu_retirement=cpu_retirement, gpio_consumption=gpio_consumption,
         source_actions=source_actions,
+        **({'physical_observations': True} if candidate_exploration or classified_feedback else {}),
         **({'native_irq_receipts': True} if native_irq_receipts else {}),
+        **({'persistent_memory_runtime_contract_sha256': decoder.runtime_contract.identity_sha256}
+           if persistent_memory_prerequisites else {}),
         **({'memory_commit_receipts': True} if memory_commit_receipts else {}))
-    return make_pulp_dual_source_online_runtime(
+    runtime = make_pulp_dual_source_online_runtime(
         bootstrap=bootstrap, decoder=decoder, factory=factory, run_id=run_id,
         evidence_dir=evidence_dir, checker=checker,
         feedback_interval=feedback_interval, max_warmup_rounds=max_warmup_rounds,
         source_actions=source_actions,
         initial_ram_data=initial_ram_data,
-        initial_ram_record=initial_ram_record)
+        initial_ram_record=initial_ram_record,
+        **({'candidate_exploration': True,
+            'candidate_exploration_max_cases': candidate_exploration_max_cases}
+           if candidate_exploration else {}),
+        **({'classified_feedback': True, 'classified_feedback_max_records': classified_feedback_max_records}
+           if classified_feedback else {}))
+    if candidate_exploration or classified_feedback:
+        from .ibex_pulp_candidate_replay import ASSEMBLY_SCHEMA, ASSEMBLY_SCHEMA_V2, validate_candidate_assembly
+        initial = runtime.session.initial_ram_data_state()
+        declaration = dict(schema_version=ASSEMBLY_SCHEMA, run_id=run_id,
+            feedback_interval=feedback_interval, max_warmup_rounds=max_warmup_rounds,
+            candidate_exploration_max_cases=candidate_exploration_max_cases,
+            cpu_retirement=cpu_retirement, gpio_consumption=gpio_consumption,
+            native_irq_receipts=native_irq_receipts, source_actions=source_actions,
+            memory_commit_receipts=memory_commit_receipts,
+            persistent_memory_prerequisites=persistent_memory_prerequisites,
+            ip_cross_case=ip_cross_case, result_slot_byte_store=result_slot_byte_store,
+            closed_loop_energy=runtime.executor.closed_loop_energy,
+            path_switch=runtime.executor.path_switch,
+            initial_ram_data=initial['enabled'] if initial is not None else False,
+            initial_ram_data_source=initial['source'] if initial is not None else 'default',
+            initial_ram_record_hex=(initial_ram_record if initial_ram_record is not None
+                                    else bytes(RECORD_BYTES)).hex())
+        if classified_feedback:
+            declaration.update(schema_version=ASSEMBLY_SCHEMA_V2,
+                candidate_exploration=candidate_exploration, classified_feedback=True,
+                classified_feedback_max_records=classified_feedback_max_records)
+        try:
+            runtime.executor.set_online_assembly_configuration(validate_candidate_assembly(declaration))
+        except BaseException as error:
+            try:
+                runtime.session.finish()
+            except BaseException as cleanup:
+                error.add_note('candidate assembly cleanup failed: ' + str(cleanup))
+            raise
+    return runtime

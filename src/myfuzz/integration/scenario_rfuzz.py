@@ -456,7 +456,29 @@ class ScenarioRfuzzExecutor:
                  closed_loop_attribution: Mapping[str, Iterable[str]] | None = None,
                  closed_loop_max_pending: int = 128,
                  closed_loop_max_event_gap: int = 4096,
-                 closed_loop_producer=None) -> None:
+                 closed_loop_producer=None,
+                 candidate_exploration: bool = False,
+                 candidate_exploration_max_cases: int = 65536,
+                 classified_feedback: bool = False,
+                 classified_feedback_max_records: int = 4096) -> None:
+        if type(candidate_exploration) is not bool:
+            raise ValueError('candidate exploration switch must be boolean')
+        if candidate_exploration and online_decoder is None:
+            raise ValueError('candidate exploration requires the online decoder path')
+        if (type(candidate_exploration_max_cases) is not int
+                or not 1 <= candidate_exploration_max_cases <= 65536):
+            raise ValueError('candidate exploration case capacity must be 1..65536')
+        if type(classified_feedback) is not bool:
+            raise ValueError('classified feedback switch must be boolean')
+        if classified_feedback and online_decoder is None:
+            raise ValueError('classified feedback requires the online decoder path')
+        if type(classified_feedback_max_records) is not int or not 1 <= classified_feedback_max_records <= 65536:
+            raise ValueError('classified feedback record capacity must be 1..65536')
+        self.classified_feedback = classified_feedback
+        self._classified_feedback_requested = classified_feedback
+        self._classified_feedback = None
+        self.candidate_exploration = candidate_exploration
+        self._candidate_exploration = None
         if type(feedback_interval) is not int or feedback_interval < 1:
             raise ValueError("feedback_interval must be a positive integer")
         self.feedback_interval = feedback_interval
@@ -611,6 +633,8 @@ class ScenarioRfuzzExecutor:
             if online_decoder is not None else None,
             starting_event_id=session.runner.event_count
             if online_decoder is not None else 0)
+        self._online_feedback_event_end = (session.runner.event_count
+            if online_decoder is not None else 0)
         self._interaction_counts: Counter[str] = Counter()
         self._selection_uses: Counter[tuple[int, int, str]] = Counter()
         self._selection_gains: Counter[tuple[int, int, str]] = Counter()
@@ -658,6 +682,14 @@ class ScenarioRfuzzExecutor:
                     raise ValueError("runtime paths must be configured on the session before begin")
                 for path_id in self._prepared_runtime_paths.path_ids:
                     self._validate_runtime_source_owners(path_id, session.runner, runtime_decoder)
+        if self.classified_feedback or self.candidate_exploration:
+            from .classified_feedback import OnlineClassifiedFeedback
+            self._classified_feedback = OnlineClassifiedFeedback(self,
+                max_records=classified_feedback_max_records)
+        if self.candidate_exploration:
+            from .candidate_exploration import OnlineCandidateExploration
+            self._candidate_exploration = OnlineCandidateExploration(
+                self, max_cases=candidate_exploration_max_cases)
         self.evidence_dir = Path(evidence_dir) if evidence_dir is not None else None
         if self.evidence_dir is not None:
             self.evidence_dir.mkdir(parents=True, exist_ok=True)
@@ -918,12 +950,28 @@ class ScenarioRfuzzExecutor:
                             or event.get("event_id", 0) <= preload.get("event_id", 0)):
                         continue
                     transaction = event.get("transaction")
-                    # Ibex exposes an instruction channel; CVA6's local
-                    # harness has one unified instruction/data port.
+                    # Names of the port that carries instruction bytes to this
+                    # CPU.  Ibex exposes a dedicated instruction channel; CVA6's
+                    # local harness has one unified instruction/data port; and the
+                    # generated memory CPUs (the AXI4-Lite PicoRV32 among them)
+                    # label that same single port "memory" - see
+                    # local_harness/native_session.py, which emits every beat on
+                    # channel 'memory'.  Leaving "memory" out of this list did not
+                    # merely fail to credit such a CPU: the per-direction source
+                    # gate became unsatisfiable for any pair built on one, because
+                    # the mutation was plainly applied (receipts list it under
+                    # applied_sources) while its consumption count stayed 0.
+                    #
+                    # Widening the label list cannot manufacture credit, because
+                    # the label is not what this rule enforces: the condition below
+                    # additionally requires the byte read back to equal the mutated
+                    # image byte AND its recorded writer to be literally
+                    # "initial-image".  A data read that merely happens to return
+                    # instruction bytes still fails that writer test.
                     if (source.component == "cpu"
                             and (not isinstance(transaction, dict)
                                  or transaction.get("channel_id")
-                                 not in ("instr", "unified"))):
+                                 not in ("instr", "unified", "memory"))):
                         continue
                     address = event.get("address")
                     data_hex = event.get("data_hex")
@@ -1271,12 +1319,80 @@ class ScenarioRfuzzExecutor:
         still the mapping handed to ``decode_candidate``, so the energy really
         decides the next legal source.
         """
+        weights = self._online_non_candidate_weights()
+        candidate = getattr(self, '_candidate_exploration', None)
+        return candidate.apply_weights(weights) if candidate is not None else weights
+
+    def _online_non_candidate_weights(self) -> dict[str, int]:
+        """Actual coverage/interaction/certificate weights excluding D8 energy."""
         weights = self._online_baseline_weights()
         energy = getattr(self, "_closed_loop_energy_delta", None)
         if not energy:
             return weights
         return {key: max(1, min(65536, value + energy.get(key, 0)))
                 for key, value in weights.items()}
+
+    def set_online_assembly_configuration(self, document: dict) -> None:
+        """Freeze trusted constructor data once, before candidate execution."""
+        if (getattr(self, '_candidate_exploration', None) is None
+                and not self.classified_feedback
+                or self.receipts or self.online_decisions or self.session.cases
+                or getattr(self, '_online_assembly_bytes', None) is not None):
+            raise ValueError('online assembly must be set once before candidate cases')
+        if type(document) is not dict:
+            raise ValueError('online assembly must be a JSON object')
+        try:
+            frozen = json.dumps(document, sort_keys=True, separators=(',', ':'),
+                                ensure_ascii=False, allow_nan=False).encode()
+        except (TypeError, ValueError) as exc:
+            raise ValueError('online assembly must contain JSON data') from exc
+        self._online_assembly_bytes = frozen
+
+    def online_assembly_configuration(self) -> dict | None:
+        frozen = getattr(self, '_online_assembly_bytes', None)
+        return json.loads(frozen) if frozen is not None else None
+
+    def _validate_classified_feedback_switch(self):
+        if type(self.classified_feedback) is not bool or self.classified_feedback is not self._classified_feedback_requested:
+            raise ValueError('classified feedback switch changed')
+
+    def classified_feedback_state(self):
+        self._validate_classified_feedback_switch()
+        return self._classified_feedback.state() if self._classified_feedback_requested else None
+
+    def candidate_exploration_state(self) -> dict | None:
+        candidate = getattr(self, '_candidate_exploration', None)
+        return candidate.state() if candidate is not None else None
+
+    def _sync_online_feedback_prefix(self) -> None:
+        """Consume real between-case receipts without skipping reset barriers.
+
+        A journal that cannot be aligned stops online feedback; it must never
+        stop the session. Ingesting raises when the journal has a hole - a
+        defective transport is exactly what that check exists for - so the
+        refusal is recorded and the cursor is advanced past the unreadable
+        events. Leaving the cursor behind would re-read the same hole on every
+        later case and turn one transport fault into a permanent failure.
+        """
+        events = self.session.runner.events_since(self._online_feedback_event_end)
+        if not events:
+            return
+        try:
+            self._interaction.ingest(events)
+        except Exception as error:
+            # Record the refusal on the same document shape the other online
+            # path uses, so a reader sees a reason and not only a flag.
+            # The refusal reason is part of the receipt contract, and the
+            # online path reports the same defect the closed-loop path reports
+            # for the same cause: one shared journal, one reason.
+            self._closed_loop_desynchronize(
+                self._closed_loop_document(status='ok'),
+                'certificate_journal_not_contiguous', error)
+            self._online_feedback_event_end = self.session.runner.event_count
+            return
+        self._online_feedback_event_end = self.session.runner.event_count
+        if any(event.get('kind') == 'reset_barrier' for event in events):
+            self._reset_online_credit_evidence()
 
     # ------------------------------------------- closed-loop certificate energy
 
@@ -1579,6 +1695,13 @@ class ScenarioRfuzzExecutor:
         document = self._closed_loop_document(status="ok")
         if self._closed_loop_desync is not None:
             document["status"] = "desynchronized"
+            # A desynchronisation detected outside this step (the online
+            # feedback prefix, for instance) already recorded its reason, so the
+            # shape stays the same whether the hole is found here or there.
+            document["desynchronized"] = self._closed_loop_desync
+            existing = self._closed_loop_refusals
+            if existing:
+                document["refusals"] = list(existing)
             return document
         started = self._closed_loop_event_cursor
         try:
@@ -1820,6 +1943,18 @@ class ScenarioRfuzzExecutor:
                 raise ValueError(
                     "source-action gate register must return the admitted action")
             document["action"] = registered.document()
+            binding_for_action = getattr(self.source_action_gate, 'dynamic_binding_for_action', None)
+            if binding_for_action is not None:
+                binding = binding_for_action(registered.action_id)
+                if binding is not None:
+                    document['dynamic_binding'] = binding
+            register_support = getattr(self.source_action_gate, 'register_support_instruction', None)
+            if register_support is not None and case.support_instructions:
+                document['support_actions'] = []
+                for fragment in case.support_instructions:
+                    support_action = register_support(fragment, flow_id=registered.flow_id,
+                                                      local_step_budget=registered.local_step_budget)
+                    document['support_actions'].append(support_action.document())
             try:
                 self.source_action_gate.require_case(case)
             except SourceActionPrerequisiteError as refusal:
@@ -1998,6 +2133,12 @@ class ScenarioRfuzzExecutor:
                 'selection_decode', 'rtl_submit', 'trace_digest',
                 'interaction_ingest', 'checker', 'feedback_credit',
                 'receipt_build')}
+            self._sync_online_feedback_prefix()
+            self._validate_classified_feedback_switch()
+            if self._classified_feedback is not None:
+                self._classified_feedback.prepare_case()
+            if self._candidate_exploration is not None:
+                self._candidate_exploration.prepare_case()
             weights = self._online_weights()
             decision = {"buffer_id": batch.buffer_id, "slot": slot,
                         "raw_sha256": raw_hash,
@@ -2186,6 +2327,11 @@ class ScenarioRfuzzExecutor:
                 hits = observed_targets(result.events, self.targets)
                 new_hits = set(hits) - self._target_hits
                 self._target_hits.update(hits)
+                # Hold this case's coverage gaps and use counts fixed. Only
+                # actual scoring below can increase these weights; no raw
+                # candidate count, prior weight or expired feature is energy.
+                non_candidate_before = (self._online_non_candidate_weights()
+                    if self._candidate_exploration is not None else None)
                 consumed_sources = []
                 # Process each new event suffix once. A pending instruction
                 # retains only its byte mask and expected transaction.
@@ -2276,6 +2422,23 @@ class ScenarioRfuzzExecutor:
                     interaction)
                 decision["closed_loop_feedback"] = self._closed_loop_step(
                     interaction=interaction, failures=tuple(violations))
+                if self._candidate_exploration is not None:
+                    non_candidate_after = self._online_non_candidate_weights()
+                    new_energy = sum(max(0, value - non_candidate_before[source])
+                        for source, value in non_candidate_after.items())
+                    candidate_feedback = self._candidate_exploration.observe_case(
+                        result, non_candidate_new_energy=new_energy, weights=non_candidate_after)
+                    decision['candidate_exploration'] = candidate_feedback
+                    interaction.update(
+                        base_coverage=self._candidate_exploration.base_coverage(),
+                        candidate_novelty=candidate_feedback,
+                    )
+                if self._classified_feedback is not None:
+                    interaction.update(**self._classified_feedback.observe_case(),
+                        legacy_target_coverage=dict(category='legacy_target_coverage',
+                            schema_version='online_legacy_target_coverage.v1',
+                            scope='configured_legacy_coverage_targets',
+                            new_target_ids=sorted(new_hits)))
                 feedback_ready_at = time.monotonic()
                 phase_timing['feedback_credit'] = feedback_ready_at - checked_at
                 coverage = bytes(int(target.target_id in hits) for target in self.targets)

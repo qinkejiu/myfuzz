@@ -148,10 +148,27 @@ class PersistentMemory:
         return tuple(sorted((memory_id, offset, cell.value, cell.writer_kind)
                             for (memory_id, offset), cell in self._bytes.items()))
 
+    def inspect_byte(self, memory_id: str, byte_offset: int) -> ByteCell | None:
+        """Inspect one already determined cell without initializing or reading RAM."""
+        if (type(memory_id) is not str or memory_id not in self.memory_ids
+                or type(byte_offset) is not int or not 0 <= byte_offset < 1 << 64):
+            raise ValueError('invalid memory byte inspection')
+        cell = self._bytes.get((memory_id, byte_offset))
+        return (ByteCell(cell.value, cell.version, cell.writer_kind, cell.writer_event_id)
+                if cell is not None else None)
+
     def reserved_instruction_bytes(self) -> tuple[tuple[str, int], ...]:
         """Reserved instruction slots a real fetch still has to determine."""
         return tuple(sorted(key for key in self._instruction_slots
                             if key not in self._bytes))
+
+    def instruction_slot_unmaterialized(self, address: int) -> bool:
+        """Check one declared word against current cells without initializing it."""
+        if type(address) is not int or address < 0 or address % 4:
+            raise ValueError('invalid instruction slot inspection')
+        memory_id, _, offset = self.resolve_span(address, 4)
+        return all((memory_id, offset + lane) in self._instruction_slots
+                   and (memory_id, offset + lane) not in self._bytes for lane in range(4))
 
     def advance_step(self) -> None:
         self.step_count += 1

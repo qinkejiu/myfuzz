@@ -7,13 +7,27 @@ from myfuzz.scenario.contracts import ProtocolEnvironmentError
 from myfuzz.scenario.ledger import TransactionKey,TransactionLedger
 from myfuzz.scenario.memory import PersistentMemory
 from myfuzz.scenario.memory_service import MemoryService
+from myfuzz.scenario.router import DataflowRouter
 
 
 class GeneratedNativeMemorySession(GeneratedLocalSession):
-    """RAM/ROM service only; native errors terminate without fake completion.
+    """RAM/ROM service with optional declared-window MMIO; errors never fake completion.
 
     No IRQ or instruction decoding is synthesized by the environment. An
     optional typed physical instruction marker remains an RTL observation.
+
+    An optional :class:`~myfuzz.scenario.router.DataflowRouter` may be supplied
+    so a CPU beat whose address falls inside a declared device window is served
+    by that window's real target instead of local RAM. Routing is opt-in:
+    without a router this session behaves exactly as before (RAM/ROM only), so
+    every existing identity and budget stays unchanged.
+
+    The router is addressed by the 32-bit word beat (``address & ~3``), matching
+    the other memory CPU sessions, and only one target access is performed per
+    local step: the beat is serviced inline and its response becomes the beat's
+    read response, so an MMIO read is real device data rather than a
+    synthesised value. Deferred (queued) MMIO delivery is deliberately not
+    implemented here.
     """
     artifact_kind = 'native_memory_cpu'
     max_driver_samples_per_operation=1
@@ -26,12 +40,22 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
     service_schema='generated_native_memory_service.v1'
     read_request_be=15
 
-    def __init__(self,artifact,*,base_dir,cache_dir,memory,**kwargs):
+    def __init__(self,artifact,*,base_dir,cache_dir,memory,
+                 router: DataflowRouter | None = None,**kwargs):
         if artifact.runtime_document.get('kind')!=self.runtime_kind or not isinstance(memory,PersistentMemory):
             raise ValueError('native completion CPU requires authenticated artifact and persistent memory')
+        if router is not None and not isinstance(router, DataflowRouter):
+            raise ValueError('native completion CPU router must be a DataflowRouter')
         super().__init__(artifact,base_dir=base_dir,cache_dir=cache_dir,**kwargs)
         self.memory=memory
         self.service=MemoryService(memory,TransactionLedger())
+        self.router=router
+        self.mmio_write_count=0
+        self.mmio_read_count=0
+        if router is not None:
+            # One routed target access per local step; the beat is serviced
+            # inline, so the driver reservation must admit it.
+            self.max_mmio_target_accesses_per_step=1
         self._pending=None
         self._sequence_memory=0
         self._quiescing=False
@@ -58,6 +82,40 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
         if self.process is None or self.process.poll() is not None:
             raise RuntimeError('native process is not running')
         self._quiescing=True
+
+    def _service_accepted_request(self,key,address,write,be,value):
+        """Serve one accepted beat; override to route declared MMIO windows.
+
+        The base service is pure RAM/ROM: a write updates the persistent bytes
+        and a read returns the current value.  A session constructed with a
+        router first offers the beat to every declared device window, so an
+        access inside one is answered by that window's real target.  Windows are
+        keyed by the word beat, so a byte address inside a window still routes;
+        ``step_local`` refuses unaligned addresses in the first place.
+
+        Routing is deliberately absent from ``identity_document``: the native
+        service identity is a strict closed set (see
+        ``scenario.contracts._verify_generated_session``), so a routed session
+        records the same identity as a RAM-only one.
+        """
+        router=self.router
+        if router is not None:
+            beat_address=address&~3
+            if router.owns(beat_address):
+                response=router.transact(self.service.ledger,key,address=beat_address,
+                    write=bool(write),wdata=value,be=be,beat_bytes=4)
+                if type(response) is not tuple or len(response)!=2:
+                    raise ProtocolEnvironmentError('native routed target response malformed')
+                if write:
+                    self.mmio_write_count+=1
+                else:
+                    self.mmio_read_count+=1
+                return response[0]
+        if write:
+            self.service.write(key,address,value,width_bytes=4,byte_enable=be)
+            self.memory_write_count+=1
+            return 0
+        return self.service.read(key,address,width_bytes=4).value
 
     def reset_local(self):
         cancelled=self.pending_responses
@@ -95,10 +153,7 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
             key=TransactionKey('local-execution',self._case_id,self.artifact.plan.request.instance_id,
                 self.reset_epoch,'memory',self._sequence_memory)
             try:
-                if write:
-                    self.service.write(key,address,value,width_bytes=4,byte_enable=be)
-                    self.memory_write_count+=1;response=0
-                else:response=self.service.read(key,address,width_bytes=4).value
+                response=self._service_accepted_request(key,address,write,be,value)
             except (ValueError,RuntimeError) as error:
                 self._abort();raise ProtocolEnvironmentError('native backend error without completion') from error
             self._pending=(response,self._sequence_memory)

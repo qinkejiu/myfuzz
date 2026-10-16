@@ -885,10 +885,39 @@ def run_scenario_campaign(config: CampaignConfig, output_dir: Path, *,
     return report
 
 
+def _require_pinned_bound_seed(manifest: Path, shape: tuple[int, int]) -> None:
+    """Refuse a bound manifest that is not this provider's CPU-direction seed.
+
+    The reverse direction loads its genome from a *sibling* file of the bound
+    manifest, so without this check any manifest accepted by the CPU branch of
+    the pair could be swapped for another CPU/protocol's manifest in the same
+    directory and the reverse cells would be saved under a foreign source
+    identity. That is the one substitution this repository forbids: a row's
+    evidence may never be produced by a different row's protocol.
+    """
+    from myfuzz.scenario.genome import GenomeCodec
+
+    manifest = Path(manifest)
+    if not manifest.is_file():
+        raise CampaignBlocked(f"seed genome is missing: {manifest}")
+    try:
+        seed = GenomeCodec.decode(manifest.read_bytes())
+    except (ValueError, TypeError) as exc:
+        raise CampaignBlocked(
+            f"bound manifest is not a scenario Genome: {manifest}") from exc
+    if (seed.direction != "CPU_TO_IP_TO_CPU"
+            or (seed.max_steps, seed.quiesce_steps) != tuple(shape)):
+        raise CampaignBlocked(
+            f"bound manifest is not the pinned CPU-direction campaign seed: {manifest}")
+
+
 class IbexTwoGpioBoundProvider:
     """Run the bound fixtures and the explicitly separate independent baseline."""
 
     requires_execution_identity = True
+
+    #: Pinned shape of this provider's CPU-direction seed genome.
+    BOUND_SEED_SHAPE = (330, 20)
 
     def __init__(self, client_binary: Path | None = None) -> None:
         root = Path(__file__).resolve().parents[3]
@@ -946,6 +975,8 @@ class IbexTwoGpioBoundProvider:
             root = Path(__file__).resolve().parents[3]
             bound_manifest = root / "configs/scenario/ibex_two_gpio_closed_two_rounds.json"
         bound_manifest = Path(bound_manifest)
+        _require_pinned_bound_seed(bound_manifest,
+                                   IbexTwoGpioBoundProvider.BOUND_SEED_SHAPE)
         if direction == "CPU_TO_IP_TO_CPU":
             from myfuzz.scenario.examples import make_ibex_two_gpio_runner
 

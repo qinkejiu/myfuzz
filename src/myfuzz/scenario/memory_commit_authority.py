@@ -11,6 +11,7 @@ import json
 from .ledger import TransactionKey,TransactionLedger
 from .memory import PersistentMemory
 from .memory_service import MemoryService,WriteReceipt
+from .memory_authority_distribution import MemoryAuthorityDistribution
 
 
 def _wire(value):
@@ -20,8 +21,9 @@ def _wire(value):
 def _uint(value):return type(value) is int and 0<=value<1<<64
 
 
-class MemoryCommitAuthority:
+class MemoryCommitAuthority(MemoryAuthorityDistribution):
     def __init__(self, *, services, max_services=16,max_pending=256,max_regions=256):
+        super().__init__()
         for n in (max_services,max_pending,max_regions):
             if type(n) is not int or n<1:raise ValueError('invalid memory commit authority capacity')
         if not isinstance(services,Mapping) or not services or len(services)>max_services:
@@ -103,14 +105,9 @@ class MemoryCommitAuthority:
                 commit_id=digest,service_commit_sequence=sequence,fullkey=asdict(key),
                 commit_document=deepcopy(document))
             self._pending[token]=certificate;self._floors[component]=sequence
+            self._pin_consumers(token)
             return token
         except RuntimeError:
             # Actual issued callback evidence was corrupted or uncertain.
             self._bad=True;return None
         except (TypeError,ValueError,AttributeError,KeyError,RecursionError):return None
-
-    def resolve(self,token):
-        """Return a detached pinned certificate once; no late journal mutation."""
-        if self._bad or type(token) is not int or token<1:return None
-        certificate=self._pending.pop(token,None)
-        return deepcopy(certificate) if certificate is not None else None

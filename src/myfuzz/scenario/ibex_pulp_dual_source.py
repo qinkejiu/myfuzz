@@ -46,6 +46,8 @@ from .source_actions import (CrossCaseEffectTracker, DynamicPrerequisiteBinder,
                              EffectWitness, InstructionSlotReservationGate,
                              SourceAction, SourceActionGate,
                              TrustedRamByteDeclaration)
+from .live_memory_prerequisites import (PersistentMemoryPrerequisiteGate,
+                                        LiveMemoryDynamicPrerequisiteBinder)
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -243,14 +245,16 @@ CV32E40P_STREAM_CPU_PROGRAM = DualSourceCpuProgram(
 
 
 
-def _artifact(profile_path: str, instance_id: str):
+def _artifact(profile_path: str, instance_id: str, *, physical_observations: bool = False):
     request = load_local_harness_request({
-        "schema_version": "local_harness.v1",
+        "schema_version": "local_harness.v2" if physical_observations else "local_harness.v1",
         "profile_path": profile_path,
         "instance_id": instance_id,
         "reset_assert_ticks": 8,
         "reset_release_ticks": 8,
         "max_wait_cycles": 16,
+        **({'tuning': {'raw_tick_stream': [{'sampling': 'pre_post'}]}}
+           if physical_observations else {}),
     })
     plan = plan_local_harness(request, base_dir=ROOT)
     structural = render_local_harness(plan)
@@ -820,6 +824,54 @@ class RamPrerequisiteBindingGate(InstructionSlotReservationGate):
                 "ram_prerequisite": self.ram_prerequisite_declaration}
 
 
+def pulp_live_memory_policy_declaration(*, component, memory_id, byte_offset, max_actions=256):
+    declaration = TrustedRamByteDeclaration(memory_id=memory_id, byte_offsets=(byte_offset,),
+                                          writer_kinds=RESULT_SLOT_WRITER_KINDS)
+    return dict(schema_version='live_result_slot_ram_policy.v1', rule=RESULT_SLOT_READ_RULE,
+                component=component, result_address=RESULT_ADDRESS, declaration=declaration.document(),
+                proof_scope='current_installed_host_memory_byte', max_bindings=max_actions)
+
+
+class PulpLiveMemoryPrerequisiteGate(PersistentMemoryPrerequisiteGate):
+    """Fixed topology's declared result-slot load policy over actual memory."""
+
+    def __init__(self, *, consumer, max_actions=256, instruction_slot_policy=None):
+        super().__init__(consumer=consumer, max_actions=max_actions,
+                         instruction_slot_policy=instruction_slot_policy)
+        if self._slot_policy is None:
+            raise ValueError('result-slot policy requires declared instruction slots')
+        self.component = self._slot_policy.component
+        memory = self.tracker._installed[self.component][2]
+        self.memory_id, _, self.byte_offset = memory.resolve_span(RESULT_ADDRESS, 1)
+        self.binder = LiveMemoryDynamicPrerequisiteBinder(self.tracker,
+            TrustedRamByteDeclaration(memory_id=self.memory_id, byte_offsets=(self.byte_offset,),
+                                      writer_kinds=RESULT_SLOT_WRITER_KINDS))
+        self._bindings = {}
+
+    @property
+    def dynamic_ram_policy(self):
+        return pulp_live_memory_policy_declaration(component=self.component, memory_id=self.memory_id,
+                                                   byte_offset=self.byte_offset, max_actions=self.max_actions)
+
+    def register(self, action):
+        original = action
+        binding = None
+        if (isinstance(action, SourceAction) and action.kind == 'instruction'
+                and action.component == self.component and action.payload_mutable
+                and reads_result_slot(action.payload['words_hex'], result_address=RESULT_ADDRESS)):
+            binding = self.binder.bind(action, memory_id=self.memory_id, byte_offset=self.byte_offset)
+            action = binding.action
+        registered = super().register(action)
+        if binding is not None:
+            self._bindings[registered.action_id] = binding
+        self._registration_declarations[registered.action_id] = original
+        return registered
+
+    def dynamic_binding_for_action(self, action_id):
+        binding = self._bindings.get(action_id)
+        return binding.document() if binding is not None else None
+
+
 def make_pulp_dual_source_dynamic_binding_gate(
         *, component: str,
         instruction_start: int = ONLINE_INSTRUCTION_START,
@@ -931,6 +983,8 @@ def make_pulp_dual_source_factory(
         cache_dir: Path, *, cpu_profile: str, gpio_consumption: bool = False,
         native_irq_receipts: bool = False, source_actions: bool = False,
         memory_commit_receipts: bool = False,
+        physical_observations: bool = False,
+        persistent_memory_runtime_contract_sha256: str | None = None,
         instruction_start: int = ONLINE_INSTRUCTION_START,
         instruction_end: int = ONLINE_INSTRUCTION_END) -> Callable[[], ScenarioRunner]:
     """Render pinned local harnesses once, then make fresh runner sessions.
@@ -964,6 +1018,11 @@ def make_pulp_dual_source_factory(
     ``commit_id``, ``commit_document`` and per-cell ``writer_kind``) and
     acknowledged.  That is the only mode in which the declared ``STORE``
     whitelist of the RAM prerequisite policy can be satisfied.
+
+    ``persistent_memory_runtime_contract_sha256`` explicitly installs the
+    current-cell RAM and physical instruction-slot gate per runner. It requires
+    source actions and commit receipts, enables actual readback receipts, and
+    binds evidence to the supplied runtime contract identity. Default is off.
     """
     if type(gpio_consumption) is not bool:
         raise ValueError('gpio_consumption must be boolean')
@@ -971,14 +1030,23 @@ def make_pulp_dual_source_factory(
         raise ValueError('native_irq_receipts must be boolean')
     if type(source_actions) is not bool:
         raise ValueError('source_actions must be boolean')
+    if type(physical_observations) is not bool:
+        raise ValueError('physical observations must be boolean')
     if type(memory_commit_receipts) is not bool:
         raise ValueError('memory_commit_receipts must be boolean')
+    if persistent_memory_runtime_contract_sha256 is not None:
+        import re
+        if (type(persistent_memory_runtime_contract_sha256) is not str
+                or re.fullmatch('[0-9a-f]{64}', persistent_memory_runtime_contract_sha256) is None
+                or not source_actions or not memory_commit_receipts):
+            raise ValueError('trusted memory policy requires contract identity, source actions and commit receipts')
     cache_dir = Path(cache_dir)
     wiring = dual_source_wiring(cpu_profile=cpu_profile,
                                 gpio_consumption=gpio_consumption)
-    cpu_artifact = _artifact(wiring.cpu_profile, "cpu")
-    a_artifact = _artifact(wiring.gpio_profile, "gpio_a")
-    b_artifact = _artifact(wiring.gpio_profile, "gpio_b")
+    observation = {'physical_observations': True} if physical_observations else {}
+    cpu_artifact = _artifact(wiring.cpu_profile, "cpu", **observation)
+    a_artifact = _artifact(wiring.gpio_profile, "gpio_a", **observation)
+    b_artifact = _artifact(wiring.gpio_profile, "gpio_b", **observation)
     # The policy names the component the wiring declares as the owner of the
     # persistent RAM the online instruction slots live in; no literal component
     # name and no renderer internals are consulted.
@@ -1006,7 +1074,9 @@ def make_pulp_dual_source_factory(
                                    cache_dir=cache_dir, memory=memory,
                                    router=DataflowRouter(windows), defer_mmio=True,
                                    native_irq_receipts=native_irq_receipts,
-                                   memory_commit_receipts=memory_commit_receipts)
+                                   memory_commit_receipts=memory_commit_receipts,
+                                   memory_readback_receipts=persistent_memory_runtime_contract_sha256 is not None,
+                                   **({'physical_tick_samples': True} if physical_observations else {}))
         constructed = {"cpu": cpu, **devices}
         runner = ScenarioRunner(
             sessions={name: constructed[name] for name in wiring.sessions},
@@ -1021,6 +1091,14 @@ def make_pulp_dual_source_factory(
             # the journal at all.
             install_host_ram_commit_journal(runner, component=cpu_component,
                                             service=cpu.service)
+        if persistent_memory_runtime_contract_sha256 is not None:
+            runner.configure_memory_dependency_evidence(
+                runtime_contract_sha256=persistent_memory_runtime_contract_sha256)
+            runner.configure_persistent_memory_prerequisites(instruction_slot_policy=dict(
+                component=cpu_component, first_address=instruction_start,
+                last_address=instruction_end,
+                reservation_ref_prefix=ONLINE_SLOT_RESERVATION_PREFIX),
+                prerequisite_gate_type=PulpLiveMemoryPrerequisiteGate)
         return runner
 
     if source_actions:
@@ -1042,7 +1120,9 @@ def make_ibex_pulp_dual_source_factory(
         gpio_consumption: bool = False,
         native_irq_receipts: bool = False,
         source_actions: bool = True,
-        memory_commit_receipts: bool = False) -> Callable[[], ScenarioRunner]:
+        memory_commit_receipts: bool = False,
+        physical_observations: bool = False,
+        persistent_memory_runtime_contract_sha256: str | None = None) -> Callable[[], ScenarioRunner]:
     """Select the pinned Ibex variant, then share the CPU-agnostic wiring.
 
     ``cpu_retirement`` selects the authenticated RVFI profile. Native parsed
@@ -1052,7 +1132,12 @@ def make_ibex_pulp_dual_source_factory(
     with no gate.  ``memory_commit_receipts`` declares the host-memory commit
     stream and stays off by default, so the default identity and behaviour of
     this factory are unchanged.
+
+    ``persistent_memory_runtime_contract_sha256`` forwards the shared trusted
+    memory policy opt-in; each runner owns its authorities and gate.
     """
+    if type(physical_observations) is not bool:
+        raise ValueError('physical observations must be boolean')
     if type(cpu_retirement) is not bool:
         raise ValueError('cpu_retirement must be boolean')
     if type(gpio_consumption) is not bool:
@@ -1066,7 +1151,9 @@ def make_ibex_pulp_dual_source_factory(
     return make_pulp_dual_source_factory(
         cache_dir, cpu_profile=RVFI_CPU_PROFILE if cpu_retirement else CPU_PROFILE,
         gpio_consumption=gpio_consumption, native_irq_receipts=native_irq_receipts,
-        source_actions=source_actions, memory_commit_receipts=memory_commit_receipts)
+        source_actions=source_actions, memory_commit_receipts=memory_commit_receipts,
+        persistent_memory_runtime_contract_sha256=persistent_memory_runtime_contract_sha256,
+        **({'physical_observations': True} if physical_observations else {}))
 
 
 @dataclass(frozen=True)
@@ -1360,23 +1447,10 @@ def _lui_addi_load(rd: int, value: int) -> tuple[int, int]:
     return _lui(rd, high), _addi(rd, rd, low)
 
 
-def make_pulp_dual_source_stream_bootstrap(
+def _validate_stream_layout(
         *, program: DualSourceCpuProgram,
-        instruction_start: int = ONLINE_INSTRUCTION_START,
-        instruction_end: int = ONLINE_INSTRUCTION_END
-        ) -> DualSourceStreamBootstrap:
-    """Jump from fixed real startup to reserved, initially absent RAM words.
-
-    Before begin(), call session.declare_instruction_slots('cpu',
-    result.instruction_start, result.instruction_count). The stream is finite;
-    its end is an admission limit followed by fixed self-loop guard words. Fixed
-    CSR setup and ISR are outside the fuzzed RV32I subset. Runtime acceptance
-    remains pending; the jump displacement is checked by decoding its fields.
-
-    ``program`` carries the declared per-CPU facts and nothing else changes:
-    the GPIO configuration, the trap vector slots, the ISR body and its
-    addresses, the online interval and the guard words are shared bytes.
-    """
+        instruction_start: int, instruction_end: int) -> None:
+    """Validate one declared bootstrap layout before any word of a body is encoded."""
     if type(program) is not DualSourceCpuProgram:
         raise ValueError("a declared dual-source CPU program is required")
     if any(type(value) is not int or value % 4
@@ -1393,18 +1467,19 @@ def make_pulp_dual_source_stream_bootstrap(
     if program.boot_trampoline != (program.first_fetch != program.main_address):
         raise ValueError("declared CPU program trampoline must match its first fetch")
 
-    # GPIO configuration matches the dual-source examples; no initial edge.
-    mtvec_high, mtvec_low = _lui_addi_load(2, program.mtvec_value)
-    scratch_high, scratch_low = _lui_addi_load(2, ISR_SCRATCH)
-    main = [0x400000b7, _addi(2, 0, 0x101), _sw(2, 1, 4), _sw(2, 1, 0x18),
-            0x00010137, _addi(2, 2, 1), _sw(2, 1, 0x1c),
-            0x400010b7, _addi(2, 0, 0xff), _sw(2, 1, 0), _sw(2, 1, 4),
-            _sw(0, 1, 0x0c),
-            mtvec_high, mtvec_low, 0x30511073,
-            scratch_high, scratch_low, 0x34011073,
-            0x00001137, _addi(2, 2, -2048), 0x30412073,
-            _addi(2, 0, 8), 0x30012073]
-    main.append(_jal(program.main_address + len(main) * 4, instruction_start))
+
+def _assemble_stream_bootstrap(
+        *, program: DualSourceCpuProgram, main: list[int],
+        instruction_start: int = ONLINE_INSTRUCTION_START,
+        instruction_end: int = ONLINE_INSTRUCTION_END
+        ) -> DualSourceStreamBootstrap:
+    """Assemble the shared fixed firmware around one validated boot body.
+
+    ``main`` is the boot body *without* its final jump: the jump is encoded here
+    from ``len(main)``, so removing or adding one body word re-targets it and no
+    caller can hand-edit a displacement (``_jal`` self-decodes and raises).
+    """
+    main = [*main, _jal(program.main_address + len(main) * 4, instruction_start)]
     # mscratch exchanges the interrupted x31 with the reserved scratch pointer;
     # save and restore all other registers used by this fixed handler.  The
     # observed PADIN byte is stored to the shared result slot the checker reads.
@@ -1443,6 +1518,127 @@ def make_pulp_dual_source_stream_bootstrap(
     return DualSourceStreamBootstrap(template, instruction_start, instruction_end)
 
 
+def make_pulp_dual_source_stream_bootstrap(
+        *, program: DualSourceCpuProgram,
+        instruction_start: int = ONLINE_INSTRUCTION_START,
+        instruction_end: int = ONLINE_INSTRUCTION_END
+        ) -> DualSourceStreamBootstrap:
+    """Jump from fixed real startup to reserved, initially absent RAM words.
+
+    Before begin(), call session.declare_instruction_slots('cpu',
+    result.instruction_start, result.instruction_count). The stream is finite;
+    its end is an admission limit followed by fixed self-loop guard words. Fixed
+    CSR setup and ISR are outside the fuzzed RV32I subset. Runtime acceptance
+    remains pending; the jump displacement is checked by decoding its fields.
+
+    ``program`` carries the declared per-CPU facts and nothing else changes:
+    the GPIO configuration, the trap vector slots, the ISR body and its
+    addresses, the online interval and the guard words are shared bytes.
+    """
+    _validate_stream_layout(program=program, instruction_start=instruction_start,
+                            instruction_end=instruction_end)
+    # GPIO configuration matches the dual-source examples; no initial edge.
+    mtvec_high, mtvec_low = _lui_addi_load(2, program.mtvec_value)
+    scratch_high, scratch_low = _lui_addi_load(2, ISR_SCRATCH)
+    main = [0x400000b7, _addi(2, 0, 0x101), _sw(2, 1, 4), _sw(2, 1, 0x18),
+            0x00010137, _addi(2, 2, 1), _sw(2, 1, 0x1c),
+            0x400010b7, _addi(2, 0, 0xff), _sw(2, 1, 0), _sw(2, 1, 4),
+            _sw(0, 1, 0x0c),
+            mtvec_high, mtvec_low, 0x30511073,
+            scratch_high, scratch_low, 0x34011073,
+            0x00001137, _addi(2, 2, -2048), 0x30412073,
+            _addi(2, 0, 8), 0x30012073]
+    return _assemble_stream_bootstrap(
+        program=program, main=main, instruction_start=instruction_start,
+        instruction_end=instruction_end)
+
+
+# ---------------------------------------------------------------------------
+# Task 6, first bullet: the declared minimal bootstrap (default off).
+#
+# The plan's forbidden list is DIR, OUT, GPIOEN, B.INTEN and the default-target
+# words.  Root's recorded D2 decision: the bootstrap itself writes no forbidden
+# GPIO word; B's arm (``gpio_b`` GPIOEN/INTEN) moves to a recorded real path
+# after the reset-default read -- the register-program channel, which compiles
+# such accesses into real CPU instruction fragments in the online slot, so no
+# new MMIO window and no authority change is involved.  Two GPIO words stay:
+#
+# * ``gpio_b`` INTTYPE_LOW is not on the forbidden list and is what makes the
+#   recorded arm sufficient: the fixed injection is a rising edge on pin 8 and
+#   INTTYPE resets to ``2'b00`` = falling (``apb_gpio.sv:131-133,214``);
+# * ``gpio_a`` GPIOEN is kept by Root's explicit decision: the shipped online
+#   checker only verifies A PADOUT writes after it observed that exact write
+#   (``ibex_pulp_online_checker.py:228-234``), so dropping it would silently
+#   disable a check instead of failing loudly.
+#
+# The plan's single word "GPIOEN" is *two* writes, one per instance
+# (``ibex_pulp_dual_source.py`` shipped body, bootstrap-audit section 2
+# correction 1), so every list here is instance-qualified.  W4 (PADDIR) and W6
+# (PADOUT <- 0) are the state-only "default-target" writes and are removed.
+#
+# The fixed ISR, both vector words and the guard words are shared bytes and are
+# never touched here.  The restated observability claim -- the fixed ISR bytes
+# remain present and are executed once a recorded case arms B -- is a native
+# gate claim; this module only guarantees the bytes and the CSR setup.
+# ---------------------------------------------------------------------------
+#: Selector identity of the minimal bootstrap, in the closed `_FIXED` style of
+#: ``integration/ibex_pulp_register_replay.py:17-21``.
+MINIMAL_BOOTSTRAP_SELECTOR = "ibex_pulp_dual_source.minimal_bootstrap.v1"
+#: Closed schema of :func:`minimal_bootstrap_declaration`.
+MINIMAL_BOOTSTRAP_SCHEMA_VERSION = "ibex_pulp_dual_source_minimal_bootstrap.v1"
+#: GPIO writes the shipped bootstrap performs and the minimal variant removes,
+#: as ``(instance, register, offset, value)``.  The register name is recomputed
+#: from the pinned profile below; a mismatch fails the declaration.
+MINIMAL_BOOTSTRAP_REMOVED_WRITES = (
+    ("gpio_b", "GPIOEN", 0x04, 0x101),
+    ("gpio_b", "INTEN", 0x18, 0x101),
+    ("gpio_a", "PADDIR", 0x00, 0xFF),
+    ("gpio_a", "PADOUT", 0x0C, 0x00))
+#: GPIO writes the minimal variant keeps; nothing else may appear in its body.
+MINIMAL_BOOTSTRAP_RETAINED_WRITES = (
+    ("gpio_b", "INTTYPE_LOW", 0x1C, 0x10001),
+    ("gpio_a", "GPIOEN", 0x04, 0xFF))
+#: The CSR number -> architectural name map of the fixed boot body's CSR setup.
+MINIMAL_BOOTSTRAP_CSR_NAMES = ((0x305, "mtvec"), (0x340, "mscratch"),
+                               (0x304, "mie"), (0x300, "mstatus"))
+#: The two declared B edge-type words the fixed boot body loads (pads 0/8 rise).
+MINIMAL_BOOTSTRAP_INTTYPE_LOW = 0x10001
+#: Value the fixed boot body writes to ``mie`` (MEIE, bit 11) and ``mstatus``.
+MINIMAL_BOOTSTRAP_MIE = 1 << 11
+MINIMAL_BOOTSTRAP_MSTATUS = 1 << 3
+
+
+def make_pulp_dual_source_minimal_bootstrap(
+        *, program: DualSourceCpuProgram,
+        instruction_start: int = ONLINE_INSTRUCTION_START,
+        instruction_end: int = ONLINE_INSTRUCTION_END
+        ) -> DualSourceStreamBootstrap:
+    """The declared minimal boot body: no DIR/OUT/gpio_b GPIOEN/B.INTEN write.
+
+    The body keeps only what the recorded post-read arming path needs (the B
+    edge type, the trap vector, the ISR scratch pointer, MEIE and MIE) plus the
+    one ``gpio_a`` GPIOEN write Root's D2 decision retains, and then jumps into
+    the same reserved online interval.  Everything else -- both vector words,
+    the ISR bytes, the guard words and the reservation -- is the shipped
+    assembly, unchanged.
+    """
+    _validate_stream_layout(program=program, instruction_start=instruction_start,
+                            instruction_end=instruction_end)
+    mtvec_high, mtvec_low = _lui_addi_load(2, program.mtvec_value)
+    scratch_high, scratch_low = _lui_addi_load(2, ISR_SCRATCH)
+    mie_high, mie_low = _lui_addi_load(2, MINIMAL_BOOTSTRAP_MIE)
+    inttype_high, inttype_low = _lui_addi_load(2, MINIMAL_BOOTSTRAP_INTTYPE_LOW)
+    main = [0x400000b7, inttype_high, inttype_low, _sw(2, 1, 0x1C),
+            0x400010b7, _addi(2, 0, 0xFF), _sw(2, 1, 4),
+            mtvec_high, mtvec_low, 0x30511073,
+            scratch_high, scratch_low, 0x34011073,
+            mie_high, mie_low, 0x30412073,
+            _addi(2, 0, MINIMAL_BOOTSTRAP_MSTATUS), 0x30012073]
+    return _assemble_stream_bootstrap(
+        program=program, main=main, instruction_start=instruction_start,
+        instruction_end=instruction_end)
+
+
 def make_ibex_pulp_dual_source_stream_bootstrap(
         *, instruction_start: int = ONLINE_INSTRUCTION_START,
         instruction_end: int = ONLINE_INSTRUCTION_END
@@ -1451,6 +1647,17 @@ def make_ibex_pulp_dual_source_stream_bootstrap(
     return make_pulp_dual_source_stream_bootstrap(
         program=IBEX_STREAM_CPU_PROGRAM, instruction_start=instruction_start,
         instruction_end=instruction_end)
+
+
+def make_ibex_pulp_dual_source_minimal_bootstrap(
+        *, instruction_start: int = ONLINE_INSTRUCTION_START,
+        instruction_end: int = ONLINE_INSTRUCTION_END
+        ) -> DualSourceStreamBootstrap:
+    """The Ibex instance of the declared minimal bootstrap (fixed selector)."""
+    return make_pulp_dual_source_minimal_bootstrap(
+        program=IBEX_STREAM_CPU_PROGRAM, instruction_start=instruction_start,
+        instruction_end=instruction_end)
+
 
 
 #: Identity of the one fixed bootstrap program segment whose end bounds the
@@ -1506,6 +1713,224 @@ def declared_initial_ram_data_window(
         scope="ibex_pulp_dual_source.cpu.stream.bootstrap.gap",
         component="cpu", memory_id=region.memory_id, base=start,
         byte_count=byte_count, value_mask=0xFF, value_base=0)
+
+
+# ---------------------------------------------------------------------------
+# Task 6, first bullet: the closed, recomputable selector identity of the
+# declared minimal bootstrap.
+#
+# This is the structural analogue of
+# ``integration/ibex_pulp_register_replay.py:_verify_bootstrap_plan`` (a saved
+# plan is *compared* against a rebuilt bootstrap, never used as authority).  The
+# declaration below binds, from code and produced bytes only:
+#
+# * the fixed selector identity and the declared CPU program facts;
+# * the actual initial images, each by id/address/length/sha256;
+# * the source action and memory policies this wiring publishes;
+# * the memory slot permissions: the online reservation and the initial RAM gap;
+# * the negative write declaration: the forbidden GPIO words are recomputed as
+#   *absent* from the decoded body instead of being asserted in a comment.
+#
+# Wiring this selector into the trusted assembly branch is the integration
+# module's job (it owns ``_verify_bootstrap_plan``); nothing here is authority
+# and nothing here can select a runtime path.
+# ---------------------------------------------------------------------------
+#: Declared CPU programs this declaration can name.  A bootstrap whose template
+#: testcase_id is not one of these is refused, so the program facts can never be
+#: guessed from the template alone.
+STREAM_CPU_PROGRAMS = (IBEX_STREAM_CPU_PROGRAM, CV32E40P_STREAM_CPU_PROGRAM)
+
+
+def _stream_cpu_program(bootstrap: DualSourceStreamBootstrap) -> DualSourceCpuProgram:
+    testcase_id = bootstrap.template.testcase_id
+    program = next((item for item in STREAM_CPU_PROGRAMS
+                    if item.testcase_id == testcase_id), None)
+    if program is None:
+        raise ValueError("minimal bootstrap requires one declared CPU program")
+    return program
+
+
+def _pulp_gpio_profile():
+    """Load the pinned GPIO profile whose register map names the boot writes."""
+    from myfuzz.composition.component_profile import load_component_profile
+    return load_component_profile(ROOT / GPIO_PROFILE)
+
+
+def _decoded_fixed_writes(image: MemoryImage) -> tuple[list, list]:
+    """Decode one fixed boot body's stores and CSR writes from its own bytes.
+
+    A closed reader for exactly the body this module builds (``lui``/``addi``/
+    ``sw``/``csrrw``/``jal``).  Any other word raises, so a changed body can
+    never keep a stale declaration, and a store outside the declared GPIO
+    windows is reported by the caller instead of being ignored.
+    """
+    registers = [0] * 32
+    stores: list = []
+    csr_writes: list = []
+    data = image.data
+    for offset in range(0, len(data), 4):
+        word = int.from_bytes(data[offset:offset + 4], "little")
+        opcode = word & 0x7F
+        rd, rs1 = word >> 7 & 31, word >> 15 & 31
+        funct = word >> 12 & 7
+        if opcode == 0x37:
+            registers[rd] = word & 0xFFFFF000
+        elif opcode == 0x13:
+            if funct != 0:
+                raise ValueError("fixed boot body has an unsupported OP-IMM form")
+            registers[rd] = (registers[rs1] + _sign_extend(word >> 20, 12)) & 0xFFFFFFFF
+        elif opcode == 0x23:
+            if funct != 2:
+                raise ValueError("fixed boot body has an unsupported store width")
+            immediate = _sign_extend(((word >> 25) << 5) | (word >> 7 & 31), 12)
+            stores.append(dict(address=(registers[rs1] + immediate) & 0xFFFFFFFF,
+                               value=registers[word >> 20 & 31],
+                               pc=image.address + offset))
+        elif opcode == 0x73:
+            if funct not in (1, 2) or rd != 0:
+                raise ValueError("fixed boot body must set CSRs with csrrw/csrrs x0")
+            csr_writes.append(dict(number=word >> 20,
+                                   operation="csrrw" if funct == 1 else "csrrs",
+                                   value=registers[rs1], pc=image.address + offset))
+        elif opcode == 0x6F:
+            continue
+        else:
+            raise ValueError("fixed boot body has an unsupported instruction")
+        registers[0] = 0
+    return stores, csr_writes
+
+
+def _gpio_write_rows(stores: list) -> list:
+    """Name each decoded store from the pinned profile's register map."""
+    profile = _pulp_gpio_profile()
+    names = {register.offset: register.name for register in profile.address.registers}
+    bases = {device: base for device, base, *_ in dual_source_wiring().windows}
+    rows = []
+    for store in stores:
+        address = store["address"]
+        instance = next((device for device, base in bases.items()
+                         if base <= address < base + PULP_GPIO_PROFILE_APERTURE), None)
+        if instance is None:
+            raise ValueError("fixed boot body stores outside every declared GPIO window")
+        offset = address - bases[instance]
+        if offset not in names:
+            raise ValueError("fixed boot body stores at an offset the pinned profile "
+                             "does not declare")
+        rows.append(dict(instance=instance, register=names[offset], offset=offset,
+                         address=address, value=store["value"]))
+    return rows
+
+
+def _fixed_boot_source_files() -> list:
+    """The closed source closure of the declaration: code, profile and its RTL."""
+    profile = _pulp_gpio_profile()
+    source = profile.source
+    if (source.source_root != "third_party/soc-pulp-apb-gpio"
+            or source.files != ("rtl/apb_gpio.sv",)):
+        raise ValueError("minimal bootstrap requires the pinned GPIO RTL source locator")
+    own = Path(__file__).resolve().relative_to(ROOT).as_posix()
+    paths = (own, GPIO_PROFILE, source.source_root + "/" + source.files[0])
+    return [dict(path=path,
+                 sha256=hashlib.sha256((ROOT / path).read_bytes()).hexdigest())
+            for path in paths]
+
+
+def minimal_bootstrap_declaration(
+        bootstrap: DualSourceStreamBootstrap | None = None) -> dict:
+    """Recompute the closed identity of the code-owned minimal bootstrap.
+
+    Saved documents are comparison evidence only: every field is recomputed from
+    code, from the produced fixture bytes and from the pinned profile/RTL, and
+    :func:`validate_minimal_bootstrap_declaration` compares a saved document
+    against a fresh rebuild.  The forbidden writes are *recomputed as absent*
+    from the decoded body, so the shipped bootstrap cannot claim this identity.
+    """
+    fixture = (make_ibex_pulp_dual_source_minimal_bootstrap()
+               if bootstrap is None else bootstrap)
+    if type(fixture) is not DualSourceStreamBootstrap:
+        raise ValueError("a declared dual-source stream bootstrap is required")
+    program = _stream_cpu_program(fixture)
+    images = tuple(fixture.template.initial_images)
+    body = next((image for image in images
+                 if image.image_id == STREAM_BOOTSTRAP_IMAGE_ID), None)
+    if body is None:
+        raise ValueError("minimal bootstrap declares no fixed program segment")
+    stores, csr_writes = _decoded_fixed_writes(body)
+    gpio_writes = _gpio_write_rows(stores)
+    bases = {device: base for device, base, *_ in dual_source_wiring().windows}
+    names = {register.offset: register.name
+             for register in _pulp_gpio_profile().address.registers}
+    removed = []
+    for instance, register, offset, value in MINIMAL_BOOTSTRAP_REMOVED_WRITES:
+        if names.get(offset) != register:
+            raise ValueError("removed write is not the pinned profile's register")
+        removed.append(dict(instance=instance, register=register, offset=offset,
+                            address=bases[instance] + offset, value=value))
+    forbidden = {row["address"] for row in removed}
+    if {row["address"] for row in gpio_writes} & forbidden:
+        raise ValueError("minimal bootstrap still writes a removed GPIO word")
+    retained = sorted((row["instance"], row["register"], row["offset"], row["value"])
+                      for row in gpio_writes)
+    if retained != sorted(MINIMAL_BOOTSTRAP_RETAINED_WRITES):
+        raise ValueError("minimal bootstrap GPIO writes differ from the declared set")
+    csr_names = dict(MINIMAL_BOOTSTRAP_CSR_NAMES)
+    if sorted(row["number"] for row in csr_writes) != sorted(csr_names):
+        raise ValueError("minimal bootstrap CSR writes differ from the declared set")
+    window = declared_initial_ram_data_window(fixture)
+    memory_id, byte_offset = result_slot_ram_location()
+    declaration = dict(
+        schema_version=MINIMAL_BOOTSTRAP_SCHEMA_VERSION,
+        selector=MINIMAL_BOOTSTRAP_SELECTOR,
+        cpu_program=dict(profile_path=program.profile_path,
+                         testcase_id=program.testcase_id,
+                         first_fetch=program.first_fetch,
+                         main_address=program.main_address,
+                         mtvec_value=program.mtvec_value,
+                         boot_trampoline=program.boot_trampoline),
+        instruction_start=fixture.instruction_start,
+        instruction_end=fixture.instruction_end,
+        instruction_count=fixture.instruction_count,
+        images=[dict(image_id=image.image_id, address=image.address,
+                     byte_count=len(image.data),
+                     sha256=hashlib.sha256(image.data).hexdigest())
+                for image in images],
+        template_sha256=hashlib.sha256(
+            _canonical_document(asdict(fixture.template)).encode()).hexdigest(),
+        instruction_slots=[["cpu", fixture.instruction_start, fixture.instruction_count]],
+        initial_ram_window=window.document(),
+        source_action_declaration=make_pulp_dual_source_source_action_gate(
+            component="cpu", instruction_start=fixture.instruction_start,
+            instruction_end=fixture.instruction_end).declaration(),
+        memory_policy_declaration=pulp_live_memory_policy_declaration(
+            component="cpu", memory_id=memory_id, byte_offset=byte_offset),
+        gpio_writes=gpio_writes,
+        csr_writes=[dict(name=csr_names[row["number"]], number=row["number"],
+                         operation=row["operation"], value=row["value"], pc=row["pc"])
+                    for row in csr_writes],
+        removed_gpio_writes=removed,
+        source_files=_fixed_boot_source_files(),
+        grants=dict(grants_storage=False, grants_version_dependency=False,
+                    grants_prerequisites=False, grants_functional=False))
+    return json.loads(_canonical_document(declaration))
+
+
+def validate_minimal_bootstrap_declaration(document: object) -> dict:
+    """Compare one saved declaration with the current code-owned fixture.
+
+    A saved document never selects a runtime path: it is compared field for
+    field against a fresh rebuild (which itself re-decodes the produced image
+    and re-checks the negative write list).  Returns a detached copy.
+    """
+    expected = minimal_bootstrap_declaration()
+    if type(document) is not dict or set(document) != set(expected):
+        raise ValueError("minimal bootstrap declaration requires complete closed fields")
+    if (document.get("schema_version") != expected["schema_version"]
+            or document.get("selector") != expected["selector"]):
+        raise ValueError("minimal bootstrap declaration has an unsupported selector")
+    if _canonical_document(document) != _canonical_document(expected):
+        raise ValueError("minimal bootstrap declaration is not the current code-owned fixture")
+    return json.loads(_canonical_document(document))
+
 
 
 #: Declared schema of the opt-in per-case cross-case advance policy.

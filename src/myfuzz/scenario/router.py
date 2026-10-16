@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, asdict
+from copy import deepcopy
+import json
 from typing import Callable, Protocol
 
 from .ledger import TransactionKey, TransactionLedger
 from .runner import timed_runtime_call
+
+
+_MAX_ORDINARY_DELIVERY_CONFIRMATIONS = 65_536
 
 
 class RegisterTarget(Protocol):
@@ -52,6 +57,7 @@ class DataflowRouter:
         self.deliveries: list[dict] = []
         self._target_delivery_counts: dict[str, int] = {}
         self._delivery_sequence = 0
+        self._ordinary_delivery_confirmations: dict[TransactionKey, dict] = {}
         self._queued: list[tuple[TransactionLedger, TransactionKey, dict,
                                  DeviceWindow, int, int, int, bool,
                                  Callable[[tuple[int, int]], None]]] = []
@@ -59,6 +65,16 @@ class DataflowRouter:
     @property
     def pending_targets(self) -> tuple[str, ...]:
         return tuple(sorted({item[3].device_id for item in self._queued}))
+
+    def ordinary_delivery_confirmation(self, key: TransactionKey) -> dict:
+        """Return only a real completed queue callback's private observation.
+
+        Public delivery rows are comparison data. Synchronous target returns
+        and failed source callbacks cannot create this confirmation.
+        """
+        if type(key) is not TransactionKey or key not in self._ordinary_delivery_confirmations:
+            raise ValueError('ordinary APB source callback is not confirmed')
+        return deepcopy(self._ordinary_delivery_confirmations[key])
 
     @property
     def ready_targets(self) -> tuple[str, ...]:
@@ -121,6 +137,39 @@ class DataflowRouter:
                                   'address': payload['address'], 'offset': offset,
                                   'write': write, 'value': data32, 'be': lane_be})
             return result['rdata'], result
+        if getattr(target, 'ordinary_apb_access_receipts_enabled', False):
+            context = {'source_transaction': asdict(key), 'device_id': window.device_id,
+                'window_base': window.base, 'window_size': window.size,
+                'address': payload['address'], 'offset': offset,
+                'write': write, 'value': data32, 'be': lane_be}
+            execute = getattr(target, 'execute_observed_register_access', None)
+            lookup = getattr(target, 'ordinary_apb_access_receipt', None)
+            terminal = getattr(target, 'ordinary_apb_delivery_failed', None)
+            if not all(callable(method) for method in (execute, lookup, terminal)):
+                raise ValueError('ordinary APB actual receipt interfaces required')
+            result = execute(key, delivery_context=deepcopy(context))
+            if (type(result) is not dict or set(result) != {'rdata','target_access_id','target_access_receipt'}
+                    or type(result['rdata']) is not int or not 0 <= result['rdata'] < 1 << 32
+                    or type(result['target_access_id']) is not str or not result['target_access_id']
+                    or type(result['target_access_receipt']) is not dict):
+                raise ValueError('invalid ordinary APB target result')
+            from myfuzz.local_harness.ordinary_apb_access_receipts import validate_ordinary_apb_target_receipt
+            receipt = validate_ordinary_apb_target_receipt(result['target_access_receipt'],
+                source_transaction=key, delivery_context=context)
+            canonical = lambda value: json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False)
+            if (canonical(receipt) != canonical(lookup(result['target_access_id']))
+                    or receipt.get('schema_version') != 'ordinary_apb_target_receipt.v1'
+                    or receipt.get('access_id') != result['target_access_id']
+                    or receipt.get('target_instance') != window.device_id
+                    or canonical(receipt.get('source_transaction')) != canonical(asdict(key))
+                    or canonical(receipt.get('delivery_context')) != canonical(context)
+                    or receipt.get('status') != 'target_observed'
+                    or type(receipt.get('error')) is not int or receipt['error'] != 0
+                    or type(receipt.get('rdata')) is not int or receipt['rdata'] != result['rdata']
+                    or any(receipt.get(name) is not False for name in
+                           ('grants_verified','grants_storage','grants_functional'))):
+                raise ValueError('ordinary APB actual receipt binding mismatch')
+            return result['rdata'], deepcopy(result)
         if write:
             target.write_register(offset, data32, be=lane_be)
             return 0, {}
@@ -166,6 +215,9 @@ class DataflowRouter:
 
         pending_delivery = None
         routed = getattr(window.target, 'routed_register_access_enabled', False)
+        ordinary = not routed and getattr(window.target, 'ordinary_apb_access_receipts_enabled', False)
+        if ordinary and len(self._ordinary_delivery_confirmations) >= _MAX_ORDINARY_DELIVERY_CONFIRMATIONS:
+            raise ValueError('ordinary APB source confirmation capacity exceeded')
 
         def deliver() -> tuple[int, int]:
             nonlocal pending_delivery
@@ -190,7 +242,7 @@ class DataflowRouter:
                                     "byte_enable": lane_be,
                                     "write_value": data32 if write else None,
                                     "read_value": response[0] if not write else None}
-            if not routed:
+            if not routed and not ordinary:
                 self.deliveries.append(pending_delivery)
             return response
 
@@ -203,17 +255,31 @@ class DataflowRouter:
         self._queued.pop(index)
         try:
             callback(response)
-        except BaseException:
+        except BaseException as callback_error:
             # The actual target receipt remains cached (never re-execute), but
             # this command has no confirmed source delivery.
-            if not getattr(window.target, 'routed_register_access_enabled', False):
-                raise
             delivery = pending_delivery or {}
-            terminal = getattr(window.target, 'routed_delivery_failed', None)
-            if getattr(window.target, 'routed_register_access_enabled', False) and callable(terminal):
-                terminal(key, delivery.get('target_access_id'))
+            if routed:
+                terminal = getattr(window.target, 'routed_delivery_failed', None)
+            elif ordinary:
+                terminal = getattr(window.target, 'ordinary_apb_delivery_failed', None)
+            else:
+                terminal = None
+            if callable(terminal):
+                if ordinary:
+                    try:
+                        terminal(key, delivery.get('target_access_id'))
+                    except BaseException as terminal_error:
+                        raise callback_error from terminal_error
+                else:
+                    terminal(key, delivery.get('target_access_id'))
             raise
-        if routed and pending_delivery is not None:
+        if (routed or ordinary) and pending_delivery is not None:
+            if ordinary:
+                pending_delivery['source_delivery_confirmed'] = True
+                confirmation = deepcopy(pending_delivery)
+                confirmation['source_transaction'] = asdict(key)
+                self._ordinary_delivery_confirmations[key] = confirmation
             self.deliveries.append(pending_delivery)
         return True
 
@@ -248,7 +314,10 @@ class DataflowRouter:
             target_order = self._target_delivery_counts.get(window.device_id, 0) + 1
             self._target_delivery_counts[window.device_id] = target_order
             self._delivery_sequence += 1
-            self.deliveries.append({**{k: v for k, v in access.items() if k != "rdata"}, "source_transaction": key, "device_id": window.device_id,
+            self.deliveries.append({**({'source_delivery_confirmed': False} if
+                not getattr(window.target,'routed_register_access_enabled',False) and
+                getattr(window.target,'ordinary_apb_access_receipts_enabled',False) else {}),
+                **{k: v for k, v in access.items() if k != "rdata"}, "source_transaction": key, "device_id": window.device_id,
                                     "source_sequence": key.source_sequence,
                                     "delivery_order": self._delivery_sequence,
                                     "target_delivery_order": target_order,

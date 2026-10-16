@@ -12,14 +12,16 @@ import json
 from .ledger import TransactionKey, TransactionLedger
 from .memory import PersistentMemory, ReadSnapshot
 from .memory_service import MemoryService
+from .memory_authority_distribution import MemoryAuthorityDistribution
 
 
 def _uint(value, bits=64):
     return type(value) is int and 0 <= value < 1 << bits
 
 
-class MemoryReadAuthority:
+class MemoryReadAuthority(MemoryAuthorityDistribution):
     def __init__(self, *, services, max_services=16, max_pending=256):
+        super().__init__()
         if (type(max_services) is not int or max_services < 1
                 or type(max_pending) is not int or max_pending < 1):
             raise ValueError('invalid memory read authority capacity')
@@ -116,19 +118,15 @@ class MemoryReadAuthority:
             token = self._next_token
             self._next_token += 1
             self._pending[token] = record
+            self._pin_consumers(token)
             return snapshot
         except (RuntimeError, TypeError, ValueError):
             self._bad = True
             raise RuntimeError('actual read callback could not be authenticated')
 
-    def drain(self):
+    def drain(self, *, consumer=None):
         """Return detached pending descriptors with private one-shot tokens."""
-        return tuple((token, deepcopy(record)) for token, record in self._pending.items())
-
-    def resolve(self, token):
-        if type(token) is not int or token < 1:
-            return None
-        record = self._pending.pop(token, None)
-        # A later failed callback invalidates earlier pending proof. Still
-        # consume its one-shot token so the runner cannot drain it again.
-        return deepcopy(record) if record is not None and not self._bad else None
+        if consumer is not None and (type(consumer) is not str or consumer not in self._consumers):
+            return ()
+        return tuple((token, deepcopy(record)) for token, record in self._pending.items()
+                     if consumer is None or consumer in self._remaining_consumers[token])

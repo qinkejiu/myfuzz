@@ -474,6 +474,12 @@ class EdgeProvenanceConsumer:
         #: it), and every candidate it returns goes through the same
         #: declaration/malformed-identity checks as a journal candidate.
         self._candidate_resolver = candidate_resolver
+        self._base_binding_verifier = None
+        self._base_journal_integrity = True
+        self._protocol_evidence_consumer = None
+        self._semantic_evidence_consumer = None
+        self._memory_evidence_consumer = None
+        self._irq_evidence_consumer = None
         self._declarations = {edge.key: edge for edge in contract.edges}
         self._hint_limit = max(1024, max_pending * 64)
         self._endpoints = {}
@@ -571,7 +577,8 @@ class EdgeProvenanceConsumer:
         return self._endpoints.get(key)
 
     # --------------------------------------------------------------- ingestion
-    def ingest(self, events: Iterable[Mapping]) -> tuple[dict, ...]:
+    def ingest(self, events: Iterable[Mapping], *, memory_commit_token=None,
+               memory_read_token=None) -> tuple[dict, ...]:
         """Consume the next contiguous slice and return newly settled edges.
 
         The slice may be a lazily streamed journal: every event registers the
@@ -582,9 +589,28 @@ class EdgeProvenanceConsumer:
         carries ``edge_candidates`` of its own, so this exact reference chain is
         the only join that attributes it to a declared edge.
         """
+        # Callback tokens are private, one-shot authority, never journal fields.
+        # A supplied token belongs to exactly one event, not a batch prefix.
+        if memory_commit_token is not None or memory_read_token is not None:
+            if self._memory_evidence_consumer is None:
+                raise ValueError('memory evidence must be configured before token ingest')
+            iterator, sentinel = iter(events), object()
+            first = next(iterator, sentinel)
+            if first is sentinel or next(iterator, sentinel) is not sentinel:
+                raise ValueError('memory authority token ingest requires one event')
+            events = (first,)
         produced = []
         for event in events:
             self._events_observed += 1
+            if self._memory_evidence_consumer is not None:
+                self._memory_evidence_consumer.consume(event,
+                    commit_token=memory_commit_token, read_token=memory_read_token)
+            if self._irq_evidence_consumer is not None:
+                self._irq_evidence_consumer.consume(event)
+            if self._protocol_evidence_consumer is not None:
+                self._protocol_evidence_consumer.consume(event)
+            if self._semantic_evidence_consumer is not None:
+                self._semantic_evidence_consumer.consume(event)
             if isinstance(event, Mapping):
                 self._register_hints((event,))
             certificate = self._consume(event)
@@ -596,6 +622,81 @@ class EdgeProvenanceConsumer:
                 produced.extend(self._settled_certificates())
             produced.extend(self._drain_pending_hints())
         return tuple(produced)
+
+    def configure_base_events(self, configurations: Mapping) -> None:
+        """Freeze trusted component contracts before consuming any evidence."""
+        if self._last_event_id or self._base_binding_verifier is not None:
+            raise ValueError("base evidence contracts must be configured once before ingest")
+        from .ip_binding_evidence import IpBindingEvidenceVerifier
+        self._base_binding_verifier = IpBindingEvidenceVerifier(configurations)
+
+    def configure_memory_events(self, **configuration) -> None:
+        """Bind installed host callback authorities once before any ingest."""
+        if self._events_observed or self._memory_evidence_consumer is not None:
+            raise ValueError('memory evidence must be configured once before ingest')
+        from .memory_dependency_evidence import MemoryDependencyEvidenceConsumer
+        self._memory_evidence_consumer = MemoryDependencyEvidenceConsumer(
+            runtime_contract_sha256=self.contract.identity_sha256, **configuration)
+
+    def memory_evidence_report(self) -> dict:
+        if self._memory_evidence_consumer is None:
+            return dict(schema_version='memory_dependency_evidence_report.v1',
+                        status='not_configured')
+        return self._memory_evidence_consumer.report()
+
+    def configure_irq_events(self, **configuration) -> None:
+        """Install the optional native IRQ provider before any journal ingest."""
+        if self._events_observed or self._irq_evidence_consumer is not None:
+            raise ValueError('IRQ evidence must be configured once before ingest')
+        from .irq_dependency_evidence import IrqDependencyEvidenceConsumer
+        self._irq_evidence_consumer = IrqDependencyEvidenceConsumer(
+            runtime_contract_sha256=self.contract.identity_sha256, **configuration)
+
+    def irq_evidence_report(self) -> dict:
+        if self._irq_evidence_consumer is None:
+            return dict(schema_version='irq_dependency_evidence_report.v1', status='not_configured')
+        return self._irq_evidence_consumer.report()
+
+    def configure_protocol_events(self, configurations: Mapping, **bounds) -> None:
+        """Freeze protocol facts before ingest; proofs stay separate from edges."""
+        if self._events_observed or self._protocol_evidence_consumer is not None:
+            raise ValueError("protocol evidence contracts must be configured once before ingest")
+        from .ip_protocol_evidence import IpProtocolEvidenceConsumer
+        self._protocol_evidence_consumer = IpProtocolEvidenceConsumer(
+            configurations, runtime_contract_sha256=self.contract.identity_sha256, **bounds)
+
+    def protocol_evidence_report(self) -> dict:
+        if self._protocol_evidence_consumer is None:
+            raise ValueError("protocol evidence contracts are not configured")
+        return self._protocol_evidence_consumer.report()
+
+    def configure_semantic_events(self, configurations: Mapping, **bounds) -> None:
+        """Select explicit optional rules once; missing functionality stays unknown."""
+        if self._events_observed or self._semantic_evidence_consumer is not None:
+            raise ValueError("semantic evidence contracts must be configured once before ingest")
+        from .ip_semantic_evidence import IpSemanticEvidenceConsumer
+        self._semantic_evidence_consumer = IpSemanticEvidenceConsumer(
+            configurations, runtime_contract_sha256=self.contract.identity_sha256, **bounds)
+
+    def semantic_evidence_report(self) -> dict:
+        if self._semantic_evidence_consumer is None:
+            raise ValueError("semantic evidence contracts are not configured")
+        return self._semantic_evidence_consumer.report()
+
+    def bind_semantic_capabilities(self, alias, **kwargs) -> None:
+        if self._events_observed or self._semantic_evidence_consumer is None:
+            raise ValueError("semantic capabilities require configured contracts before ingest")
+        self._semantic_evidence_consumer.bind_capabilities(alias, **kwargs)
+
+    def semantic_capability_snapshot(self, alias):
+        if self._semantic_evidence_consumer is None:
+            raise ValueError("semantic evidence contracts are not configured")
+        return self._semantic_evidence_consumer.capability_snapshot(alias)
+
+    def semantic_derived_events(self) -> tuple[dict, ...]:
+        if self._semantic_evidence_consumer is None:
+            raise ValueError("semantic evidence contracts are not configured")
+        return self._semantic_evidence_consumer.derived_events()
 
     def _settled_certificates(self) -> list:
         """Certificates produced since the last call, newest last."""
@@ -726,6 +827,17 @@ class EdgeProvenanceConsumer:
         for record in _binding_citations(event):
             if record not in references:
                 references.append(record)
+        if event.get("schema_version") == "ip_base_event.v1":
+            payload = event.get("payload")
+            base_refs = [event.get("binding_delivery_event_id")]
+            if isinstance(payload, Mapping):
+                base_refs.append(payload.get("dataflow_delivery_event_id"))
+            raw_refs = event.get("raw_event_refs")
+            if isinstance(raw_refs, list) and len(raw_refs) <= 64:
+                base_refs.extend(raw_refs)
+            for record in base_refs:
+                if _count(record) and record > 0 and record not in references:
+                    references.append(record)
         return tuple(references)
 
     def _remember_hint(self, record_id: int, keys) -> None:
@@ -755,16 +867,22 @@ class EdgeProvenanceConsumer:
 
     def _consume(self, event) -> dict | None:
         if not isinstance(event, Mapping):
+            self._base_journal_integrity = False
             self._reject("non_object_event", event_id=None)
             return None
         event_id = event.get("event_id")
         if not _count(event_id):
+            self._base_journal_integrity = False
             self._reject("non_integer_event_id", event_id=event_id, kind=event.get("kind"))
             return None
         if event_id <= self._last_event_id:
+            if (self._digests.get(event_id)
+                    != hashlib.sha256(_canonical(dict(event))).hexdigest()):
+                self._base_journal_integrity = False
             self._reject("repeated_event_id", event_id=event_id, kind=event.get("kind"))
             return None
         if event_id != self._last_event_id + 1:
+            self._base_journal_integrity = False
             # Fail closed, count it, and continue from this id so one gap does
             # not cascade into a rejection of every later record.
             self._reject("non_contiguous_event_id", event_id=event_id, kind=event.get("kind"))
@@ -775,6 +893,7 @@ class EdgeProvenanceConsumer:
         digest = hashlib.sha256(_canonical(dict(event))).hexdigest()
         previous = self._digests.get(event_id)
         if previous is not None and previous != digest:
+            self._base_journal_integrity = False
             self._reject("content_conflict", event_id=event_id, kind=event.get("kind"))
             return None
         self._digests[event_id] = digest
@@ -783,7 +902,7 @@ class EdgeProvenanceConsumer:
         return settled[-1] if settled else None
 
     def _observe(self, event_id: int, event: Mapping) -> None:
-        self._records[event_id] = dict(event)
+        self._records[event_id] = deepcopy(dict(event))
         self._latest_record_id = event_id
         self._expire(event_id)
         self._expire_records(event_id)
@@ -1299,6 +1418,13 @@ class EdgeProvenanceConsumer:
         proves nothing here: without a citation the hop stays missing.
         """
         kind = event.get("kind")
+        if kind == "input_sample" and self._base_binding_verifier is not None:
+            if not self._base_journal_integrity:
+                return None
+            return self._base_binding_verifier.match(
+                event=event, event_id=event_id, records=self._records,
+                endpoints=state["endpoints"],
+                declares_key=lambda record: self._declares_key(record, state["key"]))
         if kind not in _BINDING_OBSERVATION_KINDS:
             return None
         if event_id in (state["driver_event_id"], state["delivery_event_id"],
@@ -1406,6 +1532,11 @@ class EdgeProvenanceConsumer:
             "delivery_value": record.get("value"), "driver_event_id": driver_id,
             "segments": joined["rows"], "explicit_delivery_reference": True,
             "local_tick": event.get("local_tick")})
+        if "raw_input_event_id" in joined:
+            state["hops"][CONSUMER]["evidence"].update({
+                "raw_input_event_id": joined["raw_input_event_id"],
+                "base_delivery_event_id": joined["base_delivery_event_id"],
+                "proof_scope": "binding_delivery_sample"})
         state["consumer_event_id"] = event_id
 
     # -- mmio_route -----------------------------------------------------------

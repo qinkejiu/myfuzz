@@ -46,7 +46,10 @@ class GeneratedCve2Session(GeneratedLocalSession):
                  command_timeout_seconds: float = 10.0,
                  native_irq_receipts: bool = False,
                  memory_commit_receipts: bool = False,
-                 memory_readback_receipts: bool = False):
+                 memory_readback_receipts: bool = False,
+                 physical_tick_samples: bool = False):
+        if type(physical_tick_samples) is not bool:
+            raise ValueError('physical tick samples must be boolean')
         if type(native_irq_receipts) is not bool:
             raise ValueError('native_irq_receipts must be boolean')
         if type(memory_commit_receipts) is not bool:
@@ -86,6 +89,8 @@ class GeneratedCve2Session(GeneratedLocalSession):
         self.mmio_write_count = 0
         self.mmio_read_count = 0
         self.last_samples: tuple[dict, ...] = ()
+        self._physical_tick_samples_enabled = physical_tick_samples
+        self._physical_tick_samples: list[dict] = []
         self.cpu_events: list[dict] = []
         self._started_cpu = False
         self._resetting_cpu = False
@@ -113,6 +118,10 @@ class GeneratedCve2Session(GeneratedLocalSession):
         if self.memory_readback_receipts_enabled:
             observation['memory_read_issuance'] = {
                 'schema_version': 'memory_read_authority.v1', 'capacity': 256}
+        if self._physical_tick_samples_enabled:
+            observation['cpu_physical_tick_stream'] = {
+                'schema_version': 'cpu_physical_tick_stream.v1',
+                'capacity': 256, 'sampling': 'pre_post'}
         return {**super().identity_document(), **observation,
                 'cpu_service_schema_version': 'generated_obi_cpu_service.v1',
                 'source_component': self.source_component,
@@ -121,6 +130,7 @@ class GeneratedCve2Session(GeneratedLocalSession):
     def begin_case(self, testcase_id: str) -> None:
         self._clear_native_irq_receipts()
         super().begin_case(testcase_id)
+        self._physical_tick_samples.clear()
         if self.native_irq_receipts_enabled and not self._started_cpu:
             self._cpu_event('cpu_native_startup', schema_version='cpu_native_startup.v1',
                 **self._native_reset_fields())
@@ -198,6 +208,7 @@ class GeneratedCve2Session(GeneratedLocalSession):
         self._resetting_cpu = True
         try:
             reset_outcome = super().reset_local()
+            self._physical_tick_samples.clear()
         finally:
             self._resetting_cpu = False
         self._cpu_event('cpu_reset', cancelled_responses=cancelled,
@@ -448,6 +459,8 @@ class GeneratedCve2Session(GeneratedLocalSession):
         self._next_irq_input_context = copy.deepcopy(context)
 
     def step_local(self, inputs: Mapping[str, int]) -> Mapping[str, object]:
+        if self._physical_tick_samples_enabled and len(self._physical_tick_samples) >= 256:
+            raise RuntimeError('CPU physical tick stream capacity exceeded')
         self._active_irq_input_context = self._next_irq_input_context
         self._next_irq_input_context = None
         try:
@@ -455,6 +468,12 @@ class GeneratedCve2Session(GeneratedLocalSession):
         finally:
             self._next_irq_input_context = None
             self._active_irq_input_context = None
+
+    def drain_tick_samples(self) -> list[dict]:
+        """Drain copied STEP_CPU receipts, never reconstructed host decisions."""
+        samples = self._physical_tick_samples
+        self._physical_tick_samples = []
+        return samples
 
     def _native_irq_facts(self, receipt, values):
         from .wire import DriverReceipt
@@ -544,6 +563,10 @@ class GeneratedCve2Session(GeneratedLocalSession):
         native = self._native_irq_facts(receipt, values) if self.native_irq_receipts_enabled else None
         physical_outputs = self._physical_outputs(receipt.payload)
         self.last_samples = tuple(copy.deepcopy(receipt.payload['samples']))
+        if self._physical_tick_samples_enabled:
+            self._physical_tick_samples.extend(
+                {**copy.deepcopy(sample), 'local_tick': self._tick_base + sample['local_tick']}
+                for sample in self.last_samples)
         # IRQ acceptance is a combinational decision *before* the edge being
         # advanced.  The final physical snapshot is after that edge and may
         # already have cleared the pulse, so consume the driver's pre sample.

@@ -1484,6 +1484,33 @@ def _validate_request_consistency(request: CompositionRequest) -> None:
     for region in request.memory:
         if region.base + region.size > limit:
             _error(f"address-out-of-range:{region.region_id}")
+    policy = request.address_policy
+    mmio_end = policy.mmio_base + policy.mmio_limit
+    if mmio_end > limit:
+        _error("mmio-aperture-out-of-range")
+    occupied = [(region.base, region.base + region.size, f"memory:{region.region_id}")
+                for region in request.memory]
+    for instance in sorted(request.peripherals, key=lambda item: item.instance_id):
+        if instance.address is None:
+            continue
+        address = instance.profile.address
+        assert address is not None
+        end = instance.address + address.window_size
+        alignment = max(address.alignment, policy.alignment)
+        if instance.address % alignment:
+            _error(f"fixed-address-misaligned:{instance.instance_id}:{instance.address}"
+                   f"!%{alignment}")
+        if end > limit:
+            _error(f"fixed-address-out-of-range:{instance.instance_id}")
+        if instance.address < policy.mmio_base or end > mmio_end:
+            _error(f"fixed-address-outside-mmio-aperture:{instance.instance_id}"
+                   f":[0x{instance.address:x},0x{end:x}):"
+                   f"[0x{policy.mmio_base:x},0x{mmio_end:x})")
+        conflict = next((owner for base, other_end, owner in occupied
+                         if instance.address < other_end and base < end), None)
+        if conflict is not None:
+            _error(f"fixed-address-overlap:{instance.instance_id}:{conflict}")
+        occupied.append((instance.address, end, f"mmio:{instance.instance_id}"))
     if not request.cpu.profile.cpu.master_endpoints:
         _error("cpu-master-endpoints-required")
 
@@ -1752,30 +1779,32 @@ def _direct_elaboration(profile: ComponentProfile, *, base_dir: Path,
     import subprocess
     import tempfile
 
-    from myfuzz.composition.source_crawler import _content_hash, _declared_files
+    from myfuzz.composition.source_crawler import (
+        _content_hash, _declared_files, _pinned_source_reader)
     from myfuzz.composition.source_elaboration import (
         ElaborationError,
+        _closure,
+        _tool_source_allowlist,
+        _validate_metadata_closure,
         extract_physical_ports,
     )
 
     locator = profile.source
-    root = (Path(base_dir) / locator.source_root).resolve()
-    if not root.is_dir():
-        _error(f"source-root-missing:{locator.source_root}")
-    contents: dict[str, bytes] = {}
-
-    def read(path: Path) -> bytes:
-        relative = path.resolve().relative_to(root).as_posix()
-        if relative not in contents:
-            if not path.is_file():
-                _error(f"source-file-missing:{relative}")
-            contents[relative] = path.read_bytes()
-        return contents[relative]
-
     try:
+        root, contents, read = _pinned_source_reader(locator, base_dir=base_dir)
         files, include_roots, filelist_defines = _declared_files(root, locator, read)
     except SourceCrawlError as error:
         raise ComponentProfileError(f"elaboration-failed:{profile.component_id}:{error}") from error
+    explicit = tuple((path.resolve(), path.resolve().relative_to(root).as_posix())
+                     for path in files)
+    includes = tuple(root / item for item in include_roots)
+    try:
+        initial_closure = _closure(root, explicit, includes)
+        if locator.revision.startswith('git:'):
+            for path in initial_closure:
+                read(path)
+    except (SourceCrawlError, ElaborationError) as error:
+        raise ComponentProfileError(f"elaboration-source-invalid:{profile.component_id}:{error}") from error
     if locator.elaboration is not None and filelist_defines:
         _error(f"elaboration-filelist-defines-unsupported:{profile.component_id}")
     content_hash = _direct_pinned_closure_hash(
@@ -1831,15 +1860,22 @@ def _direct_elaboration(profile: ComponentProfile, *, base_dir: Path,
         except (OSError, ValueError) as error:
             raise ComponentProfileError(
                 f"elaboration-output-malformed:{profile.component_id}") from error
-        mapping = {path.resolve().as_posix(): path.resolve().relative_to(root).as_posix()
-                   for path in files}
+        mapping = {(root / name).resolve().as_posix(): name for name in contents}
         try:
+            _validate_metadata_closure(metadata, {Path(path): None for path in mapping},
+                                       _tool_source_allowlist(tool))
             evidence = extract_physical_ports(tree, metadata, top_module=locator.top_module,
                                               source_files=mapping, selected_top_ports=selected)
         except ElaborationError as error:
             raise ComponentProfileError(
                 f"elaboration-evidence-error:{profile.component_id}:{error}") from error
-        if _content_hash({name: read(root / name) for name in sorted(contents)}) != content_hash:
+        try:
+            current_closure = _closure(root, explicit, includes)
+            current_hash = _content_hash({name: (root / name).read_bytes()
+                                          for name in sorted(contents)})
+        except (OSError, ElaborationError) as error:
+            raise ComponentProfileError(f"elaboration-source-changed:{profile.component_id}") from error
+        if current_closure != initial_closure or current_hash != content_hash:
             _error(f"elaboration-source-changed:{profile.component_id}")
     ports = tuple(
         ElaboratedPortFact(
@@ -2215,6 +2251,9 @@ def bind_profile(profile: ComponentProfile, facts: PhysicalFacts) -> ProfileBind
         if fact.direction not in ("inout", expected):
             _error(f"{profile.component_id}:{name}-direction-conflict:"
                    f"{port}:{fact.direction}!={expected}")
+        if fact.width != 1:
+            _error(f"{profile.component_id}:{name}-port-width-conflict:"
+                   f"{port}:{fact.width}!=1")
         resolved = ResolvedField(endpoint_id=name, role=name, port=port, member_path=(),
                                  direction=expected, width=fact.width, raw_lo=0,
                                  raw_hi=fact.width - 1, signed=fact.signed,

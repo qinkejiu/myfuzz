@@ -181,9 +181,11 @@ def _verify_generated_session(identity: dict):
         raise ValueError('invalid generated command timeout')
     document = identity['runtime_artifact']
     plan_doc = document['plan']
-    request = load_local_harness_request(dict(schema_version='local_harness.v1',
+    request_schema = plan_doc.get('request_schema_version', 'local_harness.v1')
+    request = load_local_harness_request(dict(schema_version=request_schema,
         profile_path=plan_doc['profile_path'], instance_id=plan_doc['instance_id'],
-        **plan_doc['timing']))
+        **plan_doc['timing'],
+        **({'tuning': plan_doc['tuning']} if request_schema == 'local_harness.v2' else {})))
     plan = plan_local_harness(request, base_dir=_ROOT)
     top = render_local_runtime(plan, render_local_harness(plan),
         verify_local_source_lock(plan.profile, base_dir=_ROOT,
@@ -201,7 +203,8 @@ def _verify_generated_session(identity: dict):
             or 'uart_source_provenance' not in identity
             or artifact.runtime_document['kind'] != 'tlul_uart'):
         raise ValueError('generated UART FIFO observation identity mismatch')
-    if (not _strict_generated_json_equal(document, artifact.runtime_document) if fifo_variant or native_cpu_irq
+    if (not _strict_generated_json_equal(document, artifact.runtime_document)
+            if fifo_variant or native_cpu_irq or request_schema == 'local_harness.v2'
             else document != artifact.runtime_document):
         raise ValueError('generated runtime artifact identity mismatch')
     if artifact.runtime_document['kind'] == 'rvx_memory_cpu':

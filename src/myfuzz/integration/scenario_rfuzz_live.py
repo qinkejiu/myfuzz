@@ -131,6 +131,16 @@ def _closed_loop_energy_record(executor: ScenarioRfuzzExecutor) -> dict | None:
     return state() if callable(state) else None
 
 
+def _candidate_exploration_record(executor: ScenarioRfuzzExecutor) -> dict | None:
+    state = getattr(executor, 'candidate_exploration_state', None)
+    return state() if callable(state) else None
+
+
+def _classified_feedback_record(executor):
+    state = getattr(executor, 'classified_feedback_state', None)
+    return state() if callable(state) else None
+
+
 def _initial_ram_data_record(executor: ScenarioRfuzzExecutor) -> dict | None:
     """Record the opt-in pre-session initial RAM data operator's own state.
 
@@ -361,6 +371,10 @@ def _run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
                     "closed_loop_credit_totals": closed_loop.get("credit_totals"),
                     "closed_loop_source_weights": closed_loop.get("source_weights"),
                     "closed_loop_refusals": closed_loop.get("refusals"),
+                    **({'candidate_exploration': decision.get('candidate_exploration'),
+                        'interaction_feedback': interaction}
+                       if getattr(executor, '_candidate_exploration', None) is not None
+                       or getattr(executor, 'classified_feedback', False) else {}),
                     }, sort_keys=True) + "\n")
                 receipt_file.flush()
                 persisted_receipts.add(identity)
@@ -458,6 +472,12 @@ def _run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
         "path_switch": _path_switch_record(executor),
     }
     initial_ram_data = _initial_ram_data_record(executor)
+    candidate_exploration = _candidate_exploration_record(executor)
+    if candidate_exploration is not None:
+        report['candidate_exploration'] = candidate_exploration
+    classified_feedback = _classified_feedback_record(executor)
+    if classified_feedback is not None:
+        report['classified_feedback'] = classified_feedback
     if initial_ram_data is not None:
         report["initial_ram_data"] = initial_ram_data
     source_target_transactions = _source_target_transactions_record(executor)
@@ -523,6 +543,7 @@ _FRESH_RUNTIME_SOURCES = (
     "src/myfuzz/integration/scenario_rfuzz.py",
     "src/myfuzz/integration/scenario_rfuzz_live.py",
     "src/myfuzz/integration/scenario_rfuzz_replay.py",
+    "src/myfuzz/integration/ibex_pulp_candidate_replay.py",
     "src/myfuzz/integration/rfuzz_fifo.py",
     "src/myfuzz/integration/rfuzz_shmem.py",
     "src/myfuzz/integration/rfuzz_wire.py",
@@ -1166,6 +1187,38 @@ def _verify_online_run_identity(output: Path, *, plan_path: Path,
             raise ValueError("online run report identity mismatch")
     if identity.get("schema_version") != "scenario_online_run_identity.v1":
         raise ValueError("unsupported online run identity schema")
+    candidate_config = identity.get('run_config', {}).get('candidate_exploration')
+    candidate_report = (report.get('candidate_exploration') if report_path.is_file() else None)
+    if candidate_config is not None or candidate_report is not None:
+        from .candidate_exploration import candidate_source_identity
+        if (type(candidate_config) is not dict
+                or candidate_config.get('schema_version') != 'online_candidate_exploration_config.v1'
+                or candidate_config.get('enabled') is not True
+                or candidate_config.get('source_files') != candidate_source_identity()
+                or identity['run_config'].get('candidate_exploration_sha256')
+                    != hashlib.sha256(_canonical_json(candidate_config)).hexdigest()
+                or type(candidate_report) is not dict
+                or _canonical_json(candidate_report.get('configuration')) != _canonical_json(candidate_config)
+                or hashlib.sha256(_canonical_json(candidate_report.get('configuration'))).hexdigest()
+                    != candidate_report.get('configuration_sha256')
+                or candidate_report.get('configuration_sha256')
+                    != identity['run_config']['candidate_exploration_sha256']):
+            raise ValueError('online candidate exploration configuration identity mismatch')
+    classified_config = identity.get('run_config', {}).get('classified_feedback')
+    classified_report = report.get('classified_feedback') if report_path.is_file() else None
+    if classified_config is not None or classified_report is not None:
+        from .classified_feedback import classified_source_identity
+        if (type(classified_config) is not dict
+                or classified_config.get('schema_version') != 'online_classified_feedback_config.v1'
+                or classified_config.get('enabled') is not True
+                or _canonical_json(classified_config.get('source_files')) != _canonical_json(classified_source_identity())
+                or type(classified_report) is not dict
+                or _canonical_json(classified_report.get('configuration')) != _canonical_json(classified_config)
+                or hashlib.sha256(_canonical_json(classified_config)).hexdigest()
+                    != identity['run_config'].get('classified_feedback_sha256')
+                or classified_report.get('configuration_sha256')
+                    != identity['run_config'].get('classified_feedback_sha256')):
+            raise ValueError('online classified feedback configuration identity mismatch')
     # Decode space first: a changed decode source is exactly the drift every
     # saved artifact digest still accepts, so it is refused by name before a
     # later check can mask it behind a generic message.  A bundle that predates
@@ -1381,6 +1434,12 @@ def run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
             # The live switch counters only grow, so the terminal refresh states
             # the whole run rather than the last feedback interval.
             report["path_switch"] = _path_switch_record(executor)
+            candidate_exploration = _candidate_exploration_record(executor)
+            if candidate_exploration is not None:
+                report['candidate_exploration'] = candidate_exploration
+            classified_feedback = _classified_feedback_record(executor)
+            if classified_feedback is not None:
+                report['classified_feedback'] = classified_feedback
             initial_ram_data = _initial_ram_data_record(executor)
             if initial_ram_data is not None:
                 # Only a run that declared the operator states it, so an
@@ -1402,6 +1461,16 @@ def run_scenario_rfuzz_live(*, executor: ScenarioRfuzzExecutor,
                 config["closed_loop_energy_source"] = executor.closed_loop_energy_source
                 config["path_switch"] = bool(executor.path_switch)
                 config["path_switch_source"] = executor.path_switch_source
+                if candidate_exploration is not None:
+                    config['candidate_exploration'] = candidate_exploration['configuration']
+                    config['candidate_exploration_sha256'] = candidate_exploration['configuration_sha256']
+                if classified_feedback is not None:
+                    config['classified_feedback'] = classified_feedback['configuration']
+                    config['classified_feedback_sha256'] = classified_feedback['configuration_sha256']
+                if candidate_exploration is not None or classified_feedback is not None:
+                    assembly = executor.online_assembly_configuration()
+                    if assembly is not None:
+                        config['online_assembly'] = assembly
                 if initial_ram_data is not None:
                     config["initial_ram_data"] = bool(initial_ram_data["enabled"])
                     config["initial_ram_data_source"] = initial_ram_data["source"]

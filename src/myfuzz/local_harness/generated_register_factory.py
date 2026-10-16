@@ -7,6 +7,10 @@ from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
 from myfuzz.scenario.runner import Binding
 
 from .apb3_register_session import GeneratedApb3RegisterSession
+from .axi4lite_register_template import (
+    register_observe_policy as axi4lite_register_policy)
+from .axi4lite_register_session import GeneratedAxi4LiteRegisterSession
+from .axi4lite_uart_peer_session import GeneratedAxi4LiteUartPeerSession
 from .request import LocalHarnessRequestV2
 from .tlul_register_session import GeneratedTlulRegisterSession
 from .tlul_session_factory import create_generated_tlul_session
@@ -14,7 +18,7 @@ from .wishbone_register_session import GeneratedWishboneRegisterSession
 
 
 _KINDS = frozenset(('tlul_register_observe', 'apb3_register_observe',
-                    'wishbone_register_observe'))
+                    'wishbone_register_observe', 'axi4lite_register_observe'))
 
 
 def _document(artifact):
@@ -41,10 +45,41 @@ def create_generated_register_session(artifact, *, base_dir, cache_dir,
         return GeneratedTlulRegisterSession(artifact, base_dir=base_dir,
             cache_dir=cache_dir, setup_writes=setup_writes,
             probe_offsets=probe_offsets)
+    if kind == 'axi4lite_register_observe':
+        return _create_axi4lite_session(artifact, base_dir=base_dir,
+                                        cache_dir=cache_dir,
+                                        setup_writes=setup_writes,
+                                        probe_offsets=probe_offsets)
     cls = (GeneratedApb3RegisterSession if kind == 'apb3_register_observe'
            else GeneratedWishboneRegisterSession)
     return cls(artifact, base_dir=base_dir, cache_dir=cache_dir,
                setup_writes=setup_writes, probe_offsets=probe_offsets)
+
+
+def _create_axi4lite_session(artifact, *, base_dir, cache_dir,
+                             setup_writes=(), probe_offsets=()):
+    document = _document(artifact)
+    plan = artifact.plan
+    # Re-derive the peer from the plan: an artifact whose recorded peer differs
+    # from what its own tuning declares must not be executable.
+    expected = axi4lite_register_policy(plan)[3]
+    if document.get('serial_peer') != expected:
+        raise ValueError('AXI4-Lite serial peer tuning differs from artifact')
+    if expected is None:
+        return GeneratedAxi4LiteRegisterSession(
+            artifact, base_dir=base_dir, cache_dir=cache_dir,
+            setup_writes=setup_writes, probe_offsets=probe_offsets)
+    if setup_writes or probe_offsets:
+        raise ValueError('serial peer setup comes from artifact tuning')
+    if expected['format'] != '8N1':
+        raise ValueError('unknown generated AXI4-Lite serial peer format')
+    writes = tuple(tuple(row) for row in expected['startup_writes'])
+    return GeneratedAxi4LiteUartPeerSession(
+        artifact, base_dir=base_dir, cache_dir=cache_dir,
+        rx_port=expected['rx_port'], tx_port=expected['tx_port'],
+        source_id=expected['source_id'],
+        clocks_per_bit=expected['clocks_per_bit'],
+        idle_bits=expected['idle_bits'], setup_writes=writes)
 
 
 def compile_generated_register_ownership(artifacts: Mapping[str, object]):

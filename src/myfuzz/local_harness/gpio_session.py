@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections import deque
+from types import MappingProxyType
 from dataclasses import asdict
 import copy
 import json
@@ -51,9 +52,49 @@ class GeneratedPulpGpioSession(GeneratedLocalSession):
         self._gpio_in = 0
         self._pin_settle_until = 0
         self._samples: deque[dict[str, object]] = deque()
+        self._ordinary_apb_receipts = None
+
+    def configure_ordinary_apb_access_receipts(self, *, max_records=256):
+        if self._ordinary_apb_receipts is not None:
+            raise ValueError('ordinary-access-already-configured')
+        from .ordinary_apb_access_receipts import OrdinaryApbAccessReceipts
+        self._ordinary_apb_receipts = OrdinaryApbAccessReceipts(self,max_records=max_records)
+
+    @property
+    def ordinary_apb_access_receipts_enabled(self):
+        if self._ordinary_apb_receipts is None:
+            return False
+        self._ordinary_apb_receipts.validate()
+        return True
+
+    @property
+    def ordinary_apb_access_events(self):
+        return self._ordinary_apb_receipts.events if self._ordinary_apb_receipts is not None else ()
+
+    def execute_observed_register_access(self, key, *, delivery_context):
+        if self._ordinary_apb_receipts is None:
+            raise ValueError('ordinary-access-not-configured')
+        return self._ordinary_apb_receipts.execute(key,delivery_context)
+
+    def ordinary_apb_access_receipt(self, access_id):
+        if self._ordinary_apb_receipts is None:
+            raise ValueError('ordinary-access-not-configured')
+        return self._ordinary_apb_receipts.lookup(access_id)
+
+    def ordinary_apb_sample_digest(self, access_id, local_tick, phase):
+        if self._ordinary_apb_receipts is None:
+            raise ValueError('ordinary-access-not-configured')
+        return self._ordinary_apb_receipts.sample_digest(access_id,local_tick,phase)
+
+    def ordinary_apb_delivery_failed(self, key, access_id):
+        if self._ordinary_apb_receipts is None:
+            raise ValueError('ordinary-access-not-configured')
+        self._ordinary_apb_receipts.delivery_failed(key,access_id)
 
     def identity_document(self) -> dict[str, object]:
         identity = super().identity_document()
+        if self._ordinary_apb_receipts is not None:
+            identity['ordinary_apb_access_receipts'] = self._ordinary_apb_receipts.configuration()
         if self.routed_register_access_enabled:
             identity.update(
                 gpio_target_context_schema_version='pulp_gpio_routed_access.v1',
@@ -281,6 +322,14 @@ class GeneratedPulpGpioSession(GeneratedLocalSession):
             raise RuntimeError('generated GPIO process is not running')
 
     def _take(self, reply: DriverReceipt) -> dict[str, int]:
+        try:
+            return self._take_impl(reply)
+        except BaseException:
+            if self._native_reset_observation is not None:
+                self._native_reset_observation._consumer_failed(self, 'gpio_take_failed_after_parse')
+            raise
+
+    def _take_impl(self, reply: DriverReceipt) -> dict[str, int]:
         if reply.status != 'result' or reply.payload is None:
             raise RuntimeError('generated GPIO protocol error: ' + str(reply.error_code))
         payload = reply.payload
@@ -304,7 +353,7 @@ class GeneratedPulpGpioSession(GeneratedLocalSession):
         for sample in samples:
             # The wire tick is process-local; public sample ticks are lifetime
             # local ticks, including explicit component reset epochs.
-            self._samples.append({**sample,
+            self._samples.append({**copy.deepcopy(sample),
                                   'local_tick': self._tick_base + sample['local_tick']})
         return values
 
@@ -378,6 +427,8 @@ class GeneratedPulpGpioSession(GeneratedLocalSession):
         result = self._take(self.command('ACCESS_GPIO',
                                          (self._gpio_in, 1, offset, value, be)))
         if result['error']:
+            if self._native_reset_observation is not None:
+                self._native_reset_observation._consumer_failed(self, 'gpio_write_error_after_parse')
             raise RuntimeError(f'generated GPIO APB write error at {offset:#x}')
 
     def read_register(self, offset: int) -> int:
@@ -385,6 +436,8 @@ class GeneratedPulpGpioSession(GeneratedLocalSession):
         result = self._take(self.command('ACCESS_GPIO',
                                          (self._gpio_in, 0, offset, 0, 15)))
         if result['error']:
+            if self._native_reset_observation is not None:
+                self._native_reset_observation._consumer_failed(self, 'gpio_read_error_after_parse')
             raise RuntimeError(f'generated GPIO APB read error at {offset:#x}')
         return result['rdata']
 
@@ -417,3 +470,8 @@ class GeneratedPulpGpioSession(GeneratedLocalSession):
                                   'process_sequence': self._sequence,
                                   'outcome': copy.deepcopy(result)}})
         return result
+
+_NATIVE_RESET_GPIO_FUNCTIONS = MappingProxyType({name: (getattr(GeneratedPulpGpioSession,name),
+    getattr(GeneratedPulpGpioSession,name).__code__) for name in
+    ('_take','_take_impl','write_register','read_register','step_local','reset_local')})
+_NATIVE_RESET_GPIO_FUNCTIONS_PIN = _NATIVE_RESET_GPIO_FUNCTIONS

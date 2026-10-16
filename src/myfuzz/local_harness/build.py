@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import ast
 import copy
+from contextlib import contextmanager
+from contextvars import ContextVar
 import errno
 import hashlib
 import importlib
@@ -93,22 +95,30 @@ def _toolchain():
     return result
 
 
-def _host_sources():
+def _discover_host_sources(probes=None):
     """Discover the actual Python import closure; leave legacy v1 unchanged."""
     root = _IMPLEMENTATION_ROOT
+    def exists(name):
+        present=(root/name).is_file()
+        if probes is not None:
+            if name in probes and probes[name] != present:
+                raise LocalHarnessBuildError('host-source-probe-drift:'+name)
+            probes[name]=present
+        return present
     pending = ['src/myfuzz/scenario/uart_consumption.py',
                'src/myfuzz/local_harness/build.py', 'src/myfuzz/local_harness/driver_renderer.py',
                'src/myfuzz/local_harness/wire.py',
                'src/myfuzz/local_harness/native_session.py', 'scripts/verify_soc_sources.py']
     for name in ('session', 'cpu_session', 'gpio_session',
                  'wishbone_cpu_session', 'axi_lite_session', 'axi4_cpu_session',
+                 'ahb_lite_session',
                  'cva6_axi4_session',
                  'spi_session', 'timer_session', 'axil_uart_session', 'i2c_session',
                  'rvx_memory_session',
                  'opentitan_spi_host_session', 'opentitan_i2c_session',
                  'opentitan_spi_device_session', 'opentitan_sysrst_ctrl_session'):
         path = f'src/myfuzz/local_harness/{name}.py'
-        if (root / path).is_file():
+        if exists(path):
             pending.append(path)
     contents = {}
     while pending:
@@ -132,8 +142,10 @@ def _host_sources():
                     modules = [importlib.util.resolve_name(imported, package) if node.level else imported]
                 except (ImportError, ValueError):
                     raise LocalHarnessBuildError('host-import-resolution:' + name)
-                if node.module is None:
-                    modules += [modules[0] + '.' + alias.name for alias in node.names]
+                # Explicit package imports may resolve to a submodule even
+                # when the parent package existed before this invocation.
+                modules += [modules[0] + '.' + alias.name for alias in node.names
+                            if alias.name != '*']
             for imported in modules:
                 if imported == 'myfuzz' or imported.startswith('myfuzz.'):
                     parts = imported.split('.')
@@ -141,9 +153,63 @@ def _host_sources():
                         stem = 'src/' + '/'.join(parts[:index])
                         candidates = [stem + '.py', stem + '/__init__.py']
                         for candidate in candidates:
-                            if (root / candidate).is_file() and candidate not in contents:
+                            if exists(candidate) and candidate not in contents:
                                 pending.append(candidate)
     return contents
+
+
+_HOST_SOURCE_SCOPE = ContextVar('myfuzz_host_source_discovery', default=None)
+
+
+def _host_source_dependency_guard():
+    actual=(_discover_host_sources,_host_sources,_path,ast.parse,ast.walk,importlib.util.resolve_name,
+            _host_source_dependency_guard,_HOST_SOURCE_ACCESS,_HOST_SOURCE_SCOPE,_HOST_SOURCE_CONTEXT)
+    if any(left is not right for left,right in zip(actual,_HOST_SOURCE_METHOD_PINS)):
+        raise LocalHarnessBuildError('host-source-method-drift')
+
+
+def _host_sources(_context=_HOST_SOURCE_SCOPE):
+    current=_context.get()
+    if current is None:return _discover_host_sources()
+    _host_source_dependency_guard()
+    return current()
+
+
+@contextmanager
+def host_source_discovery_scope():
+    """Reuse code-owned AST discovery only; reread every byte and probe each use."""
+    _host_source_dependency_guard()
+    root=_IMPLEMENTATION_ROOT
+    contents=None;probes=None
+    def current():
+        nonlocal contents,probes
+        _host_source_dependency_guard()
+        if _IMPLEMENTATION_ROOT is not root:
+            raise LocalHarnessBuildError('host-source-root-drift')
+        if contents is None:
+            discovered={};raw=_discover_host_sources(discovered)
+            contents=tuple(raw.items());probes=tuple(discovered.items())
+        for name,expected in probes:
+            if (root/name).is_file() != expected:
+                raise LocalHarnessBuildError('host-source-probe-drift:'+name)
+        fresh={}
+        for name,expected in contents:
+            raw=_path(root,name).read_bytes()
+            if raw != expected:
+                raise LocalHarnessBuildError('host-source-content-drift:'+name)
+            fresh[name]=raw
+        return fresh
+    token=_HOST_SOURCE_SCOPE.set(current)
+    try:yield
+    finally:
+        _HOST_SOURCE_SCOPE.reset(token)
+
+
+_HOST_SOURCE_ACCESS=_host_sources
+_HOST_SOURCE_CONTEXT=_HOST_SOURCE_SCOPE
+_HOST_SOURCE_METHOD_PINS=(_discover_host_sources,_host_sources,_path,ast.parse,ast.walk,
+                         importlib.util.resolve_name,_host_source_dependency_guard,
+                         _HOST_SOURCE_ACCESS,_HOST_SOURCE_CONTEXT,_HOST_SOURCE_CONTEXT)
 
 
 def _check_headers(cpp, headers):
@@ -219,9 +285,21 @@ def _prepared_if_current(artifact, root):
             or stamp != _preparation_stamp() or artifact != frozen):
         _PREPARED_CACHE.pop(id(artifact), None)
         return None
-    # Hash and path-check every admitted byte on each use. A new transitive
-    # source or import requires an already admitted file to change first.
+    if (type(identity) is not dict or type(snapshots) is not dict
+            or type(identity.get('host_sources')) is not dict
+            or type(identity['host_sources'].get('files')) is not list):
+        _PREPARED_CACHE.pop(id(artifact), None)
+        return None
+    # Optional seeds and package aliases can appear without any old file
+    # changing. Compare the whole current code-owned host closure as well.
     try:
+        _host_source_dependency_guard()
+        host = _HOST_SOURCE_ACCESS()
+        expected = [dict(path=name, sha256=_digest(raw)) for name, raw in sorted(host.items())]
+        if (_canonical(identity.get('host_sources', {}).get('files')) != _canonical(expected)
+                or any(snapshots.get(name) != raw for name, raw in host.items())):
+            _PREPARED_CACHE.pop(id(artifact), None)
+            return None
         if _toolchain() != identity['toolchain']:
             return None
         for name, raw in snapshots.items():
@@ -232,7 +310,7 @@ def _prepared_if_current(artifact, root):
     return copy.deepcopy(identity), snapshots.copy()
 
 
-def _prepare(artifact, base_dir):
+def _prepare(artifact, base_dir, _host_context=_HOST_SOURCE_SCOPE):
     if (not isinstance(artifact, LocalRuntimeArtifact) or not isinstance(artifact.cpp_text, str)
             or not artifact.cpp_text.strip()):
         raise LocalHarnessBuildError('generated-driver-required')
@@ -248,6 +326,9 @@ def _prepare(artifact, base_dir):
     if doc.get('artifact_digest') != _sha(unsigned):
         raise LocalHarnessBuildError('artifact-digest-mismatch')
     root = Path(base_dir).resolve()
+    if _host_context.get() is not None:
+        _host_source_dependency_guard()
+        _HOST_SOURCE_ACCESS()
     if root == _IMPLEMENTATION_ROOT.resolve():
         current = _prepared_if_current(artifact, root)
         if current is not None:
@@ -341,7 +422,7 @@ def _prepare(artifact, base_dir):
             raise LocalHarnessBuildError('invalid-driver-header-hash')
         capture(row['path'], row['sha256'])
     _check_headers(artifact.cpp_text, {name: snapshots[name] for name in header_paths})
-    host = _host_sources()
+    host = _HOST_SOURCE_ACCESS()
     for name, raw in host.items():
         if name in snapshots and snapshots[name] != raw:
             raise LocalHarnessBuildError('executing-host-source-mismatch:' + name)

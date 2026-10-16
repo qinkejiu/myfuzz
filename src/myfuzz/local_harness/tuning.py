@@ -10,6 +10,7 @@ import re
 
 # Every value is a bounded integer, token or closed enum; no expression language.
 _SCHEMAS = {
+    'raw_tick_stream': {'sampling': ('pre_post',)},
     'endpoint_policies': {'endpoint_id': 'token', 'template_id': 'token', 'template_version': 'token',
                           'variant_id': 'token', 'max_outstanding': 'positive'},
     'optional_signals': {'endpoint_id': 'token', 'role': 'token', 'policy': ('drive_constant', 'template_default')},
@@ -36,6 +37,7 @@ _SCHEMAS = {
     'startup_writes': {'sequence': 'positive', 'offset': 'unsigned', 'value': 'unsigned'},
 }
 _KEYS = {'endpoint_policies': ('endpoint_id',), 'optional_signals': ('endpoint_id', 'role'),
+         'raw_tick_stream': ('sampling',),
          'fixed_inputs': ('endpoint_id', 'role'),
          'reset_policies': ('domain',), 'irq_delivery': ('endpoint_id', 'role'),
          'boot': ('endpoint_id',), 'environment_bindings': ('endpoint_id', 'role'),
@@ -71,7 +73,7 @@ class LocalHarnessTuning:
         # serial-peer records are absent.
         result = {kind: [] for kind in _SCHEMAS
                   if kind not in ('boot', 'uart_8n1_peers', 'spi_mode0_peers',
-                                  'startup_writes')}
+                                  'startup_writes', 'raw_tick_stream')}
         for row in self.records:
             if row.kind == 'boot':
                 result['boot'] = row.document()
@@ -207,6 +209,10 @@ def validate_local_harness_tuning(tuning: LocalHarnessTuning, *, profile, bindin
     for row in tuning.records:
         value = row.document()
         kind = row.kind
+        if kind == 'raw_tick_stream':
+            # A request to expose already measured values, no driven input or
+            # functional capability. Runtime admission remains independent.
+            continue
         if kind == 'endpoint_policies':
             from .template_contracts import select_template_contract
             selected = select_template_contract(binding.endpoint(value['endpoint_id']), profile.capabilities,

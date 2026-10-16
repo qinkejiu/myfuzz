@@ -2,13 +2,16 @@
 
 The existing ``component_profile.v1`` remains a source/interface contract.
 Optional test capabilities live in a separately versioned document so old
-profiles cannot acquire new semantics through ignored JSON fields.
+profiles cannot acquire new semantics through ignored JSON fields.  v1 holds
+protocol, register and observation declarations; v2 adds a data-only feature
+provider contract that names every L3 operation and its required observations.
 """
 from __future__ import annotations
 
 import copy
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+import hashlib
 import json
 from os import PathLike
 from pathlib import Path
@@ -19,13 +22,20 @@ from .component_profile import ComponentProfile
 
 
 IP_TEST_CAPABILITY_SCHEMA = 'ip_test_capability.v1'
-_ROOT_KEYS = frozenset((
+IP_TEST_CAPABILITY_SCHEMA_V2 = 'ip_test_capability.v2'
+IP_TEST_CAPABILITY_SCHEMA_V3 = 'ip_test_capability.v3'
+_ROOT_KEYS_V1 = frozenset((
     'schema_version', 'component_id', 'profile_fingerprint', 'endpoint_capabilities',
     'register_semantics', 'observation_mappings',
 ))
-_OPERATIONS = frozenset((
+_ROOT_KEYS_V2 = _ROOT_KEYS_V1 | frozenset(('feature_contract',))
+IP_TEST_OPERATIONS = frozenset((
     'request', 'accept', 'response', 'error', 'wait', 'drive', 'sample',
     'observe', 'deliver', 'read', 'write', 'retire',
+))
+_OPERATIONS = IP_TEST_OPERATIONS
+_FEATURE_OPERATIONS = frozenset((
+    'transfer', 'interrupt', 'state_transition', 'completion',
 ))
 _OBSERVATION_KINDS = frozenset((
     'port_sample', 'signal_change', 'binding_delivery', 'input_sample',
@@ -90,6 +100,33 @@ class ObservationMapping:
 
 
 @dataclass(frozen=True, slots=True)
+class FeatureOperationDeclaration:
+    endpoint_id: str
+    operation: str
+    required_observation_mappings: tuple[str, ...]
+    evidence_ref: str
+
+
+@dataclass(frozen=True, slots=True)
+class FeaturePluginContract:
+    provider_id: str
+    provider_version: str
+    operations: tuple[FeatureOperationDeclaration, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class RegisterAliasRelation:
+    endpoint_id: str
+    source_register: str
+    source_field: str
+    destination_register: str
+    destination_field: str
+    operation: str
+    bus_width: int
+    evidence_ref: str
+
+
+@dataclass(frozen=True, slots=True)
 class IPTestCapability:
     schema_version: str
     component_id: str
@@ -97,7 +134,84 @@ class IPTestCapability:
     endpoint_capabilities: tuple[EndpointTestCapability, ...]
     register_semantics: tuple[RegisterFieldSemantics, ...]
     observation_mappings: tuple[ObservationMapping, ...]
+    feature_contract: FeaturePluginContract | None
     source_document: Mapping[str, object]
+    sidecar_fingerprint: str
+    register_aliases: tuple[RegisterAliasRelation, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class RegisterOperationPlan:
+    register: str
+    field: str
+    operation: str
+    offset: int
+    field_width: int
+    bus_mask: int
+    bus_value: int | None
+    side_effect: str
+    evidence_ref: str
+
+
+def plan_register_operation(
+    profile: ComponentProfile,
+    capability: IPTestCapability,
+    *,
+    register: str,
+    field: str,
+    operation: str,
+    value: int | None = None,
+    allow_side_effect: bool = False,
+) -> RegisterOperationPlan:
+    """Resolve one field-scoped L2 access against the pinned register contract.
+
+    Writes are restricted by the field's effective write mask.  Reads and
+    writes with declared side effects require an explicit caller opt-in; the
+    plan records the declared effect but never executes it.
+    """
+    if not isinstance(profile, ComponentProfile):
+        _fail('component-profile-required')
+    try:
+        capability = _revalidate_ip_test_capability(capability, profile=profile)
+    except IPTestCapabilityError:
+        raise
+    if not isinstance(allow_side_effect, bool):
+        _fail('invalid-register-side-effect-authorization')
+    if operation not in ('register_read', 'register_write'):
+        _fail(f'invalid-register-operation:{operation}')
+    if profile.address is None:
+        _fail('register-operation-requires-address-map')
+    register_record = next((item for item in profile.address.registers
+                            if item.name == register), None)
+    if register_record is None:
+        _fail(f'unknown-register-reference:{register}')
+    semantics = next((item for item in capability.register_semantics
+                      if item.register == register and item.field == field), None)
+    if semantics is None:
+        _fail(f'register-field-semantics-not-declared:{register}.{field}')
+
+    if operation == 'register_read':
+        if value is not None:
+            _fail('register-read-value-not-allowed')
+        if semantics.access not in ('ro', 'rw') or semantics.read_mask == 0:
+            _fail(f'register-field-not-readable:{register}.{field}')
+        bus_mask = semantics.read_mask << semantics.lsb
+        bus_value = None
+    else:
+        if semantics.access not in ('wo', 'rw') or semantics.write_mask == 0:
+            _fail(f'register-field-not-writable:{register}.{field}')
+        if type(value) is not int or value < 0 or value >= (1 << semantics.width):
+            _fail('register-field-value-outside-width')
+        if value & ~semantics.write_mask:
+            _fail('register-field-value-exceeds-write-mask')
+        bus_mask = semantics.write_mask << semantics.lsb
+        bus_value = value << semantics.lsb
+
+    if semantics.side_effect != 'none' and not allow_side_effect:
+        _fail(f'register-side-effect-requires-explicit-authorization:{semantics.side_effect}')
+    return RegisterOperationPlan(
+        register, field, operation, register_record.offset, semantics.width,
+        bus_mask, bus_value, semantics.side_effect, semantics.evidence_ref)
 
 
 def _fail(reason: str) -> None:
@@ -118,6 +232,28 @@ def _read_document(document_or_path: object) -> dict[str, object]:
             _fail('invalid-test-capability-document')
         return document
     _fail('invalid-test-capability-document')
+
+
+def _canonical_value(value: object) -> object:
+    if isinstance(value, Mapping):
+        if any(not isinstance(key, str) for key in value):
+            _fail('invalid-test-capability-document')
+        return {key: _canonical_value(item) for key, item in value.items()}
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        return [_canonical_value(item) for item in value]
+    if value is None or type(value) in (str, bool, int, float):
+        return value
+    _fail('invalid-test-capability-document')
+
+
+def _document_fingerprint(document: Mapping[str, object]) -> str:
+    try:
+        canonical = json.dumps(_canonical_value(document), sort_keys=True,
+                               separators=(',', ':'), ensure_ascii=False,
+                               allow_nan=False).encode('utf-8')
+    except (TypeError, ValueError, UnicodeError, RecursionError) as exc:
+        raise IPTestCapabilityError('test-capability-not-canonical-json') from exc
+    return 'sha256:' + hashlib.sha256(canonical).hexdigest()
 
 
 def _reject_programming_keys(value: object, pointer: str = 'sidecar') -> None:
@@ -200,9 +336,18 @@ def load_ip_test_capability(document_or_path: object, *,
         _fail('component-profile-required')
     document = _read_document(document_or_path)
     _reject_programming_keys(document)
-    _keys(document, set(_ROOT_KEYS), set(), 'test-capability')
-    if document.get('schema_version') != IP_TEST_CAPABILITY_SCHEMA:
-        _fail(f"unsupported-test-capability-schema:{document.get('schema_version')}")
+    schema_version = document.get('schema_version')
+    if schema_version == IP_TEST_CAPABILITY_SCHEMA:
+        _keys(document, set(_ROOT_KEYS_V1), set(), 'test-capability')
+    elif schema_version == IP_TEST_CAPABILITY_SCHEMA_V2:
+        _keys(document, set(_ROOT_KEYS_V2), set(), 'test-capability')
+    elif schema_version == IP_TEST_CAPABILITY_SCHEMA_V3:
+        if 'register_aliases' not in document:
+            _fail('register-aliases-required')
+        _keys(document, set(_ROOT_KEYS_V1) | {'register_aliases'},
+              {'feature_contract'}, 'test-capability')
+    else:
+        _fail(f"unsupported-test-capability-schema:{schema_version}")
     component_id = _text(document.get('component_id'), 'invalid-test-capability-component')
     if component_id != profile.component_id:
         _fail('test-capability-component-mismatch')
@@ -343,15 +488,180 @@ def load_ip_test_capability(document_or_path: object, *,
             normalized_range, endianness))
         seen_mapping_ids.add(mapping_id)
 
+    register_aliases = []
+    if schema_version == IP_TEST_CAPABILITY_SCHEMA_V3:
+        fields = {(item.register, item.field): item for item in register_semantics}
+        seen_alias_sources = set()
+        alias_keys = {'endpoint_id', 'source_register', 'source_field',
+                      'destination_register', 'destination_field', 'operation',
+                      'bus_width', 'evidence_ref'}
+        for value in _array(document['register_aliases'], 'invalid-register-aliases'):
+            row = _object(value, 'invalid-register-alias')
+            _keys(row, alias_keys, set(), 'register-alias')
+            text = {key: _text(row[key], f'invalid-register-alias-{key}')
+                    for key in alias_keys - {'bus_width'}}
+            if type(row['bus_width']) is not int or row['bus_width'] != 32:
+                _fail('invalid-register-alias-bus-width')
+            endpoint = endpoints_by_id.get(text['endpoint_id'])
+            declared_endpoint = next((item for item in endpoint_capabilities
+                                      if item.endpoint_id == text['endpoint_id']), None)
+            if (endpoint is None or endpoint.function != 'mmio_slave'
+                    or endpoint.protocol != ('apb', '3')
+                    or type(profile.capabilities.get('data_width')) is not int
+                    or profile.capabilities.get('data_width') != 32
+                    or profile.capabilities.get('read') is not True
+                    or profile.capabilities.get('write') is not True
+                    or declared_endpoint is None
+                    or not {'read', 'write'}.issubset(declared_endpoint.operations)):
+                _fail('invalid-register-alias-endpoint')
+            source_key = (text['source_register'], text['source_field'])
+            destination_key = (text['destination_register'], text['destination_field'])
+            source = fields.get(source_key)
+            destination = fields.get(destination_key)
+            if source is None or destination is None:
+                _fail('unknown-register-alias-field')
+            if source_key in seen_alias_sources:
+                _fail('duplicate-register-alias-source')
+            source_base = registers_by_name[source.register]
+            destination_base = registers_by_name[destination.register]
+            effect = {'set_bits': 'write_one_sets',
+                      'clear_bits': 'write_one_clears'}.get(text['operation'])
+            if (effect is None or source.side_effect != effect
+                    or source.access != 'wo' or source.read_mask != 0
+                    or source.lsb != 0 or source.width != 32
+                    or source.write_mask != 0xffffffff or source_base.width != 32):
+                _fail('invalid-register-alias-source-semantics')
+            if (destination.access not in ('ro', 'rw')
+                    or destination.side_effect != 'none'
+                    or destination.lsb != 0 or destination.width != 32
+                    or destination.read_mask != 0xffffffff
+                    or destination_base.width != 32):
+                _fail('invalid-register-alias-destination-semantics')
+            if (source.register == destination.register
+                    or source_base.offset == destination_base.offset
+                    or profile.address is None
+                    or any(base.offset % 4 or base.offset + 4 > profile.address.window_size
+                           for base in (source_base, destination_base))):
+                _fail('invalid-register-alias-address')
+            for previous in register_aliases:
+                if previous.endpoint_id != text['endpoint_id']:
+                    continue
+                previous_source = registers_by_name[previous.source_register].offset
+                previous_destination = registers_by_name[previous.destination_register].offset
+                if (source_base.offset in (previous_source, previous_destination)
+                        or destination_base.offset == previous_source):
+                    _fail('ambiguous-register-alias-address')
+            # Provenance is closed declaration data, never a file/provider selector.
+            # Current source bytes are authenticated separately by the assembly.
+            if text['evidence_ref'] != source.evidence_ref:
+                _fail('register-alias-evidence-mismatch')
+            register_aliases.append(RegisterAliasRelation(
+                text['endpoint_id'], *source_key, *destination_key,
+                text['operation'], 32, text['evidence_ref']))
+            seen_alias_sources.add(source_key)
+
+    feature_contract = None
+    if schema_version == IP_TEST_CAPABILITY_SCHEMA_V2 or (
+            schema_version == IP_TEST_CAPABILITY_SCHEMA_V3 and 'feature_contract' in document):
+        row = _object(document['feature_contract'], 'invalid-feature-contract')
+        _keys(row, {'provider_id', 'provider_version', 'operations'}, set(),
+              'feature-contract')
+        provider_id = _text(row.get('provider_id'), 'invalid-feature-provider-id')
+        if _TOKEN.fullmatch(provider_id) is None:
+            _fail('invalid-feature-provider-id')
+        provider_version = _text(row.get('provider_version'),
+                                 'invalid-feature-provider-version')
+        if _TOKEN.fullmatch(provider_version) is None:
+            _fail('invalid-feature-provider-version')
+        feature_operations = []
+        seen_feature_operations = set()
+        for index, value in enumerate(_array(row.get('operations'),
+                                             'invalid-feature-operations')):
+            operation_row = _object(value, f'invalid-feature-operation:{index}')
+            _keys(operation_row, {'endpoint_id', 'operation',
+                                  'required_observation_mappings', 'evidence_ref'},
+                  set(), 'feature-operation')
+            endpoint_id = _text(operation_row.get('endpoint_id'),
+                                 'invalid-feature-endpoint')
+            if endpoint_id not in endpoint_ids:
+                _fail(f'unknown-feature-endpoint:{endpoint_id}')
+            operation = _text(operation_row.get('operation'),
+                              'invalid-feature-operation-name')
+            if operation not in _FEATURE_OPERATIONS:
+                _fail(f'unsupported-feature-operation:{operation}')
+            key = (endpoint_id, operation)
+            if key in seen_feature_operations:
+                _fail(f'duplicate-feature-operation:{endpoint_id}:{operation}')
+            required_value = _array(
+                operation_row.get('required_observation_mappings'),
+                'feature-observation-mappings-required')
+            if not required_value:
+                _fail('feature-observation-mappings-required')
+            required_mappings = tuple(
+                _text(item, 'invalid-feature-observation-mapping')
+                for item in required_value)
+            if len(set(required_mappings)) != len(required_mappings):
+                _fail('duplicate-feature-observation-mapping')
+            for mapping_id in required_mappings:
+                if mapping_id not in seen_mapping_ids:
+                    _fail(f'unknown-feature-observation-mapping:{mapping_id}')
+            evidence_ref = _text(operation_row.get('evidence_ref'),
+                                 'feature-operation-evidence-required')
+            feature_operations.append(FeatureOperationDeclaration(
+                endpoint_id, operation, required_mappings, evidence_ref))
+            seen_feature_operations.add(key)
+        if not feature_operations:
+            _fail('feature-contract-operations-required')
+        feature_contract = FeaturePluginContract(
+            provider_id, provider_version, tuple(feature_operations))
+
     return IPTestCapability(
-        IP_TEST_CAPABILITY_SCHEMA, component_id, profile_fingerprint,
+        schema_version, component_id, profile_fingerprint,
         tuple(endpoint_capabilities),
-        tuple(register_semantics), tuple(observation_mappings),
-        MappingProxyType({key: _freeze(value) for key, value in document.items()}))
+        tuple(register_semantics), tuple(observation_mappings), feature_contract,
+        MappingProxyType({key: _freeze(value) for key, value in document.items()}),
+        _document_fingerprint(document), tuple(register_aliases))
+
+
+def _revalidate_ip_test_capability(capability: IPTestCapability, *,
+                                   profile: ComponentProfile) -> IPTestCapability:
+    """Rebuild a loaded sidecar and reject drift between its typed view and source.
+
+    Frozen dataclasses can still be copied with ``dataclasses.replace``.  Reparse
+    the retained immutable document at trust boundaries so a replaced typed
+    field cannot keep reusing the original cached fingerprint.
+    """
+    if not isinstance(capability, IPTestCapability):
+        _fail('loaded-test-capability-required')
+    if not isinstance(capability.source_document, Mapping):
+        _fail('invalid-test-capability-document')
+    document = _canonical_value(capability.source_document)
+    if not isinstance(document, dict):
+        _fail('invalid-test-capability-document')
+    canonical = load_ip_test_capability(document, profile=profile)
+    if capability.sidecar_fingerprint != canonical.sidecar_fingerprint:
+        _fail('test-capability-fingerprint-mismatch')
+    if (
+        capability.schema_version != canonical.schema_version
+        or capability.component_id != canonical.component_id
+        or capability.profile_fingerprint != canonical.profile_fingerprint
+        or capability.endpoint_capabilities != canonical.endpoint_capabilities
+        or capability.register_semantics != canonical.register_semantics
+        or capability.observation_mappings != canonical.observation_mappings
+        or capability.feature_contract != canonical.feature_contract
+        or capability.register_aliases != canonical.register_aliases
+        or type(capability.register_aliases) is not tuple
+        or any(type(item) is not RegisterAliasRelation or type(item.bus_width) is not int
+               for item in capability.register_aliases)
+    ):
+        _fail('test-capability-typed-contract-mismatch')
+    return canonical
 
 
 __all__ = [
-    'IP_TEST_CAPABILITY_SCHEMA', 'IPTestCapabilityError',
-    'EndpointTestCapability', 'RegisterFieldSemantics', 'ObservationMapping',
-    'IPTestCapability', 'load_ip_test_capability',
+    'IP_TEST_CAPABILITY_SCHEMA', 'IP_TEST_CAPABILITY_SCHEMA_V2', 'IP_TEST_CAPABILITY_SCHEMA_V3',
+    'IPTestCapabilityError', 'EndpointTestCapability', 'RegisterFieldSemantics',
+    'ObservationMapping', 'FeatureOperationDeclaration', 'FeaturePluginContract',
+    'RegisterOperationPlan', 'RegisterAliasRelation', 'plan_register_operation',
+    'IP_TEST_OPERATIONS', 'IPTestCapability', 'load_ip_test_capability',
 ]

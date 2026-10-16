@@ -5,39 +5,40 @@ from .request import LocalHarnessRequestV2
 from .template_contracts import select_template_contract
 
 
-def uart_peer_policy(plan):
+def uart_peer_policy(plan, *, schema='generated_tlul_uart_8n1_tuning.v1',
+                    label='tlul'):
     """Admit one bounded 8N1 peer using only profile endpoint facts and tuning."""
     rows = plan.request.tuning.records
     peers = [r.document() for r in rows if r.kind == 'uart_8n1_peers']
     startup = [r.document() for r in rows if r.kind == 'startup_writes']
     if not peers:
         if startup and not any(r.kind == 'spi_mode0_peers' for r in rows):
-            raise ValueError('tlul-register-startup-writes-need-serial-peer')
+            raise ValueError(f'{label}-register-startup-writes-need-serial-peer')
         return None
     if len(peers) != 1:
-        raise ValueError('tlul-register-one-uart-peer-required')
+        raise ValueError(f'{label}-register-one-uart-peer-required')
     peer = peers[0]
     endpoint = plan.binding.endpoint(peer['endpoint_id'])
     if endpoint.function != 'external_pins':
-        raise ValueError('tlul-register-uart-external-pins-required')
+        raise ValueError(f'{label}-register-uart-external-pins-required')
     rx = plan.binding.field(peer['endpoint_id'], peer['rx_role'])
     tx = plan.binding.field(peer['endpoint_id'], peer['tx_role'])
     if ((rx.direction, rx.width, tx.direction, tx.width) !=
             ('input', 1, 'output', 1) or not rx.whole_port or not tx.whole_port):
-        raise ValueError('tlul-register-uart-pin-shape')
+        raise ValueError(f'{label}-register-uart-pin-shape')
     environment = [r.document() for r in rows if r.kind == 'environment_bindings']
     if environment != [dict(endpoint_id=peer['endpoint_id'], role=peer['rx_role'],
                             source_id=peer['source_id'])]:
-        raise ValueError('tlul-register-uart-rx-source-required')
+        raise ValueError(f'{label}-register-uart-rx-source-required')
     if any(r.kind == 'bound_bindings' for r in rows):
-        raise ValueError('tlul-register-uart-bound-input-unsupported')
+        raise ValueError(f'{label}-register-uart-bound-input-unsupported')
     if len(startup) > 16 or [r['sequence'] for r in startup] != list(range(1, len(startup) + 1)):
-        raise ValueError('tlul-register-uart-startup-sequence')
+        raise ValueError(f'{label}-register-uart-startup-sequence')
     window = plan.profile.address.window_size if plan.profile.address is not None else 0
     if any(r['offset'] % 4 or r['offset'] >= window or r['value'] > 0xffffffff
            for r in startup):
-        raise ValueError('tlul-register-uart-startup-access')
-    return {'schema_version': 'generated_tlul_uart_8n1_tuning.v1',
+        raise ValueError(f'{label}-register-uart-startup-access')
+    return {'schema_version': schema,
             'format': '8N1', 'rx_port': peer['endpoint_id'] + '.' + peer['rx_role'],
             'tx_port': tx.port, 'source_id': peer['source_id'],
             'clocks_per_bit': peer['clocks_per_bit'], 'idle_bits': peer['idle_bits'],
@@ -107,12 +108,17 @@ def spi_peer_policy(plan):
             'startup_writes': [[r['offset'], r['value']] for r in startup]}
 
 
-def serial_peer_policy(plan):
+def serial_peer_policy(plan, *, schema=None, label='tlul'):
     """Choose at most one declared serial peer for the generic TL-UL template."""
     kinds = {r.kind for r in plan.request.tuning.records}
     if 'uart_8n1_peers' in kinds and 'spi_mode0_peers' in kinds:
         raise ValueError('tlul-register-one-serial-peer-required')
-    return spi_peer_policy(plan) if 'spi_mode0_peers' in kinds else uart_peer_policy(plan)
+    uart_schema = schema or 'generated_tlul_uart_8n1_tuning.v1'
+    if 'spi_mode0_peers' in kinds:
+        if label != 'tlul':
+            raise ValueError(f'{label}-one-serial-peer-required')
+        return spi_peer_policy(plan)
+    return uart_peer_policy(plan, schema=uart_schema, label=label)
 
 
 def register_observe_policy(plan, abi=None):

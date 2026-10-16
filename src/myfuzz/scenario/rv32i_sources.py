@@ -20,9 +20,10 @@ from .rejection_codes import (
 )
 
 
-_OPERATIONS = frozenset({"LUI", "ADDI", "XORI", "ORI", "ANDI", "SLLI", "SRLI",
+_OPERATIONS = frozenset({"LUI", "ADDI", "XORI", "ORI", "ANDI", "AND", "OR", "SLLI", "SRLI",
                          "SRAI", "LW", "SW", "SB", "NOP"})
 _SHIFT_OPERATIONS = frozenset({"SLLI", "SRLI", "SRAI"})
+_REGISTER_LOGIC_OPERATIONS = frozenset({"AND", "OR"})
 _MEMORY_OPERATIONS = frozenset({"LW", "SW", "SB"})
 
 
@@ -74,6 +75,12 @@ class Rv32iInstruction:
                 reject(RejectionCode.ISA_UNEXPECTED_OPERAND,
                        "LUI has no source registers", f"instruction.{name}",
                        operation="LUI", value=getattr(self, name))
+        elif self.operation in _REGISTER_LOGIC_OPERATIONS:
+            if type(self.immediate) is not int or self.immediate != 0:
+                reject(RejectionCode.FIELD_BAD_IMMEDIATE,
+                       "register logic instructions have no immediate",
+                       "instruction.immediate", operation=self.operation,
+                       immediate=self.immediate)
         elif self.operation == "NOP":
             if self.rd or self.rs1 or self.rs2 or self.immediate:
                 name = next(name for name in ("rd", "rs1", "rs2", "immediate")
@@ -115,6 +122,9 @@ class Rv32iInstruction:
             return 0x00000013
         if op == "LUI":
             return (imm << 12) | (self.rd << 7) | 0x37
+        if op in _REGISTER_LOGIC_OPERATIONS:
+            return ((self.rs2 << 20) | (self.rs1 << 15)
+                    | ((7 if op == "AND" else 6) << 12) | (self.rd << 7) | 0x33)
         if op in _SHIFT_OPERATIONS:
             # OP-IMM shift: funct3 1 for SLLI, 5 for SRLI/SRAI; imm[11:5] is 0
             # except SRAI's imm[10] = 1, and shamt stays in imm[4:0].
@@ -409,6 +419,8 @@ def _check_instruction_bytes(data: bytes) -> None:
         opcode, funct3 = word & 0x7f, (word >> 12) & 7
         if opcode == 0x37 or (opcode == 0x13 and funct3 in (0, 4, 6, 7)):
             continue
+        if opcode == 0x33 and funct3 in (6, 7) and word >> 25 == 0:
+            continue
         if opcode == 0x13 and funct3 in (1, 5):
             # RV32I OP-IMM shifts: imm[11:5] is reserved and must be 0 for
             # SLLI and SRLI, and exactly 0b0100000 for SRAI. Because those
@@ -479,6 +491,8 @@ def instruction_operator_id(data: bytes) -> str:
                      'SRAI' if opcode == 0x13 and funct3 == 5 else
                      'ORI' if opcode == 0x13 and funct3 == 6 else
                      'ANDI' if opcode == 0x13 and funct3 == 7 else
+                     'OR' if opcode == 0x33 and funct3 == 6 else
+                     'AND' if opcode == 0x33 and funct3 == 7 else
                      'LW' if opcode == 0x03 else
                      'SW' if funct3 == 2 else 'SB')
         operations.append(operation)

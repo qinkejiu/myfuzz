@@ -650,87 +650,97 @@ def _instances(body: str, parent: str) -> list[tuple[str, str, str]]:
     return instances
 
 
+def _pinned_source_reader(locator: SourceLocator, *, base_dir: Path):
+    """Validate repository pins and return a content-authenticating reader.
+
+    Shared by supervised crawling and direct elaboration so host capability
+    cannot weaken source identity checks.
+    """
+    if _PIN_RE.fullmatch(locator.revision) is None:
+        raise SourceCrawlError("invalid-source-pin")
+    if locator.repositories and not locator.revision.startswith("git:"):
+        raise SourceCrawlError("repository-pins-require-git-root")
+    root = _safe_child(base_dir.resolve(), locator.source_root)
+    if not root.is_dir():
+        raise SourceCrawlError("source-root-missing")
+    git_root: Path | None = None
+    repository_owners: list[tuple[Path, str]] = []
+    if locator.revision.startswith("git:"):
+        revision = locator.revision[4:]
+        command = ["git", "-C", root.as_posix(), "rev-parse", "--verify", f"{revision}^{{commit}}"]
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        if result.returncode != 0 or result.stdout.strip() != revision:
+            raise SourceCrawlError("git-revision-mismatch")
+        head = subprocess.run(
+            ["git", "-C", root.as_posix(), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if head.returncode != 0 or head.stdout.strip() != revision:
+            raise SourceCrawlError("git-revision-mismatch")
+        top = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, check=False,
+        )
+        if top.returncode != 0:
+            raise SourceCrawlError("git-revision-mismatch")
+        git_root = Path(top.stdout.strip()).resolve()
+        repository_owners.append((git_root, revision))
+        seen_repository_paths: set[Path] = set()
+        declared = []
+        for pin in locator.repositories:
+            pin_revision = pin.revision[4:]
+            repository_root = _safe_child(root, pin.path)
+            if repository_root in seen_repository_paths or repository_root.is_symlink() or not repository_root.is_dir():
+                raise SourceCrawlError("invalid-repository-pin")
+            seen_repository_paths.add(repository_root)
+            top = subprocess.run(["git", "-C", str(repository_root), "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=False)
+            head = subprocess.run(["git", "-C", str(repository_root), "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
+            if top.returncode or Path(top.stdout.strip()).resolve() != repository_root or head.returncode or head.stdout.strip() != pin_revision:
+                raise SourceCrawlError("git-repository-pin-mismatch")
+            declared.append((repository_root, pin_revision))
+        for repository_root, child_revision in sorted(declared, key=lambda item: len(item[0].parts)):
+            parents = [(path, rev) for path, rev in repository_owners if path in repository_root.parents]
+            if not parents:
+                raise SourceCrawlError("gitlink-parent-missing")
+            parent_root, parent_revision = max(parents, key=lambda item: len(item[0].parts))
+            relative = repository_root.relative_to(parent_root).as_posix()
+            link = subprocess.run(["git", "-C", str(parent_root), "ls-tree", parent_revision, "--", relative], capture_output=True, text=True, check=False)
+            expected = f"160000 commit {child_revision}\t{relative}"
+            if link.returncode or link.stdout.strip() != expected:
+                raise SourceCrawlError("gitlink-pin-mismatch")
+            repository_owners.append((repository_root, child_revision))
+
+    contents: dict[str, bytes] = {}
+
+    def read(path: Path) -> bytes:
+        relative = _relative(root, path)
+        if relative not in contents:
+            if not path.is_file():
+                raise SourceCrawlError(f"source-file-missing:{relative}")
+            content = path.read_bytes()
+            if git_root is not None:
+                owners = [(repo, rev) for repo, rev in repository_owners if repo == path or repo in path.parents]
+                owner, owner_revision = max(owners, key=lambda item: len(item[0].parts))
+                tree_path = path.relative_to(owner).as_posix()
+                blob = subprocess.run(
+                    ["git", "-C", str(owner), "cat-file", "blob", f"{owner_revision}:{tree_path}"],
+                    capture_output=True, check=False,
+                )
+                if blob.returncode != 0 or blob.stdout != content:
+                    raise SourceCrawlError(f"git-content-mismatch:{relative}")
+            contents[relative] = content
+        return contents[relative]
+    return root, contents, read
+
+
 class SourceCrawler:
     def crawl(
         self, locator: SourceLocator, *, base_dir: Path,
         selected_top_ports: tuple[str, ...] | None = None,
     ) -> SourceSnapshot:
-        if _PIN_RE.fullmatch(locator.revision) is None:
-            raise SourceCrawlError("invalid-source-pin")
-        if locator.repositories and not locator.revision.startswith("git:"):
-            raise SourceCrawlError("repository-pins-require-git-root")
-        root = _safe_child(base_dir.resolve(), locator.source_root)
-        if not root.is_dir():
-            raise SourceCrawlError("source-root-missing")
-        git_root: Path | None = None
-        repository_owners: list[tuple[Path, str]] = []
-        if locator.revision.startswith("git:"):
-            revision = locator.revision[4:]
-            command = ["git", "-C", root.as_posix(), "rev-parse", "--verify", f"{revision}^{{commit}}"]
-            result = subprocess.run(command, capture_output=True, text=True, check=False)
-            if result.returncode != 0 or result.stdout.strip() != revision:
-                raise SourceCrawlError("git-revision-mismatch")
-            head = subprocess.run(
-                ["git", "-C", root.as_posix(), "rev-parse", "HEAD"],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if head.returncode != 0 or head.stdout.strip() != revision:
-                raise SourceCrawlError("git-revision-mismatch")
-            top = subprocess.run(
-                ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
-                capture_output=True, text=True, check=False,
-            )
-            if top.returncode != 0:
-                raise SourceCrawlError("git-revision-mismatch")
-            git_root = Path(top.stdout.strip()).resolve()
-            repository_owners.append((git_root, revision))
-            seen_repository_paths: set[Path] = set()
-            declared = []
-            for pin in locator.repositories:
-                pin_revision = pin.revision[4:]
-                repository_root = _safe_child(root, pin.path)
-                if repository_root in seen_repository_paths or repository_root.is_symlink() or not repository_root.is_dir():
-                    raise SourceCrawlError("invalid-repository-pin")
-                seen_repository_paths.add(repository_root)
-                top = subprocess.run(["git", "-C", str(repository_root), "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=False)
-                head = subprocess.run(["git", "-C", str(repository_root), "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
-                if top.returncode or Path(top.stdout.strip()).resolve() != repository_root or head.returncode or head.stdout.strip() != pin_revision:
-                    raise SourceCrawlError("git-repository-pin-mismatch")
-                declared.append((repository_root, pin_revision))
-            for repository_root, child_revision in sorted(declared, key=lambda item: len(item[0].parts)):
-                parents = [(path, rev) for path, rev in repository_owners if path in repository_root.parents]
-                if not parents:
-                    raise SourceCrawlError("gitlink-parent-missing")
-                parent_root, parent_revision = max(parents, key=lambda item: len(item[0].parts))
-                relative = repository_root.relative_to(parent_root).as_posix()
-                link = subprocess.run(["git", "-C", str(parent_root), "ls-tree", parent_revision, "--", relative], capture_output=True, text=True, check=False)
-                expected = f"160000 commit {child_revision}\t{relative}"
-                if link.returncode or link.stdout.strip() != expected:
-                    raise SourceCrawlError("gitlink-pin-mismatch")
-                repository_owners.append((repository_root, child_revision))
-
-        contents: dict[str, bytes] = {}
-
-        def read(path: Path) -> bytes:
-            relative = _relative(root, path)
-            if relative not in contents:
-                if not path.is_file():
-                    raise SourceCrawlError(f"source-file-missing:{relative}")
-                content = path.read_bytes()
-                if git_root is not None:
-                    owners = [(repo, rev) for repo, rev in repository_owners if repo == path or repo in path.parents]
-                    owner, owner_revision = max(owners, key=lambda item: len(item[0].parts))
-                    tree_path = path.relative_to(owner).as_posix()
-                    blob = subprocess.run(
-                        ["git", "-C", str(owner), "cat-file", "blob", f"{owner_revision}:{tree_path}"],
-                        capture_output=True, check=False,
-                    )
-                    if blob.returncode != 0 or blob.stdout != content:
-                        raise SourceCrawlError(f"git-content-mismatch:{relative}")
-                contents[relative] = content
-            return contents[relative]
+        root, contents, read = _pinned_source_reader(locator, base_dir=base_dir)
 
         files, include_roots, filelist_defines = _declared_files(root, locator, read)
         if locator.elaboration is not None and filelist_defines:

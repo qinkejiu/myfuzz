@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .renderer import _sha
 from .runtime_artifact import LocalRuntimeArtifact
+from .session import registered_operations
 from .runtime_renderer import render_local_runtime
 from .axi4_fields import AXI_STEP_PORTS
 from .cva6_axi4_fields import CVA6_AXI_STEP_PORTS
@@ -45,7 +46,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     exports = document['physical_exports']
     backend = document['backend_ports']
     fields = {}
-    if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe'):
+    if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe', 'axi4lite_register_observe'):
         fixed = document['fixed_physical_inputs']
         dynamic = document.get('dynamic_physical_inputs', [])
         bound = document.get('bound_physical_inputs', [])
@@ -233,7 +234,9 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             raise ValueError('driver-rvx-memory-backend-shape')
         fields.update({role: row['name'] for role, row in rows.items()})
         allowed_inputs = set()
-    elif kind in ('native_memory_cpu', 'axi4_lite_cpu', 'axi4_cpu'):
+    elif kind in ('native_memory_cpu', 'axi4_lite_cpu', 'axi4_cpu', 'ahb_lite_cpu'):
+        # AHB-Lite CPU (CVW) declares no interrupt entry, so nothing outside the
+        # harness drives it; the program it runs comes from the beat memory face.
         allowed_inputs = set()
     elif kind == 'cva6_packed_axi4_cpu':
         cpu = artifact.plan.profile.cpu
@@ -265,7 +268,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     ports = document['runtime_ports']
     fixed_at_reset = ({row['runtime_name']: row['value']
                        for row in document['fixed_physical_inputs']}
-                      if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe') else {})
+                      if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe', 'axi4lite_register_observe') else {})
     initializers = '\n'.join(
         f'  dut.{row["name"]} = {fixed_at_reset.get(row["name"], 0)};'
         for row in ports if row['direction'] == 'input')
@@ -302,7 +305,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
 
     max_wait = document['effective_max_wait_cycles']
     max_samples = (1 if kind in ('obi_cpu', 'native_memory_cpu', 'rvx_memory_cpu',
-                                'wishbone_cpu', 'axi4_lite_cpu', 'axi4_cpu',
+                                'wishbone_cpu', 'axi4_lite_cpu', 'axi4_cpu', 'ahb_lite_cpu',
                                 'cva6_packed_axi4_cpu')
                    else 2 * max_wait + 5)
     # Conservative serialized upper bound, before issuing any command effects.
@@ -436,12 +439,16 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
       tick(dut, &samples);
 '''
         operation_check = 'command.operation != "STEP_RVX_MEMORY"'
-    elif kind in ('native_memory_cpu', 'axi4_lite_cpu'):
+    elif kind in ('native_memory_cpu', 'axi4_lite_cpu', 'ahb_lite_cpu'):
+        # ahb_lite_cpu shares this template exactly: its adapter is instantiated
+        # with the same 'm' beat channel as the other memory CPUs.
+        beat = 'm_'
         dispatch = "\n".join(f'      dut.{name} = command.fields[{index}];' for index, name in enumerate([
-            'm_req_ready', 'm_rsp_valid', 'm_rsp_rdata', 'm_rsp_error'])) + r'''
+            beat + 'req_ready', beat + 'rsp_valid', beat + 'rsp_rdata',
+            beat + 'rsp_error'])) + r'''
       dut.eval();
       pre_backend = backend_snapshot(dut);
-      if (@FAULT_CHECK@ || (dut.m_rsp_valid && !dut.m_rsp_ready)) {
+      if (@FAULT_CHECK@ || (dut.@BEAT@rsp_valid && !dut.@BEAT@rsp_ready)) {
         terminal = error_reply(command.execution, command.sequence, local_ticks,
                                "protocol_environment", "native_unsolicited_or_fault");
       } else {
@@ -452,6 +459,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         }
       }
 '''
+        dispatch = dispatch.replace('@BEAT@', beat)
         dispatch = dispatch.replace('@FAULT_CHECK@', 'dut.m_fault' if kind == 'native_memory_cpu' else 'false')
         operation_check = 'command.operation != "STEP_MEMORY"'
     elif kind == 'obi_cpu':
@@ -472,7 +480,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     else:
         spi = kind == 'apb_spi'
         timer = kind in ('apb_timer', 'wishbone_timer', 'tlul_timer')
-        channel = ('reg' if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe') else
+        channel = ('reg' if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe', 'axi4lite_register_observe') else
                    'spi' if spi else 'timer' if timer else
                    'uart' if kind == 'wishbone_uart' else
                    'spi_host' if kind == 'tlul_spi_host' else
@@ -482,6 +490,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         command_channel = ('WB_REG' if kind == 'wishbone_register_observe' else
                            'TLUL_REG' if kind == 'tlul_register_observe' else
                            'APB3_REG' if kind == 'apb3_register_observe' else
+                           'AXIL_REG' if kind == 'axi4lite_register_observe' else
                            'TLUL_GPIO' if kind == 'tlul_gpio' else
                            'TLUL_TIMER' if kind == 'tlul_timer' else
                            'WB_UART' if kind == 'wishbone_uart' else
@@ -501,7 +510,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             input_assignment = f'      dut.{fields["sd_i"]} = command.fields[0];\n'
         if kind == 'tlul_uart':
             input_assignment += f'      dut.{fields["uart_rx"]} = command.fields[0];\n'
-        if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe'):
+        if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe', 'axi4lite_register_observe'):
             input_assignment = ''.join(
                 f'      dut.{row["runtime_name"]} = {row["value"]};\n'
                 for row in document['fixed_physical_inputs'])
@@ -528,8 +537,11 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
 ''' if kind in ('apb_i2c', 'tlul_i2c') else ''
         if kind == 'tlul_i2c':
             source_branch = source_branch.replace('SOURCE_I2C', 'SOURCE_TLUL_I2C')
-        if kind in ('tlul_register_observe', 'apb3_register_observe'):
-            register_command = 'TLUL_REG' if kind == 'tlul_register_observe' else 'APB3_REG'
+        if kind in ('tlul_register_observe', 'apb3_register_observe',
+                    'axi4lite_register_observe'):
+            register_command = ('TLUL_REG' if kind == 'tlul_register_observe' else
+                                'APB3_REG' if kind == 'apb3_register_observe'
+                                else 'AXIL_REG')
             source_cases = ''.join(
                 f'        case {index}:\n'
                 + (f'          if (command.fields[1] > {(1 << row["width"]) - 1}ULL) '\
@@ -589,13 +601,18 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         dut.{channel}_rsp_ready = 0;
         dut.eval();
       }}
-''' + ('      }\n' if spi or kind in ('apb_i2c', 'tlul_i2c', 'tlul_register_observe', 'apb3_register_observe') else '')
+''' + ('      }\n' if spi or kind in ('apb_i2c', 'tlul_i2c', 'tlul_register_observe', 'apb3_register_observe', 'axi4lite_register_observe') else '')
+        # The accepted command set comes from the session registry, so a kind
+        # that does not offer SOURCE_/BIND_ is refused because it truly has no
+        # such operation, not because a second hand-kept list forgot it.
+        extra_operations = frozenset(
+            name for name in registered_operations(kind)
+            if name.startswith(('SOURCE_', 'BIND_')))
         operation_check = (f'command.operation != "STEP_{command_channel}" && '
                            f'command.operation != "ACCESS_{command_channel}"' +
-                           (' && command.operation != "SOURCE_' + command_channel +
-                            '" && command.operation != "BIND_' + command_channel + '"'
-                            if kind in ('tlul_register_observe', 'apb3_register_observe') else
-                            ' && command.operation != "SOURCE_SPI"' if spi else
+                           ''.join(f' && command.operation != "{name}"'
+                                   for name in sorted(extra_operations)) +
+                           (' && command.operation != "SOURCE_SPI"' if spi else
                             ' && command.operation != "SOURCE_I2C"'
                             if kind == 'apb_i2c' else
                             ' && command.operation != "SOURCE_TLUL_I2C"'

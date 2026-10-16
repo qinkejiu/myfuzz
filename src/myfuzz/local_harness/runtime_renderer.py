@@ -20,6 +20,7 @@ from .cva6_axi4_fields import CVA6_AXI_SHAPE
 from .request import LocalHarnessRequestV2
 from .tlul_register_template import register_observe_policy, serial_peer_policy
 from .apb3_register_template import register_observe_policy as apb3_register_observe_policy
+from .axi4lite_register_template import (register_observe_policy as axi4lite_register_policy)
 from .wishbone_register_template import register_observe_policy as wishbone_register_policy
 from .clock_schedule import build_local_clock_schedule
 
@@ -76,6 +77,27 @@ _TLUL_V1_RUNTIME_KINDS = {
     'tlul_uart': 'tlul_uart',
     'tlul_i2c': 'tlul_i2c',
     'tlul_spi_device': 'tlul_spi_device',
+}
+# AHB-Lite manager boundary, in the CVW role vocabulary
+# (configs/cpus/cvw/interface_description.json).  Directions are the DUT's own,
+# the same convention the shapes above use: the DUT here *is* the AHB manager, so
+# it drives the address/write side and receives the subordinate's completion.
+# That is the opposite of _APB, where the DUT is the target and therefore receives
+# the address side - the convention is "DUT perspective", not "bus perspective".
+# Widths are the real rv32imc values read out of CVW's own headers and confirmed
+# by the port extractor: AHBW = XLEN = 32 for data, PA_BITS = 34 for the address,
+# and HWSTRB is one bit per data byte.
+#
+# The address width is deliberately not the data width - that asymmetry is the
+# fact an earlier draft of the AHB contract got wrong.  `hsel` is CVW's
+# chip-select extension rather than an AHB-Lite signal; it is carried because the
+# real boundary declares it.
+_AHB_LITE = {
+    'htrans': ('output', 2), 'haddr': ('output', 34), 'hwrite': ('output', 1),
+    'hwdata': ('output', 32), 'hwstrb': ('output', 4), 'hsize': ('output', 3),
+    'hburst': ('output', 3), 'hprot': ('output', 4), 'hmastlock': ('output', 1),
+    'hsel': ('output', 1),
+    'hready': ('input', 1), 'hrdata': ('input', 32), 'hresp': ('input', 1),
 }
 
 
@@ -218,6 +240,23 @@ def _shape(endpoint, expected, abi):
     return wires
 
 
+def _expose_protocol_trace(protocol, endpoint, clock_domain, shape, wires,
+                           ports, statements, backend):
+    """Add passive outputs for the exact protocol fields already bound by ABI."""
+    signals = {}
+    for role, (_, width) in shape.items():
+        name = 'trace_' + role
+        signals[role] = name
+        ports.append((name, 'output', width))
+        statements.append(f'assign {name} = {wires[role]};')
+        backend.append(dict(name=name, direction='output', width=width,
+                            role=role, channel='ip_protocol_trace'))
+    return {'schema_version': 'ip_protocol_trace.v1', 'protocol': protocol,
+            'endpoint_id': endpoint.endpoint_id, 'clock_domain': clock_domain,
+            'signals': signals,
+            'signal_widths': {role: width for role, (_, width) in shape.items()}}
+
+
 def _obi_shape(endpoint, abi, *, read_only, error_response):
     """Bind OBI fields from declared endpoint roles and channel capabilities."""
     if type(read_only) is not bool or type(error_response) is not bool:
@@ -237,11 +276,15 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
     and the caller's receipt must equal that fresh result exactly.
     """
     root = Path(base_dir).resolve()
+    from .native_physical_observation import native_physical_observation_requested
+    native_raw = native_physical_observation_requested(plan.request)
     verified = _admit(plan, structural, source_verification, root)
     clock_schedule = build_local_clock_schedule(plan.profile.clocks, plan.profile.resets,
         reset_assert_ticks=plan.request.reset_assert_ticks,
         reset_release_ticks=plan.request.reset_release_ticks)
     endpoints = [endpoint for endpoint in plan.binding.endpoints if endpoint.protocol is not None]
+    profile_endpoint_clocks = {endpoint.endpoint_id: endpoint.clock
+                               for endpoint in plan.profile.endpoints}
     endpoint_controls = {endpoint.endpoint_id: _endpoint_clock_reset(
         plan, endpoint.endpoint_id, clock_schedule) for endpoint in endpoints}
     abi = structural.abi_document['ports']
@@ -295,6 +338,39 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         kind = 'wishbone_register_observe'
         boot = None
         adapters = ['src/myfuzz/protocols/rtl/beat_to_wishbone.sv']
+    elif (len(endpoints) == 1 and functions == {'memory_master'}
+          and endpoints[0].protocol == ('ahb-lite', '1')):
+        # AHB-Lite CPU with one *unified* memory port.  CVW (CORE-V Wally) is the
+        # repository's only real AHB-Lite boundary: its EBU arbitrates the IFU and
+        # LSU controllers onto a single external bus, so one endpoint carries both
+        # instruction fetches and data accesses and there is no separate
+        # instruction master to declare.  The profile therefore declares
+        # `memory_master` (the same function picorv32 uses for its unified port).
+        # The port names and real widths are in _AHB_LITE.
+        capabilities = plan.profile.capabilities
+        if (capabilities.get('data_width'), capabilities.get('byte_enable'),
+                capabilities.get('max_outstanding'), capabilities.get('error_response'),
+                capabilities.get('address_width')) != (32, True, 1, True, 34):
+            # Address 34 / data 32 are CVW's rv32imc values; an error response is
+            # representable because the boundary really has HRESPEXT.
+            raise ValueError('runtime-ahb-lite-capabilities')
+        kind = 'ahb_lite_cpu'
+        boot = _obi_boot_contract(plan.profile.cpu, 34, endpoints)
+        if plan.request.reset_release_ticks > plan.request.max_wait_cycles:
+            raise ValueError('runtime-ahb-lite-reset-release-exceeds-wait-bound')
+        adapters = ['src/myfuzz/protocols/rtl/ahb_lite_memory_target.sv']
+    elif (isinstance(plan.request, LocalHarnessRequestV2)
+          and len(endpoints) == 1 and functions == {'mmio_slave'}
+          and endpoints[0].protocol == ('axi4-lite', '1')):
+        # The generic AXI4-Lite register member. It shares the beat face of the
+        # other register kinds, so the driver side is the same `reg` channel;
+        # what differs is that the IP's own AXI4-Lite slave port is driven by
+        # the pinned target kernel and the 19 declared roles are also exposed
+        # as passive protocol taps for the component-neutral event layer.
+        axi4lite_register_policy(plan, abi)
+        kind = 'axi4lite_register_observe'
+        boot = None
+        adapters = ['src/myfuzz/protocols/rtl/axi4_lite_mmio_bridge.sv']
     elif (len(endpoints) == 1 and functions == {'mmio_slave'}
           and endpoints[0].protocol == ('wishbone', 'classic')
           and plan.profile.capabilities.get('wishbone_flavour') == 'registered-ack-cyc-ignored'
@@ -493,7 +569,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             raise ValueError('runtime-tlul-timer-pin-shape')
         adapters = ['src/myfuzz/protocols/rtl/beat_to_tlul.sv']
     elif len(endpoints) == 1 and functions == {'mmio_slave'} and endpoints[0].protocol == ('apb', '3'):
-        kind = ('apb3_register_observe' if isinstance(plan.request, LocalHarnessRequestV2)
+        kind = ('apb3_register_observe' if isinstance(plan.request, LocalHarnessRequestV2) and not native_raw
                 else _apb_local_kind(plan.binding.endpoints, abi, plan.profile.capabilities))
         boot = None
         capabilities = plan.profile.capabilities
@@ -520,6 +596,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                 kind == 'tlul_register_observe' and row['direction'] == 'output' or
                 kind == 'apb3_register_observe' and row['direction'] == 'output' or
                 kind == 'wishbone_register_observe' and row['direction'] == 'output' or
+                kind == 'axi4lite_register_observe' and row['direction'] == 'output' or
                 kind == 'apb_spi' and row['endpoint_id'] == 'spi.pins' or
                 kind == 'axi4_lite_uart' and row['endpoint_id'] in
                 ('uart.pins', 'uart.interrupts') or
@@ -549,6 +626,7 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             raise ValueError('runtime-functional-ownership-unsupported')
     ports = [('clk', 'input', 1), ('reset', 'input', 1)]
     locals_, statements, exports, backend, instances = [], [], [], [], []
+    base_protocol_trace = None
     connections = ['.clk(clk)', '.reset(reset)']
     control_signals = {'clk', 'reset'}
     for row in (*clock_schedule['clocks'], *clock_schedule['resets']):
@@ -633,14 +711,20 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
     elif plan.profile.capabilities.get('uart_fifo_observation_variant') is not None:
         raise ValueError('uart-fifo-observation-profile-required')
 
-    def beat_ports(prefix, cpu):
+    def beat_ports(prefix, cpu, address_width=32):
+        # ``address_width`` defaults to 32 because every other adapter's beat face
+        # is 32-bit; the AHB-Lite one passes the boundary's real address width
+        # (CVW rv32imc drives a 34-bit HADDR), so the beat face must carry it too
+        # rather than silently truncating the top bits.
         directions = {'req_valid': 'output' if cpu else 'input', 'req_ready': 'input' if cpu else 'output',
                       'req_write': 'output' if cpu else 'input', 'req_addr': 'output' if cpu else 'input',
                       'req_wdata': 'output' if cpu else 'input', 'req_be': 'output' if cpu else 'input',
                       'rsp_valid': 'input' if cpu else 'output', 'rsp_ready': 'output' if cpu else 'input',
                       'rsp_rdata': 'input' if cpu else 'output', 'rsp_error': 'input' if cpu else 'output'}
         for role, direction in directions.items():
-            width = 32 if role in ('req_addr', 'req_wdata', 'rsp_rdata') else 4 if role == 'req_be' else 1
+            width = (address_width if role == 'req_addr'
+                     else 32 if role in ('req_wdata', 'rsp_rdata')
+                     else 4 if role == 'req_be' else 1)
             name = prefix + '_' + role
             ports.append((name, direction, width))
             backend.append(dict(name=name, direction=direction, width=width, role=role, channel=prefix))
@@ -663,6 +747,59 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                                 role=role, channel='axil'))
             statements.append(f'assign {wires[role]} = {name};' if direction == 'input'
                               else f'assign {name} = {wires[role]};')
+        # Expose the declared AXI4-Lite roles as passive taps too, so the
+        # generic protocol-event layer can project this endpoint at all. The
+        # external driver keeps owning the pins; these are extra outputs of the
+        # same connected nets, so nothing about the existing path changes.
+        base_protocol_trace = _expose_protocol_trace(
+            'axi4-lite', endpoints[0],
+            profile_endpoint_clocks[endpoints[0].endpoint_id]
+            or clock_schedule['primary_clock_domain'],
+            _AXI_LITE_TARGET, wires, ports, statements, backend)
+    elif kind == 'axi4lite_register_observe':
+        # Drive the IP's own AXI4-Lite slave port from the generic beat channel.
+        # The wrapper owns the 19 declared roles (the driver reaches them over
+        # the `reg` channel), so the bridge is wired straight to those nets and
+        # the same nets are additionally tapped for the protocol-event layer.
+        # The shape must be the endpoint's own declared directions, because
+        # that is what the ABI and `_shape` agree on; the bridge's `_o`/`_i`
+        # suffixes name its own face, not the wrapper's.
+        axi4lite_shape = {field.role: (field.direction, field.width)
+                          for field in endpoints[0].fields}
+        wires = _shape(endpoints[0], axi4lite_shape, abi)
+        base_protocol_trace = _expose_protocol_trace(
+            'axi4-lite', endpoints[0],
+            profile_endpoint_clocks[endpoints[0].endpoint_id]
+            or clock_schedule['primary_clock_domain'],
+            axi4lite_shape, wires, ports, statements, backend)
+        beat_ports('reg', False)
+        locals_.extend(['logic unused_reg_request_accepted;',
+                        'logic unused_reg_completion;'])
+        local_clk, local_reset = endpoint_controls[endpoints[0].endpoint_id]
+        address_width = plan.profile.capabilities['address_width']
+        declared_wait = plan.profile.capabilities['max_wait_cycles']
+        if type(declared_wait) is not int or not 1 <= declared_wait <= 16:
+            raise ValueError('runtime-axi4lite-register-wait-bound')
+        wait = min(declared_wait, plan.request.max_wait_cycles)
+        pairs = dict(clk_i=local_clk, rst_ni='~' + local_reset,
+                     req_valid_i='reg_req_valid', req_ready_o='reg_req_ready',
+                     req_write_i='reg_req_write', req_addr_i='reg_req_addr',
+                     req_wdata_i='reg_req_wdata', req_be_i='reg_req_be',
+                     rsp_valid_o='reg_rsp_valid', rsp_ready_i='reg_rsp_ready',
+                     rsp_rdata_o='reg_rsp_rdata', rsp_error_o='reg_rsp_error',
+                     **{f'{role}_o': wires[role] for role in
+                        ('awaddr', 'awprot', 'awvalid', 'wdata', 'wstrb',
+                         'wvalid', 'bready', 'araddr', 'arprot', 'arvalid',
+                         'rready')},
+                     **{f'{role}_i': wires[role] for role in
+                        ('awready', 'wready', 'bresp', 'bvalid', 'arready',
+                         'rdata', 'rresp', 'rvalid')})
+        instances.append('axi4_lite_mmio_bridge #(\n'
+                         f'    .ADDRESS_WIDTH({address_width}), .DATA_WIDTH(32),\n'
+                         f'    .MAX_WAIT_CYCLES({wait})\n'
+                         '  ) u_adapter_reg (\n    '
+                         + ',\n    '.join(f'.{p}({v})' for p, v in pairs.items())
+                         + '\n  );')
     elif kind == 'axi4_cpu':
         for endpoint in sorted(endpoints, key=lambda e: e.function):
             prefix = 'i' if endpoint.function == 'instruction_memory_master' else 'd'
@@ -722,6 +859,60 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         instances.append('axi4_lite_processor_memory_adapter #(\n'
             '    .ADDRESS_WIDTH(32), .DATA_WIDTH(32)\n'
             '  ) u_axi_lite (\n    ' + ',\n    '.join(f'.{p}({v})' for p,v in pairs.items()) + '\n  );')
+    elif kind == 'ahb_lite_cpu':
+        # AHB-Lite CPU (CVW).  CVW is the AHB *manager*, so the harness needs a
+        # subordinate: ahb_lite_memory_target answers the CPU's transfers.  The
+        # AHB port names are the *declared physical ports* taken from the ABI --
+        # CVW spells the subordinate-driven signals with an EXT suffix
+        # (HRDATAEXT/HREADYEXT/HRESPEXT) and the chip select as HSELEXT, so
+        # deriving a name from the role would emit HRDATA/HSEL and fail to bind.
+        wires = _shape(endpoints[0], _AHB_LITE, abi)
+        # The beat channel is 'm' like every other memory CPU, so the generated
+        # driver's memory-CPU template binds without a second template.  The CPU's
+        # request travels OUT to the service and the answer travels IN, which is
+        # the reverse of an initiator adapter.  The beat address must carry the
+        # boundary's real width (CVW drives a 34-bit HADDR); the default 32 would
+        # silently drop the top bits.
+        beat_ports('m', True, plan.profile.capabilities['address_width'])
+        local_clk, local_reset = endpoint_controls[endpoints[0].endpoint_id]
+        # `rst_ni` is the target's ACTIVE LOW reset, so it must be the inverse of the
+        # harness reset -- the same `'~' + local_reset` every other active-low
+        # executor in this file uses (native/obi/axi4_lite_processor_memory_adapter).
+        # This is *not* the DUT's declared polarity applied a second time: `local_reset`
+        # is the *harness* reset signal, already normalised to the asserted-high form by
+        # port_rendering when it drives the DUT's own reset pin (CVW's `reset_ext` is
+        # declared active_high, so the generated wrapper passes it straight through).
+        # Wiring the two in phase is a silent, total failure, because the subordinate
+        # gates its whole beat face on this pin:
+        #   assign req_valid_o = rst_ni && (state_q == WAIT_DATA || state_q == WAIT_SERVICE);
+        #   assign HREADYEXT   = rst_ni && (state_q == IDLE || state_q == COMPLETE);
+        # With `rst_ni(reset)` the subordinate sits in reset for exactly the window in
+        # which the core is running: `req_valid_o` can never assert, `HREADYEXT` never
+        # returns high, and the harness starts, reports READY, toggles its clock and
+        # drives no AHB traffic at all.  The working bench wires it the same way round:
+        # tests/integration/rtl/cvw_ahb_boot_from_service_tb.sv passes its active-low
+        # `rst_ni` to the target and `.reset_ext(~rst_ni)` to the core.
+        pairs = {'clk_i': local_clk, 'rst_ni': '~' + local_reset,
+                 'req_valid_o': 'm_req_valid', 'req_ready_i': 'm_req_ready',
+                 'req_write_o': 'm_req_write', 'req_addr_o': 'm_req_addr',
+                 'req_wdata_o': 'm_req_wdata', 'req_be_o': 'm_req_be',
+                 'rsp_valid_i': 'm_rsp_valid', 'rsp_ready_o': 'm_rsp_ready',
+                 'rsp_rdata_i': 'm_rsp_rdata', 'rsp_error_i': 'm_rsp_error'}
+        for role, wire in wires.items():
+            row, = [item for item in abi
+                    if item['endpoint_id'] == endpoints[0].endpoint_id
+                    and item['role'] == role]
+            pairs[row['physical_port']] = wire
+        declared_wait = plan.profile.capabilities.get('max_wait_cycles',
+                                                      plan.request.max_wait_cycles)
+        if type(declared_wait) is not int or declared_wait < 1:
+            raise ValueError('runtime-ahb-lite-wait-bound')
+        wait = min(declared_wait, plan.request.max_wait_cycles)
+        instances.append('ahb_lite_memory_target #(\n'
+            '    .ADDRESS_WIDTH(34), .DATA_WIDTH(32),\n'
+            f'    .MAX_WAIT_CYCLES({wait})\n'
+            '  ) u_ahb_target (\n    '
+            + ',\n    '.join(f'.{p}({v})' for p, v in pairs.items()) + '\n  );')
     elif kind == 'obi_cpu':
         error_response = plan.profile.capabilities.get('error_response')
         if type(error_response) is not bool:
@@ -754,10 +945,18 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         addressed = (plan.profile.capabilities['has_address_port'] if generic else
                      kind == 'wishbone_uart')
         channel = 'reg' if generic else 'uart' if addressed else 'timer'
-        wires = _shape(endpoints[0],
-                       ({**_WISHBONE_TIMER, 'adr': ('input', plan.profile.capabilities['address_width'])}
-                        if generic and addressed else _WISHBONE_TIMER if generic else
-                        _WISHBONE_UART if addressed else _WISHBONE_TIMER), abi)
+        wishbone_shape = (
+            {**_WISHBONE_TIMER,
+             'adr': ('input', plan.profile.capabilities['address_width'])}
+            if generic and addressed else _WISHBONE_TIMER if generic else
+            _WISHBONE_UART if addressed else _WISHBONE_TIMER)
+        wires = _shape(endpoints[0], wishbone_shape, abi)
+        if generic:
+            base_protocol_trace = _expose_protocol_trace(
+                'wishbone', endpoints[0],
+                profile_endpoint_clocks[endpoints[0].endpoint_id]
+                or clock_schedule['primary_clock_domain'],
+                wishbone_shape, wires, ports, statements, backend)
         beat_ports(channel, False)
         ports.append((channel+'_target_stb', 'output', 1))
         backend.append(dict(name=channel+'_target_stb', direction='output', width=1,
@@ -789,6 +988,12 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                          f'  ) u_adapter_{channel} (\n    '+',\n    '.join(f'.{p}({v})' for p,v in pairs.items())+'\n  );')
     elif kind in ('tlul_gpio', 'tlul_timer', 'tlul_spi_host', 'tlul_uart', 'tlul_i2c', 'tlul_register_observe', 'tlul_spi_device'):
         wires = _shape(endpoints[0], _TLUL, abi)
+        if kind == 'tlul_register_observe':
+            base_protocol_trace = _expose_protocol_trace(
+                'tl-ul', endpoints[0],
+                profile_endpoint_clocks[endpoints[0].endpoint_id]
+                or clock_schedule['primary_clock_domain'],
+                _TLUL, wires, ports, statements, backend)
         channel = ('reg' if kind == 'tlul_register_observe' else
                    'timer' if kind == 'tlul_timer' else
                    'spi_host' if kind == 'tlul_spi_host' else
@@ -814,6 +1019,12 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                          f'  ) u_adapter_{channel} (\n    '+',\n    '.join(f'.{p}({v})' for p,v in pairs.items())+'\n  );')
     else:
         wires = _shape(endpoints[0], _APB, abi)
+        if kind == 'apb3_register_observe' or (kind == 'apb_gpio' and native_raw):
+            base_protocol_trace = _expose_protocol_trace(
+                'apb3', endpoints[0],
+                profile_endpoint_clocks[endpoints[0].endpoint_id]
+                or clock_schedule['primary_clock_domain'],
+                _APB, wires, ports, statements, backend)
         channel = {'apb_spi': 'spi', 'apb_gpio': 'gpio',
                    'apb_timer': 'timer', 'apb_i2c': 'i2c',
                    'apb3_register_observe': 'reg'}[kind]
@@ -855,19 +1066,57 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                     structural_build=copy.deepcopy(structural.build_document), source_verification=copy.deepcopy(verified),
                     boot_contract=boot,
                     clock_schedule=artifact_clock_schedule,
-                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'apb_i2c', 'apb3_register_observe', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host', 'tlul_uart', 'tlul_i2c', 'tlul_register_observe', 'tlul_spi_device', 'wishbone_timer', 'wishbone_uart', 'wishbone_register_observe') else native_wait if kind == 'native_memory_cpu' else plan.request.max_wait_cycles),
+                    effective_max_wait_cycles=(wait if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'apb_i2c', 'apb3_register_observe', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host', 'tlul_uart', 'tlul_i2c', 'tlul_register_observe', 'tlul_spi_device', 'wishbone_timer', 'wishbone_uart', 'wishbone_register_observe', 'axi4lite_register_observe') else native_wait if kind == 'native_memory_cpu' else min(plan.request.max_wait_cycles, plan.profile.capabilities.get('max_wait_cycles', plan.request.max_wait_cycles)) if kind == 'axi4_lite_uart' else plan.request.max_wait_cycles),
                     runtime_sv_sha256=hashlib.sha256(runtime.encode()).hexdigest(), cpp_sha256=hashlib.sha256(b'').hexdigest(),
                     adapted_endpoint_ids=sorted(adapted), physical_exports=exports, backend_ports=backend,
                     runtime_ports=[dict(name=n,direction=d,width=w) for n,d,w in ports],
                     adapter_sources=adapter_hashes, lint_argv=flags+adapters,
                     wire_schema_version='local_driver.v1', driver_status='not_generated')
+    if native_raw:
+        if kind not in ('obi_cpu', 'apb_gpio'):
+            raise ValueError('native-physical-observation-runtime-unsupported')
+        from .native_physical_observation import (native_physical_observation_contract,
+                                                native_physical_observation_mapping)
+        mapping = native_physical_observation_mapping(plan, kind, exports,
+            artifact_clock_schedule['primary_clock_domain'])
+        document['native_physical_observation_mapping'] = mapping
+        document['native_physical_observation_contract'] = native_physical_observation_contract(exports, mapping)
+        document['base_event_schema_version'] = 'ip_base_event.v1'
+        document['raw_observation_schema_version'] = 'ip_raw_observation.v1'
+        if kind == 'apb_gpio':
+            document['base_protocol_trace'] = {
+                **base_protocol_trace,
+                'max_wait_cycles': document['effective_max_wait_cycles'],
+            }
+    if (isinstance(plan.request, LocalHarnessRequestV2)
+            and kind in ('tlul_register_observe', 'apb3_register_observe',
+                         'wishbone_register_observe', 'axi4lite_register_observe',
+                         'axi4_lite_uart')):
+        document['base_event_schema_version'] = 'ip_base_event.v1'
+        document['raw_observation_schema_version'] = 'ip_raw_observation.v1'
+        if not isinstance(base_protocol_trace, dict):
+            raise ValueError('runtime-base-protocol-trace-required')
+        document['base_protocol_trace'] = {
+            **base_protocol_trace,
+            'max_wait_cycles': document['effective_max_wait_cycles'],
+        }
     if uart_fifo_observation is not None:
         document['uart_fifo_observation_contract'] = uart_fifo_observation
     if gpio_observation is not None:
         document['gpio_observation_contract'] = gpio_observation
-    if kind in ('tlul_register_observe', 'apb3_register_observe'):
-        fixed, dynamic, bound = (register_observe_policy(plan, abi) if kind == 'tlul_register_observe'
-                                 else apb3_register_observe_policy(plan, abi))
+    if kind in ('tlul_register_observe', 'apb3_register_observe',
+                'axi4lite_register_observe'):
+        # The AXI4-Lite member additionally admits a declared serial peer, so
+        # it reports two more facts: the peer document and its startup writes.
+        axi4lite_peer = None
+        axi4lite_startup = ()
+        if kind == 'tlul_register_observe':
+            fixed, dynamic, bound = register_observe_policy(plan, abi)
+        elif kind == 'apb3_register_observe':
+            fixed, dynamic, bound = apb3_register_observe_policy(plan, abi)
+        else:
+            fixed, dynamic, bound, axi4lite_peer, axi4lite_startup = (
+                axi4lite_register_policy(plan, abi))
         document['fixed_physical_inputs'] = [
             {'endpoint_id': row['endpoint_id'], 'role': row['role'],
              'runtime_name': row['runtime_name'], 'width': row['width'],
@@ -888,16 +1137,26 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
              'producer_ref': bound[(row['endpoint_id'], row['role'])]}
             for row in exports if row['direction'] == 'input'
             and (row['endpoint_id'], row['role']) in bound]
-        serial_peer = serial_peer_policy(plan) if kind == 'tlul_register_observe' else None
+        serial_peer = (serial_peer_policy(plan) if kind == 'tlul_register_observe'
+                       else axi4lite_peer)
         if serial_peer is not None:
             document['serial_peer'] = serial_peer
-        document['functional_scope'] = ('tlul_register_uart_8n1_peer'
-                                        if serial_peer is not None and serial_peer['format'] == '8N1' else
-                                        'tlul_register_spi_mode0_peer'
-                                        if serial_peer is not None else
-                                        'tlul_register_only_pin_observe_no_serial'
-                                        if kind == 'tlul_register_observe' else
-                                        'apb3_register_only_pin_observe_no_peer')
+        if axi4lite_startup:
+            document['serial_peer_startup_writes'] = [list(row)
+                                                      for row in axi4lite_startup]
+        document['functional_scope'] = (
+            'tlul_register_uart_8n1_peer'
+            if serial_peer is not None and serial_peer['format'] == '8N1'
+            and kind == 'tlul_register_observe' else
+            'axi4lite_register_uart_8n1_peer'
+            if serial_peer is not None and serial_peer['format'] == '8N1' else
+            'tlul_register_spi_mode0_peer'
+            if serial_peer is not None else
+            'tlul_register_only_pin_observe_no_serial'
+            if kind == 'tlul_register_observe' else
+            'axi4lite_register_only_pin_observe_no_serial'
+            if kind == 'axi4lite_register_observe' else
+            'apb3_register_only_pin_observe_no_peer')
     if kind == 'wishbone_register_observe':
         fixed = wishbone_register_policy(plan, abi)
         document['fixed_physical_inputs'] = [
@@ -946,6 +1205,9 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                      'src/myfuzz/local_harness/template_contracts.py')]
     if gpio_observation is not None:
         name = 'src/myfuzz/local_harness/pulp_gpio_probe_contract.py'
+        implementation_sources.append({'path':name,'sha256':hashlib.sha256((implementation_root/name).read_bytes()).hexdigest()})
+    if native_raw:
+        name = 'src/myfuzz/local_harness/native_physical_observation.py'
         implementation_sources.append({'path':name,'sha256':hashlib.sha256((implementation_root/name).read_bytes()).hexdigest()})
     if uart_fifo_observation is not None:
         name = 'src/myfuzz/local_harness/opentitan_uart_fifo_contract.py'

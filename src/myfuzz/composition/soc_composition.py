@@ -805,6 +805,10 @@ def _allocate_windows(request: CompositionRequest, instances: Sequence[InstanceC
                       controller_size: int) -> dict[str, tuple[int, int]]:
     """Keep every fixed address, place the rest, and never overlap anything."""
     policy: AddressPolicy = request.address_policy
+    limit = 1 << 64
+    aperture_end = policy.mmio_base + policy.mmio_limit
+    if aperture_end > limit:
+        _error("mmio-aperture-out-of-range")
     occupied: list[tuple[int, int, str]] = [
         (region.base, region.base + region.size, f"memory:{region.region_id}")
         for region in request.memory
@@ -828,6 +832,10 @@ def _allocate_windows(request: CompositionRequest, instances: Sequence[InstanceC
             _error(f"fixed-address-misaligned:{instance.instance_id}:{base}!%{alignment}")
         if base + size > (1 << 64):
             _error(f"fixed-address-out-of-range:{instance.instance_id}")
+        if base < policy.mmio_base or end > aperture_end:
+            _error(f"fixed-address-outside-mmio-aperture:{instance.instance_id}"
+                   f":[0x{base:x},0x{end:x}):"
+                   f"[0x{policy.mmio_base:x},0x{aperture_end:x})")
         for other_base, other_end, owner in occupied:
             if base < other_end and other_base < end:
                 _error(f"fixed-address-overlap:{instance.instance_id}:{owner}")
@@ -841,10 +849,9 @@ def _allocate_windows(request: CompositionRequest, instances: Sequence[InstanceC
     for instance_id, size, alignment in requests:
         if instance_id in planned:
             continue
-        limit = policy.mmio_base + policy.mmio_limit
         candidate = _align_up(policy.mmio_base, alignment)
         while True:
-            if candidate + size > limit:
+            if candidate + size > aperture_end:
                 _error(f"auto-address-space-exhausted:{instance_id}")
             conflict = next(((base, end, owner) for base, end, owner in occupied
                              if candidate < end and base < candidate + size), None)

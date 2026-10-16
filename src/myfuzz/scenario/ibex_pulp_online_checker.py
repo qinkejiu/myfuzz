@@ -111,6 +111,10 @@ class IbexPulpOnlineChecker:
         self._isr_read_key: tuple | None = None
         self._last_consumed: tuple[tuple, int, int] | None = None
 
+    def online_identity_configuration(self) -> dict:
+        """Stable behavior parameters; consumed observations are replayed state."""
+        return dict(result_address=self.result_address, gpio_settle_ticks=self.gpio_settle_ticks)
+
     def __call__(self, receipt: OnlineCaseReceipt) -> tuple[str, ...]:
         if not isinstance(receipt, OnlineCaseReceipt):
             raise ValueError("OnlineCaseReceipt is required")

@@ -1,0 +1,291 @@
+{
+  "protocol_id": "ahb-lite",
+  "version": "1",
+  "legal_adapters": [],
+  "fields": [
+    {
+      "field_id": "address",
+      "direction": "host_to_device",
+      "width": "address_width",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "request",
+      "direction": "host_to_device",
+      "width": "transfer_type_width",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "write",
+      "direction": "host_to_device",
+      "width": "control_width",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "write_data",
+      "direction": "host_to_device",
+      "width": "data_width",
+      "required": true,
+      "reset_value": 0,
+      "semantic_role": "data"
+    },
+    {
+      "field_id": "write_strobe",
+      "direction": "host_to_device",
+      "width": "byte_lane_width",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "transfer_size",
+      "direction": "host_to_device",
+      "width": "transfer_size_width",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "burst",
+      "direction": "host_to_device",
+      "width": "burst_width",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "protection",
+      "direction": "host_to_device",
+      "width": "protection_width",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "master_lock",
+      "direction": "host_to_device",
+      "width": "control_width",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "read_data",
+      "direction": "device_to_host",
+      "width": "data_width",
+      "required": true,
+      "reset_value": 0,
+      "semantic_role": "data"
+    },
+    {
+      "field_id": "response",
+      "direction": "device_to_host",
+      "width": "control_width",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "ready",
+      "direction": "device_to_host",
+      "width": "control_width",
+      "required": true,
+      "reset_value": 1
+    },
+    {
+      "field_id": "htrans",
+      "direction": "host_to_device",
+      "width": "transfer_type_width",
+      "required": true,
+      "reset_value": 0,
+      "x-alias-of": "request"
+    },
+    {
+      "field_id": "haddr",
+      "direction": "host_to_device",
+      "width": "address_width",
+      "required": true,
+      "reset_value": 0,
+      "x-alias-of": "address"
+    },
+    {
+      "field_id": "hwrite",
+      "direction": "host_to_device",
+      "width": "control_width",
+      "required": true,
+      "reset_value": 0,
+      "x-alias-of": "write"
+    },
+    {
+      "field_id": "hwdata",
+      "direction": "host_to_device",
+      "width": "data_width",
+      "required": true,
+      "reset_value": 0,
+      "semantic_role": "data",
+      "x-alias-of": "write_data"
+    },
+    {
+      "field_id": "hwstrb",
+      "direction": "host_to_device",
+      "width": "byte_lane_width",
+      "required": true,
+      "reset_value": 0,
+      "x-alias-of": "write_strobe"
+    },
+    {
+      "field_id": "hsize",
+      "direction": "host_to_device",
+      "width": "transfer_size_width",
+      "required": true,
+      "reset_value": 0,
+      "x-alias-of": "transfer_size"
+    },
+    {
+      "field_id": "hburst",
+      "direction": "host_to_device",
+      "width": "transfer_size_width",
+      "required": true,
+      "reset_value": 0,
+      "x-alias-of": "burst"
+    },
+    {
+      "field_id": "hprot",
+      "direction": "host_to_device",
+      "width": "protection_width",
+      "required": true,
+      "reset_value": 0,
+      "x-alias-of": "protection"
+    },
+    {
+      "field_id": "hmastlock",
+      "direction": "host_to_device",
+      "width": "control_width",
+      "required": true,
+      "reset_value": 0,
+      "x-alias-of": "master_lock"
+    },
+    {
+      "field_id": "hsel",
+      "direction": "host_to_device",
+      "width": "control_width",
+      "required": false,
+      "reset_value": 0,
+      "x-note": "CVW chip-select extension, not an AHB-Lite signal"
+    },
+    {
+      "field_id": "hrdata",
+      "direction": "device_to_host",
+      "width": "data_width",
+      "required": true,
+      "reset_value": 0,
+      "semantic_role": "data",
+      "x-alias-of": "read_data"
+    },
+    {
+      "field_id": "hresp",
+      "direction": "device_to_host",
+      "width": "control_width",
+      "required": true,
+      "reset_value": 0,
+      "x-alias-of": "response"
+    },
+    {
+      "field_id": "hready",
+      "direction": "device_to_host",
+      "width": "control_width",
+      "required": true,
+      "reset_value": 1,
+      "x-alias-of": "ready"
+    }
+  ],
+  "channel_relations": [
+    {
+      "relation_id": 1,
+      "kind": "write_address_and_data_before_response",
+      "field_ids": [
+        "address",
+        "request",
+        "write",
+        "write_data",
+        "write_strobe"
+      ]
+    },
+    {
+      "relation_id": 2,
+      "kind": "read_address_before_response",
+      "field_ids": [
+        "request",
+        "ready",
+        "response"
+      ]
+    }
+  ],
+  "capability_limits": {
+    "max_outstanding": 1,
+    "byte_enable": true,
+    "partial_write": true,
+    "max_wait_cycles": 16,
+    "x-role-vocabulary": "real-cvw-boundary-port-names",
+    "x-role-declaration": "configs/cpus/cvw/interface_description.json",
+    "x-naming-note": "read data is HRDATAEXT at the CPU boundary; HSELEXT is a CVW chip-select extension, not an AHB-Lite signal",
+    "x-width-note": "AHBW/PA_BITS/XLEN are cvw_t fields set by the chosen CVW config, so widths are parameterised, not fixed",
+    "x-elaboration-status": "not-elaborated",
+    "x-role-alias-table": "address=haddr,burst=hburst,master_lock=hmastlock,protection=hprot,read_data=hrdata,ready=hready,request=htrans,response=hresp,transfer_size=hsize,write=hwrite,write_data=hwdata,write_strobe=hwstrb"
+  },
+  "projection_actions": [
+    {
+      "action_id": 1,
+      "field_ids": [
+        "address"
+      ],
+      "kind": "mask",
+      "category": "address_validity"
+    },
+    {
+      "action_id": 2,
+      "field_ids": [
+        "write_data"
+      ],
+      "kind": "mask",
+      "category": "direct"
+    },
+    {
+      "action_id": 3,
+      "field_ids": [
+        "write_strobe"
+      ],
+      "kind": "mask",
+      "category": "direct"
+    },
+    {
+      "action_id": 4,
+      "field_ids": [
+        "transfer_size"
+      ],
+      "kind": "mask",
+      "category": "protocol_legality"
+    },
+    {
+      "action_id": 5,
+      "field_ids": [
+        "burst"
+      ],
+      "kind": "mask",
+      "category": "protocol_legality"
+    }
+  ],
+  "temporal_rules": [
+    {
+      "rule_id": 1,
+      "kind": "phase_sequence",
+      "antecedent_field_id": "request",
+      "consequent_field_id": "ready",
+      "max_cycles": 16
+    },
+    {
+      "rule_id": 2,
+      "kind": "handshake",
+      "antecedent_field_id": "write",
+      "consequent_field_id": "response",
+      "max_cycles": 16
+    }
+  ]
+}

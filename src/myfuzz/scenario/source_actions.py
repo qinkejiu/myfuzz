@@ -1060,32 +1060,50 @@ class CrossCaseEffectTracker:
         memory_id = document.get("memory_id")
         generation = document.get("generation")
         cells = document.get("enabled_byte_cells")
+        offset, width, mask = (document.get("byte_offset"),
+                               document.get("width_bytes"), document.get("byte_enable"))
+        version = document.get("version")
         if (type(memory_id) is not str or not memory_id
-                or type(generation) is not int or generation < 0
-                or type(cells) is not list or not cells):
+                or type(generation) is not int or not 0 <= generation < 1 << 64
+                or type(offset) is not int or offset < 0
+                or type(width) is not int or width not in (1, 2, 4, 8)
+                or offset + width > 1 << 64
+                or type(mask) is not int or not 0 < mask < 1 << width
+                or not isinstance(version, (list, tuple)) or len(version) != 2
+                or any(type(n) is not int or not 0 <= n < 1 << 64 for n in version)
+                or version[0] != generation or version[1] == 0
+                or type(cells) is not list or len(cells) != mask.bit_count()):
             self._counters["malformed"] += 1
             return ()
-        created = []
+        # Validate the complete callback snapshot before publishing any lane.
+        # A malformed trailing cell must not leave a partial prerequisite.
+        seen = set()
         for cell in cells:
             if (not isinstance(cell, Mapping)
                     or type(cell.get("byte_offset")) is not int
-                    or cell["byte_offset"] < 0):
+                    or not offset <= cell["byte_offset"] < offset + width
+                    or cell["byte_offset"] in seen
+                    or not mask >> (cell["byte_offset"] - offset) & 1):
                 self._counters["malformed"] += 1
-                continue
-            version = cell.get("version")
-            if (not isinstance(version, (list, tuple)) or len(version) != 2
-                    or any(type(item) is not int or item < 0 for item in version)):
+                return ()
+            cell_version = cell.get("version")
+            if (not isinstance(cell_version, (list, tuple)) or len(cell_version) != 2
+                    or any(type(n) is not int or n < 0 for n in cell_version)
+                    or tuple(cell_version) != tuple(version)):
                 self._counters["malformed"] += 1
-                continue
+                return ()
             value = cell.get("value")
             if value is not None and (type(value) is not int or not 0 <= value < 256):
                 self._counters["malformed"] += 1
-                continue
+                return ()
+            seen.add(cell["byte_offset"])
+        created = []
+        for cell in cells:
             stored = self._store_effect(EffectWitness("ram_byte_version",
                 {"memory_id": memory_id, "generation": generation,
                  "byte_offset": cell["byte_offset"]},
                 ram_commit_evidence_ref(commit_id), event_id,
-                tuple(version), value, case_id))
+                tuple(version), cell.get("value"), case_id))
             if stored is not None:
                 created.append(stored)
         return tuple(created)

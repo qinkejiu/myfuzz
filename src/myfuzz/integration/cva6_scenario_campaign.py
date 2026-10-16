@@ -20,7 +20,8 @@ from myfuzz.scenario.rfuzz_decoder import DecoderTemplate, GenomeRecordDecoder
 from myfuzz.scenario.router import DataflowRouter, DeviceWindow
 from myfuzz.scenario.runner import ScenarioRunner
 
-from .scenario_campaign import CampaignBlocked, IbexTwoGpioBoundProvider
+from .scenario_campaign import (CampaignBlocked, IbexTwoGpioBoundProvider,
+                                _require_pinned_bound_seed)
 
 
 def _transaction_identity(event: Mapping) -> tuple:
@@ -200,6 +201,9 @@ class Cva6TwoGpioBoundProvider(IbexTwoGpioBoundProvider):
 
     BOUND_REVERSE_SEED = "cva6_external_two_gpio_campaign_seed.json"
 
+    #: Pinned shape of the CVA6 CPU-direction campaign seed genome.
+    BOUND_SEED_SHAPE = (6000, 0)
+
     @staticmethod
     def _assess_trace_chain(direction: str, events, final_state: Mapping) -> dict | None:
         return assess_cva6_closed_chain(direction, events, final_state)
@@ -210,6 +214,8 @@ class Cva6TwoGpioBoundProvider(IbexTwoGpioBoundProvider):
             root = Path(__file__).resolve().parents[3]
             bound_manifest = root / "configs/scenario/cva6_cpu_two_gpio_campaign_seed.json"
         bound_manifest = Path(bound_manifest)
+        _require_pinned_bound_seed(bound_manifest,
+                                   Cva6TwoGpioBoundProvider.BOUND_SEED_SHAPE)
         if direction == "CPU_TO_IP_TO_CPU":
             genome_path = bound_manifest
             sources = (

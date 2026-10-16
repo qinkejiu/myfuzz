@@ -5,13 +5,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import json
+import re
+from itertools import zip_longest
 from pathlib import Path
 from typing import Callable
 
 from myfuzz.scenario.feedback import CoverageTarget
 from myfuzz.scenario.rfuzz_decoder import GenomeRecordDecoder, RECORD_BYTES
 from myfuzz.scenario.runner import ScenarioRunner
-from myfuzz.scenario.replay import ReplayComparison
+from myfuzz.scenario.replay import ReplayComparison, ScenarioTrace, _difference_context
 
 from .rfuzz_wire import InputBatch
 from .scenario_rfuzz import ScenarioRfuzzExecutor
@@ -39,6 +41,227 @@ class ContinuousReplayResult:
     @property
     def matches(self) -> bool:
         return self.comparison.matches
+
+
+@dataclass(frozen=True)
+class CandidateExplorationReplayResult:
+    comparison: ReplayComparison
+    verification_scope: tuple[str, ...] = (
+        'complete_admitted_session_prefix', 'session_case_checker',
+        'decoder_checker', 'online_source_selection', 'candidate_case_scoring',
+        'candidate_terminal_state')
+
+    @property
+    def matches(self):
+        return self.comparison.matches
+
+
+def _candidate_reference(output):
+    from myfuzz.scenario.event_journal import JsonlEventView, ZlibChunkEventView
+    path = output / 'online_final_trace.json'
+    if not path.is_file():
+        path = output / 'online_final_trace.meta.json'
+    document = json.loads(path.read_bytes())
+    schema = document.get('schema_version')
+    if schema in ('online_trace_jsonl.v1', 'online_trace_zlib_chunks.v1'):
+        compressed = schema == 'online_trace_zlib_chunks.v1'
+        filename = 'online_events.zlib' if compressed else 'online_events.jsonl'
+        if document.get('events_file') != filename:
+            raise ValueError('candidate replay trace metadata mismatch')
+        cls = ZlibChunkEventView if compressed else JsonlEventView
+        view = cls(output / document.pop('events_file'), document.pop('event_count'))
+        if compressed:
+            view.verify_trace_semantic(status=document['status'],
+                local_ticks=document['local_ticks'], expected_sha256=document['semantic_sha256'])
+        document.pop('schema_version')
+        document['events'] = view
+    return path, ScenarioTrace(**document)
+
+
+def _candidate_receipt_record(executor, receipt):
+    """Deterministic live receipt fields; host timing is never a replay oracle."""
+    decision = executor._online_decisions_by_slot[(receipt.buffer_id, receipt.slot)]
+    record = {key: getattr(receipt, key) for key in (
+        'run_id', 'buffer_id', 'slot', 'raw_sha256', 'path_id', 'applied_sources',
+        'applied_source_ids', 'effective_genome_sha256', 'manifest_sha256',
+        'semantic_sha256', 'status', 'local_ticks', 'coverage_hex', 'violations',
+        'error', 'online_weights', 'source_action', 'rejection')}
+    record['genome_sha256'] = receipt.genome_sha256
+    for key in ('case_id', 'direction', 'flow_id', 'target_id', 'source_id',
+                'operator_id', 'candidate_id', 'source_selection_reason',
+                'candidate_disposition', 'candidate_disposition_reason', 'candidate_exploration'):
+        record[key] = decision.get(key)
+    record['interaction_source_gains'] = decision.get('interaction_source_gains', {})
+    record['interaction_feedback'] = receipt.interaction_feedback or {}
+    record['online_source'] = (receipt.online_case.get('source')
+                               if receipt.online_case is not None else None)
+    return record
+
+
+def replay_candidate_exploration_files(output_dir: Path, *,
+        executor_factory: Callable[[], ScenarioRfuzzExecutor], decoder_checker=None,
+        checker_config=None, checker_identity_target=None) -> CandidateExplorationReplayResult:
+    """Recompute saved exploration from raw inputs with a fresh trusted factory.
+
+    The caller supplies the actual assembly, including checker, bootstrap and
+    search switches. Saved decoder documents/weights/state are comparisons,
+    never search configuration or runtime authority. No RFuzz client is started.
+    Artifact and raw-input validation precede factory construction; configuration
+    comparison precedes case commands (a factory may already run its bootstrap).
+    """
+    from .scenario_rfuzz_live import _verify_online_run_identity, _fresh_checker_identity
+    from myfuzz.scenario.session_runtime import _online_manifest
+    output = Path(output_dir)
+    trace_path, reference = _candidate_reference(output)
+    plan_path = output / 'online_plan.json'
+    identity = _verify_online_run_identity(output, plan_path=plan_path,
+        trace_path=trace_path, trace=reference, decoder_checker=decoder_checker,
+        checker_config=checker_config, checker_identity_target=checker_identity_target)
+    if (identity is None or identity.get('execution_mode') != 'online_cases'
+            or not any(k in identity.get('run_config', {}) for k in ('candidate_exploration', 'classified_feedback'))):
+        raise ValueError('candidate replay requires a verified enabled online bundle')
+    config = identity['run_config']
+    if (type(config.get('run_id')) is not str or not config['run_id']
+            or type(config.get('feedback_interval')) is not int
+            or config['feedback_interval'] < 1
+            or any(type(config.get(key)) is not bool
+                   for key in ('closed_loop_energy', 'path_switch'))):
+        raise ValueError('candidate replay configuration types are invalid')
+    def artifact(name):
+        raw = (output / name).read_bytes()
+        if hashlib.sha256(raw).hexdigest() != identity['artifacts'].get(name):
+            raise ValueError('candidate replay artifact changed after verification: ' + name)
+        return raw
+    plan_raw = artifact('online_plan.json')
+    plan = json.loads(plan_raw)
+    decoder_document = json.loads(artifact('decoder_manifest.json'))
+    target_document = json.loads(artifact('targets.json'))
+    session_manifest = json.loads(artifact('online_session_manifest.json'))
+    report = json.loads((output / 'report.json').read_bytes())
+    channels = tuple(k for k in ('candidate_exploration', 'classified_feedback') if k in config)
+    scopes = ('complete_admitted_session_prefix', 'session_case_checker', 'decoder_checker', 'online_source_selection')
+    if 'candidate_exploration' in channels:
+        scopes += ('candidate_case_scoring', 'candidate_terminal_state')
+    if 'classified_feedback' in channels:
+        scopes += ('classified_case_feedback', 'classified_terminal_state')
+    def replay_result(comparison):
+        return CandidateExplorationReplayResult(comparison, scopes)
+    saved_states = {k: report.get(k) for k in channels}
+    for key, state in saved_states.items():
+        if type(state) is not dict or _canonical(state.get('configuration')) != _canonical(config[key]):
+            raise ValueError('candidate replay configuration changed after verification')
+    def states(executor):
+        return {'candidate_exploration': executor.candidate_exploration_state(),
+                'classified_feedback': executor.classified_feedback_state()}
+    max_tests = config.get('max_tests')
+    if type(max_tests) is not int or max_tests < 1:
+        raise ValueError('candidate replay receipt bound is invalid')
+    rows = [json.loads(line) for line in artifact('receipts.jsonl').splitlines()]
+    if len(rows) > max_tests:
+        raise ValueError('candidate replay receipt capacity exceeded')
+    groups, identities = [], set()
+    for row in rows:
+        if (type(row) is not dict or type(row.get('buffer_id')) is not int
+                or not 0 <= row['buffer_id'] <= 0xffffffff
+                or type(row.get('slot')) is not int or not 0 <= row['slot'] < 65535):
+            raise ValueError('candidate replay receipt identity is invalid')
+        key = row['buffer_id'], row['slot']
+        if key in identities:
+            raise ValueError('candidate replay receipt identity is duplicated')
+        identities.add(key)
+        records = row.get('online_raw_records_hex')
+        if (type(records) is not list or not 1 <= len(records) <= 65535
+                or any(type(raw) is not str or re.fullmatch('[0-9a-f]{16}', raw) is None
+                       for raw in records)):
+            raise ValueError('candidate replay raw input is invalid')
+        records = tuple(bytes.fromhex(raw) for raw in records)
+        if hashlib.sha256(b''.join(records)).hexdigest() != row.get('raw_sha256'):
+            raise ValueError('candidate replay raw input digest mismatch')
+        if not groups or groups[-1][0] != row['buffer_id']:
+            if any(group[0] == row['buffer_id'] for group in groups):
+                raise ValueError('candidate replay receipt buffer order is invalid')
+            groups.append((row['buffer_id'], []))
+        if row['slot'] != len(groups[-1][1]):
+            raise ValueError('candidate replay receipt slot order is invalid')
+        groups[-1][1].append(records)
+    resets = plan.get('reset_operations', [])
+    if (type(resets) is not list
+            or any(type(op) is not dict or set(op) != {'after_cases', 'policy'}
+                   or type(op['after_cases']) is not int
+                   or not 1 <= op['after_cases'] <= len(plan['cases'])
+                   or op['policy'] not in ('warm_all', 'cold_all') for op in resets)
+            or any(a['after_cases'] > b['after_cases'] for a, b in zip(resets, resets[1:]))):
+        raise ValueError('candidate replay reset timeline is invalid')
+    executor = executor_factory()
+    if not isinstance(executor, ScenarioRfuzzExecutor):
+        raise ValueError('candidate replay factory must return a fresh executor')
+    error = None
+    try:
+        if (executor.online_decoder is None
+                or any(states(executor)[k] is None for k in channels)
+                or executor.receipts or executor.online_decisions or executor.session.cases
+                or executor.session._finished or executor._completed
+                or executor._selection_uses or executor._selection_gains or executor._target_hits
+                or any(states(executor)[k]['cases'] != 0 for k in channels)):
+            raise ValueError('candidate replay requires fresh initial executor state')
+        if ('online_assembly' in config
+                and _canonical(executor.online_assembly_configuration())
+                != _canonical(config['online_assembly'])):
+            raise ValueError('candidate replay assembly configuration mismatch')
+        if (any(_canonical(states(executor)[k]['configuration']) != _canonical(config[k]) for k in channels)
+                or any((states(executor)[k] is not None) != (k in channels) for k in states(executor))
+                or executor.run_id != config.get('run_id')
+                or executor.feedback_interval != config.get('feedback_interval')
+                or executor.closed_loop_energy != config.get('closed_loop_energy')
+                or executor.path_switch != config.get('path_switch')
+                or _canonical(executor.online_decoder.document()) != _canonical(decoder_document)
+                or _canonical([vars(t) for t in executor.targets]) != _canonical(target_document)
+                or _canonical(_online_manifest(executor.session.runner, executor.session.checker,
+                    runtime_paths=executor.session.runtime_path_document,
+                    checker_configuration_only=executor.session._checker_configuration_only)) != _canonical(session_manifest)
+                or _fresh_checker_identity(executor.checker, config=executor.checker_config,
+                    identity_target=executor.checker_identity_target) != identity.get('decoder_checker')):
+            raise ValueError('candidate replay factory configuration mismatch')
+        index, reset_index = 0, 0
+        def observed(receipt):
+            nonlocal index, reset_index
+            actual = _candidate_receipt_record(executor, receipt)
+            if index >= len(rows) or any(key not in rows[index]
+                    or _canonical(value) != _canonical(rows[index][key]) for key, value in actual.items()):
+                raise ValueError(f'candidate replay receipt selection/scoring mismatch at {index}')
+            index += 1
+            while reset_index < len(resets) and resets[reset_index]['after_cases'] == len(executor.session.cases):
+                executor.session.reset(resets[reset_index]['policy'])
+                reset_index += 1
+        for buffer_id, records in groups:
+            executor.execute_batch(InputBatch(buffer_id, RECORD_BYTES, tuple(records)), on_receipt=observed)
+        if index != len(rows) or reset_index != len(resets):
+            raise ValueError('candidate replay receipt/reset prefix is incomplete')
+        actual, encoded = executor._finish_online_session()
+        if encoded is None or bytes.fromhex(encoded) != plan_raw:
+            raise ValueError('candidate replay admitted plan mismatch')
+        if any(_canonical(states(executor)[k]) != _canonical(saved_states[k]) for k in channels):
+            raise ValueError('candidate replay terminal state mismatch')
+        for offset, (expected_event, actual_event) in enumerate(zip_longest(reference.events, actual.events)):
+            if _canonical(expected_event) != _canonical(actual_event):
+                return replay_result(ReplayComparison(False, offset,
+                    expected_event, actual_event, actual,
+                    _difference_context(expected_event, actual_event, offset)))
+        matches = all(_canonical(getattr(reference, field)) == _canonical(getattr(actual, field))
+                      for field in ('genome_sha256', 'status', 'local_ticks',
+                                    'semantic_sha256', 'manifest_sha256'))
+        return replay_result(ReplayComparison(matches,
+            None if matches else len(reference.events), None, None, actual))
+    except BaseException as exc:
+        error = exc
+        raise
+    finally:
+        try:
+            executor._finish_online_session()
+        except BaseException as cleanup:
+            if error is None:
+                raise
+            error.add_note(f'candidate replay cleanup failed: {type(cleanup).__name__}: {cleanup}')
 
 
 def replay_scenario_rfuzz_continuous(

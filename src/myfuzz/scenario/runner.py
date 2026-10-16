@@ -13,6 +13,7 @@ from dataclasses import asdict, dataclass, is_dataclass
 from functools import wraps
 import json
 from typing import Callable, Mapping, Protocol
+from types import MappingProxyType
 import time
 import uuid
 import weakref
@@ -157,12 +158,16 @@ class _EventLog:
         return deepcopy(tuple(self._records))
 
     def append_unchecked(self, record: dict) -> None:
-        self._records.append(self.runner._decorate_provenance(record))
+        record = self.runner._decorate_provenance(record)
+        self._records.append(record)
+        self.runner._consume_dependency_event(record)
 
-    def append(self, record: dict) -> None:
+    def append(self, record: dict, *, memory_commit_token=None, memory_read_token=None) -> None:
         self.runner._ensure_semantic_capacity("append_event")
         record = self.runner._decorate_provenance(record)
         self._records.append(record)
+        self.runner._consume_dependency_event(record,
+            commit_token=memory_commit_token, read_token=memory_read_token)
         if record.get("kind") in ("memory_read", "memory_write", "mmio_delivery",
                                   "local_register_transaction"):
             self.runner._transaction_count += 1
@@ -231,6 +236,9 @@ class ScenarioRunner:
                     raise ValueError("all sources for one MMIO target need a shared target router")
         self.local_ticks = {component: 0 for component in self.sessions}
         self._last_sample_ticks: dict[str, int] = {}
+        self._ip_base_event_normalizers: dict[str, object | None] = {}
+        self._ip_protocol_event_normalizers: dict[str, object | None] = {}
+        self._ip_protocol_checkers: dict[str, object | None] = {}
         self._inputs: dict[str, dict[str, int]] = {component: {} for component in self.sessions}
         self._pending_bound_targets: set[str] = set()
         self._events = _EventLog(self)
@@ -256,6 +264,12 @@ class ScenarioRunner:
         self._replay_begin_started: tuple[str, ...] = ()
         self._step_in_flight = False
         self._external_offsets: dict[int, int] = {}
+        self._ordinary_apb_access_evidence = None
+        self._native_reset_evidence = None
+        self._native_reset_evidence_failed_install = False
+        self._register_reset_default_verifier = None
+        self._failed_memory_commit_components = set()
+        self._register_program_verifier = None
         self.state_dependencies = StateDependencyTracker()
         self._status = "created"
         self._begin_cleanup_done = False
@@ -278,6 +292,13 @@ class ScenarioRunner:
         self._memory_commit_authority = None
         self._uart_store_memory_join = None
         self._memory_read_authority = None
+        self._memory_dependency_consumer = None
+        self._memory_dependency_configuration = None
+        self._irq_dependency_consumer = None
+        self._irq_dependency_configuration = None
+        self.persistent_memory_prerequisite_gate = None
+        from .dependency_lifecycle import DependencyWitnessLifecycle
+        self._dependency_witness_lifecycle = DependencyWitnessLifecycle()
         self._uart_memory_readback_join = None
         self._controlled_irq_bootstrap = None
         self._controlled_irq_configuration = None
@@ -291,10 +312,37 @@ class ScenarioRunner:
         self._source_transport_scopes: dict[str, dict[str, str]] = {}
 
     def configure_provenance(self, edge_index) -> None:
-        if self._status != 'created' or self._events or self._provenance is not None:
+        if (self._status != 'created' or self._events or self._provenance is not None
+                or self._irq_dependency_consumer is not None):
             raise ValueError('provenance must be configured once before startup')
         from .event_provenance import EventProvenance
         from .memory_service import MemoryService
+        if self._memory_dependency_consumer is not None:
+            # Startup ordering may install RAM evidence before runtime paths.
+            # Pin the same unused actual services; provenance must not replace
+            # authorities already shared with the live gate and consumer.
+            services = {component: session.service for component, session in self.sessions.items()
+                        if getattr(session, 'memory_readback_receipts_enabled', False)}
+            consumer = self._memory_dependency_consumer
+            for authority, expected in ((self._memory_commit_authority, consumer._commit_authority),
+                                        (self._memory_read_authority, consumer._read_authority)):
+                if (authority is not expected or authority._next_token != 1 or authority.degraded
+                        or set(authority._installed) != set(services)
+                        or any(authority._installed[c][0] is not service
+                               or authority._installed[c][1] is not service.ledger
+                               or authority._installed[c][2] is not service.memory
+                               for c, service in services.items())):
+                    raise ValueError('provenance requires same unused actual memory authorities')
+            if (any(getattr(session, 'uart_fifo_observation_enabled', False)
+                    for session in self.sessions.values())
+                    and any(getattr(session, 'native_irq_receipts_enabled', False)
+                            for session in self.sessions.values())):
+                commit_services = {component: session.service
+                    for component, session in self.sessions.items()
+                    if isinstance(getattr(session, 'service', None), MemoryService)
+                    and session.service.commit_stream_enabled}
+                if set(commit_services) != set(self._memory_commit_authority._installed):
+                    raise ValueError('provenance commit services differ from actual memory evidence')
         self._provenance = EventProvenance(edge_index)
         from .cpu_retirement import CpuRetirementMatcher
         # A persistent online CPU can fetch beyond one case before an older
@@ -345,8 +393,9 @@ class ScenarioRunner:
                 if commit_services:
                     from .memory_commit_authority import MemoryCommitAuthority
                     from .uart_store_memory import UartStoreMemoryJoin
-                    self._memory_commit_authority = MemoryCommitAuthority(
-                        services=commit_services)
+                    if self._memory_dependency_consumer is None:
+                        self._memory_commit_authority = MemoryCommitAuthority(
+                            services=commit_services)
                     self._uart_store_memory_join = UartStoreMemoryJoin(
                         memory_commit_authority=self._memory_commit_authority,
                         admission_registry=self._provenance.registry,
@@ -369,9 +418,10 @@ class ScenarioRunner:
                 raise ValueError('UART RAM readback requires live write commits and provenance')
             from .memory_read_authority import MemoryReadAuthority
             from .uart_memory_readback import UartMemoryReadbackJoin
-            self._memory_read_authority = MemoryReadAuthority(
-                services={component: session.service
-                          for component, session in read_sessions.items()})
+            if self._memory_dependency_consumer is None:
+                self._memory_read_authority = MemoryReadAuthority(
+                    services={component: session.service
+                              for component, session in read_sessions.items()})
             for session in read_sessions.values():
                 session.memory_read_authority = self._memory_read_authority
             self._uart_memory_readback_join = UartMemoryReadbackJoin(
@@ -381,6 +431,146 @@ class ScenarioRunner:
                 ownership=self.ownership, edge_index=self._provenance.edge_index,
                 max_instruction_witnesses=2048)
             self._uart_store_memory_join = None
+
+    def configure_memory_dependency_evidence(self, *, runtime_contract_sha256,
+            max_records=256, max_writer_versions=4096, max_event_gap=4096) -> None:
+        """Install historical RAM evidence on actual opt-in CPU callbacks."""
+        if self._native_reset_evidence is not None:
+            raise ValueError('memory authority configuration must occur before native reset evidence')
+        if (self._status != 'created' or self._events
+                or self._memory_dependency_consumer is not None):
+            raise ValueError('memory dependency evidence requires once-only startup configuration')
+        import re
+        from .memory_service import MemoryService
+        from .memory_commit_authority import MemoryCommitAuthority
+        from .memory_read_authority import MemoryReadAuthority
+        from .memory_dependency_evidence import MemoryDependencyEvidenceConsumer
+        if (type(runtime_contract_sha256) is not str
+                or re.fullmatch('[0-9a-f]{64}', runtime_contract_sha256) is None
+                or any(type(n) is not int or not 1 <= n <= 65536
+                       for n in (max_records, max_writer_versions, max_event_gap))):
+            raise ValueError('invalid memory dependency evidence configuration')
+        sessions = {c: s for c, s in self.sessions.items()
+                    if getattr(s, 'memory_readback_receipts_enabled', False)}
+        if (not sessions or any(type(getattr(s, 'service', None)) is not MemoryService
+                or not s.service.commit_stream_enabled for s in sessions.values())):
+            raise ValueError('actual readback sessions with live commit streams required')
+        services = {c: s.service for c, s in sessions.items()}
+        if any(getattr(s, 'memory_read_authority', None) is not None
+               and s.memory_read_authority is not self._memory_read_authority
+               for s in sessions.values()):
+            raise ValueError('separately installed read authority cannot be replaced')
+        for authority, expected_type in ((self._memory_commit_authority, MemoryCommitAuthority),
+                                         (self._memory_read_authority, MemoryReadAuthority)):
+            if authority is not None and (type(authority) is not expected_type
+                    or set(authority._installed) != set(services)
+                    or any(authority._installed[c][0] is not s for c, s in services.items())
+                    or authority._next_token != 1 or authority.degraded):
+                raise ValueError('same unused installed memory authorities required')
+            if authority is not None:
+                authority.validate_consumer_registration('dependency_evidence')
+        commits = self._memory_commit_authority or MemoryCommitAuthority(services=services)
+        writer_kinds = {c: s.include_writer_kinds for c, s in services.items()}
+        try:
+            for service in services.values():
+                service.include_writer_kinds = True
+            reads = self._memory_read_authority or MemoryReadAuthority(services=services)
+            # Validate the complete historical consumer before changing shared
+            # recipient registries or installing anything into the sessions.
+            consumer = MemoryDependencyEvidenceConsumer(memory_commit_authority=commits,
+                memory_read_authority=reads, runtime_contract_sha256=runtime_contract_sha256,
+                max_records=max_records, max_writer_versions=max_writer_versions,
+                max_event_gap=max_event_gap)
+        except Exception:
+            for c, service in services.items():
+                service.include_writer_kinds = writer_kinds[c]
+            raise
+        commits.register_consumer('dependency_evidence')
+        reads.register_consumer('dependency_evidence')
+        consumer._authority_consumer = 'dependency_evidence'
+        self._memory_commit_authority, self._memory_read_authority = commits, reads
+        for session in sessions.values():
+            session.memory_read_authority = reads
+        self._memory_dependency_consumer = consumer
+        self._memory_dependency_configuration = dict(
+            schema_version='memory_dependency_configuration.v1',
+            runtime_contract_sha256=runtime_contract_sha256, components=sorted(services),
+            max_records=max_records, max_writer_versions=max_writer_versions,
+            max_event_gap=max_event_gap)
+
+    def configure_persistent_memory_prerequisites(self, *, max_actions=256, instruction_slot_policy=None,
+                                                prerequisite_gate_type=None):
+        """Use actual retained RAM writers as the online prerequisite authority."""
+        if (self._status != 'created' or self._events
+                or self.persistent_memory_prerequisite_gate is not None
+                or self._memory_dependency_consumer is None):
+            raise ValueError('persistent memory prerequisites require configured startup evidence')
+        from .live_memory_prerequisites import PersistentMemoryPrerequisiteGate
+        gate_type = PersistentMemoryPrerequisiteGate if prerequisite_gate_type is None else prerequisite_gate_type
+        if not isinstance(gate_type, type) or not issubclass(gate_type, PersistentMemoryPrerequisiteGate):
+            raise ValueError('trusted persistent memory gate provider required')
+        gate = gate_type(
+            consumer=self._memory_dependency_consumer, max_actions=max_actions,
+            instruction_slot_policy=instruction_slot_policy)
+        self._dependency_witness_lifecycle.bind_memory(gate)
+        self.persistent_memory_prerequisite_gate = gate
+
+    def active_prerequisite_status(self, prerequisite) -> dict:
+        """Recompute current qualification; historical documents are not authority."""
+        return self._dependency_witness_lifecycle.qualify(self, prerequisite)
+
+    def dependency_lifecycle_report(self) -> dict:
+        """Keep historical counts separate from subject-specific current queries."""
+        return self._dependency_witness_lifecycle.report(self)
+
+    def configure_irq_dependency_evidence(self, *, source_component, target_component,
+            runtime_contract_sha256, max_records=256, max_pending=256,
+            max_event_gap=4096) -> None:
+        """Install the explicit native UART/Ibex historical IRQ provider."""
+        if (self._status != 'created' or self._events
+                or self._irq_dependency_consumer is not None):
+            raise ValueError('IRQ dependency evidence requires once-only startup configuration')
+        if (type(source_component) is not str or type(target_component) is not str
+                or source_component not in self.sessions or target_component not in self.sessions
+                or self._provenance is None
+                or not getattr(self.sessions[source_component], 'uart_fifo_observation_enabled', False)
+                or not getattr(self.sessions[target_component], 'native_irq_receipts_enabled', False)
+                or not any(b.source_component == source_component
+                    and b.source_port == 'uart_rx_watermark'
+                    and b.target_component == target_component and b.target_port == 'irq'
+                    and b.width == 1 and b.source_bit_offset == 0 and b.target_bit_offset == 0
+                    for b in self.bindings)):
+            raise ValueError('installed native IRQ sessions, provenance and exact binding required')
+        from .irq_dependency_evidence import IrqDependencyEvidenceConsumer
+        consumer = IrqDependencyEvidenceConsumer(ownership=self.ownership,
+            admission_registry=self._provenance.registry, source_component=source_component,
+            target_component=target_component, runtime_contract_sha256=runtime_contract_sha256,
+            max_records=max_records, max_pending=max_pending, max_event_gap=max_event_gap)
+        self._irq_dependency_consumer = consumer
+        self._irq_dependency_configuration = dict(
+            schema_version='irq_dependency_configuration.v1', provider='native_uart_ibex_irq.v1',
+            source_component=source_component, target_component=target_component,
+            runtime_contract_sha256=runtime_contract_sha256, max_records=max_records,
+            max_pending=max_pending, max_event_gap=max_event_gap)
+
+    def irq_dependency_evidence_report(self) -> dict:
+        return (self._irq_dependency_consumer.report()
+                if self._irq_dependency_consumer is not None
+                else {'status': 'not_configured', 'grants_prerequisites': False})
+
+    def _consume_dependency_event(self, event, *, commit_token=None, read_token=None):
+        if self._memory_dependency_consumer is not None:
+            self._memory_dependency_consumer.consume(event,
+                commit_token=commit_token, read_token=read_token)
+        if self._irq_dependency_consumer is not None:
+            self._irq_dependency_consumer.consume(event)
+        if self.persistent_memory_prerequisite_gate is not None:
+            self.persistent_memory_prerequisite_gate.tracker.consume_event(event)
+
+    def memory_dependency_evidence_report(self) -> dict:
+        return (self._memory_dependency_consumer.report()
+                if self._memory_dependency_consumer is not None
+                else {'status': 'not_configured', 'grants_prerequisites': False})
 
     @property
     def provenance_configuration(self) -> dict | None:
@@ -433,6 +623,84 @@ class ScenarioRunner:
         if self._status != "created" or self._events:
             raise ValueError("event journal requires a fresh runner")
         self._events.enable_journal(chunk_size=chunk_size)
+
+    def install_native_reset_evidence(self, *, max_records=256, max_commands=4096):
+        accessor,code=_NATIVE_RESET_RUNNER_TABLE_ACCESSOR
+        if _native_reset_runner_method_table is not accessor or accessor.__code__ is not code:
+            raise ValueError('native reset Runner method table drift')
+        accessor()  # The accessor's import-time default pins the table object itself.
+        """Bind actual private target issuers before begin; saved JSON grants nothing."""
+        if (self._status != 'created' or self._events or self._native_reset_evidence is not None
+                or self._native_reset_evidence_failed_install):
+            raise ValueError('native reset evidence requires a fresh runner')
+        from .native_reset_evidence import NativeResetEvidence
+        baseline,baseline_code=_NATIVE_RESET_PRECONSTRUCTION_GUARD
+        if _native_reset_preconstruction_check is not baseline or baseline.__code__ is not baseline_code:
+            raise ValueError('native reset pre-construction guard drift')
+        baseline()
+        observer = NativeResetEvidence(self, max_records=max_records, max_commands=max_commands)
+        self._native_reset_evidence = observer
+        try:
+            observer._attach()
+        except BaseException:
+            self._native_reset_evidence_failed_install = True
+            raise
+        return observer.configuration()
+
+    def native_reset_evidence_configuration(self):
+        observer = self._native_reset_evidence
+        return observer.configuration() if observer is not None else None
+
+    def native_reset_evidence_snapshot(self):
+        observer = self._native_reset_evidence
+        return observer.snapshot() if observer is not None else None
+
+    def install_ordinary_apb_access_evidence(self, *, max_records=256):
+        """Install a closed observer before startup; this grants no authority."""
+        if self._status != 'created' or self._events or self._ordinary_apb_access_evidence is not None:
+            raise ValueError('ordinary APB evidence requires a fresh runner')
+        from .ordinary_apb_access_evidence import OrdinaryApbAccessEvidence
+        observer = OrdinaryApbAccessEvidence(self, max_records=max_records)
+        self._ordinary_apb_access_evidence = observer
+        return observer.configuration()
+
+    def ordinary_apb_access_evidence_snapshot(self):
+        observer = self._ordinary_apb_access_evidence
+        return observer.snapshot() if observer is not None else None
+
+    def _append_ordinary_observed_event(self, record):
+        self._events.append(record)
+        observer = self._ordinary_apb_access_evidence
+        if observer is not None:
+            observer.observe_event(self._event_ref_by_id(record['event_id']))
+
+    def _drain_ordinary_apb_events(self, producer_event_id):
+        if self._ordinary_apb_access_evidence is None:
+            return
+        for component, session in self.sessions.items():
+            stream = getattr(session, 'ordinary_apb_access_events', ())
+            stream_id = id(stream)
+            offset = self._external_offsets.get(stream_id, 0)
+            for index, item in enumerate(stream[offset:], start=offset+1):
+                record = deepcopy(dict(item))
+                schema = record.get('schema_version')
+                if schema == 'ordinary_apb_target_receipt.v1':
+                    kind = 'ordinary_apb_target_receipt'
+                elif schema == 'ordinary_apb_delivery_terminal.v1':
+                    kind = 'ordinary_apb_delivery_terminal'
+                else:
+                    raise ValueError('unknown ordinary APB target event')
+                record.update(kind=kind, component=component,
+                    event_id=len(self._events)+1, producer_event_id=producer_event_id)
+                self._append_ordinary_observed_event(record)
+                self._external_offsets[stream_id] = index
+
+    def _finalize_ordinary_apb_access(self, router, target, *, failure=None):
+        observer = self._ordinary_apb_access_evidence
+        if observer is not None:
+            for record in observer.finalize_pending(router, target, failure=failure):
+                self._events.append({**record, 'kind':'ordinary_apb_access_association',
+                    'event_id':len(self._events)+1})
 
     @property
     def event_count(self) -> int:
@@ -779,6 +1047,20 @@ class ScenarioRunner:
                     "host_sources": host_source_identity(harness_identities=generated)}
         if self.independent_baseline:
             document["independent_baseline"] = True
+        if self._memory_dependency_configuration is not None:
+            document['memory_dependency_evidence'] = deepcopy(self._memory_dependency_configuration)
+        if self._irq_dependency_configuration is not None:
+            document['irq_dependency_evidence'] = deepcopy(self._irq_dependency_configuration)
+        if self.persistent_memory_prerequisite_gate is not None:
+            document['persistent_memory_prerequisites'] = dict(
+                schema_version='persistent_memory_prerequisite_configuration.v1',
+                max_actions=self.persistent_memory_prerequisite_gate.max_actions)
+            if self.persistent_memory_prerequisite_gate.instruction_slot_policy is not None:
+                document['persistent_memory_prerequisites']['instruction_slot_policy'] = (
+                    self.persistent_memory_prerequisite_gate.instruction_slot_policy)
+            dynamic_policy = getattr(self.persistent_memory_prerequisite_gate, 'dynamic_ram_policy', None)
+            if dynamic_policy is not None:
+                document['persistent_memory_prerequisites']['dynamic_ram_policy'] = deepcopy(dynamic_policy)
         if self._controlled_irq_configuration is not None:
             document['controlled_uart_bootstrap_configuration'] = deepcopy(
                 self._controlled_irq_configuration)
@@ -788,6 +1070,10 @@ class ScenarioRunner:
                  "width_cpu_ticks": policy.width_ticks,
                  "overrun_policy": "terminate_unsupported"}
                 for binding, policy in self._irq_pulses.items()]
+        if self._native_reset_evidence is not None:
+            document['native_reset_evidence'] = self._native_reset_evidence.configuration()
+        if self._ordinary_apb_access_evidence is not None:
+            document['ordinary_apb_access_evidence'] = self._ordinary_apb_access_evidence.configuration()
         return document
 
     def begin_test(self, testcase_id: str) -> None:
@@ -795,6 +1081,11 @@ class ScenarioRunner:
             raise ValueError("testcase can begin exactly once")
         if self._controlled_irq_configuration is not None and self._controlled_irq_entry_join is None:
             raise ValueError('controlled bootstrap images must be installed before startup')
+        if self._ordinary_apb_access_evidence is not None:
+            self._ordinary_apb_access_evidence.validate()
+        guard_native_reset_evidence(self)
+        if self._native_reset_evidence is not None:
+            self._native_reset_evidence._reserve_capacity(len(self._native_reset_evidence._targets))
         self.testcase_id = testcase_id
         self.execution_id = uuid.uuid4().hex
         started: list[str] = []
@@ -830,6 +1121,8 @@ class ScenarioRunner:
                 begin_in_flight = False
                 started.append(component)
         except BaseException as exc:
+            if self._native_reset_evidence is not None:
+                self._native_reset_evidence._operation_failed("begin_failure")
             self._status = "failed"
             cleanup = [*started]
             if attempted is not None and attempted not in cleanup:
@@ -858,6 +1151,8 @@ class ScenarioRunner:
                                  "started_components": tuple(started)})
             raise
         self._status = "running"
+        if self._native_reset_evidence is not None:
+            self._native_reset_evidence._after_begin()
         self._count_final_state_growth()
         self._check_evidence_capacity("after_begin")
 
@@ -934,8 +1229,21 @@ class ScenarioRunner:
         for component, session in self.sessions.items():
             if not callable(getattr(session, "reset_local", None)):
                 raise ValueError(f"local harness {component} cannot reset")
+        guard_native_reset_evidence(self)
+        if self._native_reset_evidence is not None:
+            self._native_reset_evidence._before_reset(policy)
         self._ensure_wall_capacity("before_reset")
         self._ensure_semantic_capacity("before_reset")
+        if self._ordinary_apb_access_evidence is not None:
+            self._ordinary_apb_access_evidence.validate()
+            producer = len(self._events)
+            for component in self.sessions:
+                self._append_external_events(component, producer)
+            self._drain_ordinary_apb_events(producer)
+            self._drain_tick_samples(producer)
+            for _, router in self._unique_routers():
+                for window in router.windows:
+                    self._finalize_ordinary_apb_access(router, window.target, failure='reset')
         pending_responses_before = self._pending_responses()
         pending_events_before = self._pending_events()
         pending_bound_before = tuple(sorted(self._pending_bound_targets))
@@ -986,6 +1294,8 @@ class ScenarioRunner:
                 for memory_id in memory.memory_ids:
                     generations[memory_id] = memory.generation
         except BaseException as exc:
+            if self._native_reset_evidence is not None:
+                self._native_reset_evidence._operation_failed("global_reset_failure")
             if (isinstance(exc, LocalCommandDeadlineExceeded)
                     and deadline is not None and time.monotonic() >= deadline):
                 self._exhaust_budget(
@@ -1029,6 +1339,8 @@ class ScenarioRunner:
                              "cancelled_dataflow_targets": pending_bound_before,
                              "cancelled_irq_pulses": dict(pending_irq_before)})
         reset_event_id = self._events[-1]['event_id']
+        if self._native_reset_evidence is not None:
+            self._native_reset_evidence._after_barrier(reset_event_id)
         if self._gpio_consumption_tracker is not None or self._uart_consumption_tracker is not None:
             for component in sorted(self.sessions):
                 self._append_external_events(component, reset_event_id)
@@ -1208,11 +1520,40 @@ class ScenarioRunner:
                                  **event, **bits})
         self._irq_event_offsets[binding] = len(policy.events)
 
+    def _guard_register_program_verifier(self, *, allow_incomplete=False, new_operation=False):
+        verifier=self._register_program_verifier
+        if verifier is None:return
+        if ('_guard_register_program_verifier' in vars(self)
+                or ScenarioRunner._guard_register_program_verifier is not _REGISTER_VERIFIER_GUARD):
+            raise ValueError('register-verifier-runner-guard-drift')
+        if type(allow_incomplete) is not bool or type(new_operation) is not bool:
+            raise ValueError('register-verifier-guard-boolean-required')
+        from .register_program_verifier import RegisterProgramVerifier
+        if type(verifier) is not RegisterProgramVerifier:
+            raise ValueError('register-verifier-actual-instance-required')
+        if any(name in vars(verifier) or getattr(type(verifier),name) is not method
+                for name,method in verifier._method_pins.items()):
+            raise ValueError('register-verifier-method-drift')
+        if allow_incomplete:
+            verifier._method_pins['_validate'](verifier)
+        else:
+            verifier._method_pins['_preflight_command'](verifier,new_operation=new_operation)
+
     def _step_once(self, component: str) -> Mapping[str, int]:
         if self._status not in ("running", "quiescing"):
             raise RuntimeError("scenario is not running")
         if component not in self.sessions:
             raise ValueError("unknown local harness")
+        guard_register_program_verifier(self)
+        if self._native_reset_evidence is not None:
+            additional=2 if component in self._native_reset_evidence._targets else 0
+            additional+=2*sum(component in getattr(router,"pending_targets",()) for _,router in self._unique_routers())
+            self._native_reset_evidence._reserve_capacity(additional)
+        if self._ordinary_apb_access_evidence is not None:
+            self._ordinary_apb_access_evidence.validate()
+            for _, router in self._unique_routers():
+                if component in getattr(router, 'pending_targets', ()):
+                    self._ordinary_apb_access_evidence.preflight_access(router, self.sessions[component])
         inputs = self._effective_inputs(component)
         tick_before_step = self.local_ticks[component]
         event_count_before_step = len(self._events)
@@ -1253,6 +1594,8 @@ class ScenarioRunner:
             else:
                 outputs = dict(session.step_local(inputs))
         except BaseException as exc:
+            if self._native_reset_evidence is not None:
+                self._native_reset_evidence._operation_failed("local_command_failure")
             self._status = "failed"
             uncertain = self._uncertain_transactions()
             # The local command was issued but no complete reply was accepted.
@@ -1283,7 +1626,17 @@ class ScenarioRunner:
             failure_event_id = self._events[-1]['event_id']
             self._drain_causal_gpio_events(failure_event_id, exclude=component)
             self._append_external_events(component, failure_event_id)
-            self._drain_tick_samples(failure_event_id)
+            if self._ordinary_apb_access_evidence is None:
+                self._drain_tick_samples(failure_event_id)
+            else:
+                try:
+                    self._drain_ordinary_apb_events(failure_event_id)
+                    self._drain_tick_samples(failure_event_id)
+                finally:
+                    for _, router in self._unique_routers():
+                        for window in router.windows:
+                            self._finalize_ordinary_apb_access(router, window.target,
+                                failure=type(exc).__name__)
             if timed_out:
                 self.failure_status = "budget_exhausted"
                 marker = {
@@ -1335,13 +1688,39 @@ class ScenarioRunner:
             if (router is None or
                     component not in getattr(router, "pending_targets", ())):
                 continue
+            observer = self._ordinary_apb_access_evidence
+            target = self.sessions[component]
+            if observer is not None:
+                observer.preflight_access(router, target)
+            failure = None
             try:
                 router.drain_one(component)
+            except BaseException as exc:
+                failure = type(exc).__name__
+                if self._native_reset_evidence is not None:
+                    self._native_reset_evidence._operation_failed("router_callback_failure")
+                raise
             finally:
-                self._sync_session_ticks()
-                self._drain_causal_gpio_events(event_id)
-                self._append_external_events(source_component, event_id)
-                self._drain_tick_samples(event_id)
+                if observer is None:
+                    self._sync_session_ticks()
+                    self._drain_causal_gpio_events(event_id)
+                    self._append_external_events(source_component, event_id)
+                    self._drain_tick_samples(event_id)
+                else:
+                    try:
+                        self._sync_session_ticks()
+                        self._drain_causal_gpio_events(event_id)
+                        self._append_external_events(source_component, event_id)
+                        self._drain_ordinary_apb_events(event_id)
+                        self._drain_tick_samples(event_id)
+                    except BaseException as drain_error:
+                        failure = failure or type(drain_error).__name__
+                        raise
+                    finally:
+                        self._finalize_ordinary_apb_access(router, target, failure=failure)
+        if self._native_reset_evidence is not None:
+            self._native_reset_evidence._drain()
+            guard_native_reset_evidence(self)
         return outputs
 
     @timed_runtime_call("observed_output_route")
@@ -1388,6 +1767,57 @@ class ScenarioRunner:
                                  "target_bit_offset": binding.target_bit_offset,
                                  "width": binding.width,
                                  "target_value": updated})
+            source_base_events = self._ip_base_event_normalizer(
+                component, self.sessions[component])
+            target_session = self.sessions[binding.target_component]
+            target_base_events = self._ip_base_event_normalizer(
+                binding.target_component, target_session)
+            if source_base_events is not None and target_base_events is not None:
+                target_contract = target_base_events.bound_input_contract(
+                    binding.target_port)
+                if target_contract is not None:
+                    source_epoch = getattr(self.sessions[component], 'reset_epoch', 0)
+                    target_epoch = getattr(target_session, 'reset_epoch', 0)
+                    target_identity = {
+                        'component': binding.target_component,
+                        'component_id': target_base_events.component_id,
+                        'instance_id': target_base_events.instance_id,
+                        'input_name': binding.target_port,
+                        'endpoint_id': target_contract['endpoint_id'],
+                        'role': target_contract['role'],
+                        'physical_port': target_contract['physical_port'],
+                        'runtime_name': target_contract['runtime_name'],
+                        'width': target_contract['width'],
+                        'reset_epoch': target_epoch,
+                    }
+                    base_delivery_id = len(self._events) + 1
+                    base_delivery = source_base_events.project_binding_delivery(
+                        event_id=event_id,
+                        dataflow_delivery_event_id=delivery_id,
+                        source_component=component,
+                        source_port=binding.source_port,
+                        source_tick=source_tick,
+                        source_phase=source_phase,
+                        source_epoch=source_epoch,
+                        source_value=fragment,
+                        source_bit_offset=binding.source_bit_offset,
+                        target=target_identity,
+                        target_value=updated,
+                        target_bit_offset=binding.target_bit_offset,
+                        width=binding.width)
+                    if base_delivery is not None:
+                        target_base_events.register_binding_delivery(
+                            event_id=base_delivery_id,
+                            source_component=component,
+                            source_port=binding.source_port,
+                            target_port=binding.target_port,
+                            target_epoch=target_epoch,
+                            target_value=updated,
+                            width=binding.width,
+                            target_bit_offset=binding.target_bit_offset)
+                        self._events.append({**base_delivery,
+                            'event_id': base_delivery_id,
+                            'kind': 'binding_delivery'})
             self._route_native_irq_binding(binding, fragment, updated, delivery_id,
                 event_id, source_tick, source_phase)
             if self._gpio_consumption_tracker is not None and binding.target_port == 'gpio_in':
@@ -1462,6 +1892,175 @@ class ScenarioRunner:
             self._events.append({**report, 'event_id': len(self._events) + 1,
                 'producer_event_id': record['event_id']})
 
+    def _ip_base_event_normalizer(self, component: str, session):
+        """Create the v2 generic physical-output projector once per session."""
+        if component in self._ip_base_event_normalizers:
+            return self._ip_base_event_normalizers[component]
+        artifact = getattr(session, 'artifact', None)
+        document = getattr(artifact, 'runtime_document', None)
+        plan = getattr(artifact, 'plan', None)
+        request = getattr(plan, 'request', None)
+        profile = getattr(plan, 'profile', None)
+        native_observation = False
+        if isinstance(document, dict) and request is not None:
+            from myfuzz.local_harness.native_physical_observation import verify_native_physical_observation
+            native_observation = verify_native_physical_observation(artifact)
+            if native_observation and (not callable(getattr(session, 'drain_tick_samples', None))
+                    or document['kind'] == 'obi_cpu'
+                    and getattr(session, '_physical_tick_samples_enabled', False) is not True):
+                raise ValueError('native-physical-observation-stream-disabled')
+        if (not isinstance(document, dict)
+                or not native_observation and document.get('kind') not in ('tlul_register_observe',
+                    'apb3_register_observe', 'wishbone_register_observe',
+                    'axi4lite_register_observe')
+                or document.get('base_event_schema_version') != 'ip_base_event.v1'
+                or not callable(getattr(request, 'document', None))
+                or request.document().get('schema_version') != 'local_harness.v2'
+                or profile is None):
+            self._ip_base_event_normalizers[component] = None
+            return None
+        clock_schedule = document.get('clock_schedule')
+        if not isinstance(clock_schedule, dict):
+            raise ValueError('base-event-clock-schedule-required')
+        primary = clock_schedule.get('primary_clock_domain')
+        if type(primary) is not str or not primary:
+            raise ValueError('base-event-primary-clock-required')
+        endpoint_clock_domains = {
+            endpoint.endpoint_id: endpoint.clock or primary
+            for endpoint in profile.endpoints
+        }
+        physical_exports = document.get('physical_exports', ())
+        if native_observation:
+            mapping = document['native_physical_observation_mapping']
+            endpoint_clock_domains = mapping['endpoint_clock_domains']
+            physical_exports = mapping['physical_exports']
+        from .ip_base_events import IpBaseEventNormalizer
+        normalizer = IpBaseEventNormalizer(
+            component_id=profile.component_id,
+            instance_id=request.instance_id,
+            endpoint_clock_domains=endpoint_clock_domains,
+            physical_exports=physical_exports,
+            bound_physical_inputs=document.get('bound_physical_inputs', ()),
+        )
+        self._ip_base_event_normalizers[component] = normalizer
+        return normalizer
+
+    def _ip_protocol_event_normalizer(self, component: str, session):
+        """Create an admitted v2 protocol-boundary projector once per session."""
+        if component in self._ip_protocol_event_normalizers:
+            return self._ip_protocol_event_normalizers[component]
+        artifact = getattr(session, 'artifact', None)
+        document = getattr(artifact, 'runtime_document', None)
+        plan = getattr(artifact, 'plan', None)
+        request = getattr(plan, 'request', None)
+        profile = getattr(plan, 'profile', None)
+        native_observation = False
+        if isinstance(document, dict) and request is not None:
+            from myfuzz.local_harness.native_physical_observation import verify_native_physical_observation
+            native_observation = verify_native_physical_observation(artifact)
+        trace = document.get('base_protocol_trace') if isinstance(document, dict) else None
+        kind_protocol = {
+            'tlul_register_observe': 'tl-ul',
+            'apb3_register_observe': 'apb3',
+            'wishbone_register_observe': 'wishbone',
+            # A real AXI4-Lite peripheral also exposes its declared roles as a
+            # generic passive trace, so it is projected and checked by the same
+            # component-neutral layer as the other three target protocols.
+            'axi4_lite_uart': 'axi4-lite',
+            'axi4lite_register_observe': 'axi4-lite',
+        }
+        if native_observation and document['kind'] == 'apb_gpio':
+            kind_protocol['apb_gpio'] = 'apb3'
+        if (not isinstance(document, dict)
+                or document.get('kind') not in kind_protocol
+                or document.get('base_event_schema_version') != 'ip_base_event.v1'
+                or not callable(getattr(request, 'document', None))
+                or request.document().get('schema_version') != 'local_harness.v2'
+                or not isinstance(trace, dict)
+                or profile is None):
+            self._ip_protocol_event_normalizers[component] = None
+            return None
+        if trace.get('protocol') != kind_protocol[document['kind']]:
+            raise ValueError('protocol-event-runtime-kind-mismatch')
+        endpoint = next((row for row in profile.endpoints
+                         if row.endpoint_id == trace.get('endpoint_id')), None)
+        if endpoint is None:
+            raise ValueError('protocol-event-profile-endpoint-mismatch')
+        clock_schedule = document.get('clock_schedule')
+        if not isinstance(clock_schedule, dict):
+            raise ValueError('protocol-event-clock-schedule-required')
+        primary = clock_schedule.get('primary_clock_domain')
+        if type(primary) is not str or not primary:
+            raise ValueError('protocol-event-primary-clock-required')
+        if trace.get('clock_domain') != (endpoint.clock or primary):
+            raise ValueError('protocol-event-clock-domain-mismatch')
+        if trace.get('max_wait_cycles') != document.get('effective_max_wait_cycles'):
+            raise ValueError('protocol-event-wait-bound-mismatch')
+        from .ip_protocol_events import IpProtocolEventNormalizer
+        normalizer = IpProtocolEventNormalizer(
+            component_id=profile.component_id, instance_id=request.instance_id,
+            protocol_trace=trace)
+        self._ip_protocol_event_normalizers[component] = normalizer
+        return normalizer
+
+    def _ip_protocol_checker(self, component: str, session):
+        """Create an admitted v2 protocol-contract checker once per session."""
+        if component in self._ip_protocol_checkers:
+            return self._ip_protocol_checkers[component]
+        artifact = getattr(session, 'artifact', None)
+        document = getattr(artifact, 'runtime_document', None)
+        plan = getattr(artifact, 'plan', None)
+        request = getattr(plan, 'request', None)
+        profile = getattr(plan, 'profile', None)
+        native_observation = False
+        if isinstance(document, dict) and request is not None:
+            from myfuzz.local_harness.native_physical_observation import verify_native_physical_observation
+            native_observation = verify_native_physical_observation(artifact)
+        trace = document.get('base_protocol_trace') if isinstance(document, dict) else None
+        kind_protocol = {
+            'tlul_register_observe': 'tl-ul',
+            'apb3_register_observe': 'apb3',
+            'wishbone_register_observe': 'wishbone',
+            # A real AXI4-Lite peripheral also exposes its declared roles as a
+            # generic passive trace, so it is projected and checked by the same
+            # component-neutral layer as the other three target protocols.
+            'axi4_lite_uart': 'axi4-lite',
+            'axi4lite_register_observe': 'axi4-lite',
+        }
+        if native_observation and document['kind'] == 'apb_gpio':
+            kind_protocol['apb_gpio'] = 'apb3'
+        if (not isinstance(document, dict)
+                or document.get('kind') not in kind_protocol
+                or document.get('base_event_schema_version') != 'ip_base_event.v1'
+                or not callable(getattr(request, 'document', None))
+                or request.document().get('schema_version') != 'local_harness.v2'
+                or not isinstance(trace, dict)
+                or profile is None):
+            self._ip_protocol_checkers[component] = None
+            return None
+        if trace.get('protocol') != kind_protocol[document['kind']]:
+            raise ValueError('protocol-checker-runtime-kind-mismatch')
+        endpoint = next((row for row in profile.endpoints
+                         if row.endpoint_id == trace.get('endpoint_id')), None)
+        if endpoint is None:
+            raise ValueError('protocol-checker-profile-endpoint-mismatch')
+        clock_schedule = document.get('clock_schedule')
+        if not isinstance(clock_schedule, dict):
+            raise ValueError('protocol-checker-clock-schedule-required')
+        primary = clock_schedule.get('primary_clock_domain')
+        if type(primary) is not str or not primary:
+            raise ValueError('protocol-checker-primary-clock-required')
+        if trace.get('clock_domain') != (endpoint.clock or primary):
+            raise ValueError('protocol-checker-clock-domain-mismatch')
+        if trace.get('max_wait_cycles') != document.get('effective_max_wait_cycles'):
+            raise ValueError('protocol-checker-wait-bound-mismatch')
+        from .ip_protocol_checker import IpProtocolChecker
+        checker = IpProtocolChecker(
+            component_id=profile.component_id, instance_id=request.instance_id,
+            protocol_trace=trace)
+        self._ip_protocol_checkers[component] = checker
+        return checker
+
     def _drain_tick_samples(self, producer_event_id: int) -> None:
         """Route every real receipt phase, including indirectly clocked targets.
 
@@ -1473,6 +2072,9 @@ class ScenarioRunner:
             drain = getattr(session, "drain_tick_samples", None)
             if not callable(drain):
                 continue
+            base_event_normalizer = self._ip_base_event_normalizer(component, session)
+            protocol_event_normalizer = self._ip_protocol_event_normalizer(component, session)
+            protocol_checker = self._ip_protocol_checker(component, session)
             for sample in drain():
                 tick = sample.get("local_tick")
                 if (type(tick) is not int
@@ -1491,13 +2093,50 @@ class ScenarioRunner:
                     if isinstance(outputs.get("gpio_padcfg"), str):
                         outputs["gpio_padcfg"] = int(outputs["gpio_padcfg"], 16)
                     event_id = len(self._events) + 1
-                    self._events.append({"event_id": event_id,
-                                         "kind": "local_tick_sample",
-                                         "producer_event_id": producer_event_id,
-                                         "component": component, "local_tick": tick,
-                                         "phase": phase, "outputs": dict(observed)})
-                    self._route_observed_outputs(component, outputs, event_id, tick, phase)
+                    raw_event = {"event_id": event_id,
+                                 "kind": "local_tick_sample",
+                                 "producer_event_id": producer_event_id,
+                                 "component": component, "local_tick": tick,
+                                 "phase": phase, "outputs": dict(observed)}
                     epoch = getattr(session, 'reset_epoch', 0)
+                    runtime_document = getattr(getattr(session, 'artifact', None),
+                                               'runtime_document', None)
+                    if (isinstance(runtime_document, Mapping)
+                            and runtime_document.get('raw_observation_schema_version')
+                            == 'ip_raw_observation.v1'):
+                        if type(epoch) is not int or not 0 <= epoch < 1 << 64:
+                            raise ValueError('raw-observation-reset-epoch-invalid')
+                        raw_event.update(observation_schema_version='ip_raw_observation.v1',
+                                         reset_epoch=epoch)
+                    if self._ordinary_apb_access_evidence is not None and 'ordinary_apb_access_ref' in sample:
+                        raw_event['ordinary_apb_access_ref'] = deepcopy(sample['ordinary_apb_access_ref'])
+                    self._append_ordinary_observed_event(raw_event)
+                    self._route_observed_outputs(component, outputs, event_id, tick, phase)
+                    if base_event_normalizer is not None:
+                        for base_event in base_event_normalizer.consume_local_tick(
+                                raw_event, reset_epoch=epoch):
+                            self._append_ordinary_observed_event({**base_event,
+                                'event_id': len(self._events) + 1,
+                                'kind': base_event['event_type']})
+                    invalid_signal = False
+                    if protocol_checker is not None:
+                        for finding in protocol_checker.consume_local_tick(
+                                raw_event, reset_epoch=epoch):
+                            if finding['payload']['violation_code'].endswith(
+                                    '_signal_out_of_range'):
+                                invalid_signal = True
+                            self._append_ordinary_observed_event({**finding,
+                                'event_id': len(self._events) + 1,
+                                'kind': finding['event_type']})
+                            if self.failure_status is None:
+                                self.failure_status = 'protocol_violation'
+                            self._status = 'failed'
+                    if protocol_event_normalizer is not None and not invalid_signal:
+                        for protocol_event in protocol_event_normalizer.consume_local_tick(
+                                raw_event, reset_epoch=epoch):
+                            self._append_ordinary_observed_event({**protocol_event,
+                                'event_id': len(self._events) + 1,
+                                'kind': protocol_event['event_type']})
                     if type(epoch) is int:
                         self._gpio_irq_trigger_refs.pop((component, epoch, tick, phase), None)
                 self._last_sample_ticks[component] = tick
@@ -1527,6 +2166,8 @@ class ScenarioRunner:
                                        (session, "gpio_events", "gpio_observation"),
                                        (session, "uart_events", "uart_observation"),
                                        (session, "cpu_events", "cpu_observation")):
+            if kind=="memory_commit" and component in self._failed_memory_commit_components:
+                continue
             stream = getattr(owner, attribute, None)
             if stream is None:
                 continue
@@ -1575,7 +2216,7 @@ class ScenarioRunner:
                 record.update({"event_id": len(self._events) + 1,
                                "producer_event_id": event_id,
                                "component": event_component})
-                self._events.append(record)
+                self._append_ordinary_observed_event(record)
                 if kind not in ('cpu_observation', 'uart_observation'):
                     self._append_uart_ram_commit_join(record)
                     self._append_uart_store_memory_join(record)
@@ -1644,43 +2285,88 @@ class ScenarioRunner:
                 drained_streams.append((stream_id, stream, len(stream)))
             if kind == 'memory_commit' and (self._uart_memory_readback_join is not None
                                             or self._uart_store_memory_join is not None
-                                            or self._uart_ram_commit_join is not None):
-                for issued in owner.drain_commit_events():
-                    commit_id = issued['commit_id']
-                    receipt, actual = owner.lookup_pending_commit(commit_id)
-                    try:
-                        same_issued = (type(actual) is dict and type(issued) is dict
-                            and json.dumps(actual, sort_keys=True, separators=(',', ':'),
-                                           allow_nan=False)
-                            == json.dumps(issued, sort_keys=True, separators=(',', ':'),
-                                          allow_nan=False))
-                    except (TypeError, ValueError):
-                        same_issued = False
-                    if not same_issued:
-                        raise RuntimeError('live memory commit changed during drain')
+                                            or self._memory_dependency_consumer is not None
+                                            or self._uart_ram_commit_join is not None
+                                            or self._register_reset_default_verifier is not None):
+                try:
+                    issued_commits=owner.drain_commit_events()
+                except BaseException:
+                    self._failed_memory_commit_components.add(component)
+                    if self._native_reset_evidence is not None:
+                        self._native_reset_evidence._operation_failed('actual_memory_commit_drain_failure')
+                    self._status='failed';self.failure_status='uncertain_effect'
+                    raise
+                for issued in issued_commits:
                     token = None
-                    if (self._uart_memory_readback_join is not None
-                            or self._uart_store_memory_join is not None):
-                        token = self._memory_commit_authority.stage(
-                            component, owner, owner.ledger, receipt.transaction_id, receipt)
-                    elif not self._uart_ram_commit_join.stage_commit(
-                            component, owner, owner.ledger, receipt.transaction_id, receipt):
-                        raise RuntimeError('live memory commit could not be authenticated')
-                    logged = {**issued, 'event_id': len(self._events) + 1,
-                              'producer_event_id': event_id, 'component': component}
-                    self._events.append(logged)
-                    self._append_uart_store_memory_join(logged, commit_token=token)
-                    owner.ack_commit_events((commit_id,))
-            if (kind == 'memory_commit' and self._uart_memory_readback_join is not None
+                    try:
+                        commit_id = issued['commit_id']
+                        receipt, actual = owner.lookup_pending_commit(commit_id)
+                        try:
+                            same_issued = (type(actual) is dict and type(issued) is dict
+                                and json.dumps(actual, sort_keys=True, separators=(',', ':'),
+                                               allow_nan=False)
+                                == json.dumps(issued, sort_keys=True, separators=(',', ':'),
+                                              allow_nan=False))
+                        except (TypeError, ValueError):
+                            same_issued = False
+                        if not same_issued:
+                            raise RuntimeError('live memory commit changed during drain')
+                        if (self._uart_memory_readback_join is not None
+                                or self._uart_store_memory_join is not None
+                                or self._memory_dependency_consumer is not None
+                                or self._register_reset_default_verifier is not None):
+                            token = self._memory_commit_authority.stage(
+                                component, owner, owner.ledger, receipt.transaction_id, receipt)
+                        if self._uart_ram_commit_join is not None and not self._uart_ram_commit_join.stage_commit(
+                                component, owner, owner.ledger, receipt.transaction_id, receipt):
+                            raise RuntimeError('live memory commit could not be authenticated')
+                        logged = {**issued, 'event_id': len(self._events) + 1,
+                                  'producer_event_id': event_id, 'component': component}
+                        self._events.append(logged, memory_commit_token=(
+                            token if self._memory_dependency_consumer is not None else None))
+                        if self._register_program_verifier is not None:
+                            self._register_program_verifier._consume_actual_commit(logged,token)
+                        if self._register_reset_default_verifier is not None:
+                            if (token is None or 'register_reset_default_verifier'
+                                    not in self._memory_commit_authority._consumers):
+                                raise RuntimeError('reset default consumer requires actual registered commit token')
+                            self._register_reset_default_verifier._consume_actual_commit(logged,token)
+                        self._append_uart_store_memory_join(logged, commit_token=token)
+                        if ((self._memory_dependency_consumer is not None
+                                or self._register_reset_default_verifier is not None)
+                                and self._uart_memory_readback_join is None
+                                and self._uart_store_memory_join is None):
+                            self._memory_commit_authority.resolve(token)
+                        owner.ack_commit_events((commit_id,))
+                    except BaseException:
+                        # Terminal failure: release only this issuance's remaining recipient views.
+                        # Producer receipt/journal remain historical facts; never ack or redrain.
+                        authority=self._memory_commit_authority
+                        if authority is not None and token is not None:
+                            for recipient in tuple(authority._consumers):
+                                authority.resolve(token,consumer=recipient)
+                        self._failed_memory_commit_components.add(component)
+                        if self._native_reset_evidence is not None:
+                            self._native_reset_evidence._operation_failed('actual_memory_commit_callback_failure')
+                        self._status='failed';self.failure_status='uncertain_effect'
+                        raise
+            if (kind == 'memory_commit' and (self._uart_memory_readback_join is not None
+                    or self._memory_dependency_consumer is not None)
                     and self._memory_read_authority is not None):
-                for token, issued in self._memory_read_authority.drain():
+                for token, issued in self._memory_read_authority.drain(consumer=(
+                        'dependency_evidence' if self._memory_dependency_consumer is not None
+                        else 'default')):
                     if issued['fullkey']['source_component'] != component:
                         continue
                     logged = {**issued, 'kind': 'memory_read_issuance',
                               'status': 'accepted', 'event_id': len(self._events) + 1,
                               'producer_event_id': event_id, 'component': component}
-                    self._events.append(logged)
+                    self._events.append(logged, memory_read_token=(
+                        token if self._memory_dependency_consumer is not None else None))
                     self._append_uart_store_memory_join(logged, read_token=token)
+                    if (self._memory_dependency_consumer is not None
+                            and self._uart_memory_readback_join is None):
+                        self._memory_read_authority.resolve(token)
             if pending_gpio_tick is not None:
                 self._append_gpio_consumption(pending_gpio_tick)
         # The journal owns detached copies of every drained fact. Releasing the
@@ -2295,6 +2981,7 @@ class ScenarioRunner:
             raise
 
     def finalize(self) -> None:
+        guard_native_reset_evidence(self,allow_incomplete=True)
         if self._status == "finalized":
             return
         if self._status not in ("running", "quiescing", "failed"):
@@ -2302,6 +2989,17 @@ class ScenarioRunner:
         if self._begin_cleanup_done:
             self._status = "finalized"
             return
+        if self._ordinary_apb_access_evidence is not None:
+            producer = len(self._events)
+            for component in self.sessions:
+                self._append_external_events(component, producer)
+            try:
+                self._drain_ordinary_apb_events(producer)
+                self._drain_tick_samples(producer)
+            finally:
+                for _, router in self._unique_routers():
+                    for window in router.windows:
+                        self._finalize_ordinary_apb_access(router, window.target, failure='finalize')
         budget = self._resource_budget
         replay_cut = (self._replay_wall_cut is not None
                       and self._replay_wall_cut[1] == "inflight_finalize")
@@ -2324,6 +3022,9 @@ class ScenarioRunner:
             except BaseException as exc:
                 cleanup_errors.append({"component": component,
                                        "error_type": type(exc).__name__})
+        if self._native_reset_evidence is not None:
+            if cleanup_errors:self._native_reset_evidence._operation_failed("finalize_failure")
+            self._native_reset_evidence._drain()
         if self._evidence_projected_bytes is not None:
             try:
                 self._count_final_state_growth()
@@ -2372,3 +3073,96 @@ class ScenarioRunner:
                 "kind": "harness_failure", "phase": "finalize",
                 "status": "environment_error", "cleanup_errors": cleanup_errors,
             })
+
+
+# Capture the command guard independently of mutable instance/class dispatch.
+_REGISTER_VERIFIER_GUARD = ScenarioRunner._guard_register_program_verifier
+
+
+def guard_register_program_verifier(runner, *, allow_incomplete=False, new_operation=False):
+    if runner._native_reset_evidence is not None:
+        if (guard_native_reset_evidence is not _NATIVE_RESET_GUARD[0]
+                or guard_native_reset_evidence.__code__ is not _NATIVE_RESET_GUARD[1]):
+            runner._native_reset_evidence._fail("native_guard_dispatch_drift")
+            raise ValueError("native reset fixed Runner guard drift")
+    guard_native_reset_evidence(runner,allow_incomplete=allow_incomplete,new_operation=new_operation)
+    return _REGISTER_VERIFIER_GUARD(runner, allow_incomplete=allow_incomplete,
+                                    new_operation=new_operation)
+
+
+def guard_native_reset_evidence(runner, *, allow_incomplete=False, new_operation=False):
+    evidence=runner._native_reset_evidence
+    if evidence is None:return
+    from .native_reset_evidence import NativeResetEvidence, _METHODS
+    if (guard_native_reset_evidence is not _NATIVE_RESET_GUARD[0]
+            or guard_native_reset_evidence.__code__ is not _NATIVE_RESET_GUARD[1]
+            or type(evidence) is not NativeResetEvidence):
+        raise ValueError('native reset fixed Runner guard drift')
+    if allow_incomplete:_METHODS['validate'][0](evidence,allow_incomplete=True)
+    else:_METHODS['_preflight_command'][0](evidence,new_operation=new_operation)
+
+_NATIVE_RESET_GUARD=(guard_native_reset_evidence,guard_native_reset_evidence.__code__)
+
+
+def _create_native_reset_import_anchor():
+    anchor=None
+    def register(module,cls,methods,guard):
+        nonlocal anchor
+        if anchor is not None:raise ValueError('native reset import anchor cannot be replaced')
+        anchor=(module,cls,methods,guard,guard.__code__)
+    def check():
+        if anchor is None:raise ValueError('native reset code-owned import anchor unavailable')
+        module,cls,methods,guard,code=anchor
+        if (module.NativeResetEvidence is not cls or module._METHODS is not methods
+                or module._IMPORT_BASELINE_GUARD is not guard or guard.__code__ is not code):
+            raise ValueError('native reset pre-construction import drift')
+        guard()
+    return register,check
+
+_register_native_reset_import_anchor,_native_reset_preconstruction_check=_create_native_reset_import_anchor()
+_NATIVE_RESET_PRECONSTRUCTION_GUARD=(_native_reset_preconstruction_check,_native_reset_preconstruction_check.__code__)
+
+
+def _bind_native_reset_install_entry():
+    original=ScenarioRunner.install_native_reset_evidence
+    original_code=original.__code__
+    check=_native_reset_preconstruction_check
+    check_code=check.__code__
+    pair=_NATIVE_RESET_PRECONSTRUCTION_GUARD
+    register=_register_native_reset_import_anchor
+    register_code=register.__code__
+    methods={name:(method,method.__code__) for name,method in vars(ScenarioRunner).items()
+             if callable(method) and hasattr(method,'__code__')}
+    table=MappingProxyType(methods)
+    dispatch=MappingProxyType({name:(globals()[name],globals()[name].__code__)
+        for name in ('guard_native_reset_evidence','guard_register_program_verifier')})
+    def accessor():
+        if (_NATIVE_RESET_RUNNER_METHODS is not table or _NATIVE_RESET_RUNNER_DISPATCH is not dispatch
+                or _native_reset_runner_method_table is not accessor
+                or _NATIVE_RESET_RUNNER_TABLE_ACCESSOR is not accessor_pair
+                or accessor.__code__ is not accessor_code
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in dispatch.items())):
+            raise ValueError('native reset Runner method table drift')
+        return table
+    accessor_code=accessor.__code__
+    accessor_pair=(accessor,accessor_code)
+    def install(self, *, max_records=256, max_commands=4096):
+        # Fixed lexical entries precede the lazy consumer import and every issuer.
+        if (_register_native_reset_import_anchor is not register
+                or register.__code__ is not register_code
+                or _native_reset_preconstruction_check is not check
+                or check.__code__ is not check_code
+                or _NATIVE_RESET_PRECONSTRUCTION_GUARD is not pair
+                or original.__code__ is not original_code):
+            raise ValueError('native reset pre-construction fixed entry drift')
+        accessor()
+        from . import native_reset_evidence
+        check()
+        return original(self,max_records=max_records,max_commands=max_commands)
+    ScenarioRunner.install_native_reset_evidence=install
+    methods['install_native_reset_evidence']=(install,install.__code__)
+    return table,dispatch,accessor,accessor_pair
+
+(_NATIVE_RESET_RUNNER_METHODS,_NATIVE_RESET_RUNNER_DISPATCH,
+ _native_reset_runner_method_table,_NATIVE_RESET_RUNNER_TABLE_ACCESSOR)=_bind_native_reset_install_entry()
