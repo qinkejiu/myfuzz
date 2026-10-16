@@ -1,0 +1,31 @@
+{
+  "scope": "pure_source_contract_only",
+  "source_sha256": {
+    "src/myfuzz/local_harness/apb_storage_source_contract.py": "218bfff13fa4b8d793b7fce7d196e5ffe9492a9a26bb2eeb6061cb33e6c68eac",
+    "tests/local_harness/test_apb_storage_source_contract.py": "b7cebec1b6b34f1059ec0291073728817503d34caf03898aeffbed17622717c6"
+  },
+  "logs_sha256": {
+    "green-final.log": "755908e158fd3f671988d4aeb217c50aa09e5a73c014505e950b52673fe837b1",
+    "green.log": "e9b604b2b388411d4f35d2c1463a415805e9cafa55635910e986df87ca84ee18",
+    "import-guard-failure.log": "b024b4ac997e609dd496eb98259f6e145c50cfb21dd5dda3dd86ad06f81405d5",
+    "invalid-initial-red.log": "3e0a354f17a187719cd3a869fbd0e4189a415a6a06e5924c210bf53b53fec4b0",
+    "prototype-green.log": "e9b604b2b388411d4f35d2c1463a415805e9cafa55635910e986df87ca84ee18",
+    "red.log": "1c1f58489c3c002ae30958fd5f9b2057c36ef81abfc749d9a86fa0beddab34cd",
+    "width-red.log": "0898974718f15b838ed094d3eda386e32d214b0c983f72f91504f8bd8924261e"
+  },
+  "valid_red": {
+    "exit": 1,
+    "result": "47 failed in0.53s"
+  },
+  "width_red": {
+    "exit": 1,
+    "result": "3 failed48passed0.44s"
+  },
+  "final_green": {
+    "exit": 0,
+    "result": "51 passed in0.42s"
+  },
+  "native": false,
+  "frontend": false,
+  "build": false
+}
