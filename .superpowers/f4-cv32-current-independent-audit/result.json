@@ -1,0 +1,41 @@
+{
+  "scope": "independent archive-only audit; no model/compiler/checker invoked",
+  "archive_sha256": "1b18b4774cb380a89098279dcf63d2393a4e000df7273bcf9bc605a9c8499267",
+  "events_per_run": [
+    7351,
+    7351,
+    7351
+  ],
+  "three_entire_saved_event_arrays_equal_without_further_normalization": true,
+  "saved_events_canonical_sha256": "8035838d8e6898de65e45c16de62d07f4c58d7e1741b18fd6d53923044350b40",
+  "three_full_prefixes_equal_except_declared_certificate_process_scope": true,
+  "full_normalized_prefix_sha256": "4d19f41148b88c50c008307ca626412a4132e6d8bb7e23ea67cb9c7eb11d1af0",
+  "semantic_hash": "552a8dc903a89424e22a150e260588ac92a42f0fb929aaec28e24250ecc3d25c",
+  "certified_cases": 3,
+  "first_fetch": 65536,
+  "declared_record_bytes": 8,
+  "all_declared_source_slices_match_raw_records": true,
+  "actual_reaped_exit_codes": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "distinct_pids": [
+    240888,
+    241027,
+    246454,
+    246593,
+    253049,
+    253188
+  ],
+  "distinct_nonce_count": 6,
+  "controlling_source_audit_exits": [
+    0,
+    0,
+    0
+  ],
+  "accepted_scope": "directed compiled OBI/APB GPIOEN F4 only; not generic APB or coverage-guided P7"
+}

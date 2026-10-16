@@ -1,0 +1,29 @@
+{
+  "archive_sha256": "88d0b0c3af09c94481ecbaf805d79691ea600658fe805de97f64a107e59ce4c2",
+  "independent_saved_data_audit": true,
+  "raw_samples_each": 650,
+  "runtime_events_each": 826,
+  "runner_events_each": 2923,
+  "whole_prefixes_equal_with_only_declared_typed_execution_normalization": true,
+  "pids": [
+    263888,
+    264049
+  ],
+  "accepted": {
+    "ar": 84,
+    "aw": 2,
+    "b": 2,
+    "r": 84,
+    "w": 2
+  },
+  "pending": {
+    "b_pending": false,
+    "buffered_wbeats": 0,
+    "read_beats_remaining": 0,
+    "write_beats_remaining": 0
+  },
+  "binary_and_manifest_crosslinks": true,
+  "source_authority": false,
+  "retirement_verified": false,
+  "protocol_completion_certified": false
+}

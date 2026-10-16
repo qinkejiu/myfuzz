@@ -1,0 +1,14 @@
+[
+  {
+    "run": "first",
+    "saved_raw_samples": 650,
+    "exact_saved_observer_records_reproduced": 826,
+    "scope": "offline reproduction of archived actual samples, no new native execution"
+  },
+  {
+    "run": "fresh",
+    "saved_raw_samples": 650,
+    "exact_saved_observer_records_reproduced": 826,
+    "scope": "offline reproduction of archived actual samples, no new native execution"
+  }
+]

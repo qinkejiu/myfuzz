@@ -44,3 +44,7 @@ Generation27.379s; startup38.190s; cases66.499/67.025/67.894s (201.418s total); 
 [Complete actual primary/fresh outputs and command logs](evidence/compiled-f4-cv32-current-20261017/evidence.tar.gz), SHA256 `1b18b4774cb380a89098279dcf63d2393a4e000df7273bcf9bc605a9c8499267`.
 
 Remote evidence base `/root/fanzehui/f4-filelist-verification-20261017-b370e3d`; true exits `logs/cv32.exit`, `logs/cv32.source-after.exit`, `logs/cv32.audit.exit`. Local copied source manifest/output/logs remain under `.superpowers/f4-filelist-verification-20261017-b370e3d`. Historical failures and snapshots remain preserved.
+
+## Root independent saved-prefix audit
+
+[Independent archive audit](evidence/compiled-f4-cv32-current-20261017/independent-audit.json) confirms all three entire7,351-event arrays exactly equal without further normalization, whole prefixes equal except declared certificate process_scope, all candidate slices match actual raw bytes, six distinct reaped exit0 subprocesses, and all20 error fields in the first certificate remain null.

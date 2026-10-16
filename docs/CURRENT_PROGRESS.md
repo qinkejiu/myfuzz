@@ -3,9 +3,9 @@
 ## 最新终态补记（2026-10-17）
 
 - **连续 UART RX DMA attempt6 已通过真实门禁：** 1 passed／277.19 秒，native 与 worker exit0；前置软件门 65 passed／70.42 秒。单次 boot 四字节、JSON 往返后的完整 fresh 前缀及 source-bound 失败 fresh 重放均通过。见[报告与原始归档](reports/dma-continuous-runner-20261017.md)。后文 attempt4/5 是历史失败状态，不是当前运行状态；能力仍是 bounded_historical_chain，FIFO 来源 unknown。
-- **F4 错误响应边界已有真实增量：** 最初 Icarus adapter 跳过和 CV32 filelist 预启动失败保留；filelist 修复后，实际生成式 CV32 首取指接受后注入 backend ERR，模型命中指定 fatal 并非零退出，控制/源检查/审计 exit0。同一适配器与 testbench 的显式 Verilator 门另为 1 passed／8.03 秒。见[原始证据与范围](reports/obi-no-error-fail-stop-20261017.md)。[Ibex 三例连续数据流与两次完整 fresh 门](reports/compiled-f4-ibex-current-20261017.md)现已实际 exit0，六个原生进程均 reaped/exit0；根代理独立复核三份各7,351条保存事件及全前缀相同。CV32 同等连续门已启动，结果待终态。
+- **F4 错误响应边界已有真实增量：** 最初 Icarus adapter 跳过和 CV32 filelist 预启动失败保留；filelist 修复后，实际生成式 CV32 首取指接受后注入 backend ERR，模型命中指定 fatal 并非零退出，控制/源检查/审计 exit0。同一适配器与 testbench 的显式 Verilator 门另为 1 passed／8.03 秒。见[原始证据与范围](reports/obi-no-error-fail-stop-20261017.md)。[Ibex 三例连续数据流与两次完整 fresh 门](reports/compiled-f4-ibex-current-20261017.md)现已实际 exit0，六个原生进程均 reaped/exit0；根代理独立复核三份各7,351条保存事件及全前缀相同。[CV32 同等连续门](reports/compiled-f4-cv32-current-20261017.md)也已实际 exit0，根代理独立复核三份各7,351条完整事件及候选切片一致，20个无物理 error pin 的错误字段保持 null。
 - **BOOM IRQ：** 历史实际 build/probe0、最终化1保留；[独立元数据恢复](reports/boom-irq-metadata-recovery-20261017.md)现已实际 exit0，2,564 源文件与84原构建文件前后及副本审计通过，原二进制未变。未重新编译或执行模型；真实 IRQ 链及抑制/fresh 门仍待实现验证。
-- **CPU 事件：** reduced AXI 观察器已有冻结软件证据；[CVA6 full AXI 观察器](reports/CPU_FULL_AXI_OBSERVER_20261017.md)冻结 `893d255`，99 passed＋3 subtests；独立审查的异常后停止、effects 标记与 post 新 offer 保持三项均修复。后者保存的是明确标记的软件构造模型，不是新的 CVA6 原生轨迹；窄 CPU/RAM 原生门正在准备。
+- **CPU 事件：** reduced AXI 观察器已有冻结软件证据；[CVA6 full AXI 观察器](reports/CPU_FULL_AXI_OBSERVER_20261017.md)冻结 `893d255`，99 passed＋3 subtests；独立审查的异常后停止、effects 标记与 post 新 offer 保持三项均修复。后续[窄 CPU/RAM 原生门](reports/cva6-full-axi-native-20261017.md)已实际 exit0：两进程各650组真实样本、826条观察记录、2923条 Runner 事件全前缀匹配，原始样本离线逐条复投影一致。仅授有界观察，不授源权威或退休认证。
 
 以上分别绑定冻结源码，**整个系统及 P6/P7/P8 保持未验收**。
 
