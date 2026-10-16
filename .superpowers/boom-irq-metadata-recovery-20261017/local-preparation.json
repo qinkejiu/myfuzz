@@ -1,0 +1,14 @@
+{
+  "stage": "prepared_local_only",
+  "files": 2564,
+  "owned_pins_checked": 4,
+  "before_after_destination_equal": true,
+  "shared_inodes": [],
+  "all_destination_links_one": true,
+  "pulp_git_directory_preserved": true,
+  "pulp_git_files": 39,
+  "pulp_external_object_refs_absent": true,
+  "clean_checkout_claim": false,
+  "source_authority": false,
+  "source_archive_sha256": "57434fd909cf0f5e2f7237d33716f65b610c8f77ecc14975900d3a6566d558c8"
+}

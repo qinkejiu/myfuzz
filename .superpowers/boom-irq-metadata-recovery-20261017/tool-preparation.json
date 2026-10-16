@@ -1,0 +1,15 @@
+{
+  "version": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+  "tools": {
+    "verilator": {
+      "path": "/root/fanzehui/myfuzz/.tools/verilator-5.051-e413e67/bin/verilator",
+      "resolved_path": "/root/fanzehui/myfuzz/.tools/verilator-5.051-e413e67/bin/verilator",
+      "sha256": "fb2cc573b1055cf096c90e1efc9966fe56bdb4b265c83590cf2a49f7a0defcdf"
+    },
+    "verilator_bin": {
+      "path": "/root/fanzehui/myfuzz/.tools/verilator-5.051-e413e67/bin/verilator_bin",
+      "resolved_path": "/root/fanzehui/myfuzz/.tools/verilator-5.051-e413e67/bin/verilator_bin",
+      "sha256": "ad3ad4d5653e9431eb907c31e5a7bfad3cd4ae59469b0f8e7c63403521225579"
+    }
+  }
+}
