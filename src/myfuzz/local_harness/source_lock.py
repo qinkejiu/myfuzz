@@ -45,6 +45,9 @@ def verify_local_source_lock(profile: ComponentProfile, *, base_dir: Path,
     if profile.component_id == 'pulp_gpio_causal_local':
         from .pulp_gpio_probe_contract import verify_pulp_gpio_source_contract
         return verify_pulp_gpio_source_contract(profile, base_dir=base_dir)
+    if profile.component_id == 'vexiiriscv':
+        from .vexii_source_contract import verify_vexii_source_contract
+        return verify_vexii_source_contract(profile, base_dir=base_dir)
     if profile.component_id == 'cvw':
         # CORE-V Wally is a local component (root ".", content pin) whose typed top
         # is repository-authored, so its upstream half cannot be a git-pinned lock

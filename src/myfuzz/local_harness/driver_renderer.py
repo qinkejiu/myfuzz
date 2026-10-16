@@ -14,6 +14,7 @@ from .runtime_renderer import render_local_runtime
 from .wishbone_dma_fields import DMA_CONTROL_SHAPE, DMA_MASTER_SHAPE, DMA_STEP_PORTS
 from .axi4_fields import AXI_STEP_PORTS
 from .cva6_axi4_fields import CVA6_AXI_STEP_PORTS
+from .vexii_axi_fields import STEP_PORTS as REDUCED_AXI_STEP_PORTS
 
 _HEADERS = ('src/myfuzz/local_harness/rtl/local_driver_v1.h',
             'src/myfuzz/scenario/rtl/local_command_replay.h')
@@ -249,7 +250,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             raise ValueError('driver-rvx-memory-backend-shape')
         fields.update({role: row['name'] for role, row in rows.items()})
         allowed_inputs = set()
-    elif kind in ('native_memory_cpu', 'axi4_lite_cpu', 'axi4_cpu', 'ahb_lite_cpu'):
+    elif kind in ('native_memory_cpu', 'axi4_lite_cpu', 'axi4_cpu', 'reduced_dual_axi_cpu', 'ahb_lite_cpu'):
         # AHB-Lite CPU (CVW) declares no interrupt entry, so nothing outside the
         # harness drives it; the program it runs comes from the beat memory face.
         allowed_inputs = set()
@@ -322,7 +323,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
 
     max_wait = document['effective_max_wait_cycles']
     max_samples = (1 if kind in ('obi_cpu', 'native_memory_cpu', 'rvx_memory_cpu',
-                                'wishbone_cpu', 'wishbone_dma', 'axi4_lite_cpu', 'axi4_cpu', 'ahb_lite_cpu',
+                                'wishbone_cpu', 'wishbone_dma', 'axi4_lite_cpu', 'axi4_cpu', 'reduced_dual_axi_cpu', 'ahb_lite_cpu',
                                 'cva6_packed_axi4_cpu')
                    else 2 * max_wait + 5)
     # Conservative serialized upper bound, before issuing any command effects.
@@ -400,6 +401,15 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
 '''
         operation_check = ('command.operation != "STEP_AXIL_UART" && '
                            'command.operation != "ACCESS_AXIL_UART"')
+    elif kind == 'reduced_dual_axi_cpu':
+        assignments = '\n'.join(f'      dut.{name} = command.fields[{index}];'
+                                for index, name in enumerate(REDUCED_AXI_STEP_PORTS))
+        dispatch = assignments + '''
+      dut.eval();
+      pre_backend = backend_snapshot(dut);
+      tick(dut, &samples);
+'''
+        operation_check = 'command.operation != "STEP_REDUCED_AXI"'
     elif kind == 'axi4_cpu':
         assignments = '\n'.join(f'      dut.{name} = command.fields[{index}];'
                                 for index, name in enumerate(AXI_STEP_PORTS))

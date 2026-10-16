@@ -112,7 +112,7 @@ def _discover_host_sources(probes=None):
     for name in ('session', 'cpu_session', 'gpio_session',
                  'wishbone_cpu_session', 'wishbone_dma_fields', 'wishbone_dma_template',
                  'wishbone_dma_session',
-                 'axi_lite_session', 'axi4_cpu_session',
+                 'axi_lite_session', 'axi4_cpu_session', 'vexii_axi_session',
                  'ahb_lite_session',
                  'cva6_axi4_session',
                  'spi_session', 'timer_session', 'axil_uart_session', 'i2c_session',

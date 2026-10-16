@@ -26,6 +26,7 @@ from .wire import (MAX_REPLY_LINE_BYTES, DriverReceipt, parse_driver_ack,
 from .wishbone_dma_fields import DMA_STEP_MAXIMA
 from .axi4_fields import AXI_STEP_MAXIMA
 from .cva6_axi4_fields import CVA6_AXI_STEP_MAXIMA
+from .vexii_axi_fields import STEP_MAXIMA as REDUCED_AXI_STEP_MAXIMA
 
 
 _command_timing_observer: ContextVar[Callable[[str, float], None] | None] = (
@@ -48,6 +49,7 @@ def observe_local_command_timings(observer: Callable[[str, float], None]
 _OPERATIONS = {
     'wishbone_dma': {'STEP_WB_DMA': DMA_STEP_MAXIMA},
     'axi4_cpu': {'STEP_AXI4': AXI_STEP_MAXIMA},
+    'reduced_dual_axi_cpu': {'STEP_REDUCED_AXI': REDUCED_AXI_STEP_MAXIMA},
     'cva6_packed_axi4_cpu': {'STEP_CVA6_AXI4': CVA6_AXI_STEP_MAXIMA},
     'native_memory_cpu': {'STEP_MEMORY': (1, 1, 0xffffffff, 1)},
     'rvx_memory_cpu': {'STEP_RVX_MEMORY': (1, 1, 0xffffffff)},

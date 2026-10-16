@@ -166,6 +166,7 @@ inline ParseResult parse_command(const std::string &line) {
       maxima.insert(maxima.end(), channel.begin(), channel.end());
     }
   }
+  else if (tokens[3] == "STEP_REDUCED_AXI") maxima = {1ULL, 1ULL, 1ULL, 4294967295ULL, 1ULL, 3ULL, 1ULL, 1ULL, 1ULL, 1ULL, 3ULL, 1ULL, 1ULL, 1ULL, 4294967295ULL, 1ULL, 3ULL};
   else if (tokens[3] == "STEP_CVA6_AXI4") {
     maxima = {1, 1, 1, 1, 1, 15, 3,
               std::numeric_limits<std::uint64_t>::max(),

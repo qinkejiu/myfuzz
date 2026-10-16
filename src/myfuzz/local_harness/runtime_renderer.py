@@ -17,6 +17,7 @@ from .runtime_artifact import LocalRuntimeArtifact
 from .source_lock import verify_local_source_lock
 from .axi4_fields import AXI_SHAPE
 from .cva6_axi4_fields import CVA6_AXI_SHAPE
+from .vexii_axi_fields import SHAPES as REDUCED_AXI_SHAPES
 from .ahb_lite_register_template import register_observe_policy as ahb_register_policy, BUS_SHAPE as _AHB_TARGET
 from .request import LocalHarnessRequestV2
 from .tlul_register_template import register_observe_policy, serial_peer_policy
@@ -454,6 +455,23 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
         adapters = ['src/myfuzz/protocols/rtl/axi4_lite_processor_memory_adapter.sv']
     elif (len(endpoints) == 2 and functions == cpu_functions
+          and all(e.protocol == ('axi4', '1') for e in endpoints)
+          and plan.profile.capabilities.get('single_beat_reduced_axi') is True):
+        from .template_contracts import select_template_contract
+        c = plan.profile.capabilities
+        if tuple(c.get(k) for k in ('address_width', 'data_width', 'id_width',
+                'bursts', 'byte_enable', 'error_response', 'max_outstanding')) != (
+                32, 32, 1, False, True, True, 1):
+            raise ValueError('runtime-reduced-axi-capabilities')
+        for endpoint in endpoints:
+            prefix = 'i' if endpoint.function == 'instruction_memory_master' else 'd'
+            select_template_contract(endpoint, c, template_id='cpu.axi4-reduced',
+                template_version='1', variant_id='fetch-single' if prefix == 'i' else 'data-single')
+        kind = 'reduced_dual_axi_cpu'
+        boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
+        adapters = []
+
+    elif (len(endpoints) == 2 and functions == cpu_functions
           and all(e.protocol == ('axi4', '1') for e in endpoints)):
         if (plan.profile.capabilities.get('address_width'),
                 plan.profile.capabilities.get('data_width'),
@@ -829,6 +847,18 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                          '  ) u_adapter_reg (\n    '
                          + ',\n    '.join(f'.{p}({v})' for p, v in pairs.items())
                          + '\n  );')
+    elif kind == 'reduced_dual_axi_cpu':
+        for endpoint in sorted(endpoints, key=lambda e: e.function):
+            prefix = 'i' if endpoint.function == 'instruction_memory_master' else 'd'
+            shape = REDUCED_AXI_SHAPES[prefix]
+            wires = _shape(endpoint, shape, abi)
+            for role, (direction, width) in shape.items():
+                name = prefix + '_' + role
+                ports.append((name, direction, width))
+                backend.append(dict(name=name, direction=direction, width=width,
+                                    role=role, channel=prefix))
+                statements.append(f'assign {name} = {wires[role]};' if direction == 'output'
+                                  else f'assign {wires[role]} = {name};')
     elif kind == 'axi4_cpu':
         for endpoint in sorted(endpoints, key=lambda e: e.function):
             prefix = 'i' if endpoint.function == 'instruction_memory_master' else 'd'

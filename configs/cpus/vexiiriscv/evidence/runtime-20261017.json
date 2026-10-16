@@ -1,0 +1,71 @@
+{
+  "schema_version": "vexii_generated_ram_acceptance.v1",
+  "execution": "remote_generated_harness_real_Verilator_RTL",
+  "test_result": "9 passed in 52.75s",
+  "artifact_digest": "5a0f1ed438dd5da9a6350c38ab34f2d8b6ee25c96756528c249287f33f17f241",
+  "build_digest": "9a0b8084724e6e83f546aa1dc9399a4b76a0dc4a512fbd70032685a894ca70fb",
+  "ticks_per_process": 55,
+  "fetch_address_acceptances": 11,
+  "data_read_acceptances": 1,
+  "completed_b_responses": 2,
+  "actual_normal_stores": [
+    [
+      53,
+      15,
+      1
+    ],
+    [
+      54,
+      15,
+      1
+    ]
+  ],
+  "actual_fault_read_stores": [
+    [
+      53,
+      15,
+      1
+    ],
+    [
+      1,
+      15,
+      1
+    ]
+  ],
+  "fresh_samples_match": true,
+  "fresh_identities_match": true,
+  "fresh_execution_ids_differ": true,
+  "host_source_files_verified_against_current_tree": 304,
+  "stale_host_source_files": [],
+  "evidence": [
+    {
+      "path": "configs/cpus/vexiiriscv/evidence/first-20261017.json.gz",
+      "sha256": "892c2a50dbf730a2ae5f81bd7835020e816f18139479cb57c388ecd9172e1b63",
+      "uncompressed_sha256": "db18e9d4870b6c7977c0be622f02bd1bdf90ccc630a364e6976f0b15d7753632"
+    },
+    {
+      "path": "configs/cpus/vexiiriscv/evidence/fresh-20261017.json.gz",
+      "sha256": "fd3fd5642f3a815ef0d58a9d13ea4e3acae36c59ad493c85628e026834445dd4",
+      "uncompressed_sha256": "3cbc79abe7fc21d90ecbdc9140b2a46b8a89cf58d3c9213bf817224fb1ee922c"
+    },
+    {
+      "path": "configs/cpus/vexiiriscv/evidence/fault-20261017.json.gz",
+      "sha256": "0dbefcea97ebccf0f71f06ee3a26581b9f6bd6f7049e862373a213fb13228963",
+      "uncompressed_sha256": "cea17470136a1da6f8fb3238a68f0ecd391c0adecdb26261f43d884b0f893fe3"
+    },
+    {
+      "path": "configs/cpus/vexiiriscv/evidence/artifact-20261017.json.gz",
+      "sha256": "324fe9ac29bd1c5c867ad96c1d77cb8900d5aeb072f1cf6ceac86b267dfddf4b",
+      "uncompressed_sha256": "1a16bb29f1a685824f183cddfc2593e93372b7778bb565a23e170d3de58ce5cd"
+    }
+  ],
+  "not_claimed": [
+    "CPU/IP MMIO composition",
+    "IRQ delivery",
+    "full AXI bursts/exclusives/atomics",
+    "protocol evidence consumer and coverage",
+    "authenticated evidence-prefix replay",
+    "persistent online search",
+    "performance acceptance"
+  ]
+}

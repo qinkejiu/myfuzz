@@ -1,0 +1,31 @@
+{
+  "schema_version": "pinned_generated_cpu_closure.v1",
+  "component_id": "vexiiriscv",
+  "root": ".",
+  "source_revision": "sha256:5e73d0523bbe106f4d489971315b7320c1e2e9eccbee60bc679a5bad7d5ce977",
+  "top_module": "VexiiRiscv",
+  "profile_sha256": "426e8ff0bdd088c861942fd44f0d4c22803e8c2741f38b12b5fa8a8ddebe7450",
+  "closure_files": [
+    {
+      "root": ".",
+      "path": "configs/cpus/vexiiriscv/generated/VexiiRiscv.v",
+      "sha256": "2453680b40e427ad51a29a84cd9138b4b608e206fbec5349e67480147806d0a0"
+    }
+  ],
+  "authenticated_inputs": [
+    {
+      "path": "configs/cpus/vexiiriscv/generated/manifest.json",
+      "sha256": "0133196ed46da6aa3184b4d555f6c035d836b3909fe5467fb8cfad9752feb099"
+    },
+    {
+      "path": "configs/cpus/vexiiriscv/generated/ports.json",
+      "sha256": "3644e1357fd2849b689ee6aa414994a65356f09f75e3de0d17f1d7521586aea3"
+    },
+    {
+      "path": "configs/cpus/vexiiriscv/generated/dependencies.sha256",
+      "sha256": "8b4d56fe9348633dd65b4b0b4483d56cb8b7e04f9d094b7c1b2bf359e29e3cdf"
+    }
+  ],
+  "lint_evidence": "generated/manifest.json:lint",
+  "runtime_status": "unverified"
+}
