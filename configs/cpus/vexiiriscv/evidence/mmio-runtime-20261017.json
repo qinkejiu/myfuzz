@@ -1,0 +1,77 @@
+{
+  "apb_accesses": [
+    [
+      12,
+      1,
+      53,
+      0,
+      0
+    ],
+    [
+      12,
+      0,
+      0,
+      53,
+      0
+    ]
+  ],
+  "artifact_digest": "c3b9cf4ba00b840d61d040879127ba97492c733ac8b33d76298088fd831057d9",
+  "artifacts": [
+    {
+      "path": "configs/cpus/vexiiriscv/evidence/mmio-first-20261017.json.gz",
+      "sha256": "5e31249cbae9f4bffecc8c08ca2796554c5628493cc238665a87f6b3370b8112",
+      "uncompressed_sha256": "bf31a1b0a8aab1920125d944fe8feab07583c37581b576e4bc0e3d58d5416fb4"
+    },
+    {
+      "path": "configs/cpus/vexiiriscv/evidence/mmio-fresh-20261017.json.gz",
+      "sha256": "4dc89f1e50881293cea55984bf37a5b97231bfc3cbe47932e368c77575169171",
+      "uncompressed_sha256": "702bdfbc66b95a6db690c6a47ff72b3f67efbc176401ffd29729892febbdfbe6"
+    },
+    {
+      "path": "configs/cpus/vexiiriscv/evidence/mmio-fault-20261017.json.gz",
+      "sha256": "a5b20a745882ac21adf39d288e7fe9bb0bcfe74ec39480490786ee00ad2bc889",
+      "uncompressed_sha256": "a251cec09a71bde49bbddfec1969ed1d0293a30fc615736125529dcc99d5c3c5"
+    },
+    {
+      "path": "configs/cpus/vexiiriscv/evidence/mmio-artifact-20261017.json.gz",
+      "sha256": "855c34842d495499bb404c8d1bba20de6a09bac5ba434d21867b42addf30ca5b",
+      "uncompressed_sha256": "67b199c8bd01a0303f75b1ac02ea4e8985baf95c2dd1c53dc4e364ec6e3a245b"
+    }
+  ],
+  "build_digest": "0045ba468f1091e8884b68644810b94eb6690a0caf5bc9957ecc92eed8d7b7f6",
+  "cpu_aw": [
+    1073741836,
+    2147483908
+  ],
+  "cpu_raw_samples_match": true,
+  "cpu_rdata": [
+    53
+  ],
+  "cpu_wdata": [
+    53,
+    54
+  ],
+  "execution_ids_differ": true,
+  "host_source_count": 308,
+  "identities_match": true,
+  "negative": "ordinary APB actual receipt binding mismatch",
+  "negative_ticks": 40,
+  "not_proof_of": [
+    "full_P6",
+    "six_CPU_four_IP_DMA",
+    "interrupts",
+    "continuous_fuzzing",
+    "same_protocol_noadapt",
+    "authenticated_prefix_replay"
+  ],
+  "schema_version": "vexii_generated_cpu_ip_acceptance.v1",
+  "scope": "directed_native_cpu_queued_router_native_pulp_gpio_cpu_ram",
+  "stale_local_host_sources": [
+    "src/myfuzz/local_harness/build.py",
+    "src/myfuzz/scenario/runner.py"
+  ],
+  "target_raw_samples_match": true,
+  "test_result": "9 passed, 1 skipped in97.42s",
+  "tick_bound": 500,
+  "ticks": 52
+}

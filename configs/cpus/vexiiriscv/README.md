@@ -19,10 +19,12 @@ pipeline and native process, serves PersistentMemory, preserves response IDs
 and data until handshake, buffers AW/W independently, and permits the missing
 half of a partially accepted write to drain during quiesce. Unsupported size,
 alignment, WLAST and strobe patterns fail closed. This is one outstanding
-transaction per endpoint, separate fetch/LSU, no MMIO target routing.
+transaction per endpoint, separate fetch/LSU. Opt-in `mmio_router` queues LSU
+MMIO for independent target scheduling; the directed native GPIO chain and
+response substitution refusal are recorded in the [CPU/IP report](../../../docs/reports/vexiiriscv-generated-cpu-ip-20261017.md).
 
 For actual commands, physical evidence and boundaries see
 [generated harness report](../../../docs/reports/vexiiriscv-generated-harness-20261017.md).
 The existing direct C++ AXI smoke evidence is independent and is not used as
-proof of this generated harness. CPU/IP composition, interrupt delivery,
+proof of this generated harness. Broader CPU/IP composition, interrupt delivery,
 continuous search and authenticated evidence-prefix replay remain pending.

@@ -11,10 +11,11 @@ from myfuzz.scenario.memory_service import MemoryService
 from .runtime_artifact import LocalRuntimeArtifact
 from .session import GeneratedLocalSession
 from .vexii_axi_fields import SHAPES, STEP_PORTS
+from myfuzz.scenario.router import DataflowRouter
 
 
 class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
-    """Separate fetch reads and LSU channels; no MMIO or interrupt delivery."""
+    """Separate fetch/LSU channels with opt-in externally scheduled MMIO."""
     artifact_kind = 'reduced_dual_axi_cpu'
     max_transaction_events_per_step = 5
     max_local_ticks_per_step = 1
@@ -22,18 +23,35 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
 
     def __init__(self, artifact: LocalRuntimeArtifact, *, base_dir: Path,
                  cache_dir: Path, memory: PersistentMemory,
-                 command_timeout_seconds: float = 10.0):
+                 command_timeout_seconds: float = 10.0, mmio_router=None):
         if artifact.runtime_document.get('kind') != self.artifact_kind:
             raise ValueError('reduced AXI session requires admitted reduced dual AXI artifact')
         if not isinstance(memory, PersistentMemory):
             raise ValueError('reduced AXI session requires persistent memory')
         super().__init__(artifact, base_dir=base_dir, cache_dir=cache_dir,
                          command_timeout_seconds=command_timeout_seconds)
+        if mmio_router is not None and not isinstance(mmio_router, DataflowRouter):
+            raise ValueError("AXI MMIO requires DataflowRouter")
+        self.mmio_router = mmio_router
         self.memory = memory
         self.service = MemoryService(memory, TransactionLedger())
         self.source_component = artifact.plan.request.instance_id
         self.read_beats = self.write_beats = self.write_responses = 0
         self._clear()
+
+    def queue_mmio(self, key, prefix, address, write, value, be, callback):
+        router = getattr(self, 'mmio_router', None)
+        if router is None or not router.owns(address):
+            return False
+        if prefix != 'd':
+            raise ProtocolEnvironmentError('instruction MMIO is unsupported')
+        router.enqueue(self.service.ledger, key, address=address, write=write,
+                       wdata=value, be=be, beat_bytes=4, callback=callback)
+        return True
+
+    def cancel_mmio(self):
+        router = getattr(self, 'mmio_router', None)
+        return () if router is None else router.cancel_for_ledger(self.service.ledger)
 
     def _clear(self):
         self._state = {p: {'read': None, 'aw': None, 'w': None, 'b': None}
@@ -44,8 +62,10 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
 
     def identity_document(self):
         return {**super().identity_document(),
-                'cpu_service_schema_version': 'generated_reduced_dual_axi_ram.v1',
-                'source_component': self.source_component}
+                'cpu_service_schema_version': 'generated_reduced_dual_axi_queued_mmio.v2',
+                'source_component': self.source_component,
+                'transaction_execution_identity': 'native_session',
+                'mmio_delivery': 'externally_scheduled' if getattr(self, 'mmio_router', None) else 'disabled'}
 
     def begin_case(self, testcase_id):
         super().begin_case(testcase_id)
@@ -61,15 +81,16 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
 
     def reset_local(self):
         cancelled = self.pending_responses
+        cancelled_targets = self.cancel_mmio()
         self._clear()
         super().reset_local()
-        return {'cancelled_responses': cancelled, 'cancelled_target_requests': ()}
+        return {'cancelled_responses': cancelled, 'cancelled_target_requests': cancelled_targets}
 
     def _key(self, prefix):
         if not self._case_id:
             raise RuntimeError('reduced AXI testcase is not running')
         self._sequences[prefix] += 1
-        return TransactionKey('local-execution', self._case_id, self.source_component,
+        return TransactionKey(self._execution, self._case_id, self.source_component,
                               self.reset_epoch, 'instr' if prefix == 'i' else 'data',
                               self._sequences[prefix])
 
@@ -90,7 +111,7 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
                 if state['b'] is not None:
                     values['d_bvalid'], values['d_bid'] = 1, state['b']
             read = state['read']
-            if read is not None:
+            if read is not None and read['data'] is not None:
                 values.update({prefix+'_rvalid': 1, prefix+'_rid': read['id'],
                                prefix+'_rdata': read['data'], prefix+'_rlast': 1})
         return values
@@ -140,8 +161,15 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
                 if state['read'] is not None:
                     raise ProtocolEnvironmentError('reduced AXI multiple outstanding AR')
                 address, _ = self._address(row, 'ar')
-                snapshot = self.service.read(self._key(prefix), address & ~3, width_bytes=4)
-                state['read'] = {'id': row['arid'], 'data': snapshot.value}
+                key = self._key(prefix)
+                pending = {'id': row['arid'], 'data': None}
+                state['read'] = pending
+                def complete_read(response, pending=pending):
+                    if response[1]:
+                        raise ProtocolEnvironmentError('AXI MMIO target read failed')
+                    pending['data'] = response[0]
+                if not self.queue_mmio(key, prefix, address & ~3, False, 0, 15, complete_read):
+                    pending['data'] = self.service.read(key, address & ~3, width_bytes=4).value
             if aw:
                 if state['aw'] is not None:
                     raise ProtocolEnvironmentError('reduced AXI multiple outstanding AW')
@@ -151,16 +179,24 @@ class GeneratedReducedAxiCpuSession(GeneratedLocalSession):
                 if state['w'] is not None or row['wlast'] != 1:
                     raise ProtocolEnvironmentError('reduced AXI extra W beat or missing WLAST')
                 state['w'] = (row['wdata'], row['wstrb'])
-            if state['aw'] is not None and state['w'] is not None:
+            if state['aw'] is not None and state['w'] is not None and not state['aw'].get('queued'):
                 address, size = state['aw']['address'], state['aw']['size']
                 data, strobe = state['w']
                 allowed = ((1 << (1 << size))-1) << (address & 3)
                 if strobe & ~allowed:
                     raise ProtocolEnvironmentError('reduced AXI strobe exceeds addressed lanes')
-                self.service.write(self._key(prefix), address & ~3, data,
-                                   width_bytes=4, byte_enable=strobe)
-                state['b'] = state['aw']['id']
-                state['aw'] = state['w'] = None
+                key = self._key(prefix)
+                identifier = state['aw']['id']
+                def complete_write(response, state=state, identifier=identifier):
+                    if response[1]:
+                        raise ProtocolEnvironmentError('AXI MMIO target write failed')
+                    state['b'] = identifier
+                    state['aw'] = state['w'] = None
+                if not self.queue_mmio(key, prefix, address & ~3, True, data, strobe, complete_write):
+                    self.service.write(key, address & ~3, data, width_bytes=4, byte_enable=strobe)
+                    complete_write((0, 0))
+                else:
+                    state['aw']['queued'] = True
                 self.write_beats += 1
             for name, accepted in [('ar', ar), ('r', r), ('aw', aw), ('w', w), ('b', b)]:
                 observed[prefix+'_'+name+('_consumed' if name in ('r', 'b') else '_accepted')] = int(accepted)

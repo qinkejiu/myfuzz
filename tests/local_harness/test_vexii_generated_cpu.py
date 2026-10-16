@@ -125,6 +125,7 @@ def fake_cpu():
     cpu.memory = PersistentMemory(regions=(MemoryRegion('ram', BOOT, 4096),),
         initialization_seed=0, max_initialized_bytes=4096)
     cpu.service = MemoryService(cpu.memory, TransactionLedger())
+    cpu._execution = 'unit-test-native-execution'
     cpu._case_id, cpu.source_component, cpu.reset_epoch = 'test', 'renamed-cpu', 0
     cpu.read_beats = cpu.write_beats = cpu.write_responses = 0
     cpu._clear()
@@ -185,3 +186,91 @@ def test_unsupported_transfers_refuse(outputs):
     with pytest.raises(ProtocolEnvironmentError):
         edge(**outputs)
     assert cpu.write_beats == 0
+
+
+def exercise_mmio(a, cache, *, substitute=False):
+    """Actual native CPU → queued router → native GPIO → CPU → RAM."""
+    from dataclasses import asdict
+    from myfuzz.local_harness import GeneratedPulpGpioSession
+    from myfuzz.scenario.ibex_pulp_dual_source import _artifact, GPIO_PROFILE
+    from myfuzz.scenario.router import DataflowRouter, DeviceWindow
+    gpio = GeneratedPulpGpioSession(_artifact(GPIO_PROFILE, 'gpio', physical_observations=True),
+                                   base_dir=ROOT, cache_dir=cache, command_timeout_seconds=120)
+    gpio.configure_ordinary_apb_access_receipts(max_records=8)
+    router = DataflowRouter((DeviceWindow('gpio', 0x40000000, 0x1000, gpio),))
+    memory = PersistentMemory(regions=(MemoryRegion('ram', BOOT, 0x100000),),
+                              initialization_seed=0, max_initialized_bytes=0x10000)
+    # GPIO PADOUT=53; read PADOUT; add1; store result in RAM.
+    program = (0x400000b7, 0x03500113, 0x0020a623, 0x00c0a183,
+               0x00118213, 0x800002b7, 0x1042a223, 0x0000006f)
+    memory.preload(BOOT, b''.join(w.to_bytes(4,'little') for w in program))
+    cpu = GeneratedReducedAxiCpuSession(a, base_dir=ROOT, cache_dir=cache,
+        memory=memory, mmio_router=router, command_timeout_seconds=120)
+    samples=[];target_samples=[]; substitutions=[]
+    if substitute:
+        original = gpio.execute_observed_register_access
+        def replaced(key, *, delivery_context):
+            result = original(key, delivery_context=delivery_context)
+            # Explicit adversarial environment: corrupt target return while its
+            # actual native receipt remains unchanged. Router must reject it.
+            if not delivery_context['write']:
+                substitutions.append(copy.deepcopy(result))
+                return {**result, 'rdata':result['rdata'] ^ 1}
+            return result
+        gpio.execute_observed_register_access = replaced
+    try:
+        gpio.begin_case('vexii-gpio');cpu.begin_case('vexii-gpio')
+        rejected=None
+        for _ in range(500):
+            cpu.step_local({});samples.extend(copy.deepcopy(cpu.last_samples))
+            try:
+                for name in router.ready_targets:router.drain_one(name)
+            except ValueError as error:
+                if not substitute:raise
+                rejected=str(error);break
+            target_samples.extend(gpio.drain_tick_samples())
+            if cpu.write_responses==2:break
+        else:pytest.fail('strict 500 CPU tick bound exceeded')
+        rows=[s['pre']['backend'] for s in samples]
+        aw=[r['d_awaddr'] for r in rows if r['d_awvalid'] and r['d_awready']]
+        assert aw[:1]==[0x4000000c]
+        assert len(router.acceptances)==2
+        keys=[r['source_transaction'] for r in router.acceptances]
+        assert all(k.execution_id==cpu._execution and k.source_epoch==cpu.reset_epoch for k in keys)
+        assert [k.source_sequence for k in keys]==[1,2]
+        if substitute:
+            assert rejected=='ordinary APB actual receipt binding mismatch'
+            assert substitutions and cpu.write_responses==1
+            assert not any(r['d_awaddr']==BOOT+0x104 for r in rows if r['d_awvalid'] and r['d_awready'])
+        else:
+            assert aw==[0x4000000c, BOOT+0x104]
+            assert [r['d_wdata'] for r in rows if r['d_wvalid'] and r['d_wready']]==[53,54]
+            assert [r['d_rdata'] for r in rows if r['d_rvalid'] and r['d_rready']]==[53]
+            assert memory.read(BOOT+0x104,4,transaction_id='verify').value==54
+            assert len(router.deliveries)==2 and not cpu.service.ledger.unresolved_keys
+            assert all(r['source_delivery_confirmed'] for r in router.deliveries)
+        return dict(identity=cpu.identity_document(), target_identity=gpio.identity_document(),
+            execution=cpu._execution, ticks=cpu.local_ticks, samples=samples,
+            target_samples=target_samples, acceptances=router.acceptances, deliveries=router.deliveries,
+            ledger=[dict(key=asdict(k),status=e.status,payload_digest=e.payload_digest,receipt=e.receipt)
+                    for k,e in cpu.service.ledger._entries.items()],
+            rejected=rejected, substitutions=substitutions)
+    finally:
+        cpu.end_case();gpio.end_case()
+
+
+@pytest.mark.skipif(os.environ.get('MYFUZZ_VEXII_MMIO_REAL')!='1',reason='explicit real CPU/IP gate')
+def test_real_generated_vexii_gpio_two_fresh_runs_and_substitution(tmp_path):
+    from dataclasses import asdict,is_dataclass
+    a=artifact();cache=Path(os.environ.get('MYFUZZ_VEXII_CACHE',str(tmp_path/'cache')))
+    first=exercise_mmio(a,cache);fresh=exercise_mmio(a,cache)
+    fault=exercise_mmio(a,cache,substitute=True)
+    assert first['execution']!=fresh['execution']
+    assert first['identity']==fresh['identity'] and first['target_identity']==fresh['target_identity']
+    assert first['samples']==fresh['samples']
+    assert first['target_samples']==fresh['target_samples']
+    if 'MYFUZZ_VEXII_EVIDENCE' in os.environ:
+        directory=Path(os.environ['MYFUZZ_VEXII_EVIDENCE']);directory.mkdir(parents=True,exist_ok=True)
+        for name,value in [('mmio-first',first),('mmio-fresh',fresh),('mmio-fault',fault),('mmio-artifact',a.runtime_document)]:
+            (directory/(name+'.json')).write_text(json.dumps(value,indent=2,sort_keys=True,
+                default=lambda x:asdict(x) if is_dataclass(x) else str(x))+'\n')
