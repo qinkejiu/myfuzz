@@ -1,0 +1,23 @@
+....F.                                                                   [100%]
+=================================== FAILURES ===================================
+______________ test_generated_driver_startup_capture_is_ahb_only _______________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profi...35d690bc5a45aacd9b4b001'}), <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x7db5b0732570>)
+
+    def test_generated_driver_startup_capture_is_ahb_only(generated):
+     artifact,cpu=generated;c=artifact.runtime_document['ahb_startup_contract'];cpp=artifact.cpp_text
+     assert c['total_ticks']==16 and c['page_count']==1
+     assert 'CommandSet::AhbStartup' in cpp and cpp.count('capture_ahb_startup(dut);')==2
+     assert 'READ_AHB_STARTUP' in cpp and 'ahb_startup_next_page' in cpp
+     assert 'tick(dut, &measured);' in cpp
+     assert 'const auto reset_pre = static_cast<unsigned>(dut.reset);' in cpp
+     assert 'const auto reset_post = static_cast<unsigned>(dut.reset);' in cpp
+     assert '"READY local_driver.v1 "' in cpp
+>    assert cpu.identity_document()['ahb_observation_contract']['startup_capture']==c
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    KeyError: 'startup_capture'
+
+tests/local_harness/test_ahb_startup.py:80: KeyError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_ahb_startup.py::test_generated_driver_startup_capture_is_ahb_only
+1 failed, 5 passed in 0.65s

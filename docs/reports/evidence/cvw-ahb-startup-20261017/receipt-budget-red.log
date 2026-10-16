@@ -1,0 +1,49 @@
+...................FFF                                                   [100%]
+=================================== FAILURES ===================================
+________ test_startup_receipts_are_global_raw_budgeted_and_not_replaced ________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profi...35d690bc5a45aacd9b4b001'}), <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x7c208662ab40>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7c20866066f0>
+
+    def test_startup_receipts_are_global_raw_budgeted_and_not_replaced(generated,monkeypatch):
+     artifact,cpu=generated;calls,aborts=transport_fixture(cpu,monkeypatch)
+     receipts=cpu._ahb_startup_receipts
+     cpu.begin_case('case')
+>    assert cpu._ahb_startup_receipts is receipts
+E    AssertionError: assert [{'status': 'result', 'execution': '0123456789abcdef0123456789abcdef', 'sequence': 1, 'tick_before': 0, ...}] is []
+E     +  where [{'status': 'result', 'execution': '0123456789abcdef0123456789abcdef', 'sequence': 1, 'tick_before': 0, ...}] = <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x7c208662ab40>._ahb_startup_receipts
+
+tests/local_harness/test_ahb_startup.py:274: AssertionError
+_________ test_startup_receipt_budget_fails_without_projecting_records _________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profi...35d690bc5a45aacd9b4b001'}), <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x7c2086667680>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7c2086604590>
+
+    def test_startup_receipt_budget_fails_without_projecting_records(generated,monkeypatch):
+     artifact,cpu=generated;calls,aborts=transport_fixture(cpu,monkeypatch)
+     cpu._ahb_observer._limits=(100000,1,1000000,256)
+     with pytest.raises(ValueError,match='budget'):cpu.begin_case('case')
+>    assert not any(e['kind']=='ahb_raw' for e in cpu.runtime_events)
+E    assert not True
+E     +  where True = any(<generator object test_startup_receipt_budget_fails_without_projecting_records.<locals>.<genexpr> at 0x7c208616a400>)
+
+tests/local_harness/test_ahb_startup.py:283: AssertionError
+________________ test_page_completion_only_after_replay_finish _________________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profi...35d690bc5a45aacd9b4b001'}), <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x7c20866f7830>)
+
+    def test_page_completion_only_after_replay_finish(generated):
+     artifact,cpu=generated;cpp=artifact.cpp_text
+>    assert cpp.index('++ahb_startup_next_page;')>cpp.index('replay.finish(command.sequence, terminal);')
+E    assert 10648 > 12255
+E     +  where 10648 = <built-in method index of str object at 0x3b73e2e0>('++ahb_startup_next_page;')
+E     +    where <built-in method index of str object at 0x3b73e2e0> = '#include "Vlocal_runtime_cpu.h"\n#include "verilated.h"\n#include "local_driver_v1.h"\n\n\n\n#include <iostream>\n#in...:exception &) {}\n      std::cout << failure << std::endl;\n      break;\n    }\n  }\n  dut.final();\n  return 0;\n}\n'.index
+E     +  and   12255 = <built-in method index of str object at 0x3b73e2e0>('replay.finish(command.sequence, terminal);')
+E     +    where <built-in method index of str object at 0x3b73e2e0> = '#include "Vlocal_runtime_cpu.h"\n#include "verilated.h"\n#include "local_driver_v1.h"\n\n\n\n#include <iostream>\n#in...:exception &) {}\n      std::cout << failure << std::endl;\n      break;\n    }\n  }\n  dut.final();\n  return 0;\n}\n'.index
+
+tests/local_harness/test_ahb_startup.py:290: AssertionError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_ahb_startup.py::test_startup_receipts_are_global_raw_budgeted_and_not_replaced
+FAILED tests/local_harness/test_ahb_startup.py::test_startup_receipt_budget_fails_without_projecting_records
+FAILED tests/local_harness/test_ahb_startup.py::test_page_completion_only_after_replay_finish
+3 failed, 19 passed in 1.44s

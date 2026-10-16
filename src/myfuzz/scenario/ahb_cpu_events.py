@@ -25,6 +25,8 @@ class AhbCpuObserver:
         self.events=[];self.scope=None;self._failed=False;self._exhausted=False
         self._edges=self._bytes=self._scopes=self._records=0
         self._limits=limits;self.tick=0;self.pending=None;self._address_hold=None
+        self._startup_contract=None;self._startup_seen=0;self._startup_finished=False
+        self._measurement_offset=0;self.measured_reset_to_command_prefix=False
         self.counts=dict(accepted=0,completed=0,writes=0,reads=0,stalls=0,errors=0)
         self.contract={'schema_version':SCHEMA,'observer_version':1,
             'signal_widths':dict(SHAPE),'sampling':'pre_edge_post_continuity',
@@ -64,6 +66,15 @@ class AhbCpuObserver:
         self.events[-1]['raw_event_refs']=[ref]
         raise ValueError('ahb_'+reason)
 
+    def require_begin_capacity(self, startup_edges=0):
+        if self._failed or self._exhausted:
+            raise ValueError('ahb_not_active')
+        if (self._scopes>=self._limits[3] or self._records>=self._limits[2]
+                or self._edges+startup_edges>self._limits[0]):
+            self._exhausted=True
+            self.poison('scope_or_startup_budget',possible_effects=False)
+            raise ValueError('ahb_scope_or_startup_budget')
+
     def begin_scope(self,*,execution_id,testcase_id,reset_epoch):
         if not all(isinstance(v,str) and v for v in (execution_id,testcase_id)) or type(reset_epoch) is not int or reset_epoch<0:
             raise ValueError('ahb_scope')
@@ -74,6 +85,8 @@ class AhbCpuObserver:
         if self._scopes>=self._limits[3]:
             self._exhausted=True;self.poison('scope_budget');raise ValueError('ahb_scope_budget')
         self._scopes+=1;self.tick=0;self.pending=None;self._address_hold=None
+        self._startup_contract=None;self._startup_seen=0;self._startup_finished=False
+        self._measurement_offset=0;self.measured_reset_to_command_prefix=False
         self.scope=dict(execution_id=execution_id,testcase_id=testcase_id,
             reset_epoch=reset_epoch,source_component=self.component_id,endpoint_id=self.endpoint_id)
 
@@ -82,27 +95,83 @@ class AhbCpuObserver:
             self._emit('ahb_reset',cancelled=self.pending,counts=self.counts)
         self.scope=None;self.pending=None;self._address_hold=None;self.tick=0
 
-    def observe(self,sample,*,rows=None):
+    def record_startup_receipt(self, receipt):
         self.require_active()
-        ref=self._emit('ahb_raw',raw_sample=sample)
+        ref=self._emit('ahb_startup_receipt',raw_receipt=receipt,
+            trusted_projection=False,possible_effects=True)
+        self._bytes+=len(json.dumps(receipt,sort_keys=True,separators=(',',':'),allow_nan=False).encode())
+        if self._bytes>self._limits[1] or self._records+5>self._limits[2]:
+            self._fail('budget',ref)
+
+    def begin_startup(self, contract):
+        self.require_active()
+        if self.tick or self._startup_contract is not None:
+            raise ValueError('ahb_startup_state')
+        from myfuzz.local_harness.ahb_startup import validate_startup_contract
+        self._startup_contract=validate_startup_contract(contract)
+
+    def observe_startup(self, record, *, rows):
+        self.require_active()
+        index=self._startup_seen+1
+        reset=int(index<=self._startup_contract['assert_ticks'])
+        if (not isinstance(record,dict) or index>self._startup_contract['total_ticks'] or
+            not isinstance(record.get('sample'),dict) or
+            type(record['sample'].get('local_tick')) is not int or record['sample']['local_tick']!=index or
+            any(type(record.get(k)) is not int or record[k]!=v for k,v in
+                [('startup_edge_index',index),('reset_pre',reset),('reset_post',reset)])):
+            self.poison('startup_record_identity',diagnostic_receipt=record)
+            raise ValueError('ahb_startup_record_identity')
+        self._observe(record['sample'],rows=rows,tick_namespace='startup',
+            reset_asserted=reset,metadata={k:v for k,v in record.items() if k!='sample'})
+        self._startup_seen=index
+
+    def finish_startup(self):
+        self.require_active()
+        if self._startup_contract is None or self._startup_finished or self._startup_seen!=self._startup_contract['total_ticks']:
+            raise ValueError('ahb_startup_incomplete')
+        self._startup_finished=True;self._measurement_offset=self._startup_seen
+        self._emit('ahb_startup_complete',startup_ticks=self._startup_seen,
+            measured_reset_to_command_prefix=False)
+
+    def observe(self,sample,*,rows=None):
+        if self._startup_contract is not None and not self._startup_finished:
+            raise ValueError('ahb_startup_incomplete')
+        return self._observe(sample,rows=rows)
+
+    def _observe(self,sample,*,rows=None,tick_namespace='command',reset_asserted=0,metadata=None):
+        self.require_active()
+        ref=self._emit('ahb_raw',raw_sample=sample,tick_namespace=tick_namespace,
+                       startup_metadata=metadata)
         self._edges+=1
-        try:self._bytes+=len(json.dumps(sample,sort_keys=True,allow_nan=False).encode())
+        try:self._bytes+=len(json.dumps([sample,metadata],sort_keys=True,allow_nan=False).encode())
         except (TypeError,ValueError):self._fail('shape',ref)
         if self._edges>self._limits[0] or self._bytes>self._limits[1] or self._records+5>self._limits[2]:
             self._fail('budget',ref)
         if not isinstance(sample,dict):self._fail('shape',ref)
         tick=sample.get('local_tick')
-        if type(tick) is not int or tick<=self.tick:self._fail('tick',ref)
+        measurement_tick=(tick+self._measurement_offset if type(tick) is int else None)
+        if (type(tick) is not int or tick<1 or measurement_tick<=self.tick
+                or self._startup_finished and measurement_tick!=self.tick+1):
+            self._fail('tick',ref)
         values=sample if rows is None else rows
         if not isinstance(values,dict):self._fail('shape',ref)
         for phase in ('pre','post'):
             row=values.get(phase)
             if not isinstance(row,dict) or set(row)!=set(SHAPE) or any(type(row[k]) is not int or not 0<=row[k]<1<<w for k,w in SHAPE.items()):self._fail('shape',ref)
         p=values['pre'];post=values['post']
-        if self.tick == 0:
+        if self.tick == 0 and tick_namespace=='command':
             self._emit('ahb_prefix_unknown',local_tick=tick,raw_event_refs=[ref],
                 reason='address/data phases before the measured READY boundary are unavailable')
-        self.tick=tick
+        self.tick=measurement_tick
+        if tick_namespace=='startup' and reset_asserted:
+            self.pending=None;self._address_hold=None
+            self._emit('ahb_startup_reset',local_tick=tick,measurement_tick=measurement_tick,
+                tick_namespace=tick_namespace,raw_event_refs=[ref])
+            return
+        if tick_namespace=='command' and self._startup_finished and not self.measured_reset_to_command_prefix:
+            self.measured_reset_to_command_prefix=True
+            self._emit('ahb_prefix_complete',local_tick=tick,measurement_tick=measurement_tick,
+                measured_reset_to_command_prefix=True,raw_event_refs=[ref])
         address={k:p[k] for k in ADDRESS}
         # ERROR may release/cancel an address offer; no AXI VALID rule is applied.
         if self._address_hold is not None and not p['hresp'] and address!=self._address_hold:
@@ -126,7 +195,7 @@ class AhbCpuObserver:
                     self._fail('write_hold',ref,trusted=True)
             if p['hready']:
                 self.counts['completed']+=1;self.counts['errors']+=p['hresp']
-                self._emit('ahb_complete',**old,local_tick=tick,hresp=p['hresp'],
+                self._emit('ahb_complete',**old,local_tick=tick,measurement_tick=measurement_tick,tick_namespace=tick_namespace,hresp=p['hresp'],
                     rdata=p['hrdata'],raw_event_refs=list(dict.fromkeys([old['address_ref']['raw_event'],
                         *([old['write_data_ref']['raw_event']] if old['write_data_ref'] else []),ref])),
                     completion_ref={'raw_event':ref,'phase':'pre'})
@@ -136,7 +205,7 @@ class AhbCpuObserver:
             self.pending={'observation_id':self.counts['accepted'],'address':p['haddr'],
                 'write':p['hwrite'],'controls':address,'address_ref':{'raw_event':ref,'phase':'pre'},
                 'write_data_ref':None,'wdata':None,'wstrb':None}
-            self._emit('ahb_address',**self.pending,local_tick=tick,raw_event_refs=[ref])
+            self._emit('ahb_address',**self.pending,local_tick=tick,measurement_tick=measurement_tick,tick_namespace=tick_namespace,raw_event_refs=[ref])
 
 
 def bind_ahb_trace(document):

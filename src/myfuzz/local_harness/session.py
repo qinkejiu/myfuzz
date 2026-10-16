@@ -58,7 +58,7 @@ _OPERATIONS = {
     'axi4_lite_cpu': {'STEP_MEMORY': (1, 1, 0xffffffff, 1)},
     # AHB-Lite CPU (CVW): the same four-field beat step (req_ready, rsp_valid,
     # rsp_rdata, rsp_error) as the other memory CPUs.
-    'ahb_lite_cpu': {'STEP_MEMORY': (1, 1, 0xffffffff, 1)},
+    'ahb_lite_cpu': {'STEP_MEMORY': (1, 1, 0xffffffff, 1), 'READ_AHB_STARTUP': (63,)},
     'obi_cpu': {'STEP_CPU': (1, 1, 1, 0xffffffff, 1, 1, 1, 0xffffffff, 1)},
     'apb_gpio': {'STEP_GPIO': (0xffffffff,),
                  'ACCESS_GPIO': (0xffffffff, 1, 4092, 0xffffffff, 15)},

@@ -1,0 +1,25 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________________ test_renderer_other_code_ast_unchanged ____________________
+
+    def test_renderer_other_code_ast_unchanged():
+     before=gzip.decompress(Path('docs/reports/evidence/cvw-ahb-implementation-20261017/runtime-renderer-before.py.gz').read_bytes()).decode()
+     after=Path(renderer.__file__).read_text()
+     tree=ast.parse(after)
+     tree.body=[n for n in tree.body if not isinstance(n,ast.FunctionDef) or n.name!='_expose_cpu_ahb_trace']
+     class Remove(ast.NodeTransformer):
+      def visit_Expr(self,n):
+       if isinstance(n.value,ast.Call) and isinstance(n.value.func,ast.Name) and n.value.func.id=='_expose_cpu_ahb_trace':return None
+       return self.generic_visit(n)
+>    assert ast.dump(Remove().visit(tree),include_attributes=False)==ast.dump(ast.parse(before),include_attributes=False)
+E    AssertionError: assert 'Module(body=...e_ignores=[])' == 'Module(body=...e_ignores=[])'
+E      
+E      Skipping 49956 identical leading characters in diff, use -v to show
+E      - rds=[])), Assign(targets=[Name(id='clock_schedule', ctx=Store())], value=Call(func=Name(id='build_local_clock_schedule', ctx=Load()), args=[Attribute(value=Attribute(value=Name(id='plan', ctx=Load()), attr='profile', ctx=Load()), attr='clocks', ctx=Load()), Attribute(value=Attribute(value=Name(id='plan', ctx=Load()), attr='profile', ctx=Load()), attr='resets', ctx=Load())], keywords=[keyword(arg='reset_assert_ticks', value=Attribute(value=Attribute(value=Name(id='plan', ctx=Load()), attr='request', ctx...
+E      
+E      ...Full output truncated (4 lines hidden), use '-vv' to show
+
+tests/local_harness/test_ahb_cpu_observer.py:39: AssertionError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_ahb_cpu_observer.py::test_renderer_other_code_ast_unchanged
+1 failed, 16 deselected in 12.32s

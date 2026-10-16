@@ -13,7 +13,8 @@ ROOT=Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture
-def generated(monkeypatch,tmp_path):
+def generated(monkeypatch,tmp_path,request):
+ timings=getattr(request,'param',(8,8))
  from myfuzz.composition.component_profile import PhysicalFacts,load_component_profile
  from myfuzz.composition.source_crawler import ElaboratedPortFact
  from myfuzz.local_harness import plan as planning, runtime_renderer,session,build
@@ -38,7 +39,7 @@ def generated(monkeypatch,tmp_path):
  identity=lambda artifact,**kw:dict(software_fixture=True,artifact_digest=artifact.runtime_document['artifact_digest'])
  monkeypatch.setattr(build,'local_build_identity',identity)
  monkeypatch.setattr(session,'local_build_identity',identity)
- request=load_local_harness_request(dict(schema_version='local_harness.v1',profile_path='configs/cpus/cvw/component_profile.json',instance_id='cpu',reset_assert_ticks=8,reset_release_ticks=8,max_wait_cycles=16))
+ request=load_local_harness_request(dict(schema_version='local_harness.v1',profile_path='configs/cpus/cvw/component_profile.json',instance_id='cpu',reset_assert_ticks=timings[0],reset_release_ticks=timings[1],max_wait_cycles=16))
  plan=planning.plan_local_harness(request,base_dir=ROOT)
  top=runtime_renderer.render_local_runtime(plan,render_local_harness(plan),verify_local_source_lock(plan.profile,base_dir=ROOT),base_dir=ROOT)
  artifact=render_local_driver(top,base_dir=ROOT)

@@ -1,0 +1,24 @@
+............................FF                                           [100%]
+=================================== FAILURES ===================================
+_ test_observer_cannot_claim_prefix_without_measured_reset_or_contiguous_tick __
+
+    def test_observer_cannot_claim_prefix_without_measured_reset_or_contiguous_tick():
+     o=AhbCpuObserver(component_id='cpu',endpoint_id='bus');o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
+>    with pytest.raises(ValueError):o.begin_startup(dict(assert_ticks=0,total_ticks=0))
+E    Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_ahb_startup.py:404: Failed
+________________ test_startup_raw_tick_must_match_native_index _________________
+
+    def test_startup_raw_tick_must_match_native_index():
+     o=AhbCpuObserver(component_id='cpu',endpoint_id='bus');o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
+     o.begin_startup(startup_contract(assert_ticks=1,release_ticks=0,snapshot_max={}))
+     r=record(1);r['sample']['local_tick']=2
+>    with pytest.raises(ValueError):o.observe_startup(r,rows={p:r['sample'][p]['protocol_taps'] for p in ('pre','post')})
+E    Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_ahb_startup.py:416: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_ahb_startup.py::test_observer_cannot_claim_prefix_without_measured_reset_or_contiguous_tick
+FAILED tests/local_harness/test_ahb_startup.py::test_startup_raw_tick_must_match_native_index
+2 failed, 28 passed in 1.83s

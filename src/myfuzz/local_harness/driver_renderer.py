@@ -356,6 +356,13 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     # 1024 covers root keys, pre_backend, RESULT identity, and terminal ERROR.
     reservation = 2 * (max_samples * (2 * snapshot_size + 128) +
                        snapshot_size + len(json.dumps(maxima_backend)) + 1024) + 512
+    ahb_startup = None
+    if kind == 'ahb_lite_cpu':
+        from .ahb_startup import startup_contract
+        ahb_startup = startup_contract(assert_ticks=artifact.plan.request.reset_assert_ticks,
+            release_ticks=artifact.plan.request.reset_release_ticks,
+            snapshot_max=maximum_snapshot)
+        reservation = max(reservation, 2 * ahb_startup['page_json_bound_bytes'] + 512)
     if reservation > 2 * 1024 * 1024 + 512:
         raise ValueError('driver-result-reservation-too-large')
 
@@ -516,6 +523,21 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
         dispatch = dispatch.replace('@BEAT@', beat)
         dispatch = dispatch.replace('@FAULT_CHECK@', 'dut.m_fault' if kind == 'native_memory_cpu' else 'false')
         operation_check = 'command.operation != "STEP_MEMORY"'
+        if kind == 'ahb_lite_cpu':
+            operation_check = '(command.operation != "STEP_MEMORY" && command.operation != "READ_AHB_STARTUP")'
+            dispatch = (r'''      if (command.operation == "READ_AHB_STARTUP") {
+        pre_backend = backend_snapshot(dut);
+        if (local_ticks != 0 || command.fields[0] != ahb_startup_next_page) {
+          terminal = error_reply(command.execution, command.sequence, local_ticks,
+                                 "protocol_environment", "ahb_startup_page_order");
+        } else {
+          observations_override = object({{"ahb_startup", ahb_startup_page(command.fields[0])}});
+        }
+      } else if (ahb_startup_next_page != @PAGES@) {
+        terminal = error_reply(command.execution, command.sequence, local_ticks,
+                               "protocol_environment", "ahb_startup_incomplete");
+      } else {
+''' + dispatch + '\n      }').replace('@PAGES@', str(ahb_startup['page_count']))
     elif kind == 'obi_cpu':
         assignments = '\n'.join(f'      dut.{name} = command.fields[{index}];' for index, name in enumerate([
             fields['irq_external'], 'i_req_ready', 'i_rsp_valid', 'i_rsp_rdata', 'i_rsp_error',
@@ -863,7 +885,7 @@ static void tick(Model &dut, std::vector<std::string> *samples) {
   if (samples) samples->push_back(object({@CLOCK_EDGE_SAMPLE_ENTRY@{"local_tick", std::to_string(local_ticks)},
                                        {"pre", pre}, {"post", post}}));
 }
-static std::string encode_hex(const std::string &value) {
+@AHB_STARTUP_HELPERS@static std::string encode_hex(const std::string &value) {
   if (value.size() > kMaxPayloadJsonBytes) throw std::length_error("payload_bound");
   const char *digits = "0123456789abcdef";
   std::string answer;
@@ -895,12 +917,12 @@ int main(int argc, char **argv) {
 @RESET_ASSERT@  dut.eval();
   std::uint64_t asserted_ticks = 0, released_ticks = 0;
   for (unsigned i = 0; i < @ASSERT@; ++i) {
-    tick(dut, nullptr);
+    @STARTUP_TICK@
     ++asserted_ticks;
   }
 @RESET_RELEASE@  dut.eval();
   for (unsigned i = 0; i < @RELEASE@; ++i) {
-    tick(dut, nullptr);
+    @STARTUP_TICK@
     ++released_ticks;
   }
 @SPI_DEVICE_BOOT@
@@ -908,7 +930,7 @@ int main(int argc, char **argv) {
   local_ticks = 0;
   std::cout << "READY local_driver.v1 " << MYFUZZ_STRINGIFY(MYFUZZ_ARTIFACT_DIGEST)
             << " " << hex_integer(asserted_ticks) << " " << hex_integer(released_ticks) << std::endl;
-  BoundedReplay replay(@CACHE@, kMaxReplyBytes);
+  BoundedReplay replay(@CACHE@, kMaxReplyBytes@COMMAND_SET@);
   std::string line;
   bool oversize;
   while (read_command(line, oversize)) {
@@ -933,7 +955,7 @@ int main(int argc, char **argv) {
       }
       continue;
     }
-    const auto parsed = parse_command(line);
+    const auto parsed = parse_command(line@COMMAND_SET@);
     if (!parsed.ok) {
       std::cout << error_reply(parsed.command.execution, parsed.command.sequence,
           local_ticks, parsed.code, parsed.detail) << std::endl;
@@ -953,13 +975,13 @@ int main(int argc, char **argv) {
     const auto before = local_ticks;
     std::vector<std::string> samples;
     std::string pre_backend, terminal;
-    std::uint32_t rdata = 0, error = 0;
+@AHB_STARTUP_VARIABLE@    std::uint32_t rdata = 0, error = 0;
     try {
 @DISPATCH@
       if (terminal.empty()) {
         const auto payload = object({
           {"schema_version", quote("local_driver_result.v1")}, {"kind", quote("@KIND@")},
-          {"samples", array(samples)}, {"observations", snapshot(dut)},
+          {"samples", array(samples)}, {"observations", @OBSERVATIONS_EXPRESSION@},
           {"pre_backend", pre_backend}, {"rdata", std::to_string(rdata)},
           {"error", std::to_string(error)}
         });
@@ -967,7 +989,7 @@ int main(int argc, char **argv) {
             hex_integer(before) + ' ' + hex_integer(local_ticks) + ' ' + encode_hex(payload);
       }
       replay.finish(command.sequence, terminal);
-      std::cout << terminal << std::endl;
+@AHB_STARTUP_FINISH@      std::cout << terminal << std::endl;
     } catch (const std::exception &) {
       const auto failure = error_reply(command.execution, command.sequence, local_ticks,
                                        "uncertain_effect", "driver_execution_failed");
@@ -1016,6 +1038,13 @@ int main(int argc, char **argv) {
                   RELEASE=str(artifact.plan.request.reset_release_ticks), CACHE=str(64 * 1024 * 1024),
                   RESERVATION=str(reservation), OPERATION_CHECK=operation_check,
                   DISPATCH=dispatch, KIND=kind)
+    from .ahb_startup import render_startup_helpers
+    values.update(AHB_STARTUP_HELPERS=render_startup_helpers(ahb_startup) if ahb_startup else '',
+        STARTUP_TICK='capture_ahb_startup(dut);' if ahb_startup else 'tick(dut, nullptr);',
+        COMMAND_SET=', CommandSet::AhbStartup' if ahb_startup else '',
+        AHB_STARTUP_FINISH=('      if (command.operation == \"READ_AHB_STARTUP\" && terminal.rfind(\"RESULT \", 0) == 0) ++ahb_startup_next_page;\n' if ahb_startup else ''),
+        AHB_STARTUP_VARIABLE='    std::string observations_override;\n' if ahb_startup else '',
+        OBSERVATIONS_EXPRESSION='(observations_override.empty() ? snapshot(dut) : observations_override)' if ahb_startup else 'snapshot(dut)')
     cpp = template
     for key, value in values.items():
         cpp = cpp.replace('@' + key + '@', value)
@@ -1034,6 +1063,9 @@ int main(int argc, char **argv) {
                         max_reply_line_bytes=2 * 1024 * 1024 + 512,
                         max_cached_bytes=64 * 1024 * 1024,
                         reply_reservation_bytes=reservation, max_samples_per_command=max_samples))
+    if ahb_startup:
+        document['ahb_startup_contract'] = ahb_startup
+        document['driver_schema_version'] = 'local_driver_generation.ahb_startup.v2'
     document.pop('artifact_digest')
     document['artifact_digest'] = _sha(document)
     return replace(copy.deepcopy(artifact), cpp_text=cpp, runtime_document=document)

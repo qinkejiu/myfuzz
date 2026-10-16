@@ -120,7 +120,10 @@ inline AckResult parse_ack(const std::string &line) {
   return result;
 }
 
-inline ParseResult parse_command(const std::string &line) {
+enum class CommandSet { Standard, AhbStartup };
+
+inline ParseResult parse_command(const std::string &line,
+                                 CommandSet command_set = CommandSet::Standard) {
   ParseResult result;
   if (line.size() > kMaxCommandBytes) {
     result.code = "command_too_long";
@@ -179,6 +182,7 @@ inline ParseResult parse_command(const std::string &line) {
   else if (tokens[3] == "STEP_WISHBONE") maxima = {1, word};
   else if (tokens[3] == "STEP_WISHBONE_IRQ") maxima = {1, word, word};
   else if (tokens[3] == "STEP_MEMORY") maxima = {1, 1, word, 1};
+  else if (command_set == CommandSet::AhbStartup && tokens[3] == "READ_AHB_STARTUP") maxima = {63};
   else if (tokens[3] == "STEP_RVX_MEMORY") maxima = {1, 1, word};
   else if (tokens[3] == "STEP_GPIO") maxima = {word};
   else if (tokens[3] == "ACCESS_GPIO") maxima = {word, 1, 4092, word, 15};
@@ -245,6 +249,12 @@ inline ParseResult parse_command(const std::string &line) {
       return result;
     }
     result.command.fields.push_back(value);
+  }
+  if (tokens[3] == "READ_AHB_STARTUP" &&
+      tokens[4] != hex_integer(result.command.fields[0])) {
+    result.code = "invalid_fields";
+    result.detail = "field_range_or_encoding";
+    return result;
   }
   if ((tokens[3] == "ACCESS_TLUL_SPI_HOST" && result.command.fields[2] % 4 != 0) ||
       (tokens[3] == "ACCESS_GPIO" && result.command.fields[2] % 4 != 0) ||
@@ -317,12 +327,14 @@ struct Admission {
 class BoundedReplay {
  public:
   explicit BoundedReplay(std::size_t max_cached_bytes,
-                         std::size_t max_reply_bytes = kMaxReplyBytes)
-      : max_cached_bytes_(max_cached_bytes), max_reply_bytes_(max_reply_bytes) {}
+                         std::size_t max_reply_bytes = kMaxReplyBytes,
+                         CommandSet command_set = CommandSet::Standard)
+      : max_cached_bytes_(max_cached_bytes), max_reply_bytes_(max_reply_bytes),
+        command_set_(command_set) {}
 
   Admission accept(const Command &command, std::uint64_t ticks,
                    std::size_t reply_reservation) {
-    const auto parsed = parse_command(command.request);
+    const auto parsed = parse_command(command.request, command_set_);
     if (!parsed.ok || parsed.command.execution != command.execution ||
         parsed.command.sequence != command.sequence ||
         parsed.command.operation != command.operation ||
@@ -401,6 +413,7 @@ class BoundedReplay {
   std::map<std::uint64_t, Entry> entries_;
   const std::size_t max_cached_bytes_;
   const std::size_t max_reply_bytes_;
+  const CommandSet command_set_;
   std::size_t retained_bytes_ = 0;
   std::string execution_;
   std::uint64_t next_sequence_ = 1;

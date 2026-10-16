@@ -1,0 +1,164 @@
+.......FFFF..                                                            [100%]
+=================================== FAILURES ===================================
+________ test_page_failure_aborts_and_blocks_step_and_begin[<lambda>0] _________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profi...35d690bc5a45aacd9b4b001'}), <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x786dfce82b70>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x786dfce82ea0>
+mutate = <function <lambda> at 0x786dfce994e0>
+
+    @pytest.mark.parametrize('mutate',[
+     lambda op,f,p:p['observations']['ahb_startup'].update(page_index=1),
+     lambda op,f,p:p['observations']['ahb_startup']['records'].pop(),
+     lambda op,f,p:p['observations']['ahb_startup']['records'][0].update(reset_pre=0),
+     lambda op,f,p:p['observations']['ahb_startup']['records'][0]['sample']['pre']['protocol_taps'].clear(),
+    ])
+    def test_page_failure_aborts_and_blocks_step_and_begin(generated,monkeypatch,mutate):
+     artifact,cpu=generated;calls,aborts=transport_fixture(cpu,monkeypatch,mutate)
+     with pytest.raises((ValueError,KeyError)):cpu.begin_case('case')
+     assert aborts and not cpu._ahb_startup_complete
+     assert cpu.runtime_events[-1]['diagnostic_receipt']['status']=='result'
+     n=len(calls)
+     with pytest.raises(Exception):cpu.step_local({})
+     assert len(calls)==n
+     # Failing a prior page must also refuse a second native begin before transport.
+     from myfuzz.local_harness.native_session import GeneratedNativeMemorySession
+     monkeypatch.setattr(GeneratedNativeMemorySession,'begin_case',lambda *a:pytest.fail('native startup retried'))
+>    with pytest.raises(Exception):cpu.begin_case('case')
+                                   ^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_ahb_startup.py:182: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/ahb_lite_session.py:147: in begin_case
+    super().begin_case(testcase_id)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+a = (<myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x786dfce82b70>, 'case')
+
+>   monkeypatch.setattr(GeneratedNativeMemorySession,'begin_case',lambda *a:pytest.fail('native startup retried'))
+                                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: native startup retried
+
+tests/local_harness/test_ahb_startup.py:181: Failed
+________ test_page_failure_aborts_and_blocks_step_and_begin[<lambda>1] _________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profi...35d690bc5a45aacd9b4b001'}), <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x786dfcf54fe0>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x786dfce82e70>
+mutate = <function <lambda> at 0x786dfce99580>
+
+    @pytest.mark.parametrize('mutate',[
+     lambda op,f,p:p['observations']['ahb_startup'].update(page_index=1),
+     lambda op,f,p:p['observations']['ahb_startup']['records'].pop(),
+     lambda op,f,p:p['observations']['ahb_startup']['records'][0].update(reset_pre=0),
+     lambda op,f,p:p['observations']['ahb_startup']['records'][0]['sample']['pre']['protocol_taps'].clear(),
+    ])
+    def test_page_failure_aborts_and_blocks_step_and_begin(generated,monkeypatch,mutate):
+     artifact,cpu=generated;calls,aborts=transport_fixture(cpu,monkeypatch,mutate)
+     with pytest.raises((ValueError,KeyError)):cpu.begin_case('case')
+     assert aborts and not cpu._ahb_startup_complete
+     assert cpu.runtime_events[-1]['diagnostic_receipt']['status']=='result'
+     n=len(calls)
+     with pytest.raises(Exception):cpu.step_local({})
+     assert len(calls)==n
+     # Failing a prior page must also refuse a second native begin before transport.
+     from myfuzz.local_harness.native_session import GeneratedNativeMemorySession
+     monkeypatch.setattr(GeneratedNativeMemorySession,'begin_case',lambda *a:pytest.fail('native startup retried'))
+>    with pytest.raises(Exception):cpu.begin_case('case')
+                                   ^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_ahb_startup.py:182: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/ahb_lite_session.py:147: in begin_case
+    super().begin_case(testcase_id)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+a = (<myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x786dfcf54fe0>, 'case')
+
+>   monkeypatch.setattr(GeneratedNativeMemorySession,'begin_case',lambda *a:pytest.fail('native startup retried'))
+                                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: native startup retried
+
+tests/local_harness/test_ahb_startup.py:181: Failed
+________ test_page_failure_aborts_and_blocks_step_and_begin[<lambda>2] _________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profi...35d690bc5a45aacd9b4b001'}), <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x786dfce1cfe0>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x786dfcf35400>
+mutate = <function <lambda> at 0x786dfce99620>
+
+    @pytest.mark.parametrize('mutate',[
+     lambda op,f,p:p['observations']['ahb_startup'].update(page_index=1),
+     lambda op,f,p:p['observations']['ahb_startup']['records'].pop(),
+     lambda op,f,p:p['observations']['ahb_startup']['records'][0].update(reset_pre=0),
+     lambda op,f,p:p['observations']['ahb_startup']['records'][0]['sample']['pre']['protocol_taps'].clear(),
+    ])
+    def test_page_failure_aborts_and_blocks_step_and_begin(generated,monkeypatch,mutate):
+     artifact,cpu=generated;calls,aborts=transport_fixture(cpu,monkeypatch,mutate)
+     with pytest.raises((ValueError,KeyError)):cpu.begin_case('case')
+     assert aborts and not cpu._ahb_startup_complete
+     assert cpu.runtime_events[-1]['diagnostic_receipt']['status']=='result'
+     n=len(calls)
+     with pytest.raises(Exception):cpu.step_local({})
+     assert len(calls)==n
+     # Failing a prior page must also refuse a second native begin before transport.
+     from myfuzz.local_harness.native_session import GeneratedNativeMemorySession
+     monkeypatch.setattr(GeneratedNativeMemorySession,'begin_case',lambda *a:pytest.fail('native startup retried'))
+>    with pytest.raises(Exception):cpu.begin_case('case')
+                                   ^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_ahb_startup.py:182: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/ahb_lite_session.py:147: in begin_case
+    super().begin_case(testcase_id)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+a = (<myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x786dfce1cfe0>, 'case')
+
+>   monkeypatch.setattr(GeneratedNativeMemorySession,'begin_case',lambda *a:pytest.fail('native startup retried'))
+                                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: native startup retried
+
+tests/local_harness/test_ahb_startup.py:181: Failed
+________ test_page_failure_aborts_and_blocks_step_and_begin[<lambda>3] _________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profi...35d690bc5a45aacd9b4b001'}), <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x786dfce23950>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x786dfce20830>
+mutate = <function <lambda> at 0x786dfce996c0>
+
+    @pytest.mark.parametrize('mutate',[
+     lambda op,f,p:p['observations']['ahb_startup'].update(page_index=1),
+     lambda op,f,p:p['observations']['ahb_startup']['records'].pop(),
+     lambda op,f,p:p['observations']['ahb_startup']['records'][0].update(reset_pre=0),
+     lambda op,f,p:p['observations']['ahb_startup']['records'][0]['sample']['pre']['protocol_taps'].clear(),
+    ])
+    def test_page_failure_aborts_and_blocks_step_and_begin(generated,monkeypatch,mutate):
+     artifact,cpu=generated;calls,aborts=transport_fixture(cpu,monkeypatch,mutate)
+     with pytest.raises((ValueError,KeyError)):cpu.begin_case('case')
+     assert aborts and not cpu._ahb_startup_complete
+     assert cpu.runtime_events[-1]['diagnostic_receipt']['status']=='result'
+     n=len(calls)
+     with pytest.raises(Exception):cpu.step_local({})
+     assert len(calls)==n
+     # Failing a prior page must also refuse a second native begin before transport.
+     from myfuzz.local_harness.native_session import GeneratedNativeMemorySession
+     monkeypatch.setattr(GeneratedNativeMemorySession,'begin_case',lambda *a:pytest.fail('native startup retried'))
+>    with pytest.raises(Exception):cpu.begin_case('case')
+                                   ^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_ahb_startup.py:182: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/ahb_lite_session.py:147: in begin_case
+    super().begin_case(testcase_id)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+a = (<myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x786dfce23950>, 'case')
+
+>   monkeypatch.setattr(GeneratedNativeMemorySession,'begin_case',lambda *a:pytest.fail('native startup retried'))
+                                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: native startup retried
+
+tests/local_harness/test_ahb_startup.py:181: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_ahb_startup.py::test_page_failure_aborts_and_blocks_step_and_begin[<lambda>0]
+FAILED tests/local_harness/test_ahb_startup.py::test_page_failure_aborts_and_blocks_step_and_begin[<lambda>1]
+FAILED tests/local_harness/test_ahb_startup.py::test_page_failure_aborts_and_blocks_step_and_begin[<lambda>2]
+FAILED tests/local_harness/test_ahb_startup.py::test_page_failure_aborts_and_blocks_step_and_begin[<lambda>3]
+4 failed, 9 passed in 1.02s

@@ -1,0 +1,40 @@
+{
+  "native_run": false,
+  "dut_build": false,
+  "elaboration": false,
+  "standalone_cpp_parser_control": true,
+  "software_result": "96 passed in 3.40s",
+  "source_sha256": {
+    "src/myfuzz/local_harness/ahb_startup.py": "aadbc364ae0bc018da38274c7f7583bf2c69501fa4942a09a2ae734356822a16",
+    "src/myfuzz/local_harness/driver_renderer.py": "3476adca07542d3ad84c8a64c84c439a1e1813a2694ee8ca26ec9158f89687c7",
+    "src/myfuzz/local_harness/rtl/local_driver_v1.h": "d96ec4b3bbef11d536caa2c8d4b5ca01feb83808f360784d46038fc3926047ba",
+    "src/myfuzz/local_harness/session.py": "e91163043d9b168074a87869bce868c7fd082633a71d480299f791a4eed266f2",
+    "src/myfuzz/local_harness/ahb_lite_session.py": "3ca679df6b29c5389d1e7917b3ea1eb6948fb1cc9c8e1785c6733b609cca4410",
+    "src/myfuzz/scenario/ahb_cpu_events.py": "abe9d4bf4157a77430740b57d7d6800994ba9c95c23fe528ab6df7b8e1b3fdc1",
+    "src/myfuzz/scenario/contracts.py": "597ca4559055a00fa65d515a0bde6d31291557ca0a8f9331c51f01f3e07a93a4",
+    "tests/local_harness/test_ahb_startup.py": "12bef222959085622beda956131d9f2089f163ffc5d9590e79bf8a553480e2d0",
+    "tests/local_harness/test_ahb_cpu_contract.py": "ce5d86f95146c9233444137d9856261df49311cecaccc67b294cb5bc99c3ae95",
+    "tests/local_harness/test_ahb_cpu_observer.py": "b630f99dce685828f6671f9ed7e7f3f9513c2546153d5bd741d14d50a49f49d9"
+  },
+  "dependency_sha256": {
+    "src/myfuzz/local_harness/runtime_renderer.py": "ac7bc8f40431e8114e22b9ac8a95c2e348bca382be6831c5d84069b3474b8617"
+  },
+  "receipt_sha256": {
+    "docs/reports/evidence/cvw-ahb-startup-20261017/abi-observer-red.log": "3953e245ac7b3e4790e1a91fedc0f57892db9297878aa04c7927134acb55f50b",
+    "docs/reports/evidence/cvw-ahb-startup-20261017/basic-green.log": "2235a472f3e746ea8d4e6bd2132cc5db6ac0a515573fa69115dab7810713ec40",
+    "docs/reports/evidence/cvw-ahb-startup-20261017/continuity-render-green.log": "aa8c4ebafc5664b345d16e054b5f66c263c7d53eff9290f21377f97f711169ab",
+    "docs/reports/evidence/cvw-ahb-startup-20261017/driver-renderer-before.py.gz": "c36dd4b9be650150168cbc6a4a89919d1e634faa17577925dcf3c77cf4cc0552",
+    "docs/reports/evidence/cvw-ahb-startup-20261017/driver-session-red.log": "f7db1059b9e29f48ffc5b77fe5489b5fa01a263e4e541fa9c430601ab5a01bd4",
+    "docs/reports/evidence/cvw-ahb-startup-20261017/fresh-runner-green.log": "d1fa79f45a167ea5e1da15e35e8c24dd5b42638cafe3902e9a9635aa9fdfc03c",
+    "docs/reports/evidence/cvw-ahb-startup-20261017/helper-extraction-ast-red.log": "8bc32af22f0b18b3b5e19673a107eb976769c5f6932fbf51b084ba5b53067ed4",
+    "docs/reports/evidence/cvw-ahb-startup-20261017/observer-parser-green.log": "051bf973a3176ae3f39951bbc05cb4f9e768808714f88bc1ed709f6ab156e013",
+    "docs/reports/evidence/cvw-ahb-startup-20261017/page-failure-green.log": "5457c7691fb2eec58f3a79a1398f61e7814f0a87a44960f098f3ba7093208a6a",
+    "docs/reports/evidence/cvw-ahb-startup-20261017/page-failure-red.log": "3da3b5886e3c8c9877ff9c8ecba7a675fc5d2cbf0e693b28c38714d304dd7d2a",
+    "docs/reports/evidence/cvw-ahb-startup-20261017/prefix-integrity-green.log": "74033e4282553f082620e714a9f1ead512b9595ed9a943a5f9bf76e4af17b88d",
+    "docs/reports/evidence/cvw-ahb-startup-20261017/prefix-integrity-red.log": "a20cbe067af55ec4f504101ab2361cc346dbe4f5e5da810616bafbebf907b3da",
+    "docs/reports/evidence/cvw-ahb-startup-20261017/receipt-budget-green.log": "b005eb10c68815d38a7b900bd9895b066f0dbd798dacf7724b930b5c0ec98ae6",
+    "docs/reports/evidence/cvw-ahb-startup-20261017/receipt-budget-red.log": "719fb807a87ebc9eddfe942fab1453e4473bb5020ba676443c804e06db434f7e",
+    "docs/reports/evidence/cvw-ahb-startup-20261017/software-green.log": "bcd96f2d85c4c72bd97b18fbff9b864ae6e829db8aff6c386e8ac6ede08e0392",
+    "docs/reports/evidence/cvw-ahb-startup-20261017/startup-red.log": "4700ffec97b302c8b4612c64d3f725ce33fd8aedc15406c62487f0f717ab1824"
+  }
+}

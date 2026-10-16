@@ -1,0 +1,144 @@
+..FFFF                                                                   [100%]
+=================================== FAILURES ===================================
+____________ test_observer_release_address_then_command_write_data _____________
+
+    def test_observer_release_address_then_command_write_data():
+     o=AhbCpuObserver(component_id='cpu',endpoint_id='bus')
+     o.begin_scope(execution_id='issued',testcase_id='case',reset_epoch=0)
+     c=startup_contract(assert_ticks=1,release_ticks=1,snapshot_max={})
+>    o.begin_startup(c)
+     ^^^^^^^^^^^^^^^
+E    AttributeError: 'AhbCpuObserver' object has no attribute 'begin_startup'
+
+tests/local_harness/test_ahb_startup.py:44: AttributeError
+___________________ test_startup_counts_against_global_edges ___________________
+
+    def test_startup_counts_against_global_edges():
+     o=AhbCpuObserver(component_id='cpu',endpoint_id='bus',max_edges=1)
+     o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
+>    o.begin_startup(startup_contract(assert_ticks=1,release_ticks=1,snapshot_max={}))
+     ^^^^^^^^^^^^^^^
+E    AttributeError: 'AhbCpuObserver' object has no attribute 'begin_startup'
+
+tests/local_harness/test_ahb_startup.py:62: AttributeError
+______________ test_generated_driver_startup_capture_is_ahb_only _______________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profi...4a3f23d759c2d13c5be8578'}), <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x7bac434b0680>)
+
+    def test_generated_driver_startup_capture_is_ahb_only(generated):
+>    artifact,cpu=generated;c=artifact.runtime_document['ahb_startup_contract'];cpp=artifact.cpp_text
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    KeyError: 'ahb_startup_contract'
+
+tests/local_harness/test_ahb_startup.py:72: KeyError
+__________________ test_parser_optin_and_replay_revalidation ___________________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-154/test_parser_optin_and_replay_r0')
+
+    def test_parser_optin_and_replay_revalidation(tmp_path):
+     root=Path(__file__).resolve().parents[2]
+     source=tmp_path/'parser.cpp';binary=tmp_path/'parser'
+     source.write_text(r'''
+    #include "src/myfuzz/local_harness/rtl/local_driver_v1.h"
+    #include <cassert>
+    using namespace myfuzz::local_driver_v1;
+    int main() {
+     const std::string line="CMD 0123456789abcdef0123456789abcdef 1 READ_AHB_STARTUP 0";
+     assert(!parse_command(line).ok);
+     auto p=parse_command(line,CommandSet::AhbStartup);assert(p.ok);
+     BoundedReplay standard(4096,4096);
+     assert(standard.accept(p.command,0,512).decision!=Decision::Fresh);
+     BoundedReplay optin(4096,4096,CommandSet::AhbStartup);
+     auto bad=p.command;bad.fields[0]=1;
+     assert(optin.accept(bad,0,512).decision!=Decision::Fresh);
+     assert(optin.accept(p.command,0,512).decision==Decision::Fresh);
+     assert(!parse_command("CMD 0123456789abcdef0123456789abcdef 2 READ_AHB_STARTUP 40",CommandSet::AhbStartup).ok);
+     assert(!parse_command("CMD 0123456789abcdef0123456789abcdef 2 READ_AHB_STARTUP 00",CommandSet::AhbStartup).ok);
+     assert(!parse_command("CMD 0123456789abcdef0123456789abcdef 2 READ_AHB_STARTUP 0 0",CommandSet::AhbStartup).ok);
+    }
+    ''')
+>    subprocess.run(['c++','-std=c++17','-I',str(root),str(source),'-o',str(binary)],check=True,capture_output=True)
+
+tests/local_harness/test_ahb_startup.py:105: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+input = None, capture_output = True, timeout = None, check = True
+popenargs = (['c++', '-std=c++17', '-I', '/home/qinkejiu/myfuzz', '/tmp/pytest-of-qinkejiu/pytest-154/test_parser_optin_and_replay_r0/parser.cpp', '-o', ...],)
+kwargs = {'stdout': -1, 'stderr': -1}
+
+    def run(*popenargs,
+            input=None, capture_output=False, timeout=None, check=False, **kwargs):
+        """Run command with arguments and return a CompletedProcess instance.
+    
+        The returned instance will have attributes args, returncode, stdout and
+        stderr. By default, stdout and stderr are not captured, and those attributes
+        will be None. Pass stdout=PIPE and/or stderr=PIPE in order to capture them,
+        or pass capture_output=True to capture both.
+    
+        If check is True and the exit code was non-zero, it raises a
+        CalledProcessError. The CalledProcessError object will have the return code
+        in the returncode attribute, and output & stderr attributes if those streams
+        were captured.
+    
+        If timeout is given, and the process takes too long, a TimeoutExpired
+        exception will be raised.
+    
+        There is an optional argument "input", allowing you to
+        pass bytes or a string to the subprocess's stdin.  If you use this argument
+        you may not also use the Popen constructor's "stdin" argument, as
+        it will be used internally.
+    
+        By default, all communication is in bytes, and therefore any "input" should
+        be bytes, and the stdout and stderr will be bytes. If in text mode, any
+        "input" should be a string, and stdout and stderr will be strings decoded
+        according to locale encoding, or by "encoding" if set. Text mode is
+        triggered by setting any of text, encoding, errors or universal_newlines.
+    
+        The other arguments are the same as for the Popen constructor.
+        """
+        if input is not None:
+            if kwargs.get('stdin') is not None:
+                raise ValueError('stdin and input arguments may not both be used.')
+            kwargs['stdin'] = PIPE
+    
+        if capture_output:
+            if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:
+                raise ValueError('stdout and stderr arguments may not be used '
+                                 'with capture_output.')
+            kwargs['stdout'] = PIPE
+            kwargs['stderr'] = PIPE
+    
+        with Popen(*popenargs, **kwargs) as process:
+            try:
+                stdout, stderr = process.communicate(input, timeout=timeout)
+            except TimeoutExpired as exc:
+                process.kill()
+                if _mswindows:
+                    # Windows accumulates the output in a single blocking
+                    # read() call run on child threads, with the timeout
+                    # being done in a join() on those threads.  communicate()
+                    # _after_ kill() is required to collect that and add it
+                    # to the exception.
+                    exc.stdout, exc.stderr = process.communicate()
+                else:
+                    # POSIX _communicate already populated the output so
+                    # far into the TimeoutExpired exception.
+                    process.wait()
+                raise
+            except:  # Including KeyboardInterrupt, communicate handled that.
+                process.kill()
+                # We don't call process.wait() as .__exit__ does that for us.
+                raise
+            retcode = process.poll()
+            if check and retcode:
+>               raise CalledProcessError(retcode, process.args,
+                                         output=stdout, stderr=stderr)
+E               subprocess.CalledProcessError: Command '['c++', '-std=c++17', '-I', '/home/qinkejiu/myfuzz', '/tmp/pytest-of-qinkejiu/pytest-154/test_parser_optin_and_replay_r0/parser.cpp', '-o', '/tmp/pytest-of-qinkejiu/pytest-154/test_parser_optin_and_replay_r0/parser']' returned non-zero exit status 1.
+
+/usr/lib/python3.12/subprocess.py:571: CalledProcessError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_ahb_startup.py::test_observer_release_address_then_command_write_data
+FAILED tests/local_harness/test_ahb_startup.py::test_startup_counts_against_global_edges
+FAILED tests/local_harness/test_ahb_startup.py::test_generated_driver_startup_capture_is_ahb_only
+FAILED tests/local_harness/test_ahb_startup.py::test_parser_optin_and_replay_revalidation
+4 failed, 2 passed in 0.59s

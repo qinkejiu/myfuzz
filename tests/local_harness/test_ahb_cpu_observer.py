@@ -31,6 +31,19 @@ def test_renderer_other_code_ast_unchanged():
  before=gzip.decompress(Path('docs/reports/evidence/cvw-ahb-implementation-20261017/runtime-renderer-before.py.gz').read_bytes()).decode()
  after=Path(renderer.__file__).read_text()
  tree=ast.parse(after)
+ wrapper=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='render_local_runtime')
+ helper=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='_render_admitted_runtime')
+ call=wrapper.body[-1]
+ assert isinstance(call,ast.Return) and isinstance(call.value,ast.Call)
+ assert call.value.func.id=='_render_admitted_runtime'
+ assert [a.id for a in call.value.args]==['plan','structural','verified','root']
+ assert [(k.arg,k.value.id) for k in call.value.keywords]==[('native_raw','native_raw')]
+ assert [a.arg for a in helper.args.args]==['plan','structural','verified','root']
+ assert [a.arg for a in helper.args.kwonlyargs]==['native_raw']
+ assert isinstance(helper.body[0],ast.Expr) and isinstance(helper.body[0].value,ast.Constant)
+ # Exact inverse of root's pure extraction: admission prefix + unchanged body.
+ wrapper.body=wrapper.body[:-1]+helper.body[1:]
+ tree.body=[n for n in tree.body if n is not helper]
  tree.body=[n for n in tree.body if not isinstance(n,ast.FunctionDef) or n.name!='_expose_cpu_ahb_trace']
  class Remove(ast.NodeTransformer):
   def visit_Expr(self,n):

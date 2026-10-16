@@ -236,6 +236,8 @@ def _verify_generated_session(identity: dict):
         observer = AhbCpuObserver(component_id=artifact.plan.request.instance_id,
                                   endpoint_id=endpoint)
         observer.contract['trace_binding'] = trace
+        from myfuzz.local_harness.ahb_startup import configure_observer_startup
+        configure_observer_startup(observer, artifact.runtime_document)
         boot = artifact.runtime_document.get('boot_contract', {}).get('configured_boot_base')
         if (identity['ahb_lite_service_schema_version'] != 'generated_ahb_lite_memory_service.v1'
                 or identity['source_component'] != artifact.plan.request.instance_id

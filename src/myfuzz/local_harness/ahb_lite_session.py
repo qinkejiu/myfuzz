@@ -45,6 +45,7 @@ import copy
 from dataclasses import asdict, is_dataclass
 from myfuzz.scenario.ahb_cpu_events import AhbCpuObserver, bind_ahb_trace
 from myfuzz.scenario.contracts import ProtocolEnvironmentError
+from .ahb_startup import configure_observer_startup, validate_startup_page
 
 from myfuzz.scenario.memory import PersistentMemory
 from myfuzz.scenario.router import DataflowRouter
@@ -81,6 +82,10 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
         self._ahb_observer = AhbCpuObserver(
             component_id=artifact.plan.request.instance_id, endpoint_id=endpoint)
         self._ahb_observer.contract['trace_binding'] = trace
+        self._ahb_startup_contract = configure_observer_startup(self._ahb_observer, artifact.runtime_document)
+        self._ahb_startup_required = True
+        self._ahb_startup_complete = False
+        self._ahb_startup_receipts = []
         self.runtime_events = self._ahb_observer.events
         self._last_ahb_receipt = None
         self.router = router
@@ -135,10 +140,55 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
         return result
 
     def begin_case(self, testcase_id):
-        super().begin_case(testcase_id)
-        self._ahb_observer.begin_scope(execution_id=self._execution,
-            testcase_id=testcase_id, reset_epoch=self.reset_epoch)
-        self.declare_boot_instruction_slot()
+        try:
+            self._ahb_observer.require_begin_capacity(self._ahb_startup_contract['total_ticks'])
+        except ValueError as error:
+            raise ProtocolEnvironmentError(str(error)) from error
+        self._last_ahb_receipt = None
+        self._ahb_startup_complete = False
+        try:
+            super().begin_case(testcase_id)
+            self._ahb_observer.begin_scope(execution_id=self._execution,
+                testcase_id=testcase_id, reset_epoch=self.reset_epoch)
+            self._ahb_observer.begin_startup(self._ahb_startup_contract)
+            self._read_ahb_startup()
+            self.declare_boot_instruction_slot()
+        except Exception as error:
+            self._ahb_observer.poison(str(error),
+                diagnostic_receipt=self._ahb_receipt_document(), possible_effects=True)
+            self._abort()
+            raise
+
+    def _ahb_receipt_document(self):
+        receipt = self._last_ahb_receipt
+        return (asdict(receipt) if is_dataclass(receipt)
+                else copy.deepcopy(vars(receipt)) if receipt is not None else None)
+
+    def _read_ahb_startup(self):
+        contract = self._ahb_startup_contract
+        for page_index in range(contract['page_count']):
+            self._last_ahb_receipt = None
+            sequence = self._sequence + 1
+            receipt = self.command('READ_AHB_STARTUP', (page_index,))
+            original = self._ahb_receipt_document()
+            self._ahb_startup_receipts.append(original)
+            self._ahb_observer.record_startup_receipt(original)
+            if (receipt.status != 'result' or receipt.execution != self._execution
+                    or receipt.sequence != sequence or receipt.tick_before != 0
+                    or receipt.tick_after != 0 or receipt.new_ticks != 0):
+                raise ProtocolEnvironmentError('AHB startup receipt identity or tick mismatch')
+            payload = receipt.payload
+            if (payload['samples'] != [] or payload['kind'] != self.artifact_kind
+                    or set(payload['observations']) != {'ahb_startup'}
+                    or payload['rdata'] != 0 or payload['error'] != 0):
+                raise ProtocolEnvironmentError('AHB startup payload mismatch')
+            records = validate_startup_page(payload['observations']['ahb_startup'],
+                contract, expected_page=page_index)
+            for record in records:
+                sample = record['sample']
+                self._ahb_observer.observe_startup(record, rows=self._ahb_rows(sample))
+        self._ahb_observer.finish_startup()
+        self._ahb_startup_complete = True
 
     def _service_accepted_request(self, key, address, write, be, value):
         router = self.router
@@ -203,18 +253,22 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
     def command(self, operation, fields):
         if operation == 'STEP_MEMORY':
             self._ahb_observer.require_active()
+            if getattr(self, '_ahb_startup_required', False) and not self._ahb_startup_complete:
+                raise ProtocolEnvironmentError('AHB startup incomplete before STEP')
             self._ahb_command_attempted = True
         receipt = super().command(operation, fields)
-        if operation == 'STEP_MEMORY':
+        if operation in ('STEP_MEMORY', 'READ_AHB_STARTUP'):
             self._last_ahb_receipt = receipt
         return receipt
 
     def _observe_verified_memory_edge(self, receipt):
         sample, = self.last_samples
-        rows = {phase: {role: sample[phase]['protocol_taps'][name]
+        self._ahb_observer.observe(sample, rows=self._ahb_rows(sample))
+
+    def _ahb_rows(self, sample):
+        return {phase: {role: sample[phase]['protocol_taps'][name]
                         for role, name in self._ahb_signal_map.items()}
                 for phase in ('pre', 'post')}
-        self._ahb_observer.observe(sample, rows=rows)
 
     def step_local(self, inputs):
         try:
@@ -226,9 +280,7 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
         try:
             return self._step_ahb_local(inputs)
         except Exception as error:
-            receipt = self._last_ahb_receipt
-            diagnostic = (asdict(receipt) if is_dataclass(receipt)
-                          else copy.deepcopy(vars(receipt)) if receipt is not None else None)
+            diagnostic = self._ahb_receipt_document()
             self._ahb_observer.poison(str(error), diagnostic_receipt=diagnostic,
                 possible_effects=self._ahb_command_attempted)
             self._abort()
