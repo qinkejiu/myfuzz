@@ -121,3 +121,23 @@ def test_invalid_resource_yields_real_error_input_without_ram_commit(artifact,tm
     assert commands[1][5:] == (1,0,0,1)
     assert session.pending_responses == 0
     assert session.memory_service.events == []
+
+
+def test_routed_access_retains_cpu_identity_and_actual_edge_range(artifact,tmp_path,monkeypatch):
+    from myfuzz.scenario.ledger import TransactionKey
+    memory = PersistentMemory(initialization_seed=1,max_initialized_bytes=16,
+        regions=(MemoryRegion('ram',0x1000,16),))
+    session = GeneratedWishboneDmaSession(artifact,base_dir=ROOT,cache_dir=tmp_path,memory=memory)
+    key = TransactionKey('cpu-run','case','cpu',0,'data',7)
+    calls = []
+    def access(offset,value,write,byte_enable):
+        calls.append((offset,value,write,byte_enable))
+        session.events.extend([{'tick':1},{'tick':2}])
+        return 0x55
+    monkeypatch.setattr(session,'_access_register',access)
+    result = session.routed_register_access(key,address=0x40000008,offset=8,
+        write=True,value=0x22000,be=15,delivery_context={'source_transaction':{'source_sequence':7}})
+    assert calls == [(8,0x22000,True,15)]
+    assert result['rdata'] == 0x55
+    assert result['dma_control_receipt']['source_transaction']['source_sequence'] == 7
+    assert result['dma_control_receipt']['edge_ticks'] == [1,2]

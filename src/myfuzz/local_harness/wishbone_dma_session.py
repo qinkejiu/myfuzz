@@ -4,6 +4,7 @@ Register accesses advance the same real DMA process. RAM writes use only the
 accepted RTL master payload; this helper does not implement a copy operation.
 """
 from dataclasses import asdict
+from copy import deepcopy
 
 from .session import GeneratedLocalSession
 from myfuzz.scenario.ledger import TransactionKey, TransactionLedger
@@ -120,6 +121,25 @@ class GeneratedWishboneDmaSession(GeneratedLocalSession):
                 self.step_local()
                 return result
         raise TimeoutError('DMA control ACK edge bound exceeded')
+
+    routed_register_access_enabled = True
+
+    def routed_register_access(self, key, *, address, offset, write, value, be,
+                               delivery_context):
+        """Translate one router-admitted CPU beat into measured real control edges.
+
+        This is transaction-level routing between independent processes, not a
+        claim of a synthesizable OBI/Wishbone bridge or shared hardware clock.
+        """
+        if not isinstance(key, TransactionKey) or type(write) is not bool:
+            raise ValueError('DMA routed access requires a source transaction')
+        start = len(self.events)
+        rdata = self._access_register(offset,value,write,be)
+        receipt = dict(source_transaction=asdict(key), address=address,
+            offset=offset, write=write, value=value, byte_enable=be,
+            delivery_context=deepcopy(delivery_context),
+            edge_ticks=[event['tick'] for event in self.events[start:]])
+        return dict(rdata=rdata, dma_control_receipt=receipt)
 
     def write_register(self, offset, value, *, byte_enable=15):
         return self._access_register(offset,value,True,byte_enable)

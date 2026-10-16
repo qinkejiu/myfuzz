@@ -76,7 +76,33 @@ to increment both addresses; bit15 stays zero for immediate start, and all
 but may be ignored. An interrupt can mean final acknowledged write OR bus error;
 it is an observed native output, not automatically successful completion.
 
-Next steps are CPU configuration through the actual target API, shared-resource
-scheduler integration, native IRQ delivery and CPU ISR/readback, real error /
-old-key / pending-reset controls, and latency-sensitivity investigation. No FIFO
-transfer, CPU chain, online campaign or full P8 completion is claimed.
+## Slice D directed Ibex configuration and ISR
+
+`scenario/ibex_dma_example.py` supplies a bounded deterministic host schedule
+using the existing DataflowRouter: the real Ibex OBI data master writes the DMA
+control target API, which advances the same real DMA process. This is a
+transaction-level cross-protocol route, not a synthesizable OBI/Wishbone bridge.
+DMA is not yet admitted to the generic ScenarioRunner/session contracts.
+
+The gated `MYFUZZ_DMA_CPU_REAL=1` test ran two fresh pairs of authenticated
+Ibex RVFI and wbdmac processes from an isolated source snapshot. Ibex instructions
+write all four source words, configure source/destination/length/start, and wait.
+The DMA's actual master performs four reads and writes. Its native completion
+pulse at DMA edge92 sets an explicit pending-level IRQ latch; the latch drives
+actual Ibex external IRQ input at CPU ticks76..79 and clears only after the real
+`irq_taken_pre` at tick79. This pulse-to-level adapter is distinct from the raw
+native DMA output. No expected transfer result creates an IRQ.
+
+The real ISR saves mcause=0x8000000b, reads actual DMA status and all four
+copied destination words, compares each in CPU branches, then stores success=1.
+Each execution uses 128 scheduler iterations and 148 DMA edges. Complete CPU
+physical/retirement/IRQ/memory, router, DMA edge/memory and latch traces match
+after replacing only fresh process UUIDs. Compact measured evidence is
+`evidence/ibex-dma-isr-real-20261017.json`. Direct one-CPU-edge pulse delivery
+previously reached the actual input but was not taken; the pending latch is
+therefore an explicit required part of this fixture's IRQ semantics.
+
+Next steps are generic scheduler/admission integration, real error / old-key /
+pending-reset controls, FIFO and RAM-to-IP paths, and generalized DMA latency
+investigation. This bounded directed RAM-to-RAM/ISR proof establishes no
+persistent search, campaign completion or full P8 coverage.

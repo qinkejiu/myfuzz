@@ -1,0 +1,594 @@
+{
+  "evidence_kind": "directed_real_ibex_dma_ram_irq_isr_two_fresh_process_pairs",
+  "snapshot_file_sha256": {
+    "src/myfuzz/scenario/ibex_dma_example.py": "2bbe5ab0e81e3e61fd6299606d124ab8ce88496837d05b47ace69e980b0d5353",
+    "src/myfuzz/local_harness/wishbone_dma_session.py": "18a8f8cace67b0767533e35199c6dd751cc2f12c452ab926b44bd9c57b3e13d0",
+    "tests/integration/test_ibex_dma_chain_real.py": "37e7de9bed2b215300046d7d24b1d91eca84e34ef286aa67e63f5c46b1f244ee"
+  },
+  "snapshot_manifest_sha256": "1f3620a49d7ce2de57987982cbc3e0cb864854832fcfb0ce1de935f14378df00",
+  "full_normalized_traces_equal": true,
+  "comparison_scope": [
+    "all scheduler CPU inputs and physical pre/post samples",
+    "all DMA control and master pre/post samples",
+    "router source/delivery identities",
+    "CPU retire,IRQ and memory events",
+    "DMA memory snapshots and commits",
+    "latch transitions"
+  ],
+  "normalization": "replace only fresh CPU/DMA process UUIDs including embedded writer IDs",
+  "irq_adapter": "real DMA pulse sets pending level; actual CPU irq_taken_pre clears after sampled edge",
+  "limitations": [
+    "host transaction router, not synthesizable bridge or shared hardware clock",
+    "explicit bounded scheduler, not generic ScenarioRunner admission",
+    "single RAM-to-RAM operation, not RAM-to-IP/FIFO or sustained fuzz",
+    "pinned DMA burst-tail response delay policy remains necessary"
+  ],
+  "runs": [
+    {
+      "run": 0,
+      "full_receipt_sha256": "7960a21c3f66b532dba24320d924293d1c4424a70016fd47c4fe869ec5a8e62e",
+      "cpu_build_digest": "6d4cf6d50ac57ce268e010c605d1a1658904ab4240b4c319473ad5516a882783",
+      "dma_build_digest": "970b43d2f9716c4a40ea5a6354782d8ca27c60cea09272b475d0f66410fe415e",
+      "scheduler_iterations": 128,
+      "dma_local_edges": 148,
+      "cpu_local_ticks": 128,
+      "dma_native_irq_edges": [
+        92
+      ],
+      "cpu_irq_input_ticks": [
+        76,
+        77,
+        78,
+        79
+      ],
+      "cpu_actual_take_ticks": [
+        79
+      ],
+      "latch_transitions": [
+        {
+          "step": 75,
+          "cpu_tick": 76,
+          "dma_native_irq_ticks": [
+            92
+          ],
+          "irq_latch_before": [],
+          "irq_latch_sources": [
+            92
+          ],
+          "irq_latch_after": [
+            92
+          ],
+          "irq_latch_cleared_by_actual_take": false
+        },
+        {
+          "step": 76,
+          "cpu_tick": 77,
+          "dma_native_irq_ticks": [],
+          "irq_latch_before": [
+            92
+          ],
+          "irq_latch_sources": [
+            92
+          ],
+          "irq_latch_after": [
+            92
+          ],
+          "irq_latch_cleared_by_actual_take": false
+        },
+        {
+          "step": 77,
+          "cpu_tick": 78,
+          "dma_native_irq_ticks": [],
+          "irq_latch_before": [
+            92
+          ],
+          "irq_latch_sources": [
+            92
+          ],
+          "irq_latch_after": [
+            92
+          ],
+          "irq_latch_cleared_by_actual_take": false
+        },
+        {
+          "step": 78,
+          "cpu_tick": 79,
+          "dma_native_irq_ticks": [],
+          "irq_latch_before": [
+            92
+          ],
+          "irq_latch_sources": [
+            92
+          ],
+          "irq_latch_after": [],
+          "irq_latch_cleared_by_actual_take": true
+        }
+      ],
+      "cpu_isr_writes": [
+        {
+          "address": 147456,
+          "value": 2147483659
+        },
+        {
+          "address": 147460,
+          "value": 3
+        },
+        {
+          "address": 147464,
+          "value": 309
+        },
+        {
+          "address": 147468,
+          "value": 582
+        },
+        {
+          "address": 147472,
+          "value": 855
+        },
+        {
+          "address": 147476,
+          "value": 1128
+        },
+        {
+          "address": 147480,
+          "value": 1
+        }
+      ],
+      "cpu_dma_register_writes": [
+        {
+          "offset": 8,
+          "value": 139264,
+          "source_transaction": {
+            "execution_id": "local-execution",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "cpu",
+            "source_epoch": 0,
+            "channel_id": "data",
+            "source_sequence": 5
+          }
+        },
+        {
+          "offset": 12,
+          "value": 143360,
+          "source_transaction": {
+            "execution_id": "local-execution",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "cpu",
+            "source_epoch": 0,
+            "channel_id": "data",
+            "source_sequence": 6
+          }
+        },
+        {
+          "offset": 4,
+          "value": 4,
+          "source_transaction": {
+            "execution_id": "local-execution",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "cpu",
+            "source_epoch": 0,
+            "channel_id": "data",
+            "source_sequence": 7
+          }
+        },
+        {
+          "offset": 0,
+          "value": 267190276,
+          "source_transaction": {
+            "execution_id": "local-execution",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "cpu",
+            "source_epoch": 0,
+            "channel_id": "data",
+            "source_sequence": 8
+          }
+        }
+      ],
+      "dma_master_requests": [
+        {
+          "transaction": {
+            "execution_id": "dbb0085605634de799ae6c5c31a5f838",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "dma",
+            "source_epoch": 0,
+            "channel_id": "dma-memory",
+            "source_sequence": 1
+          },
+          "address": 139264,
+          "word_address": 34816,
+          "write": false,
+          "value": 0,
+          "byte_enable": 15
+        },
+        {
+          "transaction": {
+            "execution_id": "dbb0085605634de799ae6c5c31a5f838",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "dma",
+            "source_epoch": 0,
+            "channel_id": "dma-memory",
+            "source_sequence": 2
+          },
+          "address": 139268,
+          "word_address": 34817,
+          "write": false,
+          "value": 0,
+          "byte_enable": 15
+        },
+        {
+          "transaction": {
+            "execution_id": "dbb0085605634de799ae6c5c31a5f838",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "dma",
+            "source_epoch": 0,
+            "channel_id": "dma-memory",
+            "source_sequence": 3
+          },
+          "address": 139272,
+          "word_address": 34818,
+          "write": false,
+          "value": 309,
+          "byte_enable": 15
+        },
+        {
+          "transaction": {
+            "execution_id": "dbb0085605634de799ae6c5c31a5f838",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "dma",
+            "source_epoch": 0,
+            "channel_id": "dma-memory",
+            "source_sequence": 4
+          },
+          "address": 139276,
+          "word_address": 34819,
+          "write": false,
+          "value": 309,
+          "byte_enable": 15
+        },
+        {
+          "transaction": {
+            "execution_id": "dbb0085605634de799ae6c5c31a5f838",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "dma",
+            "source_epoch": 0,
+            "channel_id": "dma-memory",
+            "source_sequence": 5
+          },
+          "address": 143360,
+          "word_address": 35840,
+          "write": true,
+          "value": 309,
+          "byte_enable": 15
+        },
+        {
+          "transaction": {
+            "execution_id": "dbb0085605634de799ae6c5c31a5f838",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "dma",
+            "source_epoch": 0,
+            "channel_id": "dma-memory",
+            "source_sequence": 6
+          },
+          "address": 143364,
+          "word_address": 35841,
+          "write": true,
+          "value": 582,
+          "byte_enable": 15
+        },
+        {
+          "transaction": {
+            "execution_id": "dbb0085605634de799ae6c5c31a5f838",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "dma",
+            "source_epoch": 0,
+            "channel_id": "dma-memory",
+            "source_sequence": 7
+          },
+          "address": 143368,
+          "word_address": 35842,
+          "write": true,
+          "value": 855,
+          "byte_enable": 15
+        },
+        {
+          "transaction": {
+            "execution_id": "dbb0085605634de799ae6c5c31a5f838",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "dma",
+            "source_epoch": 0,
+            "channel_id": "dma-memory",
+            "source_sequence": 8
+          },
+          "address": 143372,
+          "word_address": 35843,
+          "write": true,
+          "value": 1128,
+          "byte_enable": 15
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "full_receipt_sha256": "0a3330c11d6d3febab4acba27623ae68cdb67c8f5dfc9758e962e57afa82cf22",
+      "cpu_build_digest": "6d4cf6d50ac57ce268e010c605d1a1658904ab4240b4c319473ad5516a882783",
+      "dma_build_digest": "970b43d2f9716c4a40ea5a6354782d8ca27c60cea09272b475d0f66410fe415e",
+      "scheduler_iterations": 128,
+      "dma_local_edges": 148,
+      "cpu_local_ticks": 128,
+      "dma_native_irq_edges": [
+        92
+      ],
+      "cpu_irq_input_ticks": [
+        76,
+        77,
+        78,
+        79
+      ],
+      "cpu_actual_take_ticks": [
+        79
+      ],
+      "latch_transitions": [
+        {
+          "step": 75,
+          "cpu_tick": 76,
+          "dma_native_irq_ticks": [
+            92
+          ],
+          "irq_latch_before": [],
+          "irq_latch_sources": [
+            92
+          ],
+          "irq_latch_after": [
+            92
+          ],
+          "irq_latch_cleared_by_actual_take": false
+        },
+        {
+          "step": 76,
+          "cpu_tick": 77,
+          "dma_native_irq_ticks": [],
+          "irq_latch_before": [
+            92
+          ],
+          "irq_latch_sources": [
+            92
+          ],
+          "irq_latch_after": [
+            92
+          ],
+          "irq_latch_cleared_by_actual_take": false
+        },
+        {
+          "step": 77,
+          "cpu_tick": 78,
+          "dma_native_irq_ticks": [],
+          "irq_latch_before": [
+            92
+          ],
+          "irq_latch_sources": [
+            92
+          ],
+          "irq_latch_after": [
+            92
+          ],
+          "irq_latch_cleared_by_actual_take": false
+        },
+        {
+          "step": 78,
+          "cpu_tick": 79,
+          "dma_native_irq_ticks": [],
+          "irq_latch_before": [
+            92
+          ],
+          "irq_latch_sources": [
+            92
+          ],
+          "irq_latch_after": [],
+          "irq_latch_cleared_by_actual_take": true
+        }
+      ],
+      "cpu_isr_writes": [
+        {
+          "address": 147456,
+          "value": 2147483659
+        },
+        {
+          "address": 147460,
+          "value": 3
+        },
+        {
+          "address": 147464,
+          "value": 309
+        },
+        {
+          "address": 147468,
+          "value": 582
+        },
+        {
+          "address": 147472,
+          "value": 855
+        },
+        {
+          "address": 147476,
+          "value": 1128
+        },
+        {
+          "address": 147480,
+          "value": 1
+        }
+      ],
+      "cpu_dma_register_writes": [
+        {
+          "offset": 8,
+          "value": 139264,
+          "source_transaction": {
+            "execution_id": "local-execution",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "cpu",
+            "source_epoch": 0,
+            "channel_id": "data",
+            "source_sequence": 5
+          }
+        },
+        {
+          "offset": 12,
+          "value": 143360,
+          "source_transaction": {
+            "execution_id": "local-execution",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "cpu",
+            "source_epoch": 0,
+            "channel_id": "data",
+            "source_sequence": 6
+          }
+        },
+        {
+          "offset": 4,
+          "value": 4,
+          "source_transaction": {
+            "execution_id": "local-execution",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "cpu",
+            "source_epoch": 0,
+            "channel_id": "data",
+            "source_sequence": 7
+          }
+        },
+        {
+          "offset": 0,
+          "value": 267190276,
+          "source_transaction": {
+            "execution_id": "local-execution",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "cpu",
+            "source_epoch": 0,
+            "channel_id": "data",
+            "source_sequence": 8
+          }
+        }
+      ],
+      "dma_master_requests": [
+        {
+          "transaction": {
+            "execution_id": "1adb884365de40e78e32bc6c8f92e2ea",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "dma",
+            "source_epoch": 0,
+            "channel_id": "dma-memory",
+            "source_sequence": 1
+          },
+          "address": 139264,
+          "word_address": 34816,
+          "write": false,
+          "value": 0,
+          "byte_enable": 15
+        },
+        {
+          "transaction": {
+            "execution_id": "1adb884365de40e78e32bc6c8f92e2ea",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "dma",
+            "source_epoch": 0,
+            "channel_id": "dma-memory",
+            "source_sequence": 2
+          },
+          "address": 139268,
+          "word_address": 34817,
+          "write": false,
+          "value": 0,
+          "byte_enable": 15
+        },
+        {
+          "transaction": {
+            "execution_id": "1adb884365de40e78e32bc6c8f92e2ea",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "dma",
+            "source_epoch": 0,
+            "channel_id": "dma-memory",
+            "source_sequence": 3
+          },
+          "address": 139272,
+          "word_address": 34818,
+          "write": false,
+          "value": 309,
+          "byte_enable": 15
+        },
+        {
+          "transaction": {
+            "execution_id": "1adb884365de40e78e32bc6c8f92e2ea",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "dma",
+            "source_epoch": 0,
+            "channel_id": "dma-memory",
+            "source_sequence": 4
+          },
+          "address": 139276,
+          "word_address": 34819,
+          "write": false,
+          "value": 309,
+          "byte_enable": 15
+        },
+        {
+          "transaction": {
+            "execution_id": "1adb884365de40e78e32bc6c8f92e2ea",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "dma",
+            "source_epoch": 0,
+            "channel_id": "dma-memory",
+            "source_sequence": 5
+          },
+          "address": 143360,
+          "word_address": 35840,
+          "write": true,
+          "value": 309,
+          "byte_enable": 15
+        },
+        {
+          "transaction": {
+            "execution_id": "1adb884365de40e78e32bc6c8f92e2ea",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "dma",
+            "source_epoch": 0,
+            "channel_id": "dma-memory",
+            "source_sequence": 6
+          },
+          "address": 143364,
+          "word_address": 35841,
+          "write": true,
+          "value": 582,
+          "byte_enable": 15
+        },
+        {
+          "transaction": {
+            "execution_id": "1adb884365de40e78e32bc6c8f92e2ea",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "dma",
+            "source_epoch": 0,
+            "channel_id": "dma-memory",
+            "source_sequence": 7
+          },
+          "address": 143368,
+          "word_address": 35842,
+          "write": true,
+          "value": 855,
+          "byte_enable": 15
+        },
+        {
+          "transaction": {
+            "execution_id": "1adb884365de40e78e32bc6c8f92e2ea",
+            "testcase_id": "ibex-dma-isr",
+            "source_component": "dma",
+            "source_epoch": 0,
+            "channel_id": "dma-memory",
+            "source_sequence": 8
+          },
+          "address": 143372,
+          "word_address": 35843,
+          "write": true,
+          "value": 1128,
+          "byte_enable": 15
+        }
+      ]
+    }
+  ]
+}
