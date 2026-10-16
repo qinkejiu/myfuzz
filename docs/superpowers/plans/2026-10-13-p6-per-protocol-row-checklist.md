@@ -257,3 +257,9 @@ VexiiRiscv 的固定源码与 SpinalHDL 子模块已生成 563119 字节的 RV32
 - DMA 已有[标准 Runner UART RX→DMA→RAM→Ibex ISR](../../reports/dma-uart-rx-standard-runner-20261017.md)的单例完整 fresh 证明。多例连续 runtime 已实际暴露启动顺序和重复拷贝瓶颈并修复，当前四字节连续成功/失败前缀真实重跑仍未验收。
 
 Ibex、CVA6、CV32E40P 的既有范围仍按各自冻结报告判定。六 CPU 的定向真实链不等于六 CPU 的同等在线能力；当前源码联合验收、所有协议整行、P6/P7/P8 均保持开放。
+
+### 2026-10-17 连续 DMA 最新终态（替代上文“仍待重跑”的运行状态）
+
+[标准 Runner 连续 UART RX DMA attempt6](../../reports/dma-continuous-runner-20261017.md)实际 1 passed／277.19 秒，native/worker exit0，软件前置 65 passed／70.42 秒。一次 boot 四字节及其完整 JSON fresh 前缀、实际 source-bound 失败及失败 fresh 均通过；根代理独立重算四份原始保存数据，正例各 34,794 事件、负例各 200 事件，对应完整摘要与状态一致。原 300 秒预算保持不变。该结果只接受已测试的 bounded_historical_chain；FIFO origin 仍为 unknown，不授予六 CPU 任意 DMA 提供者、持续搜索或整行/P8 完成。
+
+当前 F4 新 source 的 adapter 门因缺失 Icarus 跳过且审计拒绝；CV32 boundary 门因 filelist 源枚举错误在模型启动前失败。BOOM IRQ 已真实 build/probe inventory，但元数据最终化尚未完成；无 IRQ 链通过。CVA6 full AXI 新观察器仍是软件证据/待独立审查。以上不修改 P6/P7/P8 未验收结论。
