@@ -141,7 +141,7 @@ class GeneratedBoomScenarioSession:
             'source_authority': False, **payload})
 
     def _validate_request(self, request):
-        fields = {'opcode': 3, 'param': 3, 'size': 4, 'source': 16,
+        fields = {'opcode': 3, 'param': 3, 'size': 4, 'source': 3,
                   'address': 32, 'mask': 8, 'data': 64,
                   'request_sequence': 64, 'reset_epoch': 64}
         if not isinstance(request, dict) or request.get('channel') != 'A':

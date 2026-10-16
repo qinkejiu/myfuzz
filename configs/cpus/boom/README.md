@@ -115,3 +115,11 @@ only. Native driver source installs the authenticated reset trampoline at
 0x10040–0x10048. The diagnostic returns accepted CPU transactions, target
 physical samples, source-keyed router deliveries and RAM results; it does not
 provide standard runner admission. This source path has not been built or run.
+
+Actual persistent native / standard ScenarioRunner GPIO verification is now
+recorded in `evidence/persistent-runtime-20261017/`: two fresh full prefixes
+match under declared scope-only comparison; real GPIO readback and CPU RAM
+results pass. Changed/missing actual target response controls are rejected.
+The GPIO program covers A/D only; persistent C/E coverage is tracked separately.
+The native build and both new/preserved gate commands exit 0. This evidence
+does not grant generic runtime admission or full P6 acceptance.

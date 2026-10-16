@@ -1,0 +1,118 @@
+{
+  "fresh1": {
+    "raw_accepted_channels": {
+      "A": 6,
+      "D": 20
+    },
+    "native_processes": {
+      "cpu": {
+        "exit": 0,
+        "pid": 156014
+      },
+      "gpio": {
+        "exit": 0,
+        "pid": 156142
+      }
+    },
+    "last_cpu_outputs": {
+      "drained": 1,
+      "ram_3000": 4294967349,
+      "reset": 0,
+      "tl_a_accepted": 0,
+      "tl_c_accepted": 0,
+      "tl_d_accepted": 0,
+      "tl_e_accepted": 0
+    },
+    "local_ticks": {
+      "cpu": 1200,
+      "gpio": 1208
+    }
+  },
+  "fresh2": {
+    "raw_accepted_channels": {
+      "A": 6,
+      "D": 20
+    },
+    "native_processes": {
+      "cpu": {
+        "exit": 0,
+        "pid": 156700
+      },
+      "gpio": {
+        "exit": 0,
+        "pid": 156828
+      }
+    },
+    "last_cpu_outputs": {
+      "drained": 1,
+      "ram_3000": 4294967349,
+      "reset": 0,
+      "tl_a_accepted": 0,
+      "tl_c_accepted": 0,
+      "tl_d_accepted": 0,
+      "tl_e_accepted": 0
+    },
+    "local_ticks": {
+      "cpu": 1200,
+      "gpio": 1208
+    }
+  },
+  "changed_read": {
+    "raw_accepted_channels": {
+      "A": 6,
+      "D": 20
+    },
+    "native_processes": {
+      "cpu": {
+        "exit": 0,
+        "pid": 157278
+      },
+      "gpio": {
+        "exit": 0,
+        "pid": 157406
+      }
+    },
+    "last_cpu_outputs": {
+      "drained": 1,
+      "ram_3000": 18446744069414584372,
+      "reset": 0,
+      "tl_a_accepted": 0,
+      "tl_c_accepted": 0,
+      "tl_d_accepted": 0,
+      "tl_e_accepted": 0
+    },
+    "local_ticks": {
+      "cpu": 1200,
+      "gpio": 1208
+    }
+  },
+  "missing_read": {
+    "raw_accepted_channels": {
+      "A": 4,
+      "D": 17
+    },
+    "native_processes": {
+      "cpu": {
+        "exit": 0,
+        "pid": 157854
+      },
+      "gpio": {
+        "exit": 0,
+        "pid": 157982
+      }
+    },
+    "last_cpu_outputs": {
+      "drained": 0,
+      "ram_3000": 0,
+      "reset": 0,
+      "tl_a_accepted": 0,
+      "tl_c_accepted": 0,
+      "tl_d_accepted": 0,
+      "tl_e_accepted": 0
+    },
+    "local_ticks": {
+      "cpu": 1200,
+      "gpio": 1208
+    }
+  }
+}

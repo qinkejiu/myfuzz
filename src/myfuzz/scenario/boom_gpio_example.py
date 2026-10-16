@@ -71,7 +71,7 @@ def _gpio_artifact(repo: Path):
 
 def _validate_request(request: dict):
     """Reject unsupported TL shapes before the GPIO target can act."""
-    widths = {'opcode': 3, 'param': 3, 'size': 4, 'source': 16,
+    widths = {'opcode': 3, 'param': 3, 'size': 4, 'source': 3,
               'address': 32, 'mask': 8, 'data': 64,
               'request_sequence': 64, 'reset_epoch': 64}
     if not isinstance(request, dict) or request.get('channel') != 'A':
