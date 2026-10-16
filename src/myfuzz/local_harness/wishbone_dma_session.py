@@ -217,7 +217,18 @@ class GeneratedWishboneDmaSession(GeneratedLocalSession):
                 if invalid:
                     accepted['target_rejection'] = 'declared_master_target_access'
             rdata = 0
-            if not invalid:
+            if invalid:
+                # ERR completes a real accepted master request even though no
+                # target is touched. Enroll it in the same channel as successful
+                # operations so later requests retain contiguous source order.
+                rejected_payload = dict(op='master_environment_error',
+                    address=address, write=bool(pre['mwb_we']),
+                    value=pre['mwb_dat_w'], byte_enable=15,
+                    reason=accepted.get('target_rejection', 'memory_access_rejected'))
+                event['environment_error_receipt'] = self.memory_service.ledger.execute_once(
+                    key, rejected_payload, lambda: dict(source_transaction=asdict(key),
+                        error=1, target_effect=False, **rejected_payload))
+            else:
                 if target is not None:
                     write = bool(pre['mwb_we'])
                     target_payload = dict(op='master_target_write' if write
