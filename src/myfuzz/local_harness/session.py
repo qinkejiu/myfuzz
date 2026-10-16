@@ -382,6 +382,14 @@ class GeneratedLocalSession:
             raise
         if observer is not None:
             observer._complete_actual_command(self, attempt, receipt)
+        from myfuzz.scenario.gpio_register_version import _AUTHORITIES
+        register_authority = _AUTHORITIES.get(self)
+        if register_authority is not None:
+            try:
+                register_authority._actual_command(self, operation, fields, receipt)
+            except BaseException:
+                self._abort()
+                raise
         self._sequence = sequence
         self.local_ticks = self._tick_base + receipt.tick_after
         return receipt

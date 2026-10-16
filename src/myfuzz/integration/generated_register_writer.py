@@ -12,7 +12,7 @@ from myfuzz.scenario.register_source_access import validate_register_candidate
 from myfuzz.scenario.rv32i_sources import Rv32iInstruction, fragment_bytes, _split_address
 
 
-def declare_writer(request, compiled, *, source_id, value):
+def declare_writer(request, compiled, *, source_id, value, result_address=0x30000):
     sources=[s for p in compiled['paths'] if p['flow_id']=='F4' and p['status']=='executable'
              for s in p['sources'] if s['source_id']==source_id and s['kind']=='cpu_mmio_stream']
     if len(sources)!=1:
@@ -22,21 +22,28 @@ def declare_writer(request, compiled, *, source_id, value):
         source_component=access['source_component'],source_endpoint=access['source_endpoint'],
         target_component=access['target_component'],address=access['address'],
         write=True,value=value,byte_enable=15)
-    result_address=0x30000
+    cpu=request.component(access['source_component']).profile.cpu
+    if cpu is None or cpu.xlen!=32 or 'I' not in {e.upper() for e in cpu.extensions}:
+        raise ValueError('generated-writer-RV32I-required')
+    if type(result_address) is not int or not 0<=result_address<=0xfffffffc or result_address%4:
+        raise ValueError('generated-writer-result-address-invalid')
     resources=[r for r in request.wiring.resources if r.component_instance==access['source_component']
                and r.write is True and r.base is not None and r.size is not None
                and r.base<=result_address and result_address+4<=r.base+r.size]
     if len(resources)!=1:raise ValueError('generated-writer-result-RAM-undeclared')
+    if any(w.base<=result_address<w.base+w.size for w in request.wiring.windows):
+        raise ValueError('generated-writer-result-overlaps-MMIO')
     address_high,address_low=_split_address(access['address'])
     value_high,value_low=_split_address(value)
+    result_high,result_low=_split_address(result_address)
     code=fragment_bytes((Rv32iInstruction('LUI',rd=1,immediate=address_high),
         Rv32iInstruction('ADDI',rd=1,rs1=1,immediate=address_low),
         Rv32iInstruction('LUI',rd=2,immediate=value_high),
         Rv32iInstruction('ADDI',rd=2,rs1=2,immediate=value_low),
         Rv32iInstruction('SW',rs1=1,rs2=2),
         Rv32iInstruction('LW',rd=3,rs1=1),
-        Rv32iInstruction('LUI',rd=4,immediate=result_address>>12),
-        Rv32iInstruction('SW',rs1=4,rs2=3),
+        Rv32iInstruction('LUI',rd=4,immediate=result_high),
+        Rv32iInstruction('SW',rs1=4,rs2=3,immediate=result_low),
         *(Rv32iInstruction('NOP') for _ in range(4))))
     return dict(schema_version='generated_register_writer.v1',candidate=candidate,
         result_address=result_address,code_hex=code.hex(),code_sha256=sha256(code).hexdigest(),
@@ -56,7 +63,8 @@ def writer_case(runtime, declaration, *, request, compiled):
     if declaration.get('schema_version')!='generated_register_writer.v1':
         raise ValueError('generated-writer-declaration-invalid')
     candidate=declaration['candidate']; access=candidate['access']
-    if declaration!=declare_writer(request,compiled,source_id=candidate['source_id'],value=candidate['value']):
+    if declaration!=declare_writer(request,compiled,source_id=candidate['source_id'],value=candidate['value'],
+                                   result_address=declaration['result_address']):
         raise ValueError('generated-writer-declaration-mismatch')
     source=next((s for s in runtime.decoder.sources if s.kind=='instruction'
                  and s.component==access['source_component']),None)
@@ -65,6 +73,11 @@ def writer_case(runtime, declaration, *, request, compiled):
         live=runtime.session.runner.sessions.get(name)
         if live is None or live.artifact.plan.profile.profile_fingerprint!=request.component(name).profile.profile_fingerprint:
             raise ValueError('generated-writer-D2-profile-mismatch')
+    cpu_artifact=runtime.session.runner.sessions[access['source_component']].artifact
+    target_artifact=runtime.session.runner.sessions[access['target_component']].artifact
+    if (cpu_artifact.runtime_document.get('kind')!='obi_cpu'
+            or target_artifact.runtime_document.get('kind')!='apb_gpio'):
+        raise ValueError('generated-writer-runtime-protocol-unsupported')
     from myfuzz.local_harness.native_physical_observation import verify_native_physical_observation
     target=runtime.session.runner.sessions[access['target_component']]
     if verify_native_physical_observation(target.artifact) is not True:

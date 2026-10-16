@@ -473,5 +473,5 @@ class GeneratedPulpGpioSession(GeneratedLocalSession):
 
 _NATIVE_RESET_GPIO_FUNCTIONS = MappingProxyType({name: (getattr(GeneratedPulpGpioSession,name),
     getattr(GeneratedPulpGpioSession,name).__code__) for name in
-    ('_take','_take_impl','write_register','read_register','step_local','reset_local')})
+    ('_take','_take_impl','_normalized_physical','write_register','read_register','step_local','reset_local')})
 _NATIVE_RESET_GPIO_FUNCTIONS_PIN = _NATIVE_RESET_GPIO_FUNCTIONS
