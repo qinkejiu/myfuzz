@@ -1,0 +1,3 @@
+{"file_count": 37528, "matches": true, "mismatches": [], "symlinks_match": true}
+{"gate": "boundary", "post_exit_audit": "passed"}
+LOCK_PROBE_EXIT=0
