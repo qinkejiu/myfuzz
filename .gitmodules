@@ -58,3 +58,6 @@
 [submodule "third_party/soc-pulp-apb-i2c"]
 	path = third_party/soc-pulp-apb-i2c
 	url = https://github.com/pulp-platform/apb_i2c.git
+[submodule "third_party/cvw_upstream_reference"]
+	path = third_party/cvw_upstream_reference
+	url = https://github.com/openhwgroup/cvw

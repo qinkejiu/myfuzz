@@ -1,0 +1,56 @@
+# Native reset-default 资格：下一原 E1／E2 实施设计（只读，未实现）
+
+已有当前源 warm/cold reset-resume 包证明真实进程重启、epoch／memorygeneration、记录scheduler与新CPU/APB/privateRAM READ一致性；它没有reset-default证书。本文不修改生产、门禁或运行native，不启用routed causal内部probe，不把saved epoch／READY文本／postboot值作为授证输入。当前accepted52字段单点，chunk14仍独立执行中；完整原E1/E2 reset/权限/width/effects目标保留。
+
+## 当前缺口与源码依据
+
+`GeneratedLocalSession.begin_case`（session.py172–193）真实Popen、每执行新execution／sequence0、捕获严格READY并按actual `_expected_ready()` artifact digest/assert/release ticks解析，但未私有保存解析后的startup事实。driver_renderer.py822–835执行真实assert/release tick(dut,nullptr)，计数后READY；startup ticks未进入普通rawjournal。因而现有phase/epoch文本不是可注册的reset授证接口，也不能声称已经观察了reset期间raw波形。
+
+`GeneratedPulpGpioSession.reset_local`（gpio_session.py431）只有 `routed_register_access_enabled` 才发布gpio_reset.v1，带authenticated_generated_driver_ready identity与实际outcome。普通APB模式的enabled=False，所以当前ordinary reset不emit该事件；这是条件覆盖而非整个GPIO无resetreceipt。不能为拿旧event打开causal/probe模式混入D4 writer/version资格。
+
+当前fixed stream bootstrap真实写B.GPIOEN／INTEN=0x101、B.INTTYPE_LOW配置，再写A.PADDIR／GPIOEN=0xff、A.PADOUT=0，启CPU MIE/MSTATUS；ISR读B.PADIN／INTSTATUS并写A.PADOUT。上述被boot写过字段不能以在线slot的读回当reset-default。A.INTEN没有bootstrap/ISR写，是首个可实施的plain稳定候选。A.PADIN虽声明reset_value0，实际随外部输入同步更新，不能按普通无intervening APB write就认其默认；INTSTATUS存在s_rise_int更新优先及条件readclear，现compiler仍拒绝。
+
+## 最小通用第一包：actual startup/reset sealed observation
+
+新增独立默认关闭的generic generated-native lifecycle观察能力，beforebegin安装，绑定实际artifact/profile/ABI/resetroles、source/build/frozeninputs/binary哈希、actual process与parsed READY；闭集版本document区分initial_begin与explicit_reset，actual previous/current epoch、稳定lifetime ordinal、driver expectedidentity、assert/release ticks和实际进程退出/重启事实。记录只能由actual begin/reset路径私有immutable产生，公开accessor返回detached，saved文档仅比较，不提供restore／register JSON入口。
+
+作用限定为code-owned实际native driver执行source-bound reset sequence完成：如果proof需“reset raw观察”，另添加显式opt-in startup tickstream版本，让reset assert/release采样真正归入privatejournal并验证实际clock/reset roles，不能把现tick(nullptr)补写成已观察raw。不要在首包把source execution seal说成已观测波形。旧driver/Session默认布局不变，新配置/sourceclosure显式绑定，failed READY／partial reset不seal，方法／对象／binary／source／process identity drift拒绝。
+
+优先新小模块负责闭集descriptor/pins与boundedprivatehistory，GeneratedLocalSession只在strict READY成功后发布parsed lifecycle事实；GPIO ordinary事件由统一真实descriptor生成而非复用routed observationcontract。Runner追加事件后分配真实ref，关联actual targetepoch；Session可选保存config/state，fresh beforebegin重建并比较终态，saved不能install事实。若终态degraded需只读export保留history、current资格清空，不能因保存而放宽命令守卫。
+
+## 第二包：exact requested field 的 reset-default READ rule
+
+独立code-owned verifier，只接受actual installed lifecycle provider、当前RegisterProgramRuntime successfulmanifest／actualcase、ordinary completed-access sealed chronology与既有one-shot actualcommit消费者私有RAM链。首条rule只支持actual full32 rw/ro稳定存储字段、side_effect none、source-bound明确reset_value、完整readmask，首例A.INTEN.value；不支持PADIN／INTSTATUS／WO aliases，也不以默认数值给compiler加expected/resetoracle。
+
+认证链：target实际resetseal → 当前source/targetepoch与memorygeneration绑定 → 该target从seal以后完整sealed访问stream中没有任何write（保守包括otherregister与alias）→ exact成功selectedREAD → unique actualrequest/accept/response和actualqueuedCPUcallback → 同execution/testcase/sourcecomponent/datachannel/sourceepoch、后续sequence的actualRAMcommit。CPU/RAM值需等于source-bound声明reset_value；该比较只产生observed_reset_default_readback范围资格，不证明activewriter/version、storage persistence、prerequisite、functional或wholeL2。
+
+必须排除未覆盖内部／环境写：稳定存储字段由currenttypedprofile+闭集native source rule判断，不由用户string宣称。新epoch后的bootstrap写其他target不阻A.INTEN候选；若采取全targetwrites保守规则，A的DIR/EN/OUT bootstrap会造成gap，则需选择更精确已审field-affecting rule或专门未写GPIO的启动程序，不能偷偷删除真实bootstrap访问。首包宜明确field-specific no-affecting-writes表，仅当前source-boundplainregister地址与SET/CLR目标关系；如果尚未实现正确generic影响关系，报告gap不授证。
+
+READ before reset、warm重执行旧READ与reset后新selectedREAD分别保留：旧history留存，current只有新seal/epoch下完整新链。warm reexecution没有active selected请求不能再造selectedcertificate；reset后既有pending IRQ/pulse和ISR真实保留，CPU MIE/输入不forcequiet。观测READ一致或zero不是默认证据；只有完整descriptor/no-affecting-write/issuedRAM链可以作新rule。
+
+## 后续覆盖不能缩小
+
+要验证DIR/OUT/GPIOEN/B.INTEN等被boot覆盖字段，需新的code-ownedminimal bootstrap selector，在实际CPU返回合法online waiting前不写这些字段，完整SourceAction／initialimages／memoryslot权限／assembly identity与fresh重编译；不能在现bootstrap执行后读取再宣称默认，不能手设PC/waiting或未记录Runner步。selector是未来独立版本功能，不让saved arbitrary firmware变授权。对PADIN和conditionalINTSTATUS分别需要输入同步/状态产生和条件清除规则，不能把plain reset-default扩宽解决。
+
+## 有效TDD与native门禁
+
+1. 实际parser软件transport正例initial/reset seal及boundedprocessordinal；unsupported legacy/provider、READY身份/ticks/sourcebinary漂移、错epoch/process、重复seal、失败/部分reset、instance/class/代码替换拒绝，saved同形JSON不能注册。真实软件Popen lifecycle不能称RTL reset值证明。
+2. actualCPU→router→parsed target→private completed-access→issuedRAM fixture：A.INTEN非零WRITE→真实reset→recordedresume→新READ0可授新rule；boot覆盖／intervening field/aliaswrite／foreign target/context／commit在READ前／其他casecommit／epoch/generation漂移／unselected warm READ／callbackfailure拒或清current；history不抹。纯saved闭集validator只比较，rehash假resetdescriptor不能转grant。
+3. 开始native先独立warm/cold A.INTEN非零预写（如0x80000000）+READ证明实际旧值，再真实RESET+bounded recordedresume+新READ/privateRAM确认默认0，完整descriptor/source/binary/resetboundary/IRQ/APB/RAM和fresh验证；需要声明真实bootstrapaffecting-write模型，不借已通过reset-resume包当新rule验收。各generation/fresh单worker180秒，后置大JSON独立audit，无并发预算干扰。
+4. 后续minimalboot覆盖其余稳定word/窄field默认、RO/WO访问政策、宽度/effect规则分别列原E1/E2门槛，不能因为首例通过关闭完整Stage2。现PSLVERR固定0、LW/SW full32限制仍保留，不编造硬件无效访问错误或byte/halfword功能。
+
+本设计仅下一实现划分。建议owners：generic lifecyclehelper+GeneratedLocalSession/GPIO一包；Runner关联+闭集private provider一包；reset-default semanticverifier+purevalidator一包；Session/assembly/save/fresh一包；independent review与实际门禁由Root协调。先明确规则和source影响关系再TDD，不用caller descriptors/hoststate恢复任何authority。
+
+## Independent review 后修订：完整命令覆盖与授证前置条件
+
+依据独立 `stage2-e2-native-reset-default-independent-design-review-20261012.md`，保留上文历史提案并修正“completed-access stream”充分性：现collector只seal成功finalized普通queuedCPU handoff，不能证明reset至READ整个目标命令区间没有实际write。`command`、直接`write_register`、router已应用WRITE但callback失败、pending未确认操作均可能已影响DUT。未来lifecycle provider必须在**actual parsed command boundary**建立私有immutable monotonic coverage cursor，从成功READY连续覆盖所有实际目标commands到selectedREAD，不依赖publicjournal/saved rows或只成功completed-accesses。
+
+每个command sequence须唯一、连续、同actualprocessordinal/epoch；read/write含无路由本地调用都要记录。未知command、未追踪／重复／missingcursor、pending／未确认access、异常可能已应用mutation、observer disabled／process变化／source或method drift永久failclosed current qualification，history仍可只读导出。capacity必须命令前拒；不能以“未见成功WRITE”推无影响写。应用后callback失败至少保存已解析执行事实与incomplete原因，不能成功resetdefault降级绕过。缺少此完整覆盖接口时必须explicit gap，尚不能grant任何默认资格。
+
+字段影响分类是current code-owned、source-bound且total的函数，key含actualendpoint/decodedoffset/operation。A.INTEN 首规则允许经源审计确定不影响INTEN的其他已知boot寄存器写；同offset/fullword写、equal-value写、该word任意field的RMW、SET/CLR aliases实际目标word均invalidate，不因值相同或field名不同豁免。未知／reservedoffset、未声明alias、unsupported effect、partial/ambiguous receipt不能当“无影响”，均gap/incomplete。首版只wholewordINTEN并将所有未分类targetWRITE视affecting；精确mask模型是后续独立审计测试，不由sidecar rw/reset_value自行推断。将任何targetWRITE全拒仍保守正确，但会拒A现bootstrap，不能靠删stream取得首例。
+
+READY必须与actual prelaunchartifact/build/source/binary、privatePopen/execution、strictparsedexpectedidentity以及实际oldprocess exit/newprocess start绑定，falliblestartup callbacks前后均method/source/object guard。Initial_begin与explicit_reset闭集区分；READY/source执行完成依然不是rawreset波形。Target实际seal/resetepoch、Runner真正globalresetbarrier/commandepoch、actualmemory对象/generation与CPUsourceexecution/sourceepoch是不同事实域，不能强等整数或borrow另target seal。Runner只接actualprovider私有事实后分配真实journalref；外部reset_local、partialglobalreset、重复barrier或重开旧provider不能修复degraded observer，savedexecution/cursor只比较不恢复。
+
+普通stable-storage支持必须code-ownedsource规则核actualrevision/bytes、resetassignment、PAD_NUM/width/mask以及无internal/asynchronous writer，不能仅因为rw/数值reset_value就授默认。PADIN同步更新和INTSTATUS s_rise_int优先readclear继续拒，GPIOEN/OUT/DIR/PADCFG/narrowfield的泛化需各自source审计。FullE1/E2仍要求真实resetdefault语义，不能降格把普通READ一致性当任务完成。
+
+新增meaningful TDD：实际directwrite_register/command bypass；actual applied routedWRITE随后callback失败；pendingWRITE；equalWRITE；同word不同fieldRMW；alias、unknownoffset与unsupported effect；错误/partialtargetreset及wrongglobalbarrier；READY拒无seal；processordinal重复/方法或code替换；detached/saved rehash不能注册；READ前/foreigncase/privateRAMcommit；late reset/failedresume清current留history。Native仍须nonzeroA.INTEN WRITE→READ证明旧值、actualwarm/coldreset→recordedresume→新READ0/privateRAM，完整sealedcommandinterval＋reset/barrier/CPU/generation来源；原reset-resume一致性包不能借用作新defaultrule验收。默认16/17通道布局语义保持，sourceboundhash随新codeclosure改变；新optin配置/savedwrapper/fresh重算另版本化，未实现/未运行。

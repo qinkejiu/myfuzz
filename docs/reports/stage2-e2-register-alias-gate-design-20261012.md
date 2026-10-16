@@ -1,0 +1,50 @@
+# Ordinary GPIO SET/CLR: compilation, admission and semantic evidence
+
+2026-10-12 read-only review. No production or gate changes and no additional RTL execution. The currently live verifier gate is independent of this proposed next package.
+
+## Existing implementation
+
+The pinned PULP source SHA256 is `1e271914da4d25c87acd12121dde60a6ed955033870fd7a6730b2c9bafcbcaef` (revision `f82caeb7f7d89427f05e9af5ed31e0675efe0d83`). With PAD_NUM=32 and NBIT_PADCFG=4 (RTL lines43–44), PADOUT is offset0x0c, SET0x10, CLR0x14 (lines14–16). SET computes `r_gpio_out[i] | PWDATA[i]` (297–302); CLR computes `r_gpio_out[i] & ~PWDATA[i]` (311–316). PADOUT reads the actual stored output word (570–578). There is no need to infer output state from a host reset model or physical pad direction. SET/CLR are write aliases, not readable registers.
+
+The current sidecar SHA256 is `f9b4837c6ca06b97a0ceb76f134ed7591538ab6d9c3e94c7839fc8ab63b7459b`. Its SET/CLR fields are full32 `bits`, WO, read_mask0, write_mask0xffffffff, effects `write_one_sets` / `write_one_clears`, with exact source references to those RTL lines. It contains effect labels but **no machine-readable alias destination relationship**. The PADOUT row is plain RW/full32. None of these declarations alone grants verified capability.
+
+[Compiler](../../src/myfuzz/scenario/register_program.py) already accepts explicitly authorized SET/CLR ordinary writes. It emits one real full-word SW (16bytes), carries the shifted field mask/value in the plan, requires 32-bit bus/register, and checks value width/write mask through the planner. `allow_side_effect=False` rejects; SET/CLR reads reject even with True; RMW rejects because the register is WO/effectful. The narrow-write exception for these effects emits only the selected bus bits, which is safe for a genuine write-one alias, but current real sidecar declares only the full32 field. It does not authorize inventing smaller real fields.
+
+[Runtime preflight](../../src/myfuzz/scenario/register_program_capabilities.py) can compile these rows with explicit side-effect permission and exposes their scoped register_write conditions with program_bytes16/read_modify_writeFalse. The closed assembly does not need a new arbitrary selector or alias execution path: the original request has register/field/operation/value/allow_side_effect and travels through the existing actual CPU/router/target/ordinary association path. Existing compiler and sidecar tests already cover direct SET/CLR compilation, WO reads, masks and effect authorization; repeating those as a supposed new feature would not be meaningful RED evidence.
+
+## Actual missing semantic rule
+
+[Verifier](../../src/myfuzz/scenario/register_program_verifier.py) currently returns `unsupported_effect_rule` for any write whose side_effect is not `none`. It searches later readback at the same offset for plain writes; that cannot prove a SET/CLR write observed through PADOUT at another offset. It also conservatively invalidates plain write readback across any intervening target write, including aliases. Keep that conservative behavior unless a separately implemented rule proves a stronger relation.
+
+The next feature is therefore source-bound alias **verification**, not a missing SW instruction or assembly admission. Do not globally reinterpret every `write_one_sets` label as affecting an arbitrary register. Declare the relationship in a versioned sidecar extension with a generic closed parser; do not hardcode PULP register names or fingerprint-to-PADOUT mappings in the compiler, verifier or selector. The actual PULP data can declare SET.bits→PADOUT.value OR and CLR.bits→PADOUT.value AND_NOT with a32-bit mask. Authenticate that declaration through the actual profile/sidecar/source fingerprints, instance and endpoint. Missing/mismatching relation must remain an honest gap. A saved relation/report must never select a new provider or create authority.
+
+A certificate must use private completed ordinary access records and actual issued CPU RAM commits, not caller JSON or journal lookalikes. Required ordering is actual PADOUT before-read → actual alias write → actual PADOUT after-read, same target/endpoint/reset epoch/memory generation/CPU source epoch, increasing source transaction sequence. No intervening same-target write may occur except the one selected alias. Compute expected_after from actual before bus response and actual alias write bus value; require actual after bus response and RAM result to agree. Preserve proof scope `observed_cpu_register_readback_consistency` and all storage/version/prerequisite/functional grants False. A register-scoped verified operation may be produced only for this observed alias request; this does not make the full72-field matrix verified L2.
+
+## Directed case sequence
+
+Use the same original request/actual adapter path and fixed source admission; no BFM. Keep bootstrap and low8 IRQ-sensitive wiring unchanged by exercising high bits such as bit31/bit16. For each operation bracket the write with PADOUT READ→separate safe RAM addresses. Observe the before value instead of assuming reset0.
+
+1. READ PADOUT baseline → RAM; SET bits0x80010000 with explicit permission; READ PADOUT → RAM. Check after=before OR0x80010000.
+2. Repeat the same SET bracket: prove idempotence from actual responses.
+3. CLR bits0x80000000 bracket: prove after=before AND_NOT0x80000000 and preservation of bit16/other bits.
+4. Repeat CLR bracket: prove idempotence.
+5. SET0 and CLR0 brackets: prove no-op without assuming any initial word.
+6. Optional boundary fullmask operations should use an isolated instance/configuration when low8 transitions would alter the existing GPIO/IRQ bootstrap behavior. Do not silently change wiring or claim IRQ evidence.
+
+Each bracket has three CPU MMIO accesses, nine APB request/accept/response boundaries, three independent ordinary associations and two actual RAM commits. The complete save/fresh CLI gate must reconstruct original requests, compare all manifests/program bytes/full wrapper/full ordinary state/trace semantics, authenticate source closure and retain separate resource receipts. Reset is a separate directed gate: brackets cannot span reset and old certificates remain historical only.
+
+## Meaningful TDD boundary cases
+
+First RED: actual ordinary completed before/write/after + issued RAM commits, valid source-bound SET/CLR relation, currently `unsupported_effect_rule` → new scoped certificate. The tests must retain nonempty actual private access records; a host-only arithmetic helper is not sufficient.
+
+Negative fixtures: foreign same-profile instance; other endpoint/offset; missing before or after; forged saved alias relation or certificate; source SHA/profile/sidecar drift; actual wrong bus write; incorrect after word despite correct masked bits; preserved unrelated bits corrupted; same-value response from another target; source sequence reversal; reset/generation changes; intervening PADOUT/SET/CLR/other-target-register write; missing/private-unissued or wrong-address/value RAM commit; detached JSON copies replacing private access identity. Existing WO read/RMW/permission rejection and default-off layouts remain regression requirements.
+
+Pure saved wrapper validators must close new rule/result fields and recompute arithmetic/evidence IDs and snapshot operation derivation. Fresh replay must rebuild the source-bound rule from current actual profile/sidecar/artifact, compare saved facts only, and never restore saved association/certificate authority. Source closure includes any new audited relation implementation. Run software first; a new actual gate is authorized separately after production freeze.
+
+## Declarative relationship interface and G8 boundary
+
+Choose a versioned sidecar schema rather than an implicit effect-name convention or code-owned PULP lookup. A proposed `register_aliases` list has closed rows containing source register/field, destination register/field, endpoint_id, operation (`or` or `and_not`), bus_width and evidence_ref. Exact naming/version is a schema design decision; this report does not imply the extension already exists. Preserve the current v1 loader/default layout and introduce the declaration only through the explicitly versioned parser. Core logic resolves both fields from the loaded profile/sidecar and validates generic constraints. Instance identity comes from the current runtime binding, never from a sidecar-selected executable/provider.
+
+Require source WO or explicitly supported write access, source effect matching the declared operation, destination plain readable32-bit complete word, same endpoint/aperture, distinct offsets, aligned offsets, full bounds/masks and explicit side-effect permission. Resolve evidence_ref against the admitted revision/source SHA and actual profile mapping. The source's field-relative mask and destination bus position must be explicitly compatible; do not infer unrelated offsets, silently clip widths or invent RMW on a WO alias. Duplicate source relations, conflicting destinations/effects, self aliases, cycles, foreign endpoints, unknown keys/operations, bool-as-int widths, overlapping/partial destination semantics, unreadable destinations, mismatched masks and source drift must reject before commands. Missing relationship is a verifier gap rather than granting behavior from the old label.
+
+The same generic parser/semantic rule must work for a differently named software fixture/profile without any PULP or CPU name checks. G8 negatives should rename unrelated fields without creating capabilities, and show that an otherwise identical profile with no declaration remains unsupported. Saved forged destination/effect plus self-consistently recomputed hashes cannot replace current caller-admitted sidecar/source facts during fresh replay. An actual valid bracket remains required even for a correctly authenticated declaration: the declaration explains what to test, while private actual CPU/target/RAM evidence establishes the observed consistency. Neither produces storage/version/functional grants or promotes an incomplete matrix to verified L2.

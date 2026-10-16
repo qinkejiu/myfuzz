@@ -129,19 +129,37 @@
 | APB3 寄存器 | `apb3_register_template.py`、`apb3_register_session.py` | 同上，APB3 形态（PULP GPIO/Timer） |
 | Wishbone 寄存器 | `wishbone_register_template.py`、`wishbone_register_session.py` | 同上，Wishbone 形态（ZipCPU Timer/wbuart） |
 | 串行 peer | `tlul_uart_peer_session.py`、`tlul_spi_mode0_peer_session.py` | 可复用的 8N1 UART peer 与单线 SPI mode-0 master |
-| 完成式内存 | `native_session.py`、`native_contract.py` | 通用单笔未完成 completion memory 服务 |
+| 完成式内存 | `native_session.py`、`native_contract.py` | 通用单笔未完成 completion memory 服务；可选 `DataflowRouter` 把落在已声明设备窗口内的 beat 交给真实目标（无 router 时逐字节不变） |
 | 工厂 | `generated_register_factory.py` | 由准入产物创建 register session 与输入归属 |
 
 ### 3.3 各 DUT 会话（真实 CPU / IP）
 
+**CPU 适配目标与协议对应**（权威口径，与 [P6 逐协议行适配清单](superpowers/plans/2026-10-13-p6-per-protocol-row-checklist.md) §1.4 同源）：
+
+| CPU | 对应协议 | 本仓库会话实现 | 现状 |
+|---|---|---|---|
+| Ibex | OBI 指令 / 数据 | `cpu_session.py` | 可规划、已有真实 RTL 验收 |
+| CVA6 | 打包 64 位 AXI4 单主端口 | `cva6_axi4_session.py`＋`cva6_axi4_fields.py` | 可规划、已有真实 RTL 验收 |
+| CV32E40P | 分离 OBI 指令 / 数据 | `cpu_session.py` | 可规划 |
+| BOOM | TileLink 1.0 指令 / 数据端点 | —（无 `component_profile.json`） | `skipped_unavailable`：仅有参考用语义描述，缺 Chipyard 生成与真实 profile。**2026-10-13 实测查清阻断链（比"缺 java"更本质）**：构建入口是 sbt／Mill，依赖 **Chisel 6.5.0** 且 `rocketVersion = "1.6-SNAPSHOT"`（快照版本）；该仓库**自身没有任何 Verilog 生成目标**，README 明写 "NOT A SELF-RUNNING repository… use the Chipyard SoC generator"（`CHIPYARD.hash` = `4180463d…`）。故需**完整 Chipyard 工具链＋JVM＋快照依赖解析**；本机 `java`／`javac`／`sbt`／`mill` 全无，且 `sudo` 因 `no new privileges` 被禁、apt 不可用。CPU 侧契约已有（`cpu.tilelink` 两 variant） |
+| CVW（CORE-V Wally） | AHB-Lite 外部总线（EBU） | — | `skipped_unavailable`：**2026-10-13 已取得真实源码**（`third_party/cvw_upstream_reference`，顶层 commit `2f2ddfd`，`CVW_v0.9` 可钉定），且是 **SystemVerilog，Verilator 可直接吃、不需要 JVM**。权威端口集取自 `src/wally/wallypipelinedsoc.sv`：输出 `HCLK`/`HRESETn`/`HADDR`/`HWDATA`/`HWSTRB`/`HWRITE`/`HSIZE`/`HBURST`/`HPROT`/`HTRANS`/`HMASTLOCK`/`HREADY`/`HSELEXT`，输入 `HRDATAEXT`/`HREADYEXT`/`HRESPEXT`（读数据在 CPU 边界叫 **`HRDATAEXT`**；`src/ebu/ebu.sv` 故意不含 `HRDATA`，其注释明写 "HRDATA is sent to all controllers at the core level"）。**真实宽度**（读自 CVW 自身配置，rv32imc）：`XLEN=32`、`AHBW=XLEN=32`、**`PA_BITS=34`**——故 `HADDR` 34 位、比数据端口宽。**已做到**：声明 `configs/cpus/cvw/interface_description.json`、插件 `ahb_lite.json`、CPU 侧契约 `cpu.ahb-lite`、**顶层 Verilator elaboration 通过**（226 个 `.sv`，`wallywrapper`）。**2026-10-13 更新：已通过 P7-A 声明核对（`ok cvw 9/9`，supervisor 可用与不可用**两条路径结论一致**）**，端口事实由真实 Verilator elaboration 提取（18 端口、`HADDR`=34）、与声明／契约／渲染器形状三方一致。**不入 `sources.lock.json`**：本仓 local profile（`ibex_rvfi_local`／`opentitan_*_local` 等）的官方约定是 `root:"."` ＋ sha256 pin 且**不登记 lock 记录**，CVW 遵循同一约定（实测移除该记录后 `verify_soc_sources.py` 恢复 29/29 全通；保留则唯一失败项就是它）。**2026-10-14 更新**：AHB 运行期分支此前方向写反（`beat_to_ahb_lite.sv` 把 harness 当主设备），已改为**从属端** `ahb_lite_memory_target.sv`（含自检 testbench：IDLE 非交易／读相位与完成／写在地址相位后一拍才采 `HWDATA`／无人应答保持不伪造完成；首版有真实自握手死锁，已修，testbench PASS ＋ `verilator --Wall` 0 warning），运行期渲染器 `ahb_lite_cpu` 分支已实例化它、beat 地址宽度修正为 **34**（曾静默截成 32），生成的 runtime top 与**真实 CVW 源码**经仓库自己的 `run_verilator_elaboration` 一起通过（`tests/integration/test_cvw_ahb_runtime_generation.py` 2 passed），且这 243 文件内容 pin 覆盖**派生配置**。**上游阻断点（新证据）**：`adrdec.Sel = Match & Supported & AccessValid & SizeValid`，CVW 六个已提交配置的 `EXT_MEM_SUPPORTED` **全为 0**，故 `HSELEXT` 永不选通、外部 AHB 端口在上游不可达（CVW 自己的 testbench:545 因此把 `HREADYEXT` 恒置 1）；且 `EXT_MEM_BASE == UNCORE_RAM_BASE == 0x80000000`。本仓已按 `scripts/derive_cvw_config.py` 生成并钉定派生配置（开 `EXT_MEM_SUPPORTED=1`，外部区移到 `0xC0000000..0xCFFFFFFF`，生成期断言与所有启用区间不相交），并把 `config_extmem` 放在 `include_roots` 首位。**仍缺**：**真实 AHB 交易**（实测 `transactions=0`；外部区取指程序尚未跑通）——**通过 P7-A、能 elaborate、配置已开启、从属端模型正确，四者都不等于可执行** |
+| VexiiRiscv | TileLink 内存总线 | — | `skipped_unavailable`：仓库无源码／配置／profile。**2026-10-13 实测**：上游 `SpinalHDL/VexiiRiscv` 的 **releases 为空**（无已生成 Verilog 可下载），SpinalHDL 生成需 JVM（本机无 `java`），故阻断性质与 BOOM 相同——缺工具链而非缺仓库访问 |
+| ZipCPU | AXI4（分离指令／数据） | `axi4_cpu_session.py`＋`axi4_fields.py` | 可规划 |
+| PicoRV32 | AXI4-Lite ／ Wishbone ／ 原生完成式 | `axi_lite_session.py`、`wishbone_cpu_session.py`、`native_session.py` | 可规划 |
+| RVX | 流水完成式内存 | `rvx_memory_session.py` | 可规划 |
+
+**协议能力（不得用别的协议抵消）：** CPU 侧模板契约现有 `cpu.obi`／`cpu.axi4`／`cpu.axi4-lite`／`cpu.wishbone`／`cpu.native-memory`／`cpu.pipelined-memory`／**`cpu.tilelink`（两 variant，依 BOOM 真实声明）**／**`cpu.ahb-lite`（variant `cvw-external-bus`，依 CVW 真实声明，2026-10-13 补齐）**，全表共 **15** 条（CPU 侧 10 ＋ target 侧 5）。AHB-Lite 契约的角色名与两条真实形态事实：读数据在 CPU 边界叫 **`HRDATAEXT`**（`src/ebu/ebu.sv` 故意不含 `HRDATA`，其注释明写 "HRDATA is sent to all controllers at the core level"），**`HSELEXT` 是 CVW 片选扩展而非 AHB-Lite 信号**；`AHBW`/`PA_BITS`/`XLEN` 是 `cvw_t` 字段，故契约只声明参数化宽度并标注 `elaboration_status='not-elaborated'`。**AHB-Lite 仍未 elaboration、未跑任何交易，CVW 行仍为 `skipped_unavailable`——有契约不等于可用。** 注意仓库里的 `target.tl-ul` 是 TileLink-UL **目标（外设）**契约，与 BOOM／VexiiRiscv 的 TileLink 1.0 **CPU 端点**不是同一条目。
+
+**按组件列出的会话文件：**
+
 | 类别 | 组件 |
 |---|---|
-| CPU | `cpu_session.py`（OBI，598 行）、`cva6_axi4_session.py`＋`cva6_axi4_fields.py`（packed AXI4）、`axi4_cpu_session.py`＋`axi4_fields.py`（ZipCPU AXI4）、`axi_lite_session.py`、`wishbone_cpu_session.py`（PicoRV32）、`rvx_memory_session.py`（RVX） |
+| CPU 会话文件 | `cpu_session.py`（OBI，598 行）、`cva6_axi4_session.py`＋`cva6_axi4_fields.py`（packed AXI4）、`axi4_cpu_session.py`＋`axi4_fields.py`（ZipCPU AXI4）、`axi_lite_session.py`、`wishbone_cpu_session.py`（PicoRV32）、`rvx_memory_session.py`（RVX） |
 | OpenTitan IP | `opentitan_gpio_session.py`（＋`_contract`）、`opentitan_uart_session.py`（710 行，＋`opentitan_uart_contract.py`/`opentitan_uart_fifo_contract.py`）、`opentitan_spi_host_session.py`、`opentitan_spi_device_session.py`、`opentitan_i2c_session.py`、`opentitan_rv_timer_session.py`、`opentitan_sysrst_ctrl_session.py`、`opentitan_pattgen_contract.py` |
 | PULP IP | `gpio_session.py`、`spi_session.py`、`i2c_session.py`、`timer_session.py`（＋对应 `_contract`） |
 | 其它 IP | `axil_uart_session.py`、`wishbone_uart_session.py`、`zip_timer_session.py` |
 | Ibex 专用契约 | `ibex_rvfi_contract.py`、`ibex_irq_receipt_contract.py`、`uart_controlled_irq_contract.py` |
-| 契约工具 | `template_contracts.py`（379 行，只读协议契约）、`pulp_gpio_probe_contract.py` 等 |
+| 契约工具 | `template_contracts.py`（406 行，只读协议契约，共 12 条）、`pulp_gpio_probe_contract.py` 等 |
 
 ### 3.4 协议与 ISA
 

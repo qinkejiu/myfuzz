@@ -1,0 +1,61 @@
+# E2 register behavior verifier execution — 2026-10-12
+
+当前验收结果：已实现 actual completed-access immutable handoff、ordinary READ/WRITE/RMW scoped verifier、真实窄字段CPU READ及closed savedmanifest；已通过软件可信边界复核。真实14case generation在v2目录通过（140.50秒），实际6RAM/28确认关联/29985events；完整认证bundle独立检查通过，production file fresh CLI已在独立180秒预算通过（133.80秒，29985events及完整ordinary state匹配），最终独立artifact audit已通过 findings=[]。首次factory失败与旧容量合同及旧窄READ期望如实保留在下文。新verifier的Session/assembly/save/CLI production opt-in仍未实现，下一包设计已独立审查，完整Stage2保持active。
+
+证据：[v2实际摘要](../../runs/stage2-e2-register-field-read-20261012-v2/summary.json)、[generation资源](../../runs/stage2-e2-register-field-read-20261012-v2/resource.json)、[独立partial审计](../../runs/stage2-e2-register-field-read-20261012-v2/generation-partial-audit.json)。
+
+状态：本冻结软件＋窄READ实际文件回放包已验收，完整原计划执行中。上一轮 production ordinary APB 接线与分阶段 fresh CLI 已验证，详见 [前包执行报告](stage2-e2-ordinary-access-production-replay-20261012.md)。本轮按原批准 Stage2 E1/E2 继续 code-owned scoped verifier、实际窄字段 READ 与随后真实读回/reset/权限/mask/width/effects，完整计划保持 active。
+
+三个子代理并行：renderer 设计及新增 register_program_verifier.py/软件正负例；runner 设计真实行为门禁并 TDD 修改 register_program.py 窄 READ；reviewer 独立可信边界设计及后续审查。Root 独占 collector 完成访问封存、Session 闭集窄片段保存/回放验证与文档；不修改他人生产所有权、不commit/stage/清理既有dirty。
+
+设计契约：collector 仅在实际 finalize 已确认 CPU callback、request/response、ledger、target receipt 和完整 raw/base 命令跨度后封存不可变 JSON；只读 completed_accesses() 返回 detached 数据，无 caller/saved ingest。封存只是 transport handoff，所有 storage/verified/functional grantsFalse。新 verifier 绑定实际 register runtime、Session、profile/sidecar 与 current objects/sources；READ 要求实际 APB→CPU→RAM结果，WRITE/RMW 要求之后同word真实读回且无中间写/reset。全stream包括bootstrap与aliases，不把 selected requests 过滤后的邻接当无中间写。SET/CLR需独立明确规则，unsupported effects保持gap；每条证书 scope为 observed CPU register readback consistency，不是假D4 internalwriter_version或 prerequisite authority。exactfieldop snapshot不自动升aggregate L2。
+
+窄 READ 执行仍真实32-bit LW，随后 CPU SRLI/mask 后 SW 到实际RAM；field-relative zeroextended结果。完整word旧16bytes/layout不变。不能借读取一个plainfield绕开同word其他readsideeffects，必须整word readable/完整/无readsideeffect。保存闭集需依实际operation plan核对片段长度与field_extraction metadata，fresh仍原request实际context重编译。
+
+Root completed-access TDD 4 RED（缺接口，9.27秒，2703exit1）→新4+collectorcore17+Runner10共31 passed37.81秒（1599exit0）。真实fixture使用 actualCPU._serve/router/parsed GPIO软件transport；验证成功才封存、returned/publicjournal改动不改sealed facts、callback失败无seal、当前配置漂移仍拒；不是RTL证据。上一包源码冻结门禁只证明其历史版本，新collectorSHA已改变，尚无本轮真实DUT gate。
+
+
+本轮进展：compiler narrowREAD新18tests先11RED→四模块128passed1.05秒，production SHA ebb0b78da125b8990d87ef8bc0248c0074e3d2f3c70ddebc2252d4746e95e60e冻结，fullword16bytes/旧layout不变。Root savedmanifest新6checks，实际freshnarrowmanifest先1RED（固定16byte拒，9.59秒，82249exit1）+5已拒负例；现Session按contiguousactualbusmask推精确片段length/extractionmetadata，narrow保存与旧default/capability replay联合24790进行。内部READ结果证据使用现MemoryCommitAuthority registered one-shot consumer，在Runner actual preack hookresolve实际issuedcommit，非publicjournal或ack后消失的service lookup。Root wire test1RED9.42秒→new1+旧memorydependency15共16passed9.92秒（21918exit0）；只是privatehandoff接线证据，不冒充完整semanticREAD正例。Rendererverifier规则正例/负例正在补，尚未freeze/尚无本轮新RTL。
+
+独立completed-access封存5新增boundary+root4共9passed11.04秒，确认失败后历史、等值写/跨实例distinct、深层detach和currentCPU方法漂移拒，collectorSHA2db93315effbf35ac76c563a493a28feda53e62487928857c26e6e00a58e77d6。所有新配置都只observationalhandoff，不internalstorage/versiondependency/prereq/functional。独立reviewer正在审verifier，runner另补实际对象窄READ保存filefresh软件正例，scope软件非RTL。
+
+
+Root narrow savedmanifest＋旧default/capability replay稳定33passed102.14秒（24790exit0）。新增实际对象的软件fieldfilepipeline3passed103.60秒，并单独精准rehashedextraction负例1passed51.48秒：pin7/pin31 actualCPU service→strictparsedbus→实际RAM13/3，2confirmed associations、12raw/6base/2RAMcommit、完整schema16/freshsource/extraction/trace/snapshot匹配；解释器只是软件总线驱动，不是DUT。重hash保存RAM值导致fresh mismatch，重新签compiler/plan/state/envelope的extraction伪造在factory前closed reject。
+
+独立verifier P2已两真实negative RED：先actualSTORE17再GPIOREAD17无后STORE、READ后actualSTORE来自foreignCPUtestcase仍误授；renderer已修actualcommit必须afterdelivery且完整sourcekey一致/sequence严格推进，review2＋READ正错2联合4GREEN45.93秒。另新增foreignCPUwriter actualseal归本request误授第三RED20.89秒，须匹配admittedmanifest.context.waiting_transaction的execution/testcase/source/epoch＋datachannel；不能用request.case_id代替长期CPU stream testcase，也不能跨instr/data比较序号。当前候选尚未freeze/完整semantic包未宣告完成。
+
+Root prepared14case实际门禁：原8RMW+2fullREAD+PADCFG0pin0/pin7、INTTYPEHIGHpin31/pin16四narrowREAD，对rawbus→实际CPUshift/mask→RAMcommit字段值分别核对，保存gen-only180sec worker后另预算fresh。增加phase timings定位combined成本，sourcepin路径typo启动前被独立预审发现并修；尚未启动，无本轮新RTL成功声明。
+
+
+verifier增量审查：actualREADcommit完整顺序/identity修复4GREEN45.93秒；foreignactualwriter归因第三RED已修waitingcontext完整CPU域，当前18testsGREEN72.48秒（82527exit0）。successfulmanifest单边漂移另1RED22.59秒，现核actualsubmittedrecordmanifest/caseindex/source精确一致。真实callbackfailure后history保留但current误授第四RED15.38秒，renderer正补currentempty/statusincomplete/gap；完整semanticcandidate尚未finalfreeze。
+
+Root容量precommandTDD Session branch真实RED（reset spy被调用），Runner spy首两轮返回None/未advance tick引fixture错误不计该branch有效RED；70580又在source中途变化触发expectedsource-drift，不能记capacityRED。继续等verifier源码freeze，再精确重复同fixture后接命令前guard。所有中间失败如实保留，不用不完整测试数量称全组通过。
+
+
+本轮软件回归终态：verifier自身16＋独立boundary4＋Root commitwire1＋旧容量2共23passed110.41秒（69121exit0）；compiler/既有RMW/验证/savednarrow/MemoryDependency/collector/Runner十模块共185passed59.90秒（84953exit0）。这两组仅软件证据。独立审查指出旧容量合同过严：max_records应限制新operation/evidence，不能阻止最后合法case剩余ticks与收尾。因此旧容量2GREEN作为被修订合同的历史记录，不作为新容量验收。正在区分 _preflight_command(new_operation=False) 与 Runtime.prepare 的 True，实际commit仅保留activeREAD完整CPU域/resultspan匹配的候选；bootstrap/WRITE/unrelated不占READ结果容量。
+
+命令guard另发现动态实例覆盖绕过风险：Root新增module捕获的Runner guard函数入口，Session/Runnerstep/Runtime.prepare使用该入口；检查实例/class guard漂移和严格bool。此修复已写入，独立负例尚未完成，无该项RED或完成声明。renderer负责verifier修改，reviewer负责新容量/覆盖回归，runner只读预审14case真实门禁。源码尚未最终冻结，尚未启动本轮新RTL。
+
+
+修订容量软件两新测试真实RED（8471，普通满容量余tick被拒、bootstrap commit错误占候选）→2GREEN22.66秒（20810exit0）。verifier冻结0ccd8ccc861e52899511d050c6dba5ccd74463862cc9c3e443b83045cdcee68c，Root production guard/prepare冻结，独立6新合同＋4boundary及renderer own完整回归进行中。14case真实RTL generation-only监督器已启动（78987），单worker180秒；bootstrap精确6、总关联28、四窄field结果字面3/13/3/2明确断言。尚无终态，freshCLI尚未启动，verifier未安装到该真实gate，不可将本门禁冒称semantic verifier生产授级。
+
+
+真实14case初次78987exit1：启动factory capability closed validator仍硬编码READ16，拒actualnarrow24，14.44729209秒/峰165597184 bytes/RSSlimit2924732416，command_failed，未生成bundle，旧目录资源/source/cache完整保留。补actualpreflight窄READ闭集测试先1RED+6已拒负例（94124，13.06秒），Root改结构长度集合16/20/24/28/32，WRITE16/RMW36及配置最大byte上限保持；saved只比较，fresh实际compiler仍精确重算。此前capability旧max36 READ不effective断言已随actualcompiler能力修订。准备v2独立目录，不覆写失败。
+
+冻结软件：ownverifier18＋review4=22GREEN87.55秒（45227）；独立新合同6GREEN28.73秒（51980），联合旧一resetfixturefail因没有真实submittedcase先被合法precondition拒，修fixture后通过；Root actualwire/runtime/savednarrow/memorydependency/Session五模块95GREEN92秒（88831）。新增doclink已修正，632files/1705links/83既有历史失效/0Stage2broken。
+
+
+capability窄READ固定16遗漏修复后四模块首次37pass/1旧boundary期望失败104.73秒（49803）：旧独立test要求64byte预算也不得窄READ，现编译器真实20byte已支持，该期望需更新为small16无READ/large64有20byteREAD；正在单target复验，不把该次称全GREEN。另新增真实16budget仍拒allowed20shape和READ+RMW互斥2GREEN10.86秒（60641）。v2已启动41464，生产冻结，尚无终态。
+
+
+真实v2 generation已通过：41464exit0/complete140.50271113499秒，峰2617356288 bytes低于RSSlimit3090362368，单worker180秒预算内；14cases（8RMW/6READ/4narrow）、28完整确认关联（A25/B3，bootstrap6＋case22）、6实际RAM提交、29985events，四实际字段值3/13/3/2。源码282pins全匹配，独立generation partial audit已核source长度20/24/24/20、66本例protocol；完整认证bundle/rawbase/fullrefs审计继续。production fresh CLI独立11059已启动180秒预算，尚未终态；本gate没有安装新semantic verifier，授级/storage/functional保持False。cap四模块37GREEN＋旧不支持窄READ期望修正后单target1GREEN12.27秒（38883）＋新budget/互斥2GREEN，共40不同tests分阶段证据；不称原49803全GREEN。
+
+
+production fresh CLI11059exit0：complete133.801413566秒，峰2651426816 bytes低于RSSlimit3218063360，单worker独立180秒；matchesTrue、29985events、semantic4ebf931a9afda4ac4886cc3b37aa58ffed78c8c9b295a92da24747f64fd2b36e及完整ordinary state均等于实际保存。identity492483bcf0e6651d0464a116ae4e39b5b903bf349297976c16e75482e6892c7f；scope仍reconstruction/admission/online_complete_prefix。actualstartup GPIO A/B各148declared/142effective/0verified，effective L1，不自动L2。generation140.50秒＋fresh133.80秒是分别预算成功，不是合并180秒成功；generation摘要fresh_cli_executedFalse保持，fresh证据独立保存。最终独立artifact audit已通过 findings=[]，全部源仍冻结。
+
+下一包已准备Session opt-in真实TDD RED：66147exit1/8缺API失败＋1defaultoff通过29.71秒，testSHAeba0e62aa39d9a1b796a248b5908085946228452d0e6e67c069dc5ce05d24a04。尚未落生产，故不把整个工作区称全部测试GREEN。下一包renderer独占Session/保存/replay接线，Root独占verifier pure closed saved shape validator，integration owner另接assembly/fileCLI；当前包实际成功是本冻结版本，不证明未实现下一包。
+
+
+最终独立artifact audit已通过 findings=[]：[审计](../../runs/stage2-e2-register-field-read-20261012-v2/independent-audit.json)核282currentpins、canonical envelope＋9认证artifact、14精确离线重编译与savedsource/fieldmetadata、28全journal raw/base/receipt/acceptance/deliveryrefs、fullsnapshot plan=actual=fresh、startup capability plan=manifest=fresh一致；ordinary闭包271/register21/online45逐项当前SHA核对，GPIOA/B各282cacheinputs、CPU351inputs及三binarySHA匹配。Fresh fulltrace未另存，实际CLI的semantic/count及完整ordinarysnapshot与认证savedtrace核对，限制明确。该冻版通过本包验收，fullreset/72field行为/SETCLR/conditional-effects/functional及全Stage2继续，新的semanticverifier未装此RTL门禁。
+
+冻版生产SHA：collector2db93315effbf35ac76c563a493a28feda53e62487928857c26e6e00a58e77d6；compiler ebb0b78da125b8990d87ef8bc0248c0074e3d2f3c70ddebc2252d4746e95e60e；verifier0ccd8ccc861e52899511d050c6dba5ccd74463862cc9c3e443b83045cdcee68c；Runnera043cb25de92bf96db8c443ebfa2d8b486f48aab2931c0e0aef6693efad66f93；Sessiona0a61a289a418e99bc42d65dc40b78b4660b8c674ce57f27476be8d9de88d649；Runtime3d542e03381d6c9308879297963a615302fa2ee1bb8407900325bf94678cb36a；capability52a10801ec5ab02daecc7a024ca536f264fa779b6d58080c876cf9a6868a593c。后续生产变更不归该冻版证据，缓存inputs和所有失败产物保留，无commit/stage/dirty清理。

@@ -1,0 +1,1131 @@
+{
+  "accepted_points": 64,
+  "checked_points": 64,
+  "exact_points": [
+    [
+      "INTTYPE_LOW",
+      "pin0",
+      0,
+      2,
+      1
+    ],
+    [
+      "INTTYPE_LOW",
+      "pin1",
+      2,
+      2,
+      2
+    ],
+    [
+      "INTTYPE_LOW",
+      "pin14",
+      28,
+      2,
+      3
+    ],
+    [
+      "INTTYPE_LOW",
+      "pin15",
+      30,
+      2,
+      1
+    ],
+    [
+      "INTTYPE_LOW",
+      "pin2",
+      4,
+      2,
+      2
+    ],
+    [
+      "INTTYPE_LOW",
+      "pin3",
+      6,
+      2,
+      3
+    ],
+    [
+      "INTTYPE_LOW",
+      "pin4",
+      8,
+      2,
+      1
+    ],
+    [
+      "INTTYPE_LOW",
+      "pin5",
+      10,
+      2,
+      2
+    ],
+    [
+      "INTTYPE_LOW",
+      "pin6",
+      12,
+      2,
+      3
+    ],
+    [
+      "INTTYPE_LOW",
+      "pin7",
+      14,
+      2,
+      1
+    ],
+    [
+      "INTTYPE_LOW",
+      "pin8",
+      16,
+      2,
+      2
+    ],
+    [
+      "INTTYPE_LOW",
+      "pin9",
+      18,
+      2,
+      3
+    ],
+    [
+      "INTTYPE_LOW",
+      "pin10",
+      20,
+      2,
+      1
+    ],
+    [
+      "INTTYPE_LOW",
+      "pin11",
+      22,
+      2,
+      2
+    ],
+    [
+      "INTTYPE_LOW",
+      "pin12",
+      24,
+      2,
+      3
+    ],
+    [
+      "INTTYPE_LOW",
+      "pin13",
+      26,
+      2,
+      1
+    ],
+    [
+      "INTTYPE_HIGH",
+      "pin16",
+      0,
+      2,
+      1
+    ],
+    [
+      "INTTYPE_HIGH",
+      "pin17",
+      2,
+      2,
+      2
+    ],
+    [
+      "INTTYPE_HIGH",
+      "pin30",
+      28,
+      2,
+      3
+    ],
+    [
+      "INTTYPE_HIGH",
+      "pin31",
+      30,
+      2,
+      2
+    ],
+    [
+      "INTTYPE_HIGH",
+      "pin18",
+      4,
+      2,
+      2
+    ],
+    [
+      "INTTYPE_HIGH",
+      "pin19",
+      6,
+      2,
+      3
+    ],
+    [
+      "INTTYPE_HIGH",
+      "pin20",
+      8,
+      2,
+      1
+    ],
+    [
+      "INTTYPE_HIGH",
+      "pin21",
+      10,
+      2,
+      2
+    ],
+    [
+      "INTTYPE_HIGH",
+      "pin22",
+      12,
+      2,
+      3
+    ],
+    [
+      "INTTYPE_HIGH",
+      "pin23",
+      14,
+      2,
+      1
+    ],
+    [
+      "INTTYPE_HIGH",
+      "pin24",
+      16,
+      2,
+      2
+    ],
+    [
+      "INTTYPE_HIGH",
+      "pin25",
+      18,
+      2,
+      3
+    ],
+    [
+      "INTTYPE_HIGH",
+      "pin26",
+      20,
+      2,
+      1
+    ],
+    [
+      "INTTYPE_HIGH",
+      "pin27",
+      22,
+      2,
+      2
+    ],
+    [
+      "INTTYPE_HIGH",
+      "pin28",
+      24,
+      2,
+      3
+    ],
+    [
+      "INTTYPE_HIGH",
+      "pin29",
+      26,
+      2,
+      1
+    ],
+    [
+      "PADCFG_0",
+      "pin0",
+      0,
+      4,
+      1
+    ],
+    [
+      "PADCFG_0",
+      "pin1",
+      4,
+      4,
+      5
+    ],
+    [
+      "PADCFG_0",
+      "pin6",
+      24,
+      4,
+      10
+    ],
+    [
+      "PADCFG_0",
+      "pin7",
+      28,
+      4,
+      15
+    ],
+    [
+      "PADCFG_0",
+      "pin2",
+      8,
+      4,
+      2
+    ],
+    [
+      "PADCFG_0",
+      "pin3",
+      12,
+      4,
+      6
+    ],
+    [
+      "PADCFG_0",
+      "pin4",
+      16,
+      4,
+      9
+    ],
+    [
+      "PADCFG_0",
+      "pin5",
+      20,
+      4,
+      14
+    ],
+    [
+      "PADCFG_1",
+      "pin8",
+      0,
+      4,
+      1
+    ],
+    [
+      "PADCFG_1",
+      "pin9",
+      4,
+      4,
+      5
+    ],
+    [
+      "PADCFG_1",
+      "pin14",
+      24,
+      4,
+      10
+    ],
+    [
+      "PADCFG_1",
+      "pin15",
+      28,
+      4,
+      15
+    ],
+    [
+      "PADCFG_1",
+      "pin10",
+      8,
+      4,
+      2
+    ],
+    [
+      "PADCFG_1",
+      "pin11",
+      12,
+      4,
+      6
+    ],
+    [
+      "PADCFG_1",
+      "pin12",
+      16,
+      4,
+      9
+    ],
+    [
+      "PADCFG_1",
+      "pin13",
+      20,
+      4,
+      14
+    ],
+    [
+      "PADCFG_2",
+      "pin16",
+      0,
+      4,
+      1
+    ],
+    [
+      "PADCFG_2",
+      "pin17",
+      4,
+      4,
+      5
+    ],
+    [
+      "PADCFG_2",
+      "pin22",
+      24,
+      4,
+      10
+    ],
+    [
+      "PADCFG_2",
+      "pin23",
+      28,
+      4,
+      15
+    ],
+    [
+      "PADCFG_2",
+      "pin18",
+      8,
+      4,
+      2
+    ],
+    [
+      "PADCFG_2",
+      "pin19",
+      12,
+      4,
+      6
+    ],
+    [
+      "PADCFG_2",
+      "pin20",
+      16,
+      4,
+      9
+    ],
+    [
+      "PADCFG_2",
+      "pin21",
+      20,
+      4,
+      14
+    ],
+    [
+      "PADCFG_3",
+      "pin24",
+      0,
+      4,
+      1
+    ],
+    [
+      "PADCFG_3",
+      "pin25",
+      4,
+      4,
+      5
+    ],
+    [
+      "PADCFG_3",
+      "pin30",
+      24,
+      4,
+      10
+    ],
+    [
+      "PADCFG_3",
+      "pin31",
+      28,
+      4,
+      15
+    ],
+    [
+      "PADCFG_3",
+      "pin26",
+      8,
+      4,
+      2
+    ],
+    [
+      "PADCFG_3",
+      "pin27",
+      12,
+      4,
+      6
+    ],
+    [
+      "PADCFG_3",
+      "pin28",
+      16,
+      4,
+      9
+    ],
+    [
+      "PADCFG_3",
+      "pin29",
+      20,
+      4,
+      14
+    ]
+  ],
+  "final_audit_terminal_confirmed": true,
+  "global_active_certificate_count": null,
+  "grants_exhaustive_field_values": false,
+  "grants_full_e2": false,
+  "per_bundle_current_certificates": 8,
+  "resources": "16 independent generation and16 independent fresh budgets each<=180singleworker",
+  "rows": [
+    {
+      "chunk": 1,
+      "current_certificates_per_bundle": 8,
+      "directory": "runs/stage2-e2-register-field-inttype-low-20261012-v1",
+      "event_count": 18218,
+      "fields": [
+        "pin0",
+        "pin1",
+        "pin14",
+        "pin15"
+      ],
+      "fresh_seconds": 117.5034022149921,
+      "generation_seconds": 133.03611893299967,
+      "identity_sha256": "dd2397a6db1a0790edd216108b60f8a22e434682ed07084e62333ba8aca5c1d4",
+      "register": "INTTYPE_LOW",
+      "semantic_sha256": "6150db278beb3f658d4108ea971904433e496843b9423b29879fc07b81e68bd6",
+      "source_pins": 282,
+      "values": [
+        1,
+        2,
+        3,
+        1
+      ]
+    },
+    {
+      "chunk": 2,
+      "current_certificates_per_bundle": 8,
+      "directory": "runs/stage2-e2-register-field-inttype-low-pins2-5-20261012-v1",
+      "event_count": 18227,
+      "fields": [
+        "pin2",
+        "pin3",
+        "pin4",
+        "pin5"
+      ],
+      "fresh_seconds": 117.86604998000257,
+      "generation_seconds": 132.4123047089961,
+      "identity_sha256": "e0146133dbc57db8ce2fd52faa8582b94cce3e64658d443e75ec72d3ef836b49",
+      "register": "INTTYPE_LOW",
+      "semantic_sha256": "fc2b38cd09d6259d221f9e949fcc74dd8e32baea57d200019033a1cb0e933502",
+      "source_pins": 282,
+      "values": [
+        2,
+        3,
+        1,
+        2
+      ]
+    },
+    {
+      "chunk": 3,
+      "current_certificates_per_bundle": 8,
+      "directory": "runs/stage2-e2-register-field-inttype-low-pins6-9-20261012-v1",
+      "event_count": 18227,
+      "fields": [
+        "pin6",
+        "pin7",
+        "pin8",
+        "pin9"
+      ],
+      "fresh_seconds": 118.39475587400375,
+      "generation_seconds": 132.3857018879935,
+      "identity_sha256": "dc199c25d57bb5709bb2f701cdcf35e49c76ccea092ae32906dedb9a49782e69",
+      "register": "INTTYPE_LOW",
+      "semantic_sha256": "1aef8e3bf66496602c69ea66ecab9e41a61306b00c5b3f66f345a83e1ef59186",
+      "source_pins": 282,
+      "values": [
+        3,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "chunk": 4,
+      "current_certificates_per_bundle": 8,
+      "directory": "runs/stage2-e2-register-field-inttype-low-pins10-13-20261012-v1",
+      "event_count": 18227,
+      "fields": [
+        "pin10",
+        "pin11",
+        "pin12",
+        "pin13"
+      ],
+      "fresh_seconds": 119.3633515190013,
+      "generation_seconds": 132.04403735398955,
+      "identity_sha256": "e826809ad27363c683eb47ef79fa06714532ee48d91351847cd64999f91428a7",
+      "register": "INTTYPE_LOW",
+      "semantic_sha256": "9037bcc96ff0c3cbdcb5abe475d3cb6819611c0c26b8a090453c5d0b2173205a",
+      "source_pins": 282,
+      "values": [
+        1,
+        2,
+        3,
+        1
+      ]
+    },
+    {
+      "chunk": 5,
+      "current_certificates_per_bundle": 8,
+      "directory": "runs/stage2-e2-register-field-inttype-high-20261012-v1",
+      "event_count": 18218,
+      "fields": [
+        "pin16",
+        "pin17",
+        "pin30",
+        "pin31"
+      ],
+      "fresh_seconds": 116.24226334200648,
+      "generation_seconds": 132.3070836919942,
+      "identity_sha256": "09fb6bc107ba6eb27d0dbca92e25f12f1169f8de0e18bf107a32fe435d6e9337",
+      "register": "INTTYPE_HIGH",
+      "semantic_sha256": "245790b508f25245a9c0170049cc153789cf38505c087f85c90e5b3d4573b671",
+      "source_pins": 282,
+      "values": [
+        1,
+        2,
+        3,
+        2
+      ]
+    },
+    {
+      "chunk": 6,
+      "current_certificates_per_bundle": 8,
+      "directory": "runs/stage2-e2-register-field-inttype-high-pins18-21-20261012-v1",
+      "event_count": 18227,
+      "fields": [
+        "pin18",
+        "pin19",
+        "pin20",
+        "pin21"
+      ],
+      "fresh_seconds": 117.59755330599728,
+      "generation_seconds": 131.0059881999914,
+      "identity_sha256": "bfefd001b7362b66f87e53d4836276cca1f33bc59f28b39ad1529a12d883ea5f",
+      "register": "INTTYPE_HIGH",
+      "semantic_sha256": "98e9f7e2784f117be50ac610649e8c3c404b74b429c7322101ad2da51999e800",
+      "source_pins": 282,
+      "values": [
+        2,
+        3,
+        1,
+        2
+      ]
+    },
+    {
+      "chunk": 7,
+      "current_certificates_per_bundle": 8,
+      "directory": "runs/stage2-e2-register-field-inttype-high-pins22-25-20261012-v1",
+      "event_count": 18227,
+      "fields": [
+        "pin22",
+        "pin23",
+        "pin24",
+        "pin25"
+      ],
+      "fresh_seconds": 116.5613808670023,
+      "generation_seconds": 131.44182803299918,
+      "identity_sha256": "8591e10968220d42591ad0b9f067e02a7ad56f3c8060db48b06e40b2e07ee20c",
+      "register": "INTTYPE_HIGH",
+      "semantic_sha256": "74a9b0f04f6fb3d555729d6304b74c0aa2baf046a23ed9bf1496d094efc36bf6",
+      "source_pins": 282,
+      "values": [
+        3,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "chunk": 8,
+      "current_certificates_per_bundle": 8,
+      "directory": "runs/stage2-e2-register-field-inttype-high-pins26-29-20261012-v1",
+      "event_count": 18227,
+      "fields": [
+        "pin26",
+        "pin27",
+        "pin28",
+        "pin29"
+      ],
+      "fresh_seconds": 118.06382439300069,
+      "generation_seconds": 132.64775778599142,
+      "identity_sha256": "cc235dcd53d9b5cc761c3ad4a6c45792b0abd22e7acb49e24a1e7f67a54fe803",
+      "register": "INTTYPE_HIGH",
+      "semantic_sha256": "03475e3673e45aca55e8bfd11ab9193d3734ca2134f5f05fae54bc32db9a33d2",
+      "source_pins": 282,
+      "values": [
+        1,
+        2,
+        3,
+        1
+      ]
+    },
+    {
+      "chunk": 9,
+      "current_certificates_per_bundle": 8,
+      "directory": "runs/stage2-e2-register-field-padcfg0-20261012-v1",
+      "event_count": 18222,
+      "fields": [
+        "pin0",
+        "pin1",
+        "pin6",
+        "pin7"
+      ],
+      "fresh_seconds": 119.73843699799909,
+      "generation_seconds": 132.42977688899555,
+      "identity_sha256": "44258bd102bc2fe743413c5ee8f286d3274d79fe249f4f2901d4426f64ca6f4a",
+      "register": "PADCFG_0",
+      "semantic_sha256": "46797d405211e4469177bbb8f12157dc7861614a0cb8409e76cd71ea0e71c61f",
+      "source_pins": 282,
+      "values": [
+        1,
+        5,
+        10,
+        15
+      ]
+    },
+    {
+      "chunk": 10,
+      "current_certificates_per_bundle": 8,
+      "directory": "runs/stage2-e2-register-field-padcfg0-pins2-5-20261012-v1",
+      "event_count": 18231,
+      "fields": [
+        "pin2",
+        "pin3",
+        "pin4",
+        "pin5"
+      ],
+      "fresh_seconds": 118.20331636900664,
+      "generation_seconds": 133.4572914129967,
+      "identity_sha256": "e2af70dcba330380420cf32369c0253e879444430b2beecd16bebeddc48c5d83",
+      "register": "PADCFG_0",
+      "semantic_sha256": "67494d72ff894fe4d626acec629d51c830fbeafb35b16dbbeb17d9f01c75f007",
+      "source_pins": 282,
+      "values": [
+        2,
+        6,
+        9,
+        14
+      ]
+    },
+    {
+      "chunk": 11,
+      "current_certificates_per_bundle": 8,
+      "directory": "runs/stage2-e2-register-field-padcfg1-20261012-v1",
+      "event_count": 18222,
+      "fields": [
+        "pin8",
+        "pin9",
+        "pin14",
+        "pin15"
+      ],
+      "fresh_seconds": 118.60419732998707,
+      "generation_seconds": 132.28506910100987,
+      "identity_sha256": "bac307e0868f357f33424be2324860c613a4038ea4c9826c587d07b5368946a1",
+      "register": "PADCFG_1",
+      "semantic_sha256": "83c1e86dff21dea624848f56050defc2240533f5d8aee5f9b86a929222edf20b",
+      "source_pins": 282,
+      "values": [
+        1,
+        5,
+        10,
+        15
+      ]
+    },
+    {
+      "chunk": 12,
+      "current_certificates_per_bundle": 8,
+      "directory": "runs/stage2-e2-register-field-padcfg1-pins10-13-20261012-v1",
+      "event_count": 18231,
+      "fields": [
+        "pin10",
+        "pin11",
+        "pin12",
+        "pin13"
+      ],
+      "fresh_seconds": 118.8060304679966,
+      "generation_seconds": 133.12426655500894,
+      "identity_sha256": "b150b59f8fab199cecf578b43e0fe59fc90e95421171d747e3cf1f386ad0e186",
+      "register": "PADCFG_1",
+      "semantic_sha256": "ef8046faf01aac1acae735a22a9b03e2b2109e0b5a0ecda55dcc35d3909c6d1f",
+      "source_pins": 282,
+      "values": [
+        2,
+        6,
+        9,
+        14
+      ]
+    },
+    {
+      "chunk": 13,
+      "current_certificates_per_bundle": 8,
+      "directory": "runs/stage2-e2-register-field-padcfg2-20261012-v1",
+      "event_count": 18222,
+      "fields": [
+        "pin16",
+        "pin17",
+        "pin22",
+        "pin23"
+      ],
+      "fresh_seconds": 119.25131022800633,
+      "generation_seconds": 132.9991300420079,
+      "identity_sha256": "6d3f9c74e46d4610efc2797a1a9be59a031551f492da5fc41fc6a40011e14eb5",
+      "register": "PADCFG_2",
+      "semantic_sha256": "bd5c67e2b496e97f10d5a6332308ab2dff7d8fca480cae6b8402541b99ca5b4a",
+      "source_pins": 282,
+      "values": [
+        1,
+        5,
+        10,
+        15
+      ]
+    },
+    {
+      "chunk": 14,
+      "current_certificates_per_bundle": 8,
+      "directory": "runs/stage2-e2-register-field-padcfg2-pins18-21-20261012-v1",
+      "event_count": 18231,
+      "fields": [
+        "pin18",
+        "pin19",
+        "pin20",
+        "pin21"
+      ],
+      "fresh_seconds": 118.92392746800033,
+      "generation_seconds": 132.3194965099974,
+      "identity_sha256": "782eb140f92301ee6d8302e397ceb8a26d67e42535b364e67456c5955cd1189f",
+      "register": "PADCFG_2",
+      "semantic_sha256": "6c56cc98cf053231d1523f369718f80b57a5975906addba32feb90e9264e42a3",
+      "source_pins": 282,
+      "values": [
+        2,
+        6,
+        9,
+        14
+      ]
+    },
+    {
+      "chunk": 15,
+      "current_certificates_per_bundle": 8,
+      "directory": "runs/stage2-e2-register-field-padcfg3-20261012-v1",
+      "event_count": 18222,
+      "fields": [
+        "pin24",
+        "pin25",
+        "pin30",
+        "pin31"
+      ],
+      "fresh_seconds": 120.05253920699761,
+      "generation_seconds": 134.15973644101177,
+      "identity_sha256": "86f694f419c4e7855f2f5e49a1bc679c92e90f5172a1be8976cf6993134b0278",
+      "register": "PADCFG_3",
+      "semantic_sha256": "8adb75b9750f113f6874da1b968014d35a3ca7219fc7ccb5133266f291111f99",
+      "source_pins": 282,
+      "values": [
+        1,
+        5,
+        10,
+        15
+      ]
+    },
+    {
+      "chunk": 16,
+      "current_certificates_per_bundle": 8,
+      "directory": "runs/stage2-e2-register-field-padcfg3-pins26-29-20261012-v1",
+      "event_count": 18231,
+      "fields": [
+        "pin26",
+        "pin27",
+        "pin28",
+        "pin29"
+      ],
+      "fresh_seconds": 118.51990141399438,
+      "generation_seconds": 131.9667810839892,
+      "identity_sha256": "c0615d235a2e7b14a539d270cc8f2ca9506635a144fb18e424212520e1e619db",
+      "register": "PADCFG_3",
+      "semantic_sha256": "fd0950536f96ba523f6ae962831f26fcd765be468db10afd5cdaf9534c29e882",
+      "source_pins": 282,
+      "values": [
+        2,
+        6,
+        9,
+        14
+      ]
+    }
+  ],
+  "scope": "per_field_one_declared_legal_cpu_rmw_and_read_with_fresh_comparison",
+  "source_freeze": {
+    "configs/cpus/ibex_obi_local/component_profile.json": "639508bbfd79ca0ab2fe5cbe412a67208df26333de8d06ce935c80e59c8771d3",
+    "configs/peripherals/pulp_gpio/component_profile.json": "2268967fa909658fbc079fc41112a10bba88e7484909153cbc1a5a1b222a0b56",
+    "configs/peripherals/pulp_gpio/test_capability.json": "0cefc52e9300d9c0630642fa70ce7cce021035b218dfb64eea01045a618efc1d",
+    "src/myfuzz/__init__.py": "53a10356704a4d7a283841ccc6bf03343b990bd7331b1d946245eedf185ce0d0",
+    "src/myfuzz/components/__init__.py": "5b5a0f107b2537a099dc456065b854506681733611eafcd664ca5ca85b6d0cc9",
+    "src/myfuzz/components/catalog.py": "1b8a4b701416fd5cb3ffda6c0974b434c93731bb93527b3763c28a61be500da5",
+    "src/myfuzz/components/model.py": "c11b3ce2a8d6e8d97ff1a0616a0fb91a3aacd6c3f18242b2bd34caa792fccabe",
+    "src/myfuzz/composition/__init__.py": "c2577198110bb1dd65a102845b6c16f7d2dbb0c63f5899def01e879b99d6a22c",
+    "src/myfuzz/composition/address.py": "4f5c553a09ac84f251406a1d0ecbe3328732576f8a61f3c381ba305c71f992c4",
+    "src/myfuzz/composition/auto.py": "f5f7b1bbd8b49baf070265b97f7a4ef596a6900f029bdec661ae0fa866c4ba89",
+    "src/myfuzz/composition/coherent_memory.py": "f182ccedcb6e17506563b78ff60fc6d7d741246ea04095ded21f4a79c410e0af",
+    "src/myfuzz/composition/component_profile.py": "06351a6e14340bba944b94b525f772c68f1011448c0890bb080ec6d195372cea",
+    "src/myfuzz/composition/constraint_ir.py": "4547dcbc3c0ea7a71daded16bef17d444e610aa73b355336c378cbc66c38c9df",
+    "src/myfuzz/composition/constraints.py": "fad86d64c46fc7990fd3f876c51c04005993ec4d4991d6cfcc5c53e2f5dde237",
+    "src/myfuzz/composition/contract_transducer.py": "0c68754cabe6d9d1d1f870ad11061386ccccb1d190defcad7d703a338a9355bd",
+    "src/myfuzz/composition/cva6_source_closure.py": "d1fcaae455f214d82cfaf741cb571de03239450eefa98b1bb333be9aec138955",
+    "src/myfuzz/composition/cycle_input.py": "ffd19f845f33f72b1a7ecb4d036190f2810c946df1212e35188783aba31714d6",
+    "src/myfuzz/composition/declarations.py": "b929a2ae6c92f2a193a73eecd1a7d8b7a1085f16238441455a7e0dd9721a246f",
+    "src/myfuzz/composition/endpoint_capabilities.py": "dea2a857a2f387d4bc785818aa9fee9e963e7f2aeea6bbdccf2a06b3dae3acfa",
+    "src/myfuzz/composition/facts.py": "1ebb1574caf0a9f04160e8232d15c1e06a913177a7bb1fff997c3ae77c2cee27",
+    "src/myfuzz/composition/generic_axi_lite.py": "d225a77df122c924e1d41ec0910b425667d752af9b4cd7ed7802dd74d720b917",
+    "src/myfuzz/composition/generic_planner.py": "2545e664333748217d4ed9c3f06ba6f7fdea8286bd6858402630372b9b309cb0",
+    "src/myfuzz/composition/generic_protocol_routes.py": "54d1b96694f6e077433df1e3e1ffcb3332b2b0e0dc6929d4925f2020835d9c31",
+    "src/myfuzz/composition/ids.py": "c1e27c82d56505b177d39661ed1b2c7b7fb13abf4c69cfe98df365901fd72130",
+    "src/myfuzz/composition/input_constraints.py": "f1ccbd54321482a695691df79fc5118ddda8166899a3f86aa6bffcc58c98aa88",
+    "src/myfuzz/composition/input_layout.py": "7c59b4e773f01c7ca76d913c3127ec7ba0dc5cc874a3c6084038c938ac1d6fbf",
+    "src/myfuzz/composition/interface_description.py": "9ab799db5cc6d5496242a443fa663305e2eab166e7713a559a3281ae4bb4d2b9",
+    "src/myfuzz/composition/ip_test_levels.py": "73f2fcd2754aa562b2998e7d74773afc1469f695a20efba1b777a2be152a9a36",
+    "src/myfuzz/composition/ir.py": "8fba1c59cfa1a45ef81268f500a294f31a341b6a3bf186c2f1a34fc0f685defb",
+    "src/myfuzz/composition/manifest.py": "eebe55d487f4ca91bca4c905d3456e1d51a52c2691e8ad615de7286730a981a8",
+    "src/myfuzz/composition/metadata.py": "4a8ecfe7f1140e231b5eabd7954e41695d1873dcf7e8ea6fa9e82dc4f7a05fc7",
+    "src/myfuzz/composition/processor_adapters.py": "155aecee9eb1f3f06573ec5dec6e70d45eaa7a96a3934e988122148e750c5133",
+    "src/myfuzz/composition/processor_backend.py": "f82c628a724d5bdee0add2cd125590d5e576a9ff6bea8b18ca8174252e78abed",
+    "src/myfuzz/composition/processor_boundary.py": "66200394efe45d3ff98fe3748602ddd9e1ca9c14ca6096af29e1785c253fc7e0",
+    "src/myfuzz/composition/processor_execution.py": "12ca8f53d60f4bd53bf69758fce6444ef2035a4ea801f0bfaaa50e23b83e984d",
+    "src/myfuzz/composition/processor_renderer.py": "efc2e13121967cc009ebdccc380791e8282ca9301148fa2d630511172e84e8f8",
+    "src/myfuzz/composition/protocol_composer.py": "a5827fc79238a996ec00914d187a3780eea7e3b4cd2c6a151a34407acd3b815c",
+    "src/myfuzz/composition/protocol_manifest.py": "ef6120c4069a1fbc68d07a706bb31301dfc742d2c45a839bf190f88b52dad94c",
+    "src/myfuzz/composition/protocol_transducer.py": "17c3ee56eebc3957608fa29561ade8e90a1894cc4ad6a8d81c86c7cdb118e2e2",
+    "src/myfuzz/composition/pulp_spi_oracle.py": "22e24445fd58164001e77807e67a5381a159d159061bcb8883b7ed007d4c05c0",
+    "src/myfuzz/composition/registry.py": "ac3ce2148f9e37bc348bc62a087997be3827fdc79a9f2ba76ab1eb546faf44ee",
+    "src/myfuzz/composition/rfuzz_transport.py": "301991e1b5ebdf3526080b32e9cbb1651797e885af4029033c462c08cf7f8981",
+    "src/myfuzz/composition/runtime_projection.py": "d203a57ca94d2075ac169a33653cd83cbf906313a579017336bc0ca65d9cbfe9",
+    "src/myfuzz/composition/search.py": "808fb7c7f2e49a1778b2ed187d332d2fcc51a5f5c2e8f6847baef0501d5f1421",
+    "src/myfuzz/composition/shared_native_bus.py": "6e86e31d6e190d21e06e62c5f89c594fa7db7f607a02dd7fa2370adbb9c0bbac",
+    "src/myfuzz/composition/soc_boundary_replay.py": "ebfb1209f1b449e9583579c4ce0992da0f53c6564a13ea8f90c570f65ec9c7c4",
+    "src/myfuzz/composition/soc_candidate_program.py": "cc23e78f5cf7666a2b0a1cacba7b509bd2741ebaf35ddfccef65b00f0f259479",
+    "src/myfuzz/composition/soc_checker_profile.py": "c96512b70a01211a0f8035f660e3388d1d37058d8ef8ac7fa98a2732f0225aae",
+    "src/myfuzz/composition/soc_composition.py": "43b68d917c0cccd771c10c0212b3e0a01e42a84865145d73e6deb2dcf22d9e23",
+    "src/myfuzz/composition/soc_contracts.py": "2751eb6b691644e06a0c5c5e5c163462af785f8ccfdcb1ee7a76d86af1016408",
+    "src/myfuzz/composition/soc_fabric.py": "57b69b43a33cc799762ed835705271ba3c81718c3e332078edee0ae8d13d627d",
+    "src/myfuzz/composition/soc_failure_evidence.py": "1cb999489da0ce6daf50117b9c3395deb72730191174c65431a8b813da90a2a5",
+    "src/myfuzz/composition/soc_image.py": "4a96513d7ca6aee6b4423f733c5e181475bd0022aec780aaab2bd78391e619fe",
+    "src/myfuzz/composition/soc_instruction_stimulus.py": "715eb952d54a4177b6cfaade7566525cf0a96d57bd3f61431a0f6831590ac6c2",
+    "src/myfuzz/composition/soc_interrupt_plan.py": "4d025e05390ccfe407e670971321c5a927784aafc8aa852d842c8e1b97b57d0d",
+    "src/myfuzz/composition/soc_peer_oracle.py": "3697a595735451b60ba36ebd47befb8222e1db5ca60c21d5448fcb8b9b95a00d",
+    "src/myfuzz/composition/soc_peer_plan.py": "3453df6bbd549302c6f06ba25cf29508a5a360cde38fdb8360c6c30ff1ff35da",
+    "src/myfuzz/composition/soc_peer_replay.py": "b5fa7fb54a31732a4524a61ad5434450b8b67bdb1d34e7a315463313f6a38f5b",
+    "src/myfuzz/composition/soc_plan.py": "306a9a0fe2d6e1582609ddafe8019840b4726a2e3e492d641566eb24184dd2b5",
+    "src/myfuzz/composition/soc_port_dispositions.py": "115d1fc330f93de3524b756d9b1369b1c5ea2459bfdf7d0a2ca7c71d62668bf6",
+    "src/myfuzz/composition/soc_profile_renderer.py": "872c7c1e8beeefb74b99827950b2b336706c25aa8bbb8ef1221498838671324e",
+    "src/myfuzz/composition/soc_renderer.py": "de5cbd3916b56a0affef2ef0f84bb313fc2a303e73845a6bd29c05d4557d11c3",
+    "src/myfuzz/composition/soc_runtime.py": "2c2968543ac4c31830ce2b59cbc00af27bd339932dda013d25884b01cb87b127",
+    "src/myfuzz/composition/soc_scope.py": "557ccb1dc53de8e1b376e47f0a1ba6912a022a5d8cb57001a023b63b736a5059",
+    "src/myfuzz/composition/soc_stimulus.py": "565456495b2c137bdde897767c2d90bdfadedb5efe511bfb055902e996e68bb5",
+    "src/myfuzz/composition/soc_structure_audit.py": "230a9a248fbe936200f18a99d9734a94ee0e94cfd57c9f8e36ddb83583ac0264",
+    "src/myfuzz/composition/source_crawler.py": "dc9760ee5fe235dcfa55ee9c819f5279aac1f779007cbefebb1af4736334ce9c",
+    "src/myfuzz/composition/source_elaboration.py": "5ed3d1917aff9cae72036159005eddbcb7ce5a588f014975ecc3bac7c5ab9c4f",
+    "src/myfuzz/composition/target_adapters.py": "5621ced2ee2cb17f0fd93c347322e65cca061f5d433587d1523370baebb3932f",
+    "src/myfuzz/composition/test_capability.py": "8d325472a1d55529fcdd407e0c658291d2fcd32c754d38fd8a4cb425e1f198e0",
+    "src/myfuzz/composition/transducer_rtl.py": "eb429ac4d172e0337797193c1c2be1df8e64827b014cb9bf5e23ee6d2983c2e5",
+    "src/myfuzz/contracts/__init__.py": "1974f701f11612d1a99f56c8de6df628bb90913dd3fa94faa1d632976a2e6c9c",
+    "src/myfuzz/contracts/canonical.py": "f07bf33eda33409207e101f104dbe7571019ca59195eb5c3be62b6fedd2617b4",
+    "src/myfuzz/contracts/validation.py": "0113c9cca2616539a893cfeadd6f4056321e3ee2ee7a2e7b9acff30bf51149c8",
+    "src/myfuzz/dependency/__init__.py": "4a45619693693e1242bd4894beba183cc89f5a8cd236cff1d5da7ce7b6569d78",
+    "src/myfuzz/dependency/csr.py": "01180c7d642d0b728add2e42b740ccb8cc2da68b6fc6bb55daad79365d33fc1d",
+    "src/myfuzz/dependency/dynamic.py": "af7e0924c4cebc049db771b6a5b55300072194e2a0fa432731b60b79eae0aad2",
+    "src/myfuzz/dependency/graph.py": "45e8f4beac5760463b2ceaad4a26b8a80753258817f7cbd245fb8f0d4253311c",
+    "src/myfuzz/dependency/replay.py": "03d582abeed4e84f2c81234fe92b4e824e9d9ba0f13100e0d77bec4408e597f2",
+    "src/myfuzz/dependency/static.py": "69b9de49c16f69a33e3c1cf2d63c1820b2a849dfcb6865f1530b34401b4551fc",
+    "src/myfuzz/elaboration_probe.py": "475dcde6e98c0ac6b428387a4ad19569c4bc3d734a8958e83b73c6335b62d880",
+    "src/myfuzz/experiments/__init__.py": "4ef378b4f2776f4edf41cb3013ef612952519de5d38e91981afd74a124d88fef",
+    "src/myfuzz/experiments/configs.py": "abe1efb841c17935a676d6da24c6f78baf2daa8d57f05e224d7a897d4cc9cbbb",
+    "src/myfuzz/experiments/identity.py": "503b668df40e5efe377e5f04b800bcfc51ad219778ab428ff4be60ca43d77b93",
+    "src/myfuzz/experiments/jobs.py": "5a879d820dc72b9e5bed19ef5ff88eadb7cb0f90f503d340df7dffca6bdffc7f",
+    "src/myfuzz/experiments/pipeline.py": "34a269ff723eaca707b5845c70709bbc0aff834f8f694bd59b9d2170231a5254",
+    "src/myfuzz/experiments/planner.py": "47a3923dbe1ed50dcb9ff3edf12e78e15414dc421ff7183265fcd11aaf8fc6c5",
+    "src/myfuzz/experiments/report.py": "1a8d8ef86c9ab8ac10b3c09a8260a05a3db33a87c4294019808f7db920f6a27e",
+    "src/myfuzz/experiments/resource_policy.py": "d753cba55a6494aadc4f5c04d6d34c8b77dbef500651aa040ac54cb45b7cbb9c",
+    "src/myfuzz/experiments/rfuzz_adapter.py": "f19bcfa9a482ea54e94399e39b0a3eaf45eba5b960c3a4ed7274e3044b46493e",
+    "src/myfuzz/experiments/scheduler.py": "ef3b0160d80d947bfba1d2dafbfb57550ec0987e5021c527e8c27b8029c92f6a",
+    "src/myfuzz/experiments/static_portfolio.py": "23483856e550460ee7dab61c4cf14a146053f566d972a7d972cbe237a06f8beb",
+    "src/myfuzz/harness/__init__.py": "9da9bf10f6ebe1ee9152a078b9b98b27c7c45c2e42bcf1f3b39bb35290dd1afc",
+    "src/myfuzz/harness/abi.py": "1ac6a836bf233677ffa5b2f33f205aeab283c1ff5fd3a65f4810f410ce74dfed",
+    "src/myfuzz/harness/compiler.py": "3d3108795c39136cbad8f007d4611c7b5c19083c03fbd48413d531bd100ce0c2",
+    "src/myfuzz/harness/depaware.py": "b9eee5463fd24787a6cc69b4150ae1df34076c0fe4af05767fd300dc738d6838",
+    "src/myfuzz/harness/direct.py": "7f1aee7c1f86072f13f5377face7c18c340ecda4f2040c002c36d6f50e729d97",
+    "src/myfuzz/harness/projection.py": "76b6d047b7da49c662476fa47602d639766d2520091762d55d04bcd0f04cc17c",
+    "src/myfuzz/harness/static_policy.py": "829c34931475b1d00be682e589458792bef6e8be19f4d36fbcdc3f7846c98349",
+    "src/myfuzz/harness/static_projection.py": "a143335e5f90fd31d6587166d8e546283a684987061b438abcfb9d2d8f9a345d",
+    "src/myfuzz/integration/__init__.py": "62931860980af7dc3026c6d6b0efdc7db24f3f8529e540bcd7b1b44e91153bb4",
+    "src/myfuzz/integration/campaign.py": "f348fe8aba9b0677ecc36852eaaefa3dc113b77f4242b501bdfb63c685e56c1d",
+    "src/myfuzz/integration/campaign_report.py": "f9b2f26c35741a02daca79211580575ef14a035a553cd10b3a4d53f7887acbb5",
+    "src/myfuzz/integration/experiment_matrix.py": "0aed4fa90842ccf4a41d9d3d11ef80830efd5c96a57d340be4a0303052a9f163",
+    "src/myfuzz/integration/ibex_pulp_online.py": "c31f29ca89539bd15440d8cbf826626cce79c66c78fa220b431187251cc806e9",
+    "src/myfuzz/integration/ibex_pulp_register_replay.py": "bfbb72a8bc79e7f37150e125670ceb8dd78ee1fc39497e397a5c15d4809510bf",
+    "src/myfuzz/integration/low_resource_smoke.py": "d6c78a1525720396aec877e246a0989215a035c6c9a12f48212c930b7b374dfc",
+    "src/myfuzz/integration/manifest.py": "b3b23824e014b4b9f4a45bf76bc77f8eb3c45e903d0b8f6ddfd643a0d38729fb",
+    "src/myfuzz/integration/memory_lock.py": "cf4a9981b5d599658a8c66b3f1fd108f4f45df539ee01376fed526e036c36f8d",
+    "src/myfuzz/integration/pipeline.py": "197e9c7fbd3d64c63633fe8c3ccd916e580680b55e5a7644bd6036be2b015bbe",
+    "src/myfuzz/integration/reference_adapter.py": "ddc32e9c742e999209af5a052f7fa475aec91d5a70d7b203c26ed1c95cc1e6aa",
+    "src/myfuzz/integration/rfuzz_fifo.py": "972dd48995bdc98e41a099c1c216e60c150c26b15441a27e32964a941a93145a",
+    "src/myfuzz/integration/rfuzz_live.py": "27852f50794c05e6c86a6ba6db0a72dc45d14ccddfae412287b05fffbcadc3d0",
+    "src/myfuzz/integration/rfuzz_runner.py": "aad36d714583f3d388bffd0d32cb45c9f3a084ffeb9624d981d92ae6e565b2a5",
+    "src/myfuzz/integration/rfuzz_shmem.py": "4689daca4575a5948b99593900db6c02472c57962e76e66e567d34a403eb208b",
+    "src/myfuzz/integration/rfuzz_simulator.py": "c91993f538ebf90ea66c4b9ca166054ad8b6b630b528c9576654fdab97824e20",
+    "src/myfuzz/integration/rfuzz_toolchain.py": "518ac36ca3236ee619aeae8746855d84dff759244203437e7eda7722d7134cf0",
+    "src/myfuzz/integration/rfuzz_wire.py": "dd8d4f8a7837f89e0363d8e6e7d9ad7698793b9e8ab8c22d0a5dc9ae753a0ab1",
+    "src/myfuzz/integration/riscv_execution.py": "b433695a9a444fe0c508d2b255d419f6ae423a038b42eccb7b9110f25b2d5a01",
+    "src/myfuzz/integration/rtl_execution_monitor.py": "7ad10d2c11f196c933cf33ee81e5196cca8430874e14fcbc9a8492e317b89858",
+    "src/myfuzz/integration/scenario_rfuzz_live.py": "44f264a53722736a448eebcc01ca70bf792e6d7648710bdf4c151ae0552b8f9a",
+    "src/myfuzz/integration/scenario_rfuzz_replay.py": "572f70e87607c7ab506aac65950c5d41a3d5965809994cb000ee017904b30936",
+    "src/myfuzz/integration/semantic_projection.py": "e36d6b2661507daa697a7c84cb15cb8c087ecd193e3e0b8e622781fbd807e318",
+    "src/myfuzz/integration/soc_builder.py": "ad9700c2474bafd7ae8d9e7b3b07db7c8e0c0546a3f9d233ab1344f7d0a201d1",
+    "src/myfuzz/integration/soc_campaign.py": "01a7446d0f554c314629ddb9b80327858849a2070c263d230855eba11acc7090",
+    "src/myfuzz/integration/soc_comparison.py": "818d61afbcaa94821080740fa603fc17575b607074e05fcde26b8d8963a5e4c4",
+    "src/myfuzz/integration/soc_coverage.py": "7c9f3c9b686064ae895568388b355b25cf2abe062e03f71630b5936ea4be6adb",
+    "src/myfuzz/integration/soc_matrix_smoke.py": "221bca31857f1a2e28c77abdc55638b47b9c86d3d1d12855a93a8b7e7eb2fadf",
+    "src/myfuzz/isa/__init__.py": "51f8a835caeba0e6352212470258a6600bdeaeb20f0e4a9e8f8b4b809233b836",
+    "src/myfuzz/isa/catalog.py": "3ba71367fe9ee65d4a66fbaadf8bcf06ba3aa3d5571457b8ed2b72934f17f5dd",
+    "src/myfuzz/isa/constraints.py": "a9dcbc4d21f77096694306b2fc81ae1ebd39e8b31843024e2e8872496cecb986",
+    "src/myfuzz/isa/model.py": "5e800682f2fdec2c821f165c51797a706992120f3136cef92ad94ae0db24f2ec",
+    "src/myfuzz/isa/transducer.py": "4bfaa9211e7da2af82694e1e81be48401b1d08076cbe8581bba3422e485b9c85",
+    "src/myfuzz/local_harness/__init__.py": "9a28285e5fe3c1739819b14966b6ffbf883b8cc8cbcd50c07227b12168a3a65a",
+    "src/myfuzz/local_harness/apb3_register_session.py": "8ca467d0839d356efcbc6ff901a12655c2dadb79a7c6255ca8931adb75eb2303",
+    "src/myfuzz/local_harness/apb3_register_template.py": "2513b0326f8c46d31fc6ac0611cd7b66808a4a2aff4395bef6bcc6c137c5ccd4",
+    "src/myfuzz/local_harness/axi4_cpu_session.py": "d4eca66dc21287948231f4c7d1873735d493ac4bf7f31bcd8b3dc4ed53f42a62",
+    "src/myfuzz/local_harness/axi4_fields.py": "579e565f6c432fd1dcb55404a331388bc0ca2182c9dd345bd965c7ec6e04c144",
+    "src/myfuzz/local_harness/axi_lite_session.py": "0a146f7d83188758487c5f9497af3c59b24b3015916dfd79566de602550d66bd",
+    "src/myfuzz/local_harness/axil_uart_session.py": "746c4b0baaabf005f42fff6eb9cc0e298777629f0fb2aeb60d7fe78f6d8f8af3",
+    "src/myfuzz/local_harness/build.py": "06334fedf08cacd861806362dc216026af3b426cd80be2ceb10929ff2197056c",
+    "src/myfuzz/local_harness/clock_schedule.py": "1b01275e25443fb3746d77bf2c874030c04ce4cf9578b8408615fd00a6028e77",
+    "src/myfuzz/local_harness/cpu_session.py": "ee84d23dc5ee50367a5299404bbdbce223da2ea932573e060c5cf9c1ac2797d7",
+    "src/myfuzz/local_harness/cva6_axi4_fields.py": "c0438c838e77381f48cfccef183719e986da035bae1b23532f6e01dc858a5222",
+    "src/myfuzz/local_harness/cva6_axi4_session.py": "f514a2e1e61d8fe42a57b23229afd55019c5eae10601d5f807ec972228697ef8",
+    "src/myfuzz/local_harness/driver_renderer.py": "5405cbfcc34e8929dca4d8a0c61712eddce60216e4e47d87cbb2701f8d88fc13",
+    "src/myfuzz/local_harness/generated_register_factory.py": "f8b8cae132bd51da4acdc3fd92857e4290830fcf572182af0e49cc0d461896b2",
+    "src/myfuzz/local_harness/gpio_session.py": "7bb99987f96ac70d15a4d2dbc3f73792117d11d9872c23f1c1724ed72ecb9300",
+    "src/myfuzz/local_harness/i2c_session.py": "f519e147c1a9efb42f665ff568aa0c85dbca35c06e73638b1fe0d07f1f6b7ba2",
+    "src/myfuzz/local_harness/ibex_irq_receipt_contract.py": "5280fa97bcb4522879bbd702fcc3d202af8e99039db2910fd245e68d54813a86",
+    "src/myfuzz/local_harness/ibex_rvfi_contract.py": "80c4b2e76381473be5deb978f8dd93b6b3b694df4577882631ef3f0f23941828",
+    "src/myfuzz/local_harness/native_contract.py": "c085e3fb86898b82ffa55bcfe169ad3e6bbbf2ff634bbf8ab40adb3731b6e493",
+    "src/myfuzz/local_harness/native_physical_observation.py": "03e46f937008902b537c306fc4e0471b965d302247af6d037bbbafdf4e666eb2",
+    "src/myfuzz/local_harness/native_session.py": "35be94955f6857331c643519a274aca10955a3548680cbe4fe9b1fb33620a1e0",
+    "src/myfuzz/local_harness/opentitan_gpio_contract.py": "4af9cb48a77a3a2f8a2ae3a11faf9241f10885bdaf6d7ac7f31868bccba8bfa5",
+    "src/myfuzz/local_harness/opentitan_gpio_session.py": "5e96bd5bcbbbf095e6899222dd5daa351cada022b147262c042d522948c9d967",
+    "src/myfuzz/local_harness/opentitan_i2c_contract.py": "1781ab9e17c5e3dc1fa42d23893623df57b638bcf4fde166ad49291b6a08673e",
+    "src/myfuzz/local_harness/opentitan_i2c_session.py": "d143116885fe4bef2717fd471cd650664eae4b860f32f6e0dcbfa811e753feab",
+    "src/myfuzz/local_harness/opentitan_pattgen_contract.py": "c3a392a92ed4c588924640c47bea552300667060b1fd36b9eb9eca618be9d97b",
+    "src/myfuzz/local_harness/opentitan_rv_timer_contract.py": "e8ea52508904fa9e9b33de7d72fdbb802c3235adb6d6738d8ebd80d168108f3f",
+    "src/myfuzz/local_harness/opentitan_rv_timer_session.py": "4d6e79300cff7cced361f61068d9d3bef24ad062b79a9932b8199a6880bc39ac",
+    "src/myfuzz/local_harness/opentitan_spi_device_contract.py": "3434c005c8988b33d353b132fb8c848ebabd422b21511f33577536bb8b126a93",
+    "src/myfuzz/local_harness/opentitan_spi_device_session.py": "deaa44d51b8d5f57918697c45e86aaaf747c05ee3a93f49fbdf2434a05f077c3",
+    "src/myfuzz/local_harness/opentitan_spi_host_contract.py": "22fc800d77b8ac5b1a7b01e81e4d0551376ccfba4387a8f5c4714c1fe5286af0",
+    "src/myfuzz/local_harness/opentitan_spi_host_session.py": "af5a3184eb9909b73b35737f4f01160939113ef425b4dd9496bec1a007d56a30",
+    "src/myfuzz/local_harness/opentitan_sysrst_ctrl_contract.py": "52c235b931164c7c57f62a03d54e8eaf481e4e0585833000dbf40d273194a6b5",
+    "src/myfuzz/local_harness/opentitan_sysrst_ctrl_session.py": "8cd3e6993acbad71ab8b874fffd42d76d2eeb3dc6d6e0ec58a2d9fdd75247eef",
+    "src/myfuzz/local_harness/opentitan_uart_contract.py": "7cf872e9599f315d082e98cc78636ddde72c40ff045a534ae02b18aa1c01e751",
+    "src/myfuzz/local_harness/opentitan_uart_fifo_contract.py": "869fc886de17ebed71fcb90de0b442b40c794e715a7d0ee840578f8286624ef4",
+    "src/myfuzz/local_harness/opentitan_uart_session.py": "0f7700d9395bf8adf1df97f10a3c425b012716a4e8ed84f22232d76ceb8315f9",
+    "src/myfuzz/local_harness/ordinary_apb_access_receipts.py": "14641232586227568f3388f2cc88b0a5ac19ae96b92c048fe36d7174c46e4692",
+    "src/myfuzz/local_harness/parameter_evidence.py": "615426d04042ce8eb8fee68c7e6d2607c0832a5e5443c40fab777fda7aead040",
+    "src/myfuzz/local_harness/plan.py": "c5fd9a53d0d84cacd905da67a7a5ca54dceef4064cf1d1524ac3523bdfe83215",
+    "src/myfuzz/local_harness/port_rendering.py": "cdab6ac487d0cb85f885bc4eb0d682063f45c04d210c43365410cdb6f1a4fa28",
+    "src/myfuzz/local_harness/pulp_gpio_probe_contract.py": "52c5a3eb0aa3cd14d4e4f2543e4e483d0d23ae02c0812b93622931730f4063dd",
+    "src/myfuzz/local_harness/pulp_spi_contract.py": "bf679a22c6e02f27b4f19d609ed4f2d6f1de6106254e735deb607fb6ce066242",
+    "src/myfuzz/local_harness/renderer.py": "87557403ee0946b12867fbc14a8ea0def3a8b1890bc46072cecd67fe67f79e88",
+    "src/myfuzz/local_harness/request.py": "cf8365a67e54859c960985444a7b766b43d4c9bdd34ff6af41f7bdd71002fc40",
+    "src/myfuzz/local_harness/runtime_artifact.py": "2661c04a4c3d6cc668ad95936a0f005eacff71df3dad6e8b3f6f60d58c1158d0",
+    "src/myfuzz/local_harness/runtime_renderer.py": "358cc108aca314c8c0378c91204789da36ed4bd9b0148e49e629228bdaf2969f",
+    "src/myfuzz/local_harness/rvx_memory_session.py": "6dbbca09bbcc9934f3bc276ade784d71dbace33df5c201f49e5205a81b1663d9",
+    "src/myfuzz/local_harness/session.py": "874b847f31a76520f25164c231d8062274f339efe0b035794d3c488dcc9d6d44",
+    "src/myfuzz/local_harness/source_lock.py": "5f3ab8e670dc4ec6c024c0d9261361bae38c2ebde988a9f405bf52d837a324d4",
+    "src/myfuzz/local_harness/spi_session.py": "f561d7412d8a5b458e048321bb56bd7a2b6983fa651132ff7fb58856212ec2ca",
+    "src/myfuzz/local_harness/template_contracts.py": "5028d518dd0ac108c3cfcc1cb6e1446230f4b47a5d3f500255915e71f3c1df5a",
+    "src/myfuzz/local_harness/timer_session.py": "2794ea0a6c9eec6d2c869a4bd16720849f6fbb92592f2cf1a92aeb6a9e2722f2",
+    "src/myfuzz/local_harness/tlul_register_session.py": "cfec6fc0c72bb0cae2e035f5521fd2b8f9aeadb47f0ebd218fc093325a92a07a",
+    "src/myfuzz/local_harness/tlul_register_template.py": "f5ee184ff56b9f2f1af2515c5d01404bf29db973ff35a4eb608dc32e7d77e00c",
+    "src/myfuzz/local_harness/tlul_session_factory.py": "e3202fdb0ae6192d5901319381ae9dbdb4fc74b9a00a725a1716171c2f7756c4",
+    "src/myfuzz/local_harness/tlul_spi_mode0_peer_session.py": "60acbe2dd3fffe335e68300a9de0dbf1ddf92829a8bf3790607d401c9042d9cc",
+    "src/myfuzz/local_harness/tlul_uart_peer_session.py": "6903bc9f096e4b401bb8030a5ee373adf026e8c3517ffa1cad70c87935d47fe0",
+    "src/myfuzz/local_harness/tuning.py": "d3df23e34a70e26effd1e7fb28cdfcb24efa04d7988aaab1c14ce42bc7fd8210",
+    "src/myfuzz/local_harness/uart_controlled_irq_contract.py": "03163ec8deab3858d021d4ed553505d0537238ebce465a0c115380a81090fe85",
+    "src/myfuzz/local_harness/wire.py": "e165824cc171ea7e3b0d03531320f3144bb387637971a719d3aa8c16b8baf891",
+    "src/myfuzz/local_harness/wishbone_cpu_session.py": "a55910e3982542a0668b74864d62bed4cae4d622dd65e56d14453c9032f2ffec",
+    "src/myfuzz/local_harness/wishbone_register_session.py": "3ce11f44f7685d81e6e0ec31e308ad0550162b7c188ce65370941a12bb42d81a",
+    "src/myfuzz/local_harness/wishbone_register_template.py": "fcf158fe57c589b461ecdeb699328d507f0bac33e83c85d4a19029394ecb625f",
+    "src/myfuzz/local_harness/wishbone_uart_session.py": "60d1cae3eaf82c6e025af0e65b0fd3f7c1f9b128dca36bd055b68df3d189871c",
+    "src/myfuzz/local_harness/zip_timer_session.py": "6043896659d7a132b3250aae32489800f06901e765eb02cbc3e474418730effe",
+    "src/myfuzz/original_rfuzz.py": "c08e3e81969790d8072e4a62f6f0390c945114b9e0388938690fee10315bf89c",
+    "src/myfuzz/protocols/__init__.py": "db3493fe580eb500ab04a5b672860b07d78176da4bacc6edcaa527512ed25a78",
+    "src/myfuzz/protocols/bridge.py": "93f6bc18224d5da47df1ca9debc84dd164ec31803d03055f572b41c2537eb619",
+    "src/myfuzz/protocols/catalog.py": "fe23571cb2e33ed7a86cc39703d2fd21a5103882d9e6248004392c8c58e13a7e",
+    "src/myfuzz/protocols/compiler.py": "e978cddaed317b3a79225722742180e9e7274597d975269395b8159387e9243d",
+    "src/myfuzz/protocols/model.py": "ee207c54ae12259c9bc176d0beca9567191f104db7a64330818bc8ef07160922",
+    "src/myfuzz/protocols/widths.py": "d14d8d55e11dc310d63b373f48f73a6a7d01a409655a1993c4498f2629e074d2",
+    "src/myfuzz/rfuzz_compat.py": "1d0d8db82ea9657a03facd65da0f88bbe4a1ce035d7741b24b58d1a3745847d4",
+    "src/myfuzz/scenario/__init__.py": "31fcb83c8b1437542e9fd4aa6036f5b511bf844937f3dc9c1d3424076b0f490f",
+    "src/myfuzz/scenario/batch.py": "2e05c62e2e11ff13f1b6ee400a5fd636d82b032ecbefad736bb5f67b07337139",
+    "src/myfuzz/scenario/checker.py": "5b057a0ca702a062fb8bb1c7d8648e0f481f208728e09a79d036ab72f75517ad",
+    "src/myfuzz/scenario/contracts.py": "bff8d1c19bbb33e24d26ff25f1d5187c59e13e660f4dfe151b7fc930e9f062fd",
+    "src/myfuzz/scenario/cpu_retirement.py": "eaf795a55f66be4bf4e70de246bdb1681ba62ba33504ea8656ff153e08abe1ed",
+    "src/myfuzz/scenario/dependency.py": "5afc842e6c17cb63204e0c6bcc3ceed97dcf5b1c0ca3f245c7b5bb04ca0defde",
+    "src/myfuzz/scenario/dependency_evidence.py": "b454bb58bd292ea3563a18e27667505926e45cdaef8c0e6d60f152062b24f286",
+    "src/myfuzz/scenario/dependency_lifecycle.py": "dba12e80cef1ea0bd659962f593fc052badbd942cb4e92d86dea6d40cee319d5",
+    "src/myfuzz/scenario/event_journal.py": "42fb72fdbed10d7ddf476aa40fe2a5f4477e0d8bbf0fbd3004b17e86d8fed5c8",
+    "src/myfuzz/scenario/event_provenance.py": "9950edb61c2baa4ea853d6c383878e24281b344989e4a60aefdd204627f0a129",
+    "src/myfuzz/scenario/feedback.py": "35e7cafb1721f4dfe0a84199b557cc9e26196a50d6ec1d6d74fc3da99f02249f",
+    "src/myfuzz/scenario/genome.py": "cfee4607f5bfbd0f37ea0d84a2aff4a078193d3c8c6af28708e26d82682fe3ed",
+    "src/myfuzz/scenario/gpio_consumption.py": "f8ddf45e12f3a8f7820ef1b17332efb005f30451499fc676faba41121fcc1616",
+    "src/myfuzz/scenario/host_identity.py": "0ee7242f5955a68c5caed338cf757703236347c722b70a26cacb32a6c74194ed",
+    "src/myfuzz/scenario/ibex_pulp_dual_source.py": "a83e4331e0d63c577f572457bb831d49f0cda29c880680577a06a7145c404651",
+    "src/myfuzz/scenario/ibex_pulp_rfuzz.py": "07f01cdd699491cc3f5ad1f4bd1d3d2346fccca8ab562db69d1748957e9d6501",
+    "src/myfuzz/scenario/ibex_uart_online.py": "05d60cd9eb0238e863b646a01ff9149ad8cb8a08221781ce4864747d546c0e3a",
+    "src/myfuzz/scenario/initial_ram_data.py": "861d5d9a92539999b5a114b5a3bd84ba3a2f96e262a138ead80546cc9105f2fa",
+    "src/myfuzz/scenario/ip_base_events.py": "ba2f9efe9b91f43d495eb64cf39082733da3b485ebf5f784e7ae8d652fc3adf8",
+    "src/myfuzz/scenario/ip_protocol_checker.py": "f0fbd20739f1fd4695205fda65cb21bfda4c390289a884e57e901622ea275163",
+    "src/myfuzz/scenario/ip_protocol_events.py": "79fa6653cd91fe5dc90e3c4e3ce1f3249b68b8c077183cfe62595f64c31dbf71",
+    "src/myfuzz/scenario/irq.py": "14c3cde398f0ae6cd33da16114878b3c3c1fe3a26ab9baf4c56d06c97775cb4e",
+    "src/myfuzz/scenario/irq_dependency_evidence.py": "b88e5ff8a682f41c66e0bf1651171a050f75e049bb3d881f9aaf904a89ce154c",
+    "src/myfuzz/scenario/irq_serial_certificates.py": "3bef3bb03c328c7e3186934cc6180a1e103b7d5d8880cef28f6ddf7ebe6702be",
+    "src/myfuzz/scenario/ledger.py": "415d25466a7655bdf179ccf2fe276d639ba585627161201b2b1baf711b364137",
+    "src/myfuzz/scenario/live_memory_prerequisites.py": "e12c116d76810fd5b5e3961baf71fb38d2c5f1d6743cff7e0c447e2d5fc25555",
+    "src/myfuzz/scenario/memory.py": "05ab46d80877a50cb3281329ef224451860af6a10d2709a09d8f4eb9b45914d4",
+    "src/myfuzz/scenario/memory_authority_distribution.py": "ef52d9044d877cf3af955bad655ad66ca71a02cb972cff8d74dfe63e72f5428b",
+    "src/myfuzz/scenario/memory_commit_authority.py": "d39989dda1c3392355678be8e0a8b70201661211c6d976e3cbbd0281559122fc",
+    "src/myfuzz/scenario/memory_dependency_evidence.py": "0dcd2d741ae9d97d2f72b1624f64eb2c56d7b1db58af4a8b28829b80597a13a3",
+    "src/myfuzz/scenario/memory_read_authority.py": "4b0d13a601971c7242e5527a28c1060142043a6d2771c1e7288be3bd7ece2f35",
+    "src/myfuzz/scenario/memory_service.py": "f8ed028c0db293856fba1745623be0d26f26209190adb7152437b6a4dbf5ec9c",
+    "src/myfuzz/scenario/mutation.py": "c2d430c061e718a8dc977d714e62e87a001951dc1418780414cd0c56f0be9e83",
+    "src/myfuzz/scenario/online_case_decoder.py": "9f749bedebeebf1b404f3974b476fe41e629ccd2e6e023a3380578d1b7fc3fda",
+    "src/myfuzz/scenario/ordinary_apb_access_evidence.py": "2db93315effbf35ac76c563a493a28feda53e62487928857c26e6e00a58e77d6",
+    "src/myfuzz/scenario/ownership.py": "4e39d1495102d15ee5caa1c787dc3198d860853c734adff2955b8771f94aaaa7",
+    "src/myfuzz/scenario/protocol_io.py": "f6e446ef4f93e2cf5b30a1e1eb65b2b2bb3b57f6aec88541fe00d9c4c6491f79",
+    "src/myfuzz/scenario/pulp_spi_peer.py": "76a22ef7365c73ea1ad59b109f2e6c897d2b3e9c56ac2288cfc7075d38d39233",
+    "src/myfuzz/scenario/register_program.py": "ebb0b78da125b8990d87ef8bc0248c0074e3d2f3c70ddebc2252d4746e95e60e",
+    "src/myfuzz/scenario/register_program_capabilities.py": "52a10801ec5ab02daecc7a024ca536f264fa779b6d58080c876cf9a6868a593c",
+    "src/myfuzz/scenario/register_program_runtime.py": "e6852b1913fa7249f52dc356b1b5a454ccbe89c9f434fc349fea5251c1c902a1",
+    "src/myfuzz/scenario/register_program_verifier.py": "0375ed3ffcd9a4ec012ab8873f5874212d2c9d9dfd0878fcb1b9ab5554ca0470",
+    "src/myfuzz/scenario/rejection_codes.py": "f292875c753a3896f0f63ee1afc5516869fa4ee40b7a2b18b1d63ddcd50d08a3",
+    "src/myfuzz/scenario/replay.py": "dbe72d874a5f8c899b67cf9ff9291eddc7e8e85173eff94e2ab5b7e8b98f2cb8",
+    "src/myfuzz/scenario/retirement_delivery.py": "30795daf37f7ffddfa7339ba03b8e548d4a8ca390ae79ac643b050eed3fa859f",
+    "src/myfuzz/scenario/rfuzz_decoder.py": "3e6c6ec21dc7250df2e0353590afb6f541a20098cf4667e12b84cbb9883f5888",
+    "src/myfuzz/scenario/router.py": "d32f54b41608da1b14eb33b548512d66efca9a4727744cd27c87a39cbe3fedef",
+    "src/myfuzz/scenario/runner.py": "783f3cba30e4f16b629af5d53673ad34270fab78f93b3bfe49c18c29d4d8bf73",
+    "src/myfuzz/scenario/runtime_edge_index.py": "3644bf647ea3949c7820b34ddcace721f35eb998379c28e8817396ad8b557690",
+    "src/myfuzz/scenario/runtime_path_contract.py": "543f83ae2d6e234d41aa17aa6c2ba1b23c13559e289bc75d32b278e9c0b35d73",
+    "src/myfuzz/scenario/rv32i_sources.py": "969c4062bc8e74184dd37124031658bb23e19afd1cf0b307bf75da9c908fc7e6",
+    "src/myfuzz/scenario/scheduler.py": "5f76cd050a138d3b6559046486ce16dfe7b5dde983a3cb5bc30e6ff6f0f6ca8d",
+    "src/myfuzz/scenario/session_runtime.py": "f7da03f4b74d21e36736fbe50e3891937108c1a78a9d9d52c3a870398c4bafa0",
+    "src/myfuzz/scenario/source_actions.py": "4bec790a69dc239544f2a79b9c2771640f8692da0a2995ba047b4d6adc8a8eee",
+    "src/myfuzz/scenario/source_provenance.py": "a3944c0f17c921baae0eb1da5fe7b128a914b8590fab72224633081afb818fb4",
+    "src/myfuzz/scenario/spi_peer.py": "8bed1777038884639455833cb0d15ceb866040e503542fc4ff953e985b42a520",
+    "src/myfuzz/scenario/state_dependency.py": "b38f456a7705f4550a99c437bd6fe51400cbcd8905038340dc1cb55e400400f7",
+    "src/myfuzz/scenario/uart_consumption.py": "3d852f28bd5ae0028efd54819679abba1355f622d453d2bbb3d7ca68067cc8a4",
+    "src/myfuzz/scenario/uart_irq_consumption.py": "699473320ef8a792f6e84e976ea02d9c226fc45451cf2f7bd89bbacc033575bd",
+    "src/myfuzz/scenario/uart_irq_entry.py": "e8ef8b011689690b86f8f44889ff63c19b4bf1609cdb0819e15713fa3e7adf22",
+    "src/myfuzz/scenario/uart_memory_readback.py": "06738693e9c0e3c5bdfb0cbd525ff8261965cbccc48eb5abf8dde1ea0ebb3f34",
+    "src/myfuzz/scenario/uart_operand_seed.py": "894eef6e9817976691ece96f4762a9bebeba05ac8dbac172a0ea52a6be278213",
+    "src/myfuzz/scenario/uart_operand_use.py": "bab6308b0813324093de089429146a7491ca83b2f787ae2c299aad4d0d57f954",
+    "src/myfuzz/scenario/uart_peer.py": "98de8ccd6f4cb9caa1b946774898b460b98f0f453be00b267719e189d48cc645",
+    "src/myfuzz/scenario/uart_retired_read.py": "6cae8ac72aa92f9caac3b6c8fafab3bf807cc4007d686928a0b6f1cc8803a3a4",
+    "src/myfuzz/scenario/uart_store_memory.py": "abde3a9874c67de4a27d2b3f673801922575680ec54f3d869b50128e56c8f072",
+    "src/myfuzz/scripts/composition_api.py": "57ee692340ec7e0aa5f1851c50f3ff510a39342ec0954810fc57a4920a0b306a",
+    "src/myfuzz/scripts/frontend_api.py": "3bb9660dd028357104461cb098eccc60749f7e0ff4ba1b59beb6389bcc336844",
+    "src/myfuzz/scripts/run_design_flow.py": "ad5b93831fafa82edc31f934f5bc3e1afb0ee9cde0169b800a5a12d62a06c6d3",
+    "src/myfuzz/scripts/source_only_frontend.py": "f9ae8fb6def7b2c345554cee1b724230c3b4a7935a779686e442bffe398f75db"
+  },
+  "status": "passed_scoped_64_exact_single_valuepoints",
+  "width_field_counts": {
+    "2": 32,
+    "4": 32
+  }
+}

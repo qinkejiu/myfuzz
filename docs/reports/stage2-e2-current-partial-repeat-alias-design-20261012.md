@@ -1,0 +1,19 @@
+# 当前source high-bit／重复alias小包（只读设计，未准备执行）
+
+用于补充旧冻结source的high/repeat alias历史，不能直接借旧bundle授当前sourcepassed。当前v3 sidecar明确PADOUTSET.bits→PADOUT.value set_bits、PADOUTCLR.bits→PADOUT.value clear_bits，32bit/fullmask。现compiler/runtime/helper/ordinary/verifier/save/fresh API可表达以下两个10原请求独立session包，不新增provider/功能flag，不改源码或执行门禁。
+
+SET包：B.INTEN WRITE0、READ10004；A.PADOUT WRITE0x55aa00ff、READ10008证明实际seed；READ1000c(before1)→PADOUTSET WRITE0x80000000(consenttrue/noRMW)→READ10010(after1)；READ10014(before2)→再次SET80000000→READ10018(after2)。真实值由CPU/APB链应观察55aa00ff→d5aa00ff→d5aa00ff，起始seed只通过实际WRITE/READ证明，不直接装hostGPIOstate。
+
+CLR包：同B隔离与RAM安排；A.PADOUT seedWRITE0xd5aa00ff、READ10008；两个全新before/CLR80000000/after brackets，真实观察d5aa00ff→55aa00ff→55aa00ff。两个包各6selectedREAD／2plainWRITE／2alias，共10currentcertificates、selected10MMIO／30APB／6RAM；加固定bootstrap预计16ordinaryassociations／48APB，预计只是诊断，不删除或强凑额外actualstream。
+
+每WRITE full32/LW-SW byteenable15、alias显式allow_side_effect=True/read_modify_write=False；plainseedwrite与READ no-sideeffect，安全RAM由actualRuntime检查initial/sourceowned/declaredslots/MMIO冲突。本设计的10case门禁明确选择每轮独立的新before与after successfulselectedREADcase、unique actual CPU/data sequence、source/targetepoch/generation、sameendpoint与各自后续privateissuedRAMcommit；worker/audit必须将每个aliascertificate的before/after access_id与commit refs精确绑定到本包指定原请求case。不能复制saved/foreign/旧epoch certificate变成实际授权。此门禁选择比通用规则更明确，不表示一般规则禁止共享已经真实认证的READ边界。
+
+当前`RegisterProgramVerifier._alias_result`在actual completed-access reverse/forward chronology上，遇任何targetWRITE（包括equalvalue/其他register/alias）拒crossinterval，并检查same actualscope、data sequence、selectedREAD与actualissuedresult。第二equal-write仍是新的实际targetWRITE，须具有合法实际before/after区间；一般规则允许first-after这个已认证selectedREAD在相同scope、连续无影响写条件下成为next-before，此时reverse查找会先遇该READ而不是之前WRITE。若没有任何合法实际READ边界，先前WRITE才会阻向后借更旧before。本文10caseworker额外要求独立before2，以精确检查重复操作，并不修改production拒绝合法共享边界。报告历史保留并不等于当前writer/version状态，certificate仅observed_cpu_register_readback_consistency，所有storage/version_dependency/prerequisites/functionalFalse，不授wholeL2。
+
+每bracket以actualbefore `old` 和actualwrite `mask`计算expected，SET `old|mask`、CLR `old&(~mask&ffffffff)`；核 `(old^new)&~mask==0`保旁位，包括低8非零seed和中间模式位。重复bracket应actualbefore==firstafter、secondafter==newbefore，仍不能只据同值跳过WRITE/独立READ/RAM链。certificate.result中的before/after access与commit refs必须精确对应新原请求与实际journal，纯savedprojection/fresh全重算。
+
+GPIO A低8pad输出会真实变为ff，而B.INTEN0只约束后续新IRQ条件；已有pending/pulse不可抹。完整CPU/A/B rawphysical、actualgpio input/output/同步时序、commandedCPUirq/policy/pending与所有IRQevents保留，不forcequiet/MIE/inputs。不借该readback授PADIN采样/IRQacceptance/retirement或输出功能，发生ISR/额外WRITE须按实际链分类，不能剪stream让bracket过。
+
+维持currentsourceclosure/currenttypedprofile+v3source-lock refs、assembly48rounds64bytes14records/L1/ordinary256/verifier256、template512。每case144steps≤512，10cases≤14records；预留独立new owncache，不恢复session/state/authority。每generation与fullfresh单worker180秒/RSS原policy，完整10请求不裁剪，不因为8case包通过就保证10case预算；先实际测generation资源margin，再fresh，最后串行fullaudit。首前置负例仍为实际API拒，非PSLVERR硬件权限错误。当前只设计，未建执行目录、未编译/运行/复制cache，旧worker/source保持冻结，完整E1/E2 reset/width/permission/effects范围不缩小。
+
+独立review修订：上述一般规则与新门禁case绑定明确区分；pure saved validator通过actualREADcertificate链接闭合before/after关系，可接受合法shared实际READ，但saved旧certificate不提供新authority。后续worker/audit对指定before2/after2的access_id、delivery refs与各自privatecommit逐case精确核对，不通过放宽comparison使不同合法READ代替计划case，也不为本门禁新增生产拒绝限制。

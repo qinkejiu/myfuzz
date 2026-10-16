@@ -55,7 +55,7 @@ real IP IRQ -> declared interrupt routing -> CPU
 
 ## 4. CPU 与外设矩阵
 
-CPU：真实 Ibex（现有 OBI 边界）和真实 CVA6（现有 compiler-proven packed AXI4 边界）。沿用已保存的源码 pin 作为候选，重新验证源码闭包、CPU 参数和实际接口后冻结。CVA6 的 AXI burst、ID、原子操作和 64→32 位 MMIO 行为需要独立能力检查，不能声称自动支持全部 AXI4。
+**CPU 适配目标（权威口径，六核）：** Ibex（OBI 指令／数据）、CVA6（打包 64 位 AXI4 单主端口）、CV32E40P（分离 OBI 指令／数据）、BOOM（TileLink 1.0 指令／数据端点）、CVW/CORE-V Wally（AHB-Lite 外部总线 EBU）、VexiiRiscv（TileLink 内存总线）。逐行现状与协议缺口见 [P6 逐协议行适配清单](superpowers/plans/2026-10-13-p6-per-protocol-row-checklist.md) §1.4；其中 **BOOM／CVW／VexiiRiscv 记 `skipped_unavailable`**（缺 Chipyard 生成或源码／配置），**当前可执行三核为 Ibex／CVA6／CV32E40P**。本节此前的必测范围以真实 Ibex（OBI 边界）与真实 CVA6（compiler-proven packed AXI4 边界）为准。CVA6 的 AXI burst、ID、原子操作和 64→32 位 MMIO 行为需要独立能力检查，不能声称自动支持全部 AXI4。
 
 三个系列定义为不同上游项目生态，首选以下真实模块；每系列至少两个不同外设：
 

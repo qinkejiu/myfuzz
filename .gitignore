@@ -45,14 +45,12 @@ temp/
 /.cvw-verify-*/
 
 # The .superpowers working area holds per-run build caches, Verilator object
-# trees and probe binaries (gigabytes).  Only its written records are sources, so
-# the rules name the ignored entries instead of the directory: a directory-level
-# exclusion would also hide .superpowers/sdd, which IS tracked.
-/.superpowers/cache/
-/.superpowers/cvw-*/
-/.superpowers/rfuzz-*/
-/.superpowers/ahb/
-/.superpowers/patched/
+# trees, probe binaries and one-off probe sources (gigabytes).  Only its written
+# records are sources, so the whole directory is disregarded with a single
+# exception for .superpowers/sdd, which IS tracked (its files stay in the index,
+# and an explicit negation keeps them reachable).
+/.superpowers/*
+!/.superpowers/sdd/
 
 # Scratch profile directories that scenario tests create under configs/ via
 # TemporaryDirectory(prefix='.alias-test-').  A test run that is interrupted
