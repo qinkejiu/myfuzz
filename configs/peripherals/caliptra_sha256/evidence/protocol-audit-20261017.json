@@ -1,0 +1,37 @@
+{
+  "artifact_digest": "928f9356429ba3a8edbee75a55f408527417b01ff0abaa05a7e3c7564f603f51",
+  "forged_response": {
+    "accesses": 91,
+    "diagnostics": {
+      "projection_mismatch": 1
+    },
+    "journal_integrity": true,
+    "pending": 0,
+    "projected_events": 273,
+    "tampered": true,
+    "verified_certificates": 0
+  },
+  "online_runner_integrated": false,
+  "runs": {
+    "first": {
+      "accesses": 91,
+      "diagnostics": {},
+      "journal_integrity": true,
+      "pending": 0,
+      "projected_events": 273,
+      "tampered": false,
+      "verified_certificates": 91
+    },
+    "fresh": {
+      "accesses": 91,
+      "diagnostics": {},
+      "journal_integrity": true,
+      "pending": 0,
+      "projected_events": 273,
+      "tampered": false,
+      "verified_certificates": 91
+    }
+  },
+  "schema_version": "caliptra_ahb_protocol_audit.v1",
+  "scope": "offline_real_raw_samples_to_protocol_certificates"
+}

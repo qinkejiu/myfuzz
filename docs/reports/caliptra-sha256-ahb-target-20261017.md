@@ -30,6 +30,17 @@ Generic AHB passive events/checker/base coverage were independently added in
 not invoke IpProtocolEvidenceConsumer, Runner or base coverage; full evidence
 consumer/coverage integration remains pending.
 
+An additional **offline audit of the saved real physical samples** now runs
+`scripts/verify_caliptra_ahb_protocol_evidence.py` against the hashed first,
+fresh and artifact files. It rebuilds the interleaved raw/event journal and
+passes it through `IpProtocolEvidenceConsumer`: each run yields **91 verified
+AHB transaction certificates**, zero pending and zero diagnostics. Flipping
+the first projected response value yields zero certificates and one
+`projection_mismatch`. The compact audit result is
+`configs/peripherals/caliptra_sha256/evidence/protocol-audit-20261017.json`.
+This retrospective proof does not mean the live Runner or coverage path was
+exercised.
+
 ## Actual evidence
 
 ```bash
