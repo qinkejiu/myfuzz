@@ -1,5 +1,16 @@
 # 当前工作进度与证据入口
 
+## 2026-10-17 后续实际增量
+
+以下证据分别绑定自己的冻结源码，不代表当前 HEAD 已完成联合验收；P6、P7、P8 保持未验收。
+
+- **BOOM 生成式 CPU/RAM：** [受源锁约束的独立入口](../configs/cpus/boom/README.md)已在两个新进程得到相同的 598-cycle 轨迹，14 次 AcquireBlock 与 14 次 GrantAck 排空；fence 后重新获取目标缓存行的实际 D 响应从 `0x123` 替换为 `0x122`，CPU 随后保存 `0x122`，正常成功门拒绝。该入口使用显式派生源码，未接通用 Router 或 CPU/IP。
+- **第四系列真实 CPU 链：** [CVW→Caliptra SHA256→RAM](reports/cvw-caliptra-cpu-chain-20261017.md)的最终门为 3 passed／100.00 秒。32 位 CPU 在一对持续进程计算 `abc`、`abd`，84 条实际寄存器事务与 CPU、Router、AHB 物理采样关联，fresh 轨迹一致；错误窗口和实际 CPU 字节写被拒绝。IRQ、持续搜索与认证前缀仍未覆盖。
+- **真实寄存器前置状态：** [GPIOEN live authority](reports/gpioen-live-register-version-20261017.md)已实现源锁、原生进程／epoch／命令连续性与一次消费 token；保存日志为 4 passed／125.46 秒。它只支持精确的 GPIOEN 来源合同；尚不能独立授予编译 F4 端到端能力。
+- **编译 F4 仍在修复：** 首次连续候选与 fresh 前缀运行已有实验结果；独立复核发现编译断言未绑定完整消费链、配置启动基址被当作实际首取指地址，以及调用方输入仍可变化。修复与复核完成前不计入 D4 验收。
+
+下文保留较早切片的边界；“尚未”以其对应报告的冻结版本解释。
+
 2026-10-17 本次六 CPU／四外设系列与 F6 增量：Ibex、CVA6、CV32E40P 已有各自生成式 CPU/外设真实链；CVW→PULP GPIO 已有双向定向真实链；VexiiRiscv 的受限双 AXI 生成式 profile/session 已通过真实 CPU/RAM 定向门禁，两次 fresh 运行 `[53,54]`，读响应替换对照 `[53,1]`，见[生成式报告](reports/vexiiriscv-generated-harness-20261017.md)；随后[Vexii 真实 CPU/IP 门](reports/vexiiriscv-generated-cpu-ip-20261017.md)已验证 CPU 写 GPIO `53`、读回后保存 RAM `54`，两次 fresh 原始样本一致，替换目标响应被拒绝；IRQ 与在线搜索仍待接入。BOOM 固定源构建仍受历史 SNAPSHOT 依赖阻断；显式派生的依赖与 Rocket IO 兼容修正已生成真实 Verilog，并通过[完整 coherent TileLink 直接 CPU/RAM 运行](../configs/cpus/boom/runtime/README.md)：555 cycles、13 AcquireBlock／10 ReleaseData／13 GrantAck 排空，CPU 读回、重载及 RAM 写回均为 `0x123`；其通用生成式 runtime 与 CPU/IP 组合仍待接入，见[源码与构建报告](../configs/cpus/boom/generation_evidence_20261017.md)。外设第四系列选 Caliptra SHA256（AHB-Lite），其生成式目标在两个新进程各完成 91 次寄存器访问，`abc`／`abd` 真实摘要正确，273 个通用协议事件、零 checker 违约，仅达局部 RTL operational，见[报告](reports/caliptra-sha256-ahb-target-20261017.md)。OpenTitan、PULP、ZipCPU 既有真实实例的能力仍按各自报告逐项判定。
 
 F6 已有[Ibex＋ZipCPU wbdmac RAM→RAM 定向真实闭环](reports/ibex-zipcpu-dma-irq-isr-directed-20261017.md)：CPU 自写四个源字并经真实 OBI 配置 DMA，DMA 四读四写持久 RAM，原生完成脉冲经声明的 pending-level latch 到真实 CPU IRQ，ISR 保存状态、目的值与分支成功标记；两个新进程完整规范化轨迹一致。又有[RAM→真实 OpenTitan UART TX FIFO 定向链](reports/ibex-zipcpu-dma-uart-fifo-directed-20261017.md)：CPU 写源值 `0xA5` 并配置 DMA，DMA 实际 RAM 读取及 UART WDATA 写入使串行端捕获 `0xA5`，原生 IRQ 触发 Ibex ISR；修正版真实门 3 passed，含非法地址和超宽 WDATA 两个环境 ERR 对照。另有[真实 UART RX FIFO→RAM 定向链](reports/ibex-zipcpu-dma-uart-rx-fifo-directed-20261017.md)：串行输入 `0x5A` 经物理 RX FIFO、DMA 原生读取和 RAM 写入，由 Ibex ISR 读回；远程真实门 2 passed／278.74 秒，两次 fresh 完整规范化轨迹一致，非法源偏移由环境 ERR 拒绝且不弹出 FIFO。修正后的 DMA session 又通过 TX 回归 3 passed／287.64 秒。三条链仍为有界 host 事务调度，缺持续搜索、通用来源链和认证前缀 replay，P8 保持未验收。P7 的 D2/D3 声明与产物链已可工作，但 D4 仍依赖具名 runtime family；同协议新 CPU/IP 只凭受信 profile 自动运行的最终门禁尚未完成。AHB-Lite 通用协议事件、checker、coverage 投影已实现；真实 Caliptra 保存的物理采样经过离线通用证据消费者复核，每个进程签发 91 条事务证书，篡改响应负例拒绝；在线 Runner/coverage 仍未接入。
