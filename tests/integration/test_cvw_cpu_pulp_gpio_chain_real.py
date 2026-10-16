@@ -61,7 +61,7 @@ def _run(cache, *, base=BASE, limit=6000):
                                 signals['pwdata'] if signals['pwrite'] else signals['prdata']))
             writes = [event for event in cpu.service.events
                       if event.get('kind') == 'memory_write' and event['address'] == RESULT+8]
-            if writes:
+            if writes and cpu.pending_responses == 0:
                 break
         final = gpio.step_local({})
         physical_requests = []
@@ -82,6 +82,7 @@ def _run(cache, *, base=BASE, limit=6000):
             'final': final, 'executions': executions,
             'cpu_identity': cpu.identity_document(), 'gpio_identity': gpio.identity_document(),
             'memory_identity': memory.identity_document(),
+            'pending_responses': cpu.pending_responses,
             'gpio_output_runtime_names': [row['runtime_name'] for row in gpio.artifact.runtime_document['physical_exports'] if row['physical_port'] == 'gpio_out'],
             'artifact_hashes': (cpu.artifact.runtime_document['artifact_digest'], gpio.artifact.runtime_document['artifact_digest'])}
     finally:
@@ -90,6 +91,7 @@ def _run(cache, *, base=BASE, limit=6000):
 
 
 def _assert_chain(run):
+    assert run['pending_responses'] == 0
     assert run['result'] == [0x35, 0x6A, 1], 'CPU readbacks/branch-dependent RAM success absent'
     assert [(r['offset'], r['write'], r['write_value'] if r['write'] else r['read_value'])
             for r in run['deliveries']] == EXPECTED
