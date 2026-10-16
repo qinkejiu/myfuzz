@@ -1,0 +1,9 @@
+# Frozen full AXI EventJournal reference reuse
+
+2026-10-17, software reproduction only. Owner root has separately taken implementation ownership; this discovery changes no frozen remote CVA6 sources or native verdict.
+
+Frozen full_axi_events.py at893d255 computes each raw_event_ref as len(self.events)+1. ScenarioRunner._append_external_events imports runtime_events once, then for EventJournal storage clears the same list in place. With an outstanding AR across that drain, the next measured R raw event receives1 again. Both request_refs and response raw_event_refs can then refer to distinct raw samples under the same identifier. Raw transfer acceptance itself is unchanged; the correlation namespace is ambiguous.
+
+Durable reproducer `docs/reports/evidence/cvw-ahb-implementation-20261017/reproduce-full-axi-drain.py` loads the pinned source directly from git893d255 (SHA recorded in the output), constructs two software edges, executes actual Runner EventJournal drains and asserts raw refs[1,1] at ticks[1,2]. Output is `full-axi-drain-reproduction.json`. It does not execute a CPU, toolchain, elaborator or native binary.
+
+Recommended root-owned correction: a global monotonically increasing record counter, advanced by every observer emit and never reset by drain/scope. Raw ref must keep the existing one-based record-index convention so the undrained event payload remains identical. Pin namespace/version identity explicitly; edge/byte/record/scope budget counters must not depend on current list length. Keep stable list object and original raw. Tests require cross-drain AR/R, AW/W-before-AW/B, reset across drain, complete replay references, and equality of undrained payload versus old source. Actual native CVA6 evidence remains bound to its unchanged source freeze; this software correction cannot retroactively claim a different native build.
