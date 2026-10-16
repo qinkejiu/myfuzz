@@ -17,6 +17,7 @@ def test_profile_maps_every_elaborated_port_once_and_keeps_pipelined_master():
     for endpoint in document['endpoints']:
         declared += [(field['aliases'][0], field['direction'], field['width'])
                      for field in endpoint['fields']]
+    declared += [(r['port'], 'input', 32) for r in document.get('port_actions', [])]
     assert len(declared) == len(set(name for name, _, _ in declared)) == len(ports)
     assert set(declared) == {(p['name'], p['direction'], p['width']) for p in ports}
     assert profile.source.revision == 'git:42606d2d6ef55df313772232977621b2d72f0159'

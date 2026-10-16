@@ -28,10 +28,10 @@
   },
   "unsupported": [
     "partial/unaligned accesses",
-    "DMA runtime/session/driver",
     "shared CPU memory scheduling",
     "CPU interrupt delivery",
-    "FIFO directions"
+    "FIFO directions",
+    "autonomous DMA session/memory service and actual transfer validation"
   ],
   "notes": [
     "This is configuration, not a recorded DMA execution. Total length is words, not bytes.",
@@ -50,5 +50,6 @@
     "i_mwb_ack": "session_memory_response",
     "i_mwb_data": "session_memory_response",
     "i_mwb_err": "session_memory_response"
-  }
+  },
+  "transport_status": "generated_wishbone_dma_edge_v1"
 }

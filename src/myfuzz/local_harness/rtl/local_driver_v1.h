@@ -174,6 +174,7 @@ inline ParseResult parse_command(const std::string &line) {
               1, 3,
               std::numeric_limits<std::uint64_t>::max()};
   }
+  else if (tokens[3] == "STEP_WB_DMA") maxima = {1, 1, 1, 3, word, 1, 1, word, 1};
   else if (tokens[3] == "STEP_WISHBONE") maxima = {1, word};
   else if (tokens[3] == "STEP_WISHBONE_IRQ") maxima = {1, word, word};
   else if (tokens[3] == "STEP_MEMORY") maxima = {1, 1, word, 1};

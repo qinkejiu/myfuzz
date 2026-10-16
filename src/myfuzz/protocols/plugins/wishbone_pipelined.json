@@ -1,0 +1,91 @@
+{
+  "protocol_id": "wishbone",
+  "version": "pipelined",
+  "legal_adapters": [],
+  "fields": [
+    {
+      "field_id": "cyc",
+      "direction": "host_to_device",
+      "width": "1",
+      "required": true,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "stb",
+      "direction": "host_to_device",
+      "width": "1",
+      "required": true,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "we",
+      "direction": "host_to_device",
+      "width": "1",
+      "required": true,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "adr",
+      "direction": "host_to_device",
+      "width": "endpoint_word_address_width",
+      "required": true,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "dat_w",
+      "direction": "host_to_device",
+      "width": "data_width",
+      "required": true,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "stall",
+      "direction": "device_to_host",
+      "width": "1",
+      "required": true,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "ack",
+      "direction": "device_to_host",
+      "width": "1",
+      "required": true,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "dat_r",
+      "direction": "device_to_host",
+      "width": "data_width",
+      "required": true,
+      "runtime_required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "err",
+      "direction": "device_to_host",
+      "width": "1",
+      "required": false,
+      "runtime_required": false,
+      "reset_value": 0
+    }
+  ],
+  "channel_relations": [],
+  "capability_limits": {
+    "stall_supported": true,
+    "byte_enable": false,
+    "partial_write": false,
+    "x-acceptance": "cyc && stb && !stall before edge",
+    "x-completion": "cyc && (ack || err) before edge",
+    "x-address-units": "word; widths are endpoint-typed because control and memory differ",
+    "x-projection-status": "no generic projection or temporal monitor declared"
+  },
+  "projection_actions": [],
+  "temporal_rules": []
+}

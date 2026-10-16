@@ -2,7 +2,7 @@
   "schema_version": "component_profile.v1",
   "component_id": "zipcpu_wbdmac",
   "kind": "peripheral",
-  "description": "Pinned unmodified ZipCPU wbdmac: autonomous pipelined Wishbone memory master plus pipelined registered-ack control target. Static physical/source declaration only. Composite runtime, driver and session are unsupported pending DMA Slice B/C. Master addresses are 30-bit words; no SEL pin exists on either interface. Immediate trigger pins fixed zero in initial environment; no DMA data or IRQ simulated. Executable RTL start key is 0xfed, not stale header 0x3db.",
+  "description": "Pinned unmodified ZipCPU wbdmac: autonomous pipelined Wishbone memory master plus pipelined registered-ack control target. Source-admitted dual-role runtime and one-edge driver generation are available. Autonomous DMA session, memory service and actual transfer execution remain unverified. Master addresses are 30-bit words; no SEL pin exists on either interface. Immediate trigger pins fixed zero in initial environment; no DMA data or IRQ simulated. Executable RTL start key is 0xfed, not stale header 0x3db.",
   "source": {
     "root": "third_party/soc-zipcpu",
     "revision": "git:42606d2d6ef55df313772232977621b2d72f0159",
@@ -212,22 +212,6 @@
       ]
     },
     {
-      "endpoint_id": "dma.triggers",
-      "function": "configuration",
-      "clock": "core",
-      "reset": "sys_rst",
-      "fields": [
-        {
-          "role": "device_interrupts",
-          "aliases": [
-            "i_dev_ints"
-          ],
-          "direction": "input",
-          "width": 32
-        }
-      ]
-    },
-    {
       "endpoint_id": "dma.interrupt",
       "function": "interrupt_source",
       "clock": "core",
@@ -259,7 +243,8 @@
     "master_byte_enable": false,
     "master_fixed_byte_enable": 15,
     "wishbone_flavour": "pipelined",
-    "dma_composite_runtime": false
+    "dma_composite_runtime": false,
+    "local_runtime_variant": "wishbone_dma_edge_v1"
   },
   "address": {
     "window_size": 16,
@@ -298,7 +283,15 @@
   "evidence": {
     "elaboration": "configs/soc/closures/zipcpu_wbdmac.json",
     "physical_ports": "configs/peripherals/zipcpu_wbdmac/evidence/elaborated_ports.json",
-    "runtime_status": "unsupported_composite_dma_runtime",
-    "requires": "Dedicated composite target/master template and edge transport; do not admit through classic CPU or single-target register templates."
-  }
+    "runtime_status": "edge_transport_generated_dma_session_unimplemented",
+    "requires": "Autonomous master session, ledger-backed memory service, shared CPU scheduling and actual DUT transport/transfer tests. Classic CPU/register target adapters are not used."
+  },
+  "port_actions": [
+    {
+      "port": "i_dev_ints",
+      "action": "constant",
+      "value": 0,
+      "reason": "Initial DMA edge environment uses immediate trigger only"
+    }
+  ]
 }

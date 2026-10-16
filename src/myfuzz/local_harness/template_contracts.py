@@ -103,6 +103,18 @@ _TL_CPU_LIMITS = {'error_response':False,'byte_enable':False,'partial_write':Fal
     # inventing a TileLink width rule.
     'supported_data_widths':(32,64)}
 _TEMPLATES = (
+    _contract('target.wishbone-pipelined','dma-full-word-no-select',
+        ('wishbone','pipelined'),'target','cyc stb we adr dat_w','stall ack dat_r',
+        semantics='explicit-only', facts={'address_units':'word','has_error':False},
+        limits={'pipelining':True,'outstanding_scope':'host_environment',
+                'byte_enable':False,'partial_write':False,
+                'has_error':False,'completion':'accepted_strobe_then_registered_ack'}),
+    _contract('master.wishbone-pipelined','dma-full-word-no-select',
+        ('wishbone','pipelined'),'master','cyc stb we adr dat_w','stall ack dat_r err',
+        semantics='explicit-only', facts={'address_units':'word','has_error':True},
+        limits={'pipelining':True,'outstanding_scope':'host_environment',
+                'byte_enable':False,'partial_write':False,
+                'has_error':True,'completion':'accept_not_stalled_then_ack_or_err'}),
     _contract('cpu.obi', 'read-only', ('obi','1'), 'cpu', 'req addr', 'gnt rvalid rdata error',
         limits={'write':False,'byte_enable':False,'completion':'grant_then_response','error_policy':'propagate_error','error_response':True}),
     _contract('cpu.obi', 'read-write', ('obi','1'), 'cpu', 'req addr we wdata be', 'gnt rvalid rdata error',
@@ -283,7 +295,7 @@ def list_template_contracts() -> tuple[ProtocolTemplateContract, ...]:
 _GENERATED_EXECUTOR_KINDS = frozenset((
     'obi_cpu', 'native_memory_cpu', 'rvx_memory_cpu', 'wishbone_cpu',
     'axi4_lite_cpu', 'axi4_cpu', 'cva6_packed_axi4_cpu', 'axi4_lite_uart',
-    'ahb_lite_cpu',
+    'ahb_lite_cpu', 'wishbone_dma',
     'wishbone_register_observe', 'wishbone_timer', 'wishbone_uart',
     'tlul_register_observe', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host',
     'tlul_uart', 'tlul_i2c', 'tlul_spi_device', 'apb3_register_observe',
@@ -430,7 +442,7 @@ def _role_shape(role):
 
 def _match(contract, endpoint, capabilities, explicit):
     cpu = endpoint.function in _CPU_FUNCTIONS
-    if contract.protocol != endpoint.protocol or (contract.side=='cpu') != cpu or (
+    if contract.protocol != endpoint.protocol or (contract.side in ('cpu','master')) != cpu or (
             not cpu and endpoint.function!='mmio_slave'):
         raise ValueError('template-protocol-or-side-mismatch')
     by_role={field.role:field for field in endpoint.fields}

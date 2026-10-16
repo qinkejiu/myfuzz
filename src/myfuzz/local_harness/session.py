@@ -23,6 +23,7 @@ from .build import build_local_harness, local_build_identity
 from .runtime_artifact import LocalRuntimeArtifact
 from .wire import (MAX_REPLY_LINE_BYTES, DriverReceipt, parse_driver_ack,
                    parse_driver_ready, parse_driver_receipt)
+from .wishbone_dma_fields import DMA_STEP_MAXIMA
 from .axi4_fields import AXI_STEP_MAXIMA
 from .cva6_axi4_fields import CVA6_AXI_STEP_MAXIMA
 
@@ -45,6 +46,7 @@ def observe_local_command_timings(observer: Callable[[str, float], None]
 
 
 _OPERATIONS = {
+    'wishbone_dma': {'STEP_WB_DMA': DMA_STEP_MAXIMA},
     'axi4_cpu': {'STEP_AXI4': AXI_STEP_MAXIMA},
     'cva6_packed_axi4_cpu': {'STEP_CVA6_AXI4': CVA6_AXI_STEP_MAXIMA},
     'native_memory_cpu': {'STEP_MEMORY': (1, 1, 0xffffffff, 1)},

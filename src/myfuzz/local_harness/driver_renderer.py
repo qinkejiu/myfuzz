@@ -11,11 +11,13 @@ from .renderer import _sha
 from .runtime_artifact import LocalRuntimeArtifact
 from .session import registered_operations
 from .runtime_renderer import render_local_runtime
+from .wishbone_dma_fields import DMA_CONTROL_SHAPE, DMA_MASTER_SHAPE, DMA_STEP_PORTS
 from .axi4_fields import AXI_STEP_PORTS
 from .cva6_axi4_fields import CVA6_AXI_STEP_PORTS
 
 _HEADERS = ('src/myfuzz/local_harness/rtl/local_driver_v1.h',
             'src/myfuzz/scenario/rtl/local_command_replay.h')
+_DMA_HEADER = 'src/myfuzz/local_harness/rtl/wishbone_dma_edge.h'
 _SPI_HEADER = 'src/myfuzz/local_harness/rtl/pulp_spi_mode0_peer.h'
 _I2C_HEADER = 'src/myfuzz/local_harness/rtl/pulp_i2c_single_slave_peer.h'
 _OT_I2C_HEADER = 'src/myfuzz/local_harness/rtl/opentitan_i2c_single_slave_peer.h'
@@ -210,6 +212,19 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
             raise ValueError('driver-tlul-spi-device-irq')
         fields['irq_o'] = irq[0]['runtime_name']
         allowed_inputs = {fields[name] for name in ('sck_i', 'csb_i', 'tpm_csb_i', 'sd_i')}
+    elif kind == 'wishbone_dma':
+        expected = {prefix+'_'+role:(direction,width)
+                    for prefix,shape in (('swb',DMA_CONTROL_SHAPE),('mwb',DMA_MASTER_SHAPE))
+                    for role,(direction,width) in shape.items()}
+        if (len(backend) != len(expected) or
+                {row['name']:(row['direction'],row['width']) for row in backend} != expected):
+            raise ValueError('driver-dma-backend-shape')
+        irqs = [row for row in exports if row['role']=='irq'
+                and row['direction']=='output' and row['width']==1]
+        if len(irqs)!=1 or len(exports)!=1:
+            raise ValueError('driver-dma-native-irq-required')
+        fields['dma_irq'] = irqs[0]['runtime_name']
+        allowed_inputs = set()
     elif kind == 'wishbone_cpu':
         cpu = artifact.plan.profile.cpu
         allowed_inputs = set()
@@ -272,6 +287,8 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     initializers = '\n'.join(
         f'  dut.{row["name"]} = {fixed_at_reset.get(row["name"], 0)};'
         for row in ports if row['direction'] == 'input')
+    if kind == 'wishbone_dma':
+        initializers += '\n  dut.mwb_stall = 1;'
     if kind == 'tlul_uart':
         initializers += f'\n  dut.{fields["uart_rx"]} = 1;'
     if kind == 'tlul_spi_device':
@@ -305,7 +322,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
 
     max_wait = document['effective_max_wait_cycles']
     max_samples = (1 if kind in ('obi_cpu', 'native_memory_cpu', 'rvx_memory_cpu',
-                                'wishbone_cpu', 'axi4_lite_cpu', 'axi4_cpu', 'ahb_lite_cpu',
+                                'wishbone_cpu', 'wishbone_dma', 'axi4_lite_cpu', 'axi4_cpu', 'ahb_lite_cpu',
                                 'cva6_packed_axi4_cpu')
                    else 2 * max_wait + 5)
     # Conservative serialized upper bound, before issuing any command effects.
@@ -402,6 +419,26 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
       tick(dut, &samples);
 '''
         operation_check = 'command.operation != "STEP_CVA6_AXI4"'
+    elif kind == 'wishbone_dma':
+        assignments = '\n'.join(f'      dut.{name} = command.fields[{index}];'
+                                for index,name in enumerate(DMA_STEP_PORTS))
+        dispatch = assignments + r'''
+      dut.eval();
+      pre_backend = backend_snapshot(dut);
+      const char *dma_error = dma_edge_state.check(
+          dut.mwb_cyc, dut.mwb_stb, dut.mwb_stall, dut.mwb_ack, dut.mwb_err,
+          dut.swb_cyc, dut.swb_stb);
+      if (dma_error) {
+        terminal = error_reply(command.execution, command.sequence, local_ticks,
+                               "protocol_environment", dma_error);
+      } else {
+        const bool accepted = dut.mwb_cyc && dut.mwb_stb && !dut.mwb_stall;
+        const bool completed = dut.mwb_cyc && (dut.mwb_ack || dut.mwb_err);
+        tick(dut, &samples);
+        dma_edge_state.commit(accepted, completed);
+      }
+'''
+        operation_check = 'command.operation != "STEP_WB_DMA"'
     elif kind == 'wishbone_cpu':
         dispatch = r'''      dut.wb_ack = command.fields[0];
       dut.wb_dat_r = command.fields[1];
@@ -720,6 +757,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
 #include "local_driver_v1.h"
 @SPI_HEADER@
 @I2C_HEADER@
+@DMA_HEADER@
 #include <iostream>
 #include <map>
 #include <string>
@@ -737,6 +775,7 @@ using JsonObject = std::map<std::string, std::string>;
 static std::uint64_t local_ticks = 0;
 @CLOCK_STATE_DECLARATIONS@
 @SPI_PEER@
+@DMA_STATE@
 
 static std::string quote(const std::string &value) {
   return "\"" + value + "\"";
@@ -937,6 +976,8 @@ int main(int argc, char **argv) {
                   CLOCK_COUNTER_RESET=clock_counter_reset,
                   RESET_INACTIVE=reset_inactive, RESET_ASSERT=reset_assert,
                   RESET_RELEASE=reset_release,
+                  DMA_HEADER='#include "wishbone_dma_edge.h"' if kind == 'wishbone_dma' else '',
+                  DMA_STATE='static WishboneDmaEdgeState dma_edge_state;' if kind == 'wishbone_dma' else '',
                   SPI_HEADER='#include "pulp_spi_mode0_peer.h"' if kind == 'apb_spi' else '',
                   I2C_HEADER=('#include "pulp_i2c_single_slave_peer.h"' if kind == 'apb_i2c'
                               else '#include "opentitan_i2c_single_slave_peer.h"'
@@ -959,7 +1000,7 @@ int main(int argc, char **argv) {
     for key, value in values.items():
         cpp = cpp.replace('@' + key + '@', value)
     headers = [{'path': name, 'sha256': hashlib.sha256((root / name).read_bytes()).hexdigest()}
-               for name in (*_HEADERS, *([_SPI_HEADER] if kind == 'apb_spi' else []),
+               for name in (*_HEADERS, *([_DMA_HEADER] if kind == 'wishbone_dma' else []), *([_SPI_HEADER] if kind == 'apb_spi' else []),
                             *([_I2C_HEADER] if kind == 'apb_i2c' else
                               [_OT_I2C_HEADER] if kind == 'tlul_i2c' else []))]
     document.update(driver_schema_version='local_driver_generation.v1', status='driver_generated',

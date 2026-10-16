@@ -7295,7 +7295,7 @@
     "name": "none for selected checked-in files"
    },
    "dependencies": [],
-   "closure_note": "One self-contained non-FORMAL RTL file, measured by JSON elaboration and lint; composite DMA runtime unsupported.",
+   "closure_note": "One self-contained non-FORMAL RTL file, measured by JSON elaboration and lint. Dual-role edge transport generation exists; autonomous session and actual DMA execution remain unverified.",
    "elaboration": {
     "status": "elaboration_verified",
     "top_module": "wbdmac",
@@ -7305,7 +7305,7 @@
      "frontend": "verilator-lint"
     },
     "evidence": "configs/soc/closures/zipcpu_wbdmac.json",
-    "evidence_sha256": "0f4c30ad9c7f427d300d34046e71ea6efe417eba8ed71fa012e8dc6757f9b1f3",
+    "evidence_sha256": "cea238f1114b15ee969c16930ecd58ca33c21dffe4be39245cdbb7834b37dbe7",
     "closure_files": 1,
     "lint": {
      "errors": 0,

@@ -11,12 +11,34 @@ and zero errors. Compact logs/ports are in `evidence/`; the authenticated
 source/parameter closure is `configs/soc/closures/zipcpu_wbdmac.json` and its
 hash is registered in `configs/soc/sources.lock.json`.
 
-This is a structurally loaded physical profile and source declaration. It is
-**not admitted/generated/executable** by existing local harness templates.
-Both Wishbone interfaces are pipelined; `wishbone/pipelined` is deliberately
-not relabeled `wishbone/classic` to match an existing adapter. No composite DMA
-template, one-edge driver, autonomous master session or CPU integration exists.
-A standard local-harness request must fail closed until those are implemented.
+## Slice B edge transport
+
+The profile now admits the explicit `wishbone_dma_edge_v1` dual-role shape and
+can generate a `wishbone_dma` runtime top and C++ driver. Both interfaces retain
+`wishbone/pipelined`; no classic adapter or CPU service is reused. The 32-bit
+trigger port has one constant-zero owner in port_actions, so it is not also
+mapped as a functional input endpoint. The reference interface description keeps
+its semantic trigger declaration. Native IRQ remains a sampled DUT output.
+
+`STEP_WB_DMA` drives exactly one edge with nine ordered input fields: control
+CYC/STB/WE/word-index/data, then master STALL/ACK/read-data/ERR. Every edge carries
+actual pre/post backend pin samples and post-edge physical IRQ observation.
+There is no ACCESS convenience command and no hidden wait loop. Header/parser,
+Python registry and artifact metadata carry the same widths/maxima. The plugin,
+policy, field schema and guard header participate in the captured build identity.
+
+The conservative environment permits one accepted outstanding master request:
+accept at pre-edge CYC && STB && !STALL, complete at CYC && (ACK || ERR). It
+allows STALL while delivering an older response, rejects ACK+ERR, unsolicited
+completion and new acceptance on a completion edge before ticking. Held STB with
+STALL low represents another acceptance, never a replay. Generic command-cache
+replay returns the original receipt without advancing another edge.
+
+Generation and host C++ guard/stub transport tests establish this infrastructure,
+not DMA RTL execution. No autonomous DMA session, RAM service, CPU configuration,
+real transfer, IRQ delivery or fresh RTL transfer replay has been tested. The
+source-lock runtime status remains runtime_unverified. Slice C must connect the
+real sampled master requests to ledger-backed frozen memory effects and responses.
 
 Control address is a two-bit word index. CPU byte offsets 0/4/8/12 correspond
 to control/total-word-count/source-byte-address/destination-byte-address.
@@ -34,7 +56,7 @@ to increment both addresses; bit15 stays zero for immediate start, and all
 but may be ignored. An interrupt can mean final acknowledged write OR bus error;
 it is an observed native output, not automatically successful completion.
 
-Next steps are the dedicated dual-role template/transport, persistent DMA
+Next steps are actual transport validation, a persistent DMA
 session and ledger-backed memory service, then genuine CPU configuration and
 four-word DMA transfer with stalls, native IRQ, error/old-key/reset controls,
 and fresh replay. No DMA transfer or IRQ has been simulated in this slice.

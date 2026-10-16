@@ -94,6 +94,7 @@ class AdditionalProtocolCatalogTest(unittest.TestCase):
                 ("tilelink", "1"),
                 ("obi", "1"),
                 ("wishbone", "classic"),
+                ("wishbone", "pipelined"),
                 ("ready-valid-mmio", "1"),
                 ("ready-valid-memory", "1"),
                 ("processor-memory-beat", "1"),

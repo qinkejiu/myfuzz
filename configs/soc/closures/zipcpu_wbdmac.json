@@ -95,7 +95,7 @@
   "unsupported": [
     {
       "topic": "composite_runtime",
-      "reason": "No DMA template, driver edge command, autonomous master session, shared scheduling or IRQ delivery is implemented. Static elaboration does not establish Generated/admitted or executable status."
+      "reason": "Dual-role edge template/runtime and one-edge driver generation are present. No autonomous DMA session, shared memory service/scheduling, CPU IRQ delivery or actual DUT transfer validation is implemented. Static elaboration and generated host stub tests are not DMA execution."
     },
     {
       "topic": "formal_only_dependencies",

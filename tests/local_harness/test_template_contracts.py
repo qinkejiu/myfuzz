@@ -53,7 +53,9 @@ class TemplateContractTests(unittest.TestCase):
         # derived from the pinned CV32E40P core, which has no instr_err_i/
         # data_err_i) + the AHB-Lite CPU-side entry (cpu.ahb-lite/
         # cvw-external-bus, derived from CVW's real wallypipelinedsoc boundary).
-        self.assertEqual(len(contracts), 17)
+        # 19 = the above 17 plus separate pipelined Wishbone target/master
+        # DMA edge contracts. The autonomous master is not a CPU contract.
+        self.assertEqual(len(contracts), 19)
         ids = [(c.template_id,c.template_version,c.variant_id) for c in contracts]
         self.assertEqual(len(ids),len(set(ids)))
         for contract in contracts:

@@ -22,6 +22,8 @@ from .tlul_register_template import register_observe_policy, serial_peer_policy
 from .apb3_register_template import register_observe_policy as apb3_register_observe_policy
 from .axi4lite_register_template import (register_observe_policy as axi4lite_register_policy)
 from .wishbone_register_template import register_observe_policy as wishbone_register_policy
+from .wishbone_dma_template import dma_edge_policy
+from .wishbone_dma_fields import DMA_CONTROL_SHAPE, DMA_MASTER_SHAPE, dma_edge_contract
 from .clock_schedule import build_local_clock_schedule
 
 _NATIVE = {'valid': ('output', 1), 'addr': ('output', 32), 'wdata': ('output', 32), 'wstrb': ('output', 4), 'ready': ('input', 1), 'rdata': ('input', 32)}
@@ -322,6 +324,12 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         kind = 'rvx_memory_cpu'
         boot = _obi_boot_contract(plan.profile.cpu, 32, endpoints)
         adapters = []
+    elif (len(endpoints) == 2 and functions == {'mmio_slave', 'memory_master'}
+          and all(e.protocol == ('wishbone', 'pipelined') for e in endpoints)):
+        dma_target, dma_master, dma_irq, dma_contracts = dma_edge_policy(plan, abi)
+        kind = 'wishbone_dma'
+        boot = None
+        adapters = []
     elif len(endpoints) == 1 and functions == {'memory_master'} and endpoints[0].protocol == ('wishbone', 'classic'):
         capabilities = plan.profile.capabilities
         if (capabilities.get('address_width'), capabilities.get('data_width'),
@@ -593,6 +601,9 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         if row['disposition'] == 'peer':
             raise ValueError('runtime-peer-ownership-unsupported')
         if row['disposition'] == 'functional' and not (
+                kind == 'wishbone_dma' and row['direction'] == 'output'
+                and row['endpoint_id'] == dma_irq.endpoint_id and row['role'] == 'irq'
+                and row['width'] == 1 or
                 kind == 'tlul_register_observe' and row['direction'] == 'output' or
                 kind == 'apb3_register_observe' and row['direction'] == 'output' or
                 kind == 'wishbone_register_observe' and row['direction'] == 'output' or
@@ -729,7 +740,18 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             ports.append((name, direction, width))
             backend.append(dict(name=name, direction=direction, width=width, role=role, channel=prefix))
 
-    if kind == 'wishbone_cpu':
+    if kind == 'wishbone_dma':
+        for prefix, endpoint, shape in (('swb', dma_target, DMA_CONTROL_SHAPE),
+                                         ('mwb', dma_master, DMA_MASTER_SHAPE)):
+            wires = _shape(endpoint, shape, abi)
+            for role, (direction, width) in shape.items():
+                name = prefix + '_' + role
+                ports.append((name, direction, width))
+                backend.append(dict(name=name, direction=direction, width=width,
+                                    role=role, channel=prefix))
+                statements.append(f'assign {name} = {wires[role]};' if direction == 'output'
+                                  else f'assign {wires[role]} = {name};')
+    elif kind == 'wishbone_cpu':
         wires = _shape(endpoints[0], _WISHBONE, abi)
         for role, (direction, width) in _WISHBONE.items():
             name = 'wb_' + role
@@ -1181,6 +1203,12 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             if len(rows) != 1:
                 raise ValueError('runtime-cpu-instruction-observation')
             document['instruction_identity_observation'] = rows[0]['runtime_name']
+    if kind == 'wishbone_dma':
+        document['dma_edge_contract'] = dma_edge_contract()
+        protocol_path = 'src/myfuzz/protocols/plugins/wishbone_pipelined.json'
+        document['protocol_sources'] = [dict(path=protocol_path,
+            sha256=hashlib.sha256((Path(__file__).resolve().parents[3]/protocol_path).read_bytes()).hexdigest())]
+        document['functional_scope'] = 'dual_role_dma_one_edge_transport_no_memory_service'
     from .template_contracts import generated_executor_selection, select_template_contract
     protocol_templates = []
     if 'selected_template' in document:
@@ -1191,6 +1219,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             variant_id=('read-only' if endpoint.function == 'instruction_memory_master'
                         else 'read-write')).document()
             for endpoint in sorted(endpoints, key=lambda row: row.endpoint_id)]
+    elif kind == 'wishbone_dma':
+        protocol_templates = dma_contracts
     elif kind == 'wishbone_cpu':
         protocol_templates = [select_template_contract(endpoints[0], plan.profile.capabilities,
             template_id='cpu.wishbone', template_version='1',
@@ -1203,6 +1233,11 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         {'path': name, 'sha256': hashlib.sha256((implementation_root / name).read_bytes()).hexdigest()}
         for name in ('src/myfuzz/local_harness/runtime_renderer.py',
                      'src/myfuzz/local_harness/template_contracts.py')]
+    if kind == 'wishbone_dma':
+        for name in ('src/myfuzz/local_harness/wishbone_dma_template.py',
+                     'src/myfuzz/local_harness/wishbone_dma_fields.py',
+                     'src/myfuzz/protocols/plugins/wishbone_pipelined.json'):
+            implementation_sources.append({'path':name,'sha256':hashlib.sha256((implementation_root/name).read_bytes()).hexdigest()})
     if gpio_observation is not None:
         name = 'src/myfuzz/local_harness/pulp_gpio_probe_contract.py'
         implementation_sources.append({'path':name,'sha256':hashlib.sha256((implementation_root/name).read_bytes()).hexdigest()})
