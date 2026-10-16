@@ -29,6 +29,7 @@ class CoherentAcceptedEventStream:
         if (type(max_records) is not int or max_records < 2
                 or type(max_events_per_step) is not int or max_events_per_step < 1):
             raise ValueError('coherent-stream-bounds-invalid')
+        checker_options.setdefault('manager_order', 'per_source')
         self._normalizer = CoherentProtocolEventNormalizer(
             component_id=component_id, instance_id=instance_id,
             endpoint_id=endpoint_id, clock_domain=clock_domain, **checker_options)
@@ -97,7 +98,7 @@ class CoherentAcceptedEventStream:
                 self._append({**context, 'kind': 'coherent_normalization_error',
                     'schema_version': 'coherent_normalization_error.v1',
                     'raw_event_refs': [ref], 'reason': str(error),
-                    'scope': 'single_client_no_external_probes_fifo_manager'})
+                    'scope': self._normalizer.report()['scope']})
                 continue
             for event in events:
                 projected = {**context, **event, 'kind': event['event_type']}

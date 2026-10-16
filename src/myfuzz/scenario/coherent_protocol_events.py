@@ -1,7 +1,7 @@
 """Bounded accepted-event observations for a declared coherent TileLink subset.
 
 The input is a transport's accepted A/C/D/E journal, not valid/ready samples.
-This checker models a single client, no external probes, FIFO manager responses,
+This checker models a single client, no external probes, declared manager response ordering,
 single beat puts, and release/release-data C messages. It proves neither that a
 handshake occurred nor that the producing transport or program was accepted.
 """
@@ -39,13 +39,15 @@ class CoherentProtocolEventNormalizer:
                 or max_size > 20 or beat_bytes > 128
                 or max(address_bits, source_bits, sink_bits) > 128):
             raise ValueError('coherent-bounds-invalid')
-        if manager_order != 'fifo' or single_client is not True or external_probes is not False:
+        if manager_order not in ('fifo', 'per_source') or single_client is not True or external_probes is not False:
             raise ValueError('coherent-subset-scope-unsupported')
         self.component_id, self.instance_id = component_id, instance_id
         self.endpoint_id, self.clock_domain = endpoint_id, clock_domain
         self.beat_bytes, self.max_size = beat_bytes, max_size
         self.address_bits, self.source_bits, self.sink_bits = address_bits, source_bits, sink_bits
         self.max_outstanding, self.max_events = max_outstanding, max_events
+        self.manager_order = manager_order
+        self._active_d = None
         self._epoch = None
         self._refs = set()
         self._pending = deque()
@@ -123,6 +125,7 @@ class CoherentProtocolEventNormalizer:
                 emitted.append(event)
             self._counts['reset_cancellations'] += len(seen)
             self._pending.clear()
+            self._active_d = None
             self._sources.clear()
             self._sinks.clear()
             self._release = None
@@ -207,10 +210,21 @@ class CoherentProtocolEventNormalizer:
             else:
                 if not self._pending:
                     self._fail('response-without-request')
-                request = self._pending[0]
+                if self._active_d is not None:
+                    request = self._active_d
+                elif self.manager_order == 'fifo':
+                    request = self._pending[0]
+                else:
+                    namespace = 'C' if opcode == 6 else 'A'
+                    matches = [state for state in self._pending
+                               if state['channel'] == namespace
+                               and state['source'] == source]
+                    if len(matches) != 1:
+                        self._fail('response-source-without-unique-request')
+                    request = matches[0]
                 beat = self._integer(row, 'beat')
                 if (opcode, size, source, param, beat) != (request['d_opcode'], request['size'], request['source'], request['d_param'], request['received']):
-                    self._fail('fifo-response-identity-or-beat-mismatch')
+                    self._fail('response-order-identity-or-beat-mismatch')
                 if 'address' in row:
                     address = self._unsigned(row, 'address', self.address_bits)
                     if address != request['address']:
@@ -224,10 +238,12 @@ class CoherentProtocolEventNormalizer:
                         self._sinks[sink] = request
                     if sink != request['sink']:
                         self._fail('grant-sink-changed')
+                self._active_d = request
                 request['received'] += 1
                 if request['received'] == request['d_beats']:
                     request['complete'] = True
-                    self._pending.popleft()
+                    self._pending.remove(request)
+                    self._active_d = None
                     self._sources.remove((request['channel'], source))
                     self._counts['completed_requests'] += 1
                 kind = 'transaction_response'
@@ -248,7 +264,7 @@ class CoherentProtocolEventNormalizer:
     def report(self):
         """Return structural state only; empty state does not imply runtime pass."""
         return {'schema_version': 'coherent_protocol_check.v1',
-                'scope': 'single_client_no_external_probes_fifo_manager',
+                'scope': 'single_client_no_external_probes_' + self.manager_order + '_manager',
                 'structural_error': self._failed,
                 'stream_closed': bool(self._refs) and not self._failed and not self._sources and not self._sinks,
                 'pending_sources': len(self._sources), 'pending_sinks': len(self._sinks),
@@ -258,5 +274,5 @@ class CoherentProtocolEventNormalizer:
     def coverage(self):
         """Bounded native observation counts, never semantic coverage credit."""
         return {'schema_version': 'coherent_protocol_coverage.v1',
-                'scope': 'single_client_no_external_probes_fifo_manager',
+                'scope': 'single_client_no_external_probes_' + self.manager_order + '_manager',
                 'counts': dict(self._counts), 'authority': 'observation_only'}
