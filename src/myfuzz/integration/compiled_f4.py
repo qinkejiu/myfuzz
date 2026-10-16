@@ -225,6 +225,13 @@ def admit_f4(*, artifacts, compiled_inputs):
         raise ValueError('compiled-F4-CPU-protocol-unsupported')
     _cpu_traces(artifacts[cpu.instance_id], image, stream)
     _f4_edges(compiled,image,access)
+    resources=[r for r in request.wiring.resources if r.component_instance==cpu.instance_id]
+    result=image['range'][1]-3
+    if (any(r.base is None or r.size is None or r.read is None or r.write is None
+            or r.initialization_policy!='preload' for r in resources)
+            or not any(r.resource_id==image['port'] and r.read is True and r.write is True
+                       and r.base<=result and result+4<=r.base+r.size for r in resources)):
+        raise ValueError('compiled-F4-writable-image-result-resource-required')
     for source in path['sources']:
         if source['kind']=='external_pin' and (source['component']!=access['target_component']
                 or not 1<=source['width']<=32 or source['bit_offset']!=0
@@ -396,8 +403,8 @@ class CompiledF4Runtime:
                                data_transactions=[h['source_transaction'] for h in observed['exact_hops']['data_hops']]))]
         return observed,commit,after
 
-    def _stable(self):
-        if self.finished:raise ValueError('compiled-F4-runtime-finished')
+    def _stable(self, *, allow_finished=False):
+        if self.finished and not allow_finished:raise ValueError('compiled-F4-runtime-finished')
         if (_input_identity(self._caller_inputs,self._caller_artifacts)!=self._input_digest
                 or _input_identity(self.inputs,self.artifacts)!=self._input_digest):
             raise ValueError('compiled-F4-input-identity-changed')
@@ -466,6 +473,7 @@ class CompiledF4Runtime:
             try:self._stable()
             finally:
                 self.trace=self.session.finish();self.finished=True
+        self._stable(allow_finished=True)
         return dict(schema_version='compiled_F4_prefix.v1',run_id=self.run_id,
             compiled_sha256=self.compiled_digest,source_files=self.closure,
             artifact_digests={n:a.runtime_document['artifact_digest'] for n,a in self.artifacts.items()},
@@ -476,9 +484,7 @@ class CompiledF4Runtime:
     @host_source_discovery_scope()
     def replay(self, plan):
         """Reexecute every candidate, checking live prerequisites anew."""
-        if (_input_identity(self._caller_inputs,self._caller_artifacts)!=self._input_digest
-                or _input_identity(self.inputs,self.artifacts)!=self._input_digest):
-            raise ValueError('compiled-F4-input-identity-changed')
+        self._stable(allow_finished=True)
         expected=self.finish()
         if _difference(expected,plan) is not None:raise ValueError('compiled-F4-prefix-mismatch')
         fresh=type(self)(artifacts=self.artifacts,compiled_inputs=self.inputs,
