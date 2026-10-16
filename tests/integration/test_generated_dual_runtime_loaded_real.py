@@ -99,6 +99,10 @@ def test_loaded_artifacts_drive_one_persistent_runtime_and_fresh_replay(tmp_path
             f4=next(p for p in projection['paths'] if p['flow_id']=='F4')
             target=f4['register_targets'][0]
             assert target['address']==0x40001004
+            assert target['register_access']['access_alignment']==4
+            assert target['register_access']['window_alignment']==4096
+            assert any(r['code']=='compiled-register-writer-checker-binding-missing' for r in f4['refusals'])
+            assert not any(r['code']=='compiled-register-address-alignment-unresolved' for r in f4['refusals'])
             assert target['diagnostic_matching_deliveries']
             assert all(e['provenance']['observed_case'] is None for e in target['diagnostic_matching_deliveries'])
             assert target['candidate_source_certified'] is False

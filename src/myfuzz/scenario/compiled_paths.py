@@ -1477,6 +1477,17 @@ def _evaluate_f1(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
     }
 
 
+def _compile_register_source_access(assessment,cpu,master,device,endpoint,window,field,*,write):
+    from .register_source_access import register_source_access
+    try:
+        return register_source_access(cpu=cpu,master=master,device=device,
+            endpoint=endpoint,window=window,field=field,write=write)
+    except ValueError as error:
+        assessment.need(str(error),f'/devices/{device.instance_id}/profile/address/registers',
+            {'register':field.register,'requires':'declared aligned 32-bit target-word access'})
+        return None
+
+
 def _evaluate_f2(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring,
                  mmio: tuple, unresolved: tuple = (),
                  pointers: Mapping[str, str | None] | None = None) -> None:
@@ -1493,6 +1504,8 @@ def _evaluate_f2(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
     assessment.sources.append(image_source)
     window, device, endpoint, rows = readable[0]
     field = _preferred(rows, ('ro', 'rw'))
+    access=_compile_register_source_access(assessment,cpu,master,device,endpoint,window,field,write=False)
+    if access is None:return
     assessment.windows.append(window)
     assessment.endpoint(device, endpoint, 'read_response_producer')
     assessment.direction = DIRECTION_CPU_SOURCED
@@ -1517,8 +1530,9 @@ def _evaluate_f2(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
         'register': field.register,
         'field': field.field,
         'mask': field.read_mask << field.lsb,
-        'alignment': device.profile.address.alignment or 4,
-        'range': [window.base, window.base + window.size - 1],
+        'alignment': access['access_alignment'],
+        'range': [access['address'],access['address']],
+        'register_access': access,
         'origin_ref': f'wiring:{wiring.schema_version}',
         'constraint_basis': 'the CPU-side load stream is the fuzzable source; the IP '
                             'read response stays bound',
@@ -1614,6 +1628,8 @@ def _evaluate_f4(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
     assessment.sources.append(image_source)
     window, device, endpoint, rows = writable[0]
     field = _preferred(rows, ('rw', 'wo'))
+    access=_compile_register_source_access(assessment,cpu,master,device,endpoint,window,field,write=True)
+    if access is None:return
     assessment.windows.append(window)
     assessment.endpoint(device, endpoint, 'mmio_control_target')
     assessment.direction = DIRECTION_CPU_SOURCED
@@ -1629,8 +1645,9 @@ def _evaluate_f4(assessment: _Assessment, cpu: PathComponent, wiring: PathWiring
         'register': field.register,
         'field': field.field,
         'mask': field.write_mask << field.lsb,
-        'alignment': device.profile.address.alignment or 4,
-        'range': [window.base, window.base + window.size - 1],
+        'alignment': access['access_alignment'],
+        'range': [access['address'],access['address']],
+        'register_access': access,
         'origin_ref': f'wiring:{wiring.schema_version}',
         'constraint_basis': 'the register is reachable only through the CPU MMIO '
                             'path, so it is never randomised independently '
@@ -2558,6 +2575,7 @@ def compile_paths(request: PathCompileRequest) -> dict:
                     'alignment': row['alignment'],
                     'range': row['range'],
                     'constraint_basis': row['constraint_basis'],
+                    **({'register_access':row['register_access']} if 'register_access' in row else {}),
                 } for row in assessment.sources],
             },
             'prerequisites': list(assessment.prerequisites),

@@ -163,7 +163,8 @@ class RealCompositionTests(unittest.TestCase):
         load = next(row for row in path['sources']
                     if row['kind'] == 'cpu_load_stream')
         self.assertEqual('fuzzable', load['origin'])
-        self.assertEqual(0x40000000, load['range'][0])
+        self.assertEqual([0x40000008,0x40000008], load['range'])
+        self.assertEqual(4, load['alignment'])
         producer = next(row['endpoint_id'] for row in path['endpoints']
                         if row['declared_role'] == 'read_response_producer')
         self.assertEqual('gpio.bus', producer)
@@ -283,8 +284,9 @@ class RealCompositionTests(unittest.TestCase):
         f4 = path_of(document, 'F4')['constraints']['source_constraints']
         mmio = next(row for row in f4 if row['kind'] == 'cpu_mmio_stream')
         self.assertEqual(0xffffffff, mmio['mask'])
-        self.assertEqual(4096, mmio['alignment'])
-        self.assertEqual([0x40000000, 0x40000fff], mmio['range'])
+        self.assertEqual(4, mmio['alignment'])
+        self.assertEqual(4096, mmio['register_access']['window_alignment'])
+        self.assertEqual([0x40000004, 0x40000004], mmio['range'])
 
     def test_compiled_contract_is_consumable_by_the_shipped_runtime_pipeline(self):
         document = compile_document(SOC_RENDER_REQUEST)

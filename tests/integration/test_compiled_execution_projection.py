@@ -18,6 +18,10 @@ def test_real_cv32e40p_paths_are_downgraded_without_claiming_retirement(tmp_path
     target=f4['register_targets'][0]
     assert target['address']==0x40001004
     assert target['offset']==4
+    assert target['register_access']['access_alignment']==4
+    assert target['register_access']['window_alignment']==4096
+    assert 'compiled-register-address-alignment-unresolved' not in {r['code'] for r in f4['refusals']}
+    assert 'compiled-register-writer-checker-binding-missing' in {r['code'] for r in f4['refusals']}
     assert target['producer_component']=='gpio_a'
     assert target['physical_bus_outputs']
     assert target['artifact_digest']==artifacts['gpio_a'].runtime_document['artifact_digest']

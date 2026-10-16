@@ -97,8 +97,18 @@ def assess_compiled_execution(*,artifacts,compiled_inputs,runtime_declaration,
                 physical_bus_outputs=[dict(port=p['physical_port'],role=p['role'],width=p['width'])
                                       for p in abi if p['direction']=='output'],
                 diagnostic_matching_deliveries=observed,
+                register_access=deepcopy(source.get('register_access')),
                 candidate_source_certified=False)
             row['register_targets'].append(target)
+            access=source.get('register_access')
+            if access is None:
+                refuse('compiled-register-access-contract-missing',pointer+'/register_access')
+            else:
+                target['constraint_mapping']='exact_register_access_declared'
+                refuse('compiled-register-writer-checker-binding-missing',pointer+'/register_access',
+                    dict(address=access['address'],source_owner=access['source_component'],
+                         requires=['actual CPU writer receipt join','IP register version witness',
+                                   'compiled assertion checker binding']))
             operation='SW' if source['kind']=='cpu_mmio_stream' else 'LW'
             if operation not in decoder['allowed_mmio_operations'] or not any(
                     w['base']<=address and address+4<=w['base']+w['size'] for w in windows):
