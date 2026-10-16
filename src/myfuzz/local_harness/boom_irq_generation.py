@@ -1,6 +1,7 @@
 """Separate opt-in IRQ artifact generation; baseline builder remains frozen."""
 import fcntl
 import json
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -59,6 +60,40 @@ def generate_irq(repo: Path, output: Path):
     return artifact
 
 
+def generated_symbol_files(output: Path):
+    """Accept one of two explicit generated registry units, tied to make.
+
+    This is local generated-file integrity, not signed toolchain provenance.
+    Actual executed VPI descriptor/startup inventory remains independently required.
+    """
+    obj = output/'obj'
+    layouts = ('VBoomTile__Syms.cpp','VBoomTile__Syms__Slow.cpp')
+    if obj.is_symlink() or not obj.is_dir():
+        raise ValueError('BOOM generated symbol directory missing/linked')
+    candidates = [name for name in layouts if (obj/name).exists() or (obj/name).is_symlink()]
+    unknown = [file.name for file in obj.iterdir()
+               if file.name.startswith('VBoomTile__Syms') and file.suffix == '.cpp'
+               and file.name not in layouts]
+    if len(candidates) != 1 or unknown:
+        raise ValueError('BOOM generated registry must use one unique supported layout')
+    source = candidates[0]
+    stem = Path(source).stem
+    names = (source,'VBoomTile__Syms.h','VBoomTile_classes.mk',stem+'.d')
+    for name in names:
+        file = obj/name
+        if file.is_symlink() or not file.is_file() or file.stat().st_size > 1000000:
+            raise ValueError('BOOM generated symbol closure missing/linked/oversized')
+    make = (obj/'VBoomTile_classes.mk').read_text()
+    blocks = re.findall(r'(?m)^VM_SUPPORT_(?:FAST|SLOW)\s*\+=\s*\\\n((?:[ \t]+[^\n]*\n)*)',make)
+    units = [token for block in blocks for token in block.replace('\\',' ').split()]
+    if units.count(stem) != 1 or any(Path(name).stem in units for name in layouts if name != source):
+        raise ValueError('BOOM generated registry not uniquely selected by make support list')
+    dependency = (obj/(stem+'.d')).read_text()
+    if not dependency.startswith(stem+'.o: '+source+' '):
+        raise ValueError('BOOM generated registry object dependency mismatch')
+    return tuple('obj/'+name for name in names)
+
+
 def _require_empty_output(output: Path):
     # Check before resolve so an empty-directory symlink is rejected too.
     if (output.is_symlink() or output.exists()
@@ -91,7 +126,9 @@ def build_boom_irq_session(repo: Path, output: Path, *, heavy_lock: Path):
         (output/'generated-probes.json').write_text(json.dumps(inventory,indent=2)+'\n')
         artifact['generated_probes'] = inventory
         artifact['probes_runtime_confirmed'] = True
-        files = ['driver.cpp','tl_ram.h','obj/VBoomTile','obj/VBoomTile__Syms.cpp',
+        symbol_files = generated_symbol_files(output)
+        artifact['generated_symbol_files'] = symbol_files
+        files = ['driver.cpp','tl_ram.h','obj/VBoomTile', *symbol_files,
                  'generated-probes.json', *AUXILIARY]
         files += [path.name for path in output.glob('*.v')]
         artifact['session_files'] = {name:digest(output/name) for name in files}

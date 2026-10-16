@@ -17,7 +17,7 @@ from myfuzz.scenario.protocol_io import (
     BoundedLineReader, command_deadline, end_local_process, write_local_command, _deadline,
 )
 from .tilelink_coherent_cpu_session import digest
-from .boom_irq_generation import generate_irq, AUXILIARY
+from .boom_irq_generation import generate_irq, AUXILIARY, generated_symbol_files
 from .boom_irq_contract import validate_probe_inventory, validate_probe_values, validate_irq_inputs
 
 
@@ -69,8 +69,11 @@ class GeneratedBoomIrqCpuSession:
         if self.artifact['session_files'].get('driver.cpp') != self.artifact['driver_sha256']:
             raise ValueError('BOOM driver closure mismatch')
         expected_source_files.update(expected_aux)
+        symbols = generated_symbol_files(self.output)
+        if self.artifact.get('generated_symbol_files') != list(symbols):
+            raise ValueError('BOOM generated registry layout crosslink mismatch')
         expected_file_set = {*expected_source_files, 'driver.cpp', 'obj/VBoomTile',
-                             'obj/VBoomTile__Syms.cpp','generated-probes.json'}
+                             *symbols, 'generated-probes.json'}
         if set(self.artifact['session_files']) != expected_file_set:
             raise ValueError('BOOM session manifest file set mismatch')
         for name, expected_hash in expected_source_files.items():

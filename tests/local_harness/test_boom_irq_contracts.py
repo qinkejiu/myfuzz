@@ -179,3 +179,76 @@ def test_builder_rechecks_output_after_lock_acquisition(tmp_path,monkeypatch):
     with pytest.raises(ValueError,match='empty'):
         generation.build_boom_irq_session(ROOT,output,heavy_lock=tmp_path/'test-only.lock')
     assert (output/'concurrent.json').read_text() == 'preserve'
+
+
+@pytest.mark.parametrize('layout',['VBoomTile__Syms.cpp','VBoomTile__Syms__Slow.cpp'])
+def test_generated_registry_layout_is_unique_and_linked_to_make(tmp_path,layout):
+    from myfuzz.local_harness.boom_irq_generation import generated_symbol_files
+    obj=tmp_path/'obj';obj.mkdir()
+    (obj/layout).write_text('actual-registry-fixture')
+    (obj/'VBoomTile__Syms.h').write_text('actual-header-fixture')
+    stem=Path(layout).stem
+    (obj/'VBoomTile_classes.mk').write_text('VM_SUPPORT_SLOW += \\\n  '+stem+' \\\n')
+    (obj/(stem+'.d')).write_text(stem+'.o: '+layout+' VBoomTile__pch.h\n')
+    assert generated_symbol_files(tmp_path) == ('obj/'+layout,'obj/VBoomTile__Syms.h',
+        'obj/VBoomTile_classes.mk','obj/'+stem+'.d')
+    (obj/'VBoomTile_classes.mk').write_text('VM_SUPPORT_SLOW += unrelated\n')
+    with pytest.raises(ValueError,match='make'):
+        generated_symbol_files(tmp_path)
+
+
+def test_registry_layout_refuses_missing_ambiguous_or_symlink_sources(tmp_path):
+    from myfuzz.local_harness.boom_irq_generation import generated_symbol_files
+    obj=tmp_path/'obj';obj.mkdir()
+    with pytest.raises(ValueError): generated_symbol_files(tmp_path)
+    for name in ('VBoomTile__Syms.cpp','VBoomTile__Syms__Slow.cpp'):
+        (obj/name).write_text('source')
+    with pytest.raises(ValueError,match='unique'): generated_symbol_files(tmp_path)
+    (obj/'VBoomTile__Syms.cpp').unlink()
+    (obj/'VBoomTile__Syms__Slow.cpp').unlink()
+    elsewhere=tmp_path/'elsewhere';elsewhere.write_text('source')
+    (obj/'VBoomTile__Syms__Slow.cpp').symlink_to(elsewhere)
+    with pytest.raises(ValueError): generated_symbol_files(tmp_path)
+
+
+@pytest.mark.parametrize('fault',['unknown_cpp','missing_header','wrong_dependency','duplicate_make','linked_header'])
+def test_registry_closure_refuses_unsupported_or_unlinked_units(tmp_path,fault):
+    from myfuzz.local_harness.boom_irq_generation import generated_symbol_files
+    obj=tmp_path/'obj';obj.mkdir()
+    stem='VBoomTile__Syms__Slow'
+    (obj/(stem+'.cpp')).write_text('source')
+    (obj/'VBoomTile__Syms.h').write_text('header')
+    (obj/'VBoomTile_classes.mk').write_text('VM_SUPPORT_SLOW += \\\n  '+stem+' \\\n')
+    (obj/(stem+'.d')).write_text(stem+'.o: '+stem+'.cpp VBoomTile__pch.h\n')
+    if fault=='unknown_cpp': (obj/'VBoomTile__Syms__other.cpp').write_text('other')
+    if fault=='missing_header': (obj/'VBoomTile__Syms.h').unlink()
+    if fault=='wrong_dependency': (obj/(stem+'.d')).write_text(stem+'.o: unrelated.cpp\n')
+    if fault=='duplicate_make': (obj/'VBoomTile_classes.mk').write_text('VM_SUPPORT_SLOW += \\\n  '+stem+' '+stem+' \\\n')
+    if fault=='linked_header':
+        (obj/'VBoomTile__Syms.h').unlink()
+        elsewhere=tmp_path/'header';elsewhere.write_text('header')
+        (obj/'VBoomTile__Syms.h').symlink_to(elsewhere)
+    with pytest.raises(ValueError): generated_symbol_files(tmp_path)
+
+
+def test_saved_actual_attempt2_registry_make_and_descriptor_closure(tmp_path):
+    import hashlib,tarfile
+    from myfuzz.local_harness.boom_irq_generation import generated_symbol_files
+    from myfuzz.local_harness.boom_irq_contract import validate_probe_inventory
+    base=ROOT/'.superpowers/boom-irq-verification-20261017'
+    archives=((base/'attempt2-evidence.tar.gz','559b5faf59607120ffabb59dc1ada694da9cf365b263e967d3cac154d3fee58a'),
+              (base/'attempt2-build-closure.tar.gz','e9a019a75fa4518cd620dc0519ce680b70d9c8c5ab5ba9c12ef1fbcc39082577'))
+    required={'artifact/obj/VBoomTile__Syms__Slow.cpp','artifact/obj/VBoomTile__Syms.h',
+              'artifact/obj/VBoomTile_classes.mk','artifact/obj/VBoomTile__Syms__Slow.d',
+              'artifact/probe-describe.stdout','artifact/probe-describe.exit','artifact/build.exit'}
+    for archive,expected in archives:
+        assert hashlib.sha256(archive.read_bytes()).hexdigest()==expected
+        with tarfile.open(archive) as tf:
+            for name in required & set(tf.getnames()):
+                target=tmp_path/name;target.parent.mkdir(parents=True,exist_ok=True)
+                target.write_bytes(tf.extractfile(name).read())
+    output=tmp_path/'artifact'
+    assert generated_symbol_files(output)[0]=='obj/VBoomTile__Syms__Slow.cpp'
+    validate_probe_inventory(json.loads((output/'probe-describe.stdout').read_text()))
+    assert (output/'build.exit').read_text().strip() == '0'
+    assert (output/'probe-describe.exit').read_text().strip() == '0'

@@ -76,3 +76,9 @@ audit repeated successfully. Corrected ready and launch hashes are in the
 current ready.json. Independent attempt2 log/state paths avoid overwriting
 attempt1. Parent received actual PID200937 and live builder200950/Verilator200958
 with source precheck pass; first native build is now running, not yet a result.
+
+Attempt2 is now terminal: actual build.exit0/probe-describe.exit0 with exact16
+actual probes, final stage exit1 due old generated Syms filename assumption.
+Actual processes absent/canonical lock free confirmed and reported before DMA6.
+Detailed preserved evidence and source-only recovery proposal are in
+`boom-irq-symbol-finalization-plan.md`. No IRQ runtime gate was run.
