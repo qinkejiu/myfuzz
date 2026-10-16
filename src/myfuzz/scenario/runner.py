@@ -1912,7 +1912,7 @@ class ScenarioRunner:
         if (not isinstance(document, dict)
                 or not native_observation and document.get('kind') not in ('tlul_register_observe',
                     'apb3_register_observe', 'wishbone_register_observe',
-                    'axi4lite_register_observe')
+                    'axi4lite_register_observe', 'ahb_lite_register_observe')
                 or document.get('base_event_schema_version') != 'ip_base_event.v1'
                 or not callable(getattr(request, 'document', None))
                 or request.document().get('schema_version') != 'local_harness.v2'
@@ -1968,6 +1968,7 @@ class ScenarioRunner:
             # component-neutral layer as the other three target protocols.
             'axi4_lite_uart': 'axi4-lite',
             'axi4lite_register_observe': 'axi4-lite',
+            'ahb_lite_register_observe': 'ahb-lite',
         }
         if native_observation and document['kind'] == 'apb_gpio':
             kind_protocol['apb_gpio'] = 'apb3'
@@ -2026,6 +2027,7 @@ class ScenarioRunner:
             # component-neutral layer as the other three target protocols.
             'axi4_lite_uart': 'axi4-lite',
             'axi4lite_register_observe': 'axi4-lite',
+            'ahb_lite_register_observe': 'ahb-lite',
         }
         if native_observation and document['kind'] == 'apb_gpio':
             kind_protocol['apb_gpio'] = 'apb3'

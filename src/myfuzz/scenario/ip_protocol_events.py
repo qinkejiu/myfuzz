@@ -18,13 +18,16 @@ _REQUIRED_SIGNALS = {
                   'bvalid', 'bready', 'bresp',
                   'arvalid', 'arready', 'araddr', 'arprot',
                   'rvalid', 'rready', 'rdata', 'rresp'),
+    'ahb-lite': ('haddr', 'hwdata', 'hsel', 'hwrite', 'hreadyin',
+                 'htrans', 'hsize', 'hresp', 'hreadyout', 'hrdata'),
 }
 _BOOLEAN_SIGNALS = frozenset((
     'a_valid', 'a_ready', 'd_valid', 'd_ready', 'd_error',
     'psel', 'penable', 'pwrite', 'pready', 'pslverr',
     'cyc', 'stb', 'we', 'ack', 'stall', 'err',
     'awvalid', 'awready', 'wvalid', 'wready',
-    'bvalid', 'bready', 'arvalid', 'arready', 'rvalid', 'rready'))
+    'bvalid', 'bready', 'arvalid', 'arready', 'rvalid', 'rready',
+    'hsel', 'hwrite', 'hreadyin', 'hresp', 'hreadyout'))
 #: Every state an AXI4-Lite reset epoch owns. Kept as one list so a reset that
 #: forgets one of them fails loudly here rather than leaking a stale offer.
 _AXI4_LITE_EPOCH_STATE = ('_axi4_write_offer', '_axi4_write_response',
@@ -85,6 +88,7 @@ class IpProtocolEventNormalizer:
         self._tl_quarantined: dict[int, dict[str, object]] = {}
         self._apb_active: dict[str, object] | None = None
         self._wb_active: dict[str, object] | None = None
+        self._ahb_active: dict[str, object] | None = None
         # AXI4-Lite keeps one state per channel group. AW and W are held
         # separately because they may handshake in either order; B and R are
         # held separately because a response may be offered before, with, or
@@ -198,6 +202,13 @@ class IpProtocolEventNormalizer:
                            (state['request_event_ref'],))
             for name in _AXI4_LITE_EPOCH_STATE:
                 setattr(self, name, None)
+        elif self.protocol == 'ahb-lite':
+            if self._ahb_active is not None:
+                self._no_id_event(raw, emitted, 'transaction_cancel', old_epoch,
+                    self._ahb_active, {'reason': 'reset_epoch_changed',
+                    'from_reset_epoch': old_epoch, 'to_reset_epoch': new_epoch},
+                    {'channel': 'AHB'})
+            self._ahb_active = None
         else:
             active = self._apb_active if self.protocol == 'apb3' else self._wb_active
             if active is not None:
@@ -237,9 +248,72 @@ class IpProtocolEventNormalizer:
             self._consume_apb3(raw_event, reset_epoch, signals, emitted)
         elif self.protocol == 'axi4-lite':
             self._consume_axi4_lite(raw_event, reset_epoch, signals, emitted)
+        elif self.protocol == 'ahb-lite':
+            self._consume_ahb_lite(raw_event, reset_epoch, signals, emitted)
         else:
             self._consume_wishbone(raw_event, reset_epoch, signals, emitted)
         return tuple(emitted)
+
+    def _consume_ahb_lite(self, raw, epoch, signals, emitted) -> None:
+        # AHB address/control and write-data/response belong to separate edges.
+        # The generated register manager admits one transaction at a time.
+        offer = signals['hsel'] == 1 and bool(signals['htrans'] & 2)
+        active = self._ahb_active
+        if active is not None and active['phase'] == 'data':
+            if offer:
+                self._no_id_event(raw, emitted, 'protocol_error', epoch, active,
+                    {'reason': 'single_outstanding_address_overlap', 'channel': 'AHB'},
+                    {'channel': 'AHB'})
+            if signals['hreadyout'] == 1:
+                value = signals['hwdata'] if active['write'] else signals['hrdata']
+                self._no_id_event(raw, emitted, 'transaction_response', epoch, active,
+                    {'channel': 'AHB', 'address': active['address'],
+                     'direction': 'write' if active['write'] else 'read',
+                     'value': value, 'error': bool(signals['hresp'])},
+                    {'channel': 'AHB'})
+                if signals['hresp']:
+                    self._no_id_event(raw, emitted, 'protocol_error', epoch, active,
+                        {'reason': 'native_response_error', 'channel': 'AHB'},
+                        {'channel': 'AHB'})
+                self._ahb_active = None
+            else:
+                self._ahb_wait(raw, epoch, signals, emitted, active, 'data')
+            return
+        if not offer:
+            if active is not None:
+                self._no_id_event(raw, emitted, 'transaction_cancel', epoch, active,
+                    {'reason': 'address_withdrawn_before_acceptance', 'channel': 'AHB'},
+                    {'channel': 'AHB'})
+                self._ahb_active = None
+            return
+        if active is None:
+            active = {'request_event_ref': raw['event_id'], 'phase': 'address',
+                'address': signals['haddr'], 'write': bool(signals['hwrite']),
+                'size': signals['hsize'], 'wait_count': 0, 'timed_out': False}
+            self._ahb_active = active
+            self._no_id_event(raw, emitted, 'transaction_request', epoch, active,
+                {'channel': 'AHB', 'address': active['address'],
+                 'direction': 'write' if active['write'] else 'read',
+                 'htrans': signals['htrans'], 'hsize': active['size']},
+                {'channel': 'AHB'})
+        if signals['hreadyin'] == 1:
+            active['phase'] = 'data'
+            active['wait_count'] = 0
+            self._no_id_event(raw, emitted, 'transaction_accept', epoch, active,
+                {'channel': 'AHB', 'address': active['address']}, {'channel': 'AHB'})
+        else:
+            self._ahb_wait(raw, epoch, signals, emitted, active, 'address')
+
+    def _ahb_wait(self, raw, epoch, signals, emitted, active, phase) -> None:
+        active['wait_count'] += 1
+        self._no_id_event(raw, emitted, 'wait_observation', epoch, active,
+            {'channel': 'AHB', 'phase': phase,
+             'wait_ordinal': active['wait_count']}, {'channel': 'AHB'})
+        if active['wait_count'] >= self.max_wait_cycles and not active['timed_out']:
+            active['timed_out'] = True
+            self._no_id_event(raw, emitted, 'transaction_timeout', epoch, active,
+                {'channel': 'AHB', 'phase': phase,
+                 'wait_cycles': active['wait_count']}, {'channel': 'AHB'})
 
     def _consume_tlul(self, raw, epoch, signals, emitted) -> None:
         a_valid = signals['a_valid'] == 1

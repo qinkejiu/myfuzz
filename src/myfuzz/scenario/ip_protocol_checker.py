@@ -18,13 +18,16 @@ _REQUIRED_SIGNALS = {
                   'bvalid', 'bready', 'bresp',
                   'arvalid', 'arready', 'araddr', 'arprot',
                   'rvalid', 'rready', 'rdata', 'rresp'),
+    'ahb-lite': ('haddr', 'hwdata', 'hsel', 'hwrite', 'hreadyin',
+                 'htrans', 'hsize', 'hresp', 'hreadyout', 'hrdata'),
 }
 _BOOLEAN_SIGNALS = frozenset((
     'a_valid', 'a_ready', 'd_valid', 'd_ready', 'd_error',
     'psel', 'penable', 'pwrite', 'pready', 'pslverr',
     'cyc', 'stb', 'we', 'ack', 'stall', 'err',
     'awvalid', 'awready', 'wvalid', 'wready',
-    'bvalid', 'bready', 'arvalid', 'arready', 'rvalid', 'rready'))
+    'bvalid', 'bready', 'arvalid', 'arready', 'rvalid', 'rready',
+    'hsel', 'hwrite', 'hreadyin', 'hresp', 'hreadyout'))
 
 
 class IpProtocolChecker:
@@ -89,6 +92,12 @@ class IpProtocolChecker:
                      or widths.get('bresp', 0) != 2
                      or widths.get('rresp', 0) != 2
                      or widths.get('awaddr', 0) != widths.get('araddr', 0))
+                or protocol == 'ahb-lite'
+                and any(widths.get(role) != expected for role, expected in (
+                    ('haddr', 32), ('hwdata', 32), ('hsel', 1),
+                    ('hwrite', 1), ('hreadyin', 1), ('htrans', 2),
+                    ('hsize', 3), ('hresp', 1), ('hreadyout', 1),
+                    ('hrdata', 32)))
                 or len(set(signals.values())) != len(signals)):
             raise ValueError('protocol-checker-trace-signals-invalid')
         self.component_id = component_id
@@ -106,6 +115,7 @@ class IpProtocolChecker:
         self._apb_active: dict[str, object] | None = None
         self._wb_offer: dict[str, object] | None = None
         self._wb_outstanding: list[dict[str, object]] = []
+        self._ahb_active: dict[str, object] | None = None
         # AXI4-Lite keeps one state per channel group. AW and W are checked
         # separately because their handshake order is not fixed.
         self._axil_aw: dict[str, object] | None = None
@@ -200,6 +210,7 @@ class IpProtocolChecker:
             self._apb_active = None
             self._wb_offer = None
             self._wb_outstanding.clear()
+            self._ahb_active = None
             self._axil_aw = None
             self._axil_w = None
             self._axil_b = None
@@ -225,9 +236,58 @@ class IpProtocolChecker:
             self._consume_apb3(raw_event, reset_epoch, signals, emitted)
         elif self.protocol == 'axi4-lite':
             self._consume_axi4_lite(raw_event, reset_epoch, signals, emitted)
+        elif self.protocol == 'ahb-lite':
+            self._consume_ahb_lite(raw_event, reset_epoch, signals, emitted)
         else:
             self._consume_wishbone(raw_event, reset_epoch, signals, emitted)
         return tuple(emitted)
+
+    def _consume_ahb_lite(self, raw, epoch, signals, emitted):
+        offer = signals['hsel'] == 1 and bool(signals['htrans'] & 2)
+        active = self._ahb_active
+        if active is not None and active['phase'] == 'data':
+            if offer:
+                self._emit(raw, epoch, emitted, 'ahb_single_outstanding_overlap',
+                    {'address': signals['haddr']}, state=active)
+            if signals['hreadyout'] == 1:
+                self._ahb_active = None
+            else:
+                active['wait_count'] += 1
+                if active['wait_count'] >= self.max_wait_cycles:
+                    self._emit(raw, epoch, emitted, 'ahb_data_wait_budget_exceeded',
+                        {'wait_cycles': active['wait_count'],
+                         'limit': self.max_wait_cycles}, state=active)
+            return
+        if not offer:
+            if active is not None:
+                self._emit(raw, epoch, emitted, 'ahb_address_withdrawn_before_acceptance',
+                    {'expected': active['payload']}, state=active)
+                self._ahb_active = None
+            return
+        payload = {role: signals[role] for role in
+                   ('haddr', 'hwrite', 'htrans', 'hsize')}
+        if signals['htrans'] != 2:
+            self._emit(raw, epoch, emitted, 'ahb_unsupported_transfer_type',
+                {'htrans': signals['htrans']}, state=active)
+        if signals['hsize'] != 2 or signals['haddr'] & 3:
+            self._emit(raw, epoch, emitted, 'ahb_unaligned_or_nonword_transfer',
+                {'haddr': signals['haddr'], 'hsize': signals['hsize']}, state=active)
+        if active is None:
+            active = {'request_event_ref': raw['event_id'], 'phase': 'address',
+                'payload': payload, 'wait_count': 0, 'reported_codes': set()}
+            self._ahb_active = active
+        elif payload != active['payload']:
+            self._emit(raw, epoch, emitted, 'ahb_address_changed_while_waiting',
+                {'expected': active['payload'], 'observed': payload}, state=active)
+        if signals['hreadyin'] == 1:
+            active['phase'] = 'data'
+            active['wait_count'] = 0
+        else:
+            active['wait_count'] += 1
+            if active['wait_count'] >= self.max_wait_cycles:
+                self._emit(raw, epoch, emitted, 'ahb_address_wait_budget_exceeded',
+                    {'wait_cycles': active['wait_count'],
+                     'limit': self.max_wait_cycles}, state=active)
 
     def _consume_tlul(self, raw, epoch, signals, emitted):
         # Match D offers against a request outstanding before this sample or
