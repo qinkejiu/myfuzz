@@ -1,0 +1,11 @@
+{
+  "__pycache__/cvw_ahb_gate_control.cpython-312.pyc": {
+    "expected": null,
+    "actual": {
+      "kind": "file",
+      "sha256": "2479a0e049dccb20f13c216a41adf6ef871074dc322eb3bcfe0ba6e727d51238",
+      "bytes": 30107,
+      "mode": 420
+    }
+  }
+}
