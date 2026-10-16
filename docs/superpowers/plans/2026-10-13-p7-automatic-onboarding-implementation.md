@@ -299,3 +299,5 @@ PYTHONPATH=src python3 -m pytest -q tests/onboarding/test_p7_negative_fixtures.p
 前述 2026-10-13/14 的“一条命令端到端”结论只证明具名 runtime family 的预置装配跑通；它没有证明 D4 执行了同一调用刚生成的 D2/D3 对象，也没有证明 D3 编译的来源、约束、种子、路径和断言被实际 decoder/Runner/checker 执行。按本计划 D4/E 的定义，这些历史运行不能授予 P7 自动接入验收。
 
 [本次严格复核](../../reports/p7-d4-bounded-artifact-execution-20261017.md)已使 CLI 加载并传递精确 D2 artifact、typed D3 和实际 ownership，且在执行前拒绝无法投影的 D3。显式 `loaded_artifacts` 子集把精确 D2 对象送入现有 CV32E40P＋双 GPIO factory：真实本地隔离门 2 passed，三个进程连续执行 8 例，fresh 全量重放 4,021 事件匹配；禁用默认 artifact 重建仍可运行。默认完整 D3 范围因两个 bound producer、一个未编译 source 及逐路径语义映射缺口而拒绝。此子集只证明 D2 对象消费，不等于无适配新 CPU/IP 的 D3 自动执行，P7-D/E 正式门仍开放。
+
+后续[执行可行性投影](../../reports/p7-d3-execution-feasibility-20261017.md)在不改 capability-only D3 文档的前提下，把四条声明可执行路径全部标为当前运行不支持：F1 缺认证退休；F4 的 GPIOEN 编译源与固定 PADOUT 候选窗口、访问对齐语义及断言处理器不匹配。真实 GPIOEN 写仅有启动阶段来源，不能计为候选。CLI 在启动前落盘 `execution_projection.v1.json` 并拒绝无映射的 D3；本地隔离 D2-only 八例及 fresh replay 再次通过。P7-D/E 仍开放。
