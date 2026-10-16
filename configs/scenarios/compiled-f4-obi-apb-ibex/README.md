@@ -15,3 +15,33 @@ Select the explicit executor through `create_compiled_execution(..., executor='c
 The original `../compiled-f4-obi-apb` CV32E40P configuration is retained as an unsupported negative for current admission: its native OBI trace has no error role. A synthetic adapter error constant cannot substitute for a physical CPU error input.
 
 Status: configuration and source inspection only. No harness generation, build, test, simulation or fresh prefix replay has established execution for this variant. Older frozen CV32 evidence does not validate it. Any future heavy gate must hold `.superpowers/heavy-worker.lock`; remote operations must follow `agent.md` and remain under `/root/fanzehui` through `jumpserver`.
+
+## Public file entry
+
+`example_records.json` supplies three explicit eight-byte input records. The
+low four bytes select GPIOEN (`0x55`, `0xaa`, `0x12345678`); the high four bytes
+supply the declared GPIO input pins (`0x12345678`). These are candidate inputs,
+not expected native results or live authority.
+
+The following command is provided for a future authorized execution; it has
+not been run. The output directory must not exist:
+
+```bash
+python3 scripts/run_compiled_dataflow.py \
+  --compose configs/scenarios/compiled-f4-obi-apb-ibex/compose.json \
+  --ip-capability configs/scenarios/compiled-f4-obi-apb-ibex/test_capability.json \
+  --supplement configs/scenarios/compiled-f4-obi-apb-ibex/execution_supplement.json \
+  --records configs/scenarios/compiled-f4-obi-apb-ibex/example_records.json \
+  --executor compiled_f4_obi_apb \
+  --output runs/compiled-f4-ibex-file-entry \
+  --cache-dir .superpowers/compiled-f4-ibex-cache \
+  --heavy-lock .superpowers/heavy-worker.lock \
+  --replays 2
+```
+
+For a remote frozen snapshot, pass the canonical shared lock
+`/root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock` instead
+of the snapshot's local lock. Follow `agent.md` for transport and file scope.
+The entry writes exact declarations, compiled paths, native events, prefix,
+replay conclusions and timing reports. It remains an experimental directed
+entry, with no coverage-guided search or full P7 acceptance claim.
