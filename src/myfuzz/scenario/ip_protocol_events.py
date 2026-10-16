@@ -7,6 +7,7 @@ from collections.abc import Mapping
 _SCHEMA_VERSION = 'ip_base_event.v1'
 _TRACE_SCHEMA_VERSION = 'ip_protocol_trace.v1'
 _REQUIRED_SIGNALS = {
+    'obi': ('req', 'gnt', 'addr', 'rvalid', 'rdata'),
     'tl-ul': ('a_valid', 'a_ready', 'a_source', 'a_opcode', 'a_address',
               'a_mask', 'a_data', 'd_valid', 'd_ready', 'd_source',
               'd_data', 'd_error'),
@@ -22,6 +23,7 @@ _REQUIRED_SIGNALS = {
                  'htrans', 'hsize', 'hresp', 'hreadyout', 'hrdata'),
 }
 _BOOLEAN_SIGNALS = frozenset((
+    'req', 'gnt', 'rvalid', 'we', 'error',
     'a_valid', 'a_ready', 'd_valid', 'd_ready', 'd_error',
     'psel', 'penable', 'pwrite', 'pready', 'pslverr',
     'cyc', 'stb', 'we', 'ack', 'stall', 'err',
@@ -66,6 +68,12 @@ class IpProtocolEventNormalizer:
                 or not isinstance(signals, Mapping)):
             raise ValueError('protocol-event-trace-contract-invalid')
         required = set(_REQUIRED_SIGNALS[protocol])
+        if protocol == 'obi':
+            if protocol_trace.get('max_outstanding') != 1 or type(protocol_trace.get('max_outstanding')) is not int:
+                raise ValueError('obi-single-outstanding-contract-required')
+            if set(signals) - required - {'we', 'wdata', 'be', 'error'} or (
+                    set(signals) & {'we', 'wdata', 'be'} not in (set(), {'we', 'wdata', 'be'})):
+                raise ValueError('obi-read-write-shape-invalid')
         if protocol == 'wishbone' and 'adr' in signals:
             required.add('adr')
         if (not required <= set(signals)
@@ -89,6 +97,8 @@ class IpProtocolEventNormalizer:
         self._apb_active: dict[str, object] | None = None
         self._wb_active: dict[str, object] | None = None
         self._ahb_active: dict[str, object] | None = None
+        self._obi_offer = None
+        self._obi_pending = None
         # AXI4-Lite keeps one state per channel group. AW and W are held
         # separately because they may handshake in either order; B and R are
         # held separately because a response may be offered before, with, or
@@ -202,6 +212,13 @@ class IpProtocolEventNormalizer:
                            (state['request_event_ref'],))
             for name in _AXI4_LITE_EPOCH_STATE:
                 setattr(self, name, None)
+        elif self.protocol == 'obi':
+            for active in (self._obi_offer, self._obi_pending):
+                if active is not None:
+                    self._no_id_event(raw, emitted, 'transaction_cancel', old_epoch, active,
+                        {'reason':'reset_epoch_changed', 'from_reset_epoch':old_epoch,
+                         'to_reset_epoch':new_epoch}, {'channel':'OBI'})
+            self._obi_offer = self._obi_pending = None
         elif self.protocol == 'ahb-lite':
             if self._ahb_active is not None:
                 self._no_id_event(raw, emitted, 'transaction_cancel', old_epoch,
@@ -242,7 +259,9 @@ class IpProtocolEventNormalizer:
         emitted: list[dict[str, object]] = []
         self._cancel_on_reset(raw_event, reset_epoch, emitted)
         signals = self._read_signals(raw_event)
-        if self.protocol == 'tl-ul':
+        if self.protocol == 'obi':
+            self._consume_obi(raw_event, reset_epoch, signals, emitted)
+        elif self.protocol == 'tl-ul':
             self._consume_tlul(raw_event, reset_epoch, signals, emitted)
         elif self.protocol == 'apb3':
             self._consume_apb3(raw_event, reset_epoch, signals, emitted)
@@ -925,3 +944,57 @@ class IpProtocolEventNormalizer:
             self._no_id_event(raw, emitted, 'transaction_cancel', epoch, active,
                               {'reason': 'cycle_withdrawn_before_completion'})
             self._wb_active = None
+
+    def _consume_obi(self, raw, epoch, signals, emitted):
+        # R answers a previously granted request. A new grant may coincide
+        # with that response, but cannot retroactively justify an orphan R.
+        pending = self._obi_pending
+        if signals['rvalid']:
+            self._no_id_event(raw, emitted,
+                'transaction_response' if pending is not None else 'protocol_error',
+                epoch, pending,
+                ({'channel':'OBI', 'address':pending['address'],
+                  'direction':pending['direction'],
+                  'value':pending['wdata'] if pending['direction'] == 'write' else signals['rdata'],
+                  'rdata':signals['rdata'], 'error':bool(signals.get('error', 0))}
+                 if pending is not None else {'reason':'response_without_prior_grant'}),
+                {'channel':'OBI'})
+            self._obi_pending = None
+        elif pending is not None:
+            self._obi_wait(raw, epoch, emitted, pending, 'response')
+        active = self._obi_offer
+        if not signals['req']:
+            if active is not None:
+                self._no_id_event(raw, emitted, 'transaction_cancel', epoch, active,
+                    {'reason':'request_withdrawn_before_grant'}, {'channel':'OBI'})
+                self._obi_offer = None
+            return
+        if active is None:
+            active = {'request_event_ref':raw['event_id'], 'address':signals['addr'],
+                      'direction':'write' if signals.get('we', 0) else 'read',
+                      'wdata':signals.get('wdata', 0), 'wait_count':0, 'timed_out':False}
+            self._obi_offer = active
+            self._no_id_event(raw, emitted, 'transaction_request', epoch, active,
+                {'channel':'OBI', 'address':active['address'], 'direction':active['direction'],
+                 'signals':dict(signals)}, {'channel':'OBI'})
+        if signals['gnt']:
+            if self._obi_pending is not None:
+                self._no_id_event(raw, emitted, 'protocol_error', epoch, active,
+                    {'reason':'single_outstanding_overlap'}, {'channel':'OBI'})
+            else:
+                self._no_id_event(raw, emitted, 'transaction_accept', epoch, active,
+                    {'channel':'OBI', 'address':active['address']}, {'channel':'OBI'})
+                active.update(wait_count=0, timed_out=False)
+                self._obi_pending = active
+            self._obi_offer = None
+        else:
+            self._obi_wait(raw, epoch, emitted, active, 'request')
+
+    def _obi_wait(self, raw, epoch, emitted, active, phase):
+        active['wait_count'] += 1
+        self._no_id_event(raw, emitted, 'wait_observation', epoch, active,
+            {'channel':'OBI', 'phase':phase, 'wait_ordinal':active['wait_count']}, {'channel':'OBI'})
+        if active['wait_count'] >= self.max_wait_cycles and not active['timed_out']:
+            active['timed_out'] = True
+            self._no_id_event(raw, emitted, 'transaction_timeout', epoch, active,
+                {'channel':'OBI', 'phase':phase, 'wait_cycles':active['wait_count']}, {'channel':'OBI'})

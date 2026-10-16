@@ -7,6 +7,7 @@ from collections.abc import Mapping
 _SCHEMA_VERSION = 'ip_base_event.v1'
 _TRACE_SCHEMA_VERSION = 'ip_protocol_trace.v1'
 _REQUIRED_SIGNALS = {
+    'obi': ('req', 'gnt', 'addr', 'rvalid', 'rdata'),
     'tl-ul': ('a_valid', 'a_ready', 'a_source', 'a_opcode', 'a_size',
               'a_address', 'a_mask', 'a_data', 'd_valid', 'd_ready', 'd_source',
               'd_opcode', 'd_size', 'd_data', 'd_error'),
@@ -22,6 +23,7 @@ _REQUIRED_SIGNALS = {
                  'htrans', 'hsize', 'hresp', 'hreadyout', 'hrdata'),
 }
 _BOOLEAN_SIGNALS = frozenset((
+    'req', 'gnt', 'rvalid', 'we', 'error',
     'a_valid', 'a_ready', 'd_valid', 'd_ready', 'd_error',
     'psel', 'penable', 'pwrite', 'pready', 'pslverr',
     'cyc', 'stb', 'we', 'ack', 'stall', 'err',
@@ -61,6 +63,12 @@ class IpProtocolChecker:
                 or not isinstance(widths, Mapping)):
             raise ValueError('protocol-checker-trace-contract-invalid')
         required = set(_REQUIRED_SIGNALS[protocol])
+        if protocol == 'obi':
+            if protocol_trace.get('max_outstanding') != 1 or type(protocol_trace.get('max_outstanding')) is not int:
+                raise ValueError('obi-single-outstanding-contract-required')
+            if set(signals) - required - {'we', 'wdata', 'be', 'error'} or (
+                    set(signals) & {'we', 'wdata', 'be'} not in (set(), {'we', 'wdata', 'be'})):
+                raise ValueError('obi-read-write-shape-invalid')
         if protocol == 'wishbone' and 'adr' in signals:
             required.add('adr')
         if (not required <= set(signals)
@@ -92,6 +100,11 @@ class IpProtocolChecker:
                      or widths.get('bresp', 0) != 2
                      or widths.get('rresp', 0) != 2
                      or widths.get('awaddr', 0) != widths.get('araddr', 0))
+                or protocol == 'obi'
+                and (widths.get('addr', 0) not in (32, 64)
+                     or widths.get('rdata', 0) not in (32, 64)
+                     or 'we' in signals and (widths.get('wdata') != widths.get('rdata')
+                          or widths.get('be') != widths.get('rdata') // 8))
                 or protocol == 'ahb-lite'
                 and any(widths.get(role) != expected for role, expected in (
                     ('haddr', 32), ('hwdata', 32), ('hsel', 1),
@@ -116,6 +129,8 @@ class IpProtocolChecker:
         self._wb_offer: dict[str, object] | None = None
         self._wb_outstanding: list[dict[str, object]] = []
         self._ahb_active: dict[str, object] | None = None
+        self._obi_offer = None
+        self._obi_pending = None
         # AXI4-Lite keeps one state per channel group. AW and W are checked
         # separately because their handshake order is not fixed.
         self._axil_aw: dict[str, object] | None = None
@@ -211,6 +226,7 @@ class IpProtocolChecker:
             self._wb_offer = None
             self._wb_outstanding.clear()
             self._ahb_active = None
+            self._obi_offer = self._obi_pending = None
             self._axil_aw = None
             self._axil_w = None
             self._axil_b = None
@@ -230,7 +246,9 @@ class IpProtocolChecker:
                             'maximum': limit - 1})
         if emitted:
             return tuple(emitted)
-        if self.protocol == 'tl-ul':
+        if self.protocol == 'obi':
+            self._consume_obi(raw_event, reset_epoch, signals, emitted)
+        elif self.protocol == 'tl-ul':
             self._consume_tlul(raw_event, reset_epoch, signals, emitted)
         elif self.protocol == 'apb3':
             self._consume_apb3(raw_event, reset_epoch, signals, emitted)
@@ -833,3 +851,43 @@ class IpProtocolChecker:
                        'wishbone_cycle_withdrawn_before_response',
                        {'pending_requests': 1}, state=state)
             self._wb_outstanding.clear()
+
+    def _consume_obi(self, raw, epoch, signals, emitted):
+        pending = self._obi_pending
+        if signals['rvalid']:
+            if pending is None:
+                self._emit(raw, epoch, emitted, 'obi_response_without_prior_grant', {})
+            self._obi_pending = None
+        elif pending is not None:
+            self._obi_wait(raw, epoch, emitted, pending, 'response')
+        active = self._obi_offer
+        if not signals['req']:
+            # OBI permits speculative GNT without REQ; it accepts nothing.
+            if active is not None:
+                self._emit(raw, epoch, emitted, 'obi_request_withdrawn_before_grant', {}, state=active)
+                self._obi_offer = None
+            return
+        control = {name:signals[name] for name in ('addr','we','be') if name in signals}
+        if signals.get('we', 0):
+            control['wdata'] = signals['wdata']
+        if active is None:
+            active = {'request_event_ref':raw['event_id'], 'control':control, 'wait_count':0}
+            self._obi_offer = active
+        elif active['control'] != control:
+            self._emit(raw, epoch, emitted, 'obi_request_changed_while_waiting',
+                       {'expected':active['control'], 'observed':control}, state=active)
+        if signals['gnt']:
+            if self._obi_pending is not None:
+                self._emit(raw, epoch, emitted, 'obi_single_outstanding_overlap', {}, state=active)
+            else:
+                active['wait_count'] = 0
+                self._obi_pending = active
+            self._obi_offer = None
+        else:
+            self._obi_wait(raw, epoch, emitted, active, 'request')
+
+    def _obi_wait(self, raw, epoch, emitted, active, phase):
+        active['wait_count'] += 1
+        if active['wait_count'] >= self.max_wait_cycles:
+            self._emit(raw, epoch, emitted, 'obi_'+phase+'_wait_budget_exceeded',
+                {'wait_cycles':active['wait_count']}, state=active)

@@ -14,7 +14,7 @@ import re
 from .feedback import CoverageTarget
 
 
-_PROTOCOLS = frozenset(('tl-ul', 'apb3', 'wishbone', 'axi4-lite', 'ahb-lite'))
+_PROTOCOLS = frozenset(('tl-ul', 'apb3', 'wishbone', 'axi4-lite', 'ahb-lite', 'obi'))
 _EVENT_TYPES = frozenset((
     'transaction_request', 'transaction_accept', 'transaction_response',
     'transaction_cancel', 'transaction_timeout', 'transaction_duplicate',
@@ -254,7 +254,7 @@ class IpBaseCoverageConsumer:
                 opcode = signals.get('a_opcode')
                 operation = (f'opcode-{opcode}' if type(opcode) is int
                              and 0 <= opcode < 8 else None)
-            elif protocol in ('axi4-lite', 'ahb-lite'):
+            elif protocol in ('axi4-lite', 'ahb-lite', 'obi'):
                 # AXI4-Lite has no write-enable bit on its request: a write is
                 # the AW/W pair and a read is AR. The projection already names
                 # which one this is, so the direction is read from it instead
@@ -294,7 +294,7 @@ class IpBaseCoverageConsumer:
             # code. Reading a key the protocol does not define left the AXI
             # response family permanently unreachable.
             error = (response.get('d_error') if protocol == 'tl-ul'
-                     else payload.get('error') if protocol in ('apb3', 'ahb-lite')
+                     else payload.get('error') if protocol in ('apb3', 'ahb-lite', 'obi')
                      else bool(payload.get('bresp', payload.get('rresp')))
                      if protocol == 'axi4-lite'
                      else payload.get('err'))

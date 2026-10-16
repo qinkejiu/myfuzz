@@ -1,0 +1,719 @@
+{
+  "schema_version": "obi_synthetic_protocol_gate.v1",
+  "evidence_level": "synthetic_protocol_boundary_only",
+  "real_saved_input_inspection": [
+    {
+      "path": "/tmp/myfuzz-dma-cpu-isolated-evidence/run-0.json",
+      "sha256": "7960a21c3f66b532dba24320d924293d1c4424a70016fd47c4fe869ec5a8e62e",
+      "saved_cpu_build_digest": "6d4cf6d50ac57ce268e010c605d1a1658904ab4240b4c319473ad5516a882783",
+      "cpu_ticks": 128,
+      "adapted_endpoint_ids": [
+        "processor.data",
+        "processor.instruction"
+      ],
+      "adapted_endpoint_physical_export_count": 0,
+      "available_backend_roles": [
+        "req_addr",
+        "req_be",
+        "req_ready",
+        "req_valid",
+        "req_wdata",
+        "req_write",
+        "rsp_error",
+        "rsp_rdata",
+        "rsp_ready",
+        "rsp_valid"
+      ]
+    },
+    {
+      "path": "/tmp/myfuzz-dma-cpu-isolated-evidence/run-1.json",
+      "sha256": "0a3330c11d6d3febab4acba27623ae68cdb67c8f5dfc9758e962e57afa82cf22",
+      "saved_cpu_build_digest": "6d4cf6d50ac57ce268e010c605d1a1658904ab4240b4c319473ad5516a882783",
+      "cpu_ticks": 128,
+      "adapted_endpoint_ids": [
+        "processor.data",
+        "processor.instruction"
+      ],
+      "adapted_endpoint_physical_export_count": 0,
+      "available_backend_roles": [
+        "req_addr",
+        "req_be",
+        "req_ready",
+        "req_valid",
+        "req_wdata",
+        "req_write",
+        "rsp_error",
+        "rsp_rdata",
+        "rsp_ready",
+        "rsp_valid"
+      ]
+    }
+  ],
+  "real_obi_projection_status": "blocked_missing_native_physical_taps",
+  "configurations": {
+    "cpu": {
+      "component_id": "new-same-protocol-cpu",
+      "instance_id": "cpu",
+      "protocol_trace": {
+        "schema_version": "ip_protocol_trace.v1",
+        "protocol": "obi",
+        "endpoint_id": "data",
+        "clock_domain": "core",
+        "max_wait_cycles": 4,
+        "max_outstanding": 1,
+        "signals": {
+          "req": "tap_req",
+          "gnt": "tap_gnt",
+          "addr": "tap_addr",
+          "we": "tap_we",
+          "wdata": "tap_wdata",
+          "be": "tap_be",
+          "rvalid": "tap_rvalid",
+          "rdata": "tap_rdata",
+          "error": "tap_error"
+        },
+        "signal_widths": {
+          "req": 1,
+          "gnt": 1,
+          "addr": 32,
+          "we": 1,
+          "wdata": 32,
+          "be": 4,
+          "rvalid": 1,
+          "rdata": 32,
+          "error": 1
+        }
+      }
+    }
+  },
+  "synthetic_runtime_contract_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "synthetic_journal": [
+    {
+      "event_id": 1,
+      "kind": "local_tick_sample",
+      "component": "cpu",
+      "local_tick": 1,
+      "phase": "pre",
+      "reset_epoch": 0,
+      "observation_schema_version": "ip_raw_observation.v1",
+      "outputs": {
+        "backend": {
+          "tap_req": 1,
+          "tap_gnt": 0,
+          "tap_addr": 256,
+          "tap_we": 1,
+          "tap_wdata": 53,
+          "tap_be": 15,
+          "tap_rvalid": 0,
+          "tap_rdata": 0,
+          "tap_error": 0
+        }
+      }
+    },
+    {
+      "schema_version": "ip_base_event.v1",
+      "event_type": "transaction_request",
+      "component_id": "new-same-protocol-cpu",
+      "instance_id": "cpu",
+      "endpoint_id": "data",
+      "role": "protocol_transaction",
+      "raw_event_refs": [
+        1
+      ],
+      "related_request_event_refs": [
+        1
+      ],
+      "local_event_id": "cpu|0|obi|1|pre|transaction_request|4|0",
+      "clock_domain": "core",
+      "tick": 1,
+      "reset_epoch": 0,
+      "transaction_key": null,
+      "native_identity": {
+        "channel": "OBI"
+      },
+      "identity_gap": "protocol_has_no_transaction_id",
+      "action_ref": null,
+      "source_ref": null,
+      "observation_mapping_id": null,
+      "observation_property": "measured_protocol_boundary",
+      "payload": {
+        "channel": "OBI",
+        "address": 256,
+        "direction": "write",
+        "signals": {
+          "req": 1,
+          "gnt": 0,
+          "addr": 256,
+          "we": 1,
+          "wdata": 53,
+          "be": 15,
+          "rvalid": 0,
+          "rdata": 0,
+          "error": 0
+        }
+      },
+      "kind": "transaction_request",
+      "event_id": 2
+    },
+    {
+      "schema_version": "ip_base_event.v1",
+      "event_type": "wait_observation",
+      "component_id": "new-same-protocol-cpu",
+      "instance_id": "cpu",
+      "endpoint_id": "data",
+      "role": "protocol_transaction",
+      "raw_event_refs": [
+        1
+      ],
+      "related_request_event_refs": [
+        1
+      ],
+      "local_event_id": "cpu|0|obi|1|pre|wait_observation|3|1",
+      "clock_domain": "core",
+      "tick": 1,
+      "reset_epoch": 0,
+      "transaction_key": null,
+      "native_identity": {
+        "channel": "OBI"
+      },
+      "identity_gap": "protocol_has_no_transaction_id",
+      "action_ref": null,
+      "source_ref": null,
+      "observation_mapping_id": null,
+      "observation_property": "measured_protocol_boundary",
+      "payload": {
+        "channel": "OBI",
+        "phase": "request",
+        "wait_ordinal": 1
+      },
+      "kind": "wait_observation",
+      "event_id": 3
+    },
+    {
+      "event_id": 4,
+      "kind": "local_tick_sample",
+      "component": "cpu",
+      "local_tick": 2,
+      "phase": "pre",
+      "reset_epoch": 0,
+      "observation_schema_version": "ip_raw_observation.v1",
+      "outputs": {
+        "backend": {
+          "tap_req": 1,
+          "tap_gnt": 1,
+          "tap_addr": 256,
+          "tap_we": 1,
+          "tap_wdata": 53,
+          "tap_be": 15,
+          "tap_rvalid": 0,
+          "tap_rdata": 0,
+          "tap_error": 0
+        }
+      }
+    },
+    {
+      "schema_version": "ip_base_event.v1",
+      "event_type": "transaction_accept",
+      "component_id": "new-same-protocol-cpu",
+      "instance_id": "cpu",
+      "endpoint_id": "data",
+      "role": "protocol_transaction",
+      "raw_event_refs": [
+        4
+      ],
+      "related_request_event_refs": [
+        1
+      ],
+      "local_event_id": "cpu|0|obi|2|pre|transaction_accept|2|0",
+      "clock_domain": "core",
+      "tick": 2,
+      "reset_epoch": 0,
+      "transaction_key": null,
+      "native_identity": {
+        "channel": "OBI"
+      },
+      "identity_gap": "protocol_has_no_transaction_id",
+      "action_ref": null,
+      "source_ref": null,
+      "observation_mapping_id": null,
+      "observation_property": "measured_protocol_boundary",
+      "payload": {
+        "channel": "OBI",
+        "address": 256
+      },
+      "kind": "transaction_accept",
+      "event_id": 5
+    },
+    {
+      "event_id": 6,
+      "kind": "local_tick_sample",
+      "component": "cpu",
+      "local_tick": 3,
+      "phase": "pre",
+      "reset_epoch": 0,
+      "observation_schema_version": "ip_raw_observation.v1",
+      "outputs": {
+        "backend": {
+          "tap_req": 0,
+          "tap_gnt": 0,
+          "tap_addr": 0,
+          "tap_we": 0,
+          "tap_wdata": 0,
+          "tap_be": 15,
+          "tap_rvalid": 0,
+          "tap_rdata": 0,
+          "tap_error": 0
+        }
+      }
+    },
+    {
+      "schema_version": "ip_base_event.v1",
+      "event_type": "wait_observation",
+      "component_id": "new-same-protocol-cpu",
+      "instance_id": "cpu",
+      "endpoint_id": "data",
+      "role": "protocol_transaction",
+      "raw_event_refs": [
+        6
+      ],
+      "related_request_event_refs": [
+        1
+      ],
+      "local_event_id": "cpu|0|obi|3|pre|wait_observation|3|0",
+      "clock_domain": "core",
+      "tick": 3,
+      "reset_epoch": 0,
+      "transaction_key": null,
+      "native_identity": {
+        "channel": "OBI"
+      },
+      "identity_gap": "protocol_has_no_transaction_id",
+      "action_ref": null,
+      "source_ref": null,
+      "observation_mapping_id": null,
+      "observation_property": "measured_protocol_boundary",
+      "payload": {
+        "channel": "OBI",
+        "phase": "response",
+        "wait_ordinal": 1
+      },
+      "kind": "wait_observation",
+      "event_id": 7
+    },
+    {
+      "event_id": 8,
+      "kind": "local_tick_sample",
+      "component": "cpu",
+      "local_tick": 4,
+      "phase": "pre",
+      "reset_epoch": 0,
+      "observation_schema_version": "ip_raw_observation.v1",
+      "outputs": {
+        "backend": {
+          "tap_req": 1,
+          "tap_gnt": 1,
+          "tap_addr": 256,
+          "tap_we": 0,
+          "tap_wdata": 0,
+          "tap_be": 15,
+          "tap_rvalid": 1,
+          "tap_rdata": 0,
+          "tap_error": 0
+        }
+      }
+    },
+    {
+      "schema_version": "ip_base_event.v1",
+      "event_type": "transaction_response",
+      "component_id": "new-same-protocol-cpu",
+      "instance_id": "cpu",
+      "endpoint_id": "data",
+      "role": "protocol_transaction",
+      "raw_event_refs": [
+        8
+      ],
+      "related_request_event_refs": [
+        1
+      ],
+      "local_event_id": "cpu|0|obi|4|pre|transaction_response|6|0",
+      "clock_domain": "core",
+      "tick": 4,
+      "reset_epoch": 0,
+      "transaction_key": null,
+      "native_identity": {
+        "channel": "OBI"
+      },
+      "identity_gap": "protocol_has_no_transaction_id",
+      "action_ref": null,
+      "source_ref": null,
+      "observation_mapping_id": null,
+      "observation_property": "measured_protocol_boundary",
+      "payload": {
+        "channel": "OBI",
+        "address": 256,
+        "direction": "write",
+        "value": 53,
+        "rdata": 0,
+        "error": false
+      },
+      "kind": "transaction_response",
+      "event_id": 9
+    },
+    {
+      "schema_version": "ip_base_event.v1",
+      "event_type": "transaction_request",
+      "component_id": "new-same-protocol-cpu",
+      "instance_id": "cpu",
+      "endpoint_id": "data",
+      "role": "protocol_transaction",
+      "raw_event_refs": [
+        8
+      ],
+      "related_request_event_refs": [
+        8
+      ],
+      "local_event_id": "cpu|0|obi|4|pre|transaction_request|4|1",
+      "clock_domain": "core",
+      "tick": 4,
+      "reset_epoch": 0,
+      "transaction_key": null,
+      "native_identity": {
+        "channel": "OBI"
+      },
+      "identity_gap": "protocol_has_no_transaction_id",
+      "action_ref": null,
+      "source_ref": null,
+      "observation_mapping_id": null,
+      "observation_property": "measured_protocol_boundary",
+      "payload": {
+        "channel": "OBI",
+        "address": 256,
+        "direction": "read",
+        "signals": {
+          "req": 1,
+          "gnt": 1,
+          "addr": 256,
+          "we": 0,
+          "wdata": 0,
+          "be": 15,
+          "rvalid": 1,
+          "rdata": 0,
+          "error": 0
+        }
+      },
+      "kind": "transaction_request",
+      "event_id": 10
+    },
+    {
+      "schema_version": "ip_base_event.v1",
+      "event_type": "transaction_accept",
+      "component_id": "new-same-protocol-cpu",
+      "instance_id": "cpu",
+      "endpoint_id": "data",
+      "role": "protocol_transaction",
+      "raw_event_refs": [
+        8
+      ],
+      "related_request_event_refs": [
+        8
+      ],
+      "local_event_id": "cpu|0|obi|4|pre|transaction_accept|2|2",
+      "clock_domain": "core",
+      "tick": 4,
+      "reset_epoch": 0,
+      "transaction_key": null,
+      "native_identity": {
+        "channel": "OBI"
+      },
+      "identity_gap": "protocol_has_no_transaction_id",
+      "action_ref": null,
+      "source_ref": null,
+      "observation_mapping_id": null,
+      "observation_property": "measured_protocol_boundary",
+      "payload": {
+        "channel": "OBI",
+        "address": 256
+      },
+      "kind": "transaction_accept",
+      "event_id": 11
+    },
+    {
+      "event_id": 12,
+      "kind": "local_tick_sample",
+      "component": "cpu",
+      "local_tick": 5,
+      "phase": "pre",
+      "reset_epoch": 0,
+      "observation_schema_version": "ip_raw_observation.v1",
+      "outputs": {
+        "backend": {
+          "tap_req": 0,
+          "tap_gnt": 0,
+          "tap_addr": 0,
+          "tap_we": 0,
+          "tap_wdata": 0,
+          "tap_be": 15,
+          "tap_rvalid": 1,
+          "tap_rdata": 53,
+          "tap_error": 0
+        }
+      }
+    },
+    {
+      "schema_version": "ip_base_event.v1",
+      "event_type": "transaction_response",
+      "component_id": "new-same-protocol-cpu",
+      "instance_id": "cpu",
+      "endpoint_id": "data",
+      "role": "protocol_transaction",
+      "raw_event_refs": [
+        12
+      ],
+      "related_request_event_refs": [
+        8
+      ],
+      "local_event_id": "cpu|0|obi|5|pre|transaction_response|6|0",
+      "clock_domain": "core",
+      "tick": 5,
+      "reset_epoch": 0,
+      "transaction_key": null,
+      "native_identity": {
+        "channel": "OBI"
+      },
+      "identity_gap": "protocol_has_no_transaction_id",
+      "action_ref": null,
+      "source_ref": null,
+      "observation_mapping_id": null,
+      "observation_property": "measured_protocol_boundary",
+      "payload": {
+        "channel": "OBI",
+        "address": 256,
+        "direction": "read",
+        "value": 53,
+        "rdata": 53,
+        "error": false
+      },
+      "kind": "transaction_response",
+      "event_id": 13
+    }
+  ],
+  "synthetic_certificates": {
+    "schema_version": "ip_protocol_evidence_report.v1",
+    "proof_scope": "protocol_boundary_only",
+    "runtime_contract_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "observation_contract_sha256": "20d94d652632489b9e662cd5894f8bd45379b705851f71f69827e9bbd52543a0",
+    "journal_integrity": true,
+    "last_event_id": 13,
+    "certificates": [
+      {
+        "evidence": {
+          "evidence_type": "verified",
+          "relation": "protocol_transaction",
+          "source": "cpu:data:request",
+          "target": "cpu:data:response",
+          "scope": "protocol_accept_response",
+          "evidence_refs": [
+            "base:2",
+            "base:5",
+            "base:9",
+            "raw:1",
+            "raw:4",
+            "raw:8",
+            "protocol_contract:20d94d652632489b9e662cd5894f8bd45379b705851f71f69827e9bbd52543a0",
+            "runtime_contract:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          ],
+          "rule_id": "ip_protocol_evidence",
+          "rule_version": "1",
+          "epochs": {
+            "cpu": 0
+          },
+          "declaration_ref": "8ccf9c38487511ab07b6c1030285cd4682ee1388500536e8cc31206aa02f1f81",
+          "validity": "historical",
+          "invalidation_reason": null,
+          "schema_version": "dependency_evidence.v1",
+          "evidence_id": "00a4e939a2a83d6b50d0c572c257026ed05dad26659da151602239b53261b1b5"
+        },
+        "request_event_id": 2,
+        "accept_event_id": 5,
+        "response_event_id": 9,
+        "request_raw_event_id": 1,
+        "accept_raw_event_id": 4,
+        "response_raw_event_id": 8,
+        "transaction_key": null,
+        "identity_gap": "protocol_has_no_transaction_id",
+        "request_case": null,
+        "response_case": null,
+        "outcome": "ok"
+      },
+      {
+        "evidence": {
+          "evidence_type": "verified",
+          "relation": "protocol_transaction",
+          "source": "cpu:data:request",
+          "target": "cpu:data:response",
+          "scope": "protocol_accept_response",
+          "evidence_refs": [
+            "base:10",
+            "base:11",
+            "base:13",
+            "raw:8",
+            "raw:12",
+            "protocol_contract:20d94d652632489b9e662cd5894f8bd45379b705851f71f69827e9bbd52543a0",
+            "runtime_contract:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          ],
+          "rule_id": "ip_protocol_evidence",
+          "rule_version": "1",
+          "epochs": {
+            "cpu": 0
+          },
+          "declaration_ref": "8ccf9c38487511ab07b6c1030285cd4682ee1388500536e8cc31206aa02f1f81",
+          "validity": "historical",
+          "invalidation_reason": null,
+          "schema_version": "dependency_evidence.v1",
+          "evidence_id": "c3605f33257188357e0ecc45e18f140dcaea69339ac6e973a4c0ac1924cf3e6d"
+        },
+        "request_event_id": 10,
+        "accept_event_id": 11,
+        "response_event_id": 13,
+        "request_raw_event_id": 8,
+        "accept_raw_event_id": 8,
+        "response_raw_event_id": 12,
+        "transaction_key": null,
+        "identity_gap": "protocol_has_no_transaction_id",
+        "request_case": null,
+        "response_case": null,
+        "outcome": "ok"
+      }
+    ],
+    "evidence_ledger": {
+      "schema_version": "dependency_evidence_ledger.v1",
+      "max_records_per_type": 4096,
+      "proof_scope": "classified_records_only",
+      "record_counts": {
+        "declared": 1,
+        "candidate": 0,
+        "verified": 2
+      },
+      "records": {
+        "declared": [
+          {
+            "evidence_type": "declared",
+            "relation": "protocol_transaction",
+            "source": "cpu:data:request",
+            "target": "cpu:data:response",
+            "scope": "declared_topology",
+            "evidence_refs": [
+              "protocol_contract:20d94d652632489b9e662cd5894f8bd45379b705851f71f69827e9bbd52543a0",
+              "runtime_contract:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ],
+            "rule_id": "ip_protocol_trace",
+            "rule_version": "1",
+            "epochs": {},
+            "declaration_ref": null,
+            "validity": "active",
+            "invalidation_reason": null,
+            "schema_version": "dependency_evidence.v1",
+            "evidence_id": "8ccf9c38487511ab07b6c1030285cd4682ee1388500536e8cc31206aa02f1f81"
+          }
+        ],
+        "candidate": [],
+        "verified": [
+          {
+            "evidence_type": "verified",
+            "relation": "protocol_transaction",
+            "source": "cpu:data:request",
+            "target": "cpu:data:response",
+            "scope": "protocol_accept_response",
+            "evidence_refs": [
+              "base:2",
+              "base:5",
+              "base:9",
+              "raw:1",
+              "raw:4",
+              "raw:8",
+              "protocol_contract:20d94d652632489b9e662cd5894f8bd45379b705851f71f69827e9bbd52543a0",
+              "runtime_contract:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ],
+            "rule_id": "ip_protocol_evidence",
+            "rule_version": "1",
+            "epochs": {
+              "cpu": 0
+            },
+            "declaration_ref": "8ccf9c38487511ab07b6c1030285cd4682ee1388500536e8cc31206aa02f1f81",
+            "validity": "historical",
+            "invalidation_reason": null,
+            "schema_version": "dependency_evidence.v1",
+            "evidence_id": "00a4e939a2a83d6b50d0c572c257026ed05dad26659da151602239b53261b1b5"
+          },
+          {
+            "evidence_type": "verified",
+            "relation": "protocol_transaction",
+            "source": "cpu:data:request",
+            "target": "cpu:data:response",
+            "scope": "protocol_accept_response",
+            "evidence_refs": [
+              "base:10",
+              "base:11",
+              "base:13",
+              "raw:8",
+              "raw:12",
+              "protocol_contract:20d94d652632489b9e662cd5894f8bd45379b705851f71f69827e9bbd52543a0",
+              "runtime_contract:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ],
+            "rule_id": "ip_protocol_evidence",
+            "rule_version": "1",
+            "epochs": {
+              "cpu": 0
+            },
+            "declaration_ref": "8ccf9c38487511ab07b6c1030285cd4682ee1388500536e8cc31206aa02f1f81",
+            "validity": "historical",
+            "invalidation_reason": null,
+            "schema_version": "dependency_evidence.v1",
+            "evidence_id": "c3605f33257188357e0ecc45e18f140dcaea69339ac6e973a4c0ac1924cf3e6d"
+          }
+        ]
+      }
+    },
+    "counts": {
+      "verified": 2,
+      "pending": 0
+    },
+    "diagnostics": {},
+    "bounds": {
+      "max_pending": 1024,
+      "max_event_gap": 4096,
+      "max_records": 4096,
+      "counter_cap": 65535
+    }
+  },
+  "synthetic_coverage": {
+    "schema_version": "ip_base_coverage.v1",
+    "category": "base_coverage",
+    "component_id": "new-same-protocol-cpu",
+    "instance_id": "cpu",
+    "cursor": 13,
+    "counts": {
+      "event:data:transaction_request": 2,
+      "transaction:data:write": 1,
+      "event:data:wait_observation": 2,
+      "event:data:transaction_accept": 2,
+      "event:data:transaction_response": 2,
+      "response:data:ok": 2,
+      "latency:data:2-3": 1,
+      "transaction:data:read": 1,
+      "latency:data:1": 1
+    },
+    "diagnostics": {},
+    "feature_capacity": 18,
+    "counter_cap": 65535,
+    "pending_count": 0
+  },
+  "verification": "224 passed, 67 subtests passed in 0.59s",
+  "not_claimed": [
+    "real OBI edge certification",
+    "current Ibex RTL runtime evidence",
+    "CPU/IP dataflow acceptance",
+    "Runner multi-endpoint event wiring",
+    "fuzz search or replay acceptance"
+  ]
+}
