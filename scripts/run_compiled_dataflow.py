@@ -21,6 +21,8 @@ def main(argv=None):
     parser.add_argument('--executor',required=True,help='explicit executor selection; unsupported names refuse')
     parser.add_argument('--output',type=Path,required=True,help='must be a new directory')
     parser.add_argument('--cache-dir',type=Path,required=True)
+    parser.add_argument('--heavy-lock',type=Path,
+                        help='canonical shared project lock; default repository .superpowers/heavy-worker.lock')
     parser.add_argument('--run-id',default='compiled-dataflow')
     parser.add_argument('--rounds-per-case',type=int,default=128)
     parser.add_argument('--max-cases',type=int,default=64)
@@ -31,7 +33,7 @@ def main(argv=None):
             capability_paths=args.ip_capability,supplement_path=args.supplement,
             records_path=args.records,output_dir=args.output,cache_dir=args.cache_dir,
             executor=args.executor,run_id=args.run_id,rounds_per_case=args.rounds_per_case,
-            max_cases=args.max_cases,replay_count=args.replays)
+            max_cases=args.max_cases,replay_count=args.replays,heavy_lock=args.heavy_lock)
         print(json.dumps(result,sort_keys=True))
         return 0
     except (ValueError,OSError,RuntimeError,TimeoutError,KeyError,TypeError) as error:

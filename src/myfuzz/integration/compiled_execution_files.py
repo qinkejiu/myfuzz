@@ -12,6 +12,7 @@ from pathlib import Path
 import re
 import time
 import tempfile
+import sys
 
 from myfuzz.local_harness.harness_set import load_compose, generate_harness_set
 from myfuzz.local_harness.auto_harness_test import load_composition, build_path_compile_request
@@ -22,8 +23,19 @@ from myfuzz.scenario.compiled_paths import load_path_compile_request, compile_pa
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
 
 
+def _no_symlinks(path):
+    """Reject lexical symlink components before resolving or opening inputs."""
+    path=Path(path)
+    lexical=path if path.is_absolute() else Path.cwd()/path
+    current=Path(lexical.anchor)
+    for part in lexical.parts[1:]:
+        current=current/part
+        if current.is_symlink():raise ValueError('compiled-files-source-symlink-refused:'+str(current))
+    return lexical
+
+
 def _read(path):
-    return json.loads(Path(path).read_text(encoding='utf-8'))
+    return json.loads(_no_symlinks(path).read_text(encoding='utf-8'))
 
 
 def _save(path, document):
@@ -53,28 +65,31 @@ def _closed(document, required, optional=()):
 
 def _source_paths(base, compose_path, capability_paths, supplement_path, records_path):
     """Pin declarations and their explicitly referenced native source files."""
-    paths={Path(compose_path).resolve(),Path(supplement_path).resolve(),Path(records_path).resolve(),
-           *(Path(p).resolve() for p in capability_paths)}
+    paths={_no_symlinks(compose_path),_no_symlinks(supplement_path),
+           *(_no_symlinks(p) for p in capability_paths)}
+    if records_path is not None:paths.add(_no_symlinks(records_path))
     document=_read(compose_path)
     for component in [document['cpu'],*document['devices']]:
-        request=(Path(compose_path).parent/component['request']).resolve();paths.add(request)
-        profile=(base/_read(request)['profile_path']).resolve();paths.add(profile)
+        request=_no_symlinks(Path(compose_path).parent/component['request']);paths.add(request)
+        profile=_no_symlinks(base/_read(request)['profile_path']);paths.add(profile)
         source=_read(profile)['source'];root=base/source['root']
-        paths.update((root/name).resolve() for name in source['files'])
+        paths.update(_no_symlinks(root/name) for name in source['files'])
     # The executor's own closure also guards live execution. This outer pin
     # covers renderer/adapter inputs before startup and fresh replay.
-    paths.add((base/'scripts/run_compiled_dataflow.py').resolve())
-    paths.update(p.resolve() for p in (base/'src/myfuzz').rglob('*')
-                 if p.is_file() and p.suffix in {'.py','.sv','.cpp','.h','.json'})
+    paths.add(_no_symlinks(base/'scripts/run_compiled_dataflow.py'))
+    for path in (base/'src/myfuzz').rglob('*'):
+        _no_symlinks(path)
+        if path.is_file() and path.suffix in {'.py','.sv','.cpp','.h','.json'}:paths.add(path)
     return sorted(paths)
 
 
 def _hashes(paths):
-    return {str(path):sha256(path.read_bytes()).hexdigest() for path in paths}
+    return {str(path):dict(resolved_path=str(_no_symlinks(path).resolve()),
+                           sha256=sha256(path.read_bytes()).hexdigest()) for path in paths}
 
 
-def _unchanged(paths, expected):
-    if _hashes(paths)!=expected:raise ValueError('compiled-files-source-input-changed')
+def _unchanged(paths, expected, source_arguments):
+    if _source_paths(*source_arguments)!=paths or _hashes(paths)!=expected:raise ValueError('compiled-files-source-input-changed')
 
 
 def prepare_compiled_execution_files(*, base_dir, compose_path, capability_paths,
@@ -84,8 +99,9 @@ def prepare_compiled_execution_files(*, base_dir, compose_path, capability_paths
     This creates source artifacts only. It starts no native child process and
     does not grant runtime admission. Callers must separately pin source inputs.
     """
-    base=Path(base_dir).resolve();compose_path=Path(compose_path).resolve()
-    capabilities=tuple(Path(p).resolve() for p in capability_paths)
+    base=_no_symlinks(base_dir).resolve();compose_path=_no_symlinks(compose_path).resolve()
+    capabilities=tuple(_no_symlinks(p).resolve() for p in capability_paths)
+    _source_paths(base,compose_path,capabilities,supplement_path,None)
     if not capabilities:raise ValueError('compiled-files-explicit-capability-required')
     supplement=_closed(_read(supplement_path),
         {'schema_version','request_supplements','ownership','physical_port_map'})
@@ -131,8 +147,8 @@ def prepare_compiled_execution_files(*, base_dir, compose_path, capability_paths
 
 
 @contextmanager
-def _worker_lock(base):
-    path=base/'.superpowers/heavy-worker.lock';path.parent.mkdir(parents=True,exist_ok=True)
+def _worker_lock(path):
+    path=Path(path);path.parent.mkdir(parents=True,exist_ok=True)
     with path.open('a') as handle:
         try:fcntl.flock(handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
         except OSError as error:raise ValueError('compiled-files-heavy-worker-lock-held') from error
@@ -142,14 +158,15 @@ def _worker_lock(base):
 
 def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
         supplement_path, records_path, output_dir, cache_dir, executor,
-        run_id='compiled-dataflow', rounds_per_case=128, max_cases=64, replay_count=1):
+        run_id='compiled-dataflow', rounds_per_case=128, max_cases=64, replay_count=1, heavy_lock=None):
     """Run explicit eight-byte records continuously and replay fresh RTL.
 
     This is directed candidate execution, not coverage-guided search. Saved
     plans are compared against this live prefix before the trusted runtime
     reconstructs fresh processes and re-admits the private source declarations.
     """
-    base=Path(base_dir).resolve();supplied_output=Path(output_dir)
+    base=_no_symlinks(base_dir).resolve();supplied_output=Path(output_dir)
+    lock_path=(Path(heavy_lock) if heavy_lock is not None else base/'.superpowers/heavy-worker.lock').resolve()
     if supplied_output.exists() or supplied_output.is_symlink():
         raise ValueError('compiled-files-output-directory-must-be-new')
     output=supplied_output.resolve()
@@ -157,7 +174,7 @@ def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
     output.mkdir(parents=True,exist_ok=False);marker=output/'.incomplete';marker.write_text('execution not complete\n')
     started=time.monotonic();runtime=None
     report=dict(schema_version='compiled_execution_files_report.v1',status='incomplete',
-        executor=executor,runtime_admitted=False,
+        executor=executor,runtime_admitted=False,heavy_lock=str(lock_path),
         scope='experimental_directed_continuous_F4_candidates_and_fresh_prefix_replay',
         coverage_guided=False,general_instruction_search=False,full_D4_accepted=False)
     try:
@@ -174,8 +191,9 @@ def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
             raise ValueError('compiled-files-record-count-invalid')
         if any(type(row) is not str or re.fullmatch(r'[0-9a-fA-F]{16}',row) is None for row in records):
             raise ValueError('compiled-files-eight-byte-hex-record-required')
-        capabilities=tuple(Path(p).resolve() for p in capability_paths)
-        paths=_source_paths(base,compose_path,capabilities,supplement_path,records_path)
+        capabilities=tuple(_no_symlinks(p) for p in capability_paths)
+        source_arguments=(base,compose_path,capabilities,supplement_path,records_path)
+        paths=_source_paths(*source_arguments)
         source_hashes=_hashes(paths)
         if (_source_paths(base,compose_path,capabilities,supplement_path,records_path)!=paths
                 or _read(records_path)!=records):
@@ -185,6 +203,7 @@ def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
         _save(output/'input_declarations.json',dict(compose=_read(compose_path),
             supplement=_read(supplement_path),records=records,
             capabilities={str(p):_read(p) for p in capabilities}))
+        _unchanged(paths,source_hashes,source_arguments)
         generation_start=time.monotonic()
         artifacts,inputs,support=prepare_compiled_execution_files(base_dir=base,
             compose_path=compose_path,capability_paths=capabilities,supplement_path=supplement_path,
@@ -193,10 +212,10 @@ def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
         report['capability']=support
         _save(output/'capability_report.json',support)
         if support['execution_supported']!=1:raise ValueError('compiled-files-runtime-support-refused')
-        _unchanged(paths,source_hashes)
-        with _worker_lock(base):
+        _unchanged(paths,source_hashes,source_arguments)
+        with _worker_lock(lock_path):
             try:
-                _unchanged(paths,source_hashes)
+                _unchanged(paths,source_hashes,source_arguments)
                 startup=time.monotonic()
                 runtime=create_compiled_execution(artifacts=artifacts,compiled_inputs=inputs,
                     executor=executor,base_dir=base,cache_dir=Path(cache_dir).resolve(),
@@ -204,7 +223,7 @@ def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
                 report['startup_seconds']=time.monotonic()-startup
                 case_timings=[]
                 for index,row in enumerate(records):
-                    _unchanged(paths,source_hashes);case_start=time.monotonic()
+                    _unchanged(paths,source_hashes,source_arguments);case_start=time.monotonic()
                     certificate=runtime.submit(bytes.fromhex(row))
                     case_timings.append(dict(index=index,wall_seconds=time.monotonic()-case_start,
                         certified=certificate['status']=='certified'))
@@ -213,12 +232,12 @@ def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
                 _save(output/'events.json',list(runtime.trace.events))
                 replays=[]
                 for _ in range(replay_count):
-                    _unchanged(paths,source_hashes);replay_start=time.monotonic()
+                    _unchanged(paths,source_hashes,source_arguments);replay_start=time.monotonic()
                     result=runtime.replay(plan)
                     result['wall_seconds']=time.monotonic()-replay_start;replays.append(result)
                     _save(output/'replays.json',replays)
                     if result.get('matches') is not True:raise ValueError('compiled-files-fresh-prefix-mismatch')
-                _unchanged(paths,source_hashes)
+                _unchanged(paths,source_hashes,source_arguments)
                 useful_seconds=sum(row['wall_seconds'] for row in case_timings)
                 report.update(status='completed',runtime_admitted=True,cases=len(records),
                     certified_cases=sum(row['certified'] for row in case_timings),
@@ -226,13 +245,19 @@ def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
                     useful_cases_per_second=(len(records)/useful_seconds if useful_seconds else None),
                     replays=len(replays),semantic_hash=plan['semantic_hash'])
             finally:
-                if runtime is not None and not runtime.finished:runtime.finish()
+                primary_error=sys.exc_info()[1]
+                if runtime is not None and not runtime.finished:
+                    try:runtime.finish()
+                    except BaseException as cleanup_error:
+                        report['cleanup_failure']=dict(error_type=type(cleanup_error).__name__,error=str(cleanup_error))
+                        if primary_error is None:raise
         report['total_wall_seconds']=time.monotonic()-started
         _save(output/'report.json',report);marker.unlink()
         return report
     except BaseException as error:
         report.update(status='refused' if runtime is None else 'incomplete',
             error_type=type(error).__name__,error=str(error),total_wall_seconds=time.monotonic()-started)
+        if runtime is None:report['startup_partial_trace_available']=False
         # Keep partial native evidence and the incomplete marker on every failure.
         if runtime is not None:
             try:

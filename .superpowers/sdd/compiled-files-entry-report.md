@@ -25,3 +25,11 @@ python3 scripts/run_compiled_dataflow.py \
 ```
 
 The launch consumes only the explicitly provided records. Historical CV32 evidence and its frozen source snapshot are untouched. The entry does not by itself establish that the Ibex fixture passes current runtime admission or exact-hop checks.
+
+## Source review fixes
+
+The entry now rejects every symlink component in lexical source-input paths, including composition, supplements, capabilities, referenced requests/profiles/native files and implementation files. Hash manifests retain both lexical keys and resolved identities. The complete dependency path set is re-enumerated and compared before generation, native startup, every submission and each replay; a retargeted symlink or changed declaration cannot remain hidden behind a previously resolved target hash. This is a strict input policy: users must supply real input paths instead of symlink aliases. No verification was run.
+
+The public API accepts `heavy_lock=Path(...)`; the CLI exposes `--heavy-lock`. Reports record the actual resolved lock path. The default remains the repository's `.superpowers/heavy-worker.lock`. When launching from a remote copied source snapshot, explicitly pass the canonical shared project's heavy-worker lock under `/root/fanzehui`, so all runs on the target serialize against one lock; a snapshot-local default is insufficient for cross-snapshot serialization. The entry performs no remote connection itself.
+
+Cleanup remains inside the held lock. If finish fails during an existing candidate/replay failure, the report retains the original primary error and records `cleanup_failure` separately. A constructor failure before a runtime object is returned cannot expose that constructor's private partial trace; the failure report explicitly sets `startup_partial_trace_available=false`, and no empty trace is presented as complete evidence.
