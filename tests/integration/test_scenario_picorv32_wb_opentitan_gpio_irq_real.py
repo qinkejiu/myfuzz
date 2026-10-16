@@ -6,99 +6,25 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from myfuzz.local_harness.opentitan_gpio_session import GeneratedOpentitanGpioSession
-from myfuzz.local_harness.wishbone_cpu_session import GeneratedWishboneCpuSession
 from myfuzz.scenario.contracts import ResourceBudget
 from myfuzz.scenario.dependency import DependencyGraph, DependencyRule, FuzzableSource
 from myfuzz.scenario.evidence import replay_evidence_bundle, save_evidence_bundle
-from myfuzz.scenario.genome import Action, MemoryImage, ScenarioGenome, Trigger
-from myfuzz.scenario.memory import MemoryRegion, PersistentMemory
 from myfuzz.scenario.mutation import choose_mutation, mutate_genome
-from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
-from myfuzz.scenario.router import DataflowRouter, DeviceWindow
-from myfuzz.scenario.runner import Binding, ScenarioRunner
-from tests.local_harness.test_wishbone_cpu_irq import artifact, PROFILE, ROOT
-from tests.integration.test_scenario_ibex_opentitan_gpio_irq_real import (
-    _addi, _lui, _lw, _sw, _image)
-from tests.integration.test_scenario_cve2_opentitan_gpio_generated_real import _beq
-
-
-GPIO_BASE = 0x40000000
-RESULT = 0x200
-
-
-def _genome():
-    # Custom0 ABI from pinned firmware/custom_ops.S, as exercised by the
-    # Wishbone timer acceptance: getq x5,q1; maskirq x0,x1; retirq.
-    # q0 holds the return PC; q1 holds the pending vector. No CSR trap ABI.
-    words = [0x0800006f] + [0x00000013] * 3  # jal x0,0x80
-    words += [
-        0x0000c28b,                         # getq x5,q1
-        _lw(3, 1, 0x00), _lw(4, 1, 0x10),
-        _sw(3, 8, 0), _sw(4, 8, 4), _sw(5, 8, 8),
-        _addi(6, 0, 1), _sw(6, 1, 0x00),  # real GPIO W1C
-        _lw(7, 1, 0x00), _sw(7, 8, 12),
-        _addi(6, 0, 0x55), _sw(6, 8, 16),
-        # LATCHED_IRQ defaults to all ones. Mask the one-shot interrupt
-        # after clearing GPIO so an IRQ retained during ISR cannot re-enter
-        # and overwrite the accepted first observation with zero status.
-        _addi(6, 0, -1), 0x0603600b,         # maskirq x0,x6
-        0x0400000b,                         # retirq through saved q0
-    ]
-    words += [0x00000013] * (32 - len(words))
-    words += [
-        _addi(1, 0, -9), 0x0600e00b,        # enable only custom IRQ bit 3
-        _lui(1, GPIO_BASE >> 12), _addi(8, 0, RESULT), _addi(2, 0, 1),
-        _sw(2, 1, 0x04),                    # INTR_ENABLE[0]
-        _sw(2, 1, 0x2c),                    # INTR_CTRL_EN_RISING[0]
-        _sw(2, 1, 0x20),                    # DIRECT_OE[0]
-        _sw(2, 1, 0x14),                    # DIRECT_OUT[0] admits pin action
-        _lw(2, 8, 16), _beq(2, 0, -4),     # wait for handler completion
-        _addi(2, 0, 0x66), _sw(2, 8, 20),  # only after retirq
-        0x0000006f,
-    ]
-    return ScenarioGenome(
-        testcase_id='pico-wb-opentitan-gpio-custom-irq', direction='IP_TO_CPU',
-        path_id='external-pins-gpio-irq-pico-custom-handler-ram',
-        schedule_order=('gpio', 'cpu'), max_steps=1300,
-        actions=(Action('external-pin-vector', 'gpio', 'gpio_in', 0x01,
-            'IP_TO_CPU', Trigger('AFTER_OUTPUT', 'gpio', 'gpio_out', 1, 1),
-            bit_offset=0, width=8),),
-        initial_images=(MemoryImage('cpu.program', 'cpu', 0, _image(tuple(words))),
-                        MemoryImage('cpu.results', 'cpu', RESULT, bytes(24).hex())))
+from myfuzz.scenario.picorv32_wb_cpu_example import (
+    GPIO_BASE, RESULT, make_picorv32_wb_gpio_irq_genome,
+    make_picorv32_wb_gpio_irq_runner, picorv32_wb_gpio_irq_ownership,
+)
 
 
 def _make_factory(cache_dir: Path):
-    cpu_art = artifact(PROFILE, 'cpu')
-    gpio_art = artifact('configs/peripherals/opentitan_gpio_local/component_profile.json',
-                        'gpio')
-    ownership = compile_ownership(
-        (InputField('cpu', 'irq', 32), InputField('gpio', 'gpio_in', 32),
-         InputField('gpio', 'strap_en', 1)),
-        (InputOwner('cpu', 'irq', 0, 3, 'fixed', 'constant_zero'),
-         InputOwner('cpu', 'irq', 3, 1, 'bound', 'gpio.irq'),
-         InputOwner('cpu', 'irq', 4, 28, 'fixed', 'constant_zero'),
-         InputOwner('gpio', 'gpio_in', 0, 8, 'source', 'external_gpio_pins'),
-         InputOwner('gpio', 'gpio_in', 8, 24, 'fixed', 'constant_zero'),
-         InputOwner('gpio', 'strap_en', 0, 1, 'fixed', 'constant_zero')))
     instances = []
 
     def factory():
-        memory = PersistentMemory(regions=(MemoryRegion('ram', 0, 4096),),
-            initialization_seed=4, max_initialized_bytes=4096)
-        gpio = GeneratedOpentitanGpioSession(gpio_art, base_dir=ROOT,
-            cache_dir=cache_dir)
-        router = DataflowRouter((DeviceWindow('gpio', GPIO_BASE, 0x1000, gpio),))
-        cpu = GeneratedWishboneCpuSession(cpu_art, base_dir=ROOT,
-            cache_dir=cache_dir, memory=memory, router=router, defer_mmio=True)
-        runner = ScenarioRunner(sessions={'cpu': cpu, 'gpio': gpio},
-            ownership=ownership,
-            bindings=(Binding('gpio', 'irq', 'cpu', 'irq', 1,
-                              target_bit_offset=3),))
+        runner = make_picorv32_wb_gpio_irq_runner(cache_dir=cache_dir)
         instances.append(runner)
         return runner
 
-    return factory, instances, ownership
+    return factory, instances, picorv32_wb_gpio_irq_ownership()
 
 
 @unittest.skipUnless(os.environ.get('MYFUZZ_SCENARIO_REAL') == '1',
@@ -261,7 +187,7 @@ class GeneratedPicoWishboneOpentitanGpioIrqRealTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='myfuzz-pico-wb-ot-gpio-irq-') as directory:
             work = Path(directory)
             factory, instances, ownership = _make_factory(work / 'cache')
-            seed = _genome()
+            seed = make_picorv32_wb_gpio_irq_genome()
             graph = DependencyGraph(
                 sources=(FuzzableSource('external_gpio_pins', 'gpio', 'gpio_in',
                     0, 8, ('IP_TO_CPU',)),),
