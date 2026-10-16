@@ -1,0 +1,9 @@
+# Independent review: A2 startup/reset capture generation
+
+Root reviewed4c6822d against approvedcd8ef46 generation scope, source contract and existing AHB startup implementation. Spec compliance and source quality approved for generation only; no high/medium source blocker found. Nine frozen source/test pins independently match.
+
+Opt-in selection is exact endpoint/contract/register and canonical source/probe bound. Default driver C++ and five-token READY remain byte-identical; the additive explicit shared-header CommandSet intentionally changes a build input. Reset/assert/release loops call the original tick once per existing iteration and preserve actual pre/post snapshots. Zero-clock pages retain startup indices independently of command ticks. Buffer/page/receipt bounds are reconstructed from actual snapshot maxima. Page advancement follows successful replay caching; identical retries remain cached, and ordinary accesses are blocked until all pages are retrieved. Standard/AHB command sets remain distinct. Strict runtime/driver metadata projection refuses caller flags and wrong capture identities.
+
+Independent focused command `PYTHONPATH=src:. PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q tests/local_harness/test_apb_storage_startup.py`: actual exit0,27passed11explicit nonregistered-fixture skips3.96s. Author's133pass16skip generation/contract/AHB software regression receipt is retained. Mini C++ controls compile only protocol header assertions, not DUTs.
+
+Host session admission intentionally still rejects the new A2 driver schema. No new hierarchy, reset waveform, startup→command continuity, reset/version/source authority or F4 grant exists from this source review. Session/C integration and an independent actual generated hierarchy/reset gate remain required; no model/build/remote/native operation was authorized here.
