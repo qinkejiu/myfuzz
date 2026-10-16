@@ -6,7 +6,9 @@ F6 已有[Ibex＋ZipCPU wbdmac RAM→RAM 定向真实闭环](reports/ibex-zipcpu
 
 P7 新增[严格产物消费与拒绝报告](reports/p7-d4-bounded-artifact-execution-20261017.md)：本地隔离真实 CV32E40P＋双 GPIO 使用本轮加载的三个 D2 artifact 跑连续 8 例，fresh 全量重放 4,021 个事件匹配；默认 D3 运行门因未声明的来源/绑定生产者及语义映射而拒绝，CLI 不再静默重建默认 artifact。此为显式 `loaded_artifacts` 子集，不授予 D3 自动运行或 P7 整阶段。通用 OBI [事件/检查器合成门](reports/obi-protocol-events-20261017.md)之后，Ibex 生成式 runtime 已增加[两端点原始 OBI 被动 tap 真实门](reports/ibex-raw-obi-protocol-20261017.md)：两次 fresh CPU/RAM 定向运行各由 100 个原始边沿样本认证 52 条事务，checker 零违约，末端 2 个请求仍在飞。[Runner 双端点接入](reports/runner-obi-trace-set-20261017.md)又对其中保存的真实原始样本离线产出 52 条认证及数据端读写基础覆盖；该复投影不是当前源码的新 RTL 运行，CPU/IP 事务关联与在线反馈仍未完成。Caliptra 已保存的真实 AHB 物理样本还通过离线通用基础覆盖消费者复核：两进程各 57 次读、34 次写、91 次成功响应，fresh 覆盖快照一致；在线 Runner 指导仍待接入。
 
-P7 [执行可行性复核](reports/p7-d3-execution-feasibility-20261017.md)把 D3 的四条声明可执行路径逐条检查为当前 runtime 执行不支持：F1 缺 CV32E40P 认证退休观察；F4 编译源 GPIOEN `0x40001004` 与固定 decoder 候选 PADOUT `0x4000100c` 不同，真实 GPIOEN 写仅为启动阶段，不是候选输入；寄存器窗口 4096 字节对齐与访问地址 `+4` 的语义也待拆分。CLI 现在输出机器可读的 `execution_projection.v1.json` 后拒绝完整 D3 运行；原 D2-only 八例真实门和 fresh 重放仍通过，P7 未验收。
+P7 [执行可行性复核](reports/p7-d3-execution-feasibility-20261017.md)把 D3 的四条声明可执行路径逐条检查为当前 runtime 执行不支持：F1 缺 CV32E40P 认证退休观察；F4 编译源 GPIOEN `0x40001004` 与固定 decoder 候选 PADOUT `0x4000100c` 不同，真实 GPIOEN 写仅为启动阶段，不是候选输入；当时寄存器窗口 4096 字节对齐与访问地址 `+4` 的语义尚未拆分。CLI 现在输出机器可读的 `execution_projection.v1.json` 后拒绝完整 D3 运行；原 D2-only 八例真实门和 fresh 重放仍通过，P7 未验收。
+
+[后续寄存器源合同](reports/p7-register-source-access-20261017.md)已明确把窗口 4096 字节对齐与 GPIOEN `+4` 的 4 字节访问对齐拆开，并对 CPU 数据端、目标、地址、操作、字节使能、保留位及伪读响应做严格候选校验；原来的对齐歧义已消除。GPIOEN 仍未接入实际候选 writer、寄存器版本证据和 checker，D3 执行继续拒绝；本地隔离真实八例与 fresh 重放再次通过。
 
 2026-10-13 **P6 行 3（AXI4-Lite）通用 IP 事件层增量：通用协议事件层新增第四种协议 `axi4-lite`、目标端模板契约 11→12、真实 `zipcpu_axiluart` 规划实测通过、并在真实 RTL 上投影出零违约的通用事务。** 范围是[P6 逐协议行适配清单](superpowers/plans/2026-10-13-p6-per-protocol-row-checklist.md)的行 3；**该行结论仍为"未通过"**（缺口清单见该清单）。
 

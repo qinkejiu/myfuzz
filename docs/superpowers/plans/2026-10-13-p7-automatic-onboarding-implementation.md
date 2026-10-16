@@ -301,3 +301,5 @@ PYTHONPATH=src python3 -m pytest -q tests/onboarding/test_p7_negative_fixtures.p
 [本次严格复核](../../reports/p7-d4-bounded-artifact-execution-20261017.md)已使 CLI 加载并传递精确 D2 artifact、typed D3 和实际 ownership，且在执行前拒绝无法投影的 D3。显式 `loaded_artifacts` 子集把精确 D2 对象送入现有 CV32E40P＋双 GPIO factory：真实本地隔离门 2 passed，三个进程连续执行 8 例，fresh 全量重放 4,021 事件匹配；禁用默认 artifact 重建仍可运行。默认完整 D3 范围因两个 bound producer、一个未编译 source 及逐路径语义映射缺口而拒绝。此子集只证明 D2 对象消费，不等于无适配新 CPU/IP 的 D3 自动执行，P7-D/E 正式门仍开放。
 
 后续[执行可行性投影](../../reports/p7-d3-execution-feasibility-20261017.md)在不改 capability-only D3 文档的前提下，把四条声明可执行路径全部标为当前运行不支持：F1 缺认证退休；F4 的 GPIOEN 编译源与固定 PADOUT 候选窗口、访问对齐语义及断言处理器不匹配。真实 GPIOEN 写仅有启动阶段来源，不能计为候选。CLI 在启动前落盘 `execution_projection.v1.json` 并拒绝无映射的 D3；本地隔离 D2-only 八例及 fresh replay 再次通过。P7-D/E 仍开放。
+
+其后[寄存器源合同](../../reports/p7-register-source-access-20261017.md)已将 GPIOEN `+4` 精确地址、4 字节访问对齐和 4096 字节窗口对齐分离，并验证 CPU 数据端归属、目标、全字字节使能、保留位及伪读响应的候选拒绝。固定 runtime 仍只对 PADOUT `+12` 生成候选，GPIOEN `+4` 的 writer／版本／checker 执行绑定不存在，故 F4 仍不授执行等级。D2-only 真实八例与 full fresh 再次通过。

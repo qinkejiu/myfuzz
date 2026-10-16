@@ -6,6 +6,8 @@
 
 2026-10-17 P7 D3：[执行可行性与真实生产者证据报告](p7-d3-execution-feasibility-20261017.md)。四条声明可执行路径目前均不具备完整运行映射；F1 缺认证退休，F4 的 GPIOEN 编译源与固定 PADOUT 候选窗口不一致，真实 GPIOEN 写为启动动作。CLI 保留机器可读拒绝，D2-only 真实八例与 fresh replay 仍通过。
 
+2026-10-17 P7 寄存器源：[精确 GPIOEN `+4` 访问合同与候选拒绝报告](p7-register-source-access-20261017.md)。窗口对齐与访问对齐已拆开，错误来源/目标/字节使能/保留位被拒；真实 D2-only 八例及 fresh replay 再次通过，实际 writer/checker 映射仍未完成。
+
 2026-10-17 OBI CPU 事件：[通用协议事件、检查器和证据合成门报告](obi-protocol-events-20261017.md)先通过 224 passed、67 subtests；随后[Ibex 原始 OBI 被动 tap 真实门](ibex-raw-obi-protocol-20261017.md)通过 2 passed，两次 fresh 各由 100 个原始边沿样本认证 52 条事务，篡改响应被拒。其后的 Runner 离线复投影见下一条；CPU/IP 事务关联仍待实现。
 
 2026-10-17 Runner 双端点 OBI：[保存的真实 Ibex 原始收据离线 Runner 复投影报告](runner-obi-trace-set-20261017.md)。Runner 从 100 个保存的边沿样本产出 52 条认证及数据端读写覆盖，单端点篡改不污染另一端点；本次无新 RTL 构建，CPU/IP 事务关联和在线反馈仍待实现。
