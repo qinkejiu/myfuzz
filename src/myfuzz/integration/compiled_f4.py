@@ -82,7 +82,7 @@ def _cpu_traces(artifact, image, stream):
               and t.get('boundary')=='cpu_physical_abi' and t.get('max_outstanding')==1]
         if len(rows)!=1:raise ValueError('compiled-F4-native-CPU-trace-required')
         signals=rows[0]['signals']
-        required={'req','gnt','addr','rvalid','rdata'}
+        required={'req','gnt','addr','rvalid','rdata','error'}
         if channel=='data':required|={'we','wdata','be'}
         if not required<=set(signals):
             raise ValueError('compiled-F4-native-CPU-trace-required')
@@ -125,10 +125,12 @@ def check_f4_exact_hops(*, events, declaration, image, stream, traces, address, 
             def pin(role):return taps.get(signals.get(role))
             # OBI has no response backpressure at this physical CPU boundary.
             if pin('rvalid')==1:
+                if type(pin('error')) is not int or pin('error')!=0:
+                    raise ValueError('compiled-F4-native-CPU-response-error')
                 accepted=pending[channel]
                 if accepted is None:raise ValueError('compiled-F4-native-response-unowned')
                 key=(channel,accepted['sequence'])
-                completed[key]=dict(accepted, response_event=step['event_id'],rdata=pin('rdata'))
+                completed[key]=dict(accepted, response_event=step['event_id'],rdata=pin('rdata'),error=pin('error'))
                 pending[channel]=None
             if pin('req')==1 and pin('gnt')==1:
                 if pending[channel] is not None:raise ValueError('compiled-F4-native-outstanding-overlap')
