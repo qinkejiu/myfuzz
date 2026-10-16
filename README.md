@@ -45,8 +45,14 @@ regenerated, and the declared broken-link consequence.
   grounded in — raw layout, the six declarative constraint gates, the 37
   rejection codes and the feedback weight formula.
 - [Current progress](docs/CURRENT_PROGRESS.md): the single status entry for
-  P0–P8, recorded gates and remaining acceptance work. **P1–P5 are accepted
-  within their declared scope; P6–P8 are not.**
+  P0–P8, recorded gates and remaining acceptance work.
+- [P6 per-protocol row checklist](docs/superpowers/plans/2026-10-13-p6-per-protocol-row-checklist.md):
+  the five CPU-protocol rows, each with its measured state and the run that
+  proves it. **Rows 1 (OBI), 2 (full AXI4) and 3 (AXI4-Lite) now pass with real
+  audited 18-cell campaigns; row 5 is largely advanced; row 4 (classic
+  Wishbone) states its three remaining pieces.**
+- [P7 automatic onboarding](docs/superpowers/plans/2026-10-13-p7-automatic-onboarding-implementation.md):
+  stages D1–D4 and A–E, and the one command that runs them end to end.
 - [Current design](docs/CURRENT_DESIGN.md): input ownership, testcase flows,
   persistent state, router/scheduler responsibilities and remaining gaps.
 - [Quick start](QUICKSTART.md): record/replay a real Ibex plus two-GPIO
@@ -70,8 +76,29 @@ regenerated, and the declared broken-link consequence.
 
 P1–P5 are complete within their declared scope ([P5 stage acceptance](docs/reports/current-dataflow-p5-stage-acceptance-20261008.md):
 `p5_acceptance_suite.v1` critical items 6/6, exit 0; [P4](docs/reports/current-dataflow-p4-stage-acceptance-20261008.md):
-8/8, exit 0). P6 (multi-protocol reuse), P7 (automatic onboarding) and P8 (real
-DMA) remain unaccepted. Historical UART FIFO/native IRQ gates have passed on
+8/8, exit 0).
+
+**P6 and P7 advanced materially on 2026-10-14/15**, each with run artifacts kept
+in the repository's evidence areas and each independently audited by a test that
+recomputes the run's own numbers:
+
+- **P7 A–E run end to end** from one command
+  (`scripts/auto_harness_test.py`): D1–D4, a real RFuzz session and a fresh
+  replay, `status=complete`, `exit 0`, **7/7 stages ok**, `matches: true`, on both
+  shipped runtime families. Record:
+  [P7-E end-to-end run](docs/reports/p7e-end-to-end-run-20261014.md).
+- **P6 row 2 (full AXI4 / CVA6)** and **row 3 (AXI4-Lite / PicoRV32-AXI)** each
+  ran a real **18-cell scenario campaign** to `gate_status: complete` (18/18 cells,
+  no gate failures) over real RTL, with per-cell closed chains, feedback-driven
+  mutation and full-prefix replay.
+- **P6 row 4 (classic Wishbone)** is the row still open, with its remaining work
+  named precisely rather than left vague.
+- **CVW (CORE-V Wally) over AHB-Lite** reaches **session-level execution**: a
+  generated harness boots the real core from the session's own memory service —
+  the boot fetch is held, never zero-filled — and the core executes the program
+  the session supplied. Its RFuzz *online* campaign is not yet wired.
+
+P8 (real DMA) remains unaccepted. Historical UART FIFO/native IRQ gates have passed on
 their recorded source snapshots. The v2
 [controlled entry/read gate](docs/reports/current-dataflow-p2-controlled-entry-read-20261006.md)
 recorded four taken, four entries and four retired UART reads, zero barriers,

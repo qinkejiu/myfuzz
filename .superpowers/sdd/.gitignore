@@ -1,0 +1,4 @@
+# This directory holds written records, not run artifacts.
+* 
+!.gitignore
+!progress.md

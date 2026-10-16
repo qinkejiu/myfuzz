@@ -38,3 +38,18 @@ temp/
 # checkout is retained locally, not mirrored into this repository.
 /third_party/rfuzz/upstream/rfuzz_reference/*
 !/third_party/rfuzz/upstream/rfuzz_reference/fuzzer/
+
+# Elaboration/verification scratch directories created in the repository root by
+# the CVW contract verifier and by ad-hoc elaboration runs.  They are per-run
+# temporary trees, never sources.
+/.cvw-verify-*/
+
+# The .superpowers working area holds per-run build caches, Verilator object
+# trees and probe binaries (gigabytes).  Only its written records are sources, so
+# the rules name the ignored entries instead of the directory: a directory-level
+# exclusion would also hide .superpowers/sdd, which IS tracked.
+/.superpowers/cache/
+/.superpowers/cvw-*/
+/.superpowers/rfuzz-*/
+/.superpowers/ahb/
+/.superpowers/patched/
