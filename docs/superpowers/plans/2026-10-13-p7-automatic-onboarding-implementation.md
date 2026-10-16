@@ -303,3 +303,5 @@ PYTHONPATH=src python3 -m pytest -q tests/onboarding/test_p7_negative_fixtures.p
 后续[执行可行性投影](../../reports/p7-d3-execution-feasibility-20261017.md)在不改 capability-only D3 文档的前提下，把四条声明可执行路径全部标为当前运行不支持：F1 缺认证退休；F4 的 GPIOEN 编译源与固定 PADOUT 候选窗口、访问对齐语义及断言处理器不匹配。真实 GPIOEN 写仅有启动阶段来源，不能计为候选。CLI 在启动前落盘 `execution_projection.v1.json` 并拒绝无映射的 D3；本地隔离 D2-only 八例及 fresh replay 再次通过。P7-D/E 仍开放。
 
 其后[寄存器源合同](../../reports/p7-register-source-access-20261017.md)已将 GPIOEN `+4` 精确地址、4 字节访问对齐和 4096 字节窗口对齐分离，并验证 CPU 数据端归属、目标、全字字节使能、保留位及伪读响应的候选拒绝。固定 runtime 仍只对 PADOUT `+12` 生成候选，GPIOEN `+4` 的 writer／版本／checker 执行绑定不存在，故 F4 仍不授执行等级。D2-only 真实八例与 full fresh 再次通过。
+
+其后[精确编译寄存器 writer](../../reports/p7-d3-directed-register-writer-20261017.md)已把 D3 的 GPIOEN `+4` 变成实际 CPU 指令候选，两个不同值经真实 CV32E40P→原生 APB→读回→RAM，并各自完整 fresh 匹配；隔离真实门 8 passed／132.21 秒。writer 与目标访问现有定向观察关联，仍缺 `ip_register_version` 前置状态认证、编译断言处理器和通用路径 executor。完整 D3/D4 仍拒绝，该定向子集不授予 P7-D/E。

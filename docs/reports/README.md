@@ -1,3 +1,5 @@
+2026-10-17 [精确 D3 GPIOEN writer](p7-d3-directed-register-writer-20261017.md)：真实 CV32E40P 执行 `0x55`／`0xaa` 候选，原生 APB、读回和 RAM 均有观察，完整 fresh 匹配；缺版本前置条件与编译 checker，完整 D3 继续拒绝。另有[DMA ERR 后同进程继续搬运](dma-error-recovery-20261017.md)真实门 2 passed，补齐错误事务在账本中的序号。
+
 2026-10-17 [真实 UART RX FIFO→DMA→RAM→Ibex ISR](ibex-zipcpu-dma-uart-rx-fifo-directed-20261017.md)：远端真实门 2 passed／278.74 秒，两个 fresh 完整规范化轨迹一致，非法源偏移不弹出 FIFO；相同修正源码的 TX 回归 3 passed／287.64 秒。持续搜索、通用来源链与认证前缀 replay 尚未验收。
 
 # 当前方案的验收报告入口

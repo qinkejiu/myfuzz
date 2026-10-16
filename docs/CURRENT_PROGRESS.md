@@ -10,6 +10,8 @@ P7 [执行可行性复核](reports/p7-d3-execution-feasibility-20261017.md)把 D
 
 [后续寄存器源合同](reports/p7-register-source-access-20261017.md)已明确把窗口 4096 字节对齐与 GPIOEN `+4` 的 4 字节访问对齐拆开，并对 CPU 数据端、目标、地址、操作、字节使能、保留位及伪读响应做严格候选校验；原来的对齐歧义已消除。GPIOEN 仍未接入实际候选 writer、寄存器版本证据和 checker，D3 执行继续拒绝；本地隔离真实八例与 fresh 重放再次通过。
 
+其后[精确编译寄存器 writer](reports/p7-d3-directed-register-writer-20261017.md)已使真实 CV32E40P 在 GPIOEN `0x40001004` 分别执行候选 `0x55`／`0xaa`，并关联原生 APB 写入、读回和 CPU 保存 RAM；两个完整 fresh 重放匹配。隔离真实门 8 passed／132.21 秒，按实例显式观察模式为 CPU=false、两 GPIO=true。它仍是定向 writer，尚未认证 `ip_register_version` 前置状态和编译断言 checker，完整 D3 继续拒绝。
+
 2026-10-13 **P6 行 3（AXI4-Lite）通用 IP 事件层增量：通用协议事件层新增第四种协议 `axi4-lite`、目标端模板契约 11→12、真实 `zipcpu_axiluart` 规划实测通过、并在真实 RTL 上投影出零违约的通用事务。** 范围是[P6 逐协议行适配清单](superpowers/plans/2026-10-13-p6-per-protocol-row-checklist.md)的行 3；**该行结论仍为"未通过"**（缺口清单见该清单）。
 
 - **通用事件层（软件层）：** `scenario/ip_protocol_events.py` 新增 `_consume_axi4_lite`，投影 19 个从机侧角色（`awvalid awready awaddr awprot wvalid wready wdata wstrb bvalid bready bresp arvalid arready araddr arprot rvalid rready rdata rresp`），此前该层只有 `tl-ul`／`apb3`／`wishbone`。语义要点：请求由 **VALID 触发**（不由握手完成触发）；AW 与 W 可任意先后、写只被接纳一次；响应载荷与所应答的传输做**字段连接**；等待只在"该边沿没有推进"时计数（前置快照法）；**超时只施加于请求相位（AR/AW/W）**，已被接纳后的 B/R 等待只报观测；非 OKAY 响应码按测量值上报并另报 `protocol_error`；reset 切 epoch 取消所有在飞通道组。`scenario/ip_protocol_checker.py` 新增 `axi4lite_*` 违约检查（停滞期间载荷不得变化、VALID 未 READY 不得撤销、响应必须跟随自己被接纳的请求、单笔未完成、被保持的**请求**通道超预算）；**被保持的响应（B/R 迟迟不来）只作观测、不作违约**（AXI4-Lite 未给从机响应延迟设上限）。
