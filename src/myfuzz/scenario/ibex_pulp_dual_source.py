@@ -986,8 +986,12 @@ def make_pulp_dual_source_factory(
         physical_observations: bool = False,
         persistent_memory_runtime_contract_sha256: str | None = None,
         instruction_start: int = ONLINE_INSTRUCTION_START,
-        instruction_end: int = ONLINE_INSTRUCTION_END) -> Callable[[], ScenarioRunner]:
+        instruction_end: int = ONLINE_INSTRUCTION_END,
+        generated_artifacts: Mapping | None = None) -> Callable[[], ScenarioRunner]:
     """Render pinned local harnesses once, then make fresh runner sessions.
+
+    Supplied generated_artifacts are consumed directly by session constructors;
+    this low-level factory does not grant compiled decoder/checker admission.
 
     The caller supplies the CPU profile; every other part of the wiring, the
     ownership map and the bindings come from ``dual_source_wiring``. The
@@ -1044,9 +1048,19 @@ def make_pulp_dual_source_factory(
     wiring = dual_source_wiring(cpu_profile=cpu_profile,
                                 gpio_consumption=gpio_consumption)
     observation = {'physical_observations': True} if physical_observations else {}
-    cpu_artifact = _artifact(wiring.cpu_profile, "cpu", **observation)
-    a_artifact = _artifact(wiring.gpio_profile, "gpio_a", **observation)
-    b_artifact = _artifact(wiring.gpio_profile, "gpio_b", **observation)
+    if generated_artifacts is None:
+        cpu_artifact = _artifact(wiring.cpu_profile, "cpu", **observation)
+        a_artifact = _artifact(wiring.gpio_profile, "gpio_a", **observation)
+        b_artifact = _artifact(wiring.gpio_profile, "gpio_b", **observation)
+    else:
+        from myfuzz.local_harness.generated_execution_admission import select_factory_artifacts
+        supplied = select_factory_artifacts(generated_artifacts, expected={
+            "cpu": (wiring.cpu_profile, "obi_cpu"),
+            "gpio_a": (wiring.gpio_profile, "apb_gpio"),
+            "gpio_b": (wiring.gpio_profile, "apb_gpio")}, base_dir=ROOT,
+            physical_observations=physical_observations)
+        cpu_artifact, a_artifact, b_artifact = (supplied[name]
+                                               for name in ("cpu", "gpio_a", "gpio_b"))
     # The policy names the component the wiring declares as the owner of the
     # persistent RAM the online instruction slots live in; no literal component
     # name and no renderer internals are consulted.
@@ -1122,7 +1136,8 @@ def make_ibex_pulp_dual_source_factory(
         source_actions: bool = True,
         memory_commit_receipts: bool = False,
         physical_observations: bool = False,
-        persistent_memory_runtime_contract_sha256: str | None = None) -> Callable[[], ScenarioRunner]:
+        persistent_memory_runtime_contract_sha256: str | None = None,
+        generated_artifacts: Mapping | None = None) -> Callable[[], ScenarioRunner]:
     """Select the pinned Ibex variant, then share the CPU-agnostic wiring.
 
     ``cpu_retirement`` selects the authenticated RVFI profile. Native parsed
@@ -1150,6 +1165,7 @@ def make_ibex_pulp_dual_source_factory(
         raise ValueError('memory_commit_receipts must be boolean')
     return make_pulp_dual_source_factory(
         cache_dir, cpu_profile=RVFI_CPU_PROFILE if cpu_retirement else CPU_PROFILE,
+        **({'generated_artifacts': generated_artifacts} if generated_artifacts is not None else {}),
         gpio_consumption=gpio_consumption, native_irq_receipts=native_irq_receipts,
         source_actions=source_actions, memory_commit_receipts=memory_commit_receipts,
         persistent_memory_runtime_contract_sha256=persistent_memory_runtime_contract_sha256,
