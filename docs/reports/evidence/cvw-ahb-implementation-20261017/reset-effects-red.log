@@ -1,0 +1,39 @@
+............FF...                                                        [100%]
+=================================== FAILURES ===================================
+_________________ test_poisoned_reset_refuses_before_transport _________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e56e68b3410>
+
+    def test_poisoned_reset_refuses_before_transport(monkeypatch):
+     cpu,calls,aborts=fake();cpu._ahb_observer.poison('prior')
+     monkeypatch.setattr(GeneratedNativeMemorySession,'reset_local',lambda s:pytest.fail('clocked reset'))
+>    with pytest.raises(ProtocolEnvironmentError,match='not_active'):cpu.reset_local()
+                                                                     ^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_ahb_cpu_observer.py:153: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/ahb_lite_session.py:127: in reset_local
+    result = super().reset_local()
+             ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+s = <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x7e56e68b31a0>
+
+>   monkeypatch.setattr(GeneratedNativeMemorySession,'reset_local',lambda s:pytest.fail('clocked reset'))
+                                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: clocked reset
+
+tests/local_harness/test_ahb_cpu_observer.py:152: Failed
+____________ test_bad_inputs_before_command_has_no_possible_effects ____________
+
+    def test_bad_inputs_before_command_has_no_possible_effects():
+     cpu,calls,aborts=fake()
+     with pytest.raises(ValueError):cpu.step_local({'unexpected':1})
+>    assert not calls and cpu.runtime_events[-1]['possible_effects'] is False
+E    assert (not [] and True is False)
+
+tests/local_harness/test_ahb_cpu_observer.py:159: AssertionError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_ahb_cpu_observer.py::test_poisoned_reset_refuses_before_transport
+FAILED tests/local_harness/test_ahb_cpu_observer.py::test_bad_inputs_before_command_has_no_possible_effects
+2 failed, 15 passed in 0.26s

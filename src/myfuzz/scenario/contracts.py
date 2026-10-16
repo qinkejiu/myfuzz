@@ -98,6 +98,8 @@ def _verify_generated_session(identity: dict):
     gpio_observation_fields = {'gpio_target_context_schema_version',
                               'gpio_observation_contract'}
     native_fields = {'native_service_schema_version', 'source_component', 'memory_policy'}
+    ahb_fields = {'ahb_lite_service_schema_version', 'source_component', 'memory_policy',
+                  'ahb_observation_contract'}
     rvx_fields = {'rvx_memory_service_schema_version', 'source_component',
                   'memory_policy', 'response_latency_ticks'}
     axi_lite_fields = {'axi_lite_service_schema_version', 'source_component', 'memory_policy'}
@@ -131,6 +133,7 @@ def _verify_generated_session(identity: dict):
             base_fields | cpu_native_irq_fields,
             base_fields | gpio_observation_fields,
             base_fields | native_fields,
+            base_fields | ahb_fields,
             base_fields | rvx_fields,
             base_fields | axi_lite_fields, base_fields | spi_fields,
             base_fields | axi4_fields, base_fields | tlul_gpio_fields,
@@ -204,7 +207,7 @@ def _verify_generated_session(identity: dict):
             or artifact.runtime_document['kind'] != 'tlul_uart'):
         raise ValueError('generated UART FIFO observation identity mismatch')
     if (not _strict_generated_json_equal(document, artifact.runtime_document)
-            if fifo_variant or native_cpu_irq or request_schema == 'local_harness.v2'
+            if fifo_variant or native_cpu_irq or document.get('kind') == 'ahb_lite_cpu' or request_schema == 'local_harness.v2'
             else document != artifact.runtime_document):
         raise ValueError('generated runtime artifact identity mismatch')
     if artifact.runtime_document['kind'] == 'rvx_memory_cpu':
@@ -222,6 +225,20 @@ def _verify_generated_session(identity: dict):
                 or identity['source_component'] != artifact.plan.request.instance_id
                 or identity['memory_policy'] != 'ram-rom-only'):
             raise ValueError('generated native service identity mismatch')
+    elif artifact.runtime_document['kind'] == 'ahb_lite_cpu':
+        from myfuzz.scenario.ahb_cpu_events import AhbCpuObserver, bind_ahb_trace
+        _exact(identity, base_fields | ahb_fields, 'generated AHB service identity')
+        endpoint, _, trace = bind_ahb_trace(artifact.runtime_document)
+        observer = AhbCpuObserver(component_id=artifact.plan.request.instance_id,
+                                  endpoint_id=endpoint)
+        observer.contract['trace_binding'] = trace
+        boot = artifact.runtime_document.get('boot_contract', {}).get('configured_boot_base')
+        if (identity['ahb_lite_service_schema_version'] != 'generated_ahb_lite_memory_service.v1'
+                or identity['source_component'] != artifact.plan.request.instance_id
+                or identity['memory_policy'] != 'ram-rom-only'
+                or type(boot) is not int or not 0 <= boot < 1 << 34 or boot % 4
+                or not _strict_generated_json_equal(identity['ahb_observation_contract'], observer.contract)):
+            raise ValueError('generated AHB service identity mismatch')
     elif artifact.runtime_document['kind'] == 'axi4_lite_cpu':
         _exact(identity, base_fields | axi_lite_fields, 'generated AXI4-Lite service identity')
         if (identity['axi_lite_service_schema_version'] != 'generated_axi4_lite_memory_service.v1'
@@ -416,7 +433,7 @@ def _verify_generated_session(identity: dict):
     else:
         _exact(identity, base_fields, 'generated IP service identity')
     expected_build = local_build_identity(artifact, base_dir=_ROOT)
-    if (not _strict_generated_json_equal(identity['build_identity'], expected_build) if fifo_variant or native_cpu_irq
+    if (not _strict_generated_json_equal(identity['build_identity'], expected_build) if fifo_variant or native_cpu_irq or document.get('kind') == 'ahb_lite_cpu'
             else identity['build_identity'] != expected_build):
         raise ValueError('generated build identity mismatch')
     return artifact

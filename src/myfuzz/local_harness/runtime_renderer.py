@@ -105,6 +105,23 @@ _AHB_LITE = {
 }
 
 
+def _expose_cpu_ahb_trace(endpoint_id, clock_domain, wires, ports, statements,
+                          protocol_tap_ports, cpu_protocol_traces):
+    """Sideband copies of the exact admitted CPU ABI wires, never bus drivers."""
+    signals = {}
+    for role, (_, width) in sorted(_AHB_LITE.items()):
+        name = 'cpu_ahb_trace_' + role
+        signals[role] = name
+        ports.append((name, 'output', width))
+        statements.append(f'assign {name} = {wires[role]};')
+        protocol_tap_ports.append(dict(name=name, direction='output', width=width,
+            role=role, endpoint_id=endpoint_id, source_wire=wires[role]))
+    cpu_protocol_traces.append(dict(schema_version='ip_protocol_trace.v1',
+        protocol='ahb-lite', endpoint_id=endpoint_id, clock_domain=clock_domain,
+        signals=signals, signal_widths={r:w for r,(_,w) in _AHB_LITE.items()},
+        sample_group='protocol_taps', boundary='cpu_physical_abi'))
+
+
 def _tlul_runtime_kind(request, variant):
     """Select a registered v1 TL-UL executor; v2 remains generic."""
     if isinstance(request, LocalHarnessRequestV2):
@@ -942,6 +959,9 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
         # (HRDATAEXT/HREADYEXT/HRESPEXT) and the chip select as HSELEXT, so
         # deriving a name from the role would emit HRDATA/HSEL and fail to bind.
         wires = _shape(endpoints[0], _AHB_LITE, abi)
+        _expose_cpu_ahb_trace(endpoints[0].endpoint_id,
+            clock_schedule['primary_clock_domain'], wires, ports, statements,
+            protocol_tap_ports, cpu_protocol_traces)
         # The beat channel is 'm' like every other memory CPU, so the generated
         # driver's memory-CPU template binds without a second template.  The CPU's
         # request travels OUT to the service and the answer travels IN, which is

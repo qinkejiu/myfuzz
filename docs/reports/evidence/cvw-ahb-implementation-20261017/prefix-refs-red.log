@@ -1,0 +1,25 @@
+...................FF                                                    [100%]
+=================================== FAILURES ===================================
+__________________ test_completion_references_write_data_edge __________________
+
+    def test_completion_references_write_data_edge():
+     o=observer();edge(o,hsel=1,htrans=2,hwrite=1)
+     edge(o,hready=0,hwdata=42,hwstrb=3);edge(o,hwdata=42,hwstrb=3)
+     complete=[e for e in o.events if e['kind']=='ahb_complete'][0]
+>    assert complete['write_data_ref']['raw_event'] in complete['raw_event_refs']
+E    assert 2 in [0, 3]
+
+tests/scenario/test_ahb_cpu_events.py:115: AssertionError
+____________ test_first_measured_ready_is_explicitly_prefix_unknown ____________
+
+    def test_first_measured_ready_is_explicitly_prefix_unknown():
+     o=observer();edge(o)
+>    assert any(e['kind']=='ahb_prefix_unknown' for e in o.events)
+E    assert False
+E     +  where False = any(<generator object test_first_measured_ready_is_explicitly_prefix_unknown.<locals>.<genexpr> at 0x7e03788a1630>)
+
+tests/scenario/test_ahb_cpu_events.py:120: AssertionError
+=========================== short test summary info ============================
+FAILED tests/scenario/test_ahb_cpu_events.py::test_completion_references_write_data_edge
+FAILED tests/scenario/test_ahb_cpu_events.py::test_first_measured_ready_is_explicitly_prefix_unknown
+2 failed, 19 passed in 0.10s

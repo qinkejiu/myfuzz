@@ -123,6 +123,10 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
         super().reset_local()
         return {'cancelled_responses':cancelled}
 
+    def _observe_verified_memory_edge(self, receipt):
+        """Optional passive measurement, after receipt checks and before service."""
+        return None
+
     def step_local(self,inputs:Mapping[str,int]):
         if not isinstance(inputs,Mapping) or inputs:
             raise ValueError('native memory CPU has no declared external inputs')
@@ -139,6 +143,7 @@ class GeneratedNativeMemorySession(GeneratedLocalSession):
             or payload['samples'][0]['pre']['backend']!=pre):
             raise ProtocolEnvironmentError('native command handshake observation mismatch')
         self.last_samples=tuple(copy.deepcopy(payload['samples']))
+        self._observe_verified_memory_edge(receipt)
         accepted=int(bool(pre['m_req_valid'] and pre['m_req_ready']))
         consumed=int(bool(pre['m_rsp_valid'] and pre['m_rsp_ready']))
         if consumed:

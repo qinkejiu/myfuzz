@@ -1,0 +1,33 @@
+..........F                                                              [100%]
+=================================== FAILURES ===================================
+_______________ test_runner_journal_drain_keeps_global_raw_refs ________________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profi...4a3f23d759c2d13c5be8578'}), <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x7ad98db32c60>)
+
+    def test_runner_journal_drain_keeps_global_raw_refs(generated):
+     from myfuzz.scenario.runner import ScenarioRunner
+     from myfuzz.scenario.ownership import compile_ownership
+     from myfuzz.scenario.event_journal import EventJournal
+     from myfuzz.scenario.ahb_cpu_events import SHAPE
+     artifact,cpu=generated;observer=cpu._ahb_observer
+     observer.begin_scope(execution_id='issued',testcase_id='case',reset_epoch=0)
+     row=dict.fromkeys(SHAPE,0)|dict(hready=1,hsel=1,htrans=2)
+     observer.observe(dict(local_tick=1,pre=row,post=row))
+     original=list(cpu.runtime_events)
+     runner=ScenarioRunner(sessions={'cpu':cpu},ownership=compile_ownership((),()),bindings=())
+     runner._events._records=EventJournal(chunk_size=2)
+     runner._append_external_events('cpu',0)
+     assert cpu.runtime_events==[]
+     row=dict.fromkeys(SHAPE,0)|dict(hready=1,hrdata=42)
+     observer.observe(dict(local_tick=2,pre=row,post=row))
+     runner._append_external_events('cpu',0);n=len(runner._events)
+     runner._append_external_events('cpu',0);assert len(runner._events)==n
+     raw=[e for e in runner._events if e['kind']=='ahb_raw']
+     complete=[e for e in runner._events if e['kind']=='ahb_complete'][0]
+>    assert complete['completion_ref']['raw_event']>complete['address_ref']['raw_event']
+E    assert 0 > 0
+
+tests/local_harness/test_ahb_cpu_contract.py:113: AssertionError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_ahb_cpu_contract.py::test_runner_journal_drain_keeps_global_raw_refs
+1 failed, 10 passed in 1.01s

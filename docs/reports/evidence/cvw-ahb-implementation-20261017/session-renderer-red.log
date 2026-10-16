@@ -1,0 +1,175 @@
+FFFFFFFFFFF                                                              [100%]
+=================================== FAILURES ===================================
+___________________ test_renderer_exports_actual_wires_only ____________________
+
+    def test_renderer_exports_actual_wires_only():
+     wires={r:'opaque_'+str(i) for i,r in enumerate(SHAPE)}
+     ports=[];statements=[];tap_ports=[];traces=[]
+>    renderer._expose_cpu_ahb_trace('renamed.bus','clk',wires,ports,statements,tap_ports,traces)
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    AttributeError: module 'myfuzz.local_harness.runtime_renderer' has no attribute '_expose_cpu_ahb_trace'
+
+tests/local_harness/test_ahb_cpu_observer.py:20: AttributeError
+____________________ test_renderer_other_code_ast_unchanged ____________________
+
+    def test_renderer_other_code_ast_unchanged():
+     before=gzip.decompress(Path('docs/reports/evidence/cvw-ahb-implementation-20261017/runtime-renderer-before.py.gz').read_bytes()).decode()
+     after=Path(renderer.__file__).read_text()
+     tree=ast.parse(after)
+     tree.body=[n for n in tree.body if not isinstance(n,ast.FunctionDef) or n.name!='_expose_cpu_ahb_trace']
+     class Remove(ast.NodeTransformer):
+      def visit_Expr(self,n):
+       if isinstance(n.value,ast.Call) and isinstance(n.value.func,ast.Name) and n.value.func.id=='_expose_cpu_ahb_trace':return None
+       return self.generic_visit(n)
+     assert ast.dump(Remove().visit(tree),include_attributes=False)==ast.dump(ast.parse(before),include_attributes=False)
+>    assert after.count('_expose_cpu_ahb_trace(')==2
+E    assert 0 == 2
+E     +  where 0 = <built-in method count of str object at 0x1415bdf0>('_expose_cpu_ahb_trace(')
+E     +    where <built-in method count of str object at 0x1415bdf0> = '"""Source-admitted runtime tops; adapters stay outside the structural wrapper.\n\nThis stage emits no C++ transport. ...calRuntimeArtifact(copy.deepcopy(plan), copy.deepcopy(structural), copy.deepcopy(verified), runtime, \'\', document)\n'.count
+
+tests/local_harness/test_ahb_cpu_observer.py:40: AssertionError
+_______________________ test_noop_hook_base_is_callable ________________________
+
+    def test_noop_hook_base_is_callable():
+>    assert GeneratedNativeMemorySession._observe_verified_memory_edge(object(),object()) is None
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    AttributeError: type object 'GeneratedNativeMemorySession' has no attribute '_observe_verified_memory_edge'
+
+tests/local_harness/test_ahb_cpu_observer.py:67: AttributeError
+____________ test_actual_hook_before_service_and_long_lived_stream _____________
+
+    def test_actual_hook_before_service_and_long_lived_stream():
+     cpu,calls,aborts=fake();stream=cpu.runtime_events
+     cpu.step_local({});cpu.step_local({})
+>    assert cpu.runtime_events is stream and sum(e['kind']=='ahb_raw' for e in stream)==2
+E    assert ([] is [] and 0 == 2)
+E     +  where [] = <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x778b878573b0>.runtime_events
+E     +  and   0 = sum(<generator object test_actual_hook_before_service_and_long_lived_stream.<locals>.<genexpr> at 0x778b875245f0>)
+
+tests/local_harness/test_ahb_cpu_observer.py:73: AssertionError
+_________ test_all_exception_service_poison_and_retry_guard[failure0] __________
+
+failure = OSError('io')
+
+    @pytest.mark.parametrize('failure',[OSError('io'),TypeError('type'),AttributeError('attribute')])
+    def test_all_exception_service_poison_and_retry_guard(failure):
+     cpu,calls,aborts=fake()
+     def fail():raise failure
+     cpu.memory.advance_step=fail
+     with pytest.raises(type(failure)):cpu.step_local({})
+>    assert cpu.runtime_events[-1]['possible_effects'] and aborts
+            ^^^^^^^^^^^^^^^^^^^^^^
+E    IndexError: list index out of range
+
+tests/local_harness/test_ahb_cpu_observer.py:84: IndexError
+_________ test_all_exception_service_poison_and_retry_guard[failure1] __________
+
+failure = TypeError('type')
+
+    @pytest.mark.parametrize('failure',[OSError('io'),TypeError('type'),AttributeError('attribute')])
+    def test_all_exception_service_poison_and_retry_guard(failure):
+     cpu,calls,aborts=fake()
+     def fail():raise failure
+     cpu.memory.advance_step=fail
+     with pytest.raises(type(failure)):cpu.step_local({})
+>    assert cpu.runtime_events[-1]['possible_effects'] and aborts
+            ^^^^^^^^^^^^^^^^^^^^^^
+E    IndexError: list index out of range
+
+tests/local_harness/test_ahb_cpu_observer.py:84: IndexError
+_________ test_all_exception_service_poison_and_retry_guard[failure2] __________
+
+failure = AttributeError('attribute')
+
+    @pytest.mark.parametrize('failure',[OSError('io'),TypeError('type'),AttributeError('attribute')])
+    def test_all_exception_service_poison_and_retry_guard(failure):
+     cpu,calls,aborts=fake()
+     def fail():raise failure
+     cpu.memory.advance_step=fail
+     with pytest.raises(type(failure)):cpu.step_local({})
+>    assert cpu.runtime_events[-1]['possible_effects'] and aborts
+            ^^^^^^^^^^^^^^^^^^^^^^
+E    IndexError: list index out of range
+
+tests/local_harness/test_ahb_cpu_observer.py:84: IndexError
+_____________ test_current_receipt_cleared_before_command_failure ______________
+
+    def test_current_receipt_cleared_before_command_failure():
+     cpu,calls,aborts=fake();cpu.step_local({})
+     def fail(*a):raise OSError('lost reply')
+     cpu.command=fail
+     with pytest.raises(OSError):cpu.step_local({})
+>    assert cpu.runtime_events[-1]['diagnostic_receipt'] is None
+            ^^^^^^^^^^^^^^^^^^^^^^
+E    IndexError: list index out of range
+
+tests/local_harness/test_ahb_cpu_observer.py:95: IndexError
+_____________ test_untrusted_receipt_preserved_without_projection ______________
+
+    def test_untrusted_receipt_preserved_without_projection():
+     cpu,calls,aborts=fake();command=cpu.command
+     def bad(*args):
+      receipt=command(*args);receipt.payload['samples'][0]['pre']['backend']={};return receipt
+     cpu.command=bad
+     with pytest.raises(ProtocolEnvironmentError):cpu.step_local({})
+     assert not any(e['kind']=='ahb_raw' for e in cpu.runtime_events)
+>    assert cpu.runtime_events[-1]['diagnostic_receipt']['payload']['samples'][0]['pre']['backend']=={}
+            ^^^^^^^^^^^^^^^^^^^^^^
+E    IndexError: list index out of range
+
+tests/local_harness/test_ahb_cpu_observer.py:106: IndexError
+______________ test_observer_failure_preserves_raw_and_no_service ______________
+
+    def test_observer_failure_preserves_raw_and_no_service():
+     cpu,calls,aborts=fake();command=cpu.command
+     def bad(*args):
+      receipt=command(*args);receipt.payload['samples'][0]['pre']['protocol_taps']['haddr']=1<<34;return receipt
+     cpu.command=bad
+>    with pytest.raises(ValueError,match='shape'):cpu.step_local({})
+E    Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_ahb_cpu_observer.py:115: Failed
+_____________________ test_reset_cancel_precedes_transport _____________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x778b87897e30>
+
+    def test_reset_cancel_precedes_transport(monkeypatch):
+     cpu,calls,aborts=fake()
+     cpu._ahb_observer.observe({'local_tick':1,'pre':dict.fromkeys(SHAPE,0)|dict(hready=1,hsel=1,htrans=2),'post':dict.fromkeys(SHAPE,0)|dict(hready=1,hsel=1,htrans=2)})
+     def reset(self):
+      assert self.runtime_events[-1]['kind']=='ahb_reset'
+      assert self.runtime_events[-1]['cancelled'] is not None
+      return {}
+     monkeypatch.setattr(GeneratedNativeMemorySession,'reset_local',reset)
+>    cpu.reset_local()
+
+tests/local_harness/test_ahb_cpu_observer.py:127: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/ahb_lite_session.py:114: in reset_local
+    result = super().reset_local()
+             ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x778b87895c70>
+
+    def reset(self):
+>    assert self.runtime_events[-1]['kind']=='ahb_reset'
+E    AssertionError: assert 'ahb_address' == 'ahb_reset'
+E      
+E      - ahb_reset
+E      + ahb_address
+
+tests/local_harness/test_ahb_cpu_observer.py:123: AssertionError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_ahb_cpu_observer.py::test_renderer_exports_actual_wires_only
+FAILED tests/local_harness/test_ahb_cpu_observer.py::test_renderer_other_code_ast_unchanged
+FAILED tests/local_harness/test_ahb_cpu_observer.py::test_noop_hook_base_is_callable
+FAILED tests/local_harness/test_ahb_cpu_observer.py::test_actual_hook_before_service_and_long_lived_stream
+FAILED tests/local_harness/test_ahb_cpu_observer.py::test_all_exception_service_poison_and_retry_guard[failure0]
+FAILED tests/local_harness/test_ahb_cpu_observer.py::test_all_exception_service_poison_and_retry_guard[failure1]
+FAILED tests/local_harness/test_ahb_cpu_observer.py::test_all_exception_service_poison_and_retry_guard[failure2]
+FAILED tests/local_harness/test_ahb_cpu_observer.py::test_current_receipt_cleared_before_command_failure
+FAILED tests/local_harness/test_ahb_cpu_observer.py::test_untrusted_receipt_preserved_without_projection
+FAILED tests/local_harness/test_ahb_cpu_observer.py::test_observer_failure_preserves_raw_and_no_service
+FAILED tests/local_harness/test_ahb_cpu_observer.py::test_reset_cancel_precedes_transport
+11 failed in 0.27s

@@ -1,0 +1,30 @@
+{
+  "native_run": false,
+  "build_run": false,
+  "elaboration_run": false,
+  "software_result": "51 passed in 1.30s",
+  "source_sha256": {
+    "src/myfuzz/scenario/ahb_cpu_events.py": "0bf904e76376cc582be5ebf4546348e5e14cdd094a9b074843a7ce8140c8feec",
+    "src/myfuzz/local_harness/ahb_lite_session.py": "927708be705fde3872ee1a89b6e8e6181354e4b7d4124e09f1e9ce8c5970576b",
+    "src/myfuzz/local_harness/native_session.py": "fc4d3b87c18102523268c934e0e79bc1154223b01a81b4f6f5162c44f7f788bd",
+    "src/myfuzz/local_harness/runtime_renderer.py": "fe65b63178f28023612c7ae6ddb7c41e06220d2382cf9f4500af5d1d1960d168",
+    "src/myfuzz/scenario/contracts.py": "bb614c0709e704938a2a881a764b693072e8f4316f1e74a07b4e72cb6f4bea85",
+    "tests/scenario/test_ahb_cpu_events.py": "7f7d2fda5f1e7f0db63b2cbbfa9a12ce33cbaec8d00d3bf74b6521a5c10c3592",
+    "tests/local_harness/test_ahb_cpu_observer.py": "92c02399a92b1e830f96a8a2e3d6a071cd5c833b9a07dbab61f88cab1eedcf9b",
+    "tests/local_harness/test_ahb_cpu_contract.py": "50677e3a637c386f854126c41c2bb2473d36e1eba30272010ee4215b29b6fde4"
+  },
+  "receipts_sha256": {
+    "docs/reports/evidence/cvw-ahb-implementation-20261017/binding-red.log": "af21434101e6f3d99daca22fe19398583224548defbd88cf5dd611d8186b37a5",
+    "docs/reports/evidence/cvw-ahb-implementation-20261017/contract-green.log": "c33412088802b9b5e42840572f088aed270f812334e8a73595ae2ac3e832da3b",
+    "docs/reports/evidence/cvw-ahb-implementation-20261017/contract-red.log": "76bbf813c129ca86c189dc5b513db93f8867c10035dfdf78562a551c2813fe70",
+    "docs/reports/evidence/cvw-ahb-implementation-20261017/journal-red.log": "7701d741ea3cb3104d5dc0c5e6678187d5b9a0ae504b4dbcda0e41b93a7b3b60",
+    "docs/reports/evidence/cvw-ahb-implementation-20261017/observer-green.log": "90f3155755a85a8c2838fec94d62c654641db076ada9a67f6f34baa5b0e550e7",
+    "docs/reports/evidence/cvw-ahb-implementation-20261017/observer-red.log": "cd6bbcd0e5c2bd1821b9a531d808dd46b40c4a832605b2f7cf81733deac508ec",
+    "docs/reports/evidence/cvw-ahb-implementation-20261017/prefix-refs-red.log": "20e1cfdfc104c98e50304d56ae63983456719064c04a4a61e944d018d37e59bb",
+    "docs/reports/evidence/cvw-ahb-implementation-20261017/reset-effects-red.log": "0b75f0810c56d34f9219a3b64f2009c22fff4b48787f9a887359cd3df31ff41c",
+    "docs/reports/evidence/cvw-ahb-implementation-20261017/session-renderer-green.log": "a2030d6dad1c7e34ce6cdae278689fdfec9a4db11dacdcd4e057ddaa76e24e09",
+    "docs/reports/evidence/cvw-ahb-implementation-20261017/session-renderer-red.log": "cd3862e2564f71f02cb33beb754c5991d7e73655e36a81afe293cc76a3ecc8be",
+    "docs/reports/evidence/cvw-ahb-implementation-20261017/software-green.log": "ec1b6c5d59ca5e2aee6221dc9d0c09b0a8785e08f9773795d19fdb2ac279e474",
+    "docs/reports/evidence/cvw-ahb-implementation-20261017/strict-types-red.log": "aea59b9696cadcbc9e59e99f4e59378609f8e63f99292512944f2617538a0b65"
+  }
+}

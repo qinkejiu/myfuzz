@@ -41,6 +41,11 @@ Boot: the first fetch arrives before the program does
 """
 from __future__ import annotations
 
+import copy
+from dataclasses import asdict, is_dataclass
+from myfuzz.scenario.ahb_cpu_events import AhbCpuObserver, bind_ahb_trace
+from myfuzz.scenario.contracts import ProtocolEnvironmentError
+
 from myfuzz.scenario.memory import PersistentMemory
 from myfuzz.scenario.router import DataflowRouter
 
@@ -72,6 +77,12 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
             raise ValueError('AHB-Lite CPU requires persistent memory')
         super().__init__(artifact, base_dir=base_dir, cache_dir=cache_dir,
                          memory=memory, **kwargs)
+        endpoint, self._ahb_signal_map, trace = bind_ahb_trace(artifact.runtime_document)
+        self._ahb_observer = AhbCpuObserver(
+            component_id=artifact.plan.request.instance_id, endpoint_id=endpoint)
+        self._ahb_observer.contract['trace_binding'] = trace
+        self.runtime_events = self._ahb_observer.events
+        self._last_ahb_receipt = None
         self.router = router
         self.mmio_write_count = 0
         self.mmio_read_count = 0
@@ -93,6 +104,7 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
         identity = super().identity_document()
         identity['ahb_lite_service_schema_version'] = identity.pop(
             'native_service_schema_version')
+        identity['ahb_observation_contract'] = copy.deepcopy(self._ahb_observer.contract)
         return identity
 
     def declare_boot_instruction_slot(self):
@@ -111,6 +123,11 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
             pass
 
     def reset_local(self):
+        try:
+            self._ahb_observer.require_active()
+        except ValueError as error:
+            raise ProtocolEnvironmentError(str(error)) from error
+        self._ahb_observer.end_scope()
         result = super().reset_local()
         # A reset cancels every outstanding response, and the boot word must be
         # held again for the next boot.
@@ -119,6 +136,8 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
 
     def begin_case(self, testcase_id):
         super().begin_case(testcase_id)
+        self._ahb_observer.begin_scope(execution_id=self._execution,
+            testcase_id=testcase_id, reset_epoch=self.reset_epoch)
         self.declare_boot_instruction_slot()
 
     def _service_accepted_request(self, key, address, write, be, value):
@@ -181,7 +200,41 @@ class GeneratedAhbMemorySession(GeneratedNativeMemorySession):
             # report it.
             return False
 
+    def command(self, operation, fields):
+        if operation == 'STEP_MEMORY':
+            self._ahb_observer.require_active()
+            self._ahb_command_attempted = True
+        receipt = super().command(operation, fields)
+        if operation == 'STEP_MEMORY':
+            self._last_ahb_receipt = receipt
+        return receipt
+
+    def _observe_verified_memory_edge(self, receipt):
+        sample, = self.last_samples
+        rows = {phase: {role: sample[phase]['protocol_taps'][name]
+                        for role, name in self._ahb_signal_map.items()}
+                for phase in ('pre', 'post')}
+        self._ahb_observer.observe(sample, rows=rows)
+
     def step_local(self, inputs):
+        try:
+            self._ahb_observer.require_active()
+        except ValueError as error:
+            raise ProtocolEnvironmentError(str(error)) from error
+        self._last_ahb_receipt = None
+        self._ahb_command_attempted = False
+        try:
+            return self._step_ahb_local(inputs)
+        except Exception as error:
+            receipt = self._last_ahb_receipt
+            diagnostic = (asdict(receipt) if is_dataclass(receipt)
+                          else copy.deepcopy(vars(receipt)) if receipt is not None else None)
+            self._ahb_observer.poison(str(error), diagnostic_receipt=diagnostic,
+                possible_effects=self._ahb_command_attempted)
+            self._abort()
+            raise
+
+    def _step_ahb_local(self, inputs):
         if self._boot_word_required():
             # Hold the transfer open the only way AHB-Lite allows: keep the
             # subordinate from accepting it.  The base implementation derives

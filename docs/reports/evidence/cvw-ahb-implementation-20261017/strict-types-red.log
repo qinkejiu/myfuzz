@@ -1,0 +1,54 @@
+.........FF..                                                            [100%]
+=================================== FAILURES ===================================
+__________________ test_strict_identity_mutations[<lambda>8] ___________________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profi...4a3f23d759c2d13c5be8578'}), <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x7e397c533350>)
+mutate = <function <lambda> at 0x7e397ccebd80>
+
+    @pytest.mark.parametrize('mutate',[
+     lambda d:d.update(unknown=True),
+     lambda d:d.update(memory_policy='other'),
+     lambda d:d.update(source_component='other'),
+     lambda d:d.update(ahb_lite_service_schema_version='other'),
+     lambda d:d['ahb_observation_contract']['budgets'].update(max_edges=1),
+     lambda d:d['runtime_artifact']['boot_contract'].update(configured_boot_base=0),
+     lambda d:d['build_identity'].update(artifact_digest='other'),
+     lambda d:d['runtime_artifact']['protocol_tap_ports'][0].update(source_wire='guessed'),
+     lambda d:next(r for r in d['runtime_artifact']['protocol_tap_ports'] if r['role']=='hready').update(width=True),
+     lambda d:d['build_identity'].update(software_fixture=1),
+    ])
+    def test_strict_identity_mutations(generated,mutate):
+     from myfuzz.scenario.contracts import _verify_generated_session
+     artifact,cpu=generated;identity=copy.deepcopy(cpu.identity_document());mutate(identity)
+>    with pytest.raises(ValueError):_verify_generated_session(identity)
+E    Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_ahb_cpu_contract.py:76: Failed
+__________________ test_strict_identity_mutations[<lambda>9] ___________________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profi...4a3f23d759c2d13c5be8578'}), <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x7e397c2a83b0>)
+mutate = <function <lambda> at 0x7e397ccebe20>
+
+    @pytest.mark.parametrize('mutate',[
+     lambda d:d.update(unknown=True),
+     lambda d:d.update(memory_policy='other'),
+     lambda d:d.update(source_component='other'),
+     lambda d:d.update(ahb_lite_service_schema_version='other'),
+     lambda d:d['ahb_observation_contract']['budgets'].update(max_edges=1),
+     lambda d:d['runtime_artifact']['boot_contract'].update(configured_boot_base=0),
+     lambda d:d['build_identity'].update(artifact_digest='other'),
+     lambda d:d['runtime_artifact']['protocol_tap_ports'][0].update(source_wire='guessed'),
+     lambda d:next(r for r in d['runtime_artifact']['protocol_tap_ports'] if r['role']=='hready').update(width=True),
+     lambda d:d['build_identity'].update(software_fixture=1),
+    ])
+    def test_strict_identity_mutations(generated,mutate):
+     from myfuzz.scenario.contracts import _verify_generated_session
+     artifact,cpu=generated;identity=copy.deepcopy(cpu.identity_document());mutate(identity)
+>    with pytest.raises(ValueError):_verify_generated_session(identity)
+E    Failed: DID NOT RAISE ValueError
+
+tests/local_harness/test_ahb_cpu_contract.py:76: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_ahb_cpu_contract.py::test_strict_identity_mutations[<lambda>8]
+FAILED tests/local_harness/test_ahb_cpu_contract.py::test_strict_identity_mutations[<lambda>9]
+2 failed, 11 passed in 1.19s

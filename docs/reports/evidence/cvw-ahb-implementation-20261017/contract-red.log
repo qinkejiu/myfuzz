@@ -1,0 +1,91 @@
+F.........                                                               [100%]
+=================================== FAILURES ===================================
+__________ test_real_constructor_identity_reconstruction_and_factory ___________
+
+generated = (LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cvw/component_profi...4a3f23d759c2d13c5be8578'}), <myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession object at 0x756fe51738f0>)
+
+    def test_real_constructor_identity_reconstruction_and_factory(generated):
+     from myfuzz.scenario.contracts import _verify_generated_session,_generated_session_class_kind
+     artifact,cpu=generated
+     assert _generated_session_class_kind('myfuzz.local_harness.ahb_lite_session.GeneratedAhbMemorySession')=='ahb_lite_cpu'
+>    assert _verify_generated_session(cpu.identity_document())==artifact
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_ahb_cpu_contract.py:56: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+identity = {'schema_version': 'generated_local_session_identity.v1', 'runtime_artifact': {'schema_version': 'local_runtime_artifa...act_digest': '34e7d369e8904bd3be01c2fe3a83fd8bfa8063fb74a3f23d759c2d13c5be8578'}, 'command_timeout_seconds': 10.0, ...}
+
+    def _verify_generated_session(identity: dict):
+        """Regenerate authenticated bytes and build identity without starting RTL."""
+        from myfuzz.local_harness import (load_local_harness_request, plan_local_harness,
+            render_local_harness, render_local_runtime, verify_local_source_lock)
+        from myfuzz.local_harness.driver_renderer import render_local_driver
+        from myfuzz.local_harness.build import local_build_identity
+        base_fields = {'schema_version', 'runtime_artifact', 'build_identity',
+                       'command_timeout_seconds'}
+        cpu_fields = {'cpu_service_schema_version', 'source_component', 'defer_mmio'}
+        cpu_observation_fields = cpu_fields | {'cpu_observation_schema_version',
+                                              'cpu_retirement_sampling_edge'}
+        cpu_native_irq_fields = cpu_observation_fields | {'cpu_native_irq_receipt_contract'}
+        gpio_observation_fields = {'gpio_target_context_schema_version',
+                                  'gpio_observation_contract'}
+        native_fields = {'native_service_schema_version', 'source_component', 'memory_policy'}
+        rvx_fields = {'rvx_memory_service_schema_version', 'source_component',
+                      'memory_policy', 'response_latency_ticks'}
+        axi_lite_fields = {'axi_lite_service_schema_version', 'source_component', 'memory_policy'}
+        spi_fields = {'spi_peer_schema_version', 'source_component', 'chip_select',
+                      'source_hex', 'startup_writes', 'read_rx_on_eot'}
+        axi4_fields = {'cpu_service_schema_version', 'source_component'}
+        tlul_gpio_fields = {'tlul_gpio_service_schema_version', 'source_component', 'startup_writes'}
+        tlul_spi_host_fields = {'tlul_spi_host_service_schema_version', 'source_component',
+                                'setup_writes', 'probe_offsets', 'source_hex',
+                                'read_rx_on_complete'}
+        tlul_spi_host_genome_fields = tlul_spi_host_fields | {'source_mode'}
+        tlul_spi_host_cpu_fields = tlul_spi_host_genome_fields | {'cpu_routed_mode'}
+        tlul_uart_fields = {'tlul_uart_service_schema_version', 'source_component',
+                            'source_hex', 'startup_writes', 'read_rx_after_source'}
+        tlul_uart_genome_fields = tlul_uart_fields | {'source_mode'}
+        tlul_uart_cpu_fields = tlul_uart_genome_fields | {'cpu_routed_mode'}
+        tlul_uart_provenance_variants = tuple(fields | {'uart_source_provenance'}
+            for fields in (tlul_uart_fields, tlul_uart_genome_fields, tlul_uart_cpu_fields))
+        tlul_uart_fifo_variants = tuple(fields | {'uart_fifo_observation_contract'}
+            for fields in tlul_uart_provenance_variants)
+        axil_uart_fields = {'axil_uart_service_schema_version', 'source_component',
+                            'source_hex', 'startup_writes', 'read_rx_after_source'}
+        axil_uart_genome_fields = axil_uart_fields | {'source_mode'}
+        axil_uart_cpu_fields = axil_uart_genome_fields | {'cpu_routed_mode'}
+        wb_uart_fields = {'wb_uart_service_schema_version', 'source_component',
+                          'source_hex', 'startup_writes', 'read_rx_after_source'}
+        wb_uart_genome_fields = wb_uart_fields | {'source_mode'}
+        wb_uart_cpu_fields = wb_uart_genome_fields | {'cpu_routed_mode'}
+        if not isinstance(identity, dict) or set(identity) not in (
+                base_fields, base_fields | cpu_fields, base_fields | cpu_observation_fields,
+                base_fields | cpu_native_irq_fields,
+                base_fields | gpio_observation_fields,
+                base_fields | native_fields,
+                base_fields | rvx_fields,
+                base_fields | axi_lite_fields, base_fields | spi_fields,
+                base_fields | axi4_fields, base_fields | tlul_gpio_fields,
+                base_fields | tlul_spi_host_fields,
+                base_fields | tlul_spi_host_genome_fields,
+                base_fields | tlul_spi_host_cpu_fields,
+                base_fields | tlul_uart_fields,
+                base_fields | tlul_uart_genome_fields,
+                base_fields | tlul_uart_cpu_fields,
+                base_fields | axil_uart_fields,
+                base_fields | axil_uart_genome_fields,
+                base_fields | axil_uart_cpu_fields,
+                base_fields | wb_uart_fields,
+                base_fields | wb_uart_genome_fields,
+                base_fields | wb_uart_cpu_fields,
+                *(base_fields | fields for fields in tlul_uart_provenance_variants),
+                *(base_fields | fields for fields in tlul_uart_fifo_variants)):
+    
+>           raise ValueError('generated session identity has unknown or missing fields')
+E           ValueError: generated session identity has unknown or missing fields
+
+src/myfuzz/scenario/contracts.py:152: ValueError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_ahb_cpu_contract.py::test_real_constructor_identity_reconstruction_and_factory
+1 failed, 9 passed in 0.66s

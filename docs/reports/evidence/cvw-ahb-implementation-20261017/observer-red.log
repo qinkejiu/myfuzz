@@ -1,0 +1,16 @@
+
+==================================== ERRORS ====================================
+____________ ERROR collecting tests/scenario/test_ahb_cpu_events.py ____________
+ImportError while importing test module '/home/qinkejiu/myfuzz/tests/scenario/test_ahb_cpu_events.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/scenario/test_ahb_cpu_events.py:4: in <module>
+    from myfuzz.scenario.ahb_cpu_events import AhbCpuObserver, SHAPE
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.ahb_cpu_events'
+=========================== short test summary info ============================
+ERROR tests/scenario/test_ahb_cpu_events.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.13s
