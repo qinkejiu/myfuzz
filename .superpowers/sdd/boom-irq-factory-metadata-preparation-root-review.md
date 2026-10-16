@@ -1,0 +1,9 @@
+# Root review of factory-fix metadata preparation
+
+Source/control review98e9da1 closed the state-path symlink issue. Root independently read corrected control2d1879526d53d7159dc9001491a6f2a2742cdd75ad12a9968a13d63b1c57824b, launcherb3d43ecfbae4480fbe960e4d5ff7f7fb89386bd1ad8313d4ab77248f7f9ac2df and copies-only preparef710f6eba37d66b4bb9c3002ed25ff1db9aa6e3a74e03e9977e7f357de3b4a62. Independent combined14pure controls passed0.07s. No model/tool operation in those controls.
+
+Preparation validates only two overlay paths (exact new factory plus new pure test), preserves all original failed-source bytes except factory, uses independent copy2/no shared inodes, keeps standalone39-file Git closure, and validates immutable protected source/artifact/first maps and original84-file build before/after. It copies and validates three original archives through unchanged helper, imports only matching snapshot code and hashes actual permitted tools without querying versions. Prepared source2567 is not a clean-full-HEAD claim.
+
+Ready expected20ad6eb738b67db8640f7e21299259fbc04f017f948960eddfa306e1dee0d211, prepared actualPID266744/exit0. Future root live preflight must independently compare this exact ready and all source/protected/build bytes plus absence of operation state/output before launch. The metadata operation may invoke the exact Verilator version query, canonical generation and independent finalization; no constructor, elaboration, build, describe or model is authorized. Existing sources/artifact/attempt remain immutable. All12 compiled inputs and8 implementation identities stay old; new factory SHA must be the separate explicit new host metadata identity. A new native gate needs its own review/ready/exactGO later.
+
+No remaining high/medium in this source/preparation scope. This is not a metadata execution result or IRQ runtime acceptance.
