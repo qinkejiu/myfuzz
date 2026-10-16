@@ -1,0 +1,25 @@
+{
+  "scope": "isolated_actual_AST_guard_only_not_live_issuer",
+  "native_eligible_checked": false,
+  "token_issued": false,
+  "rows": [
+    {
+      "method": "issue",
+      "rejection_guard_value": false,
+      "stored_state_tick": 5,
+      "target_local_ticks": 6,
+      "target_tick_base": 1,
+      "scope_matches": true,
+      "sequence_matches": true
+    },
+    {
+      "method": "consume",
+      "rejection_guard_value": false,
+      "stored_state_tick": 5,
+      "target_local_ticks": 6,
+      "target_tick_base": 1,
+      "scope_matches": true,
+      "sequence_matches": true
+    }
+  ]
+}
