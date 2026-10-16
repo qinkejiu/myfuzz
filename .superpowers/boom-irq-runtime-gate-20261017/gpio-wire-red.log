@@ -1,0 +1,15 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_gpio_wire_normalizes_only_typed_protocol_execution_slot _________
+
+    def test_gpio_wire_normalizes_only_typed_protocol_execution_slot():
+        g=gate();ids={'gpio_execution':'a'*32}
+        rows=[dict(execution_id='a'*32,raw_line='RESULT '+'a'*32+' 1 0 1 7b7d\n'),dict(execution_id='a'*32,raw_line='unknown '+'a'*32+' payload\n')]
+>       result=g.normalize_gpio_wire(rows,ids)
+               ^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'myfuzz.scenario.boom_gpio_irq_verification' has no attribute 'normalize_gpio_wire'
+
+tests/local_harness/test_boom_irq_verification.py:238: AttributeError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_boom_irq_verification.py::test_gpio_wire_normalizes_only_typed_protocol_execution_slot
+1 failed, 22 deselected in 0.08s

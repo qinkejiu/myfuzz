@@ -1,0 +1,292 @@
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+____________________ test_default_entry_does_not_run_native ____________________
+
+    def gate():
+>       try:return importlib.import_module('myfuzz.scenario.boom_gpio_irq_verification')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_boom_irq_verification.py:8: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1310: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:488: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1310: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:488: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz', import_ = <function _gcd_import at 0x7c3618b4c0e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7c3617279580>
+capsys = <_pytest.capture.CaptureFixture object at 0x7c3617279d00>
+
+    def test_default_entry_does_not_run_native(monkeypatch,capsys):
+>       g=gate()
+          ^^^^^^
+
+tests/local_harness/test_boom_irq_verification.py:13: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def gate():
+        try:return importlib.import_module('myfuzz.scenario.boom_gpio_irq_verification')
+>       except ModuleNotFoundError:pytest.fail('IRQ gate source missing')
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: IRQ gate source missing
+
+tests/local_harness/test_boom_irq_verification.py:9: Failed
+_______________ test_mret_requires_exact_actual_qualified_decode _______________
+
+    def gate():
+>       try:return importlib.import_module('myfuzz.scenario.boom_gpio_irq_verification')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_boom_irq_verification.py:8: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1310: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:488: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1310: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:488: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz', import_ = <function _gcd_import at 0x7c3618b4c0e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_mret_requires_exact_actual_qualified_decode():
+>       g=gate()
+          ^^^^^^
+
+tests/local_harness/test_boom_irq_verification.py:20: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def gate():
+        try:return importlib.import_module('myfuzz.scenario.boom_gpio_irq_verification')
+>       except ModuleNotFoundError:pytest.fail('IRQ gate source missing')
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: IRQ gate source missing
+
+tests/local_harness/test_boom_irq_verification.py:9: Failed
+__________ test_fixed_pulse_requires_64_actual_ticks_and_meip_matches __________
+
+    def gate():
+>       try:return importlib.import_module('myfuzz.scenario.boom_gpio_irq_verification')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_boom_irq_verification.py:8: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1310: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:488: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1310: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:488: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz', import_ = <function _gcd_import at 0x7c3618b4c0e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_fixed_pulse_requires_64_actual_ticks_and_meip_matches():
+>       g=gate()
+          ^^^^^^
+
+tests/local_harness/test_boom_irq_verification.py:28: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def gate():
+        try:return importlib.import_module('myfuzz.scenario.boom_gpio_irq_verification')
+>       except ModuleNotFoundError:pytest.fail('IRQ gate source missing')
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: IRQ gate source missing
+
+tests/local_harness/test_boom_irq_verification.py:9: Failed
+_________ test_scoped_normalization_preserves_arbitrary_nested_payload _________
+
+    def gate():
+>       try:return importlib.import_module('myfuzz.scenario.boom_gpio_irq_verification')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_boom_irq_verification.py:8: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1310: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:488: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1310: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:488: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz', import_ = <function _gcd_import at 0x7c3618b4c0e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_scoped_normalization_preserves_arbitrary_nested_payload():
+>       g=gate();ids={'cpu_execution':'cpu-uuid','gpio_execution':'gpio-uuid','coherent_stream':'stream-uuid','runner_execution':'runner-uuid'}
+          ^^^^^^
+
+tests/local_harness/test_boom_irq_verification.py:45: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def gate():
+        try:return importlib.import_module('myfuzz.scenario.boom_gpio_irq_verification')
+>       except ModuleNotFoundError:pytest.fail('IRQ gate source missing')
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: IRQ gate source missing
+
+tests/local_harness/test_boom_irq_verification.py:9: Failed
+_________________ test_missing_actual_chain_is_never_positive __________________
+
+    def gate():
+>       try:return importlib.import_module('myfuzz.scenario.boom_gpio_irq_verification')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_boom_irq_verification.py:8: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1310: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:488: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1310: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:488: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz', import_ = <function _gcd_import at 0x7c3618b4c0e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_missing_actual_chain_is_never_positive():
+>       g=gate()
+          ^^^^^^
+
+tests/local_harness/test_boom_irq_verification.py:56: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def gate():
+        try:return importlib.import_module('myfuzz.scenario.boom_gpio_irq_verification')
+>       except ModuleNotFoundError:pytest.fail('IRQ gate source missing')
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: IRQ gate source missing
+
+tests/local_harness/test_boom_irq_verification.py:9: Failed
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_boom_irq_verification.py::test_default_entry_does_not_run_native
+FAILED tests/local_harness/test_boom_irq_verification.py::test_mret_requires_exact_actual_qualified_decode
+FAILED tests/local_harness/test_boom_irq_verification.py::test_fixed_pulse_requires_64_actual_ticks_and_meip_matches
+FAILED tests/local_harness/test_boom_irq_verification.py::test_scoped_normalization_preserves_arbitrary_nested_payload
+FAILED tests/local_harness/test_boom_irq_verification.py::test_missing_actual_chain_is_never_positive
+5 failed in 0.06s

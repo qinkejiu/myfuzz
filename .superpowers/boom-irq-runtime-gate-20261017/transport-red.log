@@ -1,0 +1,19 @@
+.....F..                                                                 [100%]
+=================================== FAILURES ===================================
+_______ test_raw_commands_and_coherent_rows_must_bind_same_actual_edges ________
+
+    def test_raw_commands_and_coherent_rows_must_bind_same_actual_edges():
+        g=gate();execution='actual-uuid'
+        sample=dict(cycle=1,irq_input=0,events=[dict(channel='A',address=0x3000)],probes_pre={'meip':0},probes_post={'meip':0})
+        run=dict(identities={'cpu_execution':execution},cpu_samples=[sample],
+            cpu_commands=[dict(operation='STEP_IRQ',execution_id=execution,args=[0],response=sample)],
+            runtime_events=[dict(kind='coherent_accepted_raw',execution_id=execution,local_tick=1,native_event=sample['events'][0])],
+            source_events=[dict(kind='boom_irq_passive_sample',local_tick=1,irq_input=0,probes_pre={'meip':0},probes_post={'meip':0})])
+>       g.validate_transport(run)
+        ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'myfuzz.scenario.boom_gpio_irq_verification' has no attribute 'validate_transport'
+
+tests/local_harness/test_boom_irq_verification.py:68: AttributeError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_boom_irq_verification.py::test_raw_commands_and_coherent_rows_must_bind_same_actual_edges
+1 failed, 7 passed in 4.40s

@@ -1,0 +1,18 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______ test_only_declared_target_receipt_transaction_slots_are_normalized ______
+
+    def test_only_declared_target_receipt_transaction_slots_are_normalized():
+        g=gate();ids={'cpu_execution':'uuid'}
+        row=dict(kind='mmio_delivery',source_transaction={'execution_id':'uuid'},
+            target_apb_access={'source_transaction':{'execution_id':'uuid'}},
+            target_request={'source_transaction':{'execution_id':'uuid'}},
+            target_response={'source_transaction':{'execution_id':'uuid'}},payload={'target_request':{'source_transaction':{'execution_id':'uuid'}}})
+        result=g.normalize_rows([row],ids)[0]
+>       assert result['target_apb_access']['source_transaction']['execution_id']!='uuid'
+E       AssertionError: assert 'uuid' != 'uuid'
+
+tests/local_harness/test_boom_irq_verification.py:191: AssertionError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_boom_irq_verification.py::test_only_declared_target_receipt_transaction_slots_are_normalized
+1 failed, 19 deselected in 0.08s
