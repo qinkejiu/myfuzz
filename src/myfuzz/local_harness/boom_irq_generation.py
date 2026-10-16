@@ -48,6 +48,7 @@ def generate_irq(repo: Path, output: Path):
         implementation_source_hashes={name:digest(here/name) for name in (
             'boom_irq_generation.py','boom_irq_contract.py','boom_irq_cpu_session.py',
             'boom_irq_cpu_driver.cpp','boom_irq_probes.h','boom_irq_scenario_session.py',
+            'boom_irq_recovery.py',
             'tilelink_coherent_cpu_session.py')},
         auxiliary_hashes={name:digest(output/name) for name in AUXILIARY},
         probes_runtime_confirmed=False, passive_probe_contract=contract,

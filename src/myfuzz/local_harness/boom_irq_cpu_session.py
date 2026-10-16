@@ -18,6 +18,7 @@ from myfuzz.scenario.protocol_io import (
 )
 from .tilelink_coherent_cpu_session import digest
 from .boom_irq_generation import generate_irq, AUXILIARY, generated_symbol_files
+from .boom_irq_recovery import validate_recovery_origin
 from .boom_irq_contract import validate_probe_inventory, validate_probe_values, validate_irq_inputs
 
 
@@ -45,7 +46,7 @@ class GeneratedBoomIrqCpuSession:
         # Re-run the canonical source/port authentication independently of the
         # mutable build artifact. A local executable hash is integrity evidence,
         # not signed build provenance or generic runtime admission.
-        with tempfile.TemporaryDirectory(prefix='boom-source-check-') as temporary:
+        with tempfile.TemporaryDirectory(prefix='boom-source-check-',dir=self.output.parent) as temporary:
             expected = generate_irq(repo, Path(temporary))
             expected_aux = {name:digest(Path(temporary)/name) for name in AUXILIARY}
             expected_source_files = {
@@ -72,7 +73,10 @@ class GeneratedBoomIrqCpuSession:
         symbols = generated_symbol_files(self.output)
         if self.artifact.get('generated_symbol_files') != list(symbols):
             raise ValueError('BOOM generated registry layout crosslink mismatch')
-        expected_file_set = {*expected_source_files, 'driver.cpp', 'obj/VBoomTile',
+        origin_files = validate_recovery_origin(self.output,self.artifact)
+        if (self.output/'.recovery-incomplete.json').exists():
+            raise ValueError('BOOM recovery is incomplete')
+        expected_file_set = {*origin_files, *expected_source_files, 'driver.cpp', 'obj/VBoomTile',
                              *symbols, 'generated-probes.json'}
         if set(self.artifact['session_files']) != expected_file_set:
             raise ValueError('BOOM session manifest file set mismatch')
