@@ -23,6 +23,6 @@ The unchanged gate retains fixed6000+512 edges, fixed64 actual MEIP input ticks,
 
 ## Software evidence and current boundary
 
-Copied controller unsafe receipt regression was RED; missing preparation module was RED. Final focused suite:21passed0.08s. This includes one-shot refusal, actual child-exit propagation using software fake subprocesses, receipt/state symlink refusal, exact independent source copy, mismatched source rejection and protected destination-parent refusal. These are software controls, not native execution evidence.
+Copied controller unsafe receipt regression was RED; missing preparation module was RED. Native-log symlink-parent expression also has an isolated RED→GREEN regression; it evaluates the actual controller open expression without launching a child. Final focused suite:22passed0.08s. This includes one-shot refusal, actual child-exit propagation using software fake subprocesses, receipt/state symlink refusal, exact independent source copy, mismatched source rejection and protected destination-parent refusal. These are software controls, not native execution evidence.
 
 Only local control source/tests were prepared in this step. No remote attempt2 snapshot, constructor, model, build, describe or native gate has run. A final actual ready hash does not exist yet.

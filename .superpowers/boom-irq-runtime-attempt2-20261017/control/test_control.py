@@ -122,3 +122,16 @@ def test_controller_collects_actual_child_fixture_exit_and_after_audit(tmp_path,
     assert (module.BASE/'state/worker.exit').read_text().strip()==str(child_exit)
     assert audits==['checked','checked']
     assert json.loads((module.BASE/'state/child.json').read_text())['exit']==child_exit
+
+
+def test_native_log_parent_symlink_refused_without_old_write(tmp_path):
+    import ast
+    module=load(tmp_path);old=tmp_path/'old-logs';old.mkdir();(old/'sentinel').write_text('preserve')
+    (module.BASE/'logs').symlink_to(old,target_is_directory=True);before=snapshot(old)
+    tree=ast.parse(Path(module.__file__).read_text())
+    contexts=[item.context_expr for node in ast.walk(tree) if isinstance(node,ast.With)
+              for item in node.items if 'logs/native.log' in ast.unparse(item.context_expr)]
+    assert len(contexts)==1
+    expression=ast.Expression(contexts[0]);ast.fix_missing_locations(expression)
+    with pytest.raises(ValueError):eval(compile(expression,'actual-native-log-expression','eval'),module.__dict__)
+    assert snapshot(old)==before

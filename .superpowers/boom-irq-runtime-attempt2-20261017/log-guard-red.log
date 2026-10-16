@@ -1,0 +1,22 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___________ test_native_log_parent_symlink_refused_without_old_write ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-235/test_native_log_parent_symlink0')
+
+    def test_native_log_parent_symlink_refused_without_old_write(tmp_path):
+        import ast
+        module=load(tmp_path);old=tmp_path/'old-logs';old.mkdir();(old/'sentinel').write_text('preserve')
+        (module.BASE/'logs').symlink_to(old,target_is_directory=True);before=snapshot(old)
+        tree=ast.parse(Path(module.__file__).read_text())
+        contexts=[item.context_expr for node in ast.walk(tree) if isinstance(node,ast.With)
+                  for item in node.items if 'logs/native.log' in ast.unparse(item.context_expr)]
+        assert len(contexts)==1
+        expression=ast.Expression(contexts[0]);ast.fix_missing_locations(expression)
+>       with pytest.raises(ValueError):eval(compile(expression,'actual-native-log-expression','eval'),module.__dict__)
+E       Failed: DID NOT RAISE ValueError
+
+.superpowers/boom-irq-runtime-attempt2-20261017/control/test_control.py:136: Failed
+=========================== short test summary info ============================
+FAILED .superpowers/boom-irq-runtime-attempt2-20261017/control/test_control.py::test_native_log_parent_symlink_refused_without_old_write
+1 failed, 18 deselected in 0.05s
