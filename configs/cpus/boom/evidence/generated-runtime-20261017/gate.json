@@ -1,0 +1,458 @@
+{
+  "schema_version": "generated_coherent_cpu_ram_gate.v1",
+  "artifact": {
+    "schema_version": "generated_coherent_cpu_ram.v1",
+    "runtime_kind": "tilelink_coherent_cpu",
+    "derived_source": true,
+    "source_revision": "sha256:4f960fdd6c96dccfe1bb7788fd628e368304b7280e5449cf3ae5463e982f2c30",
+    "source_manifest_sha256": "0e3718bdc000dd2a8b965e20eb4e00b8071a786f7961d62372956f90a6bc6053",
+    "profile_sha256": "344cfcebf31056311021f04cbecef0d1a8819f4befc40c71e380147293620a01",
+    "driver_sha256": "8bd9c5a6406cab968c778b979d8f8b7a3d9713e11b1f297bfb3b543d52986d5b",
+    "manager_sha256": "c40e3b16f492f4f73857950e47604f60e29055f684f46204cdeb685867d095da",
+    "trace_verifier": "/root/fanzehui/system-20261016/project/configs/cpus/boom/runtime/verify_trace.py",
+    "trace_verifier_sha256": "06b303a065b99baf25d799cd16084ab50d406d8e8c5aa77b77cee96635d8bfcd",
+    "simulator": "Verilator 5.020 2024-01-01 rev (Debian 5.020-1)",
+    "physical_ports": 47,
+    "coherent_fields": 39,
+    "B_valid": 0,
+    "external_probes_exercised": false,
+    "generic_router_admitted": false,
+    "command": [
+      "verilator",
+      "--cc",
+      "--exe",
+      "--build",
+      "--top-module",
+      "BoomTile",
+      "--Mdir",
+      "/root/fanzehui/system-20261016/project/.superpowers/boom-generated/run/obj",
+      "-Wno-fatal",
+      "--output-split",
+      "20000",
+      "--output-split-cfuncs",
+      "20000",
+      "-j",
+      "2",
+      "-CFLAGS",
+      "-std=c++17 -O1",
+      "/root/fanzehui/system-20261016/project/.superpowers/boom-generated/run/EICG_wrapper.v",
+      "/root/fanzehui/system-20261016/project/.superpowers/boom-generated/run/chipyard.TestHarness.SmallBoomConfig.top.mems.v",
+      "/root/fanzehui/system-20261016/project/.superpowers/boom-generated/run/chipyard.TestHarness.SmallBoomConfig.top.v",
+      "/root/fanzehui/system-20261016/project/.superpowers/boom-generated/run/plusarg_reader.v",
+      "/root/fanzehui/system-20261016/project/.superpowers/boom-generated/run/driver.cpp"
+    ]
+  },
+  "executable_sha256": "836553ec9ec88913327524a5dc1a1fdb4545492f428a5a8b56d6eb71c402f233",
+  "two_fresh_matching": true,
+  "fault_read_control": true,
+  "fault_causality": {
+    "released_line_beats": [
+      {
+        "event_index": 228,
+        "channel": "C",
+        "opcode": 7,
+        "param": 1,
+        "mask": 255,
+        "size": 6,
+        "source": 2,
+        "address": 2147487744,
+        "data": 291
+      },
+      {
+        "event_index": 229,
+        "channel": "C",
+        "opcode": 7,
+        "param": 1,
+        "mask": 255,
+        "size": 6,
+        "source": 2,
+        "address": 2147487744,
+        "data": 0
+      },
+      {
+        "event_index": 230,
+        "channel": "C",
+        "opcode": 7,
+        "param": 1,
+        "mask": 255,
+        "size": 6,
+        "source": 2,
+        "address": 2147487744,
+        "data": 0
+      },
+      {
+        "event_index": 231,
+        "channel": "C",
+        "opcode": 7,
+        "param": 1,
+        "mask": 255,
+        "size": 6,
+        "source": 2,
+        "address": 2147487744,
+        "data": 0
+      },
+      {
+        "event_index": 232,
+        "channel": "C",
+        "opcode": 7,
+        "param": 1,
+        "mask": 255,
+        "size": 6,
+        "source": 2,
+        "address": 2147487744,
+        "data": 0
+      },
+      {
+        "event_index": 233,
+        "channel": "C",
+        "opcode": 7,
+        "param": 1,
+        "mask": 255,
+        "size": 6,
+        "source": 2,
+        "address": 2147487744,
+        "data": 0
+      },
+      {
+        "event_index": 234,
+        "channel": "C",
+        "opcode": 7,
+        "param": 1,
+        "mask": 255,
+        "size": 6,
+        "source": 2,
+        "address": 2147487744,
+        "data": 0
+      },
+      {
+        "event_index": 235,
+        "channel": "C",
+        "opcode": 7,
+        "param": 1,
+        "mask": 255,
+        "size": 6,
+        "source": 2,
+        "address": 2147487744,
+        "data": 0
+      }
+    ],
+    "reacquire_and_replaced_D_beats": [
+      {
+        "request": {
+          "event_index": 267,
+          "channel": "A",
+          "opcode": 6,
+          "param": 0,
+          "mask": 255,
+          "size": 6,
+          "source": 1,
+          "address": 2147487744,
+          "data": 0
+        },
+        "response": {
+          "event_index": 268,
+          "channel": "D",
+          "opcode": 5,
+          "size": 6,
+          "source": 1,
+          "sink": 0,
+          "param": 1,
+          "beat": 0,
+          "address": 2147487744,
+          "fault_read": 1,
+          "data": 290
+        }
+      },
+      {
+        "request": {
+          "event_index": 267,
+          "channel": "A",
+          "opcode": 6,
+          "param": 0,
+          "mask": 255,
+          "size": 6,
+          "source": 1,
+          "address": 2147487744,
+          "data": 0
+        },
+        "response": {
+          "event_index": 269,
+          "channel": "D",
+          "opcode": 5,
+          "size": 6,
+          "source": 1,
+          "sink": 0,
+          "param": 1,
+          "beat": 1,
+          "address": 2147487744,
+          "fault_read": 1,
+          "data": 1
+        }
+      },
+      {
+        "request": {
+          "event_index": 267,
+          "channel": "A",
+          "opcode": 6,
+          "param": 0,
+          "mask": 255,
+          "size": 6,
+          "source": 1,
+          "address": 2147487744,
+          "data": 0
+        },
+        "response": {
+          "event_index": 270,
+          "channel": "D",
+          "opcode": 5,
+          "size": 6,
+          "source": 1,
+          "sink": 0,
+          "param": 1,
+          "beat": 2,
+          "address": 2147487744,
+          "fault_read": 1,
+          "data": 1
+        }
+      },
+      {
+        "request": {
+          "event_index": 267,
+          "channel": "A",
+          "opcode": 6,
+          "param": 0,
+          "mask": 255,
+          "size": 6,
+          "source": 1,
+          "address": 2147487744,
+          "data": 0
+        },
+        "response": {
+          "event_index": 271,
+          "channel": "D",
+          "opcode": 5,
+          "size": 6,
+          "source": 1,
+          "sink": 0,
+          "param": 1,
+          "beat": 3,
+          "address": 2147487744,
+          "fault_read": 1,
+          "data": 1
+        }
+      },
+      {
+        "request": {
+          "event_index": 267,
+          "channel": "A",
+          "opcode": 6,
+          "param": 0,
+          "mask": 255,
+          "size": 6,
+          "source": 1,
+          "address": 2147487744,
+          "data": 0
+        },
+        "response": {
+          "event_index": 272,
+          "channel": "D",
+          "opcode": 5,
+          "size": 6,
+          "source": 1,
+          "sink": 0,
+          "param": 1,
+          "beat": 4,
+          "address": 2147487744,
+          "fault_read": 1,
+          "data": 1
+        }
+      },
+      {
+        "request": {
+          "event_index": 267,
+          "channel": "A",
+          "opcode": 6,
+          "param": 0,
+          "mask": 255,
+          "size": 6,
+          "source": 1,
+          "address": 2147487744,
+          "data": 0
+        },
+        "response": {
+          "event_index": 273,
+          "channel": "D",
+          "opcode": 5,
+          "size": 6,
+          "source": 1,
+          "sink": 0,
+          "param": 1,
+          "beat": 5,
+          "address": 2147487744,
+          "fault_read": 1,
+          "data": 1
+        }
+      },
+      {
+        "request": {
+          "event_index": 267,
+          "channel": "A",
+          "opcode": 6,
+          "param": 0,
+          "mask": 255,
+          "size": 6,
+          "source": 1,
+          "address": 2147487744,
+          "data": 0
+        },
+        "response": {
+          "event_index": 274,
+          "channel": "D",
+          "opcode": 5,
+          "size": 6,
+          "source": 1,
+          "sink": 0,
+          "param": 1,
+          "beat": 6,
+          "address": 2147487744,
+          "fault_read": 1,
+          "data": 1
+        }
+      },
+      {
+        "request": {
+          "event_index": 267,
+          "channel": "A",
+          "opcode": 6,
+          "param": 0,
+          "mask": 255,
+          "size": 6,
+          "source": 1,
+          "address": 2147487744,
+          "data": 0
+        },
+        "response": {
+          "event_index": 275,
+          "channel": "D",
+          "opcode": 5,
+          "size": 6,
+          "source": 1,
+          "sink": 0,
+          "param": 1,
+          "beat": 7,
+          "address": 2147487744,
+          "fault_read": 1,
+          "data": 1
+        }
+      }
+    ],
+    "CPU_reload_marker_A": {
+      "channel": "A",
+      "opcode": 0,
+      "param": 0,
+      "mask": 15,
+      "size": 2,
+      "source": 3,
+      "address": 16392,
+      "data": 1245540516130
+    }
+  },
+  "runs": [
+    {
+      "name": "fresh1",
+      "exit": 0,
+      "trace_sha256": "0419978db966f7042c9f2458f132b7944debca8e01343e5d5ac26ee142e26257",
+      "result": {
+        "result": "pass",
+        "cycles": 598,
+        "A_Get": 5,
+        "A_Acquire": 14,
+        "A_Put": 2,
+        "C_ReleaseData": 10,
+        "D_beats": 164,
+        "E_GrantAck": 14,
+        "cached_ram_value": 291,
+        "first_load_result": 291,
+        "reload_result": 291,
+        "B_valid": 0
+      },
+      "stderr": "",
+      "trace_verification": {
+        "checked_events": 279,
+        "channel_events": {
+          "A": 21,
+          "D": 164,
+          "E": 14,
+          "C": 80
+        },
+        "result": {
+          "result": "pass",
+          "cycles": 598,
+          "A_Get": 5,
+          "A_Acquire": 14,
+          "A_Put": 2,
+          "C_ReleaseData": 10,
+          "D_beats": 164,
+          "E_GrantAck": 14,
+          "cached_ram_value": 291,
+          "first_load_result": 291,
+          "reload_result": 291,
+          "B_valid": 0
+        }
+      }
+    },
+    {
+      "name": "fresh2",
+      "exit": 0,
+      "trace_sha256": "0419978db966f7042c9f2458f132b7944debca8e01343e5d5ac26ee142e26257",
+      "result": {
+        "result": "pass",
+        "cycles": 598,
+        "A_Get": 5,
+        "A_Acquire": 14,
+        "A_Put": 2,
+        "C_ReleaseData": 10,
+        "D_beats": 164,
+        "E_GrantAck": 14,
+        "cached_ram_value": 291,
+        "first_load_result": 291,
+        "reload_result": 291,
+        "B_valid": 0
+      },
+      "stderr": "",
+      "trace_verification": {
+        "checked_events": 279,
+        "channel_events": {
+          "A": 21,
+          "D": 164,
+          "E": 14,
+          "C": 80
+        },
+        "result": {
+          "result": "pass",
+          "cycles": 598,
+          "A_Get": 5,
+          "A_Acquire": 14,
+          "A_Put": 2,
+          "C_ReleaseData": 10,
+          "D_beats": 164,
+          "E_GrantAck": 14,
+          "cached_ram_value": 291,
+          "first_load_result": 291,
+          "reload_result": 291,
+          "B_valid": 0
+        }
+      }
+    },
+    {
+      "name": "fault_read",
+      "exit": 1,
+      "trace_sha256": "531e73b8f9c68e9b592c4658bc00a3447018f36a9b52193ad0a612af741f2726",
+      "result": {
+        "channel": "E",
+        "sink": 0
+      },
+      "stderr": "fault_injected=1 timeout marker=291 reload=290 acquire=14 release=10\n"
+    }
+  ]
+}

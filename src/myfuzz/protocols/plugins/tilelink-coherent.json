@@ -1,0 +1,290 @@
+{
+  "protocol_id": "tilelink-coherent",
+  "version": "1",
+  "legal_adapters": [],
+  "fields": [
+    {
+      "field_id": "a_ready",
+      "direction": "device_to_host",
+      "width": "1",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "a_valid",
+      "direction": "host_to_device",
+      "width": "1",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "a_bits_opcode",
+      "direction": "host_to_device",
+      "width": "3",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "a_bits_param",
+      "direction": "host_to_device",
+      "width": "3",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "a_bits_size",
+      "direction": "host_to_device",
+      "width": "4",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "a_bits_source",
+      "direction": "host_to_device",
+      "width": "3",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "a_bits_address",
+      "direction": "host_to_device",
+      "width": "32",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "a_bits_mask",
+      "direction": "host_to_device",
+      "width": "8",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "a_bits_data",
+      "direction": "host_to_device",
+      "width": "64",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "b_ready",
+      "direction": "host_to_device",
+      "width": "1",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "b_valid",
+      "direction": "device_to_host",
+      "width": "1",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "b_bits_opcode",
+      "direction": "device_to_host",
+      "width": "3",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "b_bits_param",
+      "direction": "device_to_host",
+      "width": "2",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "b_bits_size",
+      "direction": "device_to_host",
+      "width": "4",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "b_bits_source",
+      "direction": "device_to_host",
+      "width": "3",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "b_bits_address",
+      "direction": "device_to_host",
+      "width": "32",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "b_bits_mask",
+      "direction": "device_to_host",
+      "width": "8",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "b_bits_corrupt",
+      "direction": "device_to_host",
+      "width": "1",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "c_ready",
+      "direction": "device_to_host",
+      "width": "1",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "c_valid",
+      "direction": "host_to_device",
+      "width": "1",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "c_bits_opcode",
+      "direction": "host_to_device",
+      "width": "3",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "c_bits_param",
+      "direction": "host_to_device",
+      "width": "3",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "c_bits_size",
+      "direction": "host_to_device",
+      "width": "4",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "c_bits_source",
+      "direction": "host_to_device",
+      "width": "3",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "c_bits_address",
+      "direction": "host_to_device",
+      "width": "32",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "c_bits_data",
+      "direction": "host_to_device",
+      "width": "64",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_ready",
+      "direction": "host_to_device",
+      "width": "1",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_valid",
+      "direction": "device_to_host",
+      "width": "1",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_bits_opcode",
+      "direction": "device_to_host",
+      "width": "3",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_bits_param",
+      "direction": "device_to_host",
+      "width": "2",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_bits_size",
+      "direction": "device_to_host",
+      "width": "4",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_bits_source",
+      "direction": "device_to_host",
+      "width": "3",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_bits_sink",
+      "direction": "device_to_host",
+      "width": "3",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_bits_denied",
+      "direction": "device_to_host",
+      "width": "1",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_bits_data",
+      "direction": "device_to_host",
+      "width": "64",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "d_bits_corrupt",
+      "direction": "device_to_host",
+      "width": "1",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "e_ready",
+      "direction": "device_to_host",
+      "width": "1",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "e_valid",
+      "direction": "host_to_device",
+      "width": "1",
+      "required": true,
+      "reset_value": 0
+    },
+    {
+      "field_id": "e_bits_sink",
+      "direction": "host_to_device",
+      "width": "3",
+      "required": true,
+      "reset_value": 0
+    }
+  ],
+  "channel_relations": [],
+  "capability_limits": {
+    "max_outstanding": 8,
+    "byte_enable": true,
+    "partial_write": true,
+    "coherence": true,
+    "x-probe-policy": "Isolated manager holds B.valid=0; no other coherent clients."
+  },
+  "projection_actions": [],
+  "temporal_rules": []
+}

@@ -195,3 +195,17 @@ manager. B.valid stays zero because the environment has no other coherent
 clients; no external probes are claimed. It does not enable the abstract
 reference profile, provide a generic TileLink adapter, demonstrate full
 Chipyard serial boot, or demonstrate CPU-to-IP protocol joining.
+
+## Generated physical CPU/RAM gate update
+
+The physical profile and generated local driver are now present; see
+`generated/README.md` and `evidence/generated-runtime-20261017/gate.json`.
+Two fresh generated runs match at 598 cycles. Unlike the earlier direct
+program, this generated program fences conflicting stores before the final
+load, causing a measured fourteenth AcquireBlock of 0x80001000. Replacing its
+eight accepted D data beats changes the CPU's final uncached marker from
+0x123 to 0x122. The gate records exact A/C/D linkage and that CPU Put marker.
+The earlier unfenced direct trace establishes a second CPU load result and
+dirty writeback, but does not independently prove a later backing RAM read.
+The direct artifact remains unchanged. Generic router admission, CPU/IP
+joining and external probe handling remain unverified.

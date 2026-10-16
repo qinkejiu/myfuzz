@@ -1,0 +1,353 @@
+{
+  "schema_version": "component_profile.v1",
+  "component_id": "boom",
+  "kind": "cpu",
+  "description": "Derived chipyard.SmallBoomConfig BoomTile, physical 47-port coherent A/B/C/D/E boundary. Published dependency and explicit metadata IO patches are part of source provenance. Isolated RAM manager supports no external probes.",
+  "source": {
+    "root": "configs/cpus/boom/generated",
+    "revision": "sha256:4f960fdd6c96dccfe1bb7788fd628e368304b7280e5449cf3ae5463e982f2c30",
+    "top_module": "BoomTile",
+    "files": [
+      "EICG_wrapper.v",
+      "chipyard.TestHarness.SmallBoomConfig.top.mems.v",
+      "chipyard.TestHarness.SmallBoomConfig.top.v",
+      "plusarg_reader.v"
+    ],
+    "top_port_selection": "all",
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [],
+      "warning_policy": "recorded-nonfatal"
+    }
+  },
+  "clocks": [
+    {
+      "port": "clock",
+      "domain": "core",
+      "frequency_hz": 50000000
+    }
+  ],
+  "resets": [
+    {
+      "port": "reset",
+      "domain": "core",
+      "polarity": "active_high",
+      "synchronous": true,
+      "release": "Synchronous clock edge after 20 reset cycles."
+    }
+  ],
+  "endpoints": [
+    {
+      "endpoint_id": "cpu.coherent_memory",
+      "function": "memory_master",
+      "protocol": [
+        "tilelink-coherent",
+        "1"
+      ],
+      "fields": [
+        {
+          "role": "a_ready",
+          "aliases": [
+            "auto_tl_other_masters_out_a_ready"
+          ]
+        },
+        {
+          "role": "a_valid",
+          "aliases": [
+            "auto_tl_other_masters_out_a_valid"
+          ]
+        },
+        {
+          "role": "a_bits_opcode",
+          "aliases": [
+            "auto_tl_other_masters_out_a_bits_opcode"
+          ]
+        },
+        {
+          "role": "a_bits_param",
+          "aliases": [
+            "auto_tl_other_masters_out_a_bits_param"
+          ]
+        },
+        {
+          "role": "a_bits_size",
+          "aliases": [
+            "auto_tl_other_masters_out_a_bits_size"
+          ]
+        },
+        {
+          "role": "a_bits_source",
+          "aliases": [
+            "auto_tl_other_masters_out_a_bits_source"
+          ]
+        },
+        {
+          "role": "a_bits_address",
+          "aliases": [
+            "auto_tl_other_masters_out_a_bits_address"
+          ]
+        },
+        {
+          "role": "a_bits_mask",
+          "aliases": [
+            "auto_tl_other_masters_out_a_bits_mask"
+          ]
+        },
+        {
+          "role": "a_bits_data",
+          "aliases": [
+            "auto_tl_other_masters_out_a_bits_data"
+          ]
+        },
+        {
+          "role": "b_ready",
+          "aliases": [
+            "auto_tl_other_masters_out_b_ready"
+          ]
+        },
+        {
+          "role": "b_valid",
+          "aliases": [
+            "auto_tl_other_masters_out_b_valid"
+          ]
+        },
+        {
+          "role": "b_bits_opcode",
+          "aliases": [
+            "auto_tl_other_masters_out_b_bits_opcode"
+          ]
+        },
+        {
+          "role": "b_bits_param",
+          "aliases": [
+            "auto_tl_other_masters_out_b_bits_param"
+          ]
+        },
+        {
+          "role": "b_bits_size",
+          "aliases": [
+            "auto_tl_other_masters_out_b_bits_size"
+          ]
+        },
+        {
+          "role": "b_bits_source",
+          "aliases": [
+            "auto_tl_other_masters_out_b_bits_source"
+          ]
+        },
+        {
+          "role": "b_bits_address",
+          "aliases": [
+            "auto_tl_other_masters_out_b_bits_address"
+          ]
+        },
+        {
+          "role": "b_bits_mask",
+          "aliases": [
+            "auto_tl_other_masters_out_b_bits_mask"
+          ]
+        },
+        {
+          "role": "b_bits_corrupt",
+          "aliases": [
+            "auto_tl_other_masters_out_b_bits_corrupt"
+          ]
+        },
+        {
+          "role": "c_ready",
+          "aliases": [
+            "auto_tl_other_masters_out_c_ready"
+          ]
+        },
+        {
+          "role": "c_valid",
+          "aliases": [
+            "auto_tl_other_masters_out_c_valid"
+          ]
+        },
+        {
+          "role": "c_bits_opcode",
+          "aliases": [
+            "auto_tl_other_masters_out_c_bits_opcode"
+          ]
+        },
+        {
+          "role": "c_bits_param",
+          "aliases": [
+            "auto_tl_other_masters_out_c_bits_param"
+          ]
+        },
+        {
+          "role": "c_bits_size",
+          "aliases": [
+            "auto_tl_other_masters_out_c_bits_size"
+          ]
+        },
+        {
+          "role": "c_bits_source",
+          "aliases": [
+            "auto_tl_other_masters_out_c_bits_source"
+          ]
+        },
+        {
+          "role": "c_bits_address",
+          "aliases": [
+            "auto_tl_other_masters_out_c_bits_address"
+          ]
+        },
+        {
+          "role": "c_bits_data",
+          "aliases": [
+            "auto_tl_other_masters_out_c_bits_data"
+          ]
+        },
+        {
+          "role": "d_ready",
+          "aliases": [
+            "auto_tl_other_masters_out_d_ready"
+          ]
+        },
+        {
+          "role": "d_valid",
+          "aliases": [
+            "auto_tl_other_masters_out_d_valid"
+          ]
+        },
+        {
+          "role": "d_bits_opcode",
+          "aliases": [
+            "auto_tl_other_masters_out_d_bits_opcode"
+          ]
+        },
+        {
+          "role": "d_bits_param",
+          "aliases": [
+            "auto_tl_other_masters_out_d_bits_param"
+          ]
+        },
+        {
+          "role": "d_bits_size",
+          "aliases": [
+            "auto_tl_other_masters_out_d_bits_size"
+          ]
+        },
+        {
+          "role": "d_bits_source",
+          "aliases": [
+            "auto_tl_other_masters_out_d_bits_source"
+          ]
+        },
+        {
+          "role": "d_bits_sink",
+          "aliases": [
+            "auto_tl_other_masters_out_d_bits_sink"
+          ]
+        },
+        {
+          "role": "d_bits_denied",
+          "aliases": [
+            "auto_tl_other_masters_out_d_bits_denied"
+          ]
+        },
+        {
+          "role": "d_bits_data",
+          "aliases": [
+            "auto_tl_other_masters_out_d_bits_data"
+          ]
+        },
+        {
+          "role": "d_bits_corrupt",
+          "aliases": [
+            "auto_tl_other_masters_out_d_bits_corrupt"
+          ]
+        },
+        {
+          "role": "e_ready",
+          "aliases": [
+            "auto_tl_other_masters_out_e_ready"
+          ]
+        },
+        {
+          "role": "e_valid",
+          "aliases": [
+            "auto_tl_other_masters_out_e_valid"
+          ]
+        },
+        {
+          "role": "e_bits_sink",
+          "aliases": [
+            "auto_tl_other_masters_out_e_bits_sink"
+          ]
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address_width": 32,
+    "data_width": 64,
+    "byte_enable": true,
+    "max_outstanding": 8,
+    "error_response": true
+  },
+  "port_actions": [
+    {
+      "port": "auto_int_local_in_3_0",
+      "action": "constant",
+      "value": 0,
+      "reason": "Isolated single hart, no external interrupts."
+    },
+    {
+      "port": "auto_int_local_in_2_0",
+      "action": "constant",
+      "value": 0,
+      "reason": "Isolated single hart, no external interrupts."
+    },
+    {
+      "port": "auto_int_local_in_1_0",
+      "action": "constant",
+      "value": 0,
+      "reason": "Isolated single hart, no external interrupts."
+    },
+    {
+      "port": "auto_int_local_in_1_1",
+      "action": "constant",
+      "value": 0,
+      "reason": "Isolated single hart, no external interrupts."
+    },
+    {
+      "port": "auto_int_local_in_0_0",
+      "action": "constant",
+      "value": 0,
+      "reason": "Isolated single hart, no external interrupts."
+    },
+    {
+      "port": "auto_hartid_in",
+      "action": "constant",
+      "value": 0,
+      "reason": "Isolated single hart, no external interrupts."
+    }
+  ],
+  "cpu": {
+    "family": "riscv",
+    "xlen": 64,
+    "extensions": [
+      "i",
+      "m",
+      "a",
+      "f",
+      "d",
+      "c"
+    ],
+    "reset_vector": 65600,
+    "master_endpoints": [
+      "cpu.coherent_memory"
+    ],
+    "boot_address_required": false
+  },
+  "evidence": {
+    "source_manifest": "configs/cpus/boom/generated/source_manifest.json",
+    "boundary": "configs/cpus/boom/evidence/derived-20261017/physical_ports.json",
+    "runtime_kind": "tilelink_coherent_cpu",
+    "probe_support": false
+  }
+}

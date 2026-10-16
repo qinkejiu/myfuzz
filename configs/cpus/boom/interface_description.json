@@ -1,154 +1,269 @@
 {
   "schema_version": "interface_description.v1",
   "source": {
-    "root": "third_party/boom",
-    "revision": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-    "top_module": "boom_tile",
-    "filelist": "sources.f"
+    "root": "configs/cpus/boom/generated",
+    "revision": "sha256:4f960fdd6c96dccfe1bb7788fd628e368304b7280e5449cf3ae5463e982f2c30",
+    "top_module": "BoomTile",
+    "files": [
+      "EICG_wrapper.v",
+      "chipyard.TestHarness.SmallBoomConfig.top.mems.v",
+      "chipyard.TestHarness.SmallBoomConfig.top.v",
+      "plusarg_reader.v"
+    ],
+    "top_port_selection": "all",
+    "elaboration": {
+      "frontend": "verilator-json",
+      "parameters": [],
+      "warning_policy": "recorded-nonfatal"
+    }
   },
   "endpoints": [
     {
-      "endpoint_id": "cpu.instruction_memory",
-      "function": "instruction_memory_master",
+      "endpoint_id": "cpu.coherent_memory",
+      "function": "memory_master",
       "protocol": [
-        "tilelink",
+        "tilelink-coherent",
         "1"
       ],
       "fields": [
         {
-          "role": "address",
+          "role": "a_ready",
           "aliases": [
-            "instruction_address"
+            "auto_tl_other_masters_out_a_ready"
           ]
         },
         {
-          "role": "read_data",
+          "role": "a_valid",
           "aliases": [
-            "instruction_read_data"
+            "auto_tl_other_masters_out_a_valid"
           ]
         },
         {
-          "role": "request",
+          "role": "a_bits_opcode",
           "aliases": [
-            "instruction_request"
+            "auto_tl_other_masters_out_a_bits_opcode"
           ]
         },
         {
-          "role": "response",
+          "role": "a_bits_param",
           "aliases": [
-            "instruction_response"
-          ]
-        }
-      ]
-    },
-    {
-      "endpoint_id": "cpu.data_memory",
-      "function": "data_memory_master",
-      "protocol": [
-        "tilelink",
-        "1"
-      ],
-      "fields": [
-        {
-          "role": "address",
-          "aliases": [
-            "data_address"
+            "auto_tl_other_masters_out_a_bits_param"
           ]
         },
         {
-          "role": "write_data",
+          "role": "a_bits_size",
           "aliases": [
-            "data_write_data"
+            "auto_tl_other_masters_out_a_bits_size"
           ]
         },
         {
-          "role": "read_data",
+          "role": "a_bits_source",
           "aliases": [
-            "data_read_data"
+            "auto_tl_other_masters_out_a_bits_source"
           ]
         },
         {
-          "role": "request",
+          "role": "a_bits_address",
           "aliases": [
-            "data_request"
+            "auto_tl_other_masters_out_a_bits_address"
           ]
         },
         {
-          "role": "response",
+          "role": "a_bits_mask",
           "aliases": [
-            "data_response"
-          ]
-        }
-      ]
-    },
-    {
-      "endpoint_id": "cpu.interrupts",
-      "function": "interrupt_sink",
-      "fields": [
-        {
-          "role": "software_interrupt",
-          "aliases": [
-            "software_interrupt"
+            "auto_tl_other_masters_out_a_bits_mask"
           ]
         },
         {
-          "role": "timer_interrupt",
+          "role": "a_bits_data",
           "aliases": [
-            "timer_interrupt"
+            "auto_tl_other_masters_out_a_bits_data"
           ]
         },
         {
-          "role": "external_interrupt",
+          "role": "b_ready",
           "aliases": [
-            "external_interrupt"
+            "auto_tl_other_masters_out_b_ready"
           ]
-        }
-      ]
-    },
-    {
-      "endpoint_id": "cpu.debug",
-      "function": "debug_transport",
-      "required": false,
-      "fields": [
-        {
-          "role": "request",
-          "aliases": [
-            "debug_request"
-          ],
-          "required": false
         },
         {
-          "role": "response",
+          "role": "b_valid",
           "aliases": [
-            "debug_response"
-          ],
-          "required": false
-        }
-      ]
-    },
-    {
-      "endpoint_id": "cpu.clock",
-      "function": "clock",
-      "fields": [
-        {
-          "role": "clock",
-          "aliases": [
-            "clock"
+            "auto_tl_other_masters_out_b_valid"
           ]
-        }
-      ]
-    },
-    {
-      "endpoint_id": "cpu.reset",
-      "function": "reset",
-      "fields": [
+        },
         {
-          "role": "reset",
+          "role": "b_bits_opcode",
           "aliases": [
-            "reset"
+            "auto_tl_other_masters_out_b_bits_opcode"
+          ]
+        },
+        {
+          "role": "b_bits_param",
+          "aliases": [
+            "auto_tl_other_masters_out_b_bits_param"
+          ]
+        },
+        {
+          "role": "b_bits_size",
+          "aliases": [
+            "auto_tl_other_masters_out_b_bits_size"
+          ]
+        },
+        {
+          "role": "b_bits_source",
+          "aliases": [
+            "auto_tl_other_masters_out_b_bits_source"
+          ]
+        },
+        {
+          "role": "b_bits_address",
+          "aliases": [
+            "auto_tl_other_masters_out_b_bits_address"
+          ]
+        },
+        {
+          "role": "b_bits_mask",
+          "aliases": [
+            "auto_tl_other_masters_out_b_bits_mask"
+          ]
+        },
+        {
+          "role": "b_bits_corrupt",
+          "aliases": [
+            "auto_tl_other_masters_out_b_bits_corrupt"
+          ]
+        },
+        {
+          "role": "c_ready",
+          "aliases": [
+            "auto_tl_other_masters_out_c_ready"
+          ]
+        },
+        {
+          "role": "c_valid",
+          "aliases": [
+            "auto_tl_other_masters_out_c_valid"
+          ]
+        },
+        {
+          "role": "c_bits_opcode",
+          "aliases": [
+            "auto_tl_other_masters_out_c_bits_opcode"
+          ]
+        },
+        {
+          "role": "c_bits_param",
+          "aliases": [
+            "auto_tl_other_masters_out_c_bits_param"
+          ]
+        },
+        {
+          "role": "c_bits_size",
+          "aliases": [
+            "auto_tl_other_masters_out_c_bits_size"
+          ]
+        },
+        {
+          "role": "c_bits_source",
+          "aliases": [
+            "auto_tl_other_masters_out_c_bits_source"
+          ]
+        },
+        {
+          "role": "c_bits_address",
+          "aliases": [
+            "auto_tl_other_masters_out_c_bits_address"
+          ]
+        },
+        {
+          "role": "c_bits_data",
+          "aliases": [
+            "auto_tl_other_masters_out_c_bits_data"
+          ]
+        },
+        {
+          "role": "d_ready",
+          "aliases": [
+            "auto_tl_other_masters_out_d_ready"
+          ]
+        },
+        {
+          "role": "d_valid",
+          "aliases": [
+            "auto_tl_other_masters_out_d_valid"
+          ]
+        },
+        {
+          "role": "d_bits_opcode",
+          "aliases": [
+            "auto_tl_other_masters_out_d_bits_opcode"
+          ]
+        },
+        {
+          "role": "d_bits_param",
+          "aliases": [
+            "auto_tl_other_masters_out_d_bits_param"
+          ]
+        },
+        {
+          "role": "d_bits_size",
+          "aliases": [
+            "auto_tl_other_masters_out_d_bits_size"
+          ]
+        },
+        {
+          "role": "d_bits_source",
+          "aliases": [
+            "auto_tl_other_masters_out_d_bits_source"
+          ]
+        },
+        {
+          "role": "d_bits_sink",
+          "aliases": [
+            "auto_tl_other_masters_out_d_bits_sink"
+          ]
+        },
+        {
+          "role": "d_bits_denied",
+          "aliases": [
+            "auto_tl_other_masters_out_d_bits_denied"
+          ]
+        },
+        {
+          "role": "d_bits_data",
+          "aliases": [
+            "auto_tl_other_masters_out_d_bits_data"
+          ]
+        },
+        {
+          "role": "d_bits_corrupt",
+          "aliases": [
+            "auto_tl_other_masters_out_d_bits_corrupt"
+          ]
+        },
+        {
+          "role": "e_ready",
+          "aliases": [
+            "auto_tl_other_masters_out_e_ready"
+          ]
+        },
+        {
+          "role": "e_valid",
+          "aliases": [
+            "auto_tl_other_masters_out_e_valid"
+          ]
+        },
+        {
+          "role": "e_bits_sink",
+          "aliases": [
+            "auto_tl_other_masters_out_e_bits_sink"
           ]
         }
       ]
     }
+  ],
+  "notes": [
+    "Actual shared coherent boundary; instruction and data are not separate ports. Derived source, not unmodified upstream. External probes remain unexercised."
   ]
 }

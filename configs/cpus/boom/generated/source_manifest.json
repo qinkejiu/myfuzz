@@ -1,0 +1,33 @@
+{
+  "schema_version": "boom_generated_source.v1",
+  "derived_source": true,
+  "base_manifest": "../derived_source_manifest.json",
+  "archive": "rtl.tar.gz",
+  "archive_sha256": "9621a416043c15fa47d421f1623d2e190f081755e3c49fbd5d88b1baedb73219",
+  "files": [
+    {
+      "path": "EICG_wrapper.v",
+      "bytes": 297,
+      "sha256": "8532a50a212f146f10208717be24168a2de73a9754786da272d0dbfcd556c307"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.top.mems.v",
+      "bytes": 101191,
+      "sha256": "97ae4679a1ec21f4f424c56e23b1b1948e77d934c8c11461b56de47160a1a280"
+    },
+    {
+      "path": "chipyard.TestHarness.SmallBoomConfig.top.v",
+      "bytes": 17963255,
+      "sha256": "78bc69803c7b993cd1ddfcdb585d477bd27a83710bb1ce426e217aedbbdfaced"
+    },
+    {
+      "path": "plusarg_reader.v",
+      "bytes": 596,
+      "sha256": "482a63c1f24a7ac920909620bd0df108e6954eabf9520de6e72334a2b5450efb"
+    }
+  ],
+  "top_module": "BoomTile",
+  "physical_ports": "../evidence/derived-20261017/physical_ports.json",
+  "revision": "sha256:4f960fdd6c96dccfe1bb7788fd628e368304b7280e5449cf3ae5463e982f2c30",
+  "physical_ports_sha256": "80878201d383247fc8eba54d7b4caa710c6b9e96bd62b346fe322ed5e7559310"
+}
