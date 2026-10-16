@@ -8,13 +8,15 @@
 - **第四系列真实 CPU 链：** [CVW→Caliptra SHA256→RAM](reports/cvw-caliptra-cpu-chain-20261017.md)的最终门为 3 passed／100.00 秒。32 位 CPU 在一对持续进程计算 `abc`、`abd`，84 条实际寄存器事务与 CPU、Router、AHB 物理采样关联，fresh 轨迹一致；错误窗口和实际 CPU 字节写被拒绝。IRQ、持续搜索与认证前缀仍未覆盖。
 - **真实寄存器前置状态：** [GPIOEN live authority](reports/gpioen-live-register-version-20261017.md)已实现源锁、原生进程／epoch／命令连续性与一次消费 token；保存日志为 4 passed／125.46 秒。它只支持精确的 GPIOEN 来源合同；尚不能独立授予编译 F4 端到端能力。
 - **标准 Runner 的 UART RX DMA 链：** [最终冻结门](reports/dma-uart-rx-standard-runner-20261017.md)为 1 passed／80.79 秒；串行 `0x5A` 经实际 FIFO、DMA 读取、RAM 写入和 CPU ISR，两个 fresh 的 4,836 事件／1,097 步前缀一致。预算已包含 CPU→DMA→UART 间接时钟；持续搜索和认证前缀仍未验收。
-- **编译 F4 仍在修复：** 首次连续候选与 fresh 前缀运行已有实验结果；独立复核发现编译断言未绑定完整消费链、配置启动基址被当作实际首取指地址，以及调用方输入仍可变化。修复与复核完成前不计入 D4 验收。
+- **编译 F4 定向实际门：** [冻结 Ibex 门](reports/compiled-f4-ibex-verification-20261017.md)的三例均认证，两次完整 fresh 重放匹配，真实入口 exit0。它绑定实际首取指、逐跳消费、私有输入与 live GPIOEN 版本；仍是定向实验范围，不授搜索、任意新 IP 或完整 D4。独立 native 证据复核进行中。
 
 ### 后续代码接入与最新运行状态
 
-- BOOM 持久会话、标准 Runner 工厂与真实 GPIO 排队路由已在冻结提交 `8a3fed3` 完成真实门禁：[证据入口](../configs/cpus/boom/evidence/persistent-runtime-20261017/README.md)。重新构建的持久驱动在两次 fresh 各产生 20,597 条完整事件且规范化前缀相等；实际 GPIO 读值 53 被交付为 52 后，CPU 保存 52 并写失败标志；抑制响应使 CPU 等待。build、gate、旧独立入口回归各自 exit=0。该 GPIO 程序仅出现 A/D；新持久驱动的缓存 RAM C/E 补充门仍待运行。coherent 消费者对已保存真实 A/C/D/E 日志及软件拒绝边界的验证见[报告](reports/coherent-events-verification-20261017.md)，不授原生来源权威。
-- DMA RX 已新增一次启动、多例不复位的 [continuous runtime](../src/myfuzz/integration/dma_uart_rx_runtime.py)：固定 CPU 程序轮询 FIFO 状态、重装 DMA，ISR 保存实际字节并递增完成计数；记录完整批次并提供 fresh replay。实际运行暴露启动先后顺序及全前缀重复拷贝问题，均已修复；当前 `9eeff26` 软件聚焦门 60 passed，保持原 300 秒预算的四字节＋fresh＋失败前缀真实重跑待排队。此前预算失败保留，不计作连续数据流通过，不授持续搜索或 P8 验收。
-- 编译 F4 新增 [Ibex 声明式配置](../configs/scenarios/compiled-f4-obi-apb-ibex/README.md)和 [公开文件入口](../scripts/run_compiled_dataflow.py)，消费显式 capability、环境／归属补充声明及 8 字节候选记录。旧 CV32 fixture 因缺少实际原生错误信号而被当前 executor 拒绝；历史通过结果不能验证新 Ibex 配置。当前软件门 40 passed／1 skipped；真实初始化暴露的 immutable profile 私有复制问题已修复于 `bdeee0b`。第三次实际入口运行已构建并开始执行，首例完成，但三例与两次 fresh 前缀尚未整体终态。不授覆盖引导搜索或完整 D4。
+- BOOM 持久会话、标准 Runner 工厂与真实 GPIO 排队路由已在冻结提交 `8a3fed3` 完成真实门禁：[证据入口](../configs/cpus/boom/evidence/persistent-runtime-20261017/README.md)。重新构建的持久驱动在两次 fresh 各产生 20,597 条完整事件且规范化前缀相等；实际 GPIO 读值 53 被交付为 52 后，CPU 保存 52 并写失败标志；抑制响应使 CPU 等待。build、gate、旧独立入口回归各自 exit=0。该 GPIO 程序仅出现 A/D；[同一新持久驱动的缓存 RAM 补充门](../configs/cpus/boom/evidence/persistent-coherent-20261017/README.md)现已 exit0：两个 fresh 各 599 边沿、A21/C80/D164/E14，原始边沿与总线前缀完全相等，CPU 结果及 dirty backing RAM 均为 0x123。根代理独立重算 16 文件清单、两份全前缀和 scope 运行流一致；B/probe、IRQ 仍未覆盖。coherent 消费者对已保存真实 A/C/D/E 日志及软件拒绝边界的验证见[报告](reports/coherent-events-verification-20261017.md)，不授原生来源权威。
+- DMA RX 已新增一次启动、多例不复位的 [continuous runtime](../src/myfuzz/integration/dma_uart_rx_runtime.py)：固定 CPU 程序轮询 FIFO 状态、重装 DMA，ISR 保存实际字节并递增完成计数；记录完整批次并提供 fresh replay。实际运行暴露启动先后顺序及全前缀重复拷贝问题，均已修复；当前 `9eeff26` 软件聚焦门 60 passed，保持原 300 秒预算的四字节＋fresh＋失败前缀实际 attempt4 已启动；远端前置软件门 60 passed／71.07 秒，native 终态尚待确认。此前预算失败保留，不计作连续数据流通过，不授持续搜索或 P8 验收。
+- 编译 F4 新增 [Ibex 声明式配置](../configs/scenarios/compiled-f4-obi-apb-ibex/README.md)和 [公开文件入口](../scripts/run_compiled_dataflow.py)，消费显式 capability、环境／归属补充声明及 8 字节候选记录。旧 CV32 fixture 因缺少实际原生错误信号而被当前 executor 拒绝；历史通过结果不能验证新 Ibex 配置。当前软件门 40 passed／1 skipped；真实初始化暴露的 immutable profile 私有复制问题已修复于 `bdeee0b`。第三次实际入口现已终态 exit0：三例均认证，两次 fresh 全前缀匹配，总 795.37 秒；实际执行例吞吐约 0.0146 例/秒，不能据此宣称搜索性能达标。不授覆盖引导搜索或完整 D4。
+
+- 同协议候选布局模块 `fd0f49a` 已按 D3 分配独立 source 位段，检查 mask/range/alignment 空域、限制总 source 与位数，26 项软件检查通过且独立复核无高/中问题。它尚未接生产 submit；当前真实 F4 仍执行旧八字节合同。无 error pin 合法 variant 的[设计与待验门](reports/compiled-f4-no-error-variant-design-20261017.md)已明确，尚未实现。
 
 下文保留较早切片的边界；“尚未”以其对应报告的冻结版本解释。
 
