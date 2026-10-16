@@ -30,6 +30,47 @@ def _physical(artifact, state):
     return values
 
 
+
+def _attach_mmio_phases(artifact, records, requests, *, base):
+    """Pair service beats with earlier physical AHB address/data phases.
+
+    The bridge latches address/control on HREADY, then write data on the next
+    edge (its ADDRESS state). Service acceptance follows in WAIT_DATA or
+    WAIT_SERVICE. Live address pins at that later edge are not provenance.
+    Boot address acceptance can precede begin_case's sampled steps, so this
+    proof deliberately covers only the later directed MMIO operations.
+    """
+    phases = []
+    awaiting_data = None
+    for index, sample in enumerate(records):
+        physical = _physical(artifact, sample['pre'])
+        if awaiting_data is not None:
+            awaiting_data['data_physical'] = physical
+            awaiting_data['data_sample'] = index
+            awaiting_data = None
+        if (physical['HRESETn'] and physical['HREADY']
+                and physical['HSELEXT'] and physical['HTRANS'] & 2
+                and base <= physical['HADDR'] < base + 0x1000):
+            phase = {'address_physical': physical, 'address_sample': index}
+            phases.append(phase)
+            if physical['HWRITE']:
+                awaiting_data = phase
+    mmio = [request for request in requests
+            if base <= request['address'] < base + 0x1000]
+    assert len(phases) == len(mmio), 'physical MMIO address/beat count differs'
+    for request, phase in zip(mmio, phases):
+        address = phase['address_physical']
+        assert phase['address_sample'] < request['service_sample']
+        assert address['HADDR'] == request['address']
+        assert address['HWRITE'] == request['write']
+        if request['write']:
+            assert 'data_physical' in phase, 'MMIO write data phase absent'
+            assert phase['address_sample'] < phase['data_sample'] < request['service_sample']
+            assert phase['data_physical']['HWDATA'] == request['value']
+            assert phase['data_physical']['HWSTRB'] == request['be']
+        request.update(phase)
+
+
 def _run(cache, *, base=BASE, limit=6000):
     cpu, gpio, router, memory = make_cvw_gpio_chain(cache_dir=cache, gpio_base=base)
     cpu.prepare_local()
@@ -65,13 +106,13 @@ def _run(cache, *, base=BASE, limit=6000):
                 break
         final = gpio.step_local({})
         physical_requests = []
-        for sample in records:
+        for index, sample in enumerate(records):
             pre = sample['pre']['backend']
             if pre['m_req_valid'] and pre['m_req_ready']:
-                phys = _physical(cpu.artifact, sample['pre'])
                 physical_requests.append({'source_sequence': len(physical_requests)+1, 'address': pre['m_req_addr'],
                     'write': pre['m_req_write'], 'value': pre['m_req_wdata'],
-                    'be': pre['m_req_be'], 'physical': phys})
+                    'be': pre['m_req_be'], 'service_sample': index})
+        _attach_mmio_phases(cpu.artifact, records, physical_requests, base=base)
         result = [memory.read(RESULT+n, 4, transaction_id=f'check-{n}').value
                   for n in (0, 4, 8)]
         return {'result': result, 'requests': physical_requests, 'cpu_samples': records,
@@ -111,15 +152,17 @@ def _assert_chain(run):
             assert len(responses) == 1
             assert responses[0]['data_rsp_rdata'] == delivery['read_value']
     for request in mmio:
-        physical = request['physical']
+        physical = request['address_physical']
         assert physical['HSELEXT'] == 1
         assert physical['HPROT'] & 1 == 1, 'MMIO must be LSU data, never I-cache fetch'
         assert physical['HADDR'] == request['address']
         assert physical['HWRITE'] == request['write']
+        assert physical['HSIZE'] == 2
+        assert physical['HBURST'] == 0
         assert request['be'] == 15
         if request['write']:
-            assert physical['HWDATA'] == request['value']
-            assert physical['HWSTRB'] == 15
+            assert request['data_physical']['HWDATA'] == request['value']
+            assert request['data_physical']['HWSTRB'] == 15
     assert run['requests'][0]['address'] == BOOT_BASE
     assert run['final']['gpio_dir'] == 0xFFFFFFFF
     assert run['final']['gpio_out'] == 0x6A
