@@ -1,0 +1,107 @@
+FF........                                                               [100%]
+=================================== FAILURES ===================================
+____________ test_production_submit_uses_independent_d3_pin_slices _____________
+
+compiled_path = {'path_id': 'F4:ram.image', 'flow_id': 'F4', 'flow_name': 'mmio_control_stream', 'definition': {'name': 'mmio_control_...IP RTL 执行/响应。', 'authority': 'docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:80'}, ...}
+
+    def test_production_submit_uses_independent_d3_pin_slices(compiled_path):
+        path=changed_pins(compiled_path,[32,32]);layout=compile_candidate_layout(path)
+        ids=[s.source_id for s in layout.slices]
+>       assert submit_until_pins(path,layout.encode(dict(zip(ids,[85,0x12345678,0xaabbccdd]))))==[0x12345678,0xaabbccdd]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_compiled_f4_layout_replay_audit.py:44: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_compiled_f4_layout_replay_audit.py:37: in submit_until_pins
+    with pytest.raises(AfterPins):runtime.submit(raw)
+                                  ^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/contextlib.py:81: in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <myfuzz.integration.compiled_f4.CompiledF4Runtime object at 0x76dd390be8d0>
+raw = b'U\x00\x00\x00xV4\x12\xdd\xcc\xbb\xaa'
+
+    @host_source_discovery_scope()
+    def submit(self, raw):
+        """Consume one fuzzer record; its low target word is the F4 candidate."""
+        self._stable()
+        values=self._decode_candidate(raw)
+        if len(self.records)>=self.max_cases:raise ValueError('compiled-F4-case-budget-exhausted')
+        value=values[self.stream['source_id']]
+        declaration=declare_writer(self.inputs['request'],self.inputs['compiled'],
+            source_id=self.stream['source_id'],value=value,result_address=self.result)
+        code=bytes.fromhex(declaration['code_hex'])
+        if self.cursor+len(code)>self.result:raise ValueError('compiled-F4-slot-exhausted')
+        external=[s for s in self.path['sources'] if s['kind']=='external_pin']
+        for number,source in enumerate(external):
+            self._stable()
+            pin_value=values[source['source_id']]
+            pin_case=OnlineCase(f'{self.run_id}:{len(self.records)}:external:{number}',
+                'CPU_TO_IP',self.path['path_id'],BatchSourceEvent(
+                    source['source_id']+f':{len(self.records)}',source['component'],
+                    source['port'],pin_value,source['bit_offset'],source['width']),
+                (BatchAdvance((source['component'],)),))
+            pin_receipt=self.session.submit_case(pin_case)
+            if pin_receipt.violations:raise ValueError('compiled-F4-external-source-failed')
+>       before=self.authority.consume(self.authority.issue(reset_epoch=self.runner.sessions[self.target_id].reset_epoch))
+               ^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'types.SimpleNamespace' object has no attribute 'consume'
+
+src/myfuzz/integration/compiled_f4.py:535: AttributeError
+__________ test_production_submit_accepts_declared_narrow_pin_length ___________
+
+compiled_path = {'path_id': 'F4:ram.image', 'flow_id': 'F4', 'flow_name': 'mmio_control_stream', 'definition': {'name': 'mmio_control_...IP RTL 执行/响应。', 'authority': 'docs/superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md:80'}, ...}
+
+    def test_production_submit_accepts_declared_narrow_pin_length(compiled_path):
+        path=changed_pins(compiled_path,[3]);layout=compile_candidate_layout(path)
+        ids=[s.source_id for s in layout.slices]
+        assert layout.byte_length==5
+>       assert submit_until_pins(path,layout.encode(dict(zip(ids,[85,5]))))==[5]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_compiled_f4_layout_replay_audit.py:51: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_compiled_f4_layout_replay_audit.py:37: in submit_until_pins
+    with pytest.raises(AfterPins):runtime.submit(raw)
+                                  ^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/contextlib.py:81: in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <myfuzz.integration.compiled_f4.CompiledF4Runtime object at 0x76dd390bd9a0>
+raw = b'U\x00\x00\x00\x05'
+
+    @host_source_discovery_scope()
+    def submit(self, raw):
+        """Consume one fuzzer record; its low target word is the F4 candidate."""
+        self._stable()
+        values=self._decode_candidate(raw)
+        if len(self.records)>=self.max_cases:raise ValueError('compiled-F4-case-budget-exhausted')
+        value=values[self.stream['source_id']]
+        declaration=declare_writer(self.inputs['request'],self.inputs['compiled'],
+            source_id=self.stream['source_id'],value=value,result_address=self.result)
+        code=bytes.fromhex(declaration['code_hex'])
+        if self.cursor+len(code)>self.result:raise ValueError('compiled-F4-slot-exhausted')
+        external=[s for s in self.path['sources'] if s['kind']=='external_pin']
+        for number,source in enumerate(external):
+            self._stable()
+            pin_value=values[source['source_id']]
+            pin_case=OnlineCase(f'{self.run_id}:{len(self.records)}:external:{number}',
+                'CPU_TO_IP',self.path['path_id'],BatchSourceEvent(
+                    source['source_id']+f':{len(self.records)}',source['component'],
+                    source['port'],pin_value,source['bit_offset'],source['width']),
+                (BatchAdvance((source['component'],)),))
+            pin_receipt=self.session.submit_case(pin_case)
+            if pin_receipt.violations:raise ValueError('compiled-F4-external-source-failed')
+>       before=self.authority.consume(self.authority.issue(reset_epoch=self.runner.sessions[self.target_id].reset_epoch))
+               ^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'types.SimpleNamespace' object has no attribute 'consume'
+
+src/myfuzz/integration/compiled_f4.py:535: AttributeError
+=========================== short test summary info ============================
+FAILED tests/integration/test_compiled_f4_layout_replay_audit.py::test_production_submit_uses_independent_d3_pin_slices
+FAILED tests/integration/test_compiled_f4_layout_replay_audit.py::test_production_submit_accepts_declared_narrow_pin_length
+2 failed, 8 passed in 16.86s

@@ -14,14 +14,18 @@ Select the explicit executor through `create_compiled_execution(..., executor='c
 
 The original `../compiled-f4-obi-apb` CV32E40P configuration is retained as an unsupported negative for current admission: its native OBI trace has no error role. A synthetic adapter error constant cannot substitute for a physical CPU error input.
 
-Status: configuration and source inspection only. No harness generation, build, test, simulation or fresh prefix replay has established execution for this variant. Older frozen CV32 evidence does not validate it. Any future heavy gate must hold `.superpowers/heavy-worker.lock`; remote operations must follow `agent.md` and remain under `/root/fanzehui` through `jumpserver`.
+Status: frozen source bdeee0b established three continuous Ibex cases and two matching fresh prefixes; see `docs/reports/compiled-f4-ibex-verification-20261017.md` for exact source pins and receipts. This newer candidate-layout/audit increment has software verification only and has not run native. Older CV32 evidence does not validate either source. Any future heavy gate must hold `.superpowers/heavy-worker.lock`; remote operations must follow `agent.md` and remain under `/root/fanzehui` through `jumpserver`.
 
 ## Public file entry
 
 `example_records.json` supplies three explicit eight-byte input records. The
 low four bytes select GPIOEN (`0x55`, `0xaa`, `0x12345678`); the high four bytes
 supply the declared GPIO input pins (`0x12345678`). These are candidate inputs,
-not expected native results or live authority.
+not expected native results or live authority. The code-owned D3 candidate layout
+sets record length and independent source slices; these declarations happen to
+produce 32+32 bits. Narrow pins and additional declared pins have their own slices.
+All records are decoded before native startup. Each fresh replay saves its full
+prefix, events, role-to-PID/nonce map, actual child return codes, and comparison.
 
 The following command is provided for a future authorized execution; it has
 not been run. The output directory must not exist:

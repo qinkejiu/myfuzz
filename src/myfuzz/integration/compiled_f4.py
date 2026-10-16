@@ -21,11 +21,50 @@ from myfuzz.scenario.router import DataflowRouter, DeviceWindow
 from myfuzz.scenario.runner import ScenarioRunner
 from myfuzz.scenario.session_runtime import ScenarioSession, OnlineCase, OnlineInstruction
 from myfuzz.scenario.batch import BatchAdvance, BatchSourceEvent
+from .compiled_candidate_layout import compile_candidate_layout, CandidateLayout, LAYOUT_SCHEMA
 from .generated_register_writer import declare_writer, check_writer_observation
 
 
 def _digest(value):
     return sha256(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
+def _layout_document(layout):
+    return dict(schema_version=LAYOUT_SCHEMA,digest=layout.digest,
+        byte_length=layout.byte_length,bit_length=layout.bit_length,
+        derived_image_source_id=layout.derived_image_source_id,
+        slices=[asdict(row) for row in layout.slices])
+
+
+def _check_fresh_identities(previous, actual):
+    if not previous or set(actual)!=set(previous[0]):
+        raise ValueError('compiled-F4-fresh-process-shape')
+    pids=set();nonces=set()
+    for component,row in actual.items():
+        reference=previous[0][component]
+        if (any(row.get(k)!=reference.get(k) for k in ('component','role','artifact_digest'))
+                or type(row.get('pid')) is not int or row['pid']<=0
+                or not isinstance(row.get('execution_nonce'),str) or not row['execution_nonce']):
+            raise ValueError('compiled-F4-fresh-process-shape')
+        if row['pid'] in pids or row['execution_nonce'] in nonces:
+            raise ValueError('compiled-F4-fresh-process-identity-reused')
+        pids.add(row['pid']);nonces.add(row['execution_nonce'])
+    for run in previous:
+        if (pids & {r['pid'] for r in run.values()}
+                or nonces & {r['execution_nonce'] for r in run.values()}):
+            raise ValueError('compiled-F4-fresh-process-identity-reused')
+
+
+def _compare_prefixes(expected,actual):
+    def normalized(doc):
+        result=deepcopy(doc)
+        for row in result['records']:
+            for key in ('prerequisite','postcondition'):
+                row['certificate'][key].pop('process_scope',None)
+        return result
+    difference=_difference(normalized(expected),normalized(actual))
+    return dict(matches=difference is None,first_difference=difference,
+        expected_semantic_hash=expected['semantic_hash'],actual_semantic_hash=actual['semantic_hash'])
 
 
 def _closure(base_dir):
@@ -245,6 +284,7 @@ def admit_f4(*, artifacts, compiled_inputs):
     selected=[p for p in compiled['paths'] if p['flow_id']=='F4' and p['status']=='executable']
     if len(selected)!=1:raise ValueError('compiled-F4-executable-required')
     path=selected[0]
+    compile_candidate_layout(path)
     if any(s['kind'] not in {'instruction_image','cpu_mmio_stream','external_pin'} for s in path['sources']):
         raise ValueError('compiled-F4-source-kind-unsupported')
     sources={kind:[s for s in path['sources'] if s['kind']==kind]
@@ -269,10 +309,7 @@ def admit_f4(*, artifacts, compiled_inputs):
                        and r.base<=result and result+4<=r.base+r.size for r in resources)):
         raise ValueError('compiled-F4-writable-image-result-resource-required')
     for source in path['sources']:
-        if source['kind']=='external_pin' and (source['component']!=access['target_component']
-                or not 1<=source['width']<=32 or source['bit_offset']!=0
-                or source['mask']!=(1<<source['width'])-1
-                or source['alignment']!=1 or source['range'] is not None):
+        if source['kind']=='external_pin' and source['component']!=access['target_component']:
             raise ValueError('compiled-F4-external-pin-shape-unsupported')
     target=artifacts[access['target_component']]
     from myfuzz.local_harness.pulp_gpio_probe_contract import pulp_gpio_observation_contract
@@ -317,6 +354,8 @@ class CompiledF4Runtime:
     def __init__(self, *, artifacts, compiled_inputs, base_dir, cache_dir,
                  run_id='compiled-f4', rounds_per_case=128, max_cases=64):
         self.path=admit_f4(artifacts=artifacts,compiled_inputs=compiled_inputs)
+        self.layout=compile_candidate_layout(self.path)
+        self._replay_identities=[]
         if any(type(v) is not int or not 1<=v<=65536 for v in (rounds_per_case,max_cases)):
             raise ValueError('compiled-F4-budget-invalid')
         self._caller_inputs=compiled_inputs;self._caller_artifacts=artifacts
@@ -368,6 +407,12 @@ class CompiledF4Runtime:
         try:
             self._stable()
             self.session.begin()
+            self._native_processes={name:session.process for name,session in self.runner.sessions.items()}
+            self._process_identities={name:dict(component=name,
+                role='cpu' if name==self.cpu_id else 'bound_target',pid=proc.pid,
+                execution_nonce=self.runner.sessions[name]._execution,
+                artifact_digest=self.artifacts[name].runtime_document['artifact_digest'])
+                for name,proc in self._native_processes.items()}
             self.session.advance_initial((self.target_id,))
             self.authority.consume(self.authority.issue(reset_epoch=0))
             # Observe and stall the native first fetch before materializing bytes.
@@ -389,7 +434,8 @@ class CompiledF4Runtime:
 
     def online_identity_configuration(self):
         return dict(schema_version='compiled_F4_checker.v1',path_id=self.path['path_id'],
-            compiled_sha256=self.compiled_digest,assertions=self.path['assertions'])
+            compiled_sha256=self.compiled_digest,assertions=self.path['assertions'],
+            candidate_layout=_layout_document(self.layout))
 
     def _check_receipt(self, receipt):
         if receipt.violations:
@@ -444,19 +490,34 @@ class CompiledF4Runtime:
         if (_input_identity(self._caller_inputs,self._caller_artifacts)!=self._input_digest
                 or _input_identity(self.inputs,self.artifacts)!=self._input_digest):
             raise ValueError('compiled-F4-input-identity-changed')
+        if compile_candidate_layout(self.path)!=self.layout:
+            raise ValueError('compiled-F4-layout-identity-changed')
         if admit_f4(artifacts=self.artifacts,compiled_inputs=self.inputs)!=self.path:
             raise ValueError('compiled-F4-admission-changed')
         if (_closure(self.base_dir)!=self.closure or _digest(self.inputs['compiled'])!=self.compiled_digest
                 or _difference(compile_paths(self.inputs['request']),self.inputs['compiled']) is not None):
             raise ValueError('compiled-F4-source-identity-changed')
 
+    def _decode_candidate(self,raw):
+        issued=compile_candidate_layout(self.path)
+        if type(self.layout) is not CandidateLayout or self.layout!=issued:
+            raise ValueError('compiled-F4-layout-identity-changed')
+        return issued.decode(raw)
+
+    def execution_audit(self):
+        codes={name:proc.poll() for name,proc in self._native_processes.items()}
+        return dict(schema_version='compiled_F4_execution_audit.v1',
+            identities=deepcopy(self._process_identities),
+            exits={name:dict(returncode=code,reaped=code is not None)
+                   for name,code in codes.items()},closed=self.finished)
+
     @host_source_discovery_scope()
     def submit(self, raw):
-        """Consume one fuzzer record; its low target word is the F4 candidate."""
+        """Decode every declared candidate slice before executing any source."""
         self._stable()
-        if type(raw) is not bytes or len(raw)!=8:raise ValueError('compiled-F4-record-required')
+        values=self._decode_candidate(raw)
         if len(self.records)>=self.max_cases:raise ValueError('compiled-F4-case-budget-exhausted')
-        value=int.from_bytes(raw[:4],'little')
+        value=values[self.stream['source_id']]
         declaration=declare_writer(self.inputs['request'],self.inputs['compiled'],
             source_id=self.stream['source_id'],value=value,result_address=self.result)
         code=bytes.fromhex(declaration['code_hex'])
@@ -464,7 +525,7 @@ class CompiledF4Runtime:
         external=[s for s in self.path['sources'] if s['kind']=='external_pin']
         for number,source in enumerate(external):
             self._stable()
-            pin_value=int.from_bytes(raw[4:],'little') & source['mask']
+            pin_value=values[source['source_id']]
             pin_case=OnlineCase(f'{self.run_id}:{len(self.records)}:external:{number}',
                 'CPU_TO_IP',self.path['path_id'],BatchSourceEvent(
                     source['source_id']+f':{len(self.records)}',source['component'],
@@ -494,7 +555,7 @@ class CompiledF4Runtime:
             first_fetch=self.first_fetch,exact_hops=observed['exact_hops'],
             assertions=observed['exact_hops']['assertions'],
             runtime_admitted=True)
-        self.records.append(dict(raw=raw.hex(),value=value,certificate=certificate))
+        self.records.append(dict(raw=raw.hex(),value=value,source_values=values,certificate=certificate))
         self.cursor+=len(code)
         return deepcopy(certificate)
 
@@ -510,35 +571,54 @@ class CompiledF4Runtime:
             finally:
                 self.trace=self.session.finish();self.finished=True
         self._stable(allow_finished=True)
+        if any(row['returncode']!=0 for row in self.execution_audit()['exits'].values()):
+            raise ValueError('compiled-F4-native-exit-failed')
         return dict(schema_version='compiled_F4_prefix.v1',run_id=self.run_id,
             compiled_sha256=self.compiled_digest,source_files=self.closure,
             artifact_digests={n:a.runtime_document['artifact_digest'] for n,a in self.artifacts.items()},
             rounds_per_case=self.rounds,max_cases=self.max_cases,records=deepcopy(self.records),
+            candidate_layout=_layout_document(self.layout),
             online_plan=json.loads(self.session.encode_plan()),
             semantic_hash=self.trace.semantic_sha256,feedback=self.feedback())
 
     @host_source_discovery_scope()
-    def replay(self, plan):
+    def replay(self, plan, *, audit_sink=None):
         """Reexecute every candidate, checking live prerequisites anew."""
         self._stable(allow_finished=True)
         expected=self.finish()
         if _difference(expected,plan) is not None:raise ValueError('compiled-F4-prefix-mismatch')
-        fresh=type(self)(artifacts=self.artifacts,compiled_inputs=self.inputs,
-            base_dir=self.base_dir,cache_dir=self.cache_dir,run_id=self.run_id,
-            rounds_per_case=self.rounds,max_cases=self.max_cases)
+        envelope=dict(scope='full_fresh_prefix_real_RTL_and_live_register_prerequisites',
+            original_execution_audit=self.execution_audit())
         try:
+            fresh=type(self)(artifacts=self.artifacts,compiled_inputs=self.inputs,
+                base_dir=self.base_dir,cache_dir=self.cache_dir,run_id=self.run_id,
+                rounds_per_case=self.rounds,max_cases=self.max_cases)
+        except BaseException as error:
+            envelope.update(error_type=type(error).__name__,error=str(error),
+                startup_partial_trace_available=False)
+            if audit_sink is not None:audit_sink(deepcopy(envelope))
+            raise
+        primary_error=None
+        try:
+            identities=fresh.execution_audit()['identities']
+            _check_fresh_identities([self._process_identities]+self._replay_identities,identities)
+            self._replay_identities.append(deepcopy(identities))
             for record in plan['records']:fresh.submit(bytes.fromhex(record['raw']))
             actual=fresh.finish()
-            # PIDs and execution nonces must be fresh. They authenticate each
-            # local run but are not a deterministic hardware observation.
-            def normalized(doc):
-                result=deepcopy(doc)
-                for row in result['records']:
-                    for key in ('prerequisite','postcondition'):
-                        row['certificate'][key].pop('process_scope',None)
-                return result
-            return dict(matches=_difference(normalized(expected),normalized(actual)) is None,
-                scope='full_fresh_prefix_real_RTL_and_live_register_prerequisites',
-                expected_semantic_hash=expected['semantic_hash'],actual_semantic_hash=actual['semantic_hash'])
+            envelope.update(_compare_prefixes(expected,actual),actual_prefix=actual)
+            return envelope
+        except BaseException as error:
+            primary_error=error
+            envelope.update(error_type=type(error).__name__,error=str(error))
+            raise
         finally:
-            if not fresh.finished:fresh.finish()
+            cleanup_error=None
+            if not fresh.finished:
+                try:fresh.finish()
+                except BaseException as error:
+                    cleanup_error=error
+                    envelope['cleanup_failure']=dict(error_type=type(error).__name__,error=str(error))
+            envelope['execution_audit']=fresh.execution_audit()
+            envelope['actual_events']=list(fresh.runner.events_since(0))
+            if audit_sink is not None:audit_sink(deepcopy(envelope))
+            if cleanup_error is not None and primary_error is None:raise cleanup_error

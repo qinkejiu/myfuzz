@@ -1,0 +1,14 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___________ test_primary_failure_audit_survives_events_save_failure ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-67/test_primary_failure_audit_sur0')
+
+    def test_primary_failure_audit_survives_events_save_failure(tmp_path):
+>       from myfuzz.integration.compiled_execution_files import _save_runtime_failure
+E       ImportError: cannot import name '_save_runtime_failure' from 'myfuzz.integration.compiled_execution_files' (/home/qinkejiu/myfuzz/src/myfuzz/integration/compiled_execution_files.py)
+
+tests/integration/test_compiled_f4_layout_replay_audit.py:134: ImportError
+=========================== short test summary info ============================
+FAILED tests/integration/test_compiled_f4_layout_replay_audit.py::test_primary_failure_audit_survives_events_save_failure
+1 failed, 11 deselected in 0.29s

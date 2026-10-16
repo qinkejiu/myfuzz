@@ -17,7 +17,7 @@ def main(argv=None):
     parser.add_argument('--ip-capability',type=Path,action='append',required=True)
     parser.add_argument('--supplement',type=Path,required=True)
     parser.add_argument('--records',type=Path,required=True,
-                        help='JSON array of explicit 16-digit hex records (eight bytes each)')
+                        help='JSON array of explicit hex records sized by the compiled candidate layout')
     parser.add_argument('--executor',required=True,help='explicit executor selection; unsupported names refuse')
     parser.add_argument('--output',type=Path,required=True,help='must be a new directory')
     parser.add_argument('--cache-dir',type=Path,required=True)

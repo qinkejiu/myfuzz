@@ -20,6 +20,8 @@ from myfuzz.local_harness.generated_artifact_admission import load_generated_art
 from myfuzz.local_harness.generated_execution_admission import create_compiled_execution
 from myfuzz.local_harness.compiled_execution_projection import assess_compiled_f4_support
 from myfuzz.scenario.compiled_paths import load_path_compile_request, compile_paths
+from .compiled_candidate_layout import compile_candidate_layout, MAX_CANDIDATE_BITS
+from .compiled_f4 import _layout_document
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
 
 
@@ -156,10 +158,20 @@ def _worker_lock(path):
         finally:fcntl.flock(handle,fcntl.LOCK_UN)
 
 
+def _save_runtime_failure(output,runtime):
+    failures={}
+    for key,filename,read in (
+            ('partial_events','partial_events.json',lambda:list(runtime.runner.events_since(0))),
+            ('execution_audit','execution_audit.json',runtime.execution_audit)):
+        try:_save(output/filename,read())
+        except BaseException as error:failures[key]=str(error)
+    return failures
+
+
 def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
         supplement_path, records_path, output_dir, cache_dir, executor,
         run_id='compiled-dataflow', rounds_per_case=128, max_cases=64, replay_count=1, heavy_lock=None):
-    """Run explicit eight-byte records continuously and replay fresh RTL.
+    """Run explicit declaration-sized records continuously and replay fresh RTL.
 
     This is directed candidate execution, not coverage-guided search. Saved
     plans are compared against this live prefix before the trusted runtime
@@ -185,12 +197,12 @@ def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
             raise ValueError('compiled-files-run-id-invalid')
         # Bound bytes before parsing; records are explicit, never generated here.
         records_file=Path(records_path)
-        if records_file.stat().st_size>max_cases*32+1024:raise ValueError('compiled-files-record-file-budget')
+        if records_file.stat().st_size>max_cases*(MAX_CANDIDATE_BITS//4+4)+1024:raise ValueError('compiled-files-record-file-budget')
         records=_read(records_file)
         if type(records) is not list or not 1<=len(records)<=max_cases:
             raise ValueError('compiled-files-record-count-invalid')
-        if any(type(row) is not str or re.fullmatch(r'[0-9a-fA-F]{16}',row) is None for row in records):
-            raise ValueError('compiled-files-eight-byte-hex-record-required')
+        if any(type(row) is not str or re.fullmatch(r'(?:[0-9a-fA-F]{2}){1,128}',row) is None for row in records):
+            raise ValueError('compiled-files-bounded-hex-record-required')
         capabilities=tuple(_no_symlinks(p) for p in capability_paths)
         source_arguments=(base,compose_path,capabilities,supplement_path,records_path)
         paths=_source_paths(*source_arguments)
@@ -212,6 +224,10 @@ def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
         report['capability']=support
         _save(output/'capability_report.json',support)
         if support['execution_supported']!=1:raise ValueError('compiled-files-runtime-support-refused')
+        path=next(p for p in inputs['compiled']['paths'] if p['flow_id']=='F4' and p['status']=='executable')
+        layout=compile_candidate_layout(path)
+        for row in records:layout.decode(bytes.fromhex(row))
+        _save(output/'candidate_layout.json',_layout_document(layout))
         _unchanged(paths,source_hashes,source_arguments)
         with _worker_lock(lock_path):
             try:
@@ -230,10 +246,22 @@ def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
                     _save(output/'case_timings.json',case_timings)
                 plan=runtime.finish();_save(output/'prefix.json',plan)
                 _save(output/'events.json',list(runtime.trace.events))
+                _save(output/'execution_audit.json',runtime.execution_audit())
                 replays=[]
-                for _ in range(replay_count):
+                for replay_index in range(replay_count):
                     _unchanged(paths,source_hashes,source_arguments);replay_start=time.monotonic()
-                    result=runtime.replay(plan)
+                    replay_dir=output/f'fresh-{replay_index+1}'
+                    replay_dir.mkdir()
+                    def save_fresh(envelope):
+                        for key,filename in (('actual_prefix','prefix.json'),('actual_events','events.json'),
+                                ('execution_audit','execution_audit.json')):
+                            if key in envelope:_save(replay_dir/filename,envelope[key])
+                        summary={k:v for k,v in envelope.items() if k not in {'actual_prefix','actual_events'}}
+                        _save(replay_dir/'comparison.json',summary)
+                        _save(replay_dir/'artifact_hashes.json',_hashes(sorted(replay_dir.glob('*.json'))))
+                    result=runtime.replay(plan,audit_sink=save_fresh)
+                    result={k:v for k,v in result.items() if k not in {'actual_prefix','actual_events'}}
+                    result['artifact_directory']=str(replay_dir)
                     result['wall_seconds']=time.monotonic()-replay_start;replays.append(result)
                     _save(output/'replays.json',replays)
                     if result.get('matches') is not True:raise ValueError('compiled-files-fresh-prefix-mismatch')
@@ -260,8 +288,6 @@ def run_compiled_execution_files(*, base_dir, compose_path, capability_paths,
         if runtime is None:report['startup_partial_trace_available']=False
         # Keep partial native evidence and the incomplete marker on every failure.
         if runtime is not None:
-            try:
-                _save(output/'partial_events.json',list(runtime.runner.events_since(0)))
-            except BaseException as cleanup_error:report['cleanup_error']=str(cleanup_error)
+            report['failure_evidence_errors']=_save_runtime_failure(output,runtime)
         _save(output/'report.json',report)
         raise
