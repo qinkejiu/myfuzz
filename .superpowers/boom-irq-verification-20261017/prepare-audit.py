@@ -36,5 +36,5 @@ report={'stage':'prepared_not_launched','owned_pins_checked':len(owned),'source_
         'program_sha256':hashlib.sha256(program).hexdigest(),
         'baseline_snapshot':str(old),'copy_method':'cp -a, independent destination; owned frozen overlay only',
         'no_native_build_elaboration_probe_execution':True}
-(base/'state/preparation.json').write_text(json.dumps(report,indent=2)+'\n')
+(base/'attempt2/state/preparation.json').write_text(json.dumps(report,indent=2)+'\n')
 print(json.dumps(report,indent=2))

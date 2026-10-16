@@ -1,24 +1,24 @@
 {
   "schema_version": "boom_irq_build_ready.v1",
   "source_freeze_commit": "5bb888f",
-  "status": "prepared_not_launched",
+  "status": "corrected_launcher_prepared_not_launched",
   "remote_base": "/root/fanzehui/boom-irq-verification-20261017",
   "project": "/root/fanzehui/boom-irq-verification-20261017/project",
   "artifact": "/root/fanzehui/boom-irq-verification-20261017/artifact",
   "script_sha256": {
-    "launch.sh": "e4e506d137d9abd998f2a6edb9a5679a7869ff0b8c64a27df8c52f7de9723a16",
-    "build.sh": "c7b0743c6672b49a3301cc1990892b1ada02cf8771edc703bfba8eea364d9ca4",
-    "prepare-audit.py": "ffcfb9eeedc51cf3365f308e6efc6dd1da504799461753abcce58997774034c6",
-    "source-pins.json": "ba886f175961b8d42d0cd8834ed3ed4a1129dbade09a2028c242d4051c179d52",
+    "launch.sh": "2131d9f23729556e58a25041bb33c3a03df892ab7211794295cf99e5904b8e10",
+    "build.sh": "0340f67b28517ce907b1cca08d53e856f8103365751ac0ded3b7359a3f5cc1c6",
+    "prepare-audit.py": "ead0cdcfa7fe4063ff00b3a576589659657e5393d8364233b4230c6fd5a6981e",
+    "source-pins.json": "2953d33ea5d11088d088079e802ed50075c23c8d86662f41c5fd7416810bc553",
     "source-manifest.json": "f7ab4b657052afc5e594c56529337a6401f81691bf2edb395877335f75d035ec",
-    "preparation.json": "6bc2d62c5451fb91c18ea7cba9aa5b003265c7a3d4850dddf9511bd2c0738c03"
+    "preparation.json": "957bec44d713b180f910217ae7689d09ab42fc7c4940e9a26bddbbf195e188f2"
   },
   "source_files": 2426,
-  "owned_pins": 13,
+  "owned_pins": 14,
   "shared_source_inodes": 0,
   "stage_scope": "build plus actual generated VPI inventory only; no IRQ runtime gate",
-  "future_launch_command": "nohup bash /root/fanzehui/boom-irq-verification-20261017/launch.sh > /root/fanzehui/boom-irq-verification-20261017/log 2>&1 < /dev/null &",
-  "future_build_command": "python -m myfuzz.local_harness.boom_irq_generation --repo /root/fanzehui/boom-irq-verification-20261017/project --output /root/fanzehui/boom-irq-verification-20261017/artifact --heavy-lock /root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock",
+  "future_launch_command": "nohup bash /root/fanzehui/boom-irq-verification-20261017/launch.sh > /root/fanzehui/boom-irq-verification-20261017/attempt2/log 2>&1 < /dev/null &",
+  "future_build_command": "python3 -m myfuzz.local_harness.boom_irq_generation --repo /root/fanzehui/boom-irq-verification-20261017/project --output /root/fanzehui/boom-irq-verification-20261017/artifact --heavy-lock /root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock",
   "predicted_verilator_argv": [
     "verilator",
     "--vpi",
@@ -50,9 +50,9 @@
     "--describe-probes"
   ],
   "expected_receipts": [
-    "state/PID",
-    "state/stage",
-    "state/source-check-before-build.json",
+    "attempt2/state/PID",
+    "attempt2/state/stage",
+    "attempt2/state/source-check-before-build.json",
     "artifact/build.log",
     "artifact/build.exit",
     "artifact/probe-describe.stdout",
@@ -60,9 +60,17 @@
     "artifact/probe-describe.exit",
     "artifact/generated-probes.json",
     "artifact/irq-session-artifact.json",
-    "state/build-and-probes.exit",
-    "state/launch.exit"
+    "attempt2/state/build-and-probes.exit",
+    "attempt2/state/launch.exit"
   ],
   "native_executed": false,
-  "canonical_lock_acquired": false
+  "canonical_lock_acquired": false,
+  "attempt": 2,
+  "correction": "python3 actual environment interpreter; profile/driver/runtime source unchanged",
+  "prior_attempt": {
+    "pid": 200310,
+    "launch_exit": 127,
+    "build_and_probes_exit": 127,
+    "native_build_started": false
+  }
 }

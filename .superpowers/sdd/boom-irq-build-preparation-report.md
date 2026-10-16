@@ -57,3 +57,22 @@ This first stage establishes build and probe inventory only. It is not an IRQ
 runtime gate. Runtime gate assembly, actual ISR/return/RAM evidence, fresh full
 prefix comparison and missing/changed IRQ/status controls remain subsequent
 work against actual confirmed generated symbols.
+
+## Authorized first launch and corrected attempt2
+
+After exact parent GO, attempt1 launcher200310 completed source precheck2426
+without mismatch, then exited127 before the builder: prescribed environment
+has /usr/bin/python3 but no `python` alias. No RTL build/probe/native process
+started. Actual launch/build-and-probes exits127, worker absent, artifact empty
+and canonical flock probe exit0 confirmed. Complete state/log/original scripts
+and ready were copied independently into remote attempt1 and local attempt1.tar.
+
+Root authorized one corrected attempt after these checks. Two launcher commands
+now use python3; no environment alias or profile/driver/runtime source changed.
+Focused interpreter regression actual RED1→GREEN1 (1 passed0.02s), without
+executing launcher commands. Owned pins now additionally include build.sh14/14;
+full source manifest remains unchanged2426 files. Python import/empty-output
+audit repeated successfully. Corrected ready and launch hashes are in the
+current ready.json. Independent attempt2 log/state paths avoid overwriting
+attempt1. Parent received actual PID200937 and live builder200950/Verilator200958
+with source precheck pass; first native build is now running, not yet a result.

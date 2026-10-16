@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -uo pipefail
 base=/root/fanzehui/boom-irq-verification-20261017
-printf '%s\n' "$$" > "$base/state/PID"
-printf '%s\n' 'live-source-check-before-build' > "$base/state/stage"
-trap 'status=$?; printf "%s\n" "$status" > "$base/state/launch.exit"; printf "%s\n" terminal > "$base/state/stage"' EXIT
+run="$base/attempt2"
+printf '%s\n' "$$" > "$run/state/PID"
+printf '%s\n' 'live-source-check-before-build' > "$run/state/stage"
+trap 'status=$?; printf "%s\n" "$status" > "$run/state/launch.exit"; printf "%s\n" terminal > "$run/state/stage"' EXIT
 cd "$base/project" || exit
 source /root/fanzehui/system-20261016/environment.sh || exit
 export PYTHONPATH=/root/fanzehui/system-20261016/pythonlib:$PWD/src:$PWD
@@ -19,14 +20,14 @@ actual={str(file.relative_to(base/'project')) for scope in manifest['scope']
         if file.is_file() and '__pycache__' not in file.parts and file.suffix!='.pyc'}
 errors += sorted(actual ^ set(manifest['files']))
 report={'checked_files':len(manifest['files']),'mismatches':errors,'pass':not errors}
-(base/'state/source-check-before-build.json').write_text(json.dumps(report,indent=2)+'\n')
+(base/'attempt2/state/source-check-before-build.json').write_text(json.dumps(report,indent=2)+'\n')
 assert not errors,errors
 assert not any((base/'artifact').iterdir()),'artifact output no longer empty'
 PY
 status=$?
 if [ "$status" -ne 0 ]; then exit "$status"; fi
-printf '%s\n' 'build-and-actual-probe-inventory' > "$base/state/stage"
+printf '%s\n' 'build-and-actual-probe-inventory' > "$run/state/stage"
 bash .superpowers/boom-irq-verification-20261017/build.sh
 status=$?
-printf '%s\n' "$status" > "$base/state/build-and-probes.exit"
+printf '%s\n' "$status" > "$run/state/build-and-probes.exit"
 exit "$status"

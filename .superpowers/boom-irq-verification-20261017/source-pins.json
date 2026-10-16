@@ -11,5 +11,6 @@
   "src/myfuzz/local_harness/boom_irq_probes.h": "df0d36273acd74bb330d748bec9ce711e27566709a9651ddf17cceedd7c04cea",
   "src/myfuzz/local_harness/boom_irq_scenario_session.py": "b945a9002ce39118df38ebd81d6e9a1514f861b147f2809ba94a82c906e267db",
   "src/myfuzz/scenario/boom_gpio_irq_runner.py": "1de87df95d1f10b44dd5848cc19afd9432527cf3b088103fa67f0883db8b0e09",
-  "tests/local_harness/test_boom_irq_contracts.py": "94c91d9854b255ed2bbb198c8a2a908e58373b103ff91a1f9fd1d38c86a23401"
+  "tests/local_harness/test_boom_irq_contracts.py": "94c91d9854b255ed2bbb198c8a2a908e58373b103ff91a1f9fd1d38c86a23401",
+  ".superpowers/boom-irq-verification-20261017/build.sh": "0340f67b28517ce907b1cca08d53e856f8103365751ac0ded3b7359a3f5cc1c6"
 }

@@ -1,0 +1,9 @@
+{
+  "attempt": 2,
+  "launcher_pid": 200937,
+  "builder_pid": 200950,
+  "verilator_pid": 200958,
+  "status": "observed_live_build",
+  "remote_state": "/root/fanzehui/boom-irq-verification-20261017/attempt2/state",
+  "irq_runtime_gate_started": false
+}
