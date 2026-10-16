@@ -1,0 +1,86 @@
+{
+  "schema_version": "boom_irq_passive_probes.v1",
+  "confirmation": "actual generated VPI handle/fullname/size before READY; candidates are not runtime evidence",
+  "probes": [
+    {
+      "id": "meip",
+      "path": "TOP.BoomTile.core.csr_io_interrupts_meip",
+      "width": 1
+    },
+    {
+      "id": "rob_exception",
+      "path": "TOP.BoomTile.core.rob_io_com_xcpt_valid",
+      "width": 1
+    },
+    {
+      "id": "rob_cause",
+      "path": "TOP.BoomTile.core.rob_io_com_xcpt_bits_cause",
+      "width": 64
+    },
+    {
+      "id": "csr_exception",
+      "path": "TOP.BoomTile.core.csr_io_exception",
+      "width": 1
+    },
+    {
+      "id": "csr_cause",
+      "path": "TOP.BoomTile.core.csr_io_cause",
+      "width": 64
+    },
+    {
+      "id": "csr_pc",
+      "path": "TOP.BoomTile.core.csr_io_pc",
+      "width": 40
+    },
+    {
+      "id": "csr_evec",
+      "path": "TOP.BoomTile.core.csr_io_evec",
+      "width": 40
+    },
+    {
+      "id": "mie",
+      "path": "TOP.BoomTile.core.csr.reg_mie",
+      "width": 64
+    },
+    {
+      "id": "global_mie",
+      "path": "TOP.BoomTile.core.csr.reg_mstatus_mie",
+      "width": 1
+    },
+    {
+      "id": "privilege",
+      "path": "TOP.BoomTile.core.csr.reg_mstatus_prv",
+      "width": 2
+    },
+    {
+      "id": "mtvec",
+      "path": "TOP.BoomTile.core.csr.reg_mtvec",
+      "width": 32
+    },
+    {
+      "id": "mcause",
+      "path": "TOP.BoomTile.core.csr.reg_mcause",
+      "width": 64
+    },
+    {
+      "id": "mepc",
+      "path": "TOP.BoomTile.core.csr.reg_mepc",
+      "width": 40
+    },
+    {
+      "id": "system_return",
+      "path": "TOP.BoomTile.core.csr.insn_ret",
+      "width": 1
+    },
+    {
+      "id": "csr_addr",
+      "path": "TOP.BoomTile.core.csr.io_rw_addr",
+      "width": 12
+    },
+    {
+      "id": "csr_cmd",
+      "path": "TOP.BoomTile.core.csr.io_rw_cmd",
+      "width": 3
+    }
+  ]
+}
