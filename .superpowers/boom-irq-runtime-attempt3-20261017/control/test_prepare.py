@@ -38,3 +38,9 @@ def test_overlay_fault_refuses_before_project_creation(tmp_path,fault):
     if fault=='symlink':first.unlink();first.symlink_to(source/m.ADDITIONS[0])
     with pytest.raises(ValueError):m.prepare_snapshot(source,tmp_path/'project',before,overlay,pin)
     assert not (tmp_path/'project').exists() and not (tmp_path/'project.preparing').exists()
+
+
+def test_ready_template_binds_actual_independent_budget_review():
+    text=Path(__file__).with_name('prepare.py').read_text()
+    assert "budget_fix_review_commit='5d3f290'" in text
+    assert 'pending_source_review' not in text
