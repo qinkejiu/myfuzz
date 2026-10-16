@@ -1,0 +1,22 @@
+F
+=================================== FAILURES ===================================
+_________________ test_real_cpu_dma_irq_isr_in_standard_runner _________________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-4/test_real_cpu_dma_irq_isr_in_s0')
+
+    @pytest.mark.skipif(os.environ.get('MYFUZZ_DMA_RUNNER_REAL') != '1',
+        reason='explicit real CPU/DMA Runner gate')
+    def test_real_cpu_dma_irq_isr_in_standard_runner(tmp_path):
+        from myfuzz.scenario.ibex_dma_runner import make_ibex_dma_runner
+        from myfuzz.scenario.ibex_dma_example import DESTINATION, RESULT, WORDS
+        cache = Path(os.environ.get('MYFUZZ_DMA_RUNNER_CACHE', str(tmp_path/'cache')))
+        runner = make_ibex_dma_runner(cache_dir=cache)
+        memory = runner.sessions['cpu'].memory
+>       assert runner._step_tick_bounds('dma')['dma'] == 33
+E       assert 1 == 33
+
+../../../tests/integration/test_ibex_dma_runner_real.py:18: AssertionError
+=========================== short test summary info ============================
+FAILED tests/integration/test_ibex_dma_runner_real.py::test_real_cpu_dma_irq_isr_in_standard_runner
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed in 7.06s
