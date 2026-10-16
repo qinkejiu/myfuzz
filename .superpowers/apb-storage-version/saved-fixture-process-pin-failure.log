@@ -1,0 +1,1601 @@
+FFFFFFFFFFFF......FFFFFFFFF.ss                                           [100%]
+=================================== FAILURES ===================================
+___________ test_actual_ready_reset_close_are_mechanical_ineligible ____________
+
+mechanical_local = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61d9db3b0>
+
+    def test_actual_ready_reset_close_are_mechanical_ineligible(mechanical_local):
+        local=mechanical_local
+>       local.configure_native_reset_observation(max_lifecycles=8,max_commands=32)
+
+tests/local_harness/test_native_reset_observation.py:58: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61d9db3b0>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+_________________ test_direct_actual_write_is_covered_detached _________________
+
+mechanical_local = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61db087a0>
+
+    def test_direct_actual_write_is_covered_detached(mechanical_local):
+>       local=mechanical_local;local.configure_native_reset_observation();local.begin_case('mechanical')
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_native_reset_observation.py:74: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61db087a0>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+__________ test_postparse_or_ack_failure_keeps_applied_history[take] ___________
+
+native_factory = <function make_pulp_dual_source_factory.<locals>.factory at 0x7ea61de079c0>
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-328/test_postparse_or_ack_failure_0')
+mode = 'take'
+
+    @pytest.mark.parametrize('mode',['take','write_error','ack'])
+    def test_postparse_or_ack_failure_keeps_applied_history(native_factory,tmp_path,mode):
+        local=wire_local(native_factory,tmp_path,bad_padcfg=mode=='take',error=int(mode=='write_error'),bad_ack=mode=='ack')
+        try:
+>           local.configure_native_reset_observation(max_commands=32);local.begin_case('mechanical')
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_native_reset_observation.py:87: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61db80f20>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+_______ test_postparse_or_ack_failure_keeps_applied_history[write_error] _______
+
+native_factory = <function make_pulp_dual_source_factory.<locals>.factory at 0x7ea61de079c0>
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-328/test_postparse_or_ack_failure_1')
+mode = 'write_error'
+
+    @pytest.mark.parametrize('mode',['take','write_error','ack'])
+    def test_postparse_or_ack_failure_keeps_applied_history(native_factory,tmp_path,mode):
+        local=wire_local(native_factory,tmp_path,bad_padcfg=mode=='take',error=int(mode=='write_error'),bad_ack=mode=='ack')
+        try:
+>           local.configure_native_reset_observation(max_commands=32);local.begin_case('mechanical')
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_native_reset_observation.py:87: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61db81430>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+___________ test_postparse_or_ack_failure_keeps_applied_history[ack] ___________
+
+native_factory = <function make_pulp_dual_source_factory.<locals>.factory at 0x7ea61de079c0>
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-328/test_postparse_or_ack_failure_2')
+mode = 'ack'
+
+    @pytest.mark.parametrize('mode',['take','write_error','ack'])
+    def test_postparse_or_ack_failure_keeps_applied_history(native_factory,tmp_path,mode):
+        local=wire_local(native_factory,tmp_path,bad_padcfg=mode=='take',error=int(mode=='write_error'),bad_ack=mode=='ack')
+        try:
+>           local.configure_native_reset_observation(max_commands=32);local.begin_case('mechanical')
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_native_reset_observation.py:87: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61db82150>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+_________________ test_capacity_refuses_before_ack_and_command _________________
+
+mechanical_local = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61db831d0>
+
+    def test_capacity_refuses_before_ack_and_command(mechanical_local):
+>       local=mechanical_local;local.configure_native_reset_observation(max_commands=16);local.begin_case('mechanical')
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_native_reset_observation.py:100: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61db831d0>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+______ test_observer_validate_override_cannot_bypass_actual_command_guard ______
+
+mechanical_local = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61dad0fe0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ea61dad10d0>
+
+    def test_observer_validate_override_cannot_bypass_actual_command_guard(mechanical_local,monkeypatch):
+        from myfuzz.local_harness.native_reset_observation import NativeResetObservation
+>       local=mechanical_local;local.configure_native_reset_observation();local.begin_case('mechanical')
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_native_reset_observation.py:109: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61dad0fe0>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+____________ test_detached_live_process_cannot_be_replaced_or_heal _____________
+
+mechanical_local = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61dad3590>
+
+    def test_detached_live_process_cannot_be_replaced_or_heal(mechanical_local):
+>       local=mechanical_local;local.configure_native_reset_observation();local.begin_case('mechanical')
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_native_reset_observation.py:117: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61dad3590>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+_________ test_end_case_reaps_process_after_observer_provenance_drift __________
+
+mechanical_local = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61db81610>
+
+    def test_end_case_reaps_process_after_observer_provenance_drift(mechanical_local):
+>       local=mechanical_local;local.configure_native_reset_observation();local.begin_case('mechanical')
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_native_reset_observation.py:128: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61db81610>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+________ test_resolved_fact_ordinal_is_global_cursor_not_process_number ________
+
+mechanical_local = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61dad0170>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ea61dad2120>
+
+    def test_resolved_fact_ordinal_is_global_cursor_not_process_number(mechanical_local,monkeypatch):
+>       local=mechanical_local;local.configure_native_reset_observation();local.begin_case('mechanical')
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_native_reset_observation.py:138: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61dad0170>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+__________ test_guard_dispatch_table_replacement_fails_before_command __________
+
+mechanical_local = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61dad32c0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ea61dad3b90>
+
+    def test_guard_dispatch_table_replacement_fails_before_command(mechanical_local,monkeypatch):
+        from myfuzz.local_harness import session as session_module
+>       local=mechanical_local;local.configure_native_reset_observation();local.begin_case('mechanical')
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/local_harness/test_native_reset_observation.py:153: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61dad32c0>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+_____ test_actual_wire_control_then_observer_never_promotes_python_binary ______
+
+native_factory = <function make_pulp_dual_source_factory.<locals>.factory at 0x7ea61dbff2e0>
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-328/test_actual_wire_control_then_0')
+
+    def test_actual_wire_control_then_observer_never_promotes_python_binary(native_factory, tmp_path):
+        control = wire_local(native_factory, tmp_path)
+        control.begin_case('mechanical-control')
+        try:
+            reply = control.command('ACCESS_GPIO', (0, 1, 24, 0, 15))
+            assert reply.status == 'result' and reply.sequence == 1
+        finally:
+            finish(control)
+        local = wire_local(native_factory, tmp_path)
+>       local.configure_native_reset_observation(max_lifecycles=8, max_commands=32)
+
+tests/local_harness/test_native_reset_observation_boundaries.py:28: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61de03cb0>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+___ test_parsed_applied_write_then_gpio_take_failure_permanently_incomplete ____
+
+native_factory = <function make_pulp_dual_source_factory.<locals>.factory at 0x7ea61dbff2e0>
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-328/test_parsed_applied_write_then0')
+
+    def test_parsed_applied_write_then_gpio_take_failure_permanently_incomplete(native_factory, tmp_path):
+        local = wire_local(native_factory, tmp_path, bad_padcfg=True)
+>       local.configure_native_reset_observation(max_lifecycles=8, max_commands=32)
+
+tests/local_harness/test_native_reset_observation_boundaries.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61de202f0>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+__________ test_foreign_issuer_and_json_cannot_consume_private_facts ___________
+
+native_factory = <function make_pulp_dual_source_factory.<locals>.factory at 0x7ea61dbff2e0>
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-328/test_foreign_issuer_and_json_c0')
+
+    def test_foreign_issuer_and_json_cannot_consume_private_facts(native_factory, tmp_path):
+        local = wire_local(native_factory, tmp_path)
+>       local.configure_native_reset_observation(max_lifecycles=8, max_commands=32)
+
+tests/local_harness/test_native_reset_observation_boundaries.py:80: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61d9db290>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+_________ test_caller_cannot_inject_fact_through_private_append_method _________
+
+native_factory = <function make_pulp_dual_source_factory.<locals>.factory at 0x7ea61dbff2e0>
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-328/test_caller_cannot_inject_fact0')
+
+    def test_caller_cannot_inject_fact_through_private_append_method(native_factory, tmp_path):
+        local = wire_local(native_factory, tmp_path)
+>       local.configure_native_reset_observation()
+
+tests/local_harness/test_native_reset_observation_boundaries.py:96: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61d9dbfb0>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+___________ test_caller_ready_cannot_duplicate_real_parsed_lifecycle ___________
+
+native_factory = <function make_pulp_dual_source_factory.<locals>.factory at 0x7ea61dbff2e0>
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-328/test_caller_ready_cannot_dupli0')
+
+    def test_caller_ready_cannot_duplicate_real_parsed_lifecycle(native_factory, tmp_path):
+        from myfuzz.local_harness.wire import parse_driver_ready
+        local = wire_local(native_factory, tmp_path)
+>       local.configure_native_reset_observation()
+
+tests/local_harness/test_native_reset_observation_boundaries.py:110: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61db082c0>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+__________ test_same_size_fact_registry_tamper_is_detected[document] ___________
+
+native_factory = <function make_pulp_dual_source_factory.<locals>.factory at 0x7ea61dbff2e0>
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-328/test_same_size_fact_registry_t0')
+which = 'document'
+
+    @pytest.mark.parametrize('which', ['document', 'process_nonce'])
+    def test_same_size_fact_registry_tamper_is_detected(native_factory, tmp_path, which):
+        local = wire_local(native_factory, tmp_path)
+>       local.configure_native_reset_observation()
+
+tests/local_harness/test_native_reset_observation_boundaries.py:125: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61d9d9700>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+________ test_same_size_fact_registry_tamper_is_detected[process_nonce] ________
+
+native_factory = <function make_pulp_dual_source_factory.<locals>.factory at 0x7ea61dbff2e0>
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-328/test_same_size_fact_registry_t1')
+which = 'process_nonce'
+
+    @pytest.mark.parametrize('which', ['document', 'process_nonce'])
+    def test_same_size_fact_registry_tamper_is_detected(native_factory, tmp_path, which):
+        local = wire_local(native_factory, tmp_path)
+>       local.configure_native_reset_observation()
+
+tests/local_harness/test_native_reset_observation_boundaries.py:125: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61db0b470>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+____ test_dead_actual_process_before_command_cannot_leave_complete_interval ____
+
+native_factory = <function make_pulp_dual_source_factory.<locals>.factory at 0x7ea61dbff2e0>
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-328/test_dead_actual_process_befor0')
+
+    def test_dead_actual_process_before_command_cannot_leave_complete_interval(native_factory, tmp_path):
+        local = wire_local(native_factory, tmp_path)
+>       local.configure_native_reset_observation()
+
+tests/local_harness/test_native_reset_observation_boundaries.py:146: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61db08e30>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+_______ test_module_fact_origin_replacement_cannot_authorize_caller_fact _______
+
+native_factory = <function make_pulp_dual_source_factory.<locals>.factory at 0x7ea61dbff2e0>
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-328/test_module_fact_origin_replac0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ea61db0a570>
+
+    def test_module_fact_origin_replacement_cannot_authorize_caller_fact(native_factory, tmp_path, monkeypatch):
+        from myfuzz.local_harness import native_reset_observation as module
+        local = wire_local(native_factory, tmp_path)
+>       local.configure_native_reset_observation()
+
+tests/local_harness/test_native_reset_observation_boundaries.py:162: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/local_harness/session.py:172: in configure_native_reset_observation
+    observer = NativeResetObservation(self, max_lifecycles=max_lifecycles, max_commands=max_commands)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/myfuzz/local_harness/native_reset_observation.py:45: in __init__
+    _NATIVE_RESET_CHECK_PRODUCERS[0](owner)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+owner = <myfuzz.local_harness.gpio_session.GeneratedPulpGpioSession object at 0x7ea61db0be00>
+
+    def _native_reset_check_producers(owner):
+        from .gpio_session import GeneratedPulpGpioSession, _NATIVE_RESET_GPIO_FUNCTIONS, _NATIVE_RESET_GPIO_FUNCTIONS_PIN
+        if (_native_reset_check_producers is not _NATIVE_RESET_CHECK_PRODUCERS[0]
+                or _native_reset_check_producers.__code__ is not _NATIVE_RESET_CHECK_PRODUCERS[1]
+                or _native_reset_native_eligible is not _NATIVE_RESET_NATIVE_ELIGIBLE[0]
+                or _native_reset_native_eligible.__code__ is not _NATIVE_RESET_NATIVE_ELIGIBLE[1]
+                or _NATIVE_RESET_OBSERVER_FUNCTIONS is not _NATIVE_RESET_OBSERVER_FUNCTIONS_PIN
+                or _NATIVE_RESET_OBSERVER_MODULE is not _NATIVE_RESET_OBSERVER_MODULE_PIN
+                or _NATIVE_RESET_OWNER_GUARD is not _NATIVE_RESET_OWNER_GUARD_PIN
+                or _NATIVE_RESET_OWNER_GUARD_PIN[0] is not _native_reset_owner_guard
+                or _NATIVE_RESET_OWNER_GUARD_PIN[1] is not _native_reset_owner_guard.__code__
+                or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
+                       or function.__code__ is not code
+                       for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
+                or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+                or any(globals()[name] is not function or function.__code__ is not code
+                       for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
+            raise ValueError('native reset immutable producer pin drift')
+        if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
+            raise ValueError('native reset build registry drift')
+        if _NATIVE_RESET_GPIO_FUNCTIONS is not _NATIVE_RESET_GPIO_FUNCTIONS_PIN:
+            raise ValueError('native reset GPIO pin table drift')
+        if (_NATIVE_RESET_PRODUCER_MODULE is not _NATIVE_RESET_PRODUCER_PIN[0]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer is not _NATIVE_RESET_PRODUCER_PIN[1]
+                or _NATIVE_RESET_PRODUCER_MODULE.check_producer.__code__ is not _NATIVE_RESET_PRODUCER_PIN[2]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin is not _NATIVE_RESET_PRODUCER_PIN[3]
+                or _NATIVE_RESET_PRODUCER_MODULE._check_origin.__code__ is not _NATIVE_RESET_PRODUCER_PIN[4]
+                or _NATIVE_RESET_PRODUCER_MODULE._CHECK_ORIGIN is not _NATIVE_RESET_PRODUCER_PIN[5]
+                or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
+            raise ValueError('native reset producer registry drift')
+        producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+        if producer_kind == 'apb_storage':
+            _storage_version_authority(owner)
+        for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
+            if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
+                    or name in vars(owner)):
+                raise ValueError('native reset producer method drift:'+name)
+        for name,(method,code) in _NATIVE_RESET_GPIO_FUNCTIONS.items():
+            if getattr(GeneratedPulpGpioSession,name) is not method or method.__code__ is not code or producer_kind == 'gpio' and name in vars(owner):
+                raise ValueError('native reset GPIO producer method drift:'+name)
+        for name,(function,code) in _NATIVE_RESET_BUILD_FUNCTIONS.items():
+            if getattr(_native_reset_build_module,name) is not function or function.__code__ is not code:
+                raise ValueError('native reset build function drift:'+name)
+        if build_local_harness is not _NATIVE_RESET_BUILD_FUNCTIONS['build_local_harness'][0] or local_build_identity is not _NATIVE_RESET_BUILD_FUNCTIONS['local_build_identity'][0]:
+            raise ValueError('native reset build facade drift')
+        if _OPERATIONS is not _NATIVE_RESET_OPERATIONS[0] or json.dumps(_OPERATIONS,sort_keys=True) != _NATIVE_RESET_OPERATIONS[1]:
+            raise ValueError('native reset operation domain drift')
+        if owner._native_reset_observation is not None:
+            _NATIVE_RESET_OBSERVER_FUNCTIONS['_check_observer_methods'][0](owner._native_reset_observation)
+        if subprocess.Popen is not _NATIVE_RESET_POPEN:
+            raise ValueError('native reset process producer drift')
+        for name,(method,code) in _NATIVE_RESET_POPEN_METHODS.items():
+            if getattr(subprocess.Popen,name) is not method or method.__code__ is not code:
+>               raise ValueError('native reset process method drift:'+name)
+E               ValueError: native reset process method drift:__init__
+
+src/myfuzz/local_harness/session.py:536: ValueError
+________ test_version_rejects_unregistered_target_and_unobserved_state _________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-328/test_version_rejects_unregiste0')
+
+    def test_version_rejects_unregistered_target_and_unobserved_state(tmp_path):
+        with pytest.raises(ValueError,match='fresh-actual-target'):
+            GpioRegisterVersionAuthority(SimpleNamespace())
+>       with pytest.raises(ValueError,match='producer-unsupported'):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'producer-unsupported'
+E         Actual message: 'native reset process method drift:__init__'
+
+tests/local_harness/test_gpio_register_version.py:25: AssertionError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_native_reset_observation.py::test_actual_ready_reset_close_are_mechanical_ineligible
+FAILED tests/local_harness/test_native_reset_observation.py::test_direct_actual_write_is_covered_detached
+FAILED tests/local_harness/test_native_reset_observation.py::test_postparse_or_ack_failure_keeps_applied_history[take]
+FAILED tests/local_harness/test_native_reset_observation.py::test_postparse_or_ack_failure_keeps_applied_history[write_error]
+FAILED tests/local_harness/test_native_reset_observation.py::test_postparse_or_ack_failure_keeps_applied_history[ack]
+FAILED tests/local_harness/test_native_reset_observation.py::test_capacity_refuses_before_ack_and_command
+FAILED tests/local_harness/test_native_reset_observation.py::test_observer_validate_override_cannot_bypass_actual_command_guard
+FAILED tests/local_harness/test_native_reset_observation.py::test_detached_live_process_cannot_be_replaced_or_heal
+FAILED tests/local_harness/test_native_reset_observation.py::test_end_case_reaps_process_after_observer_provenance_drift
+FAILED tests/local_harness/test_native_reset_observation.py::test_resolved_fact_ordinal_is_global_cursor_not_process_number
+FAILED tests/local_harness/test_native_reset_observation.py::test_guard_dispatch_table_replacement_fails_before_command
+FAILED tests/local_harness/test_native_reset_observation_boundaries.py::test_actual_wire_control_then_observer_never_promotes_python_binary
+FAILED tests/local_harness/test_native_reset_observation_boundaries.py::test_parsed_applied_write_then_gpio_take_failure_permanently_incomplete
+FAILED tests/local_harness/test_native_reset_observation_boundaries.py::test_foreign_issuer_and_json_cannot_consume_private_facts
+FAILED tests/local_harness/test_native_reset_observation_boundaries.py::test_caller_cannot_inject_fact_through_private_append_method
+FAILED tests/local_harness/test_native_reset_observation_boundaries.py::test_caller_ready_cannot_duplicate_real_parsed_lifecycle
+FAILED tests/local_harness/test_native_reset_observation_boundaries.py::test_same_size_fact_registry_tamper_is_detected[document]
+FAILED tests/local_harness/test_native_reset_observation_boundaries.py::test_same_size_fact_registry_tamper_is_detected[process_nonce]
+FAILED tests/local_harness/test_native_reset_observation_boundaries.py::test_dead_actual_process_before_command_cannot_leave_complete_interval
+FAILED tests/local_harness/test_native_reset_observation_boundaries.py::test_module_fact_origin_replacement_cannot_authorize_caller_fact
+FAILED tests/local_harness/test_gpio_register_version.py::test_version_rejects_unregistered_target_and_unobserved_state
+21 failed, 7 passed, 2 skipped in 3.35s

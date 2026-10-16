@@ -1,0 +1,16 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______________ test_source_constant_ready_cannot_mask_a_writer ________________
+
+    def test_source_constant_ready_cannot_mask_a_writer():
+        from myfuzz.scenario.apb_storage_register_version import reduce_storage_samples
+        row=sample(write=1)
+        row['pre']['storage_probes']['storage_pready']=0
+        row['post']['storage_probes']['storage_pready']=0
+>       with pytest.raises(ValueError):reduce_storage_samples([row])
+E       Failed: DID NOT RAISE ValueError
+
+tests/scenario/test_apb_storage_register_version.py:96: Failed
+=========================== short test summary info ============================
+FAILED tests/scenario/test_apb_storage_register_version.py::test_source_constant_ready_cannot_mask_a_writer
+1 failed, 23 deselected in 0.24s

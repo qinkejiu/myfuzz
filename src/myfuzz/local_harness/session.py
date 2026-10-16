@@ -242,6 +242,11 @@ class GeneratedLocalSession:
         return digest, asserted, released, kind
 
     def _abort(self) -> None:
+        revoke_error = None
+        try:
+            _revoke_storage_versions(self)
+        except BaseException as error:
+            revoke_error = error
         proc, self._process = self._process, None
         if proc is not None:
             try:
@@ -254,6 +259,8 @@ class GeneratedLocalSession:
                 for stream in (proc.stdin, proc.stdout):
                     if stream is not None:
                         stream.close()
+        if revoke_error is not None:
+            raise revoke_error
 
     def begin_case(self, testcase_id: str) -> None:
         _NATIVE_RESET_OWNER_GUARD_PIN[0](self)
@@ -313,6 +320,9 @@ class GeneratedLocalSession:
 
     def _command_impl(self, operation: str, fields: tuple[int, ...]) -> DriverReceipt:
         _NATIVE_RESET_OWNER_GUARD_PIN[0](self)
+        storage_authority = _storage_version_authority(self)
+        if storage_authority is not None:
+            storage_authority._actual_begin(self, operation, fields)
         proc = self._process
         try:
             if proc is None or proc.poll() is not None or proc.stdin is None or proc.stdout is None:
@@ -398,6 +408,15 @@ class GeneratedLocalSession:
             except BaseException:
                 self._abort()
                 raise
+        if storage_authority is not None:
+            try:
+                storage_authority._actual_command(self, operation, fields, receipt)
+            except BaseException as primary:
+                try:
+                    self._abort()
+                except BaseException as cleanup:
+                    primary.add_note('storage issuer cleanup failure: '+repr(cleanup))
+                raise
         self._sequence = sequence
         self.local_ticks = self._tick_base + receipt.tick_after
         return receipt
@@ -417,6 +436,7 @@ class GeneratedLocalSession:
     def end_case(self) -> None:
         guard_error = None
         try:
+            _revoke_storage_versions(self)
             _NATIVE_RESET_OWNER_GUARD_PIN[0](self, allow_incomplete=True)
         except BaseException as error:
             # A poisoned evidence ledger must not prevent teardown of the real
@@ -483,7 +503,9 @@ def _native_reset_check_producers(owner):
             or any(getattr(_NATIVE_RESET_OBSERVER_MODULE,name) is not function
                    or function.__code__ is not code
                    for name,(function,code) in _NATIVE_RESET_OBSERVER_FUNCTIONS.items())
-            or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())):
+            or any(globals()[name] is not table for name,table in _NATIVE_RESET_PIN_TABLES.items())
+            or any(globals()[name] is not function or function.__code__ is not code
+                   for name,(function,code) in _STORAGE_VERSION_LOOKUP_PINS.items())):
         raise ValueError('native reset immutable producer pin drift')
     if _NATIVE_RESET_BUILD_ISSUANCES is not _NATIVE_RESET_BUILD_REGISTRY_PIN:
         raise ValueError('native reset build registry drift')
@@ -498,6 +520,8 @@ def _native_reset_check_producers(owner):
             or _NATIVE_RESET_PRODUCER_MODULE._DEPENDENCIES is not _NATIVE_RESET_PRODUCER_PIN[6]):
         raise ValueError('native reset producer registry drift')
     producer_kind = _NATIVE_RESET_PRODUCER_PIN[1](owner)
+    if producer_kind == 'apb_storage':
+        _storage_version_authority(owner)
     for name,(method,code) in _NATIVE_RESET_SESSION_FUNCTIONS.items():
         if (getattr(GeneratedLocalSession,name) is not method or method.__code__ is not code
                 or name in vars(owner)):
@@ -570,3 +594,40 @@ def _native_reset_owner_guard(owner, *, allow_incomplete=False):
 
 _NATIVE_RESET_OWNER_GUARD=(_native_reset_owner_guard,_native_reset_owner_guard.__code__)
 _NATIVE_RESET_OWNER_GUARD_PIN=_NATIVE_RESET_OWNER_GUARD
+
+# Independent issuer origins: JSON and mutable module aliases cannot replace them.
+from myfuzz.scenario import apb_storage_register_version as _STORAGE_VERSION_MODULE
+_STORAGE_VERSION_PIN = (_STORAGE_VERSION_MODULE, _STORAGE_VERSION_MODULE._AUTHORITIES,
+    _STORAGE_VERSION_MODULE._LIVE, _STORAGE_VERSION_MODULE._TOKENS,
+    _STORAGE_VERSION_MODULE._TYPE, _STORAGE_VERSION_MODULE._METHODS,
+    MappingProxyType({name:getattr(_STORAGE_VERSION_MODULE,name) for name in
+        ('_WIDTHS','_REGISTRIES','_REDUCER','_ROUTED_VALIDATOR','_GETFRAME')}))
+
+
+def _storage_version_authority(owner):
+    module,registry,live,tokens,cls,methods,facts = _STORAGE_VERSION_PIN
+    if (module is not _STORAGE_VERSION_MODULE or module._AUTHORITIES is not registry
+            or module._LIVE is not live or module._TOKENS is not tokens
+            or module._TYPE is not cls or module._METHODS is not methods
+            or any(getattr(module,name) is not value for name,value in facts.items())):
+        raise ValueError('storage-version-dispatch-registry-drift')
+    authority=registry.get(owner)
+    if authority is not None and (type(authority) is not cls or any(
+            name in vars(authority) or getattr(cls,name) is not method or method.__code__ is not code
+            for name,(method,code) in methods.items())):
+        raise ValueError('storage-version-dispatch-method-drift')
+    return authority
+
+
+def _revoke_storage_versions(owner):
+    # Teardown must still reap a child even if another evidence consumer drifted.
+    module,registry,live,tokens,cls,methods,facts = _STORAGE_VERSION_PIN
+    authority=registry.get(owner)
+    if authority is not None:
+        if authority in tokens:tokens[authority].clear()
+        if authority in live:live[authority]['bad']=True
+
+_STORAGE_VERSION_LOOKUP_PINS=MappingProxyType({name:(globals()[name],globals()[name].__code__)
+    for name in ('_storage_version_authority','_revoke_storage_versions')})
+_NATIVE_RESET_PIN_TABLES=MappingProxyType({**_NATIVE_RESET_PIN_TABLES,
+    '_STORAGE_VERSION_PIN':_STORAGE_VERSION_PIN,'_STORAGE_VERSION_LOOKUP_PINS':_STORAGE_VERSION_LOOKUP_PINS})

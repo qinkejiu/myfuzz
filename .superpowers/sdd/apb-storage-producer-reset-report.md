@@ -1,5 +1,10 @@
 # B: closed generated producer/reset integration
 
+## Scope correction recorded during C (2026-10-17)
+
+The original full B158/35 regression receipt remains real test output, but the blanket no-frontend description above/below was inaccurate for its existing mechanical fixture: native_factory invokes ibex_pulp_dual_source._artifact→plan_local_harness→real elaborate_profile. New B selected-generic focused controls used explicit saved facts, but the whole original scope was not proven frontend-free. No DUT build/model/native claim follows. This historical scope error is preserved rather than retroactively called pure. C's explicit saved-ABI/tool fixture/Popen-guard wrapper now reruns the same existing mechanical controls without frontend/tool/model launch; see apb-storage-version-implementation-report.md and recorded argv/exit receipts.
+
+
 2026-10-17. Implements the approved B brief, following A60d692f/root dc14fa3 review. CPU owner completed independent local source copy/fullhostfreeze c02134412a742eccde99746af5487f81c2f77f09a7cf20250ce37f2077762e8f before session edits. No remote/frontend/elaboration/DUT compilation/model/native operation. No storage-version, Runner reset-evidence, generic F4 admission or prerequisite issuance changes.
 
 ## Implementation

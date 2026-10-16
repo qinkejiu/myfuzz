@@ -1,0 +1,144 @@
+FFFFFFFFFFFFF                                                            [100%]
+=================================== FAILURES ===================================
+________________ test_first_measured_value_is_not_assumed_zero _________________
+
+    def test_first_measured_value_is_not_assumed_zero():
+>       from myfuzz.scenario.apb_storage_register_version import reduce_storage_samples
+E       ModuleNotFoundError: No module named 'myfuzz.scenario.apb_storage_register_version'
+
+tests/scenario/test_apb_storage_register_version.py:11: ModuleNotFoundError
+_______________________ test_every_alias_write_counts[4] _______________________
+
+address = 4
+
+    @pytest.mark.parametrize('address',[4,5,6,7,36,0xfe4])
+    def test_every_alias_write_counts(address):
+>       from myfuzz.scenario.apb_storage_register_version import reduce_storage_samples
+E       ModuleNotFoundError: No module named 'myfuzz.scenario.apb_storage_register_version'
+
+tests/scenario/test_apb_storage_register_version.py:18: ModuleNotFoundError
+_______________________ test_every_alias_write_counts[5] _______________________
+
+address = 5
+
+    @pytest.mark.parametrize('address',[4,5,6,7,36,0xfe4])
+    def test_every_alias_write_counts(address):
+>       from myfuzz.scenario.apb_storage_register_version import reduce_storage_samples
+E       ModuleNotFoundError: No module named 'myfuzz.scenario.apb_storage_register_version'
+
+tests/scenario/test_apb_storage_register_version.py:18: ModuleNotFoundError
+_______________________ test_every_alias_write_counts[6] _______________________
+
+address = 6
+
+    @pytest.mark.parametrize('address',[4,5,6,7,36,0xfe4])
+    def test_every_alias_write_counts(address):
+>       from myfuzz.scenario.apb_storage_register_version import reduce_storage_samples
+E       ModuleNotFoundError: No module named 'myfuzz.scenario.apb_storage_register_version'
+
+tests/scenario/test_apb_storage_register_version.py:18: ModuleNotFoundError
+_______________________ test_every_alias_write_counts[7] _______________________
+
+address = 7
+
+    @pytest.mark.parametrize('address',[4,5,6,7,36,0xfe4])
+    def test_every_alias_write_counts(address):
+>       from myfuzz.scenario.apb_storage_register_version import reduce_storage_samples
+E       ModuleNotFoundError: No module named 'myfuzz.scenario.apb_storage_register_version'
+
+tests/scenario/test_apb_storage_register_version.py:18: ModuleNotFoundError
+______________________ test_every_alias_write_counts[36] _______________________
+
+address = 36
+
+    @pytest.mark.parametrize('address',[4,5,6,7,36,0xfe4])
+    def test_every_alias_write_counts(address):
+>       from myfuzz.scenario.apb_storage_register_version import reduce_storage_samples
+E       ModuleNotFoundError: No module named 'myfuzz.scenario.apb_storage_register_version'
+
+tests/scenario/test_apb_storage_register_version.py:18: ModuleNotFoundError
+_____________________ test_every_alias_write_counts[4068] ______________________
+
+address = 4068
+
+    @pytest.mark.parametrize('address',[4,5,6,7,36,0xfe4])
+    def test_every_alias_write_counts(address):
+>       from myfuzz.scenario.apb_storage_register_version import reduce_storage_samples
+E       ModuleNotFoundError: No module named 'myfuzz.scenario.apb_storage_register_version'
+
+tests/scenario/test_apb_storage_register_version.py:18: ModuleNotFoundError
+____________________ test_bad_raw_transitions_refused[bool] ____________________
+
+mutation = 'bool'
+
+    @pytest.mark.parametrize('mutation',['bool','gap','transition','error','missing','reset'])
+    def test_bad_raw_transitions_refused(mutation):
+>       from myfuzz.scenario.apb_storage_register_version import reduce_storage_samples
+E       ModuleNotFoundError: No module named 'myfuzz.scenario.apb_storage_register_version'
+
+tests/scenario/test_apb_storage_register_version.py:25: ModuleNotFoundError
+____________________ test_bad_raw_transitions_refused[gap] _____________________
+
+mutation = 'gap'
+
+    @pytest.mark.parametrize('mutation',['bool','gap','transition','error','missing','reset'])
+    def test_bad_raw_transitions_refused(mutation):
+>       from myfuzz.scenario.apb_storage_register_version import reduce_storage_samples
+E       ModuleNotFoundError: No module named 'myfuzz.scenario.apb_storage_register_version'
+
+tests/scenario/test_apb_storage_register_version.py:25: ModuleNotFoundError
+_________________ test_bad_raw_transitions_refused[transition] _________________
+
+mutation = 'transition'
+
+    @pytest.mark.parametrize('mutation',['bool','gap','transition','error','missing','reset'])
+    def test_bad_raw_transitions_refused(mutation):
+>       from myfuzz.scenario.apb_storage_register_version import reduce_storage_samples
+E       ModuleNotFoundError: No module named 'myfuzz.scenario.apb_storage_register_version'
+
+tests/scenario/test_apb_storage_register_version.py:25: ModuleNotFoundError
+___________________ test_bad_raw_transitions_refused[error] ____________________
+
+mutation = 'error'
+
+    @pytest.mark.parametrize('mutation',['bool','gap','transition','error','missing','reset'])
+    def test_bad_raw_transitions_refused(mutation):
+>       from myfuzz.scenario.apb_storage_register_version import reduce_storage_samples
+E       ModuleNotFoundError: No module named 'myfuzz.scenario.apb_storage_register_version'
+
+tests/scenario/test_apb_storage_register_version.py:25: ModuleNotFoundError
+__________________ test_bad_raw_transitions_refused[missing] ___________________
+
+mutation = 'missing'
+
+    @pytest.mark.parametrize('mutation',['bool','gap','transition','error','missing','reset'])
+    def test_bad_raw_transitions_refused(mutation):
+>       from myfuzz.scenario.apb_storage_register_version import reduce_storage_samples
+E       ModuleNotFoundError: No module named 'myfuzz.scenario.apb_storage_register_version'
+
+tests/scenario/test_apb_storage_register_version.py:25: ModuleNotFoundError
+___________________ test_bad_raw_transitions_refused[reset] ____________________
+
+mutation = 'reset'
+
+    @pytest.mark.parametrize('mutation',['bool','gap','transition','error','missing','reset'])
+    def test_bad_raw_transitions_refused(mutation):
+>       from myfuzz.scenario.apb_storage_register_version import reduce_storage_samples
+E       ModuleNotFoundError: No module named 'myfuzz.scenario.apb_storage_register_version'
+
+tests/scenario/test_apb_storage_register_version.py:25: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED tests/scenario/test_apb_storage_register_version.py::test_first_measured_value_is_not_assumed_zero
+FAILED tests/scenario/test_apb_storage_register_version.py::test_every_alias_write_counts[4]
+FAILED tests/scenario/test_apb_storage_register_version.py::test_every_alias_write_counts[5]
+FAILED tests/scenario/test_apb_storage_register_version.py::test_every_alias_write_counts[6]
+FAILED tests/scenario/test_apb_storage_register_version.py::test_every_alias_write_counts[7]
+FAILED tests/scenario/test_apb_storage_register_version.py::test_every_alias_write_counts[36]
+FAILED tests/scenario/test_apb_storage_register_version.py::test_every_alias_write_counts[4068]
+FAILED tests/scenario/test_apb_storage_register_version.py::test_bad_raw_transitions_refused[bool]
+FAILED tests/scenario/test_apb_storage_register_version.py::test_bad_raw_transitions_refused[gap]
+FAILED tests/scenario/test_apb_storage_register_version.py::test_bad_raw_transitions_refused[transition]
+FAILED tests/scenario/test_apb_storage_register_version.py::test_bad_raw_transitions_refused[error]
+FAILED tests/scenario/test_apb_storage_register_version.py::test_bad_raw_transitions_refused[missing]
+FAILED tests/scenario/test_apb_storage_register_version.py::test_bad_raw_transitions_refused[reset]
+13 failed in 0.10s

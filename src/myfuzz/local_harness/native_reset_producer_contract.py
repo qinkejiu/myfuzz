@@ -14,9 +14,14 @@ _DEPENDENCIES = MappingProxyType({name: (module, MappingProxyType({
     'myfuzz.local_harness.runtime_renderer', 'myfuzz.local_harness.renderer',
     'myfuzz.local_harness.apb3_register_template',
     'myfuzz.local_harness.apb_storage_source_contract',
-    'myfuzz.local_harness.apb_storage_probe_contract')
+    'myfuzz.local_harness.apb_storage_probe_contract',
+    'myfuzz.scenario.apb_storage_register_version')
     for module in (import_module(name),)})
 _DEPENDENCIES_PIN = _DEPENDENCIES
+from pathlib import Path
+import hashlib
+_STORAGE_ISSUER_SOURCE = (_DEPENDENCIES['myfuzz.scenario.apb_storage_register_version'][0],
+    hashlib.sha256(Path(_DEPENDENCIES['myfuzz.scenario.apb_storage_register_version'][0].__file__).read_bytes()).hexdigest())
 
 
 def _make_closed_registry():
@@ -81,6 +86,8 @@ def check_producer(owner):
     if selected == 'apb_storage':
         if _DEPENDENCIES is not _DEPENDENCIES_PIN:
             raise ValueError('native reset storage dependency registry drift')
+        if hashlib.sha256(Path(_STORAGE_ISSUER_SOURCE[0].__file__).read_bytes()).hexdigest()!=_STORAGE_ISSUER_SOURCE[1]:
+            raise ValueError('native reset storage issuer source drift')
         for name,(module,functions) in _DEPENDENCIES.items():
             if import_module(name) is not module or any(
                     getattr(module,key) is not function or function.__code__ is not code

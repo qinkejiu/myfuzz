@@ -38,6 +38,8 @@ class GeneratedApb3RegisterSession(GeneratedLocalSession):
         self.probe_offsets = probe_offsets
         self._window = window
         self._started = False
+        self._storage_active_context = None
+        self._storage_last_access = None
         self._samples = deque()
         self.local_transactions = []
         self._dynamic = {}
@@ -66,6 +68,65 @@ class GeneratedApb3RegisterSession(GeneratedLocalSession):
         self.max_local_ticks_per_register_access = 2 * wait + 5
         self.max_local_ticks_per_step = 1 + len(self._dynamic) + len(self._bound) + (
             len(setup_writes) + len(probe_offsets)) * self.max_local_ticks_per_register_access
+
+    @property
+    def routed_register_access_enabled(self):
+        from .session import _storage_version_authority
+        self._check_artifact_stable()
+        return _storage_version_authority(self) is not None
+
+    def routed_register_access(self, source_transaction, *, address, offset,
+                               write, value, be, delivery_context):
+        from dataclasses import asdict
+        from copy import deepcopy
+        import json
+        from myfuzz.scenario.ledger import TransactionKey
+        if (not self.routed_register_access_enabled or type(source_transaction) is not TransactionKey
+                or type(write) is not bool or any(type(v) is not int for v in (address,offset,value,be))
+                or not 0<=address<=0xffffffff or not 0<=offset<self._window or offset%4
+                or not 0<=value<=0xffffffff or not write and value!=0 or be!=15 or self._storage_active_context is not None
+                or self.process is None or self.process.poll() is not None):
+            raise ValueError('storage-routed-access-context-invalid')
+        expected=dict(source_transaction=asdict(source_transaction),address=address,offset=offset,
+            write=write,value=value,be=be)
+        keys=set(expected)|{'device_id','window_base','window_size'}
+        if (type(delivery_context) is not dict or set(delivery_context)!=keys
+                or type(delivery_context['device_id']) is not str or not delivery_context['device_id']
+                or type(delivery_context['window_base']) is not int or not 0<=delivery_context['window_base']<=0xffffffff
+                or type(delivery_context['window_size']) is not int or delivery_context['window_size']!=self._window
+                or address!=delivery_context['window_base']+offset
+                or delivery_context['window_base']+self._window>1<<32
+                or json.dumps({k:delivery_context[k] for k in expected},sort_keys=True,allow_nan=False)!=json.dumps(expected,sort_keys=True,allow_nan=False)):
+            raise ValueError('storage-routed-delivery-mismatch')
+        self._storage_active_context=deepcopy({**delivery_context,
+            'execution':self._execution,'reset_epoch':self.reset_epoch,'command_sequence':self._sequence+1,
+            'schema_version':'apb_storage_routed_context.v1','source_authenticated':False})
+        try:
+            from myfuzz.scenario.apb_storage_register_version import validate_routed_context
+            validate_routed_context(self._storage_active_context,operation=self.access_operation,
+                fields=(int(write),offset,value,be),sequence=self._sequence+1,execution=self._execution,epoch=self.reset_epoch,window=self._window)
+            reply=self.command(self.access_operation,(int(write),offset,value if write else 0,be))
+            result=self._take(reply)
+            if result['error']:raise RuntimeError('actual storage APB error')
+            access_id=f'apb-storage:{self._execution}:{reply.sequence}'
+            self._storage_last_access=(source_transaction,access_id)
+            return dict(rdata=result['rdata'],target_access_id=access_id,
+                target_context_schema_version='apb_storage_routed_context.v1',source_authenticated=False)
+        except BaseException:
+            from .session import _revoke_storage_versions
+            _revoke_storage_versions(self)
+            raise
+        finally:
+            self._storage_active_context=None
+
+    def routed_delivery_failed(self, source_transaction, access_id):
+        from .session import _revoke_storage_versions
+        # A source delivery failure cannot preserve an issuer scope. Context
+        # remains correlation only; this hook never certifies a successful source.
+        _revoke_storage_versions(self)
+        if self._storage_last_access != (source_transaction,access_id):
+            raise ValueError('storage-routed-terminal-context-mismatch')
+        self._storage_last_access=None
 
     def identity_document(self):
         return {**super().identity_document(),

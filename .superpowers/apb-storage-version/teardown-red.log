@@ -1,0 +1,26 @@
+Fs                                                                       [100%]
+=================================== FAILURES ===================================
+____ test_revocation_dispatch_failure_cannot_prevent_abort_teardown[timer] _____
+
+storage = <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x73b406122000>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73b40624e9c0>
+
+    def test_revocation_dispatch_failure_cannot_prevent_abort_teardown(storage,monkeypatch):
+        """Mock teardown only; never a measured producer or native issuance."""
+        from types import SimpleNamespace
+        from myfuzz.local_harness import session
+        state={'reaped':False}
+        stream=SimpleNamespace(close=lambda:None)
+        process=SimpleNamespace(poll=lambda:None,kill=lambda:None,wait=lambda **kw:state.update(reaped=True),stdin=stream,stdout=stream)
+        storage._process=process
+        monkeypatch.setattr(session,'_STORAGE_VERSION_PIN',())
+        try:
+            with pytest.raises(ValueError):storage._abort()
+>           assert storage.process is None and state['reaped']
+E           assert (namespace(poll=<function test_revocation_dispatch_failure_cannot_prevent_abort_teardown.<locals>.<lambda> at 0x73b4062...e(close=<function test_revocation_dispatch_failure_cannot_prevent_abort_teardown.<locals>.<lambda> at 0x73b40622ff60>)) is None)
+E            +  where namespace(poll=<function test_revocation_dispatch_failure_cannot_prevent_abort_teardown.<locals>.<lambda> at 0x73b4062...e(close=<function test_revocation_dispatch_failure_cannot_prevent_abort_teardown.<locals>.<lambda> at 0x73b40622ff60>)) = <myfuzz.local_harness.apb3_register_session.GeneratedApb3RegisterSession object at 0x73b406122000>.process
+
+tests/scenario/test_apb_storage_register_version.py:146: AssertionError
+=========================== short test summary info ============================
+FAILED tests/scenario/test_apb_storage_register_version.py::test_revocation_dispatch_failure_cannot_prevent_abort_teardown[timer]
+1 failed, 1 skipped, 37 deselected in 0.27s
