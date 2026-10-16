@@ -3,7 +3,7 @@
 Register accesses advance the same real DMA process. RAM writes use only the
 accepted RTL master payload; this helper does not implement a copy operation.
 """
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from copy import deepcopy
 
 from .session import GeneratedLocalSession
@@ -11,9 +11,61 @@ from myfuzz.scenario.ledger import TransactionKey, TransactionLedger
 from myfuzz.scenario.memory_service import MemoryService
 
 
+@dataclass(frozen=True)
+class MasterTargetWindow:
+    """One explicit 32-bit DMA master destination backed by real target RTL."""
+
+    component: str
+    base: int
+    size: int
+    endpoint: object
+    writable_offsets: tuple[int, ...]
+    accepted_write_values: tuple[int, ...] | range
+    byte_enable: int = 15
+
+    def __post_init__(self):
+        if (type(self.component) is not str or not self.component
+                or type(self.base) is not int or self.base < 0
+                or self.base % 0x1000 or type(self.size) is not int
+                or self.size < 4 or self.size % 4
+                or self.base + self.size > 1 << 64
+                or type(self.writable_offsets) is not tuple
+                or not self.writable_offsets
+                or any(type(offset) is not int or offset < 0
+                       or offset % 4 or offset + 4 > self.size
+                       for offset in self.writable_offsets)
+                or len(set(self.writable_offsets)) != len(self.writable_offsets)
+                or not isinstance(self.accepted_write_values, (tuple, range))
+                or not self.accepted_write_values
+                or any(type(value) is not int or not 0 <= value <= 0xffffffff
+                       for value in self.accepted_write_values)
+                or type(self.byte_enable) is not int or self.byte_enable != 15
+                or not callable(getattr(self.endpoint, 'write_register', None))):
+            raise ValueError('invalid DMA master target window')
+
+    def contains(self, address):
+        return self.base <= address and address + 4 <= self.base + self.size
+
+    def accepts(self, address, write, value, byte_enable):
+        return (self.contains(address) and write and
+                address - self.base in self.writable_offsets and
+                value in self.accepted_write_values and
+                byte_enable == self.byte_enable)
+
+    def identity_document(self):
+        values = self.accepted_write_values
+        return dict(component=self.component, base=self.base, size=self.size,
+            writable_offsets=list(self.writable_offsets),
+            accepted_write_values=([values.start, values.stop - 1]
+                if isinstance(values, range) else list(values)),
+            byte_enable=self.byte_enable,
+            endpoint_identity=self.endpoint.identity_document())
+
+
 class GeneratedWishboneDmaSession(GeneratedLocalSession):
     def __init__(self, artifact, *, memory=None, memory_service=None,
                  source_component='dma', max_control_edges=32, max_events=10000,
+                 master_targets=(),
                  **kwargs):
         super().__init__(artifact, **kwargs)
         if artifact.runtime_document['kind'] != 'wishbone_dma':
@@ -24,8 +76,25 @@ class GeneratedWishboneDmaSession(GeneratedLocalSession):
             raise ValueError('invalid DMA session bounds')
         if type(max_events) is not int or max_events < 1:
             raise ValueError('invalid DMA event bound')
+        if (type(master_targets) is not tuple or
+                any(type(window) is not MasterTargetWindow for window in master_targets)):
+            raise ValueError('invalid DMA master targets')
+        for index, window in enumerate(master_targets):
+            if any(window.base < old.base + old.size and
+                   old.base < window.base + window.size
+                   for old in master_targets[:index]):
+                raise ValueError('overlapping DMA master targets')
         self.memory_service = (memory_service if memory_service is not None else
                                MemoryService(memory, TransactionLedger()))
+        for window in master_targets:
+            if any(window.base < region_base + region_size and
+                   region_base < window.base + window.size
+                   for region in self.memory_service.memory.identity_document()['regions']
+                   for region_base, region_size in
+                   ((region['base'], region['size']),
+                    *((alias, region['size']) for alias in region['aliases']))):
+                raise ValueError('DMA master target overlaps memory')
+        self.master_targets = master_targets
         self.source_component = source_component
         self.max_control_edges = max_control_edges
         self.max_events = max_events
@@ -78,22 +147,45 @@ class GeneratedWishboneDmaSession(GeneratedLocalSession):
                 value=pre['mwb_dat_w'], byte_enable=15)
             # Reject invalid resources before any service callback. Other failures
             # propagate; they must never be disguised as a peripheral bus error.
+            target = next((window for window in self.master_targets
+                           if window.contains(address)), None)
             invalid = False
-            try:
-                if pre['mwb_we']:
-                    self.memory_service.memory.validate_write(
-                        address,pre['mwb_dat_w'],width_bytes=4,byte_enable=15)
-                else:
-                    self.memory_service.memory.validate_read(address,4)
-            except ValueError as error:
-                if str(error) not in ('unmapped address; MMIO requires real IP response',
-                                      'access crosses memory window',
-                                      'read-only memory', 'write-only memory'):
-                    raise
-                invalid = True
+            if target is None:
+                try:
+                    if pre['mwb_we']:
+                        self.memory_service.memory.validate_write(
+                            address,pre['mwb_dat_w'],width_bytes=4,byte_enable=15)
+                    else:
+                        self.memory_service.memory.validate_read(address,4)
+                except ValueError as error:
+                    if str(error) not in ('unmapped address; MMIO requires real IP response',
+                                          'access crosses memory window',
+                                          'read-only memory', 'write-only memory'):
+                        raise
+                    invalid = True
+            else:
+                invalid = not target.accepts(address, bool(pre['mwb_we']),
+                                             pre['mwb_dat_w'], 15)
+                if invalid:
+                    accepted['target_rejection'] = 'declared_master_target_access'
             rdata = 0
             if not invalid:
-                if pre['mwb_we']:
+                if target is not None:
+                    before_tick = target.endpoint.local_ticks
+                    before_events = len(target.endpoint.uart_events)
+                    target.endpoint.write_register(address-target.base,
+                        pre['mwb_dat_w'], be=15)
+                    target_receipt = dict(source_transaction=asdict(key),
+                        target_component=target.component, address=address,
+                        offset=address-target.base, write=True,
+                        value=pre['mwb_dat_w'], byte_enable=15,
+                        target_tick_before=before_tick,
+                        target_tick_after=target.endpoint.local_ticks,
+                        target_event_range=[before_events,
+                            len(target.endpoint.uart_events)])
+                    accepted['target_delivery'] = target_receipt
+                    event['target_delivery'] = target_receipt
+                elif pre['mwb_we']:
                     self.memory_service.write(key,address,pre['mwb_dat_w'],width_bytes=4,byte_enable=15)
                 else:
                     rdata = self.memory_service.read(key,address,width_bytes=4).value
@@ -162,4 +254,7 @@ class GeneratedWishboneDmaSession(GeneratedLocalSession):
             write_burst_tail_extra_delay_edges=1, control_edge_bound=self.max_control_edges,
             max_events=self.max_events, address_shift=2,byte_enable=15,
             source_component=self.source_component)
+        if self.master_targets:
+            document['dma_environment']['master_targets'] = [
+                window.identity_document() for window in self.master_targets]
         return document

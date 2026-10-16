@@ -1,6 +1,7 @@
 from pathlib import Path
 import pytest
-from myfuzz.local_harness.wishbone_dma_session import GeneratedWishboneDmaSession
+from myfuzz.local_harness.wishbone_dma_session import (
+    GeneratedWishboneDmaSession, MasterTargetWindow)
 from myfuzz.scenario.memory import PersistentMemory, MemoryRegion
 from test_wishbone_dma_transport import artifact
 
@@ -120,6 +121,48 @@ def test_invalid_resource_yields_real_error_input_without_ram_commit(artifact,tm
     session.step_local()
     assert commands[1][5:] == (1,0,0,1)
     assert session.pending_responses == 0
+    assert session.memory_service.events == []
+
+
+def test_master_target_delivery_preserves_native_step_receipt(artifact, tmp_path, monkeypatch):
+    from myfuzz.local_harness.wire import DriverReceipt
+
+    class Target:
+        local_ticks = 0
+        uart_events = ()
+
+        def write_register(self, offset, value, *, be):
+            assert (offset, value, be) == (0x1c, 0xa5, 15)
+            self.local_ticks += 1
+            self.uart_events = ({'tick': self.local_ticks},)
+
+        def identity_document(self):
+            return {'component': 'test-target'}
+
+    target = Target()
+    memory = PersistentMemory(initialization_seed=1, max_initialized_bytes=16,
+        regions=(MemoryRegion('ram', 0x1000, 16),))
+    window = MasterTargetWindow('uart', 0x50000000, 0x1000, target,
+        (0x1c,), range(256))
+    session = GeneratedWishboneDmaSession(artifact, base_dir=ROOT,
+        cache_dir=tmp_path, memory=memory, master_targets=(window,))
+    session._execution = 'software-contract'
+    session._case_id = 'target'
+    payload = {'observations': {'backend': {'mwb_stb': 0}},
+        'pre_backend': dict(mwb_cyc=1, mwb_stb=1, mwb_we=1,
+            mwb_adr=0x5000001c >> 2, mwb_dat_w=0xa5)}
+    native = DriverReceipt('result', 'software-contract', 1, 0, 1, 1,
+        payload=payload)
+    monkeypatch.setattr(session, 'command', lambda op, fields: native)
+
+    returned = session.step_local()
+
+    assert returned is native
+    assert returned.status == 'result' and returned.new_ticks == 1
+    assert returned.payload['pre_backend']['mwb_adr'] == 0x5000001c >> 2
+    assert session.events[0]['accepted']['target_delivery']['target_event_range'] == [0, 1]
+    assert session.events[0]['target_delivery']['target_tick_after'] == 1
+    assert session.pending_responses == 1
     assert session.memory_service.events == []
 
 
