@@ -22,7 +22,7 @@ CPU 配置 GPIO
 
 `SoC内部数据流动与去向.docx` 列出六类流，均纳入最终目标：F1 程序存储器→CPU 取指；F2 RAM/外设→CPU 数据读；F3 CPU→RAM 数据写；F4 CPU→外设 MMIO 控制；F5 外设 IRQ→CPU trap/ISR 后再次 MMIO；F6 CPU 配置 DMA→真实 DMA 主设备搬运 RAM/IP 数据→完成 IRQ→CPU。具体输入归属、抽象转发和每类当前实现状态见[当前实施计划](superpowers/plans/2026-10-06-current-dataflow-fuzz-implementation-plan.md)。
 
-文档中的 Bus/Interconnect 与 Interrupt Controller 是典型 SoC 的物理结构示意。本系统用事务级 Router 与事件交付表达 F1～F6 的因果关系，不把它们实例化为一颗具体 SoC。F6 必须由真实 DMA RTL 发出主设备读写请求；当前尚无这条链的实现或验收证据。
+文档中的 Bus/Interconnect 与 Interrupt Controller 是典型 SoC 的物理结构示意。本系统用事务级 Router 与事件交付表达 F1～F6 的因果关系，不把它们实例化为一颗具体 SoC。F6 由真实 DMA RTL 发出主设备读写请求；当前已有[Ibex＋ZipCPU wbdmac 的 RAM→RAM 定向闭环](reports/ibex-zipcpu-dma-irq-isr-directed-20261017.md)，但含真实 IP FIFO 的方向、持续 testcase 搜索和认证前缀 replay 尚未完成。
 
 ## 输入来源和数据约束
 

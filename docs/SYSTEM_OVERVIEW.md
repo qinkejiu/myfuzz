@@ -142,7 +142,7 @@ testcase 是**一次有身份的上游输入及其观察过程**（例如给 CPU
 | F3 CPU→RAM 数据写 | 真实写提交 | 已验收（`memory_write_commit` 事务键、持久字节版本） |
 | F4 CPU→外设 MMIO 控制 | 配置与写 | 已验收（路径切换、初始 RAM 数据、MMIO 字节写） |
 | F5 外设 IRQ→CPU trap/ISR→再 MMIO | 完整中断闭环 | 已验收（GPIO pin8 / UART RX watermark 两条链） |
-| F6 CPU 配置 DMA→DMA 主设备搬运→IRQ | 真实 DMA | **未实现**（属 P8，无 harness 与闭环证据） |
+| F6 CPU 配置 DMA→DMA 主设备搬运→IRQ | 真实 DMA | 已有[Ibex＋wbdmac 的 RAM→RAM 定向真实闭环](reports/ibex-zipcpu-dma-irq-isr-directed-20261017.md)：CPU 配置、DMA 四读四写、原生 IRQ 与真实 ISR；P8 仍缺 IP FIFO 方向、持续搜索及认证前缀 replay |
 
 ---
 
@@ -280,7 +280,7 @@ PYTHONPATH=src python3 scripts/run_ibex_uart_online.py replay \
 | p95 尾部 | `interaction_ingest` 114.8 ms、`rtl_submit` 2.28 s 仅记录，未消除 |
 | `interaction_deferred` | 600 秒臂 345/368、UART 臂 54/60 |
 | 单 run 全项 | 六项关键项分散在多个运行，单 run 最高 3/6 |
-| F6 DMA | 未实现（P8） |
+| F6 DMA | RAM→RAM 定向闭环已实测；P8 整阶段未验收 |
 | P6/P7 | 多协议实例复用、同协议自动接入均未验收 |
 | 环境依赖 | 部分集成测试需要 Verilator 前端与已构建的 `kfuzz`；缺失时按 `skipped_unavailable` 跳过并如实记录 |
 
