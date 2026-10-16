@@ -15,3 +15,7 @@ Only the prepared adapter gate was authorized and launched. Exact command:
 Exact remote receipts: `/root/fanzehui/f4-abi-verification-20261017-59f6fa4/logs/adapter.*`; copied into this local `logs/` directory, including raw pytest output, actual PID/exit files, source audits, lock receipt and tool availability. Preparation snapshot/archive remain frozen.
 
 Boundary, Ibex and CV32 continuous/fresh gates remain **UNRUN**. No full D4/P7/native ABI acceptance or search throughput claim. Future gates/retry require a new exact root GO; preserve this skipped attempt/output identity rather than overwrite it.
+
+## Boundary attempt: terminal before native startup, NOT ACCEPTED
+
+After separate exact root GO and free canonical prelaunch probe, only boundary gate launched: wrapper212039, actual Python212053. True command exit1 at `_source_paths` source['files'] KeyError because original CV32 has filelist. Source pre/post37527files+symlinks match; source-after trueexit0. Terminal canonical nonblocking release probe exit0. Independent post-exit acceptance audit is not run when controlling command already failed. No generated CPU process or actual backend ERR/fatal proof exists for this attempt. Output `.incomplete` and raw traceback are preserved, including missing report caused by failure before diagnostic try guard. No retry/othergate launched; original snapshot remains frozen. Software root-cause fix is reviewed separately, not overlaid into this attempt.

@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/root/fanzehui/f4-abi-verification-20261017-59f6fa4/project/scripts/check_compiled_obi_no_error_boundary.py", line 132, in <module>
+    run(args)
+  File "/root/fanzehui/f4-abi-verification-20261017-59f6fa4/project/scripts/check_compiled_obi_no_error_boundary.py", line 29, in run
+    paths=_source_paths(*arguments);hashes=_hashes(paths)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/fanzehui/f4-abi-verification-20261017-59f6fa4/project/src/myfuzz/integration/compiled_execution_files.py", line 78, in _source_paths
+    paths.update(_no_symlinks(root/name) for name in source['files'])
+                                                     ~~~~~~^^^^^^^^^
+KeyError: 'files'
