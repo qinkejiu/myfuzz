@@ -1,0 +1,24 @@
+{
+  "archive_sha256": "349026ceeb07f9fa74fc9c8daee707d7e978caf6f7e7ef84045d0e0adc471118",
+  "status": "failed_before_native_session_start",
+  "gate_python_pid": 265033,
+  "controller_pid": 265026,
+  "gate_exit": 1,
+  "controller_exit": 1,
+  "cpu_gpio_harness_lifecycles": 0,
+  "cpu_gpio_commands": 0,
+  "actual_error": {
+    "detail": "binding producer does not match input ownership",
+    "type": "ValueError"
+  },
+  "protected_source_artifact_and_runtime_unchanged": true,
+  "file_counts": [
+    2566,
+    2564,
+    88
+  ],
+  "freeze_files": 389,
+  "tools_unchanged": true,
+  "incomplete_preserved": true,
+  "irq_semantics_tested": false
+}

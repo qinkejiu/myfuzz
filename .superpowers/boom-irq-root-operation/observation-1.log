@@ -1,0 +1,24 @@
+265026
+265033
+terminal
+1
+1
+Traceback (most recent call last):
+  File "/root/fanzehui/boom-irq-runtime-gate-20261017/control/controller.py", line 124, in main
+    if code!=0:raise ValueError('actual native gate child failed')
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: actual native gate child failed
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/root/fanzehui/boom-irq-runtime-gate-20261017/project/src/myfuzz/scenario/boom_gpio_irq_verification.py", line 599, in <module>
+    if __name__=='__main__':raise SystemExit(main())
+                                             ^^^^^^
+  File "/root/fanzehui/boom-irq-runtime-gate-20261017/project/src/myfuzz/scenario/boom_gpio_irq_verification.py", line 596, in main
+    print(json.dumps(verify(**values),sort_keys=True));return 0
+                     ^^^^^^^^^^^^^^^^
+  File "/root/fanzehui/boom-irq-runtime-gate-20261017/project/src/myfuzz/scenario/boom_gpio_irq_verification.py", line 579, in verify
+    else:raise RuntimeError('IRQ native gate failed; original prefixes retained at '+str(output))
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: IRQ native gate failed; original prefixes retained at /root/fanzehui/boom-irq-runtime-gate-20261017/gate-output
+    PID STAT     ELAPSED COMMAND
