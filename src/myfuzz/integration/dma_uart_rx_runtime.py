@@ -366,8 +366,11 @@ def _normalize(events, execution_ids):
         if type(value) is str:
             if field in ('execution', 'execution_id'):
                 return mapping.get(value, value)
-            if field in ('writer_event_id', 'writer_event_ids'):
-                # Producer stores TransactionKey repr in these fields. Match
+            if field in ('writer_event_id', 'writer_event_ids',
+                    'pending_before_finalize', 'pending_after_finalize',
+                    'uncertain_transactions'):
+                # Producer stores TransactionKey repr in ledger writer and
+                # uncertainty fields. List recursion retains the field context. Match
                 # only its leading execution token; retain the entire suffix.
                 match = re.fullmatch(r"TransactionKey\(execution_id='([0-9a-f]{32})', (.*)\)", value)
                 if match and match[1] in mapping:
