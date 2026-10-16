@@ -1,0 +1,31 @@
+.F                                                                       [100%]
+=================================== FAILURES ===================================
+_______ test_saved_all_sixteen_edges_use_measured_manager_and_bus_reset ________
+
+    def test_saved_all_sixteen_edges_use_measured_manager_and_bus_reset():
+     observer,mapping,records=prepared()
+>    for record in records:observer.observe_startup(record,rows=rows(record,mapping))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_ahb_manager_domain.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/myfuzz/scenario/ahb_cpu_events.py:124: in observe_startup
+    self._observe(record['sample'],rows=rows,tick_namespace='startup',
+src/myfuzz/scenario/ahb_cpu_events.py:184: in _observe
+    self._fail('address_hold',ref,trusted=True)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <myfuzz.scenario.ahb_cpu_events.AhbCpuObserver object at 0x75f4fd96d070>
+reason = 'address_hold', ref = 19, trusted = True
+
+    def _fail(self,reason,ref,*,trusted=False):
+        if reason=='budget':self._exhausted=True
+        self.poison(reason,trusted_projection=trusted)
+        self.events[-1]['raw_event_refs']=[ref]
+>       raise ValueError('ahb_'+reason)
+E       ValueError: ahb_address_hold
+
+src/myfuzz/scenario/ahb_cpu_events.py:67: ValueError
+=========================== short test summary info ============================
+FAILED tests/scenario/test_ahb_manager_domain.py::test_saved_all_sixteen_edges_use_measured_manager_and_bus_reset
+1 failed, 1 passed in 0.22s
