@@ -1,0 +1,11 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /root/fanzehui/system-20261016/dma-continuous-verification-20261017/attempt6-project
+collecting ... collected 1 item
+
+tests/integration/test_dma_uart_rx_runtime.py::test_continuous_native_uart_dma_prefix_and_failure PASSED
+
+======================== 1 passed in 277.19s (0:04:37) =========================
+.................................................................        [100%]
+65 passed in 70.42s (0:01:10)

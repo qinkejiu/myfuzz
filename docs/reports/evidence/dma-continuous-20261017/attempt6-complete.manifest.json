@@ -1,0 +1,65 @@
+{
+  "archive_sha256": "b94627984a1ae7b2beaa41fbad60e0d231870d18e3b815469b4df1d66373e8c5",
+  "files": {
+    "attempt6/native.exit": {
+      "size": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "attempt6/focused.exit": {
+      "size": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "attempt6/root-fix-receipt.json": {
+      "size": 808,
+      "sha256": "0f2125c03275166f57db00cb61a615027cca727af9c8e3e29aac505c49ff178b"
+    },
+    "attempt6/source-preflight.json": {
+      "size": 50319,
+      "sha256": "5044f68e52a0be8ae8cbab2527a3a338572d0b70935d2938b7006f0b75794af1"
+    },
+    "attempt6/worker.sh": {
+      "size": 1953,
+      "sha256": "57c2065e31206f1391c44c412943f474040c4ce2ea5126f353900b826c1f85ee"
+    },
+    "attempt6/state": {
+      "size": 9,
+      "sha256": "161069badc0cc23058b13d7c068e45205f4333aa15fd78db9d68f5c9f1ae8983"
+    },
+    "attempt6/worker.log": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "attempt6/worker.exit": {
+      "size": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "attempt6/focused.log": {
+      "size": 110,
+      "sha256": "acfc696a5e6e1162e14738ed3584fc185a09987dfb170d22604b9bdac0f030d8"
+    },
+    "attempt6/evidence/failure.json.gz": {
+      "size": 269922,
+      "sha256": "e1b06f4d0db8671869cd3e90127dd392bf4b41017117ddc9910458a0d4a904f4"
+    },
+    "attempt6/evidence/failure-fresh.json.gz": {
+      "size": 269920,
+      "sha256": "55c6f1e735c30f76d3a620918d957ff15af4289d8b255a4bbca96cb871775c19"
+    },
+    "attempt6/evidence/positive.json.gz": {
+      "size": 11304477,
+      "sha256": "8b3dca7b19e753aab9027385693f269b3c74a3d4c75ef4e09101b2d377f0459c"
+    },
+    "attempt6/evidence/fresh.json.gz": {
+      "size": 11304571,
+      "sha256": "575956bdfe68a1a79bc9328c716db52313c62696f1c832b971a0f56e6f329589"
+    },
+    "attempt6/worker.pid": {
+      "size": 7,
+      "sha256": "772be623734b79abbcff7b8d06e17f04ddda9c828075bcdcdb42957a43440285"
+    },
+    "attempt6/native.log": {
+      "size": 499,
+      "sha256": "e52a2c9d34a348aaa1b045f0f507419c114a85c7242b8eb9fd76db0f885d0698"
+    }
+  }
+}

@@ -1,5 +1,14 @@
 # 当前工作进度与证据入口
 
+## 最新终态补记（2026-10-17）
+
+- **连续 UART RX DMA attempt6 已通过真实门禁：** 1 passed／277.19 秒，native 与 worker exit0；前置软件门 65 passed／70.42 秒。单次 boot 四字节、JSON 往返后的完整 fresh 前缀及 source-bound 失败 fresh 重放均通过。见[报告与原始归档](reports/dma-continuous-runner-20261017.md)。后文 attempt4/5 是历史失败状态，不是当前运行状态；能力仍是 bounded_historical_chain，FIFO 来源 unknown。
+- **F4 当前增量仍未完成原生验收：** adapter 门因缺少 iverilog/vvp 跳过，审计拒绝通过；随后 CV32 boundary 门在原生启动前因源枚举器只接受 files、不接受 filelist 而失败。两次结果保留，正在修复源闭包读取，尚未观测本轮 CV32 错误响应行为。
+- **BOOM IRQ：** 实际 Verilator 构建及 16 个 VPI 探针清单均 exit0，但最终元数据生成因实际 Syms__Slow.cpp 文件名而失败。精确符号文件闭包修复已完成，恢复工具仍在实现/复核；尚无 IRQ 链通过结果。
+- **CPU 事件：** reduced AXI 观察器已有冻结软件证据；CVA6 full AXI 观察器当前 88 passed＋3 subtests，正在独立复核。后者保存的是明确标记的软件构造模型，不是新的 CVA6 原生轨迹。
+
+以上分别绑定冻结源码，**整个系统及 P6/P7/P8 保持未验收**。
+
 ## 2026-10-17 后续实际增量
 
 以下证据分别绑定自己的冻结源码，不代表当前 HEAD 已完成联合验收；P6、P7、P8 保持未验收。
