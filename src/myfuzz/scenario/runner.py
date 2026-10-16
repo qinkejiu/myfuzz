@@ -2210,7 +2210,8 @@ class ScenarioRunner:
                                        (session, "source_events", "source_observation"),
                                        (session, "gpio_events", "gpio_observation"),
                                        (session, "uart_events", "uart_observation"),
-                                       (session, "cpu_events", "cpu_observation")):
+                                       (session, "cpu_events", "cpu_observation"),
+                                       (session, "runtime_events", "runtime_observation")):
             if kind=="memory_commit" and component in self._failed_memory_commit_components:
                 continue
             stream = getattr(owner, attribute, None)
@@ -2324,7 +2325,8 @@ class ScenarioRunner:
                                             "kind": "state_dependency"})
                         self._events.append(edge_record)
             self._external_offsets[stream_id] = len(stream)
-            if (kind in ('memory_commit', 'cpu_observation', 'uart_observation')
+            if (kind in ('memory_commit', 'cpu_observation', 'uart_observation',
+                         'runtime_observation')
                     and isinstance(self._events._records, EventJournal)
                     and type(stream) is list):
                 drained_streams.append((stream_id, stream, len(stream)))

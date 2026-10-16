@@ -111,7 +111,7 @@ def _discover_host_sources(probes=None):
                'src/myfuzz/local_harness/native_session.py', 'scripts/verify_soc_sources.py']
     for name in ('session', 'cpu_session', 'gpio_session',
                  'wishbone_cpu_session', 'wishbone_dma_fields', 'wishbone_dma_template',
-                 'wishbone_dma_session',
+                 'wishbone_dma_session', 'wishbone_dma_scenario_session',
                  'axi_lite_session', 'axi4_cpu_session', 'vexii_axi_session',
                  'ahb_lite_session',
                  'cva6_axi4_session',
