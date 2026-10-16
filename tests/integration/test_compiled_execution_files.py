@@ -16,7 +16,7 @@ def inputs(tmp_path):
     (tmp_path/'native').mkdir()
     (tmp_path/'native/core.sv').write_text('module core; endmodule\n')
     profile=tmp_path/'profile.json'
-    profile.write_text(json.dumps({'source':{'root':'native','files':['core.sv']}}))
+    profile.write_text(json.dumps({'source':{'root':'native','files':['core.sv'],'revision':'git:'+'0'*40,'top_module':'core'}}))
     request=tmp_path/'request.json';request.write_text(json.dumps({'profile_path':'profile.json'}))
     compose=tmp_path/'compose.json'
     compose.write_text(json.dumps({'cpu':{'request':'request.json'},'devices':[]}))
@@ -38,7 +38,7 @@ def test_retargeted_source_symlink_refused_before_execution(tmp_path,name):
 def test_added_declared_native_dependency_refused(tmp_path):
     arguments=inputs(tmp_path);paths=_source_paths(*arguments);expected=_hashes(paths)
     (tmp_path/'native/extra.sv').write_text('module extra; endmodule\n')
-    (tmp_path/'profile.json').write_text(json.dumps({'source':{'root':'native','files':['core.sv','extra.sv']}}))
+    (tmp_path/'profile.json').write_text(json.dumps({'source':{'root':'native','files':['core.sv','extra.sv'],'revision':'git:'+'0'*40,'top_module':'core'}}))
     with pytest.raises(ValueError,match='source-input-changed'):
         _unchanged(paths,expected,arguments)
 

@@ -1,0 +1,43 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_boundary_source_failure_preserves_explicit_no_native_report _______
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-98/test_boundary_source_failure_p0')
+
+    def test_boundary_source_failure_preserves_explicit_no_native_report(tmp_path):
+        from types import SimpleNamespace
+        from scripts.check_compiled_obi_no_error_boundary import run
+        output=tmp_path/'new-evidence'
+        args=SimpleNamespace(base_dir=tmp_path,output_dir=output,compose=tmp_path/'missing.json',
+            ip_capability=[],supplement=tmp_path/'missing.json',heavy_lock=tmp_path/'lock')
+        with patch('subprocess.Popen',side_effect=AssertionError('no native')):
+            with pytest.raises(FileNotFoundError):run(args)
+>       report=json.loads((output/'report.json').read_text())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_compiled_filelist_sources.py:59: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/pathlib.py:1029: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/tmp/pytest-of-qinkejiu/pytest-98/test_boundary_source_failure_p0/new-evidence/report.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-qinkejiu/pytest-98/test_boundary_source_failure_p0/new-evidence/report.json'
+
+/usr/lib/python3.12/pathlib.py:1015: FileNotFoundError
+=========================== short test summary info ============================
+FAILED tests/integration/test_compiled_filelist_sources.py::test_boundary_source_failure_preserves_explicit_no_native_report
+1 failed, 6 deselected in 0.30s

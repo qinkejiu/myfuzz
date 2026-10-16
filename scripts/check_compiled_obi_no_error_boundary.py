@@ -26,16 +26,16 @@ def run(args):
     if output.exists() or output.is_symlink():raise ValueError('output-directory-must-be-new')
     output.mkdir(parents=True);output=output.resolve();marker=output/'.incomplete';marker.touch()
     arguments=(base,Path(args.compose),tuple(Path(p) for p in args.ip_capability),Path(args.supplement),None)
-    paths=_source_paths(*arguments);hashes=_hashes(paths)
-    diagnostic_path=Path(__file__).resolve();diagnostic_hashes=_hashes([diagnostic_path])
-    _save(output/'source_input_hashes.json',hashes|diagnostic_hashes)
-    def unchanged():
-        _unchanged(paths,hashes,arguments)
-        if _hashes([diagnostic_path])!=diagnostic_hashes:raise ValueError('diagnostic-source-changed')
     report=dict(status='incomplete',scope='generated_no_error_CPU_boundary_backend_ERR_fail_stop_only',
         heavy_lock=str(Path(args.heavy_lock).resolve()),native_executed=False)
     proc=None;transcript=[]
     try:
+        paths=_source_paths(*arguments);hashes=_hashes(paths)
+        diagnostic_path=Path(__file__).resolve();diagnostic_hashes=_hashes([diagnostic_path])
+        _save(output/'source_input_hashes.json',hashes|diagnostic_hashes)
+        def unchanged():
+            _unchanged(paths,hashes,arguments)
+            if _hashes([diagnostic_path])!=diagnostic_hashes:raise ValueError('diagnostic-source-changed')
         with _worker_lock(Path(args.heavy_lock)):
             unchanged()
             artifacts,inputs,_=prepare_compiled_execution_files(base_dir=base,compose_path=args.compose,

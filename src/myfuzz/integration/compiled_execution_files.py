@@ -22,6 +22,8 @@ from myfuzz.local_harness.compiled_execution_projection import assess_compiled_f
 from myfuzz.scenario.compiled_paths import load_path_compile_request, compile_paths
 from .compiled_candidate_layout import compile_candidate_layout, MAX_CANDIDATE_BITS
 from .compiled_f4 import _layout_document
+from myfuzz.composition.component_profile import _source_locator
+from myfuzz.composition.source_crawler import _declared_files, SourceCrawlError
 from myfuzz.scenario.ownership import InputField, InputOwner, compile_ownership
 
 
@@ -74,8 +76,27 @@ def _source_paths(base, compose_path, capability_paths, supplement_path, records
     for component in [document['cpu'],*document['devices']]:
         request=_no_symlinks(Path(compose_path).parent/component['request']);paths.add(request)
         profile=_no_symlinks(base/_read(request)['profile_path']);paths.add(profile)
-        source=_read(profile)['source'];root=base/source['root']
-        paths.update(_no_symlinks(root/name) for name in source['files'])
+        source=_read(profile)['source'];root=_no_symlinks(base/source['root'])
+        if not root.resolve().is_relative_to(Path(base).resolve()):
+            raise ValueError('compiled-files-source-root-escape')
+        locator=_source_locator(source)
+        for name in locator.files:_no_symlinks(root/name)
+        if locator.filelist is not None:_no_symlinks(root/locator.filelist)
+        def read_source(path):
+            path=_no_symlinks(path);paths.add(path)
+            return path.read_bytes()
+        try:
+            _,include_roots,_=_declared_files(root.resolve(),locator,read_source)
+        except SourceCrawlError as error:
+            if 'symlink' in str(error):
+                raise ValueError('compiled-files-source-symlink-refused:'+str(error)) from error
+            raise
+        # Include lookup is a declared directory input. Pin every member and
+        # re-enumerate it before startup/replay so added headers cannot hide.
+        for name in include_roots:
+            for path in (root/name).rglob('*'):
+                _no_symlinks(path)
+                if path.is_file():paths.add(path)
     # The executor's own closure also guards live execution. This outer pin
     # covers renderer/adapter inputs before startup and fresh replay.
     paths.add(_no_symlinks(base/'scripts/run_compiled_dataflow.py'))

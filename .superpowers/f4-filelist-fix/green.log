@@ -1,0 +1,22 @@
+.........F...........................                                    [100%]
+=================================== FAILURES ===================================
+___ test_retargeted_source_symlink_refused_before_execution[native/core.sv] ____
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-96/test_retargeted_source_symlink4')
+name = 'native/core.sv'
+
+    @pytest.mark.parametrize('name',['compose.json','supplement.json','request.json','profile.json','native/core.sv'])
+    def test_retargeted_source_symlink_refused_before_execution(tmp_path,name):
+        arguments=inputs(tmp_path);paths=_source_paths(*arguments);expected=_hashes(paths)
+        original=tmp_path/name;alternate=tmp_path/('alternate-'+original.name)
+        alternate.write_bytes(original.read_bytes())
+        original.unlink();original.symlink_to(alternate)
+>       with pytest.raises(ValueError,match='source-symlink-refused'):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'source-symlink-refused'
+E         Actual message: 'path-outside-source-root'
+
+tests/integration/test_compiled_execution_files.py:34: AssertionError
+=========================== short test summary info ============================
+FAILED tests/integration/test_compiled_execution_files.py::test_retargeted_source_symlink_refused_before_execution[native/core.sv]
+1 failed, 36 passed in 0.55s

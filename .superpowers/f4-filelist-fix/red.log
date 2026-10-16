@@ -1,0 +1,179 @@
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+____________ test_nested_filelists_variables_and_headers_are_pinned ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_nested_filelists_variable0')
+
+    def test_nested_filelists_variables_and_headers_are_pinned(tmp_path):
+        arguments=declared(tmp_path)
+        with patch('subprocess.Popen',side_effect=AssertionError('source enumeration is pure')):
+>           paths=_source_paths(*arguments)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_compiled_filelist_sources.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+base = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_nested_filelists_variable0')
+compose_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_nested_filelists_variable0/compose.json')
+capability_paths = ()
+supplement_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_nested_filelists_variable0/supplement.json')
+records_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_nested_filelists_variable0/records.json')
+
+    def _source_paths(base, compose_path, capability_paths, supplement_path, records_path):
+        """Pin declarations and their explicitly referenced native source files."""
+        paths={_no_symlinks(compose_path),_no_symlinks(supplement_path),
+               *(_no_symlinks(p) for p in capability_paths)}
+        if records_path is not None:paths.add(_no_symlinks(records_path))
+        document=_read(compose_path)
+        for component in [document['cpu'],*document['devices']]:
+            request=_no_symlinks(Path(compose_path).parent/component['request']);paths.add(request)
+            profile=_no_symlinks(base/_read(request)['profile_path']);paths.add(profile)
+            source=_read(profile)['source'];root=base/source['root']
+>           paths.update(_no_symlinks(root/name) for name in source['files'])
+                                                             ^^^^^^^^^^^^^^^
+E           KeyError: 'files'
+
+src/myfuzz/integration/compiled_execution_files.py:78: KeyError
+________ test_filelist_closure_changes_refused_before_execution[nested] ________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_0')
+change = 'nested'
+
+    @pytest.mark.parametrize('change',['nested','header','new-header','symlink'])
+    def test_filelist_closure_changes_refused_before_execution(tmp_path,change):
+>       arguments=declared(tmp_path);paths=_source_paths(*arguments);hashes=_hashes(paths)
+                                           ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_compiled_filelist_sources.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+base = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_0')
+compose_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_0/compose.json')
+capability_paths = ()
+supplement_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_0/supplement.json')
+records_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_0/records.json')
+
+    def _source_paths(base, compose_path, capability_paths, supplement_path, records_path):
+        """Pin declarations and their explicitly referenced native source files."""
+        paths={_no_symlinks(compose_path),_no_symlinks(supplement_path),
+               *(_no_symlinks(p) for p in capability_paths)}
+        if records_path is not None:paths.add(_no_symlinks(records_path))
+        document=_read(compose_path)
+        for component in [document['cpu'],*document['devices']]:
+            request=_no_symlinks(Path(compose_path).parent/component['request']);paths.add(request)
+            profile=_no_symlinks(base/_read(request)['profile_path']);paths.add(profile)
+            source=_read(profile)['source'];root=base/source['root']
+>           paths.update(_no_symlinks(root/name) for name in source['files'])
+                                                             ^^^^^^^^^^^^^^^
+E           KeyError: 'files'
+
+src/myfuzz/integration/compiled_execution_files.py:78: KeyError
+________ test_filelist_closure_changes_refused_before_execution[header] ________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_1')
+change = 'header'
+
+    @pytest.mark.parametrize('change',['nested','header','new-header','symlink'])
+    def test_filelist_closure_changes_refused_before_execution(tmp_path,change):
+>       arguments=declared(tmp_path);paths=_source_paths(*arguments);hashes=_hashes(paths)
+                                           ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_compiled_filelist_sources.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+base = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_1')
+compose_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_1/compose.json')
+capability_paths = ()
+supplement_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_1/supplement.json')
+records_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_1/records.json')
+
+    def _source_paths(base, compose_path, capability_paths, supplement_path, records_path):
+        """Pin declarations and their explicitly referenced native source files."""
+        paths={_no_symlinks(compose_path),_no_symlinks(supplement_path),
+               *(_no_symlinks(p) for p in capability_paths)}
+        if records_path is not None:paths.add(_no_symlinks(records_path))
+        document=_read(compose_path)
+        for component in [document['cpu'],*document['devices']]:
+            request=_no_symlinks(Path(compose_path).parent/component['request']);paths.add(request)
+            profile=_no_symlinks(base/_read(request)['profile_path']);paths.add(profile)
+            source=_read(profile)['source'];root=base/source['root']
+>           paths.update(_no_symlinks(root/name) for name in source['files'])
+                                                             ^^^^^^^^^^^^^^^
+E           KeyError: 'files'
+
+src/myfuzz/integration/compiled_execution_files.py:78: KeyError
+______ test_filelist_closure_changes_refused_before_execution[new-header] ______
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_2')
+change = 'new-header'
+
+    @pytest.mark.parametrize('change',['nested','header','new-header','symlink'])
+    def test_filelist_closure_changes_refused_before_execution(tmp_path,change):
+>       arguments=declared(tmp_path);paths=_source_paths(*arguments);hashes=_hashes(paths)
+                                           ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_compiled_filelist_sources.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+base = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_2')
+compose_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_2/compose.json')
+capability_paths = ()
+supplement_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_2/supplement.json')
+records_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_2/records.json')
+
+    def _source_paths(base, compose_path, capability_paths, supplement_path, records_path):
+        """Pin declarations and their explicitly referenced native source files."""
+        paths={_no_symlinks(compose_path),_no_symlinks(supplement_path),
+               *(_no_symlinks(p) for p in capability_paths)}
+        if records_path is not None:paths.add(_no_symlinks(records_path))
+        document=_read(compose_path)
+        for component in [document['cpu'],*document['devices']]:
+            request=_no_symlinks(Path(compose_path).parent/component['request']);paths.add(request)
+            profile=_no_symlinks(base/_read(request)['profile_path']);paths.add(profile)
+            source=_read(profile)['source'];root=base/source['root']
+>           paths.update(_no_symlinks(root/name) for name in source['files'])
+                                                             ^^^^^^^^^^^^^^^
+E           KeyError: 'files'
+
+src/myfuzz/integration/compiled_execution_files.py:78: KeyError
+_______ test_filelist_closure_changes_refused_before_execution[symlink] ________
+
+tmp_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_3')
+change = 'symlink'
+
+    @pytest.mark.parametrize('change',['nested','header','new-header','symlink'])
+    def test_filelist_closure_changes_refused_before_execution(tmp_path,change):
+>       arguments=declared(tmp_path);paths=_source_paths(*arguments);hashes=_hashes(paths)
+                                           ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_compiled_filelist_sources.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+base = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_3')
+compose_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_3/compose.json')
+capability_paths = ()
+supplement_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_3/supplement.json')
+records_path = PosixPath('/tmp/pytest-of-qinkejiu/pytest-95/test_filelist_closure_changes_3/records.json')
+
+    def _source_paths(base, compose_path, capability_paths, supplement_path, records_path):
+        """Pin declarations and their explicitly referenced native source files."""
+        paths={_no_symlinks(compose_path),_no_symlinks(supplement_path),
+               *(_no_symlinks(p) for p in capability_paths)}
+        if records_path is not None:paths.add(_no_symlinks(records_path))
+        document=_read(compose_path)
+        for component in [document['cpu'],*document['devices']]:
+            request=_no_symlinks(Path(compose_path).parent/component['request']);paths.add(request)
+            profile=_no_symlinks(base/_read(request)['profile_path']);paths.add(profile)
+            source=_read(profile)['source'];root=base/source['root']
+>           paths.update(_no_symlinks(root/name) for name in source['files'])
+                                                             ^^^^^^^^^^^^^^^
+E           KeyError: 'files'
+
+src/myfuzz/integration/compiled_execution_files.py:78: KeyError
+=========================== short test summary info ============================
+FAILED tests/integration/test_compiled_filelist_sources.py::test_nested_filelists_variables_and_headers_are_pinned
+FAILED tests/integration/test_compiled_filelist_sources.py::test_filelist_closure_changes_refused_before_execution[nested]
+FAILED tests/integration/test_compiled_filelist_sources.py::test_filelist_closure_changes_refused_before_execution[header]
+FAILED tests/integration/test_compiled_filelist_sources.py::test_filelist_closure_changes_refused_before_execution[new-header]
+FAILED tests/integration/test_compiled_filelist_sources.py::test_filelist_closure_changes_refused_before_execution[symlink]
+5 failed in 0.58s
