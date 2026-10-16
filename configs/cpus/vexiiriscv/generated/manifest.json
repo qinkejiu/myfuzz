@@ -1,0 +1,25 @@
+{
+  "schema_version": "generated_cpu_rtl.v1",
+  "component": "vexiiriscv",
+  "status": "generated_lint_only",
+  "generator_source": "third_party/vexiiriscv_upstream_reference",
+  "generator_revision": "0dc189e1335d7ad0739c3298de09fcb3d2b956d4",
+  "spinalhdl_revision": "58837d37f92bea3a43dc7b0b6dee38038c85db6d",
+  "rvls_revision": "847ce99fd2b28a5c0ccb1ec2683311cf97a9fefc",
+  "generation_script": "scripts/generate_vexii_remote.sh",
+  "generation_command": "runMain vexiiriscv.Generate --xlen 32 --fetch-axi4 --lsu-axi4 --reset-vector 2147483648 --region base=80000000,size=00100000,main=1,exe=1 --region base=40000000,size=00001000,main=0,exe=0",
+  "sbt_launcher_sha256": "a3f85f3684d2d457dab46e7e3fe7622a65065f0f104c0e4269c01df32147f670",
+  "java_bin_sha256": "2a207f5e7d075afa01d97f8048389a64432a44c4a5af0f5e77d6e286ec5f401d",
+  "java_modules_sha256": "70c5465dabf8e1bec2860631ea3ffd342f0ec23a5e2efd3a389d2abe32448f98",
+  "generated_file": "VexiiRiscv.v",
+  "generated_sha256": "2453680b40e427ad51a29a84cd9138b4b608e206fbec5349e67480147806d0a0",
+  "generator_exit_code": 0,
+  "lint": {
+    "tool": "Verilator 5.051 devel rev vUNKNOWN-built20260806-e413e67",
+    "command": "verilator --lint-only -Wno-fatal --top-module VexiiRiscv VexiiRiscv.v",
+    "exit_code": 0,
+    "warnings": 3
+  },
+  "observed_boundary": "Separate cacheless AXI4 fetch and LSU manager ports; RV32 reset and three interrupt inputs. Physical AXI timing and executable session have not been admitted.",
+  "remote_evidence": "/root/fanzehui/system-20261016/evidence/vexii-generate.log"
+}
