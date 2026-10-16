@@ -61,3 +61,39 @@ SoC boot register. This is neither a full Chipyard serial boot nor a generic
 CPU/peripheral MMIO router admission. No CPU/IP join is claimed. The abstract
 `tilelink@1` plugin is retained for older declarations; this physical profile
 uses the separate `tilelink-coherent@1` field vocabulary.
+
+## Persistent clock-step simulation
+
+`myfuzz.local_harness.boom_cpu_session.build_boom_session(repo, output,
+heavy_lock=...)` authenticates the same profile, physical ports, source union
+and materialized RTL as the one-shot gate, then builds a separate persistent
+C++ command driver. Its `session-artifact.json` additionally pins the executable,
+driver, manager and copied RTL. The original gate remains available unchanged.
+
+Open `GeneratedBoomCpuSession(output, repo=repo)` as a context manager, call
+`begin_case(testcase_id)`, `load_program(instruction_bytes)` and repeatedly call
+`step_local({})`. Each call advances exactly one rising edge; the initial 20
+calls hold reset. The boot trampoline jumps from 0x10040 to 0x80000000.
+`accepted_events` contains every accepted A/C/D/E beat on that edge without
+trace truncation. `read64(address)` observes backing RAM, including dirty
+writebacks, rather than CPU cache contents. Loading does not advance clocks
+and must precede stepping. Reset restarts the process and clears loaded RAM.
+`pending_responses` is a conservative 0/1 indication of native manager state,
+not a count of individual multibeat responses. `begin_quiesce()` stops new A
+requests while allowing C, D and E to drain; it does not flush CPU caches.
+
+An optional `external_range=(start, end)` routes accepted single-beat uncached
+Get/Put requests away from native RAM. Accepted A rows retain source, size,
+address, mask and data. An external scheduler calls
+`respond_external(source=..., size=..., request_sequence=..., reset_epoch=..., data=...)`; the driver holds the D
+response until accepted and reports that acceptance with `external: true`.
+One external transaction may be outstanding, applying A backpressure while
+coherent RAM responses continue draining. Only successful responses and one
+contiguous external range are supported. Coherent acquisitions in that range
+fail explicitly. This interface does not itself provide generic router
+admission or evidence of CPU/peripheral integration. B.valid remains zero.
+
+External ranges are restricted to the pinned legal uncached 0x4000–0x4fff
+window. `external_request` returns the epoch and sequence required to complete
+a deferred response; stale responses from earlier resets are rejected. Program
+loads must fit the 0x80000000–0xffffffff RAM window.
