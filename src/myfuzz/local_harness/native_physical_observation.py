@@ -76,6 +76,8 @@ def verify_native_physical_observation(artifact):
             or not isinstance(document.get('physical_exports'), list)
             or not isinstance(document.get('native_physical_observation_mapping'), dict)):
         raise ValueError('native-physical-observation-contract-mismatch')
+    if 'base_protocol_traces' in document or 'protocol_tap_ports' in document:
+        verify_cpu_obi_protocol_traces(artifact)
     mapping = native_physical_observation_mapping(artifact.plan, document['kind'],
         document['physical_exports'], document['clock_schedule']['primary_clock_domain'])
     if (mapping != document['native_physical_observation_mapping']
@@ -150,3 +152,46 @@ def physical_observation_parameters(artifact):
         exports = document.get('physical_exports', ())
     return dict(endpoint_clock_domains=clocks, physical_exports=exports,
                 bound_physical_inputs=document.get('bound_physical_inputs', ()))
+
+
+def verify_cpu_obi_protocol_traces(artifact):
+    """Authenticate passive CPU wires independently of adapter beat signals."""
+    from .runtime_renderer import _obi_shape, _OBI_READ, _OBI_READ_BASE
+    document, plan = artifact.runtime_document, artifact.plan
+    if document.get('kind') != 'obi_cpu':
+        raise ValueError('cpu-obi-protocol-trace-kind')
+    expected_traces, expected_ports = [], []
+    for endpoint in sorted((e for e in plan.binding.endpoints if e.protocol is not None),
+                           key=lambda e:e.function):
+        instruction = endpoint.function == 'instruction_memory_master'
+        prefix = 'i' if instruction else 'd'
+        error = plan.profile.capabilities.get('error_response')
+        wires = _obi_shape(endpoint, artifact.structural.abi_document['ports'],
+                           read_only=instruction, error_response=error)
+        shape = dict(_OBI_READ if error else _OBI_READ_BASE)
+        if not instruction:
+            shape.update(we=('output',1),wdata=('output',32),be=('output',4))
+        signals = {}
+        for role, (_, width) in shape.items():
+            name = 'trace_obi_'+prefix+'_'+role
+            signals[role] = name
+            expected_ports.append(dict(name=name,direction='output',width=width,
+                role=role,endpoint_id=endpoint.endpoint_id,source_wire=wires[role]))
+            if f'assign {name} = {wires[role]};' not in artifact.runtime_sv:
+                raise ValueError('cpu-obi-protocol-trace-wiring')
+        expected_traces.append(dict(schema_version='ip_protocol_trace.v1',protocol='obi',
+            endpoint_id=endpoint.endpoint_id,
+            clock_domain=next(e.clock for e in plan.profile.endpoints
+                if e.endpoint_id == endpoint.endpoint_id) or document['clock_schedule']['primary_clock_domain'],
+            max_wait_cycles=plan.request.max_wait_cycles,max_outstanding=1,
+            signals=signals,signal_widths={r:w for r,(_,w) in shape.items()},
+            sample_group='protocol_taps',boundary='cpu_physical_abi'))
+    expected = dict(schema_version='ip_protocol_trace_set.v1',sampling='pre_post',
+                    sample_group='protocol_taps',traces=expected_traces)
+    if (len(expected_traces) != 2 or document.get('base_protocol_traces') != expected
+            or document.get('protocol_tap_ports') != expected_ports
+            or {p['name'] for p in expected_ports} & {p['name'] for p in document['backend_ports']}
+            or any(dict(name=p['name'],direction='output',width=p['width'])
+                   not in document['runtime_ports'] for p in expected_ports)):
+        raise ValueError('cpu-obi-protocol-trace-contract-mismatch')
+    return True

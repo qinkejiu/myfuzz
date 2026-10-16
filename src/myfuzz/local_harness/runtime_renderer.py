@@ -663,6 +663,8 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
     ports = [('clk', 'input', 1), ('reset', 'input', 1)]
     locals_, statements, exports, backend, instances = [], [], [], [], []
     base_protocol_trace = None
+    cpu_protocol_traces = []
+    protocol_tap_ports = []
     connections = ['.clk(clk)', '.reset(reset)']
     control_signals = {'clk', 'reset'}
     for row in (*clock_schedule['clocks'], *clock_schedule['resets']):
@@ -995,6 +997,27 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
             prefix = 'i' if instruction else 'd'
             wires = _obi_shape(endpoint, abi, read_only=instruction,
                                error_response=error_response)
+            # Observe the actual bound CPU-side wires, before the adapter.
+            # Keep these separate from the adapter's beat backend ABI.
+            trace_shape = dict(_OBI_READ if error_response else _OBI_READ_BASE)
+            if not instruction:
+                trace_shape.update(we=('output', 1), wdata=('output', 32), be=('output', 4))
+            signals = {}
+            for role, (_, width) in trace_shape.items():
+                name = 'trace_obi_' + prefix + '_' + role
+                signals[role] = name
+                ports.append((name, 'output', width))
+                statements.append(f'assign {name} = {wires[role]};')
+                protocol_tap_ports.append(dict(name=name, direction='output', width=width,
+                    role=role, endpoint_id=endpoint.endpoint_id,
+                    source_wire=wires[role]))
+            cpu_protocol_traces.append(dict(schema_version='ip_protocol_trace.v1',
+                protocol='obi', endpoint_id=endpoint.endpoint_id,
+                clock_domain=next(e.clock for e in plan.profile.endpoints
+                    if e.endpoint_id == endpoint.endpoint_id) or clock_schedule['primary_clock_domain'],
+                max_wait_cycles=plan.request.max_wait_cycles, max_outstanding=1,
+                signals=signals, signal_widths={r:w for r,(_,w) in trace_shape.items()},
+                sample_group='protocol_taps', boundary='cpu_physical_abi'))
             if not error_response:
                 unused_error = 'unused_' + prefix + '_error'
                 locals_.append(f'logic {unused_error};')
@@ -1145,6 +1168,10 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
                     runtime_ports=[dict(name=n,direction=d,width=w) for n,d,w in ports],
                     adapter_sources=adapter_hashes, lint_argv=flags+adapters,
                     wire_schema_version='local_driver.v1', driver_status='not_generated')
+    if cpu_protocol_traces:
+        document['base_protocol_traces'] = dict(schema_version='ip_protocol_trace_set.v1',
+            sampling='pre_post', sample_group='protocol_taps', traces=cpu_protocol_traces)
+        document['protocol_tap_ports'] = protocol_tap_ports
     if native_raw:
         if kind not in ('obi_cpu', 'apb_gpio'):
             raise ValueError('native-physical-observation-runtime-unsupported')

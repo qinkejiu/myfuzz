@@ -48,6 +48,7 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     kind = document['kind']
     exports = document['physical_exports']
     backend = document['backend_ports']
+    protocol_taps = document.get('protocol_tap_ports', [])
     fields = {}
     if kind in ('tlul_register_observe', 'apb3_register_observe', 'wishbone_register_observe', 'axi4lite_register_observe', 'ahb_lite_register_observe'):
         fixed = document['fixed_physical_inputs']
@@ -303,6 +304,9 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
 
     backend_items = ',\n'.join('    {' + _literal(row['name']) + ', ' + signal(row, 'name') + '}' for row in backend)
     physical_items = ',\n'.join('    {' + _literal(row['runtime_name']) + ', ' + signal(row) + '}' for row in exports)
+    protocol_tap_entry = ('    {\"protocol_taps\", object({\n' + ',\n'.join(
+        '      {' + _literal(row['name']) + ', ' + signal(row, 'name') + '}'
+        for row in protocol_taps) + '\n    })},\n') if protocol_taps else ''
     aliases = ''
     if kind in ('apb_gpio', 'apb_spi', 'apb_timer', 'tlul_gpio', 'tlul_timer', 'tlul_spi_host',
                 'tlul_uart', 'tlul_i2c', 'tlul_spi_device', 'wishbone_timer', 'wishbone_uart', 'axi4_lite_uart', 'apb_i2c'):
@@ -331,6 +335,9 @@ def render_local_driver(artifact: LocalRuntimeArtifact, *, base_dir: Path) -> Lo
     maxima_physical = {row['runtime_name']: ('f' * row['hex_digits'] if row['width'] > 64
                                             else (1 << row['width']) - 1) for row in exports}
     maximum_snapshot = dict(backend=maxima_backend, physical=maxima_physical)
+    if protocol_taps:
+        maximum_snapshot['protocol_taps'] = {row['name']: (1 << row['width']) - 1
+                                             for row in protocol_taps}
     for alias, name in fields.items():
         if ((kind in ('apb_gpio', 'tlul_gpio') and alias not in ('gpio_in', 'strap_en'))
                 or kind == 'wishbone_timer'
@@ -827,7 +834,7 @@ static std::string backend_snapshot(const Model &dut) {
 }
 static std::string snapshot(const Model &dut) {
   JsonObject values = {
-    {"backend", backend_snapshot(dut)},
+@PROTOCOL_TAPS@    {"backend", backend_snapshot(dut)},
     {"physical", object({
 @PHYSICAL@
     })}
@@ -975,6 +982,7 @@ int main(int argc, char **argv) {
 }
 '''
     values = dict(MODULE=document['module_name'], BACKEND=backend_items, PHYSICAL=physical_items,
+                  PROTOCOL_TAPS=protocol_tap_entry,
                   ALIASES=aliases, INITIALIZERS=initializers,
                   CLOCK_STATE_DECLARATIONS=clock_state_declarations,
                   CLOCK_EDGE_SNAPSHOT=clock_edge_snapshot,

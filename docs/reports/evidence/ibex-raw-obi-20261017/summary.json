@@ -1,0 +1,56 @@
+{
+  "schema_version": "ibex_raw_obi_protocol_evidence.v1",
+  "test_result": "2 passed in 68.50s",
+  "scope": "real_CPU_physical_OBI_boundary_offline_authentication",
+  "artifact_digest": "758f53bfa6cdc5296cf2f7aaa71bdac8d4cb491b3a09f99ca9585565dc19f55f",
+  "build_digest": "845b89a0e7dae1c74d0d33d078bc51a510f0a09ee58f3766acb273c4eaa7ba46",
+  "original_samples_per_process": 100,
+  "endpoint_certificates": {
+    "endpoint-1:processor.instruction:request": 49,
+    "endpoint-0:processor.data:request": 3
+  },
+  "proof_counts": {
+    "verified": 52,
+    "pending": 2
+  },
+  "checker_violations": [],
+  "tamper_proof_counts": {
+    "pending": 0,
+    "verified": 3
+  },
+  "tamper_diagnostics": {
+    "projection_mismatch": 1
+  },
+  "fresh_identities_match": true,
+  "fresh_original_samples_match": true,
+  "fresh_execution_ids_differ": true,
+  "host_source_files": 304,
+  "stale_host_sources": [],
+  "independent_reprojection_from_original_raw_samples_matches": true,
+  "raw_evidence": [
+    {
+      "path": "docs/reports/evidence/ibex-raw-obi-20261017/first.json.gz",
+      "sha256": "dfe6ef46f0d378a2b76010abb7dc6cbcb816d81a889bd453939fe9f037c36f1d",
+      "uncompressed_sha256": "548e17e0f6b5b6516fb5d2215665f80633334f1430a13d1019edbea4d5822f7d"
+    },
+    {
+      "path": "docs/reports/evidence/ibex-raw-obi-20261017/fresh.json.gz",
+      "sha256": "d0258aa8f6a606cdfa0466284b62eb277b8827f76f4a0afa6cf057df1aaf4517",
+      "uncompressed_sha256": "f8a2f22514cf64f87096fb6bfa7ed86e3f7b948606b8d0ecba3ff0021e70d9f4"
+    },
+    {
+      "path": "docs/reports/evidence/ibex-raw-obi-20261017/artifact.json.gz",
+      "sha256": "2739318e013cc4202a728e55c5f1f2411645414838dff95e5f711a2ed096f58a",
+      "uncompressed_sha256": "6103f55334cf1fdc4a8a8cdbe71afcfc990cc10966485871826e224440255b7d"
+    }
+  ],
+  "unified_lock": "/root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock",
+  "not_claimed": [
+    "Runner multi-endpoint protocol integration",
+    "CPU/IP dataflow joins",
+    "closed prefix: two requests remain pending at the sampling cutoff",
+    "authenticated scenario-prefix replay",
+    "online mutation/search",
+    "interrupt causality"
+  ]
+}
