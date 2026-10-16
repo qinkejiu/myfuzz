@@ -68,3 +68,5 @@
 2026-10-17 后续实测：CVW 派生配置关闭 D/Zcd 后 `FLEN=LLEN=XLEN=AHBW=32`，真实 CPU→PULP GPIO 正例 `1 passed in 153.24s`，旧零窗口负例 `1 passed in 59.17s`；两次正例进程的六笔 APB 访问、全字 BE、GPIO 引脚输出、两次 CPU 读回及 RAM 结果逐项一致。源闭包重定位与构建器仓库相对路径修复也通过。仍为定向静态程序，不升级 P6 整行或在线 campaign。P7 已新增生成物可信加载切片（`311f25d`，D2）；D3 编译语义和 D4 执行消费仍开放。
 
 2026-10-17 定向双向增量：CVW CPU 还从真实 PULP GPIO PADIN 读取固定外部物理输入 `0xa5`，RAM 结果 `[0x35,0x6a,1,0xa5]`；两次独立进程七笔 APB/路由交付与物理采样一致（正例 127.52s，旧窗口负例 64.46s）。该输入尚未纳入来源绑定和在线变异。ZipCPU `wbdmac` 的双接口生成式 pipelined Wishbone 单边沿 transport 已提交（`0093b7c`），真实 RTL 仅静态展开；自主 DMA session、RAM→RAM 与 IRQ 仍未实测。P7 D3 新增对真实 artifact／编译声明／物理归属的一致性核对（`a14d8e1`），D4 执行消费尚未完成。
+
+VexiiRiscv 固定生成 RTL 已通过独立定向 CPU/RAM 运行：两次真实 fetch AXI/LSU AXI 运行得 `[53,54]`，替换唯一 LSU 读响应的对照得 `[53,1]`，每次 75 tick；仍需受信 profile、生成式 runtime、外设和在线接入。详见 [实测报告](../../reports/vexiiriscv-direct-axi-ram-20261017.md)。

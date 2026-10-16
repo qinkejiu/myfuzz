@@ -238,4 +238,6 @@
 
 2026-10-17 后续双向定向门：固定外部 `gpio_in=0xa5` 经真实 GPIO PADIN 进入 CVW，CPU 将其写入 RAM，另有原两次 PADOUT 写/读，七次 APB 与路由交付、两份全新进程采样一致；正例 1 passed/127.52s，旧窗口负例 1 passed/64.46s。该输入还不是受绑定来源约束的 fuzzable source；不得据此授予 P6 行的双侧在线变异或完整 replay。完整边界见 [定向双向报告](../../reports/cvw-pulp-gpio-bidirectional-directed-20261017.md)。
 
+VexiiRiscv 的固定生成 RTL 已取得定向 fetch AXI/LSU AXI→RAM 一读两写证据与读响应因果对照，见 [报告](../../reports/vexiiriscv-direct-axi-ram-20261017.md)；尚无生成式 profile、CPU/IP 路由、持续会话或 P6 协议行验收。
+
 VexiiRiscv 的固定源码与 SpinalHDL 子模块已生成 563119 字节的 RV32 双 AXI Verilog，lint 退出 0（3 项警告），48 个顶层端口已记录于 `configs/cpus/vexiiriscv/generated`；无可运行 session，不能记真实 CPU 事务。BOOM 仍缺固定 Chipyard 生成闭包。ZipCPU DMA 和 Caliptra AHB-Lite SHA256 已有静态源锁/闭包/profile，但两者都未运行真实事务，F6 与第四系列的运行验收仍开放。
