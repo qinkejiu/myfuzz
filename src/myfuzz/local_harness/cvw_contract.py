@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 
 from myfuzz.composition.component_profile import load_component_profile
@@ -49,10 +50,10 @@ _WRAPPER_PATH = 'configs/cpus/cvw/cvw_ahb_cpu_top.sv'
 _CONFIG_PATH = 'configs/cpus/cvw/config_extmem/config.vh'
 _UPSTREAM_ROOT = 'third_party/cvw_upstream_reference'
 
-_PROFILE_SHA256 = '4fd09ab300bb8e095cd8fb065ba930d4278b41e2b743abafd5a5d7f3a4b18bfa'
-_CLOSURE_SHA256 = 'd79d95ff084b2f7c2d8718a661e8e1e449bf5e67fa6b5f8dd4bb65b62f1921b4'
+_PROFILE_SHA256 = 'c60ddb291a62784591e2c221663f84d5ae97c1e663426e0aef883d594b76ab2a'
+_CLOSURE_SHA256 = '2131fcc44943c51ff1c28e08645877a547d0d35371fcfc18e27527b327e058bf'
 _WRAPPER_SHA256 = '792f2d6a8ff71b959253b8e36c9fcb7c728c0702500d09550915762e55ebdba8'
-_CONFIG_SHA256 = '0b5f675eb5ea8c7a89df3696daed8c8682574d4b25a87cf530189bec4d8f0e71'
+_CONFIG_SHA256 = 'a907fed4a6dc2840c84be34ad54a14c5cf63241074b996f4690be731930cf93b'
 
 #: The upstream revision the closure's non-local entries must belong to.
 _UPSTREAM_REVISION = '2f2ddfd4c3c7f5d3a655e4488831d9277673105a'
@@ -85,6 +86,10 @@ def verify_cvw_source_contract(profile, *, base_dir: Path) -> dict:
         raise ValueError('cvw-config-external-memory-base')
     if 'localparam logic DCACHE_SUPPORTED = 0;' not in config_raw:
         raise ValueError('cvw-config-data-cache-enabled')
+    for name, value in (('D_SUPPORTED', 0), ('ZCD_SUPPORTED', 0),
+                        ('Q_SUPPORTED', 0), ('F_SUPPORTED', 1), ('ZCF_SUPPORTED', 1)):
+        if not re.search(r'^localparam logic ' + name + r'\s*=\s*' + str(value) + r';', config_raw, re.MULTILINE):
+            raise ValueError('cvw-config-llen32-required:' + name)
     if 'DERIVED FILE - DO NOT EDIT BY HAND' not in config_raw:
         raise ValueError('cvw-config-not-derived')
     closure = json.loads(closure_raw)
