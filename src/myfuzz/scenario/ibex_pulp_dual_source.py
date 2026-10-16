@@ -984,6 +984,7 @@ def make_pulp_dual_source_factory(
         native_irq_receipts: bool = False, source_actions: bool = False,
         memory_commit_receipts: bool = False,
         physical_observations: bool = False,
+        observation_modes: Mapping | None = None,
         persistent_memory_runtime_contract_sha256: str | None = None,
         instruction_start: int = ONLINE_INSTRUCTION_START,
         instruction_end: int = ONLINE_INSTRUCTION_END,
@@ -1047,18 +1048,22 @@ def make_pulp_dual_source_factory(
     cache_dir = Path(cache_dir)
     wiring = dual_source_wiring(cpu_profile=cpu_profile,
                                 gpio_consumption=gpio_consumption)
-    observation = {'physical_observations': True} if physical_observations else {}
+    if observation_modes is not None and (not isinstance(observation_modes, Mapping)
+            or set(observation_modes) != {'cpu', 'gpio_a', 'gpio_b'}
+            or any(type(mode) is not bool for mode in observation_modes.values())):
+        raise ValueError('observation_modes must map every instance to boolean')
+    modes = observation_modes if observation_modes is not None else dict.fromkeys(('cpu', 'gpio_a', 'gpio_b'), physical_observations)
     if generated_artifacts is None:
-        cpu_artifact = _artifact(wiring.cpu_profile, "cpu", **observation)
-        a_artifact = _artifact(wiring.gpio_profile, "gpio_a", **observation)
-        b_artifact = _artifact(wiring.gpio_profile, "gpio_b", **observation)
+        cpu_artifact = _artifact(wiring.cpu_profile, "cpu", physical_observations=modes["cpu"])
+        a_artifact = _artifact(wiring.gpio_profile, "gpio_a", physical_observations=modes["gpio_a"])
+        b_artifact = _artifact(wiring.gpio_profile, "gpio_b", physical_observations=modes["gpio_b"])
     else:
         from myfuzz.local_harness.generated_execution_admission import select_factory_artifacts
         supplied = select_factory_artifacts(generated_artifacts, expected={
             "cpu": (wiring.cpu_profile, "obi_cpu"),
             "gpio_a": (wiring.gpio_profile, "apb_gpio"),
             "gpio_b": (wiring.gpio_profile, "apb_gpio")}, base_dir=ROOT,
-            physical_observations=physical_observations)
+            physical_observations=physical_observations, observation_modes=observation_modes)
         cpu_artifact, a_artifact, b_artifact = (supplied[name]
                                                for name in ("cpu", "gpio_a", "gpio_b"))
     # The policy names the component the wiring declares as the owner of the
@@ -1090,7 +1095,7 @@ def make_pulp_dual_source_factory(
                                    native_irq_receipts=native_irq_receipts,
                                    memory_commit_receipts=memory_commit_receipts,
                                    memory_readback_receipts=persistent_memory_runtime_contract_sha256 is not None,
-                                   **({'physical_tick_samples': True} if physical_observations else {}))
+                                   **({'physical_tick_samples': True} if modes['cpu'] else {}))
         constructed = {"cpu": cpu, **devices}
         runner = ScenarioRunner(
             sessions={name: constructed[name] for name in wiring.sessions},

@@ -14,7 +14,7 @@ class GeneratedExecutionRefused(ValueError):
 
 
 def select_factory_artifacts(artifacts, *, expected, base_dir,
-                             physical_observations=False):
+                             physical_observations=False, observation_modes=None):
     """Validate and return supplied objects; never regenerate default artifacts.
 
     expected maps topology instances to (declared profile path, session kind).
@@ -23,6 +23,13 @@ def select_factory_artifacts(artifacts, *, expected, base_dir,
     """
     if not isinstance(artifacts, Mapping) or set(artifacts) != set(expected):
         raise GeneratedExecutionRefused('generated-runtime-instance-set-mismatch', '/artifacts')
+    if type(physical_observations) is not bool:
+        raise GeneratedExecutionRefused("generated-runtime-observation-mode-invalid", "/physical_observations")
+    if observation_modes is not None and (not isinstance(observation_modes, Mapping)
+            or set(observation_modes) != set(expected)
+            or any(type(mode) is not bool for mode in observation_modes.values())):
+        raise GeneratedExecutionRefused("generated-runtime-observation-mode-invalid", "/observation_modes")
+    modes = observation_modes if observation_modes is not None else dict.fromkeys(expected, physical_observations)
     admitted = {}
     for instance, (profile_path, kind) in expected.items():
         artifact = artifacts[instance]
@@ -37,7 +44,7 @@ def select_factory_artifacts(artifacts, *, expected, base_dir,
         if artifact.runtime_document.get('kind') != kind:
             raise GeneratedExecutionRefused('generated-runtime-kind-mismatch', pointer)
         observed = 'native_physical_observation_contract' in artifact.runtime_document
-        if observed != physical_observations:
+        if observed != modes[instance]:
             raise GeneratedExecutionRefused('generated-runtime-observation-mode-mismatch', pointer)
         admitted[instance] = artifact
     return admitted

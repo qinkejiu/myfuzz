@@ -36,7 +36,7 @@ def make_cv32e40p_pulp_online_runtime(
         cpu_retirement: bool = False,
         gpio_consumption: bool = False,
         native_irq_receipts: bool = False,
-        generated_artifacts=None, compiled_inputs=None,
+        generated_artifacts=None, compiled_inputs=None, observation_modes=None,
         generated_execution_scope='compiled_paths') -> IbexPulpOnlineRuntime:
     """Start one real CV32E40P/PULP session; caller feeds RFuzz slots.
 
@@ -59,6 +59,7 @@ def make_cv32e40p_pulp_online_runtime(
     factory = make_cv32e40p_pulp_dual_source_factory(
         Path(cache_dir), cpu_retirement=cpu_retirement,
         gpio_consumption=gpio_consumption, native_irq_receipts=native_irq_receipts,
+        observation_modes=observation_modes,
         **({'generated_artifacts':generated_artifacts} if generated_artifacts is not None else {}))
     return make_pulp_dual_source_online_runtime(
         bootstrap=bootstrap, decoder=decoder, factory=factory, run_id=run_id,

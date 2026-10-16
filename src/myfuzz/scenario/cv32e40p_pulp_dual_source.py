@@ -66,7 +66,7 @@ def make_cv32e40p_pulp_dual_source_factory(
         cache_dir: Path, *, cpu_retirement: bool = False,
         gpio_consumption: bool = False,
         native_irq_receipts: bool = False,
-        generated_artifacts=None) -> Callable[[], ScenarioRunner]:
+        generated_artifacts=None, observation_modes=None) -> Callable[[], ScenarioRunner]:
     """Render the pinned CV32E40P/PULP harnesses once, then make sessions.
 
     ``cpu_retirement`` and ``native_irq_receipts`` are rejected explicitly (see
@@ -75,7 +75,7 @@ def make_cv32e40p_pulp_dual_source_factory(
     _validate_cv32e40p_retirement_flags(
         cpu_retirement=cpu_retirement, native_irq_receipts=native_irq_receipts)
     return make_pulp_dual_source_factory(
-        cache_dir, cpu_profile=CV32E40P_CPU_PROFILE,
+        cache_dir, cpu_profile=CV32E40P_CPU_PROFILE, observation_modes=observation_modes,
         **({'generated_artifacts': generated_artifacts} if generated_artifacts is not None else {}),
         gpio_consumption=gpio_consumption, native_irq_receipts=native_irq_receipts)
 

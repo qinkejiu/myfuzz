@@ -18,11 +18,13 @@ from myfuzz.scenario import ibex_pulp_dual_source as shared
 ROOT=Path(__file__).resolve().parents[2]
 
 
-def _loaded(directory):
+def _loaded(directory, *, physical_observations=False):
     compose_dir=directory/'compose'
     shutil.copytree(ROOT/'configs/scenarios/cv32e40p-pulp-dual-gpio',compose_dir)
     for p in (compose_dir/'requests').glob('*.json'):
         d=json.loads(p.read_text());d.update(reset_assert_ticks=2,reset_release_ticks=3)
+        if physical_observations and p.name != 'cpu.json':
+            d.update(schema_version='local_harness.v2',tuning={'raw_tick_stream':[{'sampling':'pre_post'}]})
         p.write_text(json.dumps(d))
     compose=load_compose(compose_dir/'compose.json',base_dir=ROOT)
     generated=directory/'generated'

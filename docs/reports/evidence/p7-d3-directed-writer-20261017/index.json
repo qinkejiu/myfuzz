@@ -1,0 +1,56 @@
+[
+  {
+    "source": "/tmp/myfuzz-writer-evidence/170-events.json",
+    "file": "170-events.json.gz",
+    "sha256": "a20daa73e7fd75010ceeaabf9b303015766c5aeb72209e82544b00d7a835b016",
+    "compressed_sha256": "a414a40538906f340d58df222ba349fa9b43736b10500ab6cddb3b5f22df1fdd"
+  },
+  {
+    "source": "/tmp/myfuzz-writer-evidence/170-plan.json",
+    "file": "170-plan.json.gz",
+    "sha256": "1f9217862adcd6007ead43ecd3534be1737a460f2d4a960479b866317f0a1563",
+    "compressed_sha256": "8b627beb75536b3aaeacf09e3f43d4d83a0d54e7b7f2d878c240b1dfb0ec8169"
+  },
+  {
+    "source": "/tmp/myfuzz-writer-evidence/85-events.json",
+    "file": "85-events.json.gz",
+    "sha256": "d73645b866a13b98aad41a4f61e4b4658f1b6ba699be1cfbaf777e17961fc18b",
+    "compressed_sha256": "904d373a9fc088526b947a737c33c4eaa0bfdb4ab6a6d44776d4586aa21a4819"
+  },
+  {
+    "source": "/tmp/myfuzz-writer-evidence/85-plan.json",
+    "file": "85-plan.json.gz",
+    "sha256": "95aab2ebf88c7822ced024c77956fc9cee02203e39ac0bec6e249826b1c7d85b",
+    "compressed_sha256": "5d3e5d57c2a77537f8148514abc458570039cb415ac634abdbf064284b0e6e2c"
+  },
+  {
+    "source": "/tmp/myfuzz-writer-evidence/summary.json",
+    "file": "summary.json.gz",
+    "sha256": "5762323b11c2bef5f8012bedc7dcdc26ba31cb4cd216276dc9ba61ba239a0be3",
+    "compressed_sha256": "3b3d6c4a18ba4e56f35e9bb7d63db1dac72833d851fc367c67289bfce435437e"
+  },
+  {
+    "source": "/tmp/myfuzz-writer-focused.log",
+    "file": "myfuzz-writer-focused.log.gz",
+    "sha256": "67a9a54cd81af29fbef95385b94feea798a0ba193ce177ba27a9ee719ff4238e",
+    "compressed_sha256": "0eedec3f028e41ea7493216cae48aacfde702cfe1748e64b9591056f4c0b481e"
+  },
+  {
+    "source": "/tmp/myfuzz-writer-frozen-real.log",
+    "file": "myfuzz-writer-frozen-real.log.gz",
+    "sha256": "f4b8fec6889a36fac61d7be5ad15dc2a3dd0a51d1a2bb689cf94f27ab75d9737",
+    "compressed_sha256": "9184c7aa3a993bcfbed98af9402afd572ea8583207e3af749a151aa79c7463be"
+  },
+  {
+    "source": "/tmp/myfuzz-writer-real.log",
+    "file": "myfuzz-writer-real.log.gz",
+    "sha256": "3d54e9eddaf6680ba8664535f69237a8f189e1555c7e41036fa1bf1a74d82197",
+    "compressed_sha256": "c37743f0131094eba7afef1da297771cceaebe4daff0669445af9c4a00b9b6e3"
+  },
+  {
+    "source": "/tmp/myfuzz-writer-snapshot-hashes.json",
+    "file": "myfuzz-writer-snapshot-hashes.json.gz",
+    "sha256": "cbc52313b95c079e4ea7b227cc9b671b38964b4379724a56afc4c76104110723",
+    "compressed_sha256": "4a4cb04c88e94155274499bf7207b61bde3bae9cdd5ac20453cf456d7356a14e"
+  }
+]
