@@ -30,3 +30,10 @@ The saved native journals retain their earlier frozen build identities. This
 report adds current software controls and offline projection evidence; it does
 not establish a new RTL build, standard Runner execution, ISA retirement,
 functional coverage, external probes or whole P6/P7/P8 acceptance.
+
+Additional source-validation regression: **47 passed in 23.39 seconds**, exit 0,
+for the existing discovery-scope, reuse-boundary and prepared-closure controls.
+These verify that reusing AST discovery retains byte/probe/method drift checks.
+This result does not establish native throughput or validate the pending DMA
+performance change. The saved log and source hashes are in the same evidence
+directory.

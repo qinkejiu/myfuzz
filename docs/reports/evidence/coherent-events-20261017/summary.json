@@ -4,6 +4,12 @@
     "passed": 28,
     "seconds": 0.13
   },
+  "host_scope_regression": {
+    "exit_code": 0,
+    "passed": 47,
+    "scope": "existing byte/probe/method pin and prepared source closure controls",
+    "seconds": 23.39
+  },
   "new_native_execution": false,
   "schema_version": "coherent_event_verification.v1",
   "scope": "current_software_controls_and_offline_saved_native_trace_projection",
@@ -14,8 +20,12 @@
     "subtests_passed": 67
   },
   "source_pins": {
+    "src/myfuzz/local_harness/build.py": "522ed6bf63d7c99a6f4dd610016ef395d674360adbb4a9b5068353c99443412c",
     "src/myfuzz/scenario/coherent_event_stream.py": "9726eb8d6451b1a37ba472ed93fd54fc37c8474d43bdf9638118cbb21ddc4c19",
     "src/myfuzz/scenario/coherent_protocol_events.py": "1055c4c8fe0b5592bc76c994a62b8b2a86f3ed7e2bc21411ce802f9e220356c4",
+    "tests/local_harness/test_host_source_discovery_scope.py": "6f31c2af5fd4b31d6dc756769d21a557eb868275fe7874384ea22df5346133d8",
+    "tests/local_harness/test_host_source_reuse_boundaries.py": "d6605f61287b2d71e00af89ea17723cbc5db6fcf334145262acf8ccf8877f915",
+    "tests/local_harness/test_prepared_host_closure.py": "49b4bf20947db5362d0d80785853e9d9010d02057a573c56e0a401e1af78c0b2",
     "tests/scenario/test_coherent_event_stream.py": "3a3d20c16e1064455f342f659b34b5e5948673f625d59fcf1d82f4574ec6c7d4",
     "tests/scenario/test_coherent_protocol_events.py": "a5c3bcf78d30fd71e8c13dde603f83ec7197b92052d3d4ba417c34a9dacdb830"
   },
