@@ -1,0 +1,39 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+_____ test_session_exposes_measured_edge_and_blocks_poisoned_native_retry ______
+
+    def test_session_exposes_measured_edge_and_blocks_poisoned_native_retry():
+     cpu,edge,calls=fake();edge(arvalid=1,araddr=0x100,arsize=3,arburst=1,arid=12)
+>    stream=cpu.runtime_events
+            ^^^^^^^^^^^^^^^^^^
+E    AttributeError: 'GeneratedCva6Axi4Session' object has no attribute 'runtime_events'
+
+tests/local_harness/test_cva6_full_axi_observer.py:35: AttributeError
+___ test_service_failure_keeps_raw_edge_then_poison_before_next_ready_inputs ___
+
+    def test_service_failure_keeps_raw_edge_then_poison_before_next_ready_inputs():
+     cpu,edge,calls=fake()
+     def fail():raise ProtocolEnvironmentError('target failed after possible effect')
+     cpu._commit_writes=fail
+     with pytest.raises(ProtocolEnvironmentError,match='target failed'):edge(arvalid=1,arsize=3,arburst=1)
+>    assert any(e['kind']=='full_axi_raw' for e in cpu.runtime_events)
+                                                   ^^^^^^^^^^^^^^^^^^
+E    AttributeError: 'GeneratedCva6Axi4Session' object has no attribute 'runtime_events'
+
+tests/local_harness/test_cva6_full_axi_observer.py:49: AttributeError
+_________ test_untrusted_pre_receipt_is_diagnostic_without_projection __________
+
+    def test_untrusted_pre_receipt_is_diagnostic_without_projection():
+     cpu,edge,calls=fake()
+     with pytest.raises(ProtocolEnvironmentError,match='backend observation'):
+      edge(arready=0)
+>    assert not any(e['kind']=='full_axi_raw' for e in cpu.runtime_events)
+                                                       ^^^^^^^^^^^^^^^^^^
+E    AttributeError: 'GeneratedCva6Axi4Session' object has no attribute 'runtime_events'
+
+tests/local_harness/test_cva6_full_axi_observer.py:61: AttributeError
+=========================== short test summary info ============================
+FAILED tests/local_harness/test_cva6_full_axi_observer.py::test_session_exposes_measured_edge_and_blocks_poisoned_native_retry
+FAILED tests/local_harness/test_cva6_full_axi_observer.py::test_service_failure_keeps_raw_edge_then_poison_before_next_ready_inputs
+FAILED tests/local_harness/test_cva6_full_axi_observer.py::test_untrusted_pre_receipt_is_diagnostic_without_projection
+3 failed in 0.20s

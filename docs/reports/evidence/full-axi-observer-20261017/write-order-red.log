@@ -1,0 +1,17 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_transaction_aw_w_order_stays_first_w_order_across_batches ________
+
+    def test_transaction_aw_w_order_stays_first_w_order_across_batches():
+     o=run(edge(**w(wlast=0)),edge(2,**aw(awlen=1)),edge(3,**w(wlast=1)))
+     batches=[e for e in o.events if e['kind']=='full_axi_write_beats']
+>    assert [e['aw_w_order'] for e in batches]==['w_before_aw','w_before_aw']
+E    AssertionError: assert ['w_before_aw', 'aw_before_w'] == ['w_before_aw', 'w_before_aw']
+E      
+E      At index 1 diff: 'aw_before_w' != 'w_before_aw'
+E      Use -v to get more diff
+
+tests/scenario/test_full_axi_events.py:202: AssertionError
+=========================== short test summary info ============================
+FAILED tests/scenario/test_full_axi_events.py::test_transaction_aw_w_order_stays_first_w_order_across_batches
+1 failed, 79 deselected in 0.21s

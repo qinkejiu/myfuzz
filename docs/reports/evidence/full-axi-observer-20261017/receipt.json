@@ -1,0 +1,417 @@
+{
+  "contract": {
+    "authority": "observation_only",
+    "budgets": {
+      "max_burst_beats": 256,
+      "max_edges": 100000,
+      "max_events_per_edge": 9,
+      "max_raw_bytes": 67108864,
+      "max_records": 902050,
+      "max_scopes": 1024,
+      "max_w_before_aw": 256,
+      "read_bursts": 1,
+      "write_contexts": 1
+    },
+    "endpoint_id": "axi",
+    "exclusive_and_atomic": "unsupported",
+    "native_observed_bins": "unknown_no_saved_generated_journal",
+    "post_offer_hold": "new_or_changed_offer_until_next_pre",
+    "raw_reference_namespace": "observer_stream_local_record_index",
+    "response_status": {
+      "0": "okay",
+      "1": "exclusive_response_unsupported",
+      "2": "slave_error",
+      "3": "decode_error"
+    },
+    "sampling": "pre_acceptance_post_hold_only",
+    "schema_version": "bounded_full_axi_observation.v1",
+    "signal_prefix": "axi_",
+    "signal_shapes": {
+      "araddr": {
+        "direction": "output",
+        "width": 64
+      },
+      "arburst": {
+        "direction": "output",
+        "width": 2
+      },
+      "arcache": {
+        "direction": "output",
+        "width": 4
+      },
+      "arid": {
+        "direction": "output",
+        "width": 4
+      },
+      "arlen": {
+        "direction": "output",
+        "width": 8
+      },
+      "arlock": {
+        "direction": "output",
+        "width": 1
+      },
+      "arprot": {
+        "direction": "output",
+        "width": 3
+      },
+      "arqos": {
+        "direction": "output",
+        "width": 4
+      },
+      "arready": {
+        "direction": "input",
+        "width": 1
+      },
+      "arregion": {
+        "direction": "output",
+        "width": 4
+      },
+      "arsize": {
+        "direction": "output",
+        "width": 3
+      },
+      "aruser": {
+        "direction": "output",
+        "width": 64
+      },
+      "arvalid": {
+        "direction": "output",
+        "width": 1
+      },
+      "awaddr": {
+        "direction": "output",
+        "width": 64
+      },
+      "awatop": {
+        "direction": "output",
+        "width": 6
+      },
+      "awburst": {
+        "direction": "output",
+        "width": 2
+      },
+      "awcache": {
+        "direction": "output",
+        "width": 4
+      },
+      "awid": {
+        "direction": "output",
+        "width": 4
+      },
+      "awlen": {
+        "direction": "output",
+        "width": 8
+      },
+      "awlock": {
+        "direction": "output",
+        "width": 1
+      },
+      "awprot": {
+        "direction": "output",
+        "width": 3
+      },
+      "awqos": {
+        "direction": "output",
+        "width": 4
+      },
+      "awready": {
+        "direction": "input",
+        "width": 1
+      },
+      "awregion": {
+        "direction": "output",
+        "width": 4
+      },
+      "awsize": {
+        "direction": "output",
+        "width": 3
+      },
+      "awuser": {
+        "direction": "output",
+        "width": 64
+      },
+      "awvalid": {
+        "direction": "output",
+        "width": 1
+      },
+      "bid": {
+        "direction": "input",
+        "width": 4
+      },
+      "bready": {
+        "direction": "output",
+        "width": 1
+      },
+      "bresp": {
+        "direction": "input",
+        "width": 2
+      },
+      "buser": {
+        "direction": "input",
+        "width": 64
+      },
+      "bvalid": {
+        "direction": "input",
+        "width": 1
+      },
+      "rdata": {
+        "direction": "input",
+        "width": 64
+      },
+      "rid": {
+        "direction": "input",
+        "width": 4
+      },
+      "rlast": {
+        "direction": "input",
+        "width": 1
+      },
+      "rready": {
+        "direction": "output",
+        "width": 1
+      },
+      "rresp": {
+        "direction": "input",
+        "width": 2
+      },
+      "ruser": {
+        "direction": "input",
+        "width": 64
+      },
+      "rvalid": {
+        "direction": "input",
+        "width": 1
+      },
+      "wdata": {
+        "direction": "output",
+        "width": 64
+      },
+      "wlast": {
+        "direction": "output",
+        "width": 1
+      },
+      "wready": {
+        "direction": "input",
+        "width": 1
+      },
+      "wstrb": {
+        "direction": "output",
+        "width": 8
+      },
+      "wuser": {
+        "direction": "output",
+        "width": 64
+      },
+      "wvalid": {
+        "direction": "output",
+        "width": 1
+      }
+    },
+    "supported_bursts": {
+      "fixed_max_beats": 16,
+      "incrementing_max_beats": 256,
+      "wrapping_lengths": [
+        2,
+        4,
+        8,
+        16
+      ]
+    },
+    "variant": "packed64_id4_user64_single_master.v1"
+  },
+  "model": {
+    "accepted": {
+      "ar": 1,
+      "aw": 1,
+      "b": 1,
+      "r": 2,
+      "w": 4
+    },
+    "pending": {
+      "b_pending": false,
+      "buffered_wbeats": 0,
+      "read_beats_remaining": 0,
+      "write_beats_remaining": 0
+    },
+    "reads": [
+      {
+        "address": 516,
+        "beat_index": 0,
+        "prior_beat_refs": [],
+        "raw_event_refs": [
+          6
+        ],
+        "request_refs": [
+          3
+        ]
+      },
+      {
+        "address": 520,
+        "beat_index": 1,
+        "prior_beat_refs": [
+          6
+        ],
+        "raw_event_refs": [
+          9
+        ],
+        "request_refs": [
+          3
+        ]
+      }
+    ],
+    "records": 16,
+    "samples": 6,
+    "writes": [
+      [
+        {
+          "accepted_tick": 1,
+          "address": 280,
+          "aw_ref": 12,
+          "beat_bytes": 8,
+          "beat_index": 0,
+          "encoded_size": 3,
+          "payload": {
+            "wdata": 9223372036854775809,
+            "wlast": 0,
+            "wready": 1,
+            "wstrb": 255,
+            "wuser": 17,
+            "wvalid": 1
+          },
+          "raw_event_refs": [
+            1
+          ]
+        },
+        {
+          "accepted_tick": 2,
+          "address": 256,
+          "aw_ref": 12,
+          "beat_bytes": 8,
+          "beat_index": 1,
+          "encoded_size": 3,
+          "payload": {
+            "wdata": 2,
+            "wlast": 0,
+            "wready": 1,
+            "wstrb": 255,
+            "wuser": 18,
+            "wvalid": 1
+          },
+          "raw_event_refs": [
+            3
+          ]
+        },
+        {
+          "accepted_tick": 3,
+          "address": 264,
+          "aw_ref": 12,
+          "beat_bytes": 8,
+          "beat_index": 2,
+          "encoded_size": 3,
+          "payload": {
+            "wdata": 3,
+            "wlast": 0,
+            "wready": 1,
+            "wstrb": 255,
+            "wuser": 19,
+            "wvalid": 1
+          },
+          "raw_event_refs": [
+            6
+          ]
+        },
+        {
+          "accepted_tick": 4,
+          "address": 272,
+          "aw_ref": 12,
+          "beat_bytes": 8,
+          "beat_index": 3,
+          "encoded_size": 3,
+          "payload": {
+            "wdata": 4,
+            "wlast": 1,
+            "wready": 1,
+            "wstrb": 255,
+            "wuser": 20,
+            "wvalid": 1
+          },
+          "raw_event_refs": [
+            9
+          ]
+        }
+      ]
+    ]
+  },
+  "native_observed_bins": "unknown",
+  "native_run": false,
+  "saved_native_generated_raw_found": false,
+  "schema_version": "full_axi_software_receipt.v1",
+  "scope": "software_model_and_source_contract_only",
+  "scope_notes": [
+    "single physical master does not establish instruction/data identity",
+    "service permits LEN up to 256; observer additionally rejects FIXED longer than 16",
+    "WSTRB zero is allowed by generic observer; MMIO service may reject it",
+    "no generic evidence or coverage admission",
+    "no independent physical tap verification"
+  ],
+  "software_validation": {
+    "full": "99 passed, 3 subtests passed",
+    "reduced_regression": "38 passed, 2 native deselected"
+  },
+  "source_lock_record": {
+    "elaboration": {
+      "frontend": "verilator-json",
+      "warning_policy": "recorded-nonfatal"
+    },
+    "filelist": "core/Flist.cva6",
+    "filelist_variables": [
+      {
+        "name": "CVA6_REPO_DIR",
+        "value": "."
+      },
+      {
+        "name": "HPDCACHE_DIR",
+        "value": "core/cache_subsystem/hpdcache"
+      },
+      {
+        "name": "TARGET_CFG",
+        "value": "cv64a6_imafdc_sv39"
+      }
+    ],
+    "include_roots": [
+      "core/include",
+      "vendor/pulp-platform/common_cells/include",
+      "vendor/pulp-platform/common_cells/src",
+      "vendor/pulp-platform/axi/include",
+      "common/local/util",
+      "core/cache_subsystem/hpdcache/rtl/src/utils/ecc",
+      "core/cache_subsystem/hpdcache/rtl/include"
+    ],
+    "repositories": [
+      {
+        "path": "core/cache_subsystem/hpdcache",
+        "revision": "git:f404e7ebbda8baa4af3729535f520a6b12a06d03"
+      },
+      {
+        "path": "core/cvfpu",
+        "revision": "git:3eb6afeab2cb33f7d8689222955d0171aeb3a801"
+      },
+      {
+        "path": "core/cvfpu/src/fpu_div_sqrt_mvp",
+        "revision": "git:86e1f558b3c95e91577c41b2fc452c86b04e85ac"
+      }
+    ],
+    "revision": "git:2e1336dcff3d1a0b49fbe6282b97802f32ea32af",
+    "root": "third_party/cva6_upstream_reference",
+    "top_module": "cva6"
+  },
+  "source_snapshot_sha256": {
+    "configs/cpus/cva6/component_profile.json": "acebaaf9479a71b7a24a851718d4be1f0dc66388809dfebe84dac161df51bfb1",
+    "configs/soc/sources.lock.json": "4caf0ae616e99e3c7cac76a1b04daca41af9bcef0eee3b6b0923fb6bd7e2a29e",
+    "src/myfuzz/local_harness/cva6_axi4_fields.py": "c0438c838e77381f48cfccef183719e986da035bae1b23532f6e01dc858a5222",
+    "src/myfuzz/local_harness/cva6_axi4_session.py": "4d63be6036519c41d21e654abb3330b50308ef9d73c490de660c34fe6cae7a2b",
+    "src/myfuzz/local_harness/driver_renderer.py": "d6e70baaed5a41fc3e12a780b2b388177997d5ad61808830ce0f5afd121469dd",
+    "src/myfuzz/scenario/full_axi_events.py": "bf18e83809464520e9ef4488f536faa3f7afbc6625d56321a2b4c07bb0a28600"
+  }
+}

@@ -1,0 +1,16 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_prevalidation_budget_failure_does_not_claim_trusted_shape ________
+
+    def test_prevalidation_budget_failure_does_not_claim_trusted_shape():
+     o=observer(max_bytes=1);o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
+     sample=edge();sample['post']=None
+     with pytest.raises(ValueError,match='budget'):o.observe(sample)
+     assert o.events[-1]['category']=='unsupported'
+>    assert o.events[-1]['trusted_projection'] is False
+E    assert True is False
+
+tests/scenario/test_full_axi_events.py:251: AssertionError
+=========================== short test summary info ============================
+FAILED tests/scenario/test_full_axi_events.py::test_prevalidation_budget_failure_does_not_claim_trusted_shape
+1 failed, 86 deselected in 0.29s

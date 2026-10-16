@@ -10,6 +10,7 @@ from myfuzz.scenario.ledger import TransactionKey, TransactionLedger
 from myfuzz.scenario.memory import PersistentMemory
 from myfuzz.scenario.memory_service import MemoryService
 from myfuzz.scenario.router import DataflowRouter
+from myfuzz.scenario.full_axi_events import BoundedFullAxiObserver
 from .cva6_axi4_fields import CVA6_AXI_STEP_PORTS, CVA6_AXI_WIDTHS
 from .runtime_artifact import LocalRuntimeArtifact
 from .session import GeneratedLocalSession
@@ -97,6 +98,9 @@ class GeneratedCva6Axi4Session(GeneratedLocalSession):
         self._clear()
 
     def _clear(self) -> None:
+        if not hasattr(self, '_axi_observer'):
+            self._axi_observer = BoundedFullAxiObserver(component_id=self.source_component)
+            self.runtime_events = self._axi_observer.events
         self._state = {'read': None, 'write': None, 'wbeats': [], 'b': None}
         self._memory_sequence = 0
         self._mmio_sequence = 0
@@ -109,11 +113,14 @@ class GeneratedCva6Axi4Session(GeneratedLocalSession):
         return {**super().identity_document(),
                 'cpu_service_schema_version': 'generated_cva6_axi4_cpu_service.v3',
                 'source_component': self.source_component,
+                'axi_observation_contract': copy.deepcopy(self._axi_observer.contract),
                 'defer_mmio': self.defer_mmio}
 
     def begin_case(self, testcase_id: str) -> None:
         super().begin_case(testcase_id)
         self._clear()
+        self._axi_observer.begin_scope(execution_id=self._execution,
+            testcase_id=self._case_id, reset_epoch=self.reset_epoch)
 
     @property
     def pending_responses(self) -> int:
@@ -139,6 +146,7 @@ class GeneratedCva6Axi4Session(GeneratedLocalSession):
                    if self.router is not None else ())
         if self._queued_mmio != len(targets):
             raise RuntimeError('generated CVA6 MMIO queue accounting mismatch at reset')
+        self._axi_observer.end_scope()
         self._clear()
         super().reset_local()
         return {'cancelled_responses': cancelled,
@@ -295,10 +303,34 @@ class GeneratedCva6Axi4Session(GeneratedLocalSession):
                        or inputs.get(name, 0) not in (0, 1)
                        for name in ('irq_external', 'irq_timer'))):
             raise ValueError('generated CVA6 accepts only one-bit external and timer IRQ inputs')
+        if self._axi_observer.scope is None:
+            self._axi_observer.begin_scope(execution_id=self._execution,
+                testcase_id=self._case_id, reset_epoch=self.reset_epoch)
+        try:
+            self._axi_observer.require_active()
+        except ValueError as exc:
+            raise ProtocolEnvironmentError(str(exc)) from exc
+        self._last_axi_receipt = None
+        try:
+            return self._step_local_service(inputs)
+        except Exception as exc:
+            self._axi_observer.poison(str(exc), diagnostic_receipt=self._last_axi_receipt)
+            if isinstance(exc, ValueError):
+                raise ProtocolEnvironmentError(str(exc)) from exc
+            raise
+
+    def _step_local_service(self, inputs: Mapping[str, int]) -> Mapping[str, object]:
+        if (not isinstance(inputs, Mapping) or set(inputs) - {'irq_external', 'irq_timer'}
+                or any(type(inputs.get(name, 0)) is not int
+                       or inputs.get(name, 0) not in (0, 1)
+                       for name in ('irq_external', 'irq_timer'))):
+            raise ValueError('generated CVA6 accepts only one-bit external and timer IRQ inputs')
         values = self._ready_inputs(inputs.get('irq_external', 0),
                                     inputs.get('irq_timer', 0))
         receipt = self.command('STEP_CVA6_AXI4',
                                tuple(values[name] for name in CVA6_AXI_STEP_PORTS))
+        self._last_axi_receipt = copy.deepcopy({'status': receipt.status,
+            'new_ticks': receipt.new_ticks, 'payload': receipt.payload})
         if receipt.status == 'error':
             message = f'{receipt.error_code}: {receipt.error_detail}'
             if receipt.error_code == 'protocol_environment':
@@ -320,6 +352,7 @@ class GeneratedCva6Axi4Session(GeneratedLocalSession):
                 or payload['samples'][0].get('pre', {}).get('backend') != pre):
             raise ProtocolEnvironmentError('invalid generated CVA6 backend observation')
         self.last_samples = tuple(copy.deepcopy(payload['samples']))
+        self._axi_observer.observe(self.last_samples[0])
         row = {name[4:]: value for name, value in pre.items()}
         def handshake(channel: str) -> bool:
             return bool(row[channel + 'valid'] and row[channel + 'ready'])

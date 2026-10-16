@@ -1,0 +1,129 @@
+FFFFFFFF                                                                 [100%]
+=================================== FAILURES ===================================
+_____ test_failure_states_possible_effects_and_projection_trust[protocol] ______
+
+kind = 'protocol'
+
+    @pytest.mark.parametrize('kind',['protocol','shape'])
+    def test_failure_states_possible_effects_and_projection_trust(kind):
+     o=observer();o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
+     sample=edge(bvalid=1,bready=1) if kind=='protocol' else edge()
+     if kind=='shape':sample['post']=None
+     with pytest.raises(ValueError):o.observe(sample)
+     failure=o.events[-1]
+>    assert failure['possible_effects'] is True
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    KeyError: 'possible_effects'
+
+tests/scenario/test_full_axi_events.py:222: KeyError
+_______ test_failure_states_possible_effects_and_projection_trust[shape] _______
+
+kind = 'shape'
+
+    @pytest.mark.parametrize('kind',['protocol','shape'])
+    def test_failure_states_possible_effects_and_projection_trust(kind):
+     o=observer();o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
+     sample=edge(bvalid=1,bready=1) if kind=='protocol' else edge()
+     if kind=='shape':sample['post']=None
+     with pytest.raises(ValueError):o.observe(sample)
+     failure=o.events[-1]
+>    assert failure['possible_effects'] is True
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    KeyError: 'possible_effects'
+
+tests/scenario/test_full_axi_events.py:222: KeyError
+____________ test_post_new_offer_is_held_until_next_measured_pre[0] ____________
+
+post_ready = 0
+
+    @pytest.mark.parametrize('post_ready',[0,1])
+    def test_post_new_offer_is_held_until_next_measured_pre(post_ready):
+     first=edge(arready=post_ready)
+     first['post']['backend'].update(axi_arvalid=1,axi_araddr=0x100,axi_arsize=3,axi_arburst=1)
+     o=run(first);assert o.accepted['ar']==0
+>    with pytest.raises(ValueError,match='hold'):o.observe(edge(2,**ar(araddr=0x108)))
+E    Failed: DID NOT RAISE ValueError
+
+tests/scenario/test_full_axi_events.py:231: Failed
+____________ test_post_new_offer_is_held_until_next_measured_pre[1] ____________
+
+post_ready = 1
+
+    @pytest.mark.parametrize('post_ready',[0,1])
+    def test_post_new_offer_is_held_until_next_measured_pre(post_ready):
+     first=edge(arready=post_ready)
+     first['post']['backend'].update(axi_arvalid=1,axi_araddr=0x100,axi_arsize=3,axi_arburst=1)
+     o=run(first);assert o.accepted['ar']==0
+>    with pytest.raises(ValueError,match='hold'):o.observe(edge(2,**ar(araddr=0x108)))
+E    Failed: DID NOT RAISE ValueError
+
+tests/scenario/test_full_axi_events.py:231: Failed
+_ test_accepted_master_post_offer_held_but_consumed_injected_response_can_drop _
+
+    def test_accepted_master_post_offer_held_but_consumed_injected_response_can_drop():
+     first=edge(**ar(araddr=0x100));first['post']['backend'].update(axi_araddr=0x108)
+>    with pytest.raises(ValueError,match='hold'):
+E    Failed: DID NOT RAISE ValueError
+
+tests/scenario/test_full_axi_events.py:238: Failed
+_______ test_all_operational_failures_poison_before_native_retry[error0] _______
+
+error = OSError('target IO failed')
+
+    @pytest.mark.parametrize('error',[OSError('target IO failed'),TypeError('target callback failed'),AttributeError('malformed receipt')])
+    def test_all_operational_failures_poison_before_native_retry(error):
+     cpu,edge,calls=fake()
+     def fail():raise error
+     cpu._commit_writes=fail
+     with pytest.raises(type(error)):edge()
+>    assert cpu.runtime_events[-1]['kind']=='full_axi_failure'
+E    AssertionError: assert 'full_axi_raw' == 'full_axi_failure'
+E      
+E      - full_axi_failure
+E      + full_axi_raw
+
+tests/local_harness/test_cva6_full_axi_observer.py:90: AssertionError
+_______ test_all_operational_failures_poison_before_native_retry[error1] _______
+
+error = TypeError('target callback failed')
+
+    @pytest.mark.parametrize('error',[OSError('target IO failed'),TypeError('target callback failed'),AttributeError('malformed receipt')])
+    def test_all_operational_failures_poison_before_native_retry(error):
+     cpu,edge,calls=fake()
+     def fail():raise error
+     cpu._commit_writes=fail
+     with pytest.raises(type(error)):edge()
+>    assert cpu.runtime_events[-1]['kind']=='full_axi_failure'
+E    AssertionError: assert 'full_axi_raw' == 'full_axi_failure'
+E      
+E      - full_axi_failure
+E      + full_axi_raw
+
+tests/local_harness/test_cva6_full_axi_observer.py:90: AssertionError
+_______ test_all_operational_failures_poison_before_native_retry[error2] _______
+
+error = AttributeError('malformed receipt')
+
+    @pytest.mark.parametrize('error',[OSError('target IO failed'),TypeError('target callback failed'),AttributeError('malformed receipt')])
+    def test_all_operational_failures_poison_before_native_retry(error):
+     cpu,edge,calls=fake()
+     def fail():raise error
+     cpu._commit_writes=fail
+     with pytest.raises(type(error)):edge()
+>    assert cpu.runtime_events[-1]['kind']=='full_axi_failure'
+E    AssertionError: assert 'full_axi_raw' == 'full_axi_failure'
+E      
+E      - full_axi_failure
+E      + full_axi_raw
+
+tests/local_harness/test_cva6_full_axi_observer.py:90: AssertionError
+=========================== short test summary info ============================
+FAILED tests/scenario/test_full_axi_events.py::test_failure_states_possible_effects_and_projection_trust[protocol]
+FAILED tests/scenario/test_full_axi_events.py::test_failure_states_possible_effects_and_projection_trust[shape]
+FAILED tests/scenario/test_full_axi_events.py::test_post_new_offer_is_held_until_next_measured_pre[0]
+FAILED tests/scenario/test_full_axi_events.py::test_post_new_offer_is_held_until_next_measured_pre[1]
+FAILED tests/scenario/test_full_axi_events.py::test_accepted_master_post_offer_held_but_consumed_injected_response_can_drop
+FAILED tests/local_harness/test_cva6_full_axi_observer.py::test_all_operational_failures_poison_before_native_retry[error0]
+FAILED tests/local_harness/test_cva6_full_axi_observer.py::test_all_operational_failures_poison_before_native_retry[error1]
+FAILED tests/local_harness/test_cva6_full_axi_observer.py::test_all_operational_failures_poison_before_native_retry[error2]
+8 failed, 85 deselected in 0.27s

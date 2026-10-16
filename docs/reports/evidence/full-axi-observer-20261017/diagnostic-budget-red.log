@@ -1,0 +1,16 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______________ test_diagnostic_receipt_counts_global_byte_budget _______________
+
+    def test_diagnostic_receipt_counts_global_byte_budget():
+     o=observer(max_bytes=1);o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
+     o.poison('untrusted receipt',diagnostic_receipt={'payload':'large'})
+     assert o.events[-1]['diagnostic_receipt']=={'payload':'large'}
+     o.end_scope()
+>    with pytest.raises(ValueError,match='budget'):
+E    Failed: DID NOT RAISE ValueError
+
+tests/scenario/test_full_axi_events.py:211: Failed
+=========================== short test summary info ============================
+FAILED tests/scenario/test_full_axi_events.py::test_diagnostic_receipt_counts_global_byte_budget
+1 failed, 80 deselected in 0.21s

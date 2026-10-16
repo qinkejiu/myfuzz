@@ -1,0 +1,37 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+_______________________ test_fixed_burst_protocol_limit ________________________
+
+    def test_fixed_burst_protocol_limit():
+>    with pytest.raises(ValueError,match='fixed_length'):
+E    Failed: DID NOT RAISE ValueError
+
+tests/scenario/test_full_axi_events.py:128: Failed
+___________________________ test_partial_read_chain ____________________________
+
+    def test_partial_read_chain():
+     o=run(edge(**ar(arlen=2)),edge(2,rvalid=1,rready=1),edge(3,rvalid=1,rready=1))
+     beats=[e for e in o.events if e['kind']=='full_axi_read_beat']
+>    assert beats[1]['prior_beat_refs']==beats[0]['raw_event_refs']
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    KeyError: 'prior_beat_refs'
+
+tests/scenario/test_full_axi_events.py:135: KeyError
+________________ test_diagnostic_reset_record_budget_is_bounded ________________
+
+    def test_diagnostic_reset_record_budget_is_bounded():
+     o=observer(max_edges=1,max_scopes=20)
+     for i in range(20):
+      o.begin_scope(execution_id=str(i),testcase_id='c',reset_epoch=i)
+      o.poison('no measured edge');o.end_scope()
+>    assert len(o.events)<=o.contract['budgets']['max_records']
+E    AssertionError: assert 40 <= 31
+E     +  where 40 = len([{'schema_version': 'bounded_full_axi_observation.v1', 'kind': 'full_axi_failure', 'component_id': 'renamed', 'endpoin...bounded_full_axi_observation.v1', 'kind': 'full_axi_reset', 'component_id': 'renamed', 'endpoint_id': 'axi', ...}, ...])
+E     +    where [{'schema_version': 'bounded_full_axi_observation.v1', 'kind': 'full_axi_failure', 'component_id': 'renamed', 'endpoin...bounded_full_axi_observation.v1', 'kind': 'full_axi_reset', 'component_id': 'renamed', 'endpoint_id': 'axi', ...}, ...] = <myfuzz.scenario.full_axi_events.BoundedFullAxiObserver object at 0x7e21d7bd02f0>.events
+
+tests/scenario/test_full_axi_events.py:144: AssertionError
+=========================== short test summary info ============================
+FAILED tests/scenario/test_full_axi_events.py::test_fixed_burst_protocol_limit
+FAILED tests/scenario/test_full_axi_events.py::test_partial_read_chain - KeyE...
+FAILED tests/scenario/test_full_axi_events.py::test_diagnostic_reset_record_budget_is_bounded
+3 failed, 74 deselected in 0.23s

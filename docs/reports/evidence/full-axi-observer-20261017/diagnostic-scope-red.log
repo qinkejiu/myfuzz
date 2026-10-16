@@ -1,0 +1,17 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______________ test_diagnostic_cannot_emit_outside_active_scope _______________
+
+    def test_diagnostic_cannot_emit_outside_active_scope():
+     o=observer(max_edges=1,max_scopes=1)
+     for _ in range(20):o.end_scope();o.poison('outside scope')
+>    assert o.events==[]
+E    AssertionError: assert [{'schema_ver...i', ...}, ...] == []
+E      
+E      Left contains 20 more items, first extra item: {'schema_version': 'bounded_full_axi_observation.v1', 'kind': 'full_axi_failure', 'component_id': 'renamed', 'endpoint_id': 'axi', ...}
+E      Use -v to get more diff
+
+tests/scenario/test_full_axi_events.py:196: AssertionError
+=========================== short test summary info ============================
+FAILED tests/scenario/test_full_axi_events.py::test_diagnostic_cannot_emit_outside_active_scope
+1 failed, 78 deselected in 0.26s

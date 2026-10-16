@@ -1,0 +1,3914 @@
+FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF [100%]
+=================================== FAILURES ===================================
+_____________ test_64bit_payload_id_user_and_status_preserved[0-0] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 0, resp = 0
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[0-1] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 1, resp = 0
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[0-2] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 2, resp = 0
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[0-3] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 3, resp = 0
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[0-4] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 4, resp = 0
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[0-5] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 5, resp = 0
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[0-6] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 6, resp = 0
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[0-7] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 7, resp = 0
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[0-8] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 8, resp = 0
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[0-9] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 9, resp = 0
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_64bit_payload_id_user_and_status_preserved[0-10] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 10, resp = 0
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_64bit_payload_id_user_and_status_preserved[0-11] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 11, resp = 0
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_64bit_payload_id_user_and_status_preserved[0-12] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 12, resp = 0
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_64bit_payload_id_user_and_status_preserved[0-13] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 13, resp = 0
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_64bit_payload_id_user_and_status_preserved[0-14] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 14, resp = 0
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_64bit_payload_id_user_and_status_preserved[0-15] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 15, resp = 0
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[2-0] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 0, resp = 2
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[2-1] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 1, resp = 2
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[2-2] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 2, resp = 2
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[2-3] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 3, resp = 2
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[2-4] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 4, resp = 2
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[2-5] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 5, resp = 2
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[2-6] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 6, resp = 2
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[2-7] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 7, resp = 2
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[2-8] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 8, resp = 2
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[2-9] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 9, resp = 2
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_64bit_payload_id_user_and_status_preserved[2-10] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 10, resp = 2
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_64bit_payload_id_user_and_status_preserved[2-11] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 11, resp = 2
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_64bit_payload_id_user_and_status_preserved[2-12] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 12, resp = 2
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_64bit_payload_id_user_and_status_preserved[2-13] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 13, resp = 2
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_64bit_payload_id_user_and_status_preserved[2-14] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 14, resp = 2
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_64bit_payload_id_user_and_status_preserved[2-15] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 15, resp = 2
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[3-0] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 0, resp = 3
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[3-1] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 1, resp = 3
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[3-2] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 2, resp = 3
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[3-3] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 3, resp = 3
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[3-4] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 4, resp = 3
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[3-5] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 5, resp = 3
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[3-6] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 6, resp = 3
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[3-7] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 7, resp = 3
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[3-8] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 8, resp = 3
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_64bit_payload_id_user_and_status_preserved[3-9] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 9, resp = 3
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_64bit_payload_id_user_and_status_preserved[3-10] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 10, resp = 3
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_64bit_payload_id_user_and_status_preserved[3-11] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 11, resp = 3
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_64bit_payload_id_user_and_status_preserved[3-12] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 12, resp = 3
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_64bit_payload_id_user_and_status_preserved[3-13] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 13, resp = 3
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_64bit_payload_id_user_and_status_preserved[3-14] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 14, resp = 3
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_64bit_payload_id_user_and_status_preserved[3-15] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+identifier = 15, resp = 3
+
+    @pytest.mark.parametrize('identifier',range(16))
+    @pytest.mark.parametrize('resp',[0,2,3])
+    def test_64bit_payload_id_user_and_status_preserved(identifier,resp):
+>    o=run(edge(**ar(arid=identifier,araddr=0x100000000,aruser=2**63)),edge(2,rvalid=1,rready=1,rid=identifier,rlast=1,rresp=resp,rdata=2**63+5,ruser=2**63+1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_burst_read_addresses_and_last[0-256-3-addresses0] ____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+burst = 0, start = 256, length = 3, addresses = [256, 256, 256]
+
+    @pytest.mark.parametrize('burst,start,length,addresses',[(0,0x100,3,[0x100]*3),(1,0x100,3,[0x100,0x108,0x110]),(2,0x118,4,[0x118,0x100,0x108,0x110])])
+    def test_burst_read_addresses_and_last(burst,start,length,addresses):
+     request=ar(araddr=start,arlen=length-1);request['arburst']=burst
+>    o=run(edge(**request),*[edge(i+2,rvalid=1,rready=1,rlast=int(i==length-1)) for i in range(length)])
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:39: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_burst_read_addresses_and_last[1-256-3-addresses1] ____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+burst = 1, start = 256, length = 3, addresses = [256, 264, 272]
+
+    @pytest.mark.parametrize('burst,start,length,addresses',[(0,0x100,3,[0x100]*3),(1,0x100,3,[0x100,0x108,0x110]),(2,0x118,4,[0x118,0x100,0x108,0x110])])
+    def test_burst_read_addresses_and_last(burst,start,length,addresses):
+     request=ar(araddr=start,arlen=length-1);request['arburst']=burst
+>    o=run(edge(**request),*[edge(i+2,rvalid=1,rready=1,rlast=int(i==length-1)) for i in range(length)])
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:39: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________ test_burst_read_addresses_and_last[2-280-4-addresses2] ____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+burst = 2, start = 280, length = 4, addresses = [280, 256, 264, 272]
+
+    @pytest.mark.parametrize('burst,start,length,addresses',[(0,0x100,3,[0x100]*3),(1,0x100,3,[0x100,0x108,0x110]),(2,0x118,4,[0x118,0x100,0x108,0x110])])
+    def test_burst_read_addresses_and_last(burst,start,length,addresses):
+     request=ar(araddr=start,arlen=length-1);request['arburst']=burst
+>    o=run(edge(**request),*[edge(i+2,rvalid=1,rready=1,rlast=int(i==length-1)) for i in range(length)])
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:39: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____ test_w_before_aw_preserves_unaddressed_payload_then_binds_exact_refs _____
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_w_before_aw_preserves_unaddressed_payload_then_binds_exact_refs():
+>    o=run(edge(**w(wdata=2**63,wuser=99,wlast=0)),edge(2,**w(wdata=27,wuser=101,wlast=1)),edge(3,**aw(awaddr=0x100,awlen=1,awid=7,awuser=23)),edge(4,bvalid=1,bready=1,bid=7,bresp=2,buser=29))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:45: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+____________________ test_256_beats_and_read_write_overlap _____________________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_256_beats_and_read_write_overlap():
+>    o=observer();o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
+       ^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:57: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____ test_narrow_lane_zero_strobe_and_size_encoded_distinct_from_bytes[0] _____
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+size = 0
+
+    @pytest.mark.parametrize('size',range(4))
+    def test_narrow_lane_zero_strobe_and_size_encoded_distinct_from_bytes(size):
+     address=0x100+(8-(1<<size));a=aw(awaddr=address);a['awsize']=size
+>    o=run(edge(**a,**w(wlast=1,wstrb=0)),edge(2,bvalid=1,bready=1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____ test_narrow_lane_zero_strobe_and_size_encoded_distinct_from_bytes[1] _____
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+size = 1
+
+    @pytest.mark.parametrize('size',range(4))
+    def test_narrow_lane_zero_strobe_and_size_encoded_distinct_from_bytes(size):
+     address=0x100+(8-(1<<size));a=aw(awaddr=address);a['awsize']=size
+>    o=run(edge(**a,**w(wlast=1,wstrb=0)),edge(2,bvalid=1,bready=1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____ test_narrow_lane_zero_strobe_and_size_encoded_distinct_from_bytes[2] _____
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+size = 2
+
+    @pytest.mark.parametrize('size',range(4))
+    def test_narrow_lane_zero_strobe_and_size_encoded_distinct_from_bytes(size):
+     address=0x100+(8-(1<<size));a=aw(awaddr=address);a['awsize']=size
+>    o=run(edge(**a,**w(wlast=1,wstrb=0)),edge(2,bvalid=1,bready=1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____ test_narrow_lane_zero_strobe_and_size_encoded_distinct_from_bytes[3] _____
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+size = 3
+
+    @pytest.mark.parametrize('size',range(4))
+    def test_narrow_lane_zero_strobe_and_size_encoded_distinct_from_bytes(size):
+     address=0x100+(8-(1<<size));a=aw(awaddr=address);a['awsize']=size
+>    o=run(edge(**a,**w(wlast=1,wstrb=0)),edge(2,bvalid=1,bready=1))
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_ test_invalid_requests_distinguish_unsupported[values0-exclusive-unsupported] _
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+values = {'arvalid': 1, 'arready': 1, 'arsize': 3, 'arburst': 1, ...}
+reason = 'exclusive', category = 'unsupported'
+
+    @pytest.mark.parametrize('values,reason,category',[
+     (ar(arlock=1),'exclusive','unsupported'),
+     (aw(awatop=1),'atomic','unsupported'),
+     ({**ar(),'arsize':4},'size_alignment','unsupported'),
+     ({**ar(),'arburst':3},'burst_reserved','protocol_violation'),
+     ({**ar(),'arburst':2,'arlen':2},'wrap_length','protocol_violation'),
+     (ar(araddr=0xff8,arlen=1),'boundary','protocol_violation'),
+     (ar(araddr=2**64-8,arlen=1),'boundary','protocol_violation'),
+     ({'rvalid':1,'rready':1,'rlast':1},'orphan_r','protocol_violation'),
+     ({'bvalid':1,'bready':1},'orphan_b','protocol_violation')])
+    def test_invalid_requests_distinguish_unsupported(values,reason,category):
+>    o=observer();o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
+       ^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+__ test_invalid_requests_distinguish_unsupported[values1-atomic-unsupported] ___
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+values = {'awvalid': 1, 'awready': 1, 'awsize': 3, 'awburst': 1, ...}
+reason = 'atomic', category = 'unsupported'
+
+    @pytest.mark.parametrize('values,reason,category',[
+     (ar(arlock=1),'exclusive','unsupported'),
+     (aw(awatop=1),'atomic','unsupported'),
+     ({**ar(),'arsize':4},'size_alignment','unsupported'),
+     ({**ar(),'arburst':3},'burst_reserved','protocol_violation'),
+     ({**ar(),'arburst':2,'arlen':2},'wrap_length','protocol_violation'),
+     (ar(araddr=0xff8,arlen=1),'boundary','protocol_violation'),
+     (ar(araddr=2**64-8,arlen=1),'boundary','protocol_violation'),
+     ({'rvalid':1,'rready':1,'rlast':1},'orphan_r','protocol_violation'),
+     ({'bvalid':1,'bready':1},'orphan_b','protocol_violation')])
+    def test_invalid_requests_distinguish_unsupported(values,reason,category):
+>    o=observer();o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
+       ^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_ test_invalid_requests_distinguish_unsupported[values2-size_alignment-unsupported] _
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+values = {'arvalid': 1, 'arready': 1, 'arsize': 4, 'arburst': 1}
+reason = 'size_alignment', category = 'unsupported'
+
+    @pytest.mark.parametrize('values,reason,category',[
+     (ar(arlock=1),'exclusive','unsupported'),
+     (aw(awatop=1),'atomic','unsupported'),
+     ({**ar(),'arsize':4},'size_alignment','unsupported'),
+     ({**ar(),'arburst':3},'burst_reserved','protocol_violation'),
+     ({**ar(),'arburst':2,'arlen':2},'wrap_length','protocol_violation'),
+     (ar(araddr=0xff8,arlen=1),'boundary','protocol_violation'),
+     (ar(araddr=2**64-8,arlen=1),'boundary','protocol_violation'),
+     ({'rvalid':1,'rready':1,'rlast':1},'orphan_r','protocol_violation'),
+     ({'bvalid':1,'bready':1},'orphan_b','protocol_violation')])
+    def test_invalid_requests_distinguish_unsupported(values,reason,category):
+>    o=observer();o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
+       ^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_ test_invalid_requests_distinguish_unsupported[values3-burst_reserved-protocol_violation] _
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+values = {'arvalid': 1, 'arready': 1, 'arsize': 3, 'arburst': 3}
+reason = 'burst_reserved', category = 'protocol_violation'
+
+    @pytest.mark.parametrize('values,reason,category',[
+     (ar(arlock=1),'exclusive','unsupported'),
+     (aw(awatop=1),'atomic','unsupported'),
+     ({**ar(),'arsize':4},'size_alignment','unsupported'),
+     ({**ar(),'arburst':3},'burst_reserved','protocol_violation'),
+     ({**ar(),'arburst':2,'arlen':2},'wrap_length','protocol_violation'),
+     (ar(araddr=0xff8,arlen=1),'boundary','protocol_violation'),
+     (ar(araddr=2**64-8,arlen=1),'boundary','protocol_violation'),
+     ({'rvalid':1,'rready':1,'rlast':1},'orphan_r','protocol_violation'),
+     ({'bvalid':1,'bready':1},'orphan_b','protocol_violation')])
+    def test_invalid_requests_distinguish_unsupported(values,reason,category):
+>    o=observer();o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
+       ^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_ test_invalid_requests_distinguish_unsupported[values4-wrap_length-protocol_violation] _
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+values = {'arvalid': 1, 'arready': 1, 'arsize': 3, 'arburst': 2, ...}
+reason = 'wrap_length', category = 'protocol_violation'
+
+    @pytest.mark.parametrize('values,reason,category',[
+     (ar(arlock=1),'exclusive','unsupported'),
+     (aw(awatop=1),'atomic','unsupported'),
+     ({**ar(),'arsize':4},'size_alignment','unsupported'),
+     ({**ar(),'arburst':3},'burst_reserved','protocol_violation'),
+     ({**ar(),'arburst':2,'arlen':2},'wrap_length','protocol_violation'),
+     (ar(araddr=0xff8,arlen=1),'boundary','protocol_violation'),
+     (ar(araddr=2**64-8,arlen=1),'boundary','protocol_violation'),
+     ({'rvalid':1,'rready':1,'rlast':1},'orphan_r','protocol_violation'),
+     ({'bvalid':1,'bready':1},'orphan_b','protocol_violation')])
+    def test_invalid_requests_distinguish_unsupported(values,reason,category):
+>    o=observer();o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
+       ^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_ test_invalid_requests_distinguish_unsupported[values5-boundary-protocol_violation] _
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+values = {'arvalid': 1, 'arready': 1, 'arsize': 3, 'arburst': 1, ...}
+reason = 'boundary', category = 'protocol_violation'
+
+    @pytest.mark.parametrize('values,reason,category',[
+     (ar(arlock=1),'exclusive','unsupported'),
+     (aw(awatop=1),'atomic','unsupported'),
+     ({**ar(),'arsize':4},'size_alignment','unsupported'),
+     ({**ar(),'arburst':3},'burst_reserved','protocol_violation'),
+     ({**ar(),'arburst':2,'arlen':2},'wrap_length','protocol_violation'),
+     (ar(araddr=0xff8,arlen=1),'boundary','protocol_violation'),
+     (ar(araddr=2**64-8,arlen=1),'boundary','protocol_violation'),
+     ({'rvalid':1,'rready':1,'rlast':1},'orphan_r','protocol_violation'),
+     ({'bvalid':1,'bready':1},'orphan_b','protocol_violation')])
+    def test_invalid_requests_distinguish_unsupported(values,reason,category):
+>    o=observer();o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
+       ^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_ test_invalid_requests_distinguish_unsupported[values6-boundary-protocol_violation] _
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+values = {'arvalid': 1, 'arready': 1, 'arsize': 3, 'arburst': 1, ...}
+reason = 'boundary', category = 'protocol_violation'
+
+    @pytest.mark.parametrize('values,reason,category',[
+     (ar(arlock=1),'exclusive','unsupported'),
+     (aw(awatop=1),'atomic','unsupported'),
+     ({**ar(),'arsize':4},'size_alignment','unsupported'),
+     ({**ar(),'arburst':3},'burst_reserved','protocol_violation'),
+     ({**ar(),'arburst':2,'arlen':2},'wrap_length','protocol_violation'),
+     (ar(araddr=0xff8,arlen=1),'boundary','protocol_violation'),
+     (ar(araddr=2**64-8,arlen=1),'boundary','protocol_violation'),
+     ({'rvalid':1,'rready':1,'rlast':1},'orphan_r','protocol_violation'),
+     ({'bvalid':1,'bready':1},'orphan_b','protocol_violation')])
+    def test_invalid_requests_distinguish_unsupported(values,reason,category):
+>    o=observer();o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
+       ^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_ test_invalid_requests_distinguish_unsupported[values7-orphan_r-protocol_violation] _
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+values = {'rvalid': 1, 'rready': 1, 'rlast': 1}, reason = 'orphan_r'
+category = 'protocol_violation'
+
+    @pytest.mark.parametrize('values,reason,category',[
+     (ar(arlock=1),'exclusive','unsupported'),
+     (aw(awatop=1),'atomic','unsupported'),
+     ({**ar(),'arsize':4},'size_alignment','unsupported'),
+     ({**ar(),'arburst':3},'burst_reserved','protocol_violation'),
+     ({**ar(),'arburst':2,'arlen':2},'wrap_length','protocol_violation'),
+     (ar(araddr=0xff8,arlen=1),'boundary','protocol_violation'),
+     (ar(araddr=2**64-8,arlen=1),'boundary','protocol_violation'),
+     ({'rvalid':1,'rready':1,'rlast':1},'orphan_r','protocol_violation'),
+     ({'bvalid':1,'bready':1},'orphan_b','protocol_violation')])
+    def test_invalid_requests_distinguish_unsupported(values,reason,category):
+>    o=observer();o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
+       ^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_ test_invalid_requests_distinguish_unsupported[values8-orphan_b-protocol_violation] _
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+values = {'bvalid': 1, 'bready': 1}, reason = 'orphan_b'
+category = 'protocol_violation'
+
+    @pytest.mark.parametrize('values,reason,category',[
+     (ar(arlock=1),'exclusive','unsupported'),
+     (aw(awatop=1),'atomic','unsupported'),
+     ({**ar(),'arsize':4},'size_alignment','unsupported'),
+     ({**ar(),'arburst':3},'burst_reserved','protocol_violation'),
+     ({**ar(),'arburst':2,'arlen':2},'wrap_length','protocol_violation'),
+     (ar(araddr=0xff8,arlen=1),'boundary','protocol_violation'),
+     (ar(araddr=2**64-8,arlen=1),'boundary','protocol_violation'),
+     ({'rvalid':1,'rready':1,'rlast':1},'orphan_r','protocol_violation'),
+     ({'bvalid':1,'bready':1},'orphan_b','protocol_violation')])
+    def test_invalid_requests_distinguish_unsupported(values,reason,category):
+>    o=observer();o.begin_scope(execution_id='e',testcase_id='c',reset_epoch=0)
+       ^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________ test_response_negative_controls[values0-response_id] _____________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+values = {'rid': 1, 'rlast': 1}, reason = 'response_id'
+
+    @pytest.mark.parametrize('values,reason',[(dict(rid=1,rlast=1),'response_id'),(dict(rlast=0),'last'),(dict(rlast=1,rresp=1),'exclusive_response')])
+    def test_response_negative_controls(values,reason):
+>    with pytest.raises(ValueError,match=reason):run(edge(**ar()),edge(2,rvalid=1,rready=1,**values))
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:90: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+________________ test_response_negative_controls[values1-last] _________________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+values = {'rlast': 0}, reason = 'last'
+
+    @pytest.mark.parametrize('values,reason',[(dict(rid=1,rlast=1),'response_id'),(dict(rlast=0),'last'),(dict(rlast=1,rresp=1),'exclusive_response')])
+    def test_response_negative_controls(values,reason):
+>    with pytest.raises(ValueError,match=reason):run(edge(**ar()),edge(2,rvalid=1,rready=1,**values))
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:90: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_________ test_response_negative_controls[values2-exclusive_response] __________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+values = {'rlast': 1, 'rresp': 1}, reason = 'exclusive_response'
+
+    @pytest.mark.parametrize('values,reason',[(dict(rid=1,rlast=1),'response_id'),(dict(rlast=0),'last'),(dict(rlast=1,rresp=1),'exclusive_response')])
+    def test_response_negative_controls(values,reason):
+>    with pytest.raises(ValueError,match=reason):run(edge(**ar()),edge(2,rvalid=1,rready=1,**values))
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:90: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_________________ test_wlast_lanes_extra_and_early_b_controls __________________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_wlast_lanes_extra_and_early_b_controls():
+     for a,b,reason in [(aw(awlen=1),w(wlast=1),'last'),(aw(),w(wlast=0),'last'),({**aw(),'awsize':0},w(wlast=1),'strobe')]:
+>     with pytest.raises(ValueError,match=reason):run(edge(**a,**b))
+                                                  ^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:95: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+________________ test_hold_reset_poison_scope_ticks_and_budgets ________________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_hold_reset_poison_scope_ticks_and_budgets():
+     held=edge(**ar(aruser=7));held['pre']['backend']['axi_arready']=0;held['post']['backend']['axi_arready']=0
+     changed=copy.deepcopy(held);changed['post']['backend']['axi_aruser']=8
+>    with pytest.raises(ValueError,match='hold'):run(changed)
+                                                 ^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:103: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+_____________________ test_exact_shape_and_post_validation _____________________
+
+kw = {}
+
+    def observer(**kw):
+>    try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'myfuzz.scenario.full_axi_events'
+import_ = <function _gcd_import at 0x7acf8bfa40e0>
+
+>   ???
+E   ModuleNotFoundError: No module named 'myfuzz.scenario.full_axi_events'
+
+<frozen importlib._bootstrap>:1324: ModuleNotFoundError
+
+During handling of the above exception, another exception occurred:
+
+    def test_exact_shape_and_post_validation():
+     sample=edge();sample['post']['backend']['axi_awid']=16
+>    with pytest.raises(ValueError,match='shape'):run(sample)
+                                                  ^^^^^^^^^^^
+
+tests/scenario/test_full_axi_events.py:121: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/scenario/test_full_axi_events.py:19: in run
+    o=observer(**kw);o.begin_scope(execution_id='exec',testcase_id='case',reset_epoch=0)
+      ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+kw = {}
+
+    def observer(**kw):
+     try: module=importlib.import_module('myfuzz.scenario.full_axi_events')
+>    except ModuleNotFoundError: pytest.fail('full AXI observer is missing')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    Failed: full AXI observer is missing
+
+tests/scenario/test_full_axi_events.py:13: Failed
+=========================== short test summary info ============================
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[0-0]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[0-1]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[0-2]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[0-3]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[0-4]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[0-5]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[0-6]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[0-7]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[0-8]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[0-9]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[0-10]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[0-11]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[0-12]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[0-13]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[0-14]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[0-15]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[2-0]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[2-1]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[2-2]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[2-3]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[2-4]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[2-5]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[2-6]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[2-7]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[2-8]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[2-9]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[2-10]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[2-11]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[2-12]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[2-13]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[2-14]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[2-15]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[3-0]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[3-1]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[3-2]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[3-3]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[3-4]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[3-5]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[3-6]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[3-7]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[3-8]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[3-9]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[3-10]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[3-11]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[3-12]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[3-13]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[3-14]
+FAILED tests/scenario/test_full_axi_events.py::test_64bit_payload_id_user_and_status_preserved[3-15]
+FAILED tests/scenario/test_full_axi_events.py::test_burst_read_addresses_and_last[0-256-3-addresses0]
+FAILED tests/scenario/test_full_axi_events.py::test_burst_read_addresses_and_last[1-256-3-addresses1]
+FAILED tests/scenario/test_full_axi_events.py::test_burst_read_addresses_and_last[2-280-4-addresses2]
+FAILED tests/scenario/test_full_axi_events.py::test_w_before_aw_preserves_unaddressed_payload_then_binds_exact_refs
+FAILED tests/scenario/test_full_axi_events.py::test_256_beats_and_read_write_overlap
+FAILED tests/scenario/test_full_axi_events.py::test_narrow_lane_zero_strobe_and_size_encoded_distinct_from_bytes[0]
+FAILED tests/scenario/test_full_axi_events.py::test_narrow_lane_zero_strobe_and_size_encoded_distinct_from_bytes[1]
+FAILED tests/scenario/test_full_axi_events.py::test_narrow_lane_zero_strobe_and_size_encoded_distinct_from_bytes[2]
+FAILED tests/scenario/test_full_axi_events.py::test_narrow_lane_zero_strobe_and_size_encoded_distinct_from_bytes[3]
+FAILED tests/scenario/test_full_axi_events.py::test_invalid_requests_distinguish_unsupported[values0-exclusive-unsupported]
+FAILED tests/scenario/test_full_axi_events.py::test_invalid_requests_distinguish_unsupported[values1-atomic-unsupported]
+FAILED tests/scenario/test_full_axi_events.py::test_invalid_requests_distinguish_unsupported[values2-size_alignment-unsupported]
+FAILED tests/scenario/test_full_axi_events.py::test_invalid_requests_distinguish_unsupported[values3-burst_reserved-protocol_violation]
+FAILED tests/scenario/test_full_axi_events.py::test_invalid_requests_distinguish_unsupported[values4-wrap_length-protocol_violation]
+FAILED tests/scenario/test_full_axi_events.py::test_invalid_requests_distinguish_unsupported[values5-boundary-protocol_violation]
+FAILED tests/scenario/test_full_axi_events.py::test_invalid_requests_distinguish_unsupported[values6-boundary-protocol_violation]
+FAILED tests/scenario/test_full_axi_events.py::test_invalid_requests_distinguish_unsupported[values7-orphan_r-protocol_violation]
+FAILED tests/scenario/test_full_axi_events.py::test_invalid_requests_distinguish_unsupported[values8-orphan_b-protocol_violation]
+FAILED tests/scenario/test_full_axi_events.py::test_response_negative_controls[values0-response_id]
+FAILED tests/scenario/test_full_axi_events.py::test_response_negative_controls[values1-last]
+FAILED tests/scenario/test_full_axi_events.py::test_response_negative_controls[values2-exclusive_response]
+FAILED tests/scenario/test_full_axi_events.py::test_wlast_lanes_extra_and_early_b_controls
+FAILED tests/scenario/test_full_axi_events.py::test_hold_reset_poison_scope_ticks_and_budgets
+FAILED tests/scenario/test_full_axi_events.py::test_exact_shape_and_post_validation
+72 failed in 0.75s
