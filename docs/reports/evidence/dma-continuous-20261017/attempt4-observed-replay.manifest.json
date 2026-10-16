@@ -1,0 +1,63 @@
+{
+  "schema_version": "dma_replay_observation_evidence.v1",
+  "scope": "same frozen runtime exact replay, passive sys.settrace capture and later offline proposed-normalizer comparison",
+  "not_a_passing_native_gate": true,
+  "archive_sha256": "f0a1df19d951540dc6b664c2c29b1f293b0a9537688fe1ef8a336235ae95da27",
+  "files": {
+    "attempt4-replay-diagnostic/replay-worker.sh": {
+      "bytes": 611,
+      "sha256": "46058a4fa57b10a42fb2484d84ba5087abc990260101db1abe124a25d62d2430"
+    },
+    "attempt4-replay-diagnostic/normalize_fn.py": {
+      "bytes": 2468,
+      "sha256": "31b49c7d5a405c1bf6df6da5a410d95c98fbd6158bf86436c920dc53cbddfa5d"
+    },
+    "attempt4-replay-diagnostic/__pycache__/normalize_fn.cpython-312.pyc": {
+      "bytes": 3387,
+      "sha256": "9db01e3c71d426810d8feb8bbca132c6eb45b929ff0a3eea244d6b4de325a475"
+    },
+    "attempt4-replay-diagnostic/capture_replay.py": {
+      "bytes": 3516,
+      "sha256": "a84481cfe35f79a431cf92dfa500612c19b55ec70892b50800210de282bb9939"
+    },
+    "attempt4-replay-diagnostic/worker.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "attempt4-replay-diagnostic/audit_saved.py": {
+      "bytes": 1951,
+      "sha256": "b9f739e44883f7bab182dd59770c657e8d21b7e6dd9d7c814f6093c686179ddf"
+    },
+    "attempt4-replay-diagnostic/worker.exit": {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "attempt4-replay-diagnostic/diagnostic.json": {
+      "bytes": 1537,
+      "sha256": "ddb43aaeb126a4c420faadaa569cc66eda6b1f780ae38e4cacc95b07a6978e61"
+    },
+    "attempt4-replay-diagnostic/replay.log": {
+      "bytes": 1409,
+      "sha256": "675be920d4a26fdadb2c61481b615b52074f34ce0c65b2be40562e1f2ec21790"
+    },
+    "attempt4-replay-diagnostic/actual.json.gz": {
+      "bytes": 11304667,
+      "sha256": "3099ea28464d600301ad9ac4ab91e192fbf4b55dae1ccccdf967543ffb6557fd"
+    },
+    "attempt4-replay-diagnostic/worker.pid": {
+      "bytes": 7,
+      "sha256": "7f5f9058ea148682fe9da4d1350ad81a2d0512e87567372c529588ee70ec582a"
+    },
+    "attempt4-replay-diagnostic/proposed-normalization-audit.json": {
+      "bytes": 642,
+      "sha256": "cf072f881ad97a4cd17d0baa3176f87150ef11a9d4630e1d1c901e09be46a993"
+    }
+  },
+  "capture_script_commit": "e8655dc",
+  "normalizer_fix_commit": "9125484",
+  "first_difference": "root state_dependency.source TransactionKey native nonce",
+  "offline_events_equal": true,
+  "offline_full_event_count": 34794,
+  "diagnostic_process_exit_zero_means_error_was_captured_not_gate_pass": true,
+  "actual_case_certificates_not_recomputed": "Original replay raises before per-case post-validation; original complete cases and identical full event prefixes are retained separately"
+}

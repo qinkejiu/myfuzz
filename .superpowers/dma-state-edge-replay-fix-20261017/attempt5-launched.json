@@ -1,0 +1,15 @@
+{
+  "status": "already_launched_not_a_ready_to_launch_request",
+  "worker_pid": 190390,
+  "remote_root": "/root/fanzehui/system-20261016/dma-continuous-verification-20261017/attempt5",
+  "remote_project": "/root/fanzehui/system-20261016/dma-continuous-verification-20261017/attempt5-project",
+  "worker_sha256": "cd874a3fd210ff35b00a065fd8f425b46fde875ff9489e89dde964c74f22789a",
+  "source_commit": "9125484",
+  "source_preflight": "attempt5-source-preflight.json",
+  "source_files": 426,
+  "only_overlay": "src/myfuzz/integration/dma_uart_rx_runtime.py plus new software test",
+  "max_wall_time_ms": 300000,
+  "outer_timeout_seconds": 900,
+  "canonical_lock": "/root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock",
+  "do_not_restart_on_observation_timeout": true
+}
