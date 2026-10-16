@@ -1,0 +1,690 @@
+[
+  {
+    "external_reset_post": 1,
+    "external_reset_pre": 1,
+    "post": {
+      "actual_bus_hresetn": 1,
+      "actual_global_hready": 0,
+      "roles": {
+        "haddr": 0,
+        "hburst": 0,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 0,
+        "hsize": 0,
+        "htrans": 0,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 15
+      }
+    },
+    "pre": {
+      "actual_bus_hresetn": 1,
+      "actual_global_hready": 0,
+      "roles": {
+        "haddr": 0,
+        "hburst": 0,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 0,
+        "hsize": 0,
+        "htrans": 0,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 0
+      }
+    },
+    "startup_edge": 1
+  },
+  {
+    "external_reset_post": 1,
+    "external_reset_pre": 1,
+    "post": {
+      "actual_bus_hresetn": 0,
+      "actual_global_hready": 0,
+      "roles": {
+        "haddr": 0,
+        "hburst": 0,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 0,
+        "hsize": 0,
+        "htrans": 0,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 15
+      }
+    },
+    "pre": {
+      "actual_bus_hresetn": 1,
+      "actual_global_hready": 0,
+      "roles": {
+        "haddr": 0,
+        "hburst": 0,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 0,
+        "hsize": 0,
+        "htrans": 0,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 15
+      }
+    },
+    "startup_edge": 2
+  },
+  {
+    "external_reset_post": 1,
+    "external_reset_pre": 1,
+    "post": {
+      "actual_bus_hresetn": 0,
+      "actual_global_hready": 1,
+      "roles": {
+        "haddr": 3221225472,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 2,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "pre": {
+      "actual_bus_hresetn": 0,
+      "actual_global_hready": 0,
+      "roles": {
+        "haddr": 0,
+        "hburst": 0,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 0,
+        "hsize": 0,
+        "htrans": 0,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 15
+      }
+    },
+    "startup_edge": 3
+  },
+  {
+    "external_reset_post": 1,
+    "external_reset_pre": 1,
+    "post": {
+      "actual_bus_hresetn": 0,
+      "actual_global_hready": 1,
+      "roles": {
+        "haddr": 3221225472,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 2,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "pre": {
+      "actual_bus_hresetn": 0,
+      "actual_global_hready": 1,
+      "roles": {
+        "haddr": 3221225472,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 2,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "startup_edge": 4
+  },
+  {
+    "external_reset_post": 1,
+    "external_reset_pre": 1,
+    "post": {
+      "actual_bus_hresetn": 0,
+      "actual_global_hready": 1,
+      "roles": {
+        "haddr": 3221225472,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 2,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "pre": {
+      "actual_bus_hresetn": 0,
+      "actual_global_hready": 1,
+      "roles": {
+        "haddr": 3221225472,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 2,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "startup_edge": 5
+  },
+  {
+    "external_reset_post": 1,
+    "external_reset_pre": 1,
+    "post": {
+      "actual_bus_hresetn": 0,
+      "actual_global_hready": 1,
+      "roles": {
+        "haddr": 3221225472,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 2,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "pre": {
+      "actual_bus_hresetn": 0,
+      "actual_global_hready": 1,
+      "roles": {
+        "haddr": 3221225472,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 2,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "startup_edge": 6
+  },
+  {
+    "external_reset_post": 1,
+    "external_reset_pre": 1,
+    "post": {
+      "actual_bus_hresetn": 0,
+      "actual_global_hready": 1,
+      "roles": {
+        "haddr": 3221225472,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 2,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "pre": {
+      "actual_bus_hresetn": 0,
+      "actual_global_hready": 1,
+      "roles": {
+        "haddr": 3221225472,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 2,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "startup_edge": 7
+  },
+  {
+    "external_reset_post": 1,
+    "external_reset_pre": 1,
+    "post": {
+      "actual_bus_hresetn": 0,
+      "actual_global_hready": 1,
+      "roles": {
+        "haddr": 3221225472,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 2,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "pre": {
+      "actual_bus_hresetn": 0,
+      "actual_global_hready": 1,
+      "roles": {
+        "haddr": 3221225472,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 2,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "startup_edge": 8
+  },
+  {
+    "external_reset_post": 0,
+    "external_reset_pre": 0,
+    "post": {
+      "actual_bus_hresetn": 0,
+      "actual_global_hready": 1,
+      "roles": {
+        "haddr": 3221225472,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 2,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "pre": {
+      "actual_bus_hresetn": 0,
+      "actual_global_hready": 1,
+      "roles": {
+        "haddr": 3221225472,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 1,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 2,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "startup_edge": 9
+  },
+  {
+    "external_reset_post": 0,
+    "external_reset_pre": 0,
+    "post": {
+      "actual_bus_hresetn": 1,
+      "actual_global_hready": 1,
+      "roles": {
+        "haddr": 3221225472,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 2,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "pre": {
+      "actual_bus_hresetn": 0,
+      "actual_global_hready": 1,
+      "roles": {
+        "haddr": 3221225472,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 2,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "startup_edge": 10
+  },
+  {
+    "external_reset_post": 0,
+    "external_reset_pre": 0,
+    "post": {
+      "actual_bus_hresetn": 1,
+      "actual_global_hready": 0,
+      "roles": {
+        "haddr": 3221225476,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 3,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "pre": {
+      "actual_bus_hresetn": 1,
+      "actual_global_hready": 1,
+      "roles": {
+        "haddr": 3221225472,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 2,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "startup_edge": 11
+  },
+  {
+    "external_reset_post": 0,
+    "external_reset_pre": 0,
+    "post": {
+      "actual_bus_hresetn": 1,
+      "actual_global_hready": 0,
+      "roles": {
+        "haddr": 3221225476,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 3,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "pre": {
+      "actual_bus_hresetn": 1,
+      "actual_global_hready": 0,
+      "roles": {
+        "haddr": 3221225476,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 3,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "startup_edge": 12
+  },
+  {
+    "external_reset_post": 0,
+    "external_reset_pre": 0,
+    "post": {
+      "actual_bus_hresetn": 1,
+      "actual_global_hready": 0,
+      "roles": {
+        "haddr": 3221225476,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 3,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "pre": {
+      "actual_bus_hresetn": 1,
+      "actual_global_hready": 0,
+      "roles": {
+        "haddr": 3221225476,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 3,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "startup_edge": 13
+  },
+  {
+    "external_reset_post": 0,
+    "external_reset_pre": 0,
+    "post": {
+      "actual_bus_hresetn": 1,
+      "actual_global_hready": 0,
+      "roles": {
+        "haddr": 3221225476,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 3,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "pre": {
+      "actual_bus_hresetn": 1,
+      "actual_global_hready": 0,
+      "roles": {
+        "haddr": 3221225476,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 3,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "startup_edge": 14
+  },
+  {
+    "external_reset_post": 0,
+    "external_reset_pre": 0,
+    "post": {
+      "actual_bus_hresetn": 1,
+      "actual_global_hready": 0,
+      "roles": {
+        "haddr": 3221225476,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 3,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "pre": {
+      "actual_bus_hresetn": 1,
+      "actual_global_hready": 0,
+      "roles": {
+        "haddr": 3221225476,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 3,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "startup_edge": 15
+  },
+  {
+    "external_reset_post": 0,
+    "external_reset_pre": 0,
+    "post": {
+      "actual_bus_hresetn": 1,
+      "actual_global_hready": 0,
+      "roles": {
+        "haddr": 3221225476,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 3,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "pre": {
+      "actual_bus_hresetn": 1,
+      "actual_global_hready": 0,
+      "roles": {
+        "haddr": 3221225476,
+        "hburst": 7,
+        "hmastlock": 0,
+        "hprot": 2,
+        "hrdata": 0,
+        "hready": 0,
+        "hresp": 0,
+        "hsel": 1,
+        "hsize": 2,
+        "htrans": 3,
+        "hwdata": 0,
+        "hwrite": 0,
+        "hwstrb": 1
+      }
+    },
+    "startup_edge": 16
+  }
+]

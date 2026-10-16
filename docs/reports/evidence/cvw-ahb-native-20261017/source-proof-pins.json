@@ -1,0 +1,28 @@
+{
+  "source_only_diagnosis": true,
+  "source_fix": false,
+  "snapshot": "/tmp/cvw-ahb-gate-frozen-20261017-source",
+  "files": {
+    "configs/cpus/cvw/component_profile.json": {
+      "sha256": "c60ddb291a62784591e2c221663f84d5ae97c1e663426e0aef883d594b76ab2a",
+      "archive": "proof--configs--cpus--cvw--component_profile.json.gz"
+    },
+    "configs/cpus/cvw/cvw_ahb_cpu_top.sv": {
+      "sha256": "792f2d6a8ff71b959253b8e36c9fcb7c728c0702500d09550915762e55ebdba8",
+      "archive": "proof--configs--cpus--cvw--cvw_ahb_cpu_top.sv.gz"
+    },
+    "third_party/cvw_upstream_reference/src/wally/wallypipelinedsoc.sv": {
+      "sha256": "1a48dc12f349595eeb848a42794375d2edd2efcc48f4fff52ad97e9df15d5be4",
+      "archive": "proof--third_party--cvw_upstream_reference--src--wally--wallypipelinedsoc.sv.gz"
+    },
+    "third_party/cvw_upstream_reference/src/uncore/uncore.sv": {
+      "sha256": "3360e779c0394adef08925918ce3ab5663db00bb0d402411588d008451f608a7",
+      "archive": "proof--third_party--cvw_upstream_reference--src--uncore--uncore.sv.gz"
+    },
+    "src/myfuzz/scenario/ahb_cpu_events.py": {
+      "sha256": "abe9d4bf4157a77430740b57d7d6800994ba9c95c23fe528ab6df7b8e1b3fdc1",
+      "archive": "proof--src--myfuzz--scenario--ahb_cpu_events.py.gz"
+    }
+  },
+  "both_actual_cached_executable_sha256_match_first_document": true
+}

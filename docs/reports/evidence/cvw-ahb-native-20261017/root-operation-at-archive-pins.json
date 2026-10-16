@@ -1,0 +1,14 @@
+{
+  "actual-ready.json": "5cff1fcf5c9ea37821e273c25aa6857eb3dad18db6ec26c097b931b95d04b105",
+  "control-diff.json": "62b074971e10ff683c89ec690db3a886573718e3c68225a1fed7c009ba486226",
+  "control-diff.py": "adeb7a4f8c52bcd0d2f021e553b2aa9a6ff1b77e6d600f6fa45f1e91373f140e",
+  "launch-error.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "launch.log": "1e7b62af3dd6b01c61955bd4831ecf3bbe3eb6011f561abd0a1cdd11eebfe3b7",
+  "launch.sh": "45d28c10d95d0002bed6008c4ea418539bd5573d8ad3322f7c65b8a0707001d5",
+  "local-source-independent-audit.json": "f807ca1421e30a0660930effed4c2dca95798c2fde2ccf5234c1e59aa686c419",
+  "observation-1.log": "13015be7a7daaa2d32507e191f8b873708fc64f345d4fb6092483e2878f76888",
+  "preflight.log": "df7575189efcabe38971610a15741e6ae317a9f49213dadca11ccee4e3fc3ae8",
+  "preflight.py": "0b3ceddb8a4dcd641729b2acb8fa1094a46b04b8b0a8dc4c5c85c1f0ae0e9b7f",
+  "preserve-root-bytecode.py": "6a40bc59e46110d015740bb9d31802935a414775197cd12a3181e5d7fbb462fe",
+  "root-bytecode-receipt.json": "e42a0f57d70c1ee565ae9b94f31456a1b6a0b247b2b1b54c2a6bd3974a757bab"
+}

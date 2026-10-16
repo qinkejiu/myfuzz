@@ -1,0 +1,30 @@
+{
+  "environment": {
+    "AR": null,
+    "CXX": null,
+    "LINK": null,
+    "PATH": "/root/fanzehui/system-20261016/bin:/root/fanzehui/myfuzz/.tools/verilator-5.051-e413e67/bin:/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONOPTIMIZE": "0",
+    "PYTHONPATH": "/root/fanzehui/cvw-ahb-observer-20261017-attempt1/project/src:/root/fanzehui/cvw-ahb-observer-20261017-attempt1/project:/root/fanzehui/system-20261016/pythonlib",
+    "TMPDIR": "/root/fanzehui/cvw-ahb-observer-20261017-attempt1/tmp",
+    "VERILATOR_ROOT": null
+  },
+  "environment_dependency_only": {
+    "AR": "/usr/bin/x86_64-linux-gnu-ar",
+    "file_not_read": true
+  },
+  "files": {
+    "/root/fanzehui/myfuzz/.tools/verilator-5.051-e413e67/bin/verilator": {
+      "bytes": 32093,
+      "grade": "allowed_wrapper_file_hash",
+      "sha256": "fb2cc573b1055cf096c90e1efc9966fe56bdb4b265c83590cf2a49f7a0defcdf"
+    },
+    "/root/fanzehui/system-20261016/bin/c++": {
+      "bytes": 82,
+      "grade": "allowed_wrapper_file_hash",
+      "sha256": "4273bc2b00f2ac5d0affb4b364868a891f455b68785fa68ff9430c556c2ef7d6"
+    }
+  },
+  "selection_authority": "actual generated build manifests; these are prior approved wrapper bytes only"
+}

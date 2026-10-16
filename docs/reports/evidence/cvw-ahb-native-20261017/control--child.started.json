@@ -1,0 +1,20 @@
+{
+  "child_pid": 272523,
+  "command": [
+    "/usr/bin/python3",
+    "/root/fanzehui/cvw-ahb-observer-20261017-attempt1/project/scripts/verify_cvw_ahb_startup.py",
+    "--run-native",
+    "--repo",
+    "/root/fanzehui/cvw-ahb-observer-20261017-attempt1/project",
+    "--output",
+    "/root/fanzehui/cvw-ahb-observer-20261017-attempt1/run",
+    "--heavy-lock",
+    "/root/fanzehui/system-20261016/project/.superpowers/heavy-worker.lock",
+    "--freeze",
+    "/root/fanzehui/cvw-ahb-observer-20261017-attempt1/control/source-freeze.json",
+    "--freeze-sha256",
+    "c02134412a742eccde99746af5487f81c2f77f09a7cf20250ce37f2077762e8f"
+  ],
+  "controller_pid": 272511,
+  "phase": "started"
+}

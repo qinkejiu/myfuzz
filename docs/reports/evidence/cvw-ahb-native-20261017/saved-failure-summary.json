@@ -1,0 +1,142 @@
+{
+  "actual_cpu_lifecycle": [
+    {
+      "args": [
+        "/root/fanzehui/cvw-ahb-observer-20261017-attempt1/run/cache/5167360cb9e62a71ad2c806e993044e1250999a32a91999e3e0c92b1a3dc9317/harness"
+      ],
+      "binary_sha256_at_capture": "d461364c4ca1b776333c964cd347a0dd1084c6a83b8a7dec242be51364010985",
+      "build_manifest_sha256_at_capture": "e83b594e6074ead3e835d2eef6b9040eb4306703fc9d7ae2c46867339247747d",
+      "closed": true,
+      "execution": "b0299201b50448aabf28742f3a14cac7",
+      "pid": 273974,
+      "poll_after_close": -9,
+      "ready": true,
+      "returncode": -9
+    }
+  ],
+  "actual_target_lifecycle": [],
+  "before_after_source_unchanged": true,
+  "cache_manifests": [
+    {
+      "path": "run/cache/5167360cb9e62a71ad2c806e993044e1250999a32a91999e3e0c92b1a3dc9317/manifest.json",
+      "sha256": "e83b594e6074ead3e835d2eef6b9040eb4306703fc9d7ae2c46867339247747d"
+    },
+    {
+      "path": "run/cache/ae6d585beaf5bb9da482345d6f50403110fc546eeefa0b15cbf24e37b8b62293/manifest.json",
+      "sha256": "a4aa65d9f375a101988ead9ce75ef45f3a3e8de06e119928a7daee9acfcba82b"
+    }
+  ],
+  "capture_errors": {
+    "cpu": [],
+    "sha": []
+  },
+  "collection_errors": [],
+  "controller_pid": 272511,
+  "driver_receipts": 1,
+  "first_original_sha256": "2707e1ddba05ce4c92c159b04de752c2572039e42258cb7979a072b8fbf79849",
+  "fresh_started": false,
+  "gate_child_actual_exit": 1,
+  "gate_child_pid": 272523,
+  "measured_reset_to_command_prefix": false,
+  "native_attempt": true,
+  "native_command_steps": 0,
+  "native_gate_pass": false,
+  "native_rerun": false,
+  "observer_failures": [
+    {
+      "authority": "observation_only",
+      "category": "diagnostic_unknown",
+      "component_id": "cpu",
+      "diagnostic_receipt": null,
+      "endpoint_id": "cpu.external_bus",
+      "kind": "ahb_failure",
+      "native_transaction_key": null,
+      "observer_record_index": 21,
+      "pending": {
+        "address": 3221225472,
+        "address_ref": {
+          "phase": "pre",
+          "raw_event": 17
+        },
+        "controls": {
+          "haddr": 3221225472,
+          "hburst": 7,
+          "hmastlock": 0,
+          "hprot": 2,
+          "hsel": 1,
+          "hsize": 2,
+          "htrans": 2,
+          "hwrite": 0
+        },
+        "observation_id": 1,
+        "wdata": null,
+        "write": 0,
+        "write_data_ref": null,
+        "wstrb": null
+      },
+      "possible_effects": true,
+      "raw_event_refs": [
+        20
+      ],
+      "reason": "address_hold",
+      "runtime_accepted": false,
+      "schema_version": "bounded_cpu_ahb_observation.v1",
+      "scope": {
+        "endpoint_id": "cpu.external_bus",
+        "execution_id": "b0299201b50448aabf28742f3a14cac7",
+        "reset_epoch": 0,
+        "source_component": "cpu",
+        "testcase_id": "cvw-sha-directed"
+      },
+      "semantic_accepted": false,
+      "trusted_projection": true
+    }
+  ],
+  "observer_pending_not_validated_master_transaction": {
+    "address": 3221225472,
+    "address_ref": {
+      "phase": "pre",
+      "raw_event": 17
+    },
+    "controls": {
+      "haddr": 3221225472,
+      "hburst": 7,
+      "hmastlock": 0,
+      "hprot": 2,
+      "hsel": 1,
+      "hsize": 2,
+      "htrans": 2,
+      "hwrite": 0
+    },
+    "observation_id": 1,
+    "wdata": null,
+    "write": 0,
+    "write_data_ref": null,
+    "wstrb": null
+  },
+  "observer_projected_counts_not_bus_truth": {
+    "accepted": 1,
+    "completed": 0,
+    "errors": 0,
+    "reads": 1,
+    "stalls": 2,
+    "writes": 0
+  },
+  "observer_raw_startup_edges": 11,
+  "observer_records": 22,
+  "original_error": {
+    "detail": "ahb_address_hold",
+    "type": "ValueError"
+  },
+  "prefix_state": "partial",
+  "raw_startup_edges_in_original_receipt": 16,
+  "retirement_verified": false,
+  "router_deliveries": 0,
+  "schema_version": "cvw_ahb_attempt1_saved_failure_audit.v1",
+  "service_events": 0,
+  "source_authority": false,
+  "source_modified": false,
+  "target_command_ticks": 0,
+  "target_driver_receipts": 0,
+  "tools_unchanged": true
+}

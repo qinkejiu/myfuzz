@@ -1,0 +1,14 @@
+{
+  "archive": "terminal-originals.tar.gz",
+  "bytes": 37231073,
+  "sha256": "55a1a8943242843d19362abb2de1087f12e54a803b18d60f03b6a3abc7c7674f",
+  "actual_ssh_exit": 0,
+  "remote_base": "/root/fanzehui/cvw-ahb-observer-20261017-attempt1",
+  "bound_controller_pid": 272511,
+  "bound_child_pid": 272523,
+  "operation": "read_only_terminal_archive_fetch",
+  "excluded_preserved_originals": [
+    "project",
+    "prepared-source-control.tar.gz"
+  ]
+}

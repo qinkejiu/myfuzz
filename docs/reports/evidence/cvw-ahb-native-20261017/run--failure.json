@@ -1,0 +1,7 @@
+{
+  "detail": "first failed: ahb_address_hold",
+  "error_type": "RuntimeError",
+  "note": "Original per-run archives, if issued, are retained; no later native command is attempted.",
+  "schema_version": "cvw_ahb_startup_gate_failure.v1",
+  "source_authority": false
+}
