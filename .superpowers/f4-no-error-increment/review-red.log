@@ -1,0 +1,26 @@
+F.F                                                                      [100%]
+=================================== FAILURES ===================================
+_________ test_no_error_policy_cannot_ignore_exposed_native_error_role _________
+
+    def test_no_error_policy_cannot_ignore_exposed_native_error_role():
+        from tests.integration.test_compiled_execution_files import exact_hop_fixture
+        from myfuzz.integration.compiled_f4 import check_f4_exact_hops
+>       with pytest.raises(ValueError,match='policy-trace-contradiction'):
+E       Failed: DID NOT RAISE ValueError
+
+tests/integration/test_compiled_f4_no_error.py:81: Failed
+______________ test_contradictory_error_role_width_refused[True] _______________
+
+width = True
+
+    @pytest.mark.parametrize('width',[2,True])
+    def test_contradictory_error_role_width_refused(width):
+        config=deepcopy(CFG);config['protocol_trace']['signal_widths']['error']=width
+>       with pytest.raises(ValueError):IpProtocolEventNormalizer(**config)
+E       Failed: DID NOT RAISE ValueError
+
+tests/scenario/test_obi_no_error_observation.py:40: Failed
+=========================== short test summary info ============================
+FAILED tests/integration/test_compiled_f4_no_error.py::test_no_error_policy_cannot_ignore_exposed_native_error_role
+FAILED tests/scenario/test_obi_no_error_observation.py::test_contradictory_error_role_width_refused[True]
+2 failed, 1 passed, 13 deselected in 0.31s

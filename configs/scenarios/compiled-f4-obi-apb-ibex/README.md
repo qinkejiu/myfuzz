@@ -12,7 +12,7 @@ The GPIO peripheral, `0x40001000..0x40001fff` aperture, capability sidecar and o
 
 Select the explicit executor through `create_compiled_execution(..., executor='compiled_f4_obi_apb')` only after constructing this fixture's admitted artifacts and exact compiled inputs. `assess_compiled_f4_support` is a pure support inspection and never grants runtime admission. Do not reuse a generated harness set or prefix from the CV32 fixture: the CPU source/profile/artifact identity differs.
 
-The original `../compiled-f4-obi-apb` CV32E40P configuration is retained as an unsupported negative for current admission: its native OBI trace has no error role. A synthetic adapter error constant cannot substitute for a physical CPU error input.
+The original `../compiled-f4-obi-apb` CV32E40P configuration now has a separate legal success-only no-error ABI policy, verified in software for this increment. Its native OBI trace has no error role, and native CPU error observation remains unsupported. A synthetic adapter error constant cannot substitute for a physical CPU error input.
 
 Status: frozen source bdeee0b established three continuous Ibex cases and two matching fresh prefixes; see `docs/reports/compiled-f4-ibex-verification-20261017.md` for exact source pins and receipts. This newer candidate-layout/audit increment has software verification only and has not run native. Older CV32 evidence does not validate either source. Any future heavy gate must hold `.superpowers/heavy-worker.lock`; remote operations must follow `agent.md` and remain under `/root/fanzehui` through `jumpserver`.
 

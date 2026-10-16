@@ -313,7 +313,8 @@ class IpProtocolEvidenceConsumer:
             transaction_key=pending['transaction_key'], identity_gap=pending['identity_gap'],
             request_case=pending['request_case'],
             response_case=deepcopy(raw.get('provenance', {}).get('observed_case')),
-            outcome='error' if error else 'ok'))
+            outcome=('completed_error_unobserved' if protocol=='obi' and error is None
+                     else 'error' if error else 'ok')))
 
     def report(self):
         return deepcopy(dict(schema_version='ip_protocol_evidence_report.v1',

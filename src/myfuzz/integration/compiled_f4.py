@@ -146,7 +146,56 @@ def _f4_edges(compiled, image, access):
     return edges
 
 
+_OBI_ADAPTER_PATH='src/myfuzz/protocols/rtl/obi_processor_memory_adapter.sv'
+# Reviewed implementation contains the synchronous backend ERR fail-stop.
+_OBI_FAIL_STOP_SHA256='59730c6742a85351d6e2cbf284d88185c874080274f323f2364268f2da3440df'
+
+
+def _cpu_error_policy(artifact,image,stream):
+    """Derive a success-only ABI policy from exact generated declarations."""
+    from myfuzz.local_harness.native_physical_observation import verify_cpu_obi_protocol_traces
+    from myfuzz.local_harness.template_contracts import select_template_contract
+    verify_cpu_obi_protocol_traces(artifact)
+    document=artifact.runtime_document;profile=artifact.plan.profile
+    error=profile.capabilities.get('error_response')
+    if type(error) is not bool:raise ValueError('compiled-F4-explicit-error-capability-required')
+    endpoints={e.endpoint_id:e for e in artifact.plan.binding.endpoints}
+    contracts=[]
+    for endpoint_id,base_variant in ((image['endpoint_id'],'read-only'),
+            (stream['register_access']['source_endpoint'],'read-write')):
+        endpoint=endpoints[endpoint_id]
+        contracts.append(select_template_contract(endpoint,profile.capabilities,
+            template_id='cpu.obi',template_version='1',
+            variant_id=base_variant+('' if error else '-no-error-pins')).document())
+    executor=document['selected_template']['executor']
+    if (executor['protocol_templates']!=sorted(contracts,key=lambda r:r['binding']['endpoint_id'])
+            or executor['binding']['declared_profile_facts'].get('error_response') is not error
+            or executor['binding']['adapter_sources']!=document['adapter_sources']):
+        raise ValueError('compiled-F4-error-policy-contract-mismatch')
+    adapter=dict(path=_OBI_ADAPTER_PATH,sha256=_OBI_FAIL_STOP_SHA256)
+    if (document['adapter_sources']!=[adapter]
+            or sha256((Path(__file__).resolve().parents[3]/_OBI_ADAPTER_PATH).read_bytes()).hexdigest()!=adapter['sha256']
+            or artifact.runtime_sv.count(f'.HAS_ERROR({int(error)})')!=2
+            or artifact.runtime_sv.count('obi_processor_memory_adapter #(')!=2):
+        raise ValueError('compiled-F4-error-policy-adapter-closure')
+    return dict(schema_version='compiled_F4_cpu_error_policy.v1',
+        mode='native_error_role' if error else 'fail_stop_no_error_pin',
+        native_error_observation=error,
+        backend_error_policy='propagate_error' if error else 'fail_stop_no_error_pin_to_raise',
+        selected_contracts=contracts,adapter_source=adapter)
+
+
+def _check_error_assertions(path,policy):
+    # Existing receipt/edge/chain assertions prove successful responses only.
+    # Error reporting/trap assertions require physical error observation.
+    if not policy['native_error_observation'] and any(
+            row.get('expectation_id')=='protocol_checker.native_error_response'
+            for row in path['assertions']):
+        raise ValueError('compiled-F4-native-error-observation-unsupported')
+
+
 def _cpu_traces(artifact, image, stream):
+    policy=_cpu_error_policy(artifact,image,stream)
     traces=artifact.runtime_document.get('base_protocol_traces', {}).get('traces', [])
     result={}
     for channel, endpoint in (('instr',image['endpoint_id']),('data',stream['register_access']['source_endpoint'])):
@@ -154,7 +203,8 @@ def _cpu_traces(artifact, image, stream):
               and t.get('boundary')=='cpu_physical_abi' and t.get('max_outstanding')==1]
         if len(rows)!=1:raise ValueError('compiled-F4-native-CPU-trace-required')
         signals=rows[0]['signals']
-        required={'req','gnt','addr','rvalid','rdata','error'}
+        required={'req','gnt','addr','rvalid','rdata'}
+        if policy['native_error_observation']:required.add('error')
         if channel=='data':required|={'we','wdata','be'}
         if not required<=set(signals):
             raise ValueError('compiled-F4-native-CPU-trace-required')
@@ -173,7 +223,7 @@ def _native_steps(events, component):
         yield event,samples[0]['pre']['protocol_taps']
 
 
-def check_f4_exact_hops(*, events, declaration, image, stream, traces, address, source_event_id, joins, declared_edges, instruction_snapshots):
+def check_f4_exact_hops(*, events, declaration, image, stream, traces, address, source_event_id, joins, declared_edges, instruction_snapshots, error_policy=None):
     """Consume the narrow F4 chain: image byte versions, native OBI and APB.
 
     A consumed fetch is not instruction retirement. F4 declares consumption;
@@ -181,6 +231,12 @@ def check_f4_exact_hops(*, events, declaration, image, stream, traces, address, 
     The native ABI permits exactly one outstanding beat per channel, so each
     response consumes the exact outstanding acceptance, never an adjacent row.
     """
+    if error_policy is None:error_policy=dict(mode='native_error_role',native_error_observation=True)
+    if (error_policy.get('mode'),error_policy.get('native_error_observation')) not in {
+            ('native_error_role',True),('fail_stop_no_error_pin',False)}:
+        raise ValueError('compiled-F4-error-policy-invalid')
+    if not error_policy['native_error_observation'] and any('error' in row for row in traces.values()):
+        raise ValueError('compiled-F4-error-policy-trace-contradiction')
     cpu=image['component'];access=stream['register_access'];code=bytes.fromhex(declaration['code_hex'])
     by_id={e['event_id']:e for e in events}
     if len(by_id)!=len(events):raise ValueError('compiled-F4-duplicate-event-identity')
@@ -197,12 +253,12 @@ def check_f4_exact_hops(*, events, declaration, image, stream, traces, address, 
             def pin(role):return taps.get(signals.get(role))
             # OBI has no response backpressure at this physical CPU boundary.
             if pin('rvalid')==1:
-                if type(pin('error')) is not int or pin('error')!=0:
+                if error_policy['native_error_observation'] and (type(pin('error')) is not int or pin('error')!=0):
                     raise ValueError('compiled-F4-native-CPU-response-error')
                 accepted=pending[channel]
                 if accepted is None:raise ValueError('compiled-F4-native-response-unowned')
                 key=(channel,accepted['sequence'])
-                completed[key]=dict(accepted, response_event=step['event_id'],rdata=pin('rdata'),error=pin('error'))
+                completed[key]=dict(accepted, response_event=step['event_id'],rdata=pin('rdata'),error=pin('error') if error_policy['native_error_observation'] else None)
                 pending[channel]=None
             if pin('req')==1 and pin('gnt')==1:
                 if pending[channel] is not None:raise ValueError('compiled-F4-native-outstanding-overlap')
@@ -268,6 +324,7 @@ def check_f4_exact_hops(*, events, declaration, image, stream, traces, address, 
         raise ValueError('compiled-F4-instruction-data-order')
     return dict(schema_version='compiled_F4_exact_hops.v1',
         proof_scope='selected_F4_image_consumption_native_OBI_route_native_APB_live_GPIOEN',
+        cpu_error_policy=deepcopy(error_policy),
         instruction_hops=instruction_hops,data_hops=data_hops,
         edges=[dict(edge,status='certified',hops=(instruction_hops if edge['relation']=='persistent_state' else data_hops))
                for edge in declared_edges])
@@ -299,6 +356,8 @@ def admit_f4(*, artifacts, compiled_inputs):
         raise ValueError('compiled-F4-RV32I-required')
     if artifacts[cpu.instance_id].runtime_document['kind']!='obi_cpu':
         raise ValueError('compiled-F4-CPU-protocol-unsupported')
+    policy=_cpu_error_policy(artifacts[cpu.instance_id],image,stream)
+    _check_error_assertions(path,policy)
     _cpu_traces(artifacts[cpu.instance_id], image, stream)
     _f4_edges(compiled,image,access)
     resources=[r for r in request.wiring.resources if r.component_instance==cpu.instance_id]
@@ -370,7 +429,8 @@ class CompiledF4Runtime:
         self.access=self.stream['register_access'];self.target_id=self.access['target_component']
         image=next(s for s in self.path['sources'] if s['kind']=='instruction_image')
         self.declared_edges=_f4_edges(compiled_inputs['compiled'],image,self.access)
-        self.image=image;self.traces=_cpu_traces(artifacts[self.cpu_id],image,self.stream)
+        self.image=image;self.error_policy=_cpu_error_policy(artifacts[self.cpu_id],image,self.stream)
+        self.traces=_cpu_traces(artifacts[self.cpu_id],image,self.stream)
         self.start=image['range'][0]
         self.cursor=None;self.first_fetch=None
         self.end=image['range'][1]+1
@@ -435,7 +495,7 @@ class CompiledF4Runtime:
     def online_identity_configuration(self):
         return dict(schema_version='compiled_F4_checker.v1',path_id=self.path['path_id'],
             compiled_sha256=self.compiled_digest,assertions=self.path['assertions'],
-            candidate_layout=_layout_document(self.layout))
+            candidate_layout=_layout_document(self.layout),cpu_error_policy=deepcopy(self.error_policy))
 
     def _check_receipt(self, receipt):
         if receipt.violations:
@@ -475,7 +535,8 @@ class CompiledF4Runtime:
         observed['exact_hops']=check_f4_exact_hops(events=self.runner.events_since(0),
             declaration=declaration,image=self.image,stream=self.stream,traces=self.traces,
             address=self.cursor,source_event_id=self.image['source_id']+f':{len(self.records)}',
-            joins=observed['joins'],declared_edges=self.declared_edges,instruction_snapshots=instruction_snapshots)
+            joins=observed['joins'],declared_edges=self.declared_edges,instruction_snapshots=instruction_snapshots,
+            error_policy=self.error_policy)
         observed['exact_hops']['assertions']=[
             dict(expectation_id='protocol_checker.receipt_violations',status='passed',evidence=dict(violations=list(receipt.violations))),
             dict(expectation_id='cross_component.declared_edge_hops',status='passed',
@@ -490,6 +551,8 @@ class CompiledF4Runtime:
         if (_input_identity(self._caller_inputs,self._caller_artifacts)!=self._input_digest
                 or _input_identity(self.inputs,self.artifacts)!=self._input_digest):
             raise ValueError('compiled-F4-input-identity-changed')
+        if _cpu_error_policy(self.artifacts[self.cpu_id],self.image,self.stream)!=self.error_policy:
+            raise ValueError('compiled-F4-error-policy-identity-changed')
         if compile_candidate_layout(self.path)!=self.layout:
             raise ValueError('compiled-F4-layout-identity-changed')
         if admit_f4(artifacts=self.artifacts,compiled_inputs=self.inputs)!=self.path:
@@ -577,7 +640,7 @@ class CompiledF4Runtime:
             compiled_sha256=self.compiled_digest,source_files=self.closure,
             artifact_digests={n:a.runtime_document['artifact_digest'] for n,a in self.artifacts.items()},
             rounds_per_case=self.rounds,max_cases=self.max_cases,records=deepcopy(self.records),
-            candidate_layout=_layout_document(self.layout),
+            candidate_layout=_layout_document(self.layout),cpu_error_policy=deepcopy(self.error_policy),
             online_plan=json.loads(self.session.encode_plan()),
             semantic_hash=self.trace.semantic_sha256,feedback=self.feedback())
 

@@ -1,0 +1,34 @@
+F..F                                                                     [100%]
+=================================== FAILURES ===================================
+_____________ test_completion_error_capability_is_preserved[None] ______________
+
+error = None
+
+    @pytest.mark.parametrize('error',[None,0,1])
+    def test_completion_error_capability_is_preserved(error):
+        config=deepcopy(CFG)
+        if error is None:
+            config['protocol_trace']['signals'].pop('error');config['protocol_trace']['signal_widths'].pop('error')
+        normalizer=IpProtocolEventNormalizer(**config);checker=IpProtocolChecker(**config);rows=[]
+        for tick,values in enumerate((dict(req=1,gnt=1,addr=0x100),dict(rvalid=1,rdata=85,error=error or 0)),1):
+            sample=raw(tick,**values);sample['event_id']=len(rows)+1;rows.append(sample)
+            assert not checker.consume_local_tick(sample,reset_epoch=0)
+            for event in normalizer.consume_local_tick(sample,reset_epoch=0):
+                event.update(kind=event['event_type'],event_id=len(rows)+1);rows.append(event)
+        response=next(r for r in rows if r['kind']=='transaction_response')
+>       assert response['payload']['error'] is error if error is None else response['payload']['error']==error
+E       assert False
+
+tests/scenario/test_obi_no_error_observation.py:23: AssertionError
+_________________ test_contradictory_error_role_width_refused __________________
+
+    def test_contradictory_error_role_width_refused():
+        config=deepcopy(CFG);config['protocol_trace']['signal_widths']['error']=2
+>       with pytest.raises(ValueError):IpProtocolEventNormalizer(**config)
+E       Failed: DID NOT RAISE ValueError
+
+tests/scenario/test_obi_no_error_observation.py:39: Failed
+=========================== short test summary info ============================
+FAILED tests/scenario/test_obi_no_error_observation.py::test_completion_error_capability_is_preserved[None]
+FAILED tests/scenario/test_obi_no_error_observation.py::test_contradictory_error_role_width_refused
+2 failed, 2 passed in 0.09s

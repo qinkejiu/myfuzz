@@ -111,6 +111,7 @@ class IpBaseCoverageConsumer:
             features.update(f'transaction:{endpoint}:{op}' for op in operations)
             features.update(f'response:{endpoint}:{status}'
                             for status in ('ok', 'error'))
+            if protocol=='obi':features.add(f'response:{endpoint}:error_unobserved')
             features.update(f'latency:{endpoint}:{bucket}'
                             for bucket in _LATENCY_BUCKETS)
         features.update(self._slice_feature(slice_key) for slice_key in slices)
@@ -300,6 +301,8 @@ class IpBaseCoverageConsumer:
                      else payload.get('err'))
             if protocol == 'axi4-lite':
                 error = 1 if error else 0
+            if protocol=='obi' and error is None:
+                self._count(f'response:{endpoint}:error_unobserved')
             if type(error) in (int, bool) and error in (0, 1):
                 self._count(f'response:{endpoint}:{"error" if error else "ok"}')
             pending = (self._pending.pop((endpoint, epoch, related_ref), None)

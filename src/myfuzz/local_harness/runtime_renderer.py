@@ -1295,11 +1295,14 @@ def render_local_runtime(plan: LocalHarnessPlan, structural: RenderedLocalHarnes
     protocol_templates = []
     if 'selected_template' in document:
         protocol_templates.append(copy.deepcopy(document['selected_template']))
-    elif kind == 'obi_cpu' and plan.profile.capabilities['error_response']:
+    elif kind == 'obi_cpu':
+        if type(plan.profile.capabilities.get('error_response')) is not bool:
+            raise ValueError('runtime-obi-explicit-error-response-required')
         protocol_templates = [select_template_contract(endpoint, plan.profile.capabilities,
             template_id='cpu.obi', template_version='1',
-            variant_id=('read-only' if endpoint.function == 'instruction_memory_master'
-                        else 'read-write')).document()
+            variant_id=(('read-only' if endpoint.function == 'instruction_memory_master'
+                        else 'read-write') + ('' if plan.profile.capabilities['error_response']
+                                             else '-no-error-pins'))).document()
             for endpoint in sorted(endpoints, key=lambda row: row.endpoint_id)]
     elif kind == 'wishbone_dma':
         protocol_templates = dma_contracts

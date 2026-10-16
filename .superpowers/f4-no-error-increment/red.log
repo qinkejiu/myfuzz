@@ -1,0 +1,110 @@
+FFFFFFFFF                                                                [100%]
+=================================== FAILURES ===================================
+___________ test_original_no_error_fixture_is_success_only_positive ____________
+
+admitted = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cv32e...cenario.ownership.OwnershipMap object at 0x719e5cb4ddc0>, 'physical_port_map': {('peripheral', 'gpio_in'): 'gpio_in'}})
+
+    def test_original_no_error_fixture_is_success_only_positive(admitted):
+>       from myfuzz.integration.compiled_f4 import admit_f4,_cpu_error_policy
+E       ImportError: cannot import name '_cpu_error_policy' from 'myfuzz.integration.compiled_f4' (/home/qinkejiu/myfuzz/src/myfuzz/integration/compiled_f4.py)
+
+tests/integration/test_compiled_f4_no_error.py:25: ImportError
+_________ test_contradictory_no_error_artifact_refused[wrong_variant] __________
+
+admitted = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cv32e...cenario.ownership.OwnershipMap object at 0x719e5cb4ddc0>, 'physical_port_map': {('peripheral', 'gpio_in'): 'gpio_in'}})
+corruption = 'wrong_variant'
+
+    @pytest.mark.parametrize('corruption',['wrong_variant','false_fact','fake_tap','missing_adapter','adapter_digest','missing_failstop'])
+    def test_contradictory_no_error_artifact_refused(admitted,corruption):
+>       from myfuzz.integration.compiled_f4 import _cpu_error_policy
+E       ImportError: cannot import name '_cpu_error_policy' from 'myfuzz.integration.compiled_f4' (/home/qinkejiu/myfuzz/src/myfuzz/integration/compiled_f4.py)
+
+tests/integration/test_compiled_f4_no_error.py:37: ImportError
+___________ test_contradictory_no_error_artifact_refused[false_fact] ___________
+
+admitted = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cv32e...cenario.ownership.OwnershipMap object at 0x719e5cb4ddc0>, 'physical_port_map': {('peripheral', 'gpio_in'): 'gpio_in'}})
+corruption = 'false_fact'
+
+    @pytest.mark.parametrize('corruption',['wrong_variant','false_fact','fake_tap','missing_adapter','adapter_digest','missing_failstop'])
+    def test_contradictory_no_error_artifact_refused(admitted,corruption):
+>       from myfuzz.integration.compiled_f4 import _cpu_error_policy
+E       ImportError: cannot import name '_cpu_error_policy' from 'myfuzz.integration.compiled_f4' (/home/qinkejiu/myfuzz/src/myfuzz/integration/compiled_f4.py)
+
+tests/integration/test_compiled_f4_no_error.py:37: ImportError
+____________ test_contradictory_no_error_artifact_refused[fake_tap] ____________
+
+admitted = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cv32e...cenario.ownership.OwnershipMap object at 0x719e5cb4ddc0>, 'physical_port_map': {('peripheral', 'gpio_in'): 'gpio_in'}})
+corruption = 'fake_tap'
+
+    @pytest.mark.parametrize('corruption',['wrong_variant','false_fact','fake_tap','missing_adapter','adapter_digest','missing_failstop'])
+    def test_contradictory_no_error_artifact_refused(admitted,corruption):
+>       from myfuzz.integration.compiled_f4 import _cpu_error_policy
+E       ImportError: cannot import name '_cpu_error_policy' from 'myfuzz.integration.compiled_f4' (/home/qinkejiu/myfuzz/src/myfuzz/integration/compiled_f4.py)
+
+tests/integration/test_compiled_f4_no_error.py:37: ImportError
+________ test_contradictory_no_error_artifact_refused[missing_adapter] _________
+
+admitted = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cv32e...cenario.ownership.OwnershipMap object at 0x719e5cb4ddc0>, 'physical_port_map': {('peripheral', 'gpio_in'): 'gpio_in'}})
+corruption = 'missing_adapter'
+
+    @pytest.mark.parametrize('corruption',['wrong_variant','false_fact','fake_tap','missing_adapter','adapter_digest','missing_failstop'])
+    def test_contradictory_no_error_artifact_refused(admitted,corruption):
+>       from myfuzz.integration.compiled_f4 import _cpu_error_policy
+E       ImportError: cannot import name '_cpu_error_policy' from 'myfuzz.integration.compiled_f4' (/home/qinkejiu/myfuzz/src/myfuzz/integration/compiled_f4.py)
+
+tests/integration/test_compiled_f4_no_error.py:37: ImportError
+_________ test_contradictory_no_error_artifact_refused[adapter_digest] _________
+
+admitted = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cv32e...cenario.ownership.OwnershipMap object at 0x719e5cb4ddc0>, 'physical_port_map': {('peripheral', 'gpio_in'): 'gpio_in'}})
+corruption = 'adapter_digest'
+
+    @pytest.mark.parametrize('corruption',['wrong_variant','false_fact','fake_tap','missing_adapter','adapter_digest','missing_failstop'])
+    def test_contradictory_no_error_artifact_refused(admitted,corruption):
+>       from myfuzz.integration.compiled_f4 import _cpu_error_policy
+E       ImportError: cannot import name '_cpu_error_policy' from 'myfuzz.integration.compiled_f4' (/home/qinkejiu/myfuzz/src/myfuzz/integration/compiled_f4.py)
+
+tests/integration/test_compiled_f4_no_error.py:37: ImportError
+________ test_contradictory_no_error_artifact_refused[missing_failstop] ________
+
+admitted = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cv32e...cenario.ownership.OwnershipMap object at 0x719e5cb4ddc0>, 'physical_port_map': {('peripheral', 'gpio_in'): 'gpio_in'}})
+corruption = 'missing_failstop'
+
+    @pytest.mark.parametrize('corruption',['wrong_variant','false_fact','fake_tap','missing_adapter','adapter_digest','missing_failstop'])
+    def test_contradictory_no_error_artifact_refused(admitted,corruption):
+>       from myfuzz.integration.compiled_f4 import _cpu_error_policy
+E       ImportError: cannot import name '_cpu_error_policy' from 'myfuzz.integration.compiled_f4' (/home/qinkejiu/myfuzz/src/myfuzz/integration/compiled_f4.py)
+
+tests/integration/test_compiled_f4_no_error.py:37: ImportError
+_____________ test_no_error_native_error_assertion_is_unsupported ______________
+
+admitted = ({'processor': LocalRuntimeArtifact(plan=LocalHarnessPlan(request=LocalHarnessRequest(profile_path='configs/cpus/cv32e...cenario.ownership.OwnershipMap object at 0x719e5cb4ddc0>, 'physical_port_map': {('peripheral', 'gpio_in'): 'gpio_in'}})
+
+    def test_no_error_native_error_assertion_is_unsupported(admitted):
+>       from myfuzz.integration.compiled_f4 import _cpu_error_policy,_check_error_assertions
+E       ImportError: cannot import name '_cpu_error_policy' from 'myfuzz.integration.compiled_f4' (/home/qinkejiu/myfuzz/src/myfuzz/integration/compiled_f4.py)
+
+tests/integration/test_compiled_f4_no_error.py:50: ImportError
+_______________ test_no_error_exact_hops_emit_null_not_fake_zero _______________
+
+    def test_no_error_exact_hops_emit_null_not_fake_zero():
+        from tests.integration.test_compiled_execution_files import exact_hop_fixture
+        from myfuzz.integration.compiled_f4 import check_f4_exact_hops
+        arguments=exact_hop_fixture()
+        for signals in arguments['traces'].values():signals.pop('error')
+        policy=dict(mode='fail_stop_no_error_pin',native_error_observation=False)
+>       result=check_f4_exact_hops(**arguments,error_policy=policy)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: check_f4_exact_hops() got an unexpected keyword argument 'error_policy'
+
+tests/integration/test_compiled_f4_no_error.py:63: TypeError
+=========================== short test summary info ============================
+FAILED tests/integration/test_compiled_f4_no_error.py::test_original_no_error_fixture_is_success_only_positive
+FAILED tests/integration/test_compiled_f4_no_error.py::test_contradictory_no_error_artifact_refused[wrong_variant]
+FAILED tests/integration/test_compiled_f4_no_error.py::test_contradictory_no_error_artifact_refused[false_fact]
+FAILED tests/integration/test_compiled_f4_no_error.py::test_contradictory_no_error_artifact_refused[fake_tap]
+FAILED tests/integration/test_compiled_f4_no_error.py::test_contradictory_no_error_artifact_refused[missing_adapter]
+FAILED tests/integration/test_compiled_f4_no_error.py::test_contradictory_no_error_artifact_refused[adapter_digest]
+FAILED tests/integration/test_compiled_f4_no_error.py::test_contradictory_no_error_artifact_refused[missing_failstop]
+FAILED tests/integration/test_compiled_f4_no_error.py::test_no_error_native_error_assertion_is_unsupported
+FAILED tests/integration/test_compiled_f4_no_error.py::test_no_error_exact_hops_emit_null_not_fake_zero
+9 failed in 10.87s

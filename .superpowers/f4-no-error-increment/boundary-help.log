@@ -1,0 +1,25 @@
+usage: check_compiled_obi_no_error_boundary.py [-h] --base-dir BASE_DIR
+                                               --compose COMPOSE --supplement
+                                               SUPPLEMENT --output-dir
+                                               OUTPUT_DIR --cache-dir
+                                               CACHE_DIR --heavy-lock
+                                               HEAVY_LOCK --ip-capability
+                                               IP_CAPABILITY
+                                               [--max-rounds MAX_ROUNDS]
+                                               [--command-timeout COMMAND_TIMEOUT]
+
+Explicit native diagnostic: inject backend ERR at generated CPU boundary. This
+command builds/runs native RTL, requires the canonical project heavy lock, and
+never serves as an F4 semantic success gate. No network operation occurs.
+
+options:
+  -h, --help            show this help message and exit
+  --base-dir BASE_DIR
+  --compose COMPOSE
+  --supplement SUPPLEMENT
+  --output-dir OUTPUT_DIR
+  --cache-dir CACHE_DIR
+  --heavy-lock HEAVY_LOCK
+  --ip-capability IP_CAPABILITY
+  --max-rounds MAX_ROUNDS
+  --command-timeout COMMAND_TIMEOUT

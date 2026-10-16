@@ -69,6 +69,10 @@ class IpProtocolEventNormalizer:
             raise ValueError('protocol-event-trace-contract-invalid')
         required = set(_REQUIRED_SIGNALS[protocol])
         if protocol == 'obi':
+            widths=protocol_trace.get('signal_widths')
+            if (not isinstance(widths,Mapping) or set(widths)!=set(signals)
+                    or 'error' in signals and (type(widths.get('error')) is not int or widths['error']!=1)):
+                raise ValueError('obi-error-role-width-contract-invalid')
             if protocol_trace.get('max_outstanding') != 1 or type(protocol_trace.get('max_outstanding')) is not int:
                 raise ValueError('obi-single-outstanding-contract-required')
             if set(signals) - required - {'we', 'wdata', 'be', 'error'} or (
@@ -961,7 +965,7 @@ class IpProtocolEventNormalizer:
                 ({'channel':'OBI', 'address':pending['address'],
                   'direction':pending['direction'],
                   'value':pending['wdata'] if pending['direction'] == 'write' else signals['rdata'],
-                  'rdata':signals['rdata'], 'error':bool(signals.get('error', 0))}
+                  'rdata':signals['rdata'], 'error':signals['error'] if 'error' in signals else None}
                  if pending is not None else {'reason':'response_without_prior_grant'}),
                 {'channel':'OBI'})
             self._obi_pending = None
